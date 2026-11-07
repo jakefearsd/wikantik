@@ -40,6 +40,8 @@ final class Participant {
     final String displayName;
     final String color;
     final Object wikiSession;
+    /** Whether the wiki session was signed in when this participant joined (ruling Q13); set once at join. */
+    private boolean signedInAtJoin;
     private Instant lastSeen;
     private int confirmed;
     private Selection selection;
@@ -58,6 +60,14 @@ final class Participant {
         this.confirmed = confirmed;
         this.tokens = pushesPerSecond;
         this.refilledAt = now;
+    }
+
+    boolean signedInAtJoin() {
+        return signedInAtJoin;
+    }
+
+    void signedInAtJoin( final boolean signedIn ) {
+        signedInAtJoin = signedIn;
     }
 
     void touch( final Instant now ) {

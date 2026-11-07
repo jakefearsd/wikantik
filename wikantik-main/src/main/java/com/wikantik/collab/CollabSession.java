@@ -267,6 +267,7 @@ public final class CollabSession {
     public JoinResponse join( final JoinRequest r ) {
         final List< Runnable > completions = new ArrayList<>();
         final JoinResponse out;
+        final boolean signedIn = signedInNow( r );
         lock.lock();
         try {
             final Instant now = clock.instant();
@@ -276,6 +277,7 @@ public final class CollabSession {
             }
             life.replaceStale( r, now, completions );
             final Participant p = roster.add( r, now, d.head, config.pushesPerSecond() );
+            p.signedInAtJoin( signedIn );
             life.joined( p, completions );
             out = new JoinResponse( id, p.id, p.clientId, d.head, d.doc, d.metaSeq, d.meta, d.record.basePageVersion(),
                 roster.peers(), d.hasUnpublished(), d.lastEditAt, life.joinEventSeq(), d.frozen() );
@@ -284,6 +286,17 @@ public final class CollabSession {
         }
         completions.forEach( Runnable::run );
         return out;
+    }
+
+    /** Whether the joiner's wiki session is signed in (ruling Q13); a check that throws counts as not signed in. */
+    private boolean signedInNow( final JoinRequest r ) {
+        try {
+            return permissions.signedIn( r.wikiSession() );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "collab session {}: the sign-in check of {} failed at join; a logout will not evict it: {}", id,
+                r.authorKey(), e.toString() );
+            return false;
+        }
     }
 
     public LeaveResponse leave( final String participantId, final String authorKey ) {
@@ -843,7 +856,8 @@ public final class CollabSession {
     static final class Hooks {
 
         /** One participant as the registry sees it, for presence timeouts, permission re-checks and author eviction. */
-        record Member( String participantId, String authorKey, Object wikiSession, Instant lastSeen ) {
+        record Member( String participantId, String authorKey, Object wikiSession, Instant lastSeen,
+                       boolean signedInAtJoin ) {
         }
 
         private Hooks() {
@@ -853,7 +867,8 @@ public final class CollabSession {
         static List< Member > members( final CollabSession s ) {
             s.lock.lock();
             try {
-                return s.roster.all().stream().map( p -> new Member( p.id, p.authorKey, p.wikiSession, p.lastSeen() ) )
+                return s.roster.all().stream().map( p -> new Member( p.id, p.authorKey, p.wikiSession, p.lastSeen(),
+                    p.signedInAtJoin() ) )
                     .toList();
             } finally {
                 s.lock.unlock();

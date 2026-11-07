@@ -18,8 +18,11 @@
  */
 package com.wikantik.collab.adapter;
 
+import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.collab.CollabConfig;
 import com.wikantik.collab.CollabPageWriter;
 import com.wikantik.collab.CollabPermissions;
@@ -65,7 +68,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Phase 2 Task 5: {@link CollabPageEventListener} drives a real registry over the Phase 0 doubles; events are built
@@ -412,6 +418,48 @@ class CollabPageEventListenerTest {
         assertDoesNotThrow( () -> fire( WikiPageEvent.PAGE_REQUESTED, PAGE ) );   // ignored
         registry.tick();   // the failed rekey is retried
         assertEquals( "Renamed", a.session().pageName() );
+    }
+
+    /**
+     * Fix round 1, item 2 (content-destroying): over the real adapter, a provider error while the save event's settle
+     * reads the page must leave the draft's base alone. The engine's lenient reads answer "" for the text on that error;
+     * an adapter built on them merged the "" as an outside overwrite and emptied the base.
+     */
+    @Test
+    void aReadErrorDuringASaveEventLeavesTheDraftsBaseTextIntact() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final Page page = mock( Page.class );
+        when( page.getVersion() ).thenReturn( 1 );
+        when( page.getAuthor() ).thenReturn( "bob" );
+        when( pm.getPage( eq( "P" ) ) ).thenReturn( page );
+        when( pm.getPage( eq( "P" ), anyInt() ) )
+            .thenReturn( page );
+        when( pm.getPageInfo( eq( "P" ), anyInt() ) )
+            .thenReturn( page );
+        when( pm.getPureText( eq( "P" ), anyInt() ) )
+            .thenReturn( BODY );
+        when( pm.getPageText( eq( "P" ), anyInt() ) )
+            .thenReturn( BODY );
+        final PageSaveHelperPageWriter real = new PageSaveHelperPageWriter( pm,
+            mock( PageSaveHelper.class ) );
+        final CollabSessionRegistry reg = new CollabSessionRegistry( new InMemoryCollabStore(), real, permissions,
+            key -> null, clock, new CollabConfig( true, 20, 65536, 25, 600, 30, 100, 500, 10, 0, 1000 ), 1 << 20 );
+        final CollabPageEventListener l = new CollabPageEventListener( reg, real );
+        final Joined a = assertInstanceOf( Joined.class, reg.join( "P",
+            new JoinRequest( "alice", null, "alice", "ALICE", null, null ) ) );
+        assertEquals( BODY, a.session().view().baseBody() );
+
+        // the provider fails: the engine's lenient text read answers "", the strict one throws
+        when( pm.getPureText( eq( "P" ), anyInt() ) )
+            .thenReturn( "" );
+        when( pm.getPageText( eq( "P" ), anyInt() ) )
+            .thenThrow( new ProviderException( "transient read failure" ) );
+        l.actionPerformed( new WikiPageEvent( source, WikiPageEvent.POST_SAVE_END, "P" ) );
+        reg.tick();
+
+        assertEquals( BODY, a.session().view().baseBody(), "the base text survives the failed read" );
+        assertEquals( BODY, a.session().view().doc() );
+        assertTrue( a.session().view().reconcilePending(), "owed: the next settle retries the read" );
     }
 
     @Test

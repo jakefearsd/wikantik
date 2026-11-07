@@ -52,13 +52,29 @@ final class OrphanSweep {
         this.freezer = freezer;
     }
 
-    /** One sweep of {@code slot}'s session {@code s} (tick thread only); a page-store failure propagates to the step. */
+    /**
+     * One sweep of {@code slot}'s session {@code s} (tick thread only). The existence check reads the page's metadata
+     * only ({@link CollabPageWriter#exists}). When the page store cannot tell ({@link PageReadException} or any other
+     * failure) the answer is unknown: nothing is frozen and the grace clock neither starts nor advances.
+     */
     void sweep( final SessionSlot slot, final CollabSession s, final Instant now ) {
         if( !slot.needsSettle() ) {
             return;
         }
         final String name = s.pageName();
-        if( !CollabSession.Hooks.basedOnAPage( s ) || renames.owedFrom( name ) || writer.latest( name ).isPresent() ) {
+        if( !CollabSession.Hooks.basedOnAPage( s ) || renames.owedFrom( name ) ) {
+            slot.present();
+            return;
+        }
+        final boolean exists;
+        try {
+            exists = writer.exists( name );
+        } catch( final RuntimeException e ) {
+            LOG.debug( "collab session {}: could not tell whether {} exists; swept again next tick: {}", s.id(), name,
+                e.toString() );
+            return;
+        }
+        if( exists ) {
             slot.present();
             return;
         }

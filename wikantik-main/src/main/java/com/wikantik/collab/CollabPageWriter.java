@@ -28,11 +28,29 @@ import java.util.Optional;
 /** Port to the wiki's page store as the collaboration session sees it. */
 public interface CollabPageWriter {
 
-    /** The latest saved state of the page, or empty when the page does not exist. */
+    /**
+     * The latest saved state of the page, or empty when the page does not exist.
+     *
+     * @throws PageReadException when the page store cannot tell (a provider error, an unreadable text): never reported
+     *                           as missing nor as an empty body
+     */
     Optional< PageState > latest( String pageName );
 
-    /** A specific saved version of the page, or empty when it does not exist. */
+    /**
+     * A specific saved version of the page, or empty when it does not exist.
+     *
+     * @throws PageReadException when the page store cannot tell, as for {@link #latest}
+     */
     Optional< PageState > version( String pageName, int version );
+
+    /**
+     * Whether the page exists, from its metadata alone where the store can (no text read).
+     *
+     * @throws PageReadException when the page store cannot tell
+     */
+    default boolean exists( final String pageName ) {
+        return latest( pageName ).isPresent();
+    }
 
     /**
      * Saves a page, failing with {@code VersionConflictException} when {@code expectedVersion} is no longer the latest;

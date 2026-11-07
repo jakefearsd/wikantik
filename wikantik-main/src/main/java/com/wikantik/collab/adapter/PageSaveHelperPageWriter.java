@@ -19,6 +19,7 @@
 package com.wikantik.collab.adapter;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
@@ -31,10 +32,12 @@ import com.wikantik.api.pages.SavedButPostSaveFailedException;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.collab.CollabPageWriter;
+import com.wikantik.collab.PageReadException;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
 import com.wikantik.collab.text.CollabText;
+import com.wikantik.providers.NoSuchVersionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -65,27 +68,49 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
 
     @Override
     public Optional< PageState > latest( final String pageName ) {
-        final Page page = pages.getPage( pageName );
-        if( page == null ) {
-            return Optional.empty();
-        }
-        return read( pageName, PageProvider.LATEST_VERSION, page );
+        return read( pageName, PageProvider.LATEST_VERSION );
     }
 
     @Override
     public Optional< PageState > version( final String pageName, final int version ) {
-        final Page page = pages.getPage( pageName, version );
-        if( page == null ) {
-            return Optional.empty();
-        }
-        return read( pageName, version, page );
+        return read( pageName, version );
     }
 
-    private Optional< PageState > read( final String pageName, final int version, final Page page ) {
-        final String text = pages.getPureText( pageName, version );
-        if( text == null ) {
-            LOG.warn( "Page '{}' version {} exists but its text could not be read", pageName, version );
+    /** From the page's metadata alone: no text read. */
+    @Override
+    public boolean exists( final String pageName ) {
+        try {
+            return pages.getPageInfo( pageName, PageProvider.LATEST_VERSION ) != null;
+        } catch( final ProviderException e ) {
+            throw new PageReadException( "collab: could not tell whether page '" + pageName + "' exists", e );
+        }
+    }
+
+    /**
+     * Present, absent or unknown. Built on {@link PageManager#getPageInfo} and {@link PageManager#getPageText}, which
+     * throw: the lenient {@code getPage} answers null and {@code getPureText} answers "" on a provider error, which would
+     * read as a missing page or an empty body (a settle merging "" empties the draft's base). A version that vanished
+     * between the two reads ({@link NoSuchVersionException}) is absent; any other provider error, or an existing page
+     * whose text reads as null, throws {@link PageReadException}.
+     */
+    private Optional< PageState > read( final String pageName, final int version ) {
+        final Page page;
+        final String text;
+        try {
+            page = pages.getPageInfo( pageName, version );
+            if( page == null ) {
+                return Optional.empty();
+            }
+            text = pages.getPageText( pageName, version );
+        } catch( final NoSuchVersionException e ) {
+            LOG.debug( "Page '{}' version {} vanished while it was read: {}", pageName, version, e.getMessage() );
             return Optional.empty();
+        } catch( final ProviderException e ) {
+            throw new PageReadException( "collab: could not read page '" + pageName + "' version " + version, e );
+        }
+        if( text == null ) {
+            throw new PageReadException( "collab: page '" + pageName + "' version " + version
+                    + " exists but its text could not be read" );
         }
         final ParsedPage parsed = FrontmatterParser.parse( text );
         final String body = lf( parsed.body() );
@@ -107,13 +132,28 @@ public final class PageSaveHelperPageWriter implements CollabPageWriter {
         final SaveOutcome out = save( name, request, options );
         final int version = out.page() == null ? 0 : Math.max( out.version(), 1 );
         final int readVersion = out.version() > 0 ? out.version() : PageProvider.LATEST_VERSION;
-        final String text = pages.getPureText( name, readVersion );
-        if( text == null ) {
-            LOG.warn( "Page '{}' version {} was saved but its text could not be read back; reporting an empty body",
-                    name, readVersion );
-        }
-        final ParsedPage saved = FrontmatterParser.parse( text == null ? "" : text );
+        final ParsedPage saved = FrontmatterParser.parse( readBack( name, readVersion ) );
         return new PublishOutcome( version, lf( saved.body() ), saved.metadata(), out.unchanged() );
+    }
+
+    /**
+     * The text a publish just saved. A failure throws (the save may have landed: the session's failed-publish path claims
+     * that version by its text hash and author, E39); an empty body would be mapped as the save filters' rewrite and
+     * wipe the draft.
+     */
+    private String readBack( final String name, final int version ) throws WikiException {
+        final String text;
+        try {
+            text = pages.getPageText( name, version );
+        } catch( final ProviderException e ) {
+            throw new WikiException( "Page '" + name + "' version " + version + " was saved but could not be read back: "
+                    + e.getMessage(), e );
+        }
+        if( text == null ) {
+            throw new WikiException( "Page '" + name + "' version " + version
+                    + " was saved but its text could not be read back" );
+        }
+        return text;
     }
 
     /**

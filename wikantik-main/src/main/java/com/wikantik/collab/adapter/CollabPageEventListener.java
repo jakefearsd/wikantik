@@ -59,6 +59,12 @@ import java.util.Objects;
  *   <li>{@code GROUP_ADD} and {@code GROUP_REMOVE}: the next registry tick re-checks {@code edit} (E29).</li>
  * </ul>
  *
+ * <p><b>Threads.</b> Events are handled synchronously on the thread that fired them: a save's settle runs on the
+ * saver's thread, after the save's page locks are released ({@code POST_SAVE_END} fires once the save is done), a
+ * rename's rekey and settle-all on the renamer's thread after the rename's locks are released, a logout's eviction on
+ * the request that logged out. The settle's page reads and merge happen there too, so a slow page store slows that
+ * request; the session's own locks are never held across the event.</p>
+ *
  * <p>Nothing escapes {@link #actionPerformed}: a {@link RuntimeException} is logged at WARN with the event and the page
  * and never reaches the thread that fired the event (a save, a rename, a logout).</p>
  */
@@ -143,7 +149,7 @@ public final class CollabPageEventListener implements WikiEventListener {
     private void deleted( final String pageName ) {
         final boolean gone;
         try {
-            gone = writer.latest( pageName ).isEmpty();
+            gone = !writer.exists( pageName );
         } catch( final RuntimeException e ) {
             LOG.warn( "collab: PAGE_DELETED for {}, but the page store could not confirm it; keeping its draft: {}",
                 pageName, e.toString() );

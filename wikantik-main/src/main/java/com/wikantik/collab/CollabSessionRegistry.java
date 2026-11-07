@@ -145,7 +145,7 @@ public final class CollabSessionRegistry {
         this.config = Objects.requireNonNull( config, "config" );
         this.maxPageBytes = maxPageBytes;
         this.enabled = config.enabled();
-        this.renames = new Renames( slots, store, clock, this::freezeAt, name -> writer.latest( name ).isPresent() );
+        this.renames = new Renames( slots, store, clock, this::freezeAt, writer::exists );
         this.orphans = new OrphanSweep( writer, renames, this::freezeAt );
     }
 
@@ -184,7 +184,15 @@ public final class CollabSessionRegistry {
         }
         while( true ) {
             // read (again, on a retry): a rename or delete may have moved the page meanwhile
-            final PageState latest = writer.latest( pageName ).orElse( null );
+            final PageState latest;
+            try {
+                latest = writer.latest( pageName ).orElse( null );
+            } catch( final RuntimeException e ) {
+                // unknown is not "missing": never open a new-page session over a page the store could not read
+                LOG.warn( "collab: join of {} by {} refused: the page could not be read: {}", pageName, r.authorKey(),
+                    e.toString() );
+                return new Refused( 503, CollabSession.STORE );
+            }
             final Refused refused = refuse( pageName, r, latest );
             if( refused != null ) {
                 return refused;
@@ -468,7 +476,7 @@ public final class CollabSessionRegistry {
      * session expired, A13: the client keeps its edits and asks the user to log in); returns how many.
      */
     public int evictSignedOut( final Object wikiSession ) {
-        return wikiSession == null ? 0 : forEachLive( s -> SessionSweeps.evictSignedOut( s, wikiSession ) );
+        return forEachLive( s -> SessionSweeps.evictSignedOut( s, wikiSession ) );
     }
 
     /**

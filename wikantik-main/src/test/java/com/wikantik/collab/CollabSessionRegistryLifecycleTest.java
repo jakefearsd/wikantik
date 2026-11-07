@@ -69,6 +69,7 @@ class CollabSessionRegistryLifecycleTest {
         final Set< Object > noEdit = new HashSet<>();
         final Set< Object > signedOut = new HashSet<>();
         final Set< Object > throwing = new HashSet<>();
+        final Map< Object, String > authorOf = new java.util.HashMap<>();
 
         @Override
         public boolean canEdit( final Object participantSession, final String pageName ) {
@@ -87,12 +88,75 @@ class CollabSessionRegistryLifecycleTest {
             }
             return !signedOut.contains( participantSession );
         }
+
+        @Override
+        public String authorKeyOf( final Object participantSession ) {
+            return authorOf.get( participantSession );
+        }
+    }
+
+    /** The scripted writer with read faults: unreadable pages throw, and one existence check can be held. */
+    private static final class HookedWriter implements CollabPageWriter {
+        final ScriptedPageWriter d;
+        final Set< String > unreadable = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        volatile String holdExistsOf;
+        final java.util.concurrent.CountDownLatch existsHeld = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.CountDownLatch releaseExists = new java.util.concurrent.CountDownLatch( 1 );
+
+        HookedWriter( final ScriptedPageWriter d ) {
+            this.d = d;
+        }
+
+        private void check( final String pageName ) {
+            if( unreadable.contains( pageName ) ) {
+                throw new PageReadException( "test: the page store cannot read " + pageName );
+            }
+        }
+
+        @Override
+        public Optional< com.wikantik.collab.model.PageState > latest( final String pageName ) {
+            check( pageName );
+            return d.latest( pageName );
+        }
+
+        @Override
+        public Optional< com.wikantik.collab.model.PageState > version( final String pageName, final int version ) {
+            check( pageName );
+            return d.version( pageName, version );
+        }
+
+        /** The answer is read first, then held: the page may move while the caller still acts on it. */
+        @Override
+        public boolean exists( final String pageName ) {
+            check( pageName );
+            final boolean out = d.latest( pageName ).isPresent();
+            if( pageName.equals( holdExistsOf ) ) {
+                holdExistsOf = null;
+                existsHeld.countDown();
+                try {
+                    if( !releaseExists.await( 10, TimeUnit.SECONDS ) ) {
+                        throw new IllegalStateException( "test: the held existence check was never released" );
+                    }
+                } catch( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException( e );
+                }
+            }
+            return out;
+        }
+
+        @Override
+        public com.wikantik.collab.model.PublishOutcome publish( final com.wikantik.collab.model.PublishRequest request )
+                throws com.wikantik.api.exceptions.WikiException {
+            return d.publish( request );
+        }
     }
 
     /** The in-memory store, counting the updates that try to move a session to another page name. */
     private static final class CountingStore implements CollabStore {
         final InMemoryCollabStore d = new InMemoryCollabStore();
         final AtomicInteger renameAttempts = new AtomicInteger();
+        final Map< String, AtomicInteger > lookups = new java.util.concurrent.ConcurrentHashMap<>();
 
         @Override
         public void createSession( final SessionRecord s ) {
@@ -106,6 +170,7 @@ class CollabSessionRegistryLifecycleTest {
 
         @Override
         public Optional< SessionRecord > sessionForPage( final String pageName ) {
+            lookups.computeIfAbsent( pageName, k -> new AtomicInteger() ).incrementAndGet();
             return d.sessionForPage( pageName );
         }
 
@@ -172,10 +237,27 @@ class CollabSessionRegistryLifecycleTest {
         public void deleteSession( final UUID id ) {
             d.deleteSession( id );
         }
+
+        @Override
+        public List< SessionRecord > sessions() {
+            return d.sessions();
+        }
+
+        @Override
+        public void recordContributors( final String canonicalId, final int pageVersion, final Set< String > authorKeys,
+                                        final boolean created ) {
+            d.recordContributors( canonicalId, pageVersion, authorKeys, created );
+        }
+
+        @Override
+        public Map< Integer, List< String > > contributorsByVersion( final String canonicalId ) {
+            return d.contributorsByVersion( canonicalId );
+        }
     }
 
     private CountingStore store;
     private ScriptedPageWriter writer;
+    private HookedWriter hooked;
     private MutableClock clock;
     private Permissions permissions;
     private CollabSessionRegistry registry;
@@ -188,7 +270,8 @@ class CollabSessionRegistryLifecycleTest {
         clock = new MutableClock( T0 );
         permissions = new Permissions();
         // a long presence timeout: these tests move the clock across the orphan grace with participants still present
-        registry = new CollabSessionRegistry( store, writer, permissions, key -> null, clock,
+        hooked = new HookedWriter( writer );
+        registry = new CollabSessionRegistry( store, hooked, permissions, key -> null, clock,
             new CollabConfig( true, 20, 65536, 25, 3600, 30, 100, 500, 10, 0, 1000 ), 1 << 20 );
     }
 
@@ -353,16 +436,17 @@ class CollabSessionRegistryLifecycleTest {
         join( "alice" );
         writer.rename( PAGE, "Target" );
         assertThrows( IllegalStateException.class, () -> registry.rekey( PAGE, "Target" ) );
-        assertEquals( 1, store.renameAttempts.get() );
+        final int before = store.lookups.get( "Target" ).get();
 
         for( int i = 0; i <= 10; i++ ) {
             registry.tick();
             clock.advance( Duration.ofSeconds( 1 ) );
         }
 
-        final int attempts = store.renameAttempts.get();
-        assertTrue( attempts > 2, "still retried: " + attempts );
-        assertTrue( attempts <= 5, "backed off rather than once per tick: " + attempts );
+        final int retries = store.lookups.get( "Target" ).get() - before;
+        assertTrue( retries >= 2, "still retried: " + retries );
+        assertTrue( retries <= 4, "backed off rather than once per tick: " + retries );
+        assertEquals( 0, store.renameAttempts.get(), "a refusal is seen before the store: no unique violation, ever" );
     }
 
     @Test
@@ -548,6 +632,159 @@ class CollabSessionRegistryLifecycleTest {
         assertEquals( 200, retry.status(), "the retry is a recreate (createPages checked)" );
         assertEquals( "xhello\r\nworld\r\n", writer.latest( PAGE ).orElseThrow().body() );
         assertFalse( a.session().frozen() );
+    }
+
+    // ---- fix round 1: reads that fail are unknown, never missing (item 1) ------------------------------------------
+
+    @Test
+    void aTransientReadErrorNeverFreezesNorRunsTheGraceClock() {
+        final Joined a = join( "alice" );
+        writer.delete( PAGE );
+        hooked.unreadable.add( PAGE );
+        for( int i = 0; i < 3; i++ ) {
+            registry.tick();
+            clock.advance( CollabSessionRegistry.ORPHAN_GRACE );
+        }
+        registry.tick();
+        assertFalse( a.session().frozen(), "the page store could not tell: unknown, not missing" );
+
+        hooked.unreadable.remove( PAGE );
+        registry.tick();   // the first sweep that sees the page missing: the grace starts now
+        clock.advance( CollabSessionRegistry.ORPHAN_GRACE.minusSeconds( 1 ) );
+        registry.tick();
+        assertFalse( a.session().frozen(), "the unreadable minutes did not count towards the grace" );
+        clock.advance( Duration.ofSeconds( 1 ) );
+        registry.tick();
+        assertTrue( a.session().frozen() );
+    }
+
+    @Test
+    void aTransientReadErrorKeepsTheRenameOwed() {
+        final Joined a = join( "alice" );
+        store.d.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+        assertThrows( RuntimeException.class, () -> registry.rekey( PAGE, "B" ) );
+        writer.rename( PAGE, "B" );
+        hooked.unreadable.add( "B" );
+
+        for( int i = 0; i < 3; i++ ) {
+            clock.advance( CollabSessionRegistry.ORPHAN_GRACE );
+            registry.tick();
+        }
+        assertEquals( PAGE, a.session().pageName() );
+        assertFalse( a.session().frozen(), "still owed: the sweep leaves it alone" );
+
+        hooked.unreadable.remove( "B" );
+        clock.advance( Duration.ofMinutes( 10 ) );
+        registry.tick();
+        assertEquals( "B", a.session().pageName(), "the owed rename landed once the page store could tell" );
+    }
+
+    // ---- fix round 1: renames are serialised (item 3) ---------------------------------------------------------------
+
+    @Test
+    void aTickRetryRacingAChainedRenameLeavesTheDraftAtTheEnd() throws Exception {
+        final Joined a = join( "alice" );
+        assertEquals( 200, type( a, "alice", "x" ).status() );
+        store.d.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+        assertThrows( RuntimeException.class, () -> registry.rekey( PAGE, "B" ) );   // PAGE -> B owed
+        writer.rename( PAGE, "B" );
+
+        // the tick's retry finds B present, then is held before it moves the draft
+        hooked.holdExistsOf = "B";
+        final CompletableFuture< Void > tick = CompletableFuture.runAsync( registry::tick );
+        assertTrue( hooked.existsHeld.await( 10, TimeUnit.SECONDS ) );
+        // meanwhile B is renamed to C and the listener delivers it; one store write fails on the way
+        writer.rename( "B", "C" );
+        store.d.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );
+        final CompletableFuture< Void > listener = CompletableFuture.runAsync( () -> {
+            try {
+                registry.rekey( "B", "C" );
+            } catch( final RuntimeException e ) {
+                // remembered by the registry, as the listener would log it
+            }
+        } );
+        try {
+            listener.get( 300, TimeUnit.MILLISECONDS );
+        } catch( final java.util.concurrent.TimeoutException e ) {
+            // serialised: the listener waits for the tick's retry
+        }
+        hooked.releaseExists.countDown();
+        tick.get( 10, TimeUnit.SECONDS );
+        listener.get( 10, TimeUnit.SECONDS );
+        clock.advance( Duration.ofMinutes( 10 ) );
+        registry.tick();
+
+        assertEquals( "C", a.session().pageName(), "the draft followed the chain to its end" );
+        assertSame( a.session(), registry.liveForPage( "C" ).orElseThrow() );
+        assertTrue( registry.liveForPage( "B" ).isEmpty() );
+        assertTrue( store.sessionForPage( "B" ).isEmpty(), "no draft stranded under the vanished B" );
+        assertEquals( "C", store.session( a.response().sessionId() ).orElseThrow().pageName() );
+    }
+
+    // ---- fix round 1: evictions are isolated per session (item 4) ---------------------------------------------------
+
+    @Test
+    void oneSessionFailingNeverSkipsTheOthers() {
+        final Joined a = join( "alice" );
+        writer.seed( "Other", "o\n", Map.of() );
+        final Joined o = join( "Other", "alice", "alice" );
+        final SessionSlot bad = new SessionSlot();
+        bad.opened( a.session(), T0 );
+        final SessionSlot good = new SessionSlot();
+        good.opened( o.session(), T0 );
+
+        final int n = SessionSweeps.forEachLive( List.of( bad, good ), s -> {
+            if( s == a.session() ) {
+                throw new IllegalStateException( "test: this session's sweep fails" );
+            }
+            return 1;
+        } );
+
+        assertEquals( 1, n, "the failing session is skipped and logged; the next one still runs" );
+    }
+
+    // ---- fix round 1: logout scope (ruling Q13) ---------------------------------------------------------------------
+
+    @Test
+    void logoutEvictsOnlyThoseSignedInAtJoinWhoAreNowSignedOut() {
+        final Joined alice = join( "alice" );
+        permissions.signedOut.add( "anon" );
+        final Joined anon = join( PAGE, "anon", "anon" );   // joined without signing in, and still not
+        permissions.signedOut.add( "alice" );
+
+        assertEquals( 1, registry.evictSignedOutAll() );
+
+        assertEvicted( type( alice, "alice", "x" ), CollabSession.SIGNED_OUT );
+        assertEquals( 200, type( anon, "anon", "y" ).status(), "never signed in: someone else's logout is not theirs" );
+    }
+
+    @Test
+    void anEditorWhoJoinedAnonymouslyAndLoggedInLaterIsKept() {
+        permissions.signedOut.add( "anon" );
+        final Joined anon = join( PAGE, "anon", "anon" );
+        permissions.signedOut.remove( "anon" );
+        permissions.authorOf.put( "anon", "anon-login" );   // now signed in under their own login: accepted, kept
+        assertEquals( 0, registry.evictSignedOutAll() );
+        assertEquals( 200, type( anon, "anon", "y" ).status() );
+    }
+
+    @Test
+    void aWikiSessionNowSignedInAsSomeoneElseIsEvictedOnLogout() {
+        final Object shared = new Object();
+        final Joined alice = join( PAGE, "alice", shared );
+        permissions.authorOf.put( shared, "bob" );   // alice logged out, bob logged in on the same session
+
+        assertEquals( 1, registry.evictSignedOutAll() );
+
+        assertEvicted( type( alice, "alice", "x" ), CollabSession.SIGNED_OUT );
+    }
+
+    @Test
+    void sessionExpiryEvictsEvenAnAnonymousJoiner() {
+        permissions.signedOut.add( "anon" );
+        final Joined anon = join( PAGE, "anon", "anon" );
+        assertEquals( 1, registry.evictSignedOut( "anon" ) );
+        assertEvicted( type( anon, "anon", "y" ), CollabSession.SIGNED_OUT );
     }
 
     // ---- retired clientIDs are bounded (binding d) -----------------------------------------------------------------

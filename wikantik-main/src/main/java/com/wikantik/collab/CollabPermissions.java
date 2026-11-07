@@ -35,4 +35,12 @@ public interface CollabPermissions {
     default boolean signedIn( final Object participantSession ) {
         return true;
     }
+
+    /**
+     * The author key the participant's wiki session resolves to now, or null when the port cannot tell. A logout that
+     * leaves the same session signed in as someone else (ruling Q13) evicts the participant who joined as the first.
+     */
+    default String authorKeyOf( final Object participantSession ) {
+        return null;
+    }
 }

@@ -24,9 +24,12 @@ import org.apache.logging.log4j.Logger;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -35,24 +38,31 @@ import java.util.function.Predicate;
  * name, and a rename that could not be carried out is remembered and retried, so a draft never stays behind on the old
  * name and a joiner never opens a second session for the renamed page.
  *
- * <p><b>Failures.</b> A rename is <em>refused</em> when the new name already has a draft of its own (live or stored):
- * the orphan is frozen under its old name with a WARN, so its participants learn why their pushes stop, and the rename
+ * <p><b>Failures.</b> A rename is <em>refused</em> when the new name already has a draft of its own (live or stored).
+ * That is checked before the store is touched, so a refusal never costs a store unique violation (a database ERROR).
+ * The orphan is frozen under its old name with one WARN, so its participants learn why their pushes stop, and the rename
  * stays owed in case the other draft goes away. Any other failure (the store) is retried. Retries back off: the first
- * on the next tick, then after 1 s, 2 s, 4 s and so on up to {@value #MAX_BACKOFF_SECONDS} s, so a refusal is not a
- * store unique violation (a database ERROR) every second. A join of the new name retries at once, unless the new name
- * has a draft of its own: that draft is the one it joins, so it never re-runs a refused rename.</p>
+ * on the next tick, then after 1 s, 2 s, 4 s and so on up to {@value #MAX_BACKOFF_SECONDS} s. A join of the new name
+ * retries at once, unless the new name has a draft of its own: that draft is the one it joins.</p>
  *
  * <p><b>Chains and deletes.</b> A rename of a name that is itself owed a rename (A to B owed, then B to C) follows the
- * chain: the owed draft moves to C, never onto the vanished B. A retry never moves a draft onto a name whose page no
- * longer exists: the owed rename is dropped and the draft stays put, where the registry's orphan sweep freezes it. The
- * delete of an owed rename's target likewise drops it ({@link #dropInto}); the registry freezes the draft where it
- * is.</p>
+ * chain: the owed draft moves to C, never onto the vanished B. A retry never moves a draft onto a name whose page is
+ * known not to exist: the owed rename is dropped and the draft stays put, where the registry's orphan sweep freezes it.
+ * A page store that cannot tell ({@link PageReadException}) means "try again later", never "drop". The delete of an owed
+ * rename's target likewise drops it ({@link #dropInto}); the registry freezes the draft where it is.</p>
  *
- * <p>Each rename runs under the old name's slot lock, so it cannot interleave with a join opening that slot: a stored
+ * <p><b>Concurrency.</b> Every change to the owed renames, and every move it decides on, runs under one lock: the
+ * listener's rename, the tick's retry, a join's retry and a delete's drop are serialised, and a retry re-checks under
+ * the lock that the rename it read is still the one owed (a chained rename may have followed it meanwhile). Lock order:
+ * this lock, then a slot, then the page map, then the session's base and session locks; nothing that holds a slot or a
+ * session lock calls in here. Parked-pull completions and freezes run after this lock is released. A join of a page
+ * with no rename owed never takes it.</p>
+ *
+ * <p>Each move runs under the old name's slot lock, so it cannot interleave with a join opening that slot: a stored
  * draft is renamed and the unopened slot retired (a waiting joiner retries from a fresh read); a live session is renamed
  * by its own rekey, which waits for the session's base lock and writes the store, with the page map free: the new name
  * is reserved for the slot first (a joiner of it waits on the slot, then joins the moved session), and the old name is
- * unmapped before the slot is released. Parked pulls are answered after every lock is released, and so are freezes.</p>
+ * unmapped before the slot is released.</p>
  */
 final class Renames {
 
@@ -60,8 +70,17 @@ final class Renames {
     /** The longest wait between two retries of an owed rename. */
     static final long MAX_BACKOFF_SECONDS = 300;
 
-    /** A rename still owed: the draft's name, failures so far, when it is due again, and whether it was frozen. */
-    private record Owed( String from, int failures, Instant due, boolean frozen ) {
+    /**
+     * A rename still owed: the draft's name, failures so far, when it is due again, whether it was refused (the WARN was
+     * logged) and whether its orphan was frozen.
+     */
+    private record Owed( String from, int failures, Instant due, boolean refused, boolean frozen ) {
+    }
+
+    /** What a step decided under the lock and runs after it: parked-pull completions, then freezes. */
+    private static final class After {
+        final List< Runnable > completions = new ArrayList<>();
+        final List< String > freezes = new ArrayList<>();
     }
 
     private final PageSlots slots;
@@ -69,9 +88,11 @@ final class Renames {
     private final Clock clock;
     /** Freezes a page's draft (the registry's freeze); called with no lock held. */
     private final Consumer< String > freezer;
-    /** Whether a page exists; may throw. */
+    /** Whether a page exists; throws when the page store cannot tell. */
     private final Predicate< String > pageExists;
-    /** New name to the rename owed into it. */
+    /** Serialises every change to {@link #pending} and the moves decided from it. */
+    private final ReentrantLock lock = new ReentrantLock();
+    /** New name to the rename owed into it. Written under {@link #lock}; read without it only for a fast answer. */
     private final Map< String, Owed > pending = new ConcurrentHashMap<>();
 
     Renames( final PageSlots slots, final CollabStore store, final Clock clock, final Consumer< String > freezer,
@@ -93,23 +114,30 @@ final class Renames {
         if( from.equals( to ) ) {
             return;
         }
-        final Owed chained = pending.remove( from );
+        final After after = new After();
         RuntimeException failure = null;
+        lock.lock();
         try {
-            attempt( from, to, null );
-        } catch( final RuntimeException e ) {
-            failure = e;
+            final Owed chained = pending.remove( from );
+            try {
+                attempt( from, to, null, after );
+            } catch( final RuntimeException e ) {
+                failure = e;
+            }
+            if( chained != null ) {
+                follow( chained, from, to, after );
+            }
+        } finally {
+            lock.unlock();
         }
-        if( chained != null ) {
-            follow( chained, from, to );
-        }
+        finish( after );
         if( failure != null ) {
             throw failure;
         }
     }
 
-    /** The draft owed a rename into {@code via} goes on to {@code to}, where {@code via} went. */
-    private void follow( final Owed chained, final String via, final String to ) {
+    /** Under the lock: the draft owed a rename into {@code via} goes on to {@code to}, where {@code via} went. */
+    private void follow( final Owed chained, final String via, final String to, final After after ) {
         final String origin = chained.from();
         if( origin.equals( to ) ) {
             LOG.info( "collab: {} was renamed back to {}; its draft never left", via, to );
@@ -118,23 +146,32 @@ final class Renames {
         if( pending.containsKey( to ) ) {
             LOG.warn( "collab: the draft of {} cannot follow {} to {}: another draft is owed that name; frozen under {}",
                 origin, via, to, origin );
-            freeze( origin );
+            after.freezes.add( origin );
             return;
         }
         LOG.info( "collab: the draft of {} follows the rename chain {} -> {} -> {}", origin, origin, via, to );
         try {
-            attempt( origin, to, chained );
+            attempt( origin, to, chained, after );
         } catch( final RuntimeException e ) {
             LOG.debug( "collab: the chained rename of {} to {} failed; retried: {}", origin, to, e.toString() );
         }
     }
 
-    /** One try of the rename; on failure the owed entry is recorded (backed off) and the failure rethrown. */
-    private void attempt( final String from, final String to, final Owed prior ) {
+    /**
+     * Under the lock: one try of the rename. A target with a draft of its own is refused before the store is touched;
+     * on any failure the owed entry is recorded (backed off) and the failure rethrown.
+     */
+    private void attempt( final String from, final String to, final Owed prior, final After after ) {
+        boolean refused = hasSession( to );
         try {
-            move( from, to ).forEach( Runnable::run );
+            if( refused ) {
+                throw new IllegalStateException( "collab: cannot move the draft of " + from + " to " + to
+                    + ": it has a draft of its own" );
+            }
+            after.completions.addAll( move( from, to ) );
         } catch( final RuntimeException e ) {
-            failed( from, to, prior, e );
+            refused = refused || hasSession( to );   // a target that gained a session during the move refuses it too
+            failed( from, to, prior, refused, e, after );
             throw e;
         }
         final Owed now = pending.get( to );
@@ -143,32 +180,55 @@ final class Renames {
         }
     }
 
-    private void failed( final String from, final String to, final Owed prior, final RuntimeException e ) {
+    private void failed( final String from, final String to, final Owed prior, final boolean refusedNow,
+                         final RuntimeException e, final After after ) {
         final int failures = prior == null ? 1 : prior.failures() + 1;
-        final boolean wasFrozen = prior != null && prior.frozen();
-        final boolean refusedNow = !wasFrozen && hasSession( to );
-        if( refusedNow ) {
+        final boolean warned = prior != null && prior.refused();
+        logFailure( from, to, failures, refusedNow && !warned, prior == null && !refusedNow, e );
+        boolean frozen = prior != null && prior.frozen();
+        if( refusedNow && !frozen ) {
+            after.freezes.add( from );
+            frozen = true;   // cleared again by finish() if the freeze fails, so the next refusal retries it
+        }
+        pending.put( to, new Owed( from, failures, clock.instant().plus( backoff( failures ) ), refusedNow || warned,
+            frozen ) );
+    }
+
+    /** One WARN for a refusal, one for the first other failure; DEBUG after that. */
+    private static void logFailure( final String from, final String to, final int failures, final boolean firstRefusal,
+                                    final boolean firstFailure, final RuntimeException e ) {
+        if( firstRefusal ) {
             LOG.warn( "collab: the draft of {} cannot follow its rename to {}: {} has a draft of its own; frozen under {}"
-                + " and retried with backoff: {}", from, to, to, from, e.toString() );
-        } else if( prior == null ) {
+                + " and retried with backoff", from, to, to, from );
+        } else if( firstFailure ) {
             LOG.warn( "collab: the draft of {} could not follow its rename to {}; retried: {}", from, to, e.toString() );
         } else {
             LOG.debug( "collab: the rename of {} to {} failed again ({} failures): {}", from, to, failures,
                 e.toString() );
         }
-        final boolean frozen = wasFrozen || refusedNow && freeze( from );
-        pending.put( to, new Owed( from, failures, clock.instant().plus( backoff( failures ) ), frozen ) );
     }
 
-    /** Freezes the draft under {@code pageName}; false (logged) on a failure, and the next refusal tries again. */
-    private boolean freeze( final String pageName ) {
+    /** After the lock: completions, then freezes; a freeze that fails is logged and retried on the next refusal. */
+    private void finish( final After after ) {
+        after.completions.forEach( Runnable::run );
+        for( final String name : after.freezes ) {
+            try {
+                freezer.accept( name );
+            } catch( final RuntimeException e ) {
+                LOG.warn( "collab: could not freeze the draft of {}; tried again on the next refusal: {}", name,
+                    e.toString() );
+                unmarkFrozen( name );
+            }
+        }
+    }
+
+    private void unmarkFrozen( final String from ) {
+        lock.lock();
         try {
-            freezer.accept( pageName );
-            return true;
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab: could not freeze the draft of {}; tried again on the next refusal: {}", pageName,
-                e.toString() );
-            return false;
+            pending.replaceAll( ( to, o ) -> o.frozen() && o.from().equals( from )
+                ? new Owed( o.from(), o.failures(), o.due(), o.refused(), false ) : o );
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -187,17 +247,42 @@ final class Renames {
      * dropped) now.
      */
     boolean joinable( final String pageName ) {
-        final Owed owed = pending.get( pageName );
-        return owed == null || hasSession( pageName ) || retry( pageName, owed );
+        if( !pending.containsKey( pageName ) ) {
+            return true;   // the common case, without the lock
+        }
+        final After after = new After();
+        final boolean out;
+        lock.lock();
+        try {
+            final Owed owed = pending.get( pageName );
+            out = owed == null || hasSession( pageName ) || retry( pageName, owed, after );
+        } finally {
+            lock.unlock();
+        }
+        finish( after );
+        return out;
     }
 
-    /** Retries every owed rename that is due (the registry's tick). */
+    /**
+     * Retries every owed rename that is due (the registry's tick), each re-checked under the lock: a listener's chained
+     * rename or a delete may have followed or dropped it since the snapshot.
+     */
     void retryPending() {
         final Instant now = clock.instant();
         for( final Map.Entry< String, Owed > e : Map.copyOf( pending ).entrySet() ) {
-            if( !now.isBefore( e.getValue().due() ) ) {
-                retry( e.getKey(), e.getValue() );
+            if( now.isBefore( e.getValue().due() ) ) {
+                continue;
             }
+            final After after = new After();
+            lock.lock();
+            try {
+                if( Objects.equals( pending.get( e.getKey() ), e.getValue() ) ) {
+                    retry( e.getKey(), e.getValue(), after );
+                }
+            } finally {
+                lock.unlock();
+            }
+            finish( after );
         }
     }
 
@@ -211,17 +296,25 @@ final class Renames {
      * name the draft is still under, or null when none was owed.
      */
     String dropInto( final String pageName ) {
-        final Owed owed = pending.remove( pageName );
-        return owed == null ? null : owed.from();
+        lock.lock();
+        try {
+            final Owed owed = pending.remove( pageName );
+            return owed == null ? null : owed.from();
+        } finally {
+            lock.unlock();
+        }
     }
 
-    /** Retries the owed rename into {@code to}; true when none is owed any more (it landed, or was dropped). */
-    private boolean retry( final String to, final Owed owed ) {
+    /**
+     * Under the lock: retries the owed rename into {@code to}; true when none is owed any more (it landed, or was
+     * dropped because {@code to} is known not to exist). A page store that cannot tell keeps it owed.
+     */
+    private boolean retry( final String to, final Owed owed, final After after ) {
         final boolean exists;
         try {
             exists = pageExists.test( to );
         } catch( final RuntimeException e ) {
-            LOG.debug( "collab: could not tell whether {} exists; the rename into it waits: {}", to, e.toString() );
+            LOG.debug( "collab: could not tell whether {} exists; the rename into it stays owed: {}", to, e.toString() );
             return false;
         }
         if( !exists ) {
@@ -232,7 +325,7 @@ final class Renames {
             return true;
         }
         try {
-            attempt( owed.from(), to, owed );
+            attempt( owed.from(), to, owed, after );
             return true;
         } catch( final RuntimeException e ) {
             LOG.debug( "collab: the retried rename of {} to {} failed (recorded): {}", owed.from(), to, e.toString() );
@@ -254,7 +347,7 @@ final class Renames {
         }
     }
 
-    /** The rename under {@code from}'s slot lock; returns the parked-pull completions to run after it. */
+    /** The rename under {@code from}'s slot lock; returns the parked-pull completions to run after every lock. */
     private List< Runnable > move( final String from, final String to ) {
         while( true ) {
             final SessionSlot slot = slots.slotFor( from );

@@ -20,6 +20,7 @@ package com.wikantik.collab.adapter;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
+import com.wikantik.auth.AuthorKeys;
 import com.wikantik.auth.permissions.PermissionFilter;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
@@ -68,6 +69,15 @@ public final class WikiCollabPermissions implements CollabPermissions {
     public boolean signedIn( final Object participantSession ) {
         final Session session = asSession( participantSession, "signed-in check", "(any page)" );
         return session != null && session.isAuthenticated();
+    }
+
+    /**
+     * The author key the wiki session resolves to now ({@link AuthorKeys#authorKeyFor}, the key the REST layer joins
+     * with), or null for anything but a wiki session.
+     */
+    @Override
+    public String authorKeyOf( final Object participantSession ) {
+        return participantSession instanceof Session session ? AuthorKeys.authorKeyFor( session ) : null;
     }
 
     private static Session asSession( final Object candidate, final String action, final String pageName ) {

@@ -89,36 +89,53 @@ final class SessionSweeps {
         return evictWhere( s, m -> m.authorKey().equals( authorKey ), CollabSession.ACCOUNT_DELETED );
     }
 
-    /** Every participant holding {@code wikiSession} (it expired, A13); returns how many. */
+    /** Every participant holding {@code wikiSession} (it expired, A13), signed in at join or not; returns how many. */
     static int evictSignedOut( final CollabSession s, final Object wikiSession ) {
-        return evictWhere( s, m -> wikiSession.equals( m.wikiSession() ), CollabSession.SIGNED_OUT );
+        return wikiSession == null ? 0
+            : evictWhere( s, m -> wikiSession.equals( m.wikiSession() ), CollabSession.SIGNED_OUT );
     }
 
     /**
-     * Every participant whose wiki session no longer reads as signed in (a logout, A13); returns how many. A check that
-     * throws keeps the participant (logged): signing out is not a revocation, and the edit re-check still applies.
+     * The participants a logout signed out (a logout names no session, A13; ruling Q13); returns how many. Only one
+     * whose wiki session was signed in when it joined is considered: it goes when that session no longer reads as signed
+     * in, or now resolves to another author key (alice logged out, bob logged in on the same session). Someone who
+     * joined without signing in is never evicted by a logout, even after signing in later. A check that throws keeps the
+     * participant (logged): signing out is not a revocation, and the edit re-check still applies.
      */
     static int evictSignedOutAll( final CollabSession s, final CollabPermissions permissions ) {
-        return evictWhere( s, m -> !signedIn( s, m, permissions ), CollabSession.SIGNED_OUT );
+        return evictWhere( s, m -> m.signedInAtJoin() && signedOutNow( s, m, permissions ), CollabSession.SIGNED_OUT );
     }
 
-    private static boolean signedIn( final CollabSession s, final Member m, final CollabPermissions permissions ) {
+    private static boolean signedOutNow( final CollabSession s, final Member m, final CollabPermissions permissions ) {
         try {
-            return permissions.signedIn( m.wikiSession() );
+            if( !permissions.signedIn( m.wikiSession() ) ) {
+                return true;
+            }
+            final String now = permissions.authorKeyOf( m.wikiSession() );
+            return now != null && !now.equals( m.authorKey() );
         } catch( final RuntimeException e ) {
             LOG.warn( "collab session {}: the sign-in check of {} failed; kept: {}", s.id(), m.participantId(),
                 e.toString() );
-            return true;
+            return false;
         }
     }
 
-    /** Sums {@code f} over the opened, unclosed slots' sessions (a snapshot of {@code slots}). */
+    /**
+     * Sums {@code f} over the opened, unclosed slots' sessions (a snapshot of {@code slots}), each session on its own:
+     * one that throws is logged and skipped, so the others still run and nothing reaches the caller (user deletion,
+     * logout, a rename).
+     */
     static int forEachLive( final Collection< SessionSlot > slots, final ToIntFunction< CollabSession > f ) {
         int n = 0;
         for( final SessionSlot slot : List.copyOf( slots ) ) {
             final CollabSession s = slot.session();
             if( s != null && !slot.closed() ) {
-                n += f.applyAsInt( s );
+                try {
+                    n += f.applyAsInt( s );
+                } catch( final RuntimeException e ) {
+                    LOG.warn( "collab session {}: a registry-wide sweep failed for it; the other sessions go on: {}",
+                        s.id(), e.toString() );
+                }
             }
         }
         return n;
@@ -139,13 +156,19 @@ final class SessionSweeps {
         Hooks.dropAll( s );
     }
 
+    /** Each participant on its own: one whose check or eviction fails is logged and the rest go on. */
     private static int evictWhere( final CollabSession s, final Predicate< Member > which, final String reason ) {
         int n = 0;
         for( final Member m : Hooks.members( s ) ) {
-            if( which.test( m ) ) {
-                LOG.info( "collab session {}: participant {} evicted ({})", s.id(), m.participantId(), reason );
-                s.evict( m.participantId(), reason );
-                n++;
+            try {
+                if( which.test( m ) ) {
+                    LOG.info( "collab session {}: participant {} evicted ({})", s.id(), m.participantId(), reason );
+                    s.evict( m.participantId(), reason );
+                    n++;
+                }
+            } catch( final RuntimeException e ) {
+                LOG.warn( "collab session {}: evicting participant {} ({}) failed; the others go on: {}", s.id(),
+                    m.participantId(), reason, e.toString() );
             }
         }
         return n;

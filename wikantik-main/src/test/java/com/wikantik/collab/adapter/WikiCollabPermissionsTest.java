@@ -90,6 +90,15 @@ class WikiCollabPermissionsTest {
     }
 
     @Test
+    void authorKeyOfIsTheKeyTheSessionResolvesToNow() {   // ruling Q13: another user signed in on the same session
+        final java.security.Principal bob = () -> "bob";
+        when( session.isAuthenticated() ).thenReturn( true );
+        when( session.getLoginPrincipal() ).thenReturn( bob );
+        assertEquals( "bob", permissions.authorKeyOf( session ) );
+        assertNull( permissions.authorKeyOf( "not a session" ) );
+    }
+
+    @Test
     void aSessionOfTheWrongTypeIsDenied() {
         assertFalse( permissions.canEdit( "not a session", "Page" ) );
         assertFalse( permissions.canCreate( null, "Page" ) );

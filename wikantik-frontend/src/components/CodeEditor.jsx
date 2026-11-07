@@ -1,9 +1,9 @@
-import { forwardRef, useImperativeHandle, useRef, useMemo, useCallback, useEffect } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
+import { forwardRef, useImperativeHandle, useRef, useMemo, useCallback, useEffect, useState } from 'react';
+import CodeMirror, { ExternalChange } from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { EditorView, keymap } from '@codemirror/view';
-import { Prec } from '@codemirror/state';
+import { Prec, EditorState } from '@codemirror/state';
 import { autocompletion } from '@codemirror/autocomplete';
 import { foldAll, unfoldAll } from '@codemirror/language';
 import { isolateHistory } from '@codemirror/commands';
@@ -57,6 +57,15 @@ import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview
  *   pasteAsMarkdown boolean       convert rich pastes to Markdown (default true; off for legacy wiki-markup pages)
  *   livePreview boolean           render markdown inline (decorations only; the document text is never changed)
  *   livePreviewContext { pageName, attachments, loadEmbed }  context for live-preview widgets (read through a ref)
+ *   readOnly    boolean           the document cannot be edited (a frozen collab draft, no edit permission)
+ *   collabExtensions Extension    collaborative mode (docs/MultiEdit.MD §0 A4): the `collab()` + `collabPeer()` pair.
+ *                                 The editor is then UNCONTROLLED: it starts from `collabDoc` and a changed `value`
+ *                                 never reaches the document (react-codemirror would dispatch it as a whole-document
+ *                                 replacement, which collab() broadcasts as a local edit). Every write goes through
+ *                                 the imperative handle as a minimal transaction. Collab mode and its extensions are
+ *                                 fixed at mount: a new session (resync) REMOUNTS the editor with a new `key`, since a
+ *                                 reconfigure would keep the collab field's stale start version.
+ *   collabDoc   string            the joined document (`join().doc`); collab mode only
  *   className   string            applied to the wrapping div
  *   'data-testid' string         applied to the wrapping div
  */
@@ -101,6 +110,16 @@ export function minimalChange(prev, next) {
 // Module-level so its identity is stable: react-codemirror re-dispatches a full StateEffect.reconfigure
 // whenever basicSetup (or any other config prop) changes identity — an inline object did so on every render,
 // i.e. on every keystroke.
+/**
+ * Collab mode's backstop: react-codemirror marks a `value`-prop sync as ExternalChange. In collab mode the value is
+ * fixed at mount so none should ever be dispatched; if one is, it is refused rather than broadcast to every editor.
+ */
+const collabValueGuard = EditorState.transactionFilter.of((tr) => {
+  if (!tr.docChanged || !tr.annotation(ExternalChange)) return tr;
+  console.warn('[collab] refused a whole-document replacement from the value prop: the editor is uncontrolled in collab mode');
+  return [];
+});
+
 const BASIC_SETUP = {
   lineNumbers: false,
   foldGutter: true,
@@ -110,10 +129,23 @@ const BASIC_SETUP = {
 };
 
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, tagSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, onPasteImages, pasteAsMarkdown = true, livePreview = false, livePreviewContext, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, tagSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, onPasteImages, pasteAsMarkdown = true, livePreview = false, livePreviewContext, readOnly = false, collabExtensions, collabDoc, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
+
+  // Collab mode is decided once, at mount (A4): the document starts from the joined text and the value handed to
+  // react-codemirror never changes again, so it never dispatches a whole-document replacement.
+  const [collabAtMount] = useState(() => (collabExtensions
+    ? { extensions: collabExtensions, doc: String(collabDoc ?? value ?? '') }
+    : null));
+  useEffect(() => {
+    if (collabAtMount && collabExtensions !== collabAtMount.extensions) {
+      console.warn('[collab] CodeEditor got new collab extensions without a remount; keeping the ones it mounted with');
+    }
+  }, [collabAtMount, collabExtensions]);
+  const collabExtension = collabAtMount ? collabAtMount.extensions : null;
+  const editorValue = collabAtMount ? collabAtMount.doc : value;
 
   // `[[` / `](` link autocomplete. The sources are held in a ref so the completion
   // source — built once below — always calls the latest ones without reconfiguring the editor.
@@ -496,16 +528,19 @@ const CodeEditor = forwardRef(function CodeEditor(
       markdown({ ...editorMarkdownConfig, codeLanguages: languages }),
       EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, pasteExtension,
       linkExtension, frontmatterFold, calloutMarkers, liveExtension, editorChrome,
+      ...(collabExtension ? [collabValueGuard, collabExtension] : []),
     ],
-    [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, pasteExtension, linkExtension, liveExtension],
+    [shortcutKeymap, wikiLinkAutocomplete, syncExtension, fileDropExtension, pasteExtension, linkExtension, liveExtension, collabExtension],
   );
 
   return (
     <div className={className} {...rest}>
       <CodeMirror
-        value={value}
+        value={editorValue}
         onChange={onChange}
         onCreateEditor={handleCreateEditor}
+        readOnly={readOnly}
+        editable={!readOnly}
         extensions={extensions}
         theme={dark ? 'dark' : 'light'}
         basicSetup={BASIC_SETUP}

@@ -71,6 +71,12 @@ import { createSlashSource } from '../utils/slashComplete';
 import { createTagSource } from '../utils/tagComplete';
 import AttachmentPanel from './AttachmentPanel';
 import AccessRuleLocation from './AccessRuleLocation';
+import ConfirmDialog from './ui/ConfirmDialog';
+import LoginForm from './LoginForm';
+import { EditorView } from '@codemirror/view';
+import { sendableUpdates } from '@codemirror/collab';
+import { useCapabilities } from '../hooks/useCapabilities';
+import { useCollabSession } from '../collab/useCollabSession';
 import '../styles/article.css';
 import '../styles/admin.css';
 
@@ -91,7 +97,34 @@ function writeClipboard(pending) {
 const BLOCK_LIST_LIMIT = 100;
 const BLOCK_QUERY_LIMIT = 20;
 
-export default function PageEditor() {
+/** Join outcomes after which the page is edited single-author (feature off, derived page, session full, join failed). */
+const COLLAB_FALLBACK = new Set(['disabled', 'unavailable', 'full', 'error']);
+/** Statuses in which a joined collab editor is mounted. */
+const COLLAB_EDITING = new Set(['live', 'reconnecting', 'resync', 'frozen', 'auth-required']);
+const COLLAB_STATUS_LABEL = {
+  joining: 'Joining…', live: 'Live', reconnecting: 'Reconnecting…', resync: 'Out of sync', frozen: 'Read-only',
+  'auth-required': 'Signed out', forbidden: 'Read-only',
+};
+const editorsLabel = (n) => `${n} editor${n === 1 ? '' : 's'}`;
+/** A stable small number per joined session (its extensions object): the collab editor's remount key (A4). */
+const sessionKeys = new WeakMap();
+let nextSessionKey = 1;
+function sessionKeyOf(extensions) {
+  if (!sessionKeys.has(extensions)) sessionKeys.set(extensions, nextSessionKey++);
+  return sessionKeys.get(extensions);
+}
+function publishFailureMessage(res) {
+  if (res.reason === 'not-live') return 'Not connected to the shared draft — your edits are kept; publish again once it reconnects.';
+  if (res.reason === 'publish-in-progress') return 'Someone else is publishing this page — try again in a moment.';
+  if (res.reason === 'retries-exhausted') return 'The page kept changing while publishing — try again.';
+  return res.message || 'Publish failed';
+}
+
+/**
+ * The page editor. `collabTransport` (tests only) replaces the collaboration HTTP transport; collaborative mode itself
+ * is on when /api/capabilities reports `collab.enabled` and the join succeeds (docs/MultiEdit.MD §8.2).
+ */
+export default function PageEditor({ collabTransport } = {}) {
   const { name } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -123,6 +156,10 @@ export default function PageEditor() {
   const [cursorStore] = useState(createEditorCursorStore);
   const [railOpen, toggleRail] = useRailOpen();
   const { user } = useAuth();
+  // Collaborative mode needs an explicit `collab.enabled: true` (absent = off, unlike the fail-open capabilities). The
+  // load waits for /api/capabilities so the mode is known before the first keystroke.
+  const { capabilities, loading: capabilitiesLoading } = useCapabilities();
+  const collabWanted = !capabilitiesLoading && capabilities?.collab?.enabled === true;
   // Legacy JSPWiki syntax is not Markdown: never live-render it as such (and never persist a mode choice from it).
   const isLegacyWiki = markupSyntax === 'wiki' || markupSyntax === 'likely-wiki';
   const [editorMode, toggleEditorMode] = useEditorMode({
@@ -164,10 +201,11 @@ export default function PageEditor() {
   };
 
   const login = user?.authenticated ? user.loginPrincipal : null;
+  // The server holds a collaborative draft: no localStorage autosave then.
   const { draft, saveDraft, clearDraft } = useDraft({
     login,
     pageId: name,
-    enabled: !!login,
+    enabled: !!login && !collabWanted,
   });
   const [restorePrompt, setRestorePrompt] = useState(false);
   const [restoring, setRestoring] = useState(null);
@@ -181,7 +219,55 @@ export default function PageEditor() {
 
   // #20 — isDirty: true only once the page has loaded and the reconstructed text differs from baseline.
   const isDirty = loaded && fullText !== loadedContent;
-  useNavigationGuard(isDirty);
+
+  // ── Collaborative mode (docs/MultiEdit.MD §0 A4/A10/A11/A13, §8.2) ──
+  // What a NEW session starts from (A11): a new page's template, a restored version. Null = the page as saved.
+  const [collabSeed, setCollabSeed] = useState(null);
+  const [loadedFor, setLoadedFor] = useState(null);
+  const collab = useCollabSession(name, {
+    transport: collabTransport,
+    initialText: collabSeed?.name === name ? collabSeed.initialText : undefined,
+    initialMeta: collabSeed?.name === name ? collabSeed.initialMeta : undefined,
+    enabled: collabWanted && loadedFor === name,
+  });
+  const collabMode = collabWanted && !COLLAB_FALLBACK.has(collab.status);
+  const collabEditing = collabMode && !!collab.extensions && COLLAB_EDITING.has(collab.status);
+  const collabForbidden = collabMode && collab.status === 'forbidden';
+  const collabReadOnly = collabEditing && (collab.status === 'frozen' || collab.status === 'resync');
+  const editorCount = Math.max(1, collab.participants?.length || 0);
+  // Unsynced local edits (sendableUpdates non-empty): the only collab work that leaving would lose.
+  const [unsynced, setUnsynced] = useState(false);
+  const unsyncedListener = useMemo(() => EditorView.updateListener.of((u) => {
+    if (u.transactions.length) setUnsynced(sendableUpdates(u.state).length > 0);
+  }), []);
+  const collabExtensions = useMemo(
+    () => (collab.extensions ? [collab.extensions, unsyncedListener] : null),
+    [collab.extensions, unsyncedListener],
+  );
+  // A (re)join: the editor remounts from the joined document; the body and metadata follow the session.
+  const [restoreOffer, setRestoreOffer] = useState(null);
+  const [joinedExtensions, setJoinedExtensions] = useState(null);
+  if (collabWanted && collab.extensions && collab.extensions !== joinedExtensions) {
+    setJoinedExtensions(collab.extensions);
+    const joinedDoc = String(collab.docAtJoin ?? '');
+    setBody(joinedDoc);
+    setMetadata(collab.metadata ?? {});
+    setUnsynced(false);
+    // A restore into a session that already existed (others are editing): offer it instead of clobbering their work.
+    const seedText = collabSeed?.name === name && collabSeed.restoreFrom ? String(collabSeed.initialText ?? '').replace(/\r\n?/g, '\n') : null;
+    // (the server may end a session's text in a newline (A9): that alone does not make it someone else's session)
+    const differs = seedText != null && seedText.replace(/\n+$/, '') !== joinedDoc.replace(/\n+$/, '');
+    setRestoreOffer(differs && !joinedExtensions ? { text: seedText, from: collabSeed.restoreFrom } : null);
+  }
+  const [confirmConvert, setConfirmConvert] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const collabEditingRef = useRef(collabEditing);
+  useEffect(() => {
+    collabEditingRef.current = collabEditing;
+  });
+
+  const guardActive = collabMode ? collabEditing && unsynced : isDirty;
+  useNavigationGuard(guardActive);
   const guardedNavigate = useGuardedNavigate();
 
   // Keep the body in a ref so the stable scroll-sync / format callbacks read current text.
@@ -405,7 +491,20 @@ export default function PageEditor() {
     const live = editor?.getText?.();
     if (live === text) return;
     if (live != null && editor.applyChanges?.([minimalChange(live, text)])) return;
+    if (collabEditingRef.current) {
+      // The collab editor is uncontrolled: a body set beside the view would never reach the shared draft (A4).
+      console.warn('[collab] body replacement skipped: the editor view is not mounted');
+      return;
+    }
     setBody(text);
+  }, []);
+  // Fallback body writer for edits made without a view (uploads): never in collab mode, where it would diverge.
+  const fallbackSetBody = useCallback((update) => {
+    if (collabEditingRef.current) {
+      console.warn('[collab] body update skipped: the editor view is not mounted');
+      return;
+    }
+    setBody(update);
   }, []);
 
   const handleInsert = useCallback((text, pos) => {
@@ -435,9 +534,9 @@ export default function PageEditor() {
     const editor = editorRef.current;
     const live = editor?.getText?.();
     if (live != null && editor.applyChanges?.(attachmentLinkChanges(live, oldName, newName))) return result;
-    setBody((prev) => rewriteAttachmentLinks(prev, oldName, newName));
+    fallbackSetBody((prev) => rewriteAttachmentLinks(prev, oldName, newName));
     return result;
-  }, [attachments]);
+  }, [attachments, fallbackSetBody]);
 
   // Captured once per page: the route state is cleared after it is applied, so Back / reload to
   // /edit/P does not re-apply the restore (and clearing it must not re-trigger the load effect).
@@ -450,6 +549,7 @@ export default function PageEditor() {
   const pathname = location.pathname;
 
   useEffect(() => {
+    if (capabilitiesLoading) return;
     api.getPage(name).then(async (page) => {
       const meta = page.metadata || {};
       const pageBody = page.content || '';
@@ -468,6 +568,7 @@ export default function PageEditor() {
           setBody(old.content || '');
           setChangeNote(`Restored version ${restoreVersion}`);
           setRestoring({ from: restoreVersion, current: page.version });
+          setCollabSeed({ name, initialText: old.content || '', initialMeta: old.metadata || {}, restoreFrom: restoreVersion });
           navigate(pathname, { replace: true, state: {} });
           return;
         } catch (err) {
@@ -477,7 +578,8 @@ export default function PageEditor() {
       }
       setMetadata(meta);
       setBody(pageBody);
-      if (draft && draft.content && draft.content !== full) {
+      setCollabSeed(null);
+      if (!collabWanted && draft && draft.content && draft.content !== full) {
         setRestorePrompt(true);
       }
     }).catch(err => {
@@ -488,7 +590,8 @@ export default function PageEditor() {
         setMetadata(initialMeta);
         const full = reconstructContent(initialMeta, initialBody);
         setLoadedContent(full);
-        if (draft && draft.content && draft.content !== full) {
+        setCollabSeed({ name, initialText: initialBody, initialMeta });
+        if (!collabWanted && draft && draft.content && draft.content !== full) {
           setRestorePrompt(true);
         }
         setIsNew(true);
@@ -497,12 +600,13 @@ export default function PageEditor() {
       }
     }).finally(() => {
       setLoaded(true);
+      setLoadedFor(name);
     });
-  }, [name, draft, restoreVersion, pathname, navigate, location.state?.initialContent, location.state?.initialMetadata]);
+  }, [name, draft, restoreVersion, pathname, navigate, location.state?.initialContent, location.state?.initialMetadata, capabilitiesLoading, collabWanted]);
 
   // Debounced autosave — fires 800 ms after the user stops typing.
   useEffect(() => {
-    if (!login) return;
+    if (!login || collabWanted) return;
     if (loadedContent === null) return;
     const id = setTimeout(() => {
       if (fullText === loadedContent) {
@@ -512,7 +616,7 @@ export default function PageEditor() {
       }
     }, 800);
     return () => clearTimeout(id);
-  }, [fullText, name, login, saveDraft, clearDraft, loadedContent]);
+  }, [fullText, name, login, saveDraft, clearDraft, loadedContent, collabWanted]);
 
   useEffect(() => {
     document.title = `Wikantik: ${isNew ? 'Create' : 'Edit'} ${name}`;
@@ -524,11 +628,11 @@ export default function PageEditor() {
       e.preventDefault();
       e.returnValue = '';
     };
-    if (isDirty) {
+    if (guardActive) {
       window.addEventListener('beforeunload', handler);
       return () => window.removeEventListener('beforeunload', handler);
     }
-  }, [isDirty]);
+  }, [guardActive]);
 
   const applyFormat = useCallback((command) => {
     const editor = editorRef.current;
@@ -760,6 +864,11 @@ export default function PageEditor() {
   const handleItalic = useCallback(() => applyFormat('italic'), [applyFormat]);
   const handleLink = useCallback(() => applyFormat('link'), [applyFormat]);
 
+  // In collab mode a conversion rewrites the shared draft: ask first, naming how many people it affects.
+  const requestConvert = () => {
+    if (collabEditing) setConfirmConvert(true);
+    else handleConvert();
+  };
   const handleConvert = async () => {
     // Convert exactly what the editor shows, and apply the result only if it still shows that: anything typed
     // during the request would otherwise be silently discarded by the replacement.
@@ -789,6 +898,65 @@ export default function PageEditor() {
   // 200 warnings as an advisory toast.
   // Resolves true on success-with-stay (`{ stay: true }`), false on every failure branch; without `stay`
   // a success navigates to the page view. The Save button passes a click event, which destructures to stay=false.
+  // A 422 from a save or a publish (same bodies, §6.2): placed in the violation UI.
+  const showRefusal = (body) => {
+    if (body?.error === 'access_rule_shape') {
+      // The save would add an access rule the server cannot read (it would lock the page, #104).
+      const refused = body.violations || [];
+      setAccessRuleViolations(refused);
+      if (!refused.length) setError('An access rule on this page cannot be read.');
+      toast.error('An access rule on this page cannot be read');
+    } else if (body?.error === 'math_validation_failed') {
+      setMathViolations(body.violations || []);
+      toast.error('Fix the highlighted math errors');
+    } else {
+      setViolations(body?.violations || []);
+      toast.error('Fix the highlighted frontmatter fields');
+    }
+  };
+
+  // Collab mode's Save: publish the shared draft once every local edit is on the server (the hook waits for sync).
+  const publishContent = async ({ stay = false } = {}) => {
+    setSaving(true);
+    savingRef.current = true;
+    setError(null);
+    setAccessRuleViolations([]);
+    try {
+      const res = await collab.publish(changeNote || (isNew ? 'Created page' : 'Updated page'));
+      if (!res.ok) {
+        if (res.status === 422) showRefusal(res.body);
+        else {
+          console.warn('[collab] publish failed', res.status, res.reason, res.message);
+          setError(publishFailureMessage(res));
+        }
+        return false;
+      }
+      setViolations([]);
+      setMathViolations([]);
+      evictPreview(name);
+      const warns = res.warnings || [];
+      const mathWarns = res.mathWarnings || [];
+      if (mathWarns.length) {
+        setMathViolations(mathWarns);
+        toast.info(`Published with ${mathWarns.length} math warning${mathWarns.length > 1 ? 's' : ''}`);
+      } else if (warns.length) {
+        toast.info(`Published with ${warns.length} advisory warning${warns.length > 1 ? 's' : ''}`);
+      } else {
+        toast.success('Published');
+      }
+      if (stay) {
+        setIsNew(false);
+        setOriginalVersion(res.pageVersion ?? originalVersion);
+        return true;
+      }
+      navigate(`/wiki/${name}`);
+      return true;
+    } finally {
+      setSaving(false);
+      savingRef.current = false;
+    }
+  };
+
   const saveContent = async ({ stay = false } = {}) => {
     setSaving(true);
     savingRef.current = true;
@@ -839,19 +1007,7 @@ export default function PageEditor() {
           setError('Version conflict, and failed to fetch the current server version.');
         }
       } else if (err.status === 422) {
-        if (err.body?.error === 'access_rule_shape') {
-          // The save would add an access rule the server cannot read (it would lock the page, #104).
-          const refused = err.body.violations || [];
-          setAccessRuleViolations(refused);
-          if (!refused.length) setError('An access rule on this page cannot be read.');
-          toast.error('An access rule on this page cannot be read');
-        } else if (err.body?.error === 'math_validation_failed') {
-          setMathViolations((err.body && err.body.violations) || []);
-          toast.error('Fix the highlighted math errors');
-        } else {
-          setViolations((err.body && err.body.violations) || []);
-          toast.error('Fix the highlighted frontmatter fields');
-        }
+        showRefusal(err.body);
       } else {
         setError(err.message || 'Save failed');
       }
@@ -863,10 +1019,11 @@ export default function PageEditor() {
   };
 
   // Written in an effect (runs after every render) rather than during render.
+  const commit = collabEditing ? publishContent : saveContent;
   useEffect(() => {
-    latestSaveRef.current = saveContent;
+    latestSaveRef.current = commit;
   });
-  const save = saveContent;
+  const save = commit;
 
   const restoreDraft = useCallback(async () => {
     const full = draft?.content || '';
@@ -891,7 +1048,7 @@ export default function PageEditor() {
   const { uploadFiles, uploadPlaced } = useAttachmentUpload({
     existingNames: (attachments.list || []).map((a) => a.fileName),
     upload: attachments.uploadAttachment,
-    updateBody: setBody,
+    updateBody: fallbackSetBody,
     editor: editorEdits,
     toast,
   });
@@ -954,6 +1111,16 @@ export default function PageEditor() {
   }, [handleFiles, getDropOffset]);
 
   const handleCancel = () => guardedNavigate(`/wiki/${name}`);
+
+  const copyRecoveryText = async () => {
+    try {
+      await navigator.clipboard.writeText(collab.resync?.unsyncedText || '');
+      toast.success('Copied');
+    } catch (err) {
+      console.warn('[collab] could not copy the recovery text to the clipboard', err?.message || err);
+      toast.error("Couldn't copy — select the text and copy it by hand");
+    }
+  };
 
   const handleOverwrite = async () => {
     setSaving(true);
@@ -1042,25 +1209,33 @@ export default function PageEditor() {
             aria-pressed={railOpen} title="Toggle outline rail">
             Outline
           </button>
+          {collabMode && (
+            <span className="collab-status" data-testid="collab-status" data-status={collab.status} role="status">
+              {COLLAB_STATUS_LABEL[collab.status] || collab.status}
+              {collabEditing && collab.status === 'live' ? ` · ${editorCount} editing` : ''}
+            </span>
+          )}
           <button className="btn btn-ghost" data-testid="editor-cancel" onClick={handleCancel}>
             Cancel
           </button>
+          {!collabForbidden && (
           <button
             className="btn btn-primary"
             data-testid="editor-save"
             onClick={save}
-            disabled={saving || hasBlockingErrors}
+            disabled={saving || hasBlockingErrors || (collabMode && !(collab.status === 'live' || collab.status === 'reconnecting'))}
             title={hasBlockingErrors ? 'Fix the highlighted errors before saving' : undefined}
           >
-            {saving ? 'Saving…' : 'Save'}
+            {collabMode ? (saving ? 'Publishing…' : 'Publish') : (saving ? 'Saving…' : 'Save')}
           </button>
+          )}
         </div>
       </div>
 
       {(markupSyntax === 'wiki' || markupSyntax === 'likely-wiki') && (
         <div className="info-banner">
           <span>This page uses legacy wiki syntax. Convert to Markdown?</span>
-          <button className="btn btn-primary btn-sm" onClick={handleConvert} disabled={converting}>
+          <button className="btn btn-primary btn-sm" onClick={requestConvert} disabled={converting || collabReadOnly}>
             {converting ? 'Converting…' : 'Convert to Markdown'}
           </button>
         </div>
@@ -1083,6 +1258,61 @@ export default function PageEditor() {
       )}
 
       {error && <div className="error-banner" data-testid="editor-error">{error}</div>}
+
+      {collab.resync && (
+        <div className="warning-banner" role="alert" data-testid="collab-recovery">
+          <strong>Your editor lost its place in the shared draft.</strong>{' '}
+          {collab.resync.unsyncedText ? (
+            <>
+              <span>These edits of yours did not reach it. Copy them, then paste them back where they belong:</span>
+              <pre className="collab-recovery-text" data-testid="collab-recovery-text">{collab.resync.unsyncedText}</pre>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={copyRecoveryText}>Copy my text</button>
+            </>
+          ) : <span>None of your edits were lost.</span>}
+          {collab.status === 'resync'
+            ? <button type="button" className="btn btn-primary btn-sm" onClick={() => collab.restart()}>Continue editing</button>
+            : <button type="button" className="btn btn-ghost btn-sm" onClick={collab.dismissResync}>Dismiss</button>}
+        </div>
+      )}
+      {collabEditing && collab.status === 'auth-required' && (
+        <div className="warning-banner" role="alert" data-testid="collab-auth-required">
+          <span>Your sign-in has expired. Your edits are kept in this tab and are sent once you sign in again.</span>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setLoginOpen(true)}>Sign in again</button>
+        </div>
+      )}
+      {collabEditing && collab.status === 'frozen' && (
+        <div className="warning-banner" role="alert" data-testid="collab-frozen">
+          This page can no longer be edited here (it was deleted or moved while you were editing). Copy anything you need.
+        </div>
+      )}
+      {collabForbidden && (
+        <div className="info-banner" role="status" data-testid="collab-forbidden">
+          You don&apos;t have permission to edit this page.
+        </div>
+      )}
+      {collabWanted && collab.status === 'full' && (
+        <div className="info-banner" role="status" data-testid="collab-full">
+          Too many people are editing this page together — you are editing on your own, and saving merges your changes into theirs.
+        </div>
+      )}
+      {collabWanted && collab.status === 'error' && (
+        <div className="info-banner" role="status" data-testid="collab-error">
+          Editing together is unavailable right now — you are editing on your own.
+        </div>
+      )}
+      {collabEditing && restoreOffer && (
+        <div className="info-banner" role="status" data-testid="collab-restore-offer">
+          <span>
+            Others are already editing this page. Applying version {restoreOffer.from} changes the page for
+            all {editorsLabel(editorCount)} (its text only; the frontmatter stays as it is).
+          </span>
+          <button type="button" className="btn btn-primary btn-sm" disabled={collabReadOnly}
+            onClick={() => { replaceBody(restoreOffer.text); setRestoreOffer(null); }}>
+            Apply version {restoreOffer.from}
+          </button>
+          <button type="button" className="btn-link" onClick={() => setRestoreOffer(null)}>Keep the shared text</button>
+        </div>
+      )}
       {accessRuleViolations.length > 0 && (
         <div className="error-banner" data-testid="editor-access-rule-violations">
           <ul>
@@ -1095,16 +1325,16 @@ export default function PageEditor() {
 
       {pendingUpload && (
         <div className="info-banner" role="status" data-testid="upload-needs-save">
-          <span>Save the page once to add attachments.</span>
+          <span>{collabEditing ? 'Publish' : 'Save'} the page once to add attachments.</span>
           <button type="button" className="btn btn-primary btn-sm" disabled={saving || hasBlockingErrors}
             onClick={async () => {
               const p = pendingUpload;
-              if (await saveContent({ stay: true })) {
+              if (await commit({ stay: true })) {
                 setPendingUpload(null);
                 for (const h of p.handles) await h.start();
               }
             }}>
-            Save and upload
+            {collabEditing ? 'Publish' : 'Save'} and upload
           </button>
           <button type="button" className="btn-link" onClick={() => {
             pendingUpload.handles.forEach((h) => h.cancel());
@@ -1115,7 +1345,7 @@ export default function PageEditor() {
 
       {restoring && (
         <div className="info-banner" role="status" data-testid="restore-banner">
-          Editing a copy of version {restoring.from} — saving creates version {restoring.current + 1}.
+          Editing a copy of version {restoring.from} — {collabMode ? 'publishing' : 'saving'} creates version {restoring.current + 1}.
         </div>
       )}
 
@@ -1153,13 +1383,21 @@ export default function PageEditor() {
           {activeMetaTab === 'frontmatter' && (
             <>
               <ValidationSummary violations={displayViolations} validating={validating} onJump={jumpToField} />
-              <FrontmatterEditor
-                metadata={metadata}
-                onChange={setMetadata}
-                violations={displayViolations}
-                pageSearch={pageSearch}
-                tagSuggestions={tagSuggestions}
-              />
+              {collabMode && (
+                <p className="field-hint" data-testid="collab-frontmatter-locked">
+                  The frontmatter can&apos;t be changed while editing together yet; it is published as shown.
+                </p>
+              )}
+              {/* Shared frontmatter editing (meta ops) is not wired yet, so a local edit would be silently dropped. */}
+              <fieldset disabled={collabMode} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+                <FrontmatterEditor
+                  metadata={metadata}
+                  onChange={setMetadata}
+                  violations={displayViolations}
+                  pageSearch={pageSearch}
+                  tagSuggestions={tagSuggestions}
+                />
+              </fieldset>
             </>
           )}
           {activeMetaTab === 'knowledge' && (
@@ -1188,11 +1426,20 @@ export default function PageEditor() {
               Drop to upload
             </div>
           )}
+          {collabMode && !collabEditing && !collabForbidden ? (
+            <div className="editor-textarea collab-joining" data-testid="collab-joining" role="status">
+              Joining the shared draft…
+            </div>
+          ) : (
           <CodeEditor
+            key={collabEditing ? `collab-${sessionKeyOf(collab.extensions)}` : 'single'}
             ref={editorRef}
             data-testid="editor-textarea"
             className="editor-textarea"
             value={body}
+            collabExtensions={collabEditing ? collabExtensions : undefined}
+            collabDoc={collabEditing ? collab.docAtJoin : undefined}
+            readOnly={collabReadOnly || collabForbidden}
             onPasteConverted={handlePasteConverted}
             onPasteImages={handlePasteImages}
             pasteAsMarkdown={!isLegacyWiki}
@@ -1211,6 +1458,7 @@ export default function PageEditor() {
             onViewChange={handleViewChange}
             onFiles={handleFiles}
           />
+          )}
         </div>
         {previewOpen && (
         <div className="editor-pane editor-preview" ref={previewRef} onScroll={syncEditor}>
@@ -1279,6 +1527,18 @@ export default function PageEditor() {
           </div>
         </div>
       )}
+
+      {confirmConvert && (
+        <ConfirmDialog
+          title="Convert to Markdown?"
+          message={`Converting this changes the page for all ${editorsLabel(editorCount)}.`}
+          confirmLabel="Convert for everyone"
+          danger={false}
+          onConfirm={() => { setConfirmConvert(false); handleConvert(); }}
+          onCancel={() => setConfirmConvert(false)}
+        />
+      )}
+      {loginOpen && <LoginForm onClose={() => { setLoginOpen(false); collab.resume(); }} />}
 
       <AttachmentPanel
         open={panelOpen}

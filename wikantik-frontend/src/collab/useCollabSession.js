@@ -2,8 +2,9 @@
  * React hook owning one collaborative-editing session for a page: joins on mount, leaves on unmount and on `pagehide`
  * (via `navigator.sendBeacon`), and exposes the pieces the editor needs.
  *
- * Returns `{ status, participants, presence, events, resync, dismissResync, restart, publish, discard, docAtJoin, startVersion, clientID,
- * sessionId, metadata, draft, basePageVersion, extensions }`. `extensions` is the `collab()` + `collabPeer()` pair to
+ * Returns `{ status, participants, presence, events, resync, dismissResync, restart, resume, publish, discard, docAtJoin, startVersion,
+ * clientID, sessionId, metadata, draft, basePageVersion, extensions }`. `resume()` restarts the peer after `auth-required`
+ * once the user has signed in again, keeping every unsent edit (A13). `extensions` is the `collab()` + `collabPeer()` pair to
  * mount in a CodeMirror view initialised from `docAtJoin` (A4: the editor is uncontrolled in collab mode; A10: on
  * `status === 'resync'` the host shows `resync.unsyncedText` in a recovery panel and calls `restart()`: it awaits the leave of
  * the stale participant (and of a rejoin ghost, both done by the peer) and only then joins afresh, so the old participant is
@@ -119,6 +120,7 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
   }, [pageName, enabled, transportOverride, key, generation]);
 
   const dismissResync = useCallback(() => setResync(null), []);
+  const resume = useCallback(() => { handleRef.current?.resume(); }, []);
 
   async function publish(changeNote = '') {
     const transport = transportRef.current;
@@ -187,6 +189,6 @@ export function useCollabSession(pageName, { transport: transportOverride, initi
   return {
     ...current,
     status: enabled ? current.status : 'idle',
-    participants, presence, events, resync, dismissResync, restart, publish, discard,
+    participants, presence, events, resync, dismissResync, restart, resume, publish, discard,
   };
 }

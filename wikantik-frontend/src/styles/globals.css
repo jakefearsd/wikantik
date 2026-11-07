@@ -1394,6 +1394,34 @@ a[data-attachment-missing] {
   padding: 0;
 }
 
+/* Collaborative editing: connection status chip in the editor toolbar, recovery text in the resync panel. */
+.collab-status {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-sm);
+  white-space: nowrap;
+}
+
+.collab-recovery-text {
+  max-height: 12rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  margin: var(--space-sm) 0;
+  padding: var(--space-sm);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono, monospace);
+}
+
+.collab-joining {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
 [data-theme="dark"] .warning-banner {
   background: #3A2E00;
   border-color: #5A4800;

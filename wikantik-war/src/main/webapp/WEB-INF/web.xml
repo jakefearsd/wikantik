@@ -138,6 +138,7 @@
    <filter>
      <filter-name>BasicAuthFilter</filter-name>
      <filter-class>com.wikantik.rest.BasicAuthFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>BasicAuthFilter</filter-name>
@@ -154,6 +155,7 @@
    <filter>
      <filter-name>RememberMeAuthFilter</filter-name>
      <filter-class>com.wikantik.rest.RememberMeAuthFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>RememberMeAuthFilter</filter-name>
@@ -169,6 +171,7 @@
    <filter>
      <filter-name>MustChangePasswordFilter</filter-name>
      <filter-class>com.wikantik.rest.MustChangePasswordFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>MustChangePasswordFilter</filter-name>
@@ -215,6 +218,7 @@
    <filter>
      <filter-name>BuildVersionFilter</filter-name>
      <filter-class>com.wikantik.rest.BuildVersionFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>BuildVersionFilter</filter-name>

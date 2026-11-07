@@ -27,6 +27,8 @@ import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
+import jakarta.servlet.AsyncEvent;
+import jakarta.servlet.AsyncListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -70,16 +72,41 @@ public class RequestMetricsFilter implements Filter {
 
         try {
             chain.doFilter( request, response );
-        } finally {
-            final long durationNanos = System.nanoTime() - startNanos;
-            final String uri = normalizeUri( httpRequest.getRequestURI() );
-            Timer.builder( "http.server.requests" )
-                    .tag( "method", httpRequest.getMethod() )
-                    .tag( "uri", uri )
-                    .tag( "status", String.valueOf( httpResponse.getStatus() ) )
-                    .register( registry )
-                    .record( durationNanos, TimeUnit.NANOSECONDS );
+        } catch ( final IOException | ServletException | RuntimeException e ) {
+            record( registry, httpRequest, httpResponse, startNanos );
+            throw e;
         }
+        if ( request.isAsyncStarted() ) {
+            // The request outlives this call (long-poll): record when it actually completes.
+            request.getAsyncContext().addListener( new AsyncListener() {
+                @Override public void onComplete( final AsyncEvent event ) {
+                    record( registry, httpRequest, httpResponse, startNanos );
+                }
+                @Override public void onTimeout( final AsyncEvent event ) {
+                    // the container follows a timeout with onComplete; recorded there
+                }
+                @Override public void onError( final AsyncEvent event ) {
+                    // the container follows an error with onComplete; recorded there
+                }
+                @Override public void onStartAsync( final AsyncEvent event ) {
+                    event.getAsyncContext().addListener( this );
+                }
+            } );
+        } else {
+            record( registry, httpRequest, httpResponse, startNanos );
+        }
+    }
+
+    private static void record( final MeterRegistry registry, final HttpServletRequest httpRequest,
+                                final HttpServletResponse httpResponse, final long startNanos ) {
+        final long durationNanos = System.nanoTime() - startNanos;
+        final String uri = normalizeUri( httpRequest.getRequestURI() );
+        Timer.builder( "http.server.requests" )
+                .tag( "method", httpRequest.getMethod() )
+                .tag( "uri", uri )
+                .tag( "status", String.valueOf( httpResponse.getStatus() ) )
+                .register( registry )
+                .record( durationNanos, TimeUnit.NANOSECONDS );
     }
 
     @Override

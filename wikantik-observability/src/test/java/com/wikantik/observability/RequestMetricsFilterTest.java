@@ -174,4 +174,28 @@ class RequestMetricsFilterTest {
         assertDoesNotThrow( () -> filter.destroy() );
     }
 
+
+    @Test
+    void recordsTheLatencyWhenTheAsyncRequestCompletes() throws Exception {
+        stubRegistryAvailable();
+        when( request.getMethod() ).thenReturn( "GET" );
+        when( request.getRequestURI() ).thenReturn( "/api/search" );
+        when( request.isAsyncStarted() ).thenReturn( true );
+        final jakarta.servlet.AsyncContext asyncContext = mock( jakarta.servlet.AsyncContext.class );
+        when( request.getAsyncContext() ).thenReturn( asyncContext );
+        when( response.getStatus() ).thenReturn( 200 );
+
+        filter.doFilter( request, response, chain );
+
+        assertNull( registry.find( "http.server.requests" ).timer(), "nothing recorded until the async request completes" );
+        final org.mockito.ArgumentCaptor< jakarta.servlet.AsyncListener > captor =
+                org.mockito.ArgumentCaptor.forClass( jakarta.servlet.AsyncListener.class );
+        verify( asyncContext ).addListener( captor.capture() );
+
+        captor.getValue().onComplete( mock( jakarta.servlet.AsyncEvent.class ) );
+
+        final Timer timer = registry.find( "http.server.requests" ).tag( "status", "200" ).timer();
+        assertNotNull( timer );
+        assertEquals( 1, timer.count() );
+    }
 }

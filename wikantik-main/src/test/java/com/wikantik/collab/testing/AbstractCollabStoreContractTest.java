@@ -232,39 +232,62 @@ public abstract class AbstractCollabStoreContractTest {
     }
 
     @Test
-    void twoConcurrentAppendsAtTheSameVersionExactlyOneWins() throws Exception {
+    void appendEmptyUpdatesOnAnUnknownSessionThrowsIllegalArgument() {
+        assertThrows( IllegalArgumentException.class, () -> store.appendUpdates( UUID.randomUUID(), List.of() ) );
+    }
+
+    @Test
+    void aDuplicateSessionIdIsRefusedEvenForAnotherPage() {
         final SessionRecord s = created( "PageA" );
-        final CyclicBarrier gate = new CyclicBarrier( 2 );
+        final SessionRecord sameId = new SessionRecord( s.id(), "PageB", SessionRecord.ACTIVE, 3, "b", Map.of(), "h", 0,
+            0L, false, null, null, null, "alice", T0, T0 );
+        assertThrows( IllegalStateException.class, () -> store.createSession( sameId ) );
+        assertEquals( s, store.session( s.id() ).orElseThrow() );
+        assertTrue( store.sessionForPage( "PageB" ).isEmpty() );
+    }
+
+    /** The race is repeated: a single round can pass by luck of scheduling. */
+    private static final int CONCURRENCY_ROUNDS = 100;
+
+    @Test
+    void twoConcurrentAppendsAtTheSameVersionExactlyOneWins() throws Exception {
         final ExecutorService pool = Executors.newFixedThreadPool( 2 );
         try {
-            final List< Future< Boolean > > results = new ArrayList<>();
-            for( int i = 0; i < 2; i++ ) {
-                final String client = "c" + i;
-                final Callable< Boolean > task = () -> {
-                    gate.await();
-                    try {
-                        store.appendUpdates( s.id(), List.of( new StoredUpdate( 1, StoredUpdate.TEXT, client, "alice", CS ) ) );
-                        return true;
-                    } catch( final IllegalStateException expected ) {
-                        return false;
-                    }
-                };
-                results.add( pool.submit( task ) );
+            for( int round = 0; round < CONCURRENCY_ROUNDS; round++ ) {
+                raceTwoAppends( pool, created( "Race" + round ) );
             }
-            int wins = 0;
-            for( final Future< Boolean > f : results ) {
-                try {
-                    if( f.get() ) {
-                        wins++;
-                    }
-                } catch( final ExecutionException e ) {
-                    throw new AssertionError( "unexpected failure type", e.getCause() );
-                }
-            }
-            assertEquals( 1, wins );
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    private void raceTwoAppends( final ExecutorService pool, final SessionRecord s ) throws Exception {
+        final CyclicBarrier gate = new CyclicBarrier( 2 );
+        final List< Future< Boolean > > results = new ArrayList<>();
+        for( int i = 0; i < 2; i++ ) {
+            final String client = "c" + i;
+            final Callable< Boolean > task = () -> {
+                gate.await();
+                try {
+                    store.appendUpdates( s.id(), List.of( new StoredUpdate( 1, StoredUpdate.TEXT, client, "alice", CS ) ) );
+                    return true;
+                } catch( final IllegalStateException expected ) {
+                    return false;
+                }
+            };
+            results.add( pool.submit( task ) );
+        }
+        int wins = 0;
+        for( final Future< Boolean > f : results ) {
+            try {
+                if( f.get() ) {
+                    wins++;
+                }
+            } catch( final ExecutionException e ) {
+                throw new AssertionError( "unexpected failure type", e.getCause() );
+            }
+        }
+        assertEquals( 1, wins, "round for " + s.pageName() );
         assertEquals( 1, head( s ) );
         assertEquals( 1, store.updatesSince( s.id(), 0 ).size() );
     }
@@ -425,7 +448,7 @@ public abstract class AbstractCollabStoreContractTest {
     }
 
     private static SessionRecord rebased( final SessionRecord s, final int basePageVersion ) {
-        return s.withBase( basePageVersion, "base@" + basePageVersion, Map.of( "v", basePageVersion ),
+        return s.withBase( basePageVersion, "base@" + basePageVersion, Map.of( "v", "v" + basePageVersion ),
             "hash-" + basePageVersion ).withPending( null, null, null );
     }
 
@@ -440,7 +463,7 @@ public abstract class AbstractCollabStoreContractTest {
         assertEquals( 4, stored.basePageVersion() );
         assertEquals( "base@4", stored.baseBody() );
         assertEquals( "hash-4", stored.baseContentHash() );
-        assertEquals( Map.of( "v", 4 ), stored.baseMeta() );
+        assertEquals( Map.of( "v", "v4" ), stored.baseMeta() );
         assertEquals( null, stored.pendingPublishVersion() );
         assertEquals( null, stored.pendingPublishAuthor() );
         assertEquals( serverUpd( 3 ), store.updatesSince( s.id(), 2 ).get( 0 ) );

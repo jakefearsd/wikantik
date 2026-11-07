@@ -26,6 +26,7 @@ import com.wikantik.collab.model.StoredUpdate;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +83,41 @@ public final class InMemoryCollabStore implements CollabStore {
         }
     }
 
+
+    // ---- defensive copies: nested meta values (lists, maps) are mutable, so neither a caller's later mutation nor a
+    // ---- reader's can reach the stored state
+
+    private static Object deep( final Object v ) {
+        if( v instanceof Map< ?, ? > m ) {
+            final Map< String, Object > c = new LinkedHashMap<>();
+            m.forEach( ( k, x ) -> c.put( String.valueOf( k ), deep( x ) ) );
+            return c;
+        }
+        if( v instanceof List< ? > l ) {
+            final List< Object > c = new ArrayList<>();
+            l.forEach( x -> c.add( deep( x ) ) );
+            return c;
+        }
+        return v;
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private static Map< String, Object > deepMeta( final Map< String, Object > m ) {
+        return ( Map< String, Object > ) deep( m );
+    }
+
+    private static SessionRecord detach( final SessionRecord s ) {
+        return s.withBase( s.basePageVersion(), s.baseBody(), deepMeta( s.baseMeta() ), s.baseContentHash() );
+    }
+
+    private static Snapshot detach( final Snapshot s ) {
+        return new Snapshot( s.version(), s.metaSeq(), s.basePageVersion(), s.body(), deepMeta( s.meta() ), s.local() );
+    }
+
+    private static StoredMetaOp detach( final StoredMetaOp o ) {
+        return new StoredMetaOp( o.seq(), o.authorKey(), o.field(), deep( o.value() ) );
+    }
+
     private void fault( final Op op ) {
         final Integer target = failAt.get( op );
         if( target == null ) {
@@ -90,7 +126,7 @@ public final class InMemoryCollabStore implements CollabStore {
         final int n = calls.merge( op, 1, Integer::sum );
         if( n == target ) {
             failAt.remove( op );
-            throw new IllegalStateException( "injected failure: " + op + " call #" + n );
+            throw new InjectedFault( "injected failure: " + op + " call #" + n );
         }
     }
 
@@ -114,7 +150,7 @@ public final class InMemoryCollabStore implements CollabStore {
             if( sessions.containsKey( s.id() ) || idForPage( s.pageName() ).isPresent() ) {
                 throw new IllegalStateException( "page already has a collab session: " + s.pageName() );
             }
-            sessions.put( s.id(), s );
+            sessions.put( s.id(), detach( s ) );
             updates.put( s.id(), new TreeMap<>() );
             metaOps.put( s.id(), new TreeMap<>() );
             snapshots.put( s.id(), new TreeMap<>() );
@@ -127,7 +163,7 @@ public final class InMemoryCollabStore implements CollabStore {
     public Optional< SessionRecord > session( final UUID id ) {
         lock.lock();
         try {
-            return Optional.ofNullable( sessions.get( id ) );
+            return Optional.ofNullable( sessions.get( id ) ).map( InMemoryCollabStore::detach );
         } finally {
             lock.unlock();
         }
@@ -137,7 +173,7 @@ public final class InMemoryCollabStore implements CollabStore {
     public Optional< SessionRecord > sessionForPage( final String pageName ) {
         lock.lock();
         try {
-            return idForPage( pageName ).map( sessions::get );
+            return idForPage( pageName ).map( sessions::get ).map( InMemoryCollabStore::detach );
         } finally {
             lock.unlock();
         }
@@ -152,7 +188,7 @@ public final class InMemoryCollabStore implements CollabStore {
             if( !old.pageName().equals( s.pageName() ) && idForPage( s.pageName() ).isPresent() ) {
                 throw new IllegalStateException( "page already has a collab session: " + s.pageName() );
             }
-            sessions.put( s.id(), merged( old, s ) );
+            sessions.put( s.id(), detach( merged( old, s ) ) );
         } finally {
             lock.unlock();
         }
@@ -198,8 +234,8 @@ public final class InMemoryCollabStore implements CollabStore {
             }
             final TreeMap< Integer, StoredUpdate > log = updates.get( id );
             serverUpdates.forEach( u -> log.put( u.version(), u ) );
-            snapshots.get( id ).put( snapshot.version(), snapshot );
-            sessions.put( id, merged( old, updated ).withHead( newHead ) );
+            snapshots.get( id ).put( snapshot.version(), detach( snapshot ) );
+            sessions.put( id, detach( merged( old, updated ).withHead( newHead ) ) );
         } finally {
             lock.unlock();
         }
@@ -263,7 +299,7 @@ public final class InMemoryCollabStore implements CollabStore {
                 }
             }
             final TreeMap< Long, StoredMetaOp > log = metaOps.get( id );
-            ops.forEach( o -> log.put( o.seq(), o ) );
+            ops.forEach( o -> log.put( o.seq(), detach( o ) ) );
             sessions.put( id, s.withMetaSeq( s.metaSeq() + ops.size() ) );
         } finally {
             lock.unlock();
@@ -275,7 +311,8 @@ public final class InMemoryCollabStore implements CollabStore {
         lock.lock();
         try {
             final TreeMap< Long, StoredMetaOp > log = metaOps.get( id );
-            return log == null ? List.of() : new ArrayList<>( log.tailMap( sinceSeq, false ).values() );
+            return log == null ? List.of()
+                : log.tailMap( sinceSeq, false ).values().stream().map( InMemoryCollabStore::detach ).toList();
         } finally {
             lock.unlock();
         }
@@ -287,7 +324,7 @@ public final class InMemoryCollabStore implements CollabStore {
         try {
             fault( Op.WRITE_SNAPSHOT );
             require( id );
-            snapshots.get( id ).put( s.version(), s );
+            snapshots.get( id ).put( s.version(), detach( s ) );
         } finally {
             lock.unlock();
         }
@@ -298,7 +335,7 @@ public final class InMemoryCollabStore implements CollabStore {
         lock.lock();
         try {
             final TreeMap< Integer, Snapshot > m = snapshots.get( id );
-            return m == null || m.isEmpty() ? Optional.empty() : Optional.of( m.lastEntry().getValue() );
+            return m == null || m.isEmpty() ? Optional.empty() : Optional.of( detach( m.lastEntry().getValue() ) );
         } finally {
             lock.unlock();
         }

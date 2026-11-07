@@ -29,7 +29,8 @@ import java.util.UUID;
  * <p>{@code baseContentHash} is the content hash of the page version the session is based on, on the ruled basis
  * {@link com.wikantik.collab.text.CollabText#contentHash} (SHA-256 hex of the LF-normalised body; meta is compared
  * separately). The pending-publish triple ({@code pendingPublishVersion}, {@code pendingPublishBaseVersion},
- * {@code pendingPublishAuthor}) is all {@code null} when no publish is pending and all set while one is.</p>
+ * {@code pendingPublishAuthor}) is all {@code null} when no publish is pending and all set while one is.
+ * {@code lastEditAt} is {@code null} until the first edit.</p>
  */
 public record SessionRecord( UUID id, String pageName, String status, int basePageVersion, String baseBody,
                              Map< String, Object > baseMeta, String baseContentHash, int headVersion, long metaSeq,
@@ -64,7 +65,6 @@ public record SessionRecord( UUID id, String pageName, String status, int basePa
         }
         ModelChecks.nonBlank( createdBy, "createdBy" );
         Objects.requireNonNull( createdAt, "createdAt" );
-        Objects.requireNonNull( lastEditAt, "lastEditAt" );
     }
 
     public SessionRecord withHead( final int newHeadVersion ) {

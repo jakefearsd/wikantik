@@ -113,6 +113,15 @@ class RecordsTest {
     }
 
     @Test
+    void lastEditAtMayBeNullUntilTheFirstEdit() {
+        final Instant t = Instant.EPOCH;
+        final SessionRecord s = new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b", Map.of(), "h", 0, 0, false,
+            null, null, null, "u", t, null );
+        assertEquals( null, s.lastEditAt() );
+        assertEquals( null, s.withHead( 2 ).lastEditAt() );
+    }
+
+    @Test
     void baseContentHashIsRequired() {
         final Instant t = Instant.EPOCH;
         assertThrows( NullPointerException.class, () -> new SessionRecord( UUID.randomUUID(), "P", "active", 1, "b",

@@ -5,7 +5,9 @@
  *  - a long-poll pull loop feeding `receiveUpdates` (own updates come back as confirmations, so a lost push response
  *    can never duplicate text, 7.2);
  *  - 409 stale-base: wait for the pull to reach the server's head, then retry (the rebase is receiveUpdates');
- *  - 409 rejoin: rejoin with the prior clientID and keep the unsent edits (7.2); a different clientID cannot adopt them;
+ *  - 409 rejoin: rejoin with the prior clientID and keep the unsent edits (7.2); a different clientID cannot adopt them,
+ *    and is never used to resend them: the peer first confirms the ones the server already accepted under the old
+ *    clientID (a lost ack), so the recovery holds only the true remainder, then resyncs;
  *  - 410 / 413 / 400 and an unadoptable rejoin: `onResync` receives the unsynced text and the peer stops. The peer NEVER
  *    re-applies it (A10: re-applying cannot be mapped and duplicates text after a lost ack). Resync lifecycle: on resync the
  *    peer leaves its (now stale) participant, and on `rejoin-new-client` the participant that rejoin's join just created (a
@@ -34,6 +36,7 @@ export function createCollabPeerCore({
   presenceMinIntervalMs = 150,
   backoffBaseMs = 500,
   backoffCapMs = 10000,
+  recoveryPullTimeoutMs = 5000,
   onStatus = () => {},
   onResync = () => {},
   onPresence = () => {},
@@ -170,6 +173,35 @@ export function createCollabPeerCore({
     pushTimer = setTimeout(() => { pushTimer = null; pushNow(); }, ms);
   }
 
+  /**
+   * Before a `rejoin-new-client` resync: the server may already hold some of my unconfirmed updates (a push accepted
+   * whose ack was lost, its confirming pull never arrived). They echo the old clientID, so pulling from my synced version
+   * through the participant the rejoin created confirms them, and the recovery then offers only what the server never
+   * got (pasting an accepted edit back would write it twice). Nothing is re-applied (A10): `receiveUpdates` only confirms
+   * and rebases. When the server cannot show the range (410 after a restart, any error), every unconfirmed edit stays.
+   */
+  async function confirmAcceptedBeforeResync(j) {
+    let since = getSyncedVersion(host.getState());
+    for (let page = 0; page < 8 && since < j.version && sendableUpdates(host.getState()).length; page++) {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), recoveryPullTimeoutMs);
+      let res;
+      try {
+        res = await transport.pull({ sessionId: j.sessionId, participantId: j.participantId, since, metaSince, presenceSince, eventsSince, signal: ctl.signal });
+      } catch (e) {
+        LOG('could not read what the server accepted before the resync; the recovery keeps every unconfirmed edit', e?.status, e?.body?.reason ?? e?.message);
+        return;
+      } finally {
+        clearTimeout(timer);
+      }
+      if (destroyed || stopped || !res?.updates?.length) return;
+      const state = host.getState();
+      if (getSyncedVersion(state) !== since) return;
+      host.dispatch(receiveUpdates(state, res.updates.map((u) => ({ clientID: u.clientID, changes: ChangeSet.fromJSON(u.changes) }))));
+      since = getSyncedVersion(host.getState());
+    }
+  }
+
   async function rejoin() {
     if (rejoinPromise) return rejoinPromise;
     rejoinPromise = (async () => {
@@ -178,8 +210,14 @@ export function createCollabPeerCore({
         try {
           const j = await transport.join({ priorClientId: session.clientID });
           if (destroyed || stopped) { leaveQuietly(j.participantId); return; }
+          if (j.clientID !== session.clientID) {
+            // never resend under the new clientID: the fresh join's doc is truth, the recovery the true remainder
+            await confirmAcceptedBeforeResync(j);
+            if (destroyed || stopped) { leaveQuietly(j.participantId); return; }
+            resync('rejoin-new-client', { ghostParticipantId: j.participantId });
+            return;
+          }
           const synced = getSyncedVersion(host.getState());
-          if (j.clientID !== session.clientID) { resync('rejoin-new-client', { ghostParticipantId: j.participantId }); return; }
           if (j.version < synced) { resync('rejoin-behind', { ghostParticipantId: j.participantId }); return; }
           session.sessionId = j.sessionId;
           session.participantId = j.participantId;

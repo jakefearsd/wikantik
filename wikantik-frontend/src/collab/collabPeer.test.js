@@ -329,6 +329,85 @@ describe('collabPeer', () => {
     await expect(a.core.whenLeft()).resolves.toBeDefined();
   });
 
+  /**
+   * The sim's LOSSY 3145, against the real peer: an edit the server accepted whose ack was lost (and whose confirming pull
+   * never arrived), then a rejoin that cannot keep the clientID. The peer must not resend it under the new clientID, and
+   * the recovery must not offer it as lost, or pasting it back writes it twice.
+   */
+  async function lostAckThenNewClient(server, { typeAfterAck = null } = {}) {
+    let origPid = null;
+    // the old participant's pulls never reach the server, so nothing confirms the accepted edit through the pull loop
+    const a = await makeEditor(server, 'ada', {
+      wrap: (t) => ({ ...t, pull: async (q) => { if (q.participantId === origPid) await new Promise(() => {}); return t.pull(q); } }),
+    });
+    origPid = a.joined.participantId;
+    const oldClient = a.joined.clientID;
+    server.dropNextResponse('POST', '/updates');
+    a.type('K', 3);
+    await advance(150); // pushed, applied by the server, ack lost: the push backs off
+    expect(server.doc).toBe('abcK');
+    expect(sendableUpdates(a.state)).toHaveLength(1);
+    if (typeAfterAck) a.type(typeAfterAck, a.state.doc.length);
+    server.expire('ada');
+    server.forgetClientIds(); // the server cannot hand the old clientID back
+    await advance(2000);
+    return { a, oldClient };
+  }
+
+  it('a rejoin under a new clientID never resends an edit the server already accepted (lost ack), nor offers it as lost', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    const { a, oldClient } = await lostAckThenNewClient(server);
+    expect(a.resyncs).toHaveLength(1);
+    expect(a.resyncs[0].reason).toBe('rejoin-new-client');
+    // the accepted edit is in the server's draft exactly once and nothing re-sent it under any clientID
+    expect(server.doc).toBe('abcK');
+    const textPushes = server.calls.filter((c) => c.method === 'POST' && c.path === '/updates' && c.body.updates?.length);
+    expect(textPushes.every((c) => c.body.updates.every((u) => u.clientID === oldClient))).toBe(true);
+    expect(server.version).toBe(1);
+    // the recovery offers what the server never got: nothing
+    expect(a.resyncs[0].unsyncedText).toBe('');
+    expect(a.core.capture('restart').unsyncedText).toBe('');
+    // a fresh session (the host's restart) starts from the server's text: K once
+    a.core.destroy();
+    const fresh = await makeEditor(server, 'ada');
+    expect(fresh.state.doc.toString()).toBe('abcK');
+    expect(fresh.state.doc.toString().split('K')).toHaveLength(2);
+    fresh.core.destroy();
+  });
+
+  it('after a lost ack and a new-clientID rejoin, the recovery offers only the edit the server never got', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    const { a } = await lostAckThenNewClient(server, { typeAfterAck: 'L' });
+    expect(a.resyncs).toHaveLength(1);
+    expect(a.resyncs[0].reason).toBe('rejoin-new-client');
+    expect(server.doc).toBe('abcK');
+    expect(a.resyncs[0].unsyncedText).toBe('L');
+    expect(a.resyncs[0].docText).toBe('abcKL');
+    a.core.destroy();
+  });
+
+  it('when the server can no longer show what it accepted (410), the recovery keeps every unconfirmed edit', async () => {
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    let origPid = null;
+    const a = await makeEditor(server, 'ada', {
+      wrap: (t) => ({ ...t, pull: async (q) => { if (q.participantId === origPid) await new Promise(() => {}); return t.pull(q); } }),
+    });
+    origPid = a.joined.participantId;
+    server.dropNextResponse('POST', '/updates');
+    a.type('K', 3);
+    await advance(150);
+    server.truncateBelow(1); // a restarted server's ring no longer reaches the old version
+    server.expire('ada');
+    server.forgetClientIds();
+    await advance(2000);
+    expect(a.resyncs).toHaveLength(1);
+    expect(a.resyncs[0].reason).toBe('rejoin-new-client');
+    // it cannot tell, so nothing is dropped from the recovery (and nothing is re-applied: A10)
+    expect(a.resyncs[0].unsyncedText).toBe('K');
+    expect(server.doc).toBe('abcK');
+    a.core.destroy();
+  });
+
   it('a resync leaves the stale participant, and whenLeft resolves after that leave', async () => {
     const server = createFakeCollabServer({ initialText: 'abc', maxPageBytes: 5 });
     const a = await makeEditor(server, 'ada');

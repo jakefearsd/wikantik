@@ -49,6 +49,7 @@ class MetaEditsTest {
     @Test
     void invalidNamesTheProblemOrIsNull() {
         assertNull( MetaEdits.invalid( MetaEdit.set( "summary", "x" ) ) );
+        assertNotNull( MetaEdits.invalid( null ) );
         assertNull( MetaEdits.invalid( MetaEdit.add( "aliases", "x" ) ) );
         assertNotNull( MetaEdits.invalid( MetaEdit.set( null, "x" ) ) );
         assertNotNull( MetaEdits.invalid( MetaEdit.set( "", "x" ) ) );
@@ -69,6 +70,30 @@ class MetaEditsTest {
         assertEquals( 3L, MetaEdits.resolve( "old", MetaEdit.set( "n", 3 ) ), "SET normalises" );
         assertEquals( "2026-01-15", MetaEdits.resolve( null,
             MetaEdit.set( "date", Date.from( Instant.parse( "2026-01-15T00:00:00Z" ) ) ) ) );
+    }
+
+    @Test
+    void setFieldItemsAreStrings() {
+        assertEquals( List.of( 2024L ), MetaEdits.resolve( List.of( 2024 ), MetaEdit.add( "tags", "2024" ) ),
+            "present as a string: unchanged" );
+        assertEquals( List.of( "x" ), MetaEdits.resolve( List.of( 2024, "x" ), MetaEdit.remove( "tags", "2024" ) ) );
+        assertEquals( List.of( "1.5", "true", "b" ), MetaEdits.resolve( List.of( 1.5, true ), MetaEdit.add( "related", "b" ) ) );
+        assertEquals( List.of( "7" ), MetaEdits.resolve( null, MetaEdit.set( "aliases", List.of( 7 ) ) ) );
+        assertEquals( "7", MetaEdits.resolve( null, MetaEdit.set( "aliases", 7 ) ) );
+        assertEquals( 7L, MetaEdits.resolve( null, MetaEdit.set( "other", 7 ) ) );
+        assertTrue( MetaEdits.ops( Map.of( "tags", List.of( 2024L ) ), List.of( MetaEdit.set( "tags", List.of( "2024" ) ) ), 0,
+            "ada" ).isEmpty(), "the same items as strings: no op" );
+    }
+
+    @Test
+    void oversizedNamesTheFirstValueOverTheCap() {
+        assertNull( MetaEdits.oversized( List.of( new StoredMetaOp( 1, "a", "s", "x".repeat( 65534 ) ) ) ) );
+        assertEquals( "s", MetaEdits.oversized( List.of( new StoredMetaOp( 1, "a", "t", "ok" ),
+            new StoredMetaOp( 2, "a", "s", "x".repeat( 65535 ) ) ) ) );
+        // e-acute is 2 UTF-8 bytes: 32767 of them + 2 quotes = 65536 bytes (allowed), 32768 = 65538 (over)
+        assertNull( MetaEdits.oversized( List.of( new StoredMetaOp( 1, "a", "u", "\u00e9".repeat( 32767 ) ) ) ) );
+        assertEquals( "u", MetaEdits.oversized( List.of( new StoredMetaOp( 1, "a", "u", "\u00e9".repeat( 32768 ) ) ) ),
+            "UTF-8 bytes, not characters" );
     }
 
     @Test

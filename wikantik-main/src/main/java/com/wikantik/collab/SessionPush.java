@@ -57,8 +57,8 @@ final class SessionPush {
 
     /** One push; the runnables added to {@code completions} answer waiters and run after the lock is released. */
     PushResponse push( final String participantId, final String authorKey, final int version,
-                       final List< Update > updates, final List< MetaEdit > metaEdits, final Selection selection, final Instant now,
-                       final List< Runnable > completions ) {
+                       final List< Update > updates, final List< MetaEdit > metaEdits, final Selection selection,
+                       final Instant now, final List< Runnable > completions ) {
         final Participant p = roster.get( participantId );
         final Gate.Refusal refused = Gate.push( p, authorKey, now, config.pushesPerSecond(),
             SessionRecord.FROZEN.equals( d.record.status() ) );
@@ -73,38 +73,62 @@ final class SessionPush {
         if( check.refusal() != null ) {
             return PushResponse.refused( check.refusal().status(), d.head, check.refusal().reason() );
         }
-        for( final MetaEdit e : metaEdits ) {
-            final String why = MetaEdits.invalid( e );
-            if( why != null ) {
-                LOG.warn( "push from {}: meta edit {} refused ({}); nothing applied", p.id, e, why );
-                return PushResponse.refused( 400, d.head, CollabSession.REJECTED );
-            }
+        final List< StoredMetaOp > ops = metaOps( p, metaEdits );
+        if( ops == null ) {
+            return PushResponse.refused( 400, d.head, CollabSession.REJECTED );
         }
         final List< StoredUpdate > accepted = check.accepted();
-        final List< StoredMetaOp > ops = MetaEdits.ops( d.meta, metaEdits, d.metaSeq, p.authorKey );
         if( accepted.isEmpty() && ops.isEmpty() ) {
             // presence only, or meta edits that change nothing (ruling P7: no version check)
-            if( keepSelection( p, selection ) ) {
-                answers.presenceChanged( p.id, completions );
-            }
+            presenceOnly( p, selection, completions );
             return PushResponse.accepted( d.head, d.metaSeq );
         }
         if( !store( participantId, accepted, ops ) ) {
             return PushResponse.refused( 503, d.head, CollabSession.STORE );
         }
         d.lastEditAt = now;
-        if( !ops.isEmpty() ) {
-            d.applyMetaOps( ops );
-        }
+        d.applyMetaOps( ops );
         if( accepted.isEmpty() ) {
-            if( keepSelection( p, selection ) ) {
-                answers.presenceChanged( p.id, completions );
-            }
+            presenceOnly( p, selection, completions );
         } else {
             applyText( p, version, accepted, check.next(), selection );
         }
         answers.wakeAll( accepted, completions );
         return PushResponse.accepted( d.head, d.metaSeq );
+    }
+
+    /**
+     * The meta ops of a push, or null (logged by field name and kind only: a value never reaches the log) when an edit
+     * is invalid or a resolved value is over {@link MetaEdits#MAX_VALUE_BYTES}.
+     */
+    private List< StoredMetaOp > metaOps( final Participant p, final List< MetaEdit > metaEdits ) {
+        for( final MetaEdit e : metaEdits ) {
+            final String why = MetaEdits.invalid( e );
+            if( why != null ) {
+                LOG.warn( "collab session {}: push from {} refused, meta edit on field {} ({}): {}; nothing applied",
+                    d.id, p.id, e == null ? null : clip( e.field() ), e == null ? null : e.kind(), why );
+                return null;
+            }
+        }
+        final List< StoredMetaOp > ops = MetaEdits.ops( d.meta, metaEdits, d.metaSeq, p.authorKey );
+        final String oversized = MetaEdits.oversized( ops );
+        if( oversized != null ) {
+            LOG.warn( "collab session {}: push from {} refused, the value of meta field {} exceeds {} bytes; nothing"
+                + " applied", d.id, p.id, clip( oversized ), MetaEdits.MAX_VALUE_BYTES );
+            return null;
+        }
+        return ops;
+    }
+
+    private void presenceOnly( final Participant p, final Selection selection, final List< Runnable > completions ) {
+        if( keepSelection( p, selection ) ) {
+            answers.presenceChanged( p.id, completions );
+        }
+    }
+
+    /** A field name as logged: at most 128 characters (a refused name may be longer). */
+    private static String clip( final String field ) {
+        return field == null || field.length() <= 128 ? field : field.substring( 0, 128 ) + "...";
     }
 
     /**

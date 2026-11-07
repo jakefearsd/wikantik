@@ -23,6 +23,7 @@ import com.wikantik.collab.model.JoinResponse;
 import com.wikantik.collab.model.MetaEdit;
 import com.wikantik.collab.model.MetaOp;
 import com.wikantik.collab.model.PublishOutcome;
+import com.wikantik.collab.model.PublishRequest;
 import com.wikantik.collab.model.PublishResponse;
 import com.wikantik.collab.model.PullCursor;
 import com.wikantik.collab.model.PullResponse;
@@ -52,7 +53,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -426,7 +426,157 @@ class CollabSessionMetaTest {
         assertEquals( 503, st.response().status() );
         assertNull( store.session( session.id() ).orElseThrow().pendingPublishVersion(), "no marker without M_V" );
         assertFalse( session.view().publishPending() );
-        assertInstanceOf( PublishResponse.class, session.publish( a.participantId(), "ada", 0, "note" ) );
+        assertEquals( 200, session.publish( a.participantId(), "ada", 0, "note" ).status() );
         assertEquals( 2, writer.latest( PAGE ).orElseThrow().version(), "the retry publishes" );
+    }
+
+    @Test
+    void aMarkerThatCannotBeStoredAfterItsSnapshotIsRefusedAndTheNextPublishWorks() {
+        final JoinResponse a = join( "ada" );
+        assertEquals( 200, session.push( a.participantId(), "ada", 0, List.of( typing( a, 0, "X" ) ) ).status() );
+        store.failOn( InMemoryCollabStore.Op.UPDATE_SESSION, 1 );   // the marker write, after the snapshot at V
+        final PublishStart st = session.startPublish( a.participantId(), "ada", 1, "note" );
+        assertNotNull( st.response() );
+        assertEquals( 503, st.response().status() );
+        assertEquals( 1, store.snapshotAtOrBelow( session.id(), 1 ).orElseThrow().version(), "an orphan snapshot at V" );
+        assertNull( store.session( session.id() ).orElseThrow().pendingPublishVersion(), "no marker" );
+        assertFalse( session.view().publishPending() );
+        assertEquals( 200, session.publish( a.participantId(), "ada", 1, "note" ).status() );
+        assertEquals( "X" + BODY, com.wikantik.collab.text.CollabText.toLf( writer.latest( PAGE ).orElseThrow().body() ) );
+    }
+
+    @Test
+    void aLegacyMarkerWithNoSnapshotAtVRecoversWithTheLiveMetaAndWarns() throws Exception {
+        final JoinResponse a = join( "ada" );
+        assertEquals( 200, session.push( a.participantId(), "ada", 0, List.of( typing( a, 0, "X" ) ) ).status() );
+        assertEquals( 200, edit( a, "ada", MetaEdit.set( "summary", "live" ) ).status() );
+        // a marker as a build before durable M_V stored it: no snapshot at V = 1 (only the creation snapshot at 0)
+        final SessionRecord rec = store.session( session.id() ).orElseThrow();
+        store.updateSession( rec.withPending( 1, 1, "ada" ) );
+        writer.publish( new PublishRequest( PAGE, "X" + BODY, session.view().meta(), 1, "ada", "" ) );
+        assertEquals( 200, edit( a, "ada", MetaEdit.set( "summary", "during" ) ).status() );   // during the save
+        try( Warnings w = new Warnings( Draft.class ) ) {
+            session = reload();
+            assertTrue( w.lines.stream().anyMatch( l -> l.contains( "no snapshot at the published version 1" ) ),
+                w.lines.toString() );
+        }
+        assertEquals( 2, session.view().basePageVersion(), "the marked publish is still claimed" );
+        assertNull( store.session( session.id() ).orElseThrow().pendingPublishVersion() );
+        // M_V fell back to the live meta (summary "during"), so the fold reverts the edit made during the save: the
+        // documented limitation of a legacy marker, and exactly what the snapshot at V prevents
+        assertEquals( "live", meta( "summary" ) );
+    }
+
+    // ---- fix round 1: set-field items as strings, value cap, null edits, refusal log -------------------------------
+
+    private CollabSession numericTags() {
+        final Map< String, Object > m = new LinkedHashMap<>();
+        m.put( "tags", List.of( 2024, "x" ) );
+        m.put( "count", 3 );
+        writer.seed( "Num", BODY, m );
+        final SessionRecord rec = CollabSession.newRecord( UUID.nameUUIDFromBytes( "Num".getBytes() ), "Num",
+            writer.latest( "Num" ), "creator", clock );
+        return CollabSession.create( rec, ports(), config(), 1000 );
+    }
+
+    @Test
+    void setFieldItemsCompareAsStrings() {
+        session = numericTags();
+        final JoinResponse a = join( "ada" );
+        final PushResponse add = edit( a, "ada", MetaEdit.add( "tags", "2024" ) );
+        assertEquals( 200, add.status() );
+        assertEquals( 0L, add.metaSeq(), "YAML 2024 is the item \"2024\": no duplicate" );
+        assertEquals( List.of( 2024L, "x" ), meta( "tags" ) );
+        assertEquals( 200, edit( a, "ada", MetaEdit.remove( "tags", "2024" ) ).status() );
+        assertEquals( List.of( "x" ), meta( "tags" ), "REMOVE \"2024\" removes YAML 2024" );
+        assertEquals( 200, edit( a, "ada", MetaEdit.set( "aliases", List.of( 7, "y" ) ) ).status() );
+        assertEquals( List.of( "7", "y" ), meta( "aliases" ), "set-field items are stored as strings" );
+        assertEquals( 200, edit( a, "ada", MetaEdit.add( "aliases", "z" ) ).status() );
+        assertEquals( List.of( "7", "y", "z" ), meta( "aliases" ) );
+    }
+
+    @Test
+    void otherFieldsKeepNormalisedJsonComparison() {
+        session = numericTags();
+        final JoinResponse a = join( "ada" );
+        assertEquals( 0L, edit( a, "ada", MetaEdit.set( "count", 3 ) ).metaSeq(), "3 is 3" );
+        assertEquals( 1L, edit( a, "ada", MetaEdit.set( "count", "3" ) ).metaSeq(), "\"3\" is not 3 outside set fields" );
+        assertEquals( "3", meta( "count" ) );
+    }
+
+    @Test
+    void aMetaValueOverSixtyFourKibRefusesTheWholePush() {
+        final JoinResponse a = join( "ada" );
+        final PushResponse big = session.push( a.participantId(), "ada", 0, List.of( typing( a, 0, "X" ) ),
+            List.of( MetaEdit.set( "title", "t2" ), MetaEdit.set( "summary", "x".repeat( 65535 ) ) ), null );
+        assertEquals( 400, big.status() );
+        assertEquals( "rejected", big.reason() );
+        assertEquals( BODY, session.view().doc() );
+        assertEquals( "T", meta( "title" ) );
+        assertEquals( 0L, session.view().metaSeq() );
+        // 65534 characters + 2 quotes = exactly 64 KiB of JSON: allowed
+        assertEquals( 200, edit( a, "ada", MetaEdit.set( "summary", "x".repeat( 65534 ) ) ).status() );
+        final List< String > many = new ArrayList<>();
+        for( int i = 0; i < 6000; i++ ) {
+            many.add( "tag-" + i );
+        }
+        assertEquals( 200, edit( a, "ada", MetaEdit.set( "tags", many ) ).status(), "about 57.5 KiB" );
+        assertEquals( 400, edit( a, "ada", MetaEdit.add( "tags", "y".repeat( 7000 ) ) ).status(),
+            "an ADD that grows the list past the cap" );
+    }
+
+    @Test
+    void aNullMetaEditIsRejected() {
+        final JoinResponse a = join( "ada" );
+        final PushResponse r = session.push( a.participantId(), "ada", 0, List.of(),
+            java.util.Arrays.asList( MetaEdit.set( "summary", "s" ), null ), null );
+        assertEquals( 400, r.status() );
+        assertEquals( "rejected", r.reason() );
+        assertNull( meta( "summary" ) );
+    }
+
+    @Test
+    void theRefusalLogNamesFieldKindAndSessionButNeverTheValue() {
+        final JoinResponse a = join( "ada" );
+        try( Warnings w = new Warnings( SessionPush.class ) ) {
+            assertEquals( 400, edit( a, "ada", MetaEdit.add( "status", "SECRET-VALUE" ) ).status() );
+            assertEquals( 1, w.lines.size(), w.lines.toString() );
+            final String line = w.lines.get( 0 );
+            assertTrue( line.contains( "status" ) && line.contains( "ADD" ) && line.contains( session.id().toString() ),
+                line );
+            assertFalse( line.contains( "SECRET" ), line );
+        }
+    }
+
+    /** Captures WARN and above from one class's logger, raising its level to WARN for the duration. */
+    private static final class Warnings implements AutoCloseable {
+        final List< String > lines = new java.util.concurrent.CopyOnWriteArrayList<>();
+        private final org.apache.logging.log4j.core.Logger logger;
+        private final org.apache.logging.log4j.Level previous;
+        private final org.apache.logging.log4j.core.appender.AbstractAppender appender;
+
+        Warnings( final Class< ? > c ) {
+            logger = (org.apache.logging.log4j.core.Logger) org.apache.logging.log4j.LogManager.getLogger( c );
+            previous = logger.getLevel();
+            appender = new org.apache.logging.log4j.core.appender.AbstractAppender( "warnings-" + c.getSimpleName(), null,
+                    null, true, org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY ) {
+                @Override
+                public void append( final org.apache.logging.log4j.core.LogEvent e ) {
+                    if( e.getLevel().isMoreSpecificThan( org.apache.logging.log4j.Level.WARN ) ) {
+                        lines.add( e.getMessage().getFormattedMessage() );
+                    }
+                }
+            };
+            appender.start();
+            logger.addAppender( appender );
+            org.apache.logging.log4j.core.config.Configurator.setLevel( c.getName(), org.apache.logging.log4j.Level.WARN );
+        }
+
+        @Override
+        public void close() {
+            org.apache.logging.log4j.core.config.Configurator.setLevel( logger.getName(), previous );
+            logger.removeAppender( appender );
+            appender.stop();
+        }
     }
 }

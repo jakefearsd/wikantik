@@ -52,8 +52,10 @@ import java.util.concurrent.TimeUnit;
  *       the registry checks {@code edit}/{@code createPages}, derived pages and the participant limit.</li>
  *   <li>Every later call carries {@code sessionId} and {@code participantId} (ruling P5); the participant must belong to
  *       the caller's author key (A6, 403 {@code not-your-participant}). An unknown session or participant is 409
- *       {@code rejoin}, an evicted one 403 {@code evicted} with the reason as {@code detail} (the session's tombstone);
- *       a page name that is not the session's is 404.</li>
+ *       {@code rejoin}, an evicted one 403 {@code evicted} with the reason as {@code detail} (the session's tombstone).
+ *       The session is found by {@code sessionId}; the path's page name may be its current name or any name it held
+ *       before a rename, and any other name is 404. Permission checks ({@code publish}, {@code discard}) are on the
+ *       session's current name, never the path's.</li>
  *   <li>{@code POST updates} ({@link CollabPush}): a body over {@code maxUpdateBytes} is 413 before it is parsed; wire
  *       defects (text or meta) are 400 {@code rejected} before the session is called; the session then refuses in the
  *       order identity, rate/freeze, stale base (text only), text checks, meta checks.</li>

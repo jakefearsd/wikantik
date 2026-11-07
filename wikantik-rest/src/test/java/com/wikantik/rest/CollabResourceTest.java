@@ -95,9 +95,9 @@ import static org.mockito.Mockito.when;
  * Phase 0 test doubles, with Mockito requests/responses and {@link FakeAsyncContext} (F6). Every status the Phase 1
  * server produces is asserted against the shared protocol fixture
  * ({@code wikantik-frontend/src/collab/__fixtures__/collab-protocol.json}, ruling P2): same status, every fixture key
- * present, the same {@code reason}/{@code error}/flags. The fixture's remaining Phase 2 cases (eviction tombstones,
- * lifecycle events, no-create) are listed in {@link #DEFERRED_TO_PHASE_2}, and every fixture case must be either
- * covered here or deferred.
+ * present, the same {@code reason}/{@code error}/flags, and every pulled event of a type the case shows carries exactly
+ * that event's keys. The cases whose server half is Phase 3 (draft state, the draft summary, purge) are listed in
+ * {@link #DEFERRED_TO_PHASE_3}, and every fixture case must be either covered here or deferred.
  */
 class CollabResourceTest {
 
@@ -116,12 +116,11 @@ class CollabResourceTest {
         "updates.get.200", "updates.get.200.empty", "updates.get.410", "updates.get.400.bad-since",
         "updates.get.409.rejoin",
         "publish.200", "publish.409.publish-merged-retry", "publish.409.not-synced", "publish.422", "publish.423",
-        "discard.204", "leave.204", "updates.post.403.evicted", "updates.get.403.evicted", "publish.403.no-create" );
+        "discard.204", "leave.204", "updates.post.403.evicted", "updates.get.403.evicted", "publish.403.no-create",
+        "updates.get.200.lifecycle-events" );
 
-    /** Fixture cases whose server half is Phase 2 (docs/superpowers/plans/...phase2..., Task 7). */
-    private static final Set< String > DEFERRED_TO_PHASE_2 = Set.of(
-        "updates.get.200.lifecycle-events",
-        // Phase 3 (docs/superpowers/plans/2026-11-07-multiedit-phase3-...md, Task 7): draft state, summary, purge
+    /** Fixture cases whose server half is Phase 3 (docs/superpowers/plans/2026-11-06-multiedit-phase3-*.md). */
+    private static final Set< String > DEFERRED_TO_PHASE_3 = Set.of(
         "join.200.draft-contributors", "updates.get.200.draft-events", "draft.get.200", "draft.get.200.unchanged",
         "draft.get.403.evicted", "draft.get.404", "publish.200.markup", "updates.get.403.purged" );
 
@@ -131,6 +130,8 @@ class CollabResourceTest {
     private final Set< String > noEdit = new HashSet<>();
     private final Set< String > noCreate = new HashSet<>();
     private final Set< String > noView = new HashSet<>();
+    /** Pages nobody may edit, as the REST layer's own check sees them. */
+    private final Set< String > noEditOn = new HashSet<>();
     private final List< Runnable > delayed = new ArrayList<>();
     private CollabSessionRegistry registry;
     /** When set, the next call's response writes through it (then it is cleared). */
@@ -164,7 +165,7 @@ class CollabResourceTest {
 
         @Override
         public boolean mayEdit( final CollabResource.Caller caller, final String pageName, final boolean create ) {
-            return permissions.canEdit( caller.wikiSession(), pageName )
+            return !noEditOn.contains( pageName ) && permissions.canEdit( caller.wikiSession(), pageName )
                 && ( !create || permissions.canCreate( caller.wikiSession(), pageName ) );
         }
     };
@@ -432,17 +433,48 @@ class CollabResourceTest {
             for( final JsonElement ev : got.getAsJsonArray( "events" ) ) {
                 assertTrue( ev.getAsJsonObject().has( "seq" ) && ev.getAsJsonObject().has( "type" ), id + " event" );
             }
+            assertEventShapes( id, want, got );
+        }
+    }
+
+    /**
+     * Every pulled event whose type the fixture case shows carries exactly that event's keys (an optional
+     * {@code recreated} on {@code external-change} aside), and a {@code participant} carries the fixture's keys.
+     */
+    private static void assertEventShapes( final String id, final JsonObject want, final JsonObject got ) {
+        final Map< String, JsonObject > shapes = new HashMap<>();
+        for( final JsonElement ev : want.getAsJsonArray( "events" ) ) {
+            shapes.put( ev.getAsJsonObject().get( "type" ).getAsString(), ev.getAsJsonObject() );
+        }
+        for( final JsonElement e : got.getAsJsonArray( "events" ) ) {
+            final JsonObject ev = e.getAsJsonObject();
+            final JsonObject shape = shapes.get( ev.get( "type" ).getAsString() );
+            if( shape == null ) {
+                continue;
+            }
+            final Set< String > keys = new TreeSet<>( ev.keySet() );
+            if( "external-change".equals( ev.get( "type" ).getAsString() ) ) {
+                keys.remove( "recreated" );
+            }
+            assertEquals( new TreeSet<>( shape.keySet() ), keys, id + " event " + ev );
+            if( shape.has( "participant" ) ) {
+                assertEquals( shape.getAsJsonObject( "participant" ).keySet(),
+                    ev.getAsJsonObject( "participant" ).keySet(), id + " event participant " + ev );
+            }
         }
     }
 
     @Test
-    void everyFixtureCaseIsCoveredOrDeferredToPhase2() throws Exception {
+    void everyFixtureCaseIsCoveredOrDeferredToPhase3() throws Exception {
         final Set< String > unclassified = new TreeSet<>( fixtureCases().keySet() );
         unclassified.removeAll( COVERED );
-        unclassified.removeAll( DEFERRED_TO_PHASE_2 );
+        unclassified.removeAll( DEFERRED_TO_PHASE_3 );
         assertTrue( unclassified.isEmpty(), "fixture cases neither covered nor deferred: " + unclassified );
+        final Set< String > both = new TreeSet<>( COVERED );
+        both.retainAll( DEFERRED_TO_PHASE_3 );
+        assertTrue( both.isEmpty(), "cases both covered and deferred: " + both );
         final Set< String > stale = new TreeSet<>( COVERED );
-        stale.addAll( DEFERRED_TO_PHASE_2 );
+        stale.addAll( DEFERRED_TO_PHASE_3 );
         stale.removeAll( fixtureCases().keySet() );
         assertTrue( stale.isEmpty(), "listed cases missing from the fixture: " + stale );
     }
@@ -790,6 +822,20 @@ class CollabResourceTest {
     }
 
     @Test
+    void pushAnswersCarryMetaSeq() throws Exception {
+        final Joined a = join( "ada" );
+        final Resp meta = post( "ada", "updates", metaPush( a, 0, arr(), obj( "field", "status", "value", "draft" ) ) );
+        assertEquals( 1, meta.body().get( "metaSeq" ).getAsLong() );
+        final Resp text = push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) );
+        assertEquals( 1, text.body().get( "metaSeq" ).getAsLong(), "a text push answers the current metaSeq" );
+        final Resp again = post( "ada", "updates", metaPush( a, 1, arr(), obj( "field", "status", "value", "draft" ) ) );
+        assertEquals( 200, again.status );
+        assertEquals( 1, again.body().get( "metaSeq" ).getAsLong(), "a no-op edit does not advance it" );
+        final Resp presence = push( "ada", a, 1 );
+        assertEquals( 1, presence.body().get( "metaSeq" ).getAsLong() );
+    }
+
+    @Test
     void aRepeatedStoreFailureDropsTheSessionForAReload() throws Exception {
         final Joined a = join( "ada" );
         for( int i = 0; i < CollabSessionRegistry.STORE_FAILURE_LIMIT; i++ ) {
@@ -1040,6 +1086,112 @@ class CollabResourceTest {
             Map.of() ).status, "and so does the new one" );
         assertEquals( 404, call( "POST", "ada", "/OtherPage/updates", pushBody( a, 0, arr() ).toString(),
             Map.of() ).status );
+    }
+
+    @Test
+    void anUnrelatedPageNameIs404OnEveryPostJoinCall() throws Exception {
+        final Joined a = join( "ada" );
+        final Map< String, String > q = Map.of( "sessionId", a.sessionId, "participantId", a.participantId, "since",
+            "0", "metaSince", "0", "presenceSince", "0", "eventsSince", "0" );
+        final List< Resp > all = List.of(
+            call( "GET", "ada", "/OtherPage/updates", null, q ),
+            call( "POST", "ada", "/OtherPage/updates", pushBody( a, 0, arr( update( a, 11, arr( 0, "!" ), 1 ) ) )
+                .toString(), Map.of() ),
+            call( "POST", "ada", "/OtherPage/publish", publishBody( a, 0 ).toString(), Map.of() ),
+            call( "POST", "ada", "/OtherPage/discard", ids( a ).toString(), Map.of() ),
+            call( "POST", "ada", "/OtherPage/leave", ids( a ).toString(), Map.of() ) );
+        for( final Resp r : all ) {
+            assertEquals( 404, r.status, () -> r.out.toString() );
+            assertEquals( "no-store", r.headers.get( "Cache-Control" ) );
+        }
+        assertEquals( "Hello world\n", session( a ).view().doc(), "nothing was pushed" );
+        assertTrue( session( a ).hasParticipant( a.participantId ), "nobody left" );
+        assertEquals( 1, writer.latest( PAGE ).orElseThrow().version(), "nothing was published" );
+    }
+
+    @Test
+    void theEditCheckOfARenamedSessionIsOnItsCurrentName() throws Exception {
+        final Joined a = join( "ada" );
+        push( "ada", a, 0, update( a, 11, arr( 0, "!" ), 1 ) );
+        writer.rename( PAGE, "NewName" );
+        registry.rekey( PAGE, "NewName" );
+
+        noEditOn.add( "NewName" );
+        final Resp refusedDiscard = post( "ada", "discard", ids( a ) );   // under the old name
+        assertEquals( 403, refusedDiscard.status, () -> refusedDiscard.out.toString() );
+        assertTrue( refusedDiscard.body().get( "message" ).getAsString().contains( "NewName" ) );
+        final Resp refusedPublish = post( "ada", "publish", publishBody( a, 1 ) );
+        assertEquals( 403, refusedPublish.status, () -> refusedPublish.out.toString() );
+        assertEquals( "Hello world!\n", session( a ).view().doc(), "the refused discard changed nothing" );
+
+        noEditOn.clear();
+        noEditOn.add( PAGE );   // the old name no longer decides anything
+        final Resp published = post( "ada", "publish", publishBody( a, 1 ) );
+        assertEquals( 200, published.status, () -> published.out.toString() );
+        assertEquals( "Hello world!", writer.latest( "NewName" ).orElseThrow().body().strip(), "saved as NewName" );
+        assertTrue( writer.latest( PAGE ).isEmpty(), "never recreated under the old name" );
+    }
+
+    @Test
+    void pull200CarriesEveryLifecycleEventInTheFixtureShape() throws Exception {
+        final Joined a = join( "ada" );
+        final Joined r = join( "raj" );
+        final Joined c = join( "cy" );
+        assertEquals( 204, post( "raj", "leave", ids( r ) ).status );
+        assertEquals( 200, post( "ada", "updates", metaPush( a, 0, arr(),
+            obj( "field", "status", "value", "ours" ) ) ).status );
+        final int pageVersion = writer.externalSave( PAGE, "Howdy world", Map.of( "tags", List.of( "a" ), "status",
+            "theirs" ), "raj" );
+        session( a ).reconcile( writer.latest( PAGE ).orElseThrow() );
+        writer.rename( PAGE, "NewName" );
+        registry.rekey( PAGE, "NewName" );
+        writer.delete( "NewName" );
+        registry.freeze( "NewName" );
+        session( a ).evict( c.participantId, "lost-edit" );
+
+        final Resp p = pull( "ada", a, 0, 0, 0, 0 );   // under the old name
+        assertFixture( "updates.get.200.lifecycle-events", p );
+        final Map< String, List< JsonObject > > byType = new HashMap<>();
+        for( final JsonElement e : p.body().getAsJsonArray( "events" ) ) {
+            byType.computeIfAbsent( e.getAsJsonObject().get( "type" ).getAsString(), k -> new ArrayList<>() )
+                .add( e.getAsJsonObject() );
+        }
+        final Set< String > wanted = new TreeSet<>();
+        for( final JsonElement e : fixtureCases().get( "updates.get.200.lifecycle-events" ).getAsJsonObject( "response" )
+                .getAsJsonObject( "body" ).getAsJsonArray( "events" ) ) {
+            wanted.add( e.getAsJsonObject().get( "type" ).getAsString() );
+        }
+        assertTrue( byType.keySet().containsAll( wanted ), "every lifecycle event type: " + byType.keySet() );
+
+        final JsonObject joined = byType.get( "participant-joined" ).get( 1 ).getAsJsonObject( "participant" );
+        assertEquals( r.participantId, joined.get( "participantId" ).getAsString() );
+        assertEquals( "Raj", joined.get( "displayName" ).getAsString(), "a display name, never the login" );
+        assertEquals( List.of( obj( "participantId", r.participantId, "reason", "left" ),
+                obj( "participantId", c.participantId, "reason", "evicted" ) ),
+            byType.get( "participant-left" ).stream().map( CollabResourceTest::withoutSeqAndType ).toList() );
+        final JsonObject ext = byType.get( "external-change" ).get( 0 );
+        assertEquals( "Raj", ext.get( "source" ).getAsString() );
+        assertEquals( pageVersion, ext.get( "pageVersion" ).getAsInt() );
+        assertEquals( 1, ext.get( "version" ).getAsInt(), "the collab head right after the server update" );
+        assertEquals( arr( "status" ), ext.get( "conflictFields" ) );
+        for( final JsonElement range : ext.getAsJsonArray( "ranges" ) ) {
+            assertEquals( 2, range.getAsJsonArray().size(), "a [from, to] pair: " + range );
+        }
+        assertEquals( "NewName", byType.get( "page-renamed" ).get( 0 ).get( "to" ).getAsString() );
+        assertEquals( obj( "participantId", c.participantId, "reason", "lost-edit" ),
+            withoutSeqAndType( byType.get( "evicted" ).get( 0 ) ) );
+        long seq = 0;
+        for( final JsonElement e : p.body().getAsJsonArray( "events" ) ) {
+            assertEquals( ++seq, e.getAsJsonObject().get( "seq" ).getAsLong(), "seq rises by one per event" );
+        }
+        assertEquals( seq, p.body().get( "eventSeq" ).getAsLong() );
+    }
+
+    private static JsonObject withoutSeqAndType( final JsonObject event ) {
+        final JsonObject o = event.deepCopy();
+        o.remove( "seq" );
+        o.remove( "type" );
+        return o;
     }
 
     // ---- publish ---------------------------------------------------------------------------------------------------
@@ -1375,6 +1527,30 @@ class CollabResourceTest {
         all.add( post( "ada", "leave", ids( a ) ) );
         for( final Resp r : all ) {
             assertEquals( "no-store", r.headers.get( "Cache-Control" ), () -> r.status + " " + r.out );
+        }
+    }
+
+    @Test
+    void responsesAreStillNoStore() throws Exception {
+        final List< Resp > all = new ArrayList<>();
+        final Joined a = join( "ada" );
+        final Joined r = join( "raj" );
+        final Joined c = join( "cy" );
+        noEdit.add( "raj" );
+        all.add( post( "raj", "discard", ids( r ) ) );                                     // 403 forbidden
+        noEdit.clear();
+        all.add( call( "POST", "ada", "/OtherPage/updates", pushBody( a, 0, arr() ).toString(), Map.of() ) );   // 404
+        writer.delete( PAGE );
+        registry.freeze( PAGE );
+        noCreate.add( "ada" );
+        all.add( post( "ada", "publish", publishBody( a, 0 ) ) );                          // 403 no-create
+        session( c ).evict( c.participantId, "lost-edit" );
+        all.add( push( "cy", c, 0 ) );                                                     // 403 evicted
+        all.add( pull( "cy", c, 0, 0, 0, 0 ) );                                            // 403 evicted
+        all.add( pull( "ada", a, 0, 0, 0, 0 ) );                                           // 200 lifecycle events
+        assertEquals( List.of( 403, 404, 403, 403, 403, 200 ), all.stream().map( x -> x.status ).toList() );
+        for( final Resp x : all ) {
+            assertEquals( "no-store", x.headers.get( "Cache-Control" ), () -> x.status + " " + x.out );
         }
     }
 }

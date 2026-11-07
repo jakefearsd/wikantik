@@ -44,7 +44,7 @@ import java.util.function.Function;
 final class Contributors {
 
     /** The public name of a contributor whose identity has none: never the key, never a positional label. */
-    static final String UNKNOWN = "Unknown contributor";
+    static final String UNKNOWN = com.wikantik.api.identity.IdentityDisplay.UNKNOWN_CONTRIBUTOR_LABEL;
 
     private final Map< String, Contribution > byAuthor;
 

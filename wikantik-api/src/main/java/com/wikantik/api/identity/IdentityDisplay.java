@@ -18,6 +18,9 @@
  */
 package com.wikantik.api.identity;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,14 @@ import java.util.regex.Pattern;
  * known", so values pass through unchanged.
  */
 public final class IdentityDisplay {
+
+    private static final Logger LOG = LogManager.getLogger( IdentityDisplay.class );
+
+    /**
+     * The one label for a contributor whose author key has no display name ({@link #ofContributor} answers null): the
+     * MultiEdit live surfaces and the page history's contributor lists both show it.
+     */
+    public static final String UNKNOWN_CONTRIBUTOR_LABEL = "Unknown contributor";
 
     /** Frontmatter keys whose value names a principal rather than carrying prose. */
     public static final List< String > PRINCIPAL_KEYS = List.of( "author", "verified_by" );
@@ -56,6 +67,50 @@ public final class IdentityDisplay {
             return stored;
         }
         return identity.displayName( stored );
+    }
+
+    /**
+     * The public display name of a MultiEdit <em>author key</em> (a contributor ledger row, a draft participant), or
+     * {@code null} when none resolves (ruling R14), so the caller shows its own label ({@link #UNKNOWN_CONTRIBUTOR_LABEL},
+     * {@code "Editor <n>"}) and never the key. An author key is a login, or for a session without one its user
+     * principal (an IP address, an asserted name), which {@link PublicIdentity#displayName} passes through unchanged; so
+     * no name resolves when it answers blank, one of its placeholders ({@link PublicIdentity#UNKNOWN},
+     * {@link PublicIdentity#UNKNOWN_CONTRIBUTOR}), the key itself while no account has that login, or fails.
+     * {@link PublicIdentity#FORMER_MEMBER} is a public label and is kept; an account whose display name equals its login
+     * keeps it. A {@code null} identity (unit-test wiring) knows no account: null.
+     */
+    public static String ofContributor( final PublicIdentity identity, final String authorKey ) {
+        if ( identity == null || authorKey == null ) {
+            return null;
+        }
+        final String name;
+        try {
+            name = identity.displayName( authorKey );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Display-name resolution failed; answering no name: {}", e.getMessage(), e );
+            return null;
+        }
+        if ( name == null || name.isBlank() || PublicIdentity.UNKNOWN.equals( name )
+                || PublicIdentity.UNKNOWN_CONTRIBUTOR.equals( name ) || echoedKey( identity, name, authorKey ) ) {
+            return null;
+        }
+        return name;
+    }
+
+    /**
+     * True when {@code name} is the unresolved key passed through unchanged. An account whose display name happens to
+     * equal its login is the account's own public name, so it only counts as an echo when no such account exists.
+     */
+    private static boolean echoedKey( final PublicIdentity identity, final String name, final String authorKey ) {
+        if ( !name.equals( authorKey ) ) {
+            return false;
+        }
+        try {
+            return identity.userIdForLogin( authorKey ).isEmpty();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Account lookup for a display name failed; treating it as an echoed key: {}", e.getMessage(), e );
+            return true;
+        }
     }
 
     /**

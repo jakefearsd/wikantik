@@ -99,7 +99,7 @@ public class HistoryResource extends RestServletBase {
                     .map( v -> {
                         final Map< String, Object > entry = new LinkedHashMap<>();
                         entry.put( "version", Math.max( v.getVersion(), 1 ) );
-                        entry.put( "author", IdentityDisplay.ofAuthor( identity, v.getAuthor() ) );
+                        entry.put( "author", authorName( identity, ledger, Math.max( v.getVersion(), 1 ), v.getAuthor() ) );
                         entry.put( "lastModified", v.getLastModified() );
                         entry.put( "changeNote", IdentityDisplay.changeNote( identity, v.getAttribute( Page.CHANGENOTE ) ) );
                         entry.put( "contributors", contributors( identity, ledger, Math.max( v.getVersion(), 1 ), v.getAuthor() ) );
@@ -127,22 +127,42 @@ public class HistoryResource extends RestServletBase {
     }
 
     /**
-     * The display names of a version's contributors: the ledger's keys through {@link IdentityDisplay#ofAuthor} (a name
-     * for an account, "former member" for a deleted one, "unknown contributor" for an unresolvable email), deduplicated
-     * and sorted, with the version's own author, in the same form, first when it is among them. Never a raw key.
+     * The display name of ledger author key {@code key}, as the MultiEdit live surfaces show it: its display name
+     * ({@link IdentityDisplay#ofContributor}: "former member" for a deleted account), else
+     * {@link IdentityDisplay#UNKNOWN_CONTRIBUTOR_LABEL}. Never the key itself (ruling R14: an anonymous editor's key is
+     * an IP address or an asserted name).
+     */
+    private static String contributorName( final PublicIdentity identity, final String key ) {
+        final String name = IdentityDisplay.ofContributor( identity, key );
+        return name == null ? IdentityDisplay.UNKNOWN_CONTRIBUTOR_LABEL : name;
+    }
+
+    /**
+     * The version's author as shown: in the contributor form ({@link #contributorName}) when the author is among the
+     * version's ledger keys (then it is an author key, and the UI filters it out of the contributors by equality), else
+     * {@link IdentityDisplay#ofAuthor} (a legacy full name or an agent label passes through).
+     */
+    private static String authorName( final PublicIdentity identity, final Map< Integer, List< String > > ledger,
+                                      final int version, final String author ) {
+        return author != null && ledger.getOrDefault( version, List.of() ).contains( author )
+            ? contributorName( identity, author ) : IdentityDisplay.ofAuthor( identity, author );
+    }
+
+    /**
+     * The display names of a version's contributors ({@link #contributorName}), deduplicated and sorted, with the
+     * version's own author, in the same form, first when it is among them. Never a raw key.
      */
     private static List< String > contributors( final PublicIdentity identity, final Map< Integer, List< String > > ledger,
                                                 final int version, final String author ) {
+        final List< String > keys = ledger.getOrDefault( version, List.of() );
         final TreeSet< String > names = new TreeSet<>();
-        for ( final String key : ledger.getOrDefault( version, List.of() ) ) {
-            final String shown = IdentityDisplay.ofAuthor( identity, key );
-            if ( shown != null && !shown.isBlank() ) {
-                names.add( shown );
-            }
+        for ( final String key : keys ) {
+            names.add( contributorName( identity, key ) );
         }
-        final String authorShown = IdentityDisplay.ofAuthor( identity, author );
         final List< String > out = new ArrayList<>();
-        if ( authorShown != null && names.remove( authorShown ) ) {
+        if ( author != null && keys.contains( author ) ) {
+            final String authorShown = contributorName( identity, author );
+            names.remove( authorShown );
             out.add( authorShown );
         }
         out.addAll( names );

@@ -37,7 +37,7 @@ class IdentityDisplayTest {
      * {@code sso.user@example.test} → {@code Sso User}, an SSO account whose login is its email. Behaves like the real
      * service otherwise.
      */
-    private static final class FakeIdentity implements PublicIdentity {
+    private static class FakeIdentity implements PublicIdentity {
         private final Map< String, String > namesByLogin = Map.of( "janne", "Janne Jalkanen", "nulluid", "Null Uid Person",
                 "sso.user@example.test", "Sso User" );
 
@@ -60,6 +60,49 @@ class IdentityDisplayTest {
     }
 
     private final PublicIdentity identity = new FakeIdentity();
+
+    @Test
+    void ofContributor_isADisplayNameOrNullNeverTheKey() {   // ruling R14
+        assertEquals( "Janne Jalkanen", IdentityDisplay.ofContributor( identity, "janne" ) );
+        assertEquals( "Sso User", IdentityDisplay.ofContributor( identity, "sso.user@example.test" ) );
+        assertNull( IdentityDisplay.ofContributor( identity, "203.0.113.9" ), "an echoed key with no account" );
+        assertNull( IdentityDisplay.ofContributor( identity, "Asserted Name" ), "an echoed key with no account" );
+        assertNull( IdentityDisplay.ofContributor( identity, "gone@example.test" ), "a placeholder is no name" );
+        assertNull( IdentityDisplay.ofContributor( identity, "" ) );
+        assertNull( IdentityDisplay.ofContributor( identity, null ) );
+        assertNull( IdentityDisplay.ofContributor( null, "janne" ), "no identity: no account is known" );
+    }
+
+    @Test
+    void ofContributor_keepsANameEqualToAnExistingLoginAndTheFormerMemberLabel() {
+        final PublicIdentity self = new FakeIdentity() {
+            @Override public String displayName( final String storedPrincipal ) {
+                return "gone".equals( storedPrincipal ) ? FORMER_MEMBER : storedPrincipal;
+            }
+            @Override public Optional< String > userIdForLogin( final String login ) {
+                return "Alice".equals( login ) ? Optional.of( "uid-alice" ) : Optional.empty();
+            }
+        };
+        assertEquals( "Alice", IdentityDisplay.ofContributor( self, "Alice" ) );
+        assertEquals( PublicIdentity.FORMER_MEMBER, IdentityDisplay.ofContributor( self, "gone" ) );
+    }
+
+    @Test
+    void ofContributor_answersNullWhenResolutionThrows() {
+        final PublicIdentity broken = new FakeIdentity() {
+            @Override public String displayName( final String storedPrincipal ) {
+                throw new IllegalStateException( "db down" );
+            }
+        };
+        final PublicIdentity lookupBroken = new FakeIdentity() {
+            @Override public Optional< String > userIdForLogin( final String login ) {
+                throw new IllegalStateException( "db down" );
+            }
+        };
+        assertNull( IdentityDisplay.ofContributor( broken, "janne" ) );
+        assertNull( IdentityDisplay.ofContributor( lookupBroken, "Asserted Name" ), "an unprovable name is an echo" );
+        assertEquals( "Unknown contributor", IdentityDisplay.UNKNOWN_CONTRIBUTOR_LABEL );
+    }
 
     @Test
     void ofAuthor_resolvesALoginToItsDisplayName() {

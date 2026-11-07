@@ -214,9 +214,11 @@ class HistoryResourceTest {
         final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
         final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
         try {
-            store.recordContributors( cid, 1, java.util.Set.of( "Zed Legacy", "Amy Legacy" ), true );
+            final String adminName = com.wikantik.auth.identity.PublicIdentities.forEngine( engine ).displayName( "admin" );
+            store.recordContributors( cid, 1, java.util.Set.of( "janne", "admin" ), true );
             final JsonObject v1 = versionEntry( doGet( "RestHistoryContrib" ), 1 );
-            assertEquals( java.util.List.of( "Amy Legacy", "Zed Legacy" ), names( v1 ), "deduplicated and sorted" );
+            assertEquals( new java.util.ArrayList<>( new java.util.TreeSet<>( java.util.List.of( adminName, "Janne Jalkanen" ) ) ),
+                names( v1 ), "deduplicated and sorted" );
         } finally {
             wiring.close();
             engine.deleteQuietly( "RestHistoryContrib" );
@@ -240,7 +242,7 @@ class HistoryResourceTest {
             final java.util.List< String > shown = names( versionEntry( json, 1 ) );
             assertTrue( shown.contains( "Janne Jalkanen" ), shown.toString() );
             assertTrue( shown.contains( com.wikantik.api.identity.PublicIdentity.FORMER_MEMBER ), shown.toString() );
-            assertTrue( shown.contains( com.wikantik.api.identity.PublicIdentity.UNKNOWN_CONTRIBUTOR ), shown.toString() );
+            assertTrue( shown.contains( "Unknown contributor" ), "the live surfaces' label: " + shown );
             assertFalse( json.contains( "gone-login" ), "no raw key in the body" );
             assertFalse( json.contains( "stranger@example.test" ), "no raw key in the body" );
             assertFalse( json.contains( "\"janne\"" ), "no raw login in the body" );
@@ -260,14 +262,56 @@ class HistoryResourceTest {
         final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
         final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
         try {
-            store.recordContributors( cid, 1, java.util.Set.of( "Aaron Legacy", "janne" ), true );
+            final String adminName = com.wikantik.auth.identity.PublicIdentities.forEngine( engine ).displayName( "admin" );
+            store.recordContributors( cid, 1, java.util.Set.of( "admin", "janne" ), true );
             final JsonObject v1 = versionEntry( doGet( "RestHistoryContribAuthor" ), 1 );
             assertEquals( "Janne Jalkanen", v1.get( "author" ).getAsString() );
-            assertEquals( java.util.List.of( "Janne Jalkanen", "Aaron Legacy" ), names( v1 ),
+            assertEquals( java.util.List.of( "Janne Jalkanen", adminName ), names( v1 ),
                 "author first, in the same display-name form, so the UI can filter by equality" );
         } finally {
             wiring.close();
             engine.deleteQuietly( "RestHistoryContribAuthor" );
+        }
+    }
+
+    @Test
+    void historyNeverPrintsAContributorKeyThatHasNoDisplayName() throws Exception {   // R14, as the live surfaces
+        final String cid = savePageWithCanonicalId( "RestHistoryContribEcho", "01HYCONTRIBUTORSHISTORY0005" );
+        final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
+        final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
+        try {
+            store.recordContributors( cid, 1, java.util.Set.of( "203.0.113.9", "Asserted Name", "janne" ), true );
+            final String json = doGet( "RestHistoryContribEcho" );
+            assertEquals( java.util.List.of( "Janne Jalkanen", "Unknown contributor" ), names( versionEntry( json, 1 ) ),
+                "an anonymous editor's address or asserted name is no display name" );
+            assertFalse( json.contains( "203.0.113.9" ), json );
+            assertFalse( json.contains( "Asserted Name" ), json );
+        } finally {
+            wiring.close();
+            engine.deleteQuietly( "RestHistoryContribEcho" );
+        }
+    }
+
+    @Test
+    void aContributingVersionAuthorWithoutADisplayNameIsShownAsTheContributorsAre() throws Exception {
+        AuthoredPages.save( engine, "RestHistoryContribEchoAuthor",
+            "---\ncanonical_id: 01HYCONTRIBUTORSHISTORY0006\n---\nbody", "198.51.100.7" );
+        final String text = engine.getManager( com.wikantik.api.managers.PageManager.class )
+            .getPureText( "RestHistoryContribEchoAuthor", -1 );
+        final String cid = com.wikantik.api.frontmatter.FrontmatterParser.parse( text ).metadata().get( "canonical_id" ).toString();
+        final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
+        final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
+        try {
+            store.recordContributors( cid, 1, java.util.Set.of( "198.51.100.7", "janne" ), true );
+            final String json = doGet( "RestHistoryContribEchoAuthor" );
+            final JsonObject v1 = versionEntry( json, 1 );
+            assertEquals( "Unknown contributor", v1.get( "author" ).getAsString() );
+            assertEquals( java.util.List.of( "Unknown contributor", "Janne Jalkanen" ), names( v1 ),
+                "author first, in the same form" );
+            assertFalse( json.contains( "198.51.100.7" ), json );
+        } finally {
+            wiring.close();
+            engine.deleteQuietly( "RestHistoryContribEchoAuthor" );
         }
     }
 
@@ -284,12 +328,12 @@ class HistoryResourceTest {
         final var store = new com.wikantik.collab.testing.InMemoryCollabStore();
         final var wiring = com.wikantik.collab.adapter.CollabTestWiring.wire( engine, store );
         try {
-            store.recordContributors( cid, 1, java.util.Set.of( "Amy Legacy" ), true );
+            store.recordContributors( cid, 1, java.util.Set.of( "janne" ), true );
             final com.wikantik.api.core.Context ctx = com.wikantik.api.spi.Wiki.context().create( engine,
                 engine.getManager( com.wikantik.api.managers.PageManager.class ).getPage( "RestHistoryRenameFrom" ) );
             engine.getManager( com.wikantik.content.PageRenamer.class )
                 .renamePage( ctx, "RestHistoryRenameFrom", "RestHistoryRenameTo", true );
-            assertEquals( java.util.List.of( "Amy Legacy" ), names( versionEntry( doGet( "RestHistoryRenameTo" ), 1 ) ) );
+            assertEquals( java.util.List.of( "Janne Jalkanen" ), names( versionEntry( doGet( "RestHistoryRenameTo" ), 1 ) ) );
         } finally {
             wiring.close();
             engine.deleteQuietly( "RestHistoryRenameFrom", "RestHistoryRenameTo" );

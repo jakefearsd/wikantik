@@ -986,8 +986,8 @@ Full descriptions (truncated above to keep the table scannable):
 |---|---|---|---|---|
 | `wikantik.collab.enabled` | `boolean` | `false` | `wikantik_collab_enabled` | Master switch for collaborative text editing. While false the feature is dark: no collaboration endpoints are active and the editor behaves as before. |
 | `wikantik.collab.maxParticipants` | `int` | `20` | `wikantik_collab_maxParticipants` | Maximum number of participants in one page's collaborative session. A further join is refused. |
-| `wikantik.collab.maxUpdateBytes` | `int` | `65536` | `wikantik_collab_maxUpdateBytes` | Maximum size, in bytes, of a single collaborative update a client may submit. Larger updates are refused. |
-| `wikantik.collab.poll.timeoutSeconds` | `int` | `25` | `wikantik_collab_poll_timeoutSeconds` | How long, in seconds, a collaboration long-poll waits for new updates before returning empty. |
+| `wikantik.collab.maxUpdateBytes` | `int` | `65536` | `wikantik_collab_maxUpdateBytes` | Maximum size, in bytes, of a single collaborative update a client may submit. … |
+| `wikantik.collab.poll.timeoutSeconds` | `int` | `25` | `wikantik_collab_poll_timeoutSeconds` | How long, in seconds, a collaboration long-poll waits for new updates before returning empty. … |
 | `wikantik.collab.presence.timeoutSeconds` | `int` | `45` | `wikantik_collab_presence_timeoutSeconds` | Seconds without contact after which a participant is dropped from the session's presence list. |
 | `wikantik.collab.permission.recheckSeconds` | `int` | `30` | `wikantik_collab_permission_recheckSeconds` | Interval, in seconds, at which a participant's page permissions are re-verified during a session. |
 | `wikantik.collab.history.inMemoryUpdates` | `int` | `2000` | `wikantik_collab_history_inMemoryUpdates` | Number of recent updates a session keeps in memory for catching up late or reconnecting clients. |
@@ -995,6 +995,11 @@ Full descriptions (truncated above to keep the table scannable):
 | `wikantik.collab.memory.idleEvictMinutes` | `int` | `10` | `wikantik_collab_memory_idleEvictMinutes` | Minutes a session with no participants stays in memory before it is evicted. |
 | `wikantik.collab.draft.retentionDays` | `int` | `0` | `wikantik_collab_draft_retentionDays` | Days a stored collaborative draft is kept before cleanup. 0 keeps drafts indefinitely. |
 | `wikantik.collab.pushesPerSecond` | `int` | `20` | `wikantik_collab_pushesPerSecond` | Per-participant cap on updates accepted per second. Requests over it are refused with HTTP 429. |
+
+Full descriptions (truncated above to keep the table scannable):
+
+- **`wikantik.collab.maxUpdateBytes`** — Maximum size, in bytes, of a single collaborative update a client may submit. Larger updates are refused. At most 16777216 (16 MiB); a larger value falls back to the default.
+- **`wikantik.collab.poll.timeoutSeconds`** — How long, in seconds, a collaboration long-poll waits for new updates before returning empty. At most 60, and below wikantik.collab.presence.timeoutSeconds; otherwise both fall back to their defaults.
 
 The following settings come from `wikantik-admin-mcp/src/main/resources/wikantik-mcp.properties` (bundled in the wikantik-admin-mcp jar, overlaid by a same-named file in `tomcat/lib/`).
 

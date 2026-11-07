@@ -645,6 +645,13 @@
        <servlet-name>CapabilitiesResource</servlet-name>
        <servlet-class>com.wikantik.rest.CapabilitiesResource</servlet-class>
    </servlet>
+   <!-- MultiEdit (docs/MultiEdit.MD section 6.2): GET /updates is a long-poll (startAsync), so the servlet and every
+        filter on /api/collab/* must be async-supported (ApiFilterChainAsyncTest). -->
+   <servlet>
+       <servlet-name>CollabResource</servlet-name>
+       <servlet-class>com.wikantik.rest.CollabResource</servlet-class>
+       <async-supported>true</async-supported>
+   </servlet>
    <servlet>
        <servlet-name>OutboundLinksResource</servlet-name>
        <servlet-class>com.wikantik.rest.OutboundLinksResource</servlet-class>
@@ -987,6 +994,10 @@
    <servlet-mapping>
        <servlet-name>CapabilitiesResource</servlet-name>
        <url-pattern>/api/capabilities</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>CollabResource</servlet-name>
+       <url-pattern>/api/collab/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>OutboundLinksResource</servlet-name>

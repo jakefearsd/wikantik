@@ -23,6 +23,12 @@ import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.config.GenAiMode;
+import com.wikantik.collab.CollabConfig;
+import com.wikantik.collab.CollabPermissions;
+import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.testing.InMemoryCollabStore;
+import com.wikantik.collab.testing.MutableClock;
+import com.wikantik.collab.testing.ScriptedPageWriter;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,6 +40,8 @@ import org.mockito.Mockito;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Instant;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -231,6 +239,46 @@ class CapabilitiesResourceTest {
         // servlet must still answer 200 with a full JSON body.
         final JsonObject obj = doGetAsJson();
         assertTrue( obj.has( "knowledgeGraph" ) );
+    }
+
+    @Test
+    void collabIsReportedOffWithoutARegistry() throws Exception {
+        servlet.collabRegistry( e -> Optional.empty() );
+        try {
+            assertFalse( doGetAsJson().getAsJsonObject( "collab" ).get( "enabled" ).getAsBoolean() );
+        } finally {
+            servlet.collabRegistry( null );
+        }
+    }
+
+    @Test
+    void collabFollowsTheRegistrysKillSwitch() throws Exception {
+        final CollabPermissions allow = new CollabPermissions() {
+            @Override
+            public boolean canEdit( final Object s, final String p ) {
+                return true;
+            }
+
+            @Override
+            public boolean canCreate( final Object s, final String p ) {
+                return true;
+            }
+        };
+        final CollabSessionRegistry registry = new CollabSessionRegistry( new InMemoryCollabStore(),
+            new ScriptedPageWriter(), allow, k -> k, new MutableClock( Instant.EPOCH ), CollabConfig.defaults() );
+        servlet.collabRegistry( e -> Optional.of( registry ) );
+        try {
+            assertFalse( doGetAsJson().getAsJsonObject( "collab" ).get( "enabled" ).getAsBoolean(), "dark by default" );
+            registry.setEnabled( true );
+            assertTrue( doGetAsJson().getAsJsonObject( "collab" ).get( "enabled" ).getAsBoolean() );
+        } finally {
+            servlet.collabRegistry( null );
+        }
+    }
+
+    @Test
+    void collabIsAlwaysPresent() throws Exception {
+        assertTrue( doGetAsJson().getAsJsonObject( "collab" ).has( "enabled" ) );
     }
 
     // ----- helpers -----

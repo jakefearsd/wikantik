@@ -250,7 +250,7 @@ public final class CollabSession {
             final Participant p = roster.add( r, clock.instant(), d.head, config.pushesPerSecond() );
             answers.presenceChanged( p.id, completions );
             out = new JoinResponse( id, p.id, p.clientId, d.head, d.doc, d.metaSeq, d.meta, d.record.basePageVersion(),
-                roster.peers(), d.hasUnpublished(), d.lastEditAt );
+                roster.peers(), d.hasUnpublished(), d.lastEditAt, d.feed.eventSeq() );
         } finally {
             lock.unlock();
         }
@@ -294,6 +294,64 @@ public final class CollabSession {
             lock.unlock();
         }
         completions.forEach( Runnable::run );
+    }
+
+    /** True while {@code participantId} is a live participant (the HTTP surface tells a removed parked pull apart). */
+    public boolean hasParticipant( final String participantId ) {
+        lock.lock();
+        try {
+            return roster.get( participantId ) != null;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** The meta sequence (the HTTP push answer carries it). */
+    public long metaSeq() {
+        lock.lock();
+        try {
+            return d.metaSeq;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // ---- discard (section 6.2) ---------------------------------------------------------------------------------
+
+    /**
+     * Section 6.2's discard: resets the draft to the latest page version. The page's newer versions are merged first
+     * ({@link #settle}), then the draft text is replaced by the base as one server update and the meta restored by server
+     * meta ops, committed with a snapshot; a {@code draft-discarded} event names who did it. 403/409 as for any request
+     * (A6); 423 {@code publish-in-progress} while a publish runs or its marker is stored; 503 {@code store} when the store
+     * refused (nothing changed). {@code version} is the head after the call.
+     */
+    public PushResponse discard( final String participantId, final String authorKey ) {
+        final Participant p;
+        lock.lock();
+        try {
+            p = roster.get( participantId );
+            final Gate.Refusal refused = Gate.identity( p, authorKey );
+            if( refused != null ) {
+                return PushResponse.refused( refused.status(), d.head, refused.reason() );
+            }
+            p.touch( clock.instant() );
+            if( d.publishPending() ) {
+                return PushResponse.refused( 423, d.head, IN_PROGRESS );
+            }
+        } finally {
+            lock.unlock();
+        }
+        settle();
+        final List< Runnable > completions = new ArrayList<>();
+        final PushResponse out;
+        baseLock.lock();
+        try {
+            out = new DraftDiscard( d, lock ).reset( p.displayName, answers, completions );
+        } finally {
+            baseLock.unlock();
+        }
+        completions.forEach( Runnable::run );
+        return out;
     }
 
     private void removeLocked( final String participantId, final List< Runnable > completions ) {

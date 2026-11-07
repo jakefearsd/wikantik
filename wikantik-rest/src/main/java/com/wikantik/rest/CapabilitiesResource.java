@@ -19,6 +19,9 @@
 package com.wikantik.rest;
 
 import com.wikantik.api.config.GenAiMode;
+import com.wikantik.api.core.Engine;
+import com.wikantik.collab.CollabSessionRegistry;
+import com.wikantik.collab.adapter.CollabWiring;
 import com.wikantik.util.TextUtil;
 
 import jakarta.servlet.ServletException;
@@ -32,7 +35,9 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Function;
 
 /**
  * REST servlet exposing which optional subsystems are enabled for this
@@ -80,6 +85,14 @@ public class CapabilitiesResource extends RestServletBase {
     /** Config property: {@code wikantik.citations.enabled} (default {@code true}). */
     public static final String PROP_CITATIONS_ENABLED = "wikantik.citations.enabled";
 
+    /** Where the collaboration registry comes from; tests swap it. */
+    private transient Function< Engine, Optional< CollabSessionRegistry > > collabRegistry = CollabWiring::registryFor;
+
+    /** For tests: the registry lookup ({@code null} restores the engine's). */
+    void collabRegistry( final Function< Engine, Optional< CollabSessionRegistry > > lookup ) {
+        this.collabRegistry = lookup == null ? CollabWiring::registryFor : lookup;
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -106,6 +119,9 @@ public class CapabilitiesResource extends RestServletBase {
             result.put( "ontology", TextUtil.getBooleanProperty( props, PROP_ONTOLOGY_ENABLED, true ) );
             result.put( "connectors", TextUtil.getBooleanProperty( props, PROP_CONNECTORS_ENABLED, true ) );
             result.put( "citations", TextUtil.getBooleanProperty( props, PROP_CITATIONS_ENABLED, true ) );
+            // the live kill switch, not the property: the registry's flag can change at runtime (ruling P8)
+            result.put( "collab", Map.of( "enabled", collabRegistry.apply( getEngine() )
+                    .map( CollabSessionRegistry::isEnabled ).orElse( false ) ) );
 
             response.setContentType( "application/json" );
             response.setCharacterEncoding( "UTF-8" );

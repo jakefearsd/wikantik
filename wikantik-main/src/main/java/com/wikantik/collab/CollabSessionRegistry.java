@@ -144,6 +144,11 @@ public final class CollabSessionRegistry {
         return enabled;
     }
 
+    /** The settings this registry runs with (the HTTP surface reads the long-poll timeout and body limit). */
+    public CollabConfig config() {
+        return config;
+    }
+
     // ---- join ------------------------------------------------------------------------------------------------
 
     /** Creates or loads {@code pageName}'s session and joins it (see the class comment for the refusals). */

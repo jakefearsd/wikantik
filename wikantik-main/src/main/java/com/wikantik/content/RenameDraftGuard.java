@@ -33,8 +33,10 @@ import org.apache.logging.log4j.Logger;
  * <p>A draft is refused whether it is live, stored or frozen. The store keeps one draft per page, so the moved page's own
  * draft could not follow it (MultiEdit §0 Minor). A live new-page draft there would also take the moved page's body as
  * an outside change. The live sessions in memory are checked first: that needs no store, so the guard refuses even while
- * the store is down. The store is checked next. A store that cannot tell refuses the rename (try again later) rather
- * than risk mixing the moved page into a draft the guard could not see.</p>
+ * the store is down. The store is checked next. While collaboration is enabled, a store that cannot tell refuses the
+ * rename (try again later) rather than risk mixing the moved page into a draft the guard could not see. While it is
+ * disabled (the default) the rename goes on with a WARN (ruling Q14): a disabled registry refuses joins, so no new draft
+ * can appear, and a wiki that does not use collaboration is never blocked by its store.</p>
  */
 final class RenameDraftGuard {
 
@@ -58,6 +60,11 @@ final class RenameDraftGuard {
         try {
             draft = registry.hasDraft( renameTo );
         } catch( final RuntimeException e ) {
+            if( !registry.isEnabled() ) {
+                LOG.warn( "Rename to '{}': the collaboration store could not tell whether a draft is there; collaboration"
+                        + " is disabled (no draft can appear), so renaming anyway: {}", renameTo, e.getMessage(), e );
+                return;
+            }
             LOG.warn( "Rename to '{}' refused: the collaboration store could not tell whether a draft is there: {}",
                     renameTo, e.getMessage(), e );
             throw new WikiException( "Page '" + renameTo + "' cannot be checked for a collaborative draft: the"

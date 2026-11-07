@@ -136,6 +136,41 @@ class DefaultPageRenamerCollabGuardTest {
     }
 
     /**
+     * Ruling Q14 refined: collaboration ships disabled, and a disabled registry refuses joins, so no draft can appear in
+     * the window. A store outage then never blocks a rename on a wiki that does not use collaboration.
+     */
+    @Test
+    void aStoreThatCannotTellDoesNotBlockTheRenameWhileCollaborationIsDisabled() throws Exception {
+        final CollabStore broken = mock( CollabStore.class );
+        when( broken.sessionForPage( any() ) ).thenThrow( new IllegalStateException( "test: collab store down" ) );
+        wiring = CollabTestWiring.wire( engine, broken );
+        CollabEngineAccess.registry( engine ).setEnabled( false );
+        engine.saveText( "GuardFrom", "the page to move\n" );
+
+        assertEquals( "GuardTo", rename( "GuardFrom", "GuardTo" ) );
+
+        assertNull( pm.getPage( "GuardFrom" ) );
+        assertNotNull( pm.getPage( "GuardTo" ) );
+    }
+
+    @Test
+    void aLiveTargetDraftStillRefusesWhileCollaborationIsDisabled() throws Exception {
+        wiring = CollabTestWiring.wire( engine, new InMemoryCollabStore() );
+        final CollabSessionRegistry registry = CollabEngineAccess.registry( engine );
+        engine.saveText( "GuardFrom", "the page to move\n" );
+        final Session admin = engine.adminSession();
+        assertInstanceOf( CollabSessionRegistry.Joined.class, registry.join( "GuardDraft",
+            new JoinRequest( AuthorKeys.authorKeyFor( admin ), null, admin, "Admin", "their new page\n", null ) ) );
+        registry.setEnabled( false );   // switched off with a session still live
+
+        final WikiException e = assertThrows( WikiException.class, () -> rename( "GuardFrom", "GuardDraft" ) );
+
+        assertEquals( "Page 'GuardDraft' has an unpublished collaborative draft; publish or discard it first",
+            e.getMessage() );
+        assertNotNull( pm.getPage( "GuardFrom" ) );
+    }
+
+    /**
      * A live new-page draft under the target while the store is down: the in-memory check refuses without the store.
      * Failing open here would let the moved page's body be merged into that draft as an outside change.
      */

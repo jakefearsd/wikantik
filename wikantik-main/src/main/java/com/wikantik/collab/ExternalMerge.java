@@ -147,15 +147,19 @@ final class ExternalMerge {
         final String body = CollabText.toLf( st.body() );
         final String baseBody;
         final boolean same;
+        final List< int[] > localEdits;
         lock.lock();
         try {
             baseBody = d.record.baseBody();
             same = CollabText.contentHash( body ).equals( d.record.baseContentHash() );
+            localEdits = d.local.touchedRanges();
         } finally {
             lock.unlock();
         }
-        // E: the base only changes under the base lock, which is held, so the diff runs outside the session lock
-        final ChangeSet e = same ? ChangeSet.empty( baseBody.length() ) : TextDiff.changeSet( baseBody, body );
+        // E: the base only changes under the base lock, which is held, so the diff runs outside the session lock. An
+        // ambiguous deletion is placed off the draft's own edits (a push landing meanwhile only weakens the preference):
+        // mapped over an edit inside it, a shifted deletion would cut the text beside it (fuzz seed PUBLISH_STORM 19005).
+        final ChangeSet e = same ? ChangeSet.empty( baseBody.length() ) : TextDiff.changeSet( baseBody, body, localEdits );
         lock.lock();
         try {
             final Draft.State before = d.state();

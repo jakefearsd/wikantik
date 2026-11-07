@@ -396,4 +396,49 @@ class TextDiffTest {
         }
         return best;
     }
+
+    // ---- deletions slid off a concurrent edit (fuzz seed PUBLISH_STORM 19005) ---------------------------------------
+
+    @Test
+    void anAmbiguousDeletionSlidesOffAPointToAvoid() {
+        // "<MEZIC><MGFXT>" loses "<MEZIC>"; prefix trimming alone deletes "EZIC><M" (shifted right by the repeated "<M"),
+        // which spans a draft insertion at 15, between the two tokens. Mapped over that insertion it would cut both.
+        final String from = "xe<MEZIC><MGFXT>\n";
+        final String to = "xe<MGFXT>\n";
+        final ChangeSet plain = TextDiff.changeSet( from, to );
+        assertArrayEquals( new int[] { 4, 11 }, plain.touchedRanges().get( 0 ), "the baseline trims right" );
+
+        final ChangeSet slid = TextDiff.changeSet( from, to, List.of( new int[] { 9, 9 } ) );
+
+        assertEquals( to, slid.apply( from ) );
+        assertArrayEquals( new int[] { 2, 9 }, slid.touchedRanges().get( 0 ) );
+        final ChangeSet local = ChangeSet.replace( from.length(), 9, 9, "INS" );
+        assertEquals( "xeINS<MGFXT>\n", slid.map( local ).apply( local.apply( from ) ) );
+    }
+
+    @Test
+    void aDeletionWithNothingToAvoidKeepsItsPosition() {
+        final String from = "aa<X><Y>b";
+        final String to = "aa<Y>b";
+        assertEquals( TextDiff.changeSet( from, to ), TextDiff.changeSet( from, to, List.of() ) );
+        assertEquals( TextDiff.changeSet( from, to ), TextDiff.changeSet( from, to, List.of( new int[] { 0, 1 } ) ) );
+    }
+
+    @Test
+    void aSlideNeverCrossesTheNeighbouringChangeOrSplitsASurrogatePair() {
+        // "a😀😀z" loses one 😀: [3,5) at first; [2,4) would split both pairs, so the slide goes on to [1,3)
+        final String from = "a\uD83D\uDE00\uD83D\uDE00z";
+        final String to = "a\uD83D\uDE00z";
+        final ChangeSet slid = TextDiff.changeSet( from, to, List.of( new int[] { 4, 4 } ) );
+        assertEquals( to, slid.apply( from ) );
+        assertArrayEquals( new int[] { 1, 3 }, slid.touchedRanges().get( 0 ) );
+        // a neighbouring change bounds the slide: "x" -> "X" at 0 keeps the deletion off [0,1)
+        final ChangeSet bounded = TextDiff.changeSet( "xaab", "Xab", List.of( new int[] { 2, 2 } ) );
+        assertEquals( "Xab", bounded.apply( "xaab" ) );
+        for( final int[] r : slid.touchedRanges() ) {
+            assertFalse( Character.isLowSurrogate( from.charAt( r[ 0 ] ) ), "a range starts inside a pair" );
+            assertTrue( r[ 1 ] == from.length() || !Character.isLowSurrogate( from.charAt( r[ 1 ] ) ),
+                "a range ends inside a pair" );
+        }
+    }
 }

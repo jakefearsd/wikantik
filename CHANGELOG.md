@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.10] - 2026-11-07
+
 ### Added
 - **Collaborative editing: shared drafts, publishing and attribution (dark).** Behind `wikantik.collab.enabled`
   (default off), several editors can edit one page at once in a shared draft that survives closing the editor, and

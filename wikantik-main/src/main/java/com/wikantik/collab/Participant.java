@@ -46,12 +46,12 @@ final class Participant {
     private double tokens;
     private Instant refilledAt;
 
-    Participant( final String id, final JoinRequest r, final String clientId, final String color, final Instant now,
-                 final int confirmed, final int pushesPerSecond ) {
+    Participant( final String id, final JoinRequest r, final String clientId, final String displayName, final String color,
+                 final Instant now, final int confirmed, final int pushesPerSecond ) {
         this.id = id;
         this.authorKey = r.authorKey();
         this.clientId = clientId;
-        this.displayName = r.displayName() == null ? r.authorKey() : r.displayName();
+        this.displayName = displayName == null ? r.authorKey() : displayName;
         this.color = color;
         this.wikiSession = r.wikiSession();
         this.lastSeen = now;

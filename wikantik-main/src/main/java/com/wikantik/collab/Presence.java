@@ -76,16 +76,25 @@ final class Presence {
         return null;
     }
 
-    /** Keeps {@code s} as {@code p}'s selection when it can be placed (see {@link #map}); null is ignored. */
-    static void keep( final Participant p, final Selection s, final UpdateRing ring, final int docLen, final int head ) {
+    /**
+     * Keeps {@code s} as {@code p}'s selection when it can be placed (see {@link #map}); null is ignored. True when the
+     * kept selection changed (the presence sequence moves).
+     */
+    static boolean keep( final Participant p, final Selection s, final UpdateRing ring, final int docLen, final int head ) {
         if( s == null ) {
-            return;
+            return false;
         }
         final List< StoredUpdate > since = s.version() < head && ring.covers( s.version() ) ? ring.after( s.version() ) : null;
-        final Selection mapped = map( s, since, docLen, head );
-        if( mapped != null ) {
-            p.selection( mapped );
+        return set( p, map( s, since, docLen, head ) );
+    }
+
+    /** Sets a non-null selection; true when it differs from the one kept. */
+    static boolean set( final Participant p, final Selection s ) {
+        if( s == null || s.equals( p.selection() ) ) {
+            return false;
         }
+        p.selection( s );
+        return true;
     }
 
     private static boolean inRange( final Selection s, final int len ) {

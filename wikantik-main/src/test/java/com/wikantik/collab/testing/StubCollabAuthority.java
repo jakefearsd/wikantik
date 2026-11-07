@@ -285,7 +285,25 @@ public final class StubCollabAuthority implements SimServer {
     }
 
     @Override
-    public void leave( final String participantId ) {
+    public Left leave( final String participantId, final String authorKey ) {
+        lock.lock();
+        try {
+            final Participant p = participants.get( participantId );
+            if( p == null ) {
+                return new Left( 409, "rejoin" );
+            }
+            if( !p.authorKey().equals( authorKey ) ) {
+                return new Left( 403, NOT_YOURS );
+            }
+            leaveLocked( participantId );
+            return new Left( 200, null );
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void evict( final String participantId ) {
         lock.lock();
         try {
             leaveLocked( participantId );

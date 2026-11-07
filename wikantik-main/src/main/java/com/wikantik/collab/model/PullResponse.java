@@ -25,17 +25,18 @@ import java.util.Map;
  * The answer to a pull, immediate or from a parked long-poll. {@code status}: 200 with the updates after the requested
  * version ({@code updates} empty on a long-poll timeout); 400 {@code bad-since}; 403 {@code not-your-participant};
  * 409 {@code rejoin}; 410 {@code resync} (the version is older than the ring and the store truncated below it, A10);
- * 503 {@code store}. {@code version} is the head; {@code presence} holds the other participants' last selections (A12),
- * keyed by participant id.
+ * 503 {@code store}. {@code version} is the head. {@code presence} is the full map of the other participants that have
+ * a selection, keyed by participant id, when {@code presenceSeq} is newer than the request's {@code presenceSince},
+ * else empty (A12, ruling P7; the requester is never in it).
  */
 public record PullResponse( int status, List< Update > updates, int version, String reason,
-                            Map< String, Selection > presence ) {
+                            Map< String, PresenceEntry > presence, long presenceSeq ) {
     public PullResponse {
         updates = List.copyOf( updates );
         presence = Map.copyOf( presence );
     }
 
     public static PullResponse refused( final int status, final int version, final String reason ) {
-        return new PullResponse( status, List.of(), version, reason, Map.of() );
+        return new PullResponse( status, List.of(), version, reason, Map.of(), 0 );
     }
 }

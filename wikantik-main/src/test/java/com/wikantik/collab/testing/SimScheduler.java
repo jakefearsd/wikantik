@@ -561,7 +561,7 @@ public final class SimScheduler {
                     case LEAVE -> withPeer( s, p -> {
                         // the server drops the participant (presence timeout) without telling the client
                         if( p.join == null && p.leave == null ) {
-                            server.leave( p.sim.participantId() );
+                            server.evict( p.sim.participantId() );
                             count( LEAVES, 1 );
                             drain();
                         }
@@ -764,7 +764,7 @@ public final class SimScheduler {
                     reply( m, Type.JOINED, j );
                 }
                 case LEAVE -> {
-                    server.leave( m.participantId() );
+                    server.leave( m.participantId(), p.authorKey );
                     count( LEAVES, 1 );
                     reply( m, Type.LEFT, null );
                 }

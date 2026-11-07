@@ -235,10 +235,8 @@ class SimSchedulerTest {
             }
 
             @Override
-            public void leave( final String participantId ) {
-                if( honourLeave ) {
-                    super.leave( participantId );
-                }
+            public Left leave( final String participantId, final String authorKey ) {
+                return honourLeave ? super.leave( participantId, authorKey ) : new Left( 200, null );
             }
         };
     }
@@ -387,8 +385,13 @@ class SimSchedulerTest {
         }
 
         @Override
-        public void leave( final String participantId ) {
-            d.leave( participantId );
+        public Left leave( final String participantId, final String authorKey ) {
+            return d.leave( participantId, authorKey );
+        }
+
+        @Override
+        public void evict( final String participantId ) {
+            d.evict( participantId );
         }
 
         @Override

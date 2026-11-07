@@ -21,6 +21,8 @@ package com.wikantik.collab;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.collab.model.JoinResponse;
+import com.wikantik.collab.model.LeaveResponse;
+import com.wikantik.collab.model.PresenceEntry;
 import com.wikantik.collab.model.PublishResponse;
 import com.wikantik.collab.model.PullResponse;
 import com.wikantik.collab.model.PushResponse;
@@ -62,6 +64,12 @@ class CollabSessionTest {
     private static final String PAGE = "Page";
     private static final String BODY = "hello\nworld\n";
     private static final Instant T0 = Instant.parse( "2026-01-01T00:00:00Z" );
+    /** Public names for two logins; everyone else falls back to the join's display name. */
+    private static final CollabIdentity IDENTITY = key -> switch( key ) {
+        case "ada" -> "Ada Lovelace";
+        case "raj" -> "Raj Patel";
+        default -> null;
+    };
 
     private InMemoryCollabStore store;
     private ScriptedPageWriter writer;
@@ -97,7 +105,7 @@ class CollabSessionTest {
     private CollabSession create( final String page, final ScriptedPageWriter w, final CollabConfig c, final long max ) {
         final SessionRecord rec = CollabSession.newRecord( UUID.nameUUIDFromBytes( page.getBytes() ), page,
             w.latest( page ), "creator", clock );
-        return CollabSession.create( rec, store, w, clock, c, max );
+        return CollabSession.create( rec, store, w, IDENTITY, clock, c, max );
     }
 
     @BeforeEach
@@ -175,7 +183,7 @@ class CollabSessionTest {
     @Test
     void aRejoinGetsItsPriorClientIdBackWhenTheSessionStillKnowsIt() {   // 7.2 "same clientID"
         final JoinResponse a = join( "alice" );
-        session.leave( a.participantId() );
+        assertEquals( 200, session.leave( a.participantId(), "alice" ).status() );
         final JoinResponse again = session.join( new JoinRequest( "alice", a.clientId(), null, "A", null, null ) );
         assertEquals( a.clientId(), again.clientId() );
         assertNotEquals( a.participantId(), again.participantId() );
@@ -187,7 +195,7 @@ class CollabSessionTest {
     @Test
     void aPriorClientIdOfAnotherAuthorOrUnknownIsNotReissued() {
         final JoinResponse a = join( "alice" );
-        session.leave( a.participantId() );
+        assertEquals( 200, session.leave( a.participantId(), "alice" ).status() );
         final JoinResponse m = session.join( new JoinRequest( "mallory", a.clientId(), null, "M", null, null ) );
         assertNotEquals( a.clientId(), m.clientId() );
         final JoinResponse u = session.join( new JoinRequest( "alice", "never-issued", null, "A", null, null ) );
@@ -451,7 +459,7 @@ class CollabSessionTest {
         final JoinResponse b = join( "bob" );
         final Waiter w = new Waiter();
         pull( b, "bob", 0, w );
-        session.leave( b.participantId() );
+        assertEquals( 200, session.leave( b.participantId(), "bob" ).status() );
         assertEquals( 200, w.only().status() );
         clock.advance( Duration.ofSeconds( 30 ) );
         session.expireWaiters().forEach( Runnable::run );
@@ -524,7 +532,7 @@ class CollabSessionTest {
         // the ring holds 3; a batch of 5 wakes a waiter parked at 0: its slice must come from memory, and reads after the
         // commit must never reach the store (which here refuses every read once the session is loaded)
         final ReadFailingStore failing = new ReadFailingStore( store );
-        final CollabSession s = CollabSession.load( session.id(), failing, writer, clock, config( 3, 500, 1000 ), 1000 );
+        final CollabSession s = CollabSession.load( session.id(), failing, writer, IDENTITY, clock, config( 3, 500, 1000 ), 1000 );
         final JoinResponse a = s.join( JoinRequest.of( "alice", null, null ) );
         final JoinResponse b = s.join( JoinRequest.of( "bob", null, null ) );
         final Waiter w = new Waiter();
@@ -587,14 +595,14 @@ class CollabSessionTest {
         // alice's selection covered exactly the pushed update: now in head coordinates
         assertEquals( new Selection( 2, 2, 1, 0 ), session.view().selections().get( a.participantId() ) );
         // bob pulls from 0 again with his caret: mapped through the update to head
-        final PullResponse r = session.pullOrPark( b.participantId(), "bob", 0, new Selection( 5, 5, 0, 0 ), new Waiter() );
+        final PullResponse r = session.pullOrPark( b.participantId(), "bob", 0, 0, new Selection( 5, 5, 0, 0 ), new Waiter() );
         assertEquals( new Selection( 7, 7, 1, 0 ), session.view().selections().get( b.participantId() ) );
-        assertEquals( new Selection( 2, 2, 1, 0 ), r.presence().get( a.participantId() ) );
+        assertEquals( new Selection( 2, 2, 1, 0 ), r.presence().get( a.participantId() ).selection() );
         assertFalse( r.presence().containsKey( b.participantId() ), "a participant's own selection is not echoed" );
         // an out-of-range selection is ignored, not an error
         assertEquals( 200, session.pullOrPark( b.participantId(), "bob", 0, new Selection( 999, 0, 0, 0 ), new Waiter() ).status() );
         assertEquals( new Selection( 7, 7, 1, 0 ), session.view().selections().get( b.participantId() ) );
-        session.leave( a.participantId() );
+        assertEquals( 200, session.leave( a.participantId(), "alice" ).status() );
         assertFalse( session.view().selections().containsKey( a.participantId() ) );
     }
 
@@ -630,7 +638,7 @@ class CollabSessionTest {
         }
         // the write at 2 failed; the next push retried it at 3
         assertEquals( 3, store.latestSnapshot( s.id() ).orElseThrow().version() );
-        final CollabSession reloaded = CollabSession.load( s.id(), store, writer, clock, config( 3, 2, 1000 ), 1000 );
+        final CollabSession reloaded = CollabSession.load( s.id(), store, writer, IDENTITY, clock, config( 3, 2, 1000 ), 1000 );
         assertEquals( "xxx\n", reloaded.view().doc() );
     }
 
@@ -654,9 +662,9 @@ class CollabSessionTest {
         assertEquals( 5, store.updatesSince( s.id(), 0 ).get( 0 ).version() );
         assertEquals( 200, s.pullOrPark( b.participantId(), "bob", 4, null, new Waiter() ).status() );
         // once bob leaves, alice's confirmed version (5, her last push) is the cut
-        s.leave( b.participantId() );
+        assertEquals( 200, s.leave( b.participantId(), "bob" ).status() );
         assertEquals( 5, s.truncateLog() );
-        final CollabSession reloaded = CollabSession.load( s.id(), store, writer, clock, config( 2, 2, 1000 ), 1000 );
+        final CollabSession reloaded = CollabSession.load( s.id(), store, writer, IDENTITY, clock, config( 2, 2, 1000 ), 1000 );
         assertEquals( doc, reloaded.view().doc() );
         assertEquals( 6, reloaded.view().head() );
     }
@@ -676,7 +684,7 @@ class CollabSessionTest {
             List.of( new Update( a.clientId(), ChangeSet.replace( doc.length(), 0, 0, "lost" ) ) ) ).status() );
         final CollabSession.View committed = s.view();
 
-        final CollabSession r = CollabSession.load( s.id(), store, writer, clock, config( 3, 4, 1000 ), 1000 );
+        final CollabSession r = CollabSession.load( s.id(), store, writer, IDENTITY, clock, config( 3, 4, 1000 ), 1000 );
 
         final CollabSession.View v = r.view();
         assertEquals( committed.id(), v.id() );
@@ -699,7 +707,7 @@ class CollabSessionTest {
     @Test
     void loadWithoutASessionOrSnapshotFails() {
         assertThrows( IllegalStateException.class,
-            () -> CollabSession.load( UUID.randomUUID(), store, writer, clock, config( 3, 500, 1000 ), 1000 ) );
+            () -> CollabSession.load( UUID.randomUUID(), store, writer, IDENTITY, clock, config( 3, 500, 1000 ), 1000 ) );
     }
 
     @Test
@@ -709,7 +717,7 @@ class CollabSessionTest {
         assertEquals( "a\nb\n", s.view().doc() );
         assertEquals( CollabText.contentHash( "a\nb\n" ), store.session( s.id() ).orElseThrow().baseContentHash() );
         final SessionRecord moved = CollabSession.newRecord( UUID.randomUUID(), "Other", Optional.empty(), "c", clock ).withHead( 3 );
-        assertThrows( IllegalArgumentException.class, () -> CollabSession.create( moved, store, w, clock, config( 3, 500, 1000 ), 1000 ) );
+        assertThrows( IllegalArgumentException.class, () -> CollabSession.create( moved, store, w, IDENTITY, clock, config( 3, 500, 1000 ), 1000 ) );
     }
 
     @Test
@@ -770,5 +778,140 @@ class CollabSessionTest {
         push( a, "alice", 1, new Update( a.clientId(), ChangeSet.replace( BODY.length() + 1, 0, BODY.length() + 1, "" ) ) );
         assertEquals( 400, session.publish( a.participantId(), "alice", 2, "n" ).status() );
         assertEquals( 1, writer.latest( PAGE ).orElseThrow().version() );
+    }
+
+    // ---- fix round 1 ----------------------------------------------------------------------------------------------
+
+    @Test
+    void leaveIsBoundToTheAuthorAndEvictIsTheServersOwnPath() {   // A6, ruling P5
+        final JoinResponse a = join( "alice" );
+        final JoinResponse b = join( "bob" );
+        final LeaveResponse forged = session.leave( a.participantId(), "bob" );
+        assertEquals( 403, forged.status() );
+        assertEquals( "not-your-participant", forged.reason() );
+        assertEquals( 200, push( a, "alice", 0, typeAt( a, BODY, 0, "X" ) ).status(), "alice is still here" );
+        final LeaveResponse unknown = session.leave( "nobody", "x" );
+        assertEquals( 409, unknown.status() );
+        assertEquals( "rejoin", unknown.reason() );
+        assertEquals( 200, session.leave( a.participantId(), "alice" ).status() );
+        assertEquals( 409, session.leave( a.participantId(), "alice" ).status(), "leaving twice: already gone" );
+        session.evict( b.participantId() );
+        assertEquals( 0, session.view().participants() );
+        assertEquals( "rejoin", push( b, "bob", 1, typeAt( b, "X" + BODY, 0, "Y" ) ).reason() );
+    }
+
+    /** A waiter whose completion throws (a broken response, say). */
+    private static final class ThrowingWaiter implements PullWaiter {
+        int calls;
+
+        @Override
+        public void complete( final PullResponse r ) {
+            calls++;
+            throw new IllegalStateException( "response already committed (test)" );
+        }
+    }
+
+    @Test
+    void aThrowingWaiterNeitherStrandsTheOthersNorFailsACommittedPush() {
+        final JoinResponse a = join( "alice" );
+        final JoinResponse b = join( "bob" );
+        final JoinResponse c = join( "carol" );
+        final JoinResponse d = join( "dave" );
+        final ThrowingWaiter broken = new ThrowingWaiter();
+        final Waiter wc = new Waiter();
+        final Waiter wd = new Waiter();
+        assertNull( pull( c, "carol", 0, wc ) );
+        assertNull( session.pullOrPark( b.participantId(), "bob", 0, null, broken ) );
+        assertNull( pull( d, "dave", 0, wd ) );
+        final PushResponse r = push( a, "alice", 0, typeAt( a, BODY, 0, "X" ) );
+        assertEquals( 200, r.status(), "the push was committed: its answer stands" );
+        assertEquals( 1, broken.calls );
+        assertEquals( 1, wc.only().updates().size() );
+        assertEquals( 1, wd.only().updates().size() );
+        // the displacement, leave and timeout paths are guarded the same way
+        final ThrowingWaiter displaced = new ThrowingWaiter();
+        assertNull( session.pullOrPark( b.participantId(), "bob", 1, null, displaced ) );
+        assertNull( session.pullOrPark( b.participantId(), "bob", 1, null, new Waiter() ) );
+        assertEquals( 1, displaced.calls );
+        final ThrowingWaiter leaving = new ThrowingWaiter();
+        assertNull( session.pullOrPark( c.participantId(), "carol", 1, null, leaving ) );
+        assertEquals( 200, session.leave( c.participantId(), "carol" ).status() );
+        assertEquals( 1, leaving.calls );
+        final ThrowingWaiter late = new ThrowingWaiter();
+        assertNull( session.pullOrPark( d.participantId(), "dave", 1, null, late ) );
+        clock.advance( Duration.ofSeconds( 30 ) );
+        session.expireWaiters().forEach( Runnable::run );
+        assertEquals( 1, late.calls );
+    }
+
+    @Test
+    void aPresenceOnlyPushSkipsTheVersionCheckAndPlacesItsSelectionByItsOwnVersion() {   // ruling P7
+        final JoinResponse a = join( "alice" );
+        final JoinResponse b = join( "bob" );
+        assertEquals( 200, push( a, "alice", 0, typeAt( a, BODY, 0, "X" ) ).status() );
+        // bob is still at version 0: no stale-base for a push without updates
+        final PushResponse r = session.push( b.participantId(), "bob", 0, List.of(), new Selection( 5, 5, 0, 0 ) );
+        assertEquals( 200, r.status() );
+        assertEquals( 1, r.version() );
+        assertEquals( new Selection( 6, 6, 1, 0 ), session.view().selections().get( b.participantId() ) );
+        // an update-carrying push from a stale version is still a stale-base 409
+        assertEquals( "stale-base", push( b, "bob", 0, typeAt( b, BODY, 0, "Y" ) ).reason() );
+    }
+
+    @Test
+    void presenceCarriesNameColourAndASequenceAndWakesParkedPulls() {   // A12, ruling P7, 8.3
+        final JoinResponse ada = join( "ada" );
+        final JoinResponse raj = join( "raj" );
+        final long afterJoins = session.view().presenceSeq();
+        assertTrue( afterJoins >= 2, "joins bump the presence sequence" );
+        // raj has seen nothing yet: a pull at head with an older presenceSince answers at once
+        final PullResponse first = session.pullOrPark( raj.participantId(), "raj", 0, 0, null, new Waiter() );
+        assertEquals( 200, first.status() );
+        assertEquals( afterJoins, first.presenceSeq() );
+        assertTrue( first.presence().isEmpty(), "ada has no selection yet" );
+        // raj parks with the current sequence; ada's selection wakes him with her entry
+        final Waiter w = new Waiter();
+        assertNull( session.pullOrPark( raj.participantId(), "raj", 0, afterJoins, null, w ) );
+        assertEquals( 200, session.push( ada.participantId(), "ada", 0, List.of(), new Selection( 1, 3, 0, 0 ) ).status() );
+        final PullResponse woken = w.only();
+        assertTrue( woken.updates().isEmpty() );
+        assertEquals( afterJoins + 1, woken.presenceSeq() );
+        final PresenceEntry e = woken.presence().get( ada.participantId() );
+        assertEquals( "Ada Lovelace", e.displayName() );
+        assertEquals( ada.participants().get( 0 ).color(), e.color() );
+        assertEquals( new Selection( 1, 3, 0, 0 ), e.selection() );
+        assertFalse( woken.presence().containsKey( raj.participantId() ), "the requester is never in its own map" );
+        // the same selection again changes nothing: a parked pull stays parked
+        final Waiter quiet = new Waiter();
+        assertNull( session.pullOrPark( raj.participantId(), "raj", 0, afterJoins + 1, null, quiet ) );
+        session.push( ada.participantId(), "ada", 0, List.of(), new Selection( 1, 3, 0, 0 ) );
+        assertTrue( quiet.got.isEmpty() );
+        // a presenceSince at the sequence answers an empty map
+        assertEquals( 200, push( ada, "ada", 0, typeAt( ada, BODY, 0, "Z" ) ).status() );
+        assertTrue( quiet.only().presence().isEmpty() );
+        // a leave bumps the sequence too
+        session.leave( ada.participantId(), "ada" );
+        assertEquals( afterJoins + 2, session.view().presenceSeq() );
+    }
+
+    @Test
+    void coloursFollowJoinOrderNotTheLogin() {   // 8.3
+        final JoinResponse first = join( "raj" );
+        final JoinResponse second = join( "ada" );
+        final ScriptedPageWriter w = seeded( "Other", "x\n" );
+        final CollabSession other = create( "Other", w, config( 3, 500, 1000 ), 1000 );
+        final JoinResponse adaFirst = other.join( JoinRequest.of( "ada", null, null ) );
+        assertEquals( first.participants().get( 0 ).color(), adaFirst.participants().get( 0 ).color() );
+        assertNotEquals( second.participants().get( 1 ).color(), adaFirst.participants().get( 0 ).color() );
+        assertEquals( "Raj Patel", first.participants().get( 0 ).displayName() );
+    }
+
+    @Test
+    void aRetiredClientIdIsForgottenAfterThePresenceTimeout() {
+        final JoinResponse a = join( "alice" );
+        session.leave( a.participantId(), "alice" );
+        clock.advance( Duration.ofSeconds( 46 ) );
+        assertNotEquals( a.clientId(),
+            session.join( new JoinRequest( "alice", a.clientId(), null, "A", null, null ) ).clientId() );
     }
 }

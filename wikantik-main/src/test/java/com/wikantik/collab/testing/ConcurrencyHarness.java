@@ -334,7 +334,10 @@ public final class ConcurrencyHarness {
 
         /** Leaves, then rejoins; unconfirmed text goes to the recovery panel (A10), never re-applied. */
         void leaveAndRejoin( final Worker w ) {
-            server.leave( w.sim.participantId() );
+            final SimServer.Left left = server.leave( w.sim.participantId(), w.author );
+            if( left.status() != 200 ) {
+                throw fail( w.author + "'s leave answered " + left.status() + " " + left.reason() );
+            }
             tally.leaves.incrementAndGet();
             route();
             consume( w );
@@ -423,7 +426,7 @@ public final class ConcurrencyHarness {
         }
         // every parked pull is answered exactly once: leaving completes the remaining waiters
         for( final Worker w : m.workers ) {
-            m.server.leave( w.sim.participantId() );
+            m.server.leave( w.sim.participantId(), w.author );
         }
         m.route();
         for( final Map.Entry< String, AtomicInteger > e : m.parks.entrySet() ) {

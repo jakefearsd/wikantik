@@ -213,7 +213,7 @@ class StubCollabAuthorityTest {
     void E32_leavingCompletesParkedWaiterOnce() {
         final SimServer.Joined b = server.join( "bob" );
         server.pull( b.participantId(), "bob", 0 );
-        server.leave( b.participantId() );
+        assertEquals( 200, server.leave( b.participantId(), "bob" ).status() );
         assertEquals( 1, server.drainWakeups().size() );
         clock.advance( Duration.ofSeconds( 30 ) );
         server.tick();
@@ -493,7 +493,9 @@ class StubCollabAuthorityTest {
     void aRejoinGetsItsPriorClientIdBackOnlyFromTheSameAuthorAndWhenNotLive() {   // 7.2 "same clientID"
         final SimServer.Joined a = server.join( "alice" );
         assertNotEquals( a.clientId(), server.join( "alice", a.clientId(), null, null ).clientId(), "a is still live" );
-        server.leave( a.participantId() );
+        assertEquals( 403, server.leave( a.participantId(), "mallory" ).status(), "A6: only alice may leave her participant" );
+        assertEquals( 409, server.leave( "nobody", "alice" ).status() );
+        assertEquals( 200, server.leave( a.participantId(), "alice" ).status() );
         assertNotEquals( a.clientId(), server.join( "mallory", a.clientId(), null, null ).clientId() );
         final SimServer.Joined again = server.join( "alice", a.clientId(), null, null );
         assertEquals( a.clientId(), again.clientId() );
@@ -514,7 +516,7 @@ class StubCollabAuthorityTest {
         assertEquals( 200, server.publish( a.participantId(), "alice", 5, "n" ).status() );   // a snapshot at 5
         server.truncate();
         assertEquals( 1, store.updatesSince( server.view().sessionId(), 0 ).get( 0 ).version(), "bob still confirms 0" );
-        server.leave( b.participantId() );
+        assertEquals( 200, server.leave( b.participantId(), "bob" ).status() );
         server.truncate();
         assertTrue( store.updatesSince( server.view().sessionId(), 0 ).isEmpty(), "folded into the snapshot at 5" );
         assertEquals( 410, server.pull( a.participantId(), "alice", 0 ).status() );

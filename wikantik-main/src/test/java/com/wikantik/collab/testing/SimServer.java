@@ -88,7 +88,15 @@ public interface SimServer {
 
     PublishResult publish( String participantId, String authorKey, int version, String note );
 
-    void leave( String participantId );
+    /** Result of {@link #leave}: 200; 403 {@code not-your-participant}; 409 {@code rejoin} (unknown or gone). */
+    record Left( int status, String reason ) {
+    }
+
+    /** The client's own leave: only the participant's author may leave it (A6, ruling P5). */
+    Left leave( String participantId, String authorKey );
+
+    /** The server drops a participant itself (presence timeout), with no author check; its client is not told. */
+    void evict( String participantId );
 
     /** The answers to parked pulls completed since the last call (by a push, a leave or a timeout), in order. */
     List< Wakeup > drainWakeups();

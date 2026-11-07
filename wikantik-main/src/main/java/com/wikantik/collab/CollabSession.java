@@ -22,6 +22,7 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.collab.model.JoinRequest;
 import com.wikantik.collab.model.JoinResponse;
+import com.wikantik.collab.model.LeaveResponse;
 import com.wikantik.collab.model.PageState;
 import com.wikantik.collab.model.PublishOutcome;
 import com.wikantik.collab.model.PublishRequest;
@@ -41,6 +42,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -70,6 +72,15 @@ import java.util.concurrent.locks.ReentrantLock;
  * participant and client ids that carry a per-load tag (clock millis plus a per-store load count), so a straggler
  * request from before a restart can never be taken for a participant created after it.</p>
  *
+ * <p><b>Presence</b> (A12, ruling P7) rides on push and pull: a push without updates only records the selection and
+ * skips the version check. Joins, leaves and selection changes move {@code presenceSeq}; a pull whose
+ * {@code presenceSince} is older gets the full map of the other participants (display name from {@link CollabIdentity},
+ * colour by join order) at once, and parked pulls are woken with it.</p>
+ *
+ * <p><b>Not here yet:</b> meta ops on push and pull ({@code metaOps}/{@code metaSeq} beyond A11's initial meta) and the
+ * section 6.2 event stream ({@code events}/{@code eventSeq}) arrive with the Task 4 publish/merge work and the Task 5
+ * registry; wake-up coalescing (A8, about 50 ms) is the HTTP resource's (Task 7).</p>
+ *
  * <p><b>Publish</b> here is the Phase 0 stub's naive form (the save runs under the lock; no pending-publish marker),
  * kept so the harness can drive publishes; Task 4 replaces it with section 7.3.</p>
  */
@@ -91,7 +102,7 @@ public final class CollabSession {
     public record View( UUID id, String pageName, String doc, int head, String baseBody, ChangeSet local,
                         int basePageVersion, List< StoredUpdate > ring, boolean oversize, long oversizeCeiling,
                         long maxPageBytes, long metaSeq, Map< String, Object > meta, Instant lastEditAt,
-                        Map< String, Selection > selections, int participants ) {
+                        Map< String, Selection > selections, int participants, long presenceSeq ) {
     }
 
     private final UUID id;
@@ -114,11 +125,13 @@ public final class CollabSession {
     /** Created here and not yet joined: the first join may seed initial text (A11). */
     private boolean fresh;
 
+    private long presenceSeq;
     private final Roster roster;
-    private final Waiters waiters = new Waiters();
+    private final Waiters waiters;
 
     private CollabSession( final SessionRecord record, final CollabStore store, final CollabPageWriter writer,
-                           final Clock clock, final CollabConfig config, final long maxPageBytes ) {
+                           final CollabIdentity identity, final Clock clock, final CollabConfig config,
+                           final long maxPageBytes ) {
         this.id = record.id();
         this.record = record;
         this.store = Objects.requireNonNull( store, "store" );
@@ -128,7 +141,9 @@ public final class CollabSession {
         this.oversize = new Oversize( maxPageBytes );
         this.ring = new UpdateRing( config.historyInMemoryUpdates() );
         final int load = LOADS.computeIfAbsent( store, k -> new AtomicInteger() ).incrementAndGet();
-        this.roster = new Roster( Long.toString( clock.millis(), 36 ) + "." + load + "-" );
+        this.roster = new Roster( Long.toString( clock.millis(), 36 ) + "." + load + "-",
+            Objects.requireNonNull( identity, "identity" ), Duration.ofSeconds( config.presenceTimeoutSeconds() ) );
+        this.waiters = new Waiters( id );
     }
 
     // ---- creation and reload ---------------------------------------------------------------------------------
@@ -153,9 +168,10 @@ public final class CollabSession {
      * @throws IllegalStateException    when the page already has a session (from the store)
      */
     public static CollabSession create( final SessionRecord rec, final CollabStore store, final CollabPageWriter writer,
-                                        final Clock clock, final CollabConfig config, final long maxPageBytes ) {
+                                        final CollabIdentity identity, final Clock clock, final CollabConfig config,
+                                        final long maxPageBytes ) {
         final SessionRecord stored = SessionLoader.create( rec, store );
-        final CollabSession s = new CollabSession( stored, store, writer, clock, config, maxPageBytes );
+        final CollabSession s = new CollabSession( stored, store, writer, identity, clock, config, maxPageBytes );
         s.doc = stored.baseBody();
         s.local = ChangeSet.empty( s.doc.length() );
         s.meta = MetaJson.normalise( stored.baseMeta() );
@@ -173,9 +189,10 @@ public final class CollabSession {
      *                               snapshot to the recorded head
      */
     public static CollabSession load( final UUID id, final CollabStore store, final CollabPageWriter writer,
-                                      final Clock clock, final CollabConfig config, final long maxPageBytes ) {
+                                      final CollabIdentity identity, final Clock clock, final CollabConfig config,
+                                      final long maxPageBytes ) {
         final SessionLoader.Loaded l = SessionLoader.load( id, store, config.historyInMemoryUpdates() );
-        final CollabSession s = new CollabSession( l.record(), store, writer, clock, config, maxPageBytes );
+        final CollabSession s = new CollabSession( l.record(), store, writer, identity, clock, config, maxPageBytes );
         s.doc = l.doc();
         s.head = l.head();
         s.local = l.local();
@@ -216,6 +233,8 @@ public final class CollabSession {
      * propagates with nothing applied in memory that the store does not hold, and the next join retries.
      */
     public JoinResponse join( final JoinRequest r ) {
+        final List< Runnable > completions = new ArrayList<>();
+        final JoinResponse out;
         lock.lock();
         try {
             if( fresh ) {
@@ -223,11 +242,14 @@ public final class CollabSession {
                 fresh = false;
             }
             final Participant p = roster.add( r, clock.instant(), head, config.pushesPerSecond() );
-            return new JoinResponse( id, p.id, p.clientId, head, doc, metaSeq, meta, record.basePageVersion(),
+            presenceChanged( p.id, completions );
+            out = new JoinResponse( id, p.id, p.clientId, head, doc, metaSeq, meta, record.basePageVersion(),
                 roster.peers(), hasUnpublished(), lastEditAt );
         } finally {
             lock.unlock();
         }
+        completions.forEach( Runnable::run );
+        return out;
     }
 
     private void seed( final JoinRequest r ) {
@@ -256,20 +278,53 @@ public final class CollabSession {
         }
     }
 
-    /** Removes the participant; its parked pull, if any, is answered empty. Unknown ids are ignored. */
-    public void leave( final String participantId ) {
+    /**
+     * The participant's own leave (section 6.2): only its author may leave it (A6, ruling P5; participant ids are visible
+     * to every joiner). 409 {@code rejoin} when it is unknown or already gone. Its parked pull is answered.
+     */
+    public LeaveResponse leave( final String participantId, final String authorKey ) {
         final List< Runnable > completions = new ArrayList<>();
+        final LeaveResponse out;
         lock.lock();
         try {
-            roster.remove( participantId );
-            final Runnable parked = waiters.remove( participantId, empty() );
-            if( parked != null ) {
-                completions.add( parked );
+            final Gate.Refusal refused = Gate.identity( roster.get( participantId ), authorKey );
+            if( refused == null ) {
+                removeLocked( participantId, completions );
+                out = LeaveResponse.OK;
+            } else {
+                out = new LeaveResponse( refused.status(), refused.reason() );
             }
         } finally {
             lock.unlock();
         }
         completions.forEach( Runnable::run );
+        return out;
+    }
+
+    /**
+     * Server-side removal with no author check, for the registry only (presence timeout, revoked permission, deleted
+     * user): never call it on behalf of a request. Unknown ids are ignored.
+     */
+    public void evict( final String participantId ) {
+        final List< Runnable > completions = new ArrayList<>();
+        lock.lock();
+        try {
+            removeLocked( participantId, completions );
+        } finally {
+            lock.unlock();
+        }
+        completions.forEach( Runnable::run );
+    }
+
+    private void removeLocked( final String participantId, final List< Runnable > completions ) {
+        if( roster.remove( participantId, clock.instant() ) == null ) {
+            return;
+        }
+        final Runnable parked = waiters.remove( participantId, answer( List.of(), participantId, -1 ) );
+        if( parked != null ) {
+            completions.add( parked );
+        }
+        presenceChanged( participantId, completions );
     }
 
     // ---- push ------------------------------------------------------------------------------------------------
@@ -301,22 +356,19 @@ public final class CollabSession {
                                      final List< Update > updates, final Selection selection,
                                      final List< Runnable > completions ) {
         final Participant p = roster.get( participantId );
-        if( p == null ) {
-            return PushResponse.refused( 409, head, REJOIN );
-        }
-        if( !p.authorKey.equals( authorKey ) ) {
-            return PushResponse.refused( 403, head, NOT_YOURS );
-        }
         final Instant now = clock.instant();
-        p.touch( now );
-        if( !p.tryAcquirePush( now, config.pushesPerSecond() ) ) {
-            return PushResponse.refused( 429, head, "rate-limited" );
+        final Gate.Refusal refused = Gate.push( p, authorKey, now, config.pushesPerSecond(),
+            SessionRecord.FROZEN.equals( record.status() ) );
+        if( refused != null ) {
+            return PushResponse.refused( refused.status(), head, refused.reason() );
         }
-        if( SessionRecord.FROZEN.equals( record.status() ) ) {
-            return PushResponse.refused( 409, head, "frozen" );
-        }
-        if( version >= 0 && version <= head ) {
-            p.confirm( version );
+        Gate.confirm( p, version, head );
+        if( updates.isEmpty() ) {
+            // presence-only push (ruling P7): no version check, the selection is placed by its own version
+            if( keepSelection( p, selection ) ) {
+                presenceChanged( p.id, completions );
+            }
+            return PushResponse.accepted( head );
         }
         if( version != head ) {
             return PushResponse.refused( 409, head, STALE );
@@ -326,10 +378,6 @@ public final class CollabSession {
             return PushResponse.refused( check.refusal().status(), head, check.refusal().reason() );
         }
         final List< StoredUpdate > accepted = check.accepted();
-        if( accepted.isEmpty() ) {
-            keepSelection( p, selection );
-            return PushResponse.accepted( head );
-        }
         try {
             store.appendUpdates( id, accepted );
         } catch( final RuntimeException e ) {
@@ -341,10 +389,8 @@ public final class CollabSession {
         lastEditAt = now;
         oversize.update( doc, false );
         final Selection own = Presence.afterOwnPush( selection, version, accepted.size(), doc.length(), head );
-        if( own != null ) {
-            p.selection( own );
-        } else {
-            keepSelection( p, selection );
+        if( own != null ? Presence.set( p, own ) : keepSelection( p, selection ) ) {
+            presenceSeq++;
         }
         maybeSnapshot();
         wakeAll( accepted, completions );
@@ -371,44 +417,62 @@ public final class CollabSession {
      */
     public PullResponse pullOrPark( final String participantId, final String authorKey, final int since,
                                     final Selection selection, final PullWaiter waiter ) {
+        return pullOrPark( participantId, authorKey, since, Long.MAX_VALUE, selection, waiter );
+    }
+
+    /**
+     * As {@link #pullOrPark(String, String, int, Selection, PullWaiter)}, with the presence cursor: a pull at head whose
+     * {@code presenceSince} is older than the presence sequence (not counting its own selection change) answers at once
+     * with the presence map; a parked one is woken when another participant's presence changes.
+     */
+    public PullResponse pullOrPark( final String participantId, final String authorKey, final int since,
+                                    final long presenceSince, final Selection selection, final PullWaiter waiter ) {
         Objects.requireNonNull( waiter, "waiter" );
+        final List< Runnable > completions = new ArrayList<>();
         Runnable displaced = null;
         final PullResponse out;
         lock.lock();
         try {
             final Participant p = roster.get( participantId );
-            if( p == null ) {
-                return PullResponse.refused( 409, head, REJOIN );
-            }
-            if( !p.authorKey.equals( authorKey ) ) {
-                return PullResponse.refused( 403, head, NOT_YOURS );
+            final Gate.Refusal refused = Gate.identity( p, authorKey );
+            if( refused != null ) {
+                return PullResponse.refused( refused.status(), head, refused.reason() );
             }
             p.touch( clock.instant() );
             if( since < 0 || since > head ) {
                 return PullResponse.refused( 400, head, "bad-since" );
             }
             p.confirm( since );
-            keepSelection( p, selection );
+            final long seen = presenceSeq;
+            if( keepSelection( p, selection ) ) {
+                presenceChanged( participantId, completions );
+            }
             if( since < head ) {
-                out = catchUp( since, participantId );
+                out = catchUp( since, participantId, presenceSince );
+            } else if( presenceSince < seen ) {
+                out = answer( List.of(), participantId, presenceSince );
             } else {
-                displaced = waiters.park( participantId, since, clock.instant().plusSeconds( config.pollTimeoutSeconds() ),
-                    waiter, empty() );
+                displaced = waiters.park( participantId, since, presenceSince,
+                    clock.instant().plusSeconds( config.pollTimeoutSeconds() ), waiter,
+                    answer( List.of(), participantId, -1 ) );
                 out = null;
             }
         } finally {
             lock.unlock();
         }
         if( displaced != null ) {
-            displaced.run();
+            completions.add( displaced );
         }
+        completions.forEach( Runnable::run );
         return out;
     }
 
     /** Catch-up for a pull: the ring when it reaches back far enough, else the store; 410 when the store truncated. */
-    private PullResponse catchUp( final int since, final String participantId ) {
+    private PullResponse catchUp( final int since, final String participantId, final long presenceSince ) {
+        // heavy work under the lock: a store read for a client below the ring; rare by design (A10) and bounded by the
+        // retained log, and it keeps the answer consistent with the head it reports
         if( ring.covers( since ) ) {
-            return answer( ring.after( since ), participantId );
+            return answer( ring.after( since ), participantId, presenceSince );
         }
         final List< StoredUpdate > log;
         try {
@@ -418,19 +482,24 @@ public final class CollabSession {
                 e.getMessage() );
             return PullResponse.refused( 503, head, STORE );
         }
-        return log == null ? PullResponse.refused( 410, head, "resync" ) : answer( log, participantId );
+        return log == null ? PullResponse.refused( 410, head, "resync" ) : answer( log, participantId, presenceSince );
     }
 
-    private PullResponse answer( final List< StoredUpdate > updates, final String participantId ) {
+    /** A 200 answer; the presence map is included when {@code presenceSince} is older than the sequence (-1: always). */
+    private PullResponse answer( final List< StoredUpdate > updates, final String participantId, final long presenceSince ) {
         final List< Update > out = new ArrayList<>( updates.size() );
         for( final StoredUpdate u : updates ) {
             out.add( new Update( u.clientId(), u.changes() ) );
         }
-        return new PullResponse( 200, out, head, null, roster.selectionsExcept( participantId ) );
+        return new PullResponse( 200, out, head, null,
+            presenceSince < presenceSeq ? roster.presenceExcept( participantId ) : Map.of(), presenceSeq );
     }
 
-    private PullResponse empty() {
-        return new PullResponse( 200, List.of(), head, null, Map.of() );
+    /** A join, leave or selection change: the sequence moves and every other parked pull behind it is answered. */
+    private void presenceChanged( final String changedBy, final List< Runnable > completions ) {
+        presenceSeq++;
+        completions.addAll( waiters.drainWhere( presenceSeq, changedBy,
+            ( participantId, since, presenceSince ) -> answer( List.of(), participantId, presenceSince ) ) );
     }
 
     /**
@@ -438,12 +507,12 @@ public final class CollabSession {
      * was longer than the ring (amendment: no store read after a commit). Every waiter parked at the previous head.
      */
     private void wakeAll( final List< StoredUpdate > batch, final List< Runnable > completions ) {
-        completions.addAll( waiters.drainAll( ( participantId, since ) -> {
+        completions.addAll( waiters.drainAll( ( participantId, since, presenceSince ) -> {
             if( ring.covers( since ) ) {
-                return answer( ring.after( since ), participantId );
+                return answer( ring.after( since ), participantId, presenceSince );
             }
             if( !batch.isEmpty() && batch.get( 0 ).version() <= since + 1 ) {
-                return answer( batch.stream().filter( u -> u.version() > since ).toList(), participantId );
+                return answer( batch.stream().filter( u -> u.version() > since ).toList(), participantId, presenceSince );
             }
             LOG.warn( "collab session {}: parked pull of {} from {} is not in memory; answering resync", id, participantId,
                 since );
@@ -458,8 +527,8 @@ public final class CollabSession {
     public List< Runnable > expireWaiters() {
         lock.lock();
         try {
-            final PullResponse timedOut = empty();
-            return waiters.expire( clock.instant(), participantId -> timedOut );
+            return waiters.expire( clock.instant(),
+                ( participantId, since, presenceSince ) -> answer( List.of(), participantId, presenceSince ) );
         } finally {
             lock.unlock();
         }
@@ -467,8 +536,8 @@ public final class CollabSession {
 
     // ---- presence --------------------------------------------------------------------------------------------
 
-    private void keepSelection( final Participant p, final Selection s ) {
-        Presence.keep( p, s, ring, doc.length(), head );
+    private boolean keepSelection( final Participant p, final Selection s ) {
+        return Presence.keep( p, s, ring, doc.length(), head );
     }
 
     // ---- snapshots and truncation ------------------------------------------------------------------------------
@@ -567,22 +636,12 @@ public final class CollabSession {
     /** The answers a publish gets before anything is saved, or null when it may go ahead. */
     private PublishResponse refusePublish( final Participant p, final String authorKey, final int version ) {
         final int base = record.basePageVersion();
-        if( p == null ) {
-            return new PublishResponse( 409, base, REJOIN, false );
+        final Gate.Refusal refused = Gate.identity( p, authorKey );
+        if( refused != null ) {
+            return new PublishResponse( refused.status(), base, refused.reason(), false );
         }
-        if( !p.authorKey.equals( authorKey ) ) {
-            return new PublishResponse( 403, base, NOT_YOURS, false );
-        }
-        if( version >= 0 && version <= head ) {
-            p.confirm( version );
-        }
-        if( version != head ) {
-            return new PublishResponse( 409, base, STALE, false );
-        }
-        if( !hasUnpublished() ) {
-            return new PublishResponse( 200, base, null, true );
-        }
-        return doc.isEmpty() ? new PublishResponse( 400, base, "empty", false ) : null;
+        Gate.confirm( p, version, head );
+        return Gate.publishable( version, head, hasUnpublished(), doc.isEmpty(), base );
     }
 
     /**
@@ -629,7 +688,7 @@ public final class CollabSession {
             return new View( id, record.pageName(), doc, head, record.baseBody(), local, record.basePageVersion(),
                 ring.asList(), oversize.active(), oversize.ceiling(), oversize.maxPageBytes(), metaSeq,
                 Collections.unmodifiableMap( new LinkedHashMap<>( meta ) ), lastEditAt,
-                Collections.unmodifiableMap( selections ), roster.size() );
+                Collections.unmodifiableMap( selections ), roster.size(), presenceSeq );
         } finally {
             lock.unlock();
         }

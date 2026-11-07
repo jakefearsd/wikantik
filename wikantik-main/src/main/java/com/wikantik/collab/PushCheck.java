@@ -66,6 +66,8 @@ record PushCheck( Refusal refusal, List< StoredUpdate > accepted, String next ) 
                 LOG.warn( "push from {}: the update would leave a lone surrogate", p.id );
                 return refuse( 400, CollabSession.REJECTED );
             }
+            // the heaviest work under the session lock: UTF-8 sizing of the document per update, bounded by maxPageBytes
+            // (a Java String gives no byte length without encoding it)
             if( Oversize.utf8( next ) > Math.max( maxPageBytes, Oversize.utf8( cur ) ) ) {
                 return refuse( 413, "oversize" );
             }

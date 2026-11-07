@@ -76,6 +76,8 @@ public final class CollabSessionSimServer implements SimServer {
     public static final Function< SimEnv, SimServer > SESSION_RELOAD = env -> reload( env.pageName(), env.store(),
         env.writer(), env.clock(), env.maxPageBytes(), env.ringSize(), SIM_SNAPSHOT_EVERY );
     /** Session-only actions: explicit A10 truncation in every profile (the stub's corpus stays as it is). */
+    /** Every author's public name is the author key itself. */
+    static final com.wikantik.collab.CollabIdentity IDENTITY = key -> key;
     public static final SimScheduler.Overlay OVERLAY = new SimScheduler.Overlay( Map.of( SimProfile.Kind.TRUNCATE, 2 ) );
 
     private final CollabSession session;
@@ -104,7 +106,7 @@ public final class CollabSessionSimServer implements SimServer {
                                                  final Clock clock, final long maxPageBytes, final int ringSize,
                                                  final int snapshotEvery ) {
         final SessionRecord rec = CollabSession.newRecord( idFor( pageName ), pageName, writer.latest( pageName ), "sim", clock );
-        return new CollabSessionSimServer( CollabSession.create( rec, store, writer, clock, config( ringSize, snapshotEvery ),
+        return new CollabSessionSimServer( CollabSession.create( rec, store, writer, IDENTITY, clock, config( ringSize, snapshotEvery ),
             maxPageBytes ), store, writer );
     }
 
@@ -114,7 +116,7 @@ public final class CollabSessionSimServer implements SimServer {
                                                  final int snapshotEvery ) {
         final UUID id = store.sessionForPage( pageName ).map( SessionRecord::id ).orElseThrow(
             () -> new IllegalStateException( "no collab session to reload for page " + pageName ) );
-        return new CollabSessionSimServer( CollabSession.load( id, store, writer, clock, config( ringSize, snapshotEvery ),
+        return new CollabSessionSimServer( CollabSession.load( id, store, writer, IDENTITY, clock, config( ringSize, snapshotEvery ),
             maxPageBytes ), store, writer );
     }
 
@@ -221,8 +223,14 @@ public final class CollabSessionSimServer implements SimServer {
     }
 
     @Override
-    public void leave( final String participantId ) {
-        session.leave( participantId );
+    public Left leave( final String participantId, final String authorKey ) {
+        final com.wikantik.collab.model.LeaveResponse r = session.leave( participantId, authorKey );
+        return new Left( r.status(), r.reason() );
+    }
+
+    @Override
+    public void evict( final String participantId ) {
+        session.evict( participantId );
     }
 
     @Override

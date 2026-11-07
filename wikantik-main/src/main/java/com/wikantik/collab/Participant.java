@@ -51,7 +51,7 @@ final class Participant {
         this.id = id;
         this.authorKey = r.authorKey();
         this.clientId = clientId;
-        this.displayName = displayName == null ? r.authorKey() : displayName;
+        this.displayName = java.util.Objects.requireNonNull( displayName, "displayName" );
         this.color = color;
         this.wikiSession = r.wikiSession();
         this.lastSeen = now;

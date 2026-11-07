@@ -22,19 +22,28 @@ import java.util.Objects;
 
 /**
  * One other participant in a pull's presence map (A12, ruling P7): its public display name, its colour (from a fixed
- * palette by join order within the session, never derived from the login, section 8.3) and its last selection.
+ * palette by join order within the session, never derived from the login, section 8.3) and its last selection. Every
+ * other live participant is in the map; one that never sent a selection has all four selection fields null.
  */
-public record PresenceEntry( String displayName, String color, int anchor, int head, int version, int unconfirmed ) {
+public record PresenceEntry( String displayName, String color, Integer anchor, Integer head, Integer version,
+                             Integer unconfirmed ) {
     public PresenceEntry {
         Objects.requireNonNull( displayName, "displayName" );
         Objects.requireNonNull( color, "color" );
+        if( ( anchor == null ) != ( head == null ) || ( anchor == null ) != ( version == null )
+                || ( anchor == null ) != ( unconfirmed == null ) ) {
+            throw new IllegalArgumentException( "the selection fields are all null or all set" );
+        }
     }
 
+    /** {@code s} may be null: no selection yet. */
     public static PresenceEntry of( final String displayName, final String color, final Selection s ) {
-        return new PresenceEntry( displayName, color, s.anchor(), s.head(), s.version(), s.unconfirmed() );
+        return s == null ? new PresenceEntry( displayName, color, null, null, null, null )
+            : new PresenceEntry( displayName, color, s.anchor(), s.head(), s.version(), s.unconfirmed() );
     }
 
+    /** The selection, or null when the participant has not sent one. */
     public Selection selection() {
-        return new Selection( anchor, head, version, unconfirmed );
+        return anchor == null ? null : new Selection( anchor, head, version, unconfirmed );
     }
 }

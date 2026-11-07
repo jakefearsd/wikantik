@@ -35,7 +35,8 @@ import java.util.Map;
  * clientID is {@code <tag>c<n>}, but a join gets its prior clientID back when a participant of the same author held it
  * and left within the retention (the presence timeout) and no live participant holds it (section 7.2 "same clientID").
  * The tag is unique per session load, so ids never repeat across restarts. Display names come from
- * {@link CollabIdentity} (the join's name only when it has none); colours from a fixed palette by join order within the
+ * {@link CollabIdentity} (the join's name only when it has none, a neutral {@code "Editor <n>"} when neither has one,
+ * never the login); colours from a fixed palette by join order within the
  * session, never from the login (section 8.3). Guarded by the session lock.
  */
 final class Roster {
@@ -63,11 +64,22 @@ final class Roster {
     Participant add( final JoinRequest r, final Instant now, final int head, final int pushesPerSecond ) {
         prune( now );
         final int n = next++;
-        final String name = identity.displayName( r.authorKey() );
-        final Participant p = new Participant( idTag + "p" + n, r, clientIdFor( r, n ), name == null || name.isBlank()
-            ? r.displayName() : name, COLORS[ ( n - 1 ) % COLORS.length ], now, head, pushesPerSecond );
+        final Participant p = new Participant( idTag + "p" + n, r, clientIdFor( r, n ), displayName( r, n ),
+            COLORS[ ( n - 1 ) % COLORS.length ], now, head, pushesPerSecond );
         participants.put( p.id, p );
         return p;
+    }
+
+    /**
+     * The public name: {@link CollabIdentity}'s, else the join's, else the neutral {@code "Editor <n>"}. Never the
+     * author key: logins are private, the display name is the public identity.
+     */
+    private String displayName( final JoinRequest r, final int n ) {
+        final String fromIdentity = identity.displayName( r.authorKey() );
+        if( fromIdentity != null && !fromIdentity.isBlank() ) {
+            return fromIdentity;
+        }
+        return r.displayName() != null && !r.displayName().isBlank() ? r.displayName() : "Editor " + n;
     }
 
     private String clientIdFor( final JoinRequest r, final int n ) {
@@ -124,11 +136,11 @@ final class Roster {
         return out;
     }
 
-    /** The presence map for {@code participantId}: every other participant that has a selection. */
+    /** The presence map for {@code participantId}: every other live participant, with or without a selection. */
     Map< String, PresenceEntry > presenceExcept( final String participantId ) {
         final Map< String, PresenceEntry > out = new LinkedHashMap<>();
         for( final Participant p : participants.values() ) {
-            if( !p.id.equals( participantId ) && p.selection() != null ) {
+            if( !p.id.equals( participantId ) ) {
                 out.put( p.id, PresenceEntry.of( p.displayName, p.color, p.selection() ) );
             }
         }

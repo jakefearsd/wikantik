@@ -25,8 +25,8 @@ import java.util.Map;
  * The answer to a pull, immediate or from a parked long-poll. {@code status}: 200 with the updates after the requested
  * version ({@code updates} empty on a long-poll timeout); 400 {@code bad-since}; 403 {@code not-your-participant};
  * 409 {@code rejoin}; 410 {@code resync} (the version is older than the ring and the store truncated below it, A10);
- * 503 {@code store}. {@code version} is the head. {@code presence} is the full map of the other participants that have
- * a selection, keyed by participant id, when {@code presenceSeq} is newer than the request's {@code presenceSince},
+ * 503 {@code store}. {@code version} is the head. {@code presence} is the full map of the other live participants
+ * (with or without a selection), keyed by participant id, when {@code presenceSeq} is newer than the request's {@code presenceSince},
  * else empty (A12, ruling P7; the requester is never in it).
  */
 public record PullResponse( int status, List< Update > updates, int version, String reason,

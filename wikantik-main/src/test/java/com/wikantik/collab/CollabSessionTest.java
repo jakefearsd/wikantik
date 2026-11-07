@@ -868,7 +868,10 @@ class CollabSessionTest {
         final PullResponse first = session.pullOrPark( raj.participantId(), "raj", 0, 0, null, new Waiter() );
         assertEquals( 200, first.status() );
         assertEquals( afterJoins, first.presenceSeq() );
-        assertTrue( first.presence().isEmpty(), "ada has no selection yet" );
+        // the full map of the others: ada is there although she never placed a cursor
+        assertEquals( java.util.Set.of( ada.participantId() ), first.presence().keySet() );
+        assertNull( first.presence().get( ada.participantId() ).selection() );
+        assertNull( first.presence().get( ada.participantId() ).anchor() );
         // raj parks with the current sequence; ada's selection wakes him with her entry
         final Waiter w = new Waiter();
         assertNull( session.pullOrPark( raj.participantId(), "raj", 0, afterJoins, null, w ) );
@@ -913,5 +916,37 @@ class CollabSessionTest {
         clock.advance( Duration.ofSeconds( 46 ) );
         assertNotEquals( a.clientId(),
             session.join( new JoinRequest( "alice", a.clientId(), null, "A", null, null ) ).clientId() );
+    }
+
+    // ---- fix round 2 ----------------------------------------------------------------------------------------------
+
+    @Test
+    void aParticipantWithoutASelectionIsInEveryoneElsesPresence() {
+        final JoinResponse ada = join( "ada" );
+        final JoinResponse raj = join( "raj" );
+        final PullResponse r = session.pullOrPark( raj.participantId(), "raj", 0, 0, null, new Waiter() );
+        final PresenceEntry e = r.presence().get( ada.participantId() );
+        assertEquals( "Ada Lovelace", e.displayName() );
+        assertEquals( ada.participants().get( 0 ).color(), e.color() );
+        assertNull( e.anchor() );
+        assertNull( e.head() );
+        assertNull( e.version() );
+        assertNull( e.unconfirmed() );
+        assertFalse( r.presence().containsKey( raj.participantId() ) );
+    }
+
+    @Test
+    void aMissingDisplayNameNeverFallsBackToTheLogin() {   // logins are private; public identity is the display name
+        final JoinResponse anon = session.join( JoinRequest.of( "carol@example.com", null, null ) );
+        final JoinResponse blank = session.join( JoinRequest.of( "dave@example.com", null, "  " ) );
+        final String first = anon.participants().get( 0 ).displayName();
+        final String second = blank.participants().get( 1 ).displayName();
+        assertFalse( first.contains( "carol" ), first );
+        assertFalse( second.contains( "dave" ), second );
+        assertEquals( "Editor 1", first );
+        assertEquals( "Editor 2", second );
+        final JoinResponse raj = join( "raj" );
+        final PullResponse r = session.pullOrPark( raj.participantId(), "raj", 0, 0, null, new Waiter() );
+        assertEquals( "Editor 1", r.presence().get( anon.participantId() ).displayName() );
     }
 }

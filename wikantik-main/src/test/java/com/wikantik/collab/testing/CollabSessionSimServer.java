@@ -75,9 +75,9 @@ public final class CollabSessionSimServer implements SimServer {
         env.clock(), env.maxPageBytes(), env.ringSize(), SIM_SNAPSHOT_EVERY );
     public static final Function< SimEnv, SimServer > SESSION_RELOAD = env -> reload( env.pageName(), env.store(),
         env.writer(), env.clock(), env.maxPageBytes(), env.ringSize(), SIM_SNAPSHOT_EVERY );
-    /** Session-only actions: explicit A10 truncation in every profile (the stub's corpus stays as it is). */
-    /** Every author's public name is the author key itself. */
+    /** Every author's public name is the author key itself (the simulator's authors are synthetic). */
     static final com.wikantik.collab.CollabIdentity IDENTITY = key -> key;
+    /** Session-only actions: explicit A10 truncation in every profile (the stub's corpus stays as it is). */
     public static final SimScheduler.Overlay OVERLAY = new SimScheduler.Overlay( Map.of( SimProfile.Kind.TRUNCATE, 2 ) );
 
     private final CollabSession session;

@@ -29,8 +29,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * The light draft-listing reads behind {@link com.wikantik.collab.CollabStore#draftEntries} and
- * {@link com.wikantik.collab.CollabStore#unpublishedByPage}: no bodies are read. Failures are translated as
+ * The light draft reads behind {@link com.wikantik.collab.CollabStore#draftEntries},
+ * {@link com.wikantik.collab.CollabStore#unpublishedByPage} and {@link com.wikantik.collab.CollabStore#holdsUpdatesFrom}:
+ * no bodies are read. Failures are translated as
  * {@link JdbcCollabStore} translates its own.
  */
 final class DraftQueries {
@@ -85,6 +86,20 @@ final class DraftQueries {
             return out;
         } catch( final SQLException e ) {
             throw JdbcCollabStore.translate( e, "unpublishedByPage" );
+        }
+    }
+
+    /** {@link com.wikantik.collab.CollabStore#holdsUpdatesFrom}: one lookup within the session's log, no rows read. */
+    boolean holdsUpdatesFrom( final UUID id, final String clientId, final String authorKey ) {
+        try {
+            return jdbc.queryOne( "SELECT 1 FROM collab_update WHERE session_id = ? AND kind = 'text' AND client_id = ?"
+                + " AND author_key = ? LIMIT 1", ps -> {
+                    ps.setObject( 1, id );
+                    ps.setString( 2, clientId );
+                    ps.setString( 3, authorKey );
+                }, rs -> Boolean.TRUE ).isPresent();
+        } catch( final SQLException e ) {
+            throw JdbcCollabStore.translate( e, "holdsUpdatesFrom " + id );
         }
     }
 }

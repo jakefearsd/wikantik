@@ -277,39 +277,18 @@ public final class CollabSessionRegistry {
         if( !s.pageName().equals( pageName ) ) {
             return null;   // a rekey moved this slot to another name while we waited: take the page's own slot
         }
-        if( latest == null ) {
-            final Refused guarded = JoinRefusals.refuseMissingPagesDraft( permissions, s, r );
-            if( guarded != null ) {
-                return guarded;
-            }
-        }
         // one author holds at most MAX_SEATS_PER_AUTHOR seats: its longest-idle one is reclaimed, else 429 for it alone
         final Instant idleBefore = clock.instant().minusSeconds( config.pollTimeoutSeconds() + IDLE_SEAT_SLACK_SECONDS );
-        if( !Hooks.seatFor( s, r, MAX_SEATS_PER_AUTHOR, idleBefore ) ) {
-            LOG.info( "collab: join of {} by {} refused: that author already holds {} active seats", pageName,
-                r.authorKey(), MAX_SEATS_PER_AUTHOR );
-            return new Refused( 429, FULL );
+        final Refused refused = JoinRefusals.refuseInSession( permissions, s, r, latest == null, idleBefore,
+            config.maxParticipants() );
+        if( refused != null ) {
+            return refused;
         }
-        // a rejoin replacing its own stale entry (A13) takes no new seat
-        final int seats = Hooks.members( s ).size() - ( Hooks.replacesStale( s, r ) ? 1 : 0 );
-        if( seats >= config.maxParticipants() ) {
-            return new Refused( 429, FULL );
+        final JoinOutcome out = JoinRefusals.join( s, r, pageName );
+        if( out instanceof Joined ) {
+            slot.joined();
         }
-        final JoinResponse response;
-        try {
-            response = s.join( r );
-        } catch( final Draft.SeedTooLarge e ) {
-            LOG.info( "collab: join of {} by {} refused: {}", pageName, r.authorKey(), e.getMessage() );
-            return new Refused( 413, "oversize" );
-        } catch( final IllegalArgumentException e ) {
-            LOG.warn( "collab: join of {} by {} refused: {}", pageName, r.authorKey(), e.toString() );
-            return new Refused( 400, CollabSession.REJECTED );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "collab: join of {} by {} failed in the store: {}", pageName, r.authorKey(), e.toString() );
-            return new Refused( 503, CollabSession.STORE );
-        }
-        slot.joined();
-        return new Joined( s, response );
+        return out;
     }
 
     /** How opening a slot went. */

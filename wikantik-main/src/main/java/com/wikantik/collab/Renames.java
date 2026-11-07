@@ -202,7 +202,7 @@ final class Renames {
 
     private void failed( final String from, final String to, final Owed prior, final boolean refusedNow,
                          final RuntimeException e, final After after ) {
-        final boolean inFlight = prior != null && prior.inFlight();
+        final boolean inFlight = inFlight( prior );
         final int failures = prior == null ? 1 : prior.failures() + 1;
         final boolean warned = prior != null && prior.refused();
         logFailure( from, to, failures, refusedNow && !warned, prior == null && !refusedNow, e );
@@ -213,6 +213,10 @@ final class Renames {
         }
         pending.put( to, new Owed( from, failures, clock.instant().plus( backoff( failures ) ), refusedNow || warned,
             frozen, inFlight ) );
+    }
+
+    private static boolean inFlight( final Owed owed ) {
+        return owed != null && owed.inFlight();
     }
 
     /** One WARN for a refusal, one for the first other failure; DEBUG after that. */

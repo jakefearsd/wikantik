@@ -137,6 +137,55 @@ class RateLimitFilterTest {
     }
 
     @Test
+    void collabRequestsDoNotSpendTheIpBucket() throws Exception {
+        final RateLimitFilter f = new RateLimitFilter( config( 2, 100, 0, List.of(), ticker ) );
+        f.init( null );
+        final FilterChain chain = mock( FilterChain.class );
+        for ( int i = 0; i < 50; i++ ) {
+            f.doFilter( request( "/api/collab/P/updates", "8.8.8.8" ), response(), chain );
+        }
+        verify( chain, times( 50 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+        // and they spent nothing: the ordinary bucket still has its full allowance
+        final FilterChain other = mock( FilterChain.class );
+        f.doFilter( request( "/api/pages/Main", "8.8.8.8" ), response(), other );
+        f.doFilter( request( "/api/pages/Main", "8.8.8.8" ), response(), other );
+        verify( other, times( 2 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+    }
+
+    @Test
+    void onlyTheCollabPathPrefixIsExempt() throws Exception {
+        for ( final String path : List.of( "/api/collaborate", "/api/collabX/a", "/api/collab" ) ) {
+            final RateLimitFilter f = new RateLimitFilter( config( 2, 100, 0, List.of(), ticker ) );
+            f.init( null );
+            final FilterChain chain = mock( FilterChain.class );
+            f.doFilter( request( path, "8.8.8.8" ), response(), chain );
+            f.doFilter( request( path, "8.8.8.8" ), response(), chain );
+            final HttpServletResponse blocked = response();
+            f.doFilter( request( path, "8.8.8.8" ), blocked, chain );
+            verify( blocked ).setStatus( 429 );
+        }
+    }
+
+    @Test
+    void sessionPrefixWithoutTrailingSlashIsNormalised() throws Exception {
+        final RateLimitFilter.Config cfg = RateLimitFilter.Config.of( 2, 100, 0,
+                List.of( "/api/bundle" ), List.of( "/api/live" ), List.of(), ticker );
+        assertEquals( List.of( "/api/live/" ), cfg.sessionPathPrefixes() );
+        final RateLimitFilter f = new RateLimitFilter( cfg );
+        f.init( null );
+        final FilterChain chain = mock( FilterChain.class );
+        for ( int i = 0; i < 10; i++ ) {
+            f.doFilter( request( "/api/live/x", "8.8.8.8" ), response(), chain );
+        }
+        verify( chain, times( 10 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+        final HttpServletResponse blocked = response();
+        for ( int i = 0; i < 3; i++ ) {
+            f.doFilter( request( "/api/liveX", "8.8.8.8" ), blocked, chain );
+        }
+        verify( blocked ).setStatus( 429 );
+    }
+
+    @Test
     void defaultTierAppliesToGeneralApiPaths() throws Exception {
         final RateLimitFilter f = new RateLimitFilter( config( 2, 100, 0, List.of(), ticker ) );
         f.init( null );

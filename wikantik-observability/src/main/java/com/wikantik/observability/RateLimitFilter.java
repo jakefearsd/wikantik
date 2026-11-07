@@ -75,9 +75,19 @@ import java.util.List;
  *   <li>{@code WIKANTIK_RATELIMIT_EXPENSIVE_GLOBAL} — default 10 req/s</li>
  *   <li>{@code WIKANTIK_RATELIMIT_EXPENSIVE_PATHS} — CSV path prefixes,
  *       default {@code /api/bundle,/api/search,/sparql}</li>
+ *   <li>{@code WIKANTIK_RATELIMIT_SESSION_PATHS} — CSV path prefixes of
+ *       session-limited endpoints, default {@code /api/collab/}; each prefix is
+ *       normalised to end in {@code /}</li>
  *   <li>{@code WIKANTIK_RATELIMIT_EXEMPT_CIDRS} — CSV IPv4 CIDRs, default empty
  *       (loopback is always exempt regardless)</li>
  * </ul>
+ *
+ * <p><b>Session-limited paths.</b> A request whose path (after the context path)
+ * starts with a session-limited prefix (default {@code /api/collab/}) skips every
+ * bucket here — the per-IP default bucket and the expensive/global buckets. Those
+ * endpoints are long-lived collaborative-editing sessions whose steady polling would
+ * exhaust a per-IP bucket shared by everyone behind one NAT; the collab session
+ * enforces its own per-participant caps (Phase 1), so this filter steps aside.</p>
  *
  * <p>On limit: {@code 429} + {@code Retry-After: 1}, a SecurityLog line, and a
  * {@code wikantik_ratelimit.rejected_total{tier=...}} counter.</p>
@@ -94,12 +104,14 @@ public class RateLimitFilter implements Filter {
     public static final String ENV_EXPENSIVE_PERCLIENT = "WIKANTIK_RATELIMIT_EXPENSIVE_PERCLIENT";
     public static final String ENV_EXPENSIVE_GLOBAL    = "WIKANTIK_RATELIMIT_EXPENSIVE_GLOBAL";
     public static final String ENV_EXPENSIVE_PATHS     = "WIKANTIK_RATELIMIT_EXPENSIVE_PATHS";
+    public static final String ENV_SESSION_PATHS       = "WIKANTIK_RATELIMIT_SESSION_PATHS";
     public static final String ENV_EXEMPT_CIDRS        = "WIKANTIK_RATELIMIT_EXEMPT_CIDRS";
 
     public static final int DEFAULT_DEFAULT_PERCLIENT   = 25;
     public static final int DEFAULT_EXPENSIVE_PERCLIENT = 3;
     public static final int DEFAULT_EXPENSIVE_GLOBAL    = 10;
     public static final String DEFAULT_EXPENSIVE_PATHS  = "/api/bundle,/api/search,/sparql";
+    public static final String DEFAULT_SESSION_PATHS    = "/api/collab/";
 
     /** Exact paths that must never be limited (monitoring probes). */
     private static final String EXEMPT_EXACT_PATH = "/api/health";
@@ -111,14 +123,33 @@ public class RateLimitFilter implements Filter {
      */
     record Config( int defaultPerClient, int expensivePerClient, int expensiveGlobal,
                    List< String > expensivePathPrefixes,
+                   List< String > sessionPathPrefixes,
                    List< InternalNetworkFilter.CidrRange > exemptRanges,
                    Ticker ticker ) {
 
         static Config of( final int defaultPerClient, final int expensivePerClient, final int expensiveGlobal,
                           final List< String > expensivePathPrefixes, final List< String > exemptCidrs,
                           final Ticker ticker ) {
+            return of( defaultPerClient, expensivePerClient, expensiveGlobal, expensivePathPrefixes,
+                    parseSessionPaths( DEFAULT_SESSION_PATHS ), exemptCidrs, ticker );
+        }
+
+        static Config of( final int defaultPerClient, final int expensivePerClient, final int expensiveGlobal,
+                          final List< String > expensivePathPrefixes, final List< String > sessionPathPrefixes,
+                          final List< String > exemptCidrs, final Ticker ticker ) {
             return new Config( defaultPerClient, expensivePerClient, expensiveGlobal,
-                    List.copyOf( expensivePathPrefixes ), parseCidrs( exemptCidrs ), ticker );
+                    List.copyOf( expensivePathPrefixes ), normalisePrefixes( sessionPathPrefixes ),
+                    parseCidrs( exemptCidrs ), ticker );
+        }
+
+        private static List< String > parseSessionPaths( final String csv ) {
+            return normalisePrefixes( Arrays.stream( csv.split( "," ) ).toList() );
+        }
+
+        /** Trims, drops blanks, and appends a trailing slash so a prefix never matches a sibling like /api/collabX. */
+        private static List< String > normalisePrefixes( final List< String > prefixes ) {
+            return prefixes.stream().map( String::trim ).filter( s -> !s.isEmpty() )
+                    .map( s -> s.endsWith( "/" ) ? s : s + "/" ).toList();
         }
 
         static Config fromEnvironment() {
@@ -132,7 +163,8 @@ public class RateLimitFilter implements Filter {
                     envIntOr( ENV_DEFAULT_PERCLIENT, DEFAULT_DEFAULT_PERCLIENT ),
                     envIntOr( ENV_EXPENSIVE_PERCLIENT, DEFAULT_EXPENSIVE_PERCLIENT ),
                     envIntOr( ENV_EXPENSIVE_GLOBAL, DEFAULT_EXPENSIVE_GLOBAL ),
-                    paths, parseCidrs( cidrs ), Ticker.systemTicker() );
+                    paths, parseSessionPaths( envOr( ENV_SESSION_PATHS, DEFAULT_SESSION_PATHS ) ),
+                    parseCidrs( cidrs ), Ticker.systemTicker() );
         }
 
         private static List< InternalNetworkFilter.CidrRange > parseCidrs( final List< String > cidrs ) {
@@ -239,6 +271,11 @@ public class RateLimitFilter implements Filter {
             return;
         }
 
+        if ( isSessionPath( path ) ) {
+            chain.doFilter( request, response );
+            return;
+        }
+
         final boolean expensive = isExpensivePath( path );
         final SlidingWindowRateLimiter limiter = expensive ? expensiveLimiter : defaultLimiter;
         if ( limiter.tryAcquire( "ip:" + ip ) ) {
@@ -253,6 +290,14 @@ public class RateLimitFilter implements Filter {
             counter.increment();
         }
         sendRateLimited( httpRes );
+    }
+
+    private boolean isSessionPath( final String path ) {
+        if ( path == null ) return false;
+        for ( final String prefix : config.sessionPathPrefixes() ) {
+            if ( path.startsWith( prefix ) ) return true;
+        }
+        return false;
     }
 
     private boolean isExpensivePath( final String path ) {

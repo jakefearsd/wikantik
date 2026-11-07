@@ -542,9 +542,12 @@ public final class CollabSessionRegistry {
         admin.storeAllMarkers();
     }
 
-    /** The participants across the live sessions. */
+    /**
+     * The participants across the live sessions, read without any session lock (each roster keeps a volatile count),
+     * so the participants gauge never waits for a busy session.
+     */
     public int participantCount() {
-        return forEachLive( s -> Hooks.members( s ).size() );
+        return forEachLive( Hooks::participantsLockFree );
     }
 
     /**

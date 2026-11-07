@@ -37,7 +37,9 @@ import java.util.stream.Collectors;
  * {@code wikantik_collab_external_merges_total}, {@code wikantik_collab_publish_total{result}} and
  * {@code wikantik_collab_resync_total}; {@link #bindGauges} adds {@code wikantik_collab_sessions_active} and
  * {@code wikantik_collab_participants_active}. Every labelled counter is registered up front, so each series scrapes as
- * 0 before its first event; an unknown label is counted under its own series.
+ * 0 before its first event; the label sets are fixed: an unknown push result counts as {@code rejected} and an unknown
+ * publish result as {@code refused}, so no caller can grow the series. The push latency publishes a percentile
+ * histogram, as the other wikantik latency timers do.
  */
 public final class MicrometerCollabMetrics implements CollabMetrics {
 
@@ -65,6 +67,7 @@ public final class MicrometerCollabMetrics implements CollabMetrics {
             List.of( PUBLISHED, UNCHANGED, CONFLICT, REFUSED, FAILED, STORE ) );
         this.pushLatency = Timer.builder( PUSH_LATENCY )
             .description( "Time to answer one collaborative-editing push" )
+            .publishPercentileHistogram()
             .register( meters );
         this.externalMerges = Counter.builder( EXTERNAL_MERGES )
             .description( "Outside page writes merged into a collaborative draft" )
@@ -98,7 +101,7 @@ public final class MicrometerCollabMetrics implements CollabMetrics {
 
     @Override
     public void push( final String result ) {
-        count( pushes, PUSH, "Collaborative-editing pushes by result", result );
+        count( pushes, REJECTED, result );
     }
 
     @Override
@@ -108,13 +111,13 @@ public final class MicrometerCollabMetrics implements CollabMetrics {
 
     @Override
     public void publish( final String result ) {
-        count( publishes, PUBLISH, "Collaborative-editing publishes by result", result );
+        count( publishes, REFUSED, result );
     }
 
-    private void count( final Map< String, Counter > known, final String name, final String description,
-                        final String result ) {
+    /** Increments {@code result}'s series, or {@code fallback}'s for a label outside the fixed set. */
+    private static void count( final Map< String, Counter > known, final String fallback, final String result ) {
         final Counter c = result == null ? null : known.get( result );
-        ( c != null ? c : counter( name, description, String.valueOf( result ) ) ).increment();
+        ( c != null ? c : known.get( fallback ) ).increment();
     }
 
     @Override

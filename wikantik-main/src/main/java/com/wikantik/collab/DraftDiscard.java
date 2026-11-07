@@ -108,6 +108,7 @@ final class DraftDiscard {
             d.metaSeq, null );
         final boolean cancelledOut = back.empty() && ops.isEmpty() && d.local.empty();
         if( cancelledOut && d.contributors.isEmpty() ) {
+            // deliberately not audited: nothing was stored or changed, so there is no discard to record
             return PushResponse.accepted( d.head, d.metaSeq );
         }
         final Draft.State before = d.state();

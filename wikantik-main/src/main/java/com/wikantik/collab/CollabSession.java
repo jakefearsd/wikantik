@@ -1108,6 +1108,14 @@ public final class CollabSession {
             }
         }
 
+        /**
+         * The participant count without the session lock (a volatile the roster keeps), for the participants gauge: a
+         * scrape must never wait for a session that is busy.
+         */
+        static int participantsLockFree( final CollabSession s ) {
+            return s.roster.sizeLockFree();
+        }
+
         /** True when {@code r} is a rejoin that replaces its own stale entry (it takes no new seat). */
         static boolean replacesStale( final CollabSession s, final JoinRequest r ) {
             s.lock.lock();

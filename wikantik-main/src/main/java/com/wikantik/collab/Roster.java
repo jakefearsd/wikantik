@@ -74,6 +74,8 @@ final class Roster {
     /** The {@code "Editor <n>"} number each nameless author got first, so a rejoin keeps its label in the session. */
     private final Map< String, Integer > editorNumbers = new LinkedHashMap<>();
     private int next = 1;
+    /** {@code participants.size()}, written under the session lock and read without it (the participants gauge). */
+    private volatile int count;
 
     /**
      * @param retention       how long a tombstone is kept (the presence timeout)
@@ -94,6 +96,7 @@ final class Roster {
         final Participant p = new Participant( idTag + "p" + n, r, clientIdFor( r, n ), displayName( r, n ),
             COLORS[ ( n - 1 ) % COLORS.length ], now, head, pushesPerSecond );
         participants.put( p.id, p );
+        count = participants.size();
         return p;
     }
 
@@ -189,6 +192,7 @@ final class Roster {
     Participant remove( final String participantId, final Instant now ) {
         prune( now );
         final Participant p = participants.remove( participantId );
+        count = participants.size();
         if( p != null ) {
             retiredClients.put( p.clientId, new Retired( p.authorKey, now ) );
             while( retiredClients.size() > MAX_RETIRED_CLIENTS ) {
@@ -204,6 +208,11 @@ final class Roster {
 
     int size() {
         return participants.size();
+    }
+
+    /** The participant count as last written under the session lock; safe to read without it. */
+    int sizeLockFree() {
+        return count;
     }
 
     List< JoinResponse.Peer > peers() {

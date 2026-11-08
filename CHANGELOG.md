@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Collaborative editing is on in production.** wiki.wikantik.com runs with `wikantik.collab.enabled=true` and
+  `wikantik.collab.draft.retentionDays=30` since 2026-11-07, after a stress pass through Cloudflare (four concurrent
+  editors with outside saves, publishes, a rename and a delete mid-edit; abuse and rate-limit probes). The shipped
+  defaults are unchanged (off, keep drafts forever). `docs/MultiEdit.MD` section 15 records the decisions: drafts are
+  kept 30 days, no per-group gate, and the `/api/collab/` per-IP limit stays at 100 requests a second. The week-long
+  soak and the default flip remain open.
+
 ## [2.5.10] - 2026-11-07
 
 ### Added

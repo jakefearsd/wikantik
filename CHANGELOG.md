@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.11] - 2026-11-07
+
 ### Changed
 - **Collaborative editing is on in production.** wiki.wikantik.com runs with `wikantik.collab.enabled=true` and
   `wikantik.collab.draft.retentionDays=30` since 2026-11-07, after a stress pass through Cloudflare (four concurrent

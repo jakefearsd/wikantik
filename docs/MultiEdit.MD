@@ -1202,16 +1202,21 @@ is a separate one-line change to `ini/wikantik.properties` (and the regenerated 
 
 - [x] The collab-mode Selenide run is green (P12): `bin/run-tests.sh --module custom-jdbc --collab`, and `--all` runs
       it. Green at 9450468f58: 192/192 with collaboration on.
-- [ ] An admin-group (or staging) soak of at least a week with collaboration on (§15 "Enabling it for the admin group
-      first"), with the collab meters in jakemon (push p95 from `wikantik_collab_push_latency_seconds`, the `rebase` and
+- [ ] A soak of at least a week with collaboration on. **Started 2026-11-07: on in prod for every editor** (no
+      per-group gate, see the last item), set through `JAVA_OPTS` in the prod env file. Review the collab meters in
+      jakemon (push p95 from `wikantik_collab_push_latency_seconds`, the `rebase` and
       `rejected` shares of `wikantik_collab_push_total`, `wikantik_collab_resync_total`, publish results) and the
       `collab.*` audit entries reviewed (`/admin/audit`), including any `collab.orphaned`.
 - [ ] Cloudflare bot and WAF rate rules checked for `/api/collab/*` (§0 Minor): one push a second per typing editor and
       one held long-poll per open editor must not trip a challenge or a rate rule.
-- [ ] `WIKANTIK_RATELIMIT_SESSION_PERCLIENT` sized from the load figure (`loadtest/collab-load.js`), allowing for several
-      editors behind one NAT sharing the per-IP bucket.
-- [ ] `wikantik.collab.draft.retentionDays` chosen for prod (default `0` keeps unpublished drafts forever).
-- [ ] The per-group gate decided: built (a `wikantik.collab.*` group key) or explicitly declined.
+- [x] `WIKANTIK_RATELIMIT_SESSION_PERCLIENT` sized from the load figure (`loadtest/collab-load.js`), allowing for several
+      editors behind one NAT sharing the per-IP bucket. Kept at the default 100/s (about 50 active editors per
+      address at ~2 requests/s each); `RemoteIpValve` keys the bucket on `CF-Connecting-IP`, so users behind the
+      Cloudflare tunnel do not share one bucket.
+- [x] `wikantik.collab.draft.retentionDays` chosen for prod (default `0` keeps unpublished drafts forever). **30 days**
+      in prod (2026-11-07); the shipped default stays `0`.
+- [x] The per-group gate decided: built (a `wikantik.collab.*` group key) or explicitly declined. **Declined
+      2026-11-07**: collaboration is for every editor or none; no per-group or premium tier is planned.
 
 **Defects found and fixed by the close-out gate** (Task 14):
 

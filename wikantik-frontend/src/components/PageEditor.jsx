@@ -17,7 +17,6 @@ import FrontmatterEditor from './frontmatter/FrontmatterEditor';
 import ValidationSummary from './frontmatter/ValidationSummary';
 import MathValidationSummary from './MathValidationSummary';
 import { useFrontmatterValidation } from '../hooks/useFrontmatterValidation';
-import KnowledgeGraphPanel from './knowledge/KnowledgeGraphPanel';
 import Tabs from './ui/Tabs';
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { remarkWikiMarkup } from '../utils/remarkWikiMarkup';
@@ -1939,12 +1938,11 @@ export default function PageEditor({ collabTransport } = {}) {
         </div>
       )}
 
-      {/* Structured frontmatter / Knowledge Graph tabs — shares the edit pane; CodeMirror below is body-only. */}
+      {/* Structured frontmatter tab — shares the edit pane; CodeMirror below is body-only. */}
       <section className="editor-frontmatter">
         <Tabs
           tabs={[
             { id: 'frontmatter', label: 'Frontmatter' },
-            { id: 'knowledge', label: 'Knowledge' },
           ]}
           active={activeMetaTab}
           onChange={setActiveMetaTab}
@@ -1970,9 +1968,6 @@ export default function PageEditor({ collabTransport } = {}) {
                 />
               </fieldset>
             </>
-          )}
-          {activeMetaTab === 'knowledge' && (
-            <KnowledgeGraphPanel pageName={name} />
           )}
         </Tabs>
       </section>

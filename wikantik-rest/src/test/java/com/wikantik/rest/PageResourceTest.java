@@ -33,6 +33,10 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
+import com.wikantik.search.embedding.PageEmbeddingSimilarity;
+import com.wikantik.search.embedding.PageEmbeddingSimilarity.ScoredPage;
+import com.wikantik.search.subsystem.SearchSubsystem;
+import com.wikantik.WikiSubsystems;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -47,7 +51,10 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -90,7 +97,7 @@ class PageResourceTest {
                 "RestRenameTarget", "RestRenameExisting", "RestBadVersionPage",
                 "RestNoParsePage", "RestRenderMetaPage", "RestPreviewPage", "RestPreviewBare",
                 "RestAuthorLoginPage", "RestAuthorLegacyPage", "RestAuthorEmailPage", "RestAuthorFrontmatterPage",
-                "RestAuthorPatchPage" );
+                "RestAuthorPatchPage", "RestSimSource", "RestSimViewable", "RestSimRestricted" );
         engine.getWikiProperties().remove( "wikantik.cors.allowedOrigins" );
     }
 
@@ -1092,6 +1099,83 @@ class PageResourceTest {
         final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
         assertTrue( obj.get( "success" ).getAsBoolean(),
                 "service() should route PATCH to doPatch" );
+    }
+
+    // ----- Feature: similar pages (chunk-embedding centroids, no Knowledge Graph) -----
+
+    @Test
+    void similarSuggestsOnlyExistingPagesTheCallerMayView() throws Exception {
+        engine.saveText( "RestSimSource", "Source page." );
+        engine.saveText( "RestSimViewable", "A page anyone can read." );
+        engine.saveText( "RestSimRestricted", "[{ALLOW view Admin}]\nAdmins only." );
+        // Ranked best-first by the similarity source; the endpoint's filter decides what survives.
+        final List< String > ranked = List.of( "RestSimRestricted", "RestSimGhostNeverSaved", "RestSimViewable" );
+        final PageEmbeddingSimilarity sim = Mockito.mock( PageEmbeddingSimilarity.class );
+        Mockito.when( sim.similarTo( Mockito.eq( "RestSimSource" ), Mockito.anyInt(), Mockito.any() ) )
+            .thenAnswer( inv -> {
+                final Predicate< String > accept = inv.getArgument( 2 );
+                final List< ScoredPage > out = new ArrayList<>();
+                for ( final String name : ranked ) if ( accept.test( name ) ) out.add( new ScoredPage( name, 0.9 ) );
+                return out;
+            } );
+
+        final JsonObject obj = gson.fromJson(
+            doGetAnonymouslyWith( servletWithPageSimilarity( sim ), "RestSimSource/similar" ), JsonObject.class );
+
+        final JsonArray similar = obj.getAsJsonArray( "similar" );
+        assertEquals( 1, similar.size(), "restricted and non-existent pages must be dropped: " + obj );
+        assertEquals( "RestSimViewable", similar.get( 0 ).getAsJsonObject().get( "name" ).getAsString() );
+    }
+
+    @Test
+    void similarCapsTheRequestedLimit() throws Exception {
+        engine.saveText( "RestSimSource", "Source page." );
+        final PageEmbeddingSimilarity sim = Mockito.mock( PageEmbeddingSimilarity.class );
+        Mockito.when( sim.similarTo( Mockito.anyString(), Mockito.anyInt(), Mockito.any() ) ).thenReturn( List.of() );
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/api/pages/RestSimSource/similar" );
+        Mockito.doReturn( "/RestSimSource/similar" ).when( request ).getPathInfo();
+        Mockito.doReturn( "500" ).when( request ).getParameter( "limit" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+
+        servletWithPageSimilarity( sim ).doGet( request, response );
+
+        Mockito.verify( sim ).similarTo( Mockito.eq( "RestSimSource" ), Mockito.eq( PageResource.MAX_SIMILAR_LIMIT ), Mockito.any() );
+    }
+
+    @Test
+    void similarIsEmptyWhenNoPageSimilarityIsWired() throws Exception {
+        engine.saveText( "RestSimSource", "Source page." );
+
+        final JsonObject obj = gson.fromJson(
+            doGetAnonymouslyWith( servletWithPageSimilarity( null ), "RestSimSource/similar" ), JsonObject.class );
+
+        assertEquals( 0, obj.getAsJsonArray( "similar" ).size() );
+    }
+
+    /** The shared servlet, but with the search subsystem's page similarity replaced by {@code sim}. */
+    private static PageResource servletWithPageSimilarity( final PageEmbeddingSimilarity sim ) {
+        final WikiSubsystems real = servlet.getSubsystems();
+        final SearchSubsystem.Services s = real.search();
+        final SearchSubsystem.Services search = new SearchSubsystem.Services(
+            s.searchManager(), s.searchProvider(), s.luceneIndexer(), s.luceneSearcher(), s.luceneIndexLifecycle(),
+            s.hybridSearch(), s.queryEmbedder(), s.chunkVectorIndex(), s.embeddingIndexService(), s.embeddingClient(),
+            s.bootstrapEmbeddingIndexer(), s.asyncEmbeddingIndexListener(), s.frontmatterMetadataCache(), sim );
+        final WikiSubsystems patched = new WikiSubsystems( real.core(), real.persistence(), real.auth(), real.page(),
+            real.rendering(), search, real.knowledge(), real.pageGraph() );
+        final PageResource spy = Mockito.spy( servlet );
+        Mockito.doReturn( patched ).when( spy ).getSubsystems();
+        return spy;
+    }
+
+    private static String doGetAnonymouslyWith( final PageResource target, final String path ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/api/pages/" + path );
+        Mockito.doReturn( "/" + path ).when( request ).getPathInfo();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        target.doGet( request, response );
+        return sw.toString();
     }
 
     // ----- Feature: link-preview card -----

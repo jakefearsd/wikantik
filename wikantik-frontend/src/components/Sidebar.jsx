@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
-import { useCapabilities } from '../hooks/useCapabilities';
 import { useDarkMode } from '../hooks/useDarkMode';
 import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
@@ -37,7 +36,6 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
     ? [{ id: 'import-vault', title: 'Import Obsidian vault…', section: 'Page', run: () => setImportOpen(true) }]
     : []), [user?.canCreatePages]);
   useRegisterCommands(importCommands, [importCommands]);
-  const { capabilities } = useCapabilities();
   useEffect(() => {
     api.listPages({ limit: 500 }).then(d => setPages(d.pages || [])).catch((e) => {
       console.warn('Sidebar: failed to load page list', e);
@@ -161,15 +159,6 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
           >
             Page Graph
           </Link>
-          {capabilities.knowledgeGraph && (
-            <Link
-              to="/knowledge-graph"
-              className="sidebar-link"
-              onClick={onMobileClose}
-            >
-              Knowledge Graph
-            </Link>
-          )}
         </div>
 
         {recentChangesError && recentChanges.length === 0 && (
@@ -233,15 +222,6 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
             >
               Security
             </Link>
-            {capabilities.knowledgeGraph && (
-              <Link
-                to="/admin/knowledge-graph"
-                className="sidebar-link"
-                onClick={onMobileClose}
-              >
-                Knowledge Graph
-              </Link>
-            )}
             {navLink('/wiki/UnusedPages', 'Unused pages')}
             {navLink('/wiki/UndefinedPages', 'Undefined pages')}
           </div>

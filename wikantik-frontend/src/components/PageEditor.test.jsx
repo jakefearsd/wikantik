@@ -514,51 +514,14 @@ describe('#18 formatting toolbar', () => {
   });
 });
 
-// ── Task 13: Frontmatter / Knowledge tabs ────────────────────────────────────
-describe('Task 13: Frontmatter / Knowledge tabs', () => {
-  it('renders the Frontmatter tab by default', async () => {
+// ── Frontmatter tab (Knowledge tab retired) ──────────────────────────────────
+describe('Frontmatter meta tab', () => {
+  it('renders the Frontmatter tab by default and no Knowledge tab', async () => {
     renderEditor();
     await waitForEditor();
 
-    // The Tabs component renders tab buttons
-    expect(screen.getByRole('tab', { name: /frontmatter/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /knowledge/i })).toBeInTheDocument();
-    // Frontmatter tab is active (selected)
     expect(screen.getByRole('tab', { name: /frontmatter/i })).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('clicking the Knowledge tab renders the panel', async () => {
-    renderEditor();
-    await waitForEditor();
-
-    fireEvent.click(screen.getByRole('tab', { name: /knowledge/i }));
-
-    // KnowledgeGraphPanel renders (panel div or empty-state messages)
-    await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /knowledge/i })).toHaveAttribute('aria-selected', 'true');
-    });
-    // The panel section headings should appear
-    await screen.findByText('Entities');
-    // Use getByRole to find the heading specifically (avoids matching empty-state text)
-    expect(await screen.findByRole('heading', { name: /relations/i })).toBeInTheDocument();
-  });
-
-  it('switching back to Frontmatter tab shows the frontmatter form', async () => {
-    renderEditor();
-    await waitForEditor();
-
-    // Go to Knowledge
-    fireEvent.click(screen.getByRole('tab', { name: /knowledge/i }));
-    await screen.findByText('Entities');
-
-    // Go back to Frontmatter
-    fireEvent.click(screen.getByRole('tab', { name: /frontmatter/i }));
-
-    await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /frontmatter/i })).toHaveAttribute('aria-selected', 'true');
-    });
-    // KnowledgeGraphPanel is lazily mounted — its headings should no longer be present
-    expect(screen.queryByText('Entities')).toBeNull();
+    expect(screen.queryByRole('tab', { name: /knowledge/i })).toBeNull();
   });
 });
 

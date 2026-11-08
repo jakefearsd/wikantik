@@ -9,7 +9,6 @@ vi.mock('../api/client', () => ({
   },
 }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
-vi.mock('../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
 
 // useDarkMode is a module-level mock so individual tests can override it.
 const mockToggleDark = vi.fn();
@@ -26,7 +25,6 @@ vi.mock('../newpage/NewPageProvider', () => ({ useNewPage: () => ({ openNewPage:
 import Sidebar from './Sidebar';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
-import { useCapabilities } from '../hooks/useCapabilities';
 import { useDarkMode } from '../hooks/useDarkMode';
 
 const renderSidebar = (initialEntry = '/', extraProps = {}) =>
@@ -45,10 +43,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear(); // CollapsibleSection persists open/closed state here.
   useAuth.mockReturnValue({ user: { authenticated: false, roles: [] } });
-  useCapabilities.mockReturnValue({
-    capabilities: { knowledgeGraph: true, hybridSearch: true, genaiMode: 'full', ontology: true, connectors: true, citations: true },
-    loading: false,
-  });
   api.listPages.mockResolvedValue({ pages: [] });
   api.getRecentChanges.mockResolvedValue({ changes: [] });
   // Default: light mode
@@ -255,51 +249,17 @@ describe('Sidebar', () => {
     });
   });
 
-  describe('Knowledge Graph nav gating (capabilities)', () => {
-    it('renders the reader Knowledge Graph link when capabilities.knowledgeGraph is true', () => {
-      useCapabilities.mockReturnValue({
-        capabilities: { knowledgeGraph: true }, loading: false,
-      });
-      renderSidebar('/wiki/Main');
-      expect(screen.getByRole('link', { name: 'Knowledge Graph' })).toBeInTheDocument();
-    });
-
-    it('omits the reader Knowledge Graph link when capabilities.knowledgeGraph is false', () => {
-      useCapabilities.mockReturnValue({
-        capabilities: { knowledgeGraph: false }, loading: false,
-      });
+  describe('Knowledge Graph entry points are retired', () => {
+    it('does not render a Knowledge Graph link for readers', () => {
       renderSidebar('/wiki/Main');
       expect(screen.queryByRole('link', { name: 'Knowledge Graph' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Page Graph' })).toBeInTheDocument();
     });
 
-    it('still renders the Knowledge Graph link while capabilities is loading (fail-open)', () => {
-      // Loading state carries the fail-open default (knowledgeGraph: true) —
-      // a slow/broken /api/capabilities call must never blank out nav.
-      useCapabilities.mockReturnValue({
-        capabilities: { knowledgeGraph: true }, loading: true,
-      });
-      renderSidebar('/wiki/Main');
-      expect(screen.getByRole('link', { name: 'Knowledge Graph' })).toBeInTheDocument();
-    });
-
-    it('omits the admin Knowledge Graph link when capabilities.knowledgeGraph is false', () => {
+    it('does not render a Knowledge Graph link in the admin section', () => {
       useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Admin'] } });
-      useCapabilities.mockReturnValue({
-        capabilities: { knowledgeGraph: false }, loading: false,
-      });
       renderSidebar('/wiki/Main');
-      // Two "Knowledge Graph" links normally render (reader + admin section);
-      // with the flag off, neither should be present.
       expect(screen.queryByRole('link', { name: 'Knowledge Graph' })).not.toBeInTheDocument();
-    });
-
-    it('renders both reader and admin Knowledge Graph links for an admin when the flag is on', () => {
-      useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Admin'] } });
-      useCapabilities.mockReturnValue({
-        capabilities: { knowledgeGraph: true }, loading: false,
-      });
-      renderSidebar('/wiki/Main');
-      expect(screen.getAllByRole('link', { name: 'Knowledge Graph' })).toHaveLength(2);
     });
   });
 

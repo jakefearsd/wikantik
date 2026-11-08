@@ -52,6 +52,7 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.parser.markdown.BlockIds;
 import com.wikantik.auth.AuthorKeys;
+import com.wikantik.search.embedding.PageEmbeddingSimilarity;
 import com.wikantik.wikilink.WikiEmbedRenderer;
 import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.content.PageRenamer;
@@ -62,7 +63,6 @@ import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.util.TextUtil;
-import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.content.WikiToMarkdownConverter;
 import com.wikantik.render.RenderingManager;
 
@@ -182,7 +182,7 @@ public class PageResource extends RestServletBase {
             return;
         }
 
-        // GET /api/pages/{name}/similar — similar pages by KGE embedding
+        // GET /api/pages/{name}/similar — similar pages by chunk-embedding centroid
         if ( pathParam.endsWith( "/similar" ) ) {
             final String pageName = pathParam.substring( 0, pathParam.length() - "/similar".length() );
             if ( !checkPagePermission( request, response, pageName, "view" ) ) return;
@@ -1036,21 +1036,26 @@ public class PageResource extends RestServletBase {
         }
     }
 
+    /** Upper bound on {@code limit} for the similar-pages endpoint. */
+    static final int MAX_SIMILAR_LIMIT = 20;
+
     /**
-     * Returns similar pages based on mention-centroid similarity (same embedding
-     * stack as hybrid search). Degrades gracefully to an empty list when the
-     * embedding index isn't populated or the page has no chunk mentions.
+     * Returns pages similar to {@code pageName} by cosine similarity of their chunk-embedding
+     * centroids (the same vectors hybrid search uses — no Knowledge Graph). Only existing pages the
+     * caller may view are suggested. Degrades to an empty list when embeddings are unavailable.
      */
     private void handleGetSimilarPages( final HttpServletRequest request,
                                         final HttpServletResponse response,
                                         final String pageName ) throws IOException {
-        final NodeMentionSimilarity similarity = getSubsystems().knowledge().nodeMentionSimilarity();
-        if ( similarity == null || !similarity.isReady() ) {
+        final PageEmbeddingSimilarity similarity = getSubsystems().search().pageSimilarity();
+        if ( similarity == null ) {
             sendJson( response, Map.of( "similar", List.of() ) );
             return;
         }
-        final int limit = parseIntParam( request, "limit", 5 );
-        final var similar = similarity.similarTo( pageName, limit );
+        final int limit = Math.max( 0, Math.min( parseIntParam( request, "limit", 5 ), MAX_SIMILAR_LIMIT ) );
+        final PageManager pm = getSubsystems().page().pages();
+        final var similar = similarity.similarTo( pageName, limit,
+            name -> pm.wikiPageExists( name ) && !filterViewable( request, List.of( name ) ).isEmpty() );
         sendJson( response, Map.of( "similar", similar.stream().map( s -> {
             final Map< String, Object > m = new LinkedHashMap<>();
             m.put( "name", s.name() );

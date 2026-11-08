@@ -41,8 +41,6 @@ import static com.codeborne.selenide.Selenide.*;
  * valid. This mirrors the pattern in {@link KnowledgeGraphVisualizationIT}.
  *
  * <p>Order 1 logs in so subsequent tests inherit the session.
- * The sidebar href check uses {@code attributeMatching} to tolerate the SPA
- * basename injected by the Cargo IT context ({@code /wikantik-it-test-custom}).
  */
 @TestMethodOrder( MethodOrderer.OrderAnnotation.class )
 class KnowledgeGraphViewerIT extends WithIntegrationTestSetup {
@@ -65,17 +63,16 @@ class KnowledgeGraphViewerIT extends WithIntegrationTestSetup {
     }
 
     /**
-     * Verify the sidebar carries a "Knowledge Graph" link pointing at the
-     * knowledge-graph route. Uses {@code attributeMatching} to handle the
-     * SPA basename ({@code /wikantik-it-test-custom/knowledge-graph}).
+     * The sidebar no longer links to the Knowledge Graph viewer (the route itself stays reachable
+     * by URL). Waits for the "Page Graph" link first so the absence check runs against a rendered
+     * sidebar, not an empty page.
      */
     @Test
     @Order( 2 )
-    void sidebar_link_present() {
-        open( Env.TESTS_BASE_URL + "/knowledge-graph" );
-        $$( "a.sidebar-link" ).findBy( exactText( "Knowledge Graph" ) )
-                .shouldBe( visible )
-                .shouldHave( attributeMatching( "href", ".*?/knowledge-graph" ) );
+    void sidebar_has_no_knowledge_graph_link() {
+        ViewWikiPage.open( "Main" );
+        $$( "a.sidebar-link" ).findBy( exactText( "Page Graph" ) ).shouldBe( visible, Duration.ofSeconds( 15 ) );
+        $$( "a.sidebar-link" ).findBy( exactText( "Knowledge Graph" ) ).shouldNot( exist );
     }
 
     /**

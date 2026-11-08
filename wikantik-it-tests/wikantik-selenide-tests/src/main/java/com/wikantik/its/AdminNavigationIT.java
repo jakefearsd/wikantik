@@ -63,8 +63,6 @@ public class AdminNavigationIT extends WithIntegrationTestSetup {
         Map.entry( "security",          "/admin/security" ),
         Map.entry( "apikeys",           "/admin/apikeys" ),
         Map.entry( "content",           "/admin/content" ),
-        Map.entry( "knowledge-graph",   "/admin/knowledge-graph" ),
-        Map.entry( "kg-policy",         "/admin/kg-policy" ),
         Map.entry( "retrieval-quality", "/admin/retrieval-quality" ) );
 
     /** Admin section routes to smoke-load (mirrors the admin rail order). */

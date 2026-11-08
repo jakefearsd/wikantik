@@ -33,6 +33,7 @@ import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
+import com.wikantik.search.embedding.PageEmbeddingSimilarity;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
@@ -140,7 +141,17 @@ public final class SearchSubsystemFactory {
             embeddingClient,
             bootstrapEmbeddingIndexer,
             asyncEmbeddingIndexListener,
-            frontmatterMetadataCache );
+            frontmatterMetadataCache,
+            buildPageSimilarity( deps.dataSource(), wikiProps ) );
+    }
+
+    /**
+     * Page-to-page similarity over the same chunk vectors the hybrid retriever stores, keyed by the
+     * active embedding model. Null without a DataSource (the reader panel then renders nothing).
+     */
+    static PageEmbeddingSimilarity buildPageSimilarity( final DataSource dataSource, final Properties props ) {
+        if ( dataSource == null || props == null ) return null;
+        return new PageEmbeddingSimilarity( dataSource, EmbeddingConfig.fromProperties( props ).model().code() );
     }
 
     /**

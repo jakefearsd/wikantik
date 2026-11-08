@@ -30,6 +30,7 @@ import com.wikantik.search.embedding.AsyncEmbeddingIndexListener;
 import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
+import com.wikantik.search.embedding.PageEmbeddingSimilarity;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.QueryEmbedder;
@@ -126,6 +127,10 @@ public final class SearchSubsystem {
         AsyncEmbeddingIndexListener asyncEmbeddingIndexListener,
 
         // Cache:
-        FrontmatterMetadataCache frontmatterMetadataCache
+        FrontmatterMetadataCache frontmatterMetadataCache,
+
+        // Page-to-page similarity from chunk-embedding centroids (reader "Similar pages");
+        // null when no DataSource is available:
+        PageEmbeddingSimilarity pageSimilarity
     ) {}
 }

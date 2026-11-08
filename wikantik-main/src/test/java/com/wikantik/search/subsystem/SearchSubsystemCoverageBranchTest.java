@@ -87,7 +87,7 @@ final class SearchSubsystemCoverageBranchTest {
         final SearchSubsystem.Services preBuilt = new SearchSubsystem.Services(
             null, null, null, null, null,
             null, null, null, null, null,
-            null, null, null );
+            null, null, null, null );
         when( wikiEngine.getSearchSubsystem() ).thenReturn( preBuilt );
 
         final SearchSubsystem.Services result = SearchSubsystemBridge.fromLegacyEngine( wikiEngine );
@@ -300,5 +300,15 @@ final class SearchSubsystemCoverageBranchTest {
         final StandardAnalyzer analyzer = new StandardAnalyzer();
         final DefaultLuceneIndexLifecycle lifecycle = new DefaultLuceneIndexLifecycle( analyzer );
         assertSame( analyzer, lifecycle.getAnalyzer() );
+    }
+
+    // -----------------------------------------------------------------------
+    // SearchSubsystemFactory — page similarity for the reader "Similar pages" panel
+    // -----------------------------------------------------------------------
+
+    @Test
+    void buildPageSimilarity_isNullWithoutDataSourceAndPresentWithOne() {
+        assertNull( SearchSubsystemFactory.buildPageSimilarity( null, new Properties() ) );
+        assertNotNull( SearchSubsystemFactory.buildPageSimilarity( mock( javax.sql.DataSource.class ), new Properties() ) );
     }
 }

@@ -23,6 +23,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Retrieval-quality admin: the mode filter offers only `bm25`/`hybrid`, and `POST /admin/retrieval-quality/run` rejects a retired mode (`hybrid_graph`, `hybrid_graph_weighted`) with a 400 naming the valid modes. Historical runs of retired modes still display.
 - `WikiEngine.initKnowledgeGraph()` renamed `initDataSourceSubsystems()`; Knowledge Graph wording removed from stale comments; Selenide `KnowledgeGraphVisualizationIT` renamed `PageGraphVisualizationIT`.
 
+### Fixed
+
+- `bin/remote.sh pages-push` now syncs with `-rltvz` instead of `-a`. Archive mode copied the local staging
+  directory's permissions onto the remote pages directory, stripping its setgid bit, so every page the wiki saved
+  afterwards came out `root:root 0640` and unreadable to the deploying user.
 
 ## [2.5.14] - 2026-11-09
 

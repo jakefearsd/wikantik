@@ -47,7 +47,7 @@ import java.util.function.Function;
  * <p>Mapped to <code>/api/changes</code>&mdash;style public endpoint
  * <code>GET /api/capabilities</code>. Deliberately anonymous: capability
  * booleans are not secrets, and the SPA needs them pre-login to avoid a
- * flash of Knowledge Graph navigation it will immediately have to hide.
+ * flash of navigation for features it will immediately have to hide.
  *
  * <p>Every field is computed fresh from {@link com.wikantik.api.core.Engine#getWikiProperties()}
  * on each request&mdash;this is a config read, not a subsystem probe, so

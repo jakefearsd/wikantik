@@ -14,16 +14,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `/admin/llm-activity` recording are gone (the panel stays and still records embedding calls). Wikantik now performs no
   chat inference, so `wikantik.genai.mode` is `full | none`; `embeddings-only` is still accepted as a legacy alias for
   `full`. `wikantik.bundle.rerank.chain` keeps its `mmr` and `metadata-boost` stages.
+- Migration `V071` drops the vestigial `drift_sweeps.shacl_checked` column (the SHACL check it recorded left with the Knowledge Graph).
 
 ### Changed
 
-- The shipped default for the embedding, bundle-reranker and query-decomposition Ollama URLs is now `http://localhost:11434` (was the no-longer-resolvable `inference.jakefear.com`). Deployments using a shared inference host set it explicitly (prod already does via `WIKANTIK_EMBEDDING_BASE_URL`).
+- The shipped default for the embedding Ollama URL is now `http://localhost:11434` (was the no-longer-resolvable `inference.jakefear.com`). Deployments using a shared inference host set it explicitly (prod already does via `WIKANTIK_EMBEDDING_BASE_URL`).
 - Content-opportunity `agent_gap` suggestions no longer tell editors to curate the (removed) Knowledge Graph; they now say to write or extend the section that answers the query. Opportunity text is computed at read time, so no stored rows carry the old wording.
 - Retrieval-quality admin: the mode filter offers only `bm25`/`hybrid`, and `POST /admin/retrieval-quality/run` rejects a retired mode (`hybrid_graph`, `hybrid_graph_weighted`) with a 400 naming the valid modes. Historical runs of retired modes still display.
 - `WikiEngine.initKnowledgeGraph()` renamed `initDataSourceSubsystems()`; Knowledge Graph wording removed from stale comments; Selenide `KnowledgeGraphVisualizationIT` renamed `PageGraphVisualizationIT`.
 
-### Removed
-- Migration `V071` drops the vestigial `drift_sweeps.shacl_checked` column (the SHACL check it recorded left with the Knowledge Graph).
 
 ## [2.5.14] - 2026-11-09
 

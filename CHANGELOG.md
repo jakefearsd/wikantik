@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.15] - 2026-11-09
+
 ### Removed
 
 - **The remaining chat-LLM code paths are deleted.** The bundle's LLM listwise section reranker

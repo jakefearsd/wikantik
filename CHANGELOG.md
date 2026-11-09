@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.13] - 2026-11-08
+
 ### Removed
 - **The Knowledge Graph is deleted (step 2 of its removal).** Everything 2.5.12 switched off is now gone from the
   code: LLM entity extraction, the judge, KG curation and proposals, the inclusion policy, hub discovery and hub

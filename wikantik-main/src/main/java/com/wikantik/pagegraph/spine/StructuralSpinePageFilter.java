@@ -118,7 +118,8 @@ public class StructuralSpinePageFilter implements PageFilter {
             rejectDuplicateDeclaration( pageName, metadata );
         }
 
-        validateKgInclude( pageName, metadata );
+        // kg_include is no longer validated: the Knowledge Graph is retired (2026-11-08) and a legacy value of any
+        // shape is inert, so it must never block a save.
 
         return rewritten ? FrontmatterWriter.writeLike( content, metadata, parsed.body() ) : content;
     }
@@ -156,21 +157,6 @@ public class StructuralSpinePageFilter implements PageFilter {
                       newId, pageName );
         }
         return true;
-    }
-
-    /** Validates that {@code kg_include}, when present, is a boolean literal. */
-    private void validateKgInclude( final String pageName, final Map< String, Object > metadata )
-            throws FilterException {
-        final Object kgInclude = metadata.get( "kg_include" );
-        if ( kgInclude == null ) {
-            return;
-        }
-        final String s = kgInclude.toString().trim().toLowerCase( java.util.Locale.ROOT );
-        if ( !"true".equals( s ) && !"false".equals( s ) ) {
-            throw new FilterException(
-                    "Page '" + pageName + "' has invalid kg_include='"
-                    + kgInclude + "' (must be true or false)" );
-        }
     }
 
     /**

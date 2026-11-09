@@ -378,7 +378,6 @@
      <url-pattern>/search</url-pattern>
      <url-pattern>/graph</url-pattern>
      <url-pattern>/page-graph</url-pattern>
-     <url-pattern>/knowledge-graph</url-pattern>
      <url-pattern>/preferences</url-pattern>
      <url-pattern>/me/mentions</url-pattern>
      <url-pattern>/reset-password</url-pattern>
@@ -759,6 +758,10 @@
        <servlet-class>com.wikantik.rest.AdminKnowledgeResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminEmbeddingsResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminEmbeddingsResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminHubDiscoveryResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminHubDiscoveryResource</servlet-class>
    </servlet>
@@ -930,6 +933,10 @@
    <servlet-mapping>
        <servlet-name>AdminRetrievalQualityResource</servlet-name>
        <url-pattern>/admin/retrieval-quality/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminEmbeddingsResource</servlet-name>
+       <url-pattern>/admin/embeddings/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminLlmActivityResource</servlet-name>

@@ -135,11 +135,6 @@ public final class RestSeedHelper {
         }
     }
 
-    /** POST /admin/knowledge-graph/hub-discovery/run; returns the raw JSON body. */
-    public static String runDiscovery() throws Exception {
-        return post( "/admin/knowledge-graph/hub-discovery/run", "" );
-    }
-
     /** How long to wait for the post-login admin session-principal binding. */
     private static final long ADMIN_READY_BUDGET_MS = 15_000;
 
@@ -202,127 +197,7 @@ public final class RestSeedHelper {
             + lastStatus + " body=" + lastBody + ")" );
     }
 
-    /**
-     * Seeds a synthetic hub-discovery proposal via the test-only fixture seam
-     * at {@code /admin/knowledge-graph/hub-discovery/proposals/seed}. Driven from
-     * the browser so the UI session cookie authorises the admin endpoint.
-     * Caller must already be logged in. Returns the generated proposal id.
-     *
-     * <p>The fixture seam is gated by the {@code wikantik.test.fixture-seam.enabled}
-     * system property on the server JVM (set in the integration-tests Maven profile).</p>
-     */
-    public static int seedHubDiscoveryProposal( final String suggestedName,
-                                                 final String exemplarPage,
-                                                 final java.util.List< String > members ) {
-        awaitAdminReady();
-        final String script = """
-            const cb = arguments[arguments.length - 1];
-            const base = window.__WIKANTIK_BASE__ || '';
-            const body = JSON.stringify({
-                suggested_name: arguments[0],
-                exemplar_page:  arguments[1],
-                members:        arguments[2],
-                coherence:      0.9
-            });
-            fetch(base + '/admin/knowledge-graph/hub-discovery/proposals/seed', {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body
-            })
-            .then(r => r.text().then(b => ({ status: r.status, body: b })))
-            .then(res => cb(res))
-            .catch(err => cb({ status: -1, body: String(err) }));
-            """;
-        final Object result = com.codeborne.selenide.Selenide.executeAsyncJavaScript(
-            script, suggestedName, exemplarPage, members );
-        if ( result instanceof java.util.Map< ?, ? > m ) {
-            final Object status = m.get( "status" );
-            if ( status instanceof Number n && n.intValue() >= 200 && n.intValue() < 300 ) {
-                final String responseBody = String.valueOf( m.get( "body" ) );
-                final com.google.gson.JsonObject json =
-                    com.google.gson.JsonParser.parseString( responseBody ).getAsJsonObject();
-                return json.get( "id" ).getAsInt();
-            }
-            throw new IllegalStateException( "seedHubDiscoveryProposal failed: "
-                + status + " " + m.get( "body" ) );
-        }
-        throw new IllegalStateException( "seedHubDiscoveryProposal: unexpected result "
-            + ( result == null ? "null" : result.getClass().getName() ) );
-    }
-
-    /**
-     * Seed a Knowledge Graph node via {@code POST /admin/knowledge-graph/nodes},
-     * driven from the browser so the UI session cookie authorises the admin
-     * endpoint (basic auth is rejected by {@code AdminAuthFilter}).
-     * Caller must already be logged in. Returns the raw JSON body.
-     */
-    public static String seedKgNode( final String name, final String nodeType,
-                                      final String sourcePage ) {
-        awaitAdminReady();
-        final String script = """
-            const cb = arguments[arguments.length - 1];
-            const base = window.__WIKANTIK_BASE__ || '';
-            const body = JSON.stringify({
-                name: arguments[0], node_type: arguments[1], source_page: arguments[2]
-            });
-            fetch(base + '/admin/knowledge-graph/nodes', {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body
-            })
-            .then(r => r.text().then(b => ({ status: r.status, body: b })))
-            .then(res => cb(res))
-            .catch(err => cb({ status: -1, body: String(err) }));
-            """;
-        final Object result = com.codeborne.selenide.Selenide.executeAsyncJavaScript(
-            script, name, nodeType, sourcePage );
-        if ( result instanceof java.util.Map< ?, ? > m ) {
-            final Object status = m.get( "status" );
-            if ( status instanceof Number n && n.intValue() >= 200 && n.intValue() < 300 ) {
-                return String.valueOf( m.get( "body" ) );
-            }
-            throw new IllegalStateException( "seedKgNode failed: "
-                + status + " " + m.get( "body" ) );
-        }
-        throw new IllegalStateException( "seedKgNode: unexpected result "
-            + ( result == null ? "null" : result.getClass().getName() ) );
-    }
-
-    /**
-     * GET /admin/knowledge-graph/hub-discovery/proposals driven from the browser session
-     * so the UI-login cookie authorises the admin endpoint (basic auth is rejected
-     * by {@code AdminAuthFilter}). Returns the raw JSON body.
-     */
-    public static String listProposals() {
-        awaitAdminReady();
-        final String script = """
-            const cb = arguments[arguments.length - 1];
-            const base = window.__WIKANTIK_BASE__ || '';
-            fetch(base + '/admin/knowledge-graph/hub-discovery/proposals?limit=50', {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' },
-                credentials: 'same-origin'
-            })
-            .then(r => r.text().then(body => ({ status: r.status, body })))
-            .then(res => cb(res))
-            .catch(err => cb({ status: -1, body: String(err) }));
-            """;
-        final Object result = com.codeborne.selenide.Selenide.executeAsyncJavaScript( script );
-        if ( result instanceof java.util.Map< ?, ? > m ) {
-            final Object status = m.get( "status" );
-            if ( status instanceof Number n && n.intValue() >= 200 && n.intValue() < 300 ) {
-                return String.valueOf( m.get( "body" ) );
-            }
-            throw new IllegalStateException( "listProposals failed: "
-                + status + " " + m.get( "body" ) );
-        }
-        throw new IllegalStateException( "listProposals: unexpected result "
-            + ( result == null ? "null" : result.getClass().getName() ) );
-    }
-
-    /** Directly insert a proposal via the REST admin test seam, if one exists; otherwise use runDiscovery. */
+    /** POST a JSON body with basic auth; returns the response body, throws on non-2xx. */
     public static String post( final String path, final String jsonBody ) throws Exception {
         final HttpRequest req = HttpRequest.newBuilder( URI.create( Env.TESTS_BASE_URL + path ) )
             .header( "Authorization", authHeader() )

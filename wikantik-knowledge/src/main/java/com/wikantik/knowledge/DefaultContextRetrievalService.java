@@ -38,7 +38,6 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
-import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.retrieval.ContributingChunkAssembler;
 import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.pagegraph.PageDescriptor;
@@ -95,13 +94,12 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             final HybridSearchService hybridSearch,
             final ChunkVectorIndex chunkIndex,
             final ContentChunkRepository chunkRepo,
-            final NodeMentionSimilarity similarity,
-            final MentionIndex mentionIndex,
+            final com.wikantik.search.embedding.PageEmbeddingSimilarity pageSimilarity,
             final PageManager pageManager,
             final FrontmatterMetadataCache fmCache,
             final String publicBaseUrl,
             final com.wikantik.api.ontology.OntologyQueryService ontologyQuery ) {
-        this( engine, searchManager, hybridSearch, chunkIndex, chunkRepo, similarity, mentionIndex,
+        this( engine, searchManager, hybridSearch, chunkIndex, chunkRepo, pageSimilarity,
               pageManager, fmCache, publicBaseUrl, ontologyQuery, () -> null );
     }
 
@@ -116,8 +114,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             final HybridSearchService hybridSearch,
             final ChunkVectorIndex chunkIndex,
             final ContentChunkRepository chunkRepo,
-            final NodeMentionSimilarity similarity,
-            final MentionIndex mentionIndex,
+            final com.wikantik.search.embedding.PageEmbeddingSimilarity pageSimilarity,
             final PageManager pageManager,
             final FrontmatterMetadataCache fmCache,
             final String publicBaseUrl,
@@ -126,7 +123,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         if ( engine == null ) throw new IllegalArgumentException( "engine required" );
         if ( searchManager == null ) throw new IllegalArgumentException( "searchManager required" );
         if ( pageManager == null ) throw new IllegalArgumentException( "pageManager required" );
-        // hybridSearch, chunkIndex, chunkRepo, similarity, mentionIndex, fmCache
+        // hybridSearch, chunkIndex, chunkRepo, pageSimilarity, fmCache
         // all nullable: the service degrades rather than failing when optional deps are absent.
         this.engine = engine;
         this.searchManager = searchManager;
@@ -137,11 +134,20 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         // expanded with ontology-derived terms before search. Null = no expansion.
         this.ontologyQuery = ontologyQuery;
         this.publicIdentity = publicIdentity == null ? () -> null : publicIdentity;
-        this.relatedPagesFinder = new RelatedPagesFinder( mentionIndex );
+        this.relatedPagesFinder = new RelatedPagesFinder( pageSimilarity, name -> pageStillExists( pageManager, name ) );
         this.pageListEngine = new PageListEngine( pageManager, fmCache,
             ( page, meta ) -> buildRetrievedPage( page, meta, 0.0, List.of(), List.of() ), this.publicIdentity,
             indexedInlineTags( engine ) );
         this.contributingChunkAssembler = new ContributingChunkAssembler( chunkIndex, chunkRepo, hybridSearch );
+    }
+
+    private static boolean pageStillExists( final PageManager pm, final String name ) {
+        try {
+            return pm.pageExists( name );
+        } catch ( final com.wikantik.api.exceptions.ProviderException e ) {
+            LOG.warn( "pageExists failed for related page '{}' — dropping it: {}", name, e.getMessage() );
+            return false;
+        }
     }
 
     /**
@@ -197,8 +203,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             search.hybridSearch(),
             search.chunkVectorIndex(),
             kg.contentChunkRepository(),
-            kg.nodeMentionSimilarity(),
-            kg.mentionIndex(),
+            search.pageSimilarity(),
             pm,
             search.frontmatterMetadataCache(),
             publicBaseUrl( engine ),
@@ -270,31 +275,35 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             contributingChunkAssembler.fetchContributingChunks(
                 query.query(), ordered, query.chunksPerPage(), pipeline.reusableChunks() );
 
-        // Pre-compute related-pages for every candidate in ONE batched call.
-        // The previous per-page fetchRelatedPages call inside the loop was an
-        // N+1 lookup pattern under concurrent load — one DBCP acquire and one
-        // PreparedStatement prep per result page. The batch version reuses
-        // both across the N executions; see MentionIndex.findRelatedPagesBatch.
-        final List< String > candidateNames = new ArrayList<>();
-        for ( final SearchResult sr : ordered ) {
-            if ( sr.getPage() != null ) candidateNames.add( sr.getPage().getName() );
-        }
-        final Map< String, List< RelatedPage > > relatedByPage = relatedPagesFinder.fetchRelatedPagesBatch( candidateNames );
-
+        // Select the returned pages first, then look up related pages for those alone: each lookup is a
+        // full scan of every page centroid, and BM25 can match most of the corpus, so computing them for
+        // every match would cost a corpus-sized scan per hit (per typeahead keystroke, on /api/search).
         final PageListFilter f = query.filter();
-        final List< RetrievedPage > pages = new ArrayList<>();
+        final List< SearchResult > kept = new ArrayList<>();
+        final List< Map< String, Object > > keptMeta = new ArrayList<>();
         for ( final SearchResult sr : ordered ) {
             final Page page = sr.getPage();
             if ( page == null ) continue;
             final Map< String, Object > meta = pageListEngine.metadataFor( page );
             if ( f != null && !pageListEngine.matchesFilter( page, meta, f ) ) continue;
+            kept.add( sr );
+            keptMeta.add( meta );
+            if ( kept.size() >= query.maxPages() ) break;
+        }
+        final List< String > keptNames = new ArrayList<>( kept.size() );
+        for ( final SearchResult sr : kept ) keptNames.add( sr.getPage().getName() );
+        final Map< String, List< RelatedPage > > relatedByPage = relatedPagesFinder.fetchRelatedPagesBatch( keptNames );
+
+        final List< RetrievedPage > pages = new ArrayList<>( kept.size() );
+        for ( int i = 0; i < kept.size(); i++ ) {
+            final SearchResult sr = kept.get( i );
+            final Page page = sr.getPage();
             pages.add( buildRetrievedPage(
                 page,
-                meta,
+                keptMeta.get( i ),
                 sr.getScore(),
                 chunksByPage.getOrDefault( page.getName(), List.of() ),
                 relatedByPage.getOrDefault( page.getName(), List.of() ) ) );
-            if ( pages.size() >= query.maxPages() ) break;
         }
         return new RetrievalResult( query.query(), pages, ordered.size() );
     }

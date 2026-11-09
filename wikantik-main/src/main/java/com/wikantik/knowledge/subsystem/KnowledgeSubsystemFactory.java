@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.subsystem;
 
+import com.wikantik.api.config.KnowledgeGraphFlag;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.core.Page;
@@ -140,8 +141,7 @@ public final class KnowledgeSubsystemFactory {
         // produced. Consumers null-guard or sit behind the flag — the MCP tool
         // registries and REST KG surfaces already key off a null kgService
         // (dropping the KG tools / returning 503).
-        final boolean kgEnabled = TextUtil.getBooleanProperty(
-            props, "wikantik.knowledge.enabled", true );
+        final boolean kgEnabled = KnowledgeGraphFlag.isEnabled( props );
         if ( !kgEnabled ) {
             LOG.info( "Knowledge Graph subsystem DISABLED (wikantik.knowledge.enabled=false) — "
                 + "KG services null; chunking + embedding pipeline remain active" );

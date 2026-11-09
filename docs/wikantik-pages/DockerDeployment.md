@@ -61,7 +61,7 @@ There are no `jspwiki_*` environment variables any more. Compose passes `.env` t
 | `WIKANTIK_COOKIE_AUTHENTICATION` | `false` | Remember-me re-authentication across restarts |
 | `WIKANTIK_SSO_ENABLED` and the other `WIKANTIK_SSO_*` | off | OIDC single sign-on; see [Google SSO](GoogleSSO) |
 | `WIKANTIK_GENAI_MODE` | `full` | GenAI ceiling: `full`, `embeddings-only` or `none` |
-| `WIKANTIK_KNOWLEDGE_ENABLED` | `true` | `false` skips the Knowledge Graph subsystem |
+| `WIKANTIK_KNOWLEDGE_ENABLED` | `false` | The Knowledge Graph is retired and off by default; `true` revives its backend only |
 | `WIKANTIK_DENSE_BACKEND` | `lucene-hnsw` | Dense retrieval backend: `lucene-hnsw`, `inmemory` or `pgvector` |
 | `WIKANTIK_EMBEDDING_BASE_URL` | `http://inference.jakefear.com:11434` | Embedding service. The shipped default does not resolve on every network, so set it to a name that resolves from the container (production uses the shared GPU inference host, e.g. `http://inference.lan:11434`); falls back to BM25 if unreachable |
 | `WIKANTIK_EXTRACTOR_BACKEND` | `ollama` | Knowledge Graph extractor: `ollama`, `claude` (needs `ANTHROPIC_API_KEY`) or `disabled` |

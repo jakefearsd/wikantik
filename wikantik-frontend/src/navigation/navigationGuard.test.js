@@ -39,14 +39,14 @@ describe('interceptableHref', () => {
 
 describe('isSpaPath', () => {
   it.each([
-    '/', '/wiki/Main', '/wiki', '/edit/Page', '/diff/Page?v=2', '/search?q=x', '/page-graph', '/knowledge-graph',
+    '/', '/wiki/Main', '/wiki', '/edit/Page', '/diff/Page?v=2', '/search?q=x', '/page-graph',
     '/preferences', '/me/mentions', '/reset-password?t=1', '/login', '/change-password', '/admin',
     '/admin/users', '/wiki/Page#section',
   ])('%s is a router route', (path) => { expect(isSpaPath(path)).toBe(true); });
 
   it.each([
     '/attach/Page/file.pdf', '/privacy-policy.html', '/sparql', '/export/ontology.ttl', '/api/pages/X',
-    '/wikipedia', '/administrator', '/searchable', '/login.html', '/id/page/abc',
+    '/wikipedia', '/administrator', '/searchable', '/login.html', '/id/page/abc', '/knowledge-graph',
   ])('%s is not a router route', (path) => { expect(isSpaPath(path)).toBe(false); });
 });
 

@@ -97,8 +97,7 @@ public class GetPageNeighborsTool extends AbstractMcpTool {
                 .description( "The 1-hop Page Graph neighborhood of a page, without page bodies: pages it wikilinks "
                         + "to (outbound), pages that wikilink to it (inbound), and its cluster siblings (sub-cluster "
                         + "members included) with each cluster's hub. Each neighbor is {slug, title, type, summary}; lists are alphabetical and "
-                        + "capped by 'limit', with *Total counts. Use it to choose which page to read next. Page "
-                        + "Graph only — for Knowledge Graph entities use traverse." )
+                        + "capped by 'limit', with *Total counts. Use it to choose which page to read next." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "slug" ), null, null, null ) )
                 .outputSchema( outputSchema )
                 .annotations( READ_ONLY_ANNOTATIONS )

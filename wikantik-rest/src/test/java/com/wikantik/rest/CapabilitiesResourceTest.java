@@ -77,7 +77,6 @@ class CapabilitiesResourceTest {
 
     @Test
     void testDefaultsAllTrueAndGenaiModeFullWhenPropertiesAbsent() throws Exception {
-        engine.getWikiProperties().remove( "wikantik.knowledge.enabled" );
         engine.getWikiProperties().remove( "wikantik.search.hybrid.enabled" );
         engine.getWikiProperties().remove( "wikantik.genai.mode" );
         engine.getWikiProperties().remove( "wikantik.ontology.enabled" );
@@ -86,7 +85,6 @@ class CapabilitiesResourceTest {
 
         final JsonObject obj = doGetAsJson();
 
-        assertTrue( obj.get( "knowledgeGraph" ).getAsBoolean() );
         assertTrue( obj.get( "hybridSearch" ).getAsBoolean() );
         assertEquals( "full", obj.get( "genaiMode" ).getAsString() );
         assertTrue( obj.get( "ontology" ).getAsBoolean() );
@@ -95,15 +93,15 @@ class CapabilitiesResourceTest {
     }
 
     @Test
-    void testKnowledgeGraphFalseWhenFlagOff() throws Exception {
-        engine.getWikiProperties().setProperty( "wikantik.knowledge.enabled", "false" );
-        assertFalse( doGetAsJson().get( "knowledgeGraph" ).getAsBoolean() );
-    }
-
-    @Test
-    void testKnowledgeGraphTrueWhenFlagOn() throws Exception {
-        engine.getWikiProperties().setProperty( "wikantik.knowledge.enabled", "true" );
-        assertTrue( doGetAsJson().get( "knowledgeGraph" ).getAsBoolean() );
+    void testKnowledgeGraphFieldIsGoneWhateverTheFlagSays() throws Exception {
+        try {
+            for ( final String value : new String[] { "true", "false" } ) {
+                engine.getWikiProperties().setProperty( "wikantik.knowledge.enabled", value );
+                assertFalse( doGetAsJson().has( "knowledgeGraph" ), "flag=" + value );
+            }
+        } finally {
+            engine.getWikiProperties().remove( "wikantik.knowledge.enabled" );
+        }
     }
 
     @Test
@@ -238,7 +236,7 @@ class CapabilitiesResourceTest {
         // No session/principal is set up on the mock request at all — the
         // servlet must still answer 200 with a full JSON body.
         final JsonObject obj = doGetAsJson();
-        assertTrue( obj.has( "knowledgeGraph" ) );
+        assertTrue( obj.has( "hybridSearch" ) );
     }
 
     @Test

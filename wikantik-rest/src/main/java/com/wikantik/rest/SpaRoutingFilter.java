@@ -63,8 +63,7 @@ import java.nio.charset.StandardCharsets;
  *   <li><b>Redirects</b> — {@code /}, {@code /wiki}, and {@code /wiki/} redirect
  *       to {@code /wiki/Main} so the wiki always has a concrete page.
  *       {@code /graph} redirects 301 to {@code /page-graph} (renamed SPA route).
- *       {@code /admin/knowledge} and {@code /admin/knowledge/*} redirect 301 to
- *       {@code /admin/knowledge-graph[/*]} (renamed SPA route).</li>
+ *       </li>
  *   <li><b>SPA forwarding</b> — known SPA prefixes ({@code /wiki/}, {@code /edit/},
  *       {@code /diff/}) and exact SPA routes ({@code /search}, {@code /page-graph},
  *       {@code /preferences}, {@code /reset-password}, {@code /admin/*} tab routes)
@@ -101,7 +100,7 @@ public class SpaRoutingFilter implements Filter {
     private static final Logger LOG = LogManager.getLogger( SpaRoutingFilter.class );
 
     private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/" };
-    private static final String[] SPA_EXACT = { "/admin", "/admin/insights", "/search", "/page-graph", "/knowledge-graph", "/preferences", "/reset-password", "/login", "/me/mentions", "/change-password" };
+    private static final String[] SPA_EXACT = { "/admin", "/admin/insights", "/search", "/page-graph", "/preferences", "/reset-password", "/login", "/me/mentions", "/change-password" };
 
     private volatile Engine engine;
     private ServletContext servletContext;
@@ -209,14 +208,6 @@ public class SpaRoutingFilter implements Filter {
         if ( "/graph".equals( path ) ) {
             final String qs = req.getQueryString();
             final String target = contextPath + "/page-graph" + ( qs != null ? "?" + qs : "" );
-            sendMovedPermanently( resp, target );
-            return;
-        }
-
-        if ( "/admin/knowledge".equals( path ) || path.startsWith( "/admin/knowledge/" ) ) {
-            final String suffix = path.substring( "/admin/knowledge".length() );
-            final String qs = req.getQueryString();
-            final String target = contextPath + "/admin/knowledge-graph" + suffix + ( qs != null ? "?" + qs : "" );
             sendMovedPermanently( resp, target );
             return;
         }

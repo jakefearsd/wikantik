@@ -367,76 +367,6 @@ describe('api.search typeahead marking', () => {
   });
 });
 
-describe('api.knowledge.listProposalsFiltered', () => {
-  beforeEach(() => {
-    global.fetch = vi.fn();
-  });
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('forwards offset to the server so pagination advances past page 0', async () => {
-    global.fetch.mockResolvedValue(
-      mockFetchResponse({ status: 200, body: { proposals: [], total_count: 0 } }),
-    );
-    await api.knowledge.listProposalsFiltered({
-      status: 'pending',
-      limit: 25,
-      offset: 25,
-    });
-    const url = global.fetch.mock.calls[0][0];
-    expect(url).toContain('offset=25');
-  });
-});
-
-// ── page-knowledge client contract — prevents camelCase/snake_case drift ──────
-// This is the regression guard that would have caught C1: the backend was
-// reading snake_case keys while the client sent camelCase. If either side
-// drifts, one of these tests will fail with a shape mismatch.
-describe('page-knowledge client contract', () => {
-  beforeEach(() => {
-    global.fetch = vi.fn().mockResolvedValue(
-      mockFetchResponse({ status: 200, body: { ok: true, id: 'node-uuid', node: {} } }),
-    );
-  });
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  function lastCall() {
-    return global.fetch.mock.calls[global.fetch.mock.calls.length - 1];
-  }
-
-  it('upsertEntity sends camelCase nodeType key to /api/page-knowledge/{name}/entities', async () => {
-    await api.upsertEntity('MyPage', { name: 'X', nodeType: 'concept' });
-    const [url, opts] = lastCall();
-    expect(url).toContain('/api/page-knowledge/MyPage/entities');
-    expect(opts.method).toBe('POST');
-    const body = JSON.parse(opts.body);
-    expect(body).toHaveProperty('nodeType', 'concept');
-    // Must NOT contain the legacy snake_case key
-    expect(body).not.toHaveProperty('node_type');
-  });
-
-  it('upsertEdge sends camelCase sourceId/targetId/relationshipType to /api/page-knowledge/{name}/edges', async () => {
-    global.fetch.mockResolvedValue(
-      mockFetchResponse({ status: 200, body: { ok: true, id: 'edge-uuid' } }),
-    );
-    await api.upsertEdge('MyPage', { sourceId: 'a-uuid', targetId: 'b-uuid', relationshipType: 'related_to' });
-    const [url, opts] = lastCall();
-    expect(url).toContain('/api/page-knowledge/MyPage/edges');
-    expect(opts.method).toBe('POST');
-    const body = JSON.parse(opts.body);
-    expect(body).toHaveProperty('sourceId', 'a-uuid');
-    expect(body).toHaveProperty('targetId', 'b-uuid');
-    expect(body).toHaveProperty('relationshipType', 'related_to');
-    // Must NOT contain the legacy snake_case keys
-    expect(body).not.toHaveProperty('source_id');
-    expect(body).not.toHaveProperty('target_id');
-    expect(body).not.toHaveProperty('relationship_type');
-  });
-});
-
 // ── request() core behaviour: version mismatch, auth-required, error shapes ──
 describe('request() core behaviour', () => {
   beforeEach(() => {
@@ -1161,66 +1091,6 @@ describe('admin retrieval/drift/insights/audit/ownership methods', () => {
   });
 });
 
-// ── Admin — KG policy ────────────────────────────────────────────────────
-describe('admin.kgPolicy methods', () => {
-  beforeEach(() => {
-    global.fetch = vi.fn().mockResolvedValue(mockFetchResponse({ status: 200, body: {} }));
-  });
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-  function lastCall() {
-    return global.fetch.mock.calls[global.fetch.mock.calls.length - 1];
-  }
-
-  it('cluster CRUD + review + bootstrap build expected requests', async () => {
-    await api.admin.kgPolicy.listClusters();
-    expect(lastCall()[0]).toBe('/admin/kg-policy/clusters');
-
-    await api.admin.kgPolicy.getCluster('dev/backend');
-    expect(lastCall()[0]).toBe('/admin/kg-policy/clusters/dev%2Fbackend');
-
-    await api.admin.kgPolicy.setCluster('dev', { action: 'include' });
-    let [url, opts] = lastCall();
-    expect(url).toBe('/admin/kg-policy/clusters/dev');
-    expect(opts.method).toBe('PUT');
-
-    await api.admin.kgPolicy.clearCluster('dev');
-    [, opts] = lastCall();
-    expect(opts.method).toBe('DELETE');
-
-    await api.admin.kgPolicy.markReviewed('dev');
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/kg-policy/clusters/dev/review');
-    expect(opts.method).toBe('POST');
-
-    await api.admin.kgPolicy.bootstrap({ dryRun: true });
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/kg-policy/bootstrap');
-    expect(JSON.parse(opts.body)).toEqual({ dryRun: true });
-  });
-
-  it('explain / pending / audit / reconciliation / estimate build expected requests', async () => {
-    await api.admin.kgPolicy.explain('id1');
-    expect(lastCall()[0]).toBe('/admin/kg-policy/explain/id1');
-
-    await api.admin.kgPolicy.pending();
-    expect(lastCall()[0]).toBe('/admin/kg-policy/pending');
-
-    await api.admin.kgPolicy.audit();
-    expect(lastCall()[0]).toBe('/admin/kg-policy/audit?limit=100');
-
-    await api.admin.kgPolicy.audit({ cluster: 'dev', limit: 10 });
-    expect(lastCall()[0]).toBe('/admin/kg-policy/audit?limit=10&cluster=dev');
-
-    await api.admin.kgPolicy.reconciliation();
-    expect(lastCall()[0]).toBe('/admin/kg-policy/reconciliation');
-
-    await api.admin.kgPolicy.estimate('dev', 'include');
-    expect(lastCall()[0]).toBe('/admin/kg-policy/estimate?cluster=dev&action=include');
-  });
-});
-
 // ── Page Graph + Knowledge Graph (admin) namespaces ─────────────────────
 describe('pageGraph + knowledge namespaces', () => {
   beforeEach(() => {
@@ -1237,250 +1107,10 @@ describe('pageGraph + knowledge namespaces', () => {
     await api.pageGraph.getSnapshot();
     expect(lastCall()[0]).toBe('/api/page-graph/snapshot');
   });
-
-  it('knowledge.getGraphSnapshot omits min_tier when absent, includes when given', async () => {
-    await api.knowledge.getGraphSnapshot();
-    expect(lastCall()[0]).toBe('/api/knowledge/graph');
-    await api.knowledge.getGraphSnapshot({ minTier: 'human' });
-    expect(lastCall()[0]).toBe('/api/knowledge/graph?min_tier=human');
-  });
-
-  it('knowledge node/edge query + CRUD methods build expected requests', async () => {
-    await api.knowledge.getSchema();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/schema');
-
-    await api.knowledge.queryNodes({ node_type: 'person', name: 'Bob', status: 'active' });
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/nodes?limit=50&offset=0&node_type=person&name=Bob&status=active');
-
-    await api.knowledge.getNode('Bob');
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/nodes/Bob');
-
-    await api.knowledge.getNodeById('uuid-1');
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/nodes/by-id/uuid-1');
-
-    await api.knowledge.getNodeMentions('uuid-1');
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/nodes/by-id/uuid-1/mentions?limit=3');
-
-    await api.knowledge.getEdges('uuid-1');
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/edges/uuid-1?direction=both');
-
-    await api.knowledge.queryEdges({ relationship_type: 'related_to', search: 'x', endpoint_kind: 'entity' });
-    expect(lastCall()[0]).toBe(
-      '/admin/knowledge-graph/edges?limit=50&offset=0&relationship_type=related_to&search=x&endpoint_kind=entity',
-    );
-
-    await api.knowledge.listProposals();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/proposals?status=pending&limit=50');
-
-    await api.knowledge.judgeProposal(1);
-    let [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/proposals/1/judge');
-    expect(opts.method).toBe('POST');
-
-    await api.knowledge.runJudge();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/judge/run');
-
-    await api.knowledge.judgeStatus();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/judge/status');
-
-    await api.knowledge.listProposalReviews(1);
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/proposals/1/reviews');
-
-    await api.knowledge.approveProposal(1);
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/proposals/1/approve');
-    expect(opts.method).toBe('POST');
-
-    await api.knowledge.rejectProposal(1, 'bad');
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/proposals/1/reject');
-    expect(JSON.parse(opts.body)).toEqual({ reason: 'bad' });
-
-    await api.knowledge.bulkProposalAction('approve', [1, 2], { note: 'batch' });
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/proposals/bulk-action');
-    expect(JSON.parse(opts.body)).toEqual({ action: 'approve', ids: [1, 2], note: 'batch' });
-
-    await api.knowledge.upsertNode({ name: 'Bob', nodeType: 'person' });
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/nodes');
-    expect(opts.method).toBe('POST');
-
-    await api.knowledge.deleteNode(1);
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/nodes/1');
-    expect(opts.method).toBe('DELETE');
-
-    await api.knowledge.mergeNodes('a', 'b');
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/nodes/merge');
-    expect(JSON.parse(opts.body)).toEqual({ sourceId: 'a', targetId: 'b' });
-
-    await api.knowledge.upsertEdge({ sourceId: 'a', targetId: 'b', relationshipType: 'r' });
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/edges');
-    expect(opts.method).toBe('POST');
-
-    await api.knowledge.deleteEdge(1);
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/edges/1');
-    expect(opts.method).toBe('DELETE');
-
-    await api.knowledge.deleteAndRejectEdge(1, 'bad edge');
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/edges/1/delete-and-reject');
-    expect(JSON.parse(opts.body)).toEqual({ reason: 'bad edge' });
-
-    await api.knowledge.confirmEdge(1);
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/edges/1/confirm');
-    expect(opts.method).toBe('POST');
-
-    await api.knowledge.bulkDeleteEdges({ relationship_type: 'r', search: 'x', expected_count: 3 });
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/edges/bulk-delete');
-    expect(JSON.parse(opts.body)).toEqual({ relationship_type: 'r', search: 'x', expected_count: 3 });
-
-    await api.knowledge.getEdgeAudit(1);
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/edges/1/audit?limit=20');
-
-    await api.knowledge.clearAll();
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/clear-all');
-    expect(opts.method).toBe('POST');
-  });
-
-  it('knowledge embedding + frontmatter-backfill methods build expected requests', async () => {
-    await api.knowledge.getEmbeddingStatus();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/embeddings/status');
-
-    await api.knowledge.getSimilarNodes('Bob');
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/nodes/Bob/similar?limit=10');
-
-    await api.knowledge.getPagesWithoutFrontmatter();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/pages-without-frontmatter?limit=100&offset=0');
-
-    await api.knowledge.backfillFrontmatter();
-    let [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/backfill-frontmatter');
-    expect(opts.method).toBe('POST');
-
-    await api.knowledge.getBackfillStatus();
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/backfill-frontmatter');
-    expect(opts.method ?? 'GET').toBe('GET');
-
-    await api.knowledge.syncHubMemberships();
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/sync-hub-memberships');
-    expect(opts.method).toBe('POST');
-  });
-
-  it('hub proposal methods build expected requests', async () => {
-    await api.knowledge.listHubProposals();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/hub-proposals?status=pending&limit=50&offset=0');
-
-    await api.knowledge.listHubProposals('approved', 'MyHub', 10, 5);
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/hub-proposals?status=approved&limit=10&offset=5&hub=MyHub');
-
-    await api.knowledge.generateHubProposals();
-    let [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-proposals/generate');
-    expect(opts.method).toBe('POST');
-
-    await api.knowledge.approveHubProposal(1);
-    [url] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-proposals/1/approve');
-
-    await api.knowledge.rejectHubProposal(1, 'bad');
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-proposals/1/reject');
-    expect(JSON.parse(opts.body)).toEqual({ reason: 'bad' });
-
-    await api.knowledge.bulkApproveHubProposals([1, 2]);
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-proposals/bulk-approve');
-    expect(JSON.parse(opts.body)).toEqual({ ids: [1, 2] });
-
-    await api.knowledge.bulkRejectHubProposals([1, 2], 'bad');
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-proposals/bulk-reject');
-    expect(JSON.parse(opts.body)).toEqual({ ids: [1, 2], reason: 'bad' });
-
-    await api.knowledge.thresholdApproveHubProposals(0.8);
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-proposals/threshold-approve');
-    expect(JSON.parse(opts.body)).toEqual({ threshold: 0.8 });
-  });
-
-  it('hub discovery + existing hubs methods build expected requests', async () => {
-    await api.knowledge.listHubDiscoveryProposals();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/hub-discovery/proposals?limit=50&offset=0');
-
-    await api.knowledge.runHubDiscovery();
-    let [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-discovery/run');
-    expect(opts.method).toBe('POST');
-
-    await api.knowledge.acceptHubDiscoveryProposal(1, 'NewHub', ['A', 'B']);
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-discovery/proposals/1/accept');
-    expect(JSON.parse(opts.body)).toEqual({ name: 'NewHub', members: ['A', 'B'] });
-
-    await api.knowledge.dismissHubDiscoveryProposal(1);
-    [url] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-discovery/proposals/1/dismiss');
-
-    await api.knowledge.listDismissedHubDiscoveryProposals();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/hub-discovery/proposals/dismissed?limit=50&offset=0');
-
-    await api.knowledge.deleteDismissedHubDiscoveryProposal(1);
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-discovery/proposals/dismissed/1');
-    expect(opts.method).toBe('DELETE');
-
-    await api.knowledge.bulkDeleteDismissedHubDiscoveryProposals([1, 2]);
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-discovery/proposals/dismissed/bulk-delete');
-    expect(JSON.parse(opts.body)).toEqual({ ids: [1, 2] });
-
-    await api.knowledge.listExistingHubs();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/hub-discovery/hubs');
-
-    await api.knowledge.getHubDrilldown('MyHub');
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/hub-discovery/hubs/MyHub');
-
-    await api.knowledge.removeHubMember('MyHub', 'A');
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/hub-discovery/hubs/MyHub/remove-member');
-    expect(JSON.parse(opts.body)).toEqual({ member: 'A' });
-  });
-
-  it('extraction methods build expected requests, force toggles the query param', async () => {
-    await api.knowledge.getExtractionStatus();
-    expect(lastCall()[0]).toBe('/admin/knowledge-graph/extract-mentions');
-
-    await api.knowledge.getLlmActivity({ subsystem: 'kg', status: 'running' });
-    expect(lastCall()[0]).toBe('/admin/llm-activity?limit=200&subsystem=kg&status=running');
-
-    await api.knowledge.startExtraction();
-    let [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/extract-mentions');
-    expect(opts.method).toBe('POST');
-
-    await api.knowledge.startExtraction(true);
-    [url] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/extract-mentions?force=true');
-
-    await api.knowledge.cancelExtraction();
-    [url, opts] = lastCall();
-    expect(url).toBe('/admin/knowledge-graph/extract-mentions');
-    expect(opts.method).toBe('DELETE');
-  });
 });
 
-// ── Page-scoped Knowledge Graph curation (top-level, /api/page-knowledge) ──
-describe('page-knowledge curation methods (remaining, not covered above)', () => {
+// ── Admin — embeddings (non-KG namespace) ─────────────────────────────
+describe('api.admin.embeddings methods', () => {
   beforeEach(() => {
     global.fetch = vi.fn().mockResolvedValue(mockFetchResponse({ status: 200, body: {} }));
   });
@@ -1491,38 +1121,31 @@ describe('page-knowledge curation methods (remaining, not covered above)', () =>
     return global.fetch.mock.calls[global.fetch.mock.calls.length - 1];
   }
 
-  it('getPageKnowledge GETs the page slice', async () => {
-    await api.getPageKnowledge('Foo');
-    expect(lastCall()[0]).toBe('/api/page-knowledge/Foo');
+  it('getStatus GETs /admin/embeddings/status', async () => {
+    await api.admin.embeddings.getStatus();
+    expect(lastCall()[0]).toBe('/admin/embeddings/status');
   });
 
-  it('confirmEntity / deleteEntity build expected requests', async () => {
-    await api.confirmEntity('Foo', 'e1');
-    let [url, opts] = lastCall();
-    expect(url).toBe('/api/page-knowledge/Foo/entities/e1/confirm');
-    expect(opts.method).toBe('POST');
-
-    await api.deleteEntity('Foo', 'e1');
-    [url, opts] = lastCall();
-    expect(url).toBe('/api/page-knowledge/Foo/entities/e1');
-    expect(opts.method).toBe('DELETE');
+  it('getPagesWithoutFrontmatter passes limit and offset', async () => {
+    await api.admin.embeddings.getPagesWithoutFrontmatter(50, 100);
+    expect(lastCall()[0]).toBe('/admin/embeddings/pages-without-frontmatter?limit=50&offset=100');
   });
 
-  it('confirmEdge / deleteEdge / rejectEdge build expected requests', async () => {
-    await api.confirmEdge('Foo', 'edge1');
+  it('backfillFrontmatter POSTs and getBackfillStatus GETs the same path', async () => {
+    await api.admin.embeddings.backfillFrontmatter();
     let [url, opts] = lastCall();
-    expect(url).toBe('/api/page-knowledge/Foo/edges/edge1/confirm');
+    expect(url).toBe('/admin/embeddings/backfill-frontmatter');
     expect(opts.method).toBe('POST');
 
-    await api.deleteEdge('Foo', 'edge1');
+    await api.admin.embeddings.getBackfillStatus();
     [url, opts] = lastCall();
-    expect(url).toBe('/api/page-knowledge/Foo/edges/edge1');
-    expect(opts.method).toBe('DELETE');
+    expect(url).toBe('/admin/embeddings/backfill-frontmatter');
+    expect(opts?.method || 'GET').toBe('GET');
+  });
 
-    await api.rejectEdge('Foo', 'edge1', 'not related');
-    [url, opts] = lastCall();
-    expect(url).toBe('/api/page-knowledge/Foo/edges/edge1/reject');
-    expect(JSON.parse(opts.body)).toEqual({ reason: 'not related' });
+  it('getLlmActivity builds the query string', async () => {
+    await api.admin.embeddings.getLlmActivity({ subsystem: 'EMBEDDING', status: 'OK' });
+    expect(lastCall()[0]).toBe('/admin/llm-activity?limit=200&subsystem=EMBEDDING&status=OK');
   });
 });
 

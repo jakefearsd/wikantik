@@ -22,7 +22,6 @@ import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.jdbc.testing.RequiresPostgres;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
-import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.testfakes.FakeChunkVectorIndex;
 import com.wikantik.knowledge.testfakes.FakeEngine;
 import com.wikantik.knowledge.testfakes.FakeHybridSearch;
@@ -42,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * End-to-end test against a PostgresTestDb with seeded chunks.
- * Uses real DB-backed ContentChunkRepository + NodeMentionSimilarity;
+ * Uses real DB-backed ContentChunkRepository;
  * stubs BM25/hybrid/page-manager with test fakes.
  */
 @RequiresPostgres
@@ -77,7 +76,6 @@ class ContextRetrievalServiceIT {
         }
 
         final var chunkRepo = new ContentChunkRepository( dataSource );
-        final var similarity = new NodeMentionSimilarity( dataSource, "qwen3-embedding-0.6b" );
 
         final var chunkIndex = new FakeChunkVectorIndex();
         chunkIndex.setEnabled( true );
@@ -99,8 +97,7 @@ class ContextRetrievalServiceIT {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             FakeEngine.create(),
-            searchManager, hybrid, chunkIndex, chunkRepo, similarity,
-            new com.wikantik.knowledge.MentionIndex( dataSource ),
+            searchManager, hybrid, chunkIndex, chunkRepo, null,
             pageManager, null, "https://wiki.example", null );
 
         final var result = svc.retrieve( new ContextQuery( "alpha body", 5, 3, null ) );

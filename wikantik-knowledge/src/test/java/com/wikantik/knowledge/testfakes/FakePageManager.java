@@ -84,7 +84,7 @@ public class FakePageManager implements PageManager {
     @Override public int getTotalPageCount() { throw new UnsupportedOperationException(); }
     @Override public Set< Page > getRecentChanges() { throw new UnsupportedOperationException(); }
     @Override public Set< Page > getRecentChanges( Date since ) { throw new UnsupportedOperationException(); }
-    @Override public boolean pageExists( String pageName ) throws ProviderException { throw new UnsupportedOperationException(); }
+    @Override public boolean pageExists( String pageName ) throws ProviderException { return getPage( pageName ) != null; }
     @Override public boolean pageExists( String pageName, int version ) throws ProviderException { throw new UnsupportedOperationException(); }
     @Override public boolean wikiPageExists( String page ) { throw new UnsupportedOperationException(); }
     @Override public boolean wikiPageExists( String page, int version ) throws ProviderException { throw new UnsupportedOperationException(); }

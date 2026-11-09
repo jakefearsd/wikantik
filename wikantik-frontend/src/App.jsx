@@ -42,7 +42,7 @@ export default function App() {
   const navigate = useNavigate();
   const isEditorRoute = location.pathname.startsWith('/edit/');
   const isAdminRoute = location.pathname.startsWith('/admin');
-  const isGraphRoute = location.pathname === '/page-graph' || location.pathname === '/knowledge-graph';
+  const isGraphRoute = location.pathname === '/page-graph';
 
   // Close mobile sidebar when user successfully authenticates. Derived during
   // render (store-previous-and-compare) rather than an effect, so the close

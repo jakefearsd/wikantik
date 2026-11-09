@@ -56,14 +56,6 @@ vi.mock('../api/client', () => ({
     validateFrontmatter: vi.fn(() => Promise.resolve({ metadata: {}, violations: [] })),
     search: vi.fn(() => Promise.resolve({ results: [] })),
     ingestDocument: vi.fn(),
-    getPageKnowledge: vi.fn(() => Promise.resolve({ entities: [], edges: [] })),
-    upsertEntity: vi.fn(() => Promise.resolve({ ok: true, nodeId: 'x' })),
-    confirmEntity: vi.fn(() => Promise.resolve(null)),
-    deleteEntity: vi.fn(() => Promise.resolve(null)),
-    upsertEdge: vi.fn(() => Promise.resolve({ ok: true, edgeId: 'x' })),
-    confirmEdge: vi.fn(() => Promise.resolve(null)),
-    deleteEdge: vi.fn(() => Promise.resolve(null)),
-    rejectEdge: vi.fn(() => Promise.resolve(null)),
   },
 }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
@@ -274,7 +266,7 @@ describe('PageEditor — machine-owned-body banner', () => {
     expect(screen.getByText(/reflow will overwrite/i)).toBeInTheDocument();
   });
 
-  it('banner mentions frontmatter, tags, and Knowledge Graph as safe curation targets', async () => {
+  it('banner mentions frontmatter and tags as safe curation targets', async () => {
     api.getPage.mockResolvedValue({
       content: '# Derived',
       metadata: { derived_from: 'source.docx' },
@@ -286,8 +278,8 @@ describe('PageEditor — machine-owned-body banner', () => {
 
     const banner = screen.getByRole('status', { hidden: true });
     expect(banner).toBeInTheDocument();
-    // Banner should advise curating in frontmatter, tags, and KG
     expect(banner.textContent).toMatch(/frontmatter/i);
-    expect(banner.textContent).toMatch(/knowledge graph/i);
+    expect(banner.textContent).toMatch(/tags/i);
+    expect(banner.textContent).not.toMatch(/knowledge graph/i);
   });
 });

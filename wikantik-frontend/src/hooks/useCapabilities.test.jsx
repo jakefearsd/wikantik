@@ -9,10 +9,8 @@ import { CapabilitiesProvider, useCapabilities } from './useCapabilities';
 import { api } from '../api/client';
 
 const DEFAULT_CAPABILITIES = {
-  knowledgeGraph: true,
   hybridSearch: true,
   genaiMode: 'full',
-  ontology: true,
   connectors: true,
   citations: true,
 };
@@ -40,13 +38,13 @@ describe('CapabilitiesProvider', () => {
   });
 
   it('merges a successful response over the defaults', async () => {
-    api.getCapabilities.mockResolvedValue({ knowledgeGraph: false, genaiMode: 'lite' });
+    api.getCapabilities.mockResolvedValue({ hybridSearch: false, genaiMode: 'lite' });
     const { result } = renderHook(() => useCapabilities(), { wrapper });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.capabilities).toEqual({
       ...DEFAULT_CAPABILITIES,
-      knowledgeGraph: false,
+      hybridSearch: false,
       genaiMode: 'lite',
     });
   });

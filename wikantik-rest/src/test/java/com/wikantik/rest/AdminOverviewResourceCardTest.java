@@ -47,9 +47,9 @@ import static org.mockito.Mockito.when;
 class AdminOverviewResourceCardTest {
 
     private static final String[] EXPECTED_CARD_KEYS = {
-        "health", "load", "llmActivity", "kgProposals", "retrieval",
-        "searchIndex", "users", "recent", "kgSize", "extractor",
-        "judge", "renderCache", "auth", "agentSurface",
+        "health", "load", "llmActivity", "retrieval",
+        "searchIndex", "users", "recent",
+        "renderCache", "auth", "agentSurface",
         "contentQuality", "retrievalModes", "attachments"
     };
 
@@ -140,22 +140,16 @@ class AdminOverviewResourceCardTest {
         }
     }
 
-    // ---- extractor card ----
+    // ---- retired Knowledge Graph cards ----
 
     @Test
-    void extractorCard_isPresentOrDegraded() throws Exception {
-        assertCardPresentOrDegraded( "extractor" );
-    }
-
-    @Test
-    void extractorCard_whenPresent_hasThreeMetricFields() throws Exception {
-        final JsonObject env = callDoGet();
-        final JsonObject data = env.getAsJsonObject( "data" );
-        if ( data.has( "extractor" ) ) {
-            final JsonObject card = data.getAsJsonObject( "extractor" );
-            assertTrue( card.has( "requests" ) );
-            assertTrue( card.has( "triples" ) );
-            assertTrue( card.has( "failures" ) );
+    void retiredKnowledgeGraphCardsAreNeitherReportedNorDegraded() throws Exception {
+        final JsonObject data = callDoGet().getAsJsonObject( "data" );
+        final Set< String > degraded = new HashSet<>();
+        data.getAsJsonArray( "degraded" ).forEach( e -> degraded.add( e.getAsString() ) );
+        for ( final String retired : new String[] { "kgProposals", "kgSize", "extractor", "judge" } ) {
+            assertTrue( !data.has( retired ) && !degraded.contains( retired ),
+                "retired card '" + retired + "' must not exist at all" );
         }
     }
 

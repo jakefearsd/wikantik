@@ -78,8 +78,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
      */
     private boolean refuseIfKnowledgeDisabled( final HttpServletResponse response ) throws IOException {
         final java.util.Properties props = getSubsystems().core().properties().asProperties();
-        final boolean enabled = props == null || com.wikantik.util.TextUtil.getBooleanProperty(
-            props, CapabilitiesResource.PROP_KNOWLEDGE_ENABLED, true );
+        final boolean enabled = props != null && com.wikantik.api.config.KnowledgeGraphFlag.isEnabled( props );
         if ( !enabled ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "Knowledge Graph subsystem is disabled (wikantik.knowledge.enabled=false)" );

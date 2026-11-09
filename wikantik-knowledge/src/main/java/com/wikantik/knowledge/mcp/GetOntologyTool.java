@@ -39,7 +39,7 @@ import org.apache.jena.vocabulary.RDFS;
 /**
  * MCP tool returning the FORMAL ontology T-Box — the class hierarchy (with subClassOf),
  * object properties (with domain/range + public subPropertyOf mappings), and SKOS concept
- * schemes. Complements {@code discover_schema}, which reports the EMPIRICAL ABox shape
+ * schemes. (The retired Knowledge Graph tool {@code discover_schema} reported the EMPIRICAL ABox shape
  * (the types/properties actually present in the data) rather than the formal declarations.
  */
 public class GetOntologyTool extends AbstractMcpTool {
@@ -65,8 +65,7 @@ public class GetOntologyTool extends AbstractMcpTool {
                 .description( "Returns the formal ontology T-Box: classes (with subClassOf), object "
                         + "properties (with domain/range and public subPropertyOf mappings to "
                         + "schema.org/SKOS/Dublin Core), and SKOS concept schemes. Use it to plan "
-                        + "SPARQL queries or to understand how query terms relate. Complements "
-                        + "discover_schema (which reports the empirical data shape). "
+                        + "SPARQL queries or to understand how query terms relate. "
                         + "Use this for authoritative counts/lists of classes and predicates rather than free-text search." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
                 .annotations( READ_ONLY_ANNOTATIONS )

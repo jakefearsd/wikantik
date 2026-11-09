@@ -270,70 +270,77 @@ class DefaultContextRetrievalServiceTest {
         sm.setResults( java.util.List.of(
             com.wikantik.knowledge.testfakes.FakeSearchResult.of( "Alpha", 5 ) ) );
 
-        final var mentionIndex = com.wikantik.knowledge.testfakes.FakeMentionIndex.relating(
-            "Alpha",
-            java.util.List.of(
-                new com.wikantik.knowledge.MentionIndex.RelatedByMention(
-                    "Beta",
-                    java.util.List.of( "BM25", "Qwen3" ),
-                    2 ),
-                new com.wikantik.knowledge.MentionIndex.RelatedByMention(
-                    "Gamma",
-                    java.util.List.of( "BM25" ),
-                    1 ) ) );
+        final var pageSimilarity = org.mockito.Mockito.mock( com.wikantik.search.embedding.PageEmbeddingSimilarity.class );
+        org.mockito.Mockito.when( pageSimilarity.similarTo( org.mockito.ArgumentMatchers.eq( "Alpha" ),
+                org.mockito.ArgumentMatchers.eq( 5 ), org.mockito.ArgumentMatchers.any() ) )
+            .thenAnswer( inv -> {
+                final java.util.function.Predicate< String > accept = inv.getArgument( 2 );
+                return java.util.List.of(
+                        new com.wikantik.search.embedding.PageEmbeddingSimilarity.ScoredPage( "Beta", 0.91 ),
+                        new com.wikantik.search.embedding.PageEmbeddingSimilarity.ScoredPage( "Deleted", 0.9 ),
+                        new com.wikantik.search.embedding.PageEmbeddingSimilarity.ScoredPage( "Gamma", 0.5 ) )
+                    .stream().filter( sp -> accept.test( sp.name() ) ).toList();
+            } );
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, null, null, null, null, mentionIndex, pm, null, "", null );
+            sm, null, null, null, pageSimilarity, pm, null, "", null );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "q", 5, 3, null ) );
 
         assertEquals( 1, result.pages().size() );
         final var relatedPages = result.pages().get( 0 ).relatedPages();
-        assertEquals( 2, relatedPages.size() );
+        assertEquals( 2, relatedPages.size(), "a page that no longer exists must be dropped" );
         assertEquals( "Beta", relatedPages.get( 0 ).name() );
-        assertTrue( relatedPages.get( 0 ).reason().contains( "BM25" ),
-            "reason should name the shared entities, not an opaque similarity score" );
-        assertTrue( relatedPages.get( 0 ).reason().contains( "Qwen3" ) );
+        assertEquals( "similar content (0.91)", relatedPages.get( 0 ).reason() );
+        assertEquals( "Gamma", relatedPages.get( 1 ).name() );
     }
 
+    /**
+     * Each similarity lookup is a full scan of every page centroid, and BM25 can match most of the corpus, so related
+     * pages must be computed only for the pages actually returned (at most maxPages), never for every match.
+     */
     @Test
-    void retrieve_batchesRelatedPagesLookup() {
-        // Asserts the N+1 fix: with 3 BM25 hits, MentionIndex.findRelatedPagesBatch
-        // is called exactly ONCE and the per-name findRelatedPages is never called.
+    void retrieve_looksUpRelatedPagesOnlyForReturnedPages() {
         final FakePageManager pm = new FakePageManager();
-        pm.addPage( "PA", "---\n---\n\n", "a", new java.util.Date() );
-        pm.addPage( "PB", "---\n---\n\n", "a", new java.util.Date() );
-        pm.addPage( "PC", "---\n---\n\n", "a", new java.util.Date() );
-
+        final java.util.List< com.wikantik.api.search.SearchResult > hits = new java.util.ArrayList<>();
+        for ( int i = 0; i < 20; i++ ) {
+            pm.addPage( "P" + i, "---\n---\n\n", "a", new java.util.Date() );
+            hits.add( com.wikantik.knowledge.testfakes.FakeSearchResult.of( "P" + i, 100 - i ) );
+        }
         final FakeSearchManager sm = new FakeSearchManager();
-        sm.setResults( java.util.List.of(
-            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "PA", 5 ),
-            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "PB", 4 ),
-            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "PC", 3 ) ) );
-
-        final com.wikantik.knowledge.MentionIndex mentionIndex =
-            org.mockito.Mockito.mock( com.wikantik.knowledge.MentionIndex.class );
-        org.mockito.Mockito.when(
-            mentionIndex.findRelatedPagesBatch( org.mockito.ArgumentMatchers.anyList(),
-                                                org.mockito.ArgumentMatchers.anyInt() ) )
-            .thenReturn( java.util.Map.of(
-                "PA", java.util.List.of(),
-                "PB", java.util.List.of(),
-                "PC", java.util.List.of() ) );
+        sm.setResults( hits );
+        final var pageSimilarity = org.mockito.Mockito.mock( com.wikantik.search.embedding.PageEmbeddingSimilarity.class );
+        org.mockito.Mockito.when( pageSimilarity.similarTo( org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any() ) )
+            .thenReturn( java.util.List.of() );
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, null, null, null, null, mentionIndex, pm, null, "", null );
-        svc.retrieve( new com.wikantik.api.knowledge.ContextQuery( "q", 5, 3, null ) );
+            sm, null, null, null, pageSimilarity, pm, null, "", null );
+        final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery( "q", 3, 3, null ) );
 
-        org.mockito.Mockito.verify( mentionIndex, org.mockito.Mockito.times( 1 ) )
-            .findRelatedPagesBatch( org.mockito.ArgumentMatchers.anyList(),
-                                    org.mockito.ArgumentMatchers.anyInt() );
-        org.mockito.Mockito.verify( mentionIndex, org.mockito.Mockito.never() )
-            .findRelatedPages( org.mockito.ArgumentMatchers.anyString(),
-                                org.mockito.ArgumentMatchers.anyInt() );
+        assertEquals( 3, result.pages().size() );
+        org.mockito.Mockito.verify( pageSimilarity, org.mockito.Mockito.times( 3 ) ).similarTo(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyInt(),
+                org.mockito.ArgumentMatchers.any() );
+    }
+
+    @Test
+    void retrieve_nullPageSimilarity_yieldsNoRelatedPages() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "PA", "---\n---\n\n", "a", new java.util.Date() );
+        final FakeSearchManager sm = new FakeSearchManager();
+        sm.setResults( java.util.List.of( com.wikantik.knowledge.testfakes.FakeSearchResult.of( "PA", 5 ) ) );
+
+        final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
+            com.wikantik.knowledge.testfakes.FakeEngine.create(),
+            sm, null, null, null, null, pm, null, "", null );
+        final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery( "q", 5, 3, null ) );
+
+        assertEquals( 1, result.pages().size() );
+        assertTrue( result.pages().get( 0 ).relatedPages().isEmpty() );
     }
 
     @Test
@@ -369,7 +376,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, hybrid, chunkIndex, chunkRepo, null, null, pm, null, "https://wiki.example", null );
+            sm, hybrid, chunkIndex, chunkRepo, null, pm, null, "https://wiki.example", null );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "alpha query", 5, 2, null ) );
@@ -437,7 +444,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, hybrid, chunkIndex, chunkRepo, null, null, pm, null, "", null );
+            sm, hybrid, chunkIndex, chunkRepo, null, pm, null, "", null );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "q", 5, /*chunksPerPage*/ 2, null ) );

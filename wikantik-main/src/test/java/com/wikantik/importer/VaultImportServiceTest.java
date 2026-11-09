@@ -374,10 +374,15 @@ class VaultImportServiceTest {
      * fully-qualified uses that a source text search would miss.
      */
     @Test
-    void importerNeverUsesZipFile() {
+    void importerNeverUsesZipFile() throws Exception {
+        // Import from the production classes location only. importPackages() walks every classpath root that holds
+        // the package — including target/test-classes, where concurrently forked tests create and delete temp
+        // page repositories, so the directory walk could hit a vanished file (NoSuchFileException) mid-scan.
+        final java.nio.file.Path mainClasses = java.nio.file.Path.of(
+            ImportPlan.class.getProtectionDomain().getCodeSource().getLocation().toURI() );
         final com.tngtech.archunit.core.domain.JavaClasses importer = new com.tngtech.archunit.core.importer.ClassFileImporter()
-            .withImportOption( com.tngtech.archunit.core.importer.ImportOption.Predefined.DO_NOT_INCLUDE_TESTS )
-            .importPackages( "com.wikantik.importer" );
+            .withImportOption( location -> location.contains( "/com/wikantik/importer/" ) )
+            .importPath( mainClasses );
         assertFalse( importer.isEmpty(), "no importer classes were loaded; the guard would be vacuous" );
         com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses()
             .that().resideInAPackage( "com.wikantik.importer.." )

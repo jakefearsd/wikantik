@@ -36,9 +36,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * MCP tool: run the full retrieval pipeline (BM25 + dense + Knowledge Graph rerank)
- * for a natural-language query. Returns pages with their top contributing
- * chunks and a small list of KG-mention neighbors.
+ * MCP tool: run the retrieval pipeline (BM25 + dense hybrid) for a natural-language
+ * query. Returns pages with their top contributing chunks and a small list of
+ * embedding-similar neighbour pages (view-gated like the pages themselves).
  */
 public class RetrieveContextTool extends AbstractMcpTool {
 
@@ -98,7 +98,7 @@ public class RetrieveContextTool extends AbstractMcpTool {
                         "name", "HybridRetrieval",
                         "url", "https://wiki.example.com/HybridRetrieval",
                         "score", 0.87,
-                        "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
+                        "summary", "BM25 + dense hybrid with fail-closed BM25 fallback.",
                         "cluster", "retrieval",
                         "tags", List.of( "retrieval", "search" ),
                         "contributingChunks", List.of( Map.of(
@@ -108,7 +108,7 @@ public class RetrieveContextTool extends AbstractMcpTool {
                         ) ),
                         "relatedPages", List.of( Map.of(
                                 "name", "HandlingEmbeddingServiceOutages",
-                                "reason", "co-mentioned in chunks about fail-closed degradation"
+                                "reason", "similar content (0.83)"
                         ) ),
                         "author", "Jake Fear",
                         "lastModified", "2026-04-25T14:30:00Z"
@@ -147,6 +147,7 @@ public class RetrieveContextTool extends AbstractMcpTool {
             // Guest view-ACL: the MCP surface has no caller identity, so only publicly-viewable pages are returned (see PageViewGate).
             final List< RetrievedPage > filtered = result.pages().stream()
                     .filter( p -> viewGate.canView( p.name() ) )
+                    .map( this::withViewableRelated )
                     .collect( Collectors.toList() );
             // Preserve totalMatched's pagination semantic (corpus matches before truncation):
             // only discount the pages we actually hid from this page of results. Collapsing it to
@@ -159,6 +160,16 @@ public class RetrieveContextTool extends AbstractMcpTool {
             LOG.info( "retrieve_context rejected invalid argument: {}", e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
         }
+    }
+
+    /** Drops related pages the guest cannot view, so a restricted page's name never leaks via a visible page. */
+    private RetrievedPage withViewableRelated( final RetrievedPage p ) {
+        final List< com.wikantik.api.knowledge.RelatedPage > related = p.relatedPages().stream()
+                .filter( r -> viewGate.canView( r.name() ) )
+                .collect( Collectors.toList() );
+        if ( related.size() == p.relatedPages().size() ) return p;
+        return new RetrievedPage( p.name(), p.url(), p.score(), p.summary(), p.cluster(), p.tags(),
+                p.contributingChunks(), related, p.author(), p.lastModified(), p.derived() );
     }
 
     @SuppressWarnings( "unchecked" )

@@ -115,6 +115,20 @@ public class KnowledgeDisabledIT {
     }
 
     @Test
+    void adminEmbeddingsTools_stillWorkWithKnowledgeOff() throws Exception {
+        loginAsAdmin();
+        final HttpResponse< String > status = get( "/admin/embeddings/status" );
+        assertEquals( 200, status.statusCode(), "embeddings status must not depend on the KG: " + status.body() );
+        assertTrue( status.body().contains( "chunksEmbedded" ), "status contract shape: " + status.body() );
+
+        final HttpResponse< String > pages = get( "/admin/embeddings/pages-without-frontmatter" );
+        assertEquals( 200, pages.statusCode(), "frontmatter listing must not depend on the KG: " + pages.body() );
+
+        final HttpResponse< String > backfill = get( "/admin/embeddings/backfill-frontmatter" );
+        assertEquals( 200, backfill.statusCode(), "backfill status must not depend on the KG: " + backfill.body() );
+    }
+
+    @Test
     void knowledgeMcp_kgToolsAbsent_retrievalToolsPresent() {
         final Set< String > toolNames = mcp.listTools().tools().stream()
                 .map( McpSchema.Tool::name )

@@ -19,10 +19,8 @@
 package com.wikantik.rest;
 
 import com.wikantik.api.knowledge.*;
-import com.wikantik.rest.knowledge.HubProposalAdminHandlers;
 import com.wikantik.rest.knowledge.KgEdgeAdminHandlers;
 import com.wikantik.rest.knowledge.KgJudgeAdminHandlers;
-import com.wikantik.rest.knowledge.KgMaintenanceAdminHandlers;
 import com.wikantik.rest.knowledge.KgNodeAdminHandlers;
 import com.wikantik.rest.knowledge.KgProposalAdminHandlers;
 
@@ -142,15 +140,6 @@ public class AdminKnowledgeResource extends RestServletBase {
                 this::getEngine );
         final KgEdgeAdminHandlers edgeHandlers = new KgEdgeAdminHandlers(
                 this::getKgCurationOps );
-        final HubProposalAdminHandlers hubProposalHandlers = new HubProposalAdminHandlers(
-                () -> getSubsystems().knowledge().hubProposalRepository(),
-                () -> getSubsystems().knowledge().nodeMentionSimilarity(),
-                () -> getSubsystems().knowledge().hubProposalService() );
-        final KgMaintenanceAdminHandlers maintenanceHandlers = new KgMaintenanceAdminHandlers(
-                () -> getSubsystems().page().pages(),
-                () -> getSubsystems().core().systemPageRegistry(),
-                () -> getSubsystems().knowledge().nodeMentionSimilarity(),
-                this::getEngine );
 
         return RouteTable.< Resource >builder()
             .exact( "schema", Resource.get(
@@ -167,20 +156,6 @@ public class AdminKnowledgeResource extends RestServletBase {
                     proposalHandlers::handleGetProposals,
                     proposalHandlers::handlePostProposal,
                     null ) )
-            .exact( "embeddings", new Resource(
-                    ( svc, req, resp, seg ) -> maintenanceHandlers.handleGetEmbeddings( req, resp, seg ),
-                    ( svc, req, resp, seg ) -> maintenanceHandlers.handlePostEmbeddings( resp, seg ),
-                    null ) )
-            .exact( "pages-without-frontmatter", Resource.get(
-                    ( svc, req, resp, seg ) -> maintenanceHandlers.handleGetPagesWithoutFrontmatter( req, resp ) ) )
-            .exact( "hub-proposals", new Resource(
-                    ( svc, req, resp, seg ) -> hubProposalHandlers.handleGetHubProposals( req, resp ),
-                    ( svc, req, resp, seg ) -> hubProposalHandlers.handlePostHubProposals( req, resp, seg ),
-                    null ) )
-            .exact( "backfill-frontmatter", new Resource(
-                    ( svc, req, resp, seg ) -> maintenanceHandlers.handleGetBackfillStatus( resp ),
-                    ( svc, req, resp, seg ) -> maintenanceHandlers.handlePostBackfillFrontmatter( resp ),
-                    null ) )
             .exact( "judge", new Resource(
                     ( svc, req, resp, seg ) -> judgeHandlers.handleGetJudge( req, resp, seg ),
                     ( svc, req, resp, seg ) -> judgeHandlers.handlePostJudge( req, resp, seg ),
@@ -191,8 +166,6 @@ public class AdminKnowledgeResource extends RestServletBase {
                     ( svc, req, resp, seg ) -> judgeHandlers.handleDeleteJudgeTimeout( resp, seg ) ) )
             .exact( "clear-all", Resource.post(
                     ( svc, req, resp, seg ) -> handleClearAll( svc, resp ) ) )
-            .exact( "sync-hub-memberships", Resource.post(
-                    ( svc, req, resp, seg ) -> maintenanceHandlers.handlePostSyncHubMemberships( resp ) ) )
             .build();
     }
 

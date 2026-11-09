@@ -16,7 +16,7 @@ export function interceptableHref(e, loc = window.location, base = window.__WIKA
 
 // The client-side routes declared in main.jsx. Anything else on this origin (attachments, /sparql, /export/*,
 // static .html pages) is served by the server and must be loaded as a full page, not handed to the router.
-const SPA_EXACT = new Set(['/', '/wiki', '/search', '/page-graph', '/knowledge-graph', '/preferences',
+const SPA_EXACT = new Set(['/', '/wiki', '/search', '/page-graph', '/preferences',
   '/reset-password', '/login', '/change-password', '/admin']);
 const SPA_PREFIXES = ['/wiki/', '/edit/', '/diff/', '/me/', '/admin/'];
 

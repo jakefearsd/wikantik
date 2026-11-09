@@ -1,6 +1,6 @@
 // AdminPageOwnershipPage.test.jsx
 //
-// Mirrors the AdminKgPolicyPage test style — `vi.spyOn` the api.admin.pageOwnership
+// Mirrors the other admin page tests — `vi.spyOn` the api.admin.pageOwnership
 // surface and assert against the rendered DOM. The page has four wire interactions
 // to cover:
 //   1. listOrphaned()       — default load

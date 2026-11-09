@@ -135,4 +135,23 @@ class RetrieveContextToolTest {
         assertFalse( text.contains( "\"Secret\"" ),
                 "restricted page name must not appear in retrieve_context output" );
     }
+
+    @Test
+    void execute_dropsRestrictedRelatedPages() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        when( svc.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "q", List.of( new RetrievedPage(
+                "Alpha", "u", 0.8, "s", null, List.of(), List.of(),
+                List.of( new RelatedPage( "Secret", "similar content (0.90)" ),
+                         new RelatedPage( "Beta", "similar content (0.80)" ) ),
+                "alice", new Date(), false ) ), 1 ) );
+
+        final PageViewGate gate = slug -> !"Secret".equals( slug );
+        final McpSchema.CallToolResult result =
+            new RetrieveContextTool( svc, gate ).execute( Map.of( "query", "q" ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertFalse( text.contains( "Secret" ), "restricted related page leaked: " + text );
+        assertTrue( text.contains( "\"Beta\"" ) );
+    }
 }

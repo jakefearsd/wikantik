@@ -92,6 +92,48 @@ class OntologyWiringHelperTest {
     }
 
     @Test
+    void withTheKnowledgeGraphOffARebuildPurgesEntityGraphsAndNeverNeedsTheRepositories() {
+        final UUID a = UUID.fromString( "00000000-0000-0000-0000-0000000000f3" );
+        final KgNodeRepository nodeRepo = mock( KgNodeRepository.class );
+        final KgEdgeRepository edgeRepo = mock( KgEdgeRepository.class );
+        when( nodeRepo.getAllNodes( Tier.MACHINE ) ).thenReturn( List.of(
+                new KgNode( a, "A", "concept", null, Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null ) ) );
+        when( edgeRepo.getAllEdges( Tier.MACHINE ) ).thenReturn( List.of() );
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+
+        // Earlier life with the KG on: an entity graph lands in the store.
+        final OntologyRebuildCoordinator on =
+                OntologyWiringHelper.newCoordinator( mgr, nodeRepo, edgeRepo, List::of, slug -> true );
+        on.triggerRebuild();
+        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( on.status().state() ) );
+        assertEquals( 1L, mgr.namedGraphCount(), "entity graph present while the KG is on" );
+
+        // KG off: no repositories at all (null), the same rebuild must empty the entity graph out.
+        final OntologyRebuildCoordinator off =
+                OntologyWiringHelper.newCoordinator( mgr, null, null, List::of, slug -> true );
+        off.triggerRebuild();
+        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( off.status().state() ) );
+
+        assertNull( off.status().lastError() );
+        assertEquals( 0L, mgr.namedGraphCount(), "entity graphs purged by the KG-off rebuild" );
+        verify( nodeRepo, times( 1 ) ).getAllNodes( Tier.MACHINE );   // only the earlier KG-on rebuild read it
+        verify( edgeRepo, times( 1 ) ).getAllEdges( Tier.MACHINE );
+    }
+
+    @Test
+    void withTheKnowledgeGraphOffRebuildIfEmptyDoesNotNeedTheRepositories() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final OntologyRebuildCoordinator off =
+                OntologyWiringHelper.newCoordinator( mgr, null, null, List::of, slug -> true );
+
+        assertTrue( off.rebuildIfEmpty() );
+        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( off.status().state() ) );
+        assertNull( off.status().lastError() );
+    }
+
+    @Test
     void anAuthSubsystemWithoutAnIdentityProjectsAuthorsAsWritten() {
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getAuthSubsystem() ).thenReturn( new AuthSubsystem.Services(

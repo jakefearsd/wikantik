@@ -5,16 +5,12 @@ const FAST_POLL_MS = 2000;
 const SLOW_POLL_MS = 10000;
 
 const SUBSYSTEM_LABELS = {
-  ENTITY_EXTRACTION: 'extraction',
-  PROPOSAL_JUDGE: 'judge',
   EMBEDDING: 'embedding',
   SECTION_RERANK: 'rerank',
   QUERY_DECOMPOSITION: 'decomposition',
 };
 
 const SUBSYSTEM_BADGE_CLASS = {
-  ENTITY_EXTRACTION: 'llm-badge-extraction',
-  PROPOSAL_JUDGE: 'llm-badge-judge',
   EMBEDDING: 'llm-badge-embedding',
   SECTION_RERANK: 'llm-badge-rerank',
   QUERY_DECOMPOSITION: 'llm-badge-decomposition',
@@ -23,8 +19,6 @@ const SUBSYSTEM_BADGE_CLASS = {
 // Filter chip options: { value, label }. 'all' matches everything.
 const SUBSYSTEM_FILTERS = [
   { value: 'all', label: 'All' },
-  { value: 'ENTITY_EXTRACTION', label: 'Extraction' },
-  { value: 'PROPOSAL_JUDGE', label: 'Judge' },
   { value: 'EMBEDDING', label: 'Embedding' },
   { value: 'SECTION_RERANK', label: 'Rerank' },
   { value: 'QUERY_DECOMPOSITION', label: 'Decomposition' },
@@ -61,7 +55,7 @@ export default function LlmActivityTab() {
   // setState sits inside the async .then/.catch callbacks (not directly in
   // this function's own body), so calling fetchActivity() synchronously from
   // the effect is the shape react-hooks/set-state-in-effect allows.
-  const fetchActivity = () => api.knowledge.getLlmActivity({ limit: 200 })
+  const fetchActivity = () => api.admin.embeddings.getLlmActivity({ limit: 200 })
     .then(res => {
       const data = res || {};
       setSnapshot(data);

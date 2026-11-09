@@ -177,24 +177,6 @@ class AdminKnowledgeResourceHandlerCoverageTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
-    // ---- backfill-frontmatter ----
-
-    @Test
-    void getBackfillStatus_returnsStatusFields() throws Exception {
-        final JsonObject obj = call( request( "/backfill-frontmatter" ), "GET" );
-        assertTrue( obj.has( "running" ) );
-        assertTrue( obj.has( "total" ) );
-        assertTrue( obj.has( "processed" ) );
-        assertTrue( obj.has( "errors" ) );
-        assertFalse( obj.get( "running" ).getAsBoolean() );
-    }
-
-    @Test
-    void postBackfillFrontmatter_startsBackfillAndReturnsStarted() throws Exception {
-        final JsonObject obj = call( request( "/backfill-frontmatter" ), "POST" );
-        assertEquals( "started", obj.get( "status" ).getAsString() );
-    }
-
     // ---- judge/status ----
 
     @Test
@@ -402,22 +384,6 @@ class AdminKnowledgeResourceHandlerCoverageTest {
         body.addProperty( "targetId", "not-a-uuid" );
         final JsonObject obj = callWithBody( "/nodes/merge", "POST", body );
         assertEquals( 400, obj.get( "status" ).getAsInt() );
-    }
-
-    // ---- hub-proposals service unavailable ----
-
-    @Test
-    void getHubProposals_returns503WhenRepoNotConfigured() throws Exception {
-        // HubProposalRepository is not wired in TestEngine
-        final JsonObject obj = call( request( "/hub-proposals" ), "GET" );
-        assertEquals( 503, obj.get( "status" ).getAsInt() );
-    }
-
-    @Test
-    void postHubProposals_missingActionSegment_returns503() throws Exception {
-        // HubProposalRepository is null → repo guard fires before action check
-        final JsonObject obj = call( request( "/hub-proposals" ), "POST" );
-        assertEquals( 503, obj.get( "status" ).getAsInt() );
     }
 
     // ---- nodes with total count in listing ----

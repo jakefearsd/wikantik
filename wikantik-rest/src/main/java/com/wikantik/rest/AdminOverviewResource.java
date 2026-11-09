@@ -112,15 +112,6 @@ public class AdminOverviewResource extends RestServletBase {
             return o;
         } );
 
-        // kgProposals (DB count) — pending proposals waiting for curation.
-        c.put( "kgProposals", () -> {
-            final long pending = getSubsystems().knowledge().kgService()
-                .countProposals( "pending", null, null, false, null );
-            final JsonObject o = new JsonObject();
-            o.addProperty( "pending", pending );
-            return o;
-        } );
-
         // retrieval — latest run's nDCG@5 via the retrieval-quality runner.
         c.put( "retrieval", () -> {
             final var runner = getSubsystems().knowledge().retrievalQualityRunner();
@@ -186,39 +177,6 @@ public class AdminOverviewResource extends RestServletBase {
             }
             final JsonObject o = new JsonObject();
             o.add( "items", items );
-            return o;
-        } );
-
-        // kgSize — node and edge totals.
-        c.put( "kgSize", () -> {
-            final var svc = getSubsystems().knowledge().kgService();
-            final long nodes = svc.countNodes( new LinkedHashMap<>(), null );
-            final long edges = svc.countEdges( null, null, null );
-            final long stubs = svc.countStubNodes();
-            final long orphans = svc.countOrphanedNodes( new java.util.HashMap<>() );
-            final JsonObject o = new JsonObject();
-            o.addProperty( "nodes", nodes );
-            o.addProperty( "edges", edges );
-            o.addProperty( "stubs", stubs );
-            o.addProperty( "orphans", orphans );
-            return o;
-        } );
-
-        // extractor (metric-backed)
-        c.put( "extractor", () -> {
-            final JsonObject o = new JsonObject();
-            o.addProperty( "requests", (long) MetricReads.counter( reg, "wikantik_kg_extractor_requests_total", 0 ) );
-            o.addProperty( "triples",  (long) MetricReads.counter( reg, "wikantik_kg_extractor_triples_emitted_total", 0 ) );
-            o.addProperty( "failures", (long) MetricReads.counter( reg, "wikantik_kg_extractor_failures_total", 0 ) );
-            return o;
-        } );
-
-        // judge (metric-backed + DB count)
-        c.put( "judge", () -> {
-            final JsonObject o = new JsonObject();
-            o.addProperty( "timeouts",     (long) MetricReads.counter( reg, "wikantik.kg_judge.timeouts", 0 ) );
-            o.addProperty( "shortCircuit", (long) MetricReads.counter( reg, "wikantik.kg_judge.short_circuit_total", 0 ) );
-            o.addProperty( "pending", getSubsystems().knowledge().kgService().countPendingUnjudgedProposals() );
             return o;
         } );
 

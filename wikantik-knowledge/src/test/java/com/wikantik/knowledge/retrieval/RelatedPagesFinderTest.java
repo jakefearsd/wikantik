@@ -19,11 +19,13 @@
 package com.wikantik.knowledge.retrieval;
 
 import com.wikantik.api.knowledge.RelatedPage;
-import com.wikantik.knowledge.MentionIndex;
+import com.wikantik.search.embedding.PageEmbeddingSimilarity;
+import com.wikantik.search.embedding.PageEmbeddingSimilarity.ScoredPage;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -31,61 +33,58 @@ import static org.mockito.Mockito.*;
 
 class RelatedPagesFinderTest {
 
-    @Test
-    void fetchRelatedPages_describesTopSharedEntitiesUpToLimit() {
-        final MentionIndex index = mock( MentionIndex.class );
-        // Five shared names but REASON_ENTITY_LIMIT (3) truncates the reason text.
-        final MentionIndex.RelatedByMention match = new MentionIndex.RelatedByMention(
-            "OtherPage", List.of( "BM25", "Qwen3", "HNSW", "RRF", "pgvector" ), 5 );
-        when( index.findRelatedPages( "SourcePage", 5 ) ).thenReturn( List.of( match ) );
+    private static final Predicate< String > ALL = n -> true;
 
-        final RelatedPagesFinder finder = new RelatedPagesFinder( index );
-        final List< RelatedPage > related = finder.fetchRelatedPages( "SourcePage" );
+    @Test
+    void fetchRelatedPages_describesSimilarityScore() {
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        when( sim.similarTo( eq( "SourcePage" ), eq( 5 ), any() ) )
+            .thenReturn( List.of( new ScoredPage( "OtherPage", 0.834 ) ) );
+
+        final List< RelatedPage > related = new RelatedPagesFinder( sim, ALL ).fetchRelatedPages( "SourcePage" );
 
         assertEquals( 1, related.size() );
         assertEquals( "OtherPage", related.get( 0 ).name() );
-        assertEquals( "shared entities: BM25, Qwen3, HNSW (+2 more)", related.get( 0 ).reason() );
+        assertEquals( "similar content (0.83)", related.get( 0 ).reason() );
     }
 
     @Test
-    void fetchRelatedPages_fallsBackToCountWhenNoEntityNames() {
-        final MentionIndex index = mock( MentionIndex.class );
-        final MentionIndex.RelatedByMention match =
-            new MentionIndex.RelatedByMention( "OtherPage", List.of(), 7 );
-        when( index.findRelatedPages( "SourcePage", 5 ) ).thenReturn( List.of( match ) );
+    void fetchRelatedPages_passesAcceptFilterToSimilarity() {
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        when( sim.similarTo( anyString(), anyInt(), any() ) ).thenAnswer( inv -> {
+            final Predicate< String > accept = inv.getArgument( 2 );
+            return List.of( new ScoredPage( "Gone", 0.9 ), new ScoredPage( "Here", 0.8 ) ).stream()
+                .filter( sp -> accept.test( sp.name() ) ).toList();
+        } );
 
-        final List< RelatedPage > related = new RelatedPagesFinder( index ).fetchRelatedPages( "SourcePage" );
+        final List< RelatedPage > related =
+            new RelatedPagesFinder( sim, n -> !"Gone".equals( n ) ).fetchRelatedPages( "SourcePage" );
 
-        assertEquals( "shared entities: 7", related.get( 0 ).reason() );
+        assertEquals( List.of( "Here" ), related.stream().map( RelatedPage::name ).toList() );
     }
 
     @Test
-    void fetchRelatedPages_nullMentionIndex_returnsEmptyList() {
-        final RelatedPagesFinder finder = new RelatedPagesFinder( null );
-        assertEquals( List.of(), finder.fetchRelatedPages( "AnyPage" ) );
+    void fetchRelatedPages_nullSimilarity_returnsEmptyList() {
+        assertEquals( List.of(), new RelatedPagesFinder( null, ALL ).fetchRelatedPages( "AnyPage" ) );
     }
 
     @Test
-    void fetchRelatedPages_indexThrows_degradesToEmptyRatherThanPropagating() {
-        final MentionIndex index = mock( MentionIndex.class );
-        when( index.findRelatedPages( anyString(), anyInt() ) )
-            .thenThrow( new RuntimeException( "DB offline" ) );
+    void fetchRelatedPages_similarityThrows_degradesToEmptyRatherThanPropagating() {
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        when( sim.similarTo( anyString(), anyInt(), any() ) ).thenThrow( new RuntimeException( "DB offline" ) );
 
-        final List< RelatedPage > related = new RelatedPagesFinder( index ).fetchRelatedPages( "SourcePage" );
-
-        assertEquals( List.of(), related );
+        assertEquals( List.of(), new RelatedPagesFinder( sim, ALL ).fetchRelatedPages( "SourcePage" ) );
     }
 
     @Test
     void fetchRelatedPagesBatch_shapesEachInputNameIndependently() {
-        final MentionIndex index = mock( MentionIndex.class );
-        final MentionIndex.RelatedByMention matchForA =
-            new MentionIndex.RelatedByMention( "Neighbor", List.of( "Foo" ), 1 );
-        when( index.findRelatedPagesBatch( List.of( "PageA", "PageB" ), 5 ) )
-            .thenReturn( Map.of( "PageA", List.of( matchForA ), "PageB", List.of() ) );
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        when( sim.similarTo( eq( "PageA" ), eq( 5 ), any() ) )
+            .thenReturn( List.of( new ScoredPage( "Neighbor", 0.5 ) ) );
+        when( sim.similarTo( eq( "PageB" ), eq( 5 ), any() ) ).thenReturn( List.of() );
 
         final Map< String, List< RelatedPage > > batched =
-            new RelatedPagesFinder( index ).fetchRelatedPagesBatch( List.of( "PageA", "PageB" ) );
+            new RelatedPagesFinder( sim, ALL ).fetchRelatedPagesBatch( List.of( "PageA", "PageB" ) );
 
         assertEquals( 1, batched.get( "PageA" ).size() );
         assertEquals( "Neighbor", batched.get( "PageA" ).get( 0 ).name() );
@@ -93,12 +92,9 @@ class RelatedPagesFinderTest {
     }
 
     @Test
-    void fetchRelatedPagesBatch_emptyInput_returnsEmptyMapWithoutCallingIndex() {
-        final MentionIndex index = mock( MentionIndex.class );
-        final Map< String, List< RelatedPage > > batched =
-            new RelatedPagesFinder( index ).fetchRelatedPagesBatch( List.of() );
-
-        assertEquals( Map.of(), batched );
-        verifyNoInteractions( index );
+    void fetchRelatedPagesBatch_emptyInput_returnsEmptyMapWithoutCallingSimilarity() {
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        assertEquals( Map.of(), new RelatedPagesFinder( sim, ALL ).fetchRelatedPagesBatch( List.of() ) );
+        verifyNoInteractions( sim );
     }
 }

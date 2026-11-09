@@ -77,8 +77,6 @@ public final class FrontmatterSchema {
                 new FieldSpec( "date", "Date", Widget.DATE, List.of(), false,
                         null, null, null, Map.of() ),
                 FieldSpec.text( "author", "Author" ),
-                new FieldSpec( "kg_include", "Include in Knowledge Graph", Widget.TRISTATE,
-                        List.of(), false, null, null, null, Map.of() ),
                 new FieldSpec( "verified_at", "Verified at", Widget.DATETIME, List.of(), false,
                         null, null, null, Map.of() ),
                 FieldSpec.text( "verified_by", "Verified by" ),

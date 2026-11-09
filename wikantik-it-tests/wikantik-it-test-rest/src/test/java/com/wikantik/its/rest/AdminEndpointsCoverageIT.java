@@ -19,7 +19,6 @@
 package com.wikantik.its.rest;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -50,7 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>{@code GET /admin/retrieval-quality} — recent run history envelope.</li>
  *   <li>{@code POST /admin/retrieval-quality/run} — bad mode + missing query_set
  *       both return 400 (or 503 when the runner is unavailable in this stack).</li>
- *   <li>{@code GET /admin/knowledge-graph/judge-timeouts} — timeouts envelope.</li>
+ *   <li>{@code GET /admin/embeddings/status} — dense-index status contract.</li>
  *   <li>{@code GET /admin/overview} — dashboard aggregation envelope
  *       ({@code data.degraded} array + always-present {@code data.load} card).</li>
  *   <li>403 anon paths for every admin endpoint tested above.</li>
@@ -319,37 +318,32 @@ public class AdminEndpointsCoverageIT {
     }
 
     // ---------------------------------------------------------------
-    // /admin/knowledge-graph/judge-timeouts
+    // /admin/embeddings/status (works with the Knowledge Graph off)
     // ---------------------------------------------------------------
 
     @Test
-    void judgeTimeouts_returnsEnvelopeShape() throws Exception {
+    void embeddingsStatus_returnsContractShape() throws Exception {
         try {
             loginAsAdmin();
-            final HttpResponse< String > resp = get( "/admin/knowledge-graph/judge-timeouts?limit=5" );
-            // Either 200 with a timeouts array, or 503 when the repository is
-            // unavailable (judge tracking not configured). Both are valid IT
-            // outcomes — we just verify the route is wired and authenticated.
-            assertTrue( resp.statusCode() == 200 || resp.statusCode() == 503,
-                    "expected 200 or 503; got " + resp.statusCode() + ": " + resp.body() );
-            if ( resp.statusCode() == 200 ) {
-                final JsonObject body = JsonParser.parseString( resp.body() ).getAsJsonObject();
-                assertTrue( body.has( "timeouts" ),
-                        "200 response must include timeouts array: " + resp.body() );
-                final JsonElement timeouts = body.get( "timeouts" );
-                assertTrue( timeouts.isJsonArray(),
-                        "timeouts must be a JSON array: " + resp.body() );
+            final HttpResponse< String > resp = get( "/admin/embeddings/status" );
+            assertEquals( 200, resp.statusCode(), "expected 200: " + resp.body() );
+            final JsonObject body = JsonParser.parseString( resp.body() ).getAsJsonObject();
+            for ( final String key : new String[] { "ready", "model", "dimension",
+                    "pagesEmbedded", "chunksTotal", "chunksEmbedded" } ) {
+                assertTrue( body.has( key ), "status must carry '" + key + "': " + resp.body() );
             }
+            assertTrue( body.get( "ready" ).getAsBoolean() == ( body.get( "chunksEmbedded" ).getAsLong() > 0 ),
+                    "ready must equal chunksEmbedded > 0: " + resp.body() );
         } finally {
             logoutAdmin();
         }
     }
 
     @Test
-    void judgeTimeouts_anonymousIs403() throws Exception {
-        final HttpResponse< String > resp = getAnonymous( "/admin/knowledge-graph/judge-timeouts" );
+    void embeddingsStatus_anonymousIs403() throws Exception {
+        final HttpResponse< String > resp = getAnonymous( "/admin/embeddings/status" );
         assertEquals( 403, resp.statusCode(),
-                "Anonymous access to /admin/knowledge-graph/judge-timeouts must be 403: " + resp.body() );
+                "Anonymous access to /admin/embeddings/status must be 403: " + resp.body() );
     }
 
     // ---------------------------------------------------------------

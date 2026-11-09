@@ -27,7 +27,6 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.eval.RetrievalMode;
 import com.wikantik.api.eval.RetrievalQualityRunner;
 import com.wikantik.api.eval.RetrievalRunResult;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pagegraph.VerificationCounts;
 import com.wikantik.auth.UserManager;
@@ -122,11 +121,6 @@ class AdminOverviewResourceFullTest {
         gaugeAnchors.add( reg.gauge( "wikantik_backpressure.inflight", 4 ) );
         gaugeAnchors.add( reg.gauge( "wikantik_backpressure.permits_max", 32 ) );
         reg.counter( "wikantik_backpressure.rejected_total" ).increment( 2 );
-        reg.counter( "wikantik_kg_extractor_requests_total" ).increment( 10 );
-        reg.counter( "wikantik_kg_extractor_triples_emitted_total" ).increment( 40 );
-        reg.counter( "wikantik_kg_extractor_failures_total" ).increment( 1 );
-        reg.counter( "wikantik.kg_judge.timeouts" ).increment( 3 );
-        reg.counter( "wikantik.kg_judge.short_circuit_total" ).increment( 5 );
         reg.counter( "wikantik_cache.hits" ).increment( 100 );
         reg.counter( "wikantik_cache.misses" ).increment( 8 );
         reg.counter( "wikantik_cache.evictions" ).increment( 2 );
@@ -146,15 +140,6 @@ class AdminOverviewResourceFullTest {
         log.fail( log.begin( Subsystem.EMBEDDING, "ollama", "nomic", "embed", "y" ),
                 new RuntimeException( "boom" ) );
         installLlmLog( log );
-
-        // --- KG service ---
-        final KnowledgeGraphService kg = mock( KnowledgeGraphService.class );
-        when( kg.countProposals( "pending", null, null, false, null ) ).thenReturn( 5L );
-        when( kg.countNodes( anyMap(), any() ) ).thenReturn( 200L );
-        when( kg.countEdges( null, null, null ) ).thenReturn( 300L );
-        when( kg.countStubNodes() ).thenReturn( 7L );
-        when( kg.countOrphanedNodes( anyMap() ) ).thenReturn( 9L );
-        when( kg.countPendingUnjudgedProposals() ).thenReturn( 11L );
 
         // --- retrieval quality runner: overall + per-mode ---
         final RetrievalQualityRunner runner = mock( RetrievalQualityRunner.class );
@@ -216,7 +201,7 @@ class AdminOverviewResourceFullTest {
                         null, null, userManager, null, null, null, null, null, null ),
                 null, null, null,
                 new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services(
-                        kg, null, null, null, null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null, null, null, null, null, null,
                         null, null, null, null, null, null, runner, null, null ),
                 new com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services(
                         structural, null, null, indexSvc, null, null, null, null, null ) );
@@ -246,7 +231,6 @@ class AdminOverviewResourceFullTest {
         assertEquals( 1, llm.get( "errors" ).getAsInt() );
         assertEquals( 0, llm.get( "inFlight" ).getAsInt() );
 
-        assertEquals( 5, data.getAsJsonObject( "kgProposals" ).get( "pending" ).getAsInt() );
         assertEquals( 0.83, data.getAsJsonObject( "retrieval" ).get( "ndcg5" ).getAsDouble() );
 
         final JsonObject search = data.getAsJsonObject( "searchIndex" );
@@ -268,21 +252,10 @@ class AdminOverviewResourceFullTest {
         final var items = data.getAsJsonObject( "recent" ).getAsJsonArray( "items" );
         assertEquals( 2, items.size() );
 
-        final JsonObject kgSize = data.getAsJsonObject( "kgSize" );
-        assertEquals( 200, kgSize.get( "nodes" ).getAsInt() );
-        assertEquals( 300, kgSize.get( "edges" ).getAsInt() );
-        assertEquals( 7, kgSize.get( "stubs" ).getAsInt() );
-        assertEquals( 9, kgSize.get( "orphans" ).getAsInt() );
-
-        final JsonObject extractor = data.getAsJsonObject( "extractor" );
-        assertEquals( 10, extractor.get( "requests" ).getAsInt() );
-        assertEquals( 40, extractor.get( "triples" ).getAsInt() );
-        assertEquals( 1, extractor.get( "failures" ).getAsInt() );
-
-        final JsonObject judge = data.getAsJsonObject( "judge" );
-        assertEquals( 3, judge.get( "timeouts" ).getAsInt() );
-        assertEquals( 5, judge.get( "shortCircuit" ).getAsInt() );
-        assertEquals( 11, judge.get( "pending" ).getAsInt() );
+        // The Knowledge Graph panels are gone: none is reported, and none derefs the (null) kgService.
+        for ( final String retired : new String[] { "kgProposals", "kgSize", "extractor", "judge" } ) {
+            assertFalse( data.has( retired ), "retired card must not be reported: " + retired );
+        }
 
         final JsonObject cache = data.getAsJsonObject( "renderCache" );
         assertEquals( 100, cache.get( "hits" ).getAsInt() );

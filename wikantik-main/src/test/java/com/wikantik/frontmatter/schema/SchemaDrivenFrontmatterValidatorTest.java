@@ -41,6 +41,19 @@ class SchemaDrivenFrontmatterValidatorTest {
     }
 
     @Test
+    void legacyKgIncludeIsNeitherOfferedNorFlagged() {
+        // The Knowledge Graph was retired: the editor no longer offers kg_include, but pages that
+        // still carry it (any shape) must save silently and keep the value.
+        assertTrue( FrontmatterSchema.defaultSchema().fields().stream()
+                .noneMatch( f -> f.key().equals( "kg_include" ) ), "kg_include is not offered by the schema" );
+        for ( final Object value : new Object[] { Boolean.TRUE, Boolean.FALSE, "true", "maybe", List.of( "x" ) } ) {
+            final List< FieldViolation > vs = validator.validate(
+                    Map.of( "type", "article", "kg_include", value ), ValidationCtx.lenient() );
+            assertTrue( first( vs, "kg_include" ).isEmpty(), "no violation for kg_include=" + value );
+        }
+    }
+
+    @Test
     void closedEnumRejectsUnknownAudience() {
         final List< FieldViolation > vs = validator.validate(
                 Map.of( "type", "article", "audience", "robots" ), ValidationCtx.lenient() );

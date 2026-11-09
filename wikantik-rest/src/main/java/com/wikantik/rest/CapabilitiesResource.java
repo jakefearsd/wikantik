@@ -66,9 +66,6 @@ public class CapabilitiesResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( CapabilitiesResource.class );
 
-    /** Config property: {@code wikantik.knowledge.enabled} (default {@code true}). */
-    public static final String PROP_KNOWLEDGE_ENABLED = "wikantik.knowledge.enabled";
-
     /**
      * Config property: {@code wikantik.search.hybrid.enabled} (default {@code true}).
      * The {@code hybridSearch} response field also reflects the
@@ -113,7 +110,6 @@ public class CapabilitiesResource extends RestServletBase {
                     && mode.allowsEmbeddings();
 
             final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "knowledgeGraph", TextUtil.getBooleanProperty( props, PROP_KNOWLEDGE_ENABLED, true ) );
             result.put( "hybridSearch", hybridSearch );
             result.put( "genaiMode", toToken( mode ) );
             result.put( "ontology", TextUtil.getBooleanProperty( props, PROP_ONTOLOGY_ENABLED, true ) );

@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **The Knowledge Graph is retired (step 1: switched off, code kept).** `wikantik.knowledge.enabled` now defaults to
+  **false**. With it off, nothing reads the KG tables (`kg_nodes`, `kg_edges`, `kg_proposals`, entity mentions, the
+  inclusion policy, hub discovery): the KG services are not built, the ontology projects pages and concepts only (the
+  next full rebuild purges entity graphs, so `/id/entity/*` stops resolving), and the KG MCP tools are not registered
+  (admin-mcp: `list_proposals`, `inspect_proposals`, `propose_knowledge`, `review_proposals`, `curate_edges`,
+  `curate_nodes`, `query_nodes`, `search_knowledge`, `list_orphaned_kg_nodes`; knowledge-mcp: `discover_schema`,
+  `query_nodes`, `get_node`, `traverse`, `search_knowledge`, `find_similar`). Setting the flag to `true` revives the
+  backend until the deletion release; an ArchUnit freeze rule stops new code from depending on KG classes. Dense
+  retrieval, chunking, bundles and briefings are unaffected.
+- **All Knowledge Graph UI is gone.** The reader `/knowledge-graph` viewer, the Knowledge Graph and KG-policy admin
+  pages, Hub Discovery and Hub Proposals, the overview's KG cards, the editor's Knowledge tab and the "Include in KG"
+  frontmatter field are removed (existing `kg_include` values are kept and ignored). Content Embeddings and LLM Activity
+  moved to a new **Admin › Embeddings** page; its status now reports the real dense-retrieval index (model, dimension,
+  pages and chunks embedded) through `GET /admin/embeddings/status`, and the frontmatter backfill moved to
+  `/admin/embeddings/{pages-without-frontmatter,backfill-frontmatter}`.
+- **"Similar pages" and agent `relatedPages` come from page embeddings.** Each page is represented by the centroid of its
+  chunk embeddings. The reader panel previously fed page names into Knowledge Graph node similarity and linked to entity
+  names that are not pages; `retrieve_context` and `search_wiki` related pages previously came from extracted entity
+  mentions. Suggestions are filtered to pages that exist and that the caller may view.
+
 ## [2.5.11] - 2026-11-07
 
 ### Changed

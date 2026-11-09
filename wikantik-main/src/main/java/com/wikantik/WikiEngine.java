@@ -1225,12 +1225,15 @@ public class WikiEngine implements Engine {
             // See note above next to the local 'svcs' assignment.
             this.knowledgeSubsystem = svcs;
 
-            LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
-                props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );
-            LOG.info( "HubDiscoveryService registered (minClusterSize property='{}', minPts='{}')",
-                props.getProperty( HubDiscoveryService.PROP_MIN_CLUSTER_SIZE, "default" ),
-                props.getProperty( HubDiscoveryService.PROP_MIN_PTS, "default" ) );
-            LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
+            if ( svcs.kgService() != null ) {
+                LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
+                    props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );
+                LOG.info( "HubDiscoveryService registered (minClusterSize property='{}', minPts='{}')",
+                    props.getProperty( HubDiscoveryService.PROP_MIN_CLUSTER_SIZE, "default" ),
+                    props.getProperty( HubDiscoveryService.PROP_MIN_PTS, "default" ) );
+            }
+            LOG.info( "Knowledge subsystem initialized with datasource '{}' (Knowledge Graph {})", datasource,
+                svcs.kgService() != null ? "ENABLED" : "disabled" );
 
         } catch ( final javax.naming.NamingException | RuntimeException e ) {
             LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage(), e );

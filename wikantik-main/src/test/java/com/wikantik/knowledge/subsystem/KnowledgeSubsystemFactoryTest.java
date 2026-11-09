@@ -84,9 +84,15 @@ class KnowledgeSubsystemFactoryTest {
             mock( RecentArticlesManager.class ), engine ) );
     }
 
+    /**
+     * Persistence built with the KG repositories present, so these tests exercise the knowledge factory's own flag
+     * check. (In production both factories read the same properties, so they always agree.)
+     */
     private PersistenceSubsystem.Services persistence() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
         return PersistenceSubsystemFactory.create( new PersistenceSubsystem.Deps(
-            dataSource, new DefaultWikiProperties( new Properties() ) ) );
+            dataSource, new DefaultWikiProperties( props ) ) );
     }
 
     private com.wikantik.page.subsystem.PageSubsystem.Services page() {
@@ -113,13 +119,20 @@ class KnowledgeSubsystemFactoryTest {
         pageSaveHelper     = mock( PageSaveHelper.class );
     }
 
+    /** The Knowledge Graph is off by default; these tests exercise the services it builds when on. */
+    private static Properties kgOn() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
+        return props;
+    }
+
     @Test
     void create_populatesEveryServiceField_defaultProperties() {
         // Default Properties leaves judge enabled (KgJudgeConfig falls back
         // to DEFAULT_ENDPOINT). The judge service + runner are wired here;
         // the runner is closed after the test to avoid a leaked scheduler.
         final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
-            dataSource, persistence(), core( new Properties() ), page(),
+            dataSource, persistence(), core( kgOn() ), page(),
             /*luceneMlt=*/ null );
 
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create( deps );
@@ -154,7 +167,7 @@ class KnowledgeSubsystemFactoryTest {
 
     @Test
     void create_judgeServiceAndRunnerNullWhenJudgeDisabled() {
-        final Properties props = new Properties();
+        final Properties props = kgOn();
         props.setProperty( "wikantik.kg.judge.enabled", "false" );
 
         final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
@@ -175,7 +188,7 @@ class KnowledgeSubsystemFactoryTest {
     @Test
     void create_kgServiceRoundTripsThroughTheSubsystem() {
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create(
-            new KnowledgeSubsystem.Deps( dataSource, persistence(), core( new Properties() ),
+            new KnowledgeSubsystem.Deps( dataSource, persistence(), core( kgOn() ),
                 page(),
                 /*luceneMlt=*/ null ) );
 

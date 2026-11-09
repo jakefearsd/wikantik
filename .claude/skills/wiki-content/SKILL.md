@@ -12,10 +12,13 @@ interactions route through MCP server tools directly.
 > bash — so this skill runs identically under Claude Code and Antigravity. The live bundle check is the
 > `assemble_bundle` MCP tool, never `GET /api/bundle`. Do not add client-specific mechanisms.
 
-> **Tool surface reconciled 2026-08-20 against the live servers** (admin-mcp = 29 tools, knowledge-mcp
-> = 21 tools). Note that knowledge-mcp registers several tools *conditionally* on what is wired in a
-> given deployment (`find_similar`, `get_page_for_agent`, `assemble_bundle`, `get_briefing`,
-> `get_ontology`/`sparql_query`, `list_stale_citations`), so 21 is the fully-wired count — a leaner
+> **Tool surface reconciled 2026-11-08 against the live servers** (admin-mcp = 20 tools, knowledge-mcp
+> = 16 tools; the Knowledge Graph is retired and its tools — `propose_knowledge`, `curate_edges`,
+> `curate_nodes`, `list_proposals`, `inspect_proposals`, `review_proposals`, `query_nodes`,
+> `search_knowledge`, `list_orphaned_kg_nodes`, `discover_schema`, `get_node`, `traverse`,
+> `find_similar` — are not registered, do not call them). Note that knowledge-mcp registers several tools
+> *conditionally* on what is wired in a given deployment (`get_page_for_agent`, `assemble_bundle`,
+> `get_briefing`, `get_ontology`/`sparql_query`, `list_stale_citations`), so a leaner
 > deployment legitimately advertises fewer. The old compound tools (`publish_cluster`, `extend_cluster`, `get_cluster_map`,
 > `audit_cluster`, `update_metadata`, `patch_page`, `write_page`, `batch_*`, `query_metadata`,
 > `scan_markdown_links`) **no longer exist** — do not call them. The real tools are listed at the
@@ -100,7 +103,7 @@ until `confirm=true`. Refuses a target another hub already declares. Page names 
 ### Discovery (knowledge-mcp)
 
 `list_pages` / `list_pages_by_filter` (prefix/metadata filters), `list_clusters`, `list_tags`,
-`list_metadata_values` (field names + values in use), `search_knowledge` (hybrid search),
+`list_metadata_values` (field names + values in use), `retrieve_context` (page/section discovery) and `assemble_bundle` (BM25 + dense hybrid, cited sections),
 `read_pages` (batched reads). Use these to survey existing content and avoid duplication before authoring.
 
 ## Retrieval-Aware Frontmatter (read before writing summaries/headings)
@@ -239,18 +242,14 @@ Frontmatter drives search-engine, social, feed, and news outputs:
 | `assemble_bundle` | **The live retrieval check** — ranked, cited sections for a query (`{query}`) |
 | `list_pages` / `list_pages_by_filter` | Enumerate pages (prefix / metadata filters) |
 | `list_clusters` / `list_tags` / `list_metadata_values` | Survey clusters, tags, field values in use |
-| `search_knowledge` | Hybrid search over the corpus |
+| `retrieve_context` | Discover relevant pages/sections (BM25 + dense hybrid) |
 | `read_pages` / `get_page` / `get_page_for_agent` | Batched / projected page reads |
-
-### KG curation — admin-mcp
-`propose_knowledge`, `curate_edges`, `curate_nodes`, `list_proposals`, `inspect_proposals`,
-`review_proposals`, `query_nodes`, `search_knowledge`, `list_orphaned_kg_nodes` (only on KG-included pages).
 
 ## Quick reference
 
 | Phase | Tools (server) |
 |-------|----------------|
-| DISCOVER | `list_pages`/`search_knowledge`/`list_clusters` (knowledge) |
+| DISCOVER | `list_pages`/`retrieve_context`/`list_clusters` (knowledge) |
 | CREATE | `write_pages` (admin) → `verify_pages` (admin) |
 | UPDATE | `read_page` → edit full text → `update_page` (admin) |
 | LINT | `verify_pages` `retrieval_readiness`+`seo_readiness` (admin) |

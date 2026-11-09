@@ -55,6 +55,7 @@ describe('AdminSidebar', () => {
     expect(screen.getByTestId('admin-nav-page-ownership')).toHaveAttribute('href', '/admin/page-ownership');
 
     // Knowledge & Search group
+    expect(screen.getByTestId('admin-nav-embeddings')).toHaveAttribute('href', '/admin/embeddings');
     expect(screen.getByTestId('admin-nav-retrieval-quality')).toHaveAttribute('href', '/admin/retrieval-quality');
   });
 

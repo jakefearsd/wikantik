@@ -36,7 +36,7 @@ import static com.codeborne.selenide.Selenide.$;
  *
  * <p>The rail carries {@code data-testid="admin-sidebar"}; each nav link is
  * {@code data-testid="admin-nav-<slug>"} (slugs: overview, users, security,
- * apikeys, content, knowledge-graph, kg-policy, retrieval-quality); the door
+ * apikeys, content, embeddings, retrieval-quality); the door
  * out is {@code data-testid="admin-back-to-wiki"} (→ {@code /wiki/Main}). The
  * active link's class contains {@code active}.
  */

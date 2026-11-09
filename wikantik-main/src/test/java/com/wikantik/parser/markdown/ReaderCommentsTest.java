@@ -245,7 +245,12 @@ class ReaderCommentsTest {
     @Test
     void linearInComments() {
         assertTimeoutPreemptively( Duration.ofSeconds( 120 ), () -> {
-            final double[] result = linearCost( n -> "%%a%% `b` $c$ ".repeat( n ), ReaderCommentsTest::runRanges, 2000, 4 );
+            // Up to three measurements: CPU contention (a parallel build) can inflate one ratio past the bound, but a
+            // genuinely quadratic scan lands near factor^2 = 16 on every attempt.
+            double[] result = linearCost( n -> "%%a%% `b` $c$ ".repeat( n ), ReaderCommentsTest::runRanges, 2000, 4 );
+            for ( int attempt = 1; attempt < 3 && result[ 0 ] >= result[ 1 ]; attempt++ ) {
+                result = linearCost( n -> "%%a%% `b` $c$ ".repeat( n ), ReaderCommentsTest::runRanges, 2000, 4 );
+            }
             assertTrue( result[ 0 ] < result[ 1 ], "ratio " + result[ 0 ] + " must stay under " + result[ 1 ] );
         } );
     }

@@ -1682,7 +1682,7 @@ export default function PageEditor({ collabTransport } = {}) {
       {metadata.derived_from && (
         <div className="warning-banner" role="status" data-testid="derived-body-banner">
           This page&apos;s body is machine-generated from an uploaded source (<em>{String(metadata.derived_from)}</em>).
-          A reflow will overwrite hand edits — curate in frontmatter, tags, and the Knowledge Graph instead.
+          A reflow will overwrite hand edits — curate in frontmatter and tags instead.
         </div>
       )}
 

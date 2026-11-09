@@ -75,6 +75,7 @@ class KnowledgeWiringHelperTest {
 
     private static EntityExtractorConfig claudeConfig() {
         final Properties p = new Properties();
+        p.setProperty( "wikantik.knowledge.enabled", "true" );
         p.setProperty( "wikantik.knowledge.extractor.backend", "claude" );
         p.setProperty( "wikantik.knowledge.extractor.claude.model", "claude-haiku-4-5" );
         return EntityExtractorConfig.fromProperties( p );
@@ -82,6 +83,7 @@ class KnowledgeWiringHelperTest {
 
     private static EntityExtractorConfig ollamaConfig() {
         final Properties p = new Properties();
+        p.setProperty( "wikantik.knowledge.enabled", "true" );
         p.setProperty( "wikantik.knowledge.extractor.backend", "ollama" );
         p.setProperty( "wikantik.knowledge.extractor.ollama.model", "gemma4-assist:latest" );
         return EntityExtractorConfig.fromProperties( p );
@@ -146,6 +148,7 @@ class KnowledgeWiringHelperTest {
             WikiSubsystemsTestFactory.mockRecord( PersistenceSubsystem.Services.class );
 
         final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
         props.setProperty( "wikantik.knowledge.extractor.backend", "ollama" );
 
         KnowledgeWiringHelper.wireEntityExtraction(
@@ -172,6 +175,7 @@ class KnowledgeWiringHelperTest {
             WikiSubsystemsTestFactory.mockRecord( PersistenceSubsystem.Services.class );
 
         final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
         props.setProperty( "wikantik.knowledge.extractor.backend", "claude" );
 
         KnowledgeWiringHelper.wireEntityExtraction(
@@ -198,6 +202,7 @@ class KnowledgeWiringHelperTest {
             WikiSubsystemsTestFactory.mockRecord( PersistenceSubsystem.Services.class );
 
         final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
         props.setProperty( "wikantik.knowledge.extractor.backend", "claude" );
 
         KnowledgeWiringHelper.wireEntityExtraction(
@@ -224,6 +229,7 @@ class KnowledgeWiringHelperTest {
             WikiSubsystemsTestFactory.mockRecord( PersistenceSubsystem.Services.class );
 
         final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
         props.setProperty( "wikantik.knowledge.extractor.backend", "claude" );
 
         KnowledgeWiringHelper.wireEntityExtraction(
@@ -243,6 +249,7 @@ class KnowledgeWiringHelperTest {
             WikiSubsystemsTestFactory.mockRecord( PersistenceSubsystem.Services.class );
 
         final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
         props.setProperty( "wikantik.knowledge.extractor.backend", "disabled" );
 
         KnowledgeWiringHelper.wireEntityExtraction(

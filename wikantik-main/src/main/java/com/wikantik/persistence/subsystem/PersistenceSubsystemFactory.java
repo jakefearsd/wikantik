@@ -24,6 +24,7 @@ import com.wikantik.comments.mentions.MentionFeedDao;
 import com.wikantik.comments.mentions.MentionService;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubProposalRepository;
+import com.wikantik.api.config.KnowledgeGraphFlag;
 import com.wikantik.knowledge.KgEdgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
@@ -64,10 +65,10 @@ public final class PersistenceSubsystemFactory {
         final DataSource ds = Objects.requireNonNull( deps.dataSource(), "dataSource" );
         Objects.requireNonNull( deps.properties(), "properties" );
 
-        final KgNodeRepository kgNodes         = new KgNodeRepository( ds );
-        final KgEdgeRepository kgEdges         = new KgEdgeRepository( ds );
-        final KgProposalRepository kgProposals = new KgProposalRepository( ds );
-        final KgRejectionRepository kgRejections = new KgRejectionRepository( ds );
+        // The Knowledge Graph is retired and off by default: with it off, none of its repositories is
+        // constructed (every consumer sits behind the same flag), so nothing can reach the kg_* tables.
+        final KgRepositories kg = KnowledgeGraphFlag.isEnabled( deps.properties().asProperties() )
+                ? KgRepositories.of( ds ) : KgRepositories.NONE;
 
         // Comments DAOs cross subsystem boundaries (Auth for user existence,
         // Page Graph for canonical_id → page resolution) so they accept
@@ -94,19 +95,19 @@ public final class PersistenceSubsystemFactory {
 
         return new PersistenceSubsystem.Services(
             ds,
-            kgNodes,
-            kgEdges,
-            kgProposals,
-            kgRejections,
-            new HubProposalRepository( ds ),
-            new HubDiscoveryRepository( ds ),
+            kg.nodes(),
+            kg.edges(),
+            kg.proposals(),
+            kg.rejections(),
+            kg.hubProposals(),
+            kg.hubDiscovery(),
             new ContentChunkRepository( ds ),
-            new ChunkEntityMentionRepository( ds ),
-            new KgNodeEmbeddingRepository( ds ),
-            new JdbcKgJudgeTimeoutRepository( ds ),
+            kg.mentions(),
+            kg.nodeEmbeddings(),
+            kg.judgeTimeouts(),
             new RetrievalQualityDao( ds ),
-            new KgExcludedPagesRepository( ds ),
-            new KgClusterPolicyRepository( ds ),
+            kg.excludedPages(),
+            kg.clusterPolicy(),
             new PageCanonicalIdsDao( ds ),
             new PageVerificationDao( ds ),
             new TrustedAuthorsDao( ds ),
@@ -115,5 +116,24 @@ public final class PersistenceSubsystemFactory {
             new MentionService( ds, userExists, loginForUserId ),
             new MentionFeedDao( ds )
         );
+    }
+
+    /** The retired Knowledge Graph's repositories: all built, or (the default, KG off) none at all. */
+    private record KgRepositories( KgNodeRepository nodes, KgEdgeRepository edges, KgProposalRepository proposals,
+                                   KgRejectionRepository rejections, HubProposalRepository hubProposals,
+                                   HubDiscoveryRepository hubDiscovery, ChunkEntityMentionRepository mentions,
+                                   KgNodeEmbeddingRepository nodeEmbeddings, JdbcKgJudgeTimeoutRepository judgeTimeouts,
+                                   KgExcludedPagesRepository excludedPages, KgClusterPolicyRepository clusterPolicy ) {
+
+        static final KgRepositories NONE =
+                new KgRepositories( null, null, null, null, null, null, null, null, null, null, null );
+
+        static KgRepositories of( final DataSource ds ) {
+            return new KgRepositories( new KgNodeRepository( ds ), new KgEdgeRepository( ds ),
+                    new KgProposalRepository( ds ), new KgRejectionRepository( ds ), new HubProposalRepository( ds ),
+                    new HubDiscoveryRepository( ds ), new ChunkEntityMentionRepository( ds ),
+                    new KgNodeEmbeddingRepository( ds ), new JdbcKgJudgeTimeoutRepository( ds ),
+                    new KgExcludedPagesRepository( ds ), new KgClusterPolicyRepository( ds ) );
+        }
     }
 }

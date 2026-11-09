@@ -43,7 +43,7 @@ import java.util.Map;
  * </ol>
  *
  * <p>Uses the same {@link WithMcpTestSetup} base class (MCP client lifecycle +
- * unique-name helper) as {@link KgCurationIT} and {@link McpFrontmatterNormalizationIT}.
+ * unique-name helper) as {@link McpFrontmatterNormalizationIT}.
  * Cleanup via {@code delete_pages} mirrors those ITs.</p>
  */
 public class McpFrontmatterValidationIT extends WithMcpTestSetup {
@@ -55,8 +55,7 @@ public class McpFrontmatterValidationIT extends WithMcpTestSetup {
      *
      * <p>The overall tool call succeeds (the envelope is not {@code isError=true}),
      * so we use {@code callTool} (not {@code callToolExpectingError}). The per-op
-     * refusal surfaces inside the {@code results} list — mirroring the pattern used
-     * by {@code review_proposals} per-id errors in {@link KgCurationIT}.</p>
+     * refusal surfaces inside the {@code results} list.</p>
      */
     @Test
     public void writePagesWithInvalidAudienceRefusesWriteAndCitesViolation() {

@@ -21,14 +21,14 @@ export default function ContentEmbeddingsTab() {
   // this function's own body), so calling loadNoFmPages() synchronously from
   // an effect is the shape react-hooks/set-state-in-effect allows.
   const loadNoFmPages = useCallback(
-    (currentOffset) => api.knowledge.getPagesWithoutFrontmatter(NO_FM_LIMIT, currentOffset)
+    (currentOffset) => api.admin.embeddings.getPagesWithoutFrontmatter(NO_FM_LIMIT, currentOffset)
       .then(fmResult => { setNoFmPages(fmResult.pages || []); setNoFmTotal(fmResult.total || 0); })
       .catch(err => setError(err.message)),
     [],
   );
 
   const loadData = useCallback(
-    () => api.knowledge.getEmbeddingStatus()
+    () => api.admin.embeddings.getStatus()
       .then(s => { setStatus(s); return loadNoFmPages(0); })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false)),
@@ -48,10 +48,10 @@ export default function ContentEmbeddingsTab() {
     setBackfilling(true);
     setError(null);
     try {
-      await api.knowledge.backfillFrontmatter();
+      await api.admin.embeddings.backfillFrontmatter();
       const poll = setInterval(async () => {
         try {
-          const st = await api.knowledge.getBackfillStatus();
+          const st = await api.admin.embeddings.getBackfillStatus();
           setBackfillStatus(st);
           if (!st.running) {
             clearInterval(poll);
@@ -73,15 +73,21 @@ export default function ContentEmbeddingsTab() {
   if (loading) return <div className="admin-loading">Loading content embeddings...</div>;
   if (error) return <div className="admin-error">{error}</div>;
 
+  const coverage = status?.chunksTotal > 0
+    ? Math.round((status.chunksEmbedded / status.chunksTotal) * 100)
+    : 0;
+
   return (
     <div>
       <div style={{ padding: 'var(--space-sm)', background: 'var(--bg-sidebar)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-md)', fontSize: '0.85em' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
-          <span><strong>Mention centroid index:</strong> {status?.ready ? 'Ready' : 'Not populated'}</span>
+          <span><strong>Embedding index:</strong> {status?.ready ? 'Ready' : 'Not populated'}</span>
           {status?.ready && (
             <>
+              <span>{status.model}</span>
               <span>dim {status.dimension}</span>
-              <span>{status.mentioned_node_count} nodes with mentions</span>
+              <span>{status.pagesEmbedded} pages embedded</span>
+              <span>{`${status.chunksEmbedded} / ${status.chunksTotal} chunks embedded (${coverage}%)`}</span>
             </>
           )}
         </div>

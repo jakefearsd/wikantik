@@ -53,15 +53,8 @@ public class McpProtocolIT extends WithMcpTestSetup {
             "write_pages", "read_page", "update_page", "delete_pages", "rename_page",
             // ClusterDeclarationDesign phase 4 — bulk cluster-path curation
             "rename_cluster",
-            // Knowledge graph proposal + curation
-            "list_proposals", "inspect_proposals", "propose_knowledge",
-            "review_proposals", "curate_edges", "curate_nodes",
             // Agent-grade content phase 1 — verification stamping
             "mark_page_verified",
-            // KG read tools with admin bypass — curators see excluded-page entities immediately
-            "query_nodes", "search_knowledge",
-            // Orphan triage — admin-bypass listing of degree-0 KG nodes
-            "list_orphaned_kg_nodes",
             // Query-log read surface — retrieval query history across all four agent surfaces
             "list_retrieval_queries",
             // Content intelligence — the ranked opportunity backlog and its decline path

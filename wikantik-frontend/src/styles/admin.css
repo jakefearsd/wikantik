@@ -138,7 +138,7 @@
   white-space: nowrap;
 }
 
-/* Keep individual button labels (e.g. "Clear" in KG Policy actions) on one
+/* Keep individual button labels (e.g. "Clear" in row actions) on one
    line even when the column is tight — without this, "Clear" can break at
    the C and visibly truncate. */
 .admin-cell-actions .btn {
@@ -177,7 +177,7 @@
   color: #F88;
 }
 
-/* KG policy badge variants */
+/* Badge variants */
 .admin-badge.badge-success {
   background: var(--sage-light);
   color: var(--sage);
@@ -198,14 +198,7 @@
   color: var(--text-secondary, #555);
 }
 
-/* ConflictBadge — inline conflict/rejected pill next to proposal entity name */
-.conflict-badge {
-  margin-left: 8px;
-  font-size: 0.75em;
-  white-space: nowrap;
-}
-
-/* KG policy — callout banner */
+/* Callout banner */
 .admin-callout {
   padding: var(--space-sm) var(--space-md);
   margin-bottom: var(--space-lg);
@@ -216,16 +209,6 @@
   font-family: var(--font-ui);
   font-size: 0.875rem;
   line-height: 1.5;
-}
-
-/* KG policy — reason column truncation */
-.admin-reason {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-secondary);
-  font-size: 0.825rem;
 }
 
 /* Button variants */
@@ -771,16 +754,6 @@
   color: var(--text-secondary, #555);
 }
 
-.llm-badge-extraction {
-  background: #DCE9F2;
-  color: #2C5777;
-}
-
-.llm-badge-judge {
-  background: #EBE2F2;
-  color: #5B3E77;
-}
-
 .llm-badge-embedding {
   background: #E2F0E4;
   color: #356B40;
@@ -794,16 +767,6 @@
 .llm-badge-decomposition {
   background: #DFEEF0;
   color: #2C6770;
-}
-
-[data-theme="dark"] .llm-badge-extraction {
-  background: #1F3140;
-  color: #9CC4DF;
-}
-
-[data-theme="dark"] .llm-badge-judge {
-  background: #322840;
-  color: #C0A8DB;
 }
 
 [data-theme="dark"] .llm-badge-embedding {

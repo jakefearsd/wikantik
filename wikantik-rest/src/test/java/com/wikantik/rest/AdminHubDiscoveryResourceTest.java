@@ -66,6 +66,10 @@ class AdminHubDiscoveryResourceTest {
         engine = mock( WikiEngine.class );
         when( engine.getManager( HubDiscoveryService.class ) ).thenReturn( service );
         when( engine.getManager( HubDiscoveryRepository.class ) ).thenReturn( repo );
+        // The Knowledge Graph flag defaults to off; these handler tests run with it switched on.
+        final Properties kgOn = new Properties();
+        kgOn.setProperty( "wikantik.knowledge.enabled", "true" );
+        when( engine.getWikiProperties() ).thenReturn( kgOn );
 
         resource = new AdminHubDiscoveryResource();
         resource.setEngine( engine );

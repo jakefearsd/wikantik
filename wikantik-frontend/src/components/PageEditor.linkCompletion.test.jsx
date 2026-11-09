@@ -38,7 +38,6 @@ vi.mock('../api/client', () => ({
     listTags: vi.fn(() => Promise.resolve({ tags: [] })),
     validateFrontmatter: vi.fn(() => Promise.resolve({ metadata: {}, violations: [] })),
     search: vi.fn(() => Promise.resolve({ results: [] })),
-    getPageKnowledge: vi.fn(() => Promise.resolve({ entities: [], edges: [] })),
   },
 }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));

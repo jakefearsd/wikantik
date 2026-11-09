@@ -70,9 +70,15 @@ class KnowledgeSubsystemFactoryFlagTest {
             mock( RecentArticlesManager.class ), engine ) );
     }
 
+    /**
+     * Persistence built with the KG repositories present, so these tests exercise the knowledge factory's own flag
+     * check. (In production both factories read the same properties, so they always agree.)
+     */
     private PersistenceSubsystem.Services persistence() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
         return PersistenceSubsystemFactory.create( new PersistenceSubsystem.Deps(
-            dataSource, new DefaultWikiProperties( new Properties() ) ) );
+            dataSource, new DefaultWikiProperties( props ) ) );
     }
 
     private com.wikantik.page.subsystem.PageSubsystem.Services page() {
@@ -126,10 +132,24 @@ class KnowledgeSubsystemFactoryFlagTest {
     }
 
     @Test
-    void create_propertyAbsent_buildsEverything_regressionGuard() {
-        // Judge disabled only to avoid leaking a scheduled runner; the property
-        // under test (wikantik.knowledge.enabled) is deliberately ABSENT.
+    void create_propertyAbsent_buildsNoKnowledgeGraph_offIsTheDefault() {
+        // The KG was retired 2026-11-08: an ABSENT wikantik.knowledge.enabled means OFF.
         final Properties props = new Properties();
+        props.setProperty( "wikantik.kg.judge.enabled", "false" );
+
+        final KnowledgeSubsystem.Services off = KnowledgeSubsystemFactory.create( deps( props ) );
+
+        assertNull( off.kgService(), "kgService absent by default" );
+        assertNull( off.kgMaterialization(), "kgMaterialization absent by default" );
+        assertNull( off.hubDiscoveryService(), "hubDiscoveryService absent by default" );
+        assertNotNull( off.chunkProjector(), "chunking survives" );
+    }
+
+    @Test
+    void create_propertyTrue_buildsEverything_regressionGuard() {
+        // Judge disabled only to avoid leaking a scheduled runner.
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
         props.setProperty( "wikantik.kg.judge.enabled", "false" );
 
         final KnowledgeSubsystem.Services s = KnowledgeSubsystemFactory.create( deps( props ) );

@@ -111,7 +111,7 @@ final class OpenApiDocument {
 
         schemas.put( "RelatedPageHint", Map.of(
                 "type", "object",
-                "description", "A page connected via knowledge-graph mention co-occurrence",
+                "description", "A page with similar content, found by embedding similarity",
                 "properties", orderedProps(
                         prop( "name", "string", "Wiki page name" ),
                         prop( "reason", "string", "Short human-readable explanation of the link" ) ) ) );
@@ -124,7 +124,7 @@ final class OpenApiDocument {
                         prop( "score", "number", "Relevance score; higher is better" ),
                         prop( "summary", "string", "Page summary from frontmatter, when present" ),
                         prop( "tags", "array", "Page tags from frontmatter, when present" ),
-                        prop( "cluster", "string", "Knowledge-graph cluster label, when present" ),
+                        prop( "cluster", "string", "Cluster the page belongs to (page frontmatter), when present" ),
                         Map.entry( "contributingChunks", Map.of(
                                 "type", "array",
                                 "items", Map.of( "$ref", "#/components/schemas/ContributingChunk" ),
@@ -132,7 +132,7 @@ final class OpenApiDocument {
                         Map.entry( "relatedPages", Map.of(
                                 "type", "array",
                                 "items", Map.of( "$ref", "#/components/schemas/RelatedPageHint" ),
-                                "description", "Pages linked via KG-mention co-occurrence" ) ),
+                                "description", "Pages with similar content (embedding similarity); only pages the caller may view" ) ),
                         prop( "snippet", "string", "Leading excerpt from the top contributing chunk (legacy field — use contributingChunks for richer context)" ),
                         prop( "lastModified", "string", "ISO-8601 timestamp of the last edit" ),
                         prop( "author", "string", "Display name of the last author, when recorded" ) ) ) );

@@ -179,20 +179,11 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         // Phase 4: build the MCP sync server and wire it to the transport.
         try {
             final var serverImpl = new McpSchema.Implementation(
-                    "wikantik-knowledge", "Wikantik Knowledge Graph", Release.getVersionString() );
+                    "wikantik-knowledge", SERVER_DISPLAY_NAME, Release.getVersionString() );
 
             final var builder = McpServer.sync( transportProvider )
                     .serverInfo( serverImpl )
-                    .instructions( "Agent-facing MCP endpoint. For wiki structure (fastest, " +
-                        "no full-text search) use list_clusters, list_tags, list_pages_by_filter, " +
-                        "or get_page_by_id; get_page_neighbors lists a page's wikilinks in and out " +
-                        "plus its cluster siblings. For wiki content use assemble_bundle " +
-                        "(primary answer-grounding tool), retrieve_context (page/section discovery), " +
-                        "get_page (pinned fetch), read_pages (batched markdown fetch, max 20), " +
-                        "get_briefing (session-start briefing: your project's pages and the contracts it cites), " +
-                        "list_pages (browse), or list_metadata_values (discovery). For Knowledge Graph (LLM-extracted entities) use " +
-                        "discover_schema, query_nodes, get_node, traverse, search_knowledge, " +
-                        "or find_similar." )
+                    .instructions( serverInstructions( kgService != null ) )
                     .capabilities( ServerCapabilities.builder()
                             .tools( true )
                             .build() );
@@ -209,6 +200,29 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             LOG.error( "Knowledge MCP startup failed during server build — transport servlet is registered " +
                     "but will return protocol errors: {}", e.getMessage(), e );
         }
+    }
+
+    /** Server display name advertised in the MCP {@code initialize} response. */
+    static final String SERVER_DISPLAY_NAME = "Wikantik Knowledge";
+
+    /**
+     * The server-level instruction string. The Knowledge Graph sentence is included only when the
+     * KG tools are actually registered ({@code kgEnabled}), so an agent is never pointed at a tool the
+     * server does not have.
+     */
+    static String serverInstructions( final boolean kgEnabled ) {
+        final String base = "Agent-facing MCP endpoint. For wiki structure (fastest, " +
+            "no full-text search) use list_clusters, list_tags, list_pages_by_filter, " +
+            "or get_page_by_id; get_page_neighbors lists a page's wikilinks in and out " +
+            "plus its cluster siblings. For wiki content use assemble_bundle " +
+            "(primary answer-grounding tool), retrieve_context (page/section discovery), " +
+            "get_page (pinned fetch), read_pages (batched markdown fetch, max 20), " +
+            "get_briefing (session-start briefing: your project's pages and the contracts it cites), " +
+            "list_pages (browse), or list_metadata_values (discovery).";
+        return kgEnabled
+            ? base + " For Knowledge Graph (LLM-extracted entities) use discover_schema, query_nodes, " +
+                "get_node, traverse, search_knowledge, or find_similar."
+            : base;
     }
 
     /**

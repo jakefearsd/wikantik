@@ -202,7 +202,7 @@ export default function PageGraphView() {
       <div className="graph-view">
         <div className="graph-info-banner">
           Page Graph — edges are real wikilinks.{' '}
-          <a href="/wiki/PageGraphVsKnowledgeGraph">What is the Page Graph?</a>
+          <a href="/wiki/PageGraphVsKnowledgeGraph">About the Page Graph</a>
         </div>
         <FilterPanel state={filterState} snapshot={snapshot} onChange={setFilterState} />
         <GraphToolbar

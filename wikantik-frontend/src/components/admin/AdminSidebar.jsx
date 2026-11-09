@@ -25,6 +25,7 @@ const GROUPS = [
   {
     title: 'Knowledge & Search',
     links: [
+      { to: '/admin/embeddings', label: 'Embeddings' },
       { to: '/admin/retrieval-quality', label: 'Retrieval Quality' },
       { to: '/admin/drift', label: 'Drift' },
       { to: '/admin/insights', label: 'Search Visibility' },

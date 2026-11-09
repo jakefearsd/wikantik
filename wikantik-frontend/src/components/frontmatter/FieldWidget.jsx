@@ -15,7 +15,6 @@ import { isWideField } from './fieldLayout';
 // A few schema labels are too long for the dense 2-up label column. Show a shorter
 // visible label while keeping the full schema label as the control's accessible name
 // (aria-label) so screen readers and getByLabelText() are unaffected.
-const SHORT_LABELS = { kg_include: 'Include in KG' };
 
 function fmtScalar(value) {
   if (value == null) return '—';
@@ -219,7 +218,7 @@ export default function FieldWidget({
   return (
     <div className={`fm-field fm-field-${key}${isWideField(spec) ? ' fm-field--wide' : ''}`} data-field={key}
       onFocus={handleFocus} onBlur={handleBlur}>
-      <label className="fm-label">{SHORT_LABELS[key] || label}</label>
+      <label className="fm-label">{label}</label>
       <div className="fm-control">
         {control}
         {changedBy && (

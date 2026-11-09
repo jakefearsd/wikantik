@@ -23,15 +23,11 @@ const OverviewDashboard = React.lazy(() => import('./components/admin/OverviewDa
 const AdminUsersPage = React.lazy(() => import('./components/admin/AdminUsersPage'));
 const AdminContentPage = React.lazy(() => import('./components/admin/AdminContentPage'));
 const AdminSecurityPage = React.lazy(() => import('./components/admin/AdminSecurityPage'));
-const AdminKnowledgePage = React.lazy(() => import('./components/admin/AdminKnowledgePage'));
+const AdminEmbeddingsPage = React.lazy(() => import('./components/admin/AdminEmbeddingsPage'));
 const AdminApiKeysPage = React.lazy(() => import('./components/admin/AdminApiKeysPage'));
 const AdminRetrievalQualityPage = React.lazy(() => import('./components/admin/AdminRetrievalQualityPage'));
 const AdminDriftPage = React.lazy(() => import('./components/admin/AdminDriftPage'));
 const InsightsPanel = React.lazy(() => import('./components/admin/InsightsPanel'));
-const AdminKgPolicyPage = React.lazy(() => import('./components/admin/AdminKgPolicyPage'));
-const AdminKgPolicyExplain = React.lazy(() => import('./components/admin/AdminKgPolicyExplain'));
-const AdminKgPolicyPending = React.lazy(() => import('./components/admin/AdminKgPolicyPending'));
-const AdminKgPolicyBootstrap = React.lazy(() => import('./components/admin/AdminKgPolicyBootstrap'));
 const AdminPageOwnershipPage = React.lazy(() => import('./components/admin/AdminPageOwnershipPage'));
 const AdminAuditPage = React.lazy(() => import('./components/admin/AdminAuditPage'));
 const AdminConnectorsPage = React.lazy(() => import('./components/admin/AdminConnectorsPage'));
@@ -41,7 +37,6 @@ const AddConnectorWizard = React.lazy(() => import('./components/admin/AddConnec
 const LoginPage = React.lazy(() => import('./components/LoginPage'));
 const ChangePasswordPage = React.lazy(() => import('./components/ChangePasswordPage'));
 const PageGraphView = React.lazy(() => import('./components/pagegraph/PageGraphView.jsx'));
-const KnowledgeGraphView = React.lazy(() => import('./components/kgraph/KnowledgeGraphView.jsx'));
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -62,11 +57,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <PageGraphView />
               </Suspense>
             } />
-            <Route path="/knowledge-graph" element={
-              <Suspense fallback={<div className="graph-loading"><p>Loading knowledge graph...</p></div>}>
-                <KnowledgeGraphView />
-              </Suspense>
-            } />
             <Route path="/preferences" element={<UserPreferencesPage />} />
             <Route path="/me/mentions" element={<MentionsPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -77,15 +67,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="content" element={<AdminContentPage />} />
               <Route path="security" element={<AdminSecurityPage />} />
-              <Route path="knowledge-graph" element={<AdminKnowledgePage />} />
+              <Route path="embeddings" element={<AdminEmbeddingsPage />} />
               <Route path="apikeys" element={<AdminApiKeysPage />} />
               <Route path="retrieval-quality" element={<AdminRetrievalQualityPage />} />
               <Route path="drift" element={<AdminDriftPage />} />
               <Route path="insights" element={<InsightsPanel />} />
-              <Route path="kg-policy" element={<AdminKgPolicyPage />} />
-              <Route path="kg-policy/explain" element={<AdminKgPolicyExplain />} />
-              <Route path="kg-policy/pending" element={<AdminKgPolicyPending />} />
-              <Route path="kg-policy/bootstrap" element={<AdminKgPolicyBootstrap />} />
               <Route path="page-ownership" element={<AdminPageOwnershipPage />} />
               <Route path="audit" element={<AdminAuditPage />} />
               <Route path="connectors" element={<AdminConnectorsPage />} />

@@ -32,6 +32,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -49,26 +50,52 @@ final class PersistenceSubsystemFactoryTest {
     @Test
     void createPopulatesEveryRepositoryField() throws Exception {
         final DataSource dataSource = PostgresTestDb.createDataSource();
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.knowledge.enabled", "true" );
 
         final PersistenceSubsystem.Services services = PersistenceSubsystemFactory.create(
-            new PersistenceSubsystem.Deps(
-                dataSource,
-                new DefaultWikiProperties( new Properties() ) ) );
+            new PersistenceSubsystem.Deps( dataSource, new DefaultWikiProperties( props ) ) );
 
-        assertNotNull( services.dataSource(),           "dataSource" );
+        assertNonKnowledgeGraphRepositoriesPresent( services );
         assertNotNull( services.kgNodes(),              "kgNodes" );
         assertNotNull( services.kgEdges(),              "kgEdges" );
         assertNotNull( services.kgProposals(),          "kgProposals" );
         assertNotNull( services.kgRejections(),         "kgRejections" );
         assertNotNull( services.hubProposals(),         "hubProposals" );
         assertNotNull( services.hubDiscovery(),         "hubDiscovery" );
-        assertNotNull( services.contentChunks(),        "contentChunks" );
         assertNotNull( services.chunkEntityMentions(),  "chunkEntityMentions" );
         assertNotNull( services.kgNodeEmbeddings(),     "kgNodeEmbeddings" );
         assertNotNull( services.judgeTimeouts(),        "judgeTimeouts" );
-        assertNotNull( services.retrievalQualityDao(),  "retrievalQualityDao" );
         assertNotNull( services.kgExcludedPages(),      "kgExcludedPages" );
         assertNotNull( services.kgClusterPolicy(),      "kgClusterPolicy" );
+    }
+
+    /** The Knowledge Graph is retired and off by default: none of its repositories is even constructed. */
+    @Test
+    void knowledgeGraphRepositoriesAreNotBuiltWhenTheKnowledgeGraphIsOff() throws Exception {
+        final DataSource dataSource = PostgresTestDb.createDataSource();
+
+        final PersistenceSubsystem.Services services = PersistenceSubsystemFactory.create(
+            new PersistenceSubsystem.Deps( dataSource, new DefaultWikiProperties( new Properties() ) ) );
+
+        assertNonKnowledgeGraphRepositoriesPresent( services );
+        assertNull( services.kgNodes(),              "kgNodes" );
+        assertNull( services.kgEdges(),              "kgEdges" );
+        assertNull( services.kgProposals(),          "kgProposals" );
+        assertNull( services.kgRejections(),         "kgRejections" );
+        assertNull( services.hubProposals(),         "hubProposals" );
+        assertNull( services.hubDiscovery(),         "hubDiscovery" );
+        assertNull( services.chunkEntityMentions(),  "chunkEntityMentions" );
+        assertNull( services.kgNodeEmbeddings(),     "kgNodeEmbeddings" );
+        assertNull( services.judgeTimeouts(),        "judgeTimeouts" );
+        assertNull( services.kgExcludedPages(),      "kgExcludedPages" );
+        assertNull( services.kgClusterPolicy(),      "kgClusterPolicy" );
+    }
+
+    private static void assertNonKnowledgeGraphRepositoriesPresent( final PersistenceSubsystem.Services services ) {
+        assertNotNull( services.dataSource(),           "dataSource" );
+        assertNotNull( services.contentChunks(),        "contentChunks" );
+        assertNotNull( services.retrievalQualityDao(),  "retrievalQualityDao" );
         assertNotNull( services.pageCanonicalIds(),     "pageCanonicalIds" );
         assertNotNull( services.pageVerification(),     "pageVerification" );
         assertNotNull( services.trustedAuthors(),       "trustedAuthors" );

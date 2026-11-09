@@ -10,26 +10,29 @@ instead of repeating the numbers.
 
 | Endpoint | Protocol | Tools | Access | Minimum key scope |
 |---|---|---|---|---|
-| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 29 read and write tools when fully wired | `McpAccessFilter` | `mcp_admin` |
-| `/knowledge-mcp` | MCP (Streamable HTTP) | 22 read-only tools when fully wired | `McpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
+| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 20 read and write tools (29 with the retired Knowledge Graph enabled) | `McpAccessFilter` | `mcp_admin` |
+| `/knowledge-mcp` | MCP (Streamable HTTP) | 16 read-only tools (22 with the retired Knowledge Graph enabled) | `McpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
 | `/tools/*` | OpenAPI 3.1 over plain HTTP | 2 | `ToolsAccessFilter` | `tools` |
 
-Counts are as of **2.4.53**. The URL patterns come from `web.xml` (`/tools/*`) and the
+Counts are as of **2.5.12**, with the Knowledge Graph off (`wikantik.knowledge.enabled=false`, the default since its retirement). The URL patterns come from `web.xml` (`/tools/*`) and the
 MCP bootstrapper (`/wikantik-admin-mcp`, `/knowledge-mcp`).
 
 ### The counts depend on wiring
 
-The numbers above are the maximum, reached when every optional subsystem is present.
-A deployment without a subsystem advertises fewer tools.
+The numbers above are what a default deployment advertises. The Knowledge Graph (KG) is
+**retired and off by default**: with `wikantik.knowledge.enabled=false` its tools are not
+registered on either server. Setting the flag to `true` brings back the legacy KG tools
+(listed as retired below), which no longer appear in the server instructions and are not
+supported. A deployment without another optional subsystem advertises fewer tools still.
 
 **`/wikantik-admin-mcp`** (registered in `McpToolRegistry`, verified against
-`McpProtocolIT.EXPECTED_TOOLS`, which lists 29):
+`McpProtocolIT.EXPECTED_TOOLS`, which lists 20):
 
 - 19 tools are always registered.
-- 9 tools need the Knowledge Graph service: `list_proposals`, `inspect_proposals`,
-  `propose_knowledge`, `query_nodes`, `search_knowledge`, `list_orphaned_kg_nodes`,
-  and (only when the curation service is also present) `review_proposals`,
-  `curate_edges`, `curate_nodes`.
+- Retired, registered only when `wikantik.knowledge.enabled=true` (9 more tools):
+  `list_proposals`, `inspect_proposals`, `propose_knowledge`, `query_nodes`,
+  `search_knowledge`, `list_orphaned_kg_nodes`, and (only when the curation service is
+  also present) `review_proposals`, `curate_edges`, `curate_nodes`.
 - `list_retrieval_queries` needs a datasource-backed query-log reader.
 - `rename_cluster`, `list_content_opportunities` and `snooze_opportunity` are
   registered unconditionally, but refuse at call time with an explanation when the
@@ -37,13 +40,13 @@ A deployment without a subsystem advertises fewer tools.
   `tools/list` so the advertised surface does not vary with wiring.
 
 **`/knowledge-mcp`** (registered in `KnowledgeMcpInitializer.assembleTools`; the
-endpoint is not mounted at all unless the Knowledge Graph service, the context
-retrieval service or the structural index exists):
+endpoint is not mounted at all unless the context retrieval service, the structural
+index or (retired) the Knowledge Graph service exists):
 
 | Tools | Registered only when |
 |---|---|
-| `discover_schema`, `query_nodes`, `get_node`, `traverse`, `search_knowledge` | the Knowledge Graph service is present |
-| `find_similar` | the Knowledge Graph service **and** the node-similarity index are present |
+| `discover_schema`, `query_nodes`, `get_node`, `traverse`, `search_knowledge` (retired, 5 tools) | the Knowledge Graph service is present (`wikantik.knowledge.enabled=true`; off by default) |
+| `find_similar` (retired) | the Knowledge Graph service **and** the node-similarity index are present |
 | `retrieve_context`, `get_page`, `list_pages`, `list_metadata_values`, `read_pages` | the context retrieval service is present |
 | `list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id` | the structural index is present |
 | `get_page_for_agent` | the for-agent projection service is present |
@@ -53,8 +56,7 @@ retrieval service or the structural index exists):
 | `list_stale_citations` | the citation repository is present (`wikantik.citations.enabled` with a datasource) |
 
 To see what your deployment really exposes, call `tools/list` (see
-[Open a session with curl](#open-a-session-with-curl)). A local development server with
-everything wired returns exactly the 21 names in the knowledge catalogue below.
+[Open a session with curl](#open-a-session-with-curl)). A default local server returns exactly the 16 names in the knowledge catalogue below.
 
 ## Get a key
 
@@ -68,7 +70,7 @@ The short version:
 | You want an agent that… | Scope |
 |---|---|
 | reads and searches content over `/knowledge-mcp` only | `mcp_read` |
-| curates content and the Knowledge Graph over `/wikantik-admin-mcp` (and can also use `/knowledge-mcp`) | `mcp_admin` |
+| curates content over `/wikantik-admin-mcp` (and can also use `/knowledge-mcp`) | `mcp_admin` |
 | calls only the OpenAPI `/tools/*` endpoints | `tools` |
 | reaches every key-protected surface | `all` |
 
@@ -76,7 +78,7 @@ The short version:
 only for attribution and the audit trail. Authorisation is the scope check in the access
 filter, the admin tools perform no per-user permission checks, and pages are saved
 through a request-less context, so any `mcp_admin` or `all` key can read and write every
-non-system page and curate the Knowledge Graph. Treat `mcp_admin` keys as admin credentials.
+non-system page. Treat `mcp_admin` keys as admin credentials.
 The scope was named `mcp` before 2.4.54; keys stored under the old name still work and log a
 WARN on each use (see [Legacy `mcp` scope name](ApiKeys.md#legacy-mcp-scope-name)).
 A narrower `mcp_content` tier is planned
@@ -182,10 +184,10 @@ a bearer token.
 
 ## Tool catalogue
 
-"Access" says what the tool can change: **read** tools never modify wiki content or the
-Knowledge Graph; **write** tools do.
+"Access" says what the tool can change: **read** tools never modify wiki content;
+**write** tools do.
 
-### /wikantik-admin-mcp (29 tools when fully wired)
+### /wikantik-admin-mcp (20 tools by default)
 
 The authoritative per-tool descriptions are in
 `wikantik-admin-mcp/src/main/resources/wikantik-mcp-instructions.txt`, which the server
@@ -212,29 +214,19 @@ returns as its instructions on `initialize`. Every write tool refuses system pag
 | `rename_page` | Rename a page, moving history and attachments, optionally rewriting referrers | write |
 | `rename_cluster` | Rewrite a cluster path across every member page; returns a plan unless `confirm=true` | write |
 | `mark_page_verified` | Stamp `verified_at`/`verified_by` and optionally pin `confidence` | write |
-| `list_proposals` | Query Knowledge Graph proposals | read |
-| `inspect_proposals` | Bulk deep-dive on 1-50 proposals with conflict flags | read |
-| `propose_knowledge` | Submit a Knowledge Graph proposal for human review | write |
-| `review_proposals` | Bulk approve, reject or judge 1-50 proposals | write |
-| `curate_edges` | Bulk edge upsert, confirm, delete, delete-and-reject (1-50 ops) | write |
-| `curate_nodes` | Bulk node upsert, delete, merge (1-50 ops) | write |
-| `query_nodes` | Filter and list Knowledge Graph nodes with the inclusion filter bypassed | read |
-| `search_knowledge` | Fuzzy search over Knowledge Graph node names and properties, filter bypassed | read |
-| `list_orphaned_kg_nodes` | Knowledge Graph nodes with no incident edges | read |
 | `list_retrieval_queries` | Real retrieval queries from the query log, ranked by frequency | read |
 | `list_content_opportunities` | The ranked content-opportunity backlog; see [ContentIntelligence.md](ContentIntelligence.md) | read |
 | `snooze_opportunity` | Decline an opportunity for 1-365 days with a required reason | write |
 
-### /knowledge-mcp (22 tools when fully wired)
+### /knowledge-mcp (16 tools by default)
 
-All 22 are read-only with respect to content. `assemble_bundle` and `get_briefing`
+All 16 are read-only with respect to content. `assemble_bundle` and `get_briefing`
 record query telemetry (`retrieval_query_log`, `briefing_log`), which does not change
 wiki content. Tools that take the guest view gate described under
 [Get a key](#get-a-key) do not return restricted pages: `assemble_bundle`, `get_briefing`,
 `retrieve_context`, `get_page`, `read_pages`, `get_page_for_agent`, `get_page_by_id`,
-`get_page_neighbors`, `list_pages`, `list_pages_by_filter`, `list_clusters`, `query_nodes`, `get_node`,
-`traverse`, `search_knowledge`, `find_similar` and `list_metadata_values`. These take no gate: `list_tags`,
-`discover_schema`, `list_stale_citations`, `get_ontology` and
+`get_page_neighbors`, `list_pages`, `list_pages_by_filter`, `list_clusters` and
+`list_metadata_values`. These take no gate: `list_tags`, `list_stale_citations`, `get_ontology` and
 `sparql_query`; the last two read the ontology, which is already limited to publicly
 viewable content. If the guest session cannot be built at startup, the gate degrades to
 allow-all and logs an `ERROR`.
@@ -254,24 +246,20 @@ allow-all and logs an `ERROR`.
 | `list_clusters` | Every cluster with its hub page, article count and last update |
 | `list_tags` | The tag dictionary with page counts (frontmatter and inline `#tags`, by normalised form) |
 | `list_metadata_values` | Distinct values of a frontmatter field with counts |
-| `discover_schema` | Shape of the Knowledge Graph: node types, relationship types, property keys |
-| `query_nodes` | Search Knowledge Graph nodes by type, properties and provenance |
-| `get_node` | Full details for one node, including edges and provenance |
-| `traverse` | Walk the co-mention graph from a seed node |
-| `search_knowledge` | Full-text search over Knowledge Graph node names and properties |
-| `find_similar` | Nodes similar to a given node by mention-centroid embedding |
 | `get_ontology` | The formal ontology T-Box (classes, properties, SKOS schemes) |
 | `sparql_query` | Read-only SPARQL over the materialized ontology (10,000-row cap, 30 s timeout) |
 | `list_stale_citations` | Citations whose status is `stale` or `target_missing` |
 
-The two servers share `query_nodes` and `search_knowledge`, but the admin variants
-bypass the Knowledge Graph inclusion policy so curators see freshly created entities;
-the knowledge variants do not.
+**Retired Knowledge Graph tools.** Admin: `list_proposals`, `inspect_proposals`,
+`propose_knowledge`, `review_proposals`, `curate_edges`, `curate_nodes`, `query_nodes`,
+`search_knowledge`, `list_orphaned_kg_nodes`. Knowledge: `discover_schema`, `query_nodes`,
+`get_node`, `traverse`, `search_knowledge`, `find_similar`. They exist only with
+`wikantik.knowledge.enabled=true`, are undocumented in the server instructions and are slated
+for deletion. For content discovery use `retrieve_context` and `assemble_bundle`.
 
 ## Where to go next
 
 - [ApiKeys.md](ApiKeys.md): issue, scope and revoke keys.
 - [Security.md](Security.md): the rest of the security model.
 - [RagContextBundle.md](RagContextBundle.md): how `assemble_bundle` builds a bundle.
-- [KgInclusionPolicy.md](KgInclusionPolicy.md): which pages the Knowledge Graph tools can see.
 - [OntologyManagement.md](OntologyManagement.md): the ontology behind `get_ontology` and `sparql_query`.

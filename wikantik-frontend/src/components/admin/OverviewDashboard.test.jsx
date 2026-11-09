@@ -9,10 +9,7 @@ vi.mock('../../api/client', () => ({ api: { admin: { getOverview: vi.fn() } } })
 
 const payload = {
   load: { inflight: 3, permitsMax: 390, rejected: 0 },
-  kgProposals: { pending: 17 },
   users: { users: 5, apiKeys: 3, locked: 1 },
-  kgSize: { nodes: 200, edges: 450, stubs: 12, orphans: 4 },
-  judge: { pending: 8, timeouts: 2, shortCircuit: 1 },
   auth: { logins: 42, failed: 3 },
   agentSurface: { hubSynthesis: 7, hintFailures: 0, forAgentBytes: 1024, forAgentCount: 15 },
   contentQuality: { authoritative: 80, provisional: 15, stale: 5, noVerification: 10 },
@@ -26,7 +23,7 @@ beforeEach(() => { api.admin.getOverview.mockResolvedValue(payload); });
 describe('OverviewDashboard', () => {
   it('renders the status band cards from the payload', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    expect(await screen.findByText('17')).toBeInTheDocument();
+    expect(await screen.findByText('3 keys · 1 locked')).toBeInTheDocument();
     expect(screen.getByText('Status & action')).toBeInTheDocument();
     expect(screen.getByText('System metrics')).toBeInTheDocument();
   });
@@ -39,16 +36,6 @@ describe('OverviewDashboard', () => {
   it('enriched users card shows api keys and locked count', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
     expect(await screen.findByText('3 keys · 1 locked')).toBeInTheDocument();
-  });
-
-  it('enriched kgSize card shows edges, stubs, and orphans', async () => {
-    render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    expect(await screen.findByText('450 edges · 12 stubs · 4 orphans')).toBeInTheDocument();
-  });
-
-  it('enriched judge card shows pending as value and timeout/sc in meta', async () => {
-    render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    expect(await screen.findByText('2 timeout · 1 sc')).toBeInTheDocument();
   });
 
   it('enriched auth card shows failed count in meta', async () => {
@@ -90,11 +77,12 @@ describe('OverviewDashboard', () => {
     expect(screen.getByTestId('metric-card-attachments')).toBeInTheDocument();
   });
 
-  it('link card: kgProposals renders an anchor to /admin/knowledge-graph', async () => {
+  it('has no Knowledge Graph cards', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    expect(await screen.findByText('17')).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /kg proposals/i });
-    expect(link).toHaveAttribute('href', '/admin/knowledge-graph');
+    expect(await screen.findByTestId('admin-overview')).toBeInTheDocument();
+    for (const k of ['kgProposals', 'kgSize', 'extractor', 'judge']) {
+      expect(screen.queryByTestId(`metric-card-${k}`)).toBeNull();
+    }
   });
 
   it('link card: users renders an anchor to /admin/users', async () => {

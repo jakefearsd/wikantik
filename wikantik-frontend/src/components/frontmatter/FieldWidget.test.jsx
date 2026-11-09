@@ -14,8 +14,8 @@ describe('FieldWidget', () => {
 
   it('maps a TRISTATE select to true/false/undefined', () => {
     const onChange = vi.fn();
-    render(<FieldWidget spec={{ key: 'kg_include', label: 'KG', widget: 'TRISTATE' }} value={undefined} onChange={onChange} />);
-    const sel = screen.getByLabelText('KG');
+    render(<FieldWidget spec={{ key: 'reviewed', label: 'Reviewed', widget: 'TRISTATE' }} value={undefined} onChange={onChange} />);
+    const sel = screen.getByLabelText('Reviewed');
     fireEvent.change(sel, { target: { value: 'true' } });
     expect(onChange).toHaveBeenCalledWith(true);
     fireEvent.change(sel, { target: { value: '' } });
@@ -34,15 +34,6 @@ describe('FieldWidget', () => {
     render(<FieldWidget spec={{ key: 'runbook', label: 'Runbook', widget: 'RUNBOOK_BLOCK' }} value={{}} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText('runbook steps'), { target: { value: 'step one\nstep two' } });
     expect(onChange).toHaveBeenCalledWith({ steps: ['step one', 'step two'] });
-  });
-
-  it('shortens the visible kg_include label but keeps the full accessible name', () => {
-    render(<FieldWidget spec={{ key: 'kg_include', label: 'Include in Knowledge Graph', widget: 'TRISTATE' }}
-      value={undefined} onChange={noop} />);
-    // dense visible label
-    expect(screen.getByText('Include in KG')).toBeInTheDocument();
-    // control's accessible name stays the full schema label (screen readers, getByLabelText)
-    expect(screen.getByLabelText('Include in Knowledge Graph')).toBeTruthy();
   });
 
   it('wraps the control and its violations in a .fm-control element', () => {

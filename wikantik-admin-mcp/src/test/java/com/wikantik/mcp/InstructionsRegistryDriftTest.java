@@ -19,17 +19,8 @@
 package com.wikantik.mcp;
 
 import com.wikantik.TestEngine;
-import com.wikantik.mcp.tools.CurateEdgesTool;
-import com.wikantik.mcp.tools.CurateNodesTool;
-import com.wikantik.mcp.tools.InspectProposalsTool;
-import com.wikantik.mcp.tools.ListOrphanedKgNodesTool;
-import com.wikantik.mcp.tools.ListProposalsTool;
 import com.wikantik.mcp.tools.ListRetrievalQueriesTool;
 import com.wikantik.mcp.tools.McpTool;
-import com.wikantik.mcp.tools.ProposeKnowledgeTool;
-import com.wikantik.mcp.tools.ReviewProposalsTool;
-import com.wikantik.mcp.tools.kg.QueryNodesTool;
-import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,10 +54,10 @@ import static org.junit.jupiter.api.Assertions.fail;
  *       actually invoke.</li>
  * </ol>
  *
- * <p>The KG-conditional tools ({@code list_proposals}, {@code propose_knowledge}) are
- * registered in production but not in {@link TestEngine}, so we add their {@code
- * TOOL_NAME} constants explicitly to the expected set — production ships with them, and
- * the instructions document the production surface.</p>
+ * <p>The Knowledge Graph tools are registered only when {@code wikantik.knowledge.enabled=true}
+ * (default false since the KG retirement, 2026-11), so they are neither expected nor allowed in the
+ * instructions. {@code list_retrieval_queries} is datasource-conditional and not wired in {@link TestEngine},
+ * so its {@code TOOL_NAME} is added explicitly.</p>
  */
 class InstructionsRegistryDriftTest {
 
@@ -154,6 +145,16 @@ class InstructionsRegistryDriftTest {
                 "delete_and_reject is an action value, not a tool: " + mentioned );
     }
 
+    @Test
+    void instructionsDoNotAdvertiseKnowledgeGraphTools() {
+        final Set< String > mentioned = McpServerInitializer.extractToolLikeNames( loadInstructions() );
+        for ( final String kgTool : new String[] { "list_proposals", "inspect_proposals", "propose_knowledge",
+                "review_proposals", "curate_edges", "curate_nodes", "query_nodes", "search_knowledge",
+                "list_orphaned_kg_nodes" } ) {
+            assertTrue( !mentioned.contains( kgTool ), "instructions still advertise retired KG tool " + kgTool );
+        }
+    }
+
     private Set< String > expectedToolNames() {
         final Set< String > names = new LinkedHashSet<>();
         for ( final McpTool tool : registry.readOnlyTools() ) {
@@ -162,18 +163,6 @@ class InstructionsRegistryDriftTest {
         for ( final McpTool tool : registry.authorConfigurableTools() ) {
             names.add( tool.name() );
         }
-        // KG-conditional tools — registered when KnowledgeGraphService is wired (DefaultEngine
-        // in production). TestEngine doesn't wire it, so add them explicitly: the shipped
-        // instructions describe production, where these tools are present.
-        names.add( ListProposalsTool.TOOL_NAME );
-        names.add( ProposeKnowledgeTool.TOOL_NAME );
-        names.add( QueryNodesTool.TOOL_NAME );
-        names.add( SearchKnowledgeTool.TOOL_NAME );
-        names.add( ListOrphanedKgNodesTool.TOOL_NAME );
-        names.add( InspectProposalsTool.TOOL_NAME );
-        names.add( ReviewProposalsTool.TOOL_NAME );
-        names.add( CurateEdgesTool.TOOL_NAME );
-        names.add( CurateNodesTool.TOOL_NAME );
         // QueryLogReader-conditional tool — datasource is not wired in TestEngine.
         names.add( ListRetrievalQueriesTool.TOOL_NAME );
         return names;

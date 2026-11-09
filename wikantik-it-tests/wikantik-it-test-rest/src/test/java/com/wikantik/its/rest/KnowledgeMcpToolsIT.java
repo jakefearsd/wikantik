@@ -52,10 +52,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>{@code list_pages} — envelope, paging arguments are honored.</li>
  *   <li>{@code list_pages_by_filter} — envelope shape.</li>
  *   <li>{@code list_metadata_values} — envelope shape.</li>
- *   <li>{@code discover_schema} — envelope contains {@code node_types} / {@code relationship_types}.</li>
- *   <li>{@code search_knowledge} — happy path returns {@code results}+{@code scope};
- *       missing {@code query} surfaces an isError result.</li>
- *   <li>{@code query_nodes} — empty filter returns array envelope.</li>
  *   <li>{@code get_page} — happy path returns a name; missing page returns {@code exists:false}.</li>
  *   <li>{@code get_page_for_agent} — missing canonical_id is a tool error.</li>
  * </ul>
@@ -217,59 +213,6 @@ public class KnowledgeMcpToolsIT {
                 || body.has( "count" ) || body.has( "data" );
         assertTrue( recognisable,
                 "list_metadata_values must expose values/results/count/data: " + body );
-    }
-
-    // ---- discover_schema ----
-
-    @Test
-    void discoverSchema_describesNodeAndRelationshipTypes() {
-        final JsonObject body = callSuccess( "discover_schema", Map.of() );
-        assertNotNull( body, "envelope must not be null" );
-        // The schema description must at least mention node and relationship
-        // type vocabularies so callers can build follow-up query_nodes calls.
-        final boolean mentionsShape = body.toString().contains( "node" )
-                || body.toString().contains( "relationship" );
-        assertTrue( mentionsShape,
-                "discover_schema must describe node / relationship vocabulary: " + body );
-    }
-
-    // ---- search_knowledge ----
-
-    @Test
-    void searchKnowledge_happyPathReturnsResultsAndScope() {
-        final JsonObject body = callSuccess( "search_knowledge",
-                Map.of( "query", "knowledge", "limit", 5 ) );
-        assertTrue( body.has( "results" ),
-                "search_knowledge must include 'results': " + body );
-        assertEquals( "knowledge_graph_nodes_only", body.get( "scope" ).getAsString(),
-                "search_knowledge must declare its scope: " + body );
-        assertTrue( body.get( "results" ).isJsonArray(),
-                "results must be a JSON array: " + body );
-    }
-
-    @Test
-    void searchKnowledge_missingQueryReturnsError() {
-        final String body = callExpectErrorText( "search_knowledge", Map.of() );
-        assertTrue( body.contains( "query" ),
-                "missing-query error must name the offending field: " + body );
-    }
-
-    // ---- query_nodes ----
-
-    @Test
-    void queryNodes_returnsArrayEnvelope() {
-        // No filter — let the service return whatever it has (possibly empty
-        // on a fresh IT DB).
-        final JsonObject body = callSuccess( "query_nodes",
-                Map.of( "limit", 5 ) );
-        assertNotNull( body, "envelope must not be null" );
-        // Expect a nodes / results / count field — three legitimate shapes
-        // depending on the running KG state.
-        final boolean recognisable = body.has( "nodes" )
-                || body.has( "results" )
-                || body.has( "count" );
-        assertTrue( recognisable,
-                "query_nodes must expose nodes/results/count: " + body );
     }
 
     // ---- get_page ----

@@ -161,42 +161,32 @@ class SpaRoutingFilterTest {
     }
 
     @Test
-    void redirectsLegacyAdminKnowledgePathToKnowledgeGraph() throws Exception {
-        final HttpServletRequest req = mock( HttpServletRequest.class );
-        final HttpServletResponse resp = mock( HttpServletResponse.class );
-        when( req.getContextPath() ).thenReturn( "" );
-        when( req.getRequestURI() ).thenReturn( "/admin/knowledge/extraction" );
-        when( req.getQueryString() ).thenReturn( null );
+    void knowledgeGraphViewerIsNoLongerAnSpaRoute() throws Exception {
+        final HttpServletRequest req = mockRequest( "/knowledge-graph" );
 
-        filter.doFilter( req, resp, mock( FilterChain.class ) );
+        filter.doFilter( req, response, chain );
 
-        verify( resp ).setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
-        verify( resp ).setHeader( "Location", "/admin/knowledge-graph/extraction" );
+        verify( chain ).doFilter( req, response );
+        verify( response, never() ).setContentType( "text/html;charset=UTF-8" );
     }
 
     @Test
-    void redirectsLegacyAdminKnowledgeExactPathToKnowledgeGraph() throws Exception {
-        final HttpServletRequest req = mock( HttpServletRequest.class );
-        final HttpServletResponse resp = mock( HttpServletResponse.class );
-        when( req.getContextPath() ).thenReturn( "" );
-        when( req.getRequestURI() ).thenReturn( "/admin/knowledge" );
-        when( req.getQueryString() ).thenReturn( "tab=embeddings" );
-
-        filter.doFilter( req, resp, mock( FilterChain.class ) );
-
-        verify( resp ).setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
-        verify( resp ).setHeader( "Location", "/admin/knowledge-graph?tab=embeddings" );
-    }
-
-    @Test
-    void doesNotRedirectAdminKnowledgeGraphPath() throws Exception {
-        // /admin/knowledge-graph must NOT be caught by the /admin/knowledge-graph redirect —
-        // the startsWith("/admin/knowledge-graph/") guard must not match /admin/knowledge-graph
-        final HttpServletRequest req = mockRequest( "/admin/knowledge-graph" );
+    void legacyAdminKnowledgeRedirectIsRemoved() throws Exception {
+        final HttpServletRequest req = mockRequest( "/admin/knowledge/extraction" );
 
         filter.doFilter( req, response, chain );
 
         verify( response, never() ).setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+    }
+
+    @Test
+    void adminEmbeddingsPageIsServedBySpaAdminPrefix() throws Exception {
+        final HttpServletRequest req = mockRequest( "/admin/embeddings" );
+
+        filter.doFilter( req, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setContentType( "text/html;charset=UTF-8" );
     }
 
     // ---- SPA serving tests (at root context) ----

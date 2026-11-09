@@ -17,7 +17,7 @@ const OPPORTUNITY = {
   target: 'how do I deploy locally',
   priority: 6.0,
   calibrated: false,
-  suggestedAction: 'Curate the Knowledge Graph relations for this topic.',
+  suggestedAction: 'Add a section covering this topic.',
   firstSeen: '2026-08-02',
   evidence: { occurrences: 3, distinctSessions: 2 },
 };
@@ -52,7 +52,7 @@ describe('BacklogPanel', () => {
     expect(screen.getByText('6.00')).toBeInTheDocument();
     expect(screen.getByText('2026-08-02')).toBeInTheDocument();
     expect(
-      screen.getByText('Curate the Knowledge Graph relations for this topic.'),
+      screen.getByText('Add a section covering this topic.'),
     ).toBeInTheDocument();
   });
 

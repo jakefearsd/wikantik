@@ -12,7 +12,6 @@ function statusCards(_d) {
   return [
     { key: 'health',      label: 'Health',        render: (c) => <MetricCard label="Health" value={c?.status ?? '—'} meta={c?.version} degraded={!c} /> },
     { key: 'load',        label: 'Load',           render: (c) => <MetricCard label="Load" value={c ? `${c.inflight}/${c.permitsMax}` : null} meta={c ? `${c.rejected} shed` : null} degraded={!c} /> },
-    { key: 'kgProposals', label: 'KG proposals',   render: (c) => <MetricCard label="KG proposals" value={c?.pending} meta="pending → review" accent to="/admin/knowledge-graph" degraded={!c} /> },
     { key: 'retrieval',   label: 'Retrieval',      render: (c) => <MetricCard label="Retrieval" value={c?.ndcg5} meta="nDCG@5" to="/admin/retrieval-quality" degraded={!c} /> },
     { key: 'llmActivity', label: 'LLM activity',   render: (c) => <MetricCard label="LLM activity" value={c?.inFlight} meta={c ? `${c.count}/${c.windowMinutes}m · ${c.errors} err` : null} accent degraded={!c} /> },
     { key: 'searchIndex', label: 'Search & index', render: (c) => <MetricCard label="Search & index" value={c?.indexable} meta={c ? `/${c.total} · ${c.embeddingsPct}% emb` : null} to="/admin/content" degraded={!c} /> },
@@ -23,9 +22,6 @@ function statusCards(_d) {
 
 function metricCards(_d) {
   return [
-    { key: 'kgSize',          label: 'Knowledge Graph size', render: (c) => <MetricCard dim label="Knowledge Graph size" value={c?.nodes} meta={c ? `${c.edges} edges · ${c.stubs} stubs · ${c.orphans} orphans` : null} degraded={!c} /> },
-    { key: 'extractor',       label: 'Extractor pipeline',   render: (c) => <MetricCard dim label="Extractor pipeline" value={c?.requests} meta={c ? `${c.triples} triples · ${c.failures} fail` : null} degraded={!c} /> },
-    { key: 'judge',           label: 'KG judge',             render: (c) => <MetricCard dim label="KG judge" value={c?.pending} meta={c ? `${c.timeouts} timeout · ${c.shortCircuit} sc` : null} degraded={!c} /> },
     { key: 'renderCache',     label: 'Render cache',         render: (c) => <MetricCard dim label="Render cache" value={c?.hits} meta={c ? `${c.misses} miss · ${c.evictions} evict` : null} degraded={!c} /> },
     { key: 'auth',            label: 'Auth activity',        render: (c) => <MetricCard dim label="Auth activity" value={c?.logins} meta={c ? `${c.failed} failed` : null} degraded={!c} /> },
     { key: 'agentSurface',    label: 'Agent surface',        render: (c) => <MetricCard dim label="Agent surface" value={c?.hubSynthesis} meta={c ? `${c.forAgentBytes}B avg · ${c.hintFailures} hint fails` : null} degraded={!c} /> },

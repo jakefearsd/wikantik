@@ -51,7 +51,7 @@ public final class FakeDeps {
 
     public DefaultContextRetrievalService build() {
         return new DefaultContextRetrievalService(
-            engine, search, null, null, null, null, null, pageManager, fmCache, baseUrl, ontologyQuery,
+            engine, search, null, null, null, null, pageManager, fmCache, baseUrl, ontologyQuery,
             publicIdentity );
     }
 }

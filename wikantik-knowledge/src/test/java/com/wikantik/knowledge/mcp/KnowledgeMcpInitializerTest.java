@@ -115,4 +115,22 @@ class KnowledgeMcpInitializerTest {
         f.setAccessible( true );
         f.set( initializer, server );
     }
+
+    @org.junit.jupiter.api.Test
+    void serverInstructions_omitKnowledgeGraphToolsWhenDisabled() {
+        final String off = KnowledgeMcpInitializer.serverInstructions( false );
+        for ( final String kgTool : new String[] { "discover_schema", "query_nodes", "get_node", "traverse",
+                "search_knowledge", "find_similar", "Knowledge Graph" } ) {
+            org.junit.jupiter.api.Assertions.assertFalse( off.contains( kgTool ), "advertises " + kgTool );
+        }
+        org.junit.jupiter.api.Assertions.assertTrue( off.contains( "assemble_bundle" ) );
+        org.junit.jupiter.api.Assertions.assertTrue(
+            KnowledgeMcpInitializer.serverInstructions( true ).contains( "discover_schema" ) );
+    }
+
+    @org.junit.jupiter.api.Test
+    void serverDisplayName_isNotKnowledgeGraph() {
+        org.junit.jupiter.api.Assertions.assertEquals( "Wikantik Knowledge",
+            KnowledgeMcpInitializer.SERVER_DISPLAY_NAME );
+    }
 }

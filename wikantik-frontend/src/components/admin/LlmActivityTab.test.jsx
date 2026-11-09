@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LlmActivityTab from './LlmActivityTab';
 
 vi.mock('../../api/client', () => ({
-  api: { knowledge: { getLlmActivity: vi.fn() } },
+  api: { admin: { embeddings: { getLlmActivity: vi.fn() } } },
 }));
 import { api } from '../../api/client';
 
@@ -32,18 +32,18 @@ const payload = (calls, extra = {}) => ({
 
 describe('LlmActivityTab', () => {
   beforeEach(() => {
-    api.knowledge.getLlmActivity.mockReset();
+    api.admin.embeddings.getLlmActivity.mockReset();
   });
 
   it('renders a row per recorded call', async () => {
-    api.knowledge.getLlmActivity.mockResolvedValue(payload([call(), call({ seq: 2, model: 'nomic' })]));
+    api.admin.embeddings.getLlmActivity.mockResolvedValue(payload([call(), call({ seq: 2, model: 'nomic' })]));
     render(<LlmActivityTab />);
     expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
     expect(screen.getByText('nomic')).toBeInTheDocument();
   });
 
   it('shows an error row distinctly', async () => {
-    api.knowledge.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([call({ status: 'ERROR', errorMessage: 'timeout after 30s', responsePreview: null })]),
     );
     render(<LlmActivityTab />);
@@ -51,19 +51,19 @@ describe('LlmActivityTab', () => {
   });
 
   it('shows a disabled notice when the log is disabled', async () => {
-    api.knowledge.getLlmActivity.mockResolvedValue(payload([], { enabled: false }));
+    api.admin.embeddings.getLlmActivity.mockResolvedValue(payload([], { enabled: false }));
     render(<LlmActivityTab />);
     expect(await screen.findByText(/wikantik\.llm_activity\.enabled/)).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no calls', async () => {
-    api.knowledge.getLlmActivity.mockResolvedValue(payload([]));
+    api.admin.embeddings.getLlmActivity.mockResolvedValue(payload([]));
     render(<LlmActivityTab />);
     expect(await screen.findByText(/No LLM calls/i)).toBeInTheDocument();
   });
 
   it('filters table rows by subsystem when a chip is clicked', async () => {
-    api.knowledge.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([
         call({ seq: 1, subsystem: 'ENTITY_EXTRACTION', model: 'gemma4-assist' }),
         call({ seq: 2, subsystem: 'EMBEDDING', model: 'nomic' }),
@@ -80,7 +80,7 @@ describe('LlmActivityTab', () => {
   });
 
   it('renders chips + labeled rows for the SECTION_RERANK and QUERY_DECOMPOSITION subsystems and filters by them', async () => {
-    api.knowledge.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([
         call({ seq: 1, subsystem: 'SECTION_RERANK', model: 'rerank-model' }),
         call({ seq: 2, subsystem: 'QUERY_DECOMPOSITION', model: 'decomp-model' }),
@@ -102,7 +102,7 @@ describe('LlmActivityTab', () => {
   });
 
   it('filters table rows by status when a chip is clicked', async () => {
-    api.knowledge.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([
         call({ seq: 1, status: 'OK', model: 'gemma4-assist' }),
         call({ seq: 2, status: 'ERROR', model: 'nomic', errorMessage: 'boom' }),
@@ -118,7 +118,7 @@ describe('LlmActivityTab', () => {
   });
 
   it('keeps header totals unfiltered while a filter is active', async () => {
-    api.knowledge.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([
         call({ seq: 1, subsystem: 'ENTITY_EXTRACTION', model: 'gemma4-assist' }),
         call({ seq: 2, subsystem: 'EMBEDDING', model: 'nomic' }),
@@ -134,7 +134,7 @@ describe('LlmActivityTab', () => {
   });
 
   it('summarises in-flight and error counts in the header', async () => {
-    api.knowledge.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([call(), call({ seq: 2, status: 'ERROR', errorMessage: 'x' })], { inFlight: 3 }),
     );
     render(<LlmActivityTab />);

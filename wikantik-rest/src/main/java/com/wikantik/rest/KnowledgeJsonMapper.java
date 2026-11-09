@@ -42,7 +42,7 @@ import java.util.UUID;
  * <p>
  * {@code nodeToMap}/{@code edgeToMap}/{@code enrichEdge}/{@code mentionToMap}/{@code hubProposalToMap}
  * are all {@code public} because {@code com.wikantik.rest.knowledge.KgNodeAdminHandlers}/
- * {@code KgEdgeAdminHandlers}/{@code HubProposalAdminHandlers} — extracted from
+ * {@code KgEdgeAdminHandlers} — extracted from
  * {@code AdminKnowledgeResource} — call them from a different package.
  */
 public final class KnowledgeJsonMapper {

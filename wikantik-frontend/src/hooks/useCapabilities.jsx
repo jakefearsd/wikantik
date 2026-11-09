@@ -8,10 +8,8 @@ const CapabilitiesContext = createContext(null);
 // an existing deployment — the SPA renders exactly as it did before this
 // endpoint existed until proven otherwise by a real `false` in the response.
 const DEFAULT_CAPABILITIES = {
-  knowledgeGraph: true,
   hybridSearch: true,
   genaiMode: 'full',
-  ontology: true,
   connectors: true,
   citations: true,
 };
@@ -46,7 +44,7 @@ export function CapabilitiesProvider({ children }) {
 // Deliberately does NOT throw when used outside a CapabilitiesProvider
 // (unlike useAuth) — capability gating must never be the reason a component
 // crashes, and plenty of existing unit tests render leaf components (Sidebar,
-// AdminSidebar, KnowledgeGraphView, ...) without wrapping every provider in
+// AdminSidebar, ...) without wrapping every provider in
 // the tree. Falls back to the same fail-open defaults.
 export function useCapabilities() {
   const ctx = useContext(CapabilitiesContext);

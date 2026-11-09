@@ -63,6 +63,7 @@ public class AdminNavigationIT extends WithIntegrationTestSetup {
         Map.entry( "security",          "/admin/security" ),
         Map.entry( "apikeys",           "/admin/apikeys" ),
         Map.entry( "content",           "/admin/content" ),
+        Map.entry( "embeddings",        "/admin/embeddings" ),
         Map.entry( "retrieval-quality", "/admin/retrieval-quality" ) );
 
     /** Admin section routes to smoke-load (mirrors the admin rail order). */
@@ -71,13 +72,13 @@ public class AdminNavigationIT extends WithIntegrationTestSetup {
         "/admin/security",
         "/admin/apikeys",
         "/admin/content",
-        "/admin/retrieval-quality",
-        "/admin/kg-policy" );
+        "/admin/embeddings",
+        "/admin/retrieval-quality" );
 
     @BeforeEach
     void login() {
         // Fresh browser session per test so each starts anonymous — see the
-        // rationale in HubDiscoveryAdminIT.login().
+        // rationale of closing the driver in the other admin ITs.
         Selenide.closeWebDriver();
         ViewWikiPage.open( "Main" )
             .clickOnLogin()

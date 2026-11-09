@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.subsystem;
 
+import com.wikantik.api.config.KnowledgeGraphFlag;
 import com.wikantik.WikiEngine;
 import com.wikantik.admin.ContentIndexRebuildService;
 import com.wikantik.admin.LuceneReindexQueue;
@@ -131,8 +132,7 @@ public final class KnowledgeWiringHelper {
         // ForAgentProjectionService + ContentIndexRebuildService below are
         // KG-independent (agent projection + dense-index rebuild) and stay wired
         // even when the KG subsystem is disabled.
-        final boolean kgEnabled = TextUtil.getBooleanProperty(
-            props, "wikantik.knowledge.enabled", true );
+        final boolean kgEnabled = KnowledgeGraphFlag.isEnabled( props );
         final boolean kgPolicyEnabled = kgEnabled && TextUtil.getBooleanProperty(
             props, "wikantik.kg_policy.enabled", true );
         if ( kgPolicyEnabled ) {
@@ -281,7 +281,7 @@ public final class KnowledgeWiringHelper {
         // Master flag: KG off means no entity-extraction wiring at all, regardless
         // of wikantik.knowledge.extractor.backend (the extractor feeds the KG,
         // which does not exist when the subsystem is disabled).
-        if ( !TextUtil.getBooleanProperty( props, "wikantik.knowledge.enabled", true ) ) {
+        if ( !KnowledgeGraphFlag.isEnabled( props ) ) {
             LOG.info( "Entity extraction NOT wired — Knowledge Graph subsystem disabled "
                     + "(wikantik.knowledge.enabled=false)" );
             return;

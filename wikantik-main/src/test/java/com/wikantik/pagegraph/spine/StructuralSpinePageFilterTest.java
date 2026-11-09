@@ -202,18 +202,20 @@ class StructuralSpinePageFilterTest {
         assertEquals( input, out );
     }
 
+    /** The Knowledge Graph is retired: a legacy kg_include of any shape is inert and must never block a save. */
     @Test
-    void rejects_invalid_kg_include_value() {
+    void legacy_kg_include_of_any_shape_never_blocks_a_save() throws Exception {
         final StructuralSpinePageFilter filter = new StructuralSpinePageFilter( svc, name -> false, enabled() );
-        final String content =
+        final String maybe =
             "---\n" +
             "canonical_id: 01HAA000000000000000000000\n" +
             "kg_include: maybe\n" +
             "---\n" +
             "body";
-        final FilterException ex = assertThrows( FilterException.class,
-                () -> filter.preSave( ctx, content ) );
-        assertTrue( ex.getMessage().contains( "kg_include" ) );
+        final String list =
+            "---\ncanonical_id: 01HAA000000000000000000000\nkg_include:\n- a\n- b\n---\nbody";
+        assertEquals( maybe, filter.preSave( ctx, maybe ) );
+        assertEquals( list, filter.preSave( ctx, list ) );
     }
 
     @Test

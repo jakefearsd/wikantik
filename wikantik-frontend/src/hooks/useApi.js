@@ -61,7 +61,7 @@ export function useApi(fetcher, deps = [], options = {}) {
 /**
  * Pagination + debounced-search shell for admin tables that drive a paged
  * fetcher. Replaces the page+searchInput+search+totaldebounce+pageReset
- * boilerplate every Knowledge Graph admin pane was open-coding.
+ * boilerplate every paged admin table was open-coding.
  *
  * `search` is the controlled input value (what `setSearch` writes); the hook
  * internally debounces 300ms before passing it to `fetcher`. `deps` are extra

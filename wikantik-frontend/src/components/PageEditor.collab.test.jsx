@@ -5,7 +5,11 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- flush async state between tests
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, configure, fireEvent, render, screen, within } from '@testing-library/react';
+
+// findBy* default to 1 s; the full `vitest --coverage` run is slow enough that a resync round-trip
+// overruns it (the recovery-meta panel flaked there). Match realEditorHarness.until's 3 s budget.
+configure({ asyncUtilTimeout: 3000 });
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { EditorView } from '@codemirror/view';
 import { ChangeSet } from '@codemirror/state';

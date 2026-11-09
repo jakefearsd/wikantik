@@ -15,7 +15,6 @@ Disallow: /diff/
 Disallow: /preferences
 Disallow: /reset-password
 Disallow: /page-graph
-Disallow: /knowledge-graph
 Disallow: /login
 Disallow: /me/mentions
 

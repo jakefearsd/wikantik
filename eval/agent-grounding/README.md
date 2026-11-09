@@ -24,7 +24,7 @@ more coarsely than sonnet, so switching providers resets the baseline.
 - **Correctness (0–2):** scored by a blind LLM judge (the configured model — default local `gemma4:12b`) against a hand-written reference answer. 2 = fully correct, 1 = partial/vague, 0 = wrong or hallucinated.
 - **Citation hit:** programmatic check — does the answer cite at least one page listed in the question's `expect_sources`?
 
-**Question set:** 16 questions on Wikantik internals (architecture, retrieval, security, rendering pipeline, Knowledge Graph, Page Graph, module layout, configuration).
+**Question set:** 16 questions on Wikantik internals (architecture, retrieval, security, rendering pipeline, Page Graph, module layout, configuration). **Stale:** `questions.json` still holds Knowledge Graph questions and a pre-2.5.13 MCP tool count (26 admin tools); those references describe removed features and need a refresh before the next run is compared with `BASELINE.md`.
 
 **Dense-vs-BM25 comparison (`--lexical`):** the `--lexical` flag forces BM25-only retrieval for both grounded arms — `grounded_bundle` appends `mode=lexical` to the `/api/bundle` call (`bundle_client.py`), and `grounded_mcp` forces `"mode": "lexical"` onto any `assemble_bundle` tool call the model makes (`arms.py`). Both `/api/bundle` and the `assemble_bundle` MCP tool accept a `mode` of `hybrid` (default), `dense`, or `lexical` (`RetrievalMode` in `wikantik-api`).
 

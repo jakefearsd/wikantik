@@ -4,21 +4,21 @@ This page is for developers who need to know which quality checks exist, how to 
 
 ## Read the current numbers
 
-Last checked against the poms and `build-support/` on 2026-10-13. Coverage floors may rise later; the pom is authoritative.
+Last checked against the poms and `build-support/` on 2026-11-09. Coverage floors may rise later; the pom is authoritative.
 
 | Item | Value | Source |
 |------|-------|--------|
 | Root default line-coverage floor | 0.80 | `wikantik.coverage.line.minimum` in the root `pom.xml` |
-| Floor 0.90 | `wikantik-ingest`, `wikantik-insights`, `wikantik-jdbc`, `wikantik-main`, `wikantik-ontology` | module poms |
+| Floor 0.90 | `wikantik-ingest`, `wikantik-insights`, `wikantik-jdbc`, `wikantik-main`, `wikantik-ontology`, `wikantik-plantuml` | module poms |
 | Floor 0.89 | `wikantik-observability`, `wikantik-util` | module poms |
-| Floor 0.88 | `wikantik-api`, `wikantik-connectors`, `wikantik-extract-cli`, `wikantik-mcp-core` | module poms |
+| Floor 0.88 | `wikantik-api`, `wikantik-connectors`, `wikantik-extract-cli`, `wikantik-mcp-core`, `wikantik-rest` | module poms |
 | Floor 0.87 | `wikantik-admin-mcp` | module pom |
-| Floor 0.86 | `wikantik-http`, `wikantik-rest` | module poms |
+| Floor 0.86 | `wikantik-http` | module poms |
 | Floor 0.85 | `wikantik-cache`, `wikantik-event`, `wikantik-knowledge` | module poms |
 | Floor 0.84 | `wikantik-cache-memcached`, `wikantik-scim`, `wikantik-tools` | module poms |
-| PMD complexity baseline entries | 99 | non-comment `=` lines in `build-support/pmd-complexity-baseline.properties` |
+| PMD complexity baseline entries | 78 | non-comment `=` lines in `build-support/pmd-complexity-baseline.properties` |
 | `TestSchemaSingleSourceTest` baseline entries | 1 (the `JDBCPluginCITest` carve-out) | `wikantik-war/src/test/resources/test-ddl-baseline.txt` |
-| Frontend (Vitest) thresholds | lines 87, statements 85, functions 85, branches 76 | `wikantik-frontend/vite.config.js` |
+| Frontend (Vitest) thresholds | lines 91, statements 89, functions 87, branches 80 | `wikantik-frontend/vite.config.js` |
 
 `wikantik-bom`, `wikantik-war`, `wikantik-wikipages`, `wikantik-it-tests` and `wikantik-frontend` declare no Java floor of their own.
 
@@ -55,7 +55,7 @@ The complexity rules are in `build-support/pmd-complexity-ruleset.xml` (Cyclomat
 
 ## Run SpotBugs
 
-The root pom configures `spotbugs-maven-plugin` with `effort=Max`, `threshold=Low`, `includeTests=false`, and the find-sec-bugs plugin. Reasoned suppressions are in `build-support/spotbugs-exclude.xml`. No workflow runs SpotBugs and it is not in the default build; Run it on demand:
+The root pom configures `spotbugs-maven-plugin` with `effort=Max`, `threshold=Low`, `includeTests=false`, and the find-sec-bugs plugin. Reasoned suppressions are in `build-support/spotbugs-exclude.xml`. No workflow runs SpotBugs and it is not in the default build; run it on demand:
 
 ```bash
 mvn -fae com.github.spotbugs:spotbugs-maven-plugin:check

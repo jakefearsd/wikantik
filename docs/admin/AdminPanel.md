@@ -19,11 +19,10 @@ Every screen below calls a servlet under `/admin/*`, all protected by
 
 ## Overview
 
-`/admin` shows a dashboard of live cards: health and version, request load, pending
-retrieval quality (nDCG@5), LLM activity, search and index
+`/admin` shows a dashboard of live cards: health and version, request load, retrieval quality (nDCG@5), LLM activity, search and index
 status, users and keys, and a recent-activity feed, plus a diagnostic band (render cache,
-auth activity). Cards that have a
-destination link straight to the screen that handles them.
+auth activity, agent surface, content quality, retrieval modes, attachments). Cards with a
+destination link to the screen that handles them.
 
 - Backed by: `GET /admin/overview` (`AdminOverviewResource`).
 - Source: `OverviewDashboard.jsx`.
@@ -184,7 +183,8 @@ Call them with `curl` as an administrator.
 | `/admin/profiling/jfr/*` | `AdminProfilingServlet` | Java Flight Recorder control: `POST /start`, `POST /stop`, `GET /recordings`, `GET /recordings/{id}` (downloads the `.jfr` file) |
 | `/admin/drift/citations` | `AdminDriftResource` | citation status counts and per-page citation lists; see [DriftDashboard.md](DriftDashboard.md#stale-citations) |
 | `/admin/insights/ingest` | `InsightsIngestResource` | search-visibility snapshot upload |
+| `/admin/collab/*` | `AdminCollabResource` | MultiEdit: `GET /admin/collab/drafts` lists collaborative drafts; `DELETE /admin/collab/drafts/{sessionId}` purges one |
 
-In total `web.xml` maps 29 `/admin/*` servlets under 37 URL patterns, and every one of
+In total `web.xml` maps 27 `/admin/*` servlets under 33 URL patterns, and every one of
 them is covered on this page. The module and servlet counts for the rest of the system
 are in [the architecture overview](../developer/Architecture.md).

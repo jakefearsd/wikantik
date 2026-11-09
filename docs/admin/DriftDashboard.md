@@ -1,7 +1,6 @@
 # Drift Dashboard
 
-This page is for curators and administrators who keep the wiki's metadata healthy. It
-explains the **Drift** screen at `/admin/drift`, what each row means, and what to do
+For curators and administrators keeping metadata healthy. It explains the **Drift** screen at `/admin/drift`, what each row means, and what to do
 about it, and it covers two related checks that have no dashboard panel:
 structural conflicts and stale citations. Drift is metadata that has wandered away from
 the schema: it never breaks a page, but it weakens search and the

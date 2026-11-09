@@ -142,38 +142,25 @@ Rules that follow from the ledger:
 
 ## Migration history
 
-The migration directory is the source of truth; this table summarises it through V064.
+The migration directory is the source of truth; this table summarises it through V070.
 
 | Migration | What it adds |
 |-----------|--------------|
 | V001 | `schema_migrations` ledger, which bootstraps the runner itself |
 | V002 | Core auth: `users`, `roles`, `groups`, `group_members`, plus the default `admin` account and `Admin` group |
 | V003 | `policy_grants`: database-backed authorisation |
-| V004 | Knowledge Graph baseline: `kg_nodes`, `kg_edges`, `kg_proposals`, `kg_rejections`; installs the `vector` extension |
-| V005 | `hub_centroids`, `hub_proposals` |
-| V006, V007 | `hub_discovery_proposals` and status tracking |
+| V004 | Knowledge Graph baseline (`kg_nodes`, `kg_edges`, `kg_proposals`, `kg_rejections`; later V005-V007, V011, V018-V030 added hub, policy, audit and judge tables, all dropped by V070); installs the `vector` extension |
 | V008 | `kg_content_chunks`: page-passage chunking for retrieval |
 | V009 | `content_chunk_embeddings`: Ollama-backed dense embeddings, stored as `BYTEA` little-endian float32 (V032 later adds the pgvector column alongside it) |
 | V010 | `api_keys`: bearer-token auth for the MCP and tools servers |
-| V011 | `chunk_entity_mentions`: joins KG nodes to chunks |
 | V012 | Purge the `links_to` edges written by the retired graph projector |
 | V013 | `page_canonical_ids`, `page_slug_history`: rename-stable identifiers |
 | V014 | `page_verification` and `trusted_authors`: page verification and the trusted-author registry |
 | V015 | Deduplicate user profiles (one-time data fix) |
 | V016 | `retrieval_query_sets`, `retrieval_queries`, `retrieval_runs`: retrieval-quality CI |
 | V017 | Seeds the default retrieval query set |
-| V018 | `kg_cluster_policy`, `kg_policy_audit`, `kg_excluded_pages`: KG inclusion policy |
-| V019 | Drop the legacy `kg_embeddings` and `kg_content_embeddings` tables |
-| V020 | `kg_proposals.signature`: dedupe column for the entity extractor |
-| V021, V022 | `kg_node_embeddings` and `model_code` |
 | V023 | Drop `page_relations`; typed relations frontmatter was retired in favour of `canonical_id`, cluster and tags |
-| V024 | KG staged validation tables |
-| V025 | KG judge timeout tracking |
 | V026 | Seed additional retrieval query-set rows |
-| V027 | `kg_edges_relationship_type_check`: restrict `relationship_type` to the allowed vocabulary |
-| V028 | `kg_edge_audit`: audit trail for KG edge create, update and delete |
-| V029 | Add the `CONFIRM` action to the `kg_edge_audit` CHECK |
-| V030 | Allow `generalizes` in the `kg_edges` relationship-type CHECK |
 | V031 | `wikantik_exporter` role for metrics scraping |
 | V032 | `content_chunk_embeddings.embedding vector(1024)` and an HNSW index; the pgvector dual-write |
 | V033 | `comment_threads`, `comments` |
@@ -205,9 +192,15 @@ The migration directory is the source of truth; this table summarises it through
 | V059 | Pre-create `audit_log` monthly partitions through 2028-12, so a least-privilege app role never has to create one |
 | V060 | Add the `export` wiki permission to the `Authenticated` grant (only while that row still holds the stock actions) |
 | V061 | Widen the `api_keys.scope` CHECK to admit `mcp_admin` (the renamed full-admin MCP scope); existing `mcp` rows are kept and read as an alias |
-| V062 | Indexes found missing by the 2026-10-22 profiling run: `users(uid)`, `retrieval_runs(mode, started_at)`, partial `kg_proposals(created)` for the judge claim |
-| V063 | Drop 16 redundant or unusable indexes (covered by a PK/unique constraint's leading columns, or never served by any query), incl. the GIN `idx_kg_nodes_properties` |
+| V062 | Indexes found missing by the 2026-10-22 profiling run: `users(uid)`, `retrieval_runs(mode, started_at)` (and a partial `kg_proposals` index, since dropped) |
+| V063 | Drop 16 redundant or unusable indexes (covered by a PK/unique constraint's leading columns, or never served by any query) |
 | V064 | `briefing_log`: add `cited_count`, `elsewhere_count` and `scope_mode` so the project-context tiers and scope mode of each briefing are recorded |
+| V065 | `deleted_logins`: tombstones for hard-deleted accounts, so a deleted login cannot be re-registered and inherit old edits |
+| V066 | MultiEdit collaborative drafts: `collab_session`, its update log, meta ops and snapshots, `page_version_contributor` |
+| V067 | `collab_snapshot.contributors` (per-snapshot draft contributors) |
+| V068 | `collab_session.pending_publish_*`: the page version a pending collaborative publish saved |
+| V069 | `collab_session.guard_text`: access-rule guard for a draft whose page was deleted |
+| V070 | Drop the retired Knowledge Graph (`kg_*` entity/proposal/edge tables, `hub_*`, `chunk_entity_mentions`). **Kept:** `kg_content_chunks` and `content_chunk_embeddings` (dense retrieval). Restoring the pre-drop pg_dump archive is the only way back |
 
 The other `.sql` files directly under `bin/db/` (`migration-1.0-to-1.1.sql`,
 `cleanup-2026-04-30-stale-canonical-ids.sql`) are

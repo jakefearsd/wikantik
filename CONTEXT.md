@@ -30,7 +30,7 @@ The unit RAG-as-a-Service returns: a ranked, de-duplicated set of evidence piece
 carrying a stable citation handle and provenance, assembled for one question.
 _Avoid_: "results", "context", "the chunks", "answer payload".
 
-## The three "graph" senses
+## "Graph" senses
 
 The bare word "graph" is a code smell — always disambiguate. (See
 `docs/wikantik-pages/PageGraphVsKnowledgeGraph.md` and CLAUDE.md.)
@@ -40,15 +40,15 @@ Edges are real page-to-page wikilinks parsed from page bodies. Companion structu
 `canonical_id`, `cluster:`/hub membership.
 _Avoid_: "the graph", "link graph", "site graph".
 
-**Knowledge Graph**:
-Nodes are LLM-extracted entities; edges are co-mention or typed-relation predicates
-between them. Lives in `kg_*` tables.
-_Avoid_: "the graph", "entity graph" (when you mean the KG as a whole).
+**Knowledge Graph** (removed 2026-11):
+The LLM-extracted entity graph (`kg_*` tables) no longer exists; migration V070 dropped it.
+Do not use the term for anything current. "Similar pages" now come from page-embedding
+centroids.
 
 **Ontology dataset**:
-The RDF/OWL projection of Page Graph + Knowledge Graph into Jena (T-Box + per-resource
-named graphs), queried via SPARQL. A *projection*, downstream of the other two. Serves
-two consumers: the [[knowledge-base]] (humans) and [[linked-data-publishing]] (machines).
+The RDF/OWL projection of the Page Graph and the page/concept metadata into Jena (T-Box +
+per-resource named graphs), queried via SPARQL. A *projection*, downstream of the Page
+Graph. Serves the [[knowledge-base]] (humans) and [[linked-data-publishing]] (machines).
 _Avoid_: "the graph", "the RDF", "the triplestore" (when you mean the modelled dataset).
 
 ## Cluster taxonomy
@@ -94,10 +94,10 @@ _Avoid_: "error", "validation failure", "broken cluster".
 "Semantic Web" is overloaded — it names two consumers with opposite priorities. Say which.
 
 **Knowledge Base**:
-The curated, human-facing view of the [[knowledge-graph]] (+ ontology) that people browse,
-query, and trust as an interface. A first-class product, justified by human value
+The curated, human-facing view of the wiki (pages, clusters, the ontology) that people
+browse, query, and trust as an interface. A first-class product, justified by human value
 independent of any retrieval lift it provides.
-_Avoid_: "the KG" (that's the data), "the graph", "the ontology" (that's the projection).
+_Avoid_: "the KG" (removed), "the graph", "the ontology" (that's the projection).
 
 **Linked Data publishing**:
 Exposing the [[ontology-dataset]] to the open web — crawlers, reasoners, federation
@@ -112,7 +112,7 @@ A first-class wiki page whose body is *generated* by extracting a source documen
 office/text doc). The original binary is retained as an attachment on that page and the page
 records `derived_from` provenance. The retained source is the durable source-of-truth; the
 body is a *regenerable projection* — re-running improved extraction reflows it. Rides every
-page rail (search, embeddings, Knowledge Graph, ontology, curation).
+page rail (search, embeddings, ontology, curation).
 _Avoid_: "imported page", "converted doc", "attachment page".
 
 **Source document**:

@@ -5,19 +5,6 @@ Every wiki page tracked by the structural index has a single designated owner â€
 table (V034) and is independent of the page ACL: it records accountability, not
 read/write permission.
 
-## Table of contents
-
-1. [The ownership model](#the-ownership-model)
-2. [The `agents` service account](#the-agents-service-account)
-3. [How ownership is assigned](#how-ownership-is-assigned)
-4. [Configuration](#configuration)
-5. [Admin UI walkthrough](#admin-ui-walkthrough)
-6. [REST endpoint reference](#rest-endpoint-reference)
-7. [Auth model](#auth-model)
-8. [Ownership vs ACLs / permissions](#ownership-vs-acls--permissions)
-9. [Troubleshooting](#troubleshooting)
-10. [Cross-links](#cross-links)
-
 ---
 
 ## The ownership model
@@ -182,7 +169,7 @@ Response:
   "pages": [
     {
       "canonicalId": "01KQEDYJR57WYQCV645PKSDBMQ",
-      "pageName": "KgInclusionPolicy",
+      "pageName": "HybridRetrieval",
       "ownerLogin": "jsmith",
       "assignedBy": "system:bootstrap",
       "assignedAt": "2026-04-27T10:00:00Z"

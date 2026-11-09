@@ -11,8 +11,8 @@ it.
 Fully implemented. The SPA covers reading, inline editing, search, change
 history, similar-pages discovery, attachment management, comments/mentions,
 dark mode, the admin panel (users, content, security, embeddings, API
-keys, retrieval quality, page ownership, audit), and the graph
-viewers.
+keys, retrieval quality, page ownership, audit, connectors, content
+intelligence), and the Page Graph viewer.
 
 ## Architecture
 
@@ -85,7 +85,7 @@ server-side: `AdminAuthFilter` requires `AllPermission` for every `/admin/*` API
 call (a browser navigation that asks for HTML gets the SPA shell, which carries no
 admin data).
 
-Graph viewer routes get a full-bleed `app-content-full` layout; editor and
+The graph viewer route gets a full-bleed `app-content-full` layout; editor and
 admin routes use `app-content-wide`; wiki article routes use the narrow reading
 column.
 
@@ -181,12 +181,11 @@ browser with `react-markdown`. The editor preview (`EditorPreviewMarkdown`, fed 
 See [MathematicalNotation.md](../user/MathematicalNotation.md) for the full math
 syntax reference.
 
-## Graph Viewers
+## Graph Viewer
 
-Wikantik ships two distinct, lazy-loaded graph viewers in the SPA. **Don't
-conflate them** — they reflect two separate subsystems (see
-[PageGraphVsKnowledgeGraph](../wikantik-pages/PageGraphVsKnowledgeGraph.md)
-for the long form):
+The SPA ships one lazy-loaded graph viewer, for the Page Graph. (The Knowledge Graph
+viewer was removed with the Knowledge Graph in 2026-11; see
+[PageGraphVsKnowledgeGraph](../wikantik-pages/PageGraphVsKnowledgeGraph.md) for history.)
 
 ### `/page-graph` — Page Graph viewer
 

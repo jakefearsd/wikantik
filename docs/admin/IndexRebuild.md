@@ -13,10 +13,8 @@ The Lucene search index must be rebuilt when:
    below — `canonical_id`, `type`, and `audience` are not Lucene fields;
    they live in the structural spine index instead). Pages indexed before
    any one of these fields was added have no value in the index, so
-   faceted/structural searches won't find them. (Note: typed `relations:` frontmatter — `links_to`,
-   `mentions`, `part_of` — was retired 2026-05-02 in V023; if you have
-   an old index with `relations` fields, a rebuild will drop them and
-   that's intentional.)
+   faceted/structural searches won't find them. (Typed `relations:` frontmatter was retired in V023; a rebuild drops any
+   old `relations` fields, intentionally.)
 
 2. **The index is corrupted** — Search returns no results or throws errors.
 
@@ -25,8 +23,7 @@ The Lucene search index must be rebuilt when:
 
 4. **You're enabling hybrid retrieval for the first time** — A rebuild
    re-runs the chunker and re-populates `kg_content_chunks`, which is
-   the foundation for `content_chunk_embeddings` and
-   `chunk_entity_mentions`. See
+   the foundation for `content_chunk_embeddings`. See
    [HybridRetrieval.md](../wikantik-pages/HybridRetrieval.md) for the full
    downstream pipeline.
 
@@ -34,8 +31,7 @@ The Lucene search index must be rebuilt when:
 
 ### Live (no Tomcat restart needed)
 
-The fastest path on a running wiki is the `/admin/content/rebuild-indexes`
-endpoint, which Wikantik exposes as a one-click admin operation. Use the
+The fastest path on a running wiki is `POST /admin/content/rebuild-indexes`. Use the
 `bin/trigger-rebuild-indexes.sh` helper:
 
 ```bash

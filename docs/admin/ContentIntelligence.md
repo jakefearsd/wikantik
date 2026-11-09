@@ -1,7 +1,6 @@
 # Content Intelligence (Search Visibility)
 
-This page is for administrators and content curators who want to know what to write or
-fix next. Content Intelligence combines search-engine visibility data with Wikantik's
+Content Intelligence (for administrators and curators deciding what to write or fix next) combines search-engine visibility data with Wikantik's
 own retrieval and verification data into a ranked **opportunity backlog**. It covers
 the **Search Visibility** screen at `/admin/insights`, the data that feeds it, how to
 load that data, and how to act on or decline an opportunity. The module is
@@ -88,8 +87,7 @@ default. The ones you are most likely to change:
 | `wikantik.insights.calibration.min_verdicts` | `20` | evaluated changes needed before a type's weight is recalibrated |
 | `wikantik.insights.change.cooldown.days` | `60` | at most one automatic optimisation per page per this many days |
 
-Set your own site names in `wikantik.insights.rules.sites`; the defaults name the
-public Wikantik sites. The backlog uses the first entry when no `site` is given.
+Set your own site names in `wikantik.insights.rules.sites`; the defaults name the public Wikantik sites.
 
 ## Load search-visibility data
 
@@ -158,8 +156,7 @@ same service as the screen so the two never disagree (see [McpAgents.md](McpAgen
   auditable. It returns `snoozedUntil` and `previouslySnoozed`. A snooze is a deferral,
   not a deletion; re-snooze if the item is still not worth doing.
 
-The suggested action depends on the type. For `agent_gap`, write the missing section. For `stale_high_traffic`, re-verify or refresh
-the page.
+Typical actions: for `agent_gap`, write the missing section; for `stale_high_traffic`, re-verify or refresh the page.
 
 ## Where to go next
 

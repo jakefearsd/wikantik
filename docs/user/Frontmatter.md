@@ -261,7 +261,7 @@ runbook:
     - Running -T with the IT profile guarantees port conflicts
   related_tools:               # list (optional)
     - /admin/page-graph/conflicts
-    - kg-policy
+    - list_pages_by_filter
   references:                  # list (optional)
     - BuildingAndDeployingLocally
 ```

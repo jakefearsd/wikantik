@@ -1,10 +1,10 @@
 # Wikantik Architecture
 
-This page is for developers who need a map of the code before changing it: which module owns what, which way dependencies point, how the core objects fit together, and where the three graph-like subsystems differ. It is the one place that states module and servlet counts. Counts below are as of 2.4.53 and are derived from the root `pom.xml` and `wikantik-war/src/main/webapp/WEB-INF/web.xml`.
+This page is for developers who need a map of the code before changing it: which module owns what, which way dependencies point, how the core objects fit together, and where the three graph-like subsystems differ. It is the one place that states module and servlet counts. Counts below are as of 2.5.14 and are derived from the root `pom.xml` and `wikantik-war/src/main/webapp/WEB-INF/web.xml`.
 
 ## Read the module map
 
-The root `pom.xml` declares 24 modules in its default `<modules>` list. A 25th, `wikantik-coverage-report`, is added only under the `coverage` profile. `wikantik-frontend` is not a Maven module: `wikantik-war` builds it with npm (see [Building.md](Building.md)).
+The root `pom.xml` declares 25 modules in its default `<modules>` list. A 26th, `wikantik-coverage-report`, is added only under the `coverage` profile. `wikantik-frontend` is not a Maven module: `wikantik-war` builds it with npm (see [Building.md](Building.md)).
 
 | Module | What it holds |
 |--------|---------------|
@@ -17,6 +17,7 @@ The root `pom.xml` declares 24 modules in its default `<modules>` list. A 25th, 
 | `wikantik-cache-memcached` | Opt-in Memcached adapter, not wired into the WAR |
 | `wikantik-http` | Servlet filters: CSRF, CSP, cross-origin and other security headers, session-cookie policy |
 | `wikantik-ingest` | Document extraction (Tika, HTML to Markdown) for derived pages, isolated from `wikantik-main` |
+| `wikantik-plantuml` | Server-side PlantUML rendering for ` ```plantuml ` fences (shaded MIT build, sandboxed) |
 | `wikantik-connectors` | External-source connector runtime (filesystem, web crawler, sitemap, feed, Google Drive, GitHub, Confluence) |
 | `wikantik-insights` | Content Intelligence: search-visibility facts, opportunity rules, effect measurement |
 | `wikantik-ontology` | RDF/OWL ontology layer on Apache Jena: T-Box, projectors, TDB2 store |
@@ -28,7 +29,7 @@ The root `pom.xml` declares 24 modules in its default `<modules>` list. A 25th, 
 | `wikantik-scim` | SCIM 2.0 provisioning at `/scim/v2/*` |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
 | `wikantik-rest` | REST API (`/api/*`) and admin endpoints (`/admin/*`), plus `SpaRoutingFilter` |
-| `wikantik-extract-cli` | Standalone command-line tools: corpus divergence, ACL audit, derived-page ingest |
+| `wikantik-extract-cli` | Standalone command-line tools: corpus divergence, ACL audit, chunker stats, `Main.md` and config-reference generators, derived-page ingest |
 | `wikantik-war` | WAR packaging; bundles the React build and wires servlets and filters; hosts the ArchUnit and config-drift tests |
 | `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
 | `wikantik-it-tests` | Integration tests (see [Testing.md](Testing.md)) |
@@ -76,14 +77,14 @@ Do not use the bare word "graph" in identifiers; say Page Graph or `pagegraph`. 
 
 ## Count the HTTP surface
 
-Counted from `web.xml` as of 2.4.53:
+Counted from `web.xml` as of 2.5.14:
 
 | Prefix | url-patterns | Distinct servlet classes |
 |--------|--------------|--------------------------|
 | `/api/*` | 38 | 36 |
-| `/admin/*` | 37 | 29 |
+| `/admin/*` | 33 | 27 |
 
-`web.xml` declares 78 servlets and 91 servlet mappings in total. Recount with a script when you change it; do not edit these numbers without recounting.
+`web.xml` declares 76 servlets and 87 servlet mappings in total. Recount with a script when you change it; do not edit these numbers without recounting.
 
 ## Find the design decisions
 

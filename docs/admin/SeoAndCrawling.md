@@ -19,7 +19,7 @@ Sitemap: https://wiki.wikantik.com/sitemap.xml
 ```
 
 It disallows `/admin/`, `/edit/`, `/diff/`, `/preferences`, `/reset-password`,
-`/page-graph`, `/knowledge-graph`, `/login`, `/me/mentions`, `/api/`, `/mcp`, `/metrics`
+`/page-graph`, `/login`, `/me/mentions`, `/api/`, `/mcp`, `/metrics`
 and `/search`, and sets `Crawl-delay: 1`. One exception is deliberate:
 `Allow: /api/pages/` precedes `Disallow: /api/`. The React reader fetches page bodies
 from `/api/pages/{name}?render=true`, and Google's renderer skips robots-disallowed

@@ -13,12 +13,9 @@ an **admin** surface (any key, any principal — this document's main focus) and
 This page is for administrators who issue, scope and revoke those keys, and for
 users who mint their own. For the tools each scope can reach, see [McpAgents.md](McpAgents.md).
 
-The implementation lives in:
-- `AdminApiKeysResource` — REST resource at `/admin/apikeys`
-- `SelfApiKeysResource` — REST resource at `/api/self/apikeys`
-- `ApiKeyService` — generation, verification, and revocation logic
-- `V010__api_keys.sql` — the `api_keys` table migration; `V058__api_keys_scope_chk_mcp_read.sql` widens its scope CHECK
-- `McpAccessFilter` / `ToolsAccessFilter` — enforce key auth on the respective endpoints
+Implementation: `AdminApiKeysResource` (`/admin/apikeys`), `SelfApiKeysResource` (`/api/self/apikeys`),
+`ApiKeyService` (generate/verify/revoke), `McpAccessFilter` / `ToolsAccessFilter` (key auth on the
+endpoints), and migration `V010__api_keys.sql` for the table.
 
 ## Prerequisites
 
@@ -45,10 +42,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 ```
 
-The `CHECK` list above is the current form: `V010` created it as
-`('mcp', 'tools', 'all')`, `V058` replaced it so `mcp_read` keys can be stored, and `V061`
-widened it again to admit `mcp_admin` (existing rows are not rewritten; see
-[Legacy `mcp` scope name](#legacy-mcp-scope-name)).
+`V010` created the `CHECK` as `('mcp', 'tools', 'all')`; `V058` added `mcp_read` and `V061` added
+`mcp_admin` (existing rows are not rewritten; see [Legacy `mcp` scope name](#legacy-mcp-scope-name)).
 
 ## Admin UI
 
@@ -158,9 +153,8 @@ narrow the key: authorisation on these surfaces is the scope check in the access
 filter, and the admin MCP tools perform no per-user permission checks. An `mcp_admin` or
 `all` key can read and write every non-system page,
 whichever account it is bound to, so treat those keys as admin credentials. Use
-`mcp_read` for read-only agents. A narrower `mcp_content` tier (page and Knowledge
-Graph read/write without admin tools) is planned in
-[GitHub issue #62](https://github.com/jakefearsd/wikantik/issues/62) but is not shipped.
+`mcp_read` for read-only agents. There is no intermediate content-write tier
+(proposed in [GitHub issue #62](https://github.com/jakefearsd/wikantik/issues/62), closed won't-fix).
 
 A key with the wrong scope for the endpoint receives HTTP 403 "Key not
 authorized for MCP" (or the tools-equivalent). The `/api/*` REST surface uses
@@ -275,6 +269,7 @@ event. Returns:
 { "success": true, "id": 1 }
 ```
 
+- `400` — id missing or not numeric.
 - `404` — key not found or already revoked.
 
 ### `POST /admin/apikeys/bulk-action`
@@ -320,12 +315,10 @@ curl -s -X POST https://wiki.example.com/tools/search_wiki \
 
 ## Self-service keys
 
-Alongside the admin-issued surface above, any logged-in user can manage API keys
-bound to their **own** principal — no `Admin` role required. This is the surface
-for a user who wants a personal key for `search_wiki` / a read-only MCP client without
-asking an admin to generate one on their behalf. A non-admin can self-mint only the
-`tools` and `mcp_read` scopes; `mcp_admin` and `all` keys must be issued by an administrator
-at `/admin/apikeys`, because they carry full admin privilege.
+Any logged-in user can manage API keys bound to their **own** principal — no `Admin` role
+required — for a personal `search_wiki` or read-only MCP client. A non-admin can self-mint only
+`tools` and `mcp_read`; `mcp_admin` and `all` carry full admin privilege and come from an
+administrator at `/admin/apikeys`.
 
 ### SPA: API Keys panel in user preferences
 

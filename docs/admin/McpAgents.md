@@ -11,15 +11,15 @@ instead of repeating the numbers.
 | Endpoint | Protocol | Tools | Access | Minimum key scope |
 |---|---|---|---|---|
 | `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 20 read and write tools | `McpAccessFilter` | `mcp_admin` |
-| `/knowledge-mcp` | MCP (Streamable HTTP) | 16 read-only tools | `McpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
+| `/knowledge-mcp` | MCP (Streamable HTTP) | 16 read-only tools | `McpAccessFilter`, registered as `KnowledgeMcpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
 | `/tools/*` | OpenAPI 3.1 over plain HTTP | 2 | `ToolsAccessFilter` | `tools` |
 
-Counts are as of **2.5.13**. The URL patterns come from `web.xml` (`/tools/*`) and the
+Counts are as of **2.5.14**. The URL patterns come from `web.xml` (`/tools/*`) and the
 MCP bootstrapper (`/wikantik-admin-mcp`, `/knowledge-mcp`).
 
 ### The counts depend on wiring
 
-The numbers above are what a default deployment advertises. A deployment without an optional subsystem advertises fewer tools.
+The numbers above are what a default deployment advertises; a deployment without an optional subsystem advertises fewer.
 
 **`/wikantik-admin-mcp`** (registered in `McpToolRegistry`, verified against
 `McpProtocolIT.EXPECTED_TOOLS`, which lists 20):
@@ -32,13 +32,13 @@ The numbers above are what a default deployment advertises. A deployment without
   `tools/list` so the advertised surface does not vary with wiring.
 
 **`/knowledge-mcp`** (registered in `KnowledgeMcpInitializer.assembleTools`; the
-endpoint is not mounted at all unless the context retrieval service, the structural
+endpoint is not mounted at all unless the context retrieval service or the structural
 index exists):
 
 | Tools | Registered only when |
 |---|---|
 | `retrieve_context`, `get_page`, `list_pages`, `list_metadata_values`, `read_pages` | the context retrieval service is present |
-| `list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id` | the structural index is present |
+| `list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`, `get_page_neighbors` | the structural index is present |
 | `get_page_for_agent` | the for-agent projection service is present |
 | `assemble_bundle` | the bundle assembly service is present (retrieval wired) |
 | `get_briefing` | the briefing service is present |

@@ -1,7 +1,6 @@
 # Derived Pages and Document Ingest
 
-This page is for administrators and curators who turn documents (PDF, Word, plain text
-and similar) or external sources into wiki pages. It explains what a **derived page**
+For administrators and curators who turn documents (PDF, Word, text) or external sources into wiki pages. It explains what a **derived page**
 is, how to ingest documents through the REST endpoint or the batch script, how to
 re-extract pages after an extractor improvement, and how connectors produce derived
 pages.

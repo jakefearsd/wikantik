@@ -80,5 +80,5 @@ Append `?format=md` or `?format=json` to a page address, for example `/wiki/Page
 - `wikantik-frontend/src/hooks/useLinkPreview.js`, `usePageTrail.js`, `useDarkMode.js`
 - `wikantik-frontend/src/components/BacklinksPanel.jsx`, `SimilarPagesPanel.jsx`, `ChangeNotesPanel.jsx`, `DiffViewer.jsx`
 - `wikantik-frontend/src/components/DerivedProvenanceBanner.jsx`, `ExportDialog.jsx`
-- `wikantik-frontend/src/components/pagegraph/`, `kgraph/`
+- `wikantik-frontend/src/components/pagegraph/`
 - `wikantik-rest/src/main/java/com/wikantik/rest/CapabilitiesResource.java`, `ExportResource.java`, `WikiPageFormatFilter.java`

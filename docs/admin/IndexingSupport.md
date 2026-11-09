@@ -2,13 +2,9 @@
 
 This reference is for operators and integrators who feed wiki content to search-engine crawlers, RAG ingestion pipelines, or other non-SPA consumers. It describes the endpoints and filters that expose raw and server-rendered content, and how to call them.
 
-## Problem it solved
+## Why
 
-`wiki.wikantik.com` is a React SPA backed by Apache Tomcat 11. Without server-side rendering or raw-content endpoints, page URLs returned the SPA shell regardless of crawler intent, which blocked:
-
-- Search engines (Googlebot, Bingbot) from indexing page content
-- OpenWebUI's web loader from fetching page content for RAG
-- Any programmatic bulk ingestion of wiki content
+`wiki.wikantik.com` is a React SPA. Without server-side rendering or raw-content endpoints, every page URL returned the SPA shell, which blocked search-engine indexing, OpenWebUI's web loader, and bulk programmatic ingestion.
 
 ## Implemented surface
 

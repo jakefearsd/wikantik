@@ -1,3 +1,5 @@
+> **Note 2026-11:** entity/relation extraction (and its `ClaudeEntityExtractor`) was removed with the Knowledge Graph; the cost-governed principle still applies to embeddings and the optional bundle rerank/decomposition (`wikantik.genai.mode`).
+
 # LLM model selection is a cost-governed, eval-scored, swappable axis — never a default to premium
 
 Every LLM-using component in the pipeline — entity/relation extraction, embeddings, and the

@@ -109,11 +109,12 @@
      <url-pattern>/knowledge-mcp/*</url-pattern>
    </filter-mapping>
 
-   <!-- Per-client-IP rate limiting for the public HTTP surface. Two tiers:
+   <!-- Per-client-IP rate limiting for the public HTTP surface. Three tiers:
         default (25/s per client) on everything mapped below; expensive
         (3/s per client + 10/s global) on /api/bundle, /api/search, /sparql —
         the endpoints that do per-request embedding inference / heavy query
-        work. Loopback + /api/health always exempt. Runs after
+        work; session (100/s per client) on /api/collab/ so collaborative
+        editing's steady polling doesn't drain the default bucket. Loopback + /api/health always exempt. Runs after
         RequestMetricsFilter (429s get measured) and before the auth filters
         (reject cheaply before any auth/DB work). Tune via WIKANTIK_RATELIMIT_*
         env vars; see docs/superpowers/specs/2026-07-02-api-rate-limiting-design.md -->

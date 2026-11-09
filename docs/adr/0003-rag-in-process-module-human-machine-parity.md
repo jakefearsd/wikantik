@@ -3,8 +3,8 @@
 RAG-as-a-Service ships as a **module inside the wiki** with its own dedicated REST endpoint
 and MCP actions — not as a separate deployable service. "Composable" is bought through a
 transport-agnostic bundle contract and a `ContentSource` seam (so it *could* be extracted
-later), not through premature microservices: the chunking, embeddings, Knowledge Graph,
-ontology, and human Knowledge Base all already live in-process over the wiki's database, so
+later), not through premature microservices: the chunking, embeddings,
+ontology, and the human-facing wiki (the since-removed Knowledge Graph was in this list) all already live in-process over the wiki's database, so
 splitting before "good" is even defined would force a rebuild across a network boundary and
 threaten the baseline.
 

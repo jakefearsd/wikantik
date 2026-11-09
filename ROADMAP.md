@@ -59,24 +59,17 @@ stream. The canonical record of what shipped is
   `false`. Flipping it requires a corpus verified free of duplicate
   declarations first (via `/admin/drift`), because enabling it against
   a corpus that has them makes the offending hub pages un-saveable.
-  The production corpus migration off the retired `hubs:` field is the
-  other half of that work.
-- **Knowledge Graph reviewer ergonomics.** Current admin surface works
-  but is dense; planned work to surface evidence-side-by-side and
-  bulk-action inverses.
 - **Auth modernisation.** OAuth/OIDC via pac4j shipped; a first cut at
   fine-grained MCP scopes shipped in 2.4.18 (`mcp_read` vs the full-admin scope, now named `mcp_admin`, splitting
-  read-only knowledge access from full admin). Next is a third,
-  intermediate `mcp_content` tier (page/KG read-write, no admin
-  capability) — deferred because it needs per-tool enforcement threaded
-  through the MCP session rather than a request-thread guard, since the
-  SDK dispatches tool calls off-thread.
+  read-only knowledge access from full admin). A third, intermediate
+  `mcp_content` tier was considered and closed won't-fix (#62): admin
+  MCP keys stay fully privileged.
 - **Observability dashboards.** Prometheus exporters exist and the
   container exposes `/metrics`, but monitoring itself now lives in the
   external **jakemon** stack (Grafana Alloy → Prometheus + Loki +
   Grafana), so there is no in-repo observability stack to ship a
   dashboard into. The open work is a set of curated operator views in
-  jakemon (ingest rate, retrieval latency, KG queue depth) rather than
+  jakemon (ingest rate, retrieval latency, embedding queue depth) rather than
   a dashboard JSON in this repo.
 - **Audit log egress.** The tamper-evident audit log is DB-only today;
   add an exporter so records can stream to an external SIEM / log
@@ -87,15 +80,8 @@ stream. The canonical record of what shipped is
 
 - **Multi-tenant deployment.** A single Wikantik instance hosting
   multiple isolated wikis with shared MCP infrastructure.
-- **Real-time collaborative editor.** Currently single-author per page;
-  eventually CRDT-based co-editing without giving up the file-tree
-  authoring model.
 - **Plugin marketplace.** Today Wikantik supports plugins but discovery
   is manual; eventually a curated registry.
-- **More extractor backends.** Knowledge-Graph extraction already has
-  two selectable LLM providers (`EntityExtractorFactory` switches on
-  Ollama and Claude/Anthropic). Still missing: OpenAI, and a
-  self-hosted vLLM path, so operators can pick their constraint.
 
 ## Considering / undecided
 

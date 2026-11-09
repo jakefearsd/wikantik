@@ -51,7 +51,7 @@ needed.
 | `WIKANTIK_BASIC_AUTH` | No | `user:pass` for HTTP Basic auth, passed to `curl -u` when the wiki requires it. |
 
 The user's first prompt text is forwarded as the `prompt` query param so the
-briefing can be tailored (e.g. surfacing prompt-relevant sections/entities).
+briefing can be tailored (e.g. surfacing prompt-relevant sections).
 
 ## How it degrades
 

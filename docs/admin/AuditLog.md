@@ -1,7 +1,6 @@
 # Audit Log
 
-This page is for administrators who review the audit log, verify its integrity and
-manage its retention. Wikantik records authentication, authorization, content, and administrative
+Wikantik records authentication, authorization, content, and administrative
 events in a tamper-evident audit log. The log is append-only at the database
 level and uses a SHA-256 hash chain, so changing or removing a row inside the log
 is detectable (see [what verification cannot see](#hash-chain-integrity-model)).
@@ -134,9 +133,7 @@ rows, not the whole log) in CSV format with columns:
 seq,created_at,event_time,category,event_type,actor,outcome,target,source_ip
 ```
 
-The `actor` column is the actor's principal name.
-
-The file is named `audit-log.csv`.
+The `actor` column is the actor's principal name; the file is named `audit-log.csv`.
 
 ## REST endpoint reference
 

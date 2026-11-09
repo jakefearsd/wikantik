@@ -106,7 +106,7 @@ For people who build, test and change Wikantik.
 |---|---|
 | [Building](developer/Building.md) | Tool versions, Maven build variants, long-build handling, the frontend build and the local deploy loop. |
 | [Testing](developer/Testing.md) | Unit and integration test layout, the database test helpers, the pre-commit gate and flaky tests. |
-| [Architecture](developer/Architecture.md) | The module map, dependency direction, core objects and the three graph-like subsystems; the only place module and servlet counts are stated. |
+| [Architecture](developer/Architecture.md) | The module map, dependency direction, core objects, and how the Page Graph and citation edges differ; the only place module and servlet counts are stated. |
 | [FrontendArchitecture](developer/FrontendArchitecture.md) | The React single-page application: structure, build and conventions. |
 | [CodeQuality](developer/CodeQuality.md) | The quality checks, how to run them and the current ratchet values. |
 | [CI](developer/CI.md) | What runs in GitHub Actions and when. |

@@ -292,7 +292,7 @@ example Btrfs with scheduled snapshots, and point `NAS_DEST` at it) or add a sec
 
 Full restores run via `docker/backup/restore.sh` inside the `backup` sidecar. The script drops
 and rebuilds the `public` schema, loads the dump in full (all tables — users, roles, groups,
-policy grants, all `kg_*` tables, page metadata, embeddings, schema migrations), verifies core
+policy grants, the `kg_content_chunks` retrieval chunks, page metadata, embeddings, schema migrations), verifies core
 tables populated, then restores the page tree. Lucene and in-memory caches rebuild on startup.
 
 > **Restoring to a *fresh* host?** Skip the manual sequence below and use

@@ -52,7 +52,7 @@ For agents, retrieval is delivered as a *context bundle*: the wiki ranks, de-dup
 | **Stack** | Java 25 / Tomcat 11 / PostgreSQL + pgvector / React | PHP / Laravel | Node.js | Node.js | PHP | JVM | proprietary |
 | **AGPL-style copyleft** | no (Apache 2.0) | no | no | **yes** | no (GPLv2) | n/a | n/a |
 
-Wikantik may not fit if you need a hosted SaaS (you run it yourself; [CloudDeployment](docs/admin/CloudDeployment.md) provisions a VM on AWS or GCP), or if you need real-time collaborative editing (the editor is single-author per page). Set `wikantik.genai.mode=none` to run without an inference host, at the cost of hybrid search ([CostTiers](docs/admin/CostTiers.md)).
+Wikantik may not fit if you need a hosted SaaS (you run it yourself; [CloudDeployment](docs/admin/CloudDeployment.md) provisions a VM on AWS or GCP), or if you need real-time collaborative editing on by default (MultiEdit exists but ships off behind `wikantik.collab.enabled`; the default editor is single-author per page). Set `wikantik.genai.mode=none` to run without an inference host, at the cost of hybrid search ([CostTiers](docs/admin/CostTiers.md)).
 
 ## Architecture at a glance
 
@@ -86,7 +86,7 @@ flowchart LR
         Lucene[("Lucene index")]
     end
 
-    Ollama["Ollama<br/>embeddings + extraction"]
+    Ollama["Ollama<br/>embeddings"]
 
     Browser --> SPA
     Browser --> REST

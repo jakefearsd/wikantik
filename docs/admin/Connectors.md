@@ -2,9 +2,8 @@
 
 This page is for administrators who connect Wikantik to external sources. It covers
 the connector types, how to define and manage connectors, credentials, sync behaviour,
-and troubleshooting. Wikantik can pull content in from external systems — websites, RSS/Atom feeds,
-sitemaps, Google Drive, GitHub, and Confluence — and keep it synced into wiki
-pages automatically. This is the **connector framework**: `wikantik-connectors`
+and troubleshooting. Wikantik can pull content from websites, RSS/Atom feeds, sitemaps, Google Drive, GitHub and
+Confluence and keep it synced into wiki pages. This is the **connector framework**: `wikantik-connectors`
 (the sync engine and per-type source implementations) plus the admin UI at
 `/admin/connectors` (`wikantik-main` `com.wikantik.derived.ConnectorConfigService`,
 `wikantik-rest` `ConnectorAdminResource`).
@@ -30,11 +29,9 @@ frontmatter.
 | `github` | Markdown files from a repository tree | Fine-grained PAT (optional for public repos) |
 | `confluence` | Pages from a Confluence Cloud space | Atlassian API token |
 
-`filesystem` is the one type that reads server-local paths, so it is
-**properties-only** — it shows up read-only in the admin UI but cannot be
-created or edited there. It is excluded from `ConnectorConfigCodec.UI_TYPES`,
-so `validate()` rejects it as an unknown type on any admin-originated write.
-The other **six** are fully manageable from `/admin/connectors`.
+`filesystem` reads server-local paths, so it is properties-only: read-only in the admin UI, and
+excluded from `ConnectorConfigCodec.UI_TYPES`, so `validate()` rejects it as an unknown type on any
+admin write. The other **six** are fully manageable from `/admin/connectors`.
 
 ---
 
@@ -43,7 +40,7 @@ The other **six** are fully manageable from `/admin/connectors`.
 ### 1. Admin-managed DB configs (recommended)
 
 Created through the `/admin/connectors` UI (or `POST /admin/connectors`
-directly). Stored in the `connector_configs` table (migration `V048`) and
+directly). Ids match `[a-z0-9-]{1,64}`; `test` is reserved. Stored in the `connector_configs` table (migration `V048`) and
 **hot-applied** — no restart required. Every mutation
 (`ConnectorConfigService.rebuild()`) re-reads the DB rows plus the startup
 properties snapshot and atomically swaps a fresh registry into
@@ -63,75 +60,33 @@ a one-click **Import to database** button that copies them into `connector_confi
 which the DB row shadows the properties definition by id and becomes editable.
 Import is the *only* mutation a properties-origin connector supports directly;
 attempting `PUT`/`DELETE` against an un-imported properties-origin id returns
-`409` ("connector '\<id\>' is defined in wikantik-custom.properties").
+`409` ("connector '\<id\>' is defined in wikantik-custom.properties"). Importing an already-imported id also returns `409`.
 
-Property syntax by type (from
-`wikantik-main/src/main/resources/ini/wikantik.properties`, section "Connectors"):
+Keys follow `wikantik.connectors.<type>.<id>.<field>`; every field, with its default, is declared
+(commented out) in the "Connectors" section of
+`wikantik-main/src/main/resources/ini/wikantik.properties`. Required fields per type:
 
-```properties
-# Kill switch (default true) — see "Kill switch" below.
-#wikantik.connectors.enabled = true
-#wikantik.connectors.sync.interval.hours = 0
-#wikantik.connectors.filesystem.docs.root = /data/docs   # key pattern: filesystem.<id>.root
+| Type | Required | Optional (defaults) |
+|---|---|---|
+| `filesystem` | `.root` (key is `wikantik.connectors.filesystem.<id>.root`) | none |
+| `webcrawler` | `.seeds` | `same_host_only`, `path_prefix`, `max_pages` (100), `max_depth` (3), `delay_ms` (1000), `user_agent`, `respect_robots` (true) |
+| `sitemap` | `.sitemap_urls` | `max_pages` (500), `delay_ms`, `user_agent`, `respect_robots`, `same_host_only` |
+| `feed` | `.feed_urls` | `max_items` (100), `fetch_full_articles` (true), `delay_ms`, `user_agent`, `respect_robots`, `same_host_only` |
+| `gdrive` | `.folder_ids`, `.client_id`, `.client_secret`, `.redirect_uri` | `max_files` (500), `export_mime` (`text/markdown`) |
+| `github` | `.repo` (`owner/name`) | `branch`, `path_prefix`, `max_files` (500) |
+| `confluence` | `.base_url`, `.space_key`, `.email` | `max_pages` (500) |
 
-# Web crawler — each <id> needs at least .seeds
-#wikantik.connectors.webcrawler.<id>.seeds = https://example.com/
-#wikantik.connectors.webcrawler.<id>.same_host_only = true
-#wikantik.connectors.webcrawler.<id>.path_prefix =
-#wikantik.connectors.webcrawler.<id>.max_pages = 100
-#wikantik.connectors.webcrawler.<id>.max_depth = 3
-#wikantik.connectors.webcrawler.<id>.delay_ms = 1000
-#wikantik.connectors.webcrawler.<id>.user_agent = WikantikCrawler/1.0 (+https://wiki.wikantik.com)
-#wikantik.connectors.webcrawler.<id>.respect_robots = true
+Global keys: `wikantik.connectors.enabled` (default `true`, the [kill switch](#kill-switch)),
+`wikantik.connectors.sync.interval.hours` (default `0`) and `wikantik.connectors.crypto.key`
+([master key](#the-master-key)). `gdrive` needs the crypto key too (the refresh token is stored encrypted);
+obtain it through the consent flow at `/admin/connector-oauth/gdrive/<id>/authorize` (`redirect_uri` must match
+the Google Cloud OAuth client). Inject `github`/`confluence` secrets once via
+`POST /admin/connector-credentials/<id>/token` (fine-grained PAT, read-only Contents) or
+`.../api_token`.
 
-# Sitemap — each <id> needs at least .sitemap_urls
-#wikantik.connectors.sitemap.<id>.sitemap_urls = https://example.com/sitemap.xml
-#wikantik.connectors.sitemap.<id>.max_pages = 500
-#wikantik.connectors.sitemap.<id>.delay_ms = 1000
-#wikantik.connectors.sitemap.<id>.user_agent = WikantikCrawler/1.0 (+https://wiki.wikantik.com)
-#wikantik.connectors.sitemap.<id>.respect_robots = true
-#wikantik.connectors.sitemap.<id>.same_host_only = true
-
-# RSS/Atom feed — each <id> needs at least .feed_urls
-#wikantik.connectors.feed.<id>.feed_urls = https://example.com/rss.xml
-#wikantik.connectors.feed.<id>.max_items = 100
-#wikantik.connectors.feed.<id>.fetch_full_articles = true
-#wikantik.connectors.feed.<id>.delay_ms = 1000
-#wikantik.connectors.feed.<id>.user_agent = WikantikCrawler/1.0 (+https://wiki.wikantik.com)
-#wikantik.connectors.feed.<id>.respect_robots = true
-#wikantik.connectors.feed.<id>.same_host_only = true
-
-# Google Drive — requires wikantik.connectors.enabled=true AND a configured
-# wikantik.connectors.crypto.key (the refresh token is stored encrypted).
-# Obtain the refresh token via the admin consent flow at
-# /admin/connector-oauth/gdrive/<id>/authorize (redirect_uri must match the
-# one registered in the Google Cloud OAuth client).
-#wikantik.connectors.gdrive.<id>.folder_ids   = <comma-separated Drive folder IDs>
-#wikantik.connectors.gdrive.<id>.client_id     = <OAuth2 client id>
-#wikantik.connectors.gdrive.<id>.client_secret = <OAuth2 client secret>
-#wikantik.connectors.gdrive.<id>.redirect_uri  = https://<host>/admin/connector-oauth/gdrive/callback
-#wikantik.connectors.gdrive.<id>.max_files     = 500
-#wikantik.connectors.gdrive.<id>.export_mime   = text/markdown
-
-# GitHub — inject the token (fine-grained PAT, read-only Contents scope) once via:
-#   POST /admin/connector-credentials/<id>/token
-#wikantik.connectors.github.<id>.repo        = <owner>/<name>
-#wikantik.connectors.github.<id>.branch      =
-#wikantik.connectors.github.<id>.path_prefix =
-#wikantik.connectors.github.<id>.max_files   = 500
-
-# Confluence Cloud — inject the Atlassian API token once via:
-#   POST /admin/connector-credentials/<id>/api_token
-#wikantik.connectors.confluence.<id>.base_url  = https://<site>.atlassian.net
-#wikantik.connectors.confluence.<id>.space_key = <KEY>
-#wikantik.connectors.confluence.<id>.email     = <account email>
-#wikantik.connectors.confluence.<id>.max_pages = 500
-```
-
-> **SECURITY:** do not enable Google's HTTP wire logging in production
-> (`java.util.logging` on `com.google.api.client.http.HttpTransport` at
-> `CONFIG`/`FINE`) — it logs request/response bodies including OAuth tokens. It
-> is off by default; leave it off.
+> **SECURITY:** leave Google's HTTP wire logging (`java.util.logging` on
+> `com.google.api.client.http.HttpTransport` at `CONFIG`/`FINE`) off in production: it logs
+> request/response bodies including OAuth tokens.
 
 ---
 
@@ -422,9 +377,9 @@ pausing a read replica or similar, not for locking down configuration.
 Connector target URLs are admin-supplied, but "admin" is a scoped role and the
 server sits on a private network (DB, embedder, sibling services, cloud
 metadata) — an unrestricted outbound fetch from a connector is a
-forge-a-request-from-the-server primitive. Since 2.4.17, every connector HTTP
+forge-a-request-from-the-server primitive. Every connector HTTP
 fetch is validated by `EgressGuard`
-(`com.wikantik.connectors.http.EgressGuard`, `wikantik-connectors`):
+(`com.wikantik.connectors.http.EgressGuard`, `wikantik-connectors`; at most 5 redirect hops):
 
 - Only `http`/`https` schemes are permitted — anything else is rejected.
 - The target host is resolved and rejected if it maps to any loopback,

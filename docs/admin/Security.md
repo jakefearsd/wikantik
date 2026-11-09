@@ -225,23 +225,18 @@ Identify people by **login name** everywhere access is decided.
   surrounding whitespace and runs of whitespace. The rules run when a name is set or changed.
   `PUT /api/auth/profile` and `/admin/users` (create and update; create requires a display
   name) refuse a malformed or reserved name with `400` and a name that is taken with `409`,
-  each with the reason. SCIM `POST`, `PUT` and `PATCH` on `/scim/v2/Users` answer `409` with
-  `scimType` `uniqueness` for a taken name and `400` with `invalidValue` for a malformed or
-  reserved one, without saving; a SCIM `POST` that carries no `name.formatted` creates the
-  account as "Member N". The application checks uniqueness; there is no database index
-  (migrations run on every container start, and an index would fail on existing duplicates),
-  so two saves racing for the same name can both succeed. Wiki names stay unique too: when
-  the wiki name derived from a display name is already held, the account gets a numbered one
-  (`JohnSmith2`), which is stored and read back as is, and kept when an identity provider
-  re-sends the same name. A save that still collides with another account's login or wiki
-  name is refused with a generic message: `409` `uniqueness` on SCIM; `400` on admin
-  create/update (`/admin/users`) and self-service (`PUT /api/auth/profile`). SCIM
-  `POST /Groups` returns `409` for a group name that is an account's login, full or wiki
-  name. SSO auto-provisioning never fails on a name and never uses the email address as one:
-  it takes the IdP's name claim when it passes the rules, adds a number ("Jane Doe 2") when
-  that name is taken, and falls back to "Member N" when there is no usable claim (see
-  [SingleSignOn.md](SingleSignOn.md)). A name is re-checked only when it changes, so an
-  account that predates these rules is never blocked from saving the rest of its profile.
+  each with the reason. SCIM answers `409` `uniqueness` for a taken name and `400` `invalidValue` for a
+  malformed or reserved one, without saving (see [ScimProvisioning.md](ScimProvisioning.md)). The
+  application checks uniqueness; there is no database index (migrations run on every container start
+  and an index would fail on existing duplicates), so two saves racing for the same name can both
+  succeed. Wiki names stay unique too: a clash gets a numbered wiki name (`JohnSmith2`), stored and
+  read back as is. A save that still collides with another account's login or wiki name is refused
+  with a generic message (`409` on SCIM; `400` on `/admin/users` and `PUT /api/auth/profile`); SCIM
+  `POST /Groups` returns `409` for a group name that is an account's login, full or wiki name. SSO
+  auto-provisioning never fails on a name and never uses the email address as one: it takes the
+  IdP's name claim when it passes the rules, adds a number ("Jane Doe 2") when taken, and falls
+  back to "Member N" (see [SingleSignOn.md](SingleSignOn.md)). A name is re-checked only when it
+  changes, so an account that predates these rules can still save the rest of its profile.
   `bin/db/one-shots/dedupe_display_names.sh` renames older duplicates once and gives any
   account that has no stored user id one (see [WikantikOperations.md](WikantikOperations.md)).
 
@@ -467,12 +462,13 @@ has its own per-client limiter (`mcp.ratelimit.*`, `tools.ratelimit.*`). Details
 
 `RateLimitFilter` limits requests per client IP on a sliding window. It runs on
 `/api/*`, `/id/*`, `/export/*` and `/sparql`, after request metrics and before the
-authentication filters. It has two tiers:
+authentication filters. It has three tiers:
 
 | Tier | Paths | Per-client limit | Global limit |
 |---|---|---|---|
 | default | everything the filter maps | 25 requests per second | none (concurrency is bounded by `BackpressureFilter`) |
 | expensive | prefixes `/api/bundle`, `/api/search`, `/sparql` | 3 requests per second | 10 requests per second across all clients |
+| session | prefix `/api/collab/` (long-poll collaborative editing); requests carrying an `Authorization` header are never session-tier | 100 requests per second | none |
 
 Exempt from limiting: loopback callers (IPv4 and IPv6), any IPv4 CIDR in the exempt
 list, and the exact path `/api/health`. The client IP is `getRemoteAddr()`, which is
@@ -480,7 +476,7 @@ the real client only if Tomcat's `RemoteIpValve` is configured to read the heade
 proxy sets: `CF-Connecting-IP` behind Cloudflare, the deploy-local template hard-codes it,
 and Docker deployments set it with `PROXY_REMOTE_IP_HEADER` (see
 [DockerDeployment.md](DockerDeployment.md)). A rejected request gets `429` with `Retry-After: 1`, a `SecurityLog`
-line, and an increment of `wikantik_ratelimit.rejected_total{tier=...}`.
+line, and an increment of `wikantik_ratelimit.rejected_total{tier=default|expensive|session}`.
 
 Configure it with environment variables, read once at startup. A limit of `0` disables
 that bucket and all zeros disable the filter:
@@ -491,6 +487,8 @@ that bucket and all zeros disable the filter:
 | `WIKANTIK_RATELIMIT_EXPENSIVE_PERCLIENT` | `3` |
 | `WIKANTIK_RATELIMIT_EXPENSIVE_GLOBAL` | `10` |
 | `WIKANTIK_RATELIMIT_EXPENSIVE_PATHS` | `/api/bundle,/api/search,/sparql` |
+| `WIKANTIK_RATELIMIT_SESSION_PERCLIENT` | `100` |
+| `WIKANTIK_RATELIMIT_SESSION_PATHS` | `/api/collab/` (set but blank disables session paths; prefixes shallower than two segments are refused) |
 | `WIKANTIK_RATELIMIT_EXEMPT_CIDRS` | empty |
 
 **Get the proxy header right.** If the configured header does not match what your proxy
@@ -508,7 +506,7 @@ check the result after any proxy change.
 
 `/sparql`, `/id/{type}/{id}` and `/export/*` are public, read-only and permissive
 about cross-origin access. They are safe to leave public because of a public/restricted
-split: `PublicProjectionFilter` keeps pages, entities and edges that an anonymous guest
+split: `PublicProjectionFilter` keeps pages (and the concepts hanging off them) that an anonymous guest
 cannot view out of the materialised dataset entirely, so restricted content cannot be
 queried. `/sparql` rejects update operations and caps results and run time. A page's
 `dct:creator` comes from its `author:` frontmatter line: a value that is an account's login is

@@ -183,8 +183,7 @@ as the authoritative sequence):
    `/opt/wikantik`, or copy `docker-compose.yml`,
    `docker-compose.cloud.yml`, `deploy/config/`, and `docker/`).
 4. **Write `.env`** — `WIKANTIK_IMAGE` (pinned tag), `POSTGRES_PASSWORD`,
-   the GenAI tier variables (`WIKANTIK_GENAI_MODE`,
-   `WIKANTIK_KNOWLEDGE_ENABLED`, …), and
+   the GenAI tier variables (`WIKANTIK_GENAI_MODE`, …), and
    `PROXY_REMOTE_IP_HEADER=X-Forwarded-For` if using the `caddy` ingress
    profile. The tier presets and every entrypoint variable are documented
    in [CloudDeployment.md](CloudDeployment.md) and
@@ -196,7 +195,7 @@ as the authoritative sequence):
    docker compose -f docker-compose.yml -f docker-compose.cloud.yml \
                   --profile caddy --profile bundled-db \
                   up -d
-   # add --profile embeddings for the search/knowledge tiers;
+   # add --profile embeddings for the `search` tier;
    # swap --profile caddy for --profile cloudflared for tunnel ingress
    ```
 

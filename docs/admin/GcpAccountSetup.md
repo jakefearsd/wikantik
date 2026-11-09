@@ -76,7 +76,7 @@ AWS access keys).
 The reference deployment's floor cost is roughly **$30–60/month**
 depending on tier (see the
 [cost table](../../deploy/gcp/README.md#cost-rough-us-central1-on-demand-pricing--verify-current-pricing-before-relying-on-this));
-the `knowledge` tier adds pay-per-token Anthropic API usage on top.
+the `search` tier adds the CPU embedding sidecar (no per-token API cost).
 Before creating any infrastructure:
 
 1. Console → **Billing** → **Budgets & alerts** → create a monthly budget

@@ -3,7 +3,7 @@
 This directory holds Wikantik's current ADR series — `NNNN-slug.md` with a
 four-digit number (`0001`–`0011` so far). Each record captures a load-bearing
 design decision (context, decision, consequences) for the RAG-as-a-Service,
-Knowledge Graph, ontology, cluster-taxonomy, data-access-primitive, and
+ontology (the Knowledge Graph decisions, ADR-0002/0006, are superseded), cluster-taxonomy, data-access-primitive, and
 session-briefing project-context lines of work. Indexed from
 [README.md](../../README.md) and cross-linked from the design docs that motivated them.
 

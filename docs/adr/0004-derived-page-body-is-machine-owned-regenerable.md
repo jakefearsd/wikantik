@@ -3,8 +3,7 @@
 A derived page's body is owned by the extraction pipeline and is **reflowed (clobbered)**
 whenever an improved extractor is run across the corpus; the retained source document is the
 durable source-of-truth. Human curation that must survive reflow lives in the
-**body-independent layers that already exist** — frontmatter, tags/cluster, Knowledge Graph
-entity curation (`kg_*` tables), verification status, comments. Humans *may* still hand-edit
+**body-independent layers that already exist** — frontmatter, tags/cluster, verification status, comments. Humans *may* still hand-edit
 the extracted prose, but **at their own risk**: a reflow will overwrite it.
 
 We deliberately add **no edit-protection, no locking, and no automatic three-way merge**.

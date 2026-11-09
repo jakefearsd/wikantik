@@ -1,14 +1,12 @@
 # GenAI Cost Tiers — Operator Reference
 
-This page is for operators who run Wikantik and want to cap or verify its LLM/inference spend. Wikantik's LLM/inference spend is bounded by a single ceiling property,
+This page is for operators who cap or verify Wikantik's LLM/inference spend. That spend is bounded by a single ceiling property,
 **`wikantik.genai.mode`** (`com.wikantik.api.config.GenAiMode`), plus a handful
 of independent feature flags it gates. This page gives two named tiers —
 **core**, **search** — with the exact `.env` preset for the
 Docker/container path and the equivalent `wikantik-custom.properties` lines
 for the bare-metal path, followed by how to verify a tier is actually
 enforced and what it does *not* cover.
-
-Each block ends with a "Verified against" line naming the files that define the properties and env vars it uses.
 
 ## How the ceiling works
 
@@ -32,7 +30,7 @@ ceiling. The three call sites that do this today:
 | Call site | Flag | Ceiling check | Source |
 |-----------|------|----------------|--------|
 | Embedding client | `wikantik.search.hybrid.enabled` | `mode.allowsEmbeddings()` | `EmbeddingConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java`) |
-| Bundle LLM reranker | `wikantik.bundle.reranker.enabled` (or an `llm` token in `wikantik.bundle.rerank.chain`) | `mode.allowsChatInference()` | `BundleServiceWiring.rerankerFor`/`buildChain` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleServiceWiring.java`) |
+| Bundle LLM reranker | `wikantik.bundle.reranker.enabled` (or an `llm` token in `wikantik.bundle.rerank.chain`) | `mode.allowsChatInference()` | `BundleRerankers.rerankerFor`/`buildChain` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleRerankers.java`) |
 | Bundle query-decomposition planner | `wikantik.bundle.decomposition.enabled` | `mode.allowsChatInference()` | `BundleDecompositionConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleDecompositionConfig.java`) |
 
 Each of these logs a `WARN` when an explicitly-enabled feature gets
@@ -69,8 +67,6 @@ wikantik.search.hybrid.enabled = false
 > properties override needed. Setting the raw flag explicitly is only necessary
 > if you want the warn logs quiet about a suppressed-but-enabled feature.
 
-Verified against: `docker/entrypoint.sh`, `wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java`, `wikantik-main/src/main/resources/ini/wikantik.properties` (default `true`).
-
 ---
 
 ## Tier: search — dense + BM25 hybrid, CPU embedding sidecar only
@@ -102,8 +98,6 @@ wikantik.search.embedding.base-url = http://<your-embedding-host>:11434
 
 `wikantik.search.hybrid.enabled` needs no override here — it defaults to
 `true` (`ini/wikantik.properties`) and stays effective under this tier.
-
-Verified against: `docker-compose.cloud.yml`, `.env.example`, `docker/entrypoint.sh`, `wikantik-main/src/main/resources/ini/wikantik.properties` (`wikantik.search.embedding.backend`/`base-url` defaults).
 
 ---
 
@@ -158,7 +152,7 @@ singleton** (`LlmActivityLogHolder`) — created once, on first use, from
 whatever properties were live at that moment. Changing the flag requires a
 restart to take effect, and once a call is disabled, no per-call recording
 overhead is paid (the wrapper classes are simply never constructed — see
-`BundleServiceWiring.recordReranker`/`recordPlanner`, which return the
+`BundleRerankers.recordReranker`/`recordPlanner`, which return the
 undecorated reranker/planner untouched when the log is disabled).
 
 ### 2. `GET /api/capabilities` — reflects the effective feature state

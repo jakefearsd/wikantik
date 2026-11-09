@@ -92,8 +92,9 @@ class RobotsTxtTest {
         // and should be blocked from crawling to improve SEO efficiency.
         assertTrue( content.contains( "Disallow: /page-graph" ),
                 "robots.txt must block /page-graph (interactive graph viewer); was: " + content );
-        assertTrue( content.contains( "Disallow: /knowledge-graph" ),
-                "robots.txt must block /knowledge-graph (interactive graph viewer); was: " + content );
+        // /knowledge-graph was removed (2.5.12); leave it crawlable so engines see the 404 and drop old URLs.
+        assertFalse( content.contains( "Disallow: /knowledge-graph" ),
+                "robots.txt must not block the removed /knowledge-graph route; was: " + content );
         assertTrue( content.contains( "Disallow: /login" ),
                 "robots.txt must block /login (authentication page); was: " + content );
         assertTrue( content.contains( "Disallow: /me/mentions" ),

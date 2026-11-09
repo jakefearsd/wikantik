@@ -2,7 +2,6 @@
 audience:
 - humans
 - agents
-kg_include: true
 date: '2026-08-16'
 related:
 - BiochemicalEngineering

@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 
 class OntologyModelManagerTest {
 
-    private Model entityGraph( final String entityIri, final String classLocal ) {
+    private Model pageGraph( final String entityIri, final String classLocal ) {
         final Model m = ModelFactory.createDefaultModel();
         m.add( ResourceFactory.createResource( entityIri ),
                RDF.type,
@@ -43,8 +43,8 @@ class OntologyModelManagerTest {
     void loadsTBoxAndReplacesNamedGraphs() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        final String iri = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000a1" ) );
-        mgr.replaceNamedGraph( iri, entityGraph( iri, "Technology" ) );
+        final String iri = Iris.page( String.valueOf( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000a1" ) ) );
+        mgr.replaceNamedGraph( iri, pageGraph( iri, "Runbook" ) );
 
         assertTrue( mgr.namedGraphExists( iri ) );
         mgr.removeNamedGraph( iri );
@@ -52,30 +52,30 @@ class OntologyModelManagerTest {
     }
 
     @Test
-    void rdfsInferenceDerivesSchemaThingFromTechnology() {
+    void rdfsInferenceDerivesSchemaHowToFromRunbook() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        final String iri = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000a2" ) );
-        mgr.replaceNamedGraph( iri, entityGraph( iri, "Technology" ) );
+        final String iri = Iris.page( String.valueOf( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000a2" ) ) );
+        mgr.replaceNamedGraph( iri, pageGraph( iri, "Runbook" ) );
 
         final Model inf = mgr.inferenceSnapshot();
         assertTrue( inf.contains(
                 ResourceFactory.createResource( iri ),
                 RDF.type,
-                ResourceFactory.createResource( Iris.SCHEMA + "Thing" ) ),
-                "RDFS inference should type the Technology individual as schema:Thing" );
+                ResourceFactory.createResource( Iris.SCHEMA + "HowTo" ) ),
+                "RDFS inference should type the Runbook individual as schema:HowTo" );
     }
 
     @Test
     void clearAboxLeavesTBoxIntact() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        final String iri = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000a3" ) );
-        mgr.replaceNamedGraph( iri, entityGraph( iri, "Concept" ) );
+        final String iri = Iris.page( String.valueOf( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000a3" ) ) );
+        mgr.replaceNamedGraph( iri, pageGraph( iri, "Hub" ) );
         mgr.clearAbox();
         assertFalse( mgr.namedGraphExists( iri ), "A-Box graphs gone after clear" );
         assertTrue( mgr.tboxSnapshot().contains(
-                ResourceFactory.createResource( Iris.term( "Concept" ) ),
+                ResourceFactory.createResource( Iris.term( "Hub" ) ),
                 RDF.type,
                 ResourceFactory.createResource( "http://www.w3.org/2002/07/owl#Class" ) ) );
     }
@@ -84,16 +84,16 @@ class OntologyModelManagerTest {
     void unionSnapshotIncludesTBoxAndNamedGraphs() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        final String iri = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000b9" ) );
-        mgr.replaceNamedGraph( iri, entityGraph( iri, "Technology" ) );
+        final String iri = Iris.page( String.valueOf( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000b9" ) ) );
+        mgr.replaceNamedGraph( iri, pageGraph( iri, "Runbook" ) );
         final Model union = mgr.unionSnapshot();
         assertTrue( union.contains(
-                ResourceFactory.createResource( Iris.term( "Technology" ) ), RDF.type,
+                ResourceFactory.createResource( Iris.term( "Runbook" ) ), RDF.type,
                 ResourceFactory.createResource( "http://www.w3.org/2002/07/owl#Class" ) ),
                 "T-Box class present in union" );
         assertTrue( union.contains(
                 ResourceFactory.createResource( iri ), RDF.type,
-                ResourceFactory.createResource( Iris.term( "Technology" ) ) ),
+                ResourceFactory.createResource( Iris.term( "Runbook" ) ) ),
                 "A-Box triple present in union" );
     }
 
@@ -101,8 +101,8 @@ class OntologyModelManagerTest {
     void namedGraphSnapshotReturnsJustThatGraph() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        final String iri = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000ba" ) );
-        mgr.replaceNamedGraph( iri, entityGraph( iri, "Concept" ) );
+        final String iri = Iris.page( String.valueOf( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000ba" ) ) );
+        mgr.replaceNamedGraph( iri, pageGraph( iri, "Hub" ) );
         assertTrue( mgr.namedGraphSnapshot( iri ).size() == 1, "only the resource's own triples" );
     }
 
@@ -112,10 +112,10 @@ class OntologyModelManagerTest {
         mgr.loadTBox();
         assertEquals( 0L, mgr.namedGraphCount(), "no A-Box graphs right after loadTBox" );
 
-        final String iriA = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000c1" ) );
-        final String iriB = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000c2" ) );
-        mgr.replaceNamedGraph( iriA, entityGraph( iriA, "Technology" ) );
-        mgr.replaceNamedGraph( iriB, entityGraph( iriB, "Concept" ) );
+        final String iriA = Iris.page( String.valueOf( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000c1" ) ) );
+        final String iriB = Iris.page( String.valueOf( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000c2" ) ) );
+        mgr.replaceNamedGraph( iriA, pageGraph( iriA, "Runbook" ) );
+        mgr.replaceNamedGraph( iriB, pageGraph( iriB, "Hub" ) );
         assertEquals( 2L, mgr.namedGraphCount() );
 
         mgr.removeNamedGraph( iriA );
@@ -136,12 +136,12 @@ class OntologyModelManagerTest {
     void writeBatchCommitsEveryGraphInOneTransaction() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        mgr.replaceNamedGraph( "urn:test:gone", entityGraph( "urn:test:gone", "Concept" ) );
+        mgr.replaceNamedGraph( "urn:test:gone", pageGraph( "urn:test:gone", "Hub" ) );
         final long before = mgr.committedWriteTransactions();
 
         mgr.writeBatch( w -> {
-            w.replaceNamedGraph( "urn:test:a", entityGraph( "urn:test:a", "Technology" ) );
-            w.replaceNamedGraph( "urn:test:b", entityGraph( "urn:test:b", "Concept" ) );
+            w.replaceNamedGraph( "urn:test:a", pageGraph( "urn:test:a", "Runbook" ) );
+            w.replaceNamedGraph( "urn:test:b", pageGraph( "urn:test:b", "Hub" ) );
             w.removeNamedGraph( "urn:test:gone" );
         } );
 
@@ -155,11 +155,11 @@ class OntologyModelManagerTest {
     void writeBatchThatChangesNothingCommitsNothing() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        mgr.replaceNamedGraph( "urn:test:a", entityGraph( "urn:test:a", "Technology" ) );
+        mgr.replaceNamedGraph( "urn:test:a", pageGraph( "urn:test:a", "Runbook" ) );
         final long before = mgr.committedWriteTransactions();
 
         mgr.writeBatch( w -> {
-            w.replaceNamedGraph( "urn:test:a", entityGraph( "urn:test:a", "Technology" ) );
+            w.replaceNamedGraph( "urn:test:a", pageGraph( "urn:test:a", "Runbook" ) );
             w.removeNamedGraph( "urn:test:never-existed" );
         } );
 
@@ -174,7 +174,7 @@ class OntologyModelManagerTest {
         final long before = mgr.committedWriteTransactions();
 
         assertThrows( IllegalStateException.class, () -> mgr.writeBatch( w -> {
-            w.replaceNamedGraph( "urn:test:a", entityGraph( "urn:test:a", "Technology" ) );
+            w.replaceNamedGraph( "urn:test:a", pageGraph( "urn:test:a", "Runbook" ) );
             throw new IllegalStateException( "projection failed" );
         } ) );
 

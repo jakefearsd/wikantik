@@ -19,7 +19,6 @@
 package com.wikantik.mcp;
 
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
@@ -27,8 +26,6 @@ import com.wikantik.diff.DifferenceManager;
 import com.wikantik.insights.runtime.ContentOpportunityService;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.mcp.tools.*;
-import com.wikantik.mcp.tools.kg.QueryNodesTool;
-import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -127,37 +124,6 @@ public class McpToolRegistry {
                 structuralIndex == null ? null
                         : new com.wikantik.pagegraph.spine.ClusterRenameService(
                                 pageManager, structuralIndex, pageSaveHelper ) ) );
-
-        // --- Knowledge proposal tools (only if KnowledgeGraphService is available) ---
-        // future: switch to engine.getKnowledgeSubsystem() when KnowledgeSubsystemBridge
-        // retires in Phase 9. See wikantik-main/.../KnowledgeSubsystemBridge.java javadoc
-        // for status.
-        final var subsystem = com.wikantik.knowledge.subsystem
-            .KnowledgeSubsystemBridge.fromLegacyEngine( engine );
-        final KnowledgeGraphService kgService = subsystem.kgService();
-        final com.wikantik.api.knowledge.KgCurationOps curationOps = subsystem.kgCurationOps();
-        if ( kgService != null ) {
-            final int bulkLimit = new McpConfig().kgCurationBulkLimit();
-            readOnlyList.add( new ListProposalsTool( kgService ) );
-            readOnlyList.add( new InspectProposalsTool( kgService, bulkLimit ) );
-            authorConfigurableList.add( new ProposeKnowledgeTool( kgService ) );
-            if ( curationOps != null ) {
-                // future: gated by kg_curate scope when scoped API keys land (9b)
-                authorConfigurableList.add( new ReviewProposalsTool( curationOps, bulkLimit ) );
-                // future: gated by kg_curate scope when scoped API keys land (9b)
-                authorConfigurableList.add( new CurateEdgesTool( curationOps, bulkLimit ) );
-                // future: gated by kg_curate scope when scoped API keys land (9b)
-                authorConfigurableList.add( new CurateNodesTool( curationOps, bulkLimit ) );
-            }
-            // Admin variants of the canonical /knowledge-mcp tools with admin bypass
-            // enabled, so curators can immediately see entities whose source pages have
-            // not yet been admitted by the cluster inclusion policy (e.g. freshly-created
-            // nodes whose page is still on kg_excluded_pages). MentionIndex is intentionally
-            // null — the admin surface does not hide unmentioned entities.
-            readOnlyList.add( new QueryNodesTool( kgService, null, true ) );
-            readOnlyList.add( new SearchKnowledgeTool( kgService, null, true ) );
-            readOnlyList.add( new ListOrphanedKgNodesTool( kgService ) );
-        }
 
         // Query-log read tool — only when the engine has a datasource-backed reader.
         if ( engine instanceof com.wikantik.WikiEngine we && we.queryLogReader() != null ) {

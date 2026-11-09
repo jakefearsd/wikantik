@@ -10,7 +10,6 @@ tags:
 verified_by: gemini-cli-mcp-client
 canonical_id: 01KQTD2K72YBHBZHHANDBZ65MJ
 date: '2026-05-04'
-kg_include: true
 audience:
 - humans
 verified_at: '2026-05-04T21:10:44.598011331Z'
@@ -21,7 +20,7 @@ summary: 'Frontmatter reference: the fields, what blocks a save versus only warn
 ---
 # Frontmatter Conventions
 
-In Wikantik, YAML frontmatter is the "Structural Spine" of a page. It is the machine-readable metadata behind search, SEO output (meta description and JSON-LD), the structural index (clusters and hubs), the RDF ontology, Knowledge Graph inclusion and the agent-grade page projection. The field list lives in one place, `FrontmatterSchema` on the server (`GET /api/frontmatter-schema`), and the same validator runs on every save path: the editor, REST and the MCP write tools.
+In Wikantik, YAML frontmatter is the "Structural Spine" of a page. It is the machine-readable metadata behind search, SEO output (meta description and JSON-LD), the structural index (clusters and hubs), the RDF ontology and the agent-grade page projection. The field list lives in one place, `FrontmatterSchema` on the server (`GET /api/frontmatter-schema`), and the same validator runs on every save path: the editor, REST and the MCP write tools.
 
 ## Core fields
 
@@ -63,7 +62,6 @@ The `canonical_id` is a stable, 26-character ULID that identifies the page regar
 | `related` | list of page names | Curated see-also links; a name that does not resolve warns. |
 | `date` | ISO date | Becomes `datePublished`. |
 | `author` | text | Decides the initial page owner when it names a real login (`docs/admin/PageOwnership.md` in the repository). |
-| `kg_include` | `true` or `false` | Overrides the cluster-primary KG policy; see below. |
 | `verified_at`, `verified_by` | ISO timestamp, login | Set by `mark_page_verified`. |
 | `audience` | `humans`, `agents`, `both`, or a list | Anything else is an error. |
 | `confidence`, `agent_hints` | read-only | Derived; see below. |
@@ -96,10 +94,9 @@ verified_by: jakefear
 
 ```yaml
 audience: humans | agents | both
-kg_include: true | false    # override the cluster-level KG policy
 ```
 
-`kg_include` overrides the cluster-primary, default-exclude policy that decides whether a page's extracted entities enter the Knowledge Graph ([KG Inclusion Policy](KgInclusionPolicy)). Any value other than `true` or `false` refuses the save.
+`kg_include` is retired: it steered the Knowledge Graph, which was removed in November 2026. Pages that still carry it save normally and the value is ignored.
 
 ### The runbook block
 
@@ -107,13 +104,13 @@ A `type: runbook` page needs a `runbook:` block with `when_to_use` (at least 1 e
 
 ## Clusters
 
-A cluster exists if and only if exactly one hub page declares it: a page with `type: hub` and a single scalar `cluster: <path>`. A sub-cluster is written `parent/child`, one level only. A non-hub page joins a cluster by naming it and may list several (`cluster: [cooking, food-science]`); the first entry is its primary cluster, which decides its breadcrumbs, `articleSection` and sidebar placement. A page naming a cluster no hub declares still saves, with a `cluster.undeclared` warning. The value also feeds the BM25 boost, the embedding prefix, the ontology topic hierarchy and Knowledge Graph inclusion, so a mistyped cluster has real consequences. `rename_cluster` (`POST /admin/clusters/rename`) rewrites a cluster across all members and returns a plan unless `confirm=true`. The design is in [Cluster Declaration Design](ClusterDeclarationDesign).
+A cluster exists if and only if exactly one hub page declares it: a page with `type: hub` and a single scalar `cluster: <path>`. A sub-cluster is written `parent/child`, one level only. A non-hub page joins a cluster by naming it and may list several (`cluster: [cooking, food-science]`); the first entry is its primary cluster, which decides its breadcrumbs, `articleSection` and sidebar placement. A page naming a cluster no hub declares still saves, with a `cluster.undeclared` warning. The value also feeds the BM25 boost, the embedding prefix and the ontology topic hierarchy, so a mistyped cluster has real consequences. `rename_cluster` (`POST /admin/clusters/rename`) rewrites a cluster across all members and returns a plan unless `confirm=true`. The design is in [Cluster Declaration Design](ClusterDeclarationDesign).
 
 ## What blocks a save and what only warns
 
 Errors refuse the save (HTTP 422, or an MCP refusal); warnings let it through and come back with the response.
 
-**Errors:** malformed YAML (most often an unquoted colon, as in `title: Foo: Bar`; quote the value, or pass it through the MCP `metadata` argument, which quotes for you); an `audience` outside the allowed values; a malformed `runbook:` block; a list-valued `cluster` on a hub; a non-boolean `kg_include`; a second hub declaring an already-declared cluster, only if `wikantik.cluster_declaration.enforcement.enabled` is on (it ships `false`); and a non-canonical `type` or `status`, only if `wikantik.frontmatter.enum.nonCanonical.severity` is `error` (default `warning`).
+**Errors:** malformed YAML (most often an unquoted colon, as in `title: Foo: Bar`; quote the value, or pass it through the MCP `metadata` argument, which quotes for you); an `audience` outside the allowed values; a malformed `runbook:` block; a list-valued `cluster` on a hub; a second hub declaring an already-declared cluster, only if `wikantik.cluster_declaration.enforcement.enabled` is on (it ships `false`); and a non-canonical `type` or `status`, only if `wikantik.frontmatter.enum.nonCanonical.severity` is `error` (default `warning`).
 
 **Warnings:** `summary` outside 50 to 160 characters; a cluster or tag that is not kebab-case; a cluster no hub declares; a `related` name that does not resolve; a non-ISO `date`; a `verified_by` outside `wikantik.frontmatter.trustedAuthors` (checked only when that list is set); and non-canonical `type` or `status` values.
 

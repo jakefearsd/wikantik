@@ -19,76 +19,16 @@
 package com.wikantik.ontology;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 import java.util.function.Predicate;
 
-import com.wikantik.api.knowledge.KgEdge;
-import com.wikantik.api.knowledge.KgNode;
-import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.ontology.projection.PageRecord;
 import org.junit.jupiter.api.Test;
 
 class PublicProjectionFilterTest {
 
-    private static final UUID PUB = UUID.fromString( "00000000-0000-0000-0000-0000000000f1" );
-    private static final UUID RES = UUID.fromString( "00000000-0000-0000-0000-0000000000f2" );
-    private static final UUID STUB = UUID.fromString( "00000000-0000-0000-0000-0000000000f3" );
-    private static final UUID MSTUB = UUID.fromString( "00000000-0000-0000-0000-0000000000f4" );
-
     private final Predicate< String > isPublic = slug -> "PublicPage".equals( slug );
-
-    private KgNode node( final UUID id, final String sourcePage ) {
-        return new KgNode( id, "n", "concept", sourcePage, Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null );
-    }
-
-    /** A machine-extracted node — the provenance class that must fail closed without a source page. */
-    private KgNode machineNode( final UUID id, final String sourcePage ) {
-        return new KgNode( id, "n", "concept", sourcePage, Provenance.AI_INFERRED, Map.of(), null, null, "machine", null );
-    }
-
-    @Test
-    void isNodePublicIsTheSingleAuthorityForTheNodeAclRule() {
-        // The rebuild path (publicNodes) and the incremental path (OntologyEntitySync)
-        // must share this predicate — the rule being expressed twice is how a future
-        // refinement could silently apply to only one path.
-        assertTrue( PublicProjectionFilter.isNodePublic( node( PUB, "PublicPage" ), isPublic ) );
-        assertTrue( PublicProjectionFilter.isNodePublic( node( STUB, null ), isPublic ),
-                "a human-authored node with no source page is an explicit act of publication" );
-        assertFalse( PublicProjectionFilter.isNodePublic( machineNode( MSTUB, null ), isPublic ),
-                "a machine-extracted node with no source page must fail closed — it came from some "
-                + "page we can no longer identify, possibly a restricted one" );
-        assertFalse( PublicProjectionFilter.isNodePublic( node( RES, "SecretPage" ), isPublic ) );
-    }
-
-    @Test
-    void publicNodesDropRestrictedAndUnprovenancedMachineNodes() {
-        final List< KgNode > nodes = List.of(
-                node( PUB, "PublicPage" ), node( RES, "SecretPage" ),
-                node( STUB, null ), machineNode( MSTUB, null ) );
-        final List< KgNode > pub = PublicProjectionFilter.publicNodes( nodes, isPublic );
-        final Set< UUID > ids = PublicProjectionFilter.publicNodeIds( nodes, isPublic );
-        assertTrue( ids.contains( PUB ) && ids.contains( STUB ) );
-        assertFalse( ids.contains( MSTUB ), "unprovenanced machine node excluded — fail closed" );
-        assertFalse( ids.contains( RES ), "restricted-sourced node excluded" );
-        assertEquals( 2, pub.size() );
-    }
-
-    @Test
-    void publicEdgesRequireBothEndpointsPublic() {
-        final Set< UUID > pubIds = Set.of( PUB, STUB );
-        final List< KgEdge > edges = List.of(
-                new KgEdge( UUID.randomUUID(), PUB, STUB, "uses", Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null ),
-                new KgEdge( UUID.randomUUID(), PUB, RES,  "uses", Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null ) );
-        final List< KgEdge > pub = PublicProjectionFilter.publicEdges( edges, pubIds );
-        assertEquals( 1, pub.size(), "edge touching a restricted node is dropped" );
-        assertEquals( STUB, pub.get( 0 ).targetId() );
-    }
 
     @Test
     void publicPagesKeepOnlyViewable() {

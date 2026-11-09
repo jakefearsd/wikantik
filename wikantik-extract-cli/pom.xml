@@ -37,19 +37,15 @@
       <wikantik.coverage.line.minimum>0.88</wikantik.coverage.line.minimum>
     </properties>
     <description>
-        Standalone command-line driver for the save-time entity extractor
-        pipeline. Runs the BootstrapEntityExtractionIndexer against an
-        existing Wikantik database without booting a servlet container, so
-        multi-hour corpus-wide extraction can continue while the main Tomcat
-        instance is stopped / rebuilt for local development.
+        Standalone command-line tools (batch ingest, corpus divergence, config
+        reference and Main page generation, chunker stats) that run without
+        booting a servlet container. Every entry point is launched with an
+        explicit main class via {@code java -cp}.
     </description>
 
     <dependencies>
-        <!-- Pulls in every class the extraction pipeline needs: the
-             EntityExtractor API, Ollama and Claude implementations,
-             AsyncEntityExtractionListener, BootstrapEntityExtractionIndexer,
-             ChunkEntityMentionRepository, JdbcKnowledgeRepository,
-             ContentChunkRepository, and EntityExtractorConfig. -->
+        <!-- Pulls in the wikantik-main classes the CLIs use (chunker, config reference,
+             frontmatter parsing, page providers). -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>wikantik-main</artifactId>
@@ -165,9 +161,6 @@
                                 </filter>
                             </filters>
                             <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.wikantik.extractcli.BootstrapExtractionCli</mainClass>
-                                </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                         </configuration>

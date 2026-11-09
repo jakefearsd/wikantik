@@ -48,7 +48,6 @@ class McpConfigTest {
         assertNull( config.allowedCidrs() );
         assertFalse( config.allowUnrestricted() );
         assertEquals( 10000, config.rateLimiterMaxClients() );
-        assertEquals( 50, config.kgCurationBulkLimit() );
     }
 
     // --- overrides via explicit Properties ----------------------------------------
@@ -137,20 +136,6 @@ class McpConfigTest {
         final Properties props = new Properties();
         props.setProperty( "wikantik.mcp.rate_limit.max_clients", "abc" );
         assertEquals( 10000, new McpConfig( props ).rateLimiterMaxClients() );
-    }
-
-    @Test
-    void kgCurationBulkLimitParsesValidPositiveInteger() {
-        final Properties props = new Properties();
-        props.setProperty( "wikantik.mcp.kg_curation.bulk_limit", "12" );
-        assertEquals( 12, new McpConfig( props ).kgCurationBulkLimit() );
-    }
-
-    @Test
-    void kgCurationBulkLimitFallsBackOnBlankValue() {
-        final Properties props = new Properties();
-        props.setProperty( "wikantik.mcp.kg_curation.bulk_limit", "" );
-        assertEquals( 50, new McpConfig( props ).kgCurationBulkLimit() );
     }
 
     // --- instructions() ------------------------------------------------------------

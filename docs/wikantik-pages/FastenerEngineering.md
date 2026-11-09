@@ -12,7 +12,6 @@ tags:
 - fatigue
 - materials-science
 cluster: mechanical-engineering
-kg_include: true
 ---
 
 # Fastener Engineering: The Physics of Preload, Joint Mechanics, and Structural Integrity

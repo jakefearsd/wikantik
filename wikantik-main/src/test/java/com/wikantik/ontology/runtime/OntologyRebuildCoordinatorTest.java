@@ -25,13 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import com.wikantik.api.knowledge.KgNode;
-import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.ontology.projection.PageRecord;
 import com.wikantik.ontology.Iris;
 import com.wikantik.ontology.OntologyModelManager;
 import org.apache.jena.rdf.model.Model;
@@ -44,12 +41,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 class OntologyRebuildCoordinatorTest {
 
-    private static final UUID N1 = UUID.fromString( "00000000-0000-0000-0000-0000000000e1" );
+    private static final String CANON = "01CANON00000000000000000E1";
 
     private OntologyRebuildCoordinator coordinator( final OntologyModelManager mgr, final boolean enabled ) {
-        final List< KgNode > nodes = List.of(
-                new KgNode( N1, "X", "concept", null, Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null ) );
-        return new OntologyRebuildCoordinator( mgr, () -> nodes, loaded -> List.of(), List::of, enabled );
+        final List< PageRecord > pages = List.of(
+                new PageRecord( CANON, "X", "X", "article", null, List.of(), null, null, null ) );
+        return new OntologyRebuildCoordinator( mgr, () -> pages, enabled );
     }
 
     @Test
@@ -62,7 +59,7 @@ class OntologyRebuildCoordinatorTest {
 
         Awaitility.await().atMost( 5, TimeUnit.SECONDS )
                 .until( () -> "IDLE".equals( svc.status().state() ) );
-        assertTrue( mgr.namedGraphExists( Iris.entity( N1 ) ), "entity graph materialized after async rebuild" );
+        assertTrue( mgr.namedGraphExists( Iris.page( CANON ) ), "page graph materialized after async rebuild" );
         assertEquals( 1L, svc.status().graphCount() );
     }
 
@@ -80,7 +77,7 @@ class OntologyRebuildCoordinatorTest {
                     }
                     return List.of();
                 },
-                loaded -> List.of(), List::of, true );
+                true );
         svc.triggerRebuild();
         assertThrows( OntologyRebuildCoordinator.ConflictException.class, svc::triggerRebuild );
         Awaitility.await().atMost( 5, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
@@ -132,7 +129,7 @@ class OntologyRebuildCoordinatorTest {
     void compactionRunsAsyncAndReportsShrunkenSize( @TempDir final Path dir ) {
         final OntologyModelManager mgr = OntologyModelManager.tdb2( dir.toString() );
         mgr.loadTBox();
-        final String iri = Iris.entity( UUID.fromString( "00000000-0000-0000-0000-0000000000d1" ) );
+        final String iri = Iris.page( "01CANON00000000000000000D1" );
         for ( int i = 0; i < 30; i++ ) {
             mgr.replaceNamedGraph( iri, triple( iri, "urn:o" + i ) );
         }
@@ -140,7 +137,7 @@ class OntologyRebuildCoordinatorTest {
         assertTrue( before > 0, "TDB2 store should have a nonzero footprint after churn" );
 
         final OntologyRebuildCoordinator svc =
-                new OntologyRebuildCoordinator( mgr, List::of, loaded -> List.of(), List::of, true );
+                new OntologyRebuildCoordinator( mgr, List::of, true );
         final OntologyRebuildStatus started = svc.triggerCompaction();
         assertEquals( "COMPACTING", started.state() );
 
@@ -168,7 +165,7 @@ class OntologyRebuildCoordinatorTest {
             }
         };
         final OntologyRebuildCoordinator svc =
-                new OntologyRebuildCoordinator( mgr, List::of, loaded -> List.of(), List::of, true );
+                new OntologyRebuildCoordinator( mgr, List::of, true );
         svc.triggerCompaction();
         assertThrows( OntologyRebuildCoordinator.ConflictException.class, svc::triggerCompaction );
         Awaitility.await().atMost( 5, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
@@ -190,7 +187,7 @@ class OntologyRebuildCoordinatorTest {
                     }
                     return List.of();
                 },
-                loaded -> List.of(), List::of, true );
+                true );
         svc.triggerRebuild();
         assertThrows( OntologyRebuildCoordinator.ConflictException.class, svc::triggerCompaction );
         Awaitility.await().atMost( 5, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );

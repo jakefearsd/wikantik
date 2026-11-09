@@ -29,7 +29,7 @@ Below the buttons a preview shows the starting text for the chosen type. Click *
 The editor page has these parts from top to bottom:
 
 1. A header with the **Change note…** box, **Attach**, **Outline**, **Cancel** and **Save**.
-2. The **Frontmatter** and **Knowledge** tabs (see [Edit the page's metadata](#edit-the-pages-metadata)).
+2. The **Frontmatter** tab (see [Edit the page's metadata](#edit-the-pages-metadata)).
 3. The formatting toolbar.
 4. The Markdown source on the left and a rendered preview on the right, with a side rail (outline, backlinks, unlinked mentions) at the far right.
 5. A status bar showing word count, reading time and the cursor line and column.
@@ -148,15 +148,13 @@ shared draft when you leave. See [CollaborativeEditing.md](CollaborativeEditing.
 ### Other editor banners
 
 - "This page uses legacy wiki syntax. Convert to Markdown?" offers a **Convert to Markdown** button.
-- On a derived page the editor warns that the body is machine-generated and a reflow overwrites hand edits. Curate the frontmatter, tags and Knowledge Graph instead.
+- On a derived page the editor warns that the body is machine-generated and a reflow overwrites hand edits. Curate the frontmatter and tags instead.
 
 ## Edit the page's metadata
 
 The **Frontmatter** tab holds a form for the page's metadata: type, status, summary, tags, cluster, related pages and more. The **Form** and **Raw YAML** tabs inside it let you switch between fields and the raw YAML. Fields that matter most appear first, with the rest under **More fields**.
 
 The form validates as you type (after a 400 ms pause). A strip above the form shows the number of errors and warnings; click one to jump to the field. Each problem also appears under its field, and some carry a **Use "..."** button that applies the fix. **Save is disabled while any error exists**, with the tooltip "Fix the highlighted errors before saving"; warnings never block a save. Every field, rule and error code is in [Frontmatter.md](Frontmatter.md).
-
-The **Knowledge** tab is page-scoped Knowledge Graph curation. It appears for every page but only does something on pages the Knowledge Graph includes.
 
 ## Math validation messages
 

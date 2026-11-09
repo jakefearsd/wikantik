@@ -28,7 +28,7 @@
 <https://wiki.wikantik.com/ns/wikantik>
     a owl:Ontology ;
     rdfs:label "Wikantik Ontology" ;
-    rdfs:comment "Reuse-first hybrid ontology over Wikantik pages and Knowledge Graph entities." .
+    rdfs:comment "Reuse-first hybrid ontology over Wikantik pages and their tag/cluster concepts." .
 
 #####################################################################
 # Content classes (rooted at schema:CreativeWork; map 1:1 to PageType)
@@ -42,67 +42,7 @@ wk:Runbook    a owl:Class ; rdfs:subClassOf wk:Page , schema:HowTo           ; r
 wk:DesignDoc  a owl:Class ; rdfs:subClassOf wk:Page , schema:TechArticle     ; rdfs:label "Design Document" .
 
 #####################################################################
-# Entity classes (rooted at schema:Thing; unified extractor vocabulary)
-#####################################################################
-
-wk:Entity        a owl:Class ; rdfs:subClassOf schema:Thing ; rdfs:label "Entity" .
-wk:Person        a owl:Class ; rdfs:subClassOf wk:Entity ; owl:equivalentClass schema:Person       ; rdfs:label "Person" .
-wk:Organization  a owl:Class ; rdfs:subClassOf wk:Entity ; owl:equivalentClass schema:Organization ; rdfs:label "Organization" .
-wk:Place         a owl:Class ; rdfs:subClassOf wk:Entity ; owl:equivalentClass schema:Place        ; rdfs:label "Place" .
-wk:Event         a owl:Class ; rdfs:subClassOf wk:Entity ; owl:equivalentClass schema:Event        ; rdfs:label "Event" .
-wk:Product       a owl:Class ; rdfs:subClassOf wk:Entity , schema:Product ; rdfs:label "Product" .
-wk:Technology    a owl:Class ; rdfs:subClassOf wk:Entity ; skos:closeMatch dbo:Technology ; rdfs:label "Technology" .
-wk:Concept       a owl:Class ; rdfs:subClassOf wk:Entity ; skos:closeMatch skos:Concept   ; rdfs:label "Concept" .
-wk:Project       a owl:Class ; rdfs:subClassOf wk:Entity , schema:Project ; rdfs:label "Project" .
-wk:Version       a owl:Class ; rdfs:subClassOf wk:Entity ; rdfs:label "Version" .
-
-#####################################################################
 # SKOS concept scheme (tags + clusters; instances created at projection time)
 #####################################################################
 
 wk:WikiConcepts a skos:ConceptScheme ; rdfs:label "Wikantik Wiki Concepts" .
-
-#####################################################################
-# Provenance agents (referenced by entity projection: prov:wasAttributedTo)
-#####################################################################
-
-wk:HumanAgent   a prov:Agent ; rdfs:label "Human author" .
-wk:MachineAgent a prov:Agent ; rdfs:label "LLM extractor" .
-
-#####################################################################
-# Object properties — the closed 21-term relationship vocabulary.
-# MUST stay in lock-step with RelationshipTypeVocabulary.CLOSED_VOCAB
-# (enforced by ObjectPropertyTest). Direction is always source -> target.
-#
-# domain/range are intentionally BROAD here (mostly wk:Entity): rdfs:range
-# drives type *inference*, so a too-tight range would mis-infer types.
-# Tighter per-predicate constraints are enforced as SHACL *validation*
-# shapes (shapes.ttl) in Phase 5, not as rdfs:range.
-#####################################################################
-
-# -- relatedness / taxonomic (mapped to SKOS) --
-wk:relatedTo      a owl:ObjectProperty ; rdfs:subPropertyOf skos:related  ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "related to" .
-wk:isA            a owl:ObjectProperty ; rdfs:subPropertyOf skos:broader  ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "is a" .
-wk:instanceOf     a owl:ObjectProperty ; rdfs:subPropertyOf skos:broader  ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "instance of" .
-wk:generalizes    a owl:ObjectProperty ; rdfs:subPropertyOf skos:narrower ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "generalizes" .
-wk:alternativeTo  a owl:ObjectProperty ; rdfs:subPropertyOf skos:related  ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "alternative to" .
-wk:contrastsWith  a owl:ObjectProperty ; rdfs:subPropertyOf skos:related  ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "contrasts with" .
-wk:compatibleWith a owl:ObjectProperty ; rdfs:subPropertyOf skos:related  ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "compatible with" .
-
-# -- structural (mapped to Dublin Core / schema.org) --
-wk:partOf         a owl:ObjectProperty ; rdfs:subPropertyOf dct:isPartOf  ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "part of" .
-wk:contains       a owl:ObjectProperty ; rdfs:subPropertyOf dct:hasPart   ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "contains" .
-wk:replaces       a owl:ObjectProperty ; rdfs:subPropertyOf dct:replaces  ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "replaces" .
-wk:locatedIn      a owl:ObjectProperty ; rdfs:subPropertyOf schema:containedInPlace ; rdfs:domain wk:Entity ; rdfs:range wk:Place ; rdfs:label "located in" .
-
-# -- technical predicates (custom; no clean public equivalent) --
-wk:requires       a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "requires" .
-wk:enables        a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "enables" .
-wk:uses           a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "uses" .
-wk:produces       a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "produces" .
-wk:precedes       a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "precedes" .
-wk:extends        a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "extends" .
-wk:implements     a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "implements" .
-wk:mitigates      a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "mitigates" .
-wk:defines        a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "defines" .
-wk:appliesTo      a owl:ObjectProperty ; rdfs:domain wk:Entity ; rdfs:range wk:Entity ; rdfs:label "applies to" .

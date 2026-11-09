@@ -5,7 +5,7 @@ rules, the `bin/` script conventions, the code-health site and static-analysis n
 detailed "what shipped" status of each design-doc subsystem. It is not per-turn guidance;
 consult it when you touch one of those areas.
 
-Admin runbooks (container and remote deployment, load testing, the entity extractor, the
+Admin runbooks (container and remote deployment, load testing, the
 repository-versus-production corpus warning) live in
 [WikantikOperations.md](../admin/WikantikOperations.md); cloud deployment is in
 [CloudDeployment.md](../admin/CloudDeployment.md).
@@ -131,9 +131,7 @@ page.
   of the `--jar-help` family below — its only flags are `--write`/`--check`.
   `bin/config-inventory.sh` is a pure bash/grep developer aid for the
   config-surface burn-down with no jar dependency at all.
-- For scripts that pass through to a Java jar (`bin/kg-extract.sh`,
-  `bin/kg-judge-experiment.sh`, `bin/kg-policy.sh`,
-  `bin/kg-chunker-stats.sh`), the bash `--help` shows wrapper-level docs
+- For scripts that pass through to a Java jar (`bin/chunker-stats.sh`), the bash `--help` shows wrapper-level docs
   without triggering a build. Pass `--jar-help` to forward through and
   see the jar's full flag list.
 - Credentials are read at runtime from `test.properties` (web logins) and
@@ -278,8 +276,7 @@ is the single place scalar-vs-list is resolved, and `PageDescriptor.cluster()` i
 re-derived from `clusters()` so the two cannot drift. Only four consumers genuinely
 changed: projection (index under every membership, **de-dup the transitive lookup** or
 a page naming both a parent and its own sub-cluster is counted twice), **KG inclusion
-(fail-closed — an explicit EXCLUDE on ANY membership wins outright**, so a second
-membership can never quietly pull a page into the Knowledge Graph), `rename_cluster`
+(fail-closed — an explicit EXCLUDE on ANY membership wins outright**; the Knowledge Graph and its inclusion policy were removed 2026-11), `rename_cluster`
 (must rewrite list entries, never collapse a list to a scalar), and the ontology's
 `dct:subject` (one per membership).
 
@@ -368,10 +365,10 @@ rate-limit bucket (A8). Plans: [Phase 0](../superpowers/plans/2026-11-06-multied
 
 ### Other subsystems
 
-- **[PageGraphVsKnowledgeGraph.md](../wikantik-pages/PageGraphVsKnowledgeGraph.md)** — Canonical explainer distinguishing the Page Graph (wikilink edges) from the Knowledge Graph (LLM-extracted entities). Reference this before touching either subsystem.
+- **[PageGraphVsKnowledgeGraph.md](../wikantik-pages/PageGraphVsKnowledgeGraph.md)** — Canonical explainer distinguishing the Page Graph (wikilink edges) from the Knowledge Graph (LLM-extracted entities). **Retired 2026-11: the Knowledge Graph was removed; only the Page Graph remains.** Historical explainer.
 - **[RetrievalExperimentHarness.md](../wikantik-pages/RetrievalExperimentHarness.md)** — Implemented but not yet scheduled; targeted by `AgentGradeContentDesign.md` for CI integration.
 - **[IndexingSupport.md](../admin/IndexingSupport.md)** — Implemented. Raw content + change feed + sitemap for RAG ingestion and SEO.
-- **KG inclusion policy** — Cluster-primary KG inclusion/exclusion policy with admin dashboard, CLI, and frontmatter override. Implemented 2026-04-27. New `kg_cluster_policy` / `kg_policy_audit` / `kg_excluded_pages` tables; admin surface at `/admin/kg-policy/*`; `bin/kg-policy.sh` CLI. Default-exclude. System pages now also filtered out of the KG extraction pipeline (latent bug fix bundled in). Page-level override via `kg_include: true|false` frontmatter, validated at save time. See [KgInclusionPolicy](../wikantik-pages/KgInclusionPolicy.md) for the operator guide.
+- **KG inclusion policy** — **Removed 2026-11** with the Knowledge Graph (`kg-policy` admin surface, CLI, `kg_include:` frontmatter override and `kg_*` policy code are gone). History: implemented 2026-04-27.
 - **Derived agent hints** — Derived `agent_hints` projection field (no author burden), hub summary overlay, `read_pages` batch MCP tool, `/admin/agent-grade-audit` weak-signal report. Implemented 2026-05-10.
 - **Content Intelligence (`wikantik-insights`)** — The measured content feedback loop, and the reference implementation of the Simple Agility feedback-loop pattern. jakemon ships search-visibility facts and its five detectors' opportunities into `POST /admin/insights/ingest`; Wikantik stores them (`search_visibility_snapshot` V050, `imported_opportunity` V056, `expected_ctr_curve` V057), runs its own native opportunity rules over them, tracks what changed (`content_change_log` V052, calibration V055) and measures the effect of each change, with per-opportunity snooze/seen state (V053/V054). Read surfaces: `/admin/insights/{acquisition,backlog,ingest}` and the `list_content_opportunities` + `snooze_opportunity` admin-MCP tools — both of which report `ctrCurveSource` (`imported:<as_of>` vs `builtin`) so a shipment going quiet is visible rather than merely inferable. Kill switch `wikantik.insights.enabled`; tuning under `wikantik.insights.*`. Note the deliberate split of ownership: these are *functional inputs* to Wikantik's own behavior, so they are product tables and must not be "consolidated" into the observability plane. Phase 0 (the visibility fact store) landed in the 2.4.4/2.4.5 line, the opportunity engine in 2.4.5, Phase 2 (loop closure — the engine gets a real consumer) in 2.4.6, and the imported CTR curve in 2.4.10. Design: `docs/superpowers/specs/2026-08-16-content-intelligence-design.md`. Agent-facing guidance: [docs/agents/content-feedback-loop.md](../agents/content-feedback-loop.md).
 - **Connector framework + admin UI** — Seven external-source connectors (filesystem, web crawler, sitemap, RSS/Atom, Google Drive OAuth2, GitHub, Confluence) syncing into derived pages, with admin-managed configs (`connector_configs`, hot-applied registry rebuild — no restart), per-connector sync scheduling, encrypted credential storage, and a full `/admin/connectors` UI (list/detail, guided add wizard, dry-run test, provenance marking on reader surfaces). Six types are admin-creatable (`ConnectorConfigCodec.UI_TYPES`); `filesystem` is properties-defined only by design (D9) because it reads arbitrary server-local paths. `SyncOrchestrator`'s contract that `poll()` never throws is load-bearing. `wikantik.connectors.enabled` is a kill switch defaulting **true**. Shipped 2026-07-15; live on prod (docker1) via 2.3.7, verified 2026-07-17. Design docs: `docs/superpowers/specs/2026-07-11-connector-framework-phase{1,2-runtime}-design.md`, `2026-07-11-{rss-atom-feed,sitemap,web-crawler}-connector-design.md`, `2026-07-11-connector-credential-encryption-design.md`, `2026-07-12-google-drive-connector-design.md`, `2026-07-14-github-confluence-connectors-design.md`, `2026-07-15-connector-admin-ui-design.md`. Operator/user-facing guide: [Connectors.md](../admin/Connectors.md).

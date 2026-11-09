@@ -184,9 +184,6 @@ public class LuceneSearchProvider implements SearchProvider {
      */
     public record DrainStats( int totalQueued, int indexed, int skipped, int failed ) {}
 
-    /** Lucene MoreLikeThis hit returned by {@link #moreLikeThis(String, int, Set)}. */
-    public record MoreLikeThisHit( String name, float score ) {}
-
     // -------------------------------------------------------------------------
     // Constructors
     // -------------------------------------------------------------------------
@@ -484,29 +481,6 @@ public class LuceneSearchProvider implements SearchProvider {
     public Collection<SearchResult> findPages( final String query, final int flags, final Context wikiContext )
             throws ProviderException {
         return searcher().findPages( query, flags, wikiContext );
-    }
-
-    /**
-     * Returns up to {@code maxResults} documents similar to {@code seedDocName} based on the
-     * {@code contents} field, excluding any document whose {@code id} is in {@code excludeNames}.
-     *
-     * @param seedDocName  the {@link #LUCENE_ID} value of the seed document
-     * @param maxResults   upper bound on returned hits (after exclusions)
-     * @param excludeNames document ids to filter out of the result list
-     * @return list of similar-document hits, ordered by Lucene relevance score (best first)
-     * @throws IOException if the Lucene index cannot be opened or queried
-     */
-    public List<MoreLikeThisHit> moreLikeThis( final String seedDocName,
-                                                final int maxResults,
-                                                final Set<String> excludeNames )
-            throws IOException {
-        final List<LuceneSearcher.MoreLikeThisHit> raw =
-                searcher().moreLikeThis( seedDocName, maxResults, excludeNames );
-        final List<MoreLikeThisHit> out = new ArrayList<>( raw.size() );
-        for ( final LuceneSearcher.MoreLikeThisHit h : raw ) {
-            out.add( new MoreLikeThisHit( h.name(), h.score() ) );
-        }
-        return out;
     }
 
     // -------------------------------------------------------------------------

@@ -85,8 +85,11 @@ runbook:
   references:
   - AgentGradeContentDesign
   - KnowledgeExtractionFromText
+status: archived
 ---
 # Running the Judge Experiment Harness
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 Phase 6 of the KG-extraction redesign added an opt-in proposal-judge
 stage that runs after `ProposalConsolidator` and before the

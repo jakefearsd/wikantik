@@ -23,7 +23,6 @@ import com.wikantik.api.markdown.InlineTagSyntax;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -31,11 +30,6 @@ import java.util.Set;
  * a compact listing without the full page body. All fields are non-null except
  * {@code cluster}, {@code summary}, and {@code updated}; prefer empty collections
  * over null for list fields.
- *
- * <p>{@code kgInclude} carries the page-level {@code kg_include} frontmatter
- * override ({@code true}/{@code false}). {@link Optional#empty()} means the
- * frontmatter did not specify a value and the inclusion decision falls back to
- * the cluster / global policy.</p>
  *
  * <p>{@code derived} marks pages ingested from an external source (i.e. the
  * frontmatter carries a {@code derived_from} key) — see {@code DerivedPage}
@@ -65,7 +59,6 @@ public record PageDescriptor(
         List< String > tags,
         String summary,
         Instant updated,
-        Optional< Boolean > kgInclude,
         boolean derived,
         List< String > inlineTags
 ) {
@@ -91,7 +84,6 @@ public record PageDescriptor(
         cluster = clusters.isEmpty() ? null : clusters.get( 0 );
         tags = tags == null ? List.of() : List.copyOf( tags );
         inlineTags = inlineTags == null ? List.of() : List.copyOf( inlineTags );
-        kgInclude = kgInclude == null ? Optional.empty() : kgInclude;
     }
 
     /** Form without inline tags — every caller that predates Obsidian phase 4. */
@@ -99,8 +91,8 @@ public record PageDescriptor(
     public PageDescriptor( final String canonicalId, final String slug, final String title,
                            final PageType type, final String cluster, final List< String > clusters,
                            final List< String > tags, final String summary, final Instant updated,
-                           final Optional< Boolean > kgInclude, final boolean derived ) {
-        this( canonicalId, slug, title, type, cluster, clusters, tags, summary, updated, kgInclude, derived, List.of() );
+                           final boolean derived ) {
+        this( canonicalId, slug, title, type, cluster, clusters, tags, summary, updated, derived, List.of() );
     }
 
     /**
@@ -155,7 +147,6 @@ public record PageDescriptor(
      *  @param tags        topic tags
      *  @param summary     frontmatter summary
      *  @param updated     last modification
-     *  @param kgInclude   page-level Knowledge Graph override
      *  @param derived     whether the page was ingested from an external source
      */
     // The parameter list is the record's own component list minus `clusters`; PMD cannot see
@@ -166,8 +157,8 @@ public record PageDescriptor(
     public PageDescriptor( final String canonicalId, final String slug, final String title,
                            final PageType type, final String cluster, final List< String > tags,
                            final String summary, final Instant updated,
-                           final Optional< Boolean > kgInclude, final boolean derived ) {
+                           final boolean derived ) {
         this( canonicalId, slug, title, type, cluster, ClusterPath.memberships( cluster ),
-              tags, summary, updated, kgInclude, derived );
+              tags, summary, updated, derived );
     }
 }

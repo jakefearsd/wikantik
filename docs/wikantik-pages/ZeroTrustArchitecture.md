@@ -15,7 +15,6 @@ auto-generated: false
 canonical_id: 01KQ0P44ZBTB26G1T0B1NJ68D9
 cluster: security
 title: "Zero Trust Architecture"
-kg_include: true
 ---
 
 # Zero Trust Architecture: Cryptographic Workload Identity, Service Mesh mTLS, and Microsegmentation

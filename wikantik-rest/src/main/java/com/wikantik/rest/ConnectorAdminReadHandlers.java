@@ -41,7 +41,7 @@ import java.util.Optional;
 
 /**
  * GET-side handlers for {@link ConnectorAdminResource}, extracted verbatim (mirroring the
- * {@code com.wikantik.rest.knowledge.KgProposalAdminHandlers} decomposition precedent) to bring
+ * handler-decomposition precedent) to bring
  * the facade back under the CI complexity gate (GodClass / class-level CyclomaticComplexity):
  * list/detail/runs/pages/status plus the list/detail payload-building helpers those routes — and
  * the write-side {@code ConnectorAdminWriteHandlers#respondDetail} after a successful mutation —

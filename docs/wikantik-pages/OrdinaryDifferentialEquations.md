@@ -12,7 +12,6 @@ status: active
 date: "2026-10-31"
 title: "Ordinary Differential Equations"
 cluster: "mathematics"
-kg_include: true
 related:
 - MathematicsHub
 - IntegralCalculus

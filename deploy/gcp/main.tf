@@ -85,8 +85,8 @@ data "google_compute_image" "ubuntu" {
 # instance, nothing else. Egress is wide open by GCP's implicit
 # allow-all-egress default rule (no explicit egress firewall rule needed,
 # unlike AWS security groups) — docker pulls from GHCR/Docker Hub, the
-# Secret Manager REST API, apt, and — for tier=knowledge — the Anthropic
-# API all need arbitrary outbound HTTPS.
+# Secret Manager REST API, and apt all need
+# arbitrary outbound HTTPS.
 # -----------------------------------------------------------------------
 
 resource "google_compute_firewall" "ssh" {
@@ -338,18 +338,10 @@ locals {
   # on top of this at boot (see fetch_secrets_block above).
   tier_env = {
     core = {
-      WIKANTIK_GENAI_MODE        = "none"
-      WIKANTIK_KNOWLEDGE_ENABLED = "false"
+      WIKANTIK_GENAI_MODE = "none"
     }
     search = {
       WIKANTIK_GENAI_MODE         = "embeddings-only"
-      WIKANTIK_KNOWLEDGE_ENABLED  = "false"
-      WIKANTIK_EMBEDDING_BASE_URL = "http://ollama-embed:11434"
-    }
-    knowledge = {
-      WIKANTIK_GENAI_MODE         = "full"
-      WIKANTIK_KNOWLEDGE_ENABLED  = "true"
-      WIKANTIK_EXTRACTOR_BACKEND  = "claude"
       WIKANTIK_EMBEDDING_BASE_URL = "http://ollama-embed:11434"
     }
   }

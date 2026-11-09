@@ -22,10 +22,8 @@ import java.util.List;
 
 /**
  * One vertex in the Page Graph snapshot — a single wiki page with cached
- * structural metadata and link-degree counts. JSON shape mirrors
- * {@code com.wikantik.api.knowledge.SnapshotNode} so the existing
- * cytoscape-based viewer can render it without changes; only the content of
- * the snapshot differs (pages instead of LLM-extracted entities).
+ * structural metadata and link-degree counts, rendered by the cytoscape-based
+ * {@code /page-graph} viewer.
  *
  * <p>{@code id} is the page's canonical_id when one is set, falling back to
  * the slug for pages that have not yet been claimed. {@code role} is one of

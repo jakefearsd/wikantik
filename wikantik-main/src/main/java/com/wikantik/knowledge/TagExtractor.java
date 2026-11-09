@@ -46,7 +46,7 @@ public final class TagExtractor {
      *
      * <p>The algorithm:</p>
      * <ol>
-     *   <li>Strips markdown via {@link NodeTextAssembler#stripMarkdown(String)}</li>
+     *   <li>Strips markdown via {@link MarkdownStripper#stripMarkdown(String)}</li>
      *   <li>Tokenizes with {@link EnglishAnalyzer} (stopword removal + Porter stemming)</li>
      *   <li>Counts term frequencies, skipping single-character tokens</li>
      *   <li>Scores each term by log-dampened TF: {@code 1 + log(tf)}</li>
@@ -60,7 +60,7 @@ public final class TagExtractor {
     public static List< String > extract( final String text, final int maxTags ) {
         if( text == null || text.isBlank() ) return List.of();
 
-        final String stripped = NodeTextAssembler.stripMarkdown( text );
+        final String stripped = MarkdownStripper.stripMarkdown( text );
         if( stripped.isBlank() ) return List.of();
 
         final Map< String, Integer > termFreqs = new HashMap<>();

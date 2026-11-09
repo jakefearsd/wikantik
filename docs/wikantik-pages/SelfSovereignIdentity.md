@@ -1,5 +1,4 @@
 ---
-kg_include: true
 summary: 'Self-Sovereign Identity (SSI) architecture: W3C Decentralized Identifiers
   (DIDs), Verifiable Credentials, ZK-SNARK selective disclosure, and agent auth.'
 type: article

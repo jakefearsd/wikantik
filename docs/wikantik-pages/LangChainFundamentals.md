@@ -1,5 +1,4 @@
 ---
-kg_include: true
 summary: 'Architectural guide to LangChain and LangGraph: LCEL composability, LangGraph
   cyclic state machines, streaming execution, and persistence checkpointing.'
 type: article

@@ -62,7 +62,7 @@ public final class PageGraphWiringHelper {
      * Builds and registers the structural-spine and page-graph snapshot services.
      *
      * @return the {@link DefaultStructuralIndexService} so callers can pass it to
-     *         downstream helpers (KG policy, entity extraction, etc.)
+     *         downstream helpers (agent projection, citations, etc.)
      */
     public static DefaultStructuralIndexService wireStructuralSpine(
             final Properties props,

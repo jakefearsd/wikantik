@@ -2,7 +2,6 @@
 auto-generated: false
 status: active
 type: article
-kg_include: true
 date: 2026-05-15T00:00:00Z
 cluster: blockchain-tech
 title: Smart Contracts for Autonomous Agents

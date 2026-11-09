@@ -25,20 +25,17 @@ import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.frontmatter.schema.SchemaDrivenFrontmatterValidator;
 import com.wikantik.frontmatter.schema.SchemaValidationPageFilter;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
-import com.wikantik.ontology.OntologyShaclValidator;
 import com.wikantik.ontology.runtime.OntologyRebuildCoordinator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.util.List;
 import java.util.Properties;
-import java.util.function.Supplier;
 
 /**
  * Constructs the drift sweep service and registers it on the engine. Independent of the
  * ontology flag: with the ontology disabled ({@code coordinator == null}) the sweep still
- * works, just without the shacl family and without the scheduled post-rebuild trigger.
+ * works, just without the scheduled post-rebuild trigger.
  * Named {@code *WiringHelper} per the decomposition convention (setManager only).
  */
 public final class DriftWiringHelper {
@@ -69,21 +66,11 @@ public final class DriftWiringHelper {
                                   final DataSource dataSource,
                                   final PageManager pageManager,
                                   final OntologyRebuildCoordinator coordinator ) {
-        final Supplier< List< OntologyShaclValidator.Violation > > shaclSource;
-        if ( coordinator != null && coordinator.modelManager() != null ) {
-            final OntologyShaclValidator shacl = new OntologyShaclValidator();
-            final var mgr = coordinator.modelManager();
-            shaclSource = () -> shacl.validate( mgr.inferenceSnapshot() );
-        } else {
-            shaclSource = null;
-        }
-
         final DriftSweepService service = new DriftSweepService(
                 pageManager,
                 new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema() ),
                 SchemaValidationPageFilter.engineBackedCtx( props, pageManager,
                                                             structuralIndexOrNull( engine ) ),
-                shaclSource,
                 new DriftSnapshotRepository( dataSource ) );
         engine.setManager( DriftSweepService.class, service );
 
@@ -98,6 +85,6 @@ public final class DriftWiringHelper {
                 }
             } );
         }
-        LOG.info( "drift sweep wired (shacl={})", shaclSource != null );
+        LOG.info( "drift sweep wired" );
     }
 }

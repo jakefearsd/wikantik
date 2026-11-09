@@ -9,7 +9,6 @@ tags:
 - ontology
 - mcp
 date: '2026-10-24'
-kg_include: true
 canonical_id: 01KQTCAKV3BVHYPW20PHSFGXJR
 title: Wikantik System Architecture
 type: design
@@ -22,7 +21,7 @@ cluster:
 - wikantik-platform
 - wikantik-development
 summary: 'Wikantik''s architecture: modular Java engine, hybrid file+Postgres storage,
-  BM25+dense retrieval, Knowledge Graph + RDF ontology, and the agent MCP surface.'
+  BM25+dense retrieval, the Page Graph + RDF ontology of pages and concepts, and the agent MCP surface.'
 related:
 - About
 - WikantikPlatformHub
@@ -34,7 +33,9 @@ verified_by: wikantik-cli
 ---
 # Wikantik System Architecture
 
-Wikantik began as a fork of Apache JSPWiki and has been re-architected into something its ancestor never was: an **agent-grade knowledge platform** where every page is simultaneously a human-readable document, a retrieval target, a node in two distinct graphs, and a set of machine-callable tools. This page is the deep, current (2.4.x) reference for how the system is built — the modules, the data model, the retrieval and knowledge layers, the agent surface, the rendering and security pipelines — followed by an honest assessment of where it is strong, where it is weak, and where it should go next.
+> **Update (November 2026):** Wikantik's own Knowledge Graph (LLM-extracted entities, the KG admin UI, the KG MCP tools, the KG inclusion policy and the judge) was retired in 2.5.12 and removed from the code afterwards. Passages below that mention it are marked as retired. Similar pages and agent related-pages now come from page embeddings. The Page Graph, dense retrieval, context bundles and the ontology's page and concept graphs are unaffected. The admin MCP server now exposes 20 tools and the knowledge MCP server 16.
+
+Wikantik began as a fork of Apache JSPWiki and has been re-architected into something its ancestor never was: an **agent-grade knowledge platform** where every page is simultaneously a human-readable document, a retrieval target, a node in the Page Graph, and a set of machine-callable tools. This page is the deep, current (2.4.x) reference for how the system is built — the modules, the data model, the retrieval and knowledge layers, the agent surface, the rendering and security pipelines — followed by an honest assessment of where it is strong, where it is weak, and where it should go next.
 
 The guiding principle, repeated throughout the design, is **human–machine parity**: a human editing in the browser and an AI agent calling an MCP tool go through the *same* save pipeline, the *same* validation, the *same* permission checks, and read from the *same* retrieval index. There is no separate "API content." That single decision shapes almost everything below.
 
@@ -53,7 +54,7 @@ The guiding principle, repeated throughout the design, is **human–machine pari
             ▼               ▼            ▼             ▼                  ▼
       /api/* REST     /wikantik-     /knowledge-   /scim/v2/*     /sparql · /id/*
       /admin/*        admin-mcp        mcp                         /export/*  (RDF)
-            │          (29 tools)     (22 tools)     │                  │
+            │          (20 tools)     (16 tools)     │                  │
             └───────────────────────────┬────────────┴──────────────────┘
                                          ▼
                          ┌───────────────────────────────────────────┐
@@ -66,8 +67,8 @@ The guiding principle, repeated throughout the design, is **human–machine pari
         ┌──────────────────┐  ┌────────────────────┐    ┌──────────────────────┐
         │  Page corpus     │  │   PostgreSQL       │    │  Ontology (Jena TDB2) │
         │  Markdown + YAML │  │  users · policy ·  │    │  RDF/OWL T-Box +      │
-        │  (file provider, │  │  KG (kg_*) ·       │    │  projected A-Box      │
-        │   versioned)     │  │  pgvector embeds · │    │  (SPARQL/SHACL)       │
+        │  (file provider, │  │  policy ·          │    │  projected page and   │
+        │   versioned)     │  │  pgvector embeds · │    │  concept graphs       │
         │                  │  │  citations         │    │                       │
         └──────────────────┘  └────────────────────┘    └──────────────────────┘
 ```
@@ -83,7 +84,7 @@ flowchart TB
     subgraph Edge["Servlet Filter & Edge Layer (wikantik-http / wikantik-rest / wikantik-mcp)"]
         Filters["Security & Admission Filters<br/>CSRF · CSP · BackpressureFilter · RateLimitFilter"]
         Rest["REST & Admin Servlets<br/>/api/* (36) · /admin/* (29) · /scim/v2/*"]
-        Mcp["Agent Tool Endpoints<br/>/wikantik-admin-mcp (29) · /knowledge-mcp (22) · /tools/* (2)"]
+        Mcp["Agent Tool Endpoints<br/>/wikantik-admin-mcp (20) · /knowledge-mcp (16) · /tools/* (2)"]
         Rdf["Public Linked Data<br/>/sparql · /id/* · /export/*"]
     end
 
@@ -94,8 +95,8 @@ flowchart TB
 
     subgraph Storage["Three-Store Persistence Architecture"]
         Files[("Page Corpus (Filesystem)<br/>CommonMark + YAML Frontmatter<br/>VersioningFileProvider")]
-        PG[("PostgreSQL 18 + pgvector 0.8.6<br/>kg_* · embeddings · citations · policy_grants<br/>(via wikantik-jdbc)")]
-        TDB2[("Apache Jena TDB2<br/>Materialized RDF/OWL A-Box<br/>(wikantik.ttl + SHACL Gate)")]
+        PG[("PostgreSQL 18 + pgvector 0.8.6<br/>embeddings · citations · policy_grants<br/>(via wikantik-jdbc)")]
+        TDB2[("Apache Jena TDB2<br/>Materialized RDF/OWL page and concept graphs<br/>(wikantik.ttl)")]
     end
 
     SPA --> Filters
@@ -107,7 +108,7 @@ flowchart TB
     PG --> Insights
 ```
 
-The wiki deploys as a single WAR into Tomcat 11. It is a **modular monolith**: 24 Maven modules in the default reactor (a 25th, `wikantik-coverage-report`, joins under `-Pcoverage`) with strict dependency boundaries enforced by ArchUnit tests, not a microservice fleet. Heavy AI work (embedding, entity extraction, LLM judging) is delegated to external services (Ollama / an OpenAI-compatible endpoint) and to a companion CLI, so the engine itself stays a normal JEE application.
+The wiki deploys as a single WAR into Tomcat 11. It is a **modular monolith**: 24 Maven modules in the default reactor (a 25th, `wikantik-coverage-report`, joins under `-Pcoverage`) with strict dependency boundaries enforced by ArchUnit tests, not a microservice fleet. Heavy AI work (embedding) is delegated to external services (Ollama / an OpenAI-compatible endpoint), so the engine itself stays a normal JEE application.
 
 ## 2. The Module Reactor
 
@@ -116,8 +117,8 @@ Modules are layered: `wikantik-api` defines the contracts (ports); everything el
 | Module | Layer | Responsibility |
 |--------|-------|----------------|
 | `wikantik-bom` | build | Bill-of-materials pinning shared dependency versions. |
-| `wikantik-api` | **ports/domain** | Manager interfaces, frontmatter + schema model, Page Graph + Knowledge Graph + bundle contracts, `ClusterPath`. No implementations. |
-| `wikantik-main` | **engine** | `WikiEngine`, rendering, providers, auth, search, references, entity extraction, math parser, derived-page reflow, Obsidian import/export. |
+| `wikantik-api` | **ports/domain** | Manager interfaces, frontmatter + schema model, Page Graph + bundle contracts, `ClusterPath`. No implementations. |
+| `wikantik-main` | **engine** | `WikiEngine`, rendering, providers, auth, search, references, math parser, derived-page reflow, Obsidian import/export. |
 | `wikantik-event` | core | Decoupled `WikiEvent` bus. |
 | `wikantik-util` | core | Helpers, crypto utilities. |
 | `wikantik-jdbc` | core | **The one way to touch the database:** `com.wikantik.jdbc.Jdbc` (`query`, `update`, `batch`, `inTransaction`, …). Depends on JDBC + `log4j-api` only; `JdbcAccessArchTest` forbids raw JDBC outside it (ADR-0010). Its test-jar ships `PostgresTestDb`, `@RequiresPostgres` and `FaultInjectingDataSource`. |
@@ -125,21 +126,21 @@ Modules are layered: `wikantik-api` defines the contracts (ports); everything el
 | `wikantik-http` | edge | Servlet filters: CSRF, CSP, cross-origin and other security headers, session-cookie policy, cache headers, plus the `SlidingWindowRateLimiter` primitive. |
 | `wikantik-rest` | edge | REST `/api/*` (36 servlets, incl. `POST /api/ingest`, `GET /api/bundle`, `GET /api/briefing`, Obsidian import/export) and admin `/admin/*` (29 servlets: audit, drift, ontology, derived, kg-policy, connectors, insights, cluster rename). Public RDF servlets, `SpaRoutingFilter`, and the `/wiki/{slug}?format=md\|json` content filter. |
 | `wikantik-mcp-core` | agent | Shared MCP substrate — `McpTool`, endpoint bootstrap, access filter, and the two tools both MCP servers register. Extracted to break the `wikantik-knowledge` → `wikantik-admin-mcp` module cycle. |
-| `wikantik-admin-mcp` | agent | MCP server at `/wikantik-admin-mcp` — 29 write/analytics/KG-curation tools. |
-| `wikantik-knowledge` | agent + brain | MCP server at `/knowledge-mcp` (22 read-only tools when fully wired) **and** the KG service: pgvector embeddings, co-mention graph, hybrid retriever, the context-bundle assembler. |
+| `wikantik-admin-mcp` | agent | MCP server at `/wikantik-admin-mcp` — 20 write/analytics tools (the Knowledge Graph curation tools were removed with the Knowledge Graph in November 2026). |
+| `wikantik-knowledge` | agent + brain | MCP server at `/knowledge-mcp` (16 read-only tools when fully wired) **and** the retrieval services: embeddings, hybrid retriever, the context-bundle assembler. (The KG service — co-mention graph, entity tools — was retired in November 2026.) |
 | `wikantik-tools` | agent | OpenAPI 3.1 tool server `/tools/*` (2 tools) for non-MCP clients. |
 | `wikantik-scim` | agent | SCIM 2.0 provisioning `/scim/v2/*` — IdP-driven Users + Groups. |
-| `wikantik-ontology` | knowledge | Apache Jena: the `wikantik:` T-Box (`wikantik.ttl`), SHACL shapes, Postgres→RDF projectors, TDB2 store. |
+| `wikantik-ontology` | knowledge | Apache Jena: the `wikantik:` T-Box (`wikantik.ttl`), SHACL shapes, Postgres→RDF projectors for pages and concepts, TDB2 store. |
 | `wikantik-insights` | feedback loop | Content Intelligence: search-visibility fact store, content-opportunity rules, effect measurement. Depends only on `wikantik-jdbc` (not `wikantik-api` or `wikantik-main`); page state arrives through a `PageFacts` port. |
 | `wikantik-ingest` | ingestion | Pure Tika/flexmark document extraction for derived pages (isolates PDFBox/POI from the engine). |
 | `wikantik-connectors` | ingestion | External-source connector runtime — seven connector types syncing into derived pages via a shared `SyncOrchestrator`, with DB-backed configs and an encrypted credential store. |
-| `wikantik-extract-cli` | tooling | Offline entity-extractor, the derived-page batch ingester, and `CorpusDivergenceCli`. |
+| `wikantik-extract-cli` | tooling | The derived-page batch ingester and `CorpusDivergenceCli` (its offline entity-extractor belonged to the retired Knowledge Graph). |
 | `wikantik-observability` | ops | In-app health checks, Prometheus metrics, request correlation, and the `BackpressureFilter` / `RateLimitFilter` admission filters (the *deployment* monitoring stack lives in a separate `jakemon` repo). |
 | `wikantik-war` | bundle | Packages the React build + wires every servlet/filter into one deployable; hosts the ArchUnit and config-drift tests. |
 | `wikantik-wikipages` | content | Default pages shipped with a fresh install. |
 | `wikantik-it-tests` | test | Cargo-launched integration suites, each with its own Tomcat and pgvector container: `rest` (REST + SCIM), `sso` (Keycloak OIDC/SAML), `knowledge-disabled`, `custom-jdbc` (Selenide browser) and `dense` (embeddings on), plus the opt-in `scim-fullloop`. `wikantik-selenide-tests` is the shared support module. |
 
-`wikantik-frontend` (React SPA on Vite — reader, editor, admin panel, KG + Page Graph viewers) is **not** a Maven module: `wikantik-war` drives the npm build and bundles the output.
+`wikantik-frontend` (React SPA on Vite — reader, editor, admin panel, Page Graph viewer) is **not** a Maven module: `wikantik-war` drives the npm build and bundles the output.
 
 ```
    wikantik-api  ◀───────────  (everyone depends inward on the ports)
@@ -157,15 +158,15 @@ A few dependency rules are enforced by the build rather than by convention:
 - `wikantik-ingest` depends on no Wikantik module, which keeps PDFBox and POI out of `wikantik-main`.
 - `wikantik-main` may not grow new `WikiEngine#getManager` callers; services register through `engine.setManager(Type.class, impl)` from the owning `*WiringHelper` (ADR-0008).
 
-## 3. Three Graphs Over One Corpus
+## 3. Graphs Over One Corpus
 
-A recurring source of confusion — deliberately disambiguated in the codebase — is that Wikantik maintains **three distinct edge types**. Conflating them is treated as a code smell.
+A recurring source of confusion — deliberately disambiguated in the codebase — is that Wikantik maintains distinct edge types. Conflating them is treated as a code smell.
 
 - **Page Graph** — edges are real page-to-page wikilinks parsed from page bodies. Co-resident companions: `canonical_id` (rename-stable identity in frontmatter) and `cluster:` (hub membership). Surfaces: `/page-graph`, `/admin/page-graph/*`.
-- **Knowledge Graph** — nodes are LLM-extracted entities (9 canonical classes: person/organization/place/event/product/technology/concept/project/version); edges are co-mention or typed-relation predicates (21 of them). Storage: `kg_*` tables. Surfaces: `/admin/knowledge-graph/*`, `/knowledge-mcp`.
+- **Knowledge Graph (retired November 2026)** — nodes were LLM-extracted entities (9 canonical classes: person/organization/place/event/product/technology/concept/project/version); edges were co-mention or typed-relation predicates (21 of them). Storage: `kg_*` tables. Its admin UI (`/admin/knowledge-graph/*`) and MCP tools were removed in 2.5.12 and afterwards.
 - **Citation edges** — a derived, self-healing edge type: a source page's claim grounded in a target page's *section*, written inline as `cite://` markup, parsed at save into the `citations` table, version-pinned and span-hashed so staleness can be detected and surfaced (`/admin/drift/citations`, `list_stale_citations`).
 
-The bare word "graph" is avoided in identifiers; code always says Page Graph, Knowledge Graph, or `kg_*`/`pagegraph`.
+The bare word "graph" is avoided in identifiers; code always says Page Graph or `pagegraph`.
 
 ## 3a. Cluster Taxonomy
 
@@ -215,18 +216,17 @@ The **context bundle** is RAG-as-a-Service done deliberately: it returns a ranke
 
 Levers that were **measured and rejected**: the LLM listwise reranker, HyDE, doc2query (all left off by default), and the KG graph rerank — which was deleted outright in 2026-07. None moved recall; some actively hurt it.
 
-## 5. The Knowledge & Ontology Layer
+## 5. The Ontology Layer
 
-The Knowledge Graph is a property graph over wiki content stored in PostgreSQL: entities and edges extracted by an LLM (a reasoning model run with thinking disabled for clean structured JSON), embedded with pgvector, with a human-in-the-loop proposal workflow before anything is written back. Cluster-primary inclusion policy keeps it default-exclude with a `kg_include:` frontmatter override; policy lookup walks cluster ancestors (most specific wins) and resolves fail-closed across multiple memberships — an explicit EXCLUDE on any membership wins outright.
+> **Retired (November 2026):** the Knowledge Graph's entity classes, relationship predicates, entity/edge projectors and write-time SHACL edge gate were switched off in 2.5.12 and removed from the code afterwards. The ontology is now about **pages and concepts only**: there are no entity classes or KG predicates in the T-Box and no `/id/entity/*` resources. Similar pages now come from page embeddings.
 
-Above the KG sits a formal **RDF/OWL ontology** (`wikantik-ontology`, Apache Jena):
+Alongside the retrieval stack sits a formal **RDF/OWL ontology** (`wikantik-ontology`, Apache Jena):
 
-- A hand-authored T-Box (`wikantik.ttl`): 9 entity + 5 content classes, the 21 KG predicates with domain/range, public mappings to schema.org / SKOS / Dublin Core / PROV-O, and a SKOS concept scheme — plus SHACL shapes.
-- Postgres→RDF **projectors** (Entity / Edge / Page / Concept) materialize an A-Box into a TDB2 store, kept fresh by an event-incremental sync (re-project a page's graph on save/rename, remove on a true delete, reconcile entity graphs nightly).
-- A **write-time SHACL gate** refuses or skips non-conformant KG edges at the two write chokepoints (narrow: only the shaped predicates today).
-- A **public/restricted ACL split** ensures only anonymously-viewable pages/entities are ever materialized — and a *machine-extracted* entity that records no source page **fails closed**, since it came from a page that can no longer be identified — so the public SPARQL/JSON-LD/dump endpoints cannot leak restricted content. A hand-curated entity without a source page is an explicit act of publication and stays public.
+- A hand-authored T-Box (`wikantik.ttl`) for the content classes (hub, article, reference, runbook, design doc), with public mappings to schema.org / SKOS / Dublin Core / PROV-O and a SKOS concept scheme — plus SHACL shapes.
+- Postgres→RDF **projectors** (Page / Concept) materialize an A-Box into a TDB2 store: one resource per page at `/id/page/{canonical_id}`, and one `skos:Concept` per tag and cluster (a sub-cluster `parent/child` gets `skos:broader` pointing at its parent). It is kept fresh by an event-incremental sync (re-project a page's graph on save/rename, remove on a true delete) with a nightly reconciliation rebuild.
+- A **public/restricted ACL split** ensures only anonymously-viewable pages are ever materialized, so the public SPARQL/JSON-LD/dump endpoints cannot leak restricted content.
 
-The ontology is, in effect, a *projection* of the same knowledge the KG holds — the SEO JSON-LD `@type` on each page is even re-sourced from the ontology's inferred schema.org type, with a test asserting the two faces can't silently drift.
+The SEO JSON-LD `@type` on each page is re-sourced from the ontology's inferred schema.org type, with a test asserting the two faces (the rendered page head and the formal model) can't silently drift.
 
 ## 6. The Agent Surface
 
@@ -234,12 +234,12 @@ Agents are first-class clients, not an afterthought. Every surface enforces the 
 
 | Endpoint | Protocol | What |
 |----------|----------|------|
-| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 29 write/analytics/KG-curation tools (incl. admin-bypass reads, orphan listing, real-traffic query log, bulk cluster rename, and the Content Intelligence pair `list_content_opportunities` / `snooze_opportunity`). The count is the `EXPECTED_TOOLS` set in `McpProtocolIT`. |
-| `/knowledge-mcp` | MCP | 22 read-only tools when fully wired: hybrid retrieval, KG traversal, schema discovery, structural-spine nav, agent-grade page projection, batched reads, `get_ontology`, `sparql_query`, `list_stale_citations`, `get_briefing`, and `assemble_bundle`. Several register conditionally on what a deployment has wired. |
+| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 20 write/analytics tools (incl. real-traffic query log, bulk cluster rename, and the Content Intelligence pair `list_content_opportunities` / `snooze_opportunity`). The Knowledge Graph curation and proposal tools were removed in November 2026. The count is the `EXPECTED_TOOLS` set in `McpProtocolIT`. |
+| `/knowledge-mcp` | MCP | 16 read-only tools when fully wired: hybrid retrieval, structural-spine nav, agent-grade page projection, batched reads, `get_ontology`, `sparql_query`, `list_stale_citations`, `get_briefing`, and `assemble_bundle`. The Knowledge Graph traversal and schema-discovery tools were removed in November 2026. Several tools register conditionally on what a deployment has wired. |
 | `/tools/*` | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) for OpenWebUI-style non-MCP clients. |
 | `/scim/v2/*` | SCIM 2.0 | IdP-driven Users + Groups provisioning (SCIM Groups never grant Admin). |
 | `/api/*`, `/admin/*` | REST/JSON | 36 + 29 distinct servlets (38 + 37 url-patterns in `web.xml`); `GET /api/bundle`, `GET /api/briefing`, `POST /api/ingest`, `GET /api/export`, `POST /api/import/obsidian/{plan,apply}`, `/api/changes?since=` feed. |
-| `/sparql`, `/id/{type}/{id}`, `/export/*` | RDF | Public read-only ontology: SPARQL, per-resource JSON-LD/Turtle dereferencing, full dumps. |
+| `/sparql`, `/id/{type}/{id}`, `/export/*` | RDF | Public read-only ontology of pages and concepts: SPARQL, per-resource JSON-LD/Turtle dereferencing, full dumps. |
 
 MCP API keys carry a scope: `mcp_read` (read-only, confined to `/knowledge-mcp`) or `mcp_admin` (the full admin surface); the older name `mcp` remains an accepted alias for `mcp_admin`.
 
@@ -248,7 +248,7 @@ MCP API keys carry a scope: `mcp_read` (read-only, confined to `/knowledge-mcp`)
 Wikantik deliberately splits its state across three stores so each does what it is good at:
 
 1. **Page corpus** — CommonMark Markdown with mandatory YAML frontmatter, behind a `PageProvider` (file-system + versioning provider; `wikantik.pageProvider` defaults to `VersioningFileProvider`). This is the source of truth for *content* and gives free version history. Production keeps its corpus independent of deploys (content edits go through MCP/REST, not a redeploy).
-2. **PostgreSQL** — the structured backbone: users, database-backed policy grants and groups, the `kg_*` Knowledge Graph, pgvector embeddings, the `citations` table, connector configs, the audit log and the Content Intelligence fact store. All access goes through the `wikantik-jdbc` primitive, and the schema exists only as numbered idempotent migrations in `bin/db/migrations/` (currently V001–V061; there is no other schema definition, not even in tests).
+2. **PostgreSQL** — the structured backbone: users, database-backed policy grants and groups, pgvector embeddings, the `citations` table, connector configs, the audit log and the Content Intelligence fact store. All access goes through the `wikantik-jdbc` primitive, and the schema exists only as numbered idempotent migrations in `bin/db/migrations/` (currently V001–V061; there is no other schema definition, not even in tests).
 3. **Jena TDB2** — the materialized RDF A-Box for the ontology endpoints, rebuilt incrementally from Postgres.
 
 The frontmatter is the contract that ties these together: a server-authoritative `FrontmatterSchema` validates every save (malformed YAML 422s; field-value issues are advisory warnings so the existing corpus still saves), and those same fields drive retrieval embeddings, JSON-LD, feeds, and the News Sitemap.
@@ -276,7 +276,7 @@ The same content is served three ways: rendered HTML for browsers (with an SSR h
 - **Deserialization filtering** (`ObjectInputFilter` allowlists), NIST 800-63B password rules with a common-password blocklist (bcrypt hashes; the SHA-1 formats were removed), SameSite=Lax auth cookies with a remember-me re-auth filter, and session rotation on SSO login (fixation defense).
 - **Two-tier per-IP rate limiting** on the public surface (`RateLimitFilter`), plus a backpressure gate (`BackpressureFilter`, `WIKANTIK_MAX_INFLIGHT_REQUESTS`) that fast-fails excess concurrency with `503` + `Retry-After` rather than letting it queue.
 - **SSRF egress policy** on connector fetches (`EgressGuard`), and `JDBCPlugin` (page-authored SQL) ships disabled behind `wikantik.plugin.jdbc.enabled`.
-- The **public/restricted ACL split** on the RDF surface: a request-free guest-session view check keeps restricted pages/entities/edges out of the materialized public dataset entirely, and a machine-extracted entity carrying no source page is withheld on the same fail-closed rule.
+- The **public/restricted ACL split** on the RDF surface: a request-free guest-session view check keeps restricted pages out of the materialized public dataset entirely.
 
 ## 10. Strengths
 
@@ -284,7 +284,7 @@ The same content is served three ways: rendered HTML for browsers (with an SSR h
 - **Decoupled, test-frozen modularity.** The api/impl split plus the ArchUnit freezes (`DecompositionArchTest`, `JdbcAccessArchTest`, `ConfigSurfaceDriftTest`) make the monolith refactorable without microservice operational cost. Unit tests use in-memory engine stubs; database-backed unit tests run against a real pgvector container through `PostgresTestDb` (there is no H2); and the integration modules under `wikantik-it-tests` run via `bin/run-tests.sh --parallel 4`.
 - **Retrieval changes are measured, not asserted.** A frozen section-level eval corpus (`eval/bundle-corpus`, with recall floors in `thresholds.properties`) and a nightly in-app retrieval-quality run (`/admin/retrieval-quality`) make quality visible; the levers that shipped (chunker fix, contextual embeddings) moved a real metric, and several plausible levers were rejected on evidence.
 - **Self-healing grounding.** Version-pinned, span-hashed citations turn "is this still true?" into a queryable, gradeable signal rather than rot.
-- **One knowledge model, three faces.** The KG, the RDF ontology, and the page JSON-LD are the same knowledge projected differently, with tests asserting they can't silently diverge.
+- **One page model, several faces.** The Page Graph, the RDF ontology of pages and concepts, and the page JSON-LD are the same corpus projected differently, with tests asserting they can't silently diverge.
 - **Cost-governed AI.** Model choice is swappable and never defaults to a premium model; heavy work is offloaded so the engine stays a normal JEE app.
 
 ## 11. Critique — Where It Is Weak
@@ -292,18 +292,17 @@ The same content is served three ways: rendered HTML for browsers (with an SSR h
 An honest architecture page names its own debts.
 
 - **The math/currency validator has blind spots.** The save-time validator flags `$…$` prose-pairs but misses currency inside tables or long spans that don't form a stopword pair (e.g. `\$3,150 … \$10,000`). While the 1,462-page production corpus was swept to 100% currency-escaped compliance in October 2026, enforcing table/span currency escaping inside the save-time parser itself remains an open engineering item.
-- **KG-as-a-retrieval-signal is a closed question.** A ceiling experiment with a Claude-quality KG measured *zero* net rerank lift — relational section relevance is not entity proximity — so the page-level graph reranker was deleted in 2026-07. The KG earns its keep as a human KB / ontology / MCP surface, not as a ranking signal. Only a section-level redesign could revisit this.
-- **Dual content/derived stores create sync surface.** Page corpus (files) + Postgres (KG/embeddings/citations) + TDB2 (RDF) must stay coherent through event-incremental sync; a dropped re-embed or a missed projection is a real (if monitored) failure mode, mitigated by startup reconciliation.
-- **In-process coupling.** The bundle assembler and KG service live inside the engine (wired at post-startup seams). This keeps latency low and deployment simple but means the "RAG service" cannot scale independently of the wiki.
+- **A graph as a retrieval signal is a closed question.** A ceiling experiment with a Claude-quality Knowledge Graph measured *zero* net rerank lift — relational section relevance is not entity proximity — so the page-level graph reranker was deleted in 2026-07, and the Knowledge Graph itself was retired in November 2026 once similar pages proved better served by page embeddings. Only a section-level redesign could revisit this.
+- **Dual content/derived stores create sync surface.** Page corpus (files) + Postgres (embeddings/citations) + TDB2 (RDF) must stay coherent through event-incremental sync; a dropped re-embed or a missed projection is a real (if monitored) failure mode, mitigated by startup reconciliation.
+- **In-process coupling.** The bundle assembler lives inside the engine (wired at post-startup seams). This keeps latency low and deployment simple but means the "RAG service" cannot scale independently of the wiki.
 - **Operational complexity.** Three stores, external Ollama, an embedding queue, an ontology rebuild scheduler, and a separate monitoring repo are a lot of moving parts for a self-hosted wiki — the price of the agent-grade ambition.
 - **Curation requires continuous verification.** Even with 100% frontmatter schema compliance across the corpus (summaries, clusters, tags, ISO dates, and hub backlinks normalized in October 2026), clean frontmatter is necessary but not sufficient for retrievability: the live `assemble_bundle` section-rank check and `ContentIntelligenceDesign` `agent_gap` backlog remain essential ongoing gates.
 
 ## 12. Areas for Future Growth
 
-- **Section-level knowledge rerank.** The page-level KG rerank is a dead end; a redesign that scores *sections* by relational evidence is the open research path to make the KG move recall.
-- **Extracting the RAG/KG service.** Giving the context-bundle assembler and embedding pipeline their own process would let retrieval scale (and be reused) independently of the wiki engine.
+- **Extracting the RAG service.** Giving the context-bundle assembler and embedding pipeline their own process would let retrieval scale (and be reused) independently of the wiki engine.
 - **Closing the validator blind spots.** Promote the currency/display-math detection to cover table and span cases so rendering correctness is enforced, not curated.
-- **Deeper ontology inference.** The SHACL gate is narrow (2 shaped predicates) and inference is RDFS-level; OWL-RL/full SHACL coverage would make the formal layer load-bearing rather than advisory.
+- **Deeper ontology inference.** Inference is RDFS-level and the SHACL shapes are few; OWL-RL/full SHACL coverage would make the formal layer load-bearing rather than advisory.
 - **Multi-tenancy and horizontal scale.** Embeddings, the ontology TDB2, and the page corpus each have a scaling story that is currently single-instance-shaped.
 - **Curation automation.** The metadata-quality passes that keep retrieval healthy are still partly manual; folding measured curation into the save pipeline would make quality self-sustaining.
 
@@ -313,7 +312,7 @@ An honest architecture page names its own debts.
 - [Simple Agility Telemetry Adoption](SimpleAgilityTelemetryAdoption) — stack-wide structured logging and observability contract
 - [Wikantik Platform Hub](WikantikPlatformHub) — index of platform documentation
 - [Wikantik Development](WikantikDevelopment) — module overview, test strategy and the feature timeline
-- [Page Graph vs Knowledge Graph](PageGraphVsKnowledgeGraph) — the two-graphs distinction, in depth
+- [Page Graph vs Knowledge Graph](PageGraphVsKnowledgeGraph) — the Page Graph, and the retired Knowledge Graph it was contrasted with
 - [Hybrid Retrieval](HybridRetrieval) — the BM25 + dense fusion and its operator reference
 - [Frontmatter Conventions](FrontmatterConventions) and [Markdown Links](MarkdownLinks) — the content contract
 - [Hexagonal Architecture](HexagonalArchitecture) — the ports-and-adapters pattern the modules follow

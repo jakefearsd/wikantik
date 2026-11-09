@@ -290,7 +290,7 @@ public class ContentIndexRebuildService {
      * <ol>
      *   <li>{@link State#STARTING} — clear the Lucene index. Chunk rows are
      *       <em>not</em> wiped: they are diff-applied in place so unchanged chunks keep
-     *       their ids, embeddings and Knowledge Graph mentions. A failure here is
+     *       their ids and embeddings. A failure here is
      *       fatal to this run; error is recorded and we return to IDLE.</li>
      *   <li>{@link State#RUNNING} — iterate every page. For non-system pages
      *       compute chunks and diff-apply them; for every page (system or
@@ -412,7 +412,7 @@ public class ContentIndexRebuildService {
         }
     }
 
-    /** Diff-applies one page's chunks: unchanged chunks keep their ids, embeddings and KG mentions. */
+    /** Diff-applies one page's chunks: unchanged chunks keep their ids and embeddings. */
     private void rechunkPage( final Page page, final String name ) {
         try {
             final String content = pages.getPureText( page );
@@ -455,9 +455,9 @@ public class ContentIndexRebuildService {
 
     /**
      * Removes the chunks of pages that no longer exist (and of system pages, which are never chunked).
-     * Kept pages' chunks were diff-applied, so their ids -- and the embeddings and KG mentions that
+     * Kept pages' chunks were diff-applied, so their ids -- and the embeddings that
      * cascade from them -- survive. An empty listing is a provider fault, not an empty wiki: sweeping
-     * on it would cascade away every embedding and KG mention.
+     * on it would cascade away every embedding.
      */
     private void sweepRemovedPages( final Set< String > chunkedPageNames ) {
         try {

@@ -1,5 +1,4 @@
 ---
-kg_include: true
 type: hub
 summary: 'Home lab infrastructure hub: Proxmox VE hypervisors, ZFS storage arrays,
   Ceph clustering, k3s Kubernetes, and low-power hardware optimization.'

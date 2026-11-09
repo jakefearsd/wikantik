@@ -289,4 +289,3 @@ You do not need a math degree. You need fluency with the specific concepts that 
 - [Linear Programming Foundations](LinearProgrammingFoundations) — How convex optimization and LP duality connect OR to ML optimization theory
 - [Operations Research](OperationsResearch) — The applied discipline that uses convex and combinatorial optimization to solve real-world resource allocation problems
 
-[{Relationships}]

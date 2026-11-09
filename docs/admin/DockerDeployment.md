@@ -53,13 +53,13 @@ project name `repo` when deployed with `bin/remote.sh`):
 
 | Service | Image | Role |
 |---------|-------|------|
-| `db` | `pgvector/pgvector:pg18` | PostgreSQL + pgvector: users, groups, policy grants, Knowledge Graph, embeddings, page metadata, `schema_migrations` |
+| `db` | `pgvector/pgvector:pg18` | PostgreSQL + pgvector: users, groups, policy grants, embeddings, page metadata, `schema_migrations` |
 | `wikantik` | `wikantik:latest` (the released image) | Tomcat 11 / JDK 25, the wiki application |
 | `backup` | `postgres:18-alpine` | Scheduled `pg_dump` and page-tree tarball |
 
 The production stack has no embedding sidecar (the CPU `ollama` service was dropped on
-2026-10-15). Embeddings and Knowledge Graph extraction/judge run on the shared GPU inference
-host: set `WIKANTIK_EMBEDDING_BASE_URL` and `WIKANTIK_EXTRACTOR_BASE_URL` in the prod `.env`
+2026-10-15). Embeddings run on the shared GPU inference
+host: set `WIKANTIK_EMBEDDING_BASE_URL` in the prod `.env`
 to a name that resolves from the container (for example `http://inference.lan:11434`). If the
 embedding endpoint is unreachable the query embedder fails closed to BM25 (see §4).
 
@@ -143,13 +143,12 @@ when that returns HTTP 200 with `status` of `UP`.
 |------|-------------|
 | `/` | React SPA (reader, editor, search) |
 | `/page-graph` | Page Graph viewer (wikilink edges) |
-| `/knowledge-graph` | Knowledge Graph viewer (LLM-extracted entities) |
 | `/admin/` | Admin panel (user, content, and security management) |
-| `/api/` | REST API (pages, attachments, search, history, knowledge graph) |
+| `/api/` | REST API (pages, attachments, search, history) |
 | `/wiki/{slug}?format=md\|json` | Raw content for crawlers and RAG ingestion |
 | `/api/changes?since=…` | Incremental change feed for sync pipelines |
 | `/wikantik-admin-mcp` | Admin MCP server (writes, analytics, verification stamping, cluster renames, content-opportunity backlog) |
-| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval, Knowledge Graph, structural spine, agent projection, context bundles and briefings) |
+| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval, structural spine, agent projection, context bundles and briefings) |
 | `/tools/*` | OpenAPI 3.1 tool server (OpenWebUI-compatible) |
 | `/api/health` | Application health checks (loopback and private networks only) |
 | `/metrics` | Prometheus-compatible metrics (IP-restricted via `InternalNetworkFilter`) |
@@ -220,12 +219,10 @@ Defaults below are copied from `docs/ConfigurationReference.md`; that page is au
 | `WIKANTIK_SSO_CLAIM_FULL_NAME` | `name` | `wikantik.sso.claimMapping.fullName` | IdP claim mapped to the display name. |
 | `WIKANTIK_SSO_CLAIM_EMAIL` | `email` | `wikantik.sso.claimMapping.email` | IdP claim mapped to email. |
 | `WIKANTIK_GENAI_MODE` | `full` | `wikantik.genai.mode` | GenAI ceiling: `full` \| `embeddings-only` \| `none`. Never turns a feature on — only forces an already-enabled feature off. See [CostTiers.md](CostTiers.md) and [CloudDeployment.md](CloudDeployment.md). |
-| `WIKANTIK_KNOWLEDGE_ENABLED` | `false` | `wikantik.knowledge.enabled` | The Knowledge Graph is retired (2026-11-08) and off by default; `true` revives the backend only (no UI) until the deletion release. `false` skips constructing the Knowledge Graph subsystem entirely (no KG services, no KG MCP tools; `/admin/knowledge-graph/*` and `/api/page-knowledge/*` 503). Chunking and the embedding/dense-retrieval pipeline stay independent of it. |
 | `WIKANTIK_EMBEDDING_BASE_URL` | `http://inference.jakefear.com:11434` | `wikantik.search.embedding.base-url` | Dense-retrieval embedding service base URL override, e.g. `http://ollama-embed:11434` for the cloud overlay's sidecar. Unset, the shipped default applies, and `inference.jakefear.com` does not resolve on every network — set this to a name that resolves from the container. Production sets it in `.env` to the shared GPU inference host (for example `http://inference.lan:11434`); the prod overlay bundles no embedder. If the endpoint is unreachable the wiki fails closed to BM25. Whatever you point it at must serve the model named by `wikantik.search.embedding.model` — the dense index is fixed at that model's dimension. |
 | `WIKANTIK_EMBEDDING_BATCH_SIZE` | `10` | `wikantik.search.embedding.batch-size` | Texts per embedding backend round-trip. **Coupled to `WIKANTIK_EMBEDDING_TIMEOUT_MS` and to the backend's available CPU:** a batch must complete inside the timeout, or the request fails, is treated as transient, and after 3 retries the entire reconcile aborts. Capping the embedder's CPU (a docker `cpus:` limit) multiplies per-batch time — a 32/30000 pair can time out on a CPU-bound embedder (the default `10` fits the 30 s timeout on a CPU-only embedder such as the cloud overlay's sidecar). Lower this, raise the timeout, or both. |
 | `WIKANTIK_EMBEDDING_TIMEOUT_MS` | `30000` | `wikantik.search.embedding.timeout-ms` | Per-request embedding HTTP timeout in ms. See the coupling note on `WIKANTIK_EMBEDDING_BATCH_SIZE`. On a 2-CPU-capped CPU-only embedder, `8` / `120000` is a working pair. |
 | `WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE` | `256` | `wikantik.search.embedding.commit-batch-size` | Rows committed per transaction during an embedding backfill. A full backfill is hours of CPU inference; this bounds how much of it an interruption discards. Lower it (e.g. `64`) on a host where long runs get interrupted — a commit is sub-millisecond next to seconds-per-chunk inference, so there is no throughput cost. Must be > 0; the app refuses to start on a non-positive value. |
-| `WIKANTIK_EXTRACTOR_BACKEND` | `ollama` | `wikantik.knowledge.extractor.backend` | KG entity-extractor backend: `ollama` \| `claude` \| `disabled`. `claude` also requires `ANTHROPIC_API_KEY` (read directly from the process environment by `EntityExtractorFactory` — never rendered into a properties file). |
 | `WIKANTIK_SCIM_TOKEN` | *(none — SCIM denies all requests)* | JVM system property `wikantik.scim.token` (not `wikantik-custom.properties`) | SCIM bearer token, sensitive. Injected via `CATALINA_OPTS -D`, not the properties file, because `ScimAccessFilter` reads it exclusively as a system property. Must match `[A-Za-z0-9+/=_-]+` (hex/base64 only) — the entrypoint refuses to boot on a violating value (`catalina.sh` word-splits `CATALINA_OPTS`, so spaces/shell metacharacters would silently corrupt it). Generate with `openssl rand -hex 32`. |
 | `WIKANTIK_CONNECTORS_CRYPTO_KEY` | *(blank — credential store stays disabled)* | `wikantik.connectors.crypto.key` | Base64-encoded 32-byte AES-256 key for the connector credential store (GitHub token / Confluence API token / Google Drive client secret+refresh token at rest). |
 | `PROXY_REMOTE_IP_HEADER` | `CF-Connecting-IP` | JVM system property `wikantik.proxy.remoteIpHeader`, consumed by `RemoteIpValve` in `docker/config/server.xml` | Reverse-proxy header carrying the real client IP. **Always injected**, unconditionally — Tomcat's `${...}` substitution has no default-value syntax, so an unset property would leave the literal `${wikantik.proxy.remoteIpHeader}` string as the header name and silently break client-IP resolution. Set to `X-Forwarded-For` for Caddy/nginx/ALB/GCLB (e.g. the cloud overlay's `caddy` ingress profile); leave at the default for Cloudflare-fronted deployments (docker1, or the cloud overlay's `cloudflared` profile). Must match `[A-Za-z0-9-]+` — the entrypoint refuses to boot on a violating value. |
@@ -307,14 +304,14 @@ gitignored **`.env.prod`** at the repo root — `remote.sh` ships it to the
 remote as `.env`, preferring it over the dev `.env` so a prod deploy never
 disturbs local-dev config.
 
-Knowledge-Graph / hybrid-retrieval backends (Ollama endpoint, model tags) are
+Hybrid-retrieval backends (Ollama endpoint, model tags) are
 left unset by default — they fall back to the baked-in defaults in
 `ini/wikantik.properties` (`ollama` backend at `inference.jakefear.com:11434`, which
-does not resolve on every network) unless overridden via `WIKANTIK_EMBEDDING_BASE_URL` /
-`WIKANTIK_EXTRACTOR_BASE_URL` / `WIKANTIK_EXTRACTOR_BACKEND` (§1) or a
+does not resolve on every network) unless overridden via `WIKANTIK_EMBEDDING_BASE_URL`
+(§1) or a
 `wikantik-custom.properties` override. The container needs network reach to whichever
-endpoint is in effect, only if KG / hybrid retrieval is in use. Production sets
-`WIKANTIK_EMBEDDING_BASE_URL` and `WIKANTIK_EXTRACTOR_BASE_URL` in `.env.prod` to the shared
+endpoint is in effect, only if hybrid retrieval is in use. Production sets
+`WIKANTIK_EMBEDDING_BASE_URL` in `.env.prod` to the shared
 GPU inference host (for example `http://inference.lan:11434`); the prod overlay no longer
 bundles an embedding sidecar (§4).
 
@@ -322,7 +319,7 @@ bundles an embedding sidecar (§4).
 
 State lives in several places, with deliberately different storage:
 
-- **PostgreSQL** (users, groups, policy grants, Knowledge Graph, API keys,
+- **PostgreSQL** (users, groups, policy grants, API keys,
   page metadata, history) — the `db` service, in the named volume
   `<project>_pgdata`.
 - **Pages + attachments** — bind-mounted from the host (`WIKANTIK_PAGES_DIR`)
@@ -489,13 +486,10 @@ was dropped on 2026-10-15, and production now embeds on the shared GPU inference
 |---|---|---|
 | **PostgreSQL + pgvector** | Bundled (`db` service) | `db:5432` (internal) |
 | **Ollama — embeddings** | External — the shared GPU inference host (not bundled; no `depends_on`, so the wiki fails closed to BM25 if it is unreachable) | Set `WIKANTIK_EMBEDDING_BASE_URL` in `.env` to a name that resolves from the container, e.g. `http://inference.lan:11434`. The `ini/wikantik.properties` default `http://inference.jakefear.com:11434` does not resolve on the LAN host. The host must serve the model named by `wikantik.search.embedding.model` |
-| **Ollama — extraction / judge** | External (same inference host), optional | Set `WIKANTIK_EXTRACTOR_BASE_URL` (e.g. `http://inference.lan:11434`); the KG judge follows it unless `wikantik.kg.judge.endpoint` is set. Falls back to the `ini/wikantik.properties` default `http://inference.jakefear.com:11434` |
-| **Anthropic API** (alternative extractor backend) | External, optional | `ANTHROPIC_API_KEY` env var |
 | **TLS terminator / reverse proxy** | External, optional | `RemoteIpValve` reads the client IP from `PROXY_REMOTE_IP_HEADER` (default `CF-Connecting-IP`; set to `X-Forwarded-For` for Caddy/nginx/ALB/GCLB — see the env-var table in §1) |
 
-The baked-in default for `wikantik.search.embedding.backend` and
-`wikantik.knowledge.extractor.backend` is `ollama` — the container must reach
-the Ollama endpoint for KG / hybrid-retrieval features. Set both to `disabled`
+The baked-in default for `wikantik.search.embedding.backend` is `ollama` — the container must reach
+the Ollama endpoint for hybrid-retrieval features. Set it to `disabled`
 (via a `wikantik-custom.properties` override) if you do not run those.
 
 ## 5. Coexisting bare-metal and container stacks

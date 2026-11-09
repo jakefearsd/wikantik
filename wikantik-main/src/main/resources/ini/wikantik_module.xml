@@ -43,10 +43,4 @@
       <minVersion>1.0</minVersion>
    </filter>
 
-   <plugin class="com.wikantik.plugin.RelationshipsPlugin">
-      <author>Wikantik</author>
-      <minVersion>1.0</minVersion>
-      <alias>Relationships</alias>
-   </plugin>
-
 </modules>

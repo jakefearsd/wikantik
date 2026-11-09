@@ -1,5 +1,4 @@
 ---
-kg_include: true
 summary: Status of the designed but never built MCP content-audit tools, and the checks
   that audit the MCP surface itself.
 type: article
@@ -54,13 +53,13 @@ A separate question is how the MCP endpoints (`/wikantik-admin-mcp` and `/knowle
 
 | Audit dimension | Mechanism | What it catches |
 |---|---|---|
-| Tool registration (admin) | `McpProtocolIT.listToolsReturnsAllTools` compares `tools/list` with the exact `EXPECTED_TOOLS` set (29 tools) | A tool added, dropped or renamed without updating the test |
+| Tool registration (admin) | `McpProtocolIT.listToolsReturnsAllTools` compares `tools/list` with the exact `EXPECTED_TOOLS` set (20 tools since the Knowledge Graph tools were removed in November 2026) | A tool added, dropped or renamed without updating the test |
 | Schema shape (admin) | `McpProtocolIT.listToolsContainsCorrectSchemas`: every tool has a description and an `inputSchema` of type `object`; required parameters are pinned for `get_backlinks`, `write_pages` and `update_page` (where `content` must stay optional) | An argument accidentally made required or left undescribed |
 | Registry unit checks (admin) | `McpToolRegistryTest`: tool names are unique, every tool has a definition, at least 16 tools register | Duplicate or half-built tools |
 | Instructions vs registry, build time | `InstructionsRegistryDriftTest` (`wikantik-admin-mcp/src/test`): every registered tool is mentioned by name in `wikantik-mcp-instructions.txt`, and every tool-shaped token in it is registered | Instructions teaching agents to call tools that do not exist |
 | Instructions vs registry, wire | `McpInstructionsDriftIT`: the same two-way diff against the `instructions` text and `tools/list` of a deployed server | An operator-supplied `mcp.instructions.file` that has drifted |
 | Instructions vs registry, boot | `McpServerInitializer.logToolNameDriftIfAny` logs a WARN at startup | Drift in a live deployment |
-| Knowledge MCP gating | `KnowledgeMcpToolAssemblyTest` (KG tools drop out when the Knowledge Graph service is absent, the rest stay) and `ToolDescriptionRoutingTest` (routing guidance such as the `coverage` and `sparql_query` hints stays in the descriptions) | Wiring regressions and silent description drift |
+| Knowledge MCP gating | `KnowledgeMcpToolAssemblyTest` (conditionally wired tools drop out when their service is absent, the rest stay) and `ToolDescriptionRoutingTest` (routing guidance such as the `coverage` and `sparql_query` hints stays in the descriptions) | Wiring regressions and silent description drift |
 | Knowledge MCP over the wire | `KnowledgeMcpToolsIT` in `wikantik-it-tests/wikantik-it-test-rest` | A tool that registers but fails against a live server |
 | System-page protection | `McpSystemPageProtectionIT` | A write tool that stops refusing system pages |
 | Concurrency guard | `update_page` requires `expectedContentHash`; on drift it returns `{updated:false, error:"hash mismatch", currentHash, currentVersion, latestContent}` | Lost updates (optimistic locking, no write-ahead log) |
@@ -70,7 +69,7 @@ The IT module runs with `mcp.access.allowUnrestricted = true`, so these tests do
 ### Runtime audit trail
 
 - **Every tool call** logs one INFO line from the endpoint's initializer: `MCP tools/call name=<tool> client=<clientInfo.name> surface=read|write durationMs=<n> isError=<bool>` on the admin endpoint (`threw=<exception class>` replaces `isError` if the tool throws), and `Knowledge MCP tools/call name=... client=... durationMs=... isError=...` on the knowledge endpoint.
-- **State-changing admin tools** also write to the `SecurityLog` logger: `MCP_WRITE tool=<tool> action=<created|updated|renamed|refused-system-page|...> target=<page> author=<author>`; bulk KG operations log `action=bulk attempted= succeeded= failed=`. The author is the MCP client's `clientInfo.name` unless the call passes an explicit one. MCP tools run with the access filter as their only gate, so this log is the forensic record.
+- **State-changing admin tools** also write to the `SecurityLog` logger: `MCP_WRITE tool=<tool> action=<created|updated|renamed|refused-system-page|...> target=<page> author=<author>`; bulk operations log `action=bulk attempted= succeeded= failed=`. The author is the MCP client's `clientInfo.name` unless the call passes an explicit one. MCP tools run with the access filter as their only gate, so this log is the forensic record.
 - **Access-filter outcomes** (denials and rate-limit hits) are logged to `SecurityLog` and returned as:
 
 | Status | Body | Cause |
@@ -88,8 +87,6 @@ Authentication failures are 403, not 401.
 - Domain meters relevant to agents include `wikantik_for_agent_response_bytes`, `wikantik_read_pages_partial_failures_total{reason}` (from `read_pages`) and `wikantik_tools_*` (the OpenAPI server).
 - Liveness is `GET /api/health`. There is no MCP-specific probe; to check an MCP endpoint end to end, open a session (`initialize`, `notifications/initialized`) and call `tools/list`, then compare the count with the fully wired figures in [MCP Integration](McpIntegration).
 - `bin/simple-agility-conformance.sh --base-url http://localhost:8080 --prefix wikantik` checks the health, metrics and structured-log contract that the observability plane expects.
-
-[{Relationships}]
 
 ---
 

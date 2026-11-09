@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,7 +33,7 @@ class PageTitleIndexTest {
 
     private static PageDescriptor page( final String slug, final String title ) {
         return new PageDescriptor( "id-" + slug, slug, title, PageType.ARTICLE, null, List.of(), List.of(),
-                null, Instant.EPOCH, Optional.empty(), false );
+                null, Instant.EPOCH, false );
     }
 
     private final PageTitleIndex index = PageTitleIndex.of(

@@ -390,7 +390,7 @@ VERIFY_PG_IMAGE=pgvector/pgvector:pg18 bin/backup/verify-restore.sh /path/to/sna
 ```
 
 It (1) gates on `sha256sum -c`, (2) spins up `pgvector/pgvector:pg18`, installs `vector` +
-`pgcrypto`, loads the dump (`db.sql.gz`, or a legacy `db.sql`), (3) asserts `users`/`kg_nodes`/`page_canonical_ids` exist and that
+`pgcrypto`, loads the dump (`db.sql.gz`, or a legacy `db.sql`), (3) asserts `users`/`page_canonical_ids` exist and that
 `users` is non-empty, (4) extracts `pages.tar.gz` and compares the `.md` count to
 `backup-status.json`, (5) tears down the container + temp dir via a `trap EXIT`.
 

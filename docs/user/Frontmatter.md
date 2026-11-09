@@ -31,8 +31,7 @@ platform.
 
 > Two related guides go deeper on the downstream systems:
 > [OntologyManagement.md](../admin/OntologyManagement.md) (the RDF/SKOS model frontmatter
-> projects into) and [KgInclusionPolicy.md](../admin/KgInclusionPolicy.md) (which pages'
-> entities reach the Knowledge Graph).
+> projects into).
 
 ---
 
@@ -40,8 +39,8 @@ platform.
 
 - **One source, many consumers.** A single `cluster:` value places the article in
   the topical hierarchy, becomes a SKOS concept in the ontology, drives faceted
-  search, *and* governs Knowledge-Graph inclusion. You don't maintain the same
-  fact in five systems.
+  search. You don't maintain the same
+  fact in several systems.
 - **Server-authoritative schema.** The fields, their widgets, and their canonical
   values are defined once on the server (`GET /api/frontmatter-schema`) and the
   editor renders from it — so the form, the validator, and the API never drift
@@ -83,14 +82,13 @@ structural spine.
 
 | Key | Type | What it is |
 |---|---|---|
-| `cluster` | text (kebab slug) — scalar or list | The article's topical cluster(s). Drives hub membership, faceted navigation, the SKOS topic hierarchy, and the cluster-primary Knowledge-Graph inclusion default. Sub-clusters use `parent/sub` (→ `skos:broader`), one level only. On a **non-hub** page this may be a single value or a YAML list (multi-membership; `ClusterPath.memberships()` resolves scalar-or-list uniformly) — the first entry is the *primary* used for placement (breadcrumbs, embedding prefix, `articleSection`). A **hub** page (`type: hub`) must keep `cluster` scalar; a list-valued hub is a save-time `MULTI_CLUSTER_HUB` **error**. Non-kebab values warn. |
+| `cluster` | text (kebab slug) — scalar or list | The article's topical cluster(s). Drives hub membership, faceted navigation, the SKOS topic hierarchy. Sub-clusters use `parent/sub` (→ `skos:broader`), one level only. On a **non-hub** page this may be a single value or a YAML list (multi-membership; `ClusterPath.memberships()` resolves scalar-or-list uniformly) — the first entry is the *primary* used for placement (breadcrumbs, embedding prefix, `articleSection`). A **hub** page (`type: hub`) must keep `cluster` scalar; a list-valued hub is a save-time `MULTI_CLUSTER_HUB` **error**. Non-kebab values warn. |
 | `tags` | list | Free tags. Each becomes a `skos:Concept` the page links via `dct:subject`, and a Lucene facet. Non-kebab tags warn. |
 | `related` | list of page names | Curated "see also" links surfaced in the reader and the structural spine. |
 
 > **Removed — `relations:`.** The typed `relations:` frontmatter field (and its
 > page-relation vocabulary) was **removed 2026-05-02**. Page Graph edges are now
-> strictly real wikilinks; curated typed edges between concepts live in the
-> **Knowledge Graph** as admin-approved edges, not in frontmatter. See
+> strictly real wikilinks; typed edges between concepts are not modelled in frontmatter. See
 > [StructuralSpineDesign.md](../wikantik-pages/StructuralSpineDesign.md).
 
 > **Removed — `hubs:`.** The `hubs:` list field (structural-spine hub
@@ -99,12 +97,6 @@ structural spine.
 > absent from `FrontmatterSchema` today. A hub's membership is now declared by
 > the *member* page's own `cluster:` value (scalar-or-list, above); a hub's
 > `hasPart` is derived from real membership rather than curated separately.
-
-### Knowledge Graph
-
-| Key | Type | What it is |
-|---|---|---|
-| `kg_include` | tristate (`true` / `false` / inherit) | Per-page override of the cluster-primary, **default-exclude** KG inclusion policy. Set `true` to opt an article's extracted entities into the Knowledge Graph. See [KgInclusionPolicy.md](../admin/KgInclusionPolicy.md). |
 
 ### Agent-grade content & verification
 
@@ -149,8 +141,7 @@ provenance model and the seven connector types that produce derived pages.
 
 ## The structured editor
 
-When you edit a page, a **Frontmatter** tab sits above the Markdown body (next
-to a **Knowledge** tab for page-scoped Knowledge Graph curation). The body stays
+When you edit a page, a **Frontmatter** tab sits above the Markdown body . The body stays
 in CodeMirror; the form owns the metadata object.
 
 - **Schema-driven.** Every field is rendered from `GET /api/frontmatter-schema`
@@ -306,8 +297,6 @@ This is the payoff — the same block feeds every layer:
   `tag` → `skos:Concept`s linked via `dct:subject` (`parent/sub` → `skos:broader`);
   `canonical_id` → the dereferenceable IRI `/id/page/{canonical_id}`. All
   queryable over SPARQL. See [OntologyManagement.md](../admin/OntologyManagement.md).
-- **Knowledge Graph.** `kg_include` overrides the cluster-primary inclusion policy
-  that decides whether a page's extracted entities populate the KG.
 - **SEO / structured data.** `type` re-sources the schema.org `@type`
   (`hub`→`CollectionPage`, `article`→`Article`, `runbook`→`HowTo`,
   `design`→`TechArticle`, else `Article` — upgrade-only); `summary` becomes the
@@ -342,8 +331,7 @@ API and the agent tools:
 ## Measuring frontmatter drift across the corpus
 
 Advisory warnings only matter if you can see them in aggregate. The **drift
-dashboard** (`/admin/drift`) runs the schema validator over every page (plus the
-SHACL conformance check over the ontology) and reports one count per
+dashboard** (`/admin/drift`) runs the schema validator over every page and reports one count per
 `(family, code, severity)` with deltas, trend sparklines, and a per-code page list
 linked to the editor. It's the burn-down view for normalizing the corpus — and the
 evidence for ratcheting a warning to an error once its count hits zero. See
@@ -380,7 +368,6 @@ evidence for ratcheting a warning to an error once its count hits zero. See
 **Related docs**
 
 - [OntologyManagement.md](../admin/OntologyManagement.md) — the RDF/SKOS model frontmatter projects into, and curation
-- [KgInclusionPolicy.md](../admin/KgInclusionPolicy.md) — `kg_include` and the cluster-primary policy
 - [Connectors.md](../admin/Connectors.md) — the `derived_*` fields and the seven connector types that stamp them
 - [AgentGradeContentDesign.md](../wikantik-pages/AgentGradeContentDesign.md) — runbooks, verification, the for-agent projection
 - [StructuralSpineDesign.md](../wikantik-pages/StructuralSpineDesign.md) — `cluster`/`canonical_id` and the structural index

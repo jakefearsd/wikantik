@@ -82,14 +82,12 @@ For people who deploy, configure, secure and operate a wiki.
 
 | Guide | What it covers |
 |---|---|
-| [WikantikOperations](admin/WikantikOperations.md) | The operator handbook: deployment, tuning, health and metrics endpoints, backups, scripts under `bin/` and Knowledge Graph administration. |
+| [WikantikOperations](admin/WikantikOperations.md) | The operator handbook: deployment, tuning, health and metrics endpoints, backups, scripts under `bin/` and embeddings administration. |
 | [AdminPanel](admin/AdminPanel.md) | Every screen under `/admin`, what it does and which REST endpoint backs it. |
 | [IndexRebuild](admin/IndexRebuild.md) | Rebuilding the Lucene index, chunks and embeddings. |
 | [DriftDashboard](admin/DriftDashboard.md) | Finding and burning down metadata drift, including stale citations. |
 | [RetrievalQuality](admin/RetrievalQuality.md) | The nightly retrieval-quality run, its dashboard and metrics. |
-| [KgInclusionPolicy](admin/KgInclusionPolicy.md) | Operator reference for which pages feed the Knowledge Graph. |
 | [OntologyManagement](admin/OntologyManagement.md) | Curating the RDF/OWL ontology layer, its SPARQL surface and rebuilds. |
-| [HubDiscovery](admin/HubDiscovery.md) | Finding clusters of orphan articles and proposing hub pages for them. |
 | [ContentIntelligence](admin/ContentIntelligence.md) | Search-visibility data and the ranked backlog of content opportunities. |
 | [SeoAndCrawling](admin/SeoAndCrawling.md) | Getting a site indexed: sitemap, robots, structured data and crawler settings. |
 

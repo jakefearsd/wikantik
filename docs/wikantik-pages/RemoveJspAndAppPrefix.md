@@ -28,8 +28,6 @@ This cleanup step completed the JSP-to-React migration by removing all remaining
 - Redirected the bare entry points `/`, `/wiki` and `/wiki/` to `/wiki/Main` (there is no `/app/` redirect: the filter dropped `/app/` handling outright)
 - Cleaned up web.xml servlet and filter mappings for removed JSP servlets
 
-[{Relationships}]
-
 ---
 
 **Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

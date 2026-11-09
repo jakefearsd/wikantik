@@ -11,7 +11,7 @@ audience:
 runbook:
   when_to_use:
   - You want an AI agent (Claude Code) to read, search, and reason over this wiki
-  - You want an agent to curate the wiki — write pages or edit the Knowledge Graph
+  - You want an agent to curate the wiki — write and edit pages
   - You are bootstrapping an agent's first connection (a human step — see the catch-22
     below)
   inputs:
@@ -43,7 +43,7 @@ runbook:
   - The catch-22 — an agent can't fetch this page until it is already connected, so
     the first setup is a human task
   related_tools:
-  - /knowledge-mcp/search_knowledge
+  - /knowledge-mcp/retrieve_context
   - /knowledge-mcp/get_page_for_agent
   - /wikantik-admin-mcp/update_page
 summary: How to wire a Claude Code instance to the production Wikantik MCP servers
@@ -58,8 +58,8 @@ tags:
 # Connecting Claude Code to the Wikantik MCP Servers
 
 Wikantik exposes two [Model Context Protocol](https://wiki.wikantik.com/wiki/GoodMcpDesign)
-servers so an AI agent can use the wiki directly — searching, traversing the
-Knowledge Graph, reading token-budgeted page projections, and (optionally)
+servers so an AI agent can use the wiki directly — searching, navigating the
+Page Graph, reading token-budgeted page projections, and (optionally)
 curating content. This page is the setup: **which URL and which key go in which
 file**, securely, so a [Claude Code](https://code.claude.com/docs/en/mcp) instance
 can read — or write — this wiki.
@@ -73,13 +73,14 @@ can read — or write — this wiki.
 
 | Server | URL | What it's for | Tools | Key scope |
 |---|---|---|---|---|
-| **Knowledge MCP** (read-only) | `https://wiki.wikantik.com/knowledge-mcp` | Retrieval: the `assemble_bundle` context bundle, hybrid search, Knowledge-Graph traversal, structural-spine navigation, the `get_page_for_agent` projection, `sparql_query`, `get_ontology` | 21, read-only | `mcp_read` (or higher) |
-| **Admin MCP** (write / curate) | `https://wiki.wikantik.com/wikantik-admin-mcp` | Curation: page writes, KG node/edge curation, proposals, verification stamping, bulk cluster rename | 29 | `mcp_admin` (or `all`) |
+| **Knowledge MCP** (read-only) | `https://wiki.wikantik.com/knowledge-mcp` | Retrieval: the `assemble_bundle` context bundle, `retrieve_context`, structural-spine and Page Graph navigation, the `get_page_for_agent` projection, `sparql_query`, `get_ontology` | 16, read-only | `mcp_read` (or higher) |
+| **Admin MCP** (write / curate) | `https://wiki.wikantik.com/wikantik-admin-mcp` | Curation: page writes, verification stamping, bulk cluster rename, content-opportunity and retrieval-query analytics | 20 | `mcp_admin` (or `all`) |
 
 Both servers register some tools only when the subsystem behind them is wired
-(for example the Knowledge Graph tools), so 21 and 29 are the fully-wired counts —
+(for example the query-log tools), so 16 and 20 are the fully-wired counts —
 a leaner install advertising fewer is not an error. Call `tools/list` (or run `/mcp`
-in Claude Code) to see what your deployment really exposes.
+in Claude Code) to see what your deployment really exposes. (The Knowledge Graph
+entity tools were retired in November 2026 and are no longer offered.)
 
 Most people want the **read-only Knowledge MCP** for a coding agent — it can read
 and reason but can never change anything. Add the **Admin MCP** only if you want the
@@ -98,7 +99,7 @@ Keys look like `wkk_...`, and the key's **scope** decides which server it can re
 Two things to know about what a key can see and do:
 
 - The Knowledge MCP checks page view ACLs as an anonymous guest, whichever account the key belongs to, so it returns only publicly viewable pages. Restricted pages are reachable only through the Admin MCP.
-- The Admin MCP performs no per-user permission checks. An `mcp_admin` or `all` key can read and write every non-system page and curate the Knowledge Graph, so treat it as an admin credential.
+- The Admin MCP performs no per-user permission checks. An `mcp_admin` or `all` key can read and write every non-system page, so treat it as an admin credential.
 
 ## Step 1 — Issue an API key
 
@@ -194,7 +195,7 @@ allowlist and is not set `allowUnrestricted`, so it rejects everything (it fails
 Now just ask, and the agent reaches the wiki for you:
 
 - *"Search the wiki for our deploy runbook and summarize the steps."* → `assemble_bundle` → `get_page_for_agent`
-- *"What does the wiki say implements Raft consensus?"* → Knowledge-Graph traversal / `sparql_query`
+- *"What does the wiki say implements Raft consensus?"* → `assemble_bundle` / `retrieve_context`, or `sparql_query` for ontology enumerations
 - *(with the admin server)* *"Update the summary on the CockroachDB page."* → `update_page`
 
 ## Pitfalls

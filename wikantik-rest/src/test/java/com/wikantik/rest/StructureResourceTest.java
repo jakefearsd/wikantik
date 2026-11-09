@@ -83,7 +83,7 @@ class StructureResourceTest {
         when( svc.listClusters() ).thenReturn( List.of( new ClusterSummary(
                 "wikantik-development",
                 new PageDescriptor( "01A", "WikantikDevelopment", "Wikantik Development",
-                        PageType.HUB, "wikantik-development", List.of(), "hub", Instant.EPOCH, Optional.empty(), false ),
+                        PageType.HUB, "wikantik-development", List.of(), "hub", Instant.EPOCH, false ),
                 12,
                 Instant.parse( "2026-04-01T00:00:00Z" ) ) ) );
 
@@ -104,8 +104,7 @@ class StructureResourceTest {
     }
 
     private static PageDescriptor tagged( final String id, final String slug, final List< String > tags, final List< String > inline ) {
-        return new PageDescriptor( id, slug, slug, PageType.ARTICLE, null, List.of(), tags, "s", Instant.EPOCH,
-                Optional.empty(), false, inline );
+        return new PageDescriptor( id, slug, slug, PageType.ARTICLE, null, List.of(), tags, "s", Instant.EPOCH, false, inline );
     }
 
     /** SECURITY: counts and sample ids cover only pages the caller can view (inline and frontmatter tags alike). */
@@ -175,7 +174,7 @@ class StructureResourceTest {
     void sitemap_returns_all_pages() throws Exception {
         when( svc.sitemap() ).thenReturn( new Sitemap(
                 List.of( new PageDescriptor( "01A", "Slug", "T", PageType.ARTICLE, null, List.of(),
-                        "summary", Instant.EPOCH, Optional.empty(), false ) ),
+                        "summary", Instant.EPOCH, false ) ),
                 1, Instant.EPOCH ) );
         final JsonObject body = callGet( "/sitemap" );
         assertEquals( 1, body.getAsJsonObject( "data" ).get( "count" ).getAsInt() );
@@ -197,9 +196,9 @@ class StructureResourceTest {
         when( svc.sitemap() ).thenReturn( new Sitemap(
                 List.of(
                         new PageDescriptor( "01A", "PublicPage", "Public", PageType.ARTICLE, null, List.of(),
-                                "public summary", Instant.EPOCH, Optional.empty(), false ),
+                                "public summary", Instant.EPOCH, false ),
                         new PageDescriptor( "01B", "SecretPage", "Secret", PageType.ARTICLE, null, List.of(),
-                                "secret summary", Instant.EPOCH, Optional.empty(), false ) ),
+                                "secret summary", Instant.EPOCH, false ) ),
                 2, Instant.EPOCH ) );
         resource.visible = java.util.Set.of( "PublicPage" );   // SecretPage is ACL-restricted
 
@@ -217,9 +216,9 @@ class StructureResourceTest {
     void pages_listing_hides_restricted_pages() throws Exception {
         when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
                 new PageDescriptor( "01A", "PublicPage", "Public", PageType.ARTICLE, null, List.of(),
-                        "s", Instant.EPOCH, Optional.empty(), false ),
+                        "s", Instant.EPOCH, false ),
                 new PageDescriptor( "01B", "SecretPage", "Secret", PageType.ARTICLE, null, List.of(),
-                        "s", Instant.EPOCH, Optional.empty(), false ) ) );
+                        "s", Instant.EPOCH, false ) ) );
         resource.visible = java.util.Set.of( "PublicPage" );
 
         final JsonObject body = callGet( "/pages" );

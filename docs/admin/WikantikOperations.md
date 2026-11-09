@@ -1,6 +1,6 @@
 # Wikantik Operations Handbook
 
-This handbook is for administrators who run Wikantik. It covers deployment (container, remote and bare metal), tuning, the health and metrics endpoints, backups, the operator scripts under `bin/` (including remote deployment, load testing and the entity extractor), and Knowledge Graph administration.
+This handbook is for administrators who run Wikantik. It covers deployment (container, remote and bare metal), tuning, the health and metrics endpoints, backups, the operator scripts under `bin/` (including remote deployment and load testing), and embeddings administration.
 
 ---
 
@@ -436,7 +436,7 @@ drill, and the exact jakemon alert expressions to configure.
 
 ## 3. Administrative Scripts (`bin/`)
 
-The `bin/` directory contains operational scripts to manage the Wikantik lifecycle and Knowledge Graph (KG).
+The `bin/` directory contains operational scripts to manage the Wikantik lifecycle.
 
 ### `bin/container.sh`
 The primary wrapper around `docker compose` for the container stack.
@@ -462,42 +462,6 @@ bin/container.sh smoke-test                     # ephemeral up/health/down on te
 Handles bare-metal Tomcat deployments.
 - Renders `context.xml` and properties templates using `.env`.
 - `--upgrade-tomcat`: Performs an in-place upgrade, preserving managed configs and data directories safely.
-
-### `bin/kg-rebuild.sh`
-Orchestrates the full content and Knowledge Graph rebuild pipeline across multiple phases.
-- Phase 1: Rebuild chunks and Lucene index.
-- Phase 2: Reindex embeddings.
-- Phase 3: Optional reset (`--reset-kg`) to prune machine-tier AI-inferred nodes and pending proposals (rows a person wrote or approved — tier `human` — are kept; see [IndexRebuild](IndexRebuild.md#what---reset-kg-deletes)) or a complete destructive wipe (`--purge-kg`).
-- Phase 4: Forward requests to `bin/kg-extract.sh` to extract mentions and proposals.
-
-**Resume flags** (skip completed phases when resuming mid-pipeline):
-
-| Flag | Skips |
-|------|-------|
-| `--skip-chunks` | Phase 1 (chunk + Lucene rebuild) |
-| `--skip-embeddings` | Phase 2 (embedding reindex) |
-| `--skip-extract` | Phase 4 (entity extraction) |
-| `--dry-run` | Everything — prints the plan without executing |
-
-```bash
-# Resume after a failed embedding phase (chunks already rebuilt):
-bin/kg-rebuild.sh --skip-chunks --reset-kg -- --ollama-model qwen2.5:1.5b-instruct --concurrency 6
-```
-
-### `bin/kg-extract.sh`
-Fires the standalone entity-extractor CLI against the database to generate Knowledge Graph nodes and proposals.
-- Supports tuning parameters like `--max-pages`, `--ollama-model`, and `--concurrency`.
-- Recompiles the `wikantik-extract-cli.jar` transparently if Java source files have changed.
-
-### `bin/kg-policy.sh`
-Admin CLI for managing the Knowledge Graph cluster inclusion/exclusion policies.
-- Controls what namespaces are analyzed by the extractor (system pages are automatically excluded).
-- Subcommands: `list`, `set`, `clear`, `explain`, `review`, `mark-reviewed`, `diff`, `reconcile`, `purge` and `audit`.
-
-### `bin/kg-judge.sh`
-Triggers ad-hoc Knowledge Graph judge runs against the local deployment.
-- `--proposal-id UUID`: Synchronously judge one proposal.
-- `--status`: Evaluate pending queue depth.
 
 ### Remote container deployment over ssh
 
@@ -571,33 +535,6 @@ fresh stack has no `testbot` user or API key, so seed them once with
 `loadtest/seed-loadtest-data.sh` (see `loadtest/README.md`). Methodology is in
 [LoadTesting.md](../developer/LoadTesting.md).
 
-### Run the entity extractor: `bin/kg-extract.sh`
-
-`bin/kg-extract.sh` runs the per-page entity-extraction pipeline against the local
-PostgreSQL, reading the JDBC URL and password from the deployed `ROOT.xml` (or from
-`PG_JDBC_URL`, `PG_USER`, `PG_PASSWORD`). With no flags it uses the Ollama model
-`gemma4-assist:latest` at concurrency 2 with no judge.
-
-```bash
-bin/kg-extract.sh --max-pages 50 --dry-run --report reports/smoke.json   # smoke run
-bin/kg-extract.sh --report reports/extract-$(date +%Y%m%d).json          # full run
-bin/kg-extract.sh --jar-help                                             # the jar's full flag list
-```
-
-If the pending-proposal queue gets unwieldy and a clean restart is the right call,
-snapshot the pending proposals first, then delete them:
-
-```bash
-PGPASSWORD=… pg_dump -h localhost -U wikantik -d wikantik \
-    --data-only --table=kg_proposals --column-inserts \
-    --where="status = 'pending'" \
-    > backups/kg_proposals_pending_$(date +%Y%m%d).sql
-
-PGPASSWORD=… psql -h localhost -U wikantik -d wikantik -c \
-    "DELETE FROM kg_proposals WHERE status = 'pending';"
-```
-
-Wipes like this are never landed in `V*.sql` migrations; they are operator one-shots.
 
 ### `bin/remote.sh` — remote admin subcommands
 
@@ -629,13 +566,11 @@ Global flags: `--dry-run` (print commands instead of running), `-h` / `--help`.
 
 ## 4. Maintenance & operator scripts
 
-The `bin/` directory contains a number of operational tools beyond the main deploy/KG scripts. Most are safe to run repeatedly (they either dry-run by default or prompt before destructive steps). None are called from Maven or CI — they are operator-only tools.
+The `bin/` directory contains a number of operational tools beyond the main deploy scripts. Most are safe to run repeatedly (they either dry-run by default or prompt before destructive steps). None are called from Maven or CI — they are operator-only tools.
 
 | Script | Purpose | Safety |
 |--------|---------|--------|
-| `bin/kg-cleanup-node-types.sh` | One-shot interactive cleanup of legacy `node_type` values that predate the vocabulary gate. Reads credentials from `ROOT.xml`. | Idempotent SQL updates; prompts before running. |
-| `bin/kg-chunker-stats.sh` | Inspect chunk-size distribution for the page corpus without touching the database. Pure in-memory re-chunk + prefilter eval. | Read-only. |
-| `bin/kg-judge-experiment.sh` | Sample pending `kg_proposals` and judge each with both a no-op and a live judge (ollama or claude). Writes a side-by-side JSON report. | Read-only report; does not modify proposals. |
+| `bin/chunker-stats.sh` | Inspect chunk-size distribution for the page corpus without touching the database. Pure in-memory re-chunk. | Read-only. |
 | `bin/run-embedding-experiment.sh` | End-to-end driver for the retrieval experimentation harness: index with multiple models, score BM25/dense/hybrid, compare. Requires `kg_content_chunks` populated. | Writes to experiment tables only. |
 | `bin/run-experiment-local.sh` | Thin wrapper around `run-embedding-experiment.sh` that sources credentials from `ROOT.xml` and `test.properties`. | Same as above. |
 | `bin/smoke-wiki.sh [BASE_URL]` | Functional smoke test: health UP, a page renders, changes feed populated, search returns a hit. Called by `bin/dr-restore.sh` on DR completion. Exit 0 = all checks passed. | Read-only. |
@@ -644,7 +579,7 @@ The `bin/` directory contains a number of operational tools beyond the main depl
 | `bin/deploy-marketing.sh [--dry-run] [--marketing-only] [--site-only] [--build-site]` | Publish the static marketing site (`marketing/`) and, if it has been built by `bin/site.sh`, the generated code-health site (under `/site`) to the nginx docroot on the `cloudflare` host. `bin/deploy-site.sh` is a thin shim for `--site-only`. Prompts for the sudo password interactively. | Requires manual confirmation for the privileged copy step; `--dry-run` changes nothing. |
 | `bin/db/audit-retention.sh [--status\|--dry-run]` | Enforce `audit_log` retention: pre-create upcoming monthly partitions; archive-then-drop partitions older than `AUDIT_RETENTION_MONTHS` (default 84 = 7 years). | `--dry-run` touches nothing. The drop phase requires `AUDIT_ARCHIVE_DIR` to be set. |
 | `bin/db/audit-retention-install-timer.sh` | Install and enable the `wikantik-audit-retention.timer` systemd timer (monthly). | Idempotent; prompts for sudo. |
-| `bin/db/one-shots/` | Environment-specific one-off data fixups. Each file is a standalone script or SQL file intended to be run once per environment (not migrations). Current scripts: `2026-05-20-backfill-chunk-embeddings.sh` (backfill `content_chunk_embeddings`), `2026-06-08-normalize-kg-node-types.sql` (normalize `kg_nodes.node_type` onto the 9-class entity vocabulary), `reconcile_page_canonical_ids.sh` (reconcile `page_canonical_ids`), `reset_judge_timeout_abstains.sh`, `reset_node_judge_verdicts.sh`, `backfill-agent-default-owner.sql`, `null_out_empty_user_attributes.sh` (null out `users.attributes` where it is the empty string), `dedupe_display_names.sh` (make display names unique and presentable and give accounts with no stored uid one; reports stored uids that cannot appear in a mention token and display names equal to another account's login, count only; dry run by default, `--apply` to commit; `PSQL_COMMAND='bin/remote.sh psql --'` runs it against the production container). | Review individually before running; most are idempotent but data-modifying. |
+| `bin/db/one-shots/` | Environment-specific one-off data fixups. Each file is a standalone script or SQL file intended to be run once per environment (not migrations). Current scripts: `2026-05-20-backfill-chunk-embeddings.sh` (backfill `content_chunk_embeddings`), `reconcile_page_canonical_ids.sh` (reconcile `page_canonical_ids`), `backfill-agent-default-owner.sql`, `null_out_empty_user_attributes.sh` (null out `users.attributes` where it is the empty string), `dedupe_display_names.sh` (make display names unique and presentable and give accounts with no stored uid one; reports stored uids that cannot appear in a mention token and display names equal to another account's login, count only; dry run by default, `--apply` to commit; `PSQL_COMMAND='bin/remote.sh psql --'` runs it against the production container). | Review individually before running; most are idempotent but data-modifying. |
 | `bin/tests/test-dedupe-display-names.sh` | Offline guard for `bin/db/one-shots/dedupe_display_names.sh`: a stub `psql` proves the dry run rolls back, `--apply` commits, the apply setting is switched on before the SQL, and the report selects no login or email column. | Read-only test harness. |
 | `bin/tests/test-audit-retention.sh` | Pure-filesystem unit tests for `audit-retention.sh` using stubbed `psql`/`pg_dump`/`pg_restore`. No real PostgreSQL required. | Read-only test harness. |
 | `bin/tests/test-backup.sh` | Tests for `backup.sh` and `nas-pull.sh` manifest + metrics emission. Stubbed `pg_dump`/`psql`/`rsync`/`curl` — no real PG or ssh. | Read-only test harness. |
@@ -657,34 +592,6 @@ The `bin/` directory contains a number of operational tools beyond the main depl
 
 ---
 
-## 5. Knowledge Graph Administration
+## 5. Embeddings Administration
 
-The Knowledge Graph holds LLM-extracted entities (nodes) and typed relations between them (edges). It is administered at `/admin/knowledge-graph` in the UI and through the admin MCP tools (`propose_knowledge`, `list_proposals`, `review_proposals`, `curate_nodes`, `curate_edges`). It is separate from the Page Graph, whose edges are real wikilinks; see [PageGraphVsKnowledgeGraph](../wikantik-pages/PageGraphVsKnowledgeGraph.md).
-
-### 5.1 How nodes and edges are written
-
-Nothing projects page frontmatter or body links into the Knowledge Graph on save. The old graph projector was retired (migration V012 purged the `links_to` edges it had written). Today there are three write paths:
-
-1. **Extraction proposes.** On page save, `AsyncEntityExtractionListener` runs off the save thread and files entity and relation **proposals** in `kg_proposals` (and chunk mentions). It never writes `kg_nodes` or `kg_edges` itself, skips an edge pairing already recorded in `kg_rejections`, and applies a per-page rate limit. `bin/kg-extract.sh` does the same in batch.
-2. **A judge or a human decides.**
-   - The judge (`JudgeRunner`, on a schedule unless disabled; trigger a run or judge one proposal with `bin/kg-judge.sh`) records a machine verdict. An approved `new-edge` or `new-node` proposal is materialised by `KgMaterializationService` at tier `machine` with provenance `ai-inferred`. Materialisation is **first-writer-wins**: it only creates a node that does not exist yet (a `new-edge`'s missing endpoints, a `new-node`'s subject) and leaves an existing node completely unchanged — type, provenance, properties and tier — logging the skipped write at INFO, so approving a proposal can never overwrite curated data. A hard rejection of an edge also records it in `kg_rejections`.
-   - A human approves through `tryApprove` (REST `/admin/knowledge-graph` proposal handlers and the `review_proposals` tool). That promotes the rows to tier `human`, and for a `new-edge` also writes the relation back into the source page's frontmatter (the relationship type becomes a frontmatter key listing the target; saved as author "Knowledge Admin").
-   - A human rejection retracts anything the proposal had materialised and records the rejection, so the same proposal is refused when resubmitted (`propose_knowledge` refuses a previously rejected triple).
-3. **Direct curation.** `curate_nodes`, `curate_edges` and the admin UI write nodes and edges immediately with human provenance (`human-authored` for node upserts, `human-curated` for edges). Edge writes pass the write-time SHACL gate, which refuses a non-conformant edge, and mixed page-to-entity edges are refused.
-
-Provenance values are `human-authored`, `human-curated`, `ai-inferred` and `ai-reviewed`.
-
-### 5.2 Proposals
-
-Agents submit `new-node`, `new-edge`, `new-property` or `modify-property` proposals through `propose_knowledge` (`new-edge` data is `{source, target, relationship}`; `new-node` is `{name, node_type, properties}`). Only `new-node` and `new-edge` proposals are materialised into the graph; review them in `/admin/knowledge-graph` or with `list_proposals` / `review_proposals`.
-
-### 5.3 Node and edge curation
-
-- **Edge types** are a closed vocabulary enforced by the `kg_edges_relationship_type_check` constraint (V027, extended by V030): `related_to`, `part_of`, `contains`, `is_a`, `instance_of`, `requires`, `enables`, `uses`, `produces`, `replaces`, `precedes`, `extends`, `implements`, `alternative_to`, `contrasts_with`, `compatible_with`, `mitigates`, `defines`, `applies_to`, `located_in`, `generalizes`. Anything else is rejected by the database.
-- **Which pages feed the graph** is controlled by the cluster inclusion policy; see [KgInclusionPolicy.md](KgInclusionPolicy.md).
-- **Orphans:** `list_orphaned_kg_nodes` finds degree-0 entities.
-
-### 5.4 Embeddings & Advanced Quality Tools
-Wikantik leverages a unified embedding model for hybrid search and structural similarity.
-- **Merge Candidates:** `GET /admin/knowledge-graph/nodes/{name}/similar` (surfaced in the node-explorer's node-detail panel) finds structurally and semantically similar nodes; `POST /admin/knowledge-graph/nodes/merge` merges two, updating corresponding edges and frontmatter references.
-- **Pages Without Frontmatter:** Accessible under Content Embeddings, used to flag pages that have zero footprint in the semantic graph.
+The Knowledge Graph was removed; what remains of its admin surface is the embedding index and LLM call monitoring, at **Admin › Embeddings** (`/admin/embeddings`). The **Content embeddings** tab shows index health (chunks and pages embedded, model, dimension), the frontmatter backfill and the list of pages without frontmatter; the **LLM activity** tab shows about the last hour of in-flight and recent LLM calls. Rebuilds are triggered from the same page or with `bin/trigger-rebuild-indexes.sh`. See [AdminPanel.md](AdminPanel.md) and [IndexRebuild.md](IndexRebuild.md).

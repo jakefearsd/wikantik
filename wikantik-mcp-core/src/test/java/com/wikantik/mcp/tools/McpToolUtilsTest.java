@@ -19,19 +19,14 @@
 package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
-import com.wikantik.api.knowledge.KgNode;
-import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -322,100 +317,6 @@ class McpToolUtilsTest {
         assertEquals( src, McpToolUtils.castStringKey( src ) );
     }
 
-    // --- runBulk -----------------------------------------------------------------------
-
-    @Test
-    void runBulkRejectsNonListOperations() {
-        final McpSchema.CallToolResult result = McpToolUtils.runBulk(
-                "tool", "edge", "not-a-list", 10, "author", op -> Map.of() );
-        assertTrue( result.isError() );
-        assertTrue( textOf( result ).contains( "non-empty array" ) );
-    }
-
-    @Test
-    void runBulkRejectsEmptyList() {
-        final McpSchema.CallToolResult result = McpToolUtils.runBulk(
-                "tool", "edge", List.of(), 10, "author", op -> Map.of() );
-        assertTrue( result.isError() );
-    }
-
-    @Test
-    void runBulkRejectsOverBulkLimit() {
-        final List< Object > ops = new ArrayList<>();
-        ops.add( Map.of( "tag", "t1" ) );
-        ops.add( Map.of( "tag", "t2" ) );
-        final McpSchema.CallToolResult result = McpToolUtils.runBulk(
-                "tool", "edge", ops, 1, "author", op -> Map.of() );
-        assertTrue( result.isError() );
-        assertTrue( textOf( result ).contains( "bulk limit exceeded" ) );
-    }
-
-    @Test
-    void runBulkSkipsNonMapOperationEntries() {
-        final List< Object > ops = List.of( "not-a-map" );
-        final McpSchema.CallToolResult result = McpToolUtils.runBulk(
-                "tool", "edge", ops, 10, "author", op -> Map.of() );
-        assertTrue( textOf( result ).contains( "operation must be an object" ) );
-    }
-
-    @Test
-    void runBulkAggregatesSucceededAndFailedWithTagAndAction() {
-        final List< Object > ops = List.of(
-                Map.of( "tag", "t1", "action", "add", "ok", true ),
-                Map.of( "tag", "t2", "action", "add", "ok", false ) );
-
-        final McpSchema.CallToolResult result = McpToolUtils.runBulk(
-                "tool", "edge", ops, 10, "author",
-                op -> Boolean.TRUE.equals( op.get( "ok" ) )
-                        ? Map.of( "id", "n1" )
-                        : Map.of( "error", "failed" ) );
-
-        assertFalse( result.isError() );
-        final String text = textOf( result );
-        assertTrue( text.contains( "\"status\":\"completed\"" ) );
-        assertTrue( text.contains( "\"tag\":\"t1\"" ) );
-        assertTrue( text.contains( "\"tag\":\"t2\"" ) );
-        assertTrue( text.contains( "1 of 2 edge operations applied" ) );
-    }
-
-    @Test
-    void runBulkSetsIsErrorWhenAllFailedAndFlagIsTrue() {
-        final List< Object > ops = List.of( Map.of( "tag", "t1" ) );
-        final McpSchema.CallToolResult result = McpToolUtils.runBulk(
-                "tool", "edge", ops, 10, "author", op -> Map.of( "error", "nope" ) );
-        assertTrue( result.isError() );
-        assertTrue( textOf( result ).contains( "\"status\":\"failed\"" ) );
-    }
-
-    @Test
-    void runBulkAllFailedDoesNotSetIsErrorWhenFlagFalse() {
-        final List< Object > ops = List.of( Map.of( "tag", "t1" ) );
-        final McpSchema.CallToolResult result = McpToolUtils.runBulk(
-                "tool", "node", ops, 10, "author", op -> Map.of( "error", "nope" ), false );
-        assertFalse( result.isError() );
-    }
-
-    // --- parseProvenanceFilter ----------------------------------------------------------
-
-    @Test
-    void parseProvenanceFilterReturnsNullWhenAbsentOrEmpty() {
-        assertNull( McpToolUtils.parseProvenanceFilter( Map.of() ) );
-        assertNull( McpToolUtils.parseProvenanceFilter( Map.of( "provenance_filter", List.of() ) ) );
-        assertNull( McpToolUtils.parseProvenanceFilter( Map.of( "provenance_filter", "not-a-list" ) ) );
-    }
-
-    @Test
-    void parseProvenanceFilterParsesKnownValuesAndSkipsUnknown() {
-        final Set< Provenance > result = McpToolUtils.parseProvenanceFilter(
-                Map.of( "provenance_filter", List.of( "human-authored", "bogus-value" ) ) );
-        assertEquals( Set.of( Provenance.HUMAN_AUTHORED ), result );
-    }
-
-    @Test
-    void parseProvenanceFilterReturnsNullWhenAllValuesUnknown() {
-        assertNull( McpToolUtils.parseProvenanceFilter( Map.of( "provenance_filter", List.of( "bogus" ) ) ) );
-    }
-
     // --- checkForSerializedResponse -------------------------------------------------------
 
     @Test
@@ -513,22 +414,5 @@ class McpToolUtilsTest {
 
         final String matchingHash = McpToolUtils.computeContentHash( "current text" );
         assertNull( McpToolUtils.checkVersionOrHash( pm, "Existing", 0, matchingHash, McpToolUtils.SHARED_GSON ) );
-    }
-
-    // --- KG_GSON Instant TypeAdapter ------------------------------------------------------
-
-    @Test
-    void kgGsonRoundTripsNullAndNonNullInstantFields() {
-        final Instant modified = Instant.parse( "2026-04-24T08:00:00Z" );
-        final KgNode node = new KgNode( UUID.randomUUID(), "Alpha", "Concept", "AlphaPage",
-                Provenance.HUMAN_AUTHORED, Map.of(), null, modified, "human", null );
-
-        final String json = McpToolUtils.KG_GSON.toJson( node );
-        assertTrue( json.contains( "\"created\":null" ), "null Instant must serialize as JSON null: " + json );
-        assertTrue( json.contains( "2026-04-24T08:00:00Z" ), "non-null Instant must serialize as ISO-8601: " + json );
-
-        final KgNode roundTripped = McpToolUtils.KG_GSON.fromJson( json, KgNode.class );
-        assertNull( roundTripped.created() );
-        assertEquals( modified, roundTripped.modified() );
     }
 }

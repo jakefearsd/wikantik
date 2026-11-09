@@ -180,16 +180,12 @@ public class AdminOntologyRebuildIT {
     }
 
     @Test
-    void violations_returnsConformanceEnvelopeForAdmin() throws Exception {
+    void violations_endpointIsRetired_adminGets404() throws Exception {
         try {
             loginAsAdmin();
             final HttpResponse< String > resp = get( "/admin/ontology/violations" );
-            assertEquals( 200, resp.statusCode(),
-                    "Admin /admin/ontology/violations must return 200: " + resp.body() );
-            final JsonObject body = JsonParser.parseString( resp.body() ).getAsJsonObject();
-            assertTrue( body.has( "violations" ) && body.has( "count" ),
-                    "violations envelope must include violations + count: " + resp.body() );
-            assertTrue( body.get( "violations" ).isJsonArray(), "violations must be an array: " + resp.body() );
+            assertEquals( 404, resp.statusCode(),
+                    "the SHACL violations endpoint was retired with the Knowledge Graph edge shapes: " + resp.body() );
         } finally {
             logoutAdmin();
         }

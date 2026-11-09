@@ -46,9 +46,11 @@ runbook:
   - WikantikKnowledgeGraphAdmin
   - StructuralSpineDesign
 canonical_id: 01KQEDYJR57WYQCV645PKSDBMQ
-status: active
+status: archived
 ---
 # KG Inclusion Policy
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 The knowledge graph (KG) is built from a subset of wiki pages. This page is
 the operator's guide to that subset: the model, the dashboard, the CLI, and

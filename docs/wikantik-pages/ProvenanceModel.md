@@ -24,13 +24,14 @@ tags:
 - mcp
 - ontology
 date: '2026-10-24'
-kg_include: true
 canonical_id: 01KQ0P44TZMB0TWR020ASY4NP5
 type: article
 title: 'Knowledge Graph Provenance Model: Origin Values and Machine/Human Trust Tiers'
-status: active
+status: archived
 ---
 # Knowledge Graph Provenance and Two-Tier Trust Model
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 Every node (`kg_nodes`) and edge (`kg_edges`) in the [[WikantikKnowledgeGraph|Wikantik Knowledge Graph]] carries **two orthogonal trust dimensions**:
 1. **`provenance`** (added in migration `V004`): *How* the entity or relationship originally entered the database (`human-authored`, `human-curated`, `ai-inferred`, or `ai-reviewed`).
@@ -171,8 +172,6 @@ Every administrative mutation of an edge—whether via `curate_edges(op="add" | 
 When `EntityProjector` and `EdgeProjector` (`wikantik-ontology`) materialize `kg_nodes` and `kg_edges` into the Apache Jena TDB2 store, the review `tier` and `source_page` are projected into standard W3C PROV-O (`http://www.w3.org/ns/prov#`) triples:
 - **Agent Attribution (`prov:wasAttributedTo`):** Rows with `tier = 'machine'` emit `prov:wasAttributedTo wk:MachineAgent`, whereas rows with `tier = 'human'` emit `prov:wasAttributedTo wk:HumanAgent`.
 - **Source Derivation (`prov:wasDerivedFrom`):** Every entity and edge links back to its originating wiki page resource (`/id/page/<slug>`). Under the fail-closed public/restricted ACL rule (`2.4.26`), any machine-extracted entity (`provenance = 'ai-inferred'`) whose `source_page` is `NULL` or ACL-restricted is excluded from the public `/sparql` and `/export/*` datasets, whereas a hand-curated entity (`provenance = 'human-authored'`, `tier = 'human'`) without a source page is treated as an intentional public ontology assertion.
-
-[{Relationships}]
 
 ---
 

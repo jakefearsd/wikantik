@@ -1,5 +1,4 @@
 ---
-kg_include: true
 cluster: wikantik-development
 date: '2026-04-04'
 title: 'Knowledge Admin UI: Proposals, Explorers, Extraction and Hubs'
@@ -14,10 +13,12 @@ summary: 'The Knowledge Graph admin panel at /admin/knowledge-graph: eight tabs 
 audience:
 - humans
 canonical_id: 01KQ0P44RG9F6EFB0MPVN81K6S
-status: active
+status: archived
 type: article
 ---
 # Knowledge Admin UI
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 The Knowledge Graph admin panel lives at `/admin/knowledge-graph` (admin sidebar, Knowledge & Search, Knowledge Graph). Its neighbour, `/admin/kg-policy` ("KG Policy"), is the cluster inclusion dashboard described in [KgInclusionPolicy](KgInclusionPolicy). Everything under `/admin/*` is protected by `AdminAuthFilter` (requires `AllPermission`), including the REST endpoints under `/admin/knowledge-graph/*` that the tabs call. When the Knowledge Graph subsystem is switched off (`wikantik.knowledge.enabled=false`) the panel shows a "disabled" notice and those endpoints answer 503. The panel curates the Knowledge Graph only; it does not touch the Page Graph (see [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph)).
 

@@ -140,7 +140,6 @@ public class AdminDriftResource extends RestServletBase {
         out.put( "pagesScanned", sweep.pagesScanned() );
         out.put( "durationMs", sweep.durationMs() );
         out.put( "triggeredBy", sweep.triggeredBy() );
-        out.put( "shaclChecked", sweep.shaclChecked() );
         out.put( "counts", counts );
         sendJsonWithStatus( response, 200, out );
     }
@@ -162,7 +161,6 @@ public class AdminDriftResource extends RestServletBase {
         for ( final DriftSweepRecord s : repo.trend( days ) ) {
             final Map< String, Object > row = new LinkedHashMap<>();
             row.put( "sweptAt", DateTimeFormatter.ISO_INSTANT.format( s.sweptAt() ) );
-            row.put( "shaclChecked", s.shaclChecked() );
             row.put( "counts", s.counts().stream().map( c -> Map.of(
                     "family", c.family(), "code", c.code(),
                     "severity", c.severity(), "count", c.count() ) ).toList() );

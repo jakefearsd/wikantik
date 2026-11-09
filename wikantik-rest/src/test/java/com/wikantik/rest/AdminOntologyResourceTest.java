@@ -129,31 +129,15 @@ class AdminOntologyResourceTest {
         verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
     }
 
-    // ------------------------------------------------------------------ violations
+    // ------------------------------------------------------------------ violations (retired)
 
     @Test
-    void violations_onConformantModel_returnsEmptyList() throws Exception {
+    void violations_isRetiredWithTheKnowledgeGraphEdgeShapes_returns404() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/violations" );
-        final OntologyModelManager mgr = mock( OntologyModelManager.class );
-        when( mgr.inferenceSnapshot() ).thenReturn( ModelFactory.createDefaultModel() );
-        when( coordinator.modelManager() ).thenReturn( mgr );
 
         resource.doGet( req, resp );
 
-        verify( resp ).setStatus( 200 );
-        final JsonObject out = json();
-        assertEquals( 0, out.get( "count" ).getAsInt() );
-        assertEquals( 0, out.getAsJsonArray( "violations" ).size() );
-    }
-
-    @Test
-    void violations_withoutModelManager_returns503() throws Exception {
-        when( req.getPathInfo() ).thenReturn( "/violations" );
-        when( coordinator.modelManager() ).thenReturn( null );
-
-        resource.doGet( req, resp );
-
-        verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+        verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
     }
 
     // ------------------------------------------------------------------ rebuild

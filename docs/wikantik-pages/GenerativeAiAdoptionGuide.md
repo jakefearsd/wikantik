@@ -79,4 +79,3 @@ Three principles guide every article in this cluster:
 - [AI Model Training](AIModelTraining) — Training basics
 - [Warehouse AI and Machine Learning](WarehouseAiAndMl) — Applied AI in logistics: demand forecasting, slotting optimisation, and computer vision
 
-[{Relationships}]

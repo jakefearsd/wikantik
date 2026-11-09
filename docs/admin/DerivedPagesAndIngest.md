@@ -18,7 +18,7 @@ edit lock and no automatic merge. Page history is the recovery path if you edite
 and lost it.
 
 Curation that is independent of the body survives regeneration: tags, cluster and type,
-verification, Knowledge Graph curation and comments. Existing `type` and `title` are
+verification and comments. Existing `type` and `title` are
 kept; they are set only when absent.
 
 | Frontmatter field | Meaning |

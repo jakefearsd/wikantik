@@ -21,25 +21,18 @@ package com.wikantik.mcp.tools;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.google.gson.TypeAdapter;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
-import com.google.gson.stream.JsonWriter;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -53,33 +46,6 @@ public final class McpToolUtils {
 
     /** Shared Gson instance — serializes nulls so JSON keys are always present. */
     public static final Gson SHARED_GSON = new GsonBuilder().serializeNulls().create();
-
-    /**
-     * Gson instance for KG-aware tools that serialize {@link com.wikantik.api.knowledge.KgNode}
-     * records containing {@link Instant} timestamps. Writes {@code Instant} as ISO-8601 strings.
-     */
-    public static final Gson KG_GSON = new GsonBuilder()
-            .serializeNulls()
-            .registerTypeAdapter( Instant.class, new TypeAdapter< Instant >() {
-                @Override
-                public void write( final JsonWriter out, final Instant value ) throws IOException {
-                    if ( value == null ) {
-                        out.nullValue();
-                    } else {
-                        out.value( value.toString() );
-                    }
-                }
-
-                @Override
-                public Instant read( final JsonReader in ) throws IOException {
-                    if ( in.peek() == JsonToken.NULL ) {
-                        in.nextNull();
-                        return null;
-                    }
-                    return Instant.parse( in.nextString() );
-                }
-            } )
-            .create();
 
     private McpToolUtils() {
     }
@@ -300,65 +266,6 @@ public final class McpToolUtils {
     @SuppressWarnings( "unchecked" )
     public static Map< String, Object > castStringKey( final Map< ?, ? > raw ) {
         return ( Map< String, Object > ) raw;
-    }
-
-    /**
-     * Runs a heterogeneous bulk MCP operation: validates the {@code operations} list,
-     * iterates each op through {@code dispatch}, accumulates per-op results into
-     * {@code succeeded} / {@code failed} arrays, audits via {@link McpAudit#logBulkWrite},
-     * and returns a {@link McpSchema.CallToolResult} whose {@code isError} flag is set
-     * when zero ops succeeded. Used by {@code curate_edges} and {@code curate_nodes}.
-     *
-     * @param toolName tool name passed to the audit logger
-     * @param entityLabel singular noun for the {@code message} field (e.g. "edge", "node")
-     * @param rawList raw {@code operations} payload (must be a non-empty {@code List<?>})
-     * @param bulkLimit per-call cap (e.g. {@code McpConfig#kgCurationBulkLimit()} in admin-mcp)
-     * @param defaultAuthor author audit attribute
-     * @param dispatch maps the parsed per-op map (with {@code tag} and {@code action} already extracted)
-     *                 to either an {@code id} map (success) or an {@code error} map (failure).
-     *                 The function receives the full op map; it does NOT need to copy {@code tag}/{@code action} —
-     *                 the wrapper adds those itself.
-     */
-    public static McpSchema.CallToolResult runBulk(
-            final String toolName,
-            final String entityLabel,
-            final Object rawList,
-            final int bulkLimit,
-            final String defaultAuthor,
-            final java.util.function.Function< Map< String, Object >, Map< String, Object > > dispatch ) {
-        return runBulk( toolName, entityLabel, rawList, bulkLimit, defaultAuthor, dispatch, true );
-    }
-
-    /**
-     * Variant of {@link #runBulk(String, String, Object, int, String, java.util.function.Function)} that
-     * lets the caller control whether an all-failed bulk envelope is hard-flagged with
-     * {@code isError=true}. {@code curate_edges} sets {@code true} (the calling model should treat
-     * an all-fail bulk as a tool error and walk {@code failed[].error}); {@code curate_nodes}
-     * historically returned {@code isError=false} per-op-only and existing IT tests depend on it.
-     */
-    public static McpSchema.CallToolResult runBulk(
-            final String toolName,
-            final String entityLabel,
-            final Object rawList,
-            final int bulkLimit,
-            final String defaultAuthor,
-            final java.util.function.Function< Map< String, Object >, Map< String, Object > > dispatch,
-            final boolean isErrorOnAllFailed ) {
-        return McpBulkRunner.run( toolName, entityLabel, rawList, bulkLimit, defaultAuthor, dispatch,
-                                  isErrorOnAllFailed );
-    }
-
-    /**
-     * Parses the {@code provenance_filter} argument from an MCP tool invocation into a
-     * {@link Set} of {@link com.wikantik.api.knowledge.Provenance}. Unknown strings are
-     * silently skipped. Returns {@code null} when the argument is absent or not a non-empty
-     * list — callers pass {@code null} through to the service layer which treats that as
-     * "no provenance filter," distinct from "filter to nothing."
-     */
-    @SuppressWarnings( "unchecked" )
-    public static Set< com.wikantik.api.knowledge.Provenance > parseProvenanceFilter(
-            final Map< String, Object > arguments ) {
-        return McpProvenanceFilter.parse( arguments );
     }
 
     /**

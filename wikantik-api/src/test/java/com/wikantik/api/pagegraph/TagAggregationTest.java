@@ -23,15 +23,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 class TagAggregationTest {
 
     private static PageDescriptor page( final String id, final List< String > tags, final List< String > inline ) {
-        return new PageDescriptor( id, "Slug" + id, "T", PageType.ARTICLE, null, List.of(), tags, "s", Instant.EPOCH,
-                Optional.empty(), false, inline );
+        return new PageDescriptor( id, "Slug" + id, "T", PageType.ARTICLE, null, List.of(), tags, "s", Instant.EPOCH, false, inline );
     }
 
     @Test

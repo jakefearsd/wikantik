@@ -89,7 +89,7 @@ if ! "${DUMP_CMD[@]}" | docker exec -i "${CONTAINER}" psql -U verify -d wikantik
         > "${WORKDIR}/load.log" 2>&1; then
     echo "ERROR: ${DB_DUMP} failed to load — last lines:"; tail -20 "${WORKDIR}/load.log"; exit 1
 fi
-for tbl in users kg_nodes page_canonical_ids; do
+for tbl in users kg_content_chunks page_canonical_ids; do
     CNT=$(docker exec "${CONTAINER}" psql -U verify -d wikantik_verify -t -A \
         -c "SELECT COUNT(*) FROM ${tbl};" 2>/dev/null || echo "MISSING")
     [ "${CNT}" = "MISSING" ] && { echo "ERROR: table ${tbl} missing after restore"; exit 1; }

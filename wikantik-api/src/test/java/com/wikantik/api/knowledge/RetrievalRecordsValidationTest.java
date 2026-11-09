@@ -23,45 +23,10 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class RetrievalRecordsValidationTest {
-
-    @Test
-    void extractedRelationRejectsBadInputs() {
-        assertThrows( IllegalArgumentException.class, () -> new ExtractedRelation( " ", "b", "p", "e", 0.5 ) );
-        assertThrows( IllegalArgumentException.class, () -> new ExtractedRelation( "a", null, "p", "e", 0.5 ) );
-        assertThrows( IllegalArgumentException.class, () -> new ExtractedRelation( "a", "b", "", "e", 0.5 ) );
-        assertThrows( IllegalArgumentException.class, () -> new ExtractedRelation( "a", "b", "p", null, 0.5 ) );
-        assertThrows( IllegalArgumentException.class, () -> new ExtractedRelation( "a", "b", "p", "e", 1.01 ) );
-        assertThrows( IllegalArgumentException.class, () -> new ExtractedRelation( "a", "b", "p", "e", -0.1 ) );
-        assertEquals( 1.0, new ExtractedRelation( "a", "b", "p", "", 1.0 ).confidence() );
-    }
-
-    @Test
-    void judgeVerdictValidatesAndDetectsTransientUnavailability() {
-        assertThrows( IllegalArgumentException.class, () -> new JudgeVerdict( "maybe", 0.5, "r", "m" ) );
-        assertThrows( IllegalArgumentException.class, () -> new JudgeVerdict( null, 0.5, "r", "m" ) );
-        assertThrows( IllegalArgumentException.class, () -> new JudgeVerdict( "approved", 2.0, "r", "m" ) );
-        assertThrows( IllegalArgumentException.class, () -> new JudgeVerdict( "approved", 0.5, "r", " " ) );
-        assertTrue( new JudgeVerdict( JudgeVerdict.ABSTAIN, 0, "judge_unavailable: timeout", "m" )
-                .isTransientUnavailable() );
-        assertFalse( new JudgeVerdict( JudgeVerdict.ABSTAIN, 0, "unsure", "m" ).isTransientUnavailable() );
-        assertFalse( new JudgeVerdict( JudgeVerdict.ABSTAIN, 0, null, "m" ).isTransientUnavailable() );
-        assertFalse( new JudgeVerdict( JudgeVerdict.REJECTED, 0, "judge_unavailable: x", "m" )
-                .isTransientUnavailable() );
-    }
-
-    @Test
-    void nodeMentionRequiresFieldsAndDefaultsHeadingPath() {
-        final UUID id = UUID.randomUUID();
-        assertThrows( IllegalArgumentException.class, () -> new NodeMention( null, "P", 0, null, "t", 1, "x" ) );
-        assertThrows( IllegalArgumentException.class, () -> new NodeMention( id, null, 0, null, "t", 1, "x" ) );
-        assertThrows( IllegalArgumentException.class, () -> new NodeMention( id, "P", 0, null, null, 1, "x" ) );
-        assertEquals( List.of(), new NodeMention( id, "P", 0, null, "t", 1, "x" ).headingPath() );
-    }
 
     @Test
     void contextQueryEnforcesCapsAndDefaultsFilter() {

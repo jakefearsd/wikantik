@@ -52,14 +52,7 @@ public class McpInstructionsDriftIT extends WithMcpTestSetup {
      */
     private static final Set< String > TOOL_NAME_PREFIXES = Set.of(
             "get_", "list_", "search_", "find_", "write_", "delete_", "rename_", "diff_",
-            "verify_", "ping_", "preview_", "propose_", "mark_", "update_", "read_",
-            "retrieve_", "traverse_", "discover_", "query_" );
-
-    /**
-     * Prefix-matching tokens that are argument values, not tools (curate_edges' compound
-     * {@code delete_and_reject} action). Mirrors {@code McpServerInitializer.NON_TOOL_TOKENS}.
-     */
-    private static final Set< String > NON_TOOL_TOKENS = Set.of( "delete_and_reject" );
+            "verify_", "ping_", "preview_", "mark_", "update_", "read_", "retrieve_" );
 
     private static final Pattern SNAKE_TOKEN = Pattern.compile( "\\b[a-z][a-z0-9_]{2,}\\b" );
 
@@ -126,7 +119,7 @@ public class McpInstructionsDriftIT extends WithMcpTestSetup {
         final Set< String > result = new LinkedHashSet<>();
         while ( m.find() ) {
             final String tok = m.group();
-            if ( tok.indexOf( '_' ) < 0 || NON_TOOL_TOKENS.contains( tok ) ) {
+            if ( tok.indexOf( '_' ) < 0 ) {
                 continue;
             }
             for ( final String prefix : TOOL_NAME_PREFIXES ) {

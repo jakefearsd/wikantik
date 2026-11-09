@@ -35,7 +35,6 @@
     <module>wikantik-selenide-tests</module>
     <module>wikantik-it-test-custom-jdbc</module>
     <module>wikantik-it-test-rest</module>
-    <module>wikantik-it-test-knowledge-disabled</module>
     <module>wikantik-it-test-sso</module>
     <module>wikantik-it-test-dense</module>
   </modules>
@@ -444,15 +443,10 @@
                     </user>
                   </users>
                   <properties>
-                    <!-- wikantik.test.fixture-seam.enabled unlocks the test-only
-                         hub-discovery proposal seed endpoint at
-                         /admin/knowledge-graph/hub-discovery/proposals/seed.
-                         Returns 403 unless this property is set (only set during
-                         the integration-tests profile, never in production). -->
                     <!-- wikantik.profiling.dir redirected into the test target/
                          so the JFR endpoint IT (ProfilingResourceIT) can
                          create the directory without root privileges. -->
-                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling --add-modules=jdk.incubator.vector -Dwikantik.scim.token=it-scim-token ${it.extra.jvmargs} ${it.collab.jvmargs} ${jacoco.it.agent}</cargo.jvmargs>
+                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling --add-modules=jdk.incubator.vector -Dwikantik.scim.token=it-scim-token ${it.extra.jvmargs} ${it.collab.jvmargs} ${jacoco.it.agent}</cargo.jvmargs>
                     <!-- Reserved per module by build-helper so parallel IT
                          modules don't share Cargo's default RMI port (8205). -->
                     <cargo.rmi.port>${it.wikantik.rmi.port}</cargo.rmi.port>

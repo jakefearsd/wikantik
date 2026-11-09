@@ -155,8 +155,7 @@ public final class BundleServiceWiring {
         // decomposition-config branch above already decided to construct — this happens AFTER
         // the wikantik.genai.mode ceiling logic has run, so it never influences that decision.
         // It only makes calls that DO happen (chat inference, when the ceiling allows it)
-        // visible at /admin/llm-activity, mirroring RecordingEmbeddingClient/RecordingEntityExtractor/
-        // RecordingKgProposalJudgeService at their own wiring points.
+        // visible at /admin/llm-activity, mirroring RecordingEmbeddingClient at its own wiring point.
         final com.wikantik.llm.activity.LlmActivityLog activityLog =
             com.wikantik.llm.activity.LlmActivityLogHolder.getOrCreate( props );
         final SectionReranker recordedReranker =

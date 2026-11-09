@@ -1,7 +1,7 @@
 # Wikantik Ontology
 
-RDF/OWL ontology layer built on Apache Jena: the `wikantik:` T-Box plus
-SHACL shapes, Postgres-to-RDF projectors for entities, edges, pages, and
+RDF/OWL ontology layer built on Apache Jena: the page-class `wikantik:`
+T-Box (no entity vocabulary), page-to-RDF projectors for pages and tag/cluster
 concepts, and a TDB2-backed `OntologyModelManager` with RDFS `subClassOf`
 inference. Depends only on `wikantik-api` and Jena — it has no dependency on
 the wiki engine itself.

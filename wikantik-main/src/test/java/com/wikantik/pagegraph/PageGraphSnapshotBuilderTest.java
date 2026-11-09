@@ -79,7 +79,7 @@ class PageGraphSnapshotBuilderTest {
     void buildLowercasesTheDescriptorTypeOnTheNode() {
         final PageDescriptor descriptor = new PageDescriptor(
                 "abc123", "PageA", "Page A", PageType.ARTICLE, null,
-                List.of(), null, null, Optional.empty(), false );
+                List.of(), null, null, false );
 
         final StructuralIndexService structural = mock( StructuralIndexService.class );
         when( structural.resolveCanonicalIdFromSlug( "PageA" ) ).thenReturn( Optional.of( "abc123" ) );

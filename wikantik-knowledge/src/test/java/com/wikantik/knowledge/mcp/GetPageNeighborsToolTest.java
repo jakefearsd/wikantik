@@ -56,7 +56,7 @@ class GetPageNeighborsToolTest {
     private PageDescriptor page( final String slug, final PageType type, final String... clusters ) {
         final PageDescriptor d = new PageDescriptor( "id-" + slug, slug, slug + " title", type,
             clusters.length == 0 ? null : clusters[ 0 ], List.of( clusters ), List.of(), slug + " summary",
-            Instant.EPOCH, Optional.empty(), false );
+            Instant.EPOCH, false );
         when( index.resolveCanonicalIdFromSlug( slug ) ).thenReturn( Optional.of( d.canonicalId() ) );
         when( index.getByCanonicalId( d.canonicalId() ) ).thenReturn( Optional.of( d ) );
         return d;

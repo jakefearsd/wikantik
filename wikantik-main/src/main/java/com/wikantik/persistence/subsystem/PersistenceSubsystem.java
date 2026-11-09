@@ -23,19 +23,8 @@ import com.wikantik.comments.PageOwnerService;
 import com.wikantik.comments.mentions.MentionFeedDao;
 import com.wikantik.comments.mentions.MentionService;
 import com.wikantik.core.subsystem.WikiProperties;
-import com.wikantik.knowledge.HubDiscoveryRepository;
-import com.wikantik.knowledge.HubProposalRepository;
-import com.wikantik.knowledge.KgEdgeRepository;
-import com.wikantik.knowledge.KgNodeRepository;
-import com.wikantik.knowledge.KgProposalRepository;
-import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
-import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
 import com.wikantik.knowledge.eval.RetrievalQualityDao;
-import com.wikantik.knowledge.extraction.ChunkEntityMentionRepository;
-import com.wikantik.knowledge.judge.KgJudgeTimeoutRepository;
-import com.wikantik.kgpolicy.KgClusterPolicyRepository;
-import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
 import com.wikantik.pagegraph.spine.PageVerificationDao;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
@@ -52,14 +41,9 @@ import java.util.function.Predicate;
  * {@code docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md}.</p>
  *
  * <p>Persistence owns the {@link DataSource} and every JDBC repository / DAO.
- * Downstream subsystems (Knowledge, Page-graph spine, KG inclusion policy,
- * retrieval quality) consume narrow repository references off
- * {@link Services} instead of building their own.</p>
- *
- * <p>Phase 3 Checkpoint 5 deleted the {@code JdbcKnowledgeRepository} facade;
- * the four narrow repositories ({@code KgNodeRepository}, {@code KgEdgeRepository},
- * {@code KgProposalRepository}, {@code KgRejectionRepository}) are the only
- * KG persistence handles.</p>
+ * Downstream subsystems (Knowledge, Page-graph spine, retrieval quality)
+ * consume narrow repository references off {@link Services} instead of
+ * building their own.</p>
  */
 public final class PersistenceSubsystem {
 
@@ -122,24 +106,9 @@ public final class PersistenceSubsystem {
         // from the Persistence bundle without requiring a separate seam.
         DataSource dataSource,
 
-        // Knowledge graph (Phase 3 Ckpt 5: facade deleted, narrow repos only):
-        KgNodeRepository kgNodes,
-        KgEdgeRepository kgEdges,
-        KgProposalRepository kgProposals,
-        KgRejectionRepository kgRejections,
-
         // Knowledge-supporting repositories:
-        HubProposalRepository hubProposals,
-        HubDiscoveryRepository hubDiscovery,
         ContentChunkRepository contentChunks,
-        ChunkEntityMentionRepository chunkEntityMentions,
-        KgNodeEmbeddingRepository kgNodeEmbeddings,
-        KgJudgeTimeoutRepository judgeTimeouts,
         RetrievalQualityDao retrievalQualityDao,
-
-        // KG inclusion policy:
-        KgExcludedPagesRepository kgExcludedPages,
-        KgClusterPolicyRepository kgClusterPolicy,
 
         // Page-graph spine:
         PageCanonicalIdsDao pageCanonicalIds,

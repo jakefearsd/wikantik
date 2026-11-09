@@ -4,7 +4,6 @@ audience:
 summary: Fixed WikiEngine lazy initialization and failsafe reporting for MCP integration
   tests
 type: article
-kg_include: true
 related:
 - McpIntegration
 - WikantikDevelopment
@@ -36,4 +35,3 @@ The [MCP integration](McpIntegration) tests were silently failing due to two roo
 - Removed `testFailureIgnore` so integration test failures properly fail the build
 - Added explicit failsafe reporting to surface test results
 
-[{Relationships}]

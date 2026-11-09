@@ -24,11 +24,7 @@ import java.util.Properties;
 import javax.sql.DataSource;
 
 import com.wikantik.WikiEngine;
-import com.wikantik.api.config.KnowledgeGraphFlag;
-import com.wikantik.api.knowledge.Tier;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.knowledge.KgEdgeRepository;
-import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.ontology.OntologyModelManager;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
 import org.apache.logging.log4j.LogManager;
@@ -53,8 +49,7 @@ public final class OntologyWiringHelper {
                                      final Properties props,
                                      final DataSource dataSource,
                                      final PageManager pageManager,
-                                     final com.wikantik.filters.FilterManager filterManager,
-                                     final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeServices ) {
+                                     final com.wikantik.filters.FilterManager filterManager ) {
         final boolean enabled = Boolean.parseBoolean(
                 props.getProperty( "wikantik.ontology.enabled", "true" ) );
         if ( !enabled ) {
@@ -66,22 +61,12 @@ public final class OntologyWiringHelper {
         final OntologyModelManager mgr = OntologyModelManager.tdb2( dir );
         mgr.loadTBox();
 
-        // Knowledge Graph off (the default): no KG repository is even constructed, the rebuild
-        // projects pages + concepts only (so the next full rebuild purges any entity graphs left
-        // in TDB2), and entity sync is not wired — nothing here may read the KG tables.
-        final boolean kgEnabled = KnowledgeGraphFlag.isEnabled( props );
-        final KgNodeRepository nodeRepo = kgEnabled ? new KgNodeRepository( dataSource ) : null;
-        final KgEdgeRepository edgeRepo = kgEnabled ? new KgEdgeRepository( dataSource ) : null;
-        if ( !kgEnabled ) {
-            LOG.info( "ontology: Knowledge Graph disabled ({}=false) — entity graphs are not projected",
-                    KnowledgeGraphFlag.PROPERTY );
-        }
         final PageCanonicalIdsDao pageDao = new PageCanonicalIdsDao( dataSource );
         // Frontmatter authors that are logins are published as display names (public dataset).
         final com.wikantik.api.identity.PublicIdentity publicIdentity = publicIdentityOf( engine );
         final PageRecordBuilder pageBuilder = new PageRecordBuilder( pageManager, pageDao::findAll, publicIdentity );
 
-        // ACL split: a page/node is PUBLIC iff a GUEST (anonymous) session may view it.
+        // ACL split: a page is PUBLIC iff a GUEST (anonymous) session may view it.
         // Reuse one guest session across the whole rebuild (stateless anonymous principal).
         final com.wikantik.api.core.Session guest = com.wikantik.WikiSession.guestSession( engine );
         final com.wikantik.auth.permissions.PermissionFilter permFilter =
@@ -90,7 +75,7 @@ public final class OntologyWiringHelper {
                 slug -> permFilter.canAccessQuietly( guest, slug, "view" );
 
         final OntologyRebuildCoordinator coordinator =
-                newCoordinator( mgr, nodeRepo, edgeRepo, pageBuilder::build, isPublic );
+                newCoordinator( mgr, pageBuilder::build, isPublic );
 
         engine.setManager( OntologyRebuildCoordinator.class, coordinator );
         // Disable SPARQL SERVICE federation engine-wide before any public /sparql or
@@ -117,20 +102,7 @@ public final class OntologyWiringHelper {
         engine.setManager( OntologyPageSync.class, pageSync );
         engine.setManager( OntologyEventListener.class, pageListener );
 
-        // Event-incremental ENTITY sync: KgChangeEvent from the two KG write funnels →
-        // coalesced re-projection of affected entity graphs. Same ACL gate as rebuilds
-        // and page sync; the nightly rebuild below reconciles anything missed.
-        final boolean incrementalEnabled = Boolean.parseBoolean(
-                props.getProperty( "wikantik.ontology.incremental.enabled", "true" ) );
-        if ( kgEnabled && !incrementalEnabled ) {
-            LOG.info( "ontology incremental entity sync disabled (wikantik.ontology.incremental.enabled=false)" );
-        }
-        final OntologyEntitySync entitySync = wireEntitySync( engine, knowledgeServices,
-                nodeRepo != null && incrementalEnabled,
-                () -> new OntologyEntitySync( mgr, nodeRepo, edgeRepo, pageDao, isPublic, coalesceMs ),
-                coalesceMs );
-
-        // Nightly full-rebuild backstop (catches KG drift + missed events) + periodic TDB2
+        // Nightly full-rebuild backstop (catches missed events) + periodic TDB2
         // compaction — copy-on-write B+Trees never shrink on their own, so a store that is
         // rewritten continuously (nightly rebuild + per-save incremental sync) only ever grows.
         // Default weekly: measured production growth is ~1.35 GB/day, so daily compaction would
@@ -145,75 +117,27 @@ public final class OntologyWiringHelper {
                 new OntologyRebuildScheduler( coordinator, rebuildIntervalHours, compactionIntervalHours );
         scheduler.start();
         // Closed by WikiEngine.shutdown(): stop the timer, drain the workers, close the dataset.
-        engine.setManager( OntologyRuntime.class, new OntologyRuntime( scheduler, pageQueue, entitySync, mgr ) );
+        engine.setManager( OntologyRuntime.class, new OntologyRuntime( scheduler, pageQueue, mgr ) );
 
         // Startup-if-empty: non-blocking self-heal on first boot.
         coordinator.rebuildIfEmpty();
         return coordinator;
     }
 
-    /** Event-incremental entity sync; never wired with the Knowledge Graph off. @return the sync, or null. */
-    private static OntologyEntitySync wireEntitySync( final WikiEngine engine,
-            final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeServices,
-            final boolean enabled,
-            final java.util.function.Supplier< OntologyEntitySync > syncFactory,
-            final long coalesceMs ) {
-        OntologyEntitySync entitySync = null;
-        if ( enabled && knowledgeServices != null
-                && knowledgeServices.kgService() != null
-                && knowledgeServices.kgMaterialization() != null ) {
-            entitySync = syncFactory.get();
-            final KgChangeEventListener changeListener = new KgChangeEventListener( entitySync );
-            changeListener.register(
-                    knowledgeServices.kgService(), knowledgeServices.kgMaterialization() );
-            // Strong references, mirroring WikiEngine's auditEventListener/lastLoginEventListener
-            // pattern: WikiEventManager's delegate keys listeners by identity in a WeakHashMap, so
-            // an inline listener with no other strong reference is eligible for GC at any time —
-            // silently dropping incremental sync with no error (isListening() just goes false).
-            // setManager()-only keeps OntologyWiringHelper ArchUnit-neutral (never getManager).
-            engine.setManager( OntologyEntitySync.class, entitySync );
-            engine.setManager( KgChangeEventListener.class, changeListener );
-            LOG.info( "ontology incremental entity sync wired (coalesce={}ms)", coalesceMs );
-        }
-
-        return entitySync;
-    }
-
     /**
-     * The rebuild coordinator over the live repositories. Tier.MACHINE includes BOTH human- and
-     * machine-tier rows (full dump); Tier.HUMAN would exclude machine-tier nodes/edges. Each source
-     * projects only ACL-public resources (restricted pages/entities/edges are never materialized).
-     * With the Knowledge Graph off ({@code nodeRepo}/{@code edgeRepo} null) only pages and concepts project.
-     * Edges are filtered against the public nodes the same rebuild already loaded, so the node
-     * table is read once per rebuild.
+     * The rebuild coordinator over the live page source. Each source projects only ACL-public
+     * resources (restricted pages are never materialized).
      */
     static OntologyRebuildCoordinator newCoordinator( final OntologyModelManager mgr,
-                                                      final KgNodeRepository nodeRepo,
-                                                      final KgEdgeRepository edgeRepo,
                                                       final java.util.function.Supplier< java.util.List< com.wikantik.ontology.projection.PageRecord > > pages,
                                                       final java.util.function.Predicate< String > isPublic ) {
-        if ( nodeRepo == null || edgeRepo == null ) {
-            // Knowledge Graph off: pages and concepts only; the KG tables are never read.
-            return new OntologyRebuildCoordinator(
-                    mgr,
-                    java.util.List::of,
-                    publicNodes -> java.util.List.of(),
-                    () -> com.wikantik.ontology.PublicProjectionFilter.publicPages( pages.get(), isPublic ),
-                    true );
-        }
         return new OntologyRebuildCoordinator(
                 mgr,
-                () -> com.wikantik.ontology.PublicProjectionFilter.publicNodes(
-                        nodeRepo.getAllNodes( Tier.MACHINE ), isPublic ),
-                publicNodes -> com.wikantik.ontology.PublicProjectionFilter.publicEdges(
-                        edgeRepo.getAllEdges( Tier.MACHINE ),
-                        publicNodes.stream().map( com.wikantik.api.knowledge.KgNode::id )
-                                .collect( java.util.stream.Collectors.toSet() ) ),
                 () -> com.wikantik.ontology.PublicProjectionFilter.publicPages( pages.get(), isPublic ),
                 true );
     }
 
-    /** The Auth subsystem is built before the knowledge graph (and so this wiring); a missing one is logged loudly. */
+    /** The Auth subsystem is built before this wiring; a missing one is logged loudly. */
     static com.wikantik.api.identity.PublicIdentity publicIdentityOf( final WikiEngine engine ) {
         final com.wikantik.auth.subsystem.AuthSubsystem.Services auth = engine.getAuthSubsystem();
         if ( auth == null || auth.publicIdentity() == null ) {

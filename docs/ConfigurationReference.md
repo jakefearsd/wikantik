@@ -70,12 +70,13 @@ The following settings come from `wikantik-main/src/main/resources/ini/wikantik.
 - [Mail](#mail)
 - [Logging](#logging)
 - [Spam filtering](#spam-filtering)
-- [Knowledge Graph & extraction](#knowledge-graph--extraction)
-- [Ontology](#ontology)
 - [Frontmatter & structural enforcement](#frontmatter--structural-enforcement)
+- [GenAI](#genai)
+- [Ontology](#ontology)
 - [Observability & profiling](#observability--profiling)
 - [Context bundle & briefing](#context-bundle--briefing)
 - [Content Intelligence](#content-intelligence)
+- [Citations](#citations)
 - [Connectors](#connectors)
 - [Export](#export)
 - [Import](#import)
@@ -309,7 +310,7 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.search.highlighter.enabled`** — Whether Lucene search results carry a highlighted excerpt (a fragment around the matching terms) via DefaultLuceneSearcher's Highlighter. Off by default; the current UI does not render the highlighted snippet, so this only matters for direct three-arg findPages(query, FLAG_CONTEXTS, ctx) callers.
 - **`wikantik.search.hybrid.embedder.timeout-ms`** — Hybrid retrieval query-time embedder (QueryEmbedderConfig). Wraps the embedding backend with a timeout, an in-memory Caffeine cache, a circuit breaker, and per-call metrics. Every user search calls the embedder; these knobs bound how much damage a flaky backend can cause. Values below are the QueryEmbedderConfig DEFAULT_* constants. Per-call embed timeout, in milliseconds.
 - **`wikantik.chunker.max_tokens`** — Hard ceiling on a non-atomic chunk's size, in estimated tokens (1 token ~= 4 chars). Oversized atomic blocks (fenced code, tables, short lists) pass through intact; oversized paragraphs fall back to sentence-level splitting to keep the embedder's context-window headroom.
-- **`wikantik.chunker.merge_forward_tokens`** — Effective floor for chunk emission. A section's accumulated text below this threshold is held and merged forward into the next section (heading boundaries included), so short sibling sections coalesce into a single chunk of reasonable size. Default 150 tokens; raise to 200-300 for even coarser chunks (fewer extraction RPCs) at the cost of slightly diffuser embeddings on dense retrieval. Lower toward 50 to get more, smaller chunks with sharper per-chunk topicality. Note: changing this value shifts chunk boundaries, which changes content_hash and invalidates every row in kg_content_chunks, content_chunk_embeddings, and chunk_entity_mentions. Trigger a full content rebuild after editing.
+- **`wikantik.chunker.merge_forward_tokens`** — Effective floor for chunk emission. A section's accumulated text below this threshold is held and merged forward into the next section (heading boundaries included), so short sibling sections coalesce into a single chunk of reasonable size. Default 150 tokens; raise to 200-300 for even coarser chunks at the cost of slightly diffuser embeddings on dense retrieval. Lower toward 50 to get more, smaller chunks with sharper per-chunk topicality. Note: changing this value shifts chunk boundaries, which changes content_hash and invalidates every row in kg_content_chunks and content_chunk_embeddings. Trigger a full content rebuild after editing.
 - **`wikantik.chunker.fragment_floor_tokens`** — Cross-section fragment floor (tokens). A section whose whole text is below this is a "fragment": it merges forward into the next section and adopts that section's heading_path, instead of becoming its own tiny, low-signal chunk. Sections at/above the floor always stand alone under their own heading (so they stay findable and their citations are correctly anchored). Must be <= merge_forward_tokens. 0 disables the floor (every section stands alone). Changing this invalidates chunk content - trigger a full content rebuild after editing.
 - **`wikantik.chunker.overlap_tokens`** — Sliding-window overlap (tokens). After chunking, each chunk's tail is prepended to the next chunk under the same heading_path, so a fact straddling a chunk boundary appears whole in at least one chunk. 0 disables overlap. The 2026-06-14 probe showed a small @5/@20 recall gain. Changing this invalidates chunk content - full rebuild after.
 - **`wikantik.chunker.enabled`** — Kill-switch for save-time chunking. Disable if a chunker bug is blocking page saves (ChunkProjector is failure-isolated, but this lets ops short out the code path entirely).
@@ -428,7 +429,7 @@ Full descriptions (truncated above to keep the table scannable):
 |---|---|---|---|---|
 | `wikantik.recentArticles.cacheTTL` | `int` | `60` | `wikantik_recentArticles_cacheTTL` | How long (in seconds) a recent-articles result set is cached before being recomputed. |
 | `wikantik.admin.derived.statusCacheTTL` | `int` | `30` | `wikantik_admin_derived_statusCacheTTL` | How long (in seconds) the /admin/derived/status counters are cached before being recomputed. … |
-| `wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL` | `int` | `30` | `wikantik_admin_kg_pagesWithoutFrontmatterCacheTTL` | How long (in seconds) the /admin/knowledge-graph/pages-without-frontmatter result is cached before being recomputed. … |
+| `wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL` | `int` | `30` | `wikantik_admin_kg_pagesWithoutFrontmatterCacheTTL` | How long (in seconds) the /admin/embeddings/pages-without-frontmatter result is cached before being recomputed. … |
 | `wikantik.recentArticles.defaultCount` | `int` | `10` | `wikantik_recentArticles_defaultCount` | Default number of articles returned when a caller does not specify a count. |
 | `wikantik.recentArticles.defaultExcerptLength` | `int` | `200` | `wikantik_recentArticles_defaultExcerptLength` | Default length (in characters) of the generated excerpt per article. |
 | `wikantik.recentArticles.excludePatterns` | `list` | *(blank: no additional pages excluded.)* | `wikantik_recentArticles_excludePatterns` | Comma-separated regular expressions matching page names to exclude from recent-articles results, in addition to the built-in system-page exclusion. |
@@ -436,7 +437,7 @@ Full descriptions (truncated above to keep the table scannable):
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.admin.derived.statusCacheTTL`** — How long (in seconds) the /admin/derived/status counters are cached before being recomputed. That endpoint returns three integers but computes them by reading and YAML-parsing the frontmatter of EVERY page, so an admin dashboard polling it runs a full-corpus scan per poll; the 2026-09-26 profiling campaign attributed roughly 5-6% of all CPU to it, on a corpus whose answer is a constant zero. A value <= 0 disables the cache and restores the per-request scan. The cache is dropped immediately after a reflow, so operator actions are never reported stale.
-- **`wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL`** — How long (in seconds) the /admin/knowledge-graph/pages-without-frontmatter result is cached before being recomputed. Like the derived-status endpoint above, it answers by reading and YAML-parsing the frontmatter of EVERY page; getAllPages() and the page text are already cached, so the cost is purely the per-page SnakeYAML parse. The 2026-09-26 profiling campaign measured it at 46% of FrontmatterParser.parseYaml and 62% of split once the derived endpoint was memoised. A value <= 0 disables the cache and restores the per-request scan; an unparseable value falls back to the default rather than silently re-enabling the scan.
+- **`wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL`** — How long (in seconds) the /admin/embeddings/pages-without-frontmatter result is cached before being recomputed. Like the derived-status endpoint above, it answers by reading and YAML-parsing the frontmatter of EVERY page; getAllPages() and the page text are already cached, so the cost is purely the per-page SnakeYAML parse. The 2026-09-26 profiling campaign measured it at 46% of FrontmatterParser.parseYaml and 62% of split once the derived endpoint was memoised. A value <= 0 disables the cache and restores the per-request scan; an unparseable value falls back to the default rather than silently re-enabling the scan.
 
 ## Authentication
 
@@ -672,98 +673,11 @@ Full descriptions (truncated above to keep the table scannable):
 |---|---|---|---|---|
 | `wikantik.filters.spamfilter.allowedgroups` | `list` | *(blank: no groups are exempted; all edits are checked.)* | `wikantik_filters_spamfilter_allowedgroups` | Comma-separated wiki group names whose members are exempt from spam filtering (SpamFilter page filter). |
 
-## Knowledge Graph & extraction
-
-| Key | Type | Default | Override | Description |
-|---|---|---|---|---|
-| `wikantik.hub.discovery.minClusterSize` | `int` | `3` | `wikantik_hub_discovery_minClusterSize` | Minimum number of members for HDBSCAN to form a cluster. Below this, points are classified as noise. |
-| `wikantik.hub.discovery.minPts` | `int` | `3` | `wikantik_hub_discovery_minPts` | HDBSCAN minPts: density requirement for "core" points. |
-| `wikantik.hub.discovery.minCandidatePool` | `int` | `6` | `wikantik_hub_discovery_minCandidatePool` | Safety floor: if the candidate pool has fewer non-member articles than this, skip the run entirely. |
-| `wikantik.hub.overview.nearMissThreshold` | `double` | `0.50` | `wikantik_hub_overview_nearMissThreshold` | Minimum centroid cosine for a non-member article to count as a near-miss. |
-| `wikantik.hub.overview.overlapThreshold` | `double` | `0.60` | `wikantik_hub_overview_overlapThreshold` | Minimum centroid cosine for two hubs to be considered "overlap" in the overlap-hubs section of the per-hub drilldown. |
-| `wikantik.hub.overview.nearMissMaxResults` | `int` | `10` | `wikantik_hub_overview_nearMissMaxResults` | Top-N near-miss articles returned in the drilldown's TF-IDF list. |
-| `wikantik.hub.overview.moreLikeThisMaxResults` | `int` | `10` | `wikantik_hub_overview_moreLikeThisMaxResults` | Top-N MoreLikeThis (Lucene) results returned in the drilldown. |
-| `wikantik.hub.reviewPercentile` | `int` | `50` | `wikantik_hub_reviewPercentile` | Only candidate clusters scoring at or above this percentile (of all candidate scores in the run) are filed as hub proposals for review - keeps the proposal … |
-| `wikantik.verification.stale_days` | `int` | `90` | `wikantik_verification_stale_days` | A page's structural-index confidence decays once its last edit is older than this many days (ConfidenceComputer), independent of author trust. |
-| `wikantik.knowledge.extractor.backend` | `enum(ollama\|disabled\|claude)` | `ollama` | `wikantik_knowledge_extractor_backend` | Backend default: ollama against the shared inference host. Flip to 'disabled' for zero save-time overhead, or to 'claude' to use the Anthropic SDK. |
-| `wikantik.knowledge.extractor.claude.model` | `string` | `claude-haiku-4-5` | `wikantik_knowledge_extractor_claude_model` | Anthropic model id used when backend=claude. … |
-| `wikantik.knowledge.extractor.ollama.model` | `string` | `gemma4-graph:12b` | `wikantik_knowledge_extractor_ollama_model` | Ollama tag used when backend=ollama; must serve structured JSON. … |
-| `wikantik.knowledge.extractor.ollama.base_url` | `url` | `http://inference.jakefear.com:11434` | `wikantik_knowledge_extractor_ollama_base_url` | Base URL of the Ollama server used for KG entity extraction (and, absent a dedicated override, by KgJudgeConfig for the judge LLM too). … |
-| `wikantik.knowledge.extractor.ollama.endpoint` | `url` | *(blank: falls back to wikantik.knowledge.extractor.ollama.base_url)* | `wikantik_knowledge_extractor_ollama_endpoint` | Legacy alias for wikantik.knowledge.extractor.ollama.base_url, honoured only by KgJudgeConfig (an early draft of the docs used this name). … |
-| `wikantik.knowledge.extractor.timeout_ms` | `int` | `120000` | `wikantik_knowledge_extractor_timeout_ms` | Per-chunk HTTP timeout. … |
-| `wikantik.knowledge.extractor.confidence_threshold` | `double` | `0.6` | `wikantik_knowledge_extractor_confidence_threshold` | Proposals below this confidence are dropped, not filed - keeps the proposal queue reviewable. |
-| `wikantik.knowledge.extractor.max_existing_nodes` | `int` | `200` | `wikantik_knowledge_extractor_max_existing_nodes` | Cap on the existing-node dictionary embedded in each extractor prompt. Bounds prompt size and keeps the cache prefix stable across pages. |
-| `wikantik.knowledge.extractor.per_page_min_interval_ms` | `int` | `5000` | `wikantik_knowledge_extractor_per_page_min_interval_ms` | Minimum interval between extraction runs for the same page, in ms. Protects the extractor from a re-save storm; set to 0 to disable. |
-| `wikantik.knowledge.extractor.concurrency` | `int` | `2` | `wikantik_knowledge_extractor_concurrency` | Max parallel extraction RPCs fired by the admin batch job. … |
-| `wikantik.knowledge.extractor.prefilter.enabled` | `boolean` | `false` | `wikantik_knowledge_extractor_prefilter_enabled` | Master switch for the prefilter. When false every chunk reaches the extractor and none of the skip_* settings below have any effect. |
-| `wikantik.knowledge.extractor.prefilter.dry_run` | `boolean` | `false` | `wikantik_knowledge_extractor_prefilter_dry_run` | Evaluate the prefilter and log what it WOULD have skipped, but extract the chunk anyway. … |
-| `wikantik.knowledge.extractor.prefilter.skip_pure_code` | `boolean` | `true` | `wikantik_knowledge_extractor_prefilter_skip_pure_code` | Skip a chunk that is entirely code, which yields identifiers rather than entities. |
-| `wikantik.knowledge.extractor.prefilter.skip_no_proper_noun` | `boolean` | `true` | `wikantik_knowledge_extractor_prefilter_skip_no_proper_noun` | Skip a chunk containing no proper noun - the cheapest signal that there is no named entity to find. |
-| `wikantik.knowledge.extractor.prefilter.skip_too_short` | `boolean` | `true` | `wikantik_knowledge_extractor_prefilter_skip_too_short` | Skip a chunk shorter than prefilter.min_tokens. |
-| `wikantik.knowledge.extractor.prefilter.min_tokens` | `int` | `20` | `wikantik_knowledge_extractor_prefilter_min_tokens` | Token count below which a chunk counts as too short, when prefilter.skip_too_short is true. |
-| `wikantik.genai.mode` | `enum(full\|embeddings-only\|none)` | `full` | `wikantik_genai_mode` | Limits what LLM operations are allowed. … |
-| `wikantik.knowledge.enabled` | `boolean` | `false` | `wikantik_knowledge_enabled` | The Knowledge Graph (LLM-extracted entities, kg_nodes/kg_edges/proposals, the KG inclusion policy, hub discovery) was RETIRED on 2026-11-08 (step 1 of its … |
-| `wikantik.kg_policy.enabled` | `boolean` | `true` | `wikantik_kg_policy_enabled` | Cluster-primary, page-overridable, admin-administered policy for which pages contribute to the knowledge graph. … |
-| `wikantik.kg.judge.enabled` | `boolean` | `true` | `wikantik_kg_judge_enabled` | Knowledge Graph staged validation - judge LLM Async judge LLM that promotes extractor proposals into materialised kg_nodes/kg_edges at tier='machine'; … |
-| `wikantik.kg.judge.endpoint` | `url` | *(blank: falls back to wikantik.knowledge.extractor.ollama.base_url)* | `wikantik_kg_judge_endpoint` | When unset, judge connection falls back to the extractor's wikantik.knowledge.extractor.ollama.base_url (then .ollama.endpoint, then the host compiled into … |
-| `wikantik.kg.judge.model` | `string` | *(blank: falls back to wikantik.knowledge.extractor.ollama.model)* | `wikantik_kg_judge_model` | When unset, judge model falls back to the extractor's wikantik.knowledge.extractor.ollama.model (then KgJudgeConfig.DEFAULT_MODEL). … |
-| `wikantik.kg.judge.keep_alive` | `string` | `30m` | `wikantik_kg_judge_keep_alive` | How long Ollama keeps the judge model resident in memory between calls. … |
-| `wikantik.kg.judge.cron.enabled` | `boolean` | `true` | `wikantik_kg_judge_cron_enabled` | Whether the scheduled cron trigger runs the judge automatically. |
-| `wikantik.kg.judge.cron.interval_min` | `int` | `5` | `wikantik_kg_judge_cron_interval_min` | Minutes between scheduled judge runs. |
-| `wikantik.kg.judge.batch_size` | `int` | `50` | `wikantik_kg_judge_batch_size` | Maximum number of proposals processed per judge run. |
-| `wikantik.kg.judge.concurrency` | `int` | `1` | `wikantik_kg_judge_concurrency` | Number of proposals judged in parallel per run. |
-| `wikantik.kg.judge.timeout_seconds` | `int` | `120` | `wikantik_kg_judge_timeout_seconds` | Per-proposal judge LLM call timeout, in SECONDS. … |
-| `wikantik.kg.judge.max_attempts` | `int` | `3` | `wikantik_kg_judge_max_attempts` | Maximum retry attempts for a single proposal before it is marked failed. |
-| `wikantik.kg.read.default_min_tier` | `enum(machine\|human)` | `machine` | `wikantik_kg_read_default_min_tier` | Default tier for read paths when caller does not pass min_tier. Set to 'human' to enforce strict-only view across the deployment. |
-| `wikantik.kg.extractor.allow_claude` | `boolean` | `false` | `-Dwikantik.kg.extractor.allow_claude` only | Both flags gate the standalone extract-cli's optional Claude (Anthropic SDK) code paths ("--extractor claude" / "--judge claude" on BootstrapExtractionCli … |
-| `wikantik.kg.judge.allow_claude` | `boolean` | `false` | `-Dwikantik.kg.judge.allow_claude` only | Same cost guard as above, for the extract-cli's judge path ("--judge claude"). Read only as -Dwikantik.kg.judge.allow_claude=true. |
-| `wikantik.citations.enabled` | `boolean` | `true` | `wikantik_citations_enabled` | Parse cite:// body markup into the derived `citations` table, grade span-level staleness as the base churns, and surface stale citations (admin/drift, the … |
-
-Full descriptions (truncated above to keep the table scannable):
-
-- **`wikantik.hub.reviewPercentile`** — Only candidate clusters scoring at or above this percentile (of all candidate scores in the run) are filed as hub proposals for review - keeps the proposal queue to the strongest candidates instead of every HDBSCAN cluster found.
-- **`wikantik.knowledge.extractor.claude.model`** — Anthropic model id used when backend=claude. claude-haiku-4-5 is the recommended default for cost; swap to claude-sonnet-4-6 for higher quality on ambiguous corpora. Requires ANTHROPIC_API_KEY on the JVM environment.
-- **`wikantik.knowledge.extractor.ollama.model`** — Ollama tag used when backend=ollama; must serve structured JSON. gemma4-graph:12b is a Gemma 12B config purpose-tuned for KG extraction; think:false is sent per-request (Ollama can't bake it in). NOTE: KgJudgeConfig reads this same key, so the judge uses it too - decouple with a dedicated judge model key if the judge ever wants a different model.
-- **`wikantik.knowledge.extractor.ollama.base_url`** — Base URL of the Ollama server used for KG entity extraction (and, absent a dedicated override, by KgJudgeConfig for the judge LLM too). Must serve a chat-capable model (see the model key above); the docker image's bundled CPU embedder does not, so a deployment that wants extraction points this at a real inference host AND sets wikantik.genai.mode = full - an embeddings-only ceiling blocks chat inference regardless of this value.
-- **`wikantik.knowledge.extractor.ollama.endpoint`** — Legacy alias for wikantik.knowledge.extractor.ollama.base_url, honoured only by KgJudgeConfig (an early draft of the docs used this name). base_url wins when both are set; this key exists only for deployments that never migrated.
-- **`wikantik.knowledge.extractor.timeout_ms`** — Per-chunk HTTP timeout. Self-hosted Ollama with multi-thousand-token prompts can need well over 30s; 120s is the shipping default so batch jobs don't time out on every chunk against smaller hardware.
-- **`wikantik.knowledge.extractor.concurrency`** — Max parallel extraction RPCs fired by the admin batch job. Save-time extraction is always serial; this only affects /admin/knowledge/extract-mentions. Clamped to [1, EntityExtractorConfig.CONCURRENCY_MAX] (currently 10) at load time, so a typo cannot saturate the inference backend.
-- **`wikantik.knowledge.extractor.prefilter.dry_run`** — Evaluate the prefilter and log what it WOULD have skipped, but extract the chunk anyway. Use this to size the saving before enabling the prefilter for real.
-- **`wikantik.genai.mode`** — Limits what LLM operations are allowed. One of: full           - both embeddings and chat inference allowed (default / current behavior) embeddings-only - embeddings for retrieval/search enabled only; no chat inference none           - all LLM operations disabled An absent property means 'full' (silent - the normal state of existing deployments). A set-but-blank or unrecognized value also means 'full', with a logged warning, so operator typos and old deployments degrade gracefully. To enforce, watch the warn logs.
-- **`wikantik.knowledge.enabled`** — The Knowledge Graph (LLM-extracted entities, kg_nodes/kg_edges/proposals, the KG inclusion policy, hub discovery) was RETIRED on 2026-11-08 (step 1 of its removal) and is OFF by default. With it off (the default) the feature set is not constructed at all: no KG services, no KG MCP tools (knowledge-mcp KG tools and admin-mcp KG curation tools are not registered), /admin/knowledge-graph/* and /api/page-knowledge/* return 503 naming this flag, entity extraction is skipped regardless of wikantik.knowledge.extractor.backend, and NOTHING READS THE KG TABLES - including the ontology rebuild, which then projects pages and concepts only (the next full rebuild purges entity graphs left in the ontology store). Chunking and the embedding/dense-retrieval pipeline are independent of the KG and stay fully active. Setting this to true revives the backend services only (the admin/reader KG UI has been removed) and is supported only until the release that deletes the Knowledge Graph code. The ontology layer keeps its own flag (wikantik.ontology.enabled).
-- **`wikantik.kg_policy.enabled`** — Cluster-primary, page-overridable, admin-administered policy for which pages contribute to the knowledge graph. See docs/superpowers/specs/2026-04-27-kg-inclusion-policy-design.md. Search remains governed by SystemPageRegistry.isSystemPage(); this layer only affects the KG. Master switch. Default true - wires the policy components into the engine at boot. Setting to false reverts to legacy behaviour (no exclusion).
-- **`wikantik.kg.judge.enabled`** — Knowledge Graph staged validation - judge LLM Async judge LLM that promotes extractor proposals into materialised kg_nodes/kg_edges at tier='machine'; admin approval upgrades to tier='human'. Read paths default to min_tier='machine' (broader view); callers can pass min_tier=human for the strict view.
-- **`wikantik.kg.judge.endpoint`** — When unset, judge connection falls back to the extractor's wikantik.knowledge.extractor.ollama.base_url (then .ollama.endpoint, then the host compiled into KgJudgeConfig.DEFAULT_ENDPOINT - a private inference host that a fresh deployment must override). Override only to pin the judge to a different endpoint than the extractor.
-- **`wikantik.kg.judge.model`** — When unset, judge model falls back to the extractor's wikantik.knowledge.extractor.ollama.model (then KgJudgeConfig.DEFAULT_MODEL). Override only to pin the judge to a different model than the extractor.
-- **`wikantik.kg.judge.keep_alive`** — How long Ollama keeps the judge model resident in memory between calls. Longer than the cron interval so the model stays loaded across batches - shorter values caused every cron pass to eat a cold-load on its first 1-2 proposals.
-- **`wikantik.kg.judge.timeout_seconds`** — Per-proposal judge LLM call timeout, in SECONDS. Note the unit: the three sibling LLM timeouts (wikantik.knowledge.extractor.timeout_ms, wikantik.bundle.reranker.timeout_ms, wikantik.bundle.decomposition.timeout_ms) are all in milliseconds. This key is the odd one out.
-- **`wikantik.kg.extractor.allow_claude`** — Both flags gate the standalone extract-cli's optional Claude (Anthropic SDK) code paths ("--extractor claude" / "--judge claude" on BootstrapExtractionCli / JudgeExperimentCli); they are read only as JVM system properties (-Dwikantik.kg.extractor.allow_claude=true), never from this file - a value set here has no effect. The default (unset -> false) refuses the premium path even when an Anthropic key is available, so a stray CLI invocation never bills the paid tier by accident (ADR-0007).
-- **`wikantik.citations.enabled`** — Parse cite:// body markup into the derived `citations` table, grade span-level staleness as the base churns, and surface stale citations (admin/drift, the list_stale_citations MCP tool, the for-agent projection). Requires a datasource; degrades to a no-op when absent. Set false to disable citation tracking entirely.
-
-## Ontology
-
-| Key | Type | Default | Override | Description |
-|---|---|---|---|---|
-| `wikantik.ontology.enabled` | `boolean` | `true` | `wikantik_ontology_enabled` | Master switch for the ontology layer (OntologyWiringHelper). … |
-| `wikantik.ontology.tdb2.dir` | `path` | *(blank: <wikantik.workDir>/ontology-tdb2 (or java.io.tmpdir/wikantik-ontology-tdb2 when workDir is unset))* | `wikantik_ontology_tdb2_dir` | Directory for the Jena TDB2 store behind /sparql, /id/* and /export/*. … |
-| `wikantik.ontology.rebuild.interval.hours` | `long` | `24` | `wikantik_ontology_rebuild_interval_hours` | Hours between full nightly rebuilds of the TDB2 store from PostgreSQL - a reconciliation backstop that catches KG drift and any missed incremental sync … |
-| `wikantik.ontology.compaction.interval.hours` | `long` | `168` | `wikantik_ontology_compaction_interval_hours` | Hours between periodic TDB2 compactions. … |
-| `wikantik.ontology.incremental.enabled` | `boolean` | `true` | `wikantik_ontology_incremental_enabled` | Event-incremental entity sync: re-project an entity's graph on KgChangeEvent (from both KG write funnels) instead of waiting for the nightly rebuild. … |
-| `wikantik.ontology.incremental.coalesce.ms` | `long` | `500` | `wikantik_ontology_incremental_coalesce_ms` | Coalescing window for incremental ontology sync, in milliseconds - batches rapid-fire KgChangeEvents for the same entity, and repeated saves of the same … |
-
-Full descriptions (truncated above to keep the table scannable):
-
-- **`wikantik.ontology.enabled`** — Master switch for the ontology layer (OntologyWiringHelper). When false, no TDB2 store is built and /sparql, /id/{type}/{id} and /export/*.{ttl,nt} return "ontology disabled". The Knowledge Graph and page/cluster/tag concept projections are unaffected - this flag only gates their RDF materialization.
-- **`wikantik.ontology.tdb2.dir`** — Directory for the Jena TDB2 store behind /sparql, /id/* and /export/*. The store is a rebuildable cache: deleting it and restarting triggers a full re-projection from PostgreSQL.
-- **`wikantik.ontology.rebuild.interval.hours`** — Hours between full nightly rebuilds of the TDB2 store from PostgreSQL - a reconciliation backstop that catches KG drift and any missed incremental sync events. 0 disables the scheduled rebuild entirely (incremental sync and the startup-if-empty self-heal still run).
-- **`wikantik.ontology.compaction.interval.hours`** — Hours between periodic TDB2 compactions. The store's copy-on-write B+Trees never shrink on their own, so continuous rewriting (nightly rebuild + every incremental sync) only ever grows it - measured production growth is ~1.35 GB/day. Weekly is deliberately less aggressive than the daily rebuild interval; 0 disables scheduled compaction (same 0=disabled convention as the rebuild interval above).
-- **`wikantik.ontology.incremental.enabled`** — Event-incremental entity sync: re-project an entity's graph on KgChangeEvent (from both KG write funnels) instead of waiting for the nightly rebuild. When false, entity graphs are only refreshed by the nightly rebuild/backstop.
-- **`wikantik.ontology.incremental.coalesce.ms`** — Coalescing window for incremental ontology sync, in milliseconds - batches rapid-fire KgChangeEvents for the same entity, and repeated saves of the same page, into a single re-projection instead of re-projecting on every write. Page sync runs on a background worker, so a save never waits for TDB2 commits.
-
 ## Frontmatter & structural enforcement
 
 | Key | Type | Default | Override | Description |
 |---|---|---|---|---|
+| `wikantik.verification.stale_days` | `int` | `90` | `wikantik_verification_stale_days` | A page's structural-index confidence decays once its last edit is older than this many days (ConfidenceComputer), independent of author trust. |
 | `wikantik.frontmatter.autoDefaults` | `boolean` | `false` | `wikantik_frontmatter_autoDefaults` | When true, a preSave filter injects a default frontmatter block (title, type: article, tags, summary, auto-generated: true) into any page saved with no … |
 | `wikantik.frontmatter.defaultTags` | `int` | *(blank: no default tags are added. Note that this is the shipped value, so enabling wikantik.frontmatter.autoDefaults without also setting a number here generates every other default (title, type, summary) but NO tags. The code's "key entirely absent -> 3 tags" fallback cannot be reached from a deployment that inherits this file; set an explicit count to get tags.)* | `wikantik_frontmatter_defaultTags` | Number of keywords the auto-defaulting filter extracts into the generated tags: list (TagExtractor, log-dampened TF scoring). … |
 | `wikantik.frontmatter.enforcement.enabled` | `boolean` | `true` | `wikantik_frontmatter_enforcement_enabled` | Master flag for save-time frontmatter schema enforcement. … |
@@ -785,6 +699,34 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.runbook.enforcement.enabled`** — Master flag for runbook frontmatter enforcement: when a page declares type: runbook, its runbook: block must satisfy the schema rules in FrontmatterRunbookValidator or the save is refused. Non-runbook pages are always unaffected.
 - **`wikantik.math.enforcement.enabled`** — Master flag for save-time LaTeX validation of the page body. ERROR violations refuse the save (HTTP 422 / MCP refusal); WARNING violations are stashed for the REST/MCP layer to surface on a successful response.
 
+## GenAI
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.genai.mode` | `enum(full\|embeddings-only\|none)` | `full` | `wikantik_genai_mode` | Limits what LLM operations are allowed. … |
+
+Full descriptions (truncated above to keep the table scannable):
+
+- **`wikantik.genai.mode`** — Limits what LLM operations are allowed. One of: full           - both embeddings and chat inference allowed (default / current behavior) embeddings-only - embeddings for retrieval/search enabled only; no chat inference none           - all LLM operations disabled An absent property means 'full' (silent - the normal state of existing deployments). A set-but-blank or unrecognized value also means 'full', with a logged warning, so operator typos and old deployments degrade gracefully. To enforce, watch the warn logs.
+
+## Ontology
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.ontology.enabled` | `boolean` | `true` | `wikantik_ontology_enabled` | Master switch for the ontology layer (OntologyWiringHelper). … |
+| `wikantik.ontology.tdb2.dir` | `path` | *(blank: <wikantik.workDir>/ontology-tdb2 (or java.io.tmpdir/wikantik-ontology-tdb2 when workDir is unset))* | `wikantik_ontology_tdb2_dir` | Directory for the Jena TDB2 store behind /sparql, /id/* and /export/*. … |
+| `wikantik.ontology.rebuild.interval.hours` | `long` | `24` | `wikantik_ontology_rebuild_interval_hours` | Hours between full nightly rebuilds of the TDB2 store from PostgreSQL - a reconciliation backstop that catches any missed incremental sync events. … |
+| `wikantik.ontology.compaction.interval.hours` | `long` | `168` | `wikantik_ontology_compaction_interval_hours` | Hours between periodic TDB2 compactions. … |
+| `wikantik.ontology.incremental.coalesce.ms` | `long` | `500` | `wikantik_ontology_incremental_coalesce_ms` | Coalescing window for incremental ontology sync, in milliseconds - batches repeated saves of the same page into a single re-projection instead of … |
+
+Full descriptions (truncated above to keep the table scannable):
+
+- **`wikantik.ontology.enabled`** — Master switch for the ontology layer (OntologyWiringHelper). When false, no TDB2 store is built and /sparql, /id/{type}/{id} and /export/*.{ttl,nt} return "ontology disabled". The page and cluster/tag concept data are unaffected - this flag only gates their RDF materialization.
+- **`wikantik.ontology.tdb2.dir`** — Directory for the Jena TDB2 store behind /sparql, /id/* and /export/*. The store is a rebuildable cache: deleting it and restarting triggers a full re-projection from PostgreSQL.
+- **`wikantik.ontology.rebuild.interval.hours`** — Hours between full nightly rebuilds of the TDB2 store from PostgreSQL - a reconciliation backstop that catches any missed incremental sync events. 0 disables the scheduled rebuild entirely (incremental sync and the startup-if-empty self-heal still run).
+- **`wikantik.ontology.compaction.interval.hours`** — Hours between periodic TDB2 compactions. The store's copy-on-write B+Trees never shrink on their own, so continuous rewriting (nightly rebuild + every incremental sync) only ever grows it - measured production growth is ~1.35 GB/day. Weekly is deliberately less aggressive than the daily rebuild interval; 0 disables scheduled compaction (same 0=disabled convention as the rebuild interval above).
+- **`wikantik.ontology.incremental.coalesce.ms`** — Coalescing window for incremental ontology sync, in milliseconds - batches repeated saves of the same page into a single re-projection instead of re-projecting on every write. Page sync runs on a background worker, so a save never waits for TDB2 commits.
+
 ## Observability & profiling
 
 | Key | Type | Default | Override | Description |
@@ -798,14 +740,12 @@ Full descriptions (truncated above to keep the table scannable):
 | `wikantik.querylog.enabled` | `boolean` | `true` | `wikantik_querylog_enabled` | Retrieval query log. … |
 | `wikantik.profiling.dir` | `path` | `/var/wikantik/profiling` | `-Dwikantik.profiling.dir` only | Directory holding memory-profiling snapshot dumps (AdminProfilingServlet). … |
 | `wikantik.profiling.dir.max_bytes` | `long` | `5368709120` | `-Dwikantik.profiling.dir.max_bytes` only | Maximum total size, in bytes, of retained profiling snapshots before the oldest are pruned. … |
-| `wikantik.test.fixture-seam.enabled` | `boolean` | `false` | `-Dwikantik.test.fixture-seam.enabled` only | Test-only seam for the IT suite; never set in production. … |
 
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.querylog.enabled`** — Retrieval query log. Append-only capture of real retrieval queries (text + human/agent + which surface + result count) across /api/bundle, /api/search, assemble_bundle (MCP), search_wiki (/tools), to ground the eval corpus in real traffic. Async + fail-open - never on the request critical path; logs query text only (no results), so restricted content never enters the log.
 - **`wikantik.profiling.dir`** — Directory holding memory-profiling snapshot dumps (AdminProfilingServlet). Read only as a JVM system property (-Dwikantik.profiling.dir=...); this file's value is not consulted.
 - **`wikantik.profiling.dir.max_bytes`** — Maximum total size, in bytes, of retained profiling snapshots before the oldest are pruned. Read only as a JVM system property (-Dwikantik.profiling.dir.max_bytes=...); this file's value is not consulted.
-- **`wikantik.test.fixture-seam.enabled`** — Test-only seam for the IT suite; never set in production. Gates AdminHubDiscoveryResource's seed-proposal endpoint, which is otherwise unreachable outside the integration-test profile. Read only as a JVM system property (-Dwikantik.test.fixture-seam.enabled=true); this file's value is not consulted.
 
 ## Context bundle & briefing
 
@@ -917,6 +857,16 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.insights.imported.max_age_days`** — Imported opportunities (jakemon's five detectors -- content-intelligence design Section 7.3 "Imported from jakemon", Section 12.1 item J3). The backlog reads only the single most recent as_of row set per site, and only when that as_of is within this many days of today -- past that, jakemon has stopped shipping (collector down, shipper broken) and the backlog must stop proposing the same stale detector output forever rather than repeat it.
 - **`wikantik.insights.ctr.deep`** — Expected-CTR curve tail (content-intelligence design Section 7.3 rule 2, V057). jakemon ships its real, measured EXPECTED_CTR table (positions 1-10) in every ingest payload, but NOT its tail-decay rule -- ship_visibility.py sends only the table, never jakemon's own _DEEP_CTR floor or decay formula. These two values mirror that unshipped tail so ExpectedCtrCurve.fromTable can still answer for positions beyond the table; they must be updated by hand if jakemon's own opportunities.py _DEEP_CTR / page-2-floor cutoff ever changes.
 
+## Citations
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.citations.enabled` | `boolean` | `true` | `wikantik_citations_enabled` | Parse cite:// body markup into the derived `citations` table, grade span-level staleness as the base churns, and surface stale citations (admin/drift, the … |
+
+Full descriptions (truncated above to keep the table scannable):
+
+- **`wikantik.citations.enabled`** — Parse cite:// body markup into the derived `citations` table, grade span-level staleness as the base churns, and surface stale citations (admin/drift, the list_stale_citations MCP tool, the for-agent projection). Requires a datasource; degrades to a no-op when absent. Set false to disable citation tracking entirely.
+
 ## Connectors
 
 | Key | Type | Default | Override | Description |
@@ -1027,7 +977,6 @@ Full descriptions (truncated above to keep the table scannable):
 | `mcp.ratelimit.global` | `int` | `100` | `tomcat/lib/wikantik-mcp.properties` | Rate limiting (requests per second, 0 = disabled). … |
 | `mcp.ratelimit.perClient` | `int` | `10` | `tomcat/lib/wikantik-mcp.properties` | Per-client rate limit, requests per second, 0 = disabled. … |
 | `wikantik.mcp.rate_limit.max_clients` | `int` | `10000` | `tomcat/lib/wikantik-mcp.properties` | Maximum number of distinct clients tracked by the per-client rate limiter's sliding-window state. … |
-| `wikantik.mcp.kg_curation.bulk_limit` | `int` | `50` | `tomcat/lib/wikantik-mcp.properties` | Maximum number of KG-curation proposals that may be acted on in a single bulk curation call (e.g. bulk-approve/bulk-reject). |
 
 Full descriptions (truncated above to keep the table scannable):
 

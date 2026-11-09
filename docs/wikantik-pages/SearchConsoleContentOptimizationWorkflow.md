@@ -14,7 +14,6 @@ audience:
 - humans
 - agents
 type: article
-kg_include: true
 cluster:
 - content-pipeline
 - jakemon

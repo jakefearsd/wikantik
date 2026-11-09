@@ -17,7 +17,6 @@ title: 'Large Language Models Since 2020: Scaling Laws, RLVR Reasoning, MLA, and
   Agents'
 cluster: generative-ai
 verified_at: '2026-10-24T18:20:41.108726282Z'
-kg_include: true
 date: '2026-10-24'
 related:
 - GenerativeAIHub

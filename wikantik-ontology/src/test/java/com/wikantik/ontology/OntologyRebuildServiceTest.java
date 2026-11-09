@@ -26,14 +26,9 @@ import java.nio.file.Path;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import com.wikantik.api.knowledge.KgEdge;
-import com.wikantik.api.knowledge.KgNode;
-import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.ontology.projection.PageRecord;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ResourceFactory;
@@ -43,66 +38,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class OntologyRebuildServiceTest {
 
-    private static final UUID N1 = UUID.fromString( "00000000-0000-0000-0000-0000000000d1" );
-    private static final UUID N2 = UUID.fromString( "00000000-0000-0000-0000-0000000000d2" );
-
-    @Test
-    void fullRebuildMaterializesEntitiesPagesConceptsAndInfersTypes() {
-        final OntologyModelManager mgr = OntologyModelManager.inMemory();
-        mgr.loadTBox();
-
-        final List< KgNode > nodes = List.of(
-                new KgNode( N1, "Backpropagation", "technology", "Backprop.md", Provenance.HUMAN_AUTHORED,
-                        Map.of(), null, null, "human", null ),
-                new KgNode( N2, "Gradient", "concept", null, Provenance.HUMAN_AUTHORED,
-                        Map.of(), null, null, "human", null ) );
-        final List< KgEdge > edges = List.of(
-                new KgEdge( UUID.randomUUID(), N1, N2, "uses", Provenance.HUMAN_AUTHORED,
-                        Map.of(), null, null, "human", null ) );
-        final List< PageRecord > pages = List.of(
-                new PageRecord( "01CANON0000000000000000001", "Backprop.md", "Backprop", "article",
-                        "ml", List.of( "neural-networks" ), "x", "2026-01-01", "researcher" ) );
-
-        final OntologyRebuildService svc = new OntologyRebuildService();
-        final int graphs = svc.rebuild( mgr, nodes, edges, pages );
-
-        // 2 entities + 1 page + 2 concepts (cluster "ml" + tag "neural-networks") = 5 named graphs.
-        assertTrue( graphs >= 5, "expected >= 5 named graphs, got " + graphs );
-
-        assertTrue( mgr.namedGraphExists( Iris.entity( N1 ) ) );
-
-        // subClassOf inference: the Technology entity is a schema:Thing.
-        final Model inf = mgr.inferenceSnapshot();
-        assertTrue( inf.contains(
-                ResourceFactory.createResource( Iris.entity( N1 ) ), RDF.type,
-                ResourceFactory.createResource( Iris.SCHEMA + "Thing" ) ) );
-    }
-
-    @Test
-    void rebuildIsIdempotent() {
-        final OntologyModelManager mgr = OntologyModelManager.inMemory();
-        mgr.loadTBox();
-        final List< KgNode > nodes = List.of(
-                new KgNode( N1, "X", "concept", null, Provenance.HUMAN_AUTHORED,
-                        Map.of(), null, null, "human", null ) );
-        final OntologyRebuildService svc = new OntologyRebuildService();
-        final int first  = svc.rebuild( mgr, nodes, List.of(), List.of() );
-        final int second = svc.rebuild( mgr, nodes, List.of(), List.of() );
-        assertTrue( first == second, "rebuild graph count is stable across runs" );
-    }
-
-    private static KgNode node( final UUID id ) {
-        return new KgNode( id, "N" + id, "concept", null, Provenance.HUMAN_AUTHORED,
-                Map.of(), null, null, "human", null );
-    }
-
-    private static List< KgNode > nodes( final int n ) {
-        final List< KgNode > out = new ArrayList<>();
-        for ( int i = 0; i < n; i++ ) {
-            out.add( node( new UUID( 7, i ) ) );
-        }
-        return out;
-    }
+    private static final String CANON = "01CANON0000000000000000001";
 
     private static List< PageRecord > pages( final int n ) {
         final List< PageRecord > out = new ArrayList<>();
@@ -113,13 +49,49 @@ class OntologyRebuildServiceTest {
         return out;
     }
 
-    /** Asserts the store holds exactly the graphs a rebuild of {@code nodes}/{@code pages} projects. */
-    private static void assertAboxHolds( final OntologyModelManager mgr, final List< KgNode > nodes,
-                                         final List< PageRecord > pages, final int graphs ) {
+    private static PageRecord page( final String canonicalId, final String slug ) {
+        return new PageRecord( canonicalId, slug, slug, "article", "ml", List.of( "neural-networks" ),
+                "x", "2026-01-01", "researcher" );
+    }
+
+    @Test
+    void fullRebuildMaterializesPagesAndConceptsAndInfersTypes() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final List< PageRecord > pages = List.of( page( CANON, "Backprop" ) );
+
+        final int graphs = new OntologyRebuildService().rebuild( mgr, pages );
+
+        // 1 page + 2 concepts (cluster "ml" + tag "neural-networks") = 3 named graphs.
+        assertEquals( 3, graphs );
+        assertTrue( mgr.namedGraphExists( Iris.page( CANON ) ) );
+        final Model inf = mgr.inferenceSnapshot();
+        assertTrue( inf.contains( ResourceFactory.createResource( Iris.page( CANON ) ), RDF.type,
+                ResourceFactory.createResource( Iris.SCHEMA + "CreativeWork" ) ) );
+    }
+
+    @Test
+    void rebuildProjectsNoEntityGraphs() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        new OntologyRebuildService().rebuild( mgr, pages( 3 ) );
+        final Model union = mgr.unionSnapshot();
+        assertFalse( union.listSubjects().filterKeep( r -> r.isURIResource()
+                && r.getURI().startsWith( Iris.ID + "entity/" ) ).hasNext(),
+                "no /id/entity/* resources are projected" );
+    }
+
+    @Test
+    void rebuildIsIdempotent() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final OntologyRebuildService svc = new OntologyRebuildService();
+        assertEquals( svc.rebuild( mgr, pages( 4 ) ), svc.rebuild( mgr, pages( 4 ) ) );
+    }
+
+    private static void assertAboxHolds( final OntologyModelManager mgr, final List< PageRecord > pages,
+                                         final int graphs ) {
         assertEquals( graphs, mgr.namedGraphCount(), "named graph count after rebuild" );
-        for ( final KgNode n : nodes ) {
-            assertTrue( mgr.namedGraphExists( Iris.entity( n.id() ) ), "entity graph " + n.id() );
-        }
         for ( final PageRecord p : pages ) {
             assertTrue( mgr.namedGraphExists( Iris.page( p.canonicalId() ) ), "page graph " + p.slug() );
         }
@@ -129,16 +101,15 @@ class OntologyRebuildServiceTest {
     void aFullRebuildCommitsOneWriteTransactionNotOnePerGraph() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        final List< KgNode > nodes = nodes( 40 );
         final List< PageRecord > pages = pages( 10 );
         final long before = mgr.committedWriteTransactions();
 
-        final int graphs = new OntologyRebuildService().rebuild( mgr, nodes, List.of(), pages );
+        final int graphs = new OntologyRebuildService().rebuild( mgr, pages );
 
-        assertEquals( 70, graphs, "40 entities + 10 pages + 10 tag + 10 cluster concepts" );
+        assertEquals( 30, graphs, "10 pages + 10 tag + 10 cluster concepts" );
         assertEquals( 1, mgr.committedWriteTransactions() - before,
                 "the clear and every graph write must share ONE write transaction (each commit is a TDB2 sync round)" );
-        assertAboxHolds( mgr, nodes, pages, graphs );
+        assertAboxHolds( mgr, pages, graphs );
     }
 
     @Test
@@ -147,15 +118,16 @@ class OntologyRebuildServiceTest {
         try {
             mgr.loadTBox();
             final OntologyRebuildService svc = new OntologyRebuildService();
-            svc.rebuild( mgr, nodes( 30 ), List.of(), pages( 5 ) );
-            final List< KgNode > next = nodes( 20 );   // 10 entities disappeared
+            svc.rebuild( mgr, pages( 30 ) );
+            final List< PageRecord > next = pages( 20 );   // 10 pages disappeared
             final long before = mgr.committedWriteTransactions();
 
-            final int graphs = svc.rebuild( mgr, next, List.of(), pages( 5 ) );
+            final int graphs = svc.rebuild( mgr, next );
 
             assertEquals( 1, mgr.committedWriteTransactions() - before, "one TDB2 commit for the whole rebuild" );
-            assertAboxHolds( mgr, next, pages( 5 ), graphs );
-            assertFalse( mgr.namedGraphExists( Iris.entity( new UUID( 7, 25 ) ) ), "vanished entity is pruned" );
+            assertAboxHolds( mgr, next, graphs );
+            assertFalse( mgr.namedGraphExists( Iris.page( pages( 30 ).get( 25 ).canonicalId() ) ),
+                    "vanished page is pruned" );
         } finally {
             mgr.close();
         }
@@ -167,14 +139,14 @@ class OntologyRebuildServiceTest {
         try {
             mgr.loadTBox();
             final OntologyRebuildService svc = new OntologyRebuildService();
-            svc.rebuild( mgr, nodes( 30 ), List.of(), pages( 5 ) );
+            svc.rebuild( mgr, pages( 30 ) );
             final long before = mgr.committedWriteTransactions();
 
-            final int graphs = svc.rebuild( mgr, nodes( 30 ), List.of(), pages( 5 ) );
+            final int graphs = svc.rebuild( mgr, pages( 30 ) );
 
             assertEquals( 0, mgr.committedWriteTransactions() - before,
                     "an unchanged A-Box must not be rewritten — every rewrite strands copy-on-write blocks" );
-            assertAboxHolds( mgr, nodes( 30 ), pages( 5 ), graphs );
+            assertAboxHolds( mgr, pages( 30 ), graphs );
         } finally {
             mgr.close();
         }
@@ -184,39 +156,39 @@ class OntologyRebuildServiceTest {
     void readersKeepSeeingThePreviousAboxUntilTheRebuildCommits() throws Exception {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        final UUID old = new UUID( 9, 1 );
-        final UUID first = new UUID( 9, 2 );
-        final UUID second = new UUID( 9, 3 );
+        final PageRecord old = page( "01OLD00000000000000000000A", "Old" );
+        final PageRecord first = page( "01NEW00000000000000000000A", "First" );
+        final PageRecord second = page( "01NEW00000000000000000000B", "Second" );
         final OntologyRebuildService svc = new OntologyRebuildService();
-        svc.rebuild( mgr, List.of( node( old ) ), List.of(), List.of() );
+        svc.rebuild( mgr, List.of( old ) );
 
-        // Iterating the second node probes the store from another thread, mid-rebuild.
+        // Iterating the second page probes the store from another thread, mid-rebuild.
         final boolean[] seen = new boolean[ 2 ];
-        final List< KgNode > probing = new AbstractList<>() {
-            @Override public KgNode get( final int i ) {
+        final List< PageRecord > probing = new AbstractList<>() {
+            @Override public PageRecord get( final int i ) {
                 if ( i == 1 ) {
                     try {
-                        seen[ 0 ] = CompletableFuture.supplyAsync( () -> mgr.namedGraphExists( Iris.entity( old ) ) )
+                        seen[ 0 ] = CompletableFuture.supplyAsync( () -> mgr.namedGraphExists( Iris.page( old.canonicalId() ) ) )
                                 .get( 10, TimeUnit.SECONDS );
-                        seen[ 1 ] = CompletableFuture.supplyAsync( () -> mgr.namedGraphExists( Iris.entity( first ) ) )
+                        seen[ 1 ] = CompletableFuture.supplyAsync( () -> mgr.namedGraphExists( Iris.page( first.canonicalId() ) ) )
                                 .get( 10, TimeUnit.SECONDS );
                     } catch ( final Exception e ) {
                         throw new IllegalStateException( e );
                     }
                 }
-                return node( i == 0 ? first : second );
+                return i == 0 ? first : second;
             }
             @Override public int size() {
                 return 2;
             }
         };
 
-        svc.rebuild( mgr, probing, List.of(), List.of() );
+        svc.rebuild( mgr, probing );
 
         assertTrue( seen[ 0 ], "mid-rebuild, a reader must still see the previous A-Box (no empty window)" );
         assertFalse( seen[ 1 ], "mid-rebuild, a reader must not see the uncommitted new A-Box" );
-        assertFalse( mgr.namedGraphExists( Iris.entity( old ) ), "after commit the old graph is gone" );
-        assertTrue( mgr.namedGraphExists( Iris.entity( first ) ) );
-        assertTrue( mgr.namedGraphExists( Iris.entity( second ) ) );
+        assertFalse( mgr.namedGraphExists( Iris.page( old.canonicalId() ) ), "after commit the old graph is gone" );
+        assertTrue( mgr.namedGraphExists( Iris.page( first.canonicalId() ) ) );
+        assertTrue( mgr.namedGraphExists( Iris.page( second.canonicalId() ) ) );
     }
 }

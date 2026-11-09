@@ -22,11 +22,7 @@ import java.util.List;
 
 /**
  * Immutable, view-friendly projection of the Page Graph (pages + wikilinks)
- * for the {@code /page-graph} React route. Counterpart to
- * {@code com.wikantik.api.knowledge.GraphSnapshot} which projects the
- * Knowledge Graph (LLM-extracted entities + typed predicates) — see
- * {@code docs/wikantik-pages/PageGraphVsKnowledgeGraph.md} for the
- * distinction.
+ * for the {@code /page-graph} React route.
  *
  * <p>{@code generatedAt} is an ISO-8601 instant string. {@code hubDegreeThreshold}
  * is the in+out-degree the legend uses to colour hub nodes; the service

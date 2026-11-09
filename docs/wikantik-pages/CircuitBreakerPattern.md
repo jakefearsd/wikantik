@@ -13,7 +13,6 @@ tags:
 canonical_id: 01KQ0P44N9S7WFVJJA94XTNBN7
 cluster: design-patterns
 title: "Circuit Breaker Pattern"
-kg_include: true
 ---
 
 # Circuit Breaker Pattern: Deep Dive into Distributed Resilience

@@ -61,9 +61,12 @@ tags:
 - agent-context
 summary: How to use the propose_knowledge MCP tool on /wikantik-admin-mcp to suggest
   Knowledge Graph nodes and edges, and how an operator reviews them.
+status: archived
 ---
 
 # Proposing Knowledge Graph Edges
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 The knowledge graph is small and curated by design. Agents and humans
 both contribute proposals; an operator approves them before the graph

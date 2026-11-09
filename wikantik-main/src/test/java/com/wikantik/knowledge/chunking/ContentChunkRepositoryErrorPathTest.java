@@ -80,17 +80,6 @@ class ContentChunkRepositoryErrorPathTest {
     }
 
     @Test
-    void findMentionsForNodeWrapsFailure() {
-        assertThrows( RuntimeException.class, () -> repo.findMentionsForNode( UUID.randomUUID(), 10 ) );
-    }
-
-    @Test
-    void findChunksOnPageContainingWrapsFailure() {
-        assertThrows( RuntimeException.class,
-                () -> repo.findChunksOnPageContaining( "Page", "needle", 10 ) );
-    }
-
-    @Test
     void outliersWrapsFailure() {
         final RuntimeException ex = assertThrows( RuntimeException.class, repo::outliers );
         assertTrue( ex.getMessage().contains( "outliers failed" ) );

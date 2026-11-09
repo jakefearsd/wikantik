@@ -367,7 +367,7 @@ class ExportResourceTest {
     void downloadSetsZipHeaders() throws Exception {
         loginAdmin();
         final PageDescriptor page = new PageDescriptor( "01ABC", "TestPage", "Test Page", PageType.ARTICLE,
-                null, List.of(), null, Instant.now(), Optional.empty(), false );
+                null, List.of(), null, Instant.now(), false );
         final ExportSelection selection = new ExportSelection(
                 List.of(), true, List.of(), Optional.empty(), Optional.empty(), 0, UnresolvedLinkMode.KEEP );
         final ExportService.PreparedExport prepared = new ExportService.PreparedExport(
@@ -393,7 +393,7 @@ class ExportResourceTest {
     void clientDisconnectDuringStreamDoesNotThrow() throws Exception {
         loginAdmin();
         final PageDescriptor page = new PageDescriptor( "01ABC", "TestPage", "Test Page", PageType.ARTICLE,
-                null, List.of(), null, Instant.now(), Optional.empty(), false );
+                null, List.of(), null, Instant.now(), false );
         final ExportSelection selection = new ExportSelection(
                 List.of(), true, List.of(), Optional.empty(), Optional.empty(), 0, UnresolvedLinkMode.KEEP );
         final ExportService.PreparedExport prepared = new ExportService.PreparedExport(
@@ -416,7 +416,7 @@ class ExportResourceTest {
     void secondConcurrentDownloadIs429AndPermitIsReleased() throws Exception {
         final Session admin = loginAdmin();
         final PageDescriptor page = new PageDescriptor( "01ABC", "TestPage", "Test Page", PageType.ARTICLE,
-                null, List.of(), null, Instant.now(), Optional.empty(), false );
+                null, List.of(), null, Instant.now(), false );
         final ExportSelection selection = new ExportSelection(
                 List.of(), true, List.of(), Optional.empty(), Optional.empty(), 0, UnresolvedLinkMode.KEEP );
         when( stubService.prepare( any(), any() ) ).thenReturn( new ExportService.PreparedExport(

@@ -27,9 +27,7 @@ import com.wikantik.api.core.Session;
  * {@link StructuralIndexService} (page metadata, canonical_id, cluster, tags)
  * plus {@link com.wikantik.api.managers.ReferenceManager} (refers-to /
  * referred-by maps).
- *
- * <p>Distinct from {@link com.wikantik.api.knowledge.KnowledgeGraphService},
- * which builds a snapshot of LLM-extracted entities and typed predicates.</p>
+
  */
 public interface PageGraphService {
 

@@ -45,8 +45,7 @@ class PostgresTestDbSmokeTest {
         try ( Connection conn = ds.getConnection() ) {
             assertTableExists( conn, "users" );
             assertTableExists( conn, "policy_grants" );
-            assertTableExists( conn, "kg_nodes" );
-            assertTableExists( conn, "kg_edges" );
+            assertTableExists( conn, "content_chunk_embeddings" );
             assertTableExists( conn, "kg_content_chunks" );
             assertTableExists( conn, "schema_migrations" );
 

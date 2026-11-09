@@ -27,14 +27,7 @@ class IrisTest {
 
     @Test
     void termIriUsesWkNamespace() {
-        assertEquals( "https://wiki.wikantik.com/ns/wikantik#Technology", Iris.term( "Technology" ) );
-    }
-
-    @Test
-    void entityIriUsesUuid() {
-        final UUID id = UUID.fromString( "00000000-0000-0000-0000-0000000000ab" );
-        assertEquals( "https://wiki.wikantik.com/id/entity/00000000-0000-0000-0000-0000000000ab",
-                Iris.entity( id ) );
+        assertEquals( "https://wiki.wikantik.com/ns/wikantik#Article", Iris.term( "Article" ) );
     }
 
     @Test

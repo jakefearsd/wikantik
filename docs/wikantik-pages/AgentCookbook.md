@@ -57,7 +57,7 @@ imperative steps. Topic-keyed how-tos go in narrative articles instead.
 ### Authoring and contribution
 
 - [VerifyingAnAgentGeneratedPage](VerifyingAnAgentGeneratedPage) — `mark_page_verified` + triage.
-- [ProposingKnowledgeGraphEdges](ProposingKnowledgeGraphEdges) — `propose_knowledge` workflow.
+- [ProposingKnowledgeGraphEdges](ProposingKnowledgeGraphEdges) — historical: the `propose_knowledge` workflow, retired with the Knowledge Graph in November 2026.
 - [RunningTheRetrievalQualityHarness](RunningTheRetrievalQualityHarness) — manual invocation.
 
 ### Code and tooling
@@ -68,7 +68,7 @@ imperative steps. Topic-keyed how-tos go in narrative articles instead.
 - [PlanningAMigrationChange](PlanningAMigrationChange) — what tables, files, and tests to touch.
 - [DebuggingFailingIntegrationTests](DebuggingFailingIntegrationTests) — port conflicts, Cargo, pgvector.
 - [BuildingAndDeployingLocally](BuildingAndDeployingLocally) — one-screen canonical flow.
-- [RunningTheJudgeExperimentHarness](RunningTheJudgeExperimentHarness) — `bin/kg-judge-experiment.sh`: compare Knowledge Graph proposal-judge models before changing the extractor's `--judge` default.
+- [RunningTheJudgeExperimentHarness](RunningTheJudgeExperimentHarness) — historical: `bin/kg-judge-experiment.sh` compared Knowledge Graph proposal-judge models; the Knowledge Graph was retired in November 2026.
 
 ### Wiki maintenance and content strategy
 

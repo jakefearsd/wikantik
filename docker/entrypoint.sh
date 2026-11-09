@@ -64,9 +64,6 @@
 #                                redirect_uri = WIKANTIK_BASE_URL + /sso/callback
 #   WIKANTIK_GENAI_MODE          GenAI ceiling control: full | embeddings-only | none
 #                                (default: ini bundle default = full)
-#   WIKANTIK_KNOWLEDGE_ENABLED   "true"/"false" — consumed by wikantik.knowledge.enabled
-#                                (default true when unset; the consuming property ships
-#                                with the same release)
 #   WIKANTIK_EMBEDDING_BATCH_SIZE
 #                                texts per embedding backend round-trip (default 10).
 #   WIKANTIK_EMBEDDING_TIMEOUT_MS
@@ -81,17 +78,6 @@
 #   WIKANTIK_EMBEDDING_BASE_URL  dense-retrieval embedding service base URL override, e.g.
 #                                http://embedding-sidecar:11434 (default: ini bundle default,
 #                                the shared inference host — unreachable from some networks)
-#   WIKANTIK_EXTRACTOR_BACKEND   KG entity-extractor backend: ollama | claude | disabled
-#   WIKANTIK_EXTRACTOR_BASE_URL  Ollama endpoint for KG extraction (and, absent a dedicated
-#                                override, the KG judge too)
-#   WIKANTIK_EXTRACTOR_MODEL     Ollama model tag for KG extraction (and the judge)
-#                                (default: ini bundle default = ollama). When "claude", also
-#                                set ANTHROPIC_API_KEY.
-#   ANTHROPIC_API_KEY            Anthropic API key, required when WIKANTIK_EXTRACTOR_BACKEND=
-#                                claude. Read directly via System.getenv("ANTHROPIC_API_KEY")
-#                                by EntityExtractorFactory — passed straight through as a
-#                                container process env var; this script does not render it
-#                                into any properties file, so no conditional block exists below.
 #   WIKANTIK_SCIM_TOKEN          SCIM bearer token (sensitive). ScimAccessFilter
 #                                (wikantik-scim) reads this exclusively via
 #                                System.getProperty("wikantik.scim.token") — never through
@@ -239,17 +225,6 @@ wikantik.genai.mode = ${WIKANTIK_GENAI_MODE}
 EOF
 fi
 
-# Optional: Knowledge Graph subsystem toggle.
-#   WIKANTIK_KNOWLEDGE_ENABLED — "true"/"false", consumed by wikantik.knowledge.enabled
-#   (default true when unset; the consuming property ships with the same release).
-if [ -n "${WIKANTIK_KNOWLEDGE_ENABLED:-}" ]; then
-  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
-
-# Knowledge Graph subsystem toggle (entrypoint-injected from env).
-wikantik.knowledge.enabled = ${WIKANTIK_KNOWLEDGE_ENABLED}
-EOF
-fi
-
 # Optional: dense-retrieval embedding service base URL override.
 #   WIKANTIK_EMBEDDING_BASE_URL — e.g. http://embedding-sidecar:11434 (default: ini bundle
 #   default, the shared inference host — unreachable from some networks/cloud deploys).
@@ -297,42 +272,6 @@ if [ -n "${WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE:-}" ]; then
 
 # Embedding backfill commit interval (entrypoint-injected from env).
 wikantik.search.embedding.commit-batch-size = ${WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE}
-EOF
-fi
-
-# Optional: KG entity-extractor backend override.
-#   WIKANTIK_EXTRACTOR_BACKEND — ollama | claude | disabled (default: ini bundle default =
-#   ollama). When "claude", also set ANTHROPIC_API_KEY (read directly from the process
-#   environment by EntityExtractorFactory — not rendered here).
-if [ -n "${WIKANTIK_EXTRACTOR_BACKEND:-}" ]; then
-  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
-
-# KG entity-extractor backend override (entrypoint-injected from env).
-wikantik.knowledge.extractor.backend = ${WIKANTIK_EXTRACTOR_BACKEND}
-EOF
-fi
-
-# Optional: KG extractor/judge Ollama endpoint and model overrides.
-#   WIKANTIK_EXTRACTOR_BASE_URL — e.g. http://inference-host:11434 (default: ini bundle
-#   default). KgJudgeConfig falls back to this same property, so the judge follows the
-#   extractor unless wikantik.kg.judge.endpoint is set explicitly.
-#   WIKANTIK_EXTRACTOR_MODEL — Ollama model tag (default: ini bundle default,
-#   gemma4-graph:12b); the judge likewise falls back to it. Both require a chat-capable
-#   model AND wikantik.genai.mode = full — an embeddings-only ceiling blocks chat
-#   inference no matter what these point at.
-if [ -n "${WIKANTIK_EXTRACTOR_BASE_URL:-}" ]; then
-  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
-
-# KG extractor/judge Ollama endpoint (entrypoint-injected from env).
-wikantik.knowledge.extractor.ollama.base_url = ${WIKANTIK_EXTRACTOR_BASE_URL}
-EOF
-fi
-
-if [ -n "${WIKANTIK_EXTRACTOR_MODEL:-}" ]; then
-  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
-
-# KG extractor/judge Ollama model (entrypoint-injected from env).
-wikantik.knowledge.extractor.ollama.model = ${WIKANTIK_EXTRACTOR_MODEL}
 EOF
 fi
 

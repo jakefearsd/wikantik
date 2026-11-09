@@ -57,9 +57,9 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 
 /**
- * Real-database tests: "Rebuild indexes" must not destroy the embeddings and Knowledge Graph
- * mentions of chunks whose text did not change (the old wholesale {@code deleteAll()} cascaded
- * into {@code content_chunk_embeddings} and {@code chunk_entity_mentions}).
+ * Real-database tests: "Rebuild indexes" must not destroy the embeddings of chunks whose text
+ * did not change (the old wholesale {@code deleteAll()} cascaded into
+ * {@code content_chunk_embeddings}).
  */
 @RequiresPostgres
 class ContentIndexRebuildServicePreservesDataTest {
@@ -83,7 +83,7 @@ class ContentIndexRebuildServicePreservesDataTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        PostgresTestDb.truncate( "kg_content_chunks", "kg_nodes" );
+        PostgresTestDb.truncate( "kg_content_chunks" );
         bodies.clear();
         createdDuringRebuild.clear();
         embeddedTexts.set( 0 );
@@ -161,7 +161,7 @@ class ContentIndexRebuildServicePreservesDataTest {
     }
 
     @Test
-    void rebuildKeepsEmbeddingsAndMentionsOfUnchangedChunksAndOnlyReembedsChangedOnes() throws Exception {
+    void rebuildKeepsEmbeddingsOfUnchangedChunksAndOnlyReembedsChangedOnes() throws Exception {
         bodies.put( "Stable", section( "Stable", "alpha" ) );
         bodies.put( "Edited", section( "First", "beta" ) + section( "Second", "gamma" ) );
         rebuild();
@@ -172,12 +172,6 @@ class ContentIndexRebuildServicePreservesDataTest {
         assertEquals( 3, count( "SELECT COUNT(*) FROM content_chunk_embeddings" ) );
 
         final UUID stableChunk = stableBefore.get( 0 );
-        try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
-            st.execute( "INSERT INTO kg_nodes (name, node_type, provenance, properties, tier, modified) "
-                + "VALUES ('Alpha', 'concept', 'human-authored', '{}'::jsonb, 'human', NOW())" );
-            st.execute( "INSERT INTO chunk_entity_mentions (chunk_id, node_id, confidence, extractor) "
-                + "SELECT '" + stableChunk + "', id, 0.9, 'test' FROM kg_nodes WHERE name = 'Alpha'" );
-        }
 
         bodies.put( "Edited", section( "First", "beta" ) + section( "Second", "CHANGED" ) );
         embeddedTexts.set( 0 );
@@ -186,8 +180,6 @@ class ContentIndexRebuildServicePreservesDataTest {
         assertEquals( stableBefore, chunkIds( "Stable" ), "unchanged page keeps its chunk ids" );
         assertEquals( 1, count( "SELECT COUNT(*) FROM content_chunk_embeddings WHERE chunk_id = '" + stableChunk + "'" ),
             "unchanged chunk keeps its embedding" );
-        assertEquals( 1, count( "SELECT COUNT(*) FROM chunk_entity_mentions WHERE chunk_id = '" + stableChunk + "'" ),
-            "unchanged chunk keeps its KG mention" );
 
         assertEquals( editedBefore, chunkIds( "Edited" ), "an in-place edit updates rows, it does not replace them" );
         assertEquals( 3, count( "SELECT COUNT(*) FROM content_chunk_embeddings" ) );

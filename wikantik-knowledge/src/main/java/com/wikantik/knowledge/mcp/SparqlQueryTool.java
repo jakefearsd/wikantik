@@ -82,10 +82,10 @@ public class SparqlQueryTool extends AbstractMcpTool {
                 props, List.of( "query" ), null, null, null );
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Runs a read-only SPARQL query over the materialized ontology (classes, "
-                        + "entities, page/concept metadata, with subClassOf entailment). Use get_ontology "
+                .description( "Runs a read-only SPARQL query over the materialized ontology (page classes, "
+                        + "page and tag/cluster-concept metadata, with subClassOf entailment). Use get_ontology "
                         + "first to learn the schema. SELECT/ASK -> SPARQL-results-JSON; CONSTRUCT -> Turtle. "
-                        + "Use this for EXACT counts and enumerations (e.g. how many predicates/classes, list all of a type)"
+                        + "Use this for EXACT counts and enumerations (e.g. how many pages of a type, list the pages in a cluster)"
                         + " rather than free-text retrieval." )
                 .inputSchema( input )
                 .annotations( READ_ONLY_ANNOTATIONS )

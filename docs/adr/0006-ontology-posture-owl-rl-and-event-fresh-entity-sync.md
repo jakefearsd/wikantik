@@ -1,5 +1,7 @@
 # Ontology posture: OWL-RL reasoning and event-fresh entity sync — advanced, not overkill
 
+> **Status: Superseded 2026-11: the Knowledge Graph was removed.** Entity sync and the entity layer of the ontology went with it; see docs/admin/OntologyManagement.md for the current page-and-concept-only layer.
+
 The ontology layer is a projection of the Knowledge Graph + Page Graph (ADR-0002), calibrated
 "advanced but not overkill" and consistent with linked-data publishing being subordinate to
 RAG (the primary customer).

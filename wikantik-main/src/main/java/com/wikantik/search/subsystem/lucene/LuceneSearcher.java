@@ -30,7 +30,7 @@ import java.util.Set;
 /**
  * Read-side seam for {@code LuceneSearchProvider}.
  *
- * <p>Owns {@code findPages} overloads, {@code moreLikeThis}, query parsing,
+ * <p>Owns {@code findPages} overloads, query parsing,
  * scored-hits assembly, highlighting, and snippet extraction.</p>
  */
 public interface LuceneSearcher {
@@ -58,21 +58,4 @@ public interface LuceneSearcher {
      * @throws ProviderException if the backend cannot be queried
      */
     Collection<SearchResult> findPages( String query, int flags, Context wikiContext ) throws ProviderException;
-
-    /**
-     * Returns up to {@code maxResults} documents similar to {@code seedDocName}
-     * based on the {@code contents} field, excluding any document in
-     * {@code excludeNames}.
-     *
-     * @param seedDocName  the {@code LUCENE_ID} value of the seed document
-     * @param maxResults   upper bound on returned hits (after exclusions)
-     * @param excludeNames document ids to filter out of the result list
-     * @return list of similar-document hits, ordered by Lucene relevance score (best first)
-     * @throws IOException if the Lucene index cannot be opened or queried
-     */
-    List<MoreLikeThisHit> moreLikeThis( String seedDocName, int maxResults, Set<String> excludeNames )
-            throws IOException;
-
-    /** Lucene MoreLikeThis hit returned by {@link #moreLikeThis(String, int, Set)}. */
-    record MoreLikeThisHit( String name, float score ) {}
 }

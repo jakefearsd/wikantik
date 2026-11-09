@@ -57,7 +57,7 @@ class WikiPageFactsTest {
     private static PageDescriptor descriptor( final String title, final String cluster,
                                               final List<String> tags, final String summary ) {
         return new PageDescriptor( "01HAA00000000000000000001", "PhilosophyOfMind", title,
-                PageType.ARTICLE, cluster, tags, summary, Instant.now(), Optional.empty(), false );
+                PageType.ARTICLE, cluster, tags, summary, Instant.now(), false );
     }
 
     @Test

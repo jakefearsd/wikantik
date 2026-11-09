@@ -1,6 +1,6 @@
 # Reading a Page
 
-This guide is for people who read the wiki. It explains what you see on a page and around it: the header, the table of contents, the trail of pages you visited, link previews, the lists of related pages, history and comparison of versions, the banner on synced pages, the two graph views, dark mode and the ways to export content.
+This guide is for people who read the wiki. It explains what you see on a page and around it: the header, the table of contents, the trail of pages you visited, link previews, the lists of related pages, history and comparison of versions, the banner on synced pages, the Page Graph view, dark mode and the ways to export content.
 
 ## The page header
 
@@ -30,7 +30,7 @@ A page with at least three `##` or `###` headings shows an **On this page** list
 
 ### The sidebar
 
-The left sidebar has a **Search…** button (see [Search.md](Search.md)); **Navigation** links (Main page, About, News, Recent Changes); **Wiki Tools** links (Page Index, System Info, Page Graph and, when enabled, Knowledge Graph); **Recently Modified** with the five latest changes ("Show all N" for more); and a collapsible tree of every cluster with its pages. When you are signed in it also holds your own panel; see [PersonalZone.md](PersonalZone.md). The sidebar can be collapsed from the command palette ("Toggle sidebar").
+The left sidebar has a **Search…** button (see [Search.md](Search.md)); **Navigation** links (Main page, About, News, Recent Changes); **Wiki Tools** links (Page Index, System Info, Page Graph); **Recently Modified** with the five latest changes ("Show all N" for more); and a collapsible tree of every cluster with its pages. When you are signed in it also holds your own panel; see [PersonalZone.md](PersonalZone.md). The sidebar can be collapsed from the command palette ("Toggle sidebar").
 
 ## Preview a link
 
@@ -41,7 +41,7 @@ Hover a link to another wiki page for about 0.4 seconds, or move keyboard focus 
 Two lists under the article help you move sideways:
 
 - **Referenced by** lists the pages that link to this one. It is built from real links in page bodies and is hidden when nothing links here.
-- **Similar pages** lists up to five pages that mention similar subjects. It is built from the entities the Knowledge Graph extracted from the text, so it is hidden when the Knowledge Graph has no data for the page.
+- **Similar pages** lists up to five pages that mention similar subjects. It is computed from the pages' embeddings, so it is hidden when the page has no embeddings yet.
 
 ## See the page history and compare versions
 
@@ -55,18 +55,9 @@ A page whose text is generated from an uploaded document or an external source i
 
 ## See how a page connects to the rest of the wiki
 
-The wiki has two graph views. They are different things and answer different questions.
-
-| | Page Graph | Knowledge Graph |
-|--|-----------|-----------------|
-| Nodes | Pages | Entities such as people, organizations, technologies and concepts, extracted from page text |
-| Edges | Real links from one page to another | Typed relations between entities |
-| Opened from | **Page Graph** in the sidebar, route `/page-graph` | **Knowledge Graph** in the sidebar, route `/knowledge-graph` |
-| Always available | Yes | Only when the server reports `capabilities.knowledgeGraph`, which follows `wikantik.knowledge.enabled` (default `true`) |
+The **Page Graph** view shows pages as nodes and real links from one page to another as edges. It opens from **Page Graph** in the sidebar (route `/page-graph`) and is always available.
 
 **Page Graph.** The sidebar link opens the graph centred on the page you are reading (`/page-graph?focus=PageName`). Use **Fit to view** and **Refresh** in the toolbar, and the filter panel to limit the graph by cluster, tag, type, status or search text; each active filter shows as a chip you can remove. Pages you may not view are shown as restricted placeholders.
-
-**Knowledge Graph.** The viewer has **Tier** and **Edges** selectors in its toolbar, and clicking a node opens a drawer with its type, provenance, status, tier and cluster. If the link is missing from the sidebar, your wiki has the Knowledge Graph turned off.
 
 ## Dark mode
 

@@ -32,9 +32,8 @@ import java.util.Properties;
  * the default instead of failing startup. A {@code null} {@code Properties} makes
  * every lookup return its default.
  *
- * <p>Extracted from the byte-identical per-config parsing helpers that were
- * previously duplicated across {@code BundleDecompositionConfig} and
- * {@code EntityExtractorConfig} (and reusable by any future prefixed-config record).
+ * <p>Extracted from byte-identical per-config parsing helpers; used by
+ * {@code BundleDecompositionConfig} and reusable by any future prefixed-config record.
  * Distinct from {@link PropertyReader}, which loads whole web-app property bundles.
  */
 public final class PrefixedProperties {

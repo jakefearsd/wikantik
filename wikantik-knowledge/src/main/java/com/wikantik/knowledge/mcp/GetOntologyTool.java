@@ -37,10 +37,9 @@ import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 
 /**
- * MCP tool returning the FORMAL ontology T-Box — the class hierarchy (with subClassOf),
- * object properties (with domain/range + public subPropertyOf mappings), and SKOS concept
- * schemes. (The retired Knowledge Graph tool {@code discover_schema} reported the EMPIRICAL ABox shape
- * (the types/properties actually present in the data) rather than the formal declarations.
+ * MCP tool returning the FORMAL ontology T-Box — the page-type class hierarchy (with subClassOf)
+ * and the SKOS concept scheme for tags/clusters. {@code objectProperties} is kept in the payload for
+ * shape stability but is empty: the relationship predicates belonged to the retired Knowledge Graph.
  */
 public class GetOntologyTool extends AbstractMcpTool {
 
@@ -62,11 +61,10 @@ public class GetOntologyTool extends AbstractMcpTool {
     public McpSchema.Tool definition() {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Returns the formal ontology T-Box: classes (with subClassOf), object "
-                        + "properties (with domain/range and public subPropertyOf mappings to "
-                        + "schema.org/SKOS/Dublin Core), and SKOS concept schemes. Use it to plan "
-                        + "SPARQL queries or to understand how query terms relate. "
-                        + "Use this for authoritative counts/lists of classes and predicates rather than free-text search." )
+                .description( "Returns the formal ontology T-Box: the page-type classes (with subClassOf "
+                        + "mappings to schema.org) and the SKOS concept scheme that tags and clusters belong to. "
+                        + "Use it to plan SPARQL queries over pages and concepts. "
+                        + "Use this for authoritative lists of classes rather than free-text search." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
                 .annotations( READ_ONLY_ANNOTATIONS )
                 .build();

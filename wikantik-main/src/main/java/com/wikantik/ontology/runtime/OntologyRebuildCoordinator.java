@@ -20,11 +20,8 @@ package com.wikantik.ontology.runtime;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
-import com.wikantik.api.knowledge.KgEdge;
-import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.ontology.OntologyModelManager;
 import com.wikantik.ontology.projection.PageRecord;
 import org.apache.logging.log4j.LogManager;
@@ -54,9 +51,6 @@ public final class OntologyRebuildCoordinator {
     }
 
     private final OntologyModelManager manager;
-    private final Supplier< List< KgNode > > nodeSource;
-    /** Edges for the nodes {@link #nodeSource} just returned — so a rebuild loads the node table once. */
-    private final Function< List< KgNode >, List< KgEdge > > edgeSource;
     private final Supplier< List< PageRecord > > pageSource;
     private final boolean enabled;
     private final com.wikantik.ontology.OntologyRebuildService materializer =
@@ -75,13 +69,9 @@ public final class OntologyRebuildCoordinator {
     private volatile String lastCompactionError;
 
     public OntologyRebuildCoordinator( final OntologyModelManager manager,
-                                       final Supplier< List< KgNode > > nodeSource,
-                                       final Function< List< KgNode >, List< KgEdge > > edgeSource,
                                        final Supplier< List< PageRecord > > pageSource,
                                        final boolean enabled ) {
         this.manager = manager;
-        this.nodeSource = nodeSource;
-        this.edgeSource = edgeSource;
         this.pageSource = pageSource;
         this.enabled = enabled;
     }
@@ -179,8 +169,7 @@ public final class OntologyRebuildCoordinator {
     private void runRebuild() {
         state.set( State.RUNNING );
         try {
-            final List< KgNode > nodes = nodeSource.get();
-            final int written = materializer.rebuild( manager, nodes, edgeSource.apply( nodes ), pageSource.get() );
+            final int written = materializer.rebuild( manager, pageSource.get() );
             graphCount = written;
             lastError = null;
             LOG.info( "ontology rebuild complete: {} named graphs", written );

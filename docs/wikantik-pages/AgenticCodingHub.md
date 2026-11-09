@@ -31,7 +31,6 @@ tags:
 - context-engineering
 - mcp
 date: '2026-10-22'
-kg_include: true
 canonical_id: 01KZHDPSMXBFD6PTQG3V5RT2WA
 type: hub
 title: Agentic Coding Hub
@@ -48,7 +47,7 @@ The governing invariant of modern agentic engineering: **frontier models have la
 flowchart TD
     subgraph Sovereign_Knowledge["1. Sovereign Knowledge Plane (Wikantik)"]
         WIKI[("Semantic Wiki Knowledge Base<br/>(living specs, ADRs, schemas)")]
-        MCP_K["Knowledge MCP Server<br/>(/knowledge-mcp, 21 read tools)"]
+        MCP_K["Knowledge MCP Server<br/>(/knowledge-mcp, 16 read tools)"]
         WIKI -->|assemble_bundle / get_page_for_agent| MCP_K
     end
 
@@ -72,7 +71,7 @@ flowchart TD
     end
 
     subgraph Feedback_and_Close["4. Verification & Living Drift Closure"]
-        MCP_A["Admin MCP Server<br/>(/wikantik-admin-mcp, 29 tools)"]
+        MCP_A["Admin MCP Server<br/>(/wikantik-admin-mcp, 20 tools)"]
         LINT -->|Pass Gates| MERGE[PR Review / Clean Merge]
         LINT -->|Fail Gates| AGENT
         MERGE -->|Update Specs / mark_page_verified| MCP_A
@@ -120,7 +119,7 @@ Engineering organizations advance through three distinct architectural paradigms
 ## 3. Operational Integration with Wikantik
 
 Wikantik serves as the authoritative, sovereign knowledge backbone for agentic software development across the Simple Agility ecosystem:
-- **Zero-Crosstalk Context:** Agents working across separate repositories ([`stockroom`](file:///home/jakefear/source/stockroom), [`roller`](file:///home/jakefear/source/roller), [`jakemon`](file:///home/jakefear/source/jakemon)) share identical architectural ground truth via `/knowledge-mcp` without duplicate documentation commits.
+- **Zero-Crosstalk Context:** Agents working across separate repositories (`stockroom`, `roller`, `jakemon`) share identical architectural ground truth via `/knowledge-mcp` without duplicate documentation commits.
 - **Living Architectural Contracts:** Normative engineering standards and cross-repo interfaces are maintained as living wiki documents ([SimpleAgilityAgentCoordination](SimpleAgilityAgentCoordination), [SimpleAgilityTelemetryContract](SimpleAgilityTelemetryContract)).
 - **Actionable Tool Recipes:** Consult the **[AgentCookbook](AgentCookbook)** for operational recipes on tool selection ([FindingTheRightMcpTool](FindingTheRightMcpTool)), page verification ([VerifyingAnAgentGeneratedPage](VerifyingAnAgentGeneratedPage)), and environment setup ([ConnectingClaudeCodeToWikantikMcp](ConnectingClaudeCodeToWikantikMcp)).
 

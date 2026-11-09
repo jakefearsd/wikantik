@@ -19,28 +19,19 @@
 package com.wikantik.ontology.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import com.wikantik.WikiEngine;
 import com.wikantik.api.identity.PublicIdentity;
-import com.wikantik.api.knowledge.KgEdge;
-import com.wikantik.api.knowledge.KgNode;
-import com.wikantik.api.knowledge.Provenance;
-import com.wikantik.api.knowledge.Tier;
 import com.wikantik.auth.subsystem.AuthSubsystem;
-import com.wikantik.knowledge.KgEdgeRepository;
-import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.ontology.Iris;
 import com.wikantik.ontology.OntologyModelManager;
 import org.apache.jena.rdf.model.ResourceFactory;
@@ -65,72 +56,53 @@ class OntologyWiringHelperTest {
     }
 
     @Test
-    void aRebuildLoadsTheNodeTableOnceNotOncePerSource() {
-        final UUID a = UUID.fromString( "00000000-0000-0000-0000-0000000000f1" );
-        final UUID b = UUID.fromString( "00000000-0000-0000-0000-0000000000f2" );
-        final KgNodeRepository nodeRepo = mock( KgNodeRepository.class );
-        final KgEdgeRepository edgeRepo = mock( KgEdgeRepository.class );
-        when( nodeRepo.getAllNodes( Tier.MACHINE ) ).thenReturn( List.of(
-                new KgNode( a, "A", "concept", null, Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null ),
-                new KgNode( b, "B", "concept", null, Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null ) ) );
-        when( edgeRepo.getAllEdges( Tier.MACHINE ) ).thenReturn( List.of(
-                new KgEdge( UUID.randomUUID(), a, b, "uses", Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null ) ) );
+    void aRebuildProjectsOnlyAnonymouslyViewablePages() {
+        final com.wikantik.ontology.projection.PageRecord pub = new com.wikantik.ontology.projection.PageRecord(
+                "01CANON0000000000000000A1", "Open", "Open", "article", null, List.of(), null, null, null );
+        final com.wikantik.ontology.projection.PageRecord secret = new com.wikantik.ontology.projection.PageRecord(
+                "01CANON0000000000000000A2", "Secret", "Secret", "article", null, List.of(), null, null, null );
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
 
-        final OntologyRebuildCoordinator coordinator =
-                OntologyWiringHelper.newCoordinator( mgr, nodeRepo, edgeRepo, List::of, slug -> true );
+        final OntologyRebuildCoordinator coordinator = OntologyWiringHelper.newCoordinator(
+                mgr, () -> List.of( pub, secret ), slug -> "Open".equals( slug ) );
         coordinator.triggerRebuild();
         Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( coordinator.status().state() ) );
 
         assertNull( coordinator.status().lastError() );
-        assertEquals( 2L, coordinator.status().graphCount() );
-        assertTrue( mgr.namedGraphSnapshot( Iris.entity( a ) ).contains(
-                null, null, ResourceFactory.createResource( Iris.entity( b ) ) ), "edge between public nodes projected" );
-        // Each call is a full SELECT over kg_nodes; the edge filter must reuse the nodes already loaded.
-        verify( nodeRepo, times( 1 ) ).getAllNodes( Tier.MACHINE );
+        assertTrue( mgr.namedGraphExists( Iris.page( pub.canonicalId() ) ) );
+        assertFalse( mgr.namedGraphExists( Iris.page( secret.canonicalId() ) ), "restricted page never materialized" );
     }
 
     @Test
-    void withTheKnowledgeGraphOffARebuildPurgesEntityGraphsAndNeverNeedsTheRepositories() {
-        final UUID a = UUID.fromString( "00000000-0000-0000-0000-0000000000f3" );
-        final KgNodeRepository nodeRepo = mock( KgNodeRepository.class );
-        final KgEdgeRepository edgeRepo = mock( KgEdgeRepository.class );
-        when( nodeRepo.getAllNodes( Tier.MACHINE ) ).thenReturn( List.of(
-                new KgNode( a, "A", "concept", null, Provenance.HUMAN_AUTHORED, Map.of(), null, null, "human", null ) ) );
-        when( edgeRepo.getAllEdges( Tier.MACHINE ) ).thenReturn( List.of() );
+    void aRebuildPurgesEntityGraphsLeftBehindByTheRetiredKnowledgeGraph() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
+        final String legacy = Iris.ID + "entity/00000000-0000-0000-0000-0000000000f3";
+        mgr.replaceNamedGraph( legacy, org.apache.jena.rdf.model.ModelFactory.createDefaultModel().add(
+                ResourceFactory.createResource( legacy ), org.apache.jena.vocabulary.RDF.type,
+                ResourceFactory.createResource( Iris.SCHEMA + "Thing" ) ) );
+        assertEquals( 1L, mgr.namedGraphCount() );
 
-        // Earlier life with the KG on: an entity graph lands in the store.
-        final OntologyRebuildCoordinator on =
-                OntologyWiringHelper.newCoordinator( mgr, nodeRepo, edgeRepo, List::of, slug -> true );
-        on.triggerRebuild();
-        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( on.status().state() ) );
-        assertEquals( 1L, mgr.namedGraphCount(), "entity graph present while the KG is on" );
+        final OntologyRebuildCoordinator coordinator =
+                OntologyWiringHelper.newCoordinator( mgr, List::of, slug -> true );
+        coordinator.triggerRebuild();
+        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( coordinator.status().state() ) );
 
-        // KG off: no repositories at all (null), the same rebuild must empty the entity graph out.
-        final OntologyRebuildCoordinator off =
-                OntologyWiringHelper.newCoordinator( mgr, null, null, List::of, slug -> true );
-        off.triggerRebuild();
-        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( off.status().state() ) );
-
-        assertNull( off.status().lastError() );
-        assertEquals( 0L, mgr.namedGraphCount(), "entity graphs purged by the KG-off rebuild" );
-        verify( nodeRepo, times( 1 ) ).getAllNodes( Tier.MACHINE );   // only the earlier KG-on rebuild read it
-        verify( edgeRepo, times( 1 ) ).getAllEdges( Tier.MACHINE );
+        assertNull( coordinator.status().lastError() );
+        assertEquals( 0L, mgr.namedGraphCount(), "legacy entity graphs purged by the next rebuild" );
     }
 
     @Test
-    void withTheKnowledgeGraphOffRebuildIfEmptyDoesNotNeedTheRepositories() {
+    void rebuildIfEmptyStartsARebuild() {
         final OntologyModelManager mgr = OntologyModelManager.inMemory();
         mgr.loadTBox();
-        final OntologyRebuildCoordinator off =
-                OntologyWiringHelper.newCoordinator( mgr, null, null, List::of, slug -> true );
+        final OntologyRebuildCoordinator coordinator =
+                OntologyWiringHelper.newCoordinator( mgr, List::of, slug -> true );
 
-        assertTrue( off.rebuildIfEmpty() );
-        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( off.status().state() ) );
-        assertNull( off.status().lastError() );
+        assertTrue( coordinator.rebuildIfEmpty() );
+        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( coordinator.status().state() ) );
+        assertNull( coordinator.status().lastError() );
     }
 
     @Test

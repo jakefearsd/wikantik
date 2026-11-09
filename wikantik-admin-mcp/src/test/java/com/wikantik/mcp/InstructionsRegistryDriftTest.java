@@ -54,8 +54,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  *       actually invoke.</li>
  * </ol>
  *
- * <p>The Knowledge Graph tools are registered only when {@code wikantik.knowledge.enabled=true}
- * (default false since the KG retirement, 2026-11), so they are neither expected nor allowed in the
+ * <p>The Knowledge Graph tools were deleted (2026-11), so they are neither expected nor allowed in the
  * instructions. {@code list_retrieval_queries} is datasource-conditional and not wired in {@link TestEngine},
  * so its {@code TOOL_NAME} is added explicitly.</p>
  */
@@ -135,23 +134,12 @@ class InstructionsRegistryDriftTest {
     }
 
     @Test
-    void anActionValueThatLooksLikeAToolNameIsNotFlagged() {
-        // curate_edges' compound action is literally named delete_and_reject. The instructions
-        // must be able to spell it out without the detector mistaking it for a retired tool.
-        final Set< String > mentioned = McpServerInitializer.extractToolLikeNames(
-                "curate_edges  action: upsert | confirm | delete | delete_and_reject" );
-        assertTrue( mentioned.contains( "curate_edges" ), "curate_edges is a tool and must be extracted" );
-        assertTrue( !mentioned.contains( "delete_and_reject" ),
-                "delete_and_reject is an action value, not a tool: " + mentioned );
-    }
-
-    @Test
     void instructionsDoNotAdvertiseKnowledgeGraphTools() {
-        final Set< String > mentioned = McpServerInitializer.extractToolLikeNames( loadInstructions() );
+        final String instructions = loadInstructions();
         for ( final String kgTool : new String[] { "list_proposals", "inspect_proposals", "propose_knowledge",
                 "review_proposals", "curate_edges", "curate_nodes", "query_nodes", "search_knowledge",
                 "list_orphaned_kg_nodes" } ) {
-            assertTrue( !mentioned.contains( kgTool ), "instructions still advertise retired KG tool " + kgTool );
+            assertTrue( !instructions.contains( kgTool ), "instructions still advertise retired KG tool " + kgTool );
         }
     }
 

@@ -1,5 +1,4 @@
 ---
-kg_include: true
 summary: 'Category theory guide: objects, morphisms, universal properties, Functors,
   Natural Transformations, and Monads in functional programming.'
 type: article

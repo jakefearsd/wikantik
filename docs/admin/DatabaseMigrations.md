@@ -210,7 +210,7 @@ The migration directory is the source of truth; this table summarises it through
 | V064 | `briefing_log`: add `cited_count`, `elsewhere_count` and `scope_mode` so the project-context tiers and scope mode of each briefing are recorded |
 
 The other `.sql` files directly under `bin/db/` (`migration-1.0-to-1.1.sql`,
-`cleanup-2026-04-30-stale-canonical-ids.sql`, `normalize-relationship-types.sql`) are
+`cleanup-2026-04-30-stale-canonical-ids.sql`) are
 historical one-offs, not part of the ledger.
 
 ## Troubleshoot

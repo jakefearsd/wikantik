@@ -95,7 +95,7 @@ class AdminClusterResourceTest {
 
     private static PageDescriptor page( final String slug, final PageType type, final String cluster ) {
         return new PageDescriptor( "01HAA0000000000000000000" + slug.length(), slug, slug, type,
-                cluster, List.of(), null, Instant.now(), Optional.empty(), false );
+                cluster, List.of(), null, Instant.now(), false );
     }
 
     private void corpus( final PageDescriptor... pages ) {

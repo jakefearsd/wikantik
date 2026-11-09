@@ -21,7 +21,6 @@
 #   GenAI tier   (set via .env; no compose profile controls this axis)
 #   ----------   exact .env preset per tier:
 #   core         WIKANTIK_GENAI_MODE=none
-#                WIKANTIK_KNOWLEDGE_ENABLED=false
 #                BM25-only search, BM25-chunk bundle, zero inference infra.
 #                (mode=none disables embeddings at the ceiling, so dense
 #                retrieval degrades to the fail-closed BM25 fallback; the
@@ -29,23 +28,11 @@
 #                no dedicated env passthrough yet — set it directly in
 #                wikantik-custom.properties if you want it spelled out.)
 #   search       WIKANTIK_GENAI_MODE=embeddings-only
-#                WIKANTIK_KNOWLEDGE_ENABLED=false
 #                WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
 #                dense+BM25 hybrid retrieval; needs an embedding endpoint —
 #                either --profile embeddings (CPU ollama-embed sidecar, the
 #                base-url above) or point WIKANTIK_EMBEDDING_BASE_URL at
-#                your own reachable host. (Set WIKANTIK_KNOWLEDGE_ENABLED=
-#                true instead if you still want manual KG curation without
-#                extraction.)
-#   knowledge    WIKANTIK_GENAI_MODE=full
-#                WIKANTIK_KNOWLEDGE_ENABLED=true
-#                WIKANTIK_EXTRACTOR_BACKEND=claude
-#                ANTHROPIC_API_KEY=<key>
-#                WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
-#                Full KG extraction. backend=claude (+ key) is the
-#                documented cloud path; BYO-Ollama also works
-#                (WIKANTIK_EXTRACTOR_BACKEND=ollama + point the embedding /
-#                extractor endpoints at your own host).
+#                your own reachable host.
 #
 #   Ingress profile        Compose flag           Sidecar        Notes
 #   ---------------        -----------------       -------        -----

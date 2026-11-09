@@ -1,7 +1,6 @@
 ---
 title: Finding the Right MCP Tool
 cluster: agent-cookbook
-kg_include: true
 status: active
 type: runbook
 canonical_id: 01KQ445HP8DER94KF2WJZZ8JZ5
@@ -23,8 +22,7 @@ runbook:
   - Decide read vs. write — write tools live on /wikantik-admin-mcp and need an mcp_admin
     key; read tools live on /knowledge-mcp and an mcp_read key is enough
   - For "answer a question from the wiki" use /knowledge-mcp/assemble_bundle and check
-    its coverage.confidence; for "which pages are relevant" use /knowledge-mcp/retrieve_context;
-    search_knowledge finds Knowledge Graph nodes, not pages
+    its coverage.confidence; for "which pages are relevant" use /knowledge-mcp/retrieve_context
   - For "give me the agent-shape of this page" use /knowledge-mcp/get_page_for_agent
     (it takes a canonical_id, which list_pages_by_filter returns) — not get_page
   - For "rename, write, or update" use /wikantik-admin-mcp's rename_page, write_pages,
@@ -40,20 +38,20 @@ runbook:
   - Mixing /wikantik-admin-mcp tools into a read-only conversation — they require
     an mcp_admin key (an mcp_read key gets 403 there) and then run with no per-user
     permission checks
-  - Trying to use /knowledge-mcp/find_similar as a search engine — it surfaces Knowledge
-    Graph nodes similar to a known node, not pages matching a query
+  - Looking for entity-level tools (query_nodes, search_knowledge, find_similar, traverse)
+    — they were removed with the Knowledge Graph in November 2026; use retrieve_context,
+    assemble_bundle or get_page_neighbors instead
   - Treating the /knowledge-mcp/<tool> form used in related_tools as call syntax —
     an MCP call names only the tool (tools/call with name assemble_bundle) on the
     endpoint you connected to; related_tools also accepts bare tool names
   related_tools:
   - /knowledge-mcp/assemble_bundle
   - /knowledge-mcp/retrieve_context
-  - /knowledge-mcp/search_knowledge
   - /knowledge-mcp/get_page_for_agent
   - /knowledge-mcp/get_page
   - /knowledge-mcp/read_pages
   - /knowledge-mcp/list_pages_by_filter
-  - /knowledge-mcp/traverse
+  - /knowledge-mcp/get_page_neighbors
   - /wikantik-admin-mcp/mark_page_verified
   - /wikantik-admin-mcp/write_pages
   - /wikantik-admin-mcp/rename_page
@@ -73,8 +71,8 @@ tags:
 
 # Finding the Right MCP Tool
 
-There are up to fifty MCP tools across the two servers this wiki
-exposes (29 on the admin server and 21 on the knowledge server when every
+There are up to 36 MCP tools across the two servers this wiki
+exposes (20 on the admin server and 16 on the knowledge server when every
 optional subsystem is wired; see [MCP Integration](McpIntegration) for the
 inventory). Most agents only ever need five of them. This runbook is the
 decision tree.
@@ -94,9 +92,7 @@ Two MCP endpoints, partitioned by trust level:
   grounding and retrieval (assemble_bundle, retrieve_context, get_briefing,
   read_pages, get_page, list_pages, list_metadata_values), navigation
   (list_clusters, list_tags, list_pages_by_filter, get_page_by_id,
-  get_page_neighbors),
-  knowledge-graph traversal (discover_schema, query_nodes, get_node,
-  traverse, search_knowledge, find_similar), the agent-grade projection
+  get_page_neighbors), the agent-grade projection
   (get_page_for_agent), and the ontology and citation tools (get_ontology,
   sparql_query, list_stale_citations).
 - **`/wikantik-admin-mcp`** — writes + analytics, authenticated with an
@@ -105,10 +101,7 @@ Two MCP endpoints, partitioned by trust level:
   (mark_page_verified, verify_pages), structural analytics
   (get_backlinks, get_page_history, diff_page, get_outbound_links,
   get_broken_links, get_orphaned_pages, get_wiki_stats,
-  preview_structured_data, ping_search_engines), graph proposals and
-  curation (propose_knowledge, list_proposals, inspect_proposals,
-  review_proposals, curate_nodes, curate_edges, plus admin-bypass copies of
-  query_nodes and search_knowledge and list_orphaned_kg_nodes), and the
+  preview_structured_data, ping_search_engines), and the
   query-log and content-opportunity tools (list_retrieval_queries,
   list_content_opportunities, snooze_opportunity).
 
@@ -122,8 +115,8 @@ Three questions disambiguate every scenario:
 2. **Answer a question, or find a page?** To answer from wiki content use
    `assemble_bundle` and read its `coverage.confidence`; `strong` means cite
    the returned sections, anything else means escalate to `retrieve_context`
-   (which pages), then `read_pages` (their bodies), then `traverse` or
-   `query_nodes` (entities), then `sparql_query` (counts and enumerations).
+   (which pages), then `read_pages` (their bodies), then `get_page_neighbors`
+   (link neighbourhood), then `sparql_query` (counts and enumerations).
 3. **Full body or just the shape?** If you only need to *cite* the page
    or *orient* yourself, `get_page_for_agent` returns the token-budgeted
    projection — verification state, key facts, headings outline, recent

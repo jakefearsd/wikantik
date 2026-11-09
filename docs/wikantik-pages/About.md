@@ -1,5 +1,4 @@
 ---
-kg_include: true
 type: reference
 summary: 'The Wikantik manifesto and system blueprint: dual Page/Knowledge Graphs,
   MCP retrieval/authoring, SA-13 briefings, and closed-loop workflows.'

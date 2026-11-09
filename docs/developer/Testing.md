@@ -5,7 +5,7 @@ This page is for developers who write or run Wikantik tests. It describes how th
 ## Know the two test layers
 
 - **Unit tests** are JUnit 5 and live under each module's `src/test`. `com.wikantik.TestEngine` builds a real engine for tests, and most components have mocks. `wikantik-main` and `wikantik-rest` run partitioned across forked JVMs (`wikantik.surefire.forkCount`, default `0.5C`).
-- **Integration tests** live under `wikantik-it-tests` and run only under the `integration-tests` profile. Cargo boots Tomcat and a pgvector container per module. The five default modules are `wikantik-it-test-rest`, `wikantik-it-test-sso`, `wikantik-it-test-knowledge-disabled`, `wikantik-it-test-custom-jdbc` and `wikantik-it-test-dense`. `wikantik-selenide-tests` is a shared support module with the Selenide browser tests and fixtures, not a suite of its own. `wikantik-it-test-scim-fullloop` is an opt-in Authentik suite built only under `-Pscim-fullloop`. More detail is in `wikantik-it-tests/README.md`.
+- **Integration tests** live under `wikantik-it-tests` and run only under the `integration-tests` profile. Cargo boots Tomcat and a pgvector container per module. The four default modules are `wikantik-it-test-rest`, `wikantik-it-test-sso`, `wikantik-it-test-custom-jdbc` and `wikantik-it-test-dense`. `wikantik-selenide-tests` is a shared support module with the Selenide browser tests and fixtures, not a suite of its own. `wikantik-it-test-scim-fullloop` is an opt-in Authentik suite built only under `-Pscim-fullloop`. More detail is in `wikantik-it-tests/README.md`.
 
 ## Test against a real database
 
@@ -26,7 +26,7 @@ Run this before you commit:
 bin/run-tests.sh --parallel 4
 ```
 
-Phase 1 runs every unit test once (`-T 1C -DskipITs`) and installs the artifacts, including the WAR and the `wikantik-selenide-tests` test-jar. Phase 2 runs the five default IT modules in one `-T 4` reactor with per-module reserved ports and uniquely named pgvector containers. The IT phase does not re-run the unit tests. The script takes a per-checkout run lock (`.run.lock`) and writes a summary to `.test-suite-logs/report.txt`. Parallel IT runs are supported only through this script; do not add `-T` to a raw `mvn ... -Pintegration-tests` command.
+Phase 1 runs every unit test once (`-T 1C -DskipITs`) and installs the artifacts, including the WAR and the `wikantik-selenide-tests` test-jar. Phase 2 runs the four default IT modules in one `-T 4` reactor with per-module reserved ports and uniquely named pgvector containers. The IT phase does not re-run the unit tests. The script takes a per-checkout run lock (`.run.lock`) and writes a summary to `.test-suite-logs/report.txt`. Parallel IT runs are supported only through this script; do not add `-T` to a raw `mvn ... -Pintegration-tests` command.
 
 Other modes from `bin/run-tests.sh --help`:
 
@@ -35,7 +35,7 @@ bin/run-tests.sh                    # default gate with a sequential IT phase
 bin/run-tests.sh --all              # default gate plus the opt-in scim-fullloop
 bin/run-tests.sh --unit             # unit phase only
 bin/run-tests.sh --it --parallel 4  # IT phase only (needs a prior --unit)
-bin/run-tests.sh --module rest      # one IT module: rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop
+bin/run-tests.sh --module rest      # one IT module: rest|sso|custom-jdbc|dense|scim-fullloop
 bin/run-tests.sh --list             # modules and their gate
 bin/run-tests.sh --all -o both      # stream build output to console and log
 ```

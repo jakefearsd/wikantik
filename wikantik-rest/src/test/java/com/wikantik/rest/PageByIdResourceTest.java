@@ -73,7 +73,7 @@ class PageByIdResourceTest {
     void resolves_id_to_descriptor() throws Exception {
         when( svc.getByCanonicalId( "01A" ) ).thenReturn( Optional.of( new PageDescriptor(
                 "01A", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
-                "wikantik-development", List.of( "retrieval" ), "summary", Instant.EPOCH, Optional.empty(), false ) ) );
+                "wikantik-development", List.of( "retrieval" ), "summary", Instant.EPOCH, false ) ) );
 
         final HttpServletRequest req = mock( HttpServletRequest.class );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
@@ -110,7 +110,7 @@ class PageByIdResourceTest {
     void restricted_id_returns_404_hiding_existence() throws Exception {
         when( svc.getByCanonicalId( "01A" ) ).thenReturn( Optional.of( new PageDescriptor(
                 "01A", "SecretPage", "Secret", PageType.ARTICLE,
-                "cluster", List.of(), "secret summary", Instant.EPOCH, Optional.empty(), false ) ) );
+                "cluster", List.of(), "secret summary", Instant.EPOCH, false ) ) );
         resource.visible = java.util.Set.of();   // caller may view nothing
 
         final HttpServletRequest req = mock( HttpServletRequest.class );

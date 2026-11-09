@@ -18,192 +18,73 @@
  */
 package com.wikantik.knowledge.subsystem;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.jdbc.testing.RequiresPostgres;
-import com.wikantik.WikiEngine;
-import com.wikantik.api.knowledge.KgNode;
-import com.wikantik.api.knowledge.Provenance;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.content.RecentArticlesManager;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.core.subsystem.CoreSubsystemFactory;
 import com.wikantik.core.subsystem.DefaultWikiProperties;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystemFactory;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.Statement;
-import java.util.Map;
 import java.util.Properties;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Phase 1 subsystem-isolation test for {@link KnowledgeSubsystemFactory}.
  *
- * <p>Demonstrates that the Knowledge subsystem can be instantiated and
- * exercised end-to-end without {@code WikiEngine} or {@code TestEngine}.
- * This is the contract every subsystem extracted by the wikantik-main
- * decomposition will satisfy: a {@code Deps} record built from a real
- * Testcontainers Postgres + plain mocks for upstream collaborators is
- * enough to verify the {@code Services} record's wiring.</p>
- *
- * <p>Coverage rationale: this test does not duplicate the per-service
- * coverage already provided by {@code DefaultKnowledgeGraphServiceTest},
- * {@code HubProposalServiceTest}, etc. It only verifies that
- * {@link KnowledgeSubsystemFactory#create} returns a fully-populated
- * {@link KnowledgeSubsystem.Services} record and that one round-trip
- * (kg-graph upsert/read) flows through the wired services.</p>
+ * <p>Demonstrates that the Knowledge subsystem can be instantiated without
+ * {@code WikiEngine} or {@code TestEngine}: a {@code Deps} record built from
+ * a real Postgres-backed persistence bundle plus plain mocks for upstream
+ * collaborators is enough to verify the {@code Services} record's wiring.</p>
  */
 @RequiresPostgres
 class KnowledgeSubsystemFactoryTest {
 
-    private DataSource dataSource;
-    private SimpleMeterRegistry meterRegistry;
-    private SystemPageRegistry systemPageRegistry;
-    private PageManager pageManager;
-    private PageSaveHelper pageSaveHelper;
-
-    private CoreSubsystem.Services core( final Properties props ) {
+    private static CoreSubsystem.Services core( final MeterRegistry meterRegistry ) {
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( com.wikantik.cache.CachingManager.class ) ).thenReturn( null );
         return CoreSubsystemFactory.create( new CoreSubsystem.Deps(
-            props, null, meterRegistry, systemPageRegistry,
+            new Properties(), null, meterRegistry, mock( SystemPageRegistry.class ),
             mock( RecentArticlesManager.class ), engine ) );
     }
 
-    /**
-     * Persistence built with the KG repositories present, so these tests exercise the knowledge factory's own flag
-     * check. (In production both factories read the same properties, so they always agree.)
-     */
-    private PersistenceSubsystem.Services persistence() {
-        final Properties props = new Properties();
-        props.setProperty( "wikantik.knowledge.enabled", "true" );
+    private static PersistenceSubsystem.Services persistence() {
         return PersistenceSubsystemFactory.create( new PersistenceSubsystem.Deps(
-            dataSource, new DefaultWikiProperties( props ) ) );
-    }
-
-    private com.wikantik.page.subsystem.PageSubsystem.Services page() {
-        return new com.wikantik.page.subsystem.PageSubsystem.Services(
-            pageManager, /*attachments=*/ null, /*renamer=*/ null,
-            pageSaveHelper, /*provider=*/ null,
-            /*repository=*/ null, /*lifecycle=*/ null,
-            /*referenceManager=*/ null );
-    }
-
-    @BeforeEach
-    void setUp() throws Exception {
-        dataSource = PostgresTestDb.createDataSource();
-        try ( final Connection c = dataSource.getConnection(); final Statement st = c.createStatement() ) {
-            st.execute( "DELETE FROM kg_judge_timeouts" );
-            st.execute( "DELETE FROM kg_excluded_pages" );
-            st.execute( "DELETE FROM kg_edges" );
-            st.execute( "DELETE FROM kg_proposals" );
-            st.execute( "DELETE FROM kg_nodes" );
-        }
-        meterRegistry      = new SimpleMeterRegistry();
-        systemPageRegistry = mock( SystemPageRegistry.class );
-        pageManager        = mock( PageManager.class );
-        pageSaveHelper     = mock( PageSaveHelper.class );
-    }
-
-    /** The Knowledge Graph is off by default; these tests exercise the services it builds when on. */
-    private static Properties kgOn() {
-        final Properties props = new Properties();
-        props.setProperty( "wikantik.knowledge.enabled", "true" );
-        return props;
+            PostgresTestDb.createDataSource(), new DefaultWikiProperties( new Properties() ) ) );
     }
 
     @Test
-    void create_populatesEveryServiceField_defaultProperties() {
-        // Default Properties leaves judge enabled (KgJudgeConfig falls back
-        // to DEFAULT_ENDPOINT). The judge service + runner are wired here;
-        // the runner is closed after the test to avoid a leaked scheduler.
-        final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
-            dataSource, persistence(), core( kgOn() ), page(),
-            /*luceneMlt=*/ null );
-
-        final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create( deps );
-        try {
-            assertNotNull( services.kgService(),                      "kgService" );
-            assertNotNull( services.kgMaterialization(),              "kgMaterialization" );
-            assertNotNull( services.judgeTimeoutRepository(),         "judgeTimeoutRepository" );
-            assertNotNull( services.judgeService(),                   "judgeService" );
-            assertNotNull( services.judgeRunner(),                    "judgeRunner" );
-            assertNotNull( services.hubProposalService(),             "hubProposalService" );
-            assertNotNull( services.hubDiscoveryService(),            "hubDiscoveryService" );
-            assertNotNull( services.hubOverviewService(),             "hubOverviewService" );
-            assertNotNull( services.hubProposalRepository(),          "hubProposalRepository" );
-            assertNotNull( services.hubDiscoveryRepository(),         "hubDiscoveryRepository" );
-            assertNotNull( services.contentChunkRepository(),         "contentChunkRepository" );
-            assertNotNull( services.chunkProjector(),                 "chunkProjector" );
-            assertNotNull( services.mentionIndex(),                   "mentionIndex" );
-            assertNotNull( services.nodeMentionSimilarity(),          "nodeMentionSimilarity" );
-            assertNotNull( services.frontmatterDefaultsFilter(),      "frontmatterDefaultsFilter" );
-            // Phase 8 Ckpt 1.5 post-construction fields — null from factory
-            // (WikiEngine wires them after create() returns; bridge reads from getManager).
-            assertNull( services.contextRetrievalService(),           "contextRetrievalService (post-construction)" );
-            assertNull( services.forAgentProjectionService(),         "forAgentProjectionService (post-construction)" );
-            assertNull( services.bootstrapEntityExtractionIndexer(),  "bootstrapEntityExtractionIndexer (post-construction)" );
-            assertNull( services.kgInclusionPolicy(),                 "kgInclusionPolicy (post-construction)" );
-            assertNull( services.reconciliationJobRunner(),           "reconciliationJobRunner (post-construction)" );
-            assertNull( services.retrievalQualityRunner(),            "retrievalQualityRunner (post-construction)" );
-        } finally {
-            services.judgeRunner().close();
-        }
-    }
-
-    @Test
-    void create_judgeServiceAndRunnerNullWhenJudgeDisabled() {
-        final Properties props = kgOn();
-        props.setProperty( "wikantik.kg.judge.enabled", "false" );
-
-        final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
-            dataSource, persistence(), core( props ), page(),
-            /*luceneMlt=*/ null );
-
-        final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create( deps );
-
-        assertNull( services.judgeService(),
-            "judgeService should be null when wikantik.kg.judge.enabled=false" );
-        assertNull( services.judgeRunner(),
-            "judgeRunner should be null alongside judgeService" );
-        // Timeout-tracking repo is unconditional so the admin surface still works.
-        assertNotNull( services.judgeTimeoutRepository(),
-            "judgeTimeoutRepository should be wired regardless of judge enable state" );
-    }
-
-    @Test
-    void create_kgServiceRoundTripsThroughTheSubsystem() {
+    void create_populatesTheFactoryBuiltFields() {
+        final PersistenceSubsystem.Services persistence = persistence();
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create(
-            new KnowledgeSubsystem.Deps( dataSource, persistence(), core( kgOn() ),
-                page(),
-                /*luceneMlt=*/ null ) );
+            new KnowledgeSubsystem.Deps( persistence, core( new SimpleMeterRegistry() ) ) );
 
-        // Upsert a node via the public service interface...
-        final KgNode created = services.kgService().upsertNode(
-            "SubsystemFixtureNode", "concept", "SubsystemFixturePage",
-            Provenance.HUMAN_AUTHORED, Map.of() );
-        assertNotNull( created );
-        assertNotNull( created.id() );
+        assertSame( persistence.contentChunks(), services.contentChunkRepository(), "contentChunkRepository" );
+        assertNotNull( services.chunkProjector(),            "chunkProjector" );
+        assertNotNull( services.frontmatterDefaultsFilter(), "frontmatterDefaultsFilter" );
+        // Post-construction fields — null from the factory (WikiEngine wires them after create() returns).
+        assertNull( services.forAgentProjectionService(), "forAgentProjectionService (post-construction)" );
+        assertNull( services.retrievalQualityRunner(),    "retrievalQualityRunner (post-construction)" );
+        assertNull( services.contextRetrievalService(),   "contextRetrievalService (installed by the patch seam)" );
+        assertNotNull( services.retrieval(),              "retrieval holder is never null" );
+    }
 
-        // ...and read it back through the same service to prove repository
-        // wiring is intact end-to-end without WikiEngine.
-        final KgNode roundTrip = services.kgService().getNodeByName( "SubsystemFixtureNode" );
-        assertNotNull( roundTrip );
-        assertEquals( created.id(), roundTrip.id() );
-        assertEquals( "concept", roundTrip.nodeType() );
+    @Test
+    void create_buildsTheChunkProjectorWithoutAMeterRegistry() {
+        final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create(
+            new KnowledgeSubsystem.Deps( persistence(), core( null ) ) );
+
+        assertNotNull( services.chunkProjector(), "chunkProjector falls back to its metrics-less constructor" );
     }
 }

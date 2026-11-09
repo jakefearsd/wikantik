@@ -31,7 +31,7 @@ connection pool, context template and migration scripts all assume PostgreSQL.
 - **Configuration templates** in `wikantik-war/src/main/config/tomcat/` (git-tracked).
 
 The wiki is served at the root context (`/`): the React SPA at `/`, the Page Graph
-viewer at `/page-graph`, the Knowledge Graph viewer at `/knowledge-graph`, and admin
+viewer at `/page-graph`, and admin
 tools under `/admin/*`. There is no `/Wikantik/` prefix.
 
 ## Prerequisites
@@ -42,7 +42,7 @@ tools under `/admin/*`. There is no `/Wikantik/` prefix.
 | Maven | 3.9+ | `mvn -version` |
 | Node.js + npm | 20.19+ (or 22.12+) | The WAR build runs `npm install` and `vite build` |
 | PostgreSQL | 15+ | Listening on `localhost:5432` |
-| pgvector extension | 0.5+ | Required: the Knowledge Graph and embedding tables use it |
+| pgvector extension | 0.5+ | Required: the embedding tables use it |
 | Apache Tomcat | 11.0.27 | Pinned as `TOMCAT_VERSION` in `bin/deploy-local.sh` and in the `Dockerfile`; downloaded for you |
 | PostgreSQL JDBC driver | 42.7.14 | Pinned to `<postgresql-jdbc.version>` in the root pom, as `JDBC_VERSION` in `bin/deploy-local.sh` and in both Dockerfiles. `deploy-local.sh` downloads it into `tomcat/tomcat-11/lib/postgresql.jar` and replaces a jar at any other version |
 
@@ -169,7 +169,7 @@ tail -f tomcat/tomcat-11/logs/catalina.out
 
 1. Open <http://localhost:8080/>; the React SPA loads.
 2. Log in as `admin` / `admin123` and choose a new password when prompted.
-3. Open <http://localhost:8080/page-graph> and <http://localhost:8080/knowledge-graph>.
+3. Open <http://localhost:8080/page-graph>.
 4. Check database connectivity from the shell:
 
    ```bash
@@ -197,7 +197,7 @@ instead when you need secrets re-validated against `.env`, a Tomcat upgrade
 ## How the application connects
 
 Every subsystem shares one JNDI `DataSource`, `jdbc/WikiDatabase`: user profiles and
-password hashes, groups, policy grants, the Knowledge Graph, the Page Graph structural
+password hashes, groups, policy grants, the Page Graph structural
 index, API keys, the audit log and the rest.
 
 ### Properties

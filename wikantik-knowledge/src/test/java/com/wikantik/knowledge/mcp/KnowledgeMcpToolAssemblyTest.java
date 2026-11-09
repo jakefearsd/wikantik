@@ -22,10 +22,8 @@ import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.knowledge.ContextRetrievalService;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.StructuralIndexService;
-import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.mcp.tools.McpTool;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
@@ -42,13 +40,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Pins the Knowledge-MCP tool surface against the {@code wikantik.knowledge.enabled}
- * master flag: when {@code kgService} is null (the shape the disabled flag produces)
- * the six KG tools drop out, while the retrieval / page / spine tools stay.
+ * Pins the Knowledge-MCP tool surface: the retired Knowledge Graph tools are never registered,
+ * while the retrieval / page / spine tools are.
  */
 class KnowledgeMcpToolAssemblyTest {
 
-    /** The six KG tools gated on a non-null kgService. */
+    /** The retired Knowledge Graph tools. */
     private static final Set< String > KG_TOOLS = Set.of(
             "discover_schema", "query_nodes", "get_node",
             "traverse", "search_knowledge", "find_similar" );
@@ -58,7 +55,7 @@ class KnowledgeMcpToolAssemblyTest {
     }
 
     @Test
-    void kgToolsAbsentWhenKgServiceNull_retrievalAndSpineStay() {
+    void noRetiredKgTools_retrievalAndSpineStay() {
         final ContextRetrievalService ctx = mock( ContextRetrievalService.class );
         final StructuralIndexService spine = mock( StructuralIndexService.class );
         final PageManager pages = mock( PageManager.class );
@@ -71,7 +68,7 @@ class KnowledgeMcpToolAssemblyTest {
                 .build() ) );
 
         for ( final String kg : KG_TOOLS ) {
-            assertFalse( names.contains( kg ), "KG tool '" + kg + "' must be absent when kgService is null" );
+            assertFalse( names.contains( kg ), "KG tool '" + kg + "' was deleted with the Knowledge Graph" );
         }
         // Retrieval + structural-spine tools remain available.
         assertTrue( names.contains( "retrieve_context" ), "retrieve_context must stay" );
@@ -80,30 +77,6 @@ class KnowledgeMcpToolAssemblyTest {
         assertTrue( names.contains( "get_page_by_id" ),   "get_page_by_id must stay" );
         // Registered with the spine even before the link index is ready (it then answers "not ready").
         assertTrue( names.contains( "get_page_neighbors" ), "get_page_neighbors must stay" );
-    }
-
-    @Test
-    void kgToolsPresentWhenKgServiceWired() {
-        final KnowledgeGraphService kg = mock( KnowledgeGraphService.class );
-        final NodeMentionSimilarity similarity = mock( NodeMentionSimilarity.class );
-        final ContextRetrievalService ctx = mock( ContextRetrievalService.class );
-        final StructuralIndexService spine = mock( StructuralIndexService.class );
-        final ForAgentProjectionService forAgent = mock( ForAgentProjectionService.class );
-        final PageManager pages = mock( PageManager.class );
-
-        final Set< String > names = names( KnowledgeMcpInitializer.assembleTools( KnowledgeToolDeps.builder()
-                .kgService( kg )
-                .similarity( similarity )
-                .ctxService( ctx )
-                .pageManager( pages )
-                .structuralIndex( spine )
-                .forAgent( forAgent )
-                .viewGate( PageViewGate.ALLOW_ALL )
-                .build() ) );
-
-        for ( final String kgTool : KG_TOOLS ) {
-            assertTrue( names.contains( kgTool ), "KG tool '" + kgTool + "' must be present when kgService is wired" );
-        }
     }
 
     @Test

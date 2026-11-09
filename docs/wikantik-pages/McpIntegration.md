@@ -1,7 +1,6 @@
 ---
-kg_include: true
 summary: Operator and agent guide for wiring Claude Code, Gemini CLI, and OpenAPI
-  clients into Wikantik's three tool surfaces (51 MCP + 2 OpenAPI tools).
+  clients into Wikantik's three tool surfaces (36 MCP + 2 OpenAPI tools).
 type: article
 date: '2026-10-24'
 status: active
@@ -19,12 +18,10 @@ cluster: wikantik-development
 title: MCP Integration
 related:
 - WikantikDevelopment
-- KnowledgeGraphCore
 - AgentCookbook
 - AgentGradeContentDesign
 - HybridRetrieval
 - StructuralSpineDesign
-- KgInclusionPolicy
 - GoodMcpDesign
 - About
 verified_at: '2026-10-24T22:57:53.750908213Z'
@@ -34,20 +31,22 @@ verified_by: wikantik-cli
 
 Wikantik exposes three separate agent-facing surfaces. Each is a distinct servlet path with its own auth filter, rate limiter, and tool set. Pick which surface to give an agent based on the trust you want to extend, then wire the client.
 
+> **Knowledge Graph retired (November 2026).** The Knowledge Graph tools (`discover_schema`, `query_nodes`, `get_node`, `traverse`, `search_knowledge`, `find_similar`, `propose_knowledge`, `curate_edges`, `curate_nodes`, `list_proposals`, `inspect_proposals`, `review_proposals`, `list_orphaned_kg_nodes`) no longer exist on either endpoint. Page-to-page structure comes from the Page Graph; similar pages come from page embeddings.
+
 ## Endpoint matrix
 
 | Path | Module | Protocol | Tools | Capabilities | Auth filter | Default scope |
 |---|---|---|---|---|---|---|
-| `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 29 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp_admin` (or `all`) |
-| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 22 read-only retrieval + KG + spine + projection + ontology + briefing | tools | `McpAccessFilter` (registered as `KnowledgeMcpAccessFilter`, required scope `mcp_read`) | `mcp_read` (or `mcp_admin`, `all`) |
+| `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 20 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp_admin` (or `all`) |
+| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 16 read-only retrieval + spine + projection + ontology + briefing | tools | `McpAccessFilter` (registered as `KnowledgeMcpAccessFilter`, required scope `mcp_read`) | `mcp_read` (or `mcp_admin`, `all`) |
 | `/tools/*` | `wikantik-tools` | OpenAPI 3.1 | 2 (`search_wiki`, `get_page`) | OpenAPI document at `/tools/openapi.json` | `ToolsAccessFilter` | `tools` (or `all`) |
 
-That is **51 MCP tools** (29 admin + 22 knowledge) plus **2 OpenAPI tools** (**53 tools in all**) when everything is wired. The counts are maxima; `docs/admin/McpAgents.md` in the repository is the one document that owns them.
+That is **36 MCP tools** (20 admin + 16 knowledge) plus **2 OpenAPI tools** (**38 tools in all**) when everything is wired. The counts are maxima; `docs/admin/McpAgents.md` in the repository is the one document that owns them.
 
 Both MCP endpoints register some tools **conditionally** on what a deployment has wired, so the counts above are the fully-wired maximum and a leaner install legitimately advertises fewer.
 
-- `/knowledge-mcp` is not mounted at all unless the Knowledge Graph service, the context retrieval service or the structural index exists. Within it, `find_similar`, `get_page_for_agent`, `assemble_bundle`, `get_briefing`, `get_ontology`/`sparql_query` and `list_stale_citations` each need their own service.
-- `/wikantik-admin-mcp` always registers 19 tools. Nine more need the Knowledge Graph service (`list_proposals`, `inspect_proposals`, `propose_knowledge`, `query_nodes`, `search_knowledge`, `list_orphaned_kg_nodes`, and, when the curation service is also present, `review_proposals`, `curate_edges`, `curate_nodes`) and `list_retrieval_queries` needs a datasource-backed query-log reader. `rename_cluster`, `list_content_opportunities` and `snooze_opportunity` are registered unconditionally and refuse at call time when the structural index or the content-intelligence subsystem is missing, so those three never vanish from `tools/list`.
+- `/knowledge-mcp` is not mounted at all unless the context retrieval service or the structural index exists. Within it, `get_page_for_agent`, `assemble_bundle`, `get_briefing`, `get_ontology`/`sparql_query` and `list_stale_citations` each need their own service.
+- `/wikantik-admin-mcp` always registers 19 tools; `list_retrieval_queries` needs a datasource-backed query-log reader. `rename_cluster`, `list_content_opportunities` and `snooze_opportunity` are registered unconditionally and refuse at call time when the structural index or the content-intelligence subsystem is missing, so those three never vanish from `tools/list`.
 
 The two MCP endpoints share the same access-filter class and the same `wikantik-mcp.properties` (CIDR allowlist, unrestricted flag, rate limits), and a DB-backed `mcp_admin` key authorises both. The OpenAPI endpoint is independent: it has its own properties file and key scope.
 
@@ -66,8 +65,8 @@ flowchart LR
     end
 
     subgraph Surfaces["Wikantik Agent Surfaces"]
-        KMCP["/knowledge-mcp<br/>22 Read-Only Tools<br/>(assemble_bundle, get_briefing,<br/>sparql_query, traverse, ...)"]
-        AMCP["/wikantik-admin-mcp<br/>29 Read/Write & Curation Tools<br/>(update_page, verify_pages,<br/>curate_edges, list_content_opportunities, ...)"]
+        KMCP["/knowledge-mcp<br/>16 Read-Only Tools<br/>(assemble_bundle, get_briefing,<br/>sparql_query, ...)"]
+        AMCP["/wikantik-admin-mcp<br/>20 Read/Write Tools<br/>(update_page, verify_pages,<br/>list_content_opportunities, ...)"]
         OTools["/tools/* (OpenAPI 3.1)<br/>2 Read Tools<br/>(search_wiki, get_page)"]
     end
 
@@ -76,7 +75,7 @@ flowchart LR
     OpenWebUI --> KeyTools --> OTools
 ```
 
-Default to giving an agent **`/knowledge-mcp` only**. Authoring (`/wikantik-admin-mcp`) is a separate trust decision — grant it once you have decided that the agent should be allowed to write pages, mark them verified, propose KG entries, or rename/delete content. The OpenAPI surface exists for clients that cannot speak MCP at all (OpenWebUI, custom HTTP integrations, ChatGPT-style "Custom GPT" tools).
+Default to giving an agent **`/knowledge-mcp` only**. Authoring (`/wikantik-admin-mcp`) is a separate trust decision — grant it once you have decided that the agent should be allowed to write pages, mark them verified, or rename/delete content. The OpenAPI surface exists for clients that cannot speak MCP at all (OpenWebUI, custom HTTP integrations, ChatGPT-style "Custom GPT" tools).
 
 ## Quickstart (5 minutes)
 
@@ -120,7 +119,7 @@ If neither matches, the response is `403 {"error":"Access denied"}`; a valid key
 
 ### DB-backed keys (preferred)
 
-Managed via the admin UI at `/admin/apikeys`, backed by the `api_keys` table. Each key is bound to a Wikantik principal, but on the MCP endpoints that binding is for attribution and the audit trail only. **Authorisation is the scope check in the access filter.** The admin MCP tools perform no per-user permission checks: any `mcp_admin` or `all` key can read and write every non-system page and curate the Knowledge Graph, so treat those keys as admin credentials. The knowledge endpoint is the opposite: the MCP transport carries no caller identity, so its read tools enforce page view ACLs as an **anonymous guest** and return only publicly viewable pages whichever principal owns the key. Page versions written through the admin endpoint are attributed to the MCP client's `clientInfo.name`, and every write is logged to `SecurityLog` (see [MCP Audit Tools](McpAuditTools)).
+Managed via the admin UI at `/admin/apikeys`, backed by the `api_keys` table. Each key is bound to a Wikantik principal, but on the MCP endpoints that binding is for attribution and the audit trail only. **Authorisation is the scope check in the access filter.** The admin MCP tools perform no per-user permission checks: any `mcp_admin` or `all` key can read and write every non-system page, so treat those keys as admin credentials. The knowledge endpoint is the opposite: the MCP transport carries no caller identity, so its read tools enforce page view ACLs as an **anonymous guest** and return only publicly viewable pages whichever principal owns the key. Page versions written through the admin endpoint are attributed to the MCP client's `clientInfo.name`, and every write is logged to `SecurityLog` (see [MCP Audit Tools](McpAuditTools)).
 
 Available scopes (`ApiKeyService.Scope`):
 
@@ -194,7 +193,6 @@ All keys are picked up from a `wikantik-mcp.properties` (or `wikantik-tools.prop
 | `mcp.ratelimit.global` | `100` | Requests/sec across all clients (`0` disables). The deployment templates override it, see *Rate limiting*. |
 | `mcp.ratelimit.perClient` | `10` | Requests/sec per resolved client (`0` disables). |
 | `wikantik.mcp.rate_limit.max_clients` | `10000` | Distinct clients the per-client limiter tracks. |
-| `wikantik.mcp.kg_curation.bulk_limit` | `50` | Most proposals or curation operations one bulk call (`inspect_proposals`, `review_proposals`, `curate_edges`, `curate_nodes`) may carry. |
 
 The same file feeds the `McpAccessFilter` instance on each endpoint, so one configuration block governs both.
 
@@ -212,7 +210,7 @@ The same file feeds the `McpAccessFilter` instance on each endpoint, so one conf
 
 | Property | Effect |
 |---|---|
-| `wikantik.datasource` | JNDI name of the PostgreSQL DataSource (default `jdbc/WikiDatabase`). Required: DB-backed API keys, the structural index, the KG inclusion policy and retrieval-quality CI all live there. |
+| `wikantik.datasource` | JNDI name of the PostgreSQL DataSource (default `jdbc/WikiDatabase`). Required: DB-backed API keys, the structural index and retrieval-quality CI all live there. |
 | `wikantik.admin.bootstrap` | Bootstrap admin override for first-time setup; bypasses ACLs at startup only. |
 | `wikantik.baseURL` | Absolute public origin; `ping_search_engines` and `preview_structured_data` need it to build sitemap and structured-data URLs. |
 | `wikantik.indexnow.apiKey` | Required by `ping_search_engines` for IndexNow submissions. |
@@ -224,13 +222,12 @@ The same file feeds the `McpAccessFilter` instance on each endpoint, so one conf
 | `wikantik.verification.stale_days` | Default `90`. After this many days, a verified page reports `confidence: stale`. |
 | `wikantik.retrieval.cron.enabled` | Default `true`. Nightly retrieval-quality CI run. |
 | `wikantik.retrieval.cron.hour_utc` | Default `3`. Hour of day (UTC) for the nightly run. |
-| `wikantik.kg_policy.enabled` | Default `true`. Master switch for the cluster-primary KG inclusion policy. The per-cluster include/exclude rows are DB-backed (managed at `/admin/kg-policy/*`); a cluster with no row is excluded by default. A page-level `kg_include` frontmatter value overrides the cluster. See [KgInclusionPolicy](KgInclusionPolicy). |
 
 ## Tool inventory
 
 Tool names below are canonical wire identifiers (snake\_case). Every tool ships with at least one worked input/output example in its schema (Phase 6 of the agent-grade content rewrite, 2026-04-25) — agents should surface `examples` to the model when constructing the first call rather than reasoning purely from JSON Schema types.
 
-### `/wikantik-admin-mcp` (29 tools when fully wired)
+### `/wikantik-admin-mcp` (20 tools when fully wired)
 
 **Read-only / analytics** — no author resolution required, annotated `readOnlyHint`:
 
@@ -247,11 +244,6 @@ Tool names below are canonical wire identifiers (snake\_case). Every tool ships 
 | `verify_pages` | Compound check across many pages — existence, link health, metadata completeness, optional SEO and retrieval readiness. |
 | `preview_structured_data` | What a page's frontmatter will produce in HTML — meta tags, OG/Twitter, JSON-LD, BreadcrumbList, Atom, News Sitemap. |
 | `ping_search_engines` | Submit URLs/sitemap to IndexNow after a publish. |
-| `list_proposals` | List pending knowledge-graph proposals (only when KG is configured). |
-| `inspect_proposals` | Inspect specific proposals in detail before review. |
-| `query_nodes` | KG node query with **admin bypass**, so curators see freshly-created entities. |
-| `search_knowledge` | KG full-text search with the same admin bypass. |
-| `list_orphaned_kg_nodes` | Degree-0 KG entities, for orphan triage at scale. |
 | `list_retrieval_queries` | Real query-log traffic across all four agent surfaces. |
 | `list_content_opportunities` | The ranked content-opportunity backlog from the Content Intelligence subsystem, with the evidence behind each item. Read its `suppressed` list as well as `opportunities`. |
 
@@ -265,26 +257,11 @@ Tool names below are canonical wire identifiers (snake\_case). Every tool ships 
 | `rename_cluster` | Rewrite a cluster path across every member, sub-clusters included. **An unconfirmed call returns the plan — that is success, not an error.** Refuses a target another hub already declares. |
 | `delete_pages` | Permanent delete with `confirm=true`. System pages refused. |
 | `mark_page_verified` | Stamp `verified_at`/`verified_by`/`confidence` frontmatter. |
-| `propose_knowledge` | Propose a new node or edge for the knowledge graph (KG-conditional). |
-| `review_proposals` | Approve / reject pending KG proposals. |
-| `curate_nodes` | Direct KG node curation (create/update/delete). |
-| `curate_edges` | Direct KG edge curation; refuses an edge that violates a SHACL shape. |
 | `snooze_opportunity` | Decline a content opportunity for 1–365 days; a reason is required. |
 
 The admin endpoint also serves resources, prompts, and completions (see *Capabilities*).
 
-### `/knowledge-mcp` (22 tools when fully wired)
-
-**Knowledge-graph traversal & introspection** (registered when `KnowledgeGraphService` is configured):
-
-| Tool | Purpose |
-|---|---|
-| `discover_schema` | Enumerate node types, edge types, properties, mention coverage. |
-| `query_nodes` | Filter / search graph nodes by type and properties. |
-| `get_node` | One node + its declared edges with provenance. |
-| `traverse` | Bounded BFS from a starting node with depth and provenance filters. |
-| `search_knowledge` | Full-text search over node names + property values. |
-| `find_similar` | Embedding-nearest-neighbour over node mentions (only when `NodeMentionSimilarity` is configured). |
+### `/knowledge-mcp` (16 tools when fully wired)
 
 **Hybrid retrieval / RAG** (registered when `ContextRetrievalService` is configured; `assemble_bundle` and `get_briefing` additionally need the bundle and briefing services):
 
@@ -316,7 +293,7 @@ The admin endpoint also serves resources, prompts, and completions (see *Capabil
 | `get_page_by_id` | Resolve a page by its stable `canonical_id` (ULID). |
 | `get_page_neighbors` | A page's 1-hop Page Graph neighborhood without bodies: pages it wikilinks to, pages that wikilink to it, and its cluster siblings with each cluster's hub, each as `{slug, title, type, summary}`. |
 
-> **Removed 2026-05-02:** `traverse_relations` no longer exists. It walked the typed `relations:` frontmatter block, which was deleted with typed relations. For page-to-page traversal use `get_page_neighbors` on this server (real wikilink edges, both directions, plus cluster siblings), `get_backlinks` / `get_outbound_links` on `/wikantik-admin-mcp` (restricted pages included), or `traverse` on this server for the derived KG co-mention graph.
+> **Removed 2026-05-02:** `traverse_relations` no longer exists. It walked the typed `relations:` frontmatter block, which was deleted with typed relations. For page-to-page traversal use `get_page_neighbors` on this server (real wikilink edges, both directions, plus cluster siblings), `get_backlinks` / `get_outbound_links` on `/wikantik-admin-mcp` (restricted pages included). The Knowledge Graph `traverse` tool was removed with the rest of the Knowledge Graph in November 2026.
 
 **Agent-grade projection** (registered when `ForAgentProjectionService` is configured):
 
@@ -385,7 +362,7 @@ The MCP `initialize` response carries an instructions text loaded from `wikantik
 2. **Build-time (wire):** `McpInstructionsDriftIT` (under `wikantik-it-tests/wikantik-selenide-tests`) does the same check against a deployed server: it pulls the `instructions` text from the SDK's `getServerInstructions()` and the live tool list from `tools/list`, then asserts both directions of the diff. This is the safety net for operator-supplied `mcp.instructions.file` overrides — the unit test only sees the file shipped in the WAR; the IT sees whatever the deployed server actually returns.
 3. **Runtime:** `McpServerInitializer.logToolNameDriftIfAny` re-runs the same check on every server start and warns at `WARN` level if the loaded file (bundled or override) has drifted from the registered tool set.
 
-Because of those gates, **adding an admin tool means editing `wikantik-mcp-instructions.txt` and `McpProtocolIT.EXPECTED_TOOLS` too** — otherwise the build goes red (see [Writing a New MCP Tool](WritingANewMcpTool)); `McpProtocolIT.EXPECTED_TOOLS` currently lists 29 tools. The instructions text is served by the admin endpoint only; the knowledge endpoint serves a short inline string. The legacy locking section (`lock_page` / `unlock_page`) is gone — concurrency is now optimistic via `expectedContentHash` on `update_page`.
+Because of those gates, **adding an admin tool means editing `wikantik-mcp-instructions.txt` and `McpProtocolIT.EXPECTED_TOOLS` too** — otherwise the build goes red (see [Writing a New MCP Tool](WritingANewMcpTool)); `McpProtocolIT.EXPECTED_TOOLS` currently lists 20 tools. The instructions text is served by the admin endpoint only; the knowledge endpoint serves a short inline string. The legacy locking section (`lock_page` / `unlock_page`) is gone — concurrency is now optimistic via `expectedContentHash` on `update_page`.
 
 ## Page model agents need to understand
 
@@ -405,7 +382,6 @@ verified_at: 2026-04-29T14:00:00Z
 verified_by: jakefear
 confidence: authoritative   # authoritative | provisional | stale (usually computed)
 audience: [humans, agents]
-kg_include: true            # cluster-policy override
 ---
 # Page Title
 
@@ -414,7 +390,7 @@ Body in Markdown. Internal links use Markdown link syntax.
 
 `cluster:` is **scalar-or-list** on a non-hub page: a page may belong to several clusters, and the first entry is the *primary* one that drives breadcrumbs, JSON-LD `articleSection`, sidebar placement and the embedding prefix. A `type: hub` page's `cluster:` must stay scalar — the hub is what *declares* the cluster exists. Sub-clusters are `parent/child`, one level deep.
 
-Save-time enforcement is on: pages without `canonical_id` get one auto-assigned and injected; `type: runbook` pages are schema-validated; cluster KG-inclusion policy is applied. Most of the agent surface area assumes these invariants — read [StructuralSpineDesign](StructuralSpineDesign) and [AgentGradeContentDesign](AgentGradeContentDesign) for the full model.
+Save-time enforcement is on: pages without `canonical_id` get one auto-assigned and injected; `type: runbook` pages are schema-validated. Most of the agent surface area assumes these invariants — read [StructuralSpineDesign](StructuralSpineDesign) and [AgentGradeContentDesign](AgentGradeContentDesign) for the full model.
 
 ### Frontmatter validation and normalization
 
@@ -536,7 +512,7 @@ Drop a fragment like this into the agent's project / system prompt so it does no
 > - **Read a page:** prefer `get_page_for_agent` over `read_page` / `get_page`. It returns a token-budgeted projection with summary, key facts, headings outline, `agent_hints`, and verification state. Treat any field listed in `missing_fields` as unavailable rather than empty. Treat `confidence: stale` as untrusted information.
 > - **Browse structure:** for cluster / tag / type questions use the structural-spine tools (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`). Do not full-text-search structural questions; the spine is faster and exact.
 > - **Plan multi-step work:** before doing complex authoring or maintenance, search for `type: runbook` pages on the topic (`list_pages_by_filter` with `type=runbook`) and follow the `steps:` block.
-> - **Discover the schema:** call `discover_schema` once per session before constructing custom KG queries; call `list_metadata_values` before custom frontmatter filters.
+> - **Discover metadata:** call `list_metadata_values` before custom frontmatter filters.
 > - **Edit pages (if authoring is enabled):** use `update_page` with `expectedContentHash` for optimistic locking (it records `update_page` as the change note; only `mark_page_verified` and `delete_pages` accept a `changeNote`). Use `mark_page_verified` to stamp verification after a substantive review. Never call `delete_pages` or `rename_page` without `confirm=true`.
 
 ## Workflow recipes
@@ -549,7 +525,7 @@ Drop a fragment like this into the agent's project / system prompt so it does no
 
 ### Authoring an article cluster
 
-1. `discover_schema` + `list_clusters` to confirm cluster naming.
+1. `list_clusters` to confirm cluster naming.
 2. Use the `publish-cluster` MCP prompt on `/wikantik-admin-mcp` to generate hub + members.
 3. `write_pages` (one round trip).
 4. `verify_pages` with `checks=["seo_readiness", "retrieval_readiness"]` to confirm cross-references and metadata.
@@ -567,10 +543,10 @@ Drop a fragment like this into the agent's project / system prompt so it does no
 ### Graph traversal from a known page
 
 1. `get_page_for_agent` to get the page's `canonical_id`.
-2. For **Page Graph** (real wikilinks): `get_outbound_links` / `get_backlinks` on `/wikantik-admin-mcp`.
-3. For the **Knowledge Graph** (derived co-mention/typed-relation edges): `traverse` on `/knowledge-mcp`.
+2. For the **Page Graph** (real wikilinks): `get_page_neighbors` on `/knowledge-mcp`, or `get_outbound_links` / `get_backlinks` on `/wikantik-admin-mcp`.
+3. For pages that are *similar in meaning* rather than linked, use the related-pages block of `get_page_for_agent`, which is derived from page embeddings.
 
-Do not conflate the two: the Page Graph is what authors wrote, the Knowledge Graph is what extraction inferred.
+The Knowledge Graph (LLM-extracted entities and their edges) was retired in November 2026; the Page Graph is what authors wrote and is the graph to traverse.
 
 ### Renaming a cluster
 
@@ -606,8 +582,7 @@ Log streams worth tailing:
 5. Confirm rate limits are enforced (`mcp.ratelimit.global > 0`).
 6. Confirm `wikantik.runbook.enforcement.enabled=true` (default) so authoring agents cannot land malformed runbooks.
 7. Confirm `wikantik.structural_spine.enforcement.enabled=true` (default) so every page gets a canonical ID.
-8. Decide your KG inclusion policy — see [KgInclusionPolicy](KgInclusionPolicy).
-9. Make sure your reverse proxy passes through:
+8. Make sure your reverse proxy passes through:
    - The `Authorization` header.
    - The `Accept: text/event-stream` header (the Streamable HTTP transport requires SSE).
    - The client IP (so CIDR allowlists work).
@@ -622,7 +597,7 @@ Log streams worth tailing:
 | `403 Key not authorized for MCP` | A valid key whose scope does not cover the endpoint: a `tools` key at an MCP endpoint, or an `mcp_read` key at `/wikantik-admin-mcp`. Mint a key with `scope=mcp_read` (knowledge endpoint), `scope=mcp_admin` or `scope=all`. |
 | `429 Rate limit exceeded` | Rate-limit knobs too tight, or runaway agent; back off for the `Retry-After: 1` second. Inspect `SecurityLog`. |
 | `/knowledge-mcp` is not mounted (404) or lists no tools | None of `KnowledgeGraphService`, `ContextRetrievalService`, `StructuralIndexService` is configured — check `wikantik.datasource` and the embeddings setup. |
-| `/knowledge-mcp` advertises fewer than 22 tools, or `/wikantik-admin-mcp` fewer than 29 | Expected on a partial deployment — several tools register conditionally on what is wired. Not an error. |
+| `/knowledge-mcp` advertises fewer than 16 tools, or `/wikantik-admin-mcp` fewer than 20 | Expected on a partial deployment — several tools register conditionally on what is wired. Not an error. |
 | `get_page_for_agent` returns `degraded: true` | One of the extractors failed; the named field appears in `missing_fields`. Check log for the underlying exception. |
 | Startup log warns about tool-name drift | An external `mcp.instructions.file` override disagrees with the live registry. The bundled instructions are regression-tested at build time; only an operator-supplied override can drift in a live deployment. Refresh the override or remove it. |
 | Authoring tool says `hash mismatch` | Optimistic-lock guard fired. The response carries `currentHash`, `currentVersion` and `latestContent` — rebase against it and retry without a separate read. |
@@ -636,13 +611,10 @@ Log streams worth tailing:
 - [AgentCookbook](AgentCookbook) — runbook-style how-tos that seed the retrieval-quality CI.
 - [StructuralSpineDesign](StructuralSpineDesign) — clusters, tags, canonical IDs, generated `Main.md`.
 - [HybridRetrieval](HybridRetrieval) — what `assemble_bundle`, `retrieve_context` and `search_wiki` do under the hood.
-- [KgInclusionPolicy](KgInclusionPolicy) — cluster-primary policy + page-level override.
 - [FindingTheRightMcpTool](FindingTheRightMcpTool) — agent-facing chooser.
 - [McpAuditTools](McpAuditTools) — how the MCP surface itself is checked: drift tests, protocol ITs, audit log lines, metrics.
 - [WritingANewMcpTool](WritingANewMcpTool) — adding a tool and the checks it trips.
 - [ConnectingClaudeCodeToWikantikMcp](ConnectingClaudeCodeToWikantikMcp) — wiring Claude Code to the production servers.
-
-[{Relationships}]
 
 ---
 

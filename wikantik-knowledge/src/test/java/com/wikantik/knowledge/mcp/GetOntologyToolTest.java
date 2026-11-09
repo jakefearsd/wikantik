@@ -36,21 +36,18 @@ class GetOntologyToolTest {
     }
 
     @Test
-    void returnsTBoxClassesPropertiesAndConceptScheme() {
+    void returnsPageClassesAndConceptSchemeOnly() {
         final var result = new GetOntologyTool( loadedManager() ).execute( Map.of() );
         assertFalse( result.isError() );
         final String json = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
-        // Entity + content classes from the bundled T-Box:
-        assertTrue( json.contains( "Technology" ) && json.contains( "Article" ),
+        // Content classes from the bundled T-Box; the retired entity vocabulary is gone:
+        assertTrue( json.contains( "Article" ) && json.contains( "Runbook" ),
                 "T-Box classes present: " + json );
-        // Object properties with mappings:
-        assertTrue( json.contains( "relatedTo" ) && json.contains( "subPropertyOf" ),
-                "object properties + mappings present" );
+        assertFalse( json.contains( "Technology" ) || json.contains( "relatedTo" ),
+                "entity classes and KG predicates must not be advertised: " + json );
+        assertTrue( json.replaceAll( "\\s", "" ).contains( "\"objectProperties\":[]" ), "no object properties remain: " + json );
         // SKOS concept scheme:
         assertTrue( json.contains( "WikiConcepts" ), "concept scheme present" );
-        // domain/range surfaced:
-        assertTrue( json.contains( "\"domain\"" ) && json.contains( "\"range\"" ),
-                "domain/range surfaced" );
     }
 
     @Test

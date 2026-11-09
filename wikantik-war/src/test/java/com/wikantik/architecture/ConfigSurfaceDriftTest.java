@@ -46,9 +46,6 @@ class ConfigSurfaceDriftTest {
         Map.entry( "wikantik.page.edits", "metric" ),
         Map.entry( "wikantik.page.deletes", "metric" ),
         Map.entry( "wikantik.auth.logins", "metric" ),
-        Map.entry( "wikantik.kg_judge.timeouts", "metric" ),
-        Map.entry( "wikantik.kg_judge.short_circuit_total", "metric" ),
-        Map.entry( "wikantik.kg_judge.timeout_multiplier_applied", "metric" ),
         // Fix round 1 (Task 10 pre-review): .sites/.engines were mislabelled here — they are
         // real config (InsightsIngestResource.PROP_SITES/PROP_ENGINES), now declared in
         // ini/wikantik.properties. .rows/.last_success_timestamp really are Micrometer metric
@@ -99,7 +96,7 @@ class ConfigSurfaceDriftTest {
     static final List<String> DYNAMIC_PREFIXES = List.of(
         "wikantik.interWikiRef.", "wikantik.specialPage.", "wikantik.loginModule.options.",
         "wikantik.sso.claimMapping.", "wikantik.translatorReader.inlinePattern.", "wikantik.custom.cascade.",
-        "wikantik.connectors.", "wikantik.knowledge.extractor.", "wikantik.bundle.reranker.",
+        "wikantik.connectors.", "wikantik.bundle.reranker.",
         "wikantik.bundle.decomposition.", "wikantik.search.hybrid.embedder.", "wikantik.tools."
     );
 
@@ -401,9 +398,9 @@ class ConfigSurfaceDriftTest {
     /** F3 (I4): a local {@code getInt}-style helper (not named {@code ...Property}) is also a read site. */
     @Test
     void literal_default_extractor_recognizes_a_get_int_style_helper_method() {
-        final String src = "getInt( p, \"wikantik.kg.judge.concurrency\", 1 )";
+        final String src = "getInt( p, \"wikantik.example.concurrency\", 1 )";
         final Map<String, Set<String>> d = literalDefaults( src );
-        assertEquals( Set.of( "1" ), d.get( "wikantik.kg.judge.concurrency" ) );
+        assertEquals( Set.of( "1" ), d.get( "wikantik.example.concurrency" ) );
     }
 
     @Test

@@ -27,13 +27,14 @@ tags:
 - mcp
 - ai
 date: '2026-10-24'
-kg_include: true
 canonical_id: 01KQ0P44RJSE08WJSB88N3A2JV
 type: article
 title: 'Knowledge Graph Core: PostgreSQL Schema, Mention-Centroids, and SHACL Chokepoints'
-status: active
+status: archived
 ---
-# Knowledge Graph Core: PostgreSQL Schema, Mention-Centroids, and Curation Pipeline
+# Knowledge Graph Core: PostgreSQL Schema, Mention-Centroids, and Curation Pipeline
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 **Knowledge Graph Core** (`com.wikantik.knowledge` in module `wikantik-knowledge`, backed by `wikantik-jdbc`) is the relational and vector storage engine underlying the [[WikantikKnowledgeGraph|Wikantik Knowledge Graph]]. It stores LLM-extracted and human-curated domain entities, closed-vocabulary semantic predicates, proposal/judge queues, negative-knowledge rejection blocklists, and `pgvector` mention-centroid embeddings inside PostgreSQL 18.
 
@@ -175,8 +176,6 @@ Over time, editing or deleting sections of a page can leave degree-0 entity node
 ```
 
 For full-corpus re-indexing—such as when switching embedding models (`wikantik.search.embedding.model`) or re-running extraction across a newly included cluster—operators follow the four-phase rebuild runbook in [[SearchIndexAndKnowledgeGraphRebuild|Search Index and Knowledge Graph Rebuild]].
-
-[{Relationships}]
 
 ---
 

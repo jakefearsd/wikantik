@@ -53,7 +53,7 @@ class LlmActivityLogTest {
     @Test
     void failTransitionsToErrorAndKeepsMessage() {
         final LlmActivityLog log = log( 100 );
-        final LlmCall call = log.begin( Subsystem.PROPOSAL_JUDGE, "ollama", "gemma", "chat", "p" );
+        final LlmCall call = log.begin( Subsystem.SECTION_RERANK, "ollama", "gemma", "chat", "p" );
         log.fail( call, new IllegalStateException( "boom" ) );
         assertEquals( CallStatus.ERROR, call.status() );
         assertTrue( call.errorMessage().contains( "boom" ) );
@@ -92,7 +92,7 @@ class LlmActivityLogTest {
     void inFlightRecordSurvivesCountCapEviction() {
         final LlmActivityLog log = log( 3 );
         // An in-flight call recorded first, never finalized.
-        log.begin( Subsystem.PROPOSAL_JUDGE, "ollama", "m", "chat", "in-flight-call" );
+        log.begin( Subsystem.SECTION_RERANK, "ollama", "m", "chat", "in-flight-call" );
         // Many finalized calls that blow past the count cap of 3.
         for ( int i = 0; i < 20; i++ ) {
             log.succeed( log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "n" + i ), "ok" );
@@ -121,7 +121,7 @@ class LlmActivityLogTest {
     void snapshotFiltersBySubsystemAndStatus() {
         final LlmActivityLog log = log( 100 );
         log.succeed( log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "e" ), "ok" );
-        log.fail( log.begin( Subsystem.PROPOSAL_JUDGE, "ollama", "m", "chat", "j" ),
+        log.fail( log.begin( Subsystem.SECTION_RERANK, "ollama", "m", "chat", "j" ),
                   new RuntimeException( "x" ) );
 
         assertEquals( 1, log.snapshot( 50, Subsystem.EMBEDDING, null ).calls().size() );
@@ -140,7 +140,7 @@ class LlmActivityLogTest {
             pool.submit( () -> {
                 try {
                     for ( int i = 0; i < perThread; i++ ) {
-                        log.succeed( log.begin( Subsystem.PROPOSAL_JUDGE, "ollama", "m", "chat", "p" ),
+                        log.succeed( log.begin( Subsystem.SECTION_RERANK, "ollama", "m", "chat", "p" ),
                                      "ok" );
                     }
                 } finally {

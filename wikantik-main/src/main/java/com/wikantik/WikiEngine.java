@@ -52,10 +52,6 @@ import com.wikantik.render.RenderingManager;
 import com.wikantik.search.LuceneSearchProvider;
 import com.wikantik.search.SearchManager;
 import com.wikantik.search.SearchProvider;
-import com.wikantik.knowledge.DefaultKnowledgeGraphService;
-import com.wikantik.knowledge.HubDiscoveryService;
-import com.wikantik.knowledge.HubOverviewService;
-import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.progress.ProgressManager;
 import com.wikantik.url.URLConstructor;
@@ -123,8 +119,7 @@ public class WikiEngine implements Engine {
      *  Phase 1 of the wikantik-main decomposition (2026-05-05). Ckpt A2: all
      *  KG-flavored service registrations go through the EngineServiceRegistry.
      *  Volatile: written once during init (unsynchronized path in initialize())
-     *  and read from both the unsynchronized wireLuceneMltPostConstruction helper
-     *  and the synchronized patchContextRetrievalService method. */
+     *  and read from the synchronized patchContextRetrievalService method. */
     private volatile com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeSubsystem;
 
     /** Core subsystem services produced by {@code CoreSubsystemFactory}.
@@ -307,30 +302,11 @@ public class WikiEngine implements Engine {
         // Knowledge (ContextRetrievalService intentionally excluded — see setManager comment)
         java.util.function.Consumer<WikiEngine> rebuildKnowledge =
             e -> { if ( e.knowledgeSubsystem != null ) e.knowledgeSubsystem = com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.rebuildFromManagers( e ); };
-        s.put( com.wikantik.api.knowledge.KnowledgeGraphService.class,                         rebuildKnowledge );
-        s.put( com.wikantik.api.knowledge.KgProposalJudgeService.class,                        rebuildKnowledge );
-        s.put( com.wikantik.knowledge.judge.JudgeRunner.class,                                 rebuildKnowledge );
-        s.put( com.wikantik.knowledge.judge.KgMaterializationService.class,                    rebuildKnowledge );
-        s.put( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class,                    rebuildKnowledge );
-        s.put( com.wikantik.knowledge.HubProposalService.class,                                rebuildKnowledge );
-        s.put( com.wikantik.knowledge.HubDiscoveryService.class,                               rebuildKnowledge );
-        s.put( com.wikantik.knowledge.HubOverviewService.class,                                rebuildKnowledge );
-        s.put( com.wikantik.knowledge.HubProposalRepository.class,                             rebuildKnowledge );
-        s.put( com.wikantik.knowledge.HubDiscoveryRepository.class,                            rebuildKnowledge );
         s.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class,                   rebuildKnowledge );
         s.put( com.wikantik.knowledge.chunking.ChunkProjector.class,                           rebuildKnowledge );
-        s.put( com.wikantik.knowledge.MentionIndex.class,                                      rebuildKnowledge );
-        s.put( com.wikantik.knowledge.embedding.NodeMentionSimilarity.class,                   rebuildKnowledge );
         s.put( com.wikantik.knowledge.FrontmatterDefaultsFilter.class,                         rebuildKnowledge );
         s.put( com.wikantik.api.agent.ForAgentProjectionService.class,                         rebuildKnowledge );
-        s.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class,       rebuildKnowledge );
-        s.put( com.wikantik.api.kgpolicy.KgInclusionPolicy.class,                              rebuildKnowledge );
-        s.put( com.wikantik.kgpolicy.ReconciliationJobRunner.class,                            rebuildKnowledge );
         s.put( com.wikantik.api.eval.RetrievalQualityRunner.class,                             rebuildKnowledge );
-        s.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class,           e -> {} ); // no subsystem snapshot
-        s.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class,          e -> {} ); // no subsystem snapshot
-        s.put( com.wikantik.kgpolicy.KgClusterPolicyRepository.class,                         e -> {} ); // no subsystem snapshot
-        s.put( com.wikantik.kgpolicy.KgExcludedPagesRepository.class,                         e -> {} ); // no subsystem snapshot
         SNAPSHOT_REBUILDERS = s;
     }
 
@@ -491,14 +467,13 @@ public class WikiEngine implements Engine {
                 getManager( SystemPageRegistry.class ),
                 getManager( RecentArticlesManager.class ) );
 
-            // Phase 9: Knowledge graph (optional — requires datasource
-            // configuration). Builds persistenceSubsystem internally and
-            // consumes pageSubsystem via KnowledgeSubsystem.Deps.
+            // Phase 9: Knowledge subsystem (optional — requires datasource
+            // configuration). Builds persistenceSubsystem internally.
             initKnowledgeGraph( props );
 
-            // Audit subsystem is initialized independently of Knowledge-Graph init so a
-            // KG failure cannot silently disable auditing. initKnowledgeGraph swallows
-            // its own exceptions, so this runs on both the happy and the KG-failed path.
+            // Audit subsystem is initialized independently of Knowledge init so a
+            // Knowledge failure cannot silently disable auditing. initKnowledgeGraph swallows
+            // its own exceptions, so this runs on both the happy and the failed path.
             try {
                 initAuditSubsystem( props );
             } catch ( final RuntimeException e ) {
@@ -507,10 +482,6 @@ public class WikiEngine implements Engine {
             }
 
             buildSearchSubsystem();
-
-            // Phase 7 Ckpt 4: post-construction wire of the LuceneMlt seam
-            // onto HubOverviewService. Resolves the Search↔Knowledge cycle.
-            wireLuceneMltPostConstruction();
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.
             LOG.fatal( "Failed to start managers.", e );
@@ -533,10 +504,9 @@ public class WikiEngine implements Engine {
         final Map< String, String > extraComponents = ClassUtil.getExtraClassMappings();
         initExtraComponents( extraComponents );
 
-        // Phase 8 Ckpt 1.5: rebuild the KnowledgeSubsystem.Services record with the five
+        // Phase 8 Ckpt 1.5: rebuild the KnowledgeSubsystem.Services record with the
         // post-construction services that were wired into the manager registry by
-        // initKnowledgeGraph (ForAgentProjectionService, BootstrapEntityExtractionIndexer,
-        // KgInclusionPolicy, ReconciliationJobRunner, RetrievalQualityRunner) after
+        // initKnowledgeGraph (ForAgentProjectionService, RetrievalQualityRunner) after
         // KnowledgeSubsystemFactory.create() returned. ContextRetrievalService is wired
         // even later by ContextRetrievalServiceInitializer (a servlet listener) and stays
         // null here; patchContextRetrievalService() will fill it in once the servlet listener fires.
@@ -717,8 +687,8 @@ public class WikiEngine implements Engine {
             new com.wikantik.auth.subsystem.AuthSubsystem.Deps(
                 coreSubsystem, persistenceSubsystem, servletContext, this ) );
 
-        // Build the Page subsystem BEFORE initKnowledgeGraph so the KG factory can
-        // declare a typed PageSubsystem.Services dependency.
+        // Build the Page subsystem BEFORE initKnowledgeGraph, whose wiring helpers
+        // consume its page manager and renamer.
         this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemFactory.create(
             new com.wikantik.page.subsystem.PageSubsystem.Deps(
                 coreSubsystem, persistenceSubsystem, authSubsystem, this ) );
@@ -731,9 +701,7 @@ public class WikiEngine implements Engine {
     }
 
     /**
-     *  Builds the Search subsystem AFTER Knowledge — Search depends on Knowledge
-     *  for the graph-rerank step. The Search↔Knowledge LuceneMlt cycle stays
-     *  nullable until {@link #wireLuceneMltPostConstruction} resolves it.
+     *  Builds the Search subsystem AFTER Knowledge, whose persistence bundle it reads.
      */
     private void buildSearchSubsystem() {
         this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemFactory.create(
@@ -1037,23 +1005,7 @@ public class WikiEngine implements Engine {
                 new com.wikantik.persistence.subsystem.PersistenceSubsystem.Deps(
                     ds, coreSubsystem.properties(), userExistsLookup, pageAuthorLookup, loginForUserIdLookup ) );
 
-            // Resolve the Lucene MoreLikeThis seam.
-            HubOverviewService.LuceneMlt luceneMlt = null;
             final SearchManager searchMgr = getManager( SearchManager.class );
-            if ( searchMgr != null ) {
-                final SearchProvider sp = searchMgr.getSearchEngine();
-                if ( sp instanceof LuceneSearchProvider lsp ) {
-                    luceneMlt = ( seed, max, excludes ) -> {
-                        final var hits = lsp.moreLikeThis( seed, max, excludes );
-                        final java.util.List< HubOverviewService.MoreLikeThisLucene > out =
-                            new java.util.ArrayList<>( hits.size() );
-                        for ( final var h : hits ) {
-                            out.add( new HubOverviewService.MoreLikeThisLucene( h.name(), h.score() ) );
-                        }
-                        return out;
-                    };
-                }
-            }
 
             final io.micrometer.core.instrument.MeterRegistry meterRegistry =
                 com.wikantik.api.observability.MeterRegistryHolder.get();
@@ -1084,7 +1036,7 @@ public class WikiEngine implements Engine {
             // Build Knowledge subsystem core.
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps kgDeps =
                 new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps(
-                    ds, persistenceSubsystem, coreSubsystem, pageSubsystem, luceneMlt );
+                    persistenceSubsystem, coreSubsystem );
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services svcs =
                 com.wikantik.knowledge.subsystem.KnowledgeSubsystemFactory.create( kgDeps );
             // Note: this.knowledgeSubsystem is intentionally assigned at the END
@@ -1095,12 +1047,7 @@ public class WikiEngine implements Engine {
             // helpers means it would be wiped to null before initialize()
             // reaches rebuildKnowledgeSubsystemWithPostConstructionServices,
             // and the WikiSubsystems stash would be skipped — leaving REST
-            // endpoints to fall through to the synthetic bridge with null
-            // hub-discovery / hub-proposal repositories. (Phase 9 Ckpt 4c-fix.)
-
-            if ( svcs.kgService() instanceof DefaultKnowledgeGraphService dkgs ) {
-                dkgs.setEngine( this );
-            }
+            // endpoints to fall through to the synthetic bridge. (Phase 9 Ckpt 4c-fix.)
 
             // Resolve collaborators that multiple wiring helpers consume.
             final PageManager pageManager = getManager( PageManager.class );
@@ -1114,10 +1061,10 @@ public class WikiEngine implements Engine {
                     props, persistenceSubsystem, coreSubsystem,
                     pageManager, filterManager, referenceManager, this );
 
-            // Wire KG policy + ForAgent + ContentIndexRebuild (KnowledgeWiringHelper).
+            // Wire ForAgent + ContentIndexRebuild (KnowledgeWiringHelper).
             final com.wikantik.admin.ContentIndexRebuildService rebuildService =
-                com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireKgPolicyAndContent(
-                    props, structuralIndex, coreSubsystem, persistenceSubsystem,
+                com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireContentServices(
+                    props, structuralIndex, coreSubsystem,
                     svcs,
                     new com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.ContentManagers(
                         searchMgr, meterRegistry, pageManager, cachingManager, referenceManager ),
@@ -1136,13 +1083,13 @@ public class WikiEngine implements Engine {
             // OntologyModelManager + rebuild coordinator, registers the coordinator, and
             // kicks a startup-if-empty rebuild. setManager-only, so ArchUnit-neutral.
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontologyCoordinator =
-                    com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager, filterManager, svcs );
+                    com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager, filterManager );
 
             // Wire the connector runtime (ConnectorWiringHelper): builds properties- and DB-backed
             // connectors from config, registers ConnectorRuntime + ConnectorConfigService. Syncing
             // is enabled by default (wikantik.connectors.enabled=false opts out); wiring itself is
             // unconditional and fail-closed — a wiring failure must not break the rest of startup
-            // (drift/citation/entity-extraction wiring below).
+            // (drift/citation wiring below).
             try {
                 com.wikantik.derived.ConnectorWiringHelper.wireConnectors(
                     this, props, ds, pageManager, serviceRegistry.get( AttachmentManager.class ) );
@@ -1170,15 +1117,6 @@ public class WikiEngine implements Engine {
             // not garbage-collected out of WikiEventManager's WeakHashMap.
             this.citationWired = com.wikantik.citation.CitationWiringHelper.wireCitations(
                 this, props, ds, pageManager, filterManager, structuralIndex, ontologyCoordinator );
-
-            // Wire entity extraction (KnowledgeWiringHelper).
-            // KgExcludedPagesRepository is registered by wireKgPolicyAndContent above;
-            // read it via getManager so the parameter is explicit in wireEntityExtraction.
-            final com.wikantik.kgpolicy.KgExcludedPagesRepository excludedPagesRepo =
-                getManager( com.wikantik.kgpolicy.KgExcludedPagesRepository.class );
-            com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireEntityExtraction(
-                props, ds, svcs.chunkProjector(), svcs.contentChunkRepository(),
-                persistenceSubsystem, excludedPagesRepo, this );
 
             // Wire retrieval-quality runner (SearchWiringHelper).
             // HybridSearchService is registered by wireHybridRetrieval above.
@@ -1225,18 +1163,10 @@ public class WikiEngine implements Engine {
             // See note above next to the local 'svcs' assignment.
             this.knowledgeSubsystem = svcs;
 
-            if ( svcs.kgService() != null ) {
-                LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
-                    props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );
-                LOG.info( "HubDiscoveryService registered (minClusterSize property='{}', minPts='{}')",
-                    props.getProperty( HubDiscoveryService.PROP_MIN_CLUSTER_SIZE, "default" ),
-                    props.getProperty( HubDiscoveryService.PROP_MIN_PTS, "default" ) );
-            }
-            LOG.info( "Knowledge subsystem initialized with datasource '{}' (Knowledge Graph {})", datasource,
-                svcs.kgService() != null ? "ENABLED" : "disabled" );
+            LOG.info( "Knowledge subsystem initialized with datasource '{}'", datasource );
 
         } catch ( final javax.naming.NamingException | RuntimeException e ) {
-            LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage(), e );
+            LOG.warn( "Knowledge subsystem initialization failed: {}", e.getMessage(), e );
         }
     }
 
@@ -1255,8 +1185,8 @@ public class WikiEngine implements Engine {
      * Construct the audit subsystem (JDBC repo + async writer), register the
      * {@link com.wikantik.audit.AuditEventListener} against the auth + page
      * managers, and build the {@link com.wikantik.audit.AuditReadPolicy}.
-     * Called from {@link #initialize} independently of Knowledge-Graph init so
-     * a KG failure cannot silently disable auditing.
+     * Called from {@link #initialize} independently of Knowledge init so
+     * a Knowledge failure cannot silently disable auditing.
      */
     private void initAuditSubsystem( final Properties props ) {
         // Resolve the DataSource independently of Knowledge-Graph init (same JNDI
@@ -1286,8 +1216,7 @@ public class WikiEngine implements Engine {
         final java.util.function.Function< String, java.util.Map< String, Object > > frontmatterByPage =
                 auditFrontmatterLookup( pmForLookup );
 
-        // Cluster lookup — mirrors DefaultKgInclusionPolicy.pageDescriptor: resolve
-        // canonical_id from slug, then the descriptor, then its cluster. Returns
+        // Cluster lookup: resolve canonical_id from slug, then the descriptor, then its cluster. Returns
         // null (read-auditing simply won't trigger by cluster) on any failure.
         final java.util.function.Function< String, String > clusterByPage =
                 auditClusterLookup( structuralIndex );
@@ -1435,52 +1364,6 @@ public class WikiEngine implements Engine {
         }
         return out;
     }
-
-    /**
-     * Phase 7 Ckpt 4 — post-construction wire of the {@link HubOverviewService.LuceneMlt}
-     * seam. Called after both the Knowledge and Search subsystems are
-     * built so the cycle (Search depends on Knowledge for graph rerank;
-     * Knowledge needs Lucene for MoreLikeThis) is broken: Knowledge
-     * constructs with the no-op MLT default, Search constructs, then this
-     * method walks the live {@link LuceneSearchProvider} and installs a
-     * delegating MLT onto {@link HubOverviewService}. Skipped silently
-     * (modulo a debug log) when Knowledge didn't initialise or when the
-     * configured search provider isn't Lucene.
-     *
-     * <p>Delegates to the decomposed {@link com.wikantik.search.subsystem.lucene.LuceneSearcher}
-     * (Phase 7 Ckpt 3) when available, falling back to the facade's own
-     * {@code moreLikeThis} method for safety. Either path produces an
-     * identical wire result; the facade just adds one delegation hop.</p>
-     */
-    private void wireLuceneMltPostConstruction() {
-        if ( knowledgeSubsystem == null ) {
-            return;
-        }
-        final HubOverviewService hub = knowledgeSubsystem.hubOverviewService();
-        if ( hub == null ) {
-            return;
-        }
-        final SearchProvider sp = searchSubsystem != null ? searchSubsystem.searchProvider() : null;
-        if ( !( sp instanceof LuceneSearchProvider lsp ) ) {
-            LOG.debug( "wireLuceneMltPostConstruction: SearchProvider is not Lucene "
-                + "(actual={}); leaving HubOverviewService MLT as no-op.",
-                sp == null ? "null" : sp.getClass().getName() );
-            return;
-        }
-        final HubOverviewService.LuceneMlt mlt = ( seed, max, excludes ) -> {
-            final var hits = lsp.moreLikeThis( seed, max, excludes );
-            final java.util.List< HubOverviewService.MoreLikeThisLucene > out =
-                new java.util.ArrayList<>( hits.size() );
-            for ( final var h : hits ) {
-                out.add( new HubOverviewService.MoreLikeThisLucene( h.name(), h.score() ) );
-            }
-            return out;
-        };
-        hub.setLuceneMlt( mlt );
-        LOG.info( "wireLuceneMltPostConstruction: HubOverviewService.LuceneMlt wired "
-            + "to live LuceneSearchProvider." );
-    }
-
 
     /** {@inheritDoc} */
     @Override
@@ -1657,27 +1540,11 @@ public class WikiEngine implements Engine {
     rebuildKnowledgeSubsystemWithPostConstructionServices(
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services base ) {
         return new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services(
-            base.kgService(),
-            base.judgeService(),
-            base.judgeRunner(),
-            base.kgMaterialization(),
-            base.judgeTimeoutRepository(),
-            base.hubProposalService(),
-            base.hubDiscoveryService(),
-            base.hubOverviewService(),
-            base.hubProposalRepository(),
-            base.hubDiscoveryRepository(),
             base.contentChunkRepository(),
             base.chunkProjector(),
-            base.mentionIndex(),
-            base.nodeMentionSimilarity(),
             base.frontmatterDefaultsFilter(),
             getManager( com.wikantik.api.agent.ForAgentProjectionService.class ),
-            getManager( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class ),
-            getManager( com.wikantik.api.kgpolicy.KgInclusionPolicy.class ),
-            getManager( com.wikantik.kgpolicy.ReconciliationJobRunner.class ),
             getManager( com.wikantik.api.eval.RetrievalQualityRunner.class ),
-            base.kgCurationOps(),
             /* retrieval — carry the factory's empty set-once holder; the trio is
                installed into it later by patchContextRetrievalService */ base.retrieval()
         );
@@ -1686,7 +1553,7 @@ public class WikiEngine implements Engine {
     /**
      * Returns the Knowledge subsystem's services bundle, or {@code null} if
      * the subsystem failed to initialize or the engine ran without a
-     * knowledge graph datasource.
+     * datasource.
      *
      * <p>Phase 1 of the wikantik-main subsystem decomposition. New code
      * should obtain Knowledge services this way; legacy code uses
@@ -2000,7 +1867,6 @@ public class WikiEngine implements Engine {
         getManager( FilterManager.class ).destroy();
         closeQuietly( com.wikantik.collab.adapter.CollabWiring.class );
         closeQuietly( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
-        closeQuietly( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class );
         closeQuietly( com.wikantik.search.hybrid.QueryEmbedder.class );
         closeQuietly( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
         if ( auditWriter != null ) {

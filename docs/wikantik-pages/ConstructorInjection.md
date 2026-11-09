@@ -30,4 +30,3 @@ The service locator pattern made unit testing difficult — tests had to create 
 
 A first wave of high-value classes was converted on 2026-03-29, including the core page, reference, rendering, recent-articles, difference and variable managers (`DefaultPageManager`, `DefaultReferenceManager`, `DefaultRenderingManager`, `DefaultRecentArticlesManager`, `DefaultDifferenceManager`, `DefaultVariableManager`), the auth managers, `LuceneSearchProvider`, `WikiSession`, `AttachmentServlet` and `SecurityVerifier`. Each class gained a constructor accepting its dependencies while maintaining backwards compatibility through the existing no-argument constructor, which falls back to service location.
 
-[{Relationships}]

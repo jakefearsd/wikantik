@@ -24,7 +24,6 @@ import org.apache.logging.log4j.Logger;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Frontmatter value coercions shared by the structural index: SnakeYAML hands back strings, lists,
@@ -88,22 +87,4 @@ final class SpineFrontmatter {
         return List.of( o.toString() );
     }
 
-    /**
-     * Parses the {@code kg_include} frontmatter field. SnakeYAML auto-types
-     * {@code true}/{@code false} literals to {@link Boolean}, but authors may
-     * also write the value as a string. Any unrecognised value yields
-     * {@link Optional#empty()}.
-     */
-    static Optional< Boolean > parseKgInclude( final Object raw ) {
-        if ( raw == null ) {
-            return Optional.empty();
-        }
-        if ( raw instanceof Boolean b ) {
-            return Optional.of( b );
-        }
-        final String s = raw.toString().trim().toLowerCase( java.util.Locale.ROOT );
-        if ( "true".equals( s ) )  return Optional.of( true );
-        if ( "false".equals( s ) ) return Optional.of( false );
-        return Optional.empty();
-    }
 }

@@ -118,7 +118,7 @@ class SchemaValidationPageFilterTest {
         final com.wikantik.api.pagegraph.PageDescriptor hub =
                 new com.wikantik.api.pagegraph.PageDescriptor( "01HAA000000000000000000001", "MLHub", "MLHub",
                         com.wikantik.api.pagegraph.PageType.HUB, "machine-learning", java.util.List.of(), null,
-                        java.time.Instant.now(), java.util.Optional.empty(), false );
+                        java.time.Instant.now(), false );
         org.mockito.Mockito.when( idx.getCluster( "machine-learning" ) ).thenReturn(
                 java.util.Optional.of( new com.wikantik.api.pagegraph.ClusterDetails(
                         "machine-learning", hub, java.util.List.of( hub ), java.util.Map.of(),

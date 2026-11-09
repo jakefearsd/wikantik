@@ -10,8 +10,8 @@ it.
 
 Fully implemented. The SPA covers reading, inline editing, search, change
 history, similar-pages discovery, attachment management, comments/mentions,
-dark mode, the admin panel (users, content, security, knowledge, API
-keys, KG policy, retrieval quality, page ownership, audit), and the graph
+dark mode, the admin panel (users, content, security, embeddings, API
+keys, retrieval quality, page ownership, audit), and the graph
 viewers.
 
 ## Architecture
@@ -45,7 +45,7 @@ SPA paths to `/index.html` so React Router can take over.
 - **Prefix routes** (anything under): `/wiki/`, `/edit/`, `/diff/`, `/admin/`
 - **Exact routes**: `/admin`, `/admin/insights` (redundant with the `/admin/`
   prefix, listed explicitly in `SPA_EXACT` anyway), `/search`, `/page-graph`,
-  `/knowledge-graph`, `/preferences`, `/reset-password`, `/login`,
+  `/preferences`, `/reset-password`, `/login`,
   `/me/mentions`, `/change-password`
 
 The full route table from `main.jsx`:
@@ -59,7 +59,6 @@ The full route table from `main.jsx`:
 | `/diff/:name` | `DiffViewer` | Side-by-side version diff |
 | `/search` | `SearchResultsPage` | Full-text + faceted search |
 | `/page-graph` | `PageGraphView` | Page Graph (wikilink edges) viewer |
-| `/knowledge-graph` | `KnowledgeGraphView` | KG entity/edge viewer |
 | `/preferences` | `UserPreferencesPage` | Personal settings |
 | `/me/mentions` | `MentionsPage` | @-mention inbox |
 | `/reset-password` | `ResetPasswordPage` | Password reset flow |
@@ -69,15 +68,11 @@ The full route table from `main.jsx`:
 | `/admin/users` | `AdminUsersPage` | User management |
 | `/admin/content` | `AdminContentPage` | Content & index tools |
 | `/admin/security` | `AdminSecurityPage` | Groups + policy grants |
-| `/admin/knowledge-graph` | `AdminKnowledgePage` | KG curation |
+| `/admin/embeddings` | `AdminEmbeddingsPage` | Content embeddings + LLM activity |
 | `/admin/apikeys` | `AdminApiKeysPage` | API key management |
 | `/admin/retrieval-quality` | `AdminRetrievalQualityPage` | Retrieval experiment harness |
-| `/admin/drift` | `AdminDriftPage` | Vocabulary/SHACL drift burn-down dashboard |
+| `/admin/drift` | `AdminDriftPage` | Vocabulary drift burn-down dashboard |
 | `/admin/insights` | `InsightsPanel` | Search-visibility / content-intelligence panel |
-| `/admin/kg-policy` | `AdminKgPolicyPage` | KG inclusion policy rules |
-| `/admin/kg-policy/explain` | `AdminKgPolicyExplain` | Per-page policy explanation |
-| `/admin/kg-policy/pending` | `AdminKgPolicyPending` | Pages with pending review |
-| `/admin/kg-policy/bootstrap` | `AdminKgPolicyBootstrap` | Bulk bootstrap tooling |
 | `/admin/page-ownership` | `AdminPageOwnershipPage` | Page-owner assignment |
 | `/admin/audit` | `AdminAuditPage` | Tamper-evident audit log; rows are clickable and open a record-detail modal |
 | `/admin/connectors` | `AdminConnectorsPage` | Connector list + detail (settings/authorization/runs/pages tabs) |
@@ -132,7 +127,6 @@ wikantik-frontend/
     │   ├── TableOfContents.jsx / Breadcrumbs.jsx
     │   ├── admin/               Admin panel pages + forms (see below)
     │   ├── pagegraph/           Page Graph viewer (lazy-loaded)
-    │   ├── kgraph/              Knowledge Graph viewer (lazy-loaded)
     │   └── ui/                  Shared primitive components (see below)
     ├── commands/                Command registry shared by the overlay, slash menu, toolbar and key bindings
     ├── navigation/              NavigationGuardProvider: confirm-before-leaving dialog while a guard is registered
@@ -165,7 +159,7 @@ fetch. `PageView` injects that HTML and then runs idempotent client-side DOM pas
 - Comment-thread anchoring (`commentHighlight`) — marks the text ranges that
   comment threads are attached to.
 
-**Editor preview, search snippets and KG chunk views.** These render markdown in the
+**Editor preview, search snippets and chunk views.** These render markdown in the
 browser with `react-markdown`. The editor preview (`EditorPreviewMarkdown`, fed by
 `PageEditor`) uses this plugin chain:
 
@@ -220,27 +214,6 @@ Snapshot comes from `PageGraphSnapshotResource` in `wikantik-rest`,
 backed by the Page Graph subsystem (`com.wikantik.pagegraph.*`). A
 `?focus=PageName` query parameter auto-centres and selects a node on
 load — useful for linking to the graph from an article.
-
-### `/knowledge-graph` — Knowledge Graph viewer
-
-Reader-facing visualisation of the LLM-extracted entity graph. Nodes are
-typed entities; edges are co-mention or typed relations between them.
-Includes tier filter, node-type colours, provenance/status badges, and a
-large-graph warning gate that prompts before rendering big subgraphs.
-Components under `wikantik-frontend/src/components/kgraph/`:
-
-| Component | Role |
-|-----------|------|
-| `KnowledgeGraphView.jsx` | Top-level container |
-| `KgGraphToolbar.jsx` | Tier filter, node-type filter, refresh |
-| `KgGraphLegend.jsx` | Node-type colour key |
-| `KgGraphDetailsDrawer.jsx` | Selected-node provenance + incident edges |
-| `KgErrorState.jsx` | Failure UI |
-| `kg-graph-data.js` | Converts the REST snapshot into Cytoscape elements |
-| `kg-graph-style.js` | Cytoscape stylesheet |
-
-Snapshot comes from `KnowledgeGraphResource` in `wikantik-rest`, backed
-by `DefaultKnowledgeGraphService` in `wikantik-knowledge`.
 
 ## Design System
 
@@ -353,10 +326,9 @@ Links are grouped into four sections:
 - Connectors (`/admin/connectors`)
 
 **Knowledge & Search**
-- Knowledge Graph (`/admin/knowledge-graph`) — shown only when the `knowledgeGraph` capability is on
-- KG Policy (`/admin/kg-policy`) — see [docs/admin/KgInclusionPolicy.md](../admin/KgInclusionPolicy.md)
+- Embeddings (`/admin/embeddings`) — content embeddings and LLM activity; see [docs/admin/AdminPanel.md](../admin/AdminPanel.md)
 - Retrieval Quality (`/admin/retrieval-quality`) — see [docs/admin/RetrievalQuality.md](../admin/RetrievalQuality.md)
-- Drift (`/admin/drift`) — vocabulary/SHACL drift burn-down dashboard
+- Drift (`/admin/drift`) — vocabulary drift burn-down dashboard
 - Search Visibility (`/admin/insights`)
 
 **Observability**
@@ -379,23 +351,12 @@ Dashboard | Orphaned Pages | Broken Links | Versions | Chunk Inspector | Index S
 - **Chunk Inspector** — (`ChunkInspectorTab`) inspect embedding chunks per page.
 - **Index Status** — (`IndexStatusTab`) search index health and rebuild trigger.
 
-### AdminKnowledgePage tabs
+### AdminEmbeddingsPage tabs
 
-`AdminKnowledgePage` uses a tab bar defined as:
+`AdminEmbeddingsPage` has two tabs:
 
-```
-Proposals | Extraction | Node Explorer | Edge Explorer |
-Content Embeddings | Hub Proposals | Hub Discovery | LLM Activity
-```
-
-- **Proposals** (`ProposalReviewQueue`) — review pending KG node/edge proposals; approve or reject individually.
-- **Extraction** (`ExtractionTab`) — run or cancel the LLM entity extractor; watch live progress.
-- **Node Explorer** (`GraphExplorer`) — browse/search all KG nodes by type or status; inspect properties; project frontmatter.
-- **Edge Explorer** (`EdgeExplorer`) — browse/search all KG edges by relationship type; inspect provenance.
-- **Content Embeddings** (`ContentEmbeddingsTab`) — inspect the shared Ollama mention-centroid index; bulk-backfill missing frontmatter.
-- **Hub Proposals** (`HubProposalsTab`) — generate/manage hub membership proposals; approve/reject individually, in bulk, or by percentile threshold.
-- **Hub Discovery** (`HubDiscoveryTab`) — cluster-based hub discovery; accept/dismiss proposal cards; manage existing hub memberships.
-- **LLM Activity** (`LlmActivityTab`) — live in-memory view of recent/in-flight LLM calls (extraction, proposal judging, embeddings); last ~1 hour only, cleared on restart.
+- **Content embeddings** (`ContentEmbeddingsTab`) — dense-index health; bulk-backfill missing frontmatter; list pages without frontmatter.
+- **LLM activity** (`LlmActivityTab`) — live in-memory view of recent/in-flight LLM calls; last ~1 hour only, cleared on restart.
 
 ## Shared UI Components (`components/ui/`)
 
@@ -422,7 +383,7 @@ A set of reusable primitives used across both the reader and admin panel:
 
 35 hook modules (counted 2026-10-05; most have a `.test` file). The main groups:
 
-- **Auth & session**: `useAuth.jsx` (login state, current user via `AuthProvider` context), `useCapabilities.jsx` (server-advertised feature flags, e.g. `knowledgeGraph`)
+- **Auth & session**: `useAuth.jsx` (login state, current user via `AuthProvider` context), `useCapabilities.jsx` (server-advertised feature flags)
 - **Theme**: `useDarkMode.js` (toggle + localStorage persistence)
 - **API / data fetching**: `useApi.js` (fetch + auth header plumbing), `useAttachments.js`, `useMyPages.js`
 - **Editor**: `useEditorDrop.js` (drag-and-drop into editor), `useDraft.js` / `useDrafts.js` (auto-save draft management), `useFrontmatterValidation.js` (debounced live frontmatter validation)

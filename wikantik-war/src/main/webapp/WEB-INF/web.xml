@@ -519,10 +519,6 @@
        <servlet-class>com.wikantik.rest.PageByIdResource</servlet-class>
    </servlet>
    <servlet>
-       <servlet-name>PageKnowledgeResource</servlet-name>
-       <servlet-class>com.wikantik.rest.PageKnowledgeResource</servlet-class>
-   </servlet>
-   <servlet>
        <servlet-name>StructuralIndexHealthResource</servlet-name>
        <servlet-class>com.wikantik.rest.StructuralIndexHealthResource</servlet-class>
    </servlet>
@@ -575,10 +571,6 @@
        <servlet-class>com.wikantik.rest.AdminOverviewResource</servlet-class>
    </servlet>
    <servlet>
-       <servlet-name>AdminKgPolicyResource</servlet-name>
-       <servlet-class>com.wikantik.rest.AdminKgPolicyResource</servlet-class>
-   </servlet>
-   <servlet>
        <servlet-name>PageForAgentResource</servlet-name>
        <servlet-class>com.wikantik.rest.PageForAgentResource</servlet-class>
    </servlet>
@@ -593,10 +585,6 @@
    <servlet>
        <servlet-name>BriefingResource</servlet-name>
        <servlet-class>com.wikantik.rest.BriefingResource</servlet-class>
-   </servlet>
-   <servlet>
-       <servlet-name>KnowledgeGraphResource</servlet-name>
-       <servlet-class>com.wikantik.rest.KnowledgeGraphResource</servlet-class>
    </servlet>
    <servlet>
        <servlet-name>PageGraphSnapshotResource</servlet-name>
@@ -754,16 +742,8 @@
        <servlet-class>com.wikantik.rest.AdminPolicyResource</servlet-class>
    </servlet>
    <servlet>
-       <servlet-name>AdminKnowledgeResource</servlet-name>
-       <servlet-class>com.wikantik.rest.AdminKnowledgeResource</servlet-class>
-   </servlet>
-   <servlet>
        <servlet-name>AdminEmbeddingsResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminEmbeddingsResource</servlet-class>
-   </servlet>
-   <servlet>
-       <servlet-name>AdminHubDiscoveryResource</servlet-name>
-       <servlet-class>com.wikantik.rest.AdminHubDiscoveryResource</servlet-class>
    </servlet>
    <servlet>
        <servlet-name>AdminApiKeysResource</servlet-name>
@@ -781,10 +761,6 @@
    <servlet>
        <servlet-name>AdminCollabResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminCollabResource</servlet-class>
-   </servlet>
-   <servlet>
-       <servlet-name>AdminExtractionResource</servlet-name>
-       <servlet-class>com.wikantik.rest.AdminExtractionResource</servlet-class>
    </servlet>
 
    <!-- SCIM 2.0 -->
@@ -883,10 +859,6 @@
        <url-pattern>/api/pages/by-id/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
-       <servlet-name>PageKnowledgeResource</servlet-name>
-       <url-pattern>/api/page-knowledge/*</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
        <servlet-name>StructuralIndexHealthResource</servlet-name>
        <url-pattern>/api/health/structural-index</url-pattern>
    </servlet-mapping>
@@ -947,10 +919,6 @@
        <url-pattern>/admin/overview</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
-       <servlet-name>AdminKgPolicyResource</servlet-name>
-       <url-pattern>/admin/kg-policy/*</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
        <servlet-name>AdminPageOwnershipResource</servlet-name>
        <url-pattern>/admin/page-ownership/*</url-pattern>
    </servlet-mapping>
@@ -970,10 +938,6 @@
    <servlet-mapping>
        <servlet-name>BriefingResource</servlet-name>
        <url-pattern>/api/briefing</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
-       <servlet-name>KnowledgeGraphResource</servlet-name>
-       <url-pattern>/api/knowledge/graph</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>PageGraphSnapshotResource</servlet-name>
@@ -1120,18 +1084,6 @@
        <url-pattern>/admin/policy</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
-       <servlet-name>AdminKnowledgeResource</servlet-name>
-       <url-pattern>/admin/knowledge-graph/*</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
-       <servlet-name>AdminKnowledgeResource</servlet-name>
-       <url-pattern>/admin/knowledge-graph</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
-       <servlet-name>AdminHubDiscoveryResource</servlet-name>
-       <url-pattern>/admin/knowledge-graph/hub-discovery/*</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
        <servlet-name>AdminApiKeysResource</servlet-name>
        <url-pattern>/admin/apikeys/*</url-pattern>
    </servlet-mapping>
@@ -1158,14 +1110,6 @@
    <servlet-mapping>
        <servlet-name>AdminCollabResource</servlet-name>
        <url-pattern>/admin/collab/*</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
-       <servlet-name>AdminExtractionResource</servlet-name>
-       <url-pattern>/admin/knowledge-graph/extract-mentions</url-pattern>
-   </servlet-mapping>
-   <servlet-mapping>
-       <servlet-name>AdminExtractionResource</servlet-name>
-       <url-pattern>/admin/knowledge-graph/extract-mentions/*</url-pattern>
    </servlet-mapping>
 
    <!-- SCIM 2.0 servlet mappings -->

@@ -42,12 +42,12 @@ class StructuralProjectionMultiMembershipTest {
 
     private static PageDescriptor hub( final String slug, final String cluster ) {
         return new PageDescriptor( id( slug ), slug, slug, PageType.HUB, cluster, List.of(),
-                null, Instant.EPOCH, Optional.empty(), false );
+                null, Instant.EPOCH, false );
     }
 
     private static PageDescriptor member( final String slug, final List< String > clusters ) {
         return new PageDescriptor( id( slug ), slug, slug, PageType.ARTICLE, null, clusters,
-                List.of(), null, Instant.EPOCH, Optional.empty(), false );
+                List.of(), null, Instant.EPOCH, false );
     }
 
     private static String id( final String slug ) {
@@ -131,7 +131,7 @@ class StructuralProjectionMultiMembershipTest {
     void a_hub_declares_only_its_primary_cluster() {
         final PageDescriptor multiHub = new PageDescriptor( id( "MLHub" ), "MLHub", "MLHub", PageType.HUB,
                 null, List.of( "machine-learning", "quantitative-finance" ), List.of(), null,
-                Instant.EPOCH, Optional.empty(), false );
+                Instant.EPOCH, false );
         final StructuralProjection proj = project( multiHub );
 
         assertEquals( "MLHub", proj.getCluster( "machine-learning" ).orElseThrow().hubPage().slug() );
@@ -144,7 +144,7 @@ class StructuralProjectionMultiMembershipTest {
     void a_hub_with_multiple_memberships_is_reported_as_a_conflict() {
         final PageDescriptor multiHub = new PageDescriptor( id( "MLHub" ), "MLHub", "MLHub", PageType.HUB,
                 null, List.of( "machine-learning", "quantitative-finance" ), List.of(), null,
-                Instant.EPOCH, Optional.empty(), false );
+                Instant.EPOCH, false );
 
         assertTrue( project( multiHub ).structuralConflicts().stream()
                             .anyMatch( c -> c.kind() == StructuralConflict.Kind.MULTI_CLUSTER_HUB

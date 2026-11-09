@@ -40,10 +40,7 @@ class KnowledgeSubsystemServicesTest {
 
     /** All-null Services — the compact constructor must normalize the null retrieval ref. */
     private static KnowledgeSubsystem.Services allNullServices() {
-        return new KnowledgeSubsystem.Services(
-            null, null, null, null, null, null, null, null, null, null,
-            null, null, null, null, null, null, null, null, null,
-            null, null, null );
+        return new KnowledgeSubsystem.Services( null, null, null, null, null, null );
     }
 
     @Test

@@ -71,8 +71,8 @@ data "aws_ami" "ubuntu" {
 
 # -----------------------------------------------------------------------
 # Security group — 22/admin_cidr, 80+443/world, nothing else. Egress is
-# wide open (docker pulls from GHCR/Docker Hub, SSM API, apt, and — for
-# tier=knowledge — the Anthropic API all need arbitrary outbound HTTPS).
+# wide open (docker pulls from GHCR/Docker Hub, SSM API, and apt all
+# need arbitrary outbound HTTPS).
 # -----------------------------------------------------------------------
 
 resource "aws_security_group" "wikantik" {
@@ -357,18 +357,10 @@ locals {
   # appended on top of this at boot (see fetch_secrets_block above).
   tier_env = {
     core = {
-      WIKANTIK_GENAI_MODE        = "none"
-      WIKANTIK_KNOWLEDGE_ENABLED = "false"
+      WIKANTIK_GENAI_MODE = "none"
     }
     search = {
       WIKANTIK_GENAI_MODE         = "embeddings-only"
-      WIKANTIK_KNOWLEDGE_ENABLED  = "false"
-      WIKANTIK_EMBEDDING_BASE_URL = "http://ollama-embed:11434"
-    }
-    knowledge = {
-      WIKANTIK_GENAI_MODE         = "full"
-      WIKANTIK_KNOWLEDGE_ENABLED  = "true"
-      WIKANTIK_EXTRACTOR_BACKEND  = "claude"
       WIKANTIK_EMBEDDING_BASE_URL = "http://ollama-embed:11434"
     }
   }

@@ -2,8 +2,8 @@
 
 This page is for operators who run Wikantik and want to cap or verify its LLM/inference spend. Wikantik's LLM/inference spend is bounded by a single ceiling property,
 **`wikantik.genai.mode`** (`com.wikantik.api.config.GenAiMode`), plus a handful
-of independent feature flags it gates. This page gives three named tiers —
-**core**, **search**, **knowledge** — with the exact `.env` preset for the
+of independent feature flags it gates. This page gives two named tiers —
+**core**, **search** — with the exact `.env` preset for the
 Docker/container path and the equivalent `wikantik-custom.properties` lines
 for the bare-metal path, followed by how to verify a tier is actually
 enforced and what it does *not* cover.
@@ -27,13 +27,11 @@ warning naming it, so an operator who *wanted* enforcement can see the miss.
 
 The mode is a **ceiling**, not a switch: it never turns a feature *on*. Every
 LLM-using call site reads its own enable flag first, then ANDs it with the
-ceiling. The five call sites that do this today:
+ceiling. The three call sites that do this today:
 
 | Call site | Flag | Ceiling check | Source |
 |-----------|------|----------------|--------|
 | Embedding client | `wikantik.search.hybrid.enabled` | `mode.allowsEmbeddings()` | `EmbeddingConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/search/embedding/EmbeddingConfig.java`) |
-| KG entity extractor | `wikantik.knowledge.extractor.backend` | `mode.allowsChatInference()` | `EntityExtractorConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/extraction/EntityExtractorConfig.java`) |
-| KG proposal judge | `wikantik.kg.judge.enabled` | `mode.allowsChatInference()` | `KgJudgeConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/judge/KgJudgeConfig.java`) |
 | Bundle LLM reranker | `wikantik.bundle.reranker.enabled` (or an `llm` token in `wikantik.bundle.rerank.chain`) | `mode.allowsChatInference()` | `BundleServiceWiring.rerankerFor`/`buildChain` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleServiceWiring.java`) |
 | Bundle query-decomposition planner | `wikantik.bundle.decomposition.enabled` | `mode.allowsChatInference()` | `BundleDecompositionConfig.fromProperties` (`wikantik-main/src/main/java/com/wikantik/knowledge/bundle/BundleDecompositionConfig.java`) |
 
@@ -51,19 +49,17 @@ inference, no sidecar to run or pay for.
 
 ```bash
 WIKANTIK_GENAI_MODE=none
-WIKANTIK_KNOWLEDGE_ENABLED=false
 ```
 
 **`wikantik-custom.properties` (bare-metal path):**
 
 ```properties
 wikantik.genai.mode = none
-wikantik.knowledge.enabled = false
 wikantik.search.hybrid.enabled = false
 ```
 
 > **No env passthrough for `wikantik.search.hybrid.enabled`.** `docker/entrypoint.sh`
-> renders an env override for `WIKANTIK_GENAI_MODE` and `WIKANTIK_KNOWLEDGE_ENABLED`
+> renders an env override for `WIKANTIK_GENAI_MODE`
 > but has no corresponding block for the hybrid-search flag — it
 > isn't in the container env-var surface at all. That's fine for this tier:
 > `mode=none` forces the embedding client disabled at the ceiling
@@ -80,22 +76,15 @@ Verified against: `docker/entrypoint.sh`, `wikantik-main/src/main/java/com/wikan
 ## Tier: search — dense + BM25 hybrid, CPU embedding sidecar only
 
 Dense+BM25 hybrid search, dense-chunk context bundle, a CPU-only embedding
-endpoint — no chat inference anywhere (no KG extraction, no judge, no
+endpoint — no chat inference anywhere (no
 reranker, no query decomposition).
 
 **`.env` (Docker/container path):**
 
 ```bash
 WIKANTIK_GENAI_MODE=embeddings-only
-WIKANTIK_KNOWLEDGE_ENABLED=false
 WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
 ```
-
-Set `WIKANTIK_KNOWLEDGE_ENABLED=true` instead if you still want the Knowledge
-Graph admin UI available for **manual curation only** (no automatic
-extraction — `mode=embeddings-only` still blocks chat inference, so the
-extractor/judge stay off regardless of this flag; only hand-authored KG
-nodes/edges via `/admin/knowledge-graph/*` or `propose_knowledge` work).
 
 `ollama-embed` is the cloud overlay's CPU-only Ollama sidecar
 (`docker-compose.cloud.yml`, `--profile embeddings`)
@@ -108,7 +97,6 @@ don't want the bundled sidecar.
 
 ```properties
 wikantik.genai.mode = embeddings-only
-wikantik.knowledge.enabled = false
 wikantik.search.embedding.base-url = http://<your-embedding-host>:11434
 ```
 
@@ -119,58 +107,13 @@ Verified against: `docker-compose.cloud.yml`, `.env.example`, `docker/entrypoint
 
 ---
 
-## Tier: knowledge — full KG extraction + judge
+## Going beyond search: chat inference
 
-Full chat inference: KG entity extraction, proposal judging, and (if you
-opt in — both stay off-by-default) the bundle's LLM reranker/query-decomposition.
-
-**`.env` (Docker/container path), Anthropic-hosted extraction:**
-
-```bash
-WIKANTIK_GENAI_MODE=full
-WIKANTIK_KNOWLEDGE_ENABLED=true
-WIKANTIK_EXTRACTOR_BACKEND=claude
-ANTHROPIC_API_KEY=<key>
-WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
-```
-
-**`.env`, BYO Ollama extraction instead:**
-
-```bash
-WIKANTIK_GENAI_MODE=full
-WIKANTIK_KNOWLEDGE_ENABLED=true
-WIKANTIK_EXTRACTOR_BACKEND=ollama
-WIKANTIK_EMBEDDING_BASE_URL=http://<your-ollama-host>:11434
-```
-
-With `WIKANTIK_EXTRACTOR_BACKEND=ollama`, the extractor's own base URL
-(`wikantik.knowledge.extractor.ollama.base_url`) has no dedicated env
-passthrough — set it via a bare-metal-style properties override if it needs
-to differ from the embedding host.
-
-**`wikantik-custom.properties` (bare-metal path), Anthropic-hosted:**
-
-```properties
-wikantik.genai.mode = full
-wikantik.knowledge.enabled = true
-wikantik.knowledge.extractor.backend = claude
-wikantik.knowledge.extractor.claude.model = claude-haiku-4-5
-```
-
-(`ANTHROPIC_API_KEY` is read directly from the process environment by
-`EntityExtractorFactory`/`ClaudeEntityExtractor` — it is never a properties
-file entry on either path.)
-
-**`wikantik-custom.properties`, BYO Ollama:**
-
-```properties
-wikantik.genai.mode = full
-wikantik.knowledge.enabled = true
-wikantik.knowledge.extractor.backend = ollama
-wikantik.knowledge.extractor.ollama.base_url = http://<your-ollama-host>:11434
-```
-
-Verified against: `docker-compose.cloud.yml`, `.env.example`, `docker/entrypoint.sh`, `wikantik-main/src/main/resources/ini/wikantik.properties` (extractor backend/model/base_url defaults), `wikantik-main/src/main/java/com/wikantik/knowledge/extraction/EntityExtractorConfig.java`.
+The Knowledge Graph (entity extraction and proposal judging) was removed, so there is no longer a
+separate "knowledge" tier and no `ANTHROPIC_API_KEY` to provision for extraction. The only chat-inference
+call sites left are the bundle's LLM reranker and query-decomposition planner, both off by default. To
+allow them, set `WIKANTIK_GENAI_MODE=full` (bare metal: `wikantik.genai.mode = full`) and enable the flag
+you want; see the caveats below.
 
 ---
 
@@ -180,35 +123,31 @@ Verified against: `docker-compose.cloud.yml`, `.env.example`, `docker/entrypoint
 
 `GET /admin/llm-activity` (admin-only, `AdminAuthFilter`) is a live, in-memory
 log of every LLM call — subsystem, backend, model, status, duration. It
-covers **all five** LLM call sites: `EMBEDDING`,
-`ENTITY_EXTRACTION`, `PROPOSAL_JUDGE`, `SECTION_RERANK`
-and `QUERY_DECOMPOSITION` (`wikantik-main/src/main/java/com/wikantik/llm/activity/Subsystem.java`).
+covers the three LLM call sites: `EMBEDDING`,
+`SECTION_RERANK` and `QUERY_DECOMPOSITION` (`wikantik-main/src/main/java/com/wikantik/llm/activity/Subsystem.java`).
 
-Filter with `?subsystem=embedding` (or `entity_extraction`, `proposal_judge`,
-`section_rerank`, `query_decomposition`) and `?status=ok|error|in_flight`.
+Filter with `?subsystem=embedding` (or `section_rerank`, `query_decomposition`) and `?status=ok|error|in_flight`.
 
 **Status caveat for `SECTION_RERANK` / `QUERY_DECOMPOSITION`:** these two
 delegates (`LlmSectionReranker.rerank`, `LlmQueryPlanner.plan`) catch every
 backend failure internally by contract and degrade to dense-order /
 single-pass — they never throw. Their activity entries therefore report
 `status=ok` even during a real Ollama outage; `?status=error` finds outages
-only for `EMBEDDING` / `ENTITY_EXTRACTION` / `PROPOSAL_JUDGE`, whose clients
-do throw. For the rerank/decomposition subsystems, treat an unusually short
+only for `EMBEDDING`, whose client
+does throw. For the rerank/decomposition subsystems, treat an unusually short
 `duration` or a drop-off in call volume — not `error` status — as the outage
 signal, and check the wikantik logs for the delegates' own degradation
 warnings.
 
 Under the **search** tier, after a few real searches/bundle requests, the log
-should show **only** `EMBEDDING` entries — zero `ENTITY_EXTRACTION`,
-`PROPOSAL_JUDGE`, `SECTION_RERANK`, or `QUERY_DECOMPOSITION` calls, since the
-ceiling forces the reranker/planner back to identity/passthrough and the KG
-extractor/judge off, regardless of their own flags. That makes the ceiling provable from the log rather than from reading source:
+should show **only** `EMBEDDING` entries — zero `SECTION_RERANK` or
+`QUERY_DECOMPOSITION` calls, since the
+ceiling forces the reranker/planner back to identity/passthrough, regardless of their own flags. That makes the ceiling provable from the log rather than from reading source:
 an operator who flips `wikantik.bundle.reranker.enabled=true` by mistake under
 `embeddings-only` sees no `SECTION_RERANK` entries.
 
 Under **core**, the log should show nothing at all (no calls of any
-subsystem). Under **knowledge**, `EMBEDDING`, `ENTITY_EXTRACTION`, and
-`PROPOSAL_JUDGE` all appear; `SECTION_RERANK`/`QUERY_DECOMPOSITION` only
+subsystem). Under `genai.mode=full`, `EMBEDDING` appears; `SECTION_RERANK`/`QUERY_DECOMPOSITION` only
 appear if you've separately opted into `wikantik.bundle.reranker.enabled` /
 `wikantik.bundle.decomposition.enabled` (both off by default — see
 [caveats](#bundle-llm-levers-stay-off-by-default-the-ceiling-guards-against-accidental-re-enable)).
@@ -229,7 +168,6 @@ uses to gate its own navigation. Returns:
 
 ```json
 {
-  "knowledgeGraph": true,
   "hybridSearch": true,
   "genaiMode": "embeddings-only",
   "ontology": true,
@@ -239,8 +177,7 @@ uses to gate its own navigation. Returns:
 ```
 
 `genaiMode` is the lowercase-hyphenated `GenAiMode` token
-(`CapabilitiesResource.toToken`); the booleans are `wikantik.knowledge.enabled`,
-`wikantik.search.hybrid.enabled`, `wikantik.ontology.enabled`,
+(`CapabilitiesResource.toToken`); the booleans are `wikantik.search.hybrid.enabled`, `wikantik.ontology.enabled`,
 `wikantik.connectors.enabled`, `wikantik.citations.enabled` — all default `true`.
 
 #### hybridSearch is ceiling-adjusted; the other booleans are raw flags
@@ -252,19 +189,17 @@ reports `hybridSearch: false` even with the property at its default — the
 response matches what retrieval actually does. A parity test
 (`CapabilitiesResourceTest`) locks this to `EmbeddingConfig.fromProperties`'s
 computation so the two cannot silently drift. The remaining booleans
-(`knowledgeGraph`, `ontology`, `connectors`, `citations`) are direct property
+(`ontology`, `connectors`, `citations`) are direct property
 reads, since their subsystems have no ceiling interaction.
 
 ### 3. Warn-log lines when the ceiling suppresses a feature
 
-Each of the five call sites logs a `WARN` naming the property and the mode,
+Each of the call sites logs a `WARN` naming the property and the mode,
 the moment an explicitly-enabled feature gets forced off:
 
 | Feature | Log line (approximate) |
 |---------|--------------------------|
 | Embeddings | `wikantik.genai.mode={} disallows embeddings; forcing embedding client disabled` |
-| Entity extractor | `wikantik.genai.mode={} disallows chat inference; forcing entity-extractor backend '{}' to 'disabled'` |
-| KG proposal judge | `wikantik.genai.mode={} disallows chat inference; forcing KG judge disabled` |
 | Bundle reranker (legacy flag) | `wikantik.genai.mode={} disallows chat inference; ignoring wikantik.bundle.reranker.enabled=true, using identity reranker` |
 | Bundle reranker (chain form) | `wikantik.genai.mode={} disallows chat inference; skipping 'llm' rerank stage` |
 | Bundle query decomposition | `wikantik.genai.mode={} disallows chat inference; forcing bundle query-decomposition disabled` |
@@ -276,17 +211,6 @@ having been enabled in the first place.
 ---
 
 ## Caveats
-
-### `wikantik-extract-cli` bypasses the ceiling by design
-
-The standalone `wikantik-extract-cli` module (`BootstrapExtractionCli` and
-friends) is an operator-invoked, args-driven batch tool — it has no
-`wikantik.genai.mode` read anywhere in its source. Running it against a
-`core`- or `search`-tier deployment still performs real chat-inference calls
-against whatever backend its own CLI args/config point at. This is
-deliberate: it's an explicit, offline, human-invoked action, not something
-that runs as part of normal save-time or query-time traffic — the ceiling
-protects the always-on request path, not one-off operator tooling.
 
 ### Bundle LLM levers stay off by default; the ceiling guards against accidental re-enable
 

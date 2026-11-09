@@ -51,7 +51,7 @@ import static org.mockito.Mockito.when;
  * catch blocks (rebuild-time page enumeration/parsing, DAO writes on save and
  * delete, verification persistence, the metrics sink itself), the two
  * secondary constructors, and the {@code parseInstant}/{@code stringList}/
- * {@code parseKgInclude} private helpers exercised end to end through
+ * legacy {@code kg_include} (now ignored) helpers exercised end to end through
  * frontmatter values.
  */
 class DefaultStructuralIndexServiceCoverageTest {
@@ -398,7 +398,7 @@ class DefaultStructuralIndexServiceCoverageTest {
     }
 
     // -----------------------------------------------------------------------
-    // parseInstant / stringList / parseKgInclude — exercised end to end
+    // parseInstant / stringList (+ inert legacy kg_include) — exercised end to end
     // through rebuild()'s frontmatter mapping.
     // -----------------------------------------------------------------------
 

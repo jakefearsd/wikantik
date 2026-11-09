@@ -113,7 +113,7 @@ class AdminDriftResourceTest {
         assertEquals( "2026-06-09T05:00:00Z", out.get( "sweptAt" ).getAsString() );
         assertEquals( 100, out.get( "pagesScanned" ).getAsInt() );
         assertEquals( "scheduled", out.get( "triggeredBy" ).getAsString() );
-        assertTrue( out.get( "shaclChecked" ).getAsBoolean() );
+        assertFalse( out.has( "shaclChecked" ) );
         final var counts = out.getAsJsonArray( "counts" );
         assertEquals( 2, counts.size() );
         final JsonObject status = counts.get( 0 ).getAsJsonObject();

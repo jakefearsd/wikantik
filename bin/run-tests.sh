@@ -29,12 +29,12 @@
 #
 # Usage:
 #   bin/run-tests.sh                 # DEFAULT GATE: unit phase + deterministic IT modules
-#                                    #   (rest, sso, knowledge-disabled, custom-jdbc, dense) — the pre-commit run
+#                                    #   (rest, sso, custom-jdbc, dense) — the pre-commit run
 #   bin/run-tests.sh --all           # EVERYTHING: default gate + the opt-in, heavy
 #                                    #   Authentik SCIM full-loop (scim-fullloop)
 #   bin/run-tests.sh --unit          # unit phase only (Phase 1)
 #   bin/run-tests.sh --it            # default-gate IT phase only (assumes a prior --unit)
-#   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop
+#   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|custom-jdbc|dense|scim-fullloop
 #   bin/run-tests.sh --fullloop      # ONLY the opt-in Authentik full-loop
 #   bin/run-tests.sh --it --parallel 4   # opt-in: default IT modules in one -T 4 reactor
 #                                        # (-p 4 short form; or IT_PARALLELISM=4 env — flag wins)
@@ -72,7 +72,7 @@ Usage: bin/run-tests.sh [MODE] [OPTIONS]
 
 There are two "everything" levels:
   * the no-arg run is the DEFAULT GATE  — unit + the deterministic IT modules
-    (rest, sso, knowledge-disabled, custom-jdbc, dense). This is what you run before committing.
+    (rest, sso, custom-jdbc, dense). This is what you run before committing.
   * --all is EVERYTHING               — the default gate PLUS the opt-in, heavy
     Authentik SCIM full-loop (scim-fullloop). Use it for a complete run.
 
@@ -81,7 +81,7 @@ MODES (default, no args: the default gate = unit, then default-gate IT modules)
                          (and npm audit findings FAIL the run instead of warning)
   --unit                 Unit reactor only (Phase 1)
   --it                   Default-gate IT modules only (assumes --unit ran)
-  --module <name>        One IT module: rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop
+  --module <name>        One IT module: rest|sso|custom-jdbc|dense|scim-fullloop
   --fullloop             ONLY the opt-in Authentik SCIM full-loop (-Pscim-fullloop)
   --collab               Run the IT modules with collaborative editing ON (server
                          wikantik.collab.enabled=true, browser suite in collab mode).
@@ -104,7 +104,7 @@ ENVIRONMENT
   IT_PARALLELISM=1       Fallback for --parallel (flag wins)
 
 EXAMPLES
-  bin/run-tests.sh                      # default gate (unit + rest,sso,knowledge-disabled,custom-jdbc,dense) — pre-commit
+  bin/run-tests.sh                      # default gate (unit + rest,sso,custom-jdbc,dense) — pre-commit
   bin/run-tests.sh --all                # EVERYTHING incl. the heavy Authentik full-loop
   bin/run-tests.sh --all -o both        # everything, streaming build output to console + log
   bin/run-tests.sh --unit               # fast unit-only pass
@@ -124,7 +124,6 @@ list_modules() {
   echo "Default gate (run by --it / no args):"
   echo "  rest                wikantik-it-tests/wikantik-it-test-rest               (REST API + SCIM)"
   echo "  sso                 wikantik-it-tests/wikantik-it-test-sso                (Keycloak OIDC + SAML, type=both)"
-  echo "  knowledge-disabled  wikantik-it-tests/wikantik-it-test-knowledge-disabled (knowledge-subsystem-off degradation)"
   echo "  custom-jdbc         wikantik-it-tests/wikantik-it-test-custom-jdbc        (Selenide browser suite)"
   echo "  dense               wikantik-it-tests/wikantik-it-test-dense              (dense retrieval + context bundle)"
   echo
@@ -176,7 +175,6 @@ DENSE_MODULE="dense"
 IT_MODULES=(
   "wikantik-it-tests/wikantik-it-test-rest"
   "wikantik-it-tests/wikantik-it-test-sso"
-  "wikantik-it-tests/wikantik-it-test-knowledge-disabled"
   "wikantik-it-tests/wikantik-it-test-custom-jdbc"
   "wikantik-it-tests/wikantik-it-test-${DENSE_MODULE}"
 )
@@ -356,7 +354,7 @@ while [ $# -gt 0 ]; do
     --unit)    RUN_IT=0 ;;
     --it)      RUN_UNIT=0 ;;
     --module)  RUN_UNIT=0; RUN_IT=0; ONE_MODULE="${2:-}"; shift
-               [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop)" >&2; exit 2; } ;;
+               [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|custom-jdbc|dense|scim-fullloop)" >&2; exit 2; } ;;
     --parallel|-p)
                IT_PARALLELISM="${2:-}"; shift
                case "$IT_PARALLELISM" in
@@ -594,7 +592,7 @@ fi
 
 # Only start the shared embedder for a run that actually needs it: the full
 # IT phase, or a single-module run of the dense module specifically. Other
-# --module runs (rest, sso, knowledge-disabled, custom-jdbc, scim-fullloop)
+# --module runs (rest, sso, custom-jdbc, scim-fullloop)
 # have nothing to do with embeddings — starting it for e.g. --fullloop would
 # add up to the full embed_start readiness budget (EMBED_READY_TRIES x
 # EMBED_READY_SLEEP, above) of dead wait for no reason. Named rather than

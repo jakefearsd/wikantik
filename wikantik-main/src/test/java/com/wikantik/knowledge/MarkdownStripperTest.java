@@ -1,0 +1,127 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.knowledge;
+
+import org.junit.jupiter.api.Test;
+
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class MarkdownStripperTest {
+
+    @Test
+    void stripMarkdownStripsMarkersOfABodyOpeningWithAThematicBreak() {
+        final String result = MarkdownStripper.stripMarkdown( "---\ntitle: T\n---\n---\nPara ^h\n\n---\n\nMore ^m2\n" );
+        assertFalse( result.contains( "^h" ) || result.contains( "^m2" ), result );
+        assertTrue( result.contains( "Para" ) && result.contains( "More" ), result );
+    }
+
+    @Test
+    void stripMarkdownRemovesHeadings() {
+        final String md = "# Heading One\n## Heading Two\nParagraph text.";
+        final String result = MarkdownStripper.stripMarkdown( md );
+        assertFalse( result.contains( "#" ) );
+        assertTrue( result.contains( "Heading One" ) );
+        assertTrue( result.contains( "Paragraph text." ) );
+    }
+
+    @Test
+    void stripMarkdownRemovesCodeFences() {
+        final String md = "Before\n```java\npublic class Foo {}\n```\nAfter";
+        final String result = MarkdownStripper.stripMarkdown( md );
+        assertFalse( result.contains( "public class" ) );
+        assertTrue( result.contains( "Before" ) );
+        assertTrue( result.contains( "After" ) );
+    }
+
+    @Test
+    void stripMarkdownRemovesLinks() {
+        final String md = "See [the docs](https://example.com) for info.";
+        final String result = MarkdownStripper.stripMarkdown( md );
+        assertTrue( result.contains( "the docs" ) );
+        assertFalse( result.contains( "https://example.com" ) );
+    }
+
+    @Test
+    void stripMarkdownRemovesEmphasis() {
+        final String md = "This is **bold** and *italic* and __underline__ text.";
+        final String result = MarkdownStripper.stripMarkdown( md );
+        assertTrue( result.contains( "bold" ) );
+        assertTrue( result.contains( "italic" ) );
+        assertFalse( result.contains( "**" ) );
+        assertFalse( result.contains( "__" ) );
+    }
+
+    @Test
+    void stripMarkdownRemovesFrontmatter() {
+        final String md = "---\ntitle: Test\ntags: [a, b]\n---\nActual content here.";
+        final String result = MarkdownStripper.stripMarkdown( md );
+        assertFalse( result.contains( "title:" ) );
+        assertTrue( result.contains( "Actual content here." ) );
+    }
+
+    @Test
+    void stripMarkdownRemovesImages() {
+        final String md = "Look at ![diagram](img.png) here.";
+        final String result = MarkdownStripper.stripMarkdown( md );
+        assertTrue( result.contains( "diagram" ) );
+        assertFalse( result.contains( "img.png" ) );
+    }
+
+    @Test
+    void stripMarkdownRemovesHtmlTags() {
+        final String md = "Text <b>bold</b> and <div class=\"x\">content</div> end.";
+        final String result = MarkdownStripper.stripMarkdown( md );
+        assertTrue( result.contains( "bold" ) );
+        assertFalse( result.contains( "<b>" ) );
+        assertFalse( result.contains( "<div" ) );
+    }
+
+    @Test
+    void stripMarkdownHandlesNull() {
+        assertEquals( "", MarkdownStripper.stripMarkdown( null ) );
+        assertEquals( "", MarkdownStripper.stripMarkdown( "" ) );
+    }
+
+    @Test
+    void stripMarkdownReadsNativeWikiLinksAsText() {
+        assertEquals( "a Alias b c T > H", MarkdownStripper.stripMarkdown( "a [[T|Alias]] b ![[X]] c [[T#H]]" ) );
+    }
+
+    @Test
+    void stripMarkdownDropsBlockMarkers() {
+        assertEquals( "Para", MarkdownStripper.stripMarkdown( "Para ^abc\n" ) );
+    }
+
+    @Test
+    void stripMarkdownKeepsTheEqualsSignsOfAHighlightInsideCode() {
+        assertEquals( "Write ==x== for a highlight.", MarkdownStripper.stripMarkdown( "Write `==x==` for a highlight." ) );
+        assertEquals( "a mark and ==y== code", MarkdownStripper.stripMarkdown( "a ==mark== and `==y==` code" ) );
+    }
+
+    @Test
+    void stripMarkdownDropsHighlightDelimitersButKeepsLoneEquals() {
+        assertEquals( "Mark this and a == b stays.", MarkdownStripper.stripMarkdown( "Mark ==this== and a == b stays." ) );
+    }
+
+    @Test
+    void stripMarkdownDropsComments() {
+        assertEquals( "Shown text.", MarkdownStripper.stripMarkdown( "Shown %%hidden%% text." ) );
+    }
+}

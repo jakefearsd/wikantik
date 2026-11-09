@@ -1,5 +1,4 @@
 ---
-kg_include: true
 date: '2026-08-16'
 cluster: wikantik-development
 title: 'Wikantik Hybrid Search Refinement: BM25 + Dense Vector Reciprocal Rank Fusion'

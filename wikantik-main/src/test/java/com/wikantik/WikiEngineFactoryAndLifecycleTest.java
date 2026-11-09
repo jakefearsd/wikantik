@@ -274,9 +274,9 @@ class WikiEngineFactoryAndLifecycleTest {
         // non-exceptional fallthrough of closeable.close() (JaCoco only marks that line
         // covered when a probe past the call site actually fires, which never happens on
         // an always-throwing mock alone).
-        final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener cleanCloseable =
-            mock( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class );
-        engine.setManager( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class, cleanCloseable );
+        final com.wikantik.search.hybrid.QueryEmbedder cleanCloseable =
+            mock( com.wikantik.search.hybrid.QueryEmbedder.class );
+        engine.setManager( com.wikantik.search.hybrid.QueryEmbedder.class, cleanCloseable );
 
         // shutdown() must swallow the close() failure and still complete.
         Assertions.assertDoesNotThrow( engine::shutdown );

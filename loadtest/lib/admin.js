@@ -27,7 +27,7 @@
  * Three tiers, weighted to mirror how the admin surface is actually used:
  *
  *   dashboard  — what an open admin panel polls: counters, status cards.
- *   management — operator CRUD reads: users, groups, policy, keys, KG, audit.
+ *   management — operator CRUD reads: users, groups, policy, keys, audit.
  *   audit      — deliberately EXPENSIVE full-corpus reads. These are the
  *                endpoints the source itself flags as O(corpus) or N+1. They
  *                are rare per-operator but they are where the CPU is.
@@ -35,8 +35,7 @@
  * Excluded on purpose (destructive or externally-dependent, not load-testable):
  *   POST /admin/connectors/{id}/sync, POST /admin/connectors/test  (live network)
  *   POST /admin/derived/reflow without ?page=                      (corpus-wide re-extract + save)
- *   POST /admin/knowledge-graph/{clear-all,backfill-frontmatter,judge/run}
- *   POST /admin/knowledge-graph/extract-mentions                   (per-page LLM calls)
+ *   POST /admin/embeddings/backfill-frontmatter                    (corpus-wide frontmatter rewrite)
  *   POST /admin/content/{bulk-delete,purge-versions,reindex}       (content deletion)
  *   /admin/connector-oauth/gdrive/*                                (needs a live OAuth code)
  */
@@ -83,8 +82,7 @@ const DASHBOARD = [
   ['/admin/page-graph/conflicts', 'admin_pagegraph_conflicts'],
   ['/admin/drift/summary', 'admin_drift_summary'],
   ['/admin/drift/status', 'admin_drift_status'],
-  ['/admin/kg-policy/reconciliation', 'admin_kgpolicy_recon'],
-  ['/admin/knowledge-graph/embeddings/status', 'admin_kg_embed_status'],
+  ['/admin/embeddings/status', 'admin_embed_status'],
   ['/admin/insights/acquisition?days=90', 'admin_insights_acq'],
   ['/admin/insights/backlog?limit=50', 'admin_insights_backlog'],
 ];
@@ -125,14 +123,6 @@ const MANAGEMENT = [
   ['/admin/apikeys', 'admin_apikeys_list'],
   ['/admin/audit?limit=100', 'admin_audit_list'],              // server-clamped 1..1000
   ['/admin/audit?category=security&limit=50', 'admin_audit_filtered'],
-  ['/admin/kg-policy/clusters', 'admin_kgpolicy_clusters'],
-  ['/admin/kg-policy/pending', 'admin_kgpolicy_pending'],
-  ['/admin/kg-policy/audit?limit=100', 'admin_kgpolicy_audit'],
-  ['/admin/knowledge-graph/schema', 'admin_kg_schema'],
-  ['/admin/knowledge-graph/nodes?limit=50', 'admin_kg_nodes'],
-  ['/admin/knowledge-graph/edges?limit=50', 'admin_kg_edges'],
-  ['/admin/knowledge-graph/proposals?limit=50', 'admin_kg_proposals'],
-  ['/admin/knowledge-graph/hub-proposals', 'admin_kg_hub_proposals'],
   ['/admin/connectors', 'admin_connectors_list'],
   ['/admin/drift/trend?days=30', 'admin_drift_trend'],
   ['/admin/page-ownership?filter=orphaned&limit=100', 'admin_page_ownership'],
@@ -156,10 +146,9 @@ const AUDITS = [
   ['/admin/content/orphaned-pages', 'admin_orphaned_pages'],               // full reference-graph scan
   ['/admin/content/broken-links', 'admin_broken_links'],                   // N+1 findReferrers per target
   ['/admin/content/chunks/outliers', 'admin_chunk_outliers'],              // corpus-wide aggregate
-  ['/admin/ontology/violations', 'admin_ontology_violations'],             // full SHACL pass, uncached
   ['/admin/audit/verify', 'admin_audit_verify'],                           // full hash-chain verify
   ['/admin/frontmatter-issues', 'admin_frontmatter_issues'],               // getAllPages + strict YAML per page
-  ['/admin/knowledge-graph/pages-without-frontmatter', 'admin_kg_no_fm'],  // full corpus scan
+  ['/admin/embeddings/pages-without-frontmatter', 'admin_no_fm'],      // full corpus scan
   ['/admin/drift/pages', 'admin_drift_pages'],                             // O(rows x pages) per its own comment
 ];
 

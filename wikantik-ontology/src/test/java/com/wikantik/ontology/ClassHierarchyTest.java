@@ -18,6 +18,7 @@
  */
 package com.wikantik.ontology;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.apache.jena.rdf.model.Model;
@@ -37,11 +38,19 @@ class ClassHierarchyTest {
     }
 
     @Test
-    void everyEntityClassIsASubclassOfWkEntity() {
-        for ( final String cls : TBoxVocabulary.ENTITY_CLASSES ) {
-            assertTrue( subClassOf( cls, TBoxVocabulary.WK + "Entity" ),
-                    "wk:" + cls + " must be rdfs:subClassOf wk:Entity" );
+    void entityVocabularyIsGone() {
+        for ( final String cls : java.util.List.of( "Entity", "Person", "Organization", "Place", "Event",
+                "Product", "Technology", "Concept", "Project", "Version" ) ) {
+            assertFalse( tbox.contains( ResourceFactory.createResource( TBoxVocabulary.WK + cls ), null, (org.apache.jena.rdf.model.RDFNode) null ),
+                    "wk:" + cls + " belongs to the retired Knowledge Graph and must not be in the T-Box" );
         }
+    }
+
+    @Test
+    void noKnowledgeGraphRelationshipPredicatesRemain() {
+        assertFalse( tbox.listSubjectsWithProperty( org.apache.jena.vocabulary.RDF.type,
+                org.apache.jena.vocabulary.OWL.ObjectProperty ).hasNext(),
+                "the 21 KG relationship predicates are retired; the T-Box declares no object properties" );
     }
 
     @Test
@@ -54,8 +63,6 @@ class ClassHierarchyTest {
 
     @Test
     void rootsAreAnchoredToSchemaOrg() {
-        assertTrue( subClassOf( "Entity", TBoxVocabulary.SCHEMA + "Thing" ),
-                "wk:Entity must be rdfs:subClassOf schema:Thing" );
         assertTrue( subClassOf( "Page", TBoxVocabulary.SCHEMA + "CreativeWork" ),
                 "wk:Page must be rdfs:subClassOf schema:CreativeWork" );
     }

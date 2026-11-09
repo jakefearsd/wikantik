@@ -12,23 +12,23 @@ The root `pom.xml` declares 24 modules in its default `<modules>` list. A 25th, 
 | `wikantik-util` | Utility classes with no wiki dependencies |
 | `wikantik-event` | The event system used for decoupled communication |
 | `wikantik-jdbc` | The one data-access primitive (`com.wikantik.jdbc.Jdbc`) and the test-jar with `PostgresTestDb` |
-| `wikantik-api` | Manager interfaces, frontmatter, page save, Knowledge Graph and Page Graph contracts |
+| `wikantik-api` | Manager interfaces, frontmatter, page save and Page Graph contracts |
 | `wikantik-cache` | EhCache-based caching layer |
 | `wikantik-cache-memcached` | Opt-in Memcached adapter, not wired into the WAR |
 | `wikantik-http` | Servlet filters: CSRF, CSP, cross-origin and other security headers, session-cookie policy |
 | `wikantik-ingest` | Document extraction (Tika, HTML to Markdown) for derived pages, isolated from `wikantik-main` |
 | `wikantik-connectors` | External-source connector runtime (filesystem, web crawler, sitemap, feed, Google Drive, GitHub, Confluence) |
 | `wikantik-insights` | Content Intelligence: search-visibility facts, opportunity rules, effect measurement |
-| `wikantik-ontology` | RDF/OWL ontology layer on Apache Jena: T-Box, SHACL shapes, projectors, TDB2 store |
-| `wikantik-main` | The engine: rendering, providers, auth, search, references, entity extraction, import and export, runtime wiring |
+| `wikantik-ontology` | RDF/OWL ontology layer on Apache Jena: T-Box, projectors, TDB2 store |
+| `wikantik-main` | The engine: rendering, providers, auth, search, references, import and export, runtime wiring |
 | `wikantik-mcp-core` | Shared MCP substrate: tool base classes, access filter, endpoint bootstrap |
 | `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` (`McpServerInitializer`) |
-| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` (`KnowledgeMcpInitializer`) and the Knowledge Graph service |
+| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` (`KnowledgeMcpInitializer`) |
 | `wikantik-tools` | OpenAPI tool server at `/tools/*` |
 | `wikantik-scim` | SCIM 2.0 provisioning at `/scim/v2/*` |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
 | `wikantik-rest` | REST API (`/api/*`) and admin endpoints (`/admin/*`), plus `SpaRoutingFilter` |
-| `wikantik-extract-cli` | Standalone command-line tools: entity extractor, corpus divergence, KG policy, derived-page ingest |
+| `wikantik-extract-cli` | Standalone command-line tools: corpus divergence, ACL audit, derived-page ingest |
 | `wikantik-war` | WAR packaging; bundles the React build and wires servlets and filters; hosts the ArchUnit and config-drift tests |
 | `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
 | `wikantik-it-tests` | Integration tests (see [Testing.md](Testing.md)) |
@@ -65,15 +65,14 @@ These come from each module's `pom.xml`; break them and the build, or an archite
 
 Render caches skip viewer-dependent output: a render that consults the caller's session sets `Context.VAR_VIEWER_SENSITIVE` and stays out of the shared caches.
 
-## Keep the three edge types apart
+## Keep the edge types apart
 
 | Subsystem | Nodes and edges | Code | Surfaces |
 |-----------|-----------------|------|----------|
 | Page Graph | Pages; edges are real wikilinks parsed from page bodies. `canonical_id` and `cluster:` live beside it | `com.wikantik.pagegraph.*`, `com.wikantik.api.pagegraph` | `/page-graph`, `/admin/page-graph/*` |
-| Knowledge Graph | LLM-extracted entities; co-mention or typed-relation edges | `com.wikantik.knowledge.*`, `wikantik-knowledge`, `kg_*` tables | `/admin/knowledge-graph/*`, `/knowledge-mcp` |
 | Citation edges | Derived: `cite://` claims in a source page grounded in a target section, parsed at save into the `citations` table | `com.wikantik.citation.*` | `/admin/drift/citations`, `list_stale_citations` |
 
-Do not use the bare word "graph" in identifiers; say Page Graph, Knowledge Graph, `kg_*` or `pagegraph`. The long explanation is in [PageGraphVsKnowledgeGraph](../wikantik-pages/PageGraphVsKnowledgeGraph.md).
+Do not use the bare word "graph" in identifiers; say Page Graph or `pagegraph`. The Knowledge Graph (LLM-extracted entities) was removed in 2026-11; [PageGraphVsKnowledgeGraph](../wikantik-pages/PageGraphVsKnowledgeGraph.md) is the historical explainer.
 
 ## Count the HTTP surface
 

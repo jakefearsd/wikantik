@@ -1,5 +1,4 @@
 ---
-kg_include: true
 cluster: wikantik-development
 date: '2026-04-04'
 title: Graph Projector (Retired) and the Ontology Projectors
@@ -14,10 +13,12 @@ summary: The retired GraphProjector PageFilter (frontmatter to kg_nodes/kg_edges
 audience:
 - humans
 canonical_id: 01KQ0P44QRKREJBW4VZ326B1F7
-status: active
+status: archived
 type: article
 ---
 # Graph Projector (Retired) and the Ontology Projectors
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 > **Status (2026-10-13):** The GraphProjector described in the first section was **retired and deleted on 2026-04-24** (agent-MCP redesign, cycle 6). Page frontmatter and body links no longer create Knowledge Graph nodes or edges, and the "Project All Pages" admin button is gone. The components that project data today are the four ontology projectors described below. This page keeps the slug so older links still land somewhere accurate.
 

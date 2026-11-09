@@ -19,9 +19,7 @@
 package com.wikantik.knowledge.mcp;
 
 import com.wikantik.WikiEngine;
-import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextRetrievalService;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.EngineSPI;
 import com.wikantik.api.spi.Wiki;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -60,7 +58,6 @@ class KnowledgeMcpInitializerTest {
         final ServletContext ctx = mock( ServletContext.class );
         when( sce.getServletContext() ).thenReturn( ctx );
         final WikiEngine engine = mock( WikiEngine.class );
-        when( engine.getManager( KnowledgeGraphService.class ) ).thenReturn( null );
         when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( null );
         final EngineSPI spi = mock( EngineSPI.class );
         when( spi.find( any( ServletContext.class ), isNull() ) ).thenReturn( engine );
@@ -117,15 +114,13 @@ class KnowledgeMcpInitializerTest {
     }
 
     @org.junit.jupiter.api.Test
-    void serverInstructions_omitKnowledgeGraphToolsWhenDisabled() {
-        final String off = KnowledgeMcpInitializer.serverInstructions( false );
+    void serverInstructions_doNotAdvertiseKnowledgeGraphTools() {
+        final String text = KnowledgeMcpInitializer.serverInstructions();
         for ( final String kgTool : new String[] { "discover_schema", "query_nodes", "get_node", "traverse",
                 "search_knowledge", "find_similar", "Knowledge Graph" } ) {
-            org.junit.jupiter.api.Assertions.assertFalse( off.contains( kgTool ), "advertises " + kgTool );
+            org.junit.jupiter.api.Assertions.assertFalse( text.contains( kgTool ), "advertises " + kgTool );
         }
-        org.junit.jupiter.api.Assertions.assertTrue( off.contains( "assemble_bundle" ) );
-        org.junit.jupiter.api.Assertions.assertTrue(
-            KnowledgeMcpInitializer.serverInstructions( true ).contains( "discover_schema" ) );
+        org.junit.jupiter.api.Assertions.assertTrue( text.contains( "assemble_bundle" ) );
     }
 
     @org.junit.jupiter.api.Test

@@ -156,7 +156,7 @@ non-admin self-service `POST` that omits it gets `mcp_read`.)
 The principal you name is recorded for attribution and auditing only. It does not
 narrow the key: authorisation on these surfaces is the scope check in the access
 filter, and the admin MCP tools perform no per-user permission checks. An `mcp_admin` or
-`all` key can read and write every non-system page and curate the Knowledge Graph,
+`all` key can read and write every non-system page,
 whichever account it is bound to, so treat those keys as admin credentials. Use
 `mcp_read` for read-only agents. A narrower `mcp_content` tier (page and Knowledge
 Graph read/write without admin tools) is planned in

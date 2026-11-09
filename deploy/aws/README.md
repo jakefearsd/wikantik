@@ -167,9 +167,9 @@ mkfs guard leaves it untouched).
 | `ghcr_user` | string | *(none — required)* | GHCR username |
 | `ghcr_token` | string, sensitive | *(none — required)* | GHCR read token |
 | `wikantik_image` | string | *(none — required)* | Full ref **incl. tag** (validated), e.g. `ghcr.io/jakefearsd/wikantik:1.4.2`. Tag-style refs only — no `@sha256` digest pins |
-| `tier` | string | `core` | `core` \| `search` \| `knowledge` — see tier table below |
+| `tier` | string | `core` | `core` \| `search` — see tier table below |
 | `ingress` | string | `caddy` | `caddy` \| `cloudflared` |
-| `secrets` | map(string), sensitive | *(none — required)* | Must include `POSTGRES_PASSWORD`; `CLOUDFLARE_TUNNEL_TOKEN` iff `ingress = "cloudflared"`; `ANTHROPIC_API_KEY` iff `tier = "knowledge"` (all three enforced by `validation` blocks) |
+| `secrets` | map(string), sensitive | *(none — required)* | Must include `POSTGRES_PASSWORD`; `CLOUDFLARE_TUNNEL_TOKEN` iff `ingress = "cloudflared"` (both enforced by `validation` blocks) |
 | `route53_zone_id` | string | `""` | Set to manage a DNS record for `domain` |
 | `snapshot_retention_days` | number | `14` | DLM daily-snapshot retention |
 | `data_volume_size_gb` | number | `50` | `/srv/wikantik` gp3 volume size |
@@ -179,11 +179,10 @@ mkfs guard leaves it untouched).
 
 Mirrors `docker-compose.cloud.yml`'s header table exactly:
 
-| Tier | `WIKANTIK_GENAI_MODE` | `WIKANTIK_KNOWLEDGE_ENABLED` | Extra `.env` | Compose profile added |
-|---|---|---|---|---|
-| `core` | `none` | `false` | — | — (BM25-only, zero inference infra) |
-| `search` | `embeddings-only` | `false` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
-| `knowledge` | `full` | `true` | `WIKANTIK_EXTRACTOR_BACKEND=claude`, `WIKANTIK_EMBEDDING_BASE_URL=...` (+ `ANTHROPIC_API_KEY` from `secrets`) | `embeddings` |
+| Tier | `WIKANTIK_GENAI_MODE` | Extra `.env` | Compose profile added |
+|---|---|---|---|
+| `core` | `none` | — | — (BM25-only, zero inference infra) |
+| `search` | `embeddings-only` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
 
 `bundled-db` is always activated (this module has no RDS variant yet —
 that's Task 2.5); the ingress profile (`caddy`/`cloudflared`) is always
@@ -232,7 +231,7 @@ then just `terraform plan` / `terraform apply` with no `-var` flags.
 First boot takes a few minutes (cloud-init: mount + format the data
 volume, install Docker from its official apt repo, fetch secrets from
 SSM, `docker login`, `docker compose ... up -d`, which itself cold-pulls
-the image and — for `search`/`knowledge` — the embedding sidecar's model).
+the image and — for `search` — the embedding sidecar's model).
 Watch progress with `cloud-init status --wait` over SSH, or
 `/var/log/cloud-init-output.log`.
 
@@ -315,7 +314,7 @@ volume/snapshots are NOT excluded from `destroy`.
 
 ## Cost (rough, us-east-1, on-demand pricing — verify current pricing before relying on this)
 
-| Item | `core` (t3.medium) | `search`/`knowledge` (t3.large) |
+| Item | `core` (t3.medium) | `search` (t3.large) |
 |---|---|---|
 | Instance | ~$30/mo | ~$60/mo |
 | EBS gp3 50 GiB | ~$4/mo | ~$4/mo |
@@ -323,8 +322,7 @@ volume/snapshots are NOT excluded from `destroy`.
 | DLM snapshots (14-day retention, incremental) | a few $/mo | a few $/mo |
 | **Floor total** | **~$35–40/mo** | **~$65–70/mo** |
 
-`knowledge` tier additionally incurs Anthropic API usage (pay-per-token,
-outside this module's cost model) and, if `route53_zone_id` is set,
+If `route53_zone_id` is set, the module also incurs
 Route53's per-hosted-zone/query charges.
 
 ## GCP parity note

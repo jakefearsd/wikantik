@@ -40,17 +40,15 @@ class OntologyRuntimeTest {
 
     private final OntologyRebuildScheduler scheduler = mock( OntologyRebuildScheduler.class );
     private final OntologyPageSyncQueue pageSync = mock( OntologyPageSyncQueue.class );
-    private final OntologyEntitySync entitySync = mock( OntologyEntitySync.class );
     private final OntologyModelManager manager = mock( OntologyModelManager.class );
 
     @Test
     void closeStopsTheTimerAndDrainsTheWorkersBeforeClosingTheDataset() {
-        new OntologyRuntime( scheduler, pageSync, entitySync, manager ).close();
+        new OntologyRuntime( scheduler, pageSync, manager ).close();
 
-        final InOrder order = inOrder( scheduler, pageSync, entitySync, manager );
+        final InOrder order = inOrder( scheduler, pageSync, manager );
         order.verify( scheduler ).stop();
         order.verify( pageSync ).close();
-        order.verify( entitySync ).close();
         order.verify( manager ).close();
     }
 
@@ -59,15 +57,8 @@ class OntologyRuntimeTest {
         doThrow( new IllegalStateException( "drain boom" ) ).when( pageSync ).close();
         doThrow( new IllegalStateException( "tdb2 boom" ) ).when( manager ).close();
 
-        assertDoesNotThrow( () -> new OntologyRuntime( scheduler, pageSync, entitySync, manager ).close() );
+        assertDoesNotThrow( () -> new OntologyRuntime( scheduler, pageSync, manager ).close() );
 
-        verify( entitySync ).close();
-        verify( manager ).close();
-    }
-
-    @Test
-    void aRuntimeWithoutIncrementalEntitySyncStillClosesTheDataset() {
-        assertDoesNotThrow( () -> new OntologyRuntime( scheduler, pageSync, null, manager ).close() );
         verify( manager ).close();
     }
 
@@ -85,7 +76,7 @@ class OntologyRuntimeTest {
         queue.saved( "Solo" );
         final long before = mgr.committedWriteTransactions();
 
-        new OntologyRuntime( new OntologyRebuildScheduler( null, 0, 0 ), queue, null, mgr ).close();
+        new OntologyRuntime( new OntologyRebuildScheduler( null, 0, 0 ), queue, mgr ).close();
 
         assertEquals( 1L, mgr.committedWriteTransactions() - before, "the queued save was drained, then the dataset closed" );
     }

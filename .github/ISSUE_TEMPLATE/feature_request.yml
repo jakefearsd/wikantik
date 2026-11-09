@@ -53,7 +53,6 @@ body:
         - Knowledge MCP (/knowledge-mcp)
         - OpenAPI tool server (/tools/*)
         - Page Graph subsystem
-        - Knowledge Graph subsystem
         - Search / hybrid retrieval
         - Authentication / authorisation
         - Deployment scripts (bin/, docker/)

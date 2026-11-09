@@ -27,11 +27,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Shared JDBC scaffolding for the Knowledge Graph and Page Graph repositories/DAOs
- * ({@code com.wikantik.knowledge.KgJdbcSupport} and its subclasses; the
- * {@code com.wikantik.pagegraph.spine} structural-spine DAOs), factored out during
- * the GoF Template Method boilerplate consolidation into a neutral package so both
- * subsystems can share it without either depending on the other.
+ * Shared JDBC scaffolding for repositories/DAOs (the content-chunk repository, the
+ * {@code com.wikantik.pagegraph.spine} structural-spine DAOs, ...), factored out during
+ * the GoF Template Method boilerplate consolidation into a neutral package so
+ * subsystems can share it without depending on each other.
  *
  * <p>A thin {@code extends}-convenience wrapper: every protected method here is a one-line
  * delegate to a private {@link Jdbc} instance, kept only so the existing subclasses go on

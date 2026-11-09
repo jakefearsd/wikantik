@@ -199,21 +199,7 @@ public class McpServerInitializer implements ServletContextListener {
      */
     static final java.util.Set< String > TOOL_NAME_PREFIXES = java.util.Set.of(
             "get_", "list_", "search_", "find_", "write_", "delete_", "rename_", "diff_",
-            "verify_", "ping_", "preview_", "propose_", "mark_", "update_", "read_",
-            "retrieve_", "traverse_", "discover_", "query_",
-            // KG curation tool families. Without these the live drift detector logs a
-            // false-positive "registered but NOT mentioned" WARN at boot for
-            // inspect_proposals / review_proposals / curate_edges / curate_nodes,
-            // even though the instructions text describes all four.
-            "inspect_", "review_", "curate_" );
-
-    /**
-     * Tokens that match a tool prefix but are argument values, not tools — e.g. curate_edges'
-     * compound {@code delete_and_reject} action. Without this the instructions could not name
-     * them, because the drift check would report each one as a retired tool. Mirrored in
-     * {@code McpInstructionsDriftIT} (wikantik-it-tests), which cannot depend on this module.
-     */
-    static final java.util.Set< String > NON_TOOL_TOKENS = java.util.Set.of( "delete_and_reject" );
+            "verify_", "ping_", "preview_", "mark_", "update_", "read_", "retrieve_" );
 
     /**
      * Snapshot of how the static instructions text and the live tool registry agree.
@@ -237,7 +223,7 @@ public class McpServerInitializer implements ServletContextListener {
         final java.util.Set< String > result = new java.util.LinkedHashSet<>();
         while ( m.find() ) {
             final String tok = m.group();
-            if ( tok.indexOf( '_' ) < 0 || NON_TOOL_TOKENS.contains( tok ) ) {
+            if ( tok.indexOf( '_' ) < 0 ) {
                 continue;
             }
             for ( final String prefix : TOOL_NAME_PREFIXES ) {

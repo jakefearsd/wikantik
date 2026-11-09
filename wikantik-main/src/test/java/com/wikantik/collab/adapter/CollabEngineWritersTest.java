@@ -66,7 +66,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -182,7 +181,7 @@ class CollabEngineWritersTest {
         final StructuralIndexService index = mock( StructuralIndexService.class );
         when( index.listPagesByFilter( any( StructuralFilter.class ) ) ).thenReturn( List.of(
             new PageDescriptor( "01HAA0000000000000000000AA", PAGE, PAGE, PageType.ARTICLE, "alpha", List.of(), null,
-                Instant.now(), Optional.empty(), false ) ) );
+                Instant.now(), false ) ) );
         new ClusterRenameService( pm, index, new PageSaveHelper( engine, pm ) ).apply( "alpha", "beta", "Bot" );
 
         assertEquals( "beta", a.session().view().meta().get( "cluster" ), "the meta change merged" );

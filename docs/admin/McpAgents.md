@@ -10,29 +10,21 @@ instead of repeating the numbers.
 
 | Endpoint | Protocol | Tools | Access | Minimum key scope |
 |---|---|---|---|---|
-| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 20 read and write tools (29 with the retired Knowledge Graph enabled) | `McpAccessFilter` | `mcp_admin` |
-| `/knowledge-mcp` | MCP (Streamable HTTP) | 16 read-only tools (22 with the retired Knowledge Graph enabled) | `McpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
+| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 20 read and write tools | `McpAccessFilter` | `mcp_admin` |
+| `/knowledge-mcp` | MCP (Streamable HTTP) | 16 read-only tools | `McpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
 | `/tools/*` | OpenAPI 3.1 over plain HTTP | 2 | `ToolsAccessFilter` | `tools` |
 
-Counts are as of **2.5.12**, with the Knowledge Graph off (`wikantik.knowledge.enabled=false`, the default since its retirement). The URL patterns come from `web.xml` (`/tools/*`) and the
+Counts are as of **2.5.13**. The URL patterns come from `web.xml` (`/tools/*`) and the
 MCP bootstrapper (`/wikantik-admin-mcp`, `/knowledge-mcp`).
 
 ### The counts depend on wiring
 
-The numbers above are what a default deployment advertises. The Knowledge Graph (KG) is
-**retired and off by default**: with `wikantik.knowledge.enabled=false` its tools are not
-registered on either server. Setting the flag to `true` brings back the legacy KG tools
-(listed as retired below), which no longer appear in the server instructions and are not
-supported. A deployment without another optional subsystem advertises fewer tools still.
+The numbers above are what a default deployment advertises. A deployment without an optional subsystem advertises fewer tools.
 
 **`/wikantik-admin-mcp`** (registered in `McpToolRegistry`, verified against
 `McpProtocolIT.EXPECTED_TOOLS`, which lists 20):
 
 - 19 tools are always registered.
-- Retired, registered only when `wikantik.knowledge.enabled=true` (9 more tools):
-  `list_proposals`, `inspect_proposals`, `propose_knowledge`, `query_nodes`,
-  `search_knowledge`, `list_orphaned_kg_nodes`, and (only when the curation service is
-  also present) `review_proposals`, `curate_edges`, `curate_nodes`.
 - `list_retrieval_queries` needs a datasource-backed query-log reader.
 - `rename_cluster`, `list_content_opportunities` and `snooze_opportunity` are
   registered unconditionally, but refuse at call time with an explanation when the
@@ -41,12 +33,10 @@ supported. A deployment without another optional subsystem advertises fewer tool
 
 **`/knowledge-mcp`** (registered in `KnowledgeMcpInitializer.assembleTools`; the
 endpoint is not mounted at all unless the context retrieval service, the structural
-index or (retired) the Knowledge Graph service exists):
+index exists):
 
 | Tools | Registered only when |
 |---|---|
-| `discover_schema`, `query_nodes`, `get_node`, `traverse`, `search_knowledge` (retired, 5 tools) | the Knowledge Graph service is present (`wikantik.knowledge.enabled=true`; off by default) |
-| `find_similar` (retired) | the Knowledge Graph service **and** the node-similarity index are present |
 | `retrieve_context`, `get_page`, `list_pages`, `list_metadata_values`, `read_pages` | the context retrieval service is present |
 | `list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id` | the structural index is present |
 | `get_page_for_agent` | the for-agent projection service is present |
@@ -250,12 +240,7 @@ allow-all and logs an `ERROR`.
 | `sparql_query` | Read-only SPARQL over the materialized ontology (10,000-row cap, 30 s timeout) |
 | `list_stale_citations` | Citations whose status is `stale` or `target_missing` |
 
-**Retired Knowledge Graph tools.** Admin: `list_proposals`, `inspect_proposals`,
-`propose_knowledge`, `review_proposals`, `curate_edges`, `curate_nodes`, `query_nodes`,
-`search_knowledge`, `list_orphaned_kg_nodes`. Knowledge: `discover_schema`, `query_nodes`,
-`get_node`, `traverse`, `search_knowledge`, `find_similar`. They exist only with
-`wikantik.knowledge.enabled=true`, are undocumented in the server instructions and are slated
-for deletion. For content discovery use `retrieve_context` and `assemble_bundle`.
+**Removed Knowledge Graph tools.** The Knowledge Graph (entity nodes, edges, proposals, curation and the `query_nodes`, `traverse`, `search_knowledge`, `find_similar` family) was deleted; neither server registers those tools. For content discovery use `retrieve_context` and `assemble_bundle`.
 
 ## Where to go next
 

@@ -170,8 +170,7 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
     public String modelCode() { return modelCode; }
 
     /**
-     * Format {@code v} as a pgvector literal: {@code "[v1,v2,...]"}. Matches the
-     * codec used by {@link com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository}.
+     * Format {@code v} as a pgvector literal: {@code "[v1,v2,...]"}.
      *
      * <p>Visible as {@code public static} so the backfill CLI in
      * {@code com.wikantik.search.embedding} (a sibling package) can reuse it

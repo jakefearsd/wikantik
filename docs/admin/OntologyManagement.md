@@ -1,110 +1,48 @@
 # Ontology Management on Wikantik — Why and How
 
 This guide is for curators, agent operators and developers who manage the ontology layer. Wikantik is a wiki with an ontology layered over it: the prose pages are also a
-machine-readable, queryable knowledge model. This guide explains **why** that
-exists and **how** to manage it day to day — as a human curator, as an AI agent,
-and as a developer evolving the vocabulary itself.
+machine-readable, queryable model of *which pages exist, what type they are, and how
+they are filed* (clusters and tags). This guide explains **why** that exists and
+**how** to manage it day to day.
 
-> Terminology note: throughout, "ontology" means the `wikantik:` RDF/OWL model —
-> the classes, properties, and instances projected from the wiki. It is distinct
-> from the **Page Graph** (page-to-page wikilink edges). See
-> [PageGraphVsKnowledgeGraph.md](../wikantik-pages/PageGraphVsKnowledgeGraph.md) — read
-> it first if those two terms blur together.
+> **The ontology is page- and concept-only.** The `wikantik:` model used to carry a second
+> layer — LLM-extracted *entities* (9 entity classes) and typed *relations* among them
+> (21 predicates, SHACL edge shapes, `/id/entity/*`). The Knowledge Graph that fed it was
+> retired and deleted; the entity vocabulary left the T-Box with it. Triples for entities
+> that older stores still hold are purged by the next full rebuild.
+
+> Terminology note: "ontology" means the `wikantik:` RDF/OWL model — the classes and
+> instances projected from the wiki. It is distinct from the **Page Graph**
+> (page-to-page wikilink edges). See
+> [PageGraphVsKnowledgeGraph.md](../wikantik-pages/PageGraphVsKnowledgeGraph.md).
 
 ---
 
 ## Why an ontology over a wiki?
 
-A plain wiki stores prose. Wikantik additionally maintains a formal model of
-*what the pages are about*, because that unlocks things prose alone cannot:
-
-- **Interoperability / linked data.** Pages, clusters, tags, and extracted
-  entities are projected into RDF with stable, dereferenceable IRIs and public
-  mappings to **schema.org**, **SKOS**, **Dublin Core**, and **PROV-O**. The
-  model is queryable over **SPARQL** and exportable as Turtle/N-Triples, so the
-  wiki is consumable by any RDF tool — not just its own UI.
-- **Agent-grade retrieval.** Agents don't read a wiki the way people do. The
-  ontology powers ontology-aware query expansion, structured per-page projections,
-  and the `knowledge-mcp` tool surface — so an agent can traverse typed relations
-  and ask "what implements X" instead of grepping text. (The Knowledge Graph-aware search rerank was removed in 2026-07 — a 2026-06-16 ceiling experiment measured no net lift; see [KnowledgeGraphRerank.md](../archive/KnowledgeGraphRerank.md).)
-- **Shared human + AI curation.** Humans and AI agents both create and refine
-  the model through surfaces that read the **same** schema and the **same**
-  validation rules. The ontology evolves under shared control rather than
-  drifting between a human convention and an agent's guesses.
-- **Governance & trust.** Every entity/edge carries **provenance**
-  (human-authored, human-curated, AI-inferred, AI-reviewed); structurally
-  invalid relations are refused at write time by a **SHACL** gate; and
-  administrative changes are recorded in a tamper-evident
-  [audit log](AuditLog.md).
-- **SEO that can't drift.** A page's schema.org `@type` and `sameAs` are
-  re-sourced from the ontology, so the public structured data and the internal
-  model are two faces of one truth.
+- **Interoperability / linked data.** Pages, clusters and tags are projected into RDF with
+  stable, dereferenceable IRIs and public mappings to **schema.org** and **SKOS**. The
+  model is queryable over **SPARQL** and exportable as Turtle/N-Triples, so the wiki is
+  consumable by any RDF tool — not just its own UI.
+- **Agent-grade access.** `knowledge-mcp` exposes `get_ontology` and `sparql_query`, so an
+  agent can ask exact structured questions ("which runbooks are in this cluster") instead
+  of grepping text; the hybrid retriever can also expand queries through the concept
+  hierarchy (flag `wikantik.search.ontologyExpansion.enabled`, default off).
+- **SEO that can't drift.** A page's schema.org `@type` and `sameAs` are re-sourced from
+  the ontology mapping (`NodeTypeMapping.schemaOrgType`), so the public structured data and
+  the internal model are two faces of one truth (`SemanticHeadOntologyAgreementTest`).
 
 ---
 
-## Use cases
+## The model
 
-Two concrete things the ontology makes possible that prose alone does not:
+| Layer | What it is | Where it lives | Who changes it |
+|---|---|---|---|
+| **T-Box (vocabulary)** | The 6 page classes — `wk:Page` and its subclasses `Hub`, `Article`, `Reference`, `Runbook`, `DesignDoc` — each aligned to a schema.org type, plus the `wk:WikiConcepts` SKOS concept scheme. No object properties. | `wikantik-ontology/src/main/resources/ontology/wikantik.ttl`; `NodeTypeMapping` (code) | **Developers** (edit Turtle/Java) |
+| **Page concepts (A-Box)** | Each page as a typed resource: its `wk:` content class, IRI, title/summary, and links to its tag/cluster **SKOS** concepts | Page **frontmatter**; projected by `PageProjector` + `ConceptProjector` | **Authors & agents** (the structured frontmatter editor) |
 
-- **Ask the graph, don't grep the text.** A keyword index maps terms to pages; the
-  ontology maps concepts to one another, so you can ask *structured* questions — for
-  example:
-
-  ```sparql
-  # Every technology that implements a given concept, with the page it's described on
-  PREFIX wk:  <https://wiki.wikantik.com/ns/wikantik#>
-  PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-  SELECT ?tech ?label WHERE {
-    ?tech a wk:Technology ; wk:implements ?concept ; rdfs:label ?label .
-    ?concept rdfs:label "Distributed Consensus" .
-  }
-  ```
-
-  Hit the public `GET /sparql` endpoint, dereference any resource at
-  `/id/{type}/{id}` as JSON-LD or Turtle, or let an agent traverse the same model
-  through `knowledge-mcp` (`sparql_query`, `get_ontology`) — none of which a
-  text index can answer.
-
-- **Govern shared human + AI curation.** Humans and agents both build the model
-  through surfaces that read the *same* schema and pass the *same* write-time SHACL
-  gate, provenance stamping, and audit log — so it converges under shared control
-  instead of drifting between a human convention and an agent's guesses. The
-  [drift dashboard](#measuring-drift-the-burn-down-dashboard) makes any remaining
-  inconsistency measurable, and the [burn-down workflow](#curation-in-practice-burning-down-a-shacl-violation)
-  takes it to zero.
-
-(Two more payoffs fall out of the same model: the wiki is **interoperable linked
-data** — schema.org/SKOS/DC/PROV mappings + Turtle/N-Triples dumps consumable by
-any RDF tool — and its **SEO can't drift**, because a page's public schema.org
-`@type` is re-sourced from the ontology.)
-
----
-
-## The model: three layers
-
-It helps to see the ontology as three layers, because each is *managed
-differently* and *by different people*.
-
-| Layer | What it is | Where it lives | Who manages it |
-|-------|-----------|----------------|----------------|
-| **1. T-Box (vocabulary)** | The class & property *definitions* — 9 entity classes, 5 content classes, 21 relation predicates, their domain/range, the schema.org/SKOS/DC/PROV mappings, and the SHACL shapes | `wikantik-ontology/src/main/resources/ontology/wikantik.ttl` + `shapes.ttl`; `EntityTypeVocabulary`, `RelationshipTypeVocabulary`, `NodeTypeMapping` (code) | **Developers** (edit Turtle/Java) |
-| **2. Page concepts (A-Box)** | Each page as a typed concept: its `wk:` content class, IRI, title/summary, and its tag/cluster **SKOS** concepts + provenance | Page **frontmatter**; projected by `PageProjector` + `ConceptProjector` | **Authors & agents** (the structured frontmatter editor) |
-| **3. Knowledge Graph (A-Box)** | The *entities* mentioned across the wiki (people, technologies, concepts, …) and the typed **relations** among them | `kg_nodes` / `kg_edges`; projected by `EntityProjector` + `EdgeProjector` | **Extractors + curators** (the Knowledge tab, admin panel, MCP tools) |
-
-**The vocabulary (Layer 1)** is the closed set everything else conforms to:
-
-- **9 entity classes:** `person, organization, place, event, product,
-  technology, concept, project, version`.
-- **5 content classes:** `Hub, Article, Runbook, DesignDoc, Reference` (mapped
-  from a page's `type`).
-- **21 relation predicates:** `related_to, part_of, contains, is_a,
-  instance_of, generalizes, requires, enables, uses, produces, replaces,
-  precedes, extends, implements, alternative_to, contrasts_with,
-  compatible_with, mitigates, defines, applies_to, located_in`.
-
-You **author** Layers 2 and 3; you **don't author** Layer 1 from the wiki — you
-create *instances that conform to it*. Changing the vocabulary is a code change
-(see [Evolving the vocabulary](#evolving-the-vocabulary-layer-1) below).
+An unrecognised or missing page `type` projects as `wk:Article` (the same default the SEO
+renderer uses for `schema:Article`).
 
 ---
 
@@ -148,135 +86,70 @@ can self-correct. See
 
 ---
 
-## How to manage the Knowledge Graph (Layer 3)
-
-Layer-3 entities and relations come from two sources: **automatic extraction**
-and **deliberate curation**.
-
-### Where entities come from
-The entity extractors (chunk-level and page-level) read page content and emit
-candidate entities (one of the 9 classes) and relations into `kg_nodes` /
-`kg_edges`, stamped `AI_INFERRED`. This is the bulk-population path.
-
-### Curating from the page editor (the Knowledge tab)
-When you edit a page, the **Knowledge** tab (beside **Frontmatter**) shows the
-entities mentioned on *that* page and the relations among them, and lets you:
-
-- confirm an AI-inferred entity (promotes its provenance),
-- correct an entity's type (the 9-class vocabulary),
-- add or remove an intra-page relation (a predicate from the 21),
-- remove a spurious entity.
-
-Writes go through `/api/page-knowledge/*`, gated by your **edit** permission on
-the page, and route through the same curation facade as everything else — so the
-SHACL gate, provenance stamping, and audit log all apply. A relation that
-violates a shape is refused inline (HTTP 422) with the reason.
-
-> **Curation only surfaces on KG-included pages.** Inclusion is cluster-primary
-> and **default-exclude**; use `kg_include: true` in frontmatter to opt a page
-> in. An entity curated on an excluded page won't appear in the slice. See
-> [KgInclusionPolicy.md](KgInclusionPolicy.md).
-
-### Curating at scale (admin + agents)
-- **Admin panel:** `/admin/knowledge-graph/*` — list/query nodes & edges,
-  upsert, delete, merge duplicates, and review proposals.
-- **AI agents:** the admin MCP `curate_nodes` / `curate_edges` tools (and the
-  read-only `knowledge-mcp` retrieval tools) operate through the *same*
-  `KgCurationOps` chokepoint — there is no path that bypasses the SHACL gate or
-  provenance.
-
-### The SHACL write-time gate
-Relations are validated against the SHACL **shapes** before they're written. The
-gate is deliberately narrow today — `implements` requires a `technology` subject
-and a `concept` object; `located_in` requires a `place` object — and a
-non-conformant edge is refused (REST/MCP) or skipped-and-logged (the machine
-materialization path), citing the violated shape. Predicates without a shape are
-unconstrained. This is how the vocabulary's rules are enforced as the A-Box
-grows under both human and AI hands.
-
----
-
 ## Consuming the ontology (the read surface)
 
-The materialized model is queryable and dereferenceable, read-only and public
-(behind an ACL split so restricted pages/entities never materialize publicly):
+The materialized model is queryable and dereferenceable, read-only and public (behind an
+ACL split so restricted pages never materialize publicly):
 
 - **`/sparql`** (GET or POST) — read-only `SELECT` / `ASK` / `CONSTRUCT` (updates
   rejected; result cap + timeout).
-- **`GET /id/{type}/{id}`** — per-resource dereferencing as JSON-LD or Turtle
-  (e.g. `/id/page/{canonical_id}`, `/id/entity/{uuid}`).
+- **`GET /id/{type}/{id}`** — per-resource dereferencing as JSON-LD or Turtle. Supported
+  types: `page` (`/id/page/{canonical_id}`) and `concept` (`/id/concept/{slug}`). Any other
+  type, including the retired `entity`, is a 404.
 - **`GET /export/ontology.ttl`** and **`/export/graph.nt`** — full dumps.
-- **`knowledge-mcp`** exposes **`get_ontology`** (the formal T-Box) and
-  **`sparql_query`** (read-only SPARQL) to agents, plus ontology-aware query
-  expansion in the hybrid retriever (flag `wikantik.search.ontologyExpansion.enabled`,
-  default off).
+- **`knowledge-mcp`** exposes **`get_ontology`** (the formal T-Box) and **`sparql_query`**
+  (read-only SPARQL) to agents.
+
+Example — list the runbooks in a cluster:
+
+```sparql
+PREFIX wk:   <https://wiki.wikantik.com/ns/wikantik#>
+PREFIX dct:  <http://purl.org/dc/terms/>
+SELECT ?page ?title WHERE {
+  ?page a wk:Runbook ; dct:title ?title ; dct:subject <https://wiki.wikantik.com/id/concept/agentic-ai> .
+}
+```
 
 ---
 
 ## How it stays in sync (the materialization pipeline)
 
-The RDF model is **projected from PostgreSQL into a Jena TDB2 store** with RDFS
-`subClassOf` inference:
+The RDF model is **projected from PostgreSQL and page frontmatter into a Jena TDB2 store**
+with RDFS `subClassOf` inference:
 
-- **Projectors** turn rows into RDF: `PageProjector` (page concepts),
-  `ConceptProjector` (tag/cluster SKOS), `EntityProjector` + `EdgeProjector`
-  (KG entities/relations).
-- **Event-incremental sync.** `OntologyEventListener` re-projects a page's graph
-  (and its concept graphs) on save/rename and removes it on a true delete
-  (rename vs delete is disambiguated via `canonical_id` liveness). `KgChangeEvent`
-  now fires from both KG write funnels, and `OntologyEntitySync` re-projects
-  **entity** graphs incrementally too (coalesced, async); the nightly
-  `OntologyRebuildScheduler` is demoted to a reconciliation backstop.
-- **Manual rebuild & status:** `/admin/ontology/rebuild`, `/admin/ontology/*`
-  (status + SHACL-conformance violations); the store also rebuilds on startup if
-  empty.
+- **Projectors** turn pages into RDF: `PageProjector` (page concepts) and
+  `ConceptProjector` (tag/cluster SKOS).
+- **Event-incremental sync.** `OntologyEventListener` re-projects a page's graph (and its
+  concept graphs) on save/rename and removes it on a true delete (rename vs delete is
+  disambiguated via `canonical_id` liveness); writes are coalesced and run on a worker
+  thread. The nightly `OntologyRebuildScheduler` is a reconciliation backstop.
+- **Manual rebuild & status:** `POST /admin/ontology/rebuild`, `GET /admin/ontology/status`;
+  the store also rebuilds on startup if empty.
 
-Config: `wikantik.ontology.enabled` (default `true`),
-`wikantik.ontology.tdb2.dir` (blank by default, which means
-`<wikantik.workDir>/ontology-tdb2`),
+Config: `wikantik.ontology.enabled` (default `true`), `wikantik.ontology.tdb2.dir` (blank
+by default, which means `<wikantik.workDir>/ontology-tdb2`),
 `wikantik.ontology.rebuild.interval.hours` (default `24`, `0` = disabled),
-`wikantik.ontology.compaction.interval.hours` (default `168`, `0` = disabled; the
-TDB2 store only grows between compactions, so keep this on),
-`wikantik.ontology.incremental.enabled` (default `true` — event-incremental
-entity sync; `false` restores nightly-only behavior), and
-`wikantik.ontology.incremental.coalesce.ms` (default `500`). Full
-design: [`docs/superpowers/specs/2026-06-08-wiki-ontology-design.md`](../superpowers/specs/2026-06-08-wiki-ontology-design.md).
+`wikantik.ontology.compaction.interval.hours` (default `168`, `0` = disabled; the TDB2
+store only grows between compactions, so keep this on), and
+`wikantik.ontology.incremental.coalesce.ms` (default `500`). Full design:
+[`docs/superpowers/specs/2026-06-08-wiki-ontology-design.md`](../superpowers/specs/2026-06-08-wiki-ontology-design.md)
+(historical for the entity/SHACL parts, which were retired).
 
 ---
 
-## Evolving the vocabulary (Layer 1)
+## Evolving the vocabulary
 
-When you genuinely need a new class, predicate, or constraint — a **developer
-task**, not a wiki edit:
+A new page class is a **developer task**, not a wiki edit:
 
-1. **Add/adjust the T-Box** in `wikantik.ttl` (the class/property, its
-   `rdfs:domain`/`rdfs:range`, and any `rdfs:subClassOf` mapping to
-   schema.org/SKOS/DC/PROV). A class entry reads like:
+1. Add the class to `wikantik.ttl` (subclass of `wk:Page`, aligned to a schema.org type).
+2. Add the `type` -> class entry to `NodeTypeMapping` (class mapping and, if it should
+   differ from the `Article` default, the schema.org mapping) and the matching enum value
+   to the frontmatter schema.
+3. Extend the T-Box tests (`ClassHierarchyTest`) and `SemanticHeadOntologyAgreementTest`.
 
-   ```turtle
-   wk:Technology  rdfs:subClassOf  wk:Entity ;
-                  rdfs:subClassOf  schema:SoftwareApplication .
-
-   wk:implements  a            owl:ObjectProperty ;
-                  rdfs:domain  wk:Technology ;
-                  rdfs:range   wk:Concept .
-   ```
-
-2. **Update the code vocabularies** so the extractors, validators, and UI agree:
-   `EntityTypeVocabulary` (the 9 entity classes), `RelationshipTypeVocabulary`
-   (the 21 predicates), and `NodeTypeMapping` (free-text type → `wk:` class +
-   schema.org type). Drift guards (e.g. `EntityTypeVocabularyDriftTest`) tie
-   these together — keep them green.
-3. **Tighten constraints** by adding a `shapes.ttl` SHACL shape, which the
-   write-time gate will then enforce.
-4. **Surface the new value** in the UIs that hardcode the vocab (the structured
-   editor's enums, the Knowledge panel's type/predicate pickers).
-
-The page-concept enums (`type`, `status`) are **curated-open**: new values are
-tolerated (with a stern, suggestion-bearing warning) until the corpus is
-normalized, then escalatable to hard errors via
-`wikantik.frontmatter.enum.nonCanonical.severity`. This is the lever for evolving
-the page vocabulary gradually under shared human/AI control.
+The page-concept enums (`type`, `status`) are **curated-open**: new values are tolerated
+(with a stern, suggestion-bearing warning) until the corpus is normalized, then escalatable
+to hard errors via `wikantik.frontmatter.enum.nonCanonical.severity`.
 
 ---
 
@@ -285,10 +158,10 @@ the page vocabulary gradually under shared human/AI control.
 Advisory warnings only matter if someone can see them in aggregate. The **drift
 dashboard** (`/admin/drift`) makes vocabulary drift measurable:
 
-- A **corpus-wide sweep** runs the same schema validator over every page (plus the
-  SHACL conformance check over the materialized ontology) and persists one count per
-  `(family, code, severity)` — family `frontmatter` for field warnings, `shacl` for
-  non-conformant edges. Sweeps run automatically after each nightly ontology rebuild,
+- A **corpus-wide sweep** runs the same schema validator over every page and persists one count per
+  `(family, code, severity)` — family `frontmatter` for field warnings. (The former
+  `shacl` family covered the retired Knowledge Graph's edge shapes; `shaclChecked` stays in
+  the sweep payload for compatibility and is always `false`.) Sweeps run automatically after each nightly ontology rebuild,
   or on demand via the dashboard's *Run sweep now* (`POST /admin/drift/sweep`).
 - The dashboard shows the latest counts with **deltas vs. the previous sweep**, a
   per-code **trend sparkline**, and a live **per-code page list** — each offender
@@ -303,76 +176,23 @@ progress for the dashboard's progress bar), `POST /admin/drift/sweep`.
 
 ---
 
-## Curation in practice: burning down a SHACL violation
-
-The drift dashboard surfaces non-conformant edges under family `shacl`. Here is the
-end-to-end loop to clear them — the same one used to take the corpus to zero.
-
-1. **See them.** `/admin/drift` shows the `shacl node-scoped` count. Expand it (or
-   `GET /admin/drift/pages?family=shacl&code=node-scoped`) for the per-edge list;
-   each row names the focus node and the violated shape, e.g.
-   *"wk:implements domain must be a wk:Technology."*
-
-2. **Triage each one.** A violation has two honest fixes — the call is per-entity:
-   - **Retype the node** — if the subject genuinely *is* the required class (a real
-     technology mis-typed as `concept`), change its `node_type` to match; the edge
-     then conforms.
-   - **Fix or remove the edge** — if the edge is wrong or backwards (a concept that
-     doesn't "implement" anything, or an `implements` pointing the wrong way),
-     delete it or re-predicate it.
-
-   The question to ask is: *is the subject really a `technology`, or is the
-   `implements` edge bogus?*
-
-3. **Apply it** through a curation surface — the admin panel
-   (`/admin/knowledge-graph/*`), the admin-MCP `curate_nodes` / `curate_edges`
-   tools, or, for a one-shot legacy cleanup of many rows, a direct SQL fixup (data
-   correction, **not** a versioned migration). Each surface keeps the SHACL gate,
-   provenance, and audit log in force for *future* writes.
-
-4. **Re-project.** KG entity/edge edits fire a `KgChangeEvent`, which
-   `OntologyEntitySync` picks up and re-projects (coalesced, async — typically
-   settling within `wikantik.ontology.incremental.coalesce.ms`, default 500ms),
-   so most curation fixes reach the materialized model without a manual step.
-   If you want to force it (or the incremental sync is disabled via
-   `wikantik.ontology.incremental.enabled=false`), rebuild explicitly:
-   `POST /admin/ontology/rebuild` (or wait for the nightly reconcile). A
-   drift sweep fires automatically once a rebuild completes.
-
-5. **Re-sweep & confirm.** If you didn't trigger a rebuild, run
-   `POST /admin/drift/sweep` and confirm the `shacl` count dropped to zero.
-
-**Preventing recurrence.** The common cause was the entity extractor labelling a
-real technology with an off-vocabulary type (`database`, `framework`, `library`,
-`tool`, `service`, …) that fell back to `concept` — landing it under the
-`implements` shape. The chunk and page extractors now resolve those synonyms to the
-right class via `EntityTypeVocabulary.TYPE_ALIASES`, so freshly-extracted
-technologies are typed correctly at the source.
-
----
-
 ## Quick reference
-
-**Surfaces**
 
 | Purpose | Endpoint / tool |
 |---|---|
 | Field schema for the editor | `GET /api/frontmatter-schema` |
 | Dry-run frontmatter validation | `POST /api/frontmatter/validate` |
-| Page-scoped KG read + curation | `/api/page-knowledge/{name}` (view read, edit-gated writes) |
-| KG admin (nodes/edges/proposals) | `/admin/knowledge-graph/*` |
 | Ontology rebuild + status | `/admin/ontology/*` |
 | Drift burn-down (sweep + counts) | `/admin/drift/*` |
 | Public SPARQL | `/sparql` (GET or POST) |
-| Resource dereferencing | `GET /id/{type}/{id}` (JSON-LD / Turtle) |
+| Resource dereferencing | `GET /id/{page|concept}/{id}` (JSON-LD / Turtle) |
 | RDF dumps | `GET /export/ontology.ttl`, `/export/graph.nt` |
-| Agent tools | `knowledge-mcp` (`get_ontology`, `sparql_query`, retrieval); admin MCP (`curate_nodes`, `curate_edges`) |
+| Agent tools | `knowledge-mcp` (`get_ontology`, `sparql_query`) |
 
 **Where the code lives**
 
-- Vocabulary / T-Box / projectors / SHACL: `wikantik-ontology`
-- KG service, extractors, curation, inclusion policy: `wikantik-main`
-  (`com.wikantik.knowledge.*`), `kg_*` tables
+- T-Box / projectors / SPARQL guard: `wikantik-ontology`; runtime wiring and incremental
+  sync: `wikantik-main` (`com.wikantik.ontology.runtime`)
 - Structured editor + frontmatter schema/validator: `wikantik-api`
   (`com.wikantik.api.frontmatter.schema`), `wikantik-main`
   (`com.wikantik.frontmatter.schema`), `wikantik-frontend`
@@ -382,7 +202,5 @@ technologies are typed correctly at the source.
 
 - [Frontmatter.md](../user/Frontmatter.md) — the full frontmatter field reference + the structured editor
 - [PageGraphVsKnowledgeGraph.md](../wikantik-pages/PageGraphVsKnowledgeGraph.md) — Page Graph vs Knowledge Graph
-- [KgInclusionPolicy.md](KgInclusionPolicy.md) — which pages' entities are in the KG
-- [KnowledgeGraphRerank.md](../archive/KnowledgeGraphRerank.md) — the removed KG-aware retrieval rerank (historical)
-- [wiki-ontology-design](../superpowers/specs/2026-06-08-wiki-ontology-design.md) — the RDF/OWL layer design
+- [wiki-ontology-design](../superpowers/specs/2026-06-08-wiki-ontology-design.md) — the RDF/OWL layer design (historical for entities/SHACL)
 - [structured-page-curation-design](../superpowers/specs/2026-06-08-structured-page-curation-design.md) — the editor + curation surfaces

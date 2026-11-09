@@ -101,8 +101,8 @@ class ListTagsToolTest {
         new ListTagsTool( svc, slug -> !"Secret".equals( slug ) ).execute( Map.of() );
 
         final java.util.function.Predicate< com.wikantik.api.pagegraph.PageDescriptor > visible = captor.getValue();
-        final var open = new com.wikantik.api.pagegraph.PageDescriptor( "1", "Open", "t", null, null, List.of(), "", null, null, false );
-        final var secret = new com.wikantik.api.pagegraph.PageDescriptor( "2", "Secret", "t", null, null, List.of(), "", null, null, false );
+        final var open = new com.wikantik.api.pagegraph.PageDescriptor( "1", "Open", "t", null, null, List.of(), "", null, false );
+        final var secret = new com.wikantik.api.pagegraph.PageDescriptor( "2", "Secret", "t", null, null, List.of(), "", null, false );
         assertTrue( visible.test( open ) );
         assertFalse( visible.test( secret ) );
     }

@@ -25,14 +25,6 @@ import org.junit.jupiter.api.Test;
 class NodeTypeMappingTest {
 
     @Test
-    void mapsEachEntityType() {
-        assertEquals( "Person",       NodeTypeMapping.classLocalName( "person" ) );
-        assertEquals( "Organization", NodeTypeMapping.classLocalName( "organization" ) );
-        assertEquals( "Technology",   NodeTypeMapping.classLocalName( "technology" ) );
-        assertEquals( "Version",      NodeTypeMapping.classLocalName( "version" ) );
-    }
-
-    @Test
     void mapsPageTypesIncludingDesignAliases() {
         assertEquals( "Article",   NodeTypeMapping.classLocalName( "article" ) );
         assertEquals( "Hub",       NodeTypeMapping.classLocalName( "hub" ) );
@@ -41,15 +33,21 @@ class NodeTypeMappingTest {
     }
 
     @Test
-    void isCaseInsensitive() {
-        assertEquals( "Product", NodeTypeMapping.classLocalName( "Product" ) );
+    void retiredEntityTypesNoLongerMapToEntityClasses() {
+        assertEquals( "Article", NodeTypeMapping.classLocalName( "person" ) );
+        assertEquals( "Article", NodeTypeMapping.classLocalName( "technology" ) );
     }
 
     @Test
-    void nullOrUnknownDefaultsToConcept() {
-        assertEquals( "Concept", NodeTypeMapping.classLocalName( null ) );
-        assertEquals( "Concept", NodeTypeMapping.classLocalName( "" ) );
-        assertEquals( "Concept", NodeTypeMapping.classLocalName( "intelligence-summary" ) );
+    void isCaseInsensitive() {
+        assertEquals( "Hub", NodeTypeMapping.classLocalName( "Hub" ) );
+    }
+
+    @Test
+    void nullOrUnknownDefaultsToArticle() {
+        assertEquals( "Article", NodeTypeMapping.classLocalName( null ) );
+        assertEquals( "Article", NodeTypeMapping.classLocalName( "" ) );
+        assertEquals( "Article", NodeTypeMapping.classLocalName( "intelligence-summary" ) );
     }
 
     // -------- schemaOrgType (Phase 6: SEO @type re-sourced from the ontology mapping) --------

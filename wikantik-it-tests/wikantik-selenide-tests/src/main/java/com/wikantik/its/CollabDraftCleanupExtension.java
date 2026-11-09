@@ -20,17 +20,35 @@ package com.wikantik.its;
 
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 /**
  * In collab mode, purges every collaborative draft after each test, so a cancelled edit's draft never leaks into
  * the next test that opens the same page. A failed purge fails the test.
+ *
+ * <p>The purge is global (every draft on the server), so it runs only after sequential classes: a class opted into
+ * {@code @Execution(CONCURRENT)} (the audited read-only cluster) runs alongside whichever sequential editor test is
+ * in flight, and purging after one of its tests evicted that editor's collab session mid-test (the editor went
+ * read-only, lost focus, its completion list closed). Concurrent classes are read-only and create no drafts.</p>
  */
 public class CollabDraftCleanupExtension implements AfterEachCallback {
 
     @Override
     public void afterEach( final ExtensionContext context ) throws Exception {
-        if ( CollabMode.enabled() ) {
+        if ( CollabMode.enabled() && mayPurgeAfter( context.getRequiredTestClass() ) ) {
             RestSeedHelper.purgeAllDrafts();
         }
+    }
+
+    /** @return {@code false} for a class that runs concurrently with other classes (see the class comment). */
+    static boolean mayPurgeAfter( final Class< ? > testClass ) {
+        for ( Class< ? > c = testClass; c != null; c = c.getEnclosingClass() ) {
+            final Execution execution = c.getAnnotation( Execution.class );
+            if ( execution != null ) {
+                return execution.value() != ExecutionMode.CONCURRENT;
+            }
+        }
+        return true;
     }
 }

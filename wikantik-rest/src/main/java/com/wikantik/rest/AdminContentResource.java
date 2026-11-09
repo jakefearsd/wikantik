@@ -89,7 +89,7 @@ public class AdminContentResource extends RestServletBase {
         CachingManager.CACHE_HTML,
     };
 
-    /** One action for one HTTP verb on one endpoint. Same idiom as {@code AdminKnowledgeResource}. */
+    /** One action for one HTTP verb on one endpoint. Same idiom as the admin REST. */
     @FunctionalInterface
     private interface RouteAction {
         void invoke( HttpServletRequest request, HttpServletResponse response )
@@ -104,7 +104,7 @@ public class AdminContentResource extends RestServletBase {
 
     /**
      * Dispatch table — the single source of truth for this servlet's endpoints
-     * (GoF Command registry, aligned to the {@code AdminKnowledgeResource} house
+     * (GoF Command registry, aligned to the the admin REST house
      * pattern). Adding an endpoint is one line here plus one handler method. See
      * {@link RouteTable} for the shared matching engine and the
      * transient-field-plus-lazy-rebuild convention every route table here follows.

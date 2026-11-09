@@ -158,8 +158,7 @@ same service as the screen so the two never disagree (see [McpAgents.md](McpAgen
   auditable. It returns `snoozedUntil` and `previouslySnoozed`. A snooze is a deferral,
   not a deletion; re-snooze if the item is still not worth doing.
 
-The suggested action depends on the type. For `agent_gap`, curate the Knowledge Graph
-relations or write the missing section. For `stale_high_traffic`, re-verify or refresh
+The suggested action depends on the type. For `agent_gap`, write the missing section. For `stale_high_traffic`, re-verify or refresh
 the page.
 
 ## Where to go next

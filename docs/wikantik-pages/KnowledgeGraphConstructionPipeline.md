@@ -8,7 +8,6 @@ date: '2026-08-16'
 summary: 'Knowledge graph engineering: Named Entity Recognition (NER), Open Information
   Extraction (OpenIE), entity resolution, and RDF triple curation.'
 type: article
-kg_include: true
 title: 'Knowledge Graph Construction Pipeline: Entity Extraction and Ontology Linking'
 cluster:
 - agentic-ai

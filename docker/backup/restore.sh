@@ -119,7 +119,7 @@ fi
 
 # Verify a representative spread of core tables loaded.
 echo "  Verifying core tables..."
-for tbl in users kg_nodes page_canonical_ids; do
+for tbl in users kg_content_chunks page_canonical_ids; do
     CNT=$(psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
         -t -A -c "SELECT COUNT(*) FROM ${tbl};" 2>/dev/null || echo "MISSING")
     if [ "${CNT}" = "MISSING" ]; then

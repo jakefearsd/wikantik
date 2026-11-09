@@ -322,7 +322,7 @@ and [WikantikOperations.md § 1.5](WikantikOperations.md).
 ## See also
 
 - [ADR-0001](../adr/0001-rag-returns-context-bundle-not-synthesized-answer.md) — why the bundle returns context, never a synthesized answer
-- [ADR-0002](../adr/0002-knowledge-graph-is-first-class-knowledge-base.md) — the Knowledge Graph as a first-class knowledge base and retrieval signal
+- [ADR-0002](../adr/0002-knowledge-graph-is-first-class-knowledge-base.md) — the Knowledge Graph as a first-class knowledge base (superseded: the Knowledge Graph was removed)
 - [ADR-0003](../adr/0003-rag-in-process-module-human-machine-parity.md) — RAG as an in-process module with human/machine parity
 - [ADR-0005](../adr/0005-persisted-citation-edges-and-stale-citation-curation.md) — persisted citation edges + stale-citation curation
 - [HybridRetrieval.md](../wikantik-pages/HybridRetrieval.md) — the retrieval-quality levers underneath the bundle

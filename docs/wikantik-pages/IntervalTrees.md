@@ -12,7 +12,6 @@ related:
 - DataStructuresHub
 - FoundationalAlgorithmsForComputerScientists
 - BalancedSearchTrees
-kg_include: true
 summary: 'Interval Tree data structure guide: augmented Red-Black trees, max_high
   subtrees, O(log N + k) overlap searching, and Linux kernel VM mapping.'
 type: article

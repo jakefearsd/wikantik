@@ -567,6 +567,5 @@ served to another.
 - [ApiKeys.md](ApiKeys.md), [McpAgents.md](McpAgents.md): keys, scopes and the tool catalogue.
 - [SingleSignOn.md](SingleSignOn.md), [ScimProvisioning.md](ScimProvisioning.md): IdP integration.
 - [AuditLog.md](AuditLog.md): review and verify the audit trail.
-- [KgInclusionPolicy.md](KgInclusionPolicy.md): control which pages feed the Knowledge Graph.
 - [Connectors.md](Connectors.md), [OntologyManagement.md](OntologyManagement.md), [RetrievalQuality.md](RetrievalQuality.md): the subsystems whose security notes are summarised above.
 - [Security policy](../../SECURITY.md): how to report a vulnerability.

@@ -27,7 +27,6 @@ import com.wikantik.api.frontmatter.schema.FieldViolation;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.frontmatter.schema.SchemaDrivenFrontmatterValidator;
 import com.wikantik.frontmatter.schema.ValidationCtx;
-import com.wikantik.ontology.OntologyShaclValidator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -38,16 +37,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
 
 /**
- * Corpus-wide drift sweep: runs the schema validator over every page and counts SHACL
- * conformance violations, persisting aggregate {@code (family, code, severity, count)}
+ * Corpus-wide drift sweep: runs the schema validator over every page,
+ * persisting aggregate {@code (family, code, severity, count)}
  * snapshots via {@link DriftSnapshotRepository}. Single-flight: one sweep at a time.
  *
  * <p>Family {@code frontmatter} uses the validator's violation codes plus {@code yaml.parse}
- * for whole-block parse failures (same code the save path emits). Family {@code shacl} uses
- * the violated shape's property path as the code, severity {@code ERROR}.</p>
+ * for whole-block parse failures (same code the save path emits). The former {@code shacl} family
+ * (conformance of the retired Knowledge Graph's edge shapes) is gone. The {@code drift_sweeps.shacl_checked}
+ * column is kept (no migration) and written as {@code false}, but is no longer surfaced.</p>
  */
 public final class DriftSweepService {
 
@@ -61,7 +60,7 @@ public final class DriftSweepService {
 
     /** What one completed sweep produced (already persisted). */
     public record SweepOutcome( long sweepId, int pagesScanned, long durationMs,
-                                boolean shaclChecked, List< DriftCount > counts ) {}
+                                List< DriftCount > counts ) {}
 
     /** Live, ephemeral progress of an in-flight sweep. Idle: (false, null, 0, 0). */
     public record SweepProgress( boolean running, String phase, int pagesScanned, int totalPages ) {}
@@ -71,8 +70,6 @@ public final class DriftSweepService {
     private final PageManager pageManager;
     private final SchemaDrivenFrontmatterValidator validator;
     private final ValidationCtx ctx;
-    /** Null when the ontology subsystem is disabled — the shacl family is then skipped. */
-    private final Supplier< List< OntologyShaclValidator.Violation > > shaclSource;
     private final DriftSnapshotRepository repository;
     private final AtomicBoolean running = new AtomicBoolean( false );
     private volatile String progressPhase;
@@ -84,12 +81,10 @@ public final class DriftSweepService {
     public DriftSweepService( final PageManager pageManager,
                               final SchemaDrivenFrontmatterValidator validator,
                               final ValidationCtx ctx,
-                              final Supplier< List< OntologyShaclValidator.Violation > > shaclSource,
                               final DriftSnapshotRepository repository ) {
         this.pageManager = pageManager;
         this.validator = validator;
         this.ctx = ctx;
-        this.shaclSource = shaclSource;
         this.repository = repository;
     }
 
@@ -130,8 +125,6 @@ public final class DriftSweepService {
             this.progressTotal = 0;
             final Map< CountKey, Integer > counts = new LinkedHashMap<>();
             final int pagesScanned = sweepFrontmatter( counts );
-            this.progressPhase = "shacl";
-            final boolean shaclChecked = sweepShacl( counts );
             this.progressPhase = "persisting";
 
             final long durationMs = System.currentTimeMillis() - startedAt;
@@ -140,11 +133,11 @@ public final class DriftSweepService {
                             e.getKey().severity(), e.getValue() ) )
                     .toList();
             final long sweepId = repository.insertSweep(
-                    sweepStart, pagesScanned, durationMs, triggeredBy, shaclChecked, rows );
-            LOG.info( "drift sweep complete (id={}, trigger={}, pages={}, codes={}, shacl={})",
-                    sweepId, triggeredBy, pagesScanned, rows.size(), shaclChecked );
+                    sweepStart, pagesScanned, durationMs, triggeredBy, false, rows );
+            LOG.info( "drift sweep complete (id={}, trigger={}, pages={}, codes={})",
+                    sweepId, triggeredBy, pagesScanned, rows.size() );
             this.lastError = null;
-            return new SweepOutcome( sweepId, pagesScanned, durationMs, shaclChecked, rows );
+            return new SweepOutcome( sweepId, pagesScanned, durationMs, rows );
         } catch ( final RuntimeException e ) {
             // Record the failure so /status can surface it — a failed sweep never advances
             // sweptAt, so the dashboard would otherwise poll forever. Rethrow unchanged.
@@ -189,19 +182,6 @@ public final class DriftSweepService {
 
     /** Live offender list for one code — never persisted, always current. */
     public List< PageViolation > currentPageList( final String family, final String code ) {
-        if ( "shacl".equals( family ) ) {
-            if ( shaclSource == null ) {
-                return List.of();
-            }
-            return shaclSource.get().stream()
-                    .filter( v -> shaclCode( v ).equals( code ) )
-                    // For SHACL rows the shape's property path serves as both field and code —
-                    // there is no finer-grained field for an edge-level violation. Node-scoped
-                    // violations have no path; they bucket under the {@link #shaclCode} sentinel.
-                    .map( v -> new PageViolation( v.focusNode(), shaclCode( v ), "ERROR", shaclCode( v ),
-                            v.message(), null ) )
-                    .toList();
-        }
         final List< PageViolation > out = new ArrayList<>();
         forEachParsedPage( "drift drill-down", total -> { }, ( name, parsedOrNull, parseError ) -> {
             if ( parseError != null ) {
@@ -242,22 +222,6 @@ public final class DriftSweepService {
             }
         } );
         return scanned[ 0 ];
-    }
-
-    private boolean sweepShacl( final Map< CountKey, Integer > counts ) {
-        if ( shaclSource == null ) {
-            return false;
-        }
-        try {
-            for ( final OntologyShaclValidator.Violation v : shaclSource.get() ) {
-                bump( counts, "shacl", shaclCode( v ), "ERROR" );
-            }
-            return true;
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "drift sweep: SHACL conformance check unavailable, persisting without it: {}",
-                    e.getMessage(), e );
-            return false;
-        }
     }
 
     @FunctionalInterface
@@ -302,15 +266,5 @@ public final class DriftSweepService {
     private static void bump( final Map< CountKey, Integer > counts, final String family,
                               final String code, final String severity ) {
         counts.merge( new CountKey( family, code, severity ), 1, Integer::sum );
-    }
-
-    /**
-     * The grouping code for a SHACL violation. Property-shape violations carry the property path;
-     * node-scoped violations (e.g. class/node constraints) have a {@code null} path. The persisted
-     * {@code code} column is NOT NULL — a null here aborts the whole sweep transaction — so
-     * path-less violations bucket under a stable non-null sentinel.
-     */
-    private static String shaclCode( final OntologyShaclValidator.Violation v ) {
-        return v.path() != null ? v.path() : "node-scoped";
     }
 }

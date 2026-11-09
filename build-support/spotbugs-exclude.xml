@@ -46,16 +46,6 @@
             <Class name="com.wikantik.diff.DefaultDifferenceManager"/>
             <!-- Filters -->
             <Class name="com.wikantik.filters.DefaultFilterManager"/>
-            <!-- Knowledge subsystem -->
-            <Class name="com.wikantik.knowledge.MentionIndex"/>
-            <Class name="com.wikantik.knowledge.embedding.NodeMentionSimilarity"/>
-            <Class name="com.wikantik.knowledge.extraction.AsyncEntityExtractionListener"/>
-            <Class name="com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer"/>
-            <!-- KG judge subsystem (fail-fast validation of injected deps) -->
-            <Class name="com.wikantik.knowledge.judge.DefaultKgProposalJudgeService"/>
-            <Class name="com.wikantik.knowledge.judge.JdbcKgJudgeTimeoutRepository"/>
-            <Class name="com.wikantik.knowledge.judge.JudgeRunner"/>
-            <Class name="com.wikantik.knowledge.judge.KgMaterializationService"/>
             <!-- Access filters + provider decorator (fail-fast on missing config/deps) -->
             <Class name="com.wikantik.mcp.McpAccessFilter"/>
             <Class name="com.wikantik.tools.ToolsAccessFilter"/>

@@ -42,7 +42,7 @@ import java.util.Properties;
 
 /**
  * POST/PUT/DELETE-side handlers for {@link ConnectorAdminResource}, extracted verbatim (mirroring
- * the {@code com.wikantik.rest.knowledge.KgProposalAdminHandlers} decomposition precedent) to bring
+ * the handler-decomposition precedent) to bring
  * the facade back under the CI complexity gate (GodClass / class-level CyclomaticComplexity):
  * create/update/delete/import, the two test-probe dry-runs, sync, and the audit + validation-error
  * response helpers those routes share.

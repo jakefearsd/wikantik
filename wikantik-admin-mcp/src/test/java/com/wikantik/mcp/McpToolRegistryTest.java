@@ -20,15 +20,12 @@ package com.wikantik.mcp;
 
 import com.google.gson.Gson;
 import com.wikantik.TestEngine;
-import com.wikantik.WikiEngine;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.PingSearchEnginesTool;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.util.HashMap;
 import java.util.List;
@@ -249,60 +246,24 @@ class McpToolRegistryTest {
         }
     }
 
-    /** The nine KG tools that must drop out when the KG subsystem is disabled
-     *  (kgService null — the shape the wikantik.knowledge.enabled=false flag produces). */
+    /** The nine retired Knowledge Graph tools; none may be registered any more. */
     private static final Set< String > KG_TOOL_NAMES = Set.of(
             "list_proposals", "inspect_proposals", "propose_knowledge",
             "review_proposals", "curate_edges", "curate_nodes",
             "query_nodes", "search_knowledge", "list_orphaned_kg_nodes" );
 
     @Test
-    void noKgToolsWhenKgServiceAbsent() {
-        // Default TestEngine registers no KnowledgeGraphService, mirroring the
-        // wikantik.knowledge.enabled=false shape (factory returns null kgService).
+    void noRetiredKgToolsAreRegistered() {
         final Set< String > names = new java.util.HashSet<>();
         registry.readOnlyTools().forEach( t -> names.add( t.name() ) );
         registry.authorConfigurableTools().forEach( t -> names.add( t.name() ) );
 
         for ( final String kgTool : KG_TOOL_NAMES ) {
             assertFalse( names.contains( kgTool ),
-                    "KG tool '" + kgTool + "' must be absent when kgService is null" );
+                    "KG tool '" + kgTool + "' was deleted with the Knowledge Graph" );
         }
         // Non-KG admin tools stay registered.
         assertTrue( names.contains( "get_wiki_stats" ), "non-KG tools must remain" );
         assertTrue( names.contains( "write_pages" ),    "non-KG write tools must remain" );
-    }
-
-    @Test
-    void registerCurationToolsWhenKgServiceAvailable() {
-        final TestEngine kgEngine = TestEngine.build();
-        ( (WikiEngine) kgEngine ).setManager( KnowledgeGraphService.class,
-                Mockito.mock( KnowledgeGraphService.class ) );
-        final McpToolRegistry kgRegistry = new McpToolRegistry( kgEngine );
-        try {
-            final Set< String > readOnlyNames = kgRegistry.readOnlyTools().stream()
-                    .map( McpTool::name )
-                    .collect( Collectors.toSet() );
-            assertTrue( readOnlyNames.contains( "inspect_proposals" ),
-                    "should contain inspect_proposals" );
-            assertTrue( readOnlyNames.contains( "list_proposals" ),
-                    "should contain list_proposals" );
-            assertTrue( readOnlyNames.contains( "query_nodes" ),
-                    "should contain admin-bypass query_nodes" );
-            assertTrue( readOnlyNames.contains( "search_knowledge" ),
-                    "should contain admin-bypass search_knowledge" );
-
-            final Set< String > authorNames = kgRegistry.authorConfigurableTools().stream()
-                    .map( McpTool::name )
-                    .collect( Collectors.toSet() );
-            assertTrue( authorNames.contains( "review_proposals" ),
-                    "should contain review_proposals" );
-            assertTrue( authorNames.contains( "curate_edges" ),
-                    "should contain curate_edges" );
-            assertTrue( authorNames.contains( "curate_nodes" ),
-                    "should contain curate_nodes" );
-        } finally {
-            kgEngine.stop();
-        }
     }
 }

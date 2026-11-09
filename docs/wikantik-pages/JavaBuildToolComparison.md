@@ -1,5 +1,4 @@
 ---
-kg_include: true
 type: article
 summary: "Architectural comparison of Java build systems: Maven vs. Gradle vs. Bazel; declarative lifecycles, DAG task caches, and hermetic monorepo scaling."
 audience:

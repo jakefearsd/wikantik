@@ -22,7 +22,6 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.knowledge.chunking.Chunk;
 import com.wikantik.knowledge.chunking.ContentChunker;
-import com.wikantik.knowledge.extraction.ChunkExtractionPrefilter;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,20 +34,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
  * Reads every {@code .md} file under {@code --pages-dir}, parses frontmatter,
  * runs the chunker with the supplied {@code --chunker-*} overrides, and reports
- * the chunk-size distribution and the prefilter's effect on those re-chunked
- * chunks. No DB access, no extractor call. Pure in-memory exercise for tuning
- * chunker config before committing to a re-chunk + extraction round-trip.
- *
- * <p>Split out of {@link BootstrapExtractionCli} during the per-page pipeline
- * rewire (Phase 4 of {@code docs/superpowers/plans/2026-05-01-kg-extraction-redesign.md})
- * so the main extractor CLI stays focused on the production pipeline.</p>
+ * the chunk-size distribution. No DB access, no embedder call. Pure in-memory
+ * exercise for tuning chunker config before committing to a re-chunk + re-embed.
  *
  * <h3>Exit codes</h3>
  * <ul>
@@ -91,10 +83,6 @@ public final class ChunkerStatsCli {
         final ContentChunker chunker = new ContentChunker(
             new ContentChunker.Config( a.chunkerMaxTokens, a.chunkerMergeForwardTokens,
                                        a.chunkerFragmentFloorTokens, a.chunkerOverlapTokens ) );
-        final ChunkExtractionPrefilter prefilter = new ChunkExtractionPrefilter(
-            /*enabled*/ true, /*dryRun*/ false,
-            /*skipPureCode*/ true, /*skipNoProperNoun*/ true,
-            /*skipTooShort*/ true, /*minTokens*/ 20 );
 
         LOG.info( "Chunker-stats: scanning {} for *.md (max_tokens={}, merge_forward_tokens={})",
             dir, a.chunkerMaxTokens, a.chunkerMergeForwardTokens );
@@ -102,7 +90,7 @@ public final class ChunkerStatsCli {
         final long started = System.nanoTime();
         final ScanResult scan;
         try {
-            scan = scanPages( dir, chunker, prefilter );
+            scan = scanPages( dir, chunker );
         } catch( final IOException ioe ) {
             System.err.println( "error: walking pages dir failed: " + ioe.getMessage() );
             return 1;
@@ -118,17 +106,13 @@ public final class ChunkerStatsCli {
     }
 
     /**
-     * Walks {@code dir} for {@code *.md} files, chunks each one, and runs the
-     * prefilter over every resulting chunk. A single file's read failure is
+     * Walks {@code dir} for {@code *.md} files, and chunks each one.
+     * A single file's read failure is
      * logged and skipped; only a failure of the walk itself propagates.
      */
-    private static ScanResult scanPages( final Path dir, final ContentChunker chunker,
-                                          final ChunkExtractionPrefilter prefilter ) throws IOException {
+    private static ScanResult scanPages( final Path dir, final ContentChunker chunker ) throws IOException {
         final List< Integer > sizes = new ArrayList<>();
-        final Map< String, Integer > prefilterReasons = new TreeMap<>();
         int pages = 0;
-        int prefilterKept = 0;
-        int prefilterSkipped = 0;
         try( Stream< Path > walk = Files.walk( dir ) ) {
             for( final Path p : (Iterable< Path >) walk::iterator ) {
                 if( !Files.isRegularFile( p ) ) continue;
@@ -152,17 +136,10 @@ public final class ChunkerStatsCli {
                 pages++;
                 for( final Chunk c : chunks ) {
                     sizes.add( c.tokenCountEstimate() );
-                    final ChunkExtractionPrefilter.Decision d = prefilter.evaluate( c.text(), c.headingPath() );
-                    if( d.shouldExtract() ) {
-                        prefilterKept++;
-                    } else {
-                        prefilterSkipped++;
-                        prefilterReasons.merge( d.reason(), 1, Integer::sum );
-                    }
                 }
             }
         }
-        return new ScanResult( pages, sizes, prefilterReasons, prefilterKept, prefilterSkipped );
+        return new ScanResult( pages, sizes );
     }
 
     private static void reportStats( final ScanResult scan, final long elapsedMs ) {
@@ -181,7 +158,6 @@ public final class ChunkerStatsCli {
             min, String.format( Locale.ROOT, "%.0f", mean ), p50, p90, p99, max );
 
         reportDistribution( sizes, total );
-        reportPrefilter( scan, total );
     }
 
     private static void reportDistribution( final List< Integer > sizes, final int total ) {
@@ -200,20 +176,8 @@ public final class ChunkerStatsCli {
         }
     }
 
-    private static void reportPrefilter( final ScanResult scan, final int total ) {
-        final double skipPct = 100.0 * scan.prefilterSkipped() / total;
-        LOG.info( "Prefilter on these chunks: kept={} skipped={} ({}%)",
-            scan.prefilterKept(), scan.prefilterSkipped(), String.format( Locale.ROOT, "%.1f", skipPct ) );
-        for( final Map.Entry< String, Integer > e : scan.prefilterReasons().entrySet() ) {
-            final double rPct = 100.0 * e.getValue() / total;
-            LOG.info( "  reason={} count={} ({}%)", e.getKey(), e.getValue(),
-                String.format( Locale.ROOT, "%.1f", rPct ) );
-        }
-    }
-
     /** Aggregated result of {@link #scanPages}. */
-    private record ScanResult( int pages, List< Integer > sizes, Map< String, Integer > prefilterReasons,
-                                int prefilterKept, int prefilterSkipped ) { }
+    private record ScanResult( int pages, List< Integer > sizes ) { }
 
     private static void printUsage() {
         final String usage = """

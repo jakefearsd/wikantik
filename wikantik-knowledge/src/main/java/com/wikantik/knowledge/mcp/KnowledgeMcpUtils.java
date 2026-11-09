@@ -24,17 +24,13 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
-import com.wikantik.api.knowledge.Provenance;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Shared utilities for knowledge MCP tool implementations.
@@ -110,34 +106,6 @@ final class KnowledgeMcpUtils {
             }
             return Instant.parse( in.nextString() );
         }
-    }
-
-    /**
-     * Parses a {@code provenance_filter} argument (a list of strings like
-     * {@code ["human-authored", "ai-reviewed"]}) into a {@code Set<Provenance>}.
-     * Returns {@code null} if the argument is absent or empty, which signals
-     * the service to use its default filter.
-     */
-    @SuppressWarnings( "unchecked" )
-    static Set< Provenance > parseProvenanceFilter( final Map< String, Object > arguments ) {
-        final Object raw = arguments.get( "provenance_filter" );
-        if ( raw == null ) {
-            return null;
-        }
-        final List< String > values;
-        if ( raw instanceof List ) {
-            values = ( List< String > ) raw;
-        } else {
-            return null;
-        }
-        if ( values.isEmpty() ) {
-            return null;
-        }
-        final Set< Provenance > result = EnumSet.noneOf( Provenance.class );
-        for ( final String v : values ) {
-            result.add( Provenance.fromValue( v ) );
-        }
-        return result;
     }
 
     /** Coerces any non-null value to its {@link Object#toString()}; returns {@code null} for null input. */

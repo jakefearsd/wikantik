@@ -1,0 +1,40 @@
+#!/bin/bash
+# chunker-stats.sh — inspect chunk-size distribution for the page corpus
+# without touching the database. Pure in-memory re-chunk; useful for tuning
+# chunker config before committing to a full re-chunk + re-embed.
+#
+# Usage:
+#   bin/chunker-stats.sh                                           # defaults (docs/wikantik-pages)
+#   bin/chunker-stats.sh --pages-dir docs/wikantik-pages
+#   bin/chunker-stats.sh --chunker-max-tokens 1024 --chunker-merge-forward-tokens 200
+#   bin/chunker-stats.sh --help
+
+set -euo pipefail
+
+case "${1:-}" in
+    -h|--help)
+        awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+        exit 0
+        ;;
+    --jar-help)
+        shift; set -- --help "$@"
+        ;;
+esac
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+JAR="${ROOT_DIR}/wikantik-extract-cli/target/wikantik-extract-cli.jar"
+
+# Build the jar if missing or stale (any Java source in the module newer than
+# the jar triggers a rebuild). Cheap for the common case.
+needs_build=0
+if [[ ! -f "${JAR}" ]]; then
+    needs_build=1
+elif find "${ROOT_DIR}/wikantik-extract-cli/src" -name '*.java' -newer "${JAR}" -print -quit | grep -q .; then
+    needs_build=1
+fi
+if [[ ${needs_build} -eq 1 ]]; then
+    (cd "${ROOT_DIR}" && mvn install -pl wikantik-extract-cli -am -DskipTests -q)
+fi
+
+java -cp "${JAR}" com.wikantik.extractcli.ChunkerStatsCli "$@"

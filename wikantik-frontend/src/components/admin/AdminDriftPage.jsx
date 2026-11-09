@@ -165,7 +165,7 @@ export default function AdminDriftPage() {
     <AdminPage loading={loading} error={error} loadingLabel="Loading drift sweeps…">
       <PageHeader
         title="Metadata Drift"
-        description="Frontmatter and SHACL drift burn-down across sweeps."
+        description="Frontmatter drift burn-down across sweeps."
         actions={
           <button type="button" data-testid="drift-run-now" disabled={sweeping} onClick={runNow}>
             {sweeping ? 'Sweeping…' : 'Run sweep now'}
@@ -192,11 +192,6 @@ export default function AdminDriftPage() {
             </span>
             {typeof summary.durationMs === 'number' && (
               <span>Duration: {(summary.durationMs / 1000).toFixed(1)}s</span>
-            )}
-            {summary.shaclChecked === false && (
-              <span className="admin-badge badge-warning" data-testid="drift-shacl-unchecked">
-                SHACL not checked
-              </span>
             )}
           </div>
 
@@ -244,7 +239,6 @@ export default function AdminDriftPage() {
 
 const PHASE_LABELS = {
   frontmatter: 'validating frontmatter',
-  shacl: 'checking SHACL conformance',
   persisting: 'saving snapshot',
 };
 

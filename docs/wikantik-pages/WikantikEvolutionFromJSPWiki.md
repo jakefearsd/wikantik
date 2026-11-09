@@ -1,5 +1,4 @@
 ---
-kg_include: true
 type: article
 summary: How Wikantik evolved from Apache JSPWiki across March–October 2026 into a
   Java 25, React 19, hybrid-RAG, dual-graph, and 51-tool MCP platform.

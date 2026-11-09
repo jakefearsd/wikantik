@@ -102,6 +102,5 @@ trap '
 ' EXIT
 
 # Run with -cp so we can launch IngestDocumentsCli directly from the fat jar
-# without making it the jar's default Main-Class (BootstrapExtractionCli keeps
-# that role). All flags pass straight through to the Java CLI.
+# (the jar has no default Main-Class). All flags pass straight through to the Java CLI.
 java -cp "${JAR}" com.wikantik.extractcli.IngestDocumentsCli "$@"

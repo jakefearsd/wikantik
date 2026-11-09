@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -32,7 +31,7 @@ class ClusterStatusTest {
 
     private static PageDescriptor page( final String slug, final PageType type, final String cluster ) {
         return new PageDescriptor( "01H8G3Z1K6Q5W7P9X2V4R0T8M" + slug.length(), slug, slug, type,
-                                    cluster, List.of(), null, Instant.now(), Optional.empty(), false );
+                                    cluster, List.of(), null, Instant.now(), false );
     }
 
     private static ClusterDetails details( final String name, final PageDescriptor hub, final int members ) {

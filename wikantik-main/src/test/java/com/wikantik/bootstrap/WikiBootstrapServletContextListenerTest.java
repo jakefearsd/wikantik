@@ -274,7 +274,7 @@ class WikiBootstrapServletContextListenerTest {
                     // swallow the first interrupt to simulate a slow/unresponsive shutdown
                 }
             }
-        }, "kg-judge-runner-test-thread" );
+        }, "retrieval-quality-runner-test-thread" );
         stubborn.setDaemon( true );
         stubborn.start();
 

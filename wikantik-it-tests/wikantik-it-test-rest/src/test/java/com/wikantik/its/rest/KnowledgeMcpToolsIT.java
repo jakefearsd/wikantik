@@ -264,7 +264,7 @@ public class KnowledgeMcpToolsIT {
         assertTrue( body.has( "classes" ) && body.has( "objectProperties" ),
                 "get_ontology must return classes + objectProperties: " + body );
         final String s = body.toString();
-        assertTrue( s.contains( "Technology" ) && s.contains( "Article" ),
+        assertTrue( s.contains( "Hub" ) && s.contains( "Article" ),
                 "bundled T-Box classes present" );
         assertTrue( s.contains( "WikiConcepts" ), "concept scheme present" );
     }
@@ -275,8 +275,8 @@ public class KnowledgeMcpToolsIT {
                 "SELECT ?c WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> } LIMIT 50" ) );
         // SPARQL-results-JSON: { head: {...}, results: { bindings: [...] } }
         assertTrue( body.has( "results" ), "SPARQL SELECT must return a results envelope: " + body );
-        assertTrue( body.toString().contains( "Technology" ),
-                "the Technology class IRI is among the results" );
+        assertTrue( body.toString().contains( "Hub" ),
+                "the Hub class IRI is among the results" );
     }
 
     @Test
@@ -284,5 +284,16 @@ public class KnowledgeMcpToolsIT {
         final JsonObject body = callExpectError( "sparql_query", Map.of( "query",
                 "INSERT DATA { <urn:x> <urn:p> <urn:y> }" ) );
         assertNotNull( body, "UPDATE rejection must carry an error payload" );
+    }
+
+    @Test
+    void toolsList_hasNoKnowledgeGraphTools() {
+        final java.util.Set< String > names = mcp.listTools().tools().stream()
+                .map( McpSchema.Tool::name ).collect( java.util.stream.Collectors.toSet() );
+        for ( final String kg : List.of( "discover_schema", "query_nodes", "get_node",
+                "traverse", "search_knowledge", "find_similar" ) ) {
+            assertFalse( names.contains( kg ), "retired KG tool '" + kg + "' must be absent; tools=" + names );
+        }
+        assertTrue( names.contains( "retrieve_context" ), "retrieval tools must remain; tools=" + names );
     }
 }

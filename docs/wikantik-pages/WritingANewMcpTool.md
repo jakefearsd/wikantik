@@ -110,20 +110,18 @@ each call.
 Read tools live in `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`
 alongside `GetPageByIdTool`, `ListClustersTool`, and the others.
 Write tools live in `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/tools/`
-alongside `MarkPageVerifiedTool` and `WritePagesTool`. `QueryNodesTool` and `SearchKnowledgeTool`
-are shared: they live in `wikantik-mcp-core` and both endpoints register them (the admin copy with
-the inclusion-policy bypass on).
+alongside `MarkPageVerifiedTool` and `WritePagesTool`.
 
 Registration happens in the matching place:
 
-- `/knowledge-mcp` — `KnowledgeMcpInitializer.assembleTools( KnowledgeToolDeps )` calls five
-  `add*Tools` methods (Knowledge Graph, retrieval, structural spine, projection and bundle,
+- `/knowledge-mcp` — `KnowledgeMcpInitializer.assembleTools( KnowledgeToolDeps )` calls several
+  `add*Tools` methods (retrieval, structural spine, projection and bundle,
   ontology and citation). Each adds its tools only when the service they need is configured, so the
   endpoint advertises fewer tools on a partial deployment. The tools take a `PageViewGate`, because this
   endpoint enforces page view ACLs as an anonymous guest.
 - `/wikantik-admin-mcp` — `McpToolRegistry` builds two lists: `readOnlyTools()` (no author
   injection) and `authorConfigurableTools()`. `McpServerInitializer` registers both with the MCP
-  server. Tools that need the Knowledge Graph or the query-log reader are added only when those are
+  server. Tools that need the query-log reader are added only when it is
   wired; `rename_cluster`, `list_content_opportunities` and `snooze_opportunity` are registered
   unconditionally and refuse at call time instead.
 
@@ -134,7 +132,7 @@ These apply to the **admin** endpoint, whose instructions text is a file
 
 | Check | Fails when |
 |---|---|
-| `InstructionsRegistryDriftTest` (unit) | a registered tool is not mentioned by name in the instructions file, or the file mentions a tool-shaped name that is not registered. It adds the KG-conditional tools to its expected set by hand, because the unit-test engine does not wire them |
+| `InstructionsRegistryDriftTest` (unit) | a registered tool is not mentioned by name in the instructions file, or the file mentions a tool-shaped name that is not registered. It adds the wiring-conditional tools to its expected set by hand, because the unit-test engine does not wire them |
 | `McpInstructionsDriftIT` (integration) | the same two-way diff, against a deployed server's `instructions` and `tools/list` |
 | `McpProtocolIT.EXPECTED_TOOLS` (integration) | `tools/list` does not equal that set exactly |
 | `McpToolRegistryTest` (unit) | names are not unique, a definition is missing, or fewer than 16 tools register (it does not pin an exact count) |

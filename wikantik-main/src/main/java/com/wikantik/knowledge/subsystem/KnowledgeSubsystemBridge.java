@@ -57,10 +57,7 @@ public final class KnowledgeSubsystemBridge {
     public static KnowledgeSubsystem.Services fromLegacyEngine( final Engine engine ) {
         if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
             // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
-            return new KnowledgeSubsystem.Services(
-                null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null,
-                null, null, null );
+            return new KnowledgeSubsystem.Services( null, null, null, null, null, null );
         }
         final KnowledgeSubsystem.Services typed = wikiEngine.getKnowledgeSubsystem();
         if ( typed != null ) return typed;

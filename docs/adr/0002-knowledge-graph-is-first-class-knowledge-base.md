@@ -1,5 +1,7 @@
 # The Knowledge Graph is a first-class Knowledge Base and a retrieval signal; RDF is its projection
 
+> **Status: Superseded 2026-11: the Knowledge Graph was removed.**
+
 We treat the LLM-extracted Knowledge Graph as a first-class, **human-facing Knowledge
 Base** — something people browse, query, and trust as an interface — justified by that human
 value *independent of any retrieval lift* it provides, and *also* as a retrieval signal for

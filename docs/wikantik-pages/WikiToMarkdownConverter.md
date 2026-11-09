@@ -1,5 +1,4 @@
 ---
-kg_include: true
 summary: 'How the JSPWiki-to-Markdown converter works: line-by-line regex rules, the
   syntax mapping, the wiki-syntax heuristic, and the API and script that use it.'
 type: article

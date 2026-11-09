@@ -1,5 +1,4 @@
 ---
-kg_include: true
 summary: The Simple Agility stack — jakemon, Wikantik, Roller, Stockroom, and agents
   — what each owns and how they coordinate across one data backbone.
 type: hub

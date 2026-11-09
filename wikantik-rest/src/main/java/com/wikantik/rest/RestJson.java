@@ -34,7 +34,7 @@ import java.util.Map;
 /**
  * Static JSON/request helper bodies shared by {@link RestServletBase} (whose {@code protected}
  * instance methods delegate here) and by servlet-adjacent helper classes in sub-packages — e.g.
- * {@code com.wikantik.rest.knowledge.AdminKnowledgeIo} — that cannot reach {@code protected}
+ * helper classes — that cannot reach {@code protected}
  * members declared on {@code RestServletBase} because they neither share its package nor extend
  * it. Before this class existed, that second call site kept its own hand-maintained "verbatim
  * copy" of each method body; the two implementations could silently drift apart. Extracting the

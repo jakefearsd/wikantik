@@ -339,6 +339,26 @@ public class AdminEndpointsCoverageIT {
         }
     }
 
+    /**
+     * The deleted Knowledge Graph REST surfaces are unmapped. A JSON request ({@code Accept: application/json})
+     * is not a browser navigation, so {@code SpaRoutingFilter} does not forward {@code /admin/*} to the SPA shell
+     * and the request reaches the container, which answers 404 (admin is logged in, so the admin filter passes).
+     */
+    @Test
+    void deletedKnowledgeGraphEndpoints_return404() throws Exception {
+        try {
+            loginAsAdmin();
+            for ( final String path : new String[] { "/admin/knowledge-graph/schema", "/admin/kg-policy/clusters",
+                    "/api/knowledge/graph", "/api/page-knowledge/Main" } ) {
+                final HttpResponse< String > resp = get( path );
+                assertEquals( 404, resp.statusCode(),
+                        "deleted KG endpoint " + path + " must be unmapped (404): " + resp.body() );
+            }
+        } finally {
+            logoutAdmin();
+        }
+    }
+
     @Test
     void embeddingsStatus_anonymousIs403() throws Exception {
         final HttpResponse< String > resp = getAnonymous( "/admin/embeddings/status" );

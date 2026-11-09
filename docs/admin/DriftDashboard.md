@@ -4,7 +4,7 @@ This page is for curators and administrators who keep the wiki's metadata health
 explains the **Drift** screen at `/admin/drift`, what each row means, and what to do
 about it, and it covers two related checks that have no dashboard panel:
 structural conflicts and stale citations. Drift is metadata that has wandered away from
-the schema: it never breaks a page, but it weakens search, the Knowledge Graph and the
+the schema: it never breaks a page, but it weakens search and the
 ontology, so the dashboard tracks the count over time as a burn-down.
 
 ## Read the dashboard
@@ -15,7 +15,6 @@ sweep and compares it to the one before.
 | Element | Meaning |
 |---|---|
 | Last sweep, Triggered by, Pages scanned, Duration | when the latest sweep ran, whether it was `scheduled` or `manual`, and how much it covered |
-| **SHACL not checked** badge | the ontology subsystem was off or failed during the sweep, so the `shacl` rows are missing, not zero |
 | Table rows | one row per `(family, code, severity)`: **Family**, **Code**, **Severity**, **Count** |
 | **Δ** | change in count since the previous sweep (`+n` or `-n`); an em dash means the code did not exist in the previous sweep |
 | **Trend** | sparkline of that code's count across the sweeps of the last 30 days |
@@ -29,8 +28,7 @@ field, the message and, where one exists, a suggested replacement.
 
 ### How sweeps run
 
-A sweep validates the frontmatter of every page and, when the ontology is enabled,
-checks the materialised graph against the SHACL shapes. Only one sweep runs at a time;
+A sweep validates the frontmatter of every page. Only one sweep runs at a time;
 a second request returns HTTP 409 and the screen shows "A sweep is already running."
 Sweeps run in two ways:
 
@@ -75,19 +73,6 @@ The `Severity` column tells you which.
 | `runbook.*` (`missing_block`, `malformed_block`, `when_to_use_empty`, `steps_too_few`, `pitfalls_empty`, `related_tool_invalid`, `reference_unresolvable`) | ERROR | a `type: runbook` page whose `runbook:` block fails the schema | complete the `runbook:` block |
 
 Frontmatter fields themselves are described in [Frontmatter.md](../user/Frontmatter.md).
-
-### Family `shacl`
-
-These rows come from checking the ontology graph against its SHACL shapes. The **Code**
-is the property path of the violated shape (for example a `wk:` predicate), and the
-severity is always `ERROR`. A violation that is not tied to a property path is counted
-under `node-scoped`. Expand a row to see the focus node and the message; the usual fix
-is in the Knowledge Graph (correct or remove the offending edge in
-**Admin → Knowledge Graph**) or in the page that produced it. The write-time gate
-refuses new non-conformant edges for the predicates that have shapes, so this family mostly
-measures edges that predate it or that no shape guards at write time. The same
-list is at `GET /admin/ontology/violations`; see
-[OntologyManagement.md](OntologyManagement.md).
 
 ## Structural conflicts
 
@@ -146,13 +131,12 @@ canonical ids, target heading path, span text, claim text, status and pinned ver
 | `target_missing` | the target page was truly deleted (a rename does not count) | point the citation at the new location, or remove the claim |
 
 When citations are disabled the endpoint answers 200 with zero counts and empty lists.
-Citations are a third edge type, separate from Page Graph wikilinks and Knowledge Graph
-entities; the design is in
+Citations are a third edge type, separate from Page Graph wikilinks; the design is in
 [the citation-edges design](../superpowers/specs/2026-06-14-phase-3-citation-edges-design.md).
 
 ## Where to go next
 
 - [AdminPanel.md](AdminPanel.md): the other admin screens.
 - [Frontmatter.md](../user/Frontmatter.md): the fields that drift codes refer to.
-- [OntologyManagement.md](OntologyManagement.md): rebuilding the ontology and reading SHACL results.
+- [OntologyManagement.md](OntologyManagement.md): rebuilding the ontology.
 - [the drift-dashboard design](../superpowers/specs/2026-06-09-drift-dashboard-design.md): why the dashboard works this way.

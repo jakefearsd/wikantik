@@ -62,7 +62,7 @@ class ClusterRenameServiceTest {
 
     private static PageDescriptor page( final String slug, final PageType type, final String cluster ) {
         return new PageDescriptor( "01HAA0000000000000000000" + slug.length(), slug, slug, type,
-                cluster, List.of(), null, Instant.now(), Optional.empty(), false );
+                cluster, List.of(), null, Instant.now(), false );
     }
 
     private void corpus( final String cluster, final PageDescriptor... pages ) {
@@ -180,7 +180,7 @@ class ClusterRenameServiceTest {
     /** Builds a page with a list-valued {@code cluster:} and stubs its raw page text. */
     private PageDescriptor multiMembershipPage( final String slug, final List< String > clusters ) {
         final PageDescriptor p = new PageDescriptor( "01HAA0000000000000000000" + slug.length(), slug, slug,
-                PageType.ARTICLE, null, clusters, List.of(), null, Instant.now(), Optional.empty(), false );
+                PageType.ARTICLE, null, clusters, List.of(), null, Instant.now(), false );
         final Page mock = mock( Page.class );
         when( pageManager.getPage( slug ) ).thenReturn( mock );
         final Map< String, Object > metadata = new LinkedHashMap<>();

@@ -12,11 +12,13 @@ tags:
 cluster: wikantik-development
 type: article
 date: 2026-05-03T00:00:00Z
-status: active
+status: archived
 canonical_id: 01KQPQVYPFSBSGX38YP6XFQPMV
 ---
 
 # Knowledge Graph Rerank
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 > **Status: REMOVED (2026-07). This page is a historical record.**
 > Knowledge-Graph reranking is **not** part of Wikantik retrieval, and the code

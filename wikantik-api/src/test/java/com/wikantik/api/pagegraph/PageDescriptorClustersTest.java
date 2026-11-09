@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -40,14 +39,14 @@ class PageDescriptorClustersTest {
 
     private static PageDescriptor withClusters( final List< String > clusters ) {
         return new PageDescriptor( "01HAA00000000000000000000", "InferenceServing", "Inference Serving",
-                PageType.ARTICLE, null, clusters, List.of(), null, Instant.EPOCH, Optional.empty(), false );
+                PageType.ARTICLE, null, clusters, List.of(), null, Instant.EPOCH, false );
     }
 
     /** The 10-arg form is the whole existing corpus of call sites; it must keep working. */
     @Test
     void a_scalar_cluster_becomes_a_single_membership() {
         final PageDescriptor p = new PageDescriptor( "01HAA00000000000000000000", "MLHub", "ML Hub",
-                PageType.HUB, "machine-learning", List.of(), null, Instant.EPOCH, Optional.empty(), false );
+                PageType.HUB, "machine-learning", List.of(), null, Instant.EPOCH, false );
 
         assertEquals( "machine-learning", p.cluster() );
         assertEquals( List.of( "machine-learning" ), p.clusters() );
@@ -69,7 +68,7 @@ class PageDescriptorClustersTest {
     void an_inconsistent_primary_is_re_derived_from_the_memberships() {
         final PageDescriptor p = new PageDescriptor( "01HAA00000000000000000000", "P", "P",
                 PageType.ARTICLE, "stale-value", List.of( "real-primary", "second" ),
-                List.of(), null, Instant.EPOCH, Optional.empty(), false );
+                List.of(), null, Instant.EPOCH, false );
 
         assertEquals( "real-primary", p.cluster() );
     }

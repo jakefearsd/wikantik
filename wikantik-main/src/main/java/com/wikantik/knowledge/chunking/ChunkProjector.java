@@ -165,7 +165,7 @@ public class ChunkProjector implements PageFilter {
     }
 
     /**
-     * A page was deleted: drop its chunks (their embeddings and Knowledge Graph mentions cascade)
+     * A page was deleted: drop its chunks (their embeddings cascade)
      * and evict them from the retrieval indexes. Not gated on {@code enabled} — whatever chunks a
      * deleted page has are stale either way. Never rethrows.
      */
@@ -183,9 +183,9 @@ public class ChunkProjector implements PageFilter {
     }
 
     /**
-     * A page was renamed: re-key its chunks to the new name, keeping their ids so embeddings and
-     * Knowledge Graph mentions survive, and have the retrieval indexes re-read them. Content is
-     * unchanged, so the post-chunk sinks (embedding, LLM entity extraction) are not run. Never rethrows.
+     * A page was renamed: re-key its chunks to the new name, keeping their ids so embeddings
+     * survive, and have the retrieval indexes re-read them. Content is unchanged, so the
+     * post-chunk sinks (embedding) are not run. Never rethrows.
      */
     public void onPageRenamed( final String oldName, final String newName ) {
         try {
@@ -267,7 +267,7 @@ public class ChunkProjector implements PageFilter {
                 pageName, produced.size(),
                 diff.inserts().size(), diff.updates().size(), diff.deletes().size() );
             // Only notify the sink when something actually changed. Hub pages that are
-            // re-saved by HubSyncFilter (bidirectional membership sync) with unchanged
+            // re-saved (e.g. by a cascading secondary save) with unchanged
             // content produce a +0 ~0 -0 diff — skip the re-embed to avoid spurious
             // embedding work for content that hasn't changed.
             final boolean diffEmpty = diff.inserts().isEmpty()

@@ -22,27 +22,16 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Maps the free-text kg_nodes.node_type onto a wk: class local name.
- * Unrecognized or null/blank types default to "Concept" (matches the chunk
- * extractor's default and covers untyped / non-standard nodes such as the
- * NULL-typed nodes and "intelligence-summary").
+ * Maps a page {@code type} onto its wk: content-class local name, and onto its schema.org type.
+ * Unrecognized or null/blank types default to "Article" (the same default the SEO renderer uses).
  */
 public final class NodeTypeMapping {
 
     private NodeTypeMapping() {}
 
-    public static final String DEFAULT_CLASS = "Concept";
+    public static final String DEFAULT_CLASS = "Article";
 
     private static final Map< String, String > MAP = Map.ofEntries(
-            Map.entry( "person", "Person" ),
-            Map.entry( "organization", "Organization" ),
-            Map.entry( "place", "Place" ),
-            Map.entry( "event", "Event" ),
-            Map.entry( "product", "Product" ),
-            Map.entry( "technology", "Technology" ),
-            Map.entry( "concept", "Concept" ),
-            Map.entry( "project", "Project" ),
-            Map.entry( "version", "Version" ),
             Map.entry( "article", "Article" ),
             Map.entry( "hub", "Hub" ),
             Map.entry( "reference", "Reference" ),
@@ -50,23 +39,13 @@ public final class NodeTypeMapping {
             Map.entry( "design", "DesignDoc" ),
             Map.entry( "design_doc", "DesignDoc" ) );
 
-    /** Returns the wk: class local name for a node_type, defaulting to {@link #DEFAULT_CLASS}. */
-    public static String classLocalName( final String nodeType ) {
-        if ( nodeType == null || nodeType.isBlank() ) {
+    /** Returns the wk: class local name for a page type, defaulting to {@link #DEFAULT_CLASS}. */
+    public static String classLocalName( final String pageType ) {
+        if ( pageType == null || pageType.isBlank() ) {
             return DEFAULT_CLASS;
         }
-        final String key = nodeType.trim().toLowerCase( Locale.ROOT );
+        final String key = pageType.trim().toLowerCase( Locale.ROOT );
         return MAP.getOrDefault( key, DEFAULT_CLASS );
-    }
-
-    /** snake_case relationship_type -> wk: lowerCamel property local name. */
-    public static String propertyLocalName( final String relationshipType ) {
-        final String[] parts = relationshipType.split( "_" );
-        final StringBuilder sb = new StringBuilder( parts[ 0 ] );
-        for ( int i = 1; i < parts.length; i++ ) {
-            sb.append( Character.toUpperCase( parts[ i ].charAt( 0 ) ) ).append( parts[ i ].substring( 1 ) );
-        }
-        return sb.toString();
     }
 
     /** Default schema.org type for pages with no more-specific mapping. */

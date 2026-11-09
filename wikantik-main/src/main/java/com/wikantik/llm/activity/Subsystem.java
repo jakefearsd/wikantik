@@ -20,8 +20,6 @@ package com.wikantik.llm.activity;
 
 /** Which LLM-using subsystem issued a call. */
 public enum Subsystem {
-    ENTITY_EXTRACTION,
-    PROPOSAL_JUDGE,
     EMBEDDING,
     SECTION_RERANK,
     QUERY_DECOMPOSITION

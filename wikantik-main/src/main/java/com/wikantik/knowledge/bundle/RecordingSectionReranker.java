@@ -27,7 +27,7 @@ import java.util.List;
  * {@link SectionReranker} decorator that records each rerank call into an
  * {@link LlmActivityLog}, giving the bundle's listwise LLM reranker
  * ({@link LlmSectionReranker}) the same {@code /admin/llm-activity} observability
- * parity as the embedding/extraction/judge subsystems — so an operator can use the
+ * parity as the embedding subsystem — so an operator can use the
  * activity log to verify that {@code embeddings-only} mode issues zero chat calls.
  *
  * <p>{@link SectionReranker} implementations are contractually required to degrade

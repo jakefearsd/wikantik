@@ -18,16 +18,12 @@
  */
 package com.wikantik.knowledge.mcp;
 
-import com.wikantik.api.knowledge.Provenance;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -35,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit tests for the Gson + argument-parsing helpers in
  * {@link KnowledgeMcpUtils}. These paths are exercised indirectly by the
  * tool tests, but direct coverage here pins the invariants (null safety,
- * ISO-8601 round-trip, provenance parsing).
+ * ISO-8601 round-trip).
  */
 class KnowledgeMcpUtilsTest {
 
@@ -57,42 +53,6 @@ class KnowledgeMcpUtilsTest {
     @Test
     void instantAdapter_readsNullFromJsonNull() {
         assertNull( KnowledgeMcpUtils.GSON.fromJson( "null", Instant.class ) );
-    }
-
-    @Test
-    void parseProvenanceFilter_returnsNullForMissingArg() {
-        assertNull( KnowledgeMcpUtils.parseProvenanceFilter( Map.of() ) );
-    }
-
-    @Test
-    void parseProvenanceFilter_returnsNullForEmptyList() {
-        final Map< String, Object > args = new HashMap<>();
-        args.put( "provenance_filter", List.of() );
-        assertNull( KnowledgeMcpUtils.parseProvenanceFilter( args ) );
-    }
-
-    @Test
-    void parseProvenanceFilter_returnsNullForNonListValue() {
-        final Map< String, Object > args = new HashMap<>();
-        args.put( "provenance_filter", "human-authored" );
-        assertNull( KnowledgeMcpUtils.parseProvenanceFilter( args ),
-            "non-list values are treated as absent rather than throwing" );
-    }
-
-    @Test
-    void parseProvenanceFilter_parsesWireValues() {
-        final Map< String, Object > args = new HashMap<>();
-        args.put( "provenance_filter", List.of( "human-authored", "ai-reviewed" ) );
-        final Set< Provenance > result = KnowledgeMcpUtils.parseProvenanceFilter( args );
-        assertEquals( Set.of( Provenance.HUMAN_AUTHORED, Provenance.AI_REVIEWED ), result );
-    }
-
-    @Test
-    void parseProvenanceFilter_rejectsUnknownValue() {
-        final Map< String, Object > args = new HashMap<>();
-        args.put( "provenance_filter", List.of( "bogus-wire-value" ) );
-        assertThrows( IllegalArgumentException.class,
-            () -> KnowledgeMcpUtils.parseProvenanceFilter( args ) );
     }
 
     @Test

@@ -38,8 +38,7 @@ import java.util.Map;
 
 /**
  * Embedding-index and frontmatter-maintenance admin tools, mapped to {@code /admin/embeddings/*} and
- * protected by {@link AdminAuthFilter}. Independent of the Knowledge Graph, so it works with
- * {@code wikantik.knowledge.enabled=false}.
+ * protected by {@link AdminAuthFilter}.
  * <ul>
  *   <li>{@code GET  /admin/embeddings/status} — dense-retrieval index counts for the active model</li>
  *   <li>{@code GET  /admin/embeddings/pages-without-frontmatter?limit=&amp;offset=}</li>

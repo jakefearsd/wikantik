@@ -67,7 +67,7 @@ class DefaultForAgentProjectionServiceBranchTest {
 
     private static final PageDescriptor SIMPLE_PAGE = new PageDescriptor(
         "01ABC", "SomePage", "Some Page", PageType.ARTICLE,
-        null, List.of(), "summary", Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty(), false );
+        null, List.of(), "summary", Instant.parse( "2026-04-22T11:10:00Z" ), false );
 
     @BeforeEach
     void setUp() {
@@ -149,7 +149,7 @@ class DefaultForAgentProjectionServiceBranchTest {
     void runbookReferenceCanonicalIdLookupThrowing_failsTheWholeRunbookBlock() {
         final PageDescriptor runbookPage = new PageDescriptor(
             "01RB", "SomeRunbook", "Some Runbook", PageType.RUNBOOK,
-            null, List.of(), null, Instant.now(), Optional.empty(), false );
+            null, List.of(), null, Instant.now(), false );
         when( idx.getByCanonicalId( "01RB" ) ).thenReturn( Optional.of( runbookPage ) );
         when( idx.verificationOf( "01RB" ) ).thenReturn( Optional.empty() );
         when( pm.getVersionHistory( "SomeRunbook" ) ).thenReturn( List.of() );
@@ -184,7 +184,7 @@ class DefaultForAgentProjectionServiceBranchTest {
     void runbookReferencePageTitleLookupThrowing_isCaughtAndTreatedAsUnresolved() throws Exception {
         final PageDescriptor runbookPage = new PageDescriptor(
             "01RB", "SomeRunbook", "Some Runbook", PageType.RUNBOOK,
-            null, List.of(), null, Instant.now(), Optional.empty(), false );
+            null, List.of(), null, Instant.now(), false );
         when( idx.getByCanonicalId( "01RB" ) ).thenReturn( Optional.of( runbookPage ) );
         when( idx.verificationOf( "01RB" ) ).thenReturn( Optional.empty() );
         when( pm.getVersionHistory( "SomeRunbook" ) ).thenReturn( List.of() );
@@ -219,7 +219,7 @@ class DefaultForAgentProjectionServiceBranchTest {
     void runbookReferenceResolvesViaPageTitle_noIssueRecorded() throws Exception {
         final PageDescriptor runbookPage = new PageDescriptor(
             "01RB", "SomeRunbook", "Some Runbook", PageType.RUNBOOK,
-            null, List.of(), null, Instant.now(), Optional.empty(), false );
+            null, List.of(), null, Instant.now(), false );
         when( idx.getByCanonicalId( "01RB" ) ).thenReturn( Optional.of( runbookPage ) );
         when( idx.verificationOf( "01RB" ) ).thenReturn( Optional.empty() );
         when( pm.getVersionHistory( "SomeRunbook" ) ).thenReturn( List.of() );
@@ -283,7 +283,7 @@ class DefaultForAgentProjectionServiceBranchTest {
         final PageDescriptor hubPage = new PageDescriptor(
             "01HUB", "TechHub", "Tech Hub", PageType.HUB,
             "tech", List.of(), "Index of pages on programming languages.",
-            Instant.now(), Optional.empty(), false );
+            Instant.now(), false );
         when( idx.getByCanonicalId( "01HUB" ) ).thenReturn( Optional.of( hubPage ) );
         when( idx.verificationOf( "01HUB" ) ).thenReturn( Optional.empty() );
         when( pm.getVersionHistory( "TechHub" ) ).thenReturn( List.of() );
@@ -311,7 +311,7 @@ class DefaultForAgentProjectionServiceBranchTest {
         final PageDescriptor hubPage = new PageDescriptor(
             "01HUB", "TechHub", "Tech Hub", PageType.HUB,
             "tech", List.of(), "Index of pages on programming languages.",
-            Instant.now(), Optional.empty(), false );
+            Instant.now(), false );
         when( idx.getByCanonicalId( "01HUB" ) ).thenReturn( Optional.of( hubPage ) );
         when( idx.verificationOf( "01HUB" ) ).thenReturn( Optional.empty() );
         when( pm.getVersionHistory( "TechHub" ) ).thenReturn( List.of() );
@@ -340,7 +340,7 @@ class DefaultForAgentProjectionServiceBranchTest {
         final PageDescriptor page = new PageDescriptor(
             "01P", "SomePage", "Some Page", PageType.ARTICLE,
             "tech", List.of(), "Index of pages on things.",
-            Instant.now(), Optional.empty(), false );
+            Instant.now(), false );
         when( idx.getByCanonicalId( "01P" ) ).thenReturn( Optional.of( page ) );
         when( idx.verificationOf( "01P" ) ).thenReturn( Optional.empty() );
         when( pm.getVersionHistory( "SomePage" ) ).thenReturn( List.of() );

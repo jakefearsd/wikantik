@@ -1,7 +1,6 @@
 ---
 title: What To Do When a Non-Existent Function Is Cited
 cluster: agent-cookbook
-kg_include: true
 status: active
 type: runbook
 canonical_id: 01KQ4CB7EGZZKQ1EQMYWFXKSHF

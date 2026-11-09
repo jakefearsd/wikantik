@@ -16,7 +16,7 @@
 
 Wikantik is a Java wiki engine, rebuilt from JSPWiki, that stores pages as Markdown with YAML frontmatter. It serves a React single-page application, a REST API, two Model Context Protocol (MCP) servers and an OpenAPI tool server for AI agents, and exposes health checks, Prometheus metrics and structured logs. Pages are grouped into clusters declared by hub pages, indexed by Lucene for full-text search, and ranked by a hybrid BM25 + dense-vector pipeline.
 
-For agents, retrieval is delivered as a *context bundle*: the wiki ranks, de-duplicates and cites sections, and returns them without synthesizing an answer ([ADR-0001](docs/adr/0001-rag-returns-context-bundle-not-synthesized-answer.md)). Wikantik keeps two graphs apart: the *Page Graph* (real wikilinks) and the *Knowledge Graph* (LLM-extracted entities); see [PageGraphVsKnowledgeGraph](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md).
+For agents, retrieval is delivered as a *context bundle*: the wiki ranks, de-duplicates and cites sections, and returns them without synthesizing an answer ([ADR-0001](docs/adr/0001-rag-returns-context-bundle-not-synthesized-answer.md)). The *Page Graph* is made of real wikilinks (the LLM-extracted Knowledge Graph was removed in 2026-11).
 
 ## Key capabilities
 
@@ -29,7 +29,7 @@ For agents, retrieval is delivered as a *context bundle*: the wiki ranks, de-dup
 - **RAG context bundle and session briefing** (`/api/bundle`, `/api/briefing`): [RagContextBundle](docs/admin/RagContextBundle.md)
 - **Raw content and change feed** for crawlers and RAG pipelines: [IndexingSupport](docs/admin/IndexingSupport.md)
 - **External-source connectors** that sync into derived pages, plus document ingest: [Connectors](docs/admin/Connectors.md), [DerivedPagesAndIngest](docs/admin/DerivedPagesAndIngest.md)
-- **RDF/OWL ontology** with public SPARQL and a curated Knowledge Graph: [OntologyManagement](docs/admin/OntologyManagement.md), [KgInclusionPolicy](docs/admin/KgInclusionPolicy.md)
+- **RDF/OWL ontology** with public SPARQL: [OntologyManagement](docs/admin/OntologyManagement.md)
 - **LLM spend ceiling** (`wikantik.genai.mode`): [CostTiers](docs/admin/CostTiers.md)
 - **Authentication and authorization**: database-backed policy grants and groups, SSO, SCIM, API keys, and a tamper-evident audit log: [Security](docs/admin/Security.md), [SingleSignOn](docs/admin/SingleSignOn.md), [ScimProvisioning](docs/admin/ScimProvisioning.md), [ApiKeys](docs/admin/ApiKeys.md), [AuditLog](docs/admin/AuditLog.md)
 - **Admin panel** at `/admin/`: [AdminPanel](docs/admin/AdminPanel.md)
@@ -44,8 +44,7 @@ For agents, retrieval is delivered as a *context bundle*: the wiki ranks, de-dup
 | **MCP server(s) for agents** | Admin and read-only endpoints | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **OpenAPI tool surface** | ✅ (`/tools/*`) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Hybrid retrieval (BM25 + dense)** | ✅ pgvector + Ollama | ❌ | ❌ | ❌ | ❌ | ✅ (recent) | ✅ |
-| **Queryable Knowledge Graph + RDF/SPARQL ontology** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **LLM-extracted Knowledge Graph** | ✅ (with reviewer queue) | ❌ | ❌ | ❌ | ❌ | partial | partial |
+| **Queryable RDF/SPARQL ontology** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Page Graph viewer** (real wikilinks) | ✅ Cytoscape, filterable | partial | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Token-budgeted "for-agent" projection** | ✅ `/api/pages/for-agent/{id}` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Runbook page type + verification metadata** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | partial |
@@ -53,7 +52,7 @@ For agents, retrieval is delivered as a *context bundle*: the wiki ranks, de-dup
 | **Stack** | Java 25 / Tomcat 11 / PostgreSQL + pgvector / React | PHP / Laravel | Node.js | Node.js | PHP | JVM | proprietary |
 | **AGPL-style copyleft** | no (Apache 2.0) | no | no | **yes** | no (GPLv2) | n/a | n/a |
 
-Wikantik may not fit if you need a hosted SaaS (you run it yourself; [CloudDeployment](docs/admin/CloudDeployment.md) provisions a VM on AWS or GCP), or if you need real-time collaborative editing (the editor is single-author per page). Set `wikantik.genai.mode=none` to run without an inference host, at the cost of hybrid search and the Knowledge Graph ([CostTiers](docs/admin/CostTiers.md)).
+Wikantik may not fit if you need a hosted SaaS (you run it yourself; [CloudDeployment](docs/admin/CloudDeployment.md) provisions a VM on AWS or GCP), or if you need real-time collaborative editing (the editor is single-author per page). Set `wikantik.genai.mode=none` to run without an inference host, at the cost of hybrid search ([CostTiers](docs/admin/CostTiers.md)).
 
 ## Architecture at a glance
 

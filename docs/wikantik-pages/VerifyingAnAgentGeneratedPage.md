@@ -13,7 +13,6 @@ audience:
 - agents
 status: active
 verified_by: wikantik-cli
-kg_include: true
 summary: 'End-to-end verification runbook: four quality gates, ConfidenceComputer
   math, verify_pages checks, and stamping authoritative pages via mark_page_verified.'
 canonical_id: 01KQ4EMR2624F7E7F8PM46AEHG

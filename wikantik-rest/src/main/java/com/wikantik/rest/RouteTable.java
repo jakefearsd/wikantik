@@ -26,8 +26,8 @@ import java.util.regex.Pattern;
 
 /**
  * First-match-wins route table shared by the admin REST servlets that
- * hand-roll a GoF Command/Registry dispatch idiom: {@link AdminKnowledgeResource},
- * {@link AdminHubDiscoveryResource}, and {@link AdminContentResource}. Each of
+ * hand-roll a GoF Command/Registry dispatch idiom: {@link AdminContentResource}.
+ * Each of
  * those independently declared its own record pairing a match test (a plain
  * exact-match string key, or a {@link Predicate} over the raw path) with an
  * action, plus its own lookup loop; this class is the one place that plumbing

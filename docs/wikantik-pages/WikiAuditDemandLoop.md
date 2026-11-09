@@ -14,7 +14,6 @@ audience:
 - agents
 status: active
 verified_by: wikantik-cli
-kg_include: true
 summary: 'The recurring evidence-driven maintenance loop: sweep under-served queries,
   confirm with assemble_bundle, refresh stale tool pages, and measure DiD lift.'
 canonical_id: 01KZG2CCNJ1Q9Y26KEHZ2XEJ7B

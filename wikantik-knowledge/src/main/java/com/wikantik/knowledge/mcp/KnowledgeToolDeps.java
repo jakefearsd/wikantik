@@ -24,14 +24,11 @@ import com.wikantik.api.briefing.BriefingLogService;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.knowledge.ContextRetrievalService;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.querylog.QueryLogService;
 import com.wikantik.citation.CitationRepository;
-import com.wikantik.knowledge.MentionIndex;
-import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.ontology.OntologyModelManager;
 
 import java.util.function.Predicate;
@@ -49,9 +46,6 @@ import java.util.function.Supplier;
  */
 final class KnowledgeToolDeps {
 
-    private final KnowledgeGraphService kgService;
-    private final MentionIndex mentionIndex;
-    private final NodeMentionSimilarity similarity;
     private final ContextRetrievalService ctxService;
     private final PageManager pageManager;
     private final StructuralIndexService structuralIndex;
@@ -68,9 +62,6 @@ final class KnowledgeToolDeps {
     private final Predicate< String > draftActive;
 
     private KnowledgeToolDeps( final Builder b ) {
-        this.kgService = b.kgService;
-        this.mentionIndex = b.mentionIndex;
-        this.similarity = b.similarity;
         this.ctxService = b.ctxService;
         this.pageManager = b.pageManager;
         this.structuralIndex = b.structuralIndex;
@@ -91,9 +82,6 @@ final class KnowledgeToolDeps {
         return new Builder();
     }
 
-    KnowledgeGraphService kgService() { return kgService; }
-    MentionIndex mentionIndex() { return mentionIndex; }
-    NodeMentionSimilarity similarity() { return similarity; }
     ContextRetrievalService ctxService() { return ctxService; }
     PageManager pageManager() { return pageManager; }
     StructuralIndexService structuralIndex() { return structuralIndex; }
@@ -110,9 +98,6 @@ final class KnowledgeToolDeps {
     Predicate< String > draftActive() { return draftActive; }
 
     static final class Builder {
-        private KnowledgeGraphService kgService;
-        private MentionIndex mentionIndex;
-        private NodeMentionSimilarity similarity;
         private ContextRetrievalService ctxService;
         private PageManager pageManager;
         private StructuralIndexService structuralIndex;
@@ -128,9 +113,6 @@ final class KnowledgeToolDeps {
         private Supplier< ReferenceManager > referenceManager;
         private Predicate< String > draftActive;
 
-        Builder kgService( final KnowledgeGraphService v ) { this.kgService = v; return this; }
-        Builder mentionIndex( final MentionIndex v ) { this.mentionIndex = v; return this; }
-        Builder similarity( final NodeMentionSimilarity v ) { this.similarity = v; return this; }
         Builder ctxService( final ContextRetrievalService v ) { this.ctxService = v; return this; }
         Builder pageManager( final PageManager v ) { this.pageManager = v; return this; }
         Builder structuralIndex( final StructuralIndexService v ) { this.structuralIndex = v; return this; }

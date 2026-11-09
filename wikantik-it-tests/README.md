@@ -7,8 +7,8 @@ plus a PostgreSQL 18 + pgvector container (the `pgvector/pgvector:pg18` image, s
 submodule. Schema is applied by the production `migrate.sh` script, and
 `src/main/resources/sql/it-test-seed.sql` adds the test fixtures.
 
-There are **five default IT modules**: `wikantik-it-test-rest`,
-`wikantik-it-test-sso`, `wikantik-it-test-knowledge-disabled`,
+There are **four default IT modules**: `wikantik-it-test-rest`,
+`wikantik-it-test-sso`,
 `wikantik-it-test-custom-jdbc`, `wikantik-it-test-dense` (`wikantik-selenide-tests`
 is a shared support module, not a runnable IT suite of its own). There is
 also an opt-in **Authentik SCIM full-loop** suite
@@ -36,7 +36,7 @@ The canonical pre-commit gate, from the repo root, is:
 bin/run-tests.sh --parallel 4
 ```
 
-This runs the unit phase, then all five default IT modules in a single
+This runs the unit phase, then all four default IT modules in a single
 `-T 4` reactor. Parallel IT execution is supported **only** through this
 script: each module reserves its own free `it.db.port`
 (build-helper `reserve-network-port` — there is no longer a static
@@ -56,7 +56,7 @@ mvn clean install -Pintegration-tests -fae
 or one module at a time via the wrapper script:
 
 ```bash
-bin/run-tests.sh --module rest   # rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop
+bin/run-tests.sh --module rest   # rest|sso|custom-jdbc|dense|scim-fullloop
 bin/run-tests.sh --fullloop      # ONLY the opt-in Authentik SCIM full-loop
 ```
 

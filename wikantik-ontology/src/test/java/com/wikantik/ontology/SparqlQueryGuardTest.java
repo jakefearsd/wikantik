@@ -67,7 +67,7 @@ class SparqlQueryGuardTest {
     void ordinaryQueryIsAllowed() {
         final Query q = QueryFactory.create(
                 "PREFIX wk: <https://wiki.wikantik.com/ns/wikantik#> "
-                + "SELECT ?s WHERE { ?s a wk:Person } LIMIT 10" );
+                + "SELECT ?s WHERE { ?s a wk:Article } LIMIT 10" );
         assertDoesNotThrow( () -> SparqlQueryGuard.rejectUnsafeConstructs( q ) );
     }
 

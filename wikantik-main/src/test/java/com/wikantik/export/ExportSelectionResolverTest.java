@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ExportSelectionResolverTest {
     private static PageDescriptor page( final String slug, final List< String > clusters, final List< String > tags, final PageType type ) {
         return new PageDescriptor( "ID-" + slug, slug, slug, type, clusters.isEmpty() ? null : clusters.get( 0 ),
-                clusters, tags, "", Instant.EPOCH, Optional.empty(), false );
+                clusters, tags, "", Instant.EPOCH, false );
     }
     private final List< PageDescriptor > all = List.of(
             page( "FinHub", List.of( "finance" ), List.of(), PageType.HUB ),
@@ -117,7 +117,7 @@ class ExportSelectionResolverTest {
                 page( "Caps", List.of( "x" ), List.of( "Foo" ), PageType.ARTICLE ),
                 page( "Nested", List.of( "x" ), List.of( "a/b" ), PageType.ARTICLE ),
                 new PageDescriptor( "ID-Inline", "Inline", "Inline", PageType.ARTICLE, "x", List.of( "x" ), List.of(), "",
-                        Instant.EPOCH, Optional.empty(), false, List.of( "Foo" ) ),
+                        Instant.EPOCH, false, List.of( "Foo" ) ),
                 page( "Other", List.of( "x" ), List.of( "bar" ), PageType.ARTICLE ) );
         final ExportCatalog c = new ExportCatalog() {
             public List< PageDescriptor > allPages() { return pages; }

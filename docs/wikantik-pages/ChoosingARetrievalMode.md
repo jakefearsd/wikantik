@@ -14,7 +14,6 @@ audience:
 - agents
 status: active
 verified_by: wikantik-cli
-kg_include: true
 summary: Decision procedure for choosing between assemble_bundle, get_briefing, retrieve_context,
   structural filters, and Knowledge Graph MCP tools.
 canonical_id: 01KQ4MTH3GHP1521AWH0CCQTHD

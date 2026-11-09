@@ -47,9 +47,9 @@ export function readScenario() {
   else if (r < 0.55) search(cfg);
   // Agent traffic, split across BOTH MCP endpoints. /knowledge-mcp carries the
   // real retrieval tools (retrieve_context, assemble_bundle, read_pages);
-  // /wikantik-admin-mcp's search_knowledge + query_nodes are KG-node-only and
-  // return empty in ~3ms on a corpus without extracted entities, so driving
-  // only those made the whole agent surface look free (measured 0.4% of CPU).
+  // /wikantik-admin-mcp carries the read_page / get_backlinks / get_wiki_stats
+  // tools; driving only admin-mcp once made the agent surface look free
+  // (measured 0.4% of CPU), hence the retrieval-heavy knowledge-mcp share.
   else if (r < 0.70) knowledgeAgentFlow(cfg, exec.vu.idInTest, slugs);   // real retrieval (expensive)
   else if (r < 0.80) mcpAgentFlow(cfg, exec.vu.idInTest, pick(slugs));   // admin-mcp tools/call
   else if (r < 0.88) rawContent(cfg, pick(slugs));                       // /wiki/{slug}?format=md

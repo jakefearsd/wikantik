@@ -19,7 +19,6 @@
 package com.wikantik.ontology;
 
 import java.util.Locale;
-import java.util.UUID;
 
 /** Canonical IRI namespace + builders for the Wikantik ontology. */
 public final class Iris {
@@ -30,14 +29,9 @@ public final class Iris {
     public static final String ID     = "https://wiki.wikantik.com/id/";
     public static final String SCHEMA = "https://schema.org/";
 
-    /** Ontology term (class/property), e.g. term("Technology") -> wk:Technology. */
+    /** Ontology term (class), e.g. term("Article") -> wk:Article. */
     public static String term( final String localName ) {
         return NS + localName;
-    }
-
-    /** Entity instance IRI keyed on the kg_nodes UUID. */
-    public static String entity( final UUID id ) {
-        return ID + "entity/" + id;
     }
 
     /** Page instance IRI keyed on the rename-stable canonical_id (ULID). */

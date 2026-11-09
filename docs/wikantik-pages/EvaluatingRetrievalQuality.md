@@ -1,5 +1,4 @@
 ---
-kg_include: true
 date: '2026-05-15'
 cluster: wikantik-development
 title: 'Evaluating Retrieval Quality: MRR, NDCG, and Hit Rate in Hybrid Search Systems'

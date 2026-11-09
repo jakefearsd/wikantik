@@ -385,52 +385,6 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         return list;
     }
 
-    @Override
-    public List<MoreLikeThisHit> moreLikeThis( final String seedDocName, final int maxResults,
-                                                final Set<String> excludeNames )
-            throws IOException {
-        if ( seedDocName == null || seedDocName.isEmpty() || maxResults <= 0 ) {
-            return Collections.emptyList();
-        }
-        final Set<String> excludes = excludeNames == null ? Collections.emptySet() : excludeNames;
-
-        try ( LuceneIndexStore.ReaderLease lease = store.acquire() ) {
-            final IndexReader reader = lease.reader();
-            final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );
-            final TopDocs seedHits = searcher.search(
-                    new TermQuery( new Term( DefaultLuceneIndexer.LUCENE_ID, seedDocName ) ), 1 );
-            if ( seedHits.scoreDocs.length == 0 ) {
-                return Collections.emptyList();
-            }
-            final int seedDocId = seedHits.scoreDocs[ 0 ].doc;
-
-            final MoreLikeThis mlt = new MoreLikeThis( reader );
-            mlt.setAnalyzer( lifecycle.getAnalyzer() );
-            mlt.setFieldNames( new String[] { DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS } );
-            mlt.setMinTermFreq( 1 );
-            mlt.setMinDocFreq( 1 );
-            final Query mltQuery = mlt.like( seedDocId );
-
-            final int fetch = Math.min( 1024, maxResults + excludes.size() + 10 );
-            final TopDocs hits = searcher.search( mltQuery, fetch );
-            final StoredFields storedFields = reader.storedFields();
-
-            final List<MoreLikeThisHit> out = new ArrayList<>();
-            for ( final ScoreDoc sd : hits.scoreDocs ) {
-                if ( out.size() >= maxResults ) break;
-                // MoreLikeThis only ever needs the page name — never read the body,
-                // so read the id from DocValues and skip the stored-block decompress.
-                final String name = LuceneHitSupport.readPageId( reader, storedFields, sd.doc, ID_ONLY_FIELDS );
-                if ( name == null || name.equals( seedDocName ) ) continue;
-                if ( excludes.contains( name ) ) continue;
-                out.add( new MoreLikeThisHit( name, sd.score ) );
-            }
-            return out;
-        }
-    }
-
-
-
     // -------------------------------------------------------------------------
     // Inner class: SearchResultImpl
     // -------------------------------------------------------------------------

@@ -1,10 +1,9 @@
 ---
-kg_include: true
 type: article
 summary: 'Deep technical reference for Wikantik''s Knowledge Graph: 9 entity classes,
   21 predicates, mention-centroid math, SHACL gates, and RDF/SPARQL.'
 date: '2026-10-24'
-status: active
+status: archived
 canonical_id: 01KQTCBW5GBFJVWYB8V1CP49P5
 audience:
 - humans
@@ -38,6 +37,8 @@ verified_at: '2026-10-24T23:02:33.654138261Z'
 verified_by: wikantik-cli
 ---
 # The Wikantik Knowledge Graph: Extraction, Curation, SHACL Gates, and Ontology Projection
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 The **Wikantik Knowledge Graph (KG)** is a human-curated, LLM-accelerated semantic property graph stored in PostgreSQL 18 (`kg_*` tables) and projected into an **Apache Jena TDB2 RDF/OWL ontology**. It transforms unstructured Markdown prose into a strongly typed network of **9 canonical entity classes** and **21 closed relationship predicates**, equipped with **two-dimensional provenance tracking**, **mention-centroid vector embeddings**, and **14 dedicated Model Context Protocol (MCP) tools**.
 

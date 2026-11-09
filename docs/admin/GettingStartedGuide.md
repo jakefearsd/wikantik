@@ -49,7 +49,7 @@ java -version && mvn -version && node --version && npm --version && psql --versi
 ## Path A — Docker Compose (fastest)
 
 The stack is two containers: PostgreSQL (the `pgvector/pgvector:pg18` image;
-the `vector` extension is required by search and the Knowledge Graph) and the
+the `vector` extension is required by search and embeddings) and the
 Wikantik app. `bin/container.sh` builds the app image from the `Dockerfile`
 (`bin/container.sh build`), and on first start the app container runs database
 migrations, seeds the admin account, and starts Tomcat. Path A uses the base

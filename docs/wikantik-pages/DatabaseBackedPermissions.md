@@ -1,5 +1,4 @@
 ---
-kg_include: true
 type: article
 summary: How Wikantik stores role permissions in the PostgreSQL policy_grants table,
   seeds defaults, and lets admins change them without a restart.

@@ -1,5 +1,4 @@
 ---
-kg_include: true
 date: '2026-08-08'
 cluster: computer-science
 title: Programming Languages Hub

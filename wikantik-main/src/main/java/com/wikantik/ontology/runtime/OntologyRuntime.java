@@ -28,12 +28,10 @@ import org.apache.logging.log4j.Logger;
  *
  * @param scheduler  periodic rebuild/compaction timer
  * @param pageSync   page-event worker (drains what is queued)
- * @param entitySync KG-event worker; {@code null} when incremental entity sync is off
  * @param manager    the TDB2 dataset — closed last, after everything that writes to it
  */
 public record OntologyRuntime( OntologyRebuildScheduler scheduler,
                                OntologyPageSyncQueue pageSync,
-                               OntologyEntitySync entitySync,
                                OntologyModelManager manager ) implements AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger( OntologyRuntime.class );
@@ -47,7 +45,6 @@ public record OntologyRuntime( OntologyRebuildScheduler scheduler,
     public void close() {
         step( "rebuild/compaction scheduler", scheduler, OntologyRebuildScheduler::stop );
         step( "page sync worker", pageSync, OntologyPageSyncQueue::close );
-        step( "entity sync worker", entitySync, OntologyEntitySync::close );
         step( "TDB2 dataset", manager, OntologyModelManager::close );
     }
 

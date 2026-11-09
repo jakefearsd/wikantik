@@ -4,7 +4,6 @@ audience:
 type: hub
 summary: 'Content pipeline hub: AI Discovery topic universes, the five-agent AI Publisher,
   and the separate Blogger Agent, with how each works and how they connect.'
-kg_include: true
 related:
 - AiDiscoveryTopicUniverses
 - AiPublisherPipeline

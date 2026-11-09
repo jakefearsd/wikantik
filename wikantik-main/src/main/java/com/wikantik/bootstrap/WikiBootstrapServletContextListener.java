@@ -34,7 +34,6 @@ import com.wikantik.WikiSession;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner;
-import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.util.TextUtil;
 
 
@@ -120,8 +119,8 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
      *
      * <p>Shutdown order:
      * <ol>
-     *   <li>Mark stop on {@link JudgeRunner} and {@link DefaultRetrievalQualityRunner}
-     *       so no new work starts after this point.</li>
+     *   <li>Close {@link DefaultRetrievalQualityRunner} so no new work starts after
+     *       this point.</li>
      *   <li>Call {@code engine.shutdown()} — fires {@code WikiEngineEvent.SHUTDOWN},
      *       which sets {@code killMe=true} on all {@code WikiBackgroundThread}
      *       instances (LuceneUpdater, PageDirectoryWatcher, WatchDogThread).</li>
@@ -129,8 +128,6 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
      *       they wake up immediately instead of sleeping through their full interval.</li>
      *   <li>Await thread termination with a short bound (3 s); force-interrupt
      *       stragglers.</li>
-     *   <li>Close {@link JudgeRunner} (shuts down its ScheduledExecutorService).</li>
-     *   <li>Close {@link DefaultRetrievalQualityRunner}.</li>
      *   <li>Clear the WikiSession guest-session ThreadLocal for the context thread.</li>
      *   <li>Shut down Log4j2 last — keeps logging available for all earlier steps.</li>
      * </ol>
@@ -142,26 +139,19 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
     public void contextDestroyed( final ServletContextEvent sce ) {
         final Engine engine = lookupEngine( sce );
 
-        // 1. Resolve runner managers; engine == null means the engine never started.
-        // Phase 1 of the wikantik-main subsystem decomposition: JudgeRunner
-        // comes from the typed KnowledgeSubsystem.Services bundle. The bridge
+        // 1. Resolve the runner manager; engine == null means the engine never started.
+        // It comes from the typed KnowledgeSubsystem.Services bundle; the bridge
         // resolves to the engine's manager registry under the hood.
-        @SuppressWarnings( "PMD.CloseResource" ) // closed in lines 164-165 via null-checks
-        final JudgeRunner judgeRunner = engine == null ? null
-            : runQuietly( "lookup JudgeRunner",
-                () -> com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge
-                    .fromLegacyEngine( engine ).judgeRunner() );
-        @SuppressWarnings( "PMD.CloseResource" ) // closed in lines 164-165 via null-checks
+        @SuppressWarnings( "PMD.CloseResource" ) // closed below via a null-check
         final DefaultRetrievalQualityRunner rqRunner = engine == null ? null
             : runQuietly( "lookup RetrievalQualityRunner",
                 () -> com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge
                     .fromLegacyEngine( engine ).retrievalQualityRunner()
                     instanceof DefaultRetrievalQualityRunner d ? d : null );
 
-        // 2. Close the runner schedulers BEFORE firing SHUTDOWN — gives their
-        //    ScheduledExecutorServices a true interrupt rather than a 3 s wait.
-        if ( judgeRunner != null ) runQuietly( "JudgeRunner.close()", judgeRunner::close );
-        if ( rqRunner    != null ) runQuietly( "RetrievalQualityRunner.close()", rqRunner::close );
+        // 2. Close the runner scheduler BEFORE firing SHUTDOWN — gives its
+        //    ScheduledExecutorService a true interrupt rather than a 3 s wait.
+        if ( rqRunner != null ) runQuietly( "RetrievalQualityRunner.close()", rqRunner::close );
 
         // 3. Fire WikiEngineEvent.SHUTDOWN — marks WikiBackgroundThreads killMe=true,
         //    shuts down CachingManager, FilterManager, hybrid-index listeners, etc.
@@ -274,7 +264,6 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
             name.startsWith( "JSPWiki Lucene Indexer" )
             || name.startsWith( "JSPWiki Page Directory Watcher" )
             || name.startsWith( "WatchDog for '" )
-            || name.startsWith( "kg-judge-runner" )
             || name.startsWith( "retrieval-quality-runner" )
         );
     }

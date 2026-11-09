@@ -1,7 +1,6 @@
 ---
 title: Running the Retrieval Quality Harness
 cluster: agent-cookbook
-kg_include: true
 status: active
 type: runbook
 canonical_id: 01KQ42G7FNHJXBFF246W07JZ3K

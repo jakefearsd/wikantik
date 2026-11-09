@@ -15,15 +15,14 @@ decided, and how to grant access to a single area, is in
 Every screen below calls a servlet under `/admin/*`, all protected by
 `AdminAuthFilter`. The routes are declared in
 `wikantik-frontend/src/main.jsx`; each servlet is mapped in
-`wikantik-war/src/main/webapp/WEB-INF/web.xml`. The sidebar hides **Knowledge Graph**
-when the Knowledge Graph capability is off.
+`wikantik-war/src/main/webapp/WEB-INF/web.xml`.
 
 ## Overview
 
 `/admin` shows a dashboard of live cards: health and version, request load, pending
-Knowledge Graph proposals, retrieval quality (nDCG@5), LLM activity, search and index
-status, users and keys, and a recent-activity feed, plus a diagnostic band (Knowledge
-Graph size, extractor pipeline, judge, render cache, auth activity). Cards that have a
+retrieval quality (nDCG@5), LLM activity, search and index
+status, users and keys, and a recent-activity feed, plus a diagnostic band (render cache,
+auth activity). Cards that have a
 destination link straight to the screen that handles them.
 
 - Backed by: `GET /admin/overview` (`AdminOverviewResource`).
@@ -112,37 +111,16 @@ derived pages it produced). Delete can optionally delete those pages.
 
 ## Knowledge and search
 
-### Knowledge Graph
+### Embeddings
 
-`/admin/knowledge-graph`. Eight tabs: **Proposals** (review pending node and edge
-proposals), **Extraction** (run, watch and cancel the LLM entity extractor), **Node
-Explorer**, **Edge Explorer**, **Content Embeddings** (the mention-centroid index and
-frontmatter backfill), **Hub Proposals**, **Hub Discovery** (cluster-based discovery
-of new hubs) and **LLM Activity** (about the last hour of in-flight and recent LLM
-calls, held in memory only).
+`/admin/embeddings`. Two tabs: **Content embeddings** (dense-index health, the frontmatter
+backfill and the pages-without-frontmatter list) and **LLM activity** (about the last hour of
+in-flight and recent LLM calls, held in memory only).
 
-- Backed by: `/admin/knowledge-graph/*` (`AdminKnowledgeResource`),
-  `/admin/knowledge-graph/hub-discovery/*` (`AdminHubDiscoveryResource`),
-  `/admin/knowledge-graph/extract-mentions` (`AdminExtractionResource`) and
-  `/admin/llm-activity` (`AdminLlmActivityResource`).
-- Source: `AdminKnowledgePage.jsx` and the tab components beside it.
-- Deep docs: [HubDiscovery.md](HubDiscovery.md), [OntologyManagement.md](OntologyManagement.md).
-
-### KG Policy
-
-`/admin/kg-policy`. Decide, per cluster, whether its pages feed the Knowledge Graph
-(include, exclude, or unset, which means excluded by default). Filter by decision,
-review a cluster, and clear a decision. Three sub-screens: `/admin/kg-policy/explain`
-(why one page is in or out), `/admin/kg-policy/pending` (unset clusters, reviews older
-than 90 days, recent page-count changes) and `/admin/kg-policy/bootstrap` (seed
-decisions in bulk).
-
-- Backed by: `/admin/kg-policy/*` (`AdminKgPolicyResource`): `clusters`,
-  `clusters/{name}`, `clusters/{name}/review`, `bootstrap`, `explain/{id}`, `pending`,
-  `audit`, `reconciliation`, `estimate`.
-- Source: `AdminKgPolicyPage.jsx`, `AdminKgPolicyExplain.jsx`,
-  `AdminKgPolicyPending.jsx`, `AdminKgPolicyBootstrap.jsx`.
-- Deep doc: [KgInclusionPolicy.md](KgInclusionPolicy.md).
+- Backed by: `/admin/embeddings/*` (`AdminEmbeddingsResource`) and `/admin/llm-activity`
+  (`AdminLlmActivityResource`).
+- Source: `AdminEmbeddingsPage.jsx`, `ContentEmbeddingsTab.jsx`, `LlmActivityTab.jsx`.
+- Deep doc: [IndexRebuild.md](IndexRebuild.md).
 
 ### Retrieval Quality
 
@@ -196,7 +174,7 @@ Call them with `curl` as an administrator.
 
 | Endpoint | Servlet | Purpose |
 |---|---|---|
-| `/admin/ontology/*` | `AdminOntologyResource` | `POST /admin/ontology/rebuild`, `GET /admin/ontology/status`, `GET /admin/ontology/violations` (SHACL conformance); see [OntologyManagement.md](OntologyManagement.md) |
+| `/admin/ontology/*` | `AdminOntologyResource` | `POST /admin/ontology/rebuild`, `GET /admin/ontology/status`; see [OntologyManagement.md](OntologyManagement.md) |
 | `/admin/derived/status`, `/admin/derived/reflow` | `AdminDerivedResource` | derived-page fleet status and reflow; see [DerivedPagesAndIngest.md](DerivedPagesAndIngest.md) |
 | `/admin/clusters/*` | `AdminClusterResource` | `POST /admin/clusters/rename?from=X&to=Y` returns the plan; add `confirm=true` to apply (rewrites `cluster:` frontmatter only) |
 | `/admin/page-graph/conflicts` | `AdminStructuralConflictsResource` | structural conflicts; see [DriftDashboard.md](DriftDashboard.md#structural-conflicts) |

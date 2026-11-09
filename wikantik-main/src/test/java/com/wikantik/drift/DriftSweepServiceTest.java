@@ -23,7 +23,6 @@ import com.wikantik.api.frontmatter.schema.FrontmatterSchema;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.frontmatter.schema.SchemaDrivenFrontmatterValidator;
 import com.wikantik.frontmatter.schema.ValidationCtx;
-import com.wikantik.ontology.OntologyShaclValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
@@ -59,11 +58,10 @@ class DriftSweepServiceTest {
     }
 
     private static DriftSweepService service( final PageManager pm,
-            final DriftSnapshotRepository repo,
-            final java.util.function.Supplier< List< OntologyShaclValidator.Violation > > shacl ) {
+            final DriftSnapshotRepository repo ) {
         return new DriftSweepService( pm,
                 new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema() ),
-                ValidationCtx.lenient(), shacl, repo );
+                ValidationCtx.lenient(), repo );
     }
 
     @Test
@@ -78,11 +76,10 @@ class DriftSweepServiceTest {
         when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
                 .thenReturn( 1L );
 
-        final DriftSweepService svc = service( pm, repo, null );
+        final DriftSweepService svc = service( pm, repo );
         final DriftSweepService.SweepOutcome outcome = svc.runSweep( "manual" );
 
         assertEquals( 4, outcome.pagesScanned() );
-        assertFalse( outcome.shaclChecked() );
 
         @SuppressWarnings( "unchecked" )
         final ArgumentCaptor< List< DriftCount > > counts = ArgumentCaptor.forClass( List.class );
@@ -105,7 +102,7 @@ class DriftSweepServiceTest {
         when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
                 .thenReturn( 1L );
 
-        final DriftSweepService.SweepOutcome outcome = service( pm, repo, null ).runSweep( "manual" );
+        final DriftSweepService.SweepOutcome outcome = service( pm, repo ).runSweep( "manual" );
 
         assertEquals( 2, outcome.pagesScanned() );
         final DriftCount yaml = outcome.counts().stream()
@@ -126,44 +123,19 @@ class DriftSweepServiceTest {
         when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
                 .thenReturn( 1L );
 
-        final DriftSweepService.SweepOutcome outcome = service( pm, repo, null ).runSweep( "manual" );
+        final DriftSweepService.SweepOutcome outcome = service( pm, repo ).runSweep( "manual" );
         assertEquals( 1, outcome.pagesScanned() );
     }
 
     @Test
-    void shaclViolationsCountedByPath() throws Exception {
-        final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
-        final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
-                .thenReturn( 1L );
-        final List< OntologyShaclValidator.Violation > violations = List.of(
-                new OntologyShaclValidator.Violation( "wk:e1", "wk:implements", "subject must be technology" ),
-                new OntologyShaclValidator.Violation( "wk:e2", "wk:implements", "subject must be technology" ),
-                new OntologyShaclValidator.Violation( "wk:e3", "wk:located_in", "object must be place" ) );
-
-        final DriftSweepService.SweepOutcome outcome =
-                service( pm, repo, () -> violations ).runSweep( "scheduled" );
-
-        assertTrue( outcome.shaclChecked() );
-        assertEquals( 2, outcome.counts().stream()
-                .filter( c -> "shacl".equals( c.family() ) && "wk:implements".equals( c.code() ) )
-                .findFirst().orElseThrow().count() );
-        assertEquals( 1, outcome.counts().stream()
-                .filter( c -> "shacl".equals( c.family() ) && "wk:located_in".equals( c.code() ) )
-                .findFirst().orElseThrow().count() );
-    }
-
-    @Test
-    void shaclSourceFailureDegradesToUnchecked() throws Exception {
+    void sweepNeverChecksShaclAnymore() throws Exception {
         final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
         when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
                 .thenReturn( 1L );
 
-        final DriftSweepService.SweepOutcome outcome = service( pm, repo,
-                () -> { throw new IllegalStateException( "tdb2 gone" ); } ).runSweep( "scheduled" );
+        service( pm, repo ).runSweep( "scheduled" );
 
-        assertFalse( outcome.shaclChecked() );
         verify( repo ).insertSweep( any(), anyInt(), anyLong(), anyString(), eq( false ), anyList() );
     }
 
@@ -174,7 +146,7 @@ class DriftSweepServiceTest {
         when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
                 .thenThrow( new IllegalStateException( "db gone" ) );
 
-        final DriftSweepService svc = service( pm, repo, null );
+        final DriftSweepService svc = service( pm, repo );
         assertThrows( IllegalStateException.class, () -> svc.runSweep( "manual" ) );
         assertFalse( svc.isRunning() );
     }
@@ -196,7 +168,7 @@ class DriftSweepServiceTest {
         when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
                 .thenReturn( 1L );
 
-        final DriftSweepService svc = service( pm, repo, null );
+        final DriftSweepService svc = service( pm, repo );
         final AtomicReference< Throwable > worker = new AtomicReference<>();
         final Thread t = new Thread( () -> {
             try { svc.runSweep( "manual" ); } catch ( final Throwable e ) { worker.set( e ); }
@@ -218,7 +190,7 @@ class DriftSweepServiceTest {
                 "Drifty", "---\ntype: article\nstatus: bogus-state\n---\n\nbody",
                 "Clean",  "---\ntype: article\nstatus: active\n---\n\nbody",
                 "NoFm",   "Just a body." );
-        final DriftSweepService svc = service( pm, mock( DriftSnapshotRepository.class ), null );
+        final DriftSweepService svc = service( pm, mock( DriftSnapshotRepository.class ) );
 
         final List< PageViolation > offenders = svc.currentPageList( "frontmatter", "status.noncanonical" );
         assertEquals( 1, offenders.size() );
@@ -228,22 +200,9 @@ class DriftSweepServiceTest {
     }
 
     @Test
-    void currentPageListForShaclFiltersByPath() throws Exception {
-        final PageManager pm = pm();
-        final DriftSweepService svc = service( pm, mock( DriftSnapshotRepository.class ),
-                () -> List.of(
-                        new OntologyShaclValidator.Violation( "wk:e1", "wk:implements", "bad subject" ),
-                        new OntologyShaclValidator.Violation( "wk:e2", "wk:located_in", "bad object" ) ) );
-
-        final List< PageViolation > offenders = svc.currentPageList( "shacl", "wk:implements" );
-        assertEquals( 1, offenders.size() );
-        assertEquals( "wk:e1", offenders.get( 0 ).pageName() );
-    }
-
-    @Test
     void progressIsIdleBeforeAnySweep() {
         final DriftSweepService svc = service( mock( PageManager.class ),
-                mock( DriftSnapshotRepository.class ), null );
+                mock( DriftSnapshotRepository.class ) );
         final DriftSweepService.SweepProgress p = svc.progress();
         assertFalse( p.running() );
         assertNull( p.phase() );
@@ -269,7 +228,7 @@ class DriftSweepServiceTest {
         when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
                 .thenReturn( 1L );
 
-        final DriftSweepService svc = service( pm, repo, null );
+        final DriftSweepService svc = service( pm, repo );
         final Thread t = new Thread( () -> svc.runSweep( "manual" ) );
         t.start();
         assertTrue( entered.await( 5, TimeUnit.SECONDS ) );
@@ -296,7 +255,7 @@ class DriftSweepServiceTest {
         when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
                 .thenThrow( new IllegalStateException( "db gone" ) );
 
-        final DriftSweepService svc = service( pm, repo, null );
+        final DriftSweepService svc = service( pm, repo );
         assertThrows( IllegalStateException.class, () -> svc.runSweep( "manual" ) );
 
         final DriftSweepService.SweepProgress p = svc.progress();
@@ -306,47 +265,13 @@ class DriftSweepServiceTest {
     }
 
     @Test
-    void shaclNodeScopedViolationGetsNonNullCode() throws Exception {
-        // Node-scoped SHACL violations have a null resultPath; the persisted code column is NOT NULL,
-        // so a null here used to abort the entire sweep transaction (losing the frontmatter counts too).
-        final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
-        final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
-                .thenReturn( 1L );
-
-        final DriftSweepService.SweepOutcome outcome = service( pm, repo,
-                () -> List.of( new OntologyShaclValidator.Violation( "wk:e1", null, "node-level constraint" ) ) )
-                .runSweep( "manual" );
-
-        final DriftCount shacl = outcome.counts().stream()
-                .filter( c -> "shacl".equals( c.family() ) ).findFirst().orElseThrow();
-        assertNotNull( shacl.code(), "shacl code must never be null (DB code column is NOT NULL)" );
-        assertEquals( "node-scoped", shacl.code() );
-        assertEquals( 1, shacl.count() );
-    }
-
-    @Test
-    void currentPageListForShaclMatchesNodeScopedCode() throws Exception {
-        final PageManager pm = pm();
-        final DriftSweepService svc = service( pm, mock( DriftSnapshotRepository.class ),
-                () -> List.of(
-                        new OntologyShaclValidator.Violation( "wk:e1", null, "node-level" ),
-                        new OntologyShaclValidator.Violation( "wk:e2", "wk:implements", "bad subject" ) ) );
-
-        final List< PageViolation > offenders = svc.currentPageList( "shacl", "node-scoped" );
-        assertEquals( 1, offenders.size() );
-        assertEquals( "wk:e1", offenders.get( 0 ).pageName() );
-        assertEquals( "node-scoped", offenders.get( 0 ).code() );
-    }
-
-    @Test
     void lastErrorSetOnFailureClearedOnSuccess() throws Exception {
         final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
         when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
                 .thenThrow( new IllegalStateException( "db gone" ) )
                 .thenReturn( 5L );
-        final DriftSweepService svc = service( pm, repo, null );
+        final DriftSweepService svc = service( pm, repo );
 
         assertThrows( IllegalStateException.class, () -> svc.runSweep( "manual" ) );
         assertNotNull( svc.lastError(), "a failed sweep must record lastError so the UI can surface it" );

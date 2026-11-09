@@ -21,7 +21,7 @@ package com.wikantik.knowledge.bundle;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.wikantik.knowledge.extraction.OllamaChatRequest;
+import com.wikantik.llm.OllamaChatRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

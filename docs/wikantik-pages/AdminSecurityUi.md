@@ -1,5 +1,4 @@
 ---
-kg_include: true
 summary: 'Admin Security screen at /admin/security: manage wiki groups and the database-backed
   policy grants that decide what each role may do.'
 type: article

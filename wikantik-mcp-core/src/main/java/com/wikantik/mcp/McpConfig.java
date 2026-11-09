@@ -204,17 +204,6 @@ public class McpConfig {
         return positiveIntProperty( "wikantik.mcp.rate_limit.max_clients", DEFAULT_RATE_LIMIT_MAX_CLIENTS );
     }
 
-    private static final int DEFAULT_KG_BULK_LIMIT = 50;
-
-    /**
-     * Returns the maximum number of proposals that may be acted on in a single
-     * bulk KG curation call. Reads from {@code wikantik.mcp.kg_curation.bulk_limit};
-     * defaults to {@value DEFAULT_KG_BULK_LIMIT}.
-     */
-    public int kgCurationBulkLimit() {
-        return positiveIntProperty( "wikantik.mcp.kg_curation.bulk_limit", DEFAULT_KG_BULK_LIMIT );
-    }
-
     /**
      * Reads a positive-int property. On missing/blank/non-numeric/non-positive input,
      * logs a single warn and returns {@code defaultValue}.

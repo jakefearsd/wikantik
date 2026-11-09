@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class VaultLayoutTest {
     private static PageDescriptor p( final String slug, final String cluster ) {
         return new PageDescriptor( "ID-" + slug, slug, slug, PageType.ARTICLE, cluster,
-                cluster == null ? List.of() : List.of( cluster ), List.of(), "", Instant.EPOCH, Optional.empty(), false );
+                cluster == null ? List.of() : List.of( cluster ), List.of(), "", Instant.EPOCH, false );
     }
 
     @Test void pathsFollowPrimaryCluster() {

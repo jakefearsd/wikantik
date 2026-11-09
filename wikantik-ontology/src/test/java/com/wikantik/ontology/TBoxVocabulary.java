@@ -32,11 +32,6 @@ final class TBoxVocabulary {
     static final String WK     = "https://wiki.wikantik.com/ns/wikantik#";
     static final String SCHEMA = "https://schema.org/";
 
-    /** The 9 unified entity classes (UpperCamelCase local names). */
-    static final java.util.List< String > ENTITY_CLASSES = java.util.List.of(
-            "Person", "Organization", "Place", "Event", "Product",
-            "Technology", "Concept", "Project", "Version" );
-
     /** The 5 content classes (PageType minus UNKNOWN; DESIGN maps to DesignDoc). */
     static final java.util.List< String > CONTENT_CLASSES = java.util.List.of(
             "Hub", "Article", "Reference", "Runbook", "DesignDoc" );

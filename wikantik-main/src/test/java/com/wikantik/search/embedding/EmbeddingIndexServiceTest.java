@@ -318,7 +318,7 @@ class EmbeddingIndexServiceTest {
                 final float[] fromBytea = new float[ vecBytes.length / Float.BYTES ];
                 for( int i = 0; i < fromBytea.length; i++ ) fromBytea[ i ] = buf.getFloat();
 
-                // Decode pgvector literal → float[] (inline parser matching KgNodeEmbeddingRepository).
+                // Decode pgvector literal → float[] (inline parser).
                 final String literal = rs.getString( 2 );
                 assertNotNull( literal, "embedding must be non-null" );
                 final String trimmed = literal.substring( 1, literal.length() - 1 );

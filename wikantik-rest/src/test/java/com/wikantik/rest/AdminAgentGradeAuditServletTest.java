@@ -244,7 +244,7 @@ class AdminAgentGradeAuditServletTest {
         // ( wikantik.verification.stale_days ) it is stale. The servlet must
         // honour the ConfidenceComputer handed to it by the subsystem bridge.
         final PageDescriptor p = new PageDescriptor( "p1", "P1", "P1", PageType.UNKNOWN, null,
-                List.of(), null, Instant.parse( "2026-05-10T00:00:00Z" ), Optional.empty(), false );
+                List.of(), null, Instant.parse( "2026-05-10T00:00:00Z" ), false );
         seedPages( List.of( p ) );
         when( index.verificationOf( "p1" ) ).thenReturn( Optional.of(
                 new Verification( Instant.now().minus( Duration.ofDays( 30 ) ), "alice", null, null ) ) );

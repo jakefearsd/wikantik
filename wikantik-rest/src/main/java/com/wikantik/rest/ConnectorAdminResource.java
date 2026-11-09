@@ -98,7 +98,7 @@ import java.util.Set;
  * test-overridable manager-resolution seams below; the route bodies themselves live in
  * {@link ConnectorAdminReadHandlers} (GET) and {@link ConnectorAdminWriteHandlers}
  * (POST/PUT/DELETE) — extracted verbatim, mirroring the
- * {@code com.wikantik.rest.knowledge.KgProposalAdminHandlers} decomposition precedent, to keep
+ * handler-decomposition precedent, to keep
  * this facade under the CI complexity gate.
  */
 public class ConnectorAdminResource extends RestServletBase {

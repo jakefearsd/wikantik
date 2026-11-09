@@ -227,7 +227,7 @@ after the run completes and the result is persisted.
 ## REST endpoint reference
 
 Protected by `AdminAuthFilter` (admin role required). Returns 503 when the
-`RetrievalQualityRunner` is not registered (Knowledge Graph not initialised).
+`RetrievalQualityRunner` is not registered (retrieval-quality subsystem not initialised).
 
 ### `GET /admin/retrieval-quality`
 
@@ -300,8 +300,7 @@ Both endpoints require the `AllPermission` security permission enforced by
 `AdminAuthFilter`. No finer-grained access: any admin can view history and trigger
 on-demand runs.
 
-The `RetrievalQualityRunner` and its DAO are part of the Knowledge Graph subsystem
-(`com.wikantik.knowledge.eval` in `wikantik-main`). If the Knowledge Graph failed to initialise (missing
+The `RetrievalQualityRunner` and its DAO live in `com.wikantik.knowledge.eval` in `wikantik-main`. If the runner failed to initialise (missing
 JNDI DataSource, pgvector unavailable, etc.), the runner is `null` and all endpoints
 return 503.
 
@@ -346,7 +345,7 @@ return 503.
 
 **Dashboard shows 503**
 
-The `RetrievalQualityRunner` is `null` — the Knowledge Graph subsystem did not
+The `RetrievalQualityRunner` is `null` — the retrieval-quality subsystem did not
 initialise. Check `catalina.out` for errors. Verify the JNDI `DataSource`, that
 V016/V017 migrations ran (`bin/db/migrate.sh --status`), and that the
 `wikantik.datasource` property is set.
@@ -384,6 +383,5 @@ rows to reflect the current `canonical_id`s, or regenerate the query set.
 - [docs/wikantik-pages/RunningTheRetrievalQualityHarness.md](../wikantik-pages/RunningTheRetrievalQualityHarness.md) — manual invocation + nightly scheduler design.
 - [docs/wikantik-pages/EvaluatingRetrievalQuality.md](../wikantik-pages/EvaluatingRetrievalQuality.md) — metric definitions (nDCG, MRR, Recall@K) and Gold Set construction.
 - [docs/archive/KnowledgeGraphRerank.md](../archive/KnowledgeGraphRerank.md) — historical record of the (now deleted) graph rerank.
-- [docs/admin/KgInclusionPolicy.md](KgInclusionPolicy.md) — KG inclusion policy.
 - `bin/db/migrations/V016__retrieval_quality.sql` — DDL for the three retrieval tables.
 - `bin/db/migrations/V017__seed_retrieval_query_set.sql` — initial `core-agent-queries` seed.

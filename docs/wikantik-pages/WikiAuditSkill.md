@@ -1,5 +1,4 @@
 ---
-kg_include: true
 type: article
 summary: 'The wiki-audit agent skill: on-demand wiki health checks (links, orphans,
   metadata, SEO), demand and freshness sweeps, and the report it writes.'

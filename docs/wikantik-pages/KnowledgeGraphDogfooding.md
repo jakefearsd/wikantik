@@ -1,9 +1,8 @@
 ---
-kg_include: true
 type: article
 summary: April 2026 initiative to document Wikantik's own features as wiki pages with
   rich frontmatter, with a 2026-10 status note on what changed.
-status: active
+status: archived
 audience:
 - humans
 date: '2026-04-05'
@@ -19,6 +18,8 @@ related:
 - WikantikDevelopment
 ---
 # Knowledge Graph Dogfooding
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 > **Status (2026-10-13):** Partly shipped, partly superseded. The sub-feature pages exist ([GraphProjector](GraphProjector), [KnowledgeProposals](KnowledgeProposals), [KnowledgeAdminUi](KnowledgeAdminUi), [ProvenanceModel](ProvenanceModel), [FrontmatterConventions](FrontmatterConventions)), the Relationships plugin exists, and the Node Explorer has a status filter. The mechanism the plan rested on did not survive: the GraphProjector, which turned frontmatter relationships into Knowledge Graph edges, was retired on 2026-04-24, and `kg_edges.relationship_type` is now a closed vocabulary of 21 predicates. Frontmatter keys such as `part-of`, `enables` or `supersedes` are ordinary page metadata today, not graph edges, and the Relationships plugin renders edges only for a Knowledge Graph node whose name matches the page. The Knowledge Graph is now LLM-extracted entities ([WikantikKnowledgeGraph](WikantikKnowledgeGraph)); machine-queryable structure over the wiki's own pages comes from the structural index, the Page Graph ([PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph)) and the ontology. The text below is the original April 2026 plan.
 
@@ -40,8 +41,6 @@ Rich frontmatter relationships create a navigable graph that reduces the need fo
 ## Design Spec
 
 Full design: `docs/superpowers/specs/2026-04-05-kg-dogfooding-design.md` (no longer in the repository)
-
-[{Relationships}]
 
 ---
 

@@ -59,7 +59,7 @@ class AgentGradeAuditResourceTest {
 
     private PageDescriptor pd( final String id, final String slug, final String cluster ) {
         return new PageDescriptor( id, slug, slug, PageType.UNKNOWN, cluster,
-                List.of(), null, Instant.parse( "2026-05-10T00:00:00Z" ), Optional.empty(), false );
+                List.of(), null, Instant.parse( "2026-05-10T00:00:00Z" ), false );
     }
 
     @Test
@@ -97,7 +97,7 @@ class AgentGradeAuditResourceTest {
     @Test
     void genericHubSummaryFlagFires() {
         final PageDescriptor hub = new PageDescriptor( "hub", "Hub", "Hub", PageType.UNKNOWN, "cx",
-                List.of(), "Index of pages on cx", Instant.parse( "2026-05-10T00:00:00Z" ), Optional.empty(), false );
+                List.of(), "Index of pages on cx", Instant.parse( "2026-05-10T00:00:00Z" ), false );
         seedPages( List.of( hub ) );
         when( index.getCluster( "cx" ) ).thenReturn( Optional.of(
                 new ClusterDetails( "cx", hub, List.of( hub ), Map.of(),

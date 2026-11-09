@@ -49,7 +49,7 @@ class SparqlQueryToolTest {
         final String json = text( result );
         assertTrue( json.contains( "\"results\"" ) && json.contains( "\"bindings\"" ),
                 "SPARQL-results-JSON shape: " + json );
-        assertTrue( json.contains( "Technology" ), "the Technology class IRI is a result" );
+        assertTrue( json.contains( "Article" ), "the Article class IRI is a result" );
     }
 
     @Test
@@ -75,7 +75,7 @@ class SparqlQueryToolTest {
     @Test
     void askReturnsBoolean() {
         final var result = new SparqlQueryTool( loadedManager() ).execute( Map.of( "query",
-                "ASK { <https://wiki.wikantik.com/ns/wikantik#Technology> a "
+                "ASK { <https://wiki.wikantik.com/ns/wikantik#Article> a "
                         + "<http://www.w3.org/2002/07/owl#Class> }" ) );
         assertFalse( result.isError() );
         assertTrue( text( result ).contains( "true" ), "ASK should be true" );

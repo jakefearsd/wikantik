@@ -19,10 +19,9 @@
 package com.wikantik.api.knowledge;
 
 /**
- * Hint that another wiki page is closely related to a retrieved page via
- * Knowledge Graph mention co-occurrence. {@code reason} is a human-readable
- * summary of why (e.g. {@code "shared entities: qwen3, bm25"}) — may be empty
- * when the service cannot populate it, never {@code null}.
+ * Hint that another wiki page is closely related to a retrieved page (by
+ * embedding-centroid similarity). {@code reason} is a human-readable summary of
+ * why — may be empty when the service cannot populate it, never {@code null}.
  */
 public record RelatedPage( String name, String reason ) {
     public RelatedPage {

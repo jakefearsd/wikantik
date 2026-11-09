@@ -29,24 +29,18 @@ import jakarta.servlet.ServletContextListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.Release;
-import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.knowledge.ContextRetrievalService;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
-import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
-import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.mcp.McpEndpointBootstrapper;
 import com.wikantik.mcp.SdkSessionSweepers;
 import com.wikantik.mcp.tools.McpTool;
-import com.wikantik.mcp.tools.kg.QueryNodesTool;
-import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,20 +48,17 @@ import java.util.List;
 
 /**
  * Bootstraps the read-only Knowledge MCP server on application startup.
- * Retrieves the shared WikiEngine from the ServletContext, obtains
- * {@link KnowledgeGraphService} and {@link ContextRetrievalService} managers,
+ * Retrieves the shared WikiEngine from the ServletContext, obtains the
+ * {@link ContextRetrievalService} and structural-index services,
  * and registers a Streamable HTTP transport servlet at {@code /knowledge-mcp}
  * with tools from whichever services are configured.
  *
- * <p>The server starts if at least one service is configured. KG tools
- * ({@code discover_schema}, {@code query_nodes}, {@code get_node},
- * {@code traverse}, {@code search_knowledge}, {@code find_similar}) are
- * registered when {@link KnowledgeGraphService} is present; context retrieval
+ * <p>The server starts if at least one service is configured. Context retrieval
  * tools ({@code retrieve_context}, {@code get_page}, {@code list_pages},
  * {@code list_metadata_values}) are registered when
  * {@link ContextRetrievalService} is present.</p>
  *
- * <p>If neither service is configured, the initializer logs an informational
+ * <p>If no service is configured, the initializer logs an informational
  * message and returns without starting the server.</p>
  */
 public class KnowledgeMcpInitializer implements ServletContextListener {
@@ -90,11 +81,9 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             return;
         }
 
-        // Phase 1 of the wikantik-main subsystem decomposition: KG-flavored
-        // services come from the typed KnowledgeSubsystem.Services bundle.
+        // Retrieval services come from the typed KnowledgeSubsystem.Services bundle.
         final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kg =
             com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine );
-        final KnowledgeGraphService kgService = kg.kgService();
         final ContextRetrievalService ctxService = kg.contextRetrievalService();
         final StructuralIndexService structuralIndex = PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService();
         final ForAgentProjectionService forAgent = kg.forAgentProjectionService();
@@ -105,9 +94,9 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         // returned. Callers needing restricted content use the privileged /wikantik-admin-mcp surface.
         final PageViewGate viewGate = guestViewGate( engine );
 
-        if ( kgService == null && ctxService == null && structuralIndex == null ) {
-            LOG.info( "Neither KnowledgeGraphService, ContextRetrievalService, nor " +
-                "StructuralIndexService configured — Knowledge MCP server not started" );
+        if ( ctxService == null && structuralIndex == null ) {
+            LOG.info( "Neither ContextRetrievalService nor StructuralIndexService configured — " +
+                "Knowledge MCP server not started" );
             return;
         }
 
@@ -152,9 +141,6 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             final com.wikantik.citation.CitationRepository citationRepo =
                 PageGraphSubsystemBridge.fromLegacyEngine( engine ).citationRepository();
             tools = assembleTools( KnowledgeToolDeps.builder()
-                .kgService( kgService )
-                .mentionIndex( kgService == null ? null : resolveMentionIndex( engine ) )
-                .similarity( kg.nodeMentionSimilarity() )
                 .ctxService( ctxService )
                 .pageManager( pageManager )
                 .structuralIndex( structuralIndex )
@@ -183,7 +169,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
 
             final var builder = McpServer.sync( transportProvider )
                     .serverInfo( serverImpl )
-                    .instructions( serverInstructions( kgService != null ) )
+                    .instructions( serverInstructions() )
                     .capabilities( ServerCapabilities.builder()
                             .tools( true )
                             .build() );
@@ -205,13 +191,9 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
     /** Server display name advertised in the MCP {@code initialize} response. */
     static final String SERVER_DISPLAY_NAME = "Wikantik Knowledge";
 
-    /**
-     * The server-level instruction string. The Knowledge Graph sentence is included only when the
-     * KG tools are actually registered ({@code kgEnabled}), so an agent is never pointed at a tool the
-     * server does not have.
-     */
-    static String serverInstructions( final boolean kgEnabled ) {
-        final String base = "Agent-facing MCP endpoint. For wiki structure (fastest, " +
+    /** The server-level instruction string advertised in the MCP {@code initialize} response. */
+    static String serverInstructions() {
+        return "Agent-facing MCP endpoint. For wiki structure (fastest, " +
             "no full-text search) use list_clusters, list_tags, list_pages_by_filter, " +
             "or get_page_by_id; get_page_neighbors lists a page's wikilinks in and out " +
             "plus its cluster siblings. For wiki content use assemble_bundle " +
@@ -219,49 +201,20 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             "get_page (pinned fetch), read_pages (batched markdown fetch, max 20), " +
             "get_briefing (session-start briefing: your project's pages and the contracts it cites), " +
             "list_pages (browse), or list_metadata_values (discovery).";
-        return kgEnabled
-            ? base + " For Knowledge Graph (LLM-extracted entities) use discover_schema, query_nodes, " +
-                "get_node, traverse, search_knowledge, or find_similar."
-            : base;
     }
 
     /**
      * Assembles the read-only tool list from whichever collaborators are present.
      * Pure function of its inputs (no engine, no servlet context) so the tool
      * surface is unit-testable.
-     *
-     * <p>The six Knowledge-Graph tools ({@code discover_schema}, {@code query_nodes},
-     * {@code get_node}, {@code traverse}, {@code search_knowledge}, {@code find_similar})
-     * are registered <b>only</b> when {@code kgService != null}. When the KG subsystem is
-     * disabled ({@code wikantik.knowledge.enabled=false}) the factory returns a null
-     * {@code kgService}, so those tools drop out while the retrieval / page / spine /
-     * ontology / citation tools remain.</p>
      */
     static List< McpTool > assembleTools( final KnowledgeToolDeps deps ) {
         final List< McpTool > tools = new ArrayList<>();
-        addKnowledgeGraphTools( tools, deps );
         addRetrievalTools( tools, deps );
         addStructuralSpineTools( tools, deps );
         addProjectionAndBundleTools( tools, deps );
         addOntologyAndCitationTools( tools, deps );
         return tools;
-    }
-
-    private static void addKnowledgeGraphTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {
-        final KnowledgeGraphService kgService = deps.kgService();
-        if ( kgService == null ) {
-            return;
-        }
-        final MentionIndex mentionIndex = deps.mentionIndex();
-        final PageViewGate viewGate = deps.viewGate();
-        tools.add( new DiscoverSchemaTool( kgService, mentionIndex ) );
-        tools.add( new QueryNodesTool( kgService, mentionIndex, false, viewGate::canView ) );
-        tools.add( new GetNodeTool( kgService, viewGate ) );
-        tools.add( new TraverseTool( kgService, viewGate ) );
-        tools.add( new SearchKnowledgeTool( kgService, mentionIndex, false, viewGate::canView ) );
-        if ( deps.similarity() != null ) {
-            tools.add( new FindSimilarTool( deps.similarity(), kgService, viewGate ) );
-        }
     }
 
     private static void addRetrievalTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {
@@ -375,31 +328,6 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                     + "DISABLED (degraded to allow-all); restricted pages may be exposed: {}",
                     e.getMessage(), e );
             return PageViewGate.ALLOW_ALL;
-        }
-    }
-
-    /**
-     * Resolves the shared JNDI DataSource so MentionIndex can filter and report
-     * coverage statistics. Uses the same property + default as
-     * {@code WikiEngine.initKnowledgeGraph}. If JNDI lookup fails (e.g. in a
-     * lightweight test harness) the KG tools still run — they just skip the
-     * mention-coverage filter/stats.
-     */
-    private static MentionIndex resolveMentionIndex( final Engine engine ) {
-        try {
-            final String jndiName = AbstractJDBCDatabase.datasourceName(
-                CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
-            final javax.naming.Context initCtx = new javax.naming.InitialContext();
-            final javax.naming.Context envCtx =
-                ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
-            final javax.sql.DataSource dataSource =
-                ( javax.sql.DataSource ) envCtx.lookup( jndiName );
-            LOG.debug( "MentionIndex wired to JNDI DataSource '{}'", jndiName );
-            return new MentionIndex( dataSource );
-        } catch ( final javax.naming.NamingException e ) {
-            LOG.warn( "MentionIndex not available — JNDI DataSource lookup failed: {}; " +
-                "KG tools will run without mention-coverage filter/stats", e.getMessage() );
-            return null;
         }
     }
 

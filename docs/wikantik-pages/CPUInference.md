@@ -5,7 +5,6 @@ type: article
 cluster: machine-learning
 status: active
 date: '2026-05-15'
-kg_include: true
 tags:
 - cpu-inference
 - machine-learning

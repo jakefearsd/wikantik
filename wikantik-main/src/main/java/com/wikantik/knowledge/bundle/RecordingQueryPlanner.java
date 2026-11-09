@@ -27,7 +27,7 @@ import java.util.List;
  * {@link QueryPlanner} decorator that records each decomposition call into an
  * {@link LlmActivityLog}, giving the bundle's query-decomposition planner
  * ({@link LlmQueryPlanner}) the same {@code /admin/llm-activity} observability
- * parity as the embedding/extraction/judge subsystems — so an operator can use the
+ * parity as the embedding subsystem — so an operator can use the
  * activity log to verify that {@code embeddings-only} mode issues zero chat calls.
  *
  * <p>{@code plan} is contractually fail-closed (never throws, never returns empty),

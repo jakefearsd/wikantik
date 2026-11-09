@@ -1,7 +1,6 @@
 ---
 title: Interpreting Hybrid Retrieval Metrics
 cluster: agent-cookbook
-kg_include: true
 status: active
 type: runbook
 canonical_id: 01KQ427DYFF50310Q971E5GB5C

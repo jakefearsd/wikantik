@@ -24,7 +24,7 @@ import org.apache.logging.log4j.Logger;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.wikantik.jdbc.SqlBinder;
-import com.wikantik.knowledge.KgJdbcSupport;
+import com.wikantik.jdbc.JdbcSupport;
 
 import javax.sql.DataSource;
 import java.sql.Array;
@@ -46,19 +46,13 @@ import java.util.UUID;
  * <p>Applies {@link ChunkDiff.Diff} operations for a single page atomically
  * (deletes, updates, inserts all run inside one transaction).</p>
  *
- * <p>Extends {@link KgJdbcSupport} — the shared JDBC Template Method base also
- * used by the narrow KG repositories (e.g. {@link com.wikantik.knowledge.KgNodeRepository}):
- * plain JDBC via {@link DataSource}, {@link PreparedStatement}, error logging
- * at {@code warn} level followed by a wrapping {@link RuntimeException}. This class
- * previously reimplemented that skeleton independently (the base class was
- * package-private to {@code com.wikantik.knowledge}); the GoF Template Method
- * consolidation widened {@link KgJdbcSupport} to {@code public} so this
- * subpackage of the same Knowledge Graph domain can extend it directly instead
- * of duplicating the connect/prepare/bind/execute/map ceremony.</p>
+ * <p>Extends {@link JdbcSupport}, the shared JDBC Template Method base: plain JDBC
+ * via {@link DataSource}, error logging at {@code warn} level followed by a
+ * wrapping {@link RuntimeException}.</p>
  *
  * @since 1.0
  */
-public class ContentChunkRepository extends KgJdbcSupport {
+public class ContentChunkRepository extends JdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( ContentChunkRepository.class );
 
@@ -352,136 +346,6 @@ public class ContentChunkRepository extends KgJdbcSupport {
     }
 
     /**
-     * Top mentions of a KG node — chunks the node appears in, ranked by
-     * extractor confidence DESC then chunk_index ASC. Joins
-     * {@code chunk_entity_mentions} to {@code kg_content_chunks}. Used by the
-     * admin Edge Explorer to render the surrounding passage so a curator can
-     * disambiguate the node (acronyms / initialisms / homonyms).
-     *
-     * @param nodeId target node id
-     * @param limit  hard cap on returned rows (clamped to {@code [1, 50]})
-     * @return ordered mentions; empty if the node has no rows in
-     *         {@code chunk_entity_mentions}
-     */
-    public List< NodeMentionRow > findMentionsForNode( final UUID nodeId, final int limit ) {
-        if ( nodeId == null ) return List.of();
-        final int clamped = Math.max( 1, Math.min( 50, limit ) );
-        final String sql =
-              "SELECT c.id, c.page_name, c.chunk_index, c.heading_path, c.text, "
-            + "       m.confidence, m.extractor "
-            + "  FROM chunk_entity_mentions m "
-            + "  JOIN kg_content_chunks c ON m.chunk_id = c.id "
-            + " WHERE m.node_id = ? "
-            + " ORDER BY m.confidence DESC, c.chunk_index ASC "
-            + " LIMIT ?";
-        try {
-            return query( sql, ps -> {
-                ps.setObject( 1, nodeId );
-                ps.setInt( 2, clamped );
-            }, rs -> {
-                final Array hp = rs.getArray( 4 );
-                final List< String > headingPath;
-                if ( hp == null ) {
-                    headingPath = List.of();
-                } else {
-                    final String[] arr = (String[]) hp.getArray();
-                    headingPath = arr == null ? List.of() : List.of( arr );
-                }
-                return new NodeMentionRow(
-                    rs.getObject( 1, UUID.class ),
-                    rs.getString( 2 ),
-                    rs.getInt( 3 ),
-                    headingPath,
-                    rs.getString( 5 ),
-                    rs.getDouble( 6 ),
-                    rs.getString( 7 ) );
-            } );
-        } catch ( final SQLException e ) {
-            LOG.warn( "findMentionsForNode failed for node {}: {}", nodeId, e.getMessage(), e );
-            throw new RuntimeException( "findMentionsForNode failed", e );
-        }
-    }
-
-    /**
-     * Row returned by {@link #findMentionsForNode(UUID, int)} — chunk fields
-     * joined with the bridge row's confidence and extractor. Internal to the
-     * repository; the service layer maps this to
-     * {@link com.wikantik.api.knowledge.NodeMention}.
-     */
-    public record NodeMentionRow(
-        UUID chunkId,
-        String pageName,
-        int chunkIndex,
-        List< String > headingPath,
-        String text,
-        double confidence,
-        String extractor
-    ) {}
-
-    /**
-     * Case-insensitive substring search across chunks on a single page. Used
-     * by the admin Edge Explorer's mention-panel fallback path when a concept
-     * node was auto-created as an edge endpoint and has no
-     * {@code chunk_entity_mentions} rows: we look up the originating
-     * proposal's source page and surface chunks on that page that literally
-     * contain the entity name, so a curator at least sees the page-level
-     * context the LLM was reading. Ordered by {@code chunk_index}.
-     *
-     * @param pageName page to search
-     * @param needle   substring to match (case-insensitive); blank or null returns empty
-     * @param limit    hard cap on returned rows (clamped to {@code [1, 50]})
-     * @return matching chunks, empty if the page or needle has no rows
-     */
-    public List< ChunkOnPage > findChunksOnPageContaining( final String pageName,
-                                                           final String needle, final int limit ) {
-        if ( pageName == null || pageName.isBlank() ) return List.of();
-        if ( needle == null || needle.isBlank() ) return List.of();
-        final int clamped = Math.max( 1, Math.min( 50, limit ) );
-        final String sql =
-              "SELECT id, page_name, chunk_index, heading_path, text "
-            + "  FROM kg_content_chunks "
-            + " WHERE page_name = ? "
-            + "   AND POSITION( LOWER( ? ) IN LOWER( text ) ) > 0 "
-            + " ORDER BY chunk_index ASC "
-            + " LIMIT ?";
-        try {
-            return query( sql, ps -> {
-                ps.setString( 1, pageName );
-                ps.setString( 2, needle );
-                ps.setInt( 3, clamped );
-            }, rs -> {
-                final Array hp = rs.getArray( 4 );
-                final List< String > headingPath;
-                if ( hp == null ) {
-                    headingPath = List.of();
-                } else {
-                    final String[] arr = (String[]) hp.getArray();
-                    headingPath = arr == null ? List.of() : List.of( arr );
-                }
-                return new ChunkOnPage(
-                    rs.getObject( 1, UUID.class ),
-                    rs.getString( 2 ),
-                    rs.getInt( 3 ),
-                    headingPath,
-                    rs.getString( 5 ) );
-            } );
-        } catch ( final SQLException e ) {
-            LOG.warn( "findChunksOnPageContaining failed for page '{}' / needle '{}': {}",
-                pageName, needle, e.getMessage(), e );
-            throw new RuntimeException( "findChunksOnPageContaining failed", e );
-        }
-    }
-
-    /** Lightweight chunk projection used by the mention-panel fallback path. */
-    public record ChunkOnPage(
-        UUID chunkId,
-        String pageName,
-        int chunkIndex,
-        List< String > headingPath,
-        String text
-    ) {}
-
-    /**
      * Computes three small outlier lists (top 10 each) over the chunks table:
      * pages with the most chunks, single-chunk pages whose sole chunk has
      * &gt; 400 chars, and chunks whose estimated token count exceeds 512
@@ -580,8 +444,8 @@ public class ContentChunkRepository extends KgJdbcSupport {
 
     /**
      * Removes the chunks of every page not named in {@code keepPageNames}, in one set-based
-     * statement. Rows of kept pages are untouched, so their embeddings and Knowledge Graph
-     * mentions (both {@code ON DELETE CASCADE} on chunk id) survive.
+     * statement. Rows of kept pages are untouched, so their embeddings
+     * ({@code ON DELETE CASCADE} on chunk id) survive.
      *
      * @return number of chunk rows removed
      */
@@ -599,8 +463,8 @@ public class ContentChunkRepository extends KgJdbcSupport {
     }
 
     /**
-     * Removes every chunk of a deleted page. Embeddings and Knowledge Graph mentions go with
-     * them ({@code ON DELETE CASCADE} on chunk id).
+     * Removes every chunk of a deleted page. Embeddings go with them
+     * ({@code ON DELETE CASCADE} on chunk id).
      *
      * @return the ids removed, so in-process retrieval indexes can evict them
      */
@@ -618,7 +482,7 @@ public class ContentChunkRepository extends KgJdbcSupport {
 
     /**
      * Re-keys a renamed page's chunks to its new name, keeping their ids — and with them their
-     * embeddings and Knowledge Graph mentions. {@code modified} is bumped so the next embedding
+     * embeddings. {@code modified} is bumped so the next embedding
      * stale pass refreshes the contextual prefix, which can carry the page name.
      *
      * <p>When chunks already sit under {@code newName} they are kept and the old name's rows are

@@ -1,6 +1,6 @@
 ---
 date: '2026-04-08'
-status: active
+status: archived
 summary: Comprehensive step-by-step guide for administering the Wikantik knowledge
   graph to maximize its value for AI agents and human users supporting business...
 tags:
@@ -19,6 +19,8 @@ related:
 title: Wikantik Knowledge Graph Administration
 ---
 # Wikantik Knowledge Graph Administration
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 The Wikantik Knowledge Graph (KG) is a structured layer that sits on top of the wiki's content, capturing the entities mentioned in page text, the typed relationships between them, and the provenance and review state of each. It is built by LLM extraction and human curation, not from page frontmatter or wikilinks (those feed the Page Graph and the structural index; see [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph)). When properly maintained, it enables AI agents to traverse contextual relationships between topics, discover connections that would otherwise require reading dozens of pages, and propose new knowledge for human review. This guide walks through every aspect of administering the knowledge graph to keep it accurate, complete, and valuable.
 

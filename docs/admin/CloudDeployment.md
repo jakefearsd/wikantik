@@ -61,25 +61,20 @@ the nightly backup tarball.
 
 Inference spend is bounded by a single ceiling property,
 **`wikantik.genai.mode`** (`full` | `embeddings-only` | `none`,
-`com.wikantik.api.config.GenAiMode`), plus the independent
-**`wikantik.knowledge.enabled`** subsystem flag. Both Terraform modules
-expose a `tier` variable (`core` | `search` | `knowledge`) that sets the
+`com.wikantik.api.config.GenAiMode`). Both Terraform modules
+expose a `tier` variable (`core` | `search`) that sets the
 matching `.env` preset and compose `--profile` flags:
 
-| Tier | `WIKANTIK_GENAI_MODE` | `WIKANTIK_KNOWLEDGE_ENABLED` | Extra `.env` | Compose profile added |
-|---|---|---|---|---|
-| `core` | `none` | `false` | — | — (BM25-only, zero inference infra) |
-| `search` | `embeddings-only` | `false` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
-| `knowledge` | `full` | `true` | `WIKANTIK_EXTRACTOR_BACKEND=claude`, `WIKANTIK_EMBEDDING_BASE_URL=...` (+ `ANTHROPIC_API_KEY` from `secrets`) | `embeddings` |
+| Tier | `WIKANTIK_GENAI_MODE` | Extra `.env` | Compose profile added |
+|---|---|---|---|
+| `core` | `none` | — | — (BM25-only, zero inference infra) |
+| `search` | `embeddings-only` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
 
 `wikantik.genai.mode` is a **ceiling**, not a switch — it never turns a
 feature on, it only forces an already-enabled feature off when the mode
 disallows it (e.g. `core`'s `mode=none` forces the embedding client
 disabled regardless of `wikantik.search.hybrid.enabled`'s own default-true
-value). `wikantik.knowledge.enabled=false` skips constructing the Knowledge
-Graph subsystem entirely — no KG services, no KG MCP tools, `/admin/knowledge-graph/*`
-and `/api/page-knowledge/*` 503 naming the flag — but chunking and the
-embedding/dense-retrieval pipeline stay independent of it and keep running.
+value).
 
 Full detail — exact env vars, `wikantik-custom.properties` equivalents for
 the bare-metal path, how to verify a tier is actually enforced
@@ -92,7 +87,7 @@ this page only covers how the cloud Terraform/compose surface sets the tier.
 The anonymous `GET /api/capabilities` endpoint
 (`com.wikantik.rest.CapabilitiesResource`) is what the React SPA reads to
 gate its own navigation before login. Most fields are raw property
-pass-throughs (`knowledgeGraph`, `ontology`, `connectors`, `citations`), but
+pass-throughs (`ontology`, `connectors`, `citations`), but
 **`hybridSearch` is ceiling-adjusted** — the raw `wikantik.search.hybrid.enabled`
 flag ANDed with `mode.allowsEmbeddings()` — so a `core`-tier deployment
 reports `hybridSearch: false` even though the underlying property still
@@ -130,7 +125,7 @@ textfile metrics to a named volume rather than a jakemon-specific host
 path (jakemon isn't part of the cloud v1 topology).
 
 Both Terraform modules set `bundled-db` and the ingress profile
-automatically from `var.tier`/`var.ingress`; `search`/`knowledge` tiers also
+automatically from `var.tier`/`var.ingress`; the `search` tier also
 add `embeddings`. A managed-DB Terraform variant is future work (not yet
 shipped) — for now, omit `bundled-db` and set the `WIKANTIK_CLOUD_DB_*` vars
 by hand if you're pointing at RDS/Cloud SQL.
@@ -176,7 +171,7 @@ a secrets store (SSM Parameter Store / Secret Manager), and an optional DNS
 record — all in the default VPC/network. See
 **[deploy/aws/README.md](../../deploy/aws/README.md)** and
 **[deploy/gcp/README.md](../../deploy/gcp/README.md)** for the exact variable
-list, the `core`/`search`/`knowledge` instance-size and cost tables, the
+list, the `core`/`search` instance-size and cost tables, the
 persistence model (why `/srv/wikantik`), the AMI/boot-image pinning
 rationale, and the restore/teardown runbooks. Secret fetching is
 **fail-closed** on both clouds: a failed SSM/Secret Manager call aborts the
@@ -239,7 +234,6 @@ metadata:
 |---|---|---|
 | `POSTGRES_PASSWORD` | always | Bundled pgvector container's app password. Enforced by a Terraform `validation` block on both clouds. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | `ingress = "cloudflared"` | Enforced by `validation`. |
-| `ANTHROPIC_API_KEY` | `tier = "knowledge"` | Claude extractor backend. Enforced by `validation`. Read directly from the process environment by `EntityExtractorFactory` — never a properties-file entry. |
 | `WIKANTIK_SCIM_TOKEN` | optional | SCIM bearer token. Read as a JVM system property (`-Dwikantik.scim.token`), not a properties file — pass through `secrets` if you want SCIM provisioning; absent means SCIM denies all requests. Must match `[A-Za-z0-9+/=_-]+` (hex/base64) — `docker/entrypoint.sh` refuses to boot on a violating value. |
 | `WIKANTIK_CONNECTORS_CRYPTO_KEY` | optional | Base64-encoded 32-byte AES-256 key for the connector credential store (GitHub token / Confluence API token / Google Drive client secret+refresh token at rest). Absent leaves the credential store disabled. See [docs/admin/Connectors.md](Connectors.md) for the connector framework itself. |
 

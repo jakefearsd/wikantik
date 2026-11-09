@@ -1,7 +1,6 @@
 ---
 title: Citing a Wiki Page
 cluster: agent-cookbook
-kg_include: true
 status: active
 type: runbook
 canonical_id: 01KQ419DJ32TGYRV7ZDVE83M9V

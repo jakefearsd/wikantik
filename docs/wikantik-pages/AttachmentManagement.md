@@ -50,8 +50,6 @@ The REST servlet `AttachmentResource` (`wikantik-rest`) is mapped to `/api/attac
 | `PUT /api/attachments/{Page}/{old}` | rename, JSON body `{"newName": "..."}` |
 | `DELETE /api/attachments/{Page}/{file}` | delete |
 
-[{Relationships}]
-
 ---
 
 **Cluster Hub:** [[WikantikDevelopmentHub|Wikantik Platform Development Hub: Architecture, MCP Protocols, and Agent Briefings]] (`wikantik-development`)

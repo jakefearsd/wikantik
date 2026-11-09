@@ -30,7 +30,7 @@ template.
 > validated (`terraform validate`) — all clean. Every cross-variable
 > `validation` block (admin_cidr shape/`0.0.0.0/0` rejection,
 > `POSTGRES_PASSWORD` required, `cloudflared` requires a tunnel token,
-> `knowledge` tier requires an Anthropic key, `caddy` requires a domain,
+> `caddy` requires a domain,
 > tag-shaped `name_prefix`, zone-within-region) has been proven to
 > hard-fail against a locals-only, zero-resource, zero-provider harness
 > (see `.superpowers/sdd/task-3.1-report.md` for the full transcript).
@@ -177,9 +177,9 @@ untouched).
 | `ghcr_user` | string | *(none — required)* | GHCR username |
 | `ghcr_token` | string, sensitive | *(none — required)* | GHCR read token |
 | `wikantik_image` | string | *(none — required)* | Full ref **incl. tag** (validated), e.g. `ghcr.io/jakefearsd/wikantik:1.4.2`. Tag-style refs only — no `@sha256` digest pins |
-| `tier` | string | `core` | `core` \| `search` \| `knowledge` — see tier table below |
+| `tier` | string | `core` | `core` \| `search` — see tier table below |
 | `ingress` | string | `caddy` | `caddy` \| `cloudflared` |
-| `secrets` | map(string), sensitive | *(none — required)* | Must include `POSTGRES_PASSWORD`; `CLOUDFLARE_TUNNEL_TOKEN` iff `ingress = "cloudflared"`; `ANTHROPIC_API_KEY` iff `tier = "knowledge"` (all three enforced by `validation` blocks) |
+| `secrets` | map(string), sensitive | *(none — required)* | Must include `POSTGRES_PASSWORD`; `CLOUDFLARE_TUNNEL_TOKEN` iff `ingress = "cloudflared"` (both enforced by `validation` blocks) |
 | `dns_managed_zone` | string | `""` | Cloud DNS managed zone **name** (not DNS name) to create an A record in |
 | `snapshot_retention_days` | number | `14` | Daily-snapshot retention |
 | `data_volume_size_gb` | number | `50` | `/srv/wikantik` disk size — same default as AWS |
@@ -190,11 +190,10 @@ untouched).
 Identical to the AWS module — mirrors `docker-compose.cloud.yml`'s header
 table exactly:
 
-| Tier | `WIKANTIK_GENAI_MODE` | `WIKANTIK_KNOWLEDGE_ENABLED` | Extra `.env` | Compose profile added |
-|---|---|---|---|---|
-| `core` | `none` | `false` | — | — (BM25-only, zero inference infra) |
-| `search` | `embeddings-only` | `false` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
-| `knowledge` | `full` | `true` | `WIKANTIK_EXTRACTOR_BACKEND=claude`, `WIKANTIK_EMBEDDING_BASE_URL=...` (+ `ANTHROPIC_API_KEY` from `secrets`) | `embeddings` |
+| Tier | `WIKANTIK_GENAI_MODE` | Extra `.env` | Compose profile added |
+|---|---|---|---|
+| `core` | `none` | — | — (BM25-only, zero inference infra) |
+| `search` | `embeddings-only` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
 
 `bundled-db` is always activated (this module has no managed-Cloud-SQL
 variant yet, mirroring AWS's no-RDS-yet posture); the ingress profile
@@ -299,7 +298,7 @@ then just `terraform plan` / `terraform apply` with no `-var` flags.
 First boot takes a few minutes (cloud-init: mount + format the data disk,
 install Docker from its official apt repo, fetch secrets from Secret
 Manager, `docker login`, `docker compose ... up -d`, which itself
-cold-pulls the image and — for `search`/`knowledge` — the embedding
+cold-pulls the image and — for `search` — the embedding
 sidecar's model). Watch progress with `cloud-init status --wait` over SSH,
 or `/var/log/cloud-init-output.log`.
 
@@ -389,7 +388,7 @@ disk/snapshots are NOT excluded from `destroy`.
 
 ## Cost (rough, us-central1, on-demand pricing — verify current pricing before relying on this)
 
-| Item | `core` (e2-medium) | `search`/`knowledge` (e2-standard-2) |
+| Item | `core` (e2-medium) | `search` (e2-standard-2) |
 |---|---|---|
 | Instance | ~$25/mo | ~$50/mo |
 | pd-balanced 50 GiB | ~$5/mo | ~$5/mo |
@@ -397,8 +396,7 @@ disk/snapshots are NOT excluded from `destroy`.
 | Daily snapshots (14-day retention, incremental) | a few $/mo | a few $/mo |
 | **Floor total** | **~$30–35/mo** | **~$55–60/mo** |
 
-`knowledge` tier additionally incurs Anthropic API usage (pay-per-token,
-outside this module's cost model) and, if `dns_managed_zone` is set,
+If `dns_managed_zone` is set, the module also incurs
 Cloud DNS's per-zone/query charges.
 
 ## AWS parity note

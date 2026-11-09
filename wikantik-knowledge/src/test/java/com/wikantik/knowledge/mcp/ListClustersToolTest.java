@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -51,7 +50,7 @@ class ListClustersToolTest {
         when( svc.listClusters() ).thenReturn( List.of( new ClusterSummary(
                 "wikantik-development",
                 new PageDescriptor( "01A", "WikantikDevelopment", "Wikantik Development",
-                        PageType.HUB, "wikantik-development", List.of(), "hub", Instant.EPOCH, Optional.empty(), false ),
+                        PageType.HUB, "wikantik-development", List.of(), "hub", Instant.EPOCH, false ),
                 12, Instant.EPOCH ) ) );
 
         final var result = new ListClustersTool( svc ).execute( Map.of() );
@@ -63,7 +62,7 @@ class ListClustersToolTest {
     private ClusterSummary cluster( final int i ) {
         return new ClusterSummary( "c" + i,
                 new PageDescriptor( "01A" + i, "Hub" + i, "Hub " + i, PageType.HUB, "c" + i,
-                        List.of(), "hub", Instant.EPOCH, Optional.empty(), false ),
+                        List.of(), "hub", Instant.EPOCH, false ),
                 1, Instant.EPOCH );
     }
 
@@ -78,11 +77,11 @@ class ListClustersToolTest {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         final ClusterSummary secret = new ClusterSummary( "secret-cluster",
                 new PageDescriptor( "01S", "SecretHub", "Secret Hub Title", PageType.HUB, "secret-cluster",
-                        List.of(), "hub", Instant.EPOCH, Optional.empty(), false ),
+                        List.of(), "hub", Instant.EPOCH, false ),
                 5, Instant.EPOCH );
         final ClusterSummary open = new ClusterSummary( "open-cluster",
                 new PageDescriptor( "01P", "PublicHub", "Public Hub Title", PageType.HUB, "open-cluster",
-                        List.of(), "hub", Instant.EPOCH, Optional.empty(), false ),
+                        List.of(), "hub", Instant.EPOCH, false ),
                 3, Instant.EPOCH );
         when( svc.listClusters() ).thenReturn( List.of( secret, open ) );
 

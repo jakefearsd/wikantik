@@ -2,7 +2,6 @@
 title: Markdown Links in Wikantik
 cluster: wikantik-development
 date: '2026-05-15'
-kg_include: true
 status: active
 type: reference
 canonical_id: 01KQTD30XED8A95NHYMKK106KY

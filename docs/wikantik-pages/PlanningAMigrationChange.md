@@ -1,7 +1,6 @@
 ---
 title: Planning a Migration Change
 cluster: agent-cookbook
-kg_include: true
 status: active
 type: runbook
 canonical_id: 01KQ4D6CH7MGBCGE5QSNEDS00C

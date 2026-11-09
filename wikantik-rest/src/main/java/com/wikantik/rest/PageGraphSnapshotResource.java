@@ -39,8 +39,6 @@ import java.io.IOException;
  * carries graph topology only and any restricted node has its identifying
  * fields nulled out.
  *
- * <p>Counterpart to {@code KnowledgeGraphResource} which serves the
- * Knowledge Graph (LLM-extracted entities + typed predicates).</p>
  */
 public class PageGraphSnapshotResource extends RestServletBase {
 

@@ -1,12 +1,10 @@
-# Wikantik Entity-Extractor CLI
+# Wikantik CLI Tools
 
-Standalone command-line tools that run against a Wikantik database without
-booting a servlet container. `BootstrapExtractionCli` (the packaged
-executable's main class) drives the save-time entity-extractor pipeline
-offline, so a multi-hour corpus-wide extraction can continue while the main
-Tomcat instance is stopped or rebuilt for local development.
+Standalone command-line tools that run without booting a servlet container,
+each launched with an explicit main class via `java -cp`.
 
-The module also hosts several related batch tools: `IngestDocumentsCli` (the
-derived-pages batch ingester, an HTTP client over `POST /api/ingest`),
-`CorpusDivergenceCli` (diffs a repo page tree against a live wiki's
-structural sitemap), `KgPolicyCli`, and `GenerateMainPageCli`.
+`IngestDocumentsCli` is the derived-pages batch ingester (an HTTP client over
+`POST /api/ingest`), `CorpusDivergenceCli` diffs a repo page tree against a
+live wiki's structural sitemap, `ChunkerStatsCli` reports chunk-size
+distributions for a page tree, and `GenerateMainPageCli` /
+`GenerateConfigReferenceCli` regenerate checked-in generated pages.

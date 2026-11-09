@@ -48,7 +48,7 @@ public final class SummaryExtractor {
      * <p>The algorithm:
      * <ol>
      *   <li>Strips plugin calls ({@code [{...}](...)}).</li>
-     *   <li>Strips markdown via {@link NodeTextAssembler#stripMarkdown(String)}.</li>
+     *   <li>Strips markdown via {@link MarkdownStripper#stripMarkdown(String)}.</li>
      *   <li>Splits into sentences on sentence-terminal punctuation.</li>
      *   <li>Returns the first sentence with length in [{@value #MIN_LENGTH}, {@value #MAX_LENGTH}].</li>
      *   <li>Fallback: takes the first non-empty sentence, truncated to {@value #MAX_LENGTH} + "...".</li>
@@ -66,7 +66,7 @@ public final class SummaryExtractor {
         String text = PLUGIN_CALL.matcher( AclDirectiveText.strip( body, " " ) ).replaceAll( " " );
 
         // Strip markdown (also strips frontmatter, headings, links, emphasis, etc.)
-        text = NodeTextAssembler.stripMarkdown( text );
+        text = MarkdownStripper.stripMarkdown( text );
 
         if( text.isBlank() ) return "";
 

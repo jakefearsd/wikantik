@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+- **The Knowledge Graph is deleted (step 2 of its removal).** Everything 2.5.12 switched off is now gone from the
+  code: LLM entity extraction, the judge, KG curation and proposals, the inclusion policy, hub discovery and hub
+  proposals, the `[{Relationships}]` plugin, the KG CLIs and `bin/kg-*` scripts, the KG REST and admin endpoints
+  (now 404), and the KG config keys (`wikantik.knowledge.enabled`, `wikantik.knowledge.extractor.*`,
+  `wikantik.kg.*`, `wikantik.kg_policy.enabled`, `wikantik.hub.discovery.*`, `wikantik.hub.overview.*`,
+  `wikantik.hub.reviewPercentile`, `wikantik.ontology.incremental.enabled`) along with their Docker and Terraform
+  pass-throughs. Migration `V070` drops the 15 KG tables (`kg_nodes`, `kg_edges`, `kg_proposals`,
+  `chunk_entity_mentions`, `hub_*` and the rest); `kg_content_chunks` and `content_chunk_embeddings`, which serve
+  dense retrieval, stay. Production's KG tables were archived before the upgrade.
+- **The ontology is pages and concepts only.** The 9 entity classes, the 21 KG relationship predicates, the SHACL
+  edge shapes, `/id/entity/*` and `/admin/ontology/violations` are gone; `get_ontology` reports the content classes
+  and the concept scheme, with an empty `objectProperties` list. A page type the ontology does not know now maps to
+  `wk:Article` instead of the removed `wk:Concept`. The drift dashboard's `shacl` family is retired.
+- The `wikantik-it-test-knowledge-disabled` integration-test module is gone with the flag it tested.
+
+### Changed
+- Wiki pages that documented Wikantik's own Knowledge Graph are marked retired (`status: archived` and a notice),
+  and the live MCP and architecture pages were updated for the 20-tool admin and 16-tool knowledge MCP servers.
+
 ## [2.5.12] - 2026-11-08
 
 ### Changed

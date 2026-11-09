@@ -21,18 +21,16 @@ const SUMMARY = {
   pagesScanned: 120,
   durationMs: 4200,
   triggeredBy: 'scheduled',
-  shaclChecked: true,
   counts: [
     { family: 'frontmatter', code: 'status.noncanonical', severity: 'WARNING', count: 5, delta: -3 },
-    { family: 'shacl', code: 'wk:implements', severity: 'ERROR', count: 2, delta: null },
   ],
 };
 
 const TREND = {
   sweeps: [
-    { sweptAt: '2026-06-08T05:00:00Z', shaclChecked: true,
+    { sweptAt: '2026-06-08T05:00:00Z',
       counts: [{ family: 'frontmatter', code: 'status.noncanonical', severity: 'WARNING', count: 8 }] },
-    { sweptAt: '2026-06-09T05:00:00Z', shaclChecked: true,
+    { sweptAt: '2026-06-09T05:00:00Z',
       counts: [{ family: 'frontmatter', code: 'status.noncanonical', severity: 'WARNING', count: 5 }] },
   ],
 };
@@ -48,7 +46,6 @@ describe('AdminDriftPage', () => {
   it('renders the latest sweep summary with counts and deltas', async () => {
     render(<AdminDriftPage />);
     expect(await screen.findByText('status.noncanonical')).toBeInTheDocument();
-    expect(screen.getByText('wk:implements')).toBeInTheDocument();
     expect(screen.getByTestId('drift-pages-scanned')).toHaveTextContent('120');
     expect(screen.getByTestId('delta-status.noncanonical')).toHaveTextContent('-3');
   });
@@ -117,14 +114,6 @@ describe('AdminDriftPage', () => {
       .toHaveTextContent('10 / 50 pages — validating frontmatter');
   });
 
-  it('renders a full bar with a phase label for the shacl phase', async () => {
-    api.admin.getDriftStatus.mockResolvedValue(
-      { running: true, phase: 'shacl', pagesScanned: 50, totalPages: 50 });
-    render(<AdminDriftPage />);
-    await waitFor(() => expect(screen.getByTestId('drift-progress-label'))
-      .toHaveTextContent('checking SHACL conformance'));
-  });
-
   it('shows the page-level error when the initial load fails', async () => {
     api.admin.getDriftSummary.mockRejectedValue(new Error('boom'));
     render(<AdminDriftPage />);
@@ -143,10 +132,12 @@ describe('AdminDriftPage', () => {
     expect(screen.getByTestId('drift-run-now')).toBeEnabled();
   });
 
-  it('shows a badge when SHACL was not checked', async () => {
+  it('shows no SHACL warning even when the payload says shaclChecked:false', async () => {
     api.admin.getDriftSummary.mockResolvedValue({ ...SUMMARY, shaclChecked: false });
     render(<AdminDriftPage />);
-    expect(await screen.findByTestId('drift-shacl-unchecked')).toBeInTheDocument();
+    expect(await screen.findByTestId('drift-pages-scanned')).toBeInTheDocument();
+    expect(screen.queryByTestId('drift-shacl-unchecked')).not.toBeInTheDocument();
+    expect(screen.queryByText(/SHACL/i)).not.toBeInTheDocument();
   });
 
   it('surfaces a failed sweep instead of hanging the progress bar', async () => {

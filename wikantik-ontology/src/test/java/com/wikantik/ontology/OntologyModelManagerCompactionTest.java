@@ -92,7 +92,7 @@ class OntologyModelManagerCompactionTest {
             // the disk space they occupied.
             for ( int cycle = 0; cycle < 40; cycle++ ) {
                 for ( int g = 0; g < 15; g++ ) {
-                    final String iri = Iris.entity( new java.util.UUID( 0, g ) );
+                    final String iri = Iris.page( String.valueOf( new java.util.UUID( 0, g ) ) );
                     mgr.replaceNamedGraph( iri,
                             triple( iri + "#s" + cycle, "urn:p", "urn:o" + cycle ) );
                 }
@@ -116,7 +116,7 @@ class OntologyModelManagerCompactionTest {
         final OntologyModelManager mgr = OntologyModelManager.tdb2( dir.toString() );
         try {
             mgr.loadTBox();
-            final String iri = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000c1" ) );
+            final String iri = Iris.page( String.valueOf( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000c1" ) ) );
             mgr.replaceNamedGraph( iri, triple( iri, "urn:p", "urn:o" ) );
             mgr.replaceNamedGraph( iri, triple( iri, "urn:p", "urn:o-final" ) );
 

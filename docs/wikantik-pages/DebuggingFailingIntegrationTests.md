@@ -1,7 +1,6 @@
 ---
 title: Debugging Failing Integration Tests
 cluster: agent-cookbook
-kg_include: true
 status: active
 type: runbook
 canonical_id: 01KQ485C06BMPZ28QRZK8NM8K1

@@ -1,5 +1,5 @@
 ---
-status: active
+status: archived
 date: '2026-04-26'
 title: Frontmatter and Knowledge Graphs
 related:
@@ -19,11 +19,13 @@ summary: How structured frontmatter feeds knowledge graphs — entities, relatio
 ---
 # Frontmatter and Knowledge Graphs
 
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
+
 A wiki page is text. With frontmatter, it's also structured data. With consistent frontmatter conventions, the wiki becomes a queryable knowledge graph.
 
 This page covers how frontmatter feeds knowledge graphs and the patterns for designing useful schema.
 
-> **In Wikantik (2026-10-13):** page frontmatter does **not** populate the Knowledge Graph. The Knowledge Graph (`kg_*` tables) holds LLM-extracted entities built from page text; the projector that once turned frontmatter into graph nodes and edges was retired in April 2026 (see [GraphProjector](GraphProjector) and [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph)). Frontmatter instead drives the structural index (clusters, tags, canonical ids), the RDF ontology's page and concept graphs, the agent projection at `/api/pages/for-agent/{id}`, and one Knowledge Graph control, `kg_include`. The generic sections below describe the general model; read "edges" there as links between pages, not Knowledge Graph edges.
+> **In Wikantik (updated November 2026):** page frontmatter never populated Wikantik's own Knowledge Graph (the `kg_*` tables held LLM-extracted entities built from page text), and that Knowledge Graph has since been retired (see [GraphProjector](GraphProjector) and [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph)). Frontmatter drives the structural index (clusters, tags, canonical ids), the RDF ontology's page and concept graphs, and the agent projection at `/api/pages/for-agent/{id}`. The generic sections below describe the general model; read "edges" there as links between pages.
 
 ## What frontmatter is
 
@@ -148,14 +150,12 @@ Wikantik's structural spine + agent-grade content design uses frontmatter heavil
 - `status`: lifecycle state (draft, active, archived)
 - `verified_at`, `verified_by`, `confidence`: verification metadata
 - `audience`: humans / agents / both
-- `kg_include`: per-page override of Knowledge Graph inclusion (see [KgInclusionPolicy](KgInclusionPolicy))
 
 These feed:
 - The structural-spine index
 - The RDF ontology's page and concept graphs (tags and clusters become SKOS concepts)
 - Agent-grade content projection (`/api/pages/for-agent/{id}`)
 - Verification dashboards
-- Knowledge Graph inclusion (`cluster` and `kg_include`), but not Knowledge Graph content
 
 ## Design principles
 
@@ -169,7 +169,7 @@ Without schema, frontmatter is inconsistent; queries don't work.
 
 Tools validate frontmatter at save time. Pages with invalid schema reject (or warn).
 
-Wikantik uses save-time enforcement via `StructuralSpinePageFilter` (it assigns a missing `canonical_id` and rejects an invalid `kg_include`) and `RunbookValidationPageFilter`. The schema-driven field checks (non-canonical `type` or `status`, odd dates, non-kebab clusters) are advisory warnings, and malformed YAML is rejected.
+Wikantik uses save-time enforcement via `StructuralSpinePageFilter` (it assigns a missing `canonical_id`) and `RunbookValidationPageFilter`. The schema-driven field checks (non-canonical `type` or `status`, odd dates, non-kebab clusters) are advisory warnings, and malformed YAML is rejected.
 
 ### Consistency
 
@@ -238,7 +238,7 @@ Find broken `related:` links; missing hub members.
 
 ### Visualization
 
-Graph visualization of the knowledge graph. Useful for understanding wiki structure.
+Graph visualization of the page graph. Useful for understanding wiki structure.
 
 ## Common failure patterns
 

@@ -1,7 +1,6 @@
 ---
 title: Handling Embedding Service Outages
 cluster: agent-cookbook
-kg_include: true
 status: active
 type: runbook
 canonical_id: 01KQ4QYF0V2A08QN5MCR3M4C6P

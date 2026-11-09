@@ -1,5 +1,5 @@
 ---
-status: active
+status: archived
 date: '2026-05-15'
 title: 'Knowledge Graph RAG (GraphRAG) Uplift Plan: 2025 Roadmap'
 related:
@@ -22,7 +22,9 @@ tags:
 summary: Roadmap to upgrade the Wikantik RAG pipeline to hybrid Vector+Graph (GraphRAG),
   targeting 90%+ accuracy on multi-hop and schema-bound reasoning queries.
 ---
-# Knowledge Graph RAG (GraphRAG) Uplift Plan: 2025 Roadmap
+# Knowledge Graph RAG (GraphRAG) Uplift Plan: 2025 Roadmap
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 > **Status (2026-10-13):** A historical planning document; the plan was not executed as written, and the target dates in section 5 passed without those milestones. What happened instead:
 >

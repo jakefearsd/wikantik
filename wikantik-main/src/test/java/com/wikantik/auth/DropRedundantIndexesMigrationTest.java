@@ -39,19 +39,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @RequiresPostgres
 class DropRedundantIndexesMigrationTest {
 
+    // V063 also dropped redundant indexes on Knowledge Graph tables; V070 later dropped those tables
+    // outright, so only the indexes on tables that still exist are checked here.
     private static final List< String > DROPPED = List.of(
-            "idx_kg_content_chunks_page_name", "kg_nodes_tier_idx", "idx_svs_date",
-            "idx_chunk_entity_mentions_chunk", "idx_kg_edges_source", "idx_hub_proposals_hub",
+            "idx_kg_content_chunks_page_name", "idx_svs_date",
             "ix_retrieval_runs_mode", "idx_citations_source", "idx_audit_log_seq",
             "idx_comment_mentions_comment_id", "idx_connector_synced_item_connector",
-            "idx_kg_nodes_properties", "idx_kg_content_chunks_content_hash",
-            "ix_canonical_ids_type", "ix_canonical_ids_cluster", "kg_judge_timeouts_content_sha_idx" );
+            "idx_kg_content_chunks_content_hash", "ix_canonical_ids_type", "ix_canonical_ids_cluster" );
 
     /** The indexes that make the dropped ones redundant — must survive. */
     private static final List< String > KEPT = List.of(
-            "kg_content_chunks_page_index_uniq", "kg_nodes_tier_name_idx", "search_visibility_snapshot_pkey",
-            "chunk_entity_mentions_pkey", "kg_edges_source_id_target_id_relationship_type_key",
-            "hub_proposals_hub_name_page_name_key", "ix_retrieval_runs_mode_started", "uq_citation",
+            "kg_content_chunks_page_index_uniq", "search_visibility_snapshot_pkey",
+            "ix_retrieval_runs_mode_started", "uq_citation",
             "audit_log_pkey", "uq_comment_mentions", "connector_synced_item_pkey" );
 
     @Test

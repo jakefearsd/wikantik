@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Exercises {@link ChunkerStatsCli#run(ChunkerStatsCli.Args)} against a small
  * on-disk corpus. The method reports everything through the logger rather
  * than a return value, so a {@link LogCapture} pins the actual computed
- * numbers (pages/chunks scanned, prefilter kept/skipped) instead of merely
+ * numbers (pages/chunks scanned, size distribution) instead of merely
  * checking the exit code.
  */
 class ChunkerStatsCliTest {
@@ -95,10 +95,7 @@ class ChunkerStatsCliTest {
     }
 
     @Test
-    void shortChunkIsSkippedByPrefilterWithTooShortReason( @TempDir final Path tmp ) throws Exception {
-        // "Kafka rocks." has a proper noun (Kafka) so it won't hit no_proper_noun,
-        // and its estimated token count (chars/4) is well under the 20-token floor,
-        // so the prefilter must skip it with reason=too_short.
+    void shortChunkIsStillCountedAndLandsInTheSmallestBucket( @TempDir final Path tmp ) throws Exception {
         Files.writeString( tmp.resolve( "Tiny.md" ), "---\ntitle: Tiny\n---\nKafka rocks.\n" );
 
         final ChunkerStatsCli.Args a = new ChunkerStatsCli.Args();
@@ -106,14 +103,14 @@ class ChunkerStatsCliTest {
         assertEquals( 0, ChunkerStatsCli.run( a ) );
 
         final List< String > messages = cap.messages();
-        assertTrue( messages.stream().anyMatch( m -> m.contains( "reason=too_short" ) ),
-            () -> "expected a too_short prefilter reason line: " + messages );
-        assertTrue( messages.stream().anyMatch( m -> m.contains( "kept=0 skipped=1" ) ),
-            () -> "expected the lone chunk to be skipped, none kept: " + messages );
+        assertTrue( messages.stream().anyMatch( m -> m.contains( "pages=1" ) && m.contains( "chunks=1" ) ),
+            () -> "expected the lone short chunk to be counted: " + messages );
+        assertTrue( messages.stream().anyMatch( m -> m.contains( "0-50" ) && m.contains( "100.0%" ) ),
+            () -> "expected the short chunk in the 0-50 bucket: " + messages );
     }
 
     @Test
-    void longChunkIsKeptByPrefilterAndDistributionSumsToTotal( @TempDir final Path tmp ) throws Exception {
+    void longChunkProducesOneChunkAndNoPrefilterReport( @TempDir final Path tmp ) throws Exception {
         final String longParagraph =
             "Kafka is a distributed streaming platform originally built at LinkedIn and later "
           + "open-sourced through the Apache Software Foundation for durable, high-throughput, "
@@ -128,10 +125,8 @@ class ChunkerStatsCliTest {
         final List< String > messages = cap.messages();
         assertTrue( messages.stream().anyMatch( m -> m.contains( "pages=1" ) && m.contains( "chunks=1" ) ),
             () -> "expected exactly one page producing exactly one chunk: " + messages );
-        assertTrue( messages.stream().anyMatch( m -> m.contains( "kept=1 skipped=0" ) ),
-            () -> "long, proper-noun-bearing chunk should be kept by the prefilter: " + messages );
-        assertFalse( messages.stream().anyMatch( m -> m.contains( "reason=" ) ),
-            () -> "no reject reasons expected when nothing was skipped: " + messages );
+        assertFalse( messages.stream().anyMatch( m -> m.contains( "Prefilter" ) || m.contains( "reason=" ) ),
+            () -> "the entity-extraction prefilter report is gone: " + messages );
     }
 
     @Test

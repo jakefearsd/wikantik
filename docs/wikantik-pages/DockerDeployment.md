@@ -32,7 +32,7 @@ Wikantik is deployed as a Docker Compose stack: PostgreSQL with pgvector, the Wi
 | `wikantik` | `wikantik:latest` | Tomcat 11 / JDK 25 running the wiki |
 | `backup` | `postgres:18-alpine` | Scheduled `pg_dump` and page-tree tarball (production overlay) |
 
-The production overlay bundles no embedding service. Production embeds, and runs Knowledge Graph extraction, on the shared GPU inference host: set `WIKANTIK_EMBEDDING_BASE_URL` and `WIKANTIK_EXTRACTOR_BASE_URL` in `.env` to a name that resolves from the container (for example `http://inference.lan:11434`). If the embedding endpoint is unreachable, retrieval falls back to BM25.
+The production overlay bundles no embedding service. Production embeds on the shared GPU inference host: set `WIKANTIK_EMBEDDING_BASE_URL` in `.env` to a name that resolves from the container (for example `http://inference.lan:11434`). If the embedding endpoint is unreachable, retrieval falls back to BM25.
 
 **The compose files.** `docker-compose.yml` defines `db` and `wikantik`; `docker-compose.dev.yml`, `docker-compose.prod.yml` and `docker-compose.test.yml` are overlays, and `docker-compose.cloud.yml` is the cloud overlay. `bin/container.sh -e dev|prod|test|base` wraps `docker compose` over them (`build`, `up -d`, `logs -f`, `psql`, `migrate`, `backup`, `restore`), and `bin/remote.sh` drives a remote host over ssh.
 
@@ -61,10 +61,8 @@ There are no `jspwiki_*` environment variables any more. Compose passes `.env` t
 | `WIKANTIK_COOKIE_AUTHENTICATION` | `false` | Remember-me re-authentication across restarts |
 | `WIKANTIK_SSO_ENABLED` and the other `WIKANTIK_SSO_*` | off | OIDC single sign-on; see [Google SSO](GoogleSSO) |
 | `WIKANTIK_GENAI_MODE` | `full` | GenAI ceiling: `full`, `embeddings-only` or `none` |
-| `WIKANTIK_KNOWLEDGE_ENABLED` | `false` | The Knowledge Graph is retired and off by default; `true` revives its backend only |
 | `WIKANTIK_DENSE_BACKEND` | `lucene-hnsw` | Dense retrieval backend: `lucene-hnsw`, `inmemory` or `pgvector` |
 | `WIKANTIK_EMBEDDING_BASE_URL` | `http://inference.jakefear.com:11434` | Embedding service. The shipped default does not resolve on every network, so set it to a name that resolves from the container (production uses the shared GPU inference host, e.g. `http://inference.lan:11434`); falls back to BM25 if unreachable |
-| `WIKANTIK_EXTRACTOR_BACKEND` | `ollama` | Knowledge Graph extractor: `ollama`, `claude` (needs `ANTHROPIC_API_KEY`) or `disabled` |
 | `WIKANTIK_MAX_INFLIGHT_REQUESTS` | `390` | Concurrency cap; excess requests get 503 with `Retry-After: 1` |
 | `WIKANTIK_JVM_MAX_RAM_PERCENTAGE` | image default 70 | Heap share of the container memory limit (the production overlay sets 50 with a 3G limit) |
 | `PROXY_REMOTE_IP_HEADER` | `CF-Connecting-IP` | Header carrying the real client IP; use `X-Forwarded-For` behind Caddy, nginx or a cloud load balancer |

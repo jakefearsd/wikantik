@@ -136,6 +136,30 @@ class OntologyResourceResourceTest {
     }
 
     @Test
+    void entityType_returns404EvenWhenAStaleEntityGraphIsInTheStore() throws Exception {
+        final String iri = NS + "entity/00000000-0000-0000-0000-000000000001";
+        modelManager.replaceNamedGraph( iri, sampleModelFor( iri ) );
+        when( req.getPathInfo() ).thenReturn( "/entity/00000000-0000-0000-0000-000000000001" );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+        assertFalse( out().contains( "Sample page" ), "retired /id/entity/* must never dereference" );
+    }
+
+    @Test
+    void conceptResource_isStillServed() throws Exception {
+        final String iri = NS + "concept/databases";
+        modelManager.replaceNamedGraph( iri, sampleModelFor( iri ) );
+        when( req.getPathInfo() ).thenReturn( "/concept/databases" );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setContentType( "text/turtle" );
+        assertTrue( out().contains( "databases" ), out() );
+    }
+
+    @Test
     void knownResource_defaultsToTurtle() throws Exception {
         final String iri = NS + "page/abc123";
         modelManager.replaceNamedGraph( iri, sampleModelFor( iri ) );

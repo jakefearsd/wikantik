@@ -15,7 +15,6 @@ related:
 - AdminSecurityUi
 - DatabaseBackedPermissions
 date: '2026-03-28'
-kg_include: true
 audience:
 - humans
 cluster: frontend-development

@@ -56,21 +56,21 @@ final class BriefingTestFixtures {
 
     static PageDescriptor desc( final String slug, final Instant updated ) {
         return new PageDescriptor( "01" + slug, slug, slug, null, "billing",
-            List.of(), null, updated, Optional.empty(), false );
+            List.of(), null, updated, false );
     }
 
     /** A descriptor with an explicit cluster membership list and summary. */
     static PageDescriptor desc( final String slug, final List< String > clusters, final String summary,
                                 final Instant updated ) {
         return new PageDescriptor( "01" + slug, slug, slug, null, null, clusters,
-            List.of(), summary, updated, Optional.empty(), false );
+            List.of(), summary, updated, false );
     }
 
     /** As {@link #desc(String, List, String, Instant)} with an explicit {@link PageType}. */
     static PageDescriptor desc( final String slug, final PageType type, final List< String > clusters,
                                 final String summary, final Instant updated ) {
         return new PageDescriptor( "01" + slug, slug, slug, type, null, clusters,
-            List.of(), summary, updated, Optional.empty(), false );
+            List.of(), summary, updated, false );
     }
 
     static ClusterDetails cluster( final String name, final PageDescriptor hub,

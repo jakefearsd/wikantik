@@ -76,7 +76,7 @@ class StructuralSpinePageFilterTest {
     /** Wires the index so {@code cluster} is already declared by the named hub page. */
     private void clusterDeclaredBy( final String cluster, final String hubSlug, final String hubId ) {
         final PageDescriptor hub = new PageDescriptor( hubId, hubSlug, hubSlug, PageType.HUB,
-                cluster, List.of(), null, Instant.now(), Optional.empty(), false );
+                cluster, List.of(), null, Instant.now(), false );
         when( svc.getCluster( cluster ) ).thenReturn( Optional.of(
                 new ClusterDetails( cluster, hub, List.of( hub ), Map.of(), Instant.now() ) ) );
     }

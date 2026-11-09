@@ -1,8 +1,7 @@
 # Search Index Rebuild Guide
 
 This page is for administrators who need to rebuild the Lucene search index, the chunk and
-embedding pipeline behind hybrid retrieval, or the Knowledge Graph extraction that follows
-them. It says when each rebuild is needed, how to run it live, on bare-metal Tomcat or in
+embedding pipeline behind hybrid retrieval. It says when each rebuild is needed, how to run it live, on bare-metal Tomcat or in
 containers, and how to confirm it worked.
 
 ## When You Need to Rebuild
@@ -51,10 +50,8 @@ It logs in with the account named in `test.properties` at the repo root
 `/admin/content/rebuild-indexes`. The rebuild runs in a background
 thread; search returns 0 results while it's in flight.
 
-For an end-to-end rebuild that *also* re-runs the embedding pipeline
-and re-extracts KG entities, use `bin/kg-rebuild.sh` (which orchestrates
-this rebuild plus `/admin/content/reindex-embeddings` plus
-`bin/kg-extract.sh`).
+For an end-to-end rebuild that *also* re-runs the embedding pipeline, follow this rebuild with
+`POST /admin/content/reindex-embeddings` (see [The embedding backfill](#the-embedding-backfill-separate-pipeline)).
 
 ### Local (bare-metal Tomcat) — full reset
 
@@ -128,73 +125,6 @@ For ~200 pages, the rebuild takes 1-3 seconds. For 1000+ pages, expect 10-30 sec
 | `tags` | Frontmatter `tags` field (space-separated) | Full-text |
 | `cluster` | Frontmatter `cluster` field | Full-text |
 | `summary` | Frontmatter `summary` field | Full-text |
-
-## bin/kg-rebuild.sh — full pipeline rebuild
-
-`bin/kg-rebuild.sh` orchestrates a four-phase rebuild:
-
-1. Chunk + Lucene rebuild (`/admin/content/rebuild-indexes`)
-2. Chunk embedding reindex (`/admin/content/reindex-embeddings`)
-3. Optional KG reset (`--reset-kg`) or full KG purge (`--purge-kg`)
-4. Entity extraction (`bin/kg-extract.sh`)
-
-Each phase polls to completion before the next starts.
-
-### Skip flags
-
-| Flag | Effect |
-|------|--------|
-| `--skip-chunks` | Skip phase 1 (chunk + Lucene rebuild) |
-| `--skip-embeddings` | Skip phase 2 (embedding reindex) |
-| `--skip-extract` | Skip phase 4 (entity extraction) |
-| `--dry-run` | Print the plan and exit without executing |
-| `--reset-kg` | Before phase 4: delete pending proposals + **machine-tier** ai-inferred KG nodes (human-approved and human-authored rows are kept — see [What `--reset-kg` deletes](#what---reset-kg-deletes)) |
-| `--purge-kg` | Before phase 4: TRUNCATE all KG-layer tables (destructive, requires confirmation) |
-| `--yes` / `-y` | Skip the interactive confirmation for `--reset-kg` and `--purge-kg` |
-
-Arguments after `--` are forwarded to `bin/kg-extract.sh`:
-
-```bash
-bin/kg-rebuild.sh --reset-kg -- \
-    --ollama-model qwen2.5:1.5b-instruct \
-    --concurrency 6
-```
-
-### What `--reset-kg` deletes
-
-Tier, not provenance, says who vouches for a Knowledge Graph row. `kg_nodes.provenance` records where a
-row came from (`human-authored`, `human-curated`, `ai-inferred`, `ai-reviewed`); `kg_nodes.tier` is
-`machine` or `human`. When a person approves a proposal its nodes and edges move to tier `human`, but they
-**keep provenance `ai-inferred`**. `--reset-kg` therefore selects on both, via
-`bin/db/kg-reset-machine-tier.sql`, run as one transaction:
-
-| Deleted | Kept |
-|---------|------|
-| every `pending` proposal (and its machine reviews) | approved and rejected proposals (human verdicts) |
-| nodes with provenance `ai-inferred` **and** tier `machine`, with the machine-tier edges, chunk mentions and node embeddings that cascade from them | every tier `human` node — human-authored, human-curated and human-approved (`ai-inferred` provenance, tier `human`) — and every tier `human` edge |
-| | a machine-tier `ai-inferred` node that is an endpoint of a tier `human` edge (deleting it would cascade-delete that human-approved edge) |
-
-The prompt, the "Before"/"After" counts (`tier, provenance, COUNT(*)`) and the SQL all use the same rule. Run
-`SELECT tier, provenance, COUNT(*) FROM kg_nodes GROUP BY 1, 2` first to see exactly what a reset would
-remove: the `machine` / `ai-inferred` row is the deletable set. Earlier versions selected on provenance
-alone and so also deleted human-approved nodes; `--purge-kg` is unchanged and still wipes everything.
-
-Re-extraction after a reset (phase 4) re-proposes the deleted entities. Approving a `new-node` proposal is
-**first-writer-wins**: it creates the node only when no node of that name exists, and leaves an existing
-node (including every row the reset kept) completely unchanged, logging the skipped write at INFO.
-
-### Polling interval env vars
-
-| Variable | Default | Effect |
-|----------|---------|--------|
-| `POLL_SECONDS` | `10` | How often to poll `/admin/content/index-status` |
-| `PROGRESS_SECONDS` | `30` | Minimum seconds between progress lines while RUNNING |
-
-Example:
-
-```bash
-POLL_SECONDS=5 PROGRESS_SECONDS=15 bin/kg-rebuild.sh --skip-extract
-```
 
 ## The embedding backfill (separate pipeline)
 

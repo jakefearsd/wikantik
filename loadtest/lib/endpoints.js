@@ -167,8 +167,8 @@ function mcpInit(cfg, vu, path) {
  *
  * Added 2026-08-25 after profiling showed MCP at 0.4% of CPU — not because the
  * agent surface is cheap, but because this harness was only driving
- * /wikantik-admin-mcp's read_page + search_knowledge + query_nodes, and
- * search_knowledge/query_nodes search KNOWLEDGE GRAPH NODES ONLY. On a corpus
+ * /wikantik-admin-mcp's read_page + the (since-retired) KG-node tools, which
+ * searched KNOWLEDGE GRAPH NODES ONLY. On a corpus
  * with no extracted entities they return `{"results":[]}` in ~3 ms and touch no
  * retrieval machinery at all. The tool's own response hint says so: "if you
  * expected page-body matches, call retrieve_context with the same query."
@@ -211,7 +211,7 @@ export function knowledgeAgentFlow(cfg, vu, slugs) {
   return res;
 }
 
-/** Drive a real MCP retrieval tool call (read_page / search_knowledge / query_nodes). */
+/** Drive a real MCP retrieval tool call (read_page / get_backlinks / get_wiki_stats). */
 export function mcpAgentFlow(cfg, vu, slug) {
   const sid = mcpInit(cfg, vu, '/wikantik-admin-mcp');
   const hdr = { 'Content-Type': 'application/json',
@@ -224,11 +224,9 @@ export function mcpAgentFlow(cfg, vu, slug) {
   if (r < 0.5) {
     params = { name: 'read_page', arguments: { pageName: slug } };
   } else if (r < 0.85) {
-    params = { name: 'search_knowledge',
-      arguments: { query: KG_TERMS[Math.floor(Math.random() * KG_TERMS.length)], limit: 10 } };
+    params = { name: 'get_backlinks', arguments: { pageName: slug } };
   } else {
-    params = { name: 'query_nodes',
-      arguments: { query: KG_TERMS[Math.floor(Math.random() * KG_TERMS.length)], limit: 10 } };
+    params = { name: 'get_wiki_stats', arguments: {} };
   }
   const res = http.post(`${cfg.baseUrl}/wikantik-admin-mcp`,
     JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params }),

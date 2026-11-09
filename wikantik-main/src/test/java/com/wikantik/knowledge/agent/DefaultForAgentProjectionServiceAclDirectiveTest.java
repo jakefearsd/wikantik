@@ -55,7 +55,7 @@ class DefaultForAgentProjectionServiceAclDirectiveTest {
 
         final PageDescriptor d = new PageDescriptor( "01RULED", "RuledOps", "Ruled Ops", PageType.ARTICLE,
                 "ops", List.of( "ops" ), "Operator notes.",
-                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty(), false );
+                Instant.parse( "2026-04-22T11:10:00Z" ), false );
         when( idx.getByCanonicalId( "01RULED" ) ).thenReturn( Optional.of( d ) );
         when( pm.getPureText( "RuledOps", -1 ) ).thenReturn(
                 "---\ntitle: Ruled Ops\nsummary: Operator notes.\ntags: [ops]\n---\n"
@@ -86,7 +86,7 @@ class DefaultForAgentProjectionServiceAclDirectiveTest {
 
         final PageDescriptor d = new PageDescriptor( "01FMFLIP", "FlippedOps", "Flipped Ops", PageType.ARTICLE,
                 "ops", List.of( "ops" ), "Operator notes.",
-                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty(), false );
+                Instant.parse( "2026-04-22T11:10:00Z" ), false );
         when( idx.getByCanonicalId( "01FMFLIP" ) ).thenReturn( Optional.of( d ) );
         when( pm.getPureText( "FlippedOps", -1 ) ).thenReturn(
                 "---\ntitle: Flipped Ops\nsummary: Operator notes.\nnotes: |\n  ```\n---\n"
@@ -112,7 +112,7 @@ class DefaultForAgentProjectionServiceAclDirectiveTest {
 
         final PageDescriptor d = new PageDescriptor( "01BLOCKS", "BlockOps", "Block Ops", PageType.ARTICLE,
                 "ops", List.of( "ops" ), "Operator notes.",
-                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty(), false );
+                Instant.parse( "2026-04-22T11:10:00Z" ), false );
         when( idx.getByCanonicalId( "01BLOCKS" ) ).thenReturn( Optional.of( d ) );
         when( pm.getPureText( "BlockOps", -1 ) ).thenReturn(
                 "---\ntitle: Block Ops\nsummary: Operator notes.\ntags: [ops]\n---\n"
@@ -139,7 +139,7 @@ class DefaultForAgentProjectionServiceAclDirectiveTest {
 
         final PageDescriptor d = new PageDescriptor( "01COMMENT", "CommentOps", "Comment Ops", PageType.ARTICLE,
                 "ops", List.of( "ops" ), "Operator notes.",
-                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty(), false );
+                Instant.parse( "2026-04-22T11:10:00Z" ), false );
         when( idx.getByCanonicalId( "01COMMENT" ) ).thenReturn( Optional.of( d ) );
         when( pm.getPureText( "CommentOps", -1 ) ).thenReturn(
                 "---\ntitle: Comment Ops\nsummary: Operator notes.\ntags: [ops]\n---\n"

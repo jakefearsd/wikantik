@@ -1,5 +1,4 @@
 ---
-kg_include: true
 type: article
 summary: 'Deep dive into Wikantik''s hybrid retrieval pipeline: heading-faithful chunking,
   contextual embeddings, BM25+pgvector RRF math, and RAG bundles.'
@@ -148,7 +147,7 @@ $$
 \text{RRF}(B, q) = \frac{1}{60 + 40} + \frac{1}{60 + 1} = 0.01000 + 0.01639 = 0.02639
 $$
 
-Candidate A wins the top slot (`0.03252`) because it satisfies both exact terminology and semantic intent, while Candidate B still surfaces cleanly at #2 (`0.02639`) despite zero keyword overlap on `"chokepoints"`.
+Candidate A wins the top slot (`0.03252`) because it satisfies both exact terminology and semantic intent, while Candidate B still surfaces cleanly at #2 (`0.02639`) despite zero keyword overlap on `"chokepoints"`. (The example is illustrative; the Knowledge Graph it mentions was retired in November 2026, but the ontology SHACL gate is unaffected in the arithmetic.)
 
 ---
 
@@ -185,7 +184,7 @@ Wikantik exposes four retrieval entry points tailored to distinct human and agen
 ## 5. What Was Measured and Rejected (Evidence-Driven Simplicity)
 
 A core discipline of Wikantik's search engineering is **deleting complexity that does not move measured recall** on `eval/bundle-corpus`:
-- **Knowledge Graph Page-Level Reranking (Removed July 2026):** As documented in [[GraphRerankStep|Graph Rerank Step (Historical)]] and [[KnowledgeGraphRerank|Knowledge Graph Rerank]], a multi-source BFS co-mention reranker was tested in a ceiling experiment using a gold-standard Claude-extracted KG on `2026-06-16`. It produced **zero net lift** in `Recall@K` and `nDCG` because entity co-mention proximity at the page level does not equate to section-level answer relevance. The stage was deleted in `2026-07`.
+- **Knowledge Graph Page-Level Reranking (Removed July 2026; the whole Knowledge Graph was retired in November 2026):** As documented in [[GraphRerankStep|Graph Rerank Step (Historical)]] and [[KnowledgeGraphRerank|Knowledge Graph Rerank]], a multi-source BFS co-mention reranker was tested in a ceiling experiment using a gold-standard Claude-extracted KG on `2026-06-16`. It produced **zero net lift** in `Recall@K` and `nDCG` because entity co-mention proximity at the page level does not equate to section-level answer relevance. The stage was deleted in `2026-07`.
 - **HyDE (Hypothetical Document Embeddings) & `doc2query`:** Left disabled by default after offline runs showed increased tail latency without improving section recall over context-prefixed chunk embeddings.
 - **LLM Listwise Reranking:** Disabled by default in the hot path to keep `assemble_bundle` p95 latency sub-100ms and deterministic.
 

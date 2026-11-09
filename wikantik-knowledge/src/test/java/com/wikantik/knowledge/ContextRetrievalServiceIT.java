@@ -55,11 +55,8 @@ class ContextRetrievalServiceIT {
     @AfterEach
     void cleanUp() throws Exception {
         try ( final Connection c = dataSource.getConnection() ) {
-            c.createStatement().execute( "DELETE FROM chunk_entity_mentions" );
             c.createStatement().execute( "DELETE FROM content_chunk_embeddings" );
             c.createStatement().execute( "DELETE FROM kg_content_chunks" );
-            c.createStatement().execute( "DELETE FROM kg_edges" );
-            c.createStatement().execute( "DELETE FROM kg_nodes" );
         }
     }
 

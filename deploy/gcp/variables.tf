@@ -82,7 +82,7 @@ variable "machine_type" {
   description = <<-EOT
     GCE machine type. e2-standard-2 (2 vCPU / 8 GB) is the default —
     parity with AWS's t3.large default, comfortably covers the
-    `search`/`knowledge` tiers (the ollama-embed CPU sidecar alongside the
+    `search` tiers (the ollama-embed CPU sidecar alongside the
     app + bundled DB). Pass `-var machine_type=e2-medium` (2 vCPU
     burstable / 4 GB, the floor this module supports) for the `core` tier
     (BM25-only, no embeddings sidecar) — see the cost table in README.md.
@@ -188,24 +188,20 @@ variable "tier" {
   description = <<-EOT
     GenAI cost tier — mirrors the matrix documented in
     docker-compose.cloud.yml's header:
-      core      WIKANTIK_GENAI_MODE=none, WIKANTIK_KNOWLEDGE_ENABLED=false
+      core      WIKANTIK_GENAI_MODE=none
                 (BM25-only search, zero inference infra)
-      search    WIKANTIK_GENAI_MODE=embeddings-only, WIKANTIK_KNOWLEDGE_ENABLED=false,
+      search    WIKANTIK_GENAI_MODE=embeddings-only,
                 WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
                 (dense+BM25 hybrid retrieval via the CPU embeddings sidecar)
-      knowledge WIKANTIK_GENAI_MODE=full, WIKANTIK_KNOWLEDGE_ENABLED=true,
-                WIKANTIK_EXTRACTOR_BACKEND=claude, WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
-                (full KG extraction via the Claude API — requires
-                var.secrets["ANTHROPIC_API_KEY"])
-    "search" and "knowledge" both activate the compose `embeddings`
-    profile (the ollama-embed sidecar); "core" does not.
+    "search" activates the compose `embeddings` profile (the ollama-embed
+    sidecar); "core" does not.
   EOT
   type        = string
   default     = "core"
 
   validation {
-    condition     = contains(["core", "search", "knowledge"], var.tier)
-    error_message = "tier must be one of: core, search, knowledge."
+    condition     = contains(["core", "search"], var.tier)
+    error_message = "tier must be one of: core, search."
   }
 }
 
@@ -243,7 +239,6 @@ variable "secrets" {
       POSTGRES_PASSWORD      always required (the bundled pgvector
                               container's app password)
       CLOUDFLARE_TUNNEL_TOKEN required iff var.ingress = "cloudflared"
-      ANTHROPIC_API_KEY       required iff var.tier = "knowledge"
     Extra keys are passed through as Secret Manager secrets + .env entries
     unmodified (e.g. WIKANTIK_SCIM_TOKEN, WIKANTIK_CONNECTORS_CRYPTO_KEY),
     which is useful but not required for the reference deployment.
@@ -277,12 +272,6 @@ variable "secrets" {
     error_message = "var.ingress = \"cloudflared\" requires var.secrets to include a CLOUDFLARE_TUNNEL_TOKEN entry."
   }
 
-  # Cross-variable validation (var.tier) requires Terraform >= 1.9 — see
-  # the required_version constraint in main.tf.
-  validation {
-    condition     = var.tier != "knowledge" || contains(nonsensitive(keys(var.secrets)), "ANTHROPIC_API_KEY")
-    error_message = "var.tier = \"knowledge\" requires var.secrets to include an ANTHROPIC_API_KEY entry (Claude extractor backend)."
-  }
 }
 
 variable "dns_managed_zone" {

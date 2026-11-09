@@ -1,7 +1,6 @@
 ---
 title: Exploring a Module's API Surface
 cluster: agent-cookbook
-kg_include: true
 status: active
 type: runbook
 canonical_id: 01KQ4ASQXJM6XG48K38W1GSQPR

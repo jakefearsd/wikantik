@@ -18,12 +18,10 @@
  */
 package com.wikantik.knowledge.mcp;
 
-import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.ontology.OntologyModelManager;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /** Locks the #2 routing guidance into the tool descriptions so it can't silently drift. */
 class ToolDescriptionRoutingTest {
@@ -48,12 +46,5 @@ class ToolDescriptionRoutingTest {
         final String d = new GetOntologyTool( OntologyModelManager.inMemory() ).definition().description();
         assertTrue( d.toLowerCase().contains( "count" ) || d.toLowerCase().contains( "list" ),
                 "get_ontology should advertise authoritative counts/lists" );
-    }
-
-    @Test
-    void discoverSchemaMentionsEnumerateNodeTypes() {
-        final String d = new DiscoverSchemaTool( mock( KnowledgeGraphService.class ) ).definition().description();
-        assertTrue( d.toLowerCase().contains( "enumerat" ) || d.toLowerCase().contains( "count" ),
-                "discover_schema should mention enumeration of node types/counts" );
     }
 }

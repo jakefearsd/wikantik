@@ -10,7 +10,7 @@ import { api } from '../../api/client';
 const call = (overrides = {}) => ({
   seq: 1,
   startedAt: '2026-05-15T14:32:07Z',
-  subsystem: 'ENTITY_EXTRACTION',
+  subsystem: 'EMBEDDING',
   backend: 'ollama',
   model: 'gemma4-assist',
   operation: 'chat',
@@ -65,7 +65,7 @@ describe('LlmActivityTab', () => {
   it('filters table rows by subsystem when a chip is clicked', async () => {
     api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([
-        call({ seq: 1, subsystem: 'ENTITY_EXTRACTION', model: 'gemma4-assist' }),
+        call({ seq: 1, subsystem: 'SECTION_RERANK', model: 'gemma4-assist' }),
         call({ seq: 2, subsystem: 'EMBEDDING', model: 'nomic' }),
       ]),
     );
@@ -120,7 +120,7 @@ describe('LlmActivityTab', () => {
   it('keeps header totals unfiltered while a filter is active', async () => {
     api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([
-        call({ seq: 1, subsystem: 'ENTITY_EXTRACTION', model: 'gemma4-assist' }),
+        call({ seq: 1, subsystem: 'SECTION_RERANK', model: 'gemma4-assist' }),
         call({ seq: 2, subsystem: 'EMBEDDING', model: 'nomic' }),
       ]),
     );

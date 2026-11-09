@@ -22,6 +22,8 @@ cluster: wikantik-development
 ---
 # Search Index and Knowledge Graph Rebuild
 
+> **Note (November 2026):** Wikantik's Knowledge Graph was retired in 2.5.12 and removed from the code afterwards. The Knowledge Graph reset/purge and entity-extraction phases below (phases 3 and 4, `bin/kg-extract.sh`, and the `--reset-kg` / `--purge-kg` options) are retired and kept only as a historical record. Only the search and embedding index rebuild (phases 1 and 2: chunks, the Lucene index and chunk embeddings) still applies.
+
 This page documents the operator runbook for rebuilding every derived index Wikantik maintains over its page corpus. Use it when:
 
 - The chunker config has changed and existing chunks need to be regenerated.

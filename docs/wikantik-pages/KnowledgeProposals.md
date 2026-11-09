@@ -1,7 +1,7 @@
 ---
 type: article
 date: '2026-04-04'
-status: active
+status: archived
 summary: Proposal workflow for AI-suggested knowledge enrichment with human approval
   and frontmatter write-back
 canonical_id: 01KQ0P44RMQK7627HQ0J02FE6K
@@ -14,6 +14,8 @@ tags:
 cluster: wikantik-development
 ---
 # Knowledge Proposals
+
+> **Retired (November 2026).** Wikantik's Knowledge Graph — LLM-extracted entities and their curation tools — was switched off in 2.5.12 and removed from the code afterwards. This page is kept as a historical record. Similar pages and agent related-pages now come from page embeddings; see [Hybrid Retrieval](HybridRetrieval).
 
 The proposal system lets extractors and AI agents suggest new nodes, edges, and property changes without writing to the Knowledge Graph directly. A proposal is screened by an asynchronous machine judge and confirmed by a human reviewer before it counts as fully trusted. Proposals live in `kg_proposals`; every machine or human verdict is recorded in `kg_proposal_reviews`.
 
@@ -43,8 +45,6 @@ When a `new-edge` proposal with a `source_page` is approved through the admin RE
 ## Rejection Memory
 
 The `kg_rejections` table stores negative knowledge — source, target and relationship triples that were rejected by the judge or a person, or removed with `delete_and_reject`. It is enforced at three points: extractors skip a rejected triple, `propose_knowledge` declines it and returns the rejection reason, and `list_proposals` / `inspect_proposals` flag a queued proposal with `edge_previously_rejected`. A later human approval of the same triple deletes the rejection.
-
-[{Relationships}]
 
 ---
 

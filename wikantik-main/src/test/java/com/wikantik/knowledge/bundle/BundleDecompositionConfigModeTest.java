@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,6 +33,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * chat inference, regardless of {@code wikantik.bundle.decomposition.enabled}.
  */
 class BundleDecompositionConfigModeTest {
+
+    @Test
+    void baseUrlDefaultsToLocalOllama() {
+        // The shipped default must resolve anywhere; a site-specific inference host is an explicit override.
+        assertEquals( "http://localhost:11434", BundleDecompositionConfig.fromProperties( new Properties() ).baseUrl() );
+    }
 
     @Test
     void modeAbsent_behavesIdenticallyToToday() {

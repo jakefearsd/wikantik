@@ -219,7 +219,7 @@ Defaults below are copied from `docs/ConfigurationReference.md`; that page is au
 | `WIKANTIK_SSO_CLAIM_FULL_NAME` | `name` | `wikantik.sso.claimMapping.fullName` | IdP claim mapped to the display name. |
 | `WIKANTIK_SSO_CLAIM_EMAIL` | `email` | `wikantik.sso.claimMapping.email` | IdP claim mapped to email. |
 | `WIKANTIK_GENAI_MODE` | `full` | `wikantik.genai.mode` | GenAI ceiling: `full` \| `embeddings-only` \| `none`. Never turns a feature on — only forces an already-enabled feature off. See [CostTiers.md](CostTiers.md) and [CloudDeployment.md](CloudDeployment.md). |
-| `WIKANTIK_EMBEDDING_BASE_URL` | `http://inference.jakefear.com:11434` | `wikantik.search.embedding.base-url` | Dense-retrieval embedding service base URL override, e.g. `http://ollama-embed:11434` for the cloud overlay's sidecar. Unset, the shipped default applies, and `inference.jakefear.com` does not resolve on every network — set this to a name that resolves from the container. Production sets it in `.env` to the shared GPU inference host (for example `http://inference.lan:11434`); the prod overlay bundles no embedder. If the endpoint is unreachable the wiki fails closed to BM25. Whatever you point it at must serve the model named by `wikantik.search.embedding.model` — the dense index is fixed at that model's dimension. |
+| `WIKANTIK_EMBEDDING_BASE_URL` | `http://localhost:11434` | `wikantik.search.embedding.base-url` | Dense-retrieval embedding service base URL override, e.g. `http://ollama-embed:11434` for the cloud overlay's sidecar. Unset, the shipped default `localhost` applies, which inside the container is the container itself — set this to a name that resolves from the container. Production sets it in `.env` to the shared GPU inference host (for example `http://inference.lan:11434`); the prod overlay bundles no embedder. If the endpoint is unreachable the wiki fails closed to BM25. Whatever you point it at must serve the model named by `wikantik.search.embedding.model` — the dense index is fixed at that model's dimension. |
 | `WIKANTIK_EMBEDDING_BATCH_SIZE` | `10` | `wikantik.search.embedding.batch-size` | Texts per embedding backend round-trip. **Coupled to `WIKANTIK_EMBEDDING_TIMEOUT_MS` and to the backend's available CPU:** a batch must complete inside the timeout, or the request fails, is treated as transient, and after 3 retries the entire reconcile aborts. Capping the embedder's CPU (a docker `cpus:` limit) multiplies per-batch time — a 32/30000 pair can time out on a CPU-bound embedder (the default `10` fits the 30 s timeout on a CPU-only embedder such as the cloud overlay's sidecar). Lower this, raise the timeout, or both. |
 | `WIKANTIK_EMBEDDING_TIMEOUT_MS` | `30000` | `wikantik.search.embedding.timeout-ms` | Per-request embedding HTTP timeout in ms. See the coupling note on `WIKANTIK_EMBEDDING_BATCH_SIZE`. On a 2-CPU-capped CPU-only embedder, `8` / `120000` is a working pair. |
 | `WIKANTIK_EMBEDDING_COMMIT_BATCH_SIZE` | `256` | `wikantik.search.embedding.commit-batch-size` | Rows committed per transaction during an embedding backfill. A full backfill is hours of CPU inference; this bounds how much of it an interruption discards. Lower it (e.g. `64`) on a host where long runs get interrupted — a commit is sub-millisecond next to seconds-per-chunk inference, so there is no throughput cost. Must be > 0; the app refuses to start on a non-positive value. |
@@ -306,8 +306,8 @@ disturbs local-dev config.
 
 Hybrid-retrieval backends (Ollama endpoint, model tags) are
 left unset by default — they fall back to the baked-in defaults in
-`ini/wikantik.properties` (`ollama` backend at `inference.jakefear.com:11434`, which
-does not resolve on every network) unless overridden via `WIKANTIK_EMBEDDING_BASE_URL`
+`ini/wikantik.properties` (`ollama` backend at `localhost:11434`, which inside a
+container is the container itself) unless overridden via `WIKANTIK_EMBEDDING_BASE_URL`
 (§1) or a
 `wikantik-custom.properties` override. The container needs network reach to whichever
 endpoint is in effect, only if hybrid retrieval is in use. Production sets
@@ -485,7 +485,7 @@ was dropped on 2026-10-15, and production now embeds on the shared GPU inference
 | Service | Status | Endpoint |
 |---|---|---|
 | **PostgreSQL + pgvector** | Bundled (`db` service) | `db:5432` (internal) |
-| **Ollama — embeddings** | External — the shared GPU inference host (not bundled; no `depends_on`, so the wiki fails closed to BM25 if it is unreachable) | Set `WIKANTIK_EMBEDDING_BASE_URL` in `.env` to a name that resolves from the container, e.g. `http://inference.lan:11434`. The `ini/wikantik.properties` default `http://inference.jakefear.com:11434` does not resolve on the LAN host. The host must serve the model named by `wikantik.search.embedding.model` |
+| **Ollama — embeddings** | External — the shared GPU inference host (not bundled; no `depends_on`, so the wiki fails closed to BM25 if it is unreachable) | Set `WIKANTIK_EMBEDDING_BASE_URL` in `.env` to a name that resolves from the container, e.g. `http://inference.lan:11434`. The `ini/wikantik.properties` default `http://localhost:11434` is the container itself, not the inference host. The host must serve the model named by `wikantik.search.embedding.model` |
 | **TLS terminator / reverse proxy** | External, optional | `RemoteIpValve` reads the client IP from `PROXY_REMOTE_IP_HEADER` (default `CF-Connecting-IP`; set to `X-Forwarded-For` for Caddy/nginx/ALB/GCLB — see the env-var table in §1) |
 
 The baked-in default for `wikantik.search.embedding.backend` is `ollama` — the container must reach

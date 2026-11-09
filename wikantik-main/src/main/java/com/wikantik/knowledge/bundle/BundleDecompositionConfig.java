@@ -33,7 +33,7 @@ import java.util.Properties;
  *
  * @param enabled        master switch; when {@code false} the passthrough planner is wired
  * @param model          Ollama tag used for decomposition (e.g. {@code "gemma4-assist:latest"})
- * @param baseUrl        base URL for Ollama (e.g. {@code "http://inference.jakefear.com:11434"})
+ * @param baseUrl        base URL for Ollama (e.g. {@code "http://localhost:11434"})
  * @param timeoutMs      per-call decomposition timeout
  * @param maxSubqueries  cap on the number of sub-queries returned
  * @param rrfK           reciprocal-rank-fusion constant used when merging sub-query result sets
@@ -71,7 +71,7 @@ public record BundleDecompositionConfig(
         return new BundleDecompositionConfig(
             enabled,
             r.getString( "model", "gemma4-assist:latest" ),
-            r.getString( "base_url", "http://inference.jakefear.com:11434" ),
+            r.getString( "base_url", "http://localhost:11434" ),
             r.getLong( "timeout_ms", 4_000L ),
             r.getInt( "max_subqueries", 4 ),
             r.getDouble( "rrf_k", 60 ),

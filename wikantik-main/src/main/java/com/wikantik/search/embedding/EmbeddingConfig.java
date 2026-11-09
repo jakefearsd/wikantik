@@ -70,7 +70,7 @@ public record EmbeddingConfig(
     public static final String BACKEND_OLLAMA = "ollama";
 
     public static final String  DEFAULT_BACKEND    = BACKEND_OLLAMA;
-    public static final String  DEFAULT_BASE_URL   = "http://inference.jakefear.com:11434";
+    public static final String  DEFAULT_BASE_URL   = "http://localhost:11434";
     public static final String  DEFAULT_MODEL_CODE = "qwen3-embedding-0.6b";
     public static final int     DEFAULT_TIMEOUT_MS = 30_000;
     public static final int     DEFAULT_BATCH_SIZE = 10;

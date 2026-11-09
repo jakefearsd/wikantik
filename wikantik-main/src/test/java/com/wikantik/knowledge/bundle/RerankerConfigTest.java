@@ -30,7 +30,7 @@ class RerankerConfigTest {
     void emptyOrNullProperties_yieldDefaults() {
         final RerankerConfig fromEmpty = RerankerConfig.fromProperties( new Properties() );
         assertEquals( "gemma4:e4b", fromEmpty.model() );
-        assertEquals( "http://inference.jakefear.com:11434", fromEmpty.baseUrl() );
+        assertEquals( "http://localhost:11434", fromEmpty.baseUrl() );
         assertEquals( 30_000L, fromEmpty.timeoutMs() );
 
         final RerankerConfig fromNull = RerankerConfig.fromProperties( null );

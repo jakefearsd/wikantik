@@ -49,7 +49,7 @@ class EmbeddingConfigTest {
         p.setProperty( EmbeddingConfig.PROP_ENABLED, "true" );
         p.setProperty( EmbeddingConfig.PROP_BASE_URL, "http://ollama.local:11434/" );
         // Sanity: the default differs, so this test actually exercises override.
-        assertEquals( "http://inference.jakefear.com:11434", EmbeddingConfig.DEFAULT_BASE_URL );
+        assertEquals( "http://localhost:11434", EmbeddingConfig.DEFAULT_BASE_URL );
         p.setProperty( EmbeddingConfig.PROP_API_KEY, "  s3cret  " );
         p.setProperty( EmbeddingConfig.PROP_MODEL, "bge-m3" );
         p.setProperty( EmbeddingConfig.PROP_OLLAMA_TAG, "bge-m3:latest" );

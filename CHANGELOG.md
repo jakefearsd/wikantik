@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The shipped default for the embedding, bundle-reranker and query-decomposition Ollama URLs is now `http://localhost:11434` (was the no-longer-resolvable `inference.jakefear.com`). Deployments using a shared inference host set it explicitly (prod already does via `WIKANTIK_EMBEDDING_BASE_URL`).
+
 ## [2.5.14] - 2026-11-09
 
 ### Fixed

@@ -29,7 +29,7 @@ public record RerankerConfig( String model, String baseUrl, long timeoutMs ) {
     public static final String PREFIX = "wikantik.bundle.reranker.";
     public RerankerConfig {
         if ( model == null || model.isBlank() ) model = "gemma4:e4b";
-        if ( baseUrl == null || baseUrl.isBlank() ) baseUrl = "http://inference.jakefear.com:11434";
+        if ( baseUrl == null || baseUrl.isBlank() ) baseUrl = "http://localhost:11434";
         if ( timeoutMs <= 0 ) timeoutMs = 30_000L;
     }
 

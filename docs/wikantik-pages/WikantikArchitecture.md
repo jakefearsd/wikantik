@@ -213,7 +213,7 @@ Two measured levers, not guesses, moved global section recall@12 from ~0.60 to ~
 
 The **context bundle** is RAG-as-a-Service done deliberately: it returns a ranked, de-duplicated, version-pinned, citation-bearing set of sections — and *never* synthesizes an answer (ADR-0001). Its default source is a global dense+BM25 chunk hybrid, not a page-gated retrieve, because page-gating drops relevant sections whose page ranks outside the top-N.
 
-Levers that were **measured and rejected**: the LLM listwise reranker, HyDE, doc2query (all left off by default), and the KG graph rerank — which was deleted outright in 2026-07. None moved recall; some actively hurt it.
+Levers that were **measured and rejected**: the LLM listwise reranker and query decomposition (both removed in 2.5.15), HyDE and doc2query, and the KG graph rerank — which was deleted outright in 2026-07. None moved recall; some actively hurt it.
 
 ## 5. The Ontology Layer
 

@@ -684,14 +684,16 @@ EOF
     [[ -n "${local_dir}" ]] || { echo "pages-push: missing LOCAL_DIR" >&2; exit 2; }
     [[ -d "${local_dir}" ]] || { echo "pages-push: not a directory: ${local_dir}" >&2; exit 2; }
 
-    local rsync_args=(-avz --update)
+    # -rltvz, not -a: -a's -p/-g/-o copy the LOCAL dir's mode onto the remote pages dir, which strips
+    # its setgid bit, and files Tomcat writes afterwards come out root:root 0640 (runbook §1.2).
+    local rsync_args=(-rltvz --update)
     if [[ "${mirror}" -eq 1 ]]; then
         if [[ "${assume_yes}" -ne 1 && "${DRY_RUN}" -ne 1 ]]; then
             echo "pages-push --mirror would --delete files on ${REMOTE_HOST}:${REMOTE_PAGES_DIR}."
             echo "Preview of deletions:"
             local preview_log
             preview_log="$(mktemp)"
-            if ! _rsync -avzn --delete "${local_dir%/}/" \
+            if ! _rsync -rltvzn --delete "${local_dir%/}/" \
                     "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PAGES_DIR}/" \
                     > "${preview_log}" 2>&1; then
                 echo "pages-push: preview rsync failed; aborting --mirror." >&2

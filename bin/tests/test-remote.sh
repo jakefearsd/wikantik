@@ -349,6 +349,26 @@ test_pages_push_no_delete_by_default() {
     ok "pages-push (default) does not pass --delete"
 }
 
+_body_pages_push_keeps_remote_dir_perms() {
+    local out line
+    mkdir -p "${FAKE_ENV}/some-pages"
+    out="$("${FAKE_ENV}/bin/remote.sh" --dry-run pages-push "${FAKE_ENV}/some-pages" 2>&1)" \
+        || fail "pages-push dry-run non-zero: ${out}"
+    line="$(echo "${out}" | grep "rsync" | head -1)"
+    line="${line//\'*\'/}"   # drop the quoted -e 'ssh -o …' string; only rsync's own flags matter
+    # -a implies -p/-g/-o: rsync would copy the LOCAL dir's mode onto the remote pages dir and
+    # strip its setgid bit, so files Tomcat writes afterwards come out root:root 0640 (2026-11-09).
+    if echo "${line}" | grep -qE -- ' -[a-zA-Z]*[apgo][a-zA-Z]* '; then
+        fail "pages-push must not preserve perms/group/owner (-a/-p/-g/-o): ${line}"
+    fi
+    echo "${line}" | grep -q -- ' -rltvz ' \
+        || fail "pages-push should sync with -rltvz: ${line}"
+}
+test_pages_push_keeps_remote_dir_perms() {
+    with_fake_env _body_pages_push_keeps_remote_dir_perms
+    ok "pages-push does not overwrite remote directory permissions"
+}
+
 _body_pages_push_mirror() {
     local out
     mkdir -p "${FAKE_ENV}/some-pages"
@@ -379,6 +399,7 @@ test_pages_pull_dry_run() {
 }
 test_pages_push_no_delete_by_default
 test_pages_push_mirror_passes_delete
+test_pages_push_keeps_remote_dir_perms
 test_pages_pull_dry_run
 
 _body_backup_subcommands() {

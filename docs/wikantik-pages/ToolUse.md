@@ -76,8 +76,8 @@ Effective tool use requires the agent to be "MCP-aware"—knowing which tools to
 
 ### Selection Strategy (See [Finding the Right MCP Tool](FindingTheRightMcpTool))
 - **Orientation**: Use `get_page_for_agent` instead of `get_page` for initial research. It provides a token-budgeted summary and metadata without pulling the full Markdown body.
-- **Retrieval**: Use `retrieve_context` for natural language queries and `search_knowledge` for structured entity lookups.
-- **Navigation**: Use `list_pages_by_filter` or `traverse_relations` to move through the wiki's hierarchy.
+- **Retrieval**: Use `retrieve_context` for natural language queries and `assemble_bundle` for grounded, cited answers.
+- **Navigation**: Use `list_pages_by_filter` or `get_page_neighbors` to move through the wiki's hierarchy.
 
 ### Error Handling & Hallucination Mitigation
 A robust agentic loop does not crash on a malformed tool call; it uses the error as feedback.

@@ -43,8 +43,7 @@ runbook:
     at the repository root, and the design pages on the wiki. Only `wikantik-it-tests`
     has a README, and `package-info.java` files are rare, so do not expect them'
   - Confirm against the wiki's narrative articles with `/knowledge-mcp` `retrieve_context`
-    or `assemble_bundle`, and list a cluster with `list_pages_by_filter`. `search_knowledge`
-    queries Knowledge Graph entities, not articles
+    or `assemble_bundle`, and list a cluster with `list_pages_by_filter`
   pitfalls:
   - Reading the entire module top-to-bottom — most modules have a clear public API
     and a long tail of internal helpers (`wikantik-main` alone has more than 700 classes);

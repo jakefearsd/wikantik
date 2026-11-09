@@ -9,9 +9,9 @@ cluster: wikantik-development
 type: article
 tags:
 - concurrenttag
-summary: Scratch page used to exercise the Knowledge Graph curation MCP tools (propose_knowledge,
-  curate_nodes, curate_edges); it holds no reference content.
+summary: Retired scratch page that once exercised the Knowledge Graph curation tools, which were removed
+  in release 2.5.13; it holds no reference content.
 ---
 # Curation Test
 
-Scratch page for exercising the Knowledge Graph curation tools on `/wikantik-admin-mcp` (`propose_knowledge`, the proposal review tools, `curate_nodes` and `curate_edges`). It holds no reference content, and no automated test suite is attached to it. Curation only takes effect on pages whose entities are in the Knowledge Graph, which the cluster-primary inclusion policy decides unless the page sets `kg_include`; see [KG Inclusion Policy](KgInclusionPolicy).
+Retired scratch page. It once exercised the Knowledge Graph curation tools on `/wikantik-admin-mcp`; the Knowledge Graph and those tools were removed in release 2.5.13 (November 2026), so nothing here can be exercised any more. It holds no reference content, and no automated test suite is attached to it.

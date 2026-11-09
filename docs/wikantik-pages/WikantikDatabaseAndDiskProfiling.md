@@ -23,6 +23,8 @@ related:
 
 On 2026-10-22 we profiled Wikantik with one question: **what does it do badly against PostgreSQL and the local disk?** Unlike earlier CPU campaigns, frequency was deliberately ignored. A query that runs once a week counted as much as one that runs on every request. So the run exercised every route and every MCP tool once, plus startup, idle time, shutdown, maintenance actions and a short load test.
 
+(The Knowledge Graph and its tools were removed in release 2.5.13, November 2026. This report is a dated record of the October 2026 build, so the Knowledge Graph paths it measured are described as they were then.)
+
 The run found two destructive bugs, one production storage problem and a long tail of wasted queries and disk work. All the critical and important defects were repaired test-first: each repair has a regression test in the regular unit suite that was seen to fail before the fix. The fixed build was then profiled again with the same harness.
 
 ## Results at a glance
@@ -172,7 +174,7 @@ The raw measurements are in `loadtest/results/CAMPAIGN-2026-10-22-db-disk.md` in
 | `/api/pages/for-agent`, `/admin/agent-grade-audit`, `/admin/verification`, `/admin/overview` | `verificationOf` was an uncached one-row query, called once per page (46,186 times in 2 minutes) | Verification rows are held in memory with the structural index (`VerificationStore`), loaded in one query at rebuild and kept current by its writes |
 | `/api/search`, `retrieve_context` | the "batched" related-pages lookup ran one query per page | One windowed statement over `page_name = ANY( ? )` |
 | `/api/bundle`, `/api/briefing`, `assemble_bundle`, `get_briefing` | one `page_canonical_ids` query per cited section | Resolved from the structural index. A page with no authored `canonical_id` (an in-memory id that changes per restart) is never cited by its unstable id |
-| `/admin/knowledge-graph/proposals`, MCP `list_proposals` | node-by-name and rejection lookups per proposal | Two batched lookups per page of proposals (`KgBatchLookups`) |
+| `/admin/knowledge-graph/proposals`, MCP proposal listing | node-by-name and rejection lookups per proposal | Two batched lookups per page of proposals (`KgBatchLookups`) |
 | Page knowledge slice | per-entity node and edge queries | Batched with `= ANY( ? )` |
 | `/admin/drift/trend` | one count query per sweep | One query for all sweeps |
 

@@ -198,8 +198,8 @@ surface runs its candidate pages through a session **view gate**
 (`PageViewGate`) before returning them —
 
 - the REST read endpoints (`/api/*`, `/wiki/{slug}?format=md|json`),
-- the `/knowledge-mcp` retrieval and Knowledge-Graph tools
-  (`retrieve_context`, `assemble_bundle`, `search_knowledge`, `query_nodes`, …), and
+- the `/knowledge-mcp` retrieval tools
+  (`retrieve_context`, `assemble_bundle`, `get_page_neighbors`, …), and
 - `/api/bundle` (the RAG context bundle).
 
 So restricted content cannot leak into search, retrieval, or a context bundle
@@ -207,14 +207,6 @@ through the agent interface. (The public RDF/SPARQL surface applies the same
 guest-view ACL split — only anonymously-viewable pages are materialized.)
 
 On `/knowledge-mcp` the MCP transport carries no caller identity, so the gate evaluates view ACLs as an anonymous guest: only publicly viewable pages are returned, whichever account owns the key. An agent that must read restricted content has to use the privileged admin endpoint.
-
-**Not to be confused with KG Inclusion Policy.** View-ACL read-path enforcement
-is the *security* boundary and is always on. [KG Inclusion Policy](KgInclusionPolicy)
-is a separate *curation* control that decides which (already-viewable) pages
-contribute **entities** to the Knowledge Graph — it is **not** access control,
-and its admin-bypass on KG reads is for curators only and never bypasses a
-guest's view ACL. KG-including a page does not make a restricted page visible;
-KG-excluding a page does not hide a viewable page from page search.
 
 ## Common failure patterns
 

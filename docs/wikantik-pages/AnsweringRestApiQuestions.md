@@ -51,7 +51,7 @@ runbook:
     wikantik.cors.allowedOrigins to POST, PUT, PATCH or DELETE under /api/* or /admin/*
     — curl-style clients that send no Origin are not affected
   related_tools:
-  - /knowledge-mcp/search_knowledge
+  - /knowledge-mcp/retrieve_context
   - /api/search
   references:
   - StructuralSpineDesign
@@ -82,7 +82,7 @@ declaration shows the implementation class. Together they answer
 - **`/admin/*`** — 29 servlets (37 URL patterns) for the operator surfaces; `docs/admin/AdminPanel.md` in the repository maps each admin screen to its route.
 - **Mapped elsewhere:** the public ontology endpoints (`/sparql`, `/id/*`, `/export/*`), `/feed.xml`, `/sitemap.xml`, `/attach/*`, `/metrics`, `/scim/v2/*`, the OpenAPI tool server at `/tools/*` and the two MCP endpoints.
 
-Sub-paths are handled inside a single servlet, because a servlet cannot match a variable in the middle of a path. For example `POST /api/pages/{name}/rename` is dispatched by `PageResource.doPost`, and the page-scoped Knowledge Graph curation lives under `/api/page-knowledge/*`, not under `/api/pages/{name}/...`.
+Sub-paths are handled inside a single servlet, because a servlet cannot match a variable in the middle of a path. For example `POST /api/pages/{name}/rename` is dispatched by `PageResource.doPost`, not by a separate servlet mapped under `/api/pages/{name}/...`.
 
 The Resource classes themselves (`wikantik-rest/src/main/java/com/wikantik/rest/*Resource.java`)
 are the source of truth for HTTP method shape and permission model. They are

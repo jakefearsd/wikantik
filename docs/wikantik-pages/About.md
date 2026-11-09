@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: 'The Wikantik manifesto and system blueprint: dual Page/Knowledge Graphs,
+summary: 'The Wikantik manifesto and system blueprint: the Page Graph and RDF ontology,
   MCP retrieval/authoring, SA-13 briefings, and closed-loop workflows.'
 status: active
 date: '2026-10-26'
@@ -13,7 +13,6 @@ tags:
 - manifesto
 - architecture
 - mcp
-- knowledge-graph
 - hybrid-retrieval
 - content-intelligence
 - agentic-ai
@@ -40,7 +39,7 @@ related:
 
 **Wikantik is an agent-grade semantic knowledge engine — built from the ground up so human engineers and autonomous AI agents can read, reason over, verify, and evolve a single source of truth.**
 
-Most wikis were built for a world where only humans read and only humans write. Most "AI knowledge bases" bolt a naive vector database onto unstructured prose, losing document hierarchy, link topology, provenance, and editorial trust. **Wikantik bridges both worlds:** a rigorous, human-readable Markdown wiki backed by a machine-queryable **Structural Spine**, a dual **Page Graph + Knowledge Graph** architecture, **51 Model Context Protocol (MCP) tools**, and a **closed-loop Content Intelligence engine** that measures whether knowledge changes actually work.
+Most wikis were built for a world where only humans read and only humans write. Most "AI knowledge bases" bolt a naive vector database onto unstructured prose, losing document hierarchy, link topology, provenance, and editorial trust. **Wikantik bridges both worlds:** a rigorous, human-readable Markdown wiki backed by a machine-queryable **Structural Spine**, a **Page Graph** of real wikilinks plus an RDF/SPARQL ontology, **36 Model Context Protocol (MCP) tools**, and a **closed-loop Content Intelligence engine** that measures whether knowledge changes actually work.
 
 ---
 
@@ -57,7 +56,7 @@ Modern software teams and research-driven organizations face two compounding fai
 | :--- | :--- |
 | **1. One Corpus, Two First-Class Readers** | Every page is clean CommonMark + YAML frontmatter stored on disk with full revision history (`VersioningFileProvider`), while simultaneously indexed into PostgreSQL/`pgvector`, Lucene BM25, Lucene HNSW, and an RDF/SPARQL ontology. |
 | **2. Structure Before Embeddings** | Save-time validation ([[FrontmatterConventions]]) enforces canonical types (`hub`, `article`, `design`, `runbook`, `reference`), Hub-declared clusters ([[ClusterDeclarationDesign]]), and rename-safe 26-character ULIDs (`canonical_id` via [[StructuralSpineDesign]]). |
-| **3. Explicit Separation of Page Graph and Knowledge Graph** | Editorial document links (`[[WikiName]]`) live in the **Page Graph**; domain entities, typed relationships, and OWL/SKOS classes live in the **Knowledge Graph** ([[PageGraphVsKnowledgeGraph]]). Neither pollutes the other. |
+| **3. One Graph, Made of Real Links** | Editorial document links (`[[WikiName]]`) form the **Page Graph**, the only graph; the RDF/OWL ontology is a read-only projection of pages, clusters and tags. LLM-extracted entity graphs were retired in release 2.5.13 ([[PageGraphVsKnowledgeGraph]]). |
 | **4. Provenance & Web of Trust (`AUTHORITATIVE` $\to$ `STALE`)** | Agents never guess whether a page is trustworthy. `get_page_for_agent` computes explicit confidence tiers (`AUTHORITATIVE`, `PROVISIONAL`, `UNVERIFIED`, `STALE`) from `verified_at`, `verified_by`, and post-verification edit history ([[AgentGradeContentDesign]]). |
 | **5. Closed-Loop Measurement Over Blind Authoring** | Every content opportunity is gated by statistical support, every agent action records a predicted effect, and a nightly Difference-in-Differences evaluator (`EffectEvaluator`) measures 28-day realized impact against site trend ([[ContentIntelligenceDesign]], [[SimpleAgilityFeedbackLoopPattern]]). |
 
@@ -70,35 +69,34 @@ Wikantik is a modern **Java 25 LTS / Jakarta Servlet 6.1** platform running on *
 ```mermaid
 flowchart TB
     subgraph Clients["Human & Agent Consumers"]
-        Human["Human Engineers & Readers<br/>(React SPA, Live Preview, Graph Visualizer)"]
-        ReadAgent["Coding & Research Agents<br/>(/knowledge-mcp — 22 Read Tools)"]
-        AdminAgent["Curator & Publishing Agents<br/>(/wikantik-admin-mcp — 29 Write/Admin Tools)"]
+        Human["Human Engineers & Readers<br/>(React SPA, Live Preview, Page Graph Visualizer)"]
+        ReadAgent["Coding & Research Agents<br/>(/knowledge-mcp — 16 Read Tools)"]
+        AdminAgent["Curator & Publishing Agents<br/>(/wikantik-admin-mcp — 20 Write/Admin Tools)"]
     end
 
     subgraph Core["Wikantik Core Engine (Java 25 / Tomcat 11)"]
         Spine["Structural Spine Filter & Schema Validator<br/>(canonical_id ULIDs, Hub Cluster Declarations)"]
         Hybrid["Hybrid Retrieval Engine<br/>(Lucene BM25 + HNSW Dense Vectors + RRF)"]
         Briefing["SA-13 Session Briefing Assembler<br/>(Tier 1 Cluster + Tier 2 Cited Contracts + Tier 3 Query)"]
-        KG["Knowledge Graph & Ontology Service<br/>(Entity/Edge Store, Mention Centroids, Apache Jena SPARQL)"]
+        Onto["Ontology Service<br/>(Page/Concept Projection, Apache Jena SPARQL)"]
         Insights["Content Intelligence Engine<br/>(Opportunity Rules, Traffic Gate, DiD EffectEvaluator)"]
     end
 
     subgraph Storage["Hybrid Persistence Layer"]
         FS[("Versioned Markdown Store<br/>(docs/wikantik-pages/*.md)")]
-        PG[("PostgreSQL + pgvector<br/>(Chunks, KG Triples, Proposals, Telemetry Facts)")]
+        PG[("PostgreSQL + pgvector<br/>(Chunks, Embeddings, Citations, Telemetry Facts)")]
     end
 
     Human --> Spine
     AdminAgent --> Spine
     ReadAgent --> Hybrid
     ReadAgent --> Briefing
-    ReadAgent --> KG
-    AdminAgent --> KG
+    ReadAgent --> Onto
     AdminAgent --> Insights
     Spine --> FS
     Spine --> PG
     Hybrid --> PG
-    KG --> PG
+    Onto --> PG
     Insights --> PG
 ```
 
@@ -110,10 +108,10 @@ Following [[WikantikArchitecture|Wikantik System Architecture]] and [[WikantikDe
 | :--- | :--- |
 | **`wikantik-api`** | Core domain contracts, `FrontmatterParser`, `ClusterPath`, and service interfaces. |
 | **`wikantik-main`** | Central engine: JAAS security, `VersioningFileProvider`, `ReferenceManager` (Page Graph), `StructuralIndexService`, and `AgentHintsDeriver`. |
-| **`wikantik-knowledge`** | Contextual chunking, `HybridRetrieval` (BM25 + dense vector RRF), `ItemAssembler` (`get_briefing`), `KnowledgeGraphService`, SPARQL ontology materialization, and the `/knowledge-mcp` server. |
-| **`wikantik-admin-mcp`** | Optimistic-locking authoring (`update_page`, `write_pages`, `rename_page`, `rename_cluster`), 7-check `verify_pages`, KG proposal/curation tools, and `mark_page_verified`. |
+| **`wikantik-knowledge`** | Contextual chunking, `HybridRetrieval` (BM25 + dense vector RRF), `ItemAssembler` (`get_briefing`), SPARQL ontology access, and the `/knowledge-mcp` server. |
+| **`wikantik-admin-mcp`** | Optimistic-locking authoring (`update_page`, `write_pages`, `rename_page`, `rename_cluster`), 7-check `verify_pages`, and `mark_page_verified`. |
 | **`wikantik-insights`** | Closed-loop Content Intelligence: search-visibility snapshot ingest, `agent_gap` / `striking_distance` / `decay` rules, traffic gating, `EffectEvaluator`, and `WeightCalibrator`. |
-| **`wikantik-rest`** | JSON REST APIs (`/api/structure/*`, `/api/pages/*`, `/admin/insights/*`, `/admin/agent-grade-audit`) backing the React SPA and structured frontmatter/KG curation panels. |
+| **`wikantik-rest`** | JSON REST APIs (`/api/structure/*`, `/api/pages/*`, `/admin/insights/*`, `/admin/agent-grade-audit`) backing the React SPA and structured frontmatter curation panels. |
 | **`wikantik-observability`** | Prometheus metrics (`/api/health/*`), OpenTelemetry correlation (`SA-2`), sliding-window per-client MCP rate limiting (`~50 req/s`), and JFR profiling. |
 | **`wikantik-extract-cli`** | Offline CLI utilities: deterministic `Main.md` generation from `Main.pins.yaml` (`GenerateMainPageCli`), ULID backfill, and corpus-divergence validation. |
 
@@ -139,15 +137,15 @@ $$
 
 The server's `verify_pages(checks=["retrieval_readiness"])` linter actively rejects vague headings (`Overview`, `Summary`, `Notes`), missing cluster declarations, or slug-only titles before they can degrade chunk recall.
 
-### 3.2 Mention-Centroid Embeddings & Formal SPARQL Ontology
+### 3.2 Page-Embedding Similarity & Formal SPARQL Ontology
 
-When a page sets `kg_include: true` ([[KgInclusionPolicy]]), extracted and human-curated entities populate the Knowledge Graph ([[WikantikKnowledgeGraph]]). Every entity node receives a **mention-centroid vector**—the normalized mean of the contextual chunk embeddings in which that entity appears:
+"Similar pages" and the related pages in `get_page_for_agent` come from **page-embedding centroids**: every page receives a vector that is the normalized mean of its contextual chunk embeddings.
 
 $$
-\mathbf{v}_{\text{entity}} = \frac{\sum_{c \in \mathcal{M}(e)} \mathbf{e}(c)}{\left\| \sum_{c \in \mathcal{M}(e)} \mathbf{e}(c) \right\|_2}
+\mathbf{v}_{\text{page}} = \frac{\sum_{c \in \mathcal{C}(p)} \mathbf{e}(c)}{\left\| \sum_{c \in \mathcal{C}(p)} \mathbf{e}(c) \right\|_2}
 $$
 
-This allows `find_similar` to discover semantically isomorphic concepts across completely different clusters even before explicit graph edges are drawn, while `get_ontology` and `sparql_query` expose the entire corpus as a materialized RDF graph (`skos:broader` sub-cluster chains, `schema:TechArticle`, `schema:CollectionPage`, and typed domain predicates; see [[Ontology]] and [[SPARQL]]).
+This surfaces semantically related pages across completely different clusters even where no wikilink connects them, while `get_page_neighbors` returns the real wikilink neighborhood. `get_ontology` and `sparql_query` expose the corpus as a materialized RDF graph (`skos:broader` sub-cluster chains, `schema:TechArticle`, `schema:CollectionPage`; see [[Ontology]] and [[SPARQL]]).
 
 ---
 
@@ -199,11 +197,11 @@ sequenceDiagram
 
 ### Workflow 3 (Automated Publishing): Ontology-Driven Cross-Cluster Synthesis & Commercial Attribution Flywheel
 
-> **Why this workflow is a hidden superpower:** Most automated blogging pipelines take a single topic or product SKU and ask an LLM to write 800 words—producing generic, repetitive articles. Because Wikantik combines a **multi-domain Knowledge Graph**, **mention-centroid similarity (`find_similar`)**, **SPARQL 1.1 (`sparql_query`)**, **SERP striking-distance telemetry (`list_content_opportunities`)**, and a companion publishing platform (**[[RollerHub|Roller]]** with its own MCP server), you can run an **automated cross-domain synthesis & attribution pipeline** that no standalone CMS can match.
+> **Why this workflow is a hidden superpower:** Most automated blogging pipelines take a single topic or product SKU and ask an LLM to write 800 words—producing generic, repetitive articles. Because Wikantik combines a **multi-domain corpus with page-embedding similarity (`get_page_for_agent`)**, **SPARQL 1.1 (`sparql_query`)**, **SERP striking-distance telemetry (`list_content_opportunities`)**, and a companion publishing platform (**[[RollerHub|Roller]]** with its own MCP server), you can run an **automated cross-domain synthesis & attribution pipeline** that no standalone CMS can match.
 
 ```mermaid
 flowchart LR
-    Trigger["1. Trigger: Stockroom 'Feature on Blog'<br/>or Wikantik 'striking_distance' Query"] --> Discover["2. Graph Bridge Discovery<br/>(find_similar + traverse + sparql_query)"]
+    Trigger["1. Trigger: Stockroom 'Feature on Blog'<br/>or Wikantik 'striking_distance' Query"] --> Discover["2. Cross-Cluster Bridge Discovery<br/>(retrieve_context + get_page_for_agent related pages + sparql_query)"]
     Discover --> Bundle["3. Fact Grounding<br/>(assemble_bundle from AUTHORITATIVE pages)"]
     Bundle --> Publish["4. Multi-Surface Publishing<br/>(Roller MCP Entry + SA-12 Attribution + IndexNow)"]
     Publish --> Measure["5. 28-Day DiD Effect Measurement<br/>(Jakemon GSC/Bing + Umami + EffectEvaluator)"]
@@ -215,9 +213,9 @@ Here is how the 5-stage publishing pipeline works end-to-end across the stack:
 1. **Stage 1 — Telemetry or Inventory Trigger (`Stockroom` / `wikantik-insights`):**
    - **Commercial Trigger:** During inventory intake in [[StockroomHub|Stockroom]], an operator flags a notable item—for example, an *1890s Carson City Morgan Silver Dollar* or a *vintage Japanese mortise chisel*—with `Feature on Blog`.
    - **Search-Demand Trigger:** Alternatively, the publishing agent calls `list_content_opportunities` on `/wikantik-admin-mcp` and spots a `striking_distance` query on Bing (where `wiki.wikantik.com` converts at **$1.85\%$ CTR / avg position $4.7$**—roughly **$6\times$ higher conversion per impression than Google**, and the primary index feeding downstream AI search engines!).
-2. **Stage 2 — Non-Obvious Cross-Cluster Bridge Discovery (`find_similar` + `traverse` + `sparql_query`):**
-   - Instead of writing a generic coin or tool description, the agent queries `/knowledge-mcp` using `search_knowledge`, `find_similar` (over mention-centroid vectors), and `sparql_query` across Wikantik's 91 clusters.
-   - For the silver dollar, the Knowledge Graph immediately bridges four distinct clusters that a single-prompt writer would never connect:
+2. **Stage 2 — Non-Obvious Cross-Cluster Bridge Discovery (`retrieve_context` + `get_page_for_agent` + `sparql_query`):**
+   - Instead of writing a generic coin or tool description, the agent queries `/knowledge-mcp` using `retrieve_context`, the embedding-derived related pages of `get_page_for_agent`, and `sparql_query` across Wikantik's 91 clusters.
+   - For the silver dollar, retrieval and related-page similarity immediately bridge four distinct clusters that a single-prompt writer would never connect:
      - `numismatics/american-coinage` ([[AmericanCoinHistory]], [[CoinGradingAndAuthentication]])
      - `physics-engineering` ([[CounterfeitDetectionPhysics]]: acoustic eigenfrequency & XRF assaying)
      - `materials-science` ([[Metallurgy]]: 90% Ag / 10% Cu work-hardening and lustre flow lines)
@@ -227,7 +225,7 @@ Here is how the 5-stage publishing pipeline works end-to-end across the stack:
 4. **Stage 4 — Sovereign Publishing, Deep-Linking & `IndexNow` Push (`Roller MCP` + `ping_search_engines`):**
    - The agent publishes a rich, narrative spotlight article to [[RollerHub|Roller]] via Roller's MCP `entries` tool, complete with:
      - **SA-12 Attribution Links ([[SimpleAgilityAttributionRFC]]):** Tracked eBay Partner Network (EPN) / Stockroom campaign parameters (`utm_source=roller&utm_campaign=<item_slug>`) so Umami and Stockroom attribute downstream sales directly back to the article.
-     - **Bidirectional Knowledge Deep-Links:** Inline links from the blog post to the canonical Wikantik reference articles (and, if the research uncovered a new historical or metallurgical fact, an `update_page` + `propose_knowledge` call back into Wikantik!).
+     - **Bidirectional Knowledge Deep-Links:** Inline links from the blog post to the canonical Wikantik reference articles (and, if the research uncovered a new historical or metallurgical fact, an `update_page` call back into Wikantik!).
      - **Instant Search Notification:** Calling `ping_search_engines` on `/wikantik-admin-mcp` pushes updated URLs immediately via **IndexNow** to Bing and Yandex.
 5. **Stage 5 — Closed-Loop Difference-in-Differences Verification (`EffectEvaluator`):**
    - Over the 28-day settle window, `jakemon` ships daily GSC/Bing search-visibility snapshots and Umami conversion events. Wikantik's nightly `EffectEvaluator` compares the updated pages' impression and click trajectory against the site-wide control trend, feeding realized accuracy back into `WeightCalibrator`.
@@ -313,27 +311,26 @@ stop
 
 ---
 
-## 5. Complete MCP Tool Surface Reference (51 Tools)
+## 5. Complete MCP Tool Surface Reference (36 Tools)
 
 Wikantik exposes two purpose-built Model Context Protocol endpoints:
 
-### 5.1 `/knowledge-mcp` — Read-Only Retrieval, Graph & Ontology Surface (22 Tools)
+### 5.1 `/knowledge-mcp` — Read-Only Retrieval, Page Graph & Ontology Surface (16 Tools)
 
 | Category | Tools | Primary Agent Use Case |
 | :--- | :--- | :--- |
 | **Bundle & Briefing Assembly** | `assemble_bundle`, `get_briefing`, `retrieve_context` | Token-budgeted, de-duplicated context bundles with citations and SA-13 3-tier project briefings. |
 | **Page & Structural Inspection** | `get_page`, `get_page_for_agent`, `get_page_by_id`, `read_pages`, `get_page_neighbors`, `list_stale_citations` | Provenance-scored agent projections (`AUTHORITATIVE` / `PROVISIONAL` / `STALE`), batched reads, and 1-hop Page Graph neighborhoods. |
 | **Taxonomy & Facet Discovery** | `list_clusters`, `list_pages`, `list_pages_by_filter`, `list_tags`, `list_metadata_values` | Zero-search discovery of all 91 clusters, hubs, tag distributions, and frontmatter facets. |
-| **Knowledge Graph & SPARQL Ontology** | `discover_schema`, `query_nodes`, `get_node`, `search_knowledge`, `traverse`, `find_similar`, `get_ontology`, `sparql_query` | Entity/edge traversal, mention-centroid vector similarity, formal OWL/SKOS T-Box inspection, and read-only SPARQL 1.1 queries. |
+| **SPARQL Ontology** | `get_ontology`, `sparql_query` | Formal OWL/SKOS T-Box inspection and read-only SPARQL 1.1 queries. |
 
-### 5.2 `/wikantik-admin-mcp` — Authoring, Verification, KG Curation & Insights Surface (29 Tools)
+### 5.2 `/wikantik-admin-mcp` — Authoring, Verification & Insights Surface (20 Tools)
 
 | Category | Tools | Primary Curator / Agent Use Case |
 | :--- | :--- | :--- |
 | **Optimistic-Locking Authoring** | `read_page`, `write_pages`, `update_page`, `rename_page`, `rename_cluster`, `delete_pages` | Concurrency-safe creation, editing (`expectedContentHash`), bulk link-updating renames, and cluster reorganization. |
 | **Verification & Web of Trust** | `verify_pages`, `mark_page_verified`, `preview_structured_data`, `ping_search_engines` | 7-dimension lint (links, metadata, SEO, retrieval), human/agent verification stamps, JSON-LD/OpenGraph preview, and IndexNow pings. |
 | **Page Graph & Revision Diagnostics** | `get_backlinks`, `get_outbound_links`, `get_broken_links`, `get_orphaned_pages`, `get_wiki_stats`, `get_page_history`, `diff_page` | Corpus-wide graph hygiene, orphan/broken-link sweeps, and version diff inspection. |
-| **Knowledge Graph Governance** | `propose_knowledge`, `list_proposals`, `inspect_proposals`, `review_proposals`, `curate_nodes`, `curate_edges`, `list_orphaned_kg_nodes`, `query_nodes`, `search_knowledge` | Proposing, reviewing, merging, and curating human-verified and AI-inferred Knowledge Graph nodes and edges. |
 | **Content Intelligence & Demand Loops** | `list_content_opportunities`, `snooze_opportunity`, `list_retrieval_queries` | Querying the ranked, traffic-gated opportunity backlog (`striking_distance`, `decay`, `agent_gap`) and recording act-time predictions. |
 
 ---

@@ -21,7 +21,7 @@ summary: A technical critique of the Wikantik MCP servers (Admin and Knowledge) 
 > - **Item 2 (resource exhaustion):** the same change hardened the frontmatter YAML loader (`FrontmatterParser`): alias fan-out capped at 50, nesting depth 50, 1 MB per frontmatter block, duplicate keys refused. No overall request-size limit on `write_pages` or `update_page` content was found in the MCP tools.
 > - **Item 3 (stale hash):** since 2026-05-03 a `hash mismatch` from `update_page` carries `currentHash`, `currentVersion` and `latestContent`, so the agent can rebase without another read.
 > - **Item 4 (broken-link suggestions):** `get_broken_links` still returns only the referenced and referencing pages, with no similarity-based fix suggestions.
-> - **Item 5 (silos):** the two endpoints remain separate. The admin server gained admin-bypass copies of `query_nodes` and `search_knowledge` for curators, but there is no merged tool. See [MCP Integration](McpIntegration) for the current surface.
+> - **Item 5 (silos):** the two endpoints remain separate. The admin server gained admin-bypass copies of `query_nodes` and `search_knowledge` for curators, but there is no merged tool. (The Knowledge Graph and its tools were removed in release 2.5.13, November 2026.) See [MCP Integration](McpIntegration) for the current surface.
 
 This report outlines an engineering and security critique of the `wikantik-admin` and `wikantik-knowledge` MCP servers, derived from a session involving large-scale refactoring and aggressive robustness testing ("face-punching").
 

@@ -224,7 +224,6 @@ hot path that caused pool exhaustion under load)
 |---|---|---|
 | API-key verify (`ApiKeyService`) | 60 s | Removed 2 DB connections per authenticated MCP/tools request; `revoke()` evicts immediately so revocation stays instant. |
 | User lookup (`JDBCUserDatabase.findByLoginName`) | 60 s | Removes the per-request basic-auth DB read; evicted on save/rename/delete. |
-| KG mention related-pages (`MentionIndex`) | 5 min | Per-search KG join; relationships change slowly. |
 
 **Diagnosing concurrency stalls.** If latency climbs while CPU stays moderate,
 threads are blocking on a shared resource, not computing. Capture worker-thread
@@ -262,7 +261,7 @@ container env var:
 
 `SystemPageRegistry` decides which page names count as system/template pages
 (menu fragments, help pages, CSS theme pages) — write-protected from the MCP
-`update_page` tool by default, and excluded from KG extraction. Two
+`update_page` tool by default. Two
 properties extend the defaults without a code change:
 
 | Property | Default | Behavior |

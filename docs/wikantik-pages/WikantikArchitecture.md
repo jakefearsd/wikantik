@@ -67,9 +67,8 @@ The guiding principle, repeated throughout the design, is **human–machine pari
         ┌──────────────────┐  ┌────────────────────┐    ┌──────────────────────┐
         │  Page corpus     │  │   PostgreSQL       │    │  Ontology (Jena TDB2) │
         │  Markdown + YAML │  │  users · policy ·  │    │  RDF/OWL T-Box +      │
-        │  (file provider, │  │  policy ·          │    │  projected page and   │
-        │   versioned)     │  │  pgvector embeds · │    │  concept graphs       │
-        │                  │  │  citations         │    │                       │
+        │  (file provider, │  │  pgvector embeds · │    │  projected page and   │
+        │   versioned)     │  │  citations         │    │  concept graphs       │
         └──────────────────┘  └────────────────────┘    └──────────────────────┘
 ```
 
@@ -124,8 +123,8 @@ Modules are layered: `wikantik-api` defines the contracts (ports); everything el
 | `wikantik-jdbc` | core | **The one way to touch the database:** `com.wikantik.jdbc.Jdbc` (`query`, `update`, `batch`, `inTransaction`, …). Depends on JDBC + `log4j-api` only; `JdbcAccessArchTest` forbids raw JDBC outside it (ADR-0010). Its test-jar ships `PostgresTestDb`, `@RequiresPostgres` and `FaultInjectingDataSource`. |
 | `wikantik-cache` / `-cache-memcached` | core | EhCache render/object caches (render caches: 1-hour TTL, 10K entries); an opt-in Memcached adapter for distributed deploys, not wired into the WAR. |
 | `wikantik-http` | edge | Servlet filters: CSRF, CSP, cross-origin and other security headers, session-cookie policy, cache headers, plus the `SlidingWindowRateLimiter` primitive. |
-| `wikantik-rest` | edge | REST `/api/*` (36 servlets, incl. `POST /api/ingest`, `GET /api/bundle`, `GET /api/briefing`, Obsidian import/export) and admin `/admin/*` (29 servlets: audit, drift, ontology, derived, kg-policy, connectors, insights, cluster rename). Public RDF servlets, `SpaRoutingFilter`, and the `/wiki/{slug}?format=md\|json` content filter. |
-| `wikantik-mcp-core` | agent | Shared MCP substrate — `McpTool`, endpoint bootstrap, access filter, and the two tools both MCP servers register. Extracted to break the `wikantik-knowledge` → `wikantik-admin-mcp` module cycle. |
+| `wikantik-rest` | edge | REST `/api/*` (36 servlets, incl. `POST /api/ingest`, `GET /api/bundle`, `GET /api/briefing`, Obsidian import/export) and admin `/admin/*` (29 servlets: audit, drift, ontology, derived, connectors, insights, cluster rename). Public RDF servlets, `SpaRoutingFilter`, and the `/wiki/{slug}?format=md\|json` content filter. |
+| `wikantik-mcp-core` | agent | Shared MCP substrate — `McpTool`, endpoint bootstrap, access filter, and the shared tools both MCP servers register. Extracted to break the `wikantik-knowledge` → `wikantik-admin-mcp` module cycle. |
 | `wikantik-admin-mcp` | agent | MCP server at `/wikantik-admin-mcp` — 20 write/analytics tools (the Knowledge Graph curation tools were removed with the Knowledge Graph in November 2026). |
 | `wikantik-knowledge` | agent + brain | MCP server at `/knowledge-mcp` (16 read-only tools when fully wired) **and** the retrieval services: embeddings, hybrid retriever, the context-bundle assembler. (The KG service — co-mention graph, entity tools — was retired in November 2026.) |
 | `wikantik-tools` | agent | OpenAPI 3.1 tool server `/tools/*` (2 tools) for non-MCP clients. |
@@ -162,8 +161,8 @@ A few dependency rules are enforced by the build rather than by convention:
 
 A recurring source of confusion — deliberately disambiguated in the codebase — is that Wikantik maintains distinct edge types. Conflating them is treated as a code smell.
 
-- **Page Graph** — edges are real page-to-page wikilinks parsed from page bodies. Co-resident companions: `canonical_id` (rename-stable identity in frontmatter) and `cluster:` (hub membership). Surfaces: `/page-graph`, `/admin/page-graph/*`.
-- **Knowledge Graph (retired November 2026)** — nodes were LLM-extracted entities (9 canonical classes: person/organization/place/event/product/technology/concept/project/version); edges were co-mention or typed-relation predicates (21 of them). Storage: `kg_*` tables. Its admin UI (`/admin/knowledge-graph/*`) and MCP tools were removed in 2.5.12 and afterwards.
+- **Page Graph** — edges are real page-to-page wikilinks parsed from page bodies. Co-resident companions: `canonical_id` (rename-stable identity in frontmatter) and `cluster:` (hub membership). Surfaces: `/page-graph`, `/admin/page-graph/*`. This is now the graph.
+- **Knowledge Graph (retired November 2026)** — nodes were LLM-extracted entities (9 canonical classes); edges were co-mention or typed-relation predicates (21 of them). Storage was the `kg_*` tables. Its admin UI (`/admin/knowledge-graph/*`) and MCP tools were removed in 2.5.12 and afterwards. See [PageGraphVsKnowledgeGraph](PageGraphVsKnowledgeGraph).
 - **Citation edges** — a derived, self-healing edge type: a source page's claim grounded in a target page's *section*, written inline as `cite://` markup, parsed at save into the `citations` table, version-pinned and span-hashed so staleness can be detected and surfaced (`/admin/drift/citations`, `list_stale_citations`).
 
 The bare word "graph" is avoided in identifiers; code always says Page Graph or `pagegraph`.
@@ -248,8 +247,8 @@ MCP API keys carry a scope: `mcp_read` (read-only, confined to `/knowledge-mcp`)
 Wikantik deliberately splits its state across three stores so each does what it is good at:
 
 1. **Page corpus** — CommonMark Markdown with mandatory YAML frontmatter, behind a `PageProvider` (file-system + versioning provider; `wikantik.pageProvider` defaults to `VersioningFileProvider`). This is the source of truth for *content* and gives free version history. Production keeps its corpus independent of deploys (content edits go through MCP/REST, not a redeploy).
-2. **PostgreSQL** — the structured backbone: users, database-backed policy grants and groups, pgvector embeddings, the `citations` table, connector configs, the audit log and the Content Intelligence fact store. All access goes through the `wikantik-jdbc` primitive, and the schema exists only as numbered idempotent migrations in `bin/db/migrations/` (currently V001–V061; there is no other schema definition, not even in tests).
-3. **Jena TDB2** — the materialized RDF A-Box for the ontology endpoints, rebuilt incrementally from Postgres.
+2. **PostgreSQL** — the structured backbone: users, database-backed policy grants and groups, pgvector embeddings, the `citations` table, connector configs, the audit log and the Content Intelligence fact store. All access goes through the `wikantik-jdbc` primitive, and the schema exists only as numbered idempotent migrations in `bin/db/migrations/` (there is no other schema definition, not even in tests).
+3. **Jena TDB2** — the materialized RDF A-Box (pages and concepts) for the ontology endpoints, rebuilt incrementally from Postgres.
 
 The frontmatter is the contract that ties these together: a server-authoritative `FrontmatterSchema` validates every save (malformed YAML 422s; field-value issues are advisory warnings so the existing corpus still saves), and those same fields drive retrieval embeddings, JSON-LD, feeds, and the News Sitemap.
 

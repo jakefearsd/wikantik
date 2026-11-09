@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.12] - 2026-11-08
+
 ### Changed
 - **The Knowledge Graph is retired (step 1: switched off, code kept).** `wikantik.knowledge.enabled` now defaults to
   **false**. With it off, nothing reads the KG tables (`kg_nodes`, `kg_edges`, `kg_proposals`, entity mentions, the

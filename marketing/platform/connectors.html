@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-adsense-account" content="ca-pub-5083997587716933">
   <title>Connectors — sync Confluence, Drive, GitHub &amp; more into your wiki | Wikantik</title>
-  <meta name="description" content="Seven connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
+  <meta name="description" content="Seven connector types continuously sync external content into provenance-marked wiki pages that flow into hybrid search, RAG bundles, and the Page Graph.">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://www.wikantik.com/platform/connectors.html">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -14,13 +14,13 @@
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://www.wikantik.com/platform/connectors.html">
   <meta property="og:title" content="Connectors — sync Confluence, Drive, GitHub &amp; more into your wiki | Wikantik">
-  <meta property="og:description" content="Seven connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
+  <meta property="og:description" content="Seven connector types continuously sync external content into provenance-marked wiki pages that flow into hybrid search, RAG bundles, and the Page Graph.">
   <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Connectors — sync Confluence, Drive, GitHub &amp; more into your wiki | Wikantik">
-  <meta name="twitter:description" content="Seven connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.">
+  <meta name="twitter:description" content="Seven connector types continuously sync external content into provenance-marked wiki pages that flow into hybrid search, RAG bundles, and the Page Graph.">
   <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <link rel="stylesheet" href="/styles.css">
@@ -43,7 +43,7 @@
   <script type="application/ld+json">
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Connectors: sync external content into your wiki, with provenance",
-    "description": "Seven connector types continuously sync external content into provenance-marked wiki pages that flow into search, RAG bundles, and the knowledge graph.",
+    "description": "Seven connector types continuously sync external content into provenance-marked wiki pages that flow into hybrid search, RAG bundles, and the Page Graph.",
     "datePublished": "2026-07-17", "dateModified": "2026-10-24",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
@@ -66,8 +66,8 @@
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every synced page carries a provenance banner naming the source and connector, plus a small badge in search results and the sidebar. Nothing is silently absorbed into the wiki as if a human wrote it." } },
       { "@type": "Question", "name": "Are connector credentials stored securely?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. GitHub tokens, Confluence API tokens, and Google Drive OAuth secrets are encrypted at rest (AES-256-GCM) in a dedicated credential store. The admin UI only ever shows whether a secret is set, never its value, and a dry-run connection test can use a credential without persisting or logging it." } },
-      { "@type": "Question", "name": "Does synced content get indexed for search and the knowledge graph?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes. A derived page is a normal wiki page — it is indexed for hybrid search, eligible for context bundles, and, if its cluster is included under the knowledge graph's inclusion policy, extracted into the knowledge graph like any other page. There is no separate second-class content tier." } }
+      { "@type": "Question", "name": "Does synced content get indexed for search and retrieval?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. A derived page is a normal wiki page — it is indexed for hybrid search, eligible for context bundles, and part of the Page Graph and the ontology like any other page. There is no separate second-class content tier." } }
     ] }
   </script>
 </head>
@@ -101,7 +101,7 @@
         <header class="doc-head">
           <p class="eyebrow">Platform</p>
           <h1>Connectors: sync external content into your wiki, with provenance</h1>
-          <p class="doc-lede">Most of what a team "knows" doesn't live in the wiki — it's scattered across Confluence spaces, GitHub repos, Google Drive folders, RSS feeds, and internal sites nobody remembers to copy over. Wikantik connectors close that gap: seven source types sync continuously into ordinary wiki pages, clearly marked with where they came from, so that content is searchable, citable, and part of the knowledge graph — without turning the wiki into an opaque mirror of somewhere else.</p>
+          <p class="doc-lede">Most of what a team "knows" doesn't live in the wiki — it's scattered across Confluence spaces, GitHub repos, Google Drive folders, RSS feeds, and internal sites nobody remembers to copy over. Wikantik connectors close that gap: seven source types sync continuously into ordinary wiki pages, clearly marked with where they came from, so that content is searchable, citable, and part of the Page Graph — without turning the wiki into an opaque mirror of somewhere else.</p>
         </header>
         <div class="doc-body">
 
@@ -125,8 +125,8 @@
             <p><strong>The body is machine-owned, the metadata is yours.</strong> A derived page's body is regenerated on every sync — editing it by hand will be overwritten on the next run, and the editor says so. Curation you add in frontmatter (cluster, tags, summary, related pages) survives reflow; only the machine-managed body gets replaced.</p>
           </div>
 
-          <h2>Synced content is first-class in retrieval and the knowledge graph</h2>
-          <p>A derived page is indexed exactly like any other page: it participates in <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a>, is eligible to appear in a <a href="/platform/rag-context-bundles.html">context bundle</a> with the same version-pinned citations as hand-written content, and — if its assigned cluster is included under the <a href="/platform/knowledge-graph.html">knowledge graph's</a> inclusion policy — gets entities and relationships extracted from it the same as any other page. Connecting an external source is a way to widen what your agents and search can actually find, not a side channel that content has to "graduate" out of.</p>
+          <h2>Synced content is first-class in retrieval and the Page Graph</h2>
+          <p>A derived page is indexed exactly like any other page: it participates in <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a>, is eligible to appear in a <a href="/platform/rag-context-bundles.html">context bundle</a> with the same version-pinned citations as hand-written content, and takes part in the <a href="/platform/page-graph.html">Page Graph</a> and the <a href="/platform/ontology.html">ontology</a> the same as any other page. Connecting an external source is a way to widen what your agents and search can actually find, not a side channel that content has to "graduate" out of.</p>
 
           <h2>A guided admin experience</h2>
           <p>Setting up a connector is a stepped wizard in the admin panel, not a properties file and a restart: pick a source type — six of the seven are configurable this way, with the filesystem connector set up via properties file given the server-path access it requires — fill in its settings with inline guidance (down to the exact GitHub token scopes or the Confluence API-token walkthrough), authorize where needed (Google Drive is a real OAuth consent redirect), and run a <strong>dry-run connection test</strong> before saving anything. The test reuses the connector's own fetch path — so "success" means the real sync will work too — and reports what it found in plain language, not a raw API response.</p>
@@ -153,8 +153,8 @@
               <p>Yes. GitHub tokens, Confluence API tokens, and Google Drive OAuth secrets are encrypted at rest (AES-256-GCM) in a dedicated credential store. The admin UI only ever shows whether a secret is set, never its value, and a dry-run connection test can use a credential without persisting or logging it.</p>
             </details>
             <details>
-              <summary>Does synced content get indexed for search and the knowledge graph?</summary>
-              <p>Yes. A derived page is a normal wiki page — it is indexed for hybrid search, eligible for context bundles, and, if its cluster is included under the knowledge graph's inclusion policy, extracted into the knowledge graph like any other page. There is no separate second-class content tier.</p>
+              <summary>Does synced content get indexed for search and retrieval?</summary>
+              <p>Yes. A derived page is a normal wiki page — it is indexed for hybrid search, eligible for context bundles, and part of the Page Graph and the ontology like any other page. There is no separate second-class content tier.</p>
             </details>
           </section>
         </div>
@@ -169,10 +169,6 @@
             <a class="related-card" href="/platform/rag-context-bundles.html">
               <strong>RAG context bundles</strong>
               <span>Synced content shows up in cited context bundles with the same version pinning.</span>
-            </a>
-            <a class="related-card" href="/platform/knowledge-graph.html">
-              <strong>Knowledge graph</strong>
-              <span>Entities and relationships extract from included derived pages the same as authored ones.</span>
             </a>
           </div>
         </aside>
@@ -200,7 +196,6 @@
           <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
           <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
           <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
-          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
           <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>

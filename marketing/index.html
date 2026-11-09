@@ -14,7 +14,7 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.wikantik.com/">
   <meta property="og:title" content="Wikantik — the knowledge base for the AI era">
-  <meta property="og:description" content="A markdown wiki humans love and AI agents can actually use. Native MCP, hybrid search, knowledge graph.">
+  <meta property="og:description" content="A markdown wiki humans love and AI agents can actually use. Native MCP, hybrid search, cited context bundles.">
   <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <!-- Twitter -->
@@ -94,7 +94,7 @@
         <article class="pillar" id="agents">
           <div class="pillar-icon" aria-hidden="true">🤖</div>
           <h3>Your AI's favorite coworker</h3>
-          <p>Native MCP servers mean your agents query, retrieve, and cite your wiki directly. The knowledge graph hands them entities and relationships, not a wall of HTML.</p>
+          <p>Native MCP servers mean your agents query, retrieve, and cite your wiki directly. Page Graph navigation and token-budgeted page projections hand them structure, not a wall of HTML.</p>
         </article>
         <article class="pillar">
           <div class="pillar-icon" aria-hidden="true">👥</div>
@@ -108,13 +108,12 @@
     <div class="container">
       <p class="eyebrow center">Platform</p>
       <h2 class="section-title center">An engine your AI agents can actually use</h2>
-      <p class="hosting-sub center">Native MCP servers, hybrid retrieval, and a knowledge graph of your own content — the machinery that makes Wikantik answer-engine ready.</p>
+      <p class="hosting-sub center">Native MCP servers, hybrid retrieval, and version-pinned citations over your own content — the machinery that makes Wikantik answer-engine ready.</p>
       <div class="hub-grid">
         <a class="hub-card" href="/platform/mcp-for-ai-agents.html"><div class="hub-icon" aria-hidden="true">🔌</div><h3>MCP for AI agents</h3><p>Your agents query, retrieve, and cite your wiki over the Model Context Protocol.</p></a>
         <a class="hub-card" href="/platform/hybrid-retrieval.html"><div class="hub-icon" aria-hidden="true">🎯</div><h3>Hybrid retrieval</h3><p>BM25 + dense embeddings, RRF-fused, fail-closed to BM25. Ask in plain language.</p></a>
         <a class="hub-card" href="/platform/rag-context-bundles.html"><div class="hub-icon" aria-hidden="true">📦</div><h3>RAG context bundles</h3><p>Ranked, de-duplicated, cited context and agent briefings — assembled for you, never synthesized.</p></a>
-        <a class="hub-card" href="/platform/knowledge-graph.html"><div class="hub-icon" aria-hidden="true">🕸️</div><h3>Knowledge graph</h3><p>Entities and relationships extracted from your pages, not a wall of HTML.</p></a>
-        <a class="hub-card" href="/platform/ontology.html"><div class="hub-icon" aria-hidden="true">🌐</div><h3>Ontology &amp; SPARQL</h3><p>Your whole wiki as queryable linked data — SPARQL, dereferenceable IRIs, a SHACL-governed model.</p></a>
+        <a class="hub-card" href="/platform/ontology.html"><div class="hub-icon" aria-hidden="true">🌐</div><h3>Ontology &amp; SPARQL</h3><p>Your whole wiki as queryable linked data — SPARQL, dereferenceable IRIs, a formal ontology of your pages.</p></a>
       </div>
       <div class="center" style="margin-top: 22px;"><a class="btn btn-ghost" href="/platform/">Explore the platform →</a></div>
     </div>
@@ -143,7 +142,7 @@
         <div class="t-line t-ok">✓ Found runbook: <span class="t-u">Rollback Procedure</span> (verified 3d ago)</div>
         <div class="t-line t-body">&nbsp;&nbsp;1. bin/remote.sh rollback — re-promotes the :rollback image</div>
         <div class="t-line t-body">&nbsp;&nbsp;2. DB + pages persist across the swap …</div>
-        <div class="t-line t-meta">cited 2 pages · 1 knowledge-graph entity</div>
+        <div class="t-line t-meta">cited 2 pages · 3 sections</div>
       </div>
     </div>
   </section>
@@ -167,7 +166,7 @@
             <tr><th scope="row">Hybrid AI search built in</th><td class="col-us"><span role="img" aria-label="Yes">✅</span></td><td><span role="img" aria-label="Partial">⚠️</span></td><td><span role="img" aria-label="No">❌</span></td></tr>
             <tr><th scope="row">Agents read it natively (MCP)</th><td class="col-us"><span role="img" aria-label="Yes">✅</span></td><td><span role="img" aria-label="No">❌</span></td><td><span role="img" aria-label="No">❌</span></td></tr>
             <tr><th scope="row">Cited context bundles for agents</th><td class="col-us"><span role="img" aria-label="Yes">✅</span></td><td><span role="img" aria-label="No">❌</span></td><td><span role="img" aria-label="No">❌</span></td></tr>
-            <tr><th scope="row">Knowledge graph of your content</th><td class="col-us"><span role="img" aria-label="Yes">✅</span></td><td><span role="img" aria-label="No">❌</span></td><td><span role="img" aria-label="No">❌</span></td></tr>
+            <tr><th scope="row">Version-pinned citations with staleness detection</th><td class="col-us"><span role="img" aria-label="Yes">✅</span></td><td><span role="img" aria-label="No">❌</span></td><td><span role="img" aria-label="No">❌</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -253,7 +252,6 @@
           <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
           <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
           <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
-          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
           <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>

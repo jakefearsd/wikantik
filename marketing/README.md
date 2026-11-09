@@ -7,7 +7,7 @@ and upload the bundle to the static host serving the `www` domain.
 - `index.html` — landing page (the centerpiece; hero, pillars, platform/enterprise
   teasers, compare table, hosting, lead form + inline JS).
 - `platform/` — hub + deep-dives on the AI engine (MCP, hybrid retrieval, RAG context
-  bundles, knowledge graph, ontology/SPARQL, page graph, agent-grade content,
+  bundles, ontology/SPARQL, page graph, agent-grade content,
   structural spine).
 - `enterprise/` — hub + deep-dives on security/identity/ops (SSO, SCIM, audit log,
   RBAC, security hardening, self-hosting & backup).

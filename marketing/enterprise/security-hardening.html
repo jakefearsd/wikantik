@@ -152,7 +152,7 @@
           <p>Authentication is JAAS-based. Pluggable login modules support local database, SSO (pac4j), and container-managed authentication. All modules coexist and can be active simultaneously.</p>
 
           <h2>Access control enforced on the read path — including the agent surface</h2>
-          <p>View ACLs are not just a UI concern. Wikantik enforces page view permissions on every read surface: the REST read endpoints (page fetch, diff, history, backlinks, recent-changes, search, and the agent projection) and — critically — the machine surfaces an AI agent uses. The <code>/knowledge-mcp</code> retrieval and Knowledge Graph tools and the <code>/api/bundle</code> context bundle all run candidate results through the same session view gate.</p>
+          <p>View ACLs are not just a UI concern. Wikantik enforces page view permissions on every read surface: the REST read endpoints (page fetch, diff, history, backlinks, recent-changes, search, and the agent projection) and — critically — the machine surfaces an AI agent uses. The <code>/knowledge-mcp</code> retrieval and navigation tools and the <code>/api/bundle</code> context bundle all run candidate results through the same session view gate.</p>
           <p>The practical guarantee: a page a caller is not permitted to see never appears in their search results, their retrieval, or an agent's assembled context bundle — restricted content cannot leak into a RAG pipeline through a side door. Restricted hub descriptors are likewise redacted from cluster listings.</p>
 
           <h2>Recent hardening (2.4.12–2.4.18)</h2>
@@ -235,7 +235,6 @@
           <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
           <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
           <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
-          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
           <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>

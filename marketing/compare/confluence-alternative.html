@@ -117,10 +117,10 @@
           <p>Wikantik's search combines Lucene BM25 keyword matching with dense embedding similarity via weighted Reciprocal Rank Fusion. The result is search that handles natural-language questions, not just keyword matches. If the vector store is unavailable for any reason, the system fails closed to BM25 — you always get results. Learn more on the <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a> page.</p>
 
           <h3>Native MCP for AI agents</h3>
-          <p>Wikantik ships two Model Context Protocol servers: <code>/knowledge-mcp</code> with up to 22 read-only retrieval and knowledge-graph tools, and <code>/wikantik-admin-mcp</code> with 29 write and analytics tools. Your AI agents — whether Claude, a custom LLM assistant, or any MCP-compatible client — can query your wiki directly, retrieve pages, and cite sources, without a bespoke integration layer. Confluence does not ship a native MCP server. See the full <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a> overview.</p>
+          <p>Wikantik ships two Model Context Protocol servers: <code>/knowledge-mcp</code> with 16 read-only retrieval and navigation tools, and <code>/wikantik-admin-mcp</code> with 20 write and analytics tools. Your AI agents — whether Claude, a custom LLM assistant, or any MCP-compatible client — can query your wiki directly, retrieve pages, and cite sources, without a bespoke integration layer. Confluence does not ship a native MCP server. See the full <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a> overview.</p>
 
-          <h3>A knowledge graph of your content</h3>
-          <p>Wikantik extracts a knowledge graph from your pages — LLM-derived entities with co-mention and typed-relation edges, stored in a pgvector-backed graph. This is separate from the plain wikilink graph; it captures semantic relationships agents can reason over. Neither Confluence nor its ecosystem ships this natively. Read more about the <a href="/platform/knowledge-graph.html">knowledge graph</a>.</p>
+          <h3>Version-pinned citations and a Page Graph</h3>
+          <p>Wikantik keeps a Page Graph of the real wikilinks between your pages, with rename-stable canonical IDs, and lets pages cite specific sections of other pages with version-pinned citations that are flagged when the cited text changes. Neither Confluence nor its ecosystem ships this natively. Read more about the <a href="/platform/page-graph.html">Page Graph</a>.</p>
 
           <h3>Self-hosting without the Data Center price tag</h3>
           <p>Wikantik runs on Docker and PostgreSQL — either Docker Compose on any Linux host, or a one-command Terraform reference deployment to your own AWS or GCP account. The self-managed option is free software — you pay for your own infrastructure. For enterprise features (SSO, SCIM, audit log, RBAC), see the <a href="/enterprise/">enterprise</a> overview. There is no per-seat charge either way.</p>
@@ -208,7 +208,6 @@
           <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
           <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
           <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
-          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
           <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>

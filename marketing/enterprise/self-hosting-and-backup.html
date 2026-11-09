@@ -67,7 +67,7 @@
       { "@type": "Question", "name": "Can I deploy Wikantik to AWS or GCP without hand-configuring servers?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. Wikantik ships single-VM Terraform reference deployments for AWS and GCP: one terraform apply stands up a VM, a persistent data volume with daily snapshots, a static IP, and secrets storage in your own account, and pulls the application as a prebuilt image from GitHub Container Registry. It is still self-hosting — the infrastructure runs in your cloud account under your control, not as a service Wikantik operates for you." } },
       { "@type": "Question", "name": "Can I control how much I spend on AI/LLM inference?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes. A single wikantik.genai.mode property acts as a spending ceiling with three tiers: none runs BM25 search only with zero inference infrastructure, embeddings-only adds dense embeddings via a CPU-only sidecar with no chat inference, and full enables the entity-extraction pipeline. The public /api/capabilities endpoint reports exactly which features are active so you can verify the ceiling is enforced." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. A single wikantik.genai.mode property acts as a spending ceiling with three tiers: none runs BM25 search only with zero inference infrastructure, embeddings-only adds dense embeddings via a CPU-only sidecar with no chat inference, and full additionally allows the optional chat-model features (LLM reranking and query decomposition for context bundles). The public /api/capabilities endpoint reports exactly which features are active so you can verify the ceiling is enforced." } },
       { "@type": "Question", "name": "Is there a per-seat pricing difference between self-hosted and fully-managed?",
         "acceptedAnswer": { "@type": "Answer", "text": "No. Wikantik is not priced per seat. Self-managed is free software — run it yourself at no licensing cost. Fully-managed is priced on compute, not headcount, so your cost scales with usage, not with how many people you onboard." } }
     ] }
@@ -109,7 +109,7 @@
 
           <h2>Own your data</h2>
           <p>The single most common regret when leaving a SaaS wiki: "I wish I'd owned the data." Export tools break, vendor formats are opaque, and the migration project that was going to be a weekend turns into months.</p>
-          <p>Wikantik stores your pages as plain Markdown files in a directory you control. Your PostgreSQL database holds structured metadata, embeddings, user accounts, and the knowledge graph — but the content itself is readable and portable without any Wikantik tooling. You can check the page directory into git, back it up with <code>rsync</code>, or export it as a tarball at any time. There is no lock-in step.</p>
+          <p>Wikantik stores your pages as plain Markdown files in a directory you control. Your PostgreSQL database holds structured metadata, embeddings, user accounts, groups, policy grants, the audit log, and citations — but the content itself is readable and portable without any Wikantik tooling. You can check the page directory into git, back it up with <code>rsync</code>, or export it as a tarball at any time. There is no lock-in step.</p>
 
           <h2>Run it on Docker and PostgreSQL</h2>
           <p>The production deployment is a Docker Compose stack: the Wikantik application container, a PostgreSQL + pgvector database, and a backup sidecar. The application is released as a Docker image to GitHub Container Registry. Deploying a new version is a pull-and-restart, and rolling back is the same operation in the other direction.</p>
@@ -123,12 +123,12 @@
           <p>Routine version upgrades use a pull-based, in-place update script (<code>wikantik-update</code>, installed on the VM by the cloud-init bootstrap) rather than re-running Terraform: it pulls the new image tag, retags the currently running image as a rollback point, brings the stack up, health-polls the result, and automatically rolls back if the health check fails. A bad update self-heals instead of leaving the wiki down.</p>
 
           <h2>Cost governance: a ceiling on LLM spend</h2>
-          <p>Self-hosting your data is only half the ownership story if an AI feature can run up an unbounded inference bill. A single property, <code>wikantik.genai.mode</code>, acts as a hard ceiling on LLM spend across three tiers: <strong>none</strong> runs BM25 keyword search only, with no embedding client and no chat inference running anywhere — zero inference infrastructure to pay for. <strong>embeddings-only</strong> adds dense-embedding hybrid search through a CPU-only embedding sidecar, still with no chat inference. <strong>full</strong> enables the complete pipeline — knowledge-graph entity extraction and proposal judging — against either a hosted API key or your own self-run model.</p>
+          <p>Self-hosting your data is only half the ownership story if an AI feature can run up an unbounded inference bill. A single property, <code>wikantik.genai.mode</code>, acts as a hard ceiling on LLM spend across three tiers: <strong>none</strong> runs BM25 keyword search only, with no embedding client and no chat inference running anywhere — zero inference infrastructure to pay for. <strong>embeddings-only</strong> adds dense-embedding hybrid search through a CPU-only embedding sidecar, still with no chat inference. <strong>full</strong> additionally allows the optional chat-model features — LLM reranking and query decomposition for context bundles, both opt-in — against either a hosted API key or your own self-run model.</p>
           <p>The mode is a ceiling, not a switch: it never turns a feature on by itself, it only caps what an already-enabled feature is allowed to do, and every gated call site logs a warning when the ceiling suppresses something that was explicitly enabled. The wiki runs fully — search included — with AI extraction off. The public <code>GET /api/capabilities</code> endpoint reports the ceiling-adjusted effective state (not just the raw configuration flags), so you can verify from the outside exactly what's active before you trust a spend estimate.</p>
 
           <h2>No lock-in: plain Markdown, exportable anytime</h2>
           <p>Your pages live in a bind-mounted directory on the host. The format is standard CommonMark Markdown with YAML frontmatter — readable in any text editor, importable into any other system that accepts Markdown. If you ever decide to move to a different wiki, your content goes with you in a format that doesn't require a decoder ring.</p>
-          <p>The database contains structured data — user accounts, groups, knowledge graph nodes, embeddings — that is Wikantik-specific. But a standard <code>pg_dump</code> produces a portable SQL file, and the restore script handles the full schema rebuild. There are no proprietary blob columns or binary-only formats.</p>
+          <p>The database contains structured data — user accounts, groups, policy grants, the audit log, citations, embeddings — that is Wikantik-specific. But a standard <code>pg_dump</code> produces a portable SQL file, and the restore script handles the full schema rebuild. There are no proprietary blob columns or binary-only formats.</p>
 
           <h2>Backup: 3-2-1 with off-site pull</h2>
           <p>The 3-2-1 backup model is a standard: three copies, two different storage types, one off-site. Wikantik implements this with a backup sidecar container that runs on a three-tier schedule:</p>
@@ -178,7 +178,7 @@
             </details>
             <details>
               <summary>Can I control how much I spend on AI/LLM inference?</summary>
-              <p>Yes. A single <code>wikantik.genai.mode</code> property acts as a spending ceiling with three tiers: <strong>none</strong> runs BM25 search only with zero inference infrastructure, <strong>embeddings-only</strong> adds dense embeddings via a CPU-only sidecar with no chat inference, and <strong>full</strong> enables the entity-extraction pipeline. The public <code>/api/capabilities</code> endpoint reports exactly which features are active so you can verify the ceiling is enforced.</p>
+              <p>Yes. A single <code>wikantik.genai.mode</code> property acts as a spending ceiling with three tiers: <strong>none</strong> runs BM25 search only with zero inference infrastructure, <strong>embeddings-only</strong> adds dense embeddings via a CPU-only sidecar with no chat inference, and <strong>full</strong> additionally allows the optional chat-model features (LLM reranking and query decomposition for context bundles). The public <code>/api/capabilities</code> endpoint reports exactly which features are active so you can verify the ceiling is enforced.</p>
             </details>
             <details>
               <summary>Is there a per-seat pricing difference between self-hosted and fully-managed?</summary>
@@ -232,7 +232,6 @@
           <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
           <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
           <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
-          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
           <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>

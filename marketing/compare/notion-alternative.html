@@ -106,7 +106,7 @@
 
           <h2>Where Notion stops for engineering teams</h2>
           <p>Notion's block model is powerful for flexible note-taking and project management, but it creates friction for teams whose primary workflow is writing technical documentation alongside code. Plain-text Markdown has a natural home in a code review, a pull request, or a git commit — Notion's internal block representation does not. And because Notion is hosted SaaS with no self-host option, your content lives on Notion's servers under Notion's terms, which is a real consideration for teams with data residency or compliance requirements.</p>
-          <p>The AI readiness gap is equally real: Notion does not ship a native Model Context Protocol server for your content, and it does not build a knowledge graph of the entities and relationships in your pages. Your LLM assistant cannot ask your Notion workspace a question and get a cited, structured answer without a custom connector that you build and maintain.</p>
+          <p>The AI readiness gap is equally real: Notion does not ship a native Model Context Protocol server for your content, and it does not give agents version-pinned citations or a rename-stable graph of your pages. Your LLM assistant cannot ask your Notion workspace a question and get a cited, structured answer without a custom connector that you build and maintain.</p>
 
           <h2>Wikantik's answer for engineering teams</h2>
 
@@ -117,10 +117,10 @@
           <p>Wikantik's search combines Lucene BM25 keyword matching with dense vector embeddings, fused via weighted Reciprocal Rank Fusion, fail-closed to BM25. Ask a question in plain English — "how does the payments service handle retries?" — and the retrieval pipeline finds the right page even if it does not contain the exact words you used. Notion's built-in search is keyword-based; semantic search over Notion content requires third-party tooling. See the <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a> page for the technical details.</p>
 
           <h3>Native MCP: your agents can read your wiki</h3>
-          <p>Wikantik ships native Model Context Protocol servers. The <code>/knowledge-mcp</code> endpoint exposes up to 22 read-only retrieval and knowledge-graph tools; the <code>/wikantik-admin-mcp</code> endpoint exposes 29 write and analytics tools. An MCP-compatible AI agent — Claude, a custom LLM assistant, any client that speaks MCP — can query your wiki directly, retrieve the relevant page, and cite it in its response. No middleware. No custom connector to maintain. Notion does not ship a native MCP server. Learn more on the <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a> page.</p>
+          <p>Wikantik ships native Model Context Protocol servers. The <code>/knowledge-mcp</code> endpoint exposes 16 read-only retrieval and navigation tools; the <code>/wikantik-admin-mcp</code> endpoint exposes 20 write and analytics tools. An MCP-compatible AI agent — Claude, a custom LLM assistant, any client that speaks MCP — can query your wiki directly, retrieve the relevant page, and cite it in its response. No middleware. No custom connector to maintain. Notion does not ship a native MCP server. Learn more on the <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a> page.</p>
 
-          <h3>A knowledge graph derived from your content</h3>
-          <p>Wikantik extracts entities and relationships from your pages using an LLM pipeline and stores them in a pgvector-backed knowledge graph. Agents querying your wiki can traverse this graph — finding related concepts, following typed relationships, and surfacing connections that a flat keyword search would miss. Notion does not build a knowledge graph of your content. More detail on the <a href="/platform/knowledge-graph.html">knowledge graph</a> page.</p>
+          <h3>A Page Graph and cited context</h3>
+          <p>Wikantik keeps a Page Graph of the real wikilinks between your pages, with rename-stable canonical IDs, backlinks and one-hop neighbors, and surfaces semantically similar pages from dense embeddings. Agents can follow those connections and get version-pinned citations back. Notion does not give agents this structure natively. More detail on the <a href="/platform/page-graph.html">Page Graph</a> page.</p>
 
           <h3>Sync in the content you already have elsewhere</h3>
           <p>Teams migrating off Notion rarely have <em>all</em> their documentation in Notion — Google Drive folders and GitHub repos usually hold a chunk of it too. Wikantik ships native <a href="/platform/connectors.html">connectors</a> for both: point one at a Drive folder or a GitHub repo and it syncs continuously, landing provenance-marked pages that are searchable and citable alongside everything else. There is no direct Notion connector today, so Notion content itself still needs an export-and-convert pass, but it does not have to be a single all-or-nothing migration — Drive and GitHub sources can start flowing in immediately while you work through the Notion export separately.</p>
@@ -162,7 +162,7 @@
             </a>
             <a class="related-card" href="/platform/">
               <strong>Platform overview</strong>
-              <span>MCP, hybrid retrieval, knowledge graph, and the rest of what makes Wikantik different.</span>
+              <span>MCP, hybrid retrieval, Page Graph, and the rest of what makes Wikantik different.</span>
             </a>
             <a class="related-card" href="/enterprise/">
               <strong>Enterprise features</strong>
@@ -194,7 +194,6 @@
           <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
           <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
           <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
-          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
           <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
           <a href="/platform/page-graph.html">Page graph</a>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>

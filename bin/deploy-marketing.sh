@@ -85,6 +85,13 @@ WEB_FILES=(
     compare
 )
 
+# Pages that used to be published and have since been deleted from marketing/.
+# The docroot copy is `cp -r` (never --delete, see below), so a deleted page would
+# otherwise stay live forever; each path here is removed from the docroot on publish.
+RETIRED_PATHS=(
+    platform/knowledge-graph.html
+)
+
 print_help() {
     awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
 }
@@ -210,10 +217,16 @@ fi
 #        without excluding /site.
 #      - the code-health half uses `rsync --delete` scoped to /site/, which is
 #        safe precisely because it is confined to that subdir.
+RETIRED_RM=""
+for f in "${RETIRED_PATHS[@]}"; do
+    RETIRED_RM="${RETIRED_RM}sudo rm -f '${MKT_DOCROOT}/${f}'
+"
+done
 REMOTE_PUBLISH="set -e"
 if [[ "${DO_MARKETING}" -eq 1 ]]; then
     REMOTE_PUBLISH="${REMOTE_PUBLISH}
 sudo cp -r ${MKT_STAGING}/* '${MKT_DOCROOT}/'
+${RETIRED_RM}
 sudo chown -R ${MKT_OWNER} '${MKT_DOCROOT}'"
 fi
 if [[ "${DO_SITE}" -eq 1 ]]; then

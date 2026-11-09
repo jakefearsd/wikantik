@@ -68,8 +68,8 @@ public final class McpToolHintsResolver {
         final List< McpToolHint > out = new ArrayList<>();
         if ( tags != null && !tags.isEmpty() ) {
             out.add( new McpToolHint(
-                    "/knowledge-mcp/search_knowledge",
-                    "Search across this page's topic — tags: " + String.join( ", ", tags ) ) );
+                    "/knowledge-mcp/retrieve_context",
+                    "Find pages and sections on this page's topic — tags: " + String.join( ", ", tags ) ) );
         }
         if ( cluster != null && !cluster.isBlank() ) {
             out.add( new McpToolHint(

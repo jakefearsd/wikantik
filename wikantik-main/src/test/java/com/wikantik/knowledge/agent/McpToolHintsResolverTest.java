@@ -55,6 +55,25 @@ class McpToolHintsResolverTest {
                 "synthesised hints should point at /knowledge-mcp/* tools" );
     }
 
+    /** The tools /knowledge-mcp registers today (docs/admin/McpAgents.md); synthesised hints may name only these. */
+    private static final java.util.Set< String > KNOWLEDGE_MCP_TOOLS = java.util.Set.of(
+            "assemble_bundle", "get_briefing", "retrieve_context", "get_page", "read_pages",
+            "get_page_for_agent", "get_page_by_id", "get_page_neighbors", "list_pages",
+            "list_pages_by_filter", "list_clusters", "list_tags", "list_metadata_values",
+            "get_ontology", "sparql_query", "list_stale_citations" );
+
+    @Test
+    void synthesised_hints_name_only_tools_the_knowledge_mcp_still_registers() {
+        final List< McpToolHint > out = resolver.resolve(
+                Map.of(), List.of( "retrieval" ), "wikantik-development" );
+        assertFalse( out.isEmpty() );
+        for ( final McpToolHint h : out ) {
+            final String name = h.tool().substring( h.tool().lastIndexOf( '/' ) + 1 );
+            assertTrue( KNOWLEDGE_MCP_TOOLS.contains( name ),
+                    "synthesised hint names a tool /knowledge-mcp does not register: " + h.tool() );
+        }
+    }
+
     @Test
     void no_tags_no_cluster_no_frontmatter_yields_empty_list() {
         assertTrue( resolver.resolve( Map.of(), List.of(), null ).isEmpty() );

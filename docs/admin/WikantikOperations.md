@@ -304,9 +304,10 @@ and drives breadcrumbs, JSON-LD placement, and sidebar location.
 `docs/wikantik-pages/` in the repository and the production page store are different
 corpora, not two copies of one. Production holds pages the repository lacks.
 `bin/remote.sh pages-push` writes the repository tree onto the remote but does not
-reconcile the two, and `pages-pull` cannot: it fails `Permission denied` on
-container-owned pages and silently returns a partial corpus, which is worse than none
-because every unread page then looks missing from production.
+reconcile the two, and `pages-pull` alone cannot: it only lists what the remote
+holds today. (Before 2026-11-09 it also failed `Permission denied` on container-owned
+pages and silently returned a partial corpus; the page-directory permissions under
+"Gotchas from the first docker1 deploy" fix that.)
 
 Production is authoritative for content; the checkout is a mirror. Derive corpus-wide
 plans from the live index (the `list_clusters` and `list_pages_by_filter` tools on
@@ -500,6 +501,22 @@ Production page content lives at `${WIKANTIK_PAGES_DIR}` on the remote as a bind
 For cloud VM targets see [CloudDeployment.md](CloudDeployment.md).
 
 **Gotchas from the first docker1 deploy:**
+
+- **Page files written by the app are `root`-owned and mode `0640`.** The container runs
+  Tomcat as root and `catalina.sh` sets `umask 0027`, so every page the wiki saves (editor,
+  MCP, renames) becomes unreadable to the deploying user, which breaks `pages-pull` and any
+  `grep` over the page store. The fix keeps the files private to that user: make the
+  directory tree group-owned by the deploying user and setgid, so new files inherit the group
+  and come out `root:<user> 0640`. Run it once per host, and again if the pages directory is
+  ever recreated:
+
+  ```bash
+  P="${WIKANTIK_PAGES_DIR}"   # e.g. /home/<user>/wikantik/pages
+  sudo chgrp -R <user> "$P" && sudo chmod -R g+rX "$P" && sudo find "$P" -type d -exec chmod g+s {} +
+  ```
+
+  Applied to docker1 on 2026-11-09. Setting `UMASK=0022` in the image would also work but
+  makes the pages readable by every account on the host.
 
 - The `db` service runs `pgvector/pgvector:pg18`. The pg18+ image stores data under a
   version-specific subdirectory and needs the volume at `/var/lib/postgresql`; mounting the

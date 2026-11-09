@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **For-agent projections no longer point agents at a removed tool.** A tagged page with no authored
+  `mcp_tool_hints` synthesised a hint to `/knowledge-mcp/search_knowledge`, which left with the Knowledge Graph in
+  2.5.12; it now points at `retrieve_context`.
+
 ## [2.5.13] - 2026-11-08
 
 ### Removed

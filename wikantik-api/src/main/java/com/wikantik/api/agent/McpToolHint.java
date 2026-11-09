@@ -21,7 +21,7 @@ package com.wikantik.api.agent;
 /**
  * A pointer at an MCP tool an agent should consider when working with this
  * page. {@code tool} is the canonical tool path
- * ({@code /knowledge-mcp/search_knowledge} or a bare tool name);
+ * ({@code /knowledge-mcp/retrieve_context} or a bare tool name);
  * {@code when} is a one-line trigger description.
  */
 public record McpToolHint( String tool, String when ) {

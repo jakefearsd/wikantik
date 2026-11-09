@@ -38,12 +38,15 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -160,6 +163,36 @@ class AdminRetrievalQualityResourceTest {
 
         resource.doPost( req, resp );
         verify( resp ).setStatus( 400 );
+    }
+
+    @Test
+    void post_run_with_retired_mode_returns_400_naming_valid_modes() throws Exception {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getPathInfo() ).thenReturn( "/run" );
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader(
+            "{\"query_set_id\":\"core-agent-queries\",\"mode\":\"hybrid_graph\"}" ) ) );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter out = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( out ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 400 );
+        verify( runner, never() ).runNow( anyString(), any() );
+        final String body = out.toString();
+        assertTrue( body.contains( "bm25" ) && body.contains( "hybrid" ), body );
+        assertFalse( body.contains( "hybrid_graph)" ), body );
+    }
+
+    @Test
+    void get_history_filter_by_retired_mode_still_works() throws Exception {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getParameter( "mode" ) ).thenReturn( "hybrid_graph" );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( req, resp );
+        verify( resp ).setStatus( 200 );
     }
 
     @Test

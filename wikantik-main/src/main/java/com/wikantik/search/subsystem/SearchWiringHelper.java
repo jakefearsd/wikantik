@@ -257,7 +257,7 @@ public final class SearchWiringHelper {
         // Register the single canonical ChunkVectorIndex instance for EVERY backend
         // (not just inmemory, as before this fix) so SearchSubsystemFactory — which
         // runs later in WikiEngine.initialize() (buildSearchSubsystem(), after
-        // wireHybridRetrieval inside initKnowledgeGraph()) — can resolve and reuse
+        // wireHybridRetrieval inside initDataSourceSubsystems()) — can resolve and reuse
         // *this* instance via engine.getChunkVectorIndex() instead of constructing
         // an orphaned second instance from the same wikantik.search.dense.backend
         // property. That second instance never received the

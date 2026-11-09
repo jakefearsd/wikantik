@@ -45,7 +45,7 @@ import java.util.Properties;
  * Wiring helper for Page Graph structural-spine services.
  *
  * <p>Phase 9 Ckpt 4c of the wikantik-main decomposition. The structural-spine
- * wiring block previously lived inline in {@code WikiEngine.initKnowledgeGraph}.
+ * wiring block previously lived inline in {@code WikiEngine.initDataSourceSubsystems}.
  * Moving it here reduces {@code WikiEngine.java} toward the &lt;1500 LOC target
  * and collocates the construction logic with the Page Graph subsystem.</p>
  *

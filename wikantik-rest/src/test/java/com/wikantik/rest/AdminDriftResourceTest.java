@@ -101,11 +101,11 @@ class AdminDriftResourceTest {
     void summaryIncludesCountsAndDeltas() throws Exception {
         when( req.getPathInfo() ).thenReturn( "/summary" );
         when( repo.latest() ).thenReturn( Optional.of( new DriftSweepRecord( 2L,
-                Instant.parse( "2026-06-09T05:00:00Z" ), 100, 1234L, "scheduled", true,
+                Instant.parse( "2026-06-09T05:00:00Z" ), 100, 1234L, "scheduled", 
                 List.of( new DriftCount( "frontmatter", "status.noncanonical", "WARNING", 5 ),
                          new DriftCount( "frontmatter", "date.format", "WARNING", 3 ) ) ) ) );
         when( repo.previousBefore( 2L ) ).thenReturn( Optional.of( new DriftSweepRecord( 1L,
-                Instant.parse( "2026-06-08T05:00:00Z" ), 99, 1000L, "scheduled", true,
+                Instant.parse( "2026-06-08T05:00:00Z" ), 99, 1000L, "scheduled", 
                 List.of( new DriftCount( "frontmatter", "status.noncanonical", "WARNING", 8 ) ) ) ) );
         servlet.doGet( req, resp );
         verify( resp ).setStatus( 200 );
@@ -138,7 +138,7 @@ class AdminDriftResourceTest {
         when( req.getPathInfo() ).thenReturn( "/trend" );
         when( req.getParameter( "days" ) ).thenReturn( "7" );
         when( repo.trend( 7 ) ).thenReturn( List.of( new DriftSweepRecord( 1L,
-                Instant.parse( "2026-06-08T05:00:00Z" ), 99, 1000L, "scheduled", true,
+                Instant.parse( "2026-06-08T05:00:00Z" ), 99, 1000L, "scheduled", 
                 List.of( new DriftCount( "frontmatter", "x", "WARNING", 8 ) ) ) ) );
         servlet.doGet( req, resp );
         verify( resp ).setStatus( 200 );

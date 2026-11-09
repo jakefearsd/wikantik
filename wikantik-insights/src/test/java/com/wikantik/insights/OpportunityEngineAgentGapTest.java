@@ -157,7 +157,7 @@ class OpportunityEngineAgentGapTest {
         assertEquals( 8.0, result.priority(), 0.0001 );
         assertEquals( TODAY, result.firstSeen() );
         assertTrue( !result.calibrated(), "no calibration mechanism exists yet -- must default to uncalibrated" );
-        assertEquals( "Curate the Knowledge Graph relations, or write the missing section.",
+        assertEquals( "Write or extend the section that answers this query, or sharpen the summary and headings of the page that should.",
                 result.suggestedAction() );
 
         final Map<String, Object> evidence = result.evidence();

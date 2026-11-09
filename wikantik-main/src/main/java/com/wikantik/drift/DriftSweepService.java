@@ -45,8 +45,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>Family {@code frontmatter} uses the validator's violation codes plus {@code yaml.parse}
  * for whole-block parse failures (same code the save path emits). The former {@code shacl} family
- * (conformance of the retired Knowledge Graph's edge shapes) is gone. The {@code drift_sweeps.shacl_checked}
- * column is kept (no migration) and written as {@code false}, but is no longer surfaced.</p>
+ * (conformance of the retired Knowledge Graph's edge shapes) is gone.</p>
  */
 public final class DriftSweepService {
 
@@ -133,7 +132,7 @@ public final class DriftSweepService {
                             e.getKey().severity(), e.getValue() ) )
                     .toList();
             final long sweepId = repository.insertSweep(
-                    sweepStart, pagesScanned, durationMs, triggeredBy, false, rows );
+                    sweepStart, pagesScanned, durationMs, triggeredBy, rows );
             LOG.info( "drift sweep complete (id={}, trigger={}, pages={}, codes={})",
                     sweepId, triggeredBy, pagesScanned, rows.size() );
             this.lastError = null;

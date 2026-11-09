@@ -22,7 +22,7 @@ package com.wikantik.api.eval;
 public enum BundleCategory {
     /** Plain semantic-similarity question — dense retrieval's home turf. */
     SIMILARITY,
-    /** Relational / multi-hop — the fair trial the Knowledge Graph is owed (ADR-0002). */
+    /** Relational / multi-hop — the answer depends on how several pages or facts relate (ADR-0002). */
     RELATIONAL,
     /** Answer straddles a chunk/section boundary — the parent-child trigger evidence. */
     BOUNDARY

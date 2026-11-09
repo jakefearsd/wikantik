@@ -96,7 +96,7 @@ public class ListContentOpportunitiesTool extends AbstractMcpTool {
                 "opportunities", List.of( Map.of(
                         "type", "agent_gap", "target", "how do I deploy locally",
                         "priority", 6.0, "calibrated", false,
-                        "suggestedAction", "Curate the Knowledge Graph relations, or write the missing section.",
+                        "suggestedAction", "Write or extend the section that answers this query, or sharpen the summary and headings of the page that should.",
                         "firstSeen", "2026-08-02",
                         "evidence", Map.of( "occurrences", 3, "distinctSessions", 2 ) ) ),
                 "count", 1,

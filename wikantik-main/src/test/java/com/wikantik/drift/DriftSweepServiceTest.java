@@ -73,7 +73,7 @@ class DriftSweepServiceTest {
                 "Clean",   "---\ntype: article\nstatus: active\n---\n\nbody",
                 "NoFm",    "Just a body, no frontmatter." );
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() ) )
                 .thenReturn( 1L );
 
         final DriftSweepService svc = service( pm, repo );
@@ -83,7 +83,7 @@ class DriftSweepServiceTest {
 
         @SuppressWarnings( "unchecked" )
         final ArgumentCaptor< List< DriftCount > > counts = ArgumentCaptor.forClass( List.class );
-        verify( repo ).insertSweep( any(), eq( 4 ), anyLong(), eq( "manual" ), eq( false ),
+        verify( repo ).insertSweep( any(), eq( 4 ), anyLong(), eq( "manual" ),
                 counts.capture() );
         final DriftCount statusDrift = counts.getValue().stream()
                 .filter( c -> "status.noncanonical".equals( c.code() ) )
@@ -99,7 +99,7 @@ class DriftSweepServiceTest {
                 "Broken", "---\ntitle: foo: bar: baz\n  bad indent\n---\n\nbody",
                 "Clean",  "---\ntype: article\nstatus: active\n---\n\nbody" );
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() ) )
                 .thenReturn( 1L );
 
         final DriftSweepService.SweepOutcome outcome = service( pm, repo ).runSweep( "manual" );
@@ -120,7 +120,7 @@ class DriftSweepServiceTest {
         when( pm.getPureText( bad ) ).thenThrow( new RuntimeException( "provider exploded" ) );
         Mockito.doReturn( List.of( good, bad ) ).when( pm ).getAllPages();
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() ) )
                 .thenReturn( 1L );
 
         final DriftSweepService.SweepOutcome outcome = service( pm, repo ).runSweep( "manual" );
@@ -131,19 +131,19 @@ class DriftSweepServiceTest {
     void sweepNeverChecksShaclAnymore() throws Exception {
         final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() ) )
                 .thenReturn( 1L );
 
         service( pm, repo ).runSweep( "scheduled" );
 
-        verify( repo ).insertSweep( any(), anyInt(), anyLong(), anyString(), eq( false ), anyList() );
+        verify( repo ).insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() );
     }
 
     @Test
     void repositoryFailureReleasesTheRunningFlag() throws Exception {
         final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() ) )
                 .thenThrow( new IllegalStateException( "db gone" ) );
 
         final DriftSweepService svc = service( pm, repo );
@@ -165,7 +165,7 @@ class DriftSweepServiceTest {
         } );
         Mockito.doReturn( List.of( slow ) ).when( pm ).getAllPages();
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() ) )
                 .thenReturn( 1L );
 
         final DriftSweepService svc = service( pm, repo );
@@ -225,7 +225,7 @@ class DriftSweepServiceTest {
         when( pm.getPureText( p2 ) ).thenReturn( "---\ntype: article\nstatus: active\n---\n\nbody" );
         Mockito.doReturn( List.of( p1, p2 ) ).when( pm ).getAllPages();
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() ) )
                 .thenReturn( 1L );
 
         final DriftSweepService svc = service( pm, repo );
@@ -252,7 +252,7 @@ class DriftSweepServiceTest {
     void progressResetsAfterRepositoryFailure() throws Exception {
         final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() ) )
                 .thenThrow( new IllegalStateException( "db gone" ) );
 
         final DriftSweepService svc = service( pm, repo );
@@ -268,7 +268,7 @@ class DriftSweepServiceTest {
     void lastErrorSetOnFailureClearedOnSuccess() throws Exception {
         final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
         final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
-        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyList() ) )
                 .thenThrow( new IllegalStateException( "db gone" ) )
                 .thenReturn( 5L );
         final DriftSweepService svc = service( pm, repo );

@@ -85,7 +85,7 @@ class ListContentOpportunitiesToolTest {
     void execute_rendersOpportunitiesAndSuppressedWithFullShape() {
         final Opportunity opp = new Opportunity( "agent_gap", "how do I deploy locally", 6.0,
                 Map.of( "occurrences", 3, "distinctSessions", 2 ),
-                "Curate the Knowledge Graph relations, or write the missing section.",
+                "Write or extend the section that answers this query, or sharpen the summary and headings of the page that should.",
                 LocalDate.of( 2026, 8, 2 ), false );
         final SuppressedRule suppressed = new SuppressedRule( "engine_divergence", "traffic_gate", 2626.0, 5000.0 );
         final ContentOpportunityService.BacklogView view = new ContentOpportunityService.BacklogView(

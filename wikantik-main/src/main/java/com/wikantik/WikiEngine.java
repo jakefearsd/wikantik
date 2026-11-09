@@ -117,7 +117,7 @@ public class WikiEngine implements Engine {
 
     /** Knowledge subsystem services produced by {@code KnowledgeSubsystemFactory}.
      *  Phase 1 of the wikantik-main decomposition (2026-05-05). Ckpt A2: all
-     *  KG-flavored service registrations go through the EngineServiceRegistry.
+     *  Knowledge-subsystem service registrations go through the EngineServiceRegistry.
      *  Volatile: written once during init (unsynchronized path in initialize())
      *  and read from the synchronized patchContextRetrievalService method. */
     private volatile com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeSubsystem;
@@ -310,7 +310,7 @@ public class WikiEngine implements Engine {
         SNAPSHOT_REBUILDERS = s;
     }
 
-    // Audit subsystem (built in initKnowledgeGraph where the DataSource is in scope).
+    // Audit subsystem (built in initDataSourceSubsystems where the DataSource is in scope).
     private volatile com.wikantik.audit.AuditService auditService;
     private volatile com.wikantik.audit.AuditReadPolicy auditReadPolicy;
     private volatile com.wikantik.audit.AuditWriterThread auditWriter;
@@ -469,10 +469,10 @@ public class WikiEngine implements Engine {
 
             // Phase 9: Knowledge subsystem (optional — requires datasource
             // configuration). Builds persistenceSubsystem internally.
-            initKnowledgeGraph( props );
+            initDataSourceSubsystems( props );
 
             // Audit subsystem is initialized independently of Knowledge init so a
-            // Knowledge failure cannot silently disable auditing. initKnowledgeGraph swallows
+            // Knowledge failure cannot silently disable auditing. initDataSourceSubsystems swallows
             // its own exceptions, so this runs on both the happy and the failed path.
             try {
                 initAuditSubsystem( props );
@@ -506,7 +506,7 @@ public class WikiEngine implements Engine {
 
         // Phase 8 Ckpt 1.5: rebuild the KnowledgeSubsystem.Services record with the
         // post-construction services that were wired into the manager registry by
-        // initKnowledgeGraph (ForAgentProjectionService, RetrievalQualityRunner) after
+        // initDataSourceSubsystems (ForAgentProjectionService, RetrievalQualityRunner) after
         // KnowledgeSubsystemFactory.create() returned. ContextRetrievalService is wired
         // even later by ContextRetrievalServiceInitializer (a servlet listener) and stays
         // null here; patchContextRetrievalService() will fill it in once the servlet listener fires.
@@ -664,14 +664,14 @@ public class WikiEngine implements Engine {
     /**
      *  Builds the Core, Auth, Page and Rendering subsystem service records in
      *  dependency order, after their leaf managers are constructed and BEFORE
-     *  {@link #initKnowledgeGraph}. Persistence is still null at this point — it
-     *  is built inside initKnowledgeGraph — and these factories tolerate that.
+     *  {@link #initDataSourceSubsystems}. Persistence is still null at this point — it
+     *  is built inside initDataSourceSubsystems — and these factories tolerate that.
      */
     private void buildCoreAuthPageRenderingSubsystems( final Properties props,
             final SystemPageRegistry systemPageRegistry,
             final RecentArticlesManager recentArticlesManager ) {
         // Build the Core subsystem after its leaf managers are constructed.
-        // Knowledge (built next, in initKnowledgeGraph) consumes Core via WikiSubsystems.
+        // Knowledge (built next, in initDataSourceSubsystems) consumes Core via WikiSubsystems.
         this.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemFactory.create(
             new com.wikantik.core.subsystem.CoreSubsystem.Deps(
                 props,
@@ -682,19 +682,19 @@ public class WikiEngine implements Engine {
                 this ) );
 
         // Build the Auth subsystem after the four auth managers are registered.
-        // Persistence is null here (built inside initKnowledgeGraph); the factory tolerates it.
+        // Persistence is null here (built inside initDataSourceSubsystems); the factory tolerates it.
         this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemFactory.create(
             new com.wikantik.auth.subsystem.AuthSubsystem.Deps(
                 coreSubsystem, persistenceSubsystem, servletContext, this ) );
 
-        // Build the Page subsystem BEFORE initKnowledgeGraph, whose wiring helpers
+        // Build the Page subsystem BEFORE initDataSourceSubsystems, whose wiring helpers
         // consume its page manager and renamer.
         this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemFactory.create(
             new com.wikantik.page.subsystem.PageSubsystem.Deps(
                 coreSubsystem, persistenceSubsystem, authSubsystem, this ) );
 
         // Build the Rendering subsystem after Page (Rendering depends on Page for the
-        // page-save filter-chain seam) and BEFORE initKnowledgeGraph.
+        // page-save filter-chain seam) and BEFORE initDataSourceSubsystems.
         this.renderingSubsystem = com.wikantik.render.subsystem.RenderingSubsystemFactory.create(
             new com.wikantik.render.subsystem.RenderingSubsystem.Deps(
                 coreSubsystem, authSubsystem, pageSubsystem, this ) );
@@ -931,7 +931,8 @@ public class WikiEngine implements Engine {
     }
 
     /**
-     * Initialises the knowledge-graph subsystem when a JNDI datasource is configured.
+     * Initialises the datasource-backed subsystems (search and dense retrieval, Page Graph, audit,
+     * ontology, query log, insights) when a JNDI datasource is configured.
      *
      * <p>Phase 9 Ckpt 4c: the bulk of the inline wiring has been relocated to
      * {@link com.wikantik.pagegraph.subsystem.PageGraphWiringHelper},
@@ -941,7 +942,7 @@ public class WikiEngine implements Engine {
      *
      * @param props engine properties
      */
-    private void initKnowledgeGraph( final Properties props ) {
+    private void initDataSourceSubsystems( final Properties props ) {
         final String datasource = AbstractJDBCDatabase.datasourceName( props );
         try {
             final javax.sql.DataSource ds = resolveConfiguredDataSource( datasource );
@@ -952,7 +953,7 @@ public class WikiEngine implements Engine {
             // need to ask "does this login exist?", "who is the frontmatter
             // author of this canonical_id?" and "which login owns this
             // users.uid?" — the first and third live in the Auth subsystem
-            // (built before initKnowledgeGraph), the second in the structural
+            // (built before initDataSourceSubsystems), the second in the structural
             // index (built later in this method by PageGraphWiringHelper).
             // We thread all three through Deps as closures that capture `this`
             // and resolve lazily at call time.
@@ -1172,7 +1173,7 @@ public class WikiEngine implements Engine {
 
     /**
      * Resolves the configured JNDI DataSource — the single lookup path shared by
-     * {@link #initKnowledgeGraph} and {@link #initAuditSubsystem}.
+     * {@link #initDataSourceSubsystems} and {@link #initAuditSubsystem}.
      */
     private javax.sql.DataSource resolveConfiguredDataSource( final String datasource )
             throws javax.naming.NamingException {
@@ -1189,8 +1190,8 @@ public class WikiEngine implements Engine {
      * a Knowledge failure cannot silently disable auditing.
      */
     private void initAuditSubsystem( final Properties props ) {
-        // Resolve the DataSource independently of Knowledge-Graph init (same JNDI
-        // lookup initKnowledgeGraph uses). Null when no datasource is configured.
+        // Resolve the DataSource independently of datasource-subsystem init (same JNDI
+        // lookup initDataSourceSubsystems uses). Null when no datasource is configured.
         final javax.sql.DataSource ds = resolveAuditDataSource( props );
         // Resolve the page manager + structural index from the registry (may be null
         // if their subsystems failed to build — read-gating degrades, audit still runs).
@@ -1638,7 +1639,7 @@ public class WikiEngine implements Engine {
         }
 
         // Scheduled retrieval-quality eval (disabled unless wikantik.bundle.eval.interval.hours > 0).
-        // Same JNDI datasource lookup as initKnowledgeGraph()/initAuditSubsystem() — fail-soft to
+        // Same JNDI datasource lookup as initDataSourceSubsystems()/initAuditSubsystem() — fail-soft to
         // null (the scheduler is still built, just persists nowhere until a run tries to write).
         // Built only after a successful FIRST install, so a duplicate call cannot leak a scheduler.
         javax.sql.DataSource evalDs = null;

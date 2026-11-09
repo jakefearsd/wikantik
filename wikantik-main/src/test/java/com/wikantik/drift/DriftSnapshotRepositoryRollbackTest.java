@@ -62,7 +62,7 @@ class DriftSnapshotRepositoryRollbackTest {
         faultyDataSource.failOn( 2, new RuntimeException( "boom" ) );
 
         assertThrows( RuntimeException.class, () -> repo.insertSweep(
-                Instant.now(), 1, 1L, "manual", true,
+                Instant.now(), 1, 1L, "manual", 
                 List.of( new DriftCount( "frontmatter", "status.noncanonical", "WARNING", 1 ) ) ) );
 
         assertEquals( 0, countRows( "drift_sweeps" ), "drift_sweeps row must not survive the rolled-back transaction" );

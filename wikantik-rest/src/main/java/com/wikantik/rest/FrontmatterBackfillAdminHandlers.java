@@ -50,7 +50,7 @@ import java.util.function.Supplier;
 /**
  * Frontmatter maintenance admin handlers served at {@code /admin/embeddings/*}: listing pages that
  * lack frontmatter and the default-frontmatter backfill job (status + trigger + the background worker).
- * Deliberately independent of the Knowledge Graph, so they work when it is switched off.
+ * Deliberately independent of the retrieval stack, so they work when embeddings are switched off.
  * <p>
  * The backfill progress fields are instance state: the owning servlet holds one handler for its
  * life, so {@code GET backfill-frontmatter} reflects the single job started by {@code POST}.

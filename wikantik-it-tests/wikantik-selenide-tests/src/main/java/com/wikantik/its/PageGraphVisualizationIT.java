@@ -43,7 +43,7 @@ import static com.codeborne.selenide.Selenide.*;
  */
 @Execution( ExecutionMode.CONCURRENT )
 @TestMethodOrder( MethodOrderer.OrderAnnotation.class )
-class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
+class PageGraphVisualizationIT extends WithIntegrationTestSetup {
 
     /**
      * Authenticated tests run first (orders 1-3). The anonymous test runs
@@ -86,7 +86,7 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
     }
 
     /**
-     * D27 made the knowledge graph endpoint public — the graph contains only
+     * D27 made the Page Graph endpoint public — the graph contains only
      * canonical_ids and relationship types (no page bodies or ACL-protected
      * content), so anonymous readers can hit it freely. The test verifies that
      * an anonymous visit reaches the graph route and renders SOMETHING (the
@@ -102,7 +102,7 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
         $( ".graph-view, .graph-error-state, .graph-loading" )
                 .shouldBe( visible, Duration.ofSeconds( 15 ) );
         // If we land in an error state, it must NOT be the unauthorized variant —
-        // anonymous access is the design intent for the knowledge-graph endpoint.
+        // anonymous access is the design intent for the Page Graph endpoint.
         if ( $( ".graph-error-state" ).exists() ) {
             $( ".graph-error-state" ).shouldNotHave( text( "Sign in" ) );
         }

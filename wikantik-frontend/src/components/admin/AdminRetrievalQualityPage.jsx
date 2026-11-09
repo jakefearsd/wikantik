@@ -5,8 +5,10 @@ import PageHeader from './PageHeader';
 import Sparkline from './Sparkline';
 import '../../styles/admin.css';
 
-// Mirrors com.wikantik.api.eval.RetrievalMode (wikantik-api).
-const MODES = ['bm25', 'hybrid', 'hybrid_graph'];
+// Mirrors the non-retired constants of com.wikantik.api.eval.RetrievalMode (wikantik-api).
+// Live modes only. Retired modes (hybrid_graph, hybrid_graph_weighted) stay readable in run
+// history but cannot start a new run; the server rejects them with a 400.
+const MODES = ['bm25', 'hybrid'];
 const METRICS = ['ndcg_at_5', 'ndcg_at_10', 'recall_at_20', 'mrr'];
 const DEFAULT_LIMIT = 30;
 
@@ -139,12 +141,14 @@ export default function AdminRetrievalQualityPage() {
                   );
                 })}
                 <td>
-                  <button
-                    disabled={isRunning}
-                    onClick={() => runNow(cell.querySetId, cell.mode)}
-                  >
-                    {isRunning ? '…' : 'Run now'}
-                  </button>
+                  {MODES.includes(cell.mode) && (
+                    <button
+                      disabled={isRunning}
+                      onClick={() => runNow(cell.querySetId, cell.mode)}
+                    >
+                      {isRunning ? '…' : 'Run now'}
+                    </button>
+                  )}
                 </td>
               </tr>
             );

@@ -150,7 +150,7 @@ public class DefaultPageGraphService implements PageGraphService {
 
     private boolean isViewable( final String pageName, final Session viewer,
                                   final AuthorizationManager authMgr ) {
-        // Match the Knowledge Graph snapshot's policy (D27): a null viewer
+        // Policy (D27): a null viewer
         // means anonymous public access; the ACL check below decides whether
         // the page is visible to the unauthenticated principal.
         if ( authMgr == null ) {

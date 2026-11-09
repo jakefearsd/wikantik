@@ -43,7 +43,7 @@ public final class OntologyWiringHelper {
 
     /**
      * Builds the TDB2-backed manager + rebuild coordinator and registers the coordinator on the
-     * engine. Called from {@link WikiEngine#initKnowledgeGraph} with already-resolved collaborators.
+     * engine. Called from {@link WikiEngine#initDataSourceSubsystems} with already-resolved collaborators.
      */
     public static OntologyRebuildCoordinator wireOntology( final WikiEngine engine,
                                      final Properties props,

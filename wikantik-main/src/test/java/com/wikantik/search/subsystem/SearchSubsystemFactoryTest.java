@@ -393,7 +393,7 @@ final class SearchSubsystemFactoryTest {
     @Test
     void reusesChunkVectorIndexWiredBySearchWiringHelperInsteadOfBuildingASecondInstance() {
         // Regression: SearchWiringHelper.wireHybridRetrieval runs earlier in boot
-        // (WikiEngine.initialize() -> initKnowledgeGraph() -> wireHybridRetrieval,
+        // (WikiEngine.initialize() -> initDataSourceSubsystems() -> wireHybridRetrieval,
         // BEFORE buildSearchSubsystem() -> SearchSubsystemFactory.create()) and, once
         // fixed, wires the single ChunkVectorIndex instance it built (and wired
         // AsyncEmbeddingIndexListener upserts into) via engine.setChunkVectorIndex(...)

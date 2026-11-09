@@ -28,7 +28,7 @@ import io.micrometer.core.instrument.MeterRegistry;
  * <p>The observability module's {@code EngineLifecycleExtension} creates the
  * registry during {@code onInit} (before {@code Engine#initialize}) and writes
  * it here. Components wired up inside {@code Engine#initialize} — notably the
- * knowledge-graph chunker and the async rebuild service — read the registry
+ * content chunker and the async rebuild service — read the registry
  * via {@link #get()} so their meters flow to the same registry that is later
  * scraped by the {@code MetricsServlet}.</p>
  *

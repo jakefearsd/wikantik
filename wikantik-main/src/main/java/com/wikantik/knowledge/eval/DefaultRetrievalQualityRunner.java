@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>The runner depends on narrow functional seams so unit tests can drive it
  * without a real search stack or database. Production wiring lives in
- * {@code WikiEngine.initKnowledgeGraph}.</p>
+ * {@code WikiEngine.initDataSourceSubsystems}.</p>
  */
 public final class DefaultRetrievalQualityRunner implements RetrievalQualityRunner, AutoCloseable {
 

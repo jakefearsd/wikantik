@@ -117,7 +117,7 @@ class ExportServiceTest {
 
     /**
      * Wires just the Page Graph subsystem's structural index against a real (Testcontainers)
-     * Postgres. Mirrors the wiring {@code WikiEngine.initKnowledgeGraph} performs, minus
+     * Postgres. Mirrors the wiring {@code WikiEngine.initDataSourceSubsystems} performs, minus
      * everything Knowledge-specific this test does not need — {@code TestEngine.build()} boots
      * with {@code wikantik.datasource} blank (deliberately, per the wikantik-main test overlay),
      * so a bare engine's Page Graph subsystem never wires up.

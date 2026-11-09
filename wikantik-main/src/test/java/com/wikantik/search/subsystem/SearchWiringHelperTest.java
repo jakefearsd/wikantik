@@ -87,7 +87,7 @@ class SearchWiringHelperTest {
     // -- Single-instance-sharing regression tests (post d027a546da default flip) --
     //
     // SearchSubsystemFactory runs later in boot (WikiEngine.initialize():
-    // buildSearchSubsystem(), AFTER initKnowledgeGraph() -> wireHybridRetrieval) and reads
+    // buildSearchSubsystem(), AFTER initDataSourceSubsystems() -> wireHybridRetrieval) and reads
     // engine.getChunkVectorIndex() to avoid building its own, orphaned, second index instance.
     // Before this fix, wireHybridRetrieval only wired that typed slot for the "inmemory"
     // backend — pgvector/lucene-hnsw left it unwired, so the factory always built (and the

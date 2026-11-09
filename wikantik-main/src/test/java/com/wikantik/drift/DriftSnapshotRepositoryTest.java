@@ -45,7 +45,7 @@ class DriftSnapshotRepositoryTest {
 
     @Test
     void insertAndReadBackLatest() {
-        final long id = repo.insertSweep( Instant.now(), 42, 1234L, "manual", true,
+        final long id = repo.insertSweep( Instant.now(), 42, 1234L, "manual", 
                 List.of( new DriftCount( "frontmatter", "status.noncanonical", "WARNING", 7 ),
                          new DriftCount( "shacl", "implements", "ERROR", 2 ) ) );
         assertTrue( id > 0 );
@@ -54,7 +54,6 @@ class DriftSnapshotRepositoryTest {
         assertTrue( latest.isPresent() );
         assertEquals( 42, latest.get().pagesScanned() );
         assertEquals( "manual", latest.get().triggeredBy() );
-        assertTrue( latest.get().shaclChecked() );
         assertEquals( 2, latest.get().counts().size() );
         assertTrue( latest.get().counts().contains(
                 new DriftCount( "frontmatter", "status.noncanonical", "WARNING", 7 ) ) );
@@ -68,9 +67,9 @@ class DriftSnapshotRepositoryTest {
     @Test
     void previousBeforeReturnsTheSweepJustBefore() {
         final long first = repo.insertSweep( Instant.now().minus( 1, ChronoUnit.DAYS ), 10, 1L,
-                "scheduled", true, List.of( new DriftCount( "frontmatter", "x", "WARNING", 5 ) ) );
+                "scheduled",  List.of( new DriftCount( "frontmatter", "x", "WARNING", 5 ) ) );
         final long second = repo.insertSweep( Instant.now(), 11, 1L,
-                "scheduled", true, List.of( new DriftCount( "frontmatter", "x", "WARNING", 3 ) ) );
+                "scheduled",  List.of( new DriftCount( "frontmatter", "x", "WARNING", 3 ) ) );
 
         final Optional< DriftSweepRecord > prev = repo.previousBefore( second );
         assertTrue( prev.isPresent() );
@@ -81,28 +80,27 @@ class DriftSnapshotRepositoryTest {
 
     @Test
     void trendReturnsWindowAscending() {
-        repo.insertSweep( Instant.now().minus( 40, ChronoUnit.DAYS ), 1, 1L, "scheduled", true, List.of() );
+        repo.insertSweep( Instant.now().minus( 40, ChronoUnit.DAYS ), 1, 1L, "scheduled",  List.of() );
         final long recentOld = repo.insertSweep( Instant.now().minus( 5, ChronoUnit.DAYS ), 2, 1L,
-                "scheduled", true, List.of() );
-        final long newest = repo.insertSweep( Instant.now(), 3, 1L, "manual", false, List.of() );
+                "scheduled",  List.of() );
+        final long newest = repo.insertSweep( Instant.now(), 3, 1L, "manual",  List.of() );
 
         final List< DriftSweepRecord > trend = repo.trend( 30 );
         assertEquals( 2, trend.size() );
         assertEquals( recentOld, trend.get( 0 ).id() );
         assertEquals( newest, trend.get( 1 ).id() );
-        assertFalse( trend.get( 1 ).shaclChecked() );
     }
 
     @Test
     void emptyCountListPersistsSweepRowOnly() {
-        final long id = repo.insertSweep( Instant.now(), 0, 0L, "manual", false, List.of() );
+        final long id = repo.insertSweep( Instant.now(), 0, 0L, "manual",  List.of() );
         assertEquals( id, repo.latest().orElseThrow().id() );
         assertTrue( repo.latest().orElseThrow().counts().isEmpty() );
     }
 
     @Test
     void countsAreOrderedByFamilyCodeSeverity() {
-        repo.insertSweep( Instant.now(), 1, 1L, "manual", true, List.of(
+        repo.insertSweep( Instant.now(), 1, 1L, "manual",  List.of(
                 new DriftCount( "shacl", "wk:implements", "ERROR", 1 ),
                 new DriftCount( "frontmatter", "status.noncanonical", "WARNING", 2 ),
                 new DriftCount( "frontmatter", "date.format", "WARNING", 3 ) ) );
@@ -117,7 +115,7 @@ class DriftSnapshotRepositoryTest {
     void trend_loadsCountsForAllSweepsInOneStatementAndKeepsThemPerSweep() {
         final long[] ids = new long[ 5 ];
         for ( int i = 0; i < ids.length; i++ ) {
-            ids[ i ] = repo.insertSweep( Instant.now().minus( 5 - i, ChronoUnit.HOURS ), 10 + i, 1L, "scheduled", true,
+            ids[ i ] = repo.insertSweep( Instant.now().minus( 5 - i, ChronoUnit.HOURS ), 10 + i, 1L, "scheduled", 
                     List.of( new DriftCount( "frontmatter", "b", "WARNING", i ),
                              new DriftCount( "frontmatter", "a", "ERROR", i + 100 ) ) );
         }

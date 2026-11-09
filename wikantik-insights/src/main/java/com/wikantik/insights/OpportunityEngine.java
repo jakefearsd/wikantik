@@ -160,7 +160,7 @@ public final class OpportunityEngine {
             evidence.put( "weakCoverageOccurrences", weakCoverageOccurrences );
 
             out.add( new Opportunity( AGENT_GAP, entry.getKey(), occurrences * config.weightAgentGap(),
-                    evidence, "Curate the Knowledge Graph relations, or write the missing section.",
+                    evidence, "Write or extend the section that answers this query, or sharpen the summary and headings of the page that should.",
                     today, false ) );
         }
         return out;

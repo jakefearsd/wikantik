@@ -30,7 +30,7 @@ import java.util.Properties;
 /**
  * Builds the {@link ContentOpportunityService} at startup, following the same
  * build-once-return-null-when-off pattern as
- * {@code com.wikantik.knowledge.querylog.QueryLogWiring} -- see {@code WikiEngine#initKnowledgeGraph}
+ * {@code com.wikantik.knowledge.querylog.QueryLogWiring} -- see {@code WikiEngine#initDataSourceSubsystems}
  * for the call site (content-intelligence design §12).
  */
 public final class InsightsWiring {

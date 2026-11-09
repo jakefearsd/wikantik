@@ -45,8 +45,8 @@ import java.util.Optional;
  * </ul>
  *
  * <p>Auth is via the shared {@code AdminAuthFilter}. Returns 503 when the
- * {@link RetrievalQualityRunner} is not registered (knowledge graph
- * uninitialised), 400 on bad mode / missing fields, 200 with a
+ * {@link RetrievalQualityRunner} is not registered (retrieval quality
+ * runner not wired), 400 on bad mode / missing fields, 200 with a
  * {@code data} envelope on success.</p>
  */
 public class AdminRetrievalQualityResource extends RestServletBase {
@@ -58,6 +58,14 @@ public class AdminRetrievalQualityResource extends RestServletBase {
     // getEngine() on RestServletBase) sees the test engine and can build the synthetic
     // WikiSubsystems bundle via KnowledgeSubsystemBridge.fromLegacyEngine().
     void setEngineForTesting( final Engine engine ) { setEngine( engine ); }
+
+    /** Wire names of the modes a new run may use (retired modes excluded), comma-separated. */
+    private static String validModes() {
+        return java.util.Arrays.stream( RetrievalMode.values() )
+            .filter( m -> !m.retired() )
+            .map( RetrievalMode::wireName )
+            .collect( java.util.stream.Collectors.joining( ", " ) );
+    }
 
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
@@ -74,7 +82,7 @@ public class AdminRetrievalQualityResource extends RestServletBase {
             final Optional< RetrievalMode > parsed = RetrievalMode.fromWire( modeRaw );
             if ( parsed.isEmpty() ) {
                 sendError( resp, HttpServletResponse.SC_BAD_REQUEST,
-                    "Unknown mode: " + modeRaw + " (expected one of bm25, hybrid, hybrid_graph)" );
+                    "Unknown mode: " + modeRaw + " (expected one of " + validModes() + ")" );
                 return;
             }
             mode = parsed.get();
@@ -123,7 +131,13 @@ public class AdminRetrievalQualityResource extends RestServletBase {
         final Optional< RetrievalMode > mode = RetrievalMode.fromWire( modeRaw );
         if ( mode.isEmpty() ) {
             sendError( resp, HttpServletResponse.SC_BAD_REQUEST,
-                "Missing or unknown mode: " + modeRaw + " (expected one of bm25, hybrid, hybrid_graph)" );
+                "Missing or unknown mode: " + modeRaw + " (expected one of " + validModes() + ")" );
+            return;
+        }
+        if ( mode.get().retired() ) {
+            // Retired modes parse (history rows, GET filter) but a new run would only duplicate HYBRID.
+            sendError( resp, HttpServletResponse.SC_BAD_REQUEST,
+                "Retired mode: " + modeRaw + " (expected one of " + validModes() + ")" );
             return;
         }
         final RetrievalRunResult result;

@@ -132,14 +132,6 @@ describe('AdminDriftPage', () => {
     expect(screen.getByTestId('drift-run-now')).toBeEnabled();
   });
 
-  it('shows no SHACL warning even when the payload says shaclChecked:false', async () => {
-    api.admin.getDriftSummary.mockResolvedValue({ ...SUMMARY, shaclChecked: false });
-    render(<AdminDriftPage />);
-    expect(await screen.findByTestId('drift-pages-scanned')).toBeInTheDocument();
-    expect(screen.queryByTestId('drift-shacl-unchecked')).not.toBeInTheDocument();
-    expect(screen.queryByText(/SHACL/i)).not.toBeInTheDocument();
-  });
-
   it('surfaces a failed sweep instead of hanging the progress bar', async () => {
     // Sweep fails server-side: status returns running:false with a lastError, and sweptAt never advances.
     api.admin.getDriftStatus

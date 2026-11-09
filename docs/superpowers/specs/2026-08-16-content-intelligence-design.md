@@ -765,7 +765,7 @@ which case lower the gate explicitly and treat everything it emits as provisiona
 | **Trigger** | A retrieval on an agent surface returning zero sections, or `coverage ∈ {weak, unknown}`. |
 | **Minimum support** | 2 occurrences in 28 days, from ≥ 2 distinct calls. |
 | **Priority** | `occurrences × 2` |
-| **Action** | Curate the Knowledge Graph relations, or write the missing section. |
+| **Action** | Write or extend the section that answers this query, or sharpen the summary and headings of the page that should. |
 | **Resolves when** | The same query returns `coverage ∈ {strong, partial}`. |
 
 Today this is the **only rule in the entire design with a live denominator**, and it is invisible

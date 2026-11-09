@@ -33,7 +33,7 @@ public interface SqlBinder {
     /**
      * Binds {@code params} to {@code ?} placeholders 1..N in order. Factors out the
      * {@code for (int i = 0; i < params.size(); i++) ps.setObject(i + 1, params.get(i))}
-     * loop repeated at almost every dynamic-filter call site across the KG repositories.
+     * loop repeated at almost every dynamic-filter call site across the JDBC repositories.
      */
     static SqlBinder positional( final List< Object > params ) {
         return ps -> {

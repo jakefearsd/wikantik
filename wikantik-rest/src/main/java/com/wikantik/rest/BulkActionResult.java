@@ -25,7 +25,7 @@ import java.util.Map;
 
 /**
  * GoF Builder for the standard bulk-action result envelope shared by the admin
- * bulk endpoints (users, API keys, KG proposals). Three resources previously
+ * bulk endpoints (users, API keys). Three resources previously
  * re-implemented the same shape by hand:
  *
  * <pre>{ "succeeded": [ids…], "failed": [{"id":…, "error":…}…],

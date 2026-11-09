@@ -66,7 +66,7 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
 
     /**
      * Process-wide shared registry, created in {@link #onInit} so engine code
-     * that runs during {@code initialize()} (e.g. {@code WikiEngine.initKnowledgeGraph})
+     * that runs during {@code initialize()} (e.g. {@code WikiEngine.initDataSourceSubsystems})
      * can register meters against the same registry later scraped by
      * {@link MetricsServlet}. Public getter is {@link #getSharedRegistry()}.
      */
@@ -82,7 +82,7 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
      * the only strong reference to it, so dropping it as "dead" would let GC silently
      * stop all wiki metrics. Static analysis flags it as an unread field (SpotBugs
      * URF_UNREAD_FIELD); that report is expected. See commit 7673cd3ec4 for the same
-     * bug hitting the KG change listener for real.
+     * bug hitting the page-change listener for real.
      */
     @SuppressWarnings( "unused" )
     private WikiMetrics wikiMetrics;
@@ -126,7 +126,7 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
     @Override
     public void onInit( final Properties properties ) {
         // Create the registry early so components that wire up during
-        // Engine#initialize() (notably the knowledge-graph chunker and rebuild
+        // Engine#initialize() (notably the content chunker and rebuild
         // service) can register meters against the same registry that later
         // gets scraped at /observability/metrics. JVM binders are attached
         // here too so they publish regardless of onStart ordering.

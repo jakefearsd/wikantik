@@ -109,7 +109,7 @@ class AccessRuleShapeSaveTest {
 
     /**
      * The frontmatter-rewriting save filters production wires when a datasource is configured, at their production
-     * priorities and after the core filters, as {@code WikiEngine.initKnowledgeGraph} registers them.
+     * priorities and after the core filters, as {@code WikiEngine.initDataSourceSubsystems} registers them.
      */
     private void wireFrontmatterRewritingFilters() {
         final Properties props = new Properties();

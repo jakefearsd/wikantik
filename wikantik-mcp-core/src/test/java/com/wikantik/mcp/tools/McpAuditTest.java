@@ -74,13 +74,13 @@ class McpAuditTest {
     void logBulkWriteEmitsAggregateCounts() {
         final CapturingAppender appender = CapturingAppender.attach( "SecurityLog" );
         try {
-            McpAudit.logBulkWrite( "bulk_accept_kg_proposals", 10, 7, 3, "bob" );
+            McpAudit.logBulkWrite( "rename_cluster", 10, 7, 3, "bob" );
         } finally {
             appender.detach();
         }
 
         final String message = appender.events.get( 0 ).getMessage().getFormattedMessage();
-        assertTrue( message.contains( "tool=bulk_accept_kg_proposals" ), message );
+        assertTrue( message.contains( "tool=rename_cluster" ), message );
         assertTrue( message.contains( "action=bulk" ), message );
         assertTrue( message.contains( "attempted=10" ), message );
         assertTrue( message.contains( "succeeded=7" ), message );

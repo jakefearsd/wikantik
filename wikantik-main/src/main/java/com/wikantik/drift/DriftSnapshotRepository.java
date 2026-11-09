@@ -51,19 +51,17 @@ public final class DriftSnapshotRepository {
 
     /** Persists one sweep + its counts atomically; returns the new sweep id. */
     public long insertSweep( final Instant sweptAt, final int pagesScanned, final long durationMs,
-                             final String triggeredBy, final boolean shaclChecked,
-                             final List< DriftCount > counts ) {
+                             final String triggeredBy, final List< DriftCount > counts ) {
         try {
             return jdbc.inTransaction( conn -> {
                 final long sweepId = jdbc.insertReturningKey( conn,
-                        "INSERT INTO drift_sweeps ( swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked ) "
-                      + "VALUES ( ?, ?, ?, ?, ? )",
+                        "INSERT INTO drift_sweeps ( swept_at, pages_scanned, duration_ms, triggered_by ) "
+                      + "VALUES ( ?, ?, ?, ? )",
                         ps -> {
                             ps.setTimestamp( 1, Timestamp.from( sweptAt ) );
                             ps.setInt( 2, pagesScanned );
                             ps.setLong( 3, durationMs );
                             ps.setString( 4, triggeredBy );
-                            ps.setBoolean( 5, shaclChecked );
                         },
                         rs -> rs.getLong( 1 ) )
                     .orElseThrow( () -> new SQLException( "no generated key for drift_sweeps insert" ) );
@@ -88,13 +86,13 @@ public final class DriftSnapshotRepository {
 
     /** The most recent sweep, with counts. */
     public Optional< DriftSweepRecord > latest() {
-        return querySingle( "latest", "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
+        return querySingle( "latest", "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by "
                           + "FROM drift_sweeps ORDER BY id DESC LIMIT 1", SqlBinder.NONE );
     }
 
     /** The sweep immediately before {@code sweepId} (for deltas). */
     public Optional< DriftSweepRecord > previousBefore( final long sweepId ) {
-        return querySingle( "previousBefore sweepId=" + sweepId, "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
+        return querySingle( "previousBefore sweepId=" + sweepId, "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by "
                           + "FROM drift_sweeps WHERE id < ? ORDER BY id DESC LIMIT 1",
                 ps -> ps.setLong( 1, sweepId ) );
     }
@@ -102,7 +100,7 @@ public final class DriftSnapshotRepository {
     /** All sweeps in the last {@code days}, oldest first, with counts. */
     public List< DriftSweepRecord > trend( final int days ) {
         final Timestamp cutoff = Timestamp.from( Instant.now().minus( days, ChronoUnit.DAYS ) );
-        final String sql = "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
+        final String sql = "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by "
                          + "FROM drift_sweeps WHERE swept_at >= ? ORDER BY id ASC";
         try {
             return withCounts( jdbc.query( sql, ps -> ps.setTimestamp( 1, cutoff ), this::rowToRecord ) );
@@ -130,7 +128,6 @@ public final class DriftSnapshotRepository {
                 rs.getInt( "pages_scanned" ),
                 rs.getLong( "duration_ms" ),
                 rs.getString( "triggered_by" ),
-                rs.getBoolean( "shacl_checked" ),
                 List.of() );
     }
 
@@ -153,7 +150,7 @@ public final class DriftSnapshotRepository {
                 } );
         return sweeps.stream()
                 .map( r -> new DriftSweepRecord( r.id(), r.sweptAt(), r.pagesScanned(), r.durationMs(),
-                        r.triggeredBy(), r.shaclChecked(), bySweep.getOrDefault( r.id(), List.of() ) ) )
+                        r.triggeredBy(), bySweep.getOrDefault( r.id(), List.of() ) ) )
                 .toList();
     }
 }

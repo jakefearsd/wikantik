@@ -92,8 +92,9 @@ if [[ -f "${TOMCAT_DIR}/bin/shutdown.sh" ]]; then
     fi
 
     # The port is released before the JVM exits, and a JVM a lingering non-daemon thread keeps
-    # alive still holds the ontology TDB2 lock: a new instance started beside it comes up with the
-    # Knowledge Graph disabled (/knowledge-mcp short of tools, /api/bundle 503). So also wait for
+    # alive still holds the ontology TDB2 lock: a new instance started beside it cannot open the
+    # ontology store, which aborts its datasource-subsystem init (/knowledge-mcp comes up short of
+    # tools, /api/bundle 503, ontology/SPARQL surfaces degraded). So also wait for
     # this install's JVM to exit; SIGTERM ends it regardless of non-daemon threads.
     old_tomcat_pids() {
         local p

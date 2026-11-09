@@ -21,10 +21,10 @@ package com.wikantik.api.frontmatter.schema;
 /**
  * A single, field-addressable validation result. The same shape is returned by the REST 422 error
  * body, the 200 warnings array, the {@code /api/frontmatter/validate} dry-run, and the page-scoped
- * KG endpoints — so the form and the MCP text path surface identical, actionable messages.
+ * curation endpoints — so the form and the MCP text path surface identical, actionable messages.
  *
  * @param field     the frontmatter key, dotted for nesting ({@code runbook.steps}); the synthetic
- *                  {@code __yaml__} marks a whole-block parse error; {@code edge} marks a KG edge refusal.
+ *                  {@code __yaml__} marks a whole-block parse error.
  * @param severity  {@link Severity#ERROR} (blocks the write) or {@link Severity#WARNING} (advisory).
  * @param code      a stable machine code, e.g. {@code status.noncanonical}, {@code cluster.slug.malformed}.
  * @param message   a human/agent-readable explanation, stern and actionable where relevant.

@@ -26,7 +26,7 @@ import java.util.function.UnaryOperator;
 
 /**
  * The one funnel for <em>derived</em> text: page text as readers and derived stores (excerpts, summaries, chunks,
- * embeddings, the search index, KG extraction input, {@code ?format=md|json}) see it, as opposed to page <em>source</em>,
+ * embeddings, the search index, {@code ?format=md|json}) see it, as opposed to page <em>source</em>,
  * which is returned as stored (spec 1.11a). Obsidian {@code %%comments%%} ({@link ReaderComments}) and block markers
  * ({@code ^id}) are stripped here, in that order, so no consumer ever needs to change again. Comments are hidden, not
  * secret: this never feeds the access-rule reader, which reads the stored text.

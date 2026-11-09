@@ -94,7 +94,7 @@ public class UpdatePageTool extends DefaultAuthorTool {
                         + "field (title, cluster, tags, …) is preserved. update_page never replaces "
                         + "the whole frontmatter, so a one-field edit cannot drop the rest.",
                 "examples", List.of( Map.of(
-                        "summary", "BM25 + dense + KG rerank, fail-closed BM25 fallback.",
+                        "summary", "BM25 + dense (RRF), fail-closed BM25 fallback.",
                         "tags", List.of( "retrieval", "search" )
                 ) )
         ) );

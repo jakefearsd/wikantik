@@ -28,7 +28,6 @@ public record DriftSweepRecord(
         int pagesScanned,
         long durationMs,
         String triggeredBy,
-        boolean shaclChecked,
         List< DriftCount > counts
 ) {
     public DriftSweepRecord {

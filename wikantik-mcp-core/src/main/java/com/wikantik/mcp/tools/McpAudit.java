@@ -57,7 +57,7 @@ public final class McpAudit {
     /**
      * Records a bulk state-changing MCP tool invocation with aggregate counts.
      *
-     * @param tool      the tool name (e.g. {@code bulk_accept_kg_proposals})
+     * @param tool      the tool name (e.g. {@code rename_cluster})
      * @param attempted total proposals attempted
      * @param succeeded count successfully processed
      * @param failed    count that failed or were skipped

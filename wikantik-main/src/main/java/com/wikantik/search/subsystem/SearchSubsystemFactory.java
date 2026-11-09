@@ -192,7 +192,7 @@ public final class SearchSubsystemFactory {
 
     /**
      * Chunk vector index: reuse the single instance SearchWiringHelper.wireHybridRetrieval
-     * already built and wired (it runs earlier — inside initKnowledgeGraph(), before
+     * already built and wired (it runs earlier — inside initDataSourceSubsystems(), before
      * buildSearchSubsystem() calls this factory — see WikiEngine.initialize()). Reusing it
      * is what keeps this Services.chunkVectorIndex() slot (read by
      * DefaultContextRetrievalService -> ContributingChunkAssembler, the retrieve_context

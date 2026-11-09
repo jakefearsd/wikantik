@@ -74,7 +74,7 @@ class PageOwnerServiceAuthorKeyTest {
         PostgresTestDb.truncate( "page_owners" );
     }
 
-    /** Mirrors {@code WikiEngine.initKnowledgeGraph}'s userExistsLookup. */
+    /** Mirrors {@code WikiEngine.initDataSourceSubsystems}'s userExistsLookup. */
     private static Predicate< String > accountExists() {
         final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();
         return login -> {
@@ -88,7 +88,7 @@ class PageOwnerServiceAuthorKeyTest {
         };
     }
 
-    /** Mirrors {@code WikiEngine.initKnowledgeGraph}'s pageAuthorLookup (here the "canonical id" is the page name). */
+    /** Mirrors {@code WikiEngine.initDataSourceSubsystems}'s pageAuthorLookup (here the "canonical id" is the page name). */
     private static Function< String, Optional< String > > versionAuthorOf() {
         final PageManager pm = engine.getManager( PageManager.class );
         return pageName -> Optional.ofNullable( pm.getPage( pageName ) )

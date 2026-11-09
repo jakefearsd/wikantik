@@ -50,6 +50,23 @@ describe('AdminRetrievalQualityPage', () => {
     expect(screen.getByRole('button', { name: /Run now/ })).toBeInTheDocument();
   });
 
+  it('offers only live modes in the filter, but still shows retired history rows without a Run now button', async () => {
+    listSpy.mockResolvedValue({
+      recent_runs: [{
+        query_set_id: 'core-agent-queries', mode: 'hybrid_graph',
+        ndcg_at_5: 0.3, ndcg_at_10: 0.4, recall_at_20: 0.5, mrr: 0.2,
+      }],
+      count: 1,
+    });
+    render(<AdminRetrievalQualityPage />);
+    // The retired mode appears as the history row's cell only, never as a filter <option>.
+    expect(await screen.findByText('hybrid_graph')).toBeInTheDocument();
+    expect(screen.getAllByText('hybrid_graph')).toHaveLength(1);
+    expect(screen.getByRole('option', { name: 'bm25' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'hybrid' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Run now/ })).not.toBeInTheDocument();
+  });
+
   it('renders the empty state when no runs exist', async () => {
     listSpy.mockResolvedValueOnce({ recent_runs: [], count: 0 });
     render(<AdminRetrievalQualityPage />);

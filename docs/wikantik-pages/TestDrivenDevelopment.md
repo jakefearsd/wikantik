@@ -40,7 +40,7 @@ Unit tests are JUnit 5 and live under each module's `src/test`. They target indi
 Found in the `wikantik-it-tests` module and run only under the `integration-tests` profile, these tests verify that multiple modules work together correctly.
 - **Cargo:** The build uses the Cargo plugin to launch a real Tomcat 11 instance for each IT module.
 - **PostgreSQL:** Each module gets its own pgvector container with the schema applied by the production `migrate.sh` and fixtures loaded from `it-test-seed.sql`.
-- **Modules:** `rest` (REST + SCIM), `sso`, `knowledge-disabled`, `custom-jdbc` and `dense` run by default; `scim-fullloop` is opt-in.
+- **Modules:** `rest` (REST + SCIM), `sso`, `custom-jdbc` and `dense` run by default; `scim-fullloop` is opt-in.
 
 ### 3. End-to-End Tests (User Flows)
 Using **Selenide**, the project automates browser-based flows (login, page creation, admin actions) to ensure the React SPA and the Java backend are in sync. The browser runs headless by default.

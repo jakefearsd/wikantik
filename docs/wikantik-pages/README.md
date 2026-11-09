@@ -65,7 +65,7 @@ The root `pom.xml` lists these Maven modules in its default reactor. The React f
 | `wikantik-rest` | REST API under `/api/*`, admin API under `/admin/*`, and the public RDF servlets. |
 | `wikantik-extract-cli` | Offline entity-extractor, derived-page batch ingester and corpus-divergence tools. |
 | `wikantik-war` | WAR packaging: bundles the React build and wires every servlet and filter. |
-| `wikantik-it-tests` | Integration suites (Selenide browser, REST, SSO, custom JDBC, knowledge-disabled, dense retrieval, opt-in SCIM full loop). Only built with `-Pintegration-tests`. |
+| `wikantik-it-tests` | Integration suites (Selenide browser, REST, SSO, custom JDBC, dense retrieval, opt-in SCIM full loop). Only built with `-Pintegration-tests`. |
 | `wikantik-bom` | Bill of materials pinning shared dependency versions. |
 
 For layering rules and data flow, see [Wikantik System Architecture](WikantikArchitecture).

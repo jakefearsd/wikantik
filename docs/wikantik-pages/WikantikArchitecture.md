@@ -138,7 +138,7 @@ Modules are layered: `wikantik-api` defines the contracts (ports); everything el
 | `wikantik-observability` | ops | In-app health checks, Prometheus metrics, request correlation, and the `BackpressureFilter` / `RateLimitFilter` admission filters (the *deployment* monitoring stack lives in a separate `jakemon` repo). |
 | `wikantik-war` | bundle | Packages the React build + wires every servlet/filter into one deployable; hosts the ArchUnit and config-drift tests. |
 | `wikantik-wikipages` | content | Default pages shipped with a fresh install. |
-| `wikantik-it-tests` | test | Cargo-launched integration suites, each with its own Tomcat and pgvector container: `rest` (REST + SCIM), `sso` (Keycloak OIDC/SAML), `knowledge-disabled`, `custom-jdbc` (Selenide browser) and `dense` (embeddings on), plus the opt-in `scim-fullloop`. `wikantik-selenide-tests` is the shared support module. |
+| `wikantik-it-tests` | test | Cargo-launched integration suites, each with its own Tomcat and pgvector container: `rest` (REST + SCIM), `sso` (Keycloak OIDC/SAML), `custom-jdbc` (Selenide browser) and `dense` (embeddings on), plus the opt-in `scim-fullloop`. `wikantik-selenide-tests` is the shared support module. |
 
 `wikantik-frontend` (React SPA on Vite — reader, editor, admin panel, Page Graph viewer) is **not** a Maven module: `wikantik-war` drives the npm build and bundles the output.
 

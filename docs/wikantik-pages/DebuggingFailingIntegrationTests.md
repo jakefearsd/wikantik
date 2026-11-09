@@ -15,13 +15,13 @@ runbook:
   - You see "Port number NNNN is in use", "address already in use", or a pgvector
     container that will not start
   inputs:
-  - The failing IT module (one of rest, sso, knowledge-disabled, custom-jdbc, dense,
+  - The failing IT module (one of rest, sso, custom-jdbc, dense,
     scim-fullloop)
   - The error message from the module log or the failsafe report
   steps:
   - 'Confirm how you ran it. Parallel IT execution is supported only through `bin/run-tests.sh
     --parallel N`; do not add `-T` to a raw `mvn clean install -Pintegration-tests`.
-    Re-run through the script: `bin/run-tests.sh --module rest` (rest|sso|knowledge-disabled|custom-jdbc|dense|scim-fullloop)'
+    Re-run through the script: `bin/run-tests.sh --module rest` (rest|sso|custom-jdbc|dense|scim-fullloop)'
   - 'Make sure the ITs test your current code: the IT phase uses the WAR the unit
     phase installed, so run `bin/run-tests.sh --unit` (or `mvn clean install -DskipTests`,
     never `-Dmaven.test.skip`) after any code change'
@@ -82,7 +82,7 @@ When you see red and don't yet know whether it's your code or the test harness.
 
 ## Context
 
-The default IT modules are `rest` (REST + SCIM), `sso` (Keycloak OIDC and SAML), `knowledge-disabled`, `custom-jdbc` (the Selenide browser suite) and `dense` (embeddings enabled). `scim-fullloop` is an opt-in Authentik suite, and `wikantik-selenide-tests` is shared support code, not a suite of its own.
+The default IT modules are `rest` (REST + SCIM), `sso` (Keycloak OIDC and SAML), `custom-jdbc` (the Selenide browser suite) and `dense` (embeddings enabled). `scim-fullloop` is an opt-in Authentik suite, and `wikantik-selenide-tests` is shared support code, not a suite of its own.
 
 Under `bin/run-tests.sh` every module reserves its own free ports and its own container, named `wikantik-pg-<module artifactId>`, so modules do not collide with each other, with a development Tomcat on 8080, or with a development database. Collisions come back when that is bypassed: `-T` on a raw `mvn -Pintegration-tests`, or two runs in one checkout (the script takes a per-checkout lock for exactly this reason). The pgvector container is deliberately stopped rather than removed at the end of a run so its logs stay readable, which is also why a killed run leaves containers behind.
 

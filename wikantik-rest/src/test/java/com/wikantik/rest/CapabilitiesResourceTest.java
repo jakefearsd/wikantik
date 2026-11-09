@@ -146,7 +146,7 @@ class CapabilitiesResourceTest {
 
     @Test
     void testHybridSearchTrueWhenGenaiModeEmbeddingsOnly() throws Exception {
-        // EMBEDDINGS_ONLY allows embeddings (retrieval) — only NONE turns them off.
+        // Legacy alias: embeddings-only parses to FULL — only NONE turns embeddings off.
         engine.getWikiProperties().setProperty( "wikantik.search.hybrid.enabled", "true" );
         engine.getWikiProperties().setProperty( "wikantik.genai.mode", "embeddings-only" );
         assertTrue( doGetAsJson().get( "hybridSearch" ).getAsBoolean() );
@@ -189,9 +189,10 @@ class CapabilitiesResourceTest {
     }
 
     @Test
-    void testGenaiModeEmbeddingsOnly() throws Exception {
+    void testGenaiModeLegacyEmbeddingsOnlyReportsFull() throws Exception {
         engine.getWikiProperties().setProperty( "wikantik.genai.mode", "embeddings-only" );
-        assertEquals( "embeddings-only", doGetAsJson().get( "genaiMode" ).getAsString() );
+        // legacy alias parses to FULL, so the token reported is "full"
+        assertEquals( "full", doGetAsJson().get( "genaiMode" ).getAsString() );
     }
 
     @Test
@@ -227,7 +228,6 @@ class CapabilitiesResourceTest {
     @Test
     void testToTokenMapsAllEnumValues() {
         assertEquals( "full", CapabilitiesResource.toToken( GenAiMode.FULL ) );
-        assertEquals( "embeddings-only", CapabilitiesResource.toToken( GenAiMode.EMBEDDINGS_ONLY ) );
         assertEquals( "none", CapabilitiesResource.toToken( GenAiMode.NONE ) );
     }
 

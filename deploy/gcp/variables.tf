@@ -190,7 +190,7 @@ variable "tier" {
     docker-compose.cloud.yml's header:
       core      WIKANTIK_GENAI_MODE=none
                 (BM25-only search, zero inference infra)
-      search    WIKANTIK_GENAI_MODE=embeddings-only,
+      search    WIKANTIK_GENAI_MODE=full,
                 WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
                 (dense+BM25 hybrid retrieval via the CPU embeddings sidecar)
     "search" activates the compose `embeddings` profile (the ollama-embed

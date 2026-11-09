@@ -130,7 +130,7 @@ public class CapabilitiesResource extends RestServletBase {
 
     /**
      * Serializes a {@link GenAiMode} as the lowercase, hyphenated token the
-     * JSON contract specifies ({@code full}/{@code embeddings-only}/{@code none}),
+     * JSON contract specifies ({@code full}/{@code none}),
      * rather than the enum's {@code name()}.
      */
     static String toToken( final GenAiMode mode ) {

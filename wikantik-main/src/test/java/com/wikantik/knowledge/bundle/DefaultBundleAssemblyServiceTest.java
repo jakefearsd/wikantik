@@ -130,7 +130,7 @@ class DefaultBundleAssemblyServiceTest {
 
         final ContextBundle b = new DefaultBundleAssemblyService(
             new RetrievalRouting( Map.of( RetrievalMode.HYBRID, source ), RetrievalMode.HYBRID ), ( q, s ) -> s,
-            resolvers, 12, BundleCoverageCalculator.defaults(), KneeCutoff.disabled(), QueryDecomposition.disabled() )
+            resolvers, 12, BundleCoverageCalculator.defaults(), KneeCutoff.disabled() )
             .assemble( "q" );
 
         assertEquals( List.of( "/wiki/PageA#one", "/wiki/PageA#two", "/wiki/PageB#three" ),

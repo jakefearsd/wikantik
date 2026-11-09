@@ -70,7 +70,7 @@ Every key is declared, with its default and a description, in `ini/wikantik.prop
 wikantik.search.hybrid.enabled = true
 ```
 
-Default in the shipped properties file is `true`. Setting `false` disables both the dense index build and the query-time rerank — no embedding client is instantiated. `wikantik.genai.mode = none` forces the same state; `embeddings-only` and `full` (the default) leave it on.
+Default in the shipped properties file is `true`. Setting `false` disables both the dense index build and the query-time rerank — no embedding client is instantiated. `wikantik.genai.mode = none` forces the same state; `full` (the default) leaves it on; the legacy value `embeddings-only` is an alias for `full`.
 
 ### Fuser
 
@@ -243,10 +243,8 @@ Force a re-embed explicitly via the admin "Reindex Embeddings" button if you wan
 | `wikantik.bundle.bm25.bm25_weight` / `.dense_weight` | `0.5` / `1.5` | Bundle RRF weights (dense-tilted 3:1) |
 | `wikantik.bundle.bm25.rrf_k` / `.truncate` | `20` / `20` | Bundle RRF constant and window |
 | `wikantik.bundle.bm25.analyzer` | `standard` | `code` splits camelCase/snake_case but collapses natural-language recall under BM25-heavy fusion |
-| `wikantik.bundle.reranker.enabled` | `false` | LLM listwise reranker — measured to reorder without raising recall |
-| `wikantik.bundle.decomposition.enabled` | `false` | LLM query decomposition — measured and rejected |
 
-Measured and rejected levers (`eval/bundle-corpus/baseline-notes.md`): the LLM listwise reranker, HyDE, doc2query, query decomposition and the Knowledge Graph page-level rerank (deleted in 2026-07 — see [KnowledgeGraphRerank](KnowledgeGraphRerank)). Operator reference for the bundle: `docs/admin/RagContextBundle.md`.
+Measured and rejected levers (`eval/bundle-corpus/baseline-notes.md`): the LLM listwise reranker and query decomposition (both removed in 2026-11), HyDE, doc2query and the Knowledge Graph page-level rerank (deleted in 2026-07 — see [KnowledgeGraphRerank](KnowledgeGraphRerank)). Operator reference for the bundle: `docs/admin/RagContextBundle.md`.
 
 ## Section recall levers
 

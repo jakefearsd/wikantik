@@ -303,7 +303,7 @@ injection. Defaults shown.
 | `wikantik.bundle.bm25.rrf_k` | `20` | RRF constant for the bundle fusion. |
 | `wikantik.bundle.coverage.strong_similarity` | `0.55` | `topSimilarity` at/above which coverage is `strong`. |
 | `wikantik.bundle.coverage.partial_similarity` | `0.40` | `topSimilarity` at/above which coverage is `partial` (else `weak`). |
-| `wikantik.bundle.reranker.enabled` | `false` | LLM listwise reranker. **Default off** — measured to reorder without improving recall (a bad relevance judge under shuffled input). |
+| `wikantik.bundle.rerank.chain` | blank | Deterministic rerank stages (`mmr`, `metadata-boost`); blank = dense-ordered. The LLM listwise reranker was removed in 2026-11 (measured to reorder without improving recall). |
 | `wikantik.briefing.enabled` | `true` | Kill switch for the briefing service; when `false` it is not wired. |
 | `wikantik.briefing.default_budget` / `.max_budget` | `6000` / `24000` | Default and maximum token budget for `/api/briefing` and `get_briefing`. |
 | `wikantik.briefing.sections_per_page` | `4` | Most task-relevant sections one page may contribute to a briefing. |

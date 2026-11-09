@@ -18,12 +18,10 @@
  */
 package com.wikantik.knowledge.bundle;
 
-import com.wikantik.api.config.GenAiMode;
 import com.wikantik.api.pagegraph.Confidence;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.http.HttpClient;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -31,10 +29,10 @@ import java.util.Properties;
 import java.util.function.Function;
 
 /**
- * Section-reranker and query-planner selection for the context bundle: which rerank stages
- * {@code wikantik.bundle.rerank.chain} (or the legacy {@code wikantik.bundle.reranker.enabled}) asks for,
- * under the {@code wikantik.genai.mode} chat-inference ceiling, and their {@code /admin/llm-activity}
- * recording. Split out of {@link BundleServiceWiring}, which assembles the service from these parts.
+ * Section-reranker selection for the context bundle: which rerank stages
+ * {@code wikantik.bundle.rerank.chain} asks for. Split out of {@link BundleServiceWiring},
+ * which assembles the service from these parts. All stages are local, deterministic
+ * re-orderings (the LLM listwise reranker was removed in 2026-11).
  */
 final class BundleRerankers {
 
@@ -42,105 +40,34 @@ final class BundleRerankers {
 
     private BundleRerankers() {}
 
-    /**
-     * Wraps {@code reranker} for {@code /admin/llm-activity} recording when the activity log is
-     * enabled AND the reranker actually issues chat inference — a bare {@link LlmSectionReranker},
-     * or a {@link SectionRerankChain} carrying one as its {@code llm} stage. Non-LLM rerankers
-     * (identity, {@link MmrSectionReranker}, {@link MetadataBoostSectionReranker}) are returned
-     * unchanged — there is no call to record. Never called from {@link #rerankerFor} itself, so
-     * the genai.mode ceiling logic there stays byte-for-byte unchanged and independently testable.
-     */
-    static SectionReranker recordReranker( final SectionReranker reranker, final com.wikantik.llm.activity.LlmActivityLog log,
-                                           final String model ) {
-        if ( log == null || !log.enabled() ) {
-            return reranker;
-        }
-        if ( reranker instanceof LlmSectionReranker ) {
-            return new RecordingSectionReranker( reranker, log, "ollama", model );
-        }
-        if ( reranker instanceof SectionRerankChain chain ) {
-            boolean changed = false;
-            final List< SectionReranker > stages = new ArrayList<>( chain.stages().size() );
-            for ( final SectionReranker stage : chain.stages() ) {
-                if ( stage instanceof LlmSectionReranker ) {
-                    stages.add( new RecordingSectionReranker( stage, log, "ollama", model ) );
-                    changed = true;
-                } else {
-                    stages.add( stage );
-                }
-            }
-            return changed ? new SectionRerankChain( stages ) : chain;
-        }
-        return reranker;
-    }
-
-    /**
-     * Wraps {@code planner} for {@code /admin/llm-activity} recording when the activity log is
-     * enabled AND the planner is the LLM-backed {@link LlmQueryPlanner} — the (default)
-     * {@link PassthroughQueryPlanner} is returned unchanged, since it never calls out. Never
-     * called from {@link BundleDecompositionConfig#fromProperties}, so that method's genai.mode
-     * ceiling logic stays byte-for-byte unchanged and independently testable.
-     */
-    static QueryPlanner recordPlanner( final QueryPlanner planner, final com.wikantik.llm.activity.LlmActivityLog log,
-                                       final String model ) {
-        if ( log == null || !log.enabled() ) {
-            return planner;
-        }
-        return planner instanceof LlmQueryPlanner ? new RecordingQueryPlanner( planner, log, "ollama", model ) : planner;
-    }
-
     /** Identity reranker: returns the (already relevance-sorted) input untouched. */
     private static final SectionReranker IDENTITY = ( query, sections ) -> sections;
 
-    /**
-     * Selects the section reranker from config. If {@code wikantik.bundle.rerank.chain} is set
-     * (CSV of stage names: {@code mmr}, {@code llm}), builds an ordered {@link SectionRerankChain}
-     * from it. Otherwise falls back to the legacy behavior: {@code wikantik.bundle.reranker.enabled}
-     * defaults to {@code false} — the 2026-06-13 live measurement showed the listwise LLM reranker
-     * is an ordering lever, not a recall lever (rerank == dense recall), at ~1.5s per request — so
-     * the bundle ships dense-ordered by default (identity) and opts in to the LLM reranker.
-     */
+    /** Selects the section reranker from config with no confidence lookup (the {@code metadata-boost} stage is skipped). */
     static SectionReranker rerankerFor( final Properties props ) {
         return rerankerFor( props, null );
     }
 
     /**
      * Selects the section reranker from config. If {@code wikantik.bundle.rerank.chain} is set
-     * (CSV of stage names: {@code mmr}, {@code metadata-boost}, {@code llm}), builds an ordered
+     * (CSV of stage names: {@code mmr}, {@code metadata-boost}), builds an ordered
      * {@link SectionRerankChain} from it — {@code confidenceOf} (slug → {@link Confidence}) feeds
-     * the {@code metadata-boost} stage, which is skipped when null. Otherwise falls back to the
-     * legacy behavior: {@code wikantik.bundle.reranker.enabled} defaults to {@code false} — the
-     * 2026-06-13 live measurement showed the listwise LLM reranker is an ordering lever, not a
-     * recall lever (rerank == dense recall), at ~1.5s per request — so the bundle ships
-     * dense-ordered by default (identity) and opts in to the LLM reranker.
+     * the {@code metadata-boost} stage, which is skipped when null. Otherwise the bundle ships
+     * dense-ordered (identity).
      */
     static SectionReranker rerankerFor( final Properties props, final Function< String, Confidence > confidenceOf ) {
-        // wikantik.genai.mode ceiling: the LLM reranker is chat inference, so neither
-        // activation path below (legacy enabled flag, or an 'llm' token in the chain
-        // spec) may construct one when the mode disallows chat inference.
-        final GenAiMode mode = props == null ? GenAiMode.FULL : GenAiMode.fromProperties( props );
-        final boolean chatAllowed = mode.allowsChatInference();
-
         final String chainSpec = props == null ? null : props.getProperty( "wikantik.bundle.rerank.chain" );
         if ( chainSpec != null && !chainSpec.isBlank() ) {
-            return buildChain( chainSpec, props, confidenceOf, chatAllowed, mode );
+            return buildChain( chainSpec, props, confidenceOf );
         }
-        final boolean enabled = props != null && Boolean.parseBoolean(
-            props.getProperty( RerankerConfig.PREFIX + "enabled", "false" ) );
-        if ( enabled && !chatAllowed ) {
-            LOG.warn( "{}={} disallows chat inference; ignoring {}enabled=true, using identity reranker",
-                GenAiMode.PROP, mode, RerankerConfig.PREFIX );
-            return IDENTITY;
-        }
-        return enabled ? new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) : IDENTITY;
+        return IDENTITY;
     }
 
     /** Builds an ordered reranker chain from a CSV of stage names; unknown names are skipped with a
      *  warn, and an all-unknown/empty spec degrades to {@link #IDENTITY}. The {@code metadata-boost}
      *  stage is skipped (with a warn) when {@code confidenceOf} is null. */
     private static SectionReranker buildChain( final String spec, final Properties props,
-                                               final Function< String, Confidence > confidenceOf,
-                                               final boolean chatAllowed, final GenAiMode mode ) {
+                                               final Function< String, Confidence > confidenceOf ) {
         final List< SectionReranker > stages = new ArrayList<>();
         for ( final String raw : spec.split( "," ) ) {
             final String name = raw.trim().toLowerCase( Locale.ROOT );
@@ -153,14 +80,6 @@ final class BundleRerankers {
                     } else {
                         stages.add( new MetadataBoostSectionReranker(
                             confidenceOf, metadataBoostPositions( props ), metadataBoostWindow( props ) ) );
-                    }
-                }
-                case "llm" -> {
-                    if ( !chatAllowed ) {
-                        LOG.warn( "{}={} disallows chat inference; skipping 'llm' rerank stage",
-                            GenAiMode.PROP, mode );
-                    } else {
-                        stages.add( new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) );
                     }
                 }
                 default -> LOG.warn( "Unknown rerank stage '{}' in wikantik.bundle.rerank.chain; skipping", name );
@@ -190,16 +109,6 @@ final class BundleRerankers {
 
     /** Short reranker description for the wiring log line. */
     static String label( final SectionReranker reranker ) {
-        if ( reranker instanceof SectionRerankChain c ) {
-            return "chain(" + c.stages().size() + ")";
-        }
-        return reranker instanceof LlmSectionReranker ? "on" : "off";
-    }
-
-    /** The LLM query planner when decomposition is enabled, else the passthrough planner (no call-outs). */
-    static QueryPlanner plannerFor( final BundleDecompositionConfig decompositionConfig ) {
-        return decompositionConfig.enabled()
-            ? new LlmQueryPlanner( HttpClient.newHttpClient(), decompositionConfig )
-            : new PassthroughQueryPlanner();
+        return reranker instanceof SectionRerankChain c ? "chain(" + c.stages().size() + ")" : "off";
     }
 }

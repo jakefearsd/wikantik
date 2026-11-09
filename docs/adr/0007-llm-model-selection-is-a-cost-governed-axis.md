@@ -1,4 +1,6 @@
 > **Note 2026-11:** entity/relation extraction (and its `ClaudeEntityExtractor`) was removed with the Knowledge Graph; the cost-governed principle still applies to embeddings and the optional bundle rerank/decomposition (`wikantik.genai.mode`).
+>
+> **Status 2026-11:** all chat inference was removed (the bundle LLM reranker and query decomposition were deleted after measurement); only embeddings remain, and `wikantik.genai.mode` is now `full | none`.
 
 # LLM model selection is a cost-governed, eval-scored, swappable axis — never a default to premium
 

@@ -27,10 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Verifies {@code wikantik.genai.mode} acts as a ceiling on embeddings: unlike
- * the chat-inference seams, {@code embeddings-only} must leave embeddings
- * enabled (per {@link GenAiMode#allowsEmbeddings()}) — only {@code none} turns
- * embeddings off.
+ * Verifies {@code wikantik.genai.mode} acts as a ceiling on embeddings: the legacy
+ * {@code embeddings-only} alias parses to {@code full} and leaves embeddings enabled
+ * (per {@link GenAiMode#allowsEmbeddings()}) — only {@code none} turns embeddings off.
  */
 class EmbeddingConfigModeTest {
 
@@ -45,14 +44,14 @@ class EmbeddingConfigModeTest {
     }
 
     @Test
-    void embeddingsOnly_leavesEmbeddingsEnabled() {
+    void legacyEmbeddingsOnlyAlias_leavesEmbeddingsEnabled() {
         final Properties p = new Properties();
         p.setProperty( EmbeddingConfig.PROP_ENABLED, "true" );
         p.setProperty( GenAiMode.PROP, "embeddings-only" );
 
         final EmbeddingConfig cfg = EmbeddingConfig.fromProperties( p );
 
-        assertTrue( cfg.enabled(), "embeddings-only must NOT disable embeddings (only chat inference)" );
+        assertTrue( cfg.enabled(), "legacy embeddings-only alias must NOT disable embeddings" );
     }
 
     @Test

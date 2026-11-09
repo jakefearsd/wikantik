@@ -25,22 +25,20 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Ceiling control for LLM operations. Models allowed inference modes:
+ * Ceiling control for model-backed operations. Wikantik performs no chat inference (the last
+ * chat-LLM paths were removed in 2026-11), so the only model use is embeddings:
  * <ul>
- *   <li>{@link #FULL} — both embeddings and chat inference allowed (default)</li>
- *   <li>{@link #EMBEDDINGS_ONLY} — embeddings (retrieval) only, no chat inference</li>
- *   <li>{@link #NONE} — LLM operations entirely disabled</li>
+ *   <li>{@link #FULL} — embeddings allowed (default)</li>
+ *   <li>{@link #NONE} — all model-backed operations disabled</li>
  * </ul>
+ * The legacy value {@code embeddings-only} is still accepted and parses to {@link #FULL}.
  */
 public enum GenAiMode {
 
-    /** Full LLM support: embeddings and chat inference both enabled. */
+    /** Embeddings (retrieval/search) enabled. */
     FULL,
 
-    /** Embeddings only: retrieval/search enabled, chat inference disabled. */
-    EMBEDDINGS_ONLY,
-
-    /** All LLM operations disabled. */
+    /** All model-backed operations disabled. */
     NONE;
 
     private static final Logger LOG = LogManager.getLogger( GenAiMode.class );
@@ -78,7 +76,8 @@ public enum GenAiMode {
             case "full":
                 return FULL;
             case "embeddings-only":
-                return EMBEDDINGS_ONLY;
+                LOG.info( "{}=embeddings-only is a legacy alias and is now equivalent to full", PROP );
+                return FULL;
             case "none":
                 return NONE;
             default:
@@ -88,20 +87,11 @@ public enum GenAiMode {
     }
 
     /**
-     * Returns {@code true} only if this mode allows chat inference.
-     *
-     * @return true for {@link #FULL}, false for others
-     */
-    public boolean allowsChatInference() {
-        return this == FULL;
-    }
-
-    /**
      * Returns {@code true} if this mode allows embeddings (retrieval).
      *
-     * @return true for {@link #FULL} and {@link #EMBEDDINGS_ONLY}, false for {@link #NONE}
+     * @return true for {@link #FULL}, false for {@link #NONE}
      */
     public boolean allowsEmbeddings() {
-        return this == FULL || this == EMBEDDINGS_ONLY;
+        return this == FULL;
     }
 }

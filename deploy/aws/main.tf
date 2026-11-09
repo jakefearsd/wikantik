@@ -360,7 +360,7 @@ locals {
       WIKANTIK_GENAI_MODE = "none"
     }
     search = {
-      WIKANTIK_GENAI_MODE         = "embeddings-only"
+      WIKANTIK_GENAI_MODE         = "full"
       WIKANTIK_EMBEDDING_BASE_URL = "http://ollama-embed:11434"
     }
   }

@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+
+- **The remaining chat-LLM code paths are deleted.** The bundle's LLM listwise section reranker
+  (`wikantik.bundle.reranker.*`, the `llm` stage of `wikantik.bundle.rerank.chain`) and LLM query decomposition
+  (`wikantik.bundle.decomposition.*`) were measured, rejected and default-off; they, `OllamaChatRequest` and their
+  `/admin/llm-activity` recording are gone (the panel stays and still records embedding calls). Wikantik now performs no
+  chat inference, so `wikantik.genai.mode` is `full | none`; `embeddings-only` is still accepted as a legacy alias for
+  `full`. `wikantik.bundle.rerank.chain` keeps its `mmr` and `metadata-boost` stages.
+
 ### Changed
 
 - The shipped default for the embedding, bundle-reranker and query-decomposition Ollama URLs is now `http://localhost:11434` (was the no-longer-resolvable `inference.jakefear.com`). Deployments using a shared inference host set it explicitly (prod already does via `WIKANTIK_EMBEDDING_BASE_URL`).

@@ -20,7 +20,5 @@ package com.wikantik.llm.activity;
 
 /** Which LLM-using subsystem issued a call. */
 public enum Subsystem {
-    EMBEDDING,
-    SECTION_RERANK,
-    QUERY_DECOMPOSITION
+    EMBEDDING
 }

@@ -60,7 +60,7 @@ the nightly backup tarball.
 ## GenAI cost tiers
 
 Inference spend is bounded by a single ceiling property,
-**`wikantik.genai.mode`** (`full` | `embeddings-only` | `none`,
+**`wikantik.genai.mode`** (`full` | `none`; legacy `embeddings-only` = `full`,
 `com.wikantik.api.config.GenAiMode`). Both Terraform modules
 expose a `tier` variable (`core` | `search`) that sets the
 matching `.env` preset and compose `--profile` flags:
@@ -68,7 +68,7 @@ matching `.env` preset and compose `--profile` flags:
 | Tier | `WIKANTIK_GENAI_MODE` | Extra `.env` | Compose profile added |
 |---|---|---|---|
 | `core` | `none` | — | — (BM25-only, zero inference infra) |
-| `search` | `embeddings-only` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
+| `search` | `full` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
 
 `wikantik.genai.mode` is a **ceiling**, not a switch — it never turns a
 feature on, it only forces an already-enabled feature off when the mode

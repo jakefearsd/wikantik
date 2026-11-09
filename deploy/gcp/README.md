@@ -193,7 +193,7 @@ table exactly:
 | Tier | `WIKANTIK_GENAI_MODE` | Extra `.env` | Compose profile added |
 |---|---|---|---|
 | `core` | `none` | — | — (BM25-only, zero inference infra) |
-| `search` | `embeddings-only` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
+| `search` | `full` | `WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434` | `embeddings` |
 
 `bundled-db` is always activated (this module has no managed-Cloud-SQL
 variant yet, mirroring AWS's no-RDS-yet posture); the ingress profile

@@ -35,7 +35,7 @@ Wikantik is a fork of **Apache JSPWiki**. The project started in early 2026 as a
 - **Identity and access.** Database-backed policy grants and groups, page-level ACLs, SSO (OIDC and SAML), SCIM 2.0 provisioning at `/scim/v2/*`, scoped API keys, and a tamper-evident audit log. See [Single Sign-On](WikantikSingleSignOn), [SCIM Provisioning](WikantikScimProvisioning) and [API Keys](WikantikApiKeys).
 - **Connectors.** External sources (filesystem, web crawler, sitemap, RSS/Atom feed, Google Drive, GitHub, Confluence) sync into machine-managed derived pages, and documents can be ingested through `POST /api/ingest`. See [Connectors](WikantikConnectors).
 - **Import, export and feeds.** Obsidian vault import and export, raw content at `/wiki/{slug}?format=md|json`, and an incremental change feed at `/api/changes?since=`.
-- **Operations.** Health at `/api/health`, Prometheus metrics at `/metrics`, structured logs, an admin panel at `/admin/`, and a `wikantik.genai.mode` setting (`full`, `embeddings-only` or `none`) that caps LLM spend.
+- **Operations.** Health at `/api/health`, Prometheus metrics at `/metrics`, structured logs, an admin panel at `/admin/`, and a `wikantik.genai.mode` setting (`full` or `none`) that caps LLM spend.
 
 ## Module map
 

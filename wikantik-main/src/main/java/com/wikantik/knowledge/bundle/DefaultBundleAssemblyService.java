@@ -56,9 +56,6 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
     private final int maxSections;
     private final BundleCoverageCalculator coverageCalc;
     private final KneeCutoff knee;
-    private final QueryPlanner planner;
-    private final SubQueryFusion fusion;
-    private final boolean decompositionEnabled;
 
     /**
      * Page-gated constructor (retained for back-compat): wraps hybrid retrieval +
@@ -135,27 +132,21 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
                                          final BundleCoverageCalculator coverageCalc,
                                          final KneeCutoff knee ) {
         this( new RetrievalRouting( sources, defaultMode ), reranker,
-              new CitationResolvers( canonicalIdOf, versionOf ), maxSections, coverageCalc, knee,
-              QueryDecomposition.disabled() );
+              new CitationResolvers( canonicalIdOf, versionOf ), maxSections, coverageCalc, knee );
     }
 
     /**
      * Canonical constructor — routing to a per-{@link RetrievalMode} {@link SectionCandidateSource}
      * ({@link RetrievalRouting}), the slug→citation-identity resolvers ({@link CitationResolvers}),
-     * and (default off) structure-conditional query decomposition ({@link QueryDecomposition}):
-     * when {@code decomposition.enabled()} and {@link QueryStructureHeuristic#looksMultiPart(String)}
-     * both hold, {@code decomposition.planner()} splits the query into sub-queries whose per-query
-     * candidates are fused via {@code decomposition.fusion()} before reranking. Grouped into these
-     * parameter objects to keep the parameter list manageable — see the convenience constructors
-     * above for the common cases.
+     * and the knee cutoff. Grouped into these parameter objects to keep the parameter list
+     * manageable — see the convenience constructors above for the common cases.
      */
     public DefaultBundleAssemblyService( final RetrievalRouting routing,
                                          final SectionReranker reranker,
                                          final CitationResolvers citations,
                                          final int maxSections,
                                          final BundleCoverageCalculator coverageCalc,
-                                         final KneeCutoff knee,
-                                         final QueryDecomposition decomposition ) {
+                                         final KneeCutoff knee ) {
         Objects.requireNonNull( routing.sources().get( routing.defaultMode() ),
             "defaultMode must be present in sources" );
         this.sources = Map.copyOf( routing.sources() );
@@ -167,9 +158,6 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         this.maxSections = maxSections;
         this.coverageCalc = coverageCalc;
         this.knee = knee;
-        this.planner = decomposition.planner();
-        this.fusion = decomposition.fusion();
-        this.decompositionEnabled = decomposition.enabled();
     }
 
     @Override
@@ -199,10 +187,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             LOG.warn( "Retrieval mode {} has no wired source; degrading to default {}", mode, defaultMode );
             src = sources.get( defaultMode );
         }
-        SectionCandidates cand = src.candidates( query );
-        if ( decompositionEnabled && QueryStructureHeuristic.looksMultiPart( query ) ) {
-            cand = decompose( query, src, cand );
-        }
+        final SectionCandidates cand = src.candidates( query );
         final List< CandidateSection > ranked = reranker.rerank( query, cand.sections() );
         // knee only valid on cosine-scale dense candidates; and it counts dense-ranked N applied
         // to the reranked output — rerank picks which/order, knee picks how many.
@@ -211,34 +196,6 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             : effectiveMax;
         final List< BundleSection > out = citeAndDedup( ranked, cut );
         return new ContextBundle( query, out, coverageCalc.compute( cand.topSimilarity(), out ) );
-    }
-
-    /**
-     * Splits {@code query} into sub-queries via {@link #planner} and fuses their per-query
-     * candidates (plus the already-retrieved {@code original} pass) via {@link #fusion}. Returns
-     * {@code original} unchanged when the planner degenerates to a single (sub-)query.
-     */
-    private SectionCandidates decompose( final String query, final SectionCandidateSource src,
-                                         final SectionCandidates original ) {
-        final List< String > subs = planner.plan( query );     // fail-closed -> [query]
-        if ( subs.size() <= 1 ) return original;
-        final List< SectionCandidates > perQuery = new ArrayList<>();
-        perQuery.add( original );                               // include the original pass
-        for ( final String sq : subs ) {
-            // Guard each sub-query retrieval: a transient embedder/index error on one sub-query
-            // must not abort a bundle single-pass would have returned. Skip the failed sub-query
-            // and fuse whatever succeeded (the original is already in perQuery, so worst case
-            // degrades to single-pass — "helps-or-no-ops").
-            try {
-                perQuery.add( src.candidates( sq ) );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Sub-query retrieval failed for '{}' (skipping): {}", sq, e.getMessage() );
-            }
-        }
-        final SectionCandidates fused = fusion.fuse( perQuery );
-        LOG.info( "Bundle decomposition: '{}' -> {} sub-queries, fused {} sections",
-            query, subs.size(), fused.sections().size() );
-        return fused;
     }
 
     /** Dedup by (slug, heading-path), drop un-citable sections, cite, link, and cap at {@code cut}. */

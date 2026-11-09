@@ -62,7 +62,7 @@
 #   WIKANTIK_SSO_CLAIM_FULL_NAME IdP claim mapped to display name (default "name")
 #   WIKANTIK_SSO_CLAIM_EMAIL     IdP claim mapped to email (default "email")
 #                                redirect_uri = WIKANTIK_BASE_URL + /sso/callback
-#   WIKANTIK_GENAI_MODE          GenAI ceiling control: full | embeddings-only | none
+#   WIKANTIK_GENAI_MODE          GenAI ceiling control: full | none (legacy "embeddings-only" = full)
 #                                (default: ini bundle default = full)
 #   WIKANTIK_EMBEDDING_BATCH_SIZE
 #                                texts per embedding backend round-trip (default 10).
@@ -216,7 +216,7 @@ EOF
 fi
 
 # Optional: GenAI ceiling control (cost-control flag).
-#   WIKANTIK_GENAI_MODE — full | embeddings-only | none (default: ini bundle default = full).
+#   WIKANTIK_GENAI_MODE — full | none (legacy "embeddings-only" = full) (default: ini bundle default = full).
 if [ -n "${WIKANTIK_GENAI_MODE:-}" ]; then
   cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
 

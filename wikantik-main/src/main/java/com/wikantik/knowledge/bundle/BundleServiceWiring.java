@@ -146,32 +146,13 @@ public final class BundleServiceWiring {
 
         final String rerankerLabel = BundleRerankers.label( reranker );
         final String kneeLabel = kneeEnabled( props ) ? ( "on/ratio=" + kneeRetainRatio( props ) ) : "off";
-        final BundleDecompositionConfig decompositionConfig = BundleDecompositionConfig.fromProperties( props );
-        final QueryPlanner planner = BundleRerankers.plannerFor( decompositionConfig );
-        LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={}, knee={}, decomposition={})",
-            sources.keySet(), rerankerLabel, MAX_SECTIONS, kneeLabel, decompositionConfig.enabled() );
-
-        // LLM-activity observability parity (Task 1.7): decorate whatever BundleRerankers.rerankerFor()/the
-        // decomposition-config branch above already decided to construct — this happens AFTER
-        // the wikantik.genai.mode ceiling logic has run, so it never influences that decision.
-        // It only makes calls that DO happen (chat inference, when the ceiling allows it)
-        // visible at /admin/llm-activity, mirroring RecordingEmbeddingClient at its own wiring point.
-        final com.wikantik.llm.activity.LlmActivityLog activityLog =
-            com.wikantik.llm.activity.LlmActivityLogHolder.getOrCreate( props );
-        final SectionReranker recordedReranker =
-            BundleRerankers.recordReranker( reranker, activityLog, RerankerConfig.fromProperties( props ).model() );
-        final QueryPlanner recordedPlanner =
-            BundleRerankers.recordPlanner( planner, activityLog, decompositionConfig.model() );
+        LOG.info( "Bundle assembly service wired (modes={}, reranker={}, maxSections={}, knee={})",
+            sources.keySet(), rerankerLabel, MAX_SECTIONS, kneeLabel );
 
         return new DefaultBundleAssemblyService(
-            new RetrievalRouting( sources, RetrievalMode.HYBRID ), recordedReranker,
+            new RetrievalRouting( sources, RetrievalMode.HYBRID ), reranker,
             new CitationResolvers( canonicalIdOf, versionOf, sectionLinks( pageManager, props ) ), MAX_SECTIONS,
-            coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ),
-            new QueryDecomposition( recordedPlanner,
-                new SubQueryFusion( decompositionConfig.rrfK(),
-                    "roundrobin".equalsIgnoreCase( decompositionConfig.fusion() )
-                        ? SubQueryFusion.Mode.ROUND_ROBIN : SubQueryFusion.Mode.RRF ),
-                decompositionConfig.enabled() ) );
+            coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ) );
     }
 
 

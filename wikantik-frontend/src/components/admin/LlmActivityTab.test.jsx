@@ -62,45 +62,6 @@ describe('LlmActivityTab', () => {
     expect(await screen.findByText(/No LLM calls/i)).toBeInTheDocument();
   });
 
-  it('filters table rows by subsystem when a chip is clicked', async () => {
-    api.admin.embeddings.getLlmActivity.mockResolvedValue(
-      payload([
-        call({ seq: 1, subsystem: 'SECTION_RERANK', model: 'gemma4-assist' }),
-        call({ seq: 2, subsystem: 'EMBEDDING', model: 'nomic' }),
-      ]),
-    );
-    render(<LlmActivityTab />);
-    expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
-    expect(screen.getByText('nomic')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Embedding' }));
-
-    await waitFor(() => expect(screen.queryByText('gemma4-assist')).not.toBeInTheDocument());
-    expect(screen.getByText('nomic')).toBeInTheDocument();
-  });
-
-  it('renders chips + labeled rows for the SECTION_RERANK and QUERY_DECOMPOSITION subsystems and filters by them', async () => {
-    api.admin.embeddings.getLlmActivity.mockResolvedValue(
-      payload([
-        call({ seq: 1, subsystem: 'SECTION_RERANK', model: 'rerank-model' }),
-        call({ seq: 2, subsystem: 'QUERY_DECOMPOSITION', model: 'decomp-model' }),
-      ]),
-    );
-    render(<LlmActivityTab />);
-    expect(await screen.findByText('rerank-model')).toBeInTheDocument();
-    // Rows carry the short subsystem labels, not the raw enum names.
-    expect(screen.getByText('rerank')).toBeInTheDocument();
-    expect(screen.getByText('decomposition')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Rerank' }));
-    await waitFor(() => expect(screen.queryByText('decomp-model')).not.toBeInTheDocument());
-    expect(screen.getByText('rerank-model')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Decomposition' }));
-    await waitFor(() => expect(screen.queryByText('rerank-model')).not.toBeInTheDocument());
-    expect(screen.getByText('decomp-model')).toBeInTheDocument();
-  });
-
   it('filters table rows by status when a chip is clicked', async () => {
     api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([
@@ -120,14 +81,14 @@ describe('LlmActivityTab', () => {
   it('keeps header totals unfiltered while a filter is active', async () => {
     api.admin.embeddings.getLlmActivity.mockResolvedValue(
       payload([
-        call({ seq: 1, subsystem: 'SECTION_RERANK', model: 'gemma4-assist' }),
-        call({ seq: 2, subsystem: 'EMBEDDING', model: 'nomic' }),
+        call({ seq: 1, status: 'OK', model: 'gemma4-assist' }),
+        call({ seq: 2, status: 'ERROR', model: 'nomic' }),
       ]),
     );
     render(<LlmActivityTab />);
     expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Embedding' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Error' }));
 
     // Header still reflects the full unfiltered total of 2 calls.
     expect(screen.getByText(/2 calls/)).toBeInTheDocument();

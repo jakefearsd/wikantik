@@ -29,7 +29,6 @@ import com.wikantik.api.pagegraph.Confidence;
 import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
 import org.junit.jupiter.api.Test;
 
-import java.net.http.HttpClient;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -61,22 +60,6 @@ class BundleServiceWiringTest {
         final SectionReranker r = BundleRerankers.rerankerFor( new Properties() );
         final List< CandidateSection > in = List.of( sec( "A" ), sec( "B" ) );
         assertSame( in, r.rerank( "q", in ), "disabled reranker must return the input list unchanged" );
-    }
-
-    @Test
-    void rerankerEnabled_isLlmReranker() {
-        final Properties p = new Properties();
-        p.setProperty( "wikantik.bundle.reranker.enabled", "true" );
-        assertInstanceOf( LlmSectionReranker.class, BundleRerankers.rerankerFor( p ),
-            "enabled=true must select the LLM reranker" );
-    }
-
-    @Test
-    void rerankerExplicitlyFalse_isIdentity() {
-        final Properties p = new Properties();
-        p.setProperty( "wikantik.bundle.reranker.enabled", "false" );
-        final List< CandidateSection > in = List.of( sec( "A" ) );
-        assertEquals( in, BundleRerankers.rerankerFor( p ).rerank( "q", in ) );
     }
 
     @Test
@@ -382,50 +365,6 @@ class BundleServiceWiringTest {
         assertSame( in, BundleRerankers.rerankerFor( new Properties() ).rerank( "q", in ) );
     }
 
-    /* ---------- build(): query-decomposition wiring (default off) ---------- */
-
-    @Test
-    void decompositionDisabledByDefaultWiresPassthrough() {
-        // No decomposition keys -> passthrough planner wired; a single-intent assemble
-        // must work without ever attempting an Ollama call.
-        final BundleAssemblyService svc = BundleServiceWiring.build(
-            stubRetrieval(), null, null, null, new Properties() );
-        assertNotNull( svc );
-        assertEquals( "q", svc.assemble( "q" ).query() );
-    }
-
-    @Test
-    void decompositionConfigParsedFromProperties() {
-        final Properties p = new Properties();
-        p.setProperty( "wikantik.bundle.decomposition.enabled", "true" );
-        p.setProperty( "wikantik.bundle.decomposition.max_subqueries", "3" );
-        final BundleDecompositionConfig cfg = BundleDecompositionConfig.fromProperties( p );
-        assertTrue( cfg.enabled() );
-        assertEquals( 3, cfg.maxSubqueries() );
-    }
-
-    @Test
-    void decompositionEnabled_wiresLlmQueryPlanner() throws Exception {
-        // White-box check (same package): build() must actually thread cfg.enabled() into the
-        // planner choice, not just leave the constructor defaults (which are passthrough/off).
-        final Properties p = new Properties();
-        p.setProperty( "wikantik.bundle.decomposition.enabled", "true" );
-        final BundleAssemblyService svc = BundleServiceWiring.build( stubRetrieval(), null, null, null, p );
-        assertNotNull( svc );
-        final java.lang.reflect.Field plannerField = DefaultBundleAssemblyService.class.getDeclaredField( "planner" );
-        plannerField.setAccessible( true );
-        final Object planner = plannerField.get( svc );
-        // Task 1.7: build() now wraps the LLM planner for /admin/llm-activity recording
-        // (wikantik.llm_activity.enabled defaults true) — unwrap one level to confirm the
-        // real LlmQueryPlanner, not the passthrough default, is still underneath.
-        assertInstanceOf( RecordingQueryPlanner.class, planner,
-            "decomposition.enabled=true must wire the LLM planner, recording-wrapped by default" );
-        final java.lang.reflect.Field delegateField = RecordingQueryPlanner.class.getDeclaredField( "delegate" );
-        delegateField.setAccessible( true );
-        assertInstanceOf( LlmQueryPlanner.class, delegateField.get( planner ),
-            "the recording wrapper must delegate to the real LLM planner, not the constructor default" );
-    }
-
     @Test
     void metadataBoostPositionsAndWindow_defaultsAndParse() {
         assertEquals( 1.5, BundleRerankers.metadataBoostPositions( new Properties() ), 1e-9 );
@@ -435,90 +374,6 @@ class BundleServiceWiringTest {
         p.setProperty( "wikantik.bundle.rerank.metadata_boost.window", "30" );
         assertEquals( 3.0, BundleRerankers.metadataBoostPositions( p ), 1e-9 );
         assertEquals( 30, BundleRerankers.metadataBoostWindow( p ) );
-    }
-
-    /* ---------- recordReranker / recordPlanner: llm-activity recording parity (Task 1.7) ---------- */
-
-    @Test
-    void recordReranker_activityLogDisabled_returnsUnchanged() {
-        final SectionReranker llm = new LlmSectionReranker( new RerankerConfig( "m", "http://x", 1000 ) );
-        final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( false, 60, 100, 500 );
-        assertSame( llm, BundleRerankers.recordReranker( llm, log, "m" ) );
-    }
-
-    @Test
-    void recordReranker_nullLog_returnsUnchanged() {
-        final SectionReranker llm = new LlmSectionReranker( new RerankerConfig( "m", "http://x", 1000 ) );
-        assertSame( llm, BundleRerankers.recordReranker( llm, null, "m" ) );
-    }
-
-    @Test
-    void recordReranker_bareLlmReranker_wrapsWhenEnabled() {
-        final SectionReranker llm = new LlmSectionReranker( new RerankerConfig( "m", "http://x", 1000 ) );
-        final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-        assertInstanceOf( RecordingSectionReranker.class, BundleRerankers.recordReranker( llm, log, "m" ) );
-    }
-
-    @Test
-    void recordReranker_nonLlmReranker_returnsUnchanged() {
-        // Identity and MMR never issue chat inference — nothing to record.
-        final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-        final SectionReranker mmr = new MmrSectionReranker( 0.7 );
-        assertSame( mmr, BundleRerankers.recordReranker( mmr, log, "m" ) );
-    }
-
-    @Test
-    void recordReranker_chainWithLlmStage_wrapsOnlyLlmStage() {
-        final SectionReranker llm = new LlmSectionReranker( new RerankerConfig( "m", "http://x", 1000 ) );
-        final SectionReranker mmr = new MmrSectionReranker( 0.7 );
-        final SectionRerankChain chain = new SectionRerankChain( List.of( llm, mmr ) );
-        final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-
-        final SectionReranker result = BundleRerankers.recordReranker( chain, log, "m" );
-
-        assertInstanceOf( SectionRerankChain.class, result );
-        final List< SectionReranker > stages = ( (SectionRerankChain) result ).stages();
-        assertEquals( 2, stages.size() );
-        assertInstanceOf( RecordingSectionReranker.class, stages.get( 0 ), "the llm stage must be wrapped" );
-        assertSame( mmr, stages.get( 1 ), "non-llm stages must be untouched" );
-    }
-
-    @Test
-    void recordReranker_chainWithoutLlmStage_returnsSameChain() {
-        final SectionRerankChain chain = new SectionRerankChain( List.of( new MmrSectionReranker( 0.7 ) ) );
-        final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-        assertSame( chain, BundleRerankers.recordReranker( chain, log, "m" ) );
-    }
-
-    @Test
-    void recordPlanner_activityLogDisabled_returnsUnchanged() {
-        final QueryPlanner llm = new LlmQueryPlanner( HttpClient.newHttpClient(),
-            new BundleDecompositionConfig( true, "m", "http://x", 4000, 4, 60, "rrf" ) );
-        final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( false, 60, 100, 500 );
-        assertSame( llm, BundleRerankers.recordPlanner( llm, log, "m" ) );
-    }
-
-    @Test
-    void recordPlanner_nullLog_returnsUnchanged() {
-        final QueryPlanner llm = new LlmQueryPlanner( HttpClient.newHttpClient(),
-            new BundleDecompositionConfig( true, "m", "http://x", 4000, 4, 60, "rrf" ) );
-        assertSame( llm, BundleRerankers.recordPlanner( llm, null, "m" ) );
-    }
-
-    @Test
-    void recordPlanner_llmQueryPlanner_wrapsWhenEnabled() {
-        final QueryPlanner llm = new LlmQueryPlanner( HttpClient.newHttpClient(),
-            new BundleDecompositionConfig( true, "m", "http://x", 4000, 4, 60, "rrf" ) );
-        final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-        assertInstanceOf( RecordingQueryPlanner.class, BundleRerankers.recordPlanner( llm, log, "m" ) );
-    }
-
-    @Test
-    void recordPlanner_passthroughPlanner_returnsUnchanged() {
-        // The default-off passthrough planner never calls out — nothing to record.
-        final QueryPlanner passthrough = new PassthroughQueryPlanner();
-        final com.wikantik.llm.activity.LlmActivityLog log = new com.wikantik.llm.activity.LlmActivityLog( true, 60, 100, 500 );
-        assertSame( passthrough, BundleRerankers.recordPlanner( passthrough, log, "m" ) );
     }
 
     /* ---------- slug -> canonical_id resolves from the structural index, not one query per section ---------- */

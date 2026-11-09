@@ -8,7 +8,7 @@ const TABS = [
   { id: 'content-embeddings', label: 'Content embeddings',
     description: 'Inspect the embedding index that powers hybrid search and similar pages: model, dimension and chunk coverage. Identify pages missing frontmatter and bulk-backfill it.' },
   { id: 'llm-activity', label: 'LLM activity',
-    description: 'Live view of recent and in-flight LLM calls (embeddings, reranking, query decomposition) for roughly the last hour. Held in memory only; cleared on restart.' },
+    description: 'Live view of recent and in-flight LLM calls (embeddings) for roughly the last hour. Held in memory only; cleared on restart.' },
 ];
 
 export default function AdminEmbeddingsPage() {

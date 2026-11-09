@@ -35,12 +35,11 @@ import java.io.IOException;
 
 /**
  * {@code GET /admin/llm-activity} — read-only snapshot of recent and in-flight LLM
- * calls (embeddings, section reranking, query
- * decomposition). Backed by the in-memory {@link LlmActivityLog}; nothing is
+ * calls (embeddings). Backed by the in-memory {@link LlmActivityLog}; nothing is
  * persisted. Auth is via the shared {@code AdminAuthFilter}.
  *
  * <p>Query parameters: {@code limit} (default 200), {@code subsystem}
- * (embedding|section_rerank|query_decomposition),
+ * (embedding),
  * {@code status} (in_flight|ok|error).</p>
  */
 public class AdminLlmActivityResource extends RestServletBase {

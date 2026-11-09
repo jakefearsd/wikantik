@@ -112,8 +112,8 @@ public record EmbeddingConfig(
     /** Reads config from wiki properties, applying defaults for absent keys. */
     public static EmbeddingConfig fromProperties( final Properties props ) {
         final boolean rawEnabled = parseBoolean( props.getProperty( PROP_ENABLED ), false );
-        // wikantik.genai.mode ceiling: embeddings are retrieval, not chat inference,
-        // so only NONE turns them off — EMBEDDINGS_ONLY (and FULL) leave them enabled.
+        // wikantik.genai.mode ceiling: only NONE turns embeddings off (the legacy
+        // "embeddings-only" value parses to FULL).
         final GenAiMode mode = GenAiMode.fromProperties( props );
         final boolean enabled = rawEnabled && mode.allowsEmbeddings();
         if ( rawEnabled && !enabled ) {

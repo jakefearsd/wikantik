@@ -27,7 +27,7 @@
 #                explicit wikantik.search.hybrid.enabled=false property has
 #                no dedicated env passthrough yet — set it directly in
 #                wikantik-custom.properties if you want it spelled out.)
-#   search       WIKANTIK_GENAI_MODE=embeddings-only
+#   search       WIKANTIK_GENAI_MODE=full
 #                WIKANTIK_EMBEDDING_BASE_URL=http://ollama-embed:11434
 #                dense+BM25 hybrid retrieval; needs an embedding endpoint —
 #                either --profile embeddings (CPU ollama-embed sidecar, the

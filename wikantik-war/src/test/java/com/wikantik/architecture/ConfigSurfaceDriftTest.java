@@ -96,8 +96,7 @@ class ConfigSurfaceDriftTest {
     static final List<String> DYNAMIC_PREFIXES = List.of(
         "wikantik.interWikiRef.", "wikantik.specialPage.", "wikantik.loginModule.options.",
         "wikantik.sso.claimMapping.", "wikantik.translatorReader.inlinePattern.", "wikantik.custom.cascade.",
-        "wikantik.connectors.", "wikantik.bundle.reranker.",
-        "wikantik.bundle.decomposition.", "wikantik.search.hybrid.embedder.", "wikantik.tools."
+        "wikantik.connectors.", "wikantik.search.hybrid.embedder.", "wikantik.tools."
     );
 
     static final Set<String> TYPES = Set.of( "boolean", "int", "long", "double", "string", "path", "url", "class", "list", "secret" );

@@ -6,24 +6,13 @@ const SLOW_POLL_MS = 10000;
 
 const SUBSYSTEM_LABELS = {
   EMBEDDING: 'embedding',
-  SECTION_RERANK: 'rerank',
-  QUERY_DECOMPOSITION: 'decomposition',
 };
 
 const SUBSYSTEM_BADGE_CLASS = {
   EMBEDDING: 'llm-badge-embedding',
-  SECTION_RERANK: 'llm-badge-rerank',
-  QUERY_DECOMPOSITION: 'llm-badge-decomposition',
 };
 
 // Filter chip options: { value, label }. 'all' matches everything.
-const SUBSYSTEM_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'EMBEDDING', label: 'Embedding' },
-  { value: 'SECTION_RERANK', label: 'Rerank' },
-  { value: 'QUERY_DECOMPOSITION', label: 'Decomposition' },
-];
-
 const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
   { value: 'OK', label: 'OK' },
@@ -47,7 +36,6 @@ export default function LlmActivityTab() {
   const [snapshot, setSnapshot] = useState(null);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
-  const [subsystemFilter, setSubsystemFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const pollRef = useRef(null);
   const activeRef = useRef(false);
@@ -105,11 +93,9 @@ export default function LlmActivityTab() {
 
   // Client-side filtering of the already-fetched list. 'all' matches everything.
   const filtered = calls.filter(
-    (c) =>
-      (subsystemFilter === 'all' || c.subsystem === subsystemFilter) &&
-      (statusFilter === 'all' || c.status === statusFilter),
+    (c) => statusFilter === 'all' || c.status === statusFilter,
   );
-  const filterActive = subsystemFilter !== 'all' || statusFilter !== 'all';
+  const filterActive = statusFilter !== 'all';
 
   return (
     <div>
@@ -122,12 +108,6 @@ export default function LlmActivityTab() {
       </div>
 
       <div className="llm-filter-bar">
-        <FilterChipGroup
-          label="Subsystem"
-          options={SUBSYSTEM_FILTERS}
-          selected={subsystemFilter}
-          onSelect={setSubsystemFilter}
-        />
         <FilterChipGroup
           label="Status"
           options={STATUS_FILTERS}

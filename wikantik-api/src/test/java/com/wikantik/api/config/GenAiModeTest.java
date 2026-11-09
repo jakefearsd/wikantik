@@ -46,10 +46,10 @@ public class GenAiModeTest {
     }
 
     @Test
-    public void testEmbeddingsOnlyValue() {
+    public void testLegacyEmbeddingsOnlyAliasParsesToFull() {
         Properties props = new Properties();
         props.setProperty( GenAiMode.PROP, "embeddings-only" );
-        assertEquals( GenAiMode.EMBEDDINGS_ONLY, GenAiMode.fromProperties( props ) );
+        assertEquals( GenAiMode.FULL, GenAiMode.fromProperties( props ) );
     }
 
     @Test
@@ -92,10 +92,10 @@ public class GenAiModeTest {
     }
 
     @Test
-    public void testCaseInsensitivityEmbeddingsOnly() {
+    public void testCaseInsensitivityLegacyAlias() {
         Properties props = new Properties();
         props.setProperty( GenAiMode.PROP, "EMBEDDINGS-ONLY" );
-        assertEquals( GenAiMode.EMBEDDINGS_ONLY, GenAiMode.fromProperties( props ) );
+        assertEquals( GenAiMode.FULL, GenAiMode.fromProperties( props ) );
     }
 
     @Test
@@ -113,28 +113,8 @@ public class GenAiModeTest {
     }
 
     @Test
-    public void testAllowsChatInferenceFull() {
-        assertTrue( GenAiMode.FULL.allowsChatInference() );
-    }
-
-    @Test
-    public void testAllowsChatInferenceEmbeddingsOnly() {
-        assertFalse( GenAiMode.EMBEDDINGS_ONLY.allowsChatInference() );
-    }
-
-    @Test
-    public void testAllowsChatInferenceNone() {
-        assertFalse( GenAiMode.NONE.allowsChatInference() );
-    }
-
-    @Test
     public void testAllowsEmbeddingsFull() {
         assertTrue( GenAiMode.FULL.allowsEmbeddings() );
-    }
-
-    @Test
-    public void testAllowsEmbeddingsEmbeddingsOnly() {
-        assertTrue( GenAiMode.EMBEDDINGS_ONLY.allowsEmbeddings() );
     }
 
     @Test

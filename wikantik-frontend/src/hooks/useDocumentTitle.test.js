@@ -33,6 +33,16 @@ describe('useDocumentTitle', () => {
     expect(document.title).not.toContain('Wikantik:');
   });
 
+  it('does not append the app name when the title already contains it, exactly as the server does', () => {
+    renderHook(() => useDocumentTitle('WikantikOperations'));
+    expect(document.title).toBe('WikantikOperations');
+  });
+
+  it('matches the app name in any case, like the server', () => {
+    renderHook(() => useDocumentTitle('Running wikantik on Docker'));
+    expect(document.title).toBe('Running wikantik on Docker');
+  });
+
   it('restores the previous title on unmount', () => {
     document.title = 'Before - Wikantik';
     const { unmount } = renderHook(() => useDocumentTitle('Current Page'));

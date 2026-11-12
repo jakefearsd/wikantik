@@ -77,6 +77,15 @@ class PageSeoModelTest {
         assertEquals( "Wikantik on Docker", model.documentTitle() );
     }
 
+    /** The same cases the SPA's useDocumentTitle pins: a page name holding the app name, and any letter case. */
+    @Test
+    void appNameNotAppendedToAPageNameOrATitleThatHoldsItInAnyCase() {
+        assertEquals( "WikantikOperations",
+                PageSeoModel.from( "WikantikOperations", "# X\n\nBody.\n", BASE_URL, APP_NAME, null ).documentTitle() );
+        assertEquals( "Running wikantik on Docker", PageSeoModel.from( "RunningOnDocker",
+                "---\ntitle: Running wikantik on Docker\n---\nBody.\n", BASE_URL, APP_NAME, null ).documentTitle() );
+    }
+
     @Test
     void appNameCaseInsensitiveDedup() {
         final String body = "---\ntitle: hosted on wikantik\n---\n# X\n\nBody.\n";

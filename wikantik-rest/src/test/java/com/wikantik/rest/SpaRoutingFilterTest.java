@@ -76,7 +76,15 @@ class SpaRoutingFilterTest {
         + "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\">\n"
         + "<script type=\"module\" crossorigin src=\"/assets/index-ABC.js\"></script>\n"
         + "<link rel=\"stylesheet\" crossorigin href=\"/assets/index-XYZ.css\">\n"
-        + "</head><body><div id=\"root\"></div></body></html>";
+        + "<noscript><link href=\"https://fonts.example/css\" rel=\"stylesheet\" /></noscript>\n"
+        + "</head><body><div id=\"root\"></div>\n"
+        + "<noscript>\n"
+        + "  <div id=\"noscript-notice\" style=\"text-align:center\">\n"
+        + "    <p class=\"shell-title\">Wikantik</p>\n"
+        + "    <p>JavaScript is required to use Wikantik. Please enable JavaScript in your browser settings.</p>\n"
+        + "  </div>\n"
+        + "</noscript>\n"
+        + "</body></html>";
 
     private SpaRoutingFilter filter;
     private HttpServletResponse response;
@@ -1054,6 +1062,51 @@ class SpaRoutingFilterTest {
         }
 
         verify( response, never() ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
+
+    // ---- noscript notice must not appear on server-rendered pages ----
+
+    @Test
+    void stripNoscriptNoticeRemovesOnlyTheNoticeElement() {
+        final String stripped = SpaRoutingFilter.stripNoscriptNotice( FAKE_INDEX_HTML );
+        assertFalse( stripped.contains( "noscript-notice" ), stripped );
+        assertFalse( stripped.contains( "JavaScript is required" ), stripped );
+        assertTrue( stripped.contains( "fonts.example/css" ), "the head noscript stylesheet link must survive" );
+        assertTrue( stripped.contains( "<div id=\"root\">" ) && stripped.contains( "</body></html>" ), stripped );
+    }
+
+    @Test
+    void stripNoscriptNoticeLeavesHtmlWithoutTheMarkerUnchanged() {
+        final String html = "<html><head><noscript><link href=\"x.css\"></noscript></head>"
+                + "<body><noscript>other</noscript></body></html>";
+        assertEquals( html, SpaRoutingFilter.stripNoscriptNotice( html ) );
+        assertEquals( null, SpaRoutingFilter.stripNoscriptNotice( null ) );
+    }
+
+    @Test
+    void serverRenderedPageHasNoNoscriptNoticeAndNoShellHeading() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            engine.saveText( "SpaNoscriptPage", "NOSCRIPT_PAGE_MARKER is real content." );
+            filter.setEngineForTest( engine );
+
+            filter.doFilter( mockRequest( "/wiki/SpaNoscriptPage" ), response, chain );
+
+            final String html = capturedOutput.asString();
+            assertTrue( html.contains( "NOSCRIPT_PAGE_MARKER" ), "the page is server-rendered" );
+            assertFalse( html.contains( "JavaScript is required" ), "crawlers must not see the notice" );
+            assertFalse( html.contains( "<h1>Wikantik" ), "no shell heading may be served" );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
+    void nonPageSpaRouteKeepsTheNoscriptNotice() throws Exception {
+        filter.doFilter( mockRequest( "/search" ), response, chain );
+
+        assertTrue( capturedOutput.asString().contains( "JavaScript is required" ),
+                "routes with no server-rendered content keep the notice" );
     }
 
     private HttpServletRequest mockRequest( final String uri ) {

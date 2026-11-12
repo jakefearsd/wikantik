@@ -552,7 +552,9 @@ public class SpaRoutingFilter implements Filter {
 
         // Drop the static shell <title>; renderHead emits a per-page <title>,
         // so stripping the shell one leaves exactly one (correct) title element.
-        String out = stripShellTitle( indexHtml );
+        // Likewise drop the "JavaScript is required" notice: this page carries real content, and crawlers
+        // that read <noscript> would otherwise index the notice as part of it.
+        String out = stripNoscriptNotice( stripShellTitle( indexHtml ) );
         final int headClose = out.indexOf( "</head>" );
         if ( headClose >= 0 ) {
             out = out.substring( 0, headClose ) + head + out.substring( headClose );
@@ -649,6 +651,25 @@ public class SpaRoutingFilter implements Filter {
         }
         return html.replaceFirst( "(?is)<title>.*?</title>", "" );
     }
+
+    /**
+     * Removes the shell's {@code <noscript>} "JavaScript is required" element (the one holding
+     * {@code id="noscript-notice"}). Other {@code <noscript>} elements, such as the font stylesheet
+     * fallback in the head, are untouched.
+     *
+     * @param html the index.html (or {@code null})
+     * @return the html without the notice element
+     */
+    static String stripNoscriptNotice( final String html ) {
+        if ( html == null ) {
+            return null;
+        }
+        return NOSCRIPT_NOTICE.matcher( html ).replaceFirst( "" );
+    }
+
+    /** One {@code <noscript>} element that contains the notice marker; never spans two noscript elements. */
+    private static final java.util.regex.Pattern NOSCRIPT_NOTICE = java.util.regex.Pattern.compile(
+            "(?is)<noscript>(?:(?!</noscript>).)*?id=\"noscript-notice\"(?:(?!</noscript>).)*</noscript>\\s*" );
 
     /**
      * Scan forward from {@code start} counting nested {@code <div>} opens and

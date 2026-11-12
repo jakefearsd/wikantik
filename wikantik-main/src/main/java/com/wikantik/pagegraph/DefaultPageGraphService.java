@@ -23,6 +23,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.api.pagegraph.PageGraphEdge;
 import com.wikantik.api.pagegraph.PageGraphNode;
 import com.wikantik.api.pagegraph.PageGraphService;
 import com.wikantik.api.pagegraph.PageGraphSnapshot;
@@ -37,6 +38,7 @@ import org.apache.logging.log4j.Logger;
 import java.security.Permission;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -135,9 +137,17 @@ public class DefaultPageGraphService implements PageGraphService {
         }
 
         final List< PageGraphNode > redacted = new ArrayList<>( base.nodes().size() );
+        final Map< String, String > opaqueIds = new HashMap<>();
         for ( final PageGraphNode node : base.nodes() ) {
             if ( node.sourcePage() != null && !isViewable( node.sourcePage(), viewer, authMgr ) ) {
-                redacted.add( new PageGraphNode( node.id(), null, null, "restricted",
+                // A page with no canonical id is keyed by its own name (an attachment by "Page/file"): that id
+                // would name the hidden page, so it is swapped for an opaque one the edges are re-pointed to.
+                String id = node.id();
+                if ( id != null && id.equals( node.sourcePage() ) ) {
+                    id = "restricted-" + opaqueIds.size();
+                    opaqueIds.put( node.id(), id );
+                }
+                redacted.add( new PageGraphNode( id, null, null, "restricted",
                         null, node.degreeIn(), node.degreeOut(), true,
                         null, List.of() ) );
             } else {
@@ -145,7 +155,16 @@ public class DefaultPageGraphService implements PageGraphService {
             }
         }
         return new PageGraphSnapshot( base.generatedAt(), base.nodeCount(), base.edgeCount(),
-                base.hubDegreeThreshold(), redacted, base.edges() );
+                base.hubDegreeThreshold(), redacted, opaqueIds.isEmpty() ? base.edges() : remapped( base.edges(), opaqueIds ) );
+    }
+
+    private static List< PageGraphEdge > remapped( final List< PageGraphEdge > edges, final Map< String, String > ids ) {
+        final List< PageGraphEdge > out = new ArrayList<>( edges.size() );
+        for ( final PageGraphEdge e : edges ) {
+            out.add( new PageGraphEdge( e.id(), ids.getOrDefault( e.source(), e.source() ),
+                    ids.getOrDefault( e.target(), e.target() ), e.relationshipType(), e.provenance() ) );
+        }
+        return out;
     }
 
     private boolean isViewable( final String pageName, final Session viewer,

@@ -280,6 +280,42 @@ class DefaultPageGraphServiceTest {
         assertEquals( "B", nodeB.name() );
     }
 
+    /**
+     * A page with no canonical id is keyed by its own name (so is an attachment: {@code Page/file.txt}). A redacted
+     * node must not keep that id, and the edges that point at it must follow it to the opaque id.
+     */
+    @Test
+    void snapshot_redactedNodeDoesNotKeepItsNameAsItsId() {
+        when( refMgr.findCreated() ).thenReturn( linkedSet( "SecretPage", "OpenPage" ) );
+        when( refMgr.findRefersTo( "OpenPage" ) ).thenReturn( List.of( "SecretPage" ) );
+        when( refMgr.findRefersTo( "SecretPage" ) ).thenReturn( List.of( "OpenPage" ) );
+
+        final AuthorizationManager authMgr = mock( AuthorizationManager.class );
+        final WikiEngine wikiEngine = mock( WikiEngine.class );
+        when( wikiEngine.getAuthSubsystem() ).thenReturn(
+                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null, null ) );
+        service.setEngine( wikiEngine );
+        for ( final String name : List.of( "SecretPage", "OpenPage" ) ) {
+            final Page page = mock( Page.class );
+            when( page.getName() ).thenReturn( name );
+            when( page.getWiki() ).thenReturn( "" );
+            when( pageMgr.getPage( name ) ).thenReturn( page );
+        }
+        when( authMgr.isPermitted( any(), any( Permission.class ) ) ).thenAnswer( inv ->
+                !"SecretPage".equals( ( (Permission) inv.getArgument( 1 ) ).getName() ) );
+
+        final PageGraphSnapshot snap = service.snapshot( null );
+
+        assertFalse( snap.toString().contains( "SecretPage" ), "the hidden page's name survived: " + snap );
+        final PageGraphNode hidden = snap.nodes().stream().filter( PageGraphNode::restricted ).findFirst().orElseThrow();
+        final PageGraphNode open = snap.nodes().stream().filter( n -> !n.restricted() ).findFirst().orElseThrow();
+        assertEquals( 2, snap.edges().size() );
+        for ( final PageGraphEdge e : snap.edges() ) {
+            assertTrue( e.source().equals( hidden.id() ) || e.source().equals( open.id() ), "edge source dangles: " + e );
+            assertTrue( e.target().equals( hidden.id() ) || e.target().equals( open.id() ), "edge target dangles: " + e );
+        }
+    }
+
     @Test
     void snapshot_isViewable_pageManagerThrows_treatsPageAsNotViewable() {
         when( refMgr.findCreated() ).thenReturn( linkedSet( "A" ) );
@@ -324,11 +360,12 @@ class DefaultPageGraphServiceTest {
     }
 
     private static PageGraphNode nodeNamedOrRestricted( final PageGraphSnapshot snap, final String sourcePageId ) {
-        // Once redacted, name/sourcePage are wiped, so match by id (still the slug here,
-        // since the structural index is empty in every test).
+        // Once redacted, name/sourcePage are wiped and the slug-valued id becomes an opaque "restricted-N",
+        // so a node is found by its id (viewable) or, failing that, as the one restricted node.
         return snap.nodes().stream()
                 .filter( n -> sourcePageId.equals( n.id() ) )
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseGet( () -> snap.nodes().stream().filter( PageGraphNode::restricted ).findFirst().orElseThrow() );
     }
 
     /**

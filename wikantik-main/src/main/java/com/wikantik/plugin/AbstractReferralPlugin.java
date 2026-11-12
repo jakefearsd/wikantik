@@ -25,7 +25,10 @@ import com.wikantik.StringTransmutator;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.PluginException;
+import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.auth.permissions.PermissionFilter;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
@@ -51,9 +54,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -147,6 +152,9 @@ public abstract class AbstractReferralPlugin implements Plugin {
     protected Engine engine;
     protected boolean useWikiSyntax;
 
+    /** Whoever views the page hosting this plugin; every listing is cut down to the pages this session may view. */
+    private Session viewer;
+
     /**
      * @param context the wiki context
      * @param params parameters for initializing the plugin
@@ -156,6 +164,10 @@ public abstract class AbstractReferralPlugin implements Plugin {
     public void initialize( final Context context, final Map< String, String > params ) throws PluginException {
         dateFormat = Preferences.getDateFormat( context, TimeFormat.DATETIME );
         engine = context.getEngine();
+        viewer = context.getWikiSession();
+        // The listing is cut down to what this viewer may view, so it differs per viewer: keep it out of the shared,
+        // principal-less render caches.
+        context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
         // Determine link syntax: use Markdown links unless the configured parser for this page is the legacy wiki-syntax parser
         final MarkupParser configuredParser = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager().getParser( context, "" );
         useWikiSyntax = !configuredParser.getClass().getName().contains( "MarkdownParser" );
@@ -227,8 +239,13 @@ public abstract class AbstractReferralPlugin implements Plugin {
      */
     protected List< String > filterCollection( final Collection< String > c ) {
         final SystemPageRegistry spr = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
+        final Set< String > viewable = viewableBy( engine, viewer, c );
         final var result = new ArrayList< String >();
         for( final String pageName : c ) {
+            // A page the viewer may not view is not listed, whatever the include pattern says.
+            if ( !viewable.contains( pageName ) ) {
+                continue;
+            }
             // Filter system/template pages (LeftMenu, CSS themes, etc.) unless explicitly requested
             if ( !includeSystemPages && spr != null && spr.isSystemPage( pageName ) ) {
                 continue;
@@ -328,6 +345,52 @@ public abstract class AbstractReferralPlugin implements Plugin {
         } catch ( final PatternSyntaxException e ) {
             throw new PluginException( paramName + "-parameter has a malformed pattern: " + e.getMessage(), e );
         }
+    }
+
+    /**
+     *  The subset of {@code names} that {@code viewer} may view. Silent (no {@code access.denied} audit rows): leaving
+     *  a page out of a listing is a visibility concern, not an enforcement denial. A missing session views nothing.
+     *
+     *  @param engine the wiki engine
+     *  @param viewer the session of whoever views the hosting page
+     *  @param names  page names to check
+     *  @return the viewable names
+     */
+    protected static Set< String > viewableBy( final Engine engine, final Session viewer, final Collection< String > names ) {
+        if ( viewer == null ) {
+            return Set.of();
+        }
+        return new PermissionFilter( engine ).filterViewableQuietly( viewer, names );
+    }
+
+    /**
+     *  Whether whoever views the page hosting this plugin may view {@code pageName}. A plugin that reports on another
+     *  page (its links, its referrers) behaves as if that page did not exist when this is false.
+     *
+     *  @param context the rendering context (its session is the viewer)
+     *  @param pageName the page the plugin reports on
+     *  @return {@code true} when the viewer may view the page
+     */
+    protected static boolean viewerMayView( final Context context, final String pageName ) {
+        return context.getWikiSession() != null
+                && new PermissionFilter( context.getEngine() ).canAccessQuietly( context.getWikiSession(), pageName, "view" );
+    }
+
+    /**
+     *  Keeps the names of missing pages that some page the viewer may view links to. A missing page has no access
+     *  rules of its own, so the only thing that can make its name secret is that only hidden pages link to it.
+     *
+     *  @param uncreated names of pages that are linked to but do not exist
+     *  @param refmgr the reference manager
+     *  @return the names a viewable page links to, in their original order
+     */
+    protected List< String > linkedFromViewablePages( final Collection< String > uncreated, final ReferenceManager refmgr ) {
+        final Set< String > referrers = new HashSet<>();
+        uncreated.forEach( name -> referrers.addAll( refmgr.findReferrers( name ) ) );
+        final Set< String > viewable = viewableBy( engine, viewer, referrers );
+        return uncreated.stream()
+                        .filter( name -> refmgr.findReferrers( name ).stream().anyMatch( viewable::contains ) )
+                        .toList();
     }
 
     /**

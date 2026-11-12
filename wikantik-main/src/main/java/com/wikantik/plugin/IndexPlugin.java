@@ -141,6 +141,10 @@ public class IndexPlugin extends AbstractReferralPlugin implements Plugin {
         final List< String > result;
         final Set< String > pages = PageGraphSubsystemBridge.fromLegacyEngine( context.getEngine() ).referenceManager().findCreated();
         result = pages.stream().filter(pageName -> !excludePtrn.matcher(pageName).matches()).filter(pageName -> includePtrn.matcher(pageName).matches()).collect(Collectors.toList());
+        // Only the pages this viewer may view, so the index differs per viewer and is kept out of the shared caches.
+        context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
+        final Set< String > viewable = viewableBy( context.getEngine(), context.getWikiSession(), result );
+        result.removeIf( name -> !viewable.contains( name ) );
         return result;
     }
 

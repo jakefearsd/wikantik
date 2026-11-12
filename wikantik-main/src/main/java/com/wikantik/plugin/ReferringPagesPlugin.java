@@ -80,7 +80,10 @@ public class ReferringPagesPlugin extends AbstractReferralPlugin {
             pageName = context.getPage().getName();
         }
 
-        final Page page = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPage( pageName );
+        // The referrers of a page the viewer may not view are reported as for a page that does not exist: not at all.
+        final Page page = viewerMayView( context, pageName )
+                ? PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPage( pageName ) : null;
+        context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
         if( page != null ) {
             Collection< String > links  = refmgr.findReferrers( page.getName() );
             String wikitext;

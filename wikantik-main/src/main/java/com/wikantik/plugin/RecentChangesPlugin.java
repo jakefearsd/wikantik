@@ -32,7 +32,6 @@ import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.attachment.Attachment;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.auth.permissions.PermissionFilter;
 import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.i18n.InternationalizationManager;
@@ -53,7 +52,6 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 
 /**
@@ -124,8 +122,8 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
 
         Collection< Page > changes = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getRecentChanges( sincedate.getTime() );
         super.initialize( context, params );
+        // Cut down to the pages this viewer may view (the shared filter applies the view check).
         changes = filterWikiPageCollection( changes );
-        changes = filterViewable( context, changes );
 
         final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         if ( systemPageRegistry != null ) {
@@ -239,18 +237,6 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
     }
 
     
-    /**
-     *  Drops every entry the viewer of this render may not view. The check is silent (no {@code access.denied}
-     *  audit rows): hiding restricted entries from a bulk listing is a visibility concern, not an enforcement
-     *  denial. Attachments need no special case: the permission check resolves an attachment name to the
-     *  attachment and takes its ACL from the parent page.
-     */
-    private static List< Page > filterViewable( final Context context, final Collection< Page > pages ) {
-        final Set< String > viewable = new PermissionFilter( context.getEngine() ).filterViewableQuietly(
-                context.getWikiSession(), pages.stream().map( Page::getName ).toList() );
-        return pages.stream().filter( p -> viewable.contains( p.getName() ) ).toList();
-    }
-
     private boolean isSameDay( final Date a, final Date b ) {
         final Calendar aa = Calendar.getInstance(); aa.setTime( a );
         final Calendar bb = Calendar.getInstance(); bb.setTime( b );

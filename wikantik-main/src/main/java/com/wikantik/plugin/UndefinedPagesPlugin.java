@@ -46,7 +46,7 @@ public class UndefinedPagesPlugin extends AbstractReferralPlugin {
         final ReferenceManager refmgr = PageGraphSubsystemBridge.fromLegacyEngine( context.getEngine() ).referenceManager();
         super.initialize( context, params );
 
-        Collection< String > links = refmgr.findUncreated();
+        Collection< String > links = linkedFromViewablePages( refmgr.findUncreated(), refmgr );
         links = filterAndSortCollection( links );
 
         if( lastModified ) {

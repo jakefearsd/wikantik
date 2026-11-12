@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -103,6 +104,12 @@ public class ReferredPagesPlugin implements Plugin {
         }
 
         final PluginParams p = PluginParams.parse( params, page.getName() );
+        // The tree holds only pages this viewer may view, so it differs per viewer: keep it out of the shared caches.
+        context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
+        // The links of a page the viewer may not view are reported as for a page that does not exist: not at all.
+        if ( !AbstractReferralPlugin.viewerMayView( context, p.rootname ) ) {
+            return "";
+        }
         this.depth         = p.depth;
         this.formatCompact = p.formatCompact;
         this.formatSort    = p.formatSort;
@@ -171,6 +178,9 @@ public class ReferredPagesPlugin implements Plugin {
         localLinkSet.add( pagename );
 
         final ArrayList< String > allLinks = new ArrayList<>( links );
+        // Neither listed nor followed: a hidden page's name and its own links stay out of the tree.
+        final Set< String > viewable = AbstractReferralPlugin.viewableBy( engine, context.getWikiSession(), allLinks );
+        allLinks.removeIf( link -> !viewable.contains( link ) );
         if ( formatSort ) {
             PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPageSorter().sort( allLinks );
         }

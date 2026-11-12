@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-11-09'
+date: '2026-11-11'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -432,11 +432,14 @@ Sitemap Configuration
 | `wikantik.sitemap.baseURL` | `url` | *(blank: the base URL is derived from the incoming request, which works correctly when Wikantik handles SSL directly.)* | `wikantik_sitemap_baseURL` | When Wikantik runs behind a reverse proxy that terminates SSL (like cloudflared, nginx, or a load balancer), the sitemap.xml URLs may incorrectly use … |
 | `wikantik.public.baseURL` | `url` | *(blank: callers fall back to the incoming request's own scheme/host.)* | `wikantik_public_baseURL` | Public base URL used to build absolute citation links in wikantik-tools (OpenAPI, /tools/*) responses. … |
 | `wikantik.feed.baseURL` | `url` | *(blank: the same request-derived 3-tier fallback as wikantik.baseURL.)* | `wikantik_feed_baseURL` | Explicit base URL for Atom feed (<link>, entry permalinks) generation, mirroring wikantik.sitemap.baseURL above for the same reverse-proxy case. |
+| `wikantik.seo.contentChange.minPercent` | `int` | `5` | `wikantik_seo_contentChange_minPercent` | A save moves a page's content-changed date (sitemap lastmod, JSON-LD dateModified) only when the body changes substantially: at least this percentage of … |
+| `wikantik.seo.contentChange.minWords` | `int` | `100` | `wikantik_seo_contentChange_minWords` | Cap on the changed-word count a substantial edit needs, so large pages are not held to a huge threshold. A new heading always counts regardless. |
 
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.sitemap.baseURL`** — When Wikantik runs behind a reverse proxy that terminates SSL (like cloudflared, nginx, or a load balancer), the sitemap.xml URLs may incorrectly use http:// instead of https://. Use this property to explicitly set the base URL for sitemap generation, e.g. https://wiki.example.com or https://wiki.example.com/Wikantik.
 - **`wikantik.public.baseURL`** — Public base URL used to build absolute citation links in wikantik-tools (OpenAPI, /tools/*) responses. The /tools server does not read this file at all - it reads its own copy of this same key from wikantik-tools.properties (ToolsConfig.publicBaseUrl()); declared here too because every wikantik.* key belongs in this file's inventory regardless of which module reads it.
+- **`wikantik.seo.contentChange.minPercent`** — A save moves a page's content-changed date (sitemap lastmod, JSON-LD dateModified) only when the body changes substantially: at least this percentage of the previous word count must differ, capped by wikantik.seo.contentChange.minWords. Frontmatter-only edits never count. Small edits accumulate against the last baseline until together they cross the threshold.
 
 ## Recent articles
 

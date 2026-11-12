@@ -296,6 +296,7 @@ public class WikiEngine implements Engine {
         s.put( com.wikantik.drift.DriftSweepService.class,                               rebuildPageGraph );
         s.put( com.wikantik.citation.CitationRepository.class,                           rebuildPageGraph );
         s.put( com.wikantik.citation.CitationSync.class,                                 rebuildPageGraph );
+        s.put( com.wikantik.seo.ContentDateService.class,                                e -> {} ); // no subsystem snapshot
         s.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   e -> {} ); // no subsystem snapshot
         s.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     e -> {} ); // no subsystem snapshot
         s.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          e -> {} ); // no subsystem snapshot
@@ -325,6 +326,10 @@ public class WikiEngine implements Engine {
 
     /** Citation subsystem wired holder; retains a strong ref to the event listener. */
     private com.wikantik.citation.CitationWiringHelper.Wired citationWired;
+
+    /** Content-date wired holder; retains a strong ref to the event listener. */
+    @SuppressWarnings( "PMD.SingularField" ) // must stay a field: WikiEventManager holds listeners weakly
+    private com.wikantik.seo.ContentDateWiringHelper.Wired contentDateWired;
 
     // -----------------------------------------------------------------------
     // Hybrid-retrieval / entity-extraction lifecycle handles are no longer
@@ -1118,6 +1123,12 @@ public class WikiEngine implements Engine {
             // not garbage-collected out of WikiEventManager's WeakHashMap.
             this.citationWired = com.wikantik.citation.CitationWiringHelper.wireCitations(
                 this, props, ds, pageManager, filterManager, structuralIndex, ontologyCoordinator );
+
+            // Wire the per-page content-changed date (sitemap lastmod / JSON-LD dateModified source).
+            this.contentDateWired = com.wikantik.seo.ContentDateWiringHelper.wireContentDates(
+                this, props, ds, pageManager,
+                com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( this ).filterManager(),
+                serviceRegistry.get( com.wikantik.content.PageRenamer.class ) );
 
             // Wire retrieval-quality runner (SearchWiringHelper).
             // HybridSearchService is registered by wireHybridRetrieval above.

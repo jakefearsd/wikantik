@@ -74,8 +74,8 @@
       Both omissions are deliberate and benign here: DenseBundleIT is a plain
       HTTP client suite with no @Execution(CONCURRENT) opt-in, so without
       junit-platform.properties JUnit's sequential default is exactly what it
-      already wanted; and there are no MCP tests here, so McpConfig's jar
-      defaults are fine. A module that runs Selenide classes, or that opts into
+      already wanted; and MCP settings come from this module's own
+      wikantik-mcp.properties (open access, for PrivateClusterDenseIT). A module that runs Selenide classes, or that opts into
       concurrent execution, must add those files back rather than inherit this.
     -->
     <resources combine.self="override">

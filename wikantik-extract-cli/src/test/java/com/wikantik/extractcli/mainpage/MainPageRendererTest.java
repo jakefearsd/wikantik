@@ -37,6 +37,29 @@ class MainPageRendererTest {
     }
 
     @Test
+    void title_and_summary_reach_the_frontmatter_and_the_title_is_the_only_h1() {
+        final String out = renderer.render( new MainPageData(
+                "Wikantik: it's a wiki", "A summary: with a colon and an 'apostrophe'.",
+                "Hello.", "", List.of(), List.of() ) );
+
+        assertTrue( out.startsWith( "---\ncanonical_id: " ), out );
+        // Single-quoted YAML scalars, apostrophes doubled, so a colon or quote cannot break the block.
+        assertTrue( out.contains( "\ntitle: 'Wikantik: it''s a wiki'\n" ), out );
+        assertTrue( out.contains( "\nsummary: 'A summary: with a colon and an ''apostrophe''.'\n" ), out );
+        assertTrue( out.contains( "\n# Wikantik: it's a wiki\n" ), out );
+        assertEquals( 1, out.lines().filter( l -> l.startsWith( "# " ) ).count(), out );
+        assertTrue( out.indexOf( "\n# Wikantik" ) < out.indexOf( "Hello." ), "h1 precedes the intro" );
+    }
+
+    @Test
+    void no_title_or_summary_leaves_frontmatter_and_body_as_before() {
+        final String out = renderer.render( new MainPageData( "Hi.", "", List.of(), List.of() ) );
+        assertFalse( out.contains( "title:" ), out );
+        assertFalse( out.contains( "summary:" ), out );
+        assertEquals( 0, out.lines().filter( l -> l.startsWith( "# " ) ).count(), out );
+    }
+
+    @Test
     void renders_intro_section_and_footer() {
         final var data = new MainPageData(
                 "Hello.",

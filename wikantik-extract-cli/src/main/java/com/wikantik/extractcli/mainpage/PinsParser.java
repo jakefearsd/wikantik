@@ -59,7 +59,8 @@ public final class PinsParser {
         final String footer = stringOrEmpty( map.get( "footer" ) );
         final Object sectionsRaw = map.get( "sections" );
         final List< PinsConfig.PinsSection > sections = parseSections( sectionsRaw );
-        return new PinsConfig( intro, footer, sections );
+        return new PinsConfig( stringOrEmpty( map.get( "title" ) ), stringOrEmpty( map.get( "summary" ) ),
+                intro, footer, sections );
     }
 
     @SuppressWarnings( "unchecked" )

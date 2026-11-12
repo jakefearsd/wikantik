@@ -27,11 +27,20 @@ import java.util.List;
  * listed order. {@link #intro} and {@link #footer} are inlined verbatim.
  */
 public record PinsConfig(
+        String title,
+        String summary,
         String intro,
         String footer,
         List< PinsSection > sections
 ) {
+    /** A config with no front-page {@code title} or {@code summary}. */
+    public PinsConfig( final String intro, final String footer, final List< PinsSection > sections ) {
+        this( "", "", intro, footer, sections );
+    }
+
     public PinsConfig {
+        title    = title    == null ? "" : title.strip();
+        summary  = summary  == null ? "" : summary.strip();
         intro    = intro    == null ? "" : intro;
         footer   = footer   == null ? "" : footer;
         sections = sections == null ? List.of() : List.copyOf( sections );

@@ -88,7 +88,7 @@ public final class MainPageDataLoader {
             }
             sections.add( new MainPageData.Section( ps.label(), ps.cluster(), pages ) );
         }
-        return new MainPageData( pins.intro(), pins.footer(), sections, warnings );
+        return new MainPageData( pins.title(), pins.summary(), pins.intro(), pins.footer(), sections, warnings );
     }
 
     /**

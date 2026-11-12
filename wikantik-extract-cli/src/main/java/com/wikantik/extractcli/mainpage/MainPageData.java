@@ -28,12 +28,22 @@ import java.util.List;
  * <p>Field names are kebab-free for Mustache compatibility.</p>
  */
 public record MainPageData(
+        String title,
+        String summary,
         String intro,
         String footer,
         List< Section > sections,
         List< String > warnings
 ) {
+    /** Data with no front-page {@code title} or {@code summary}. */
+    public MainPageData( final String intro, final String footer, final List< Section > sections,
+                         final List< String > warnings ) {
+        this( "", "", intro, footer, sections, warnings );
+    }
+
     public MainPageData {
+        title    = title    == null ? "" : title;
+        summary  = summary  == null ? "" : summary;
         intro    = intro    == null ? "" : intro;
         footer   = footer   == null ? "" : footer;
         sections = sections == null ? List.of() : List.copyOf( sections );

@@ -61,6 +61,22 @@ class PinsParserTest {
     }
 
     @Test
+    void parses_title_and_summary_and_defaults_them_to_empty() {
+        final PinsConfig c = PinsParser.parse( """
+                title: Wikantik Home
+                summary: What the wiki is.
+                intro: Hi.
+                """ );
+        assertEquals( "Wikantik Home", c.title() );
+        assertEquals( "What the wiki is.", c.summary() );
+        assertEquals( "Hi.", c.intro() );
+
+        final PinsConfig bare = PinsParser.parse( "intro: Hi." );
+        assertEquals( "", bare.title() );
+        assertEquals( "", bare.summary() );
+    }
+
+    @Test
     void canonical_id_alias_works() {
         final String yaml = """
                 sections:

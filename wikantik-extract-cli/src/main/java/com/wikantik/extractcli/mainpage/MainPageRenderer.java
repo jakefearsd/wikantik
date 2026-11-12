@@ -74,6 +74,12 @@ public final class MainPageRenderer {
      */
     private static Map< String, Object > asContext( final MainPageData data ) {
         final Map< String, Object > root = new LinkedHashMap<>();
+        // The title is the page's <title>, its only <h1> and (with the summary) its search-result text.
+        root.put( "title", data.title() );
+        root.put( "hasTitle", !data.title().isBlank() );
+        root.put( "titleYaml", yamlSingleQuoted( data.title() ) );
+        root.put( "hasSummary", !data.summary().isBlank() );
+        root.put( "summaryYaml", yamlSingleQuoted( data.summary() ) );
         root.put( "intro", data.intro() );
         root.put( "hasIntro", !data.intro().isBlank() );
         root.put( "footer", data.footer() );
@@ -99,6 +105,11 @@ public final class MainPageRenderer {
         root.put( "sections", sections );
         root.put( "hasSections", !sections.isEmpty() );
         return root;
+    }
+
+    /** A YAML single-quoted scalar on one line: only the apostrophe needs escaping, by doubling. */
+    static String yamlSingleQuoted( final String value ) {
+        return "'" + value.replaceAll( "\\s+", " " ).strip().replace( "'", "''" ) + "'";
     }
 
     /**

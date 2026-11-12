@@ -146,9 +146,11 @@ public class AdminNavigationIT extends WithIntegrationTestSetup {
         final String backPath = new AdminSidebarPage().currentPath();
         assertTrue( backPath.replaceAll( "/+$", "" ).equals( contextRoot ),
             "After Back to wiki the path should be the context root '" + contextRoot + "', was: " + backPath );
-        // And the front page's content is what is shown there.
-        Selenide.Wait().withTimeout( java.time.Duration.ofSeconds( 15 ) ).until( d -> Selenide.title().endsWith( "- Wikantik" ) );
-        assertTrue( Selenide.title().endsWith( "- Wikantik" ),
+        // And the front page (the fixture's Main) is what is shown there: its title and its own opening text.
+        Selenide.Wait().withTimeout( java.time.Duration.ofSeconds( 15 ) ).until( d -> "Main - Wikantik".equals( Selenide.title() ) );
+        assertTrue( "Main - Wikantik".equals( Selenide.title() ),
             "the front page should be shown at the root, title was: " + Selenide.title() );
+        Selenide.$( "body" ).shouldHave( com.codeborne.selenide.Condition.text( "You have successfully installed" ),
+            java.time.Duration.ofSeconds( 15 ) );
     }
 }

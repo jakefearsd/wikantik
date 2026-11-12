@@ -105,6 +105,29 @@ class ChangesResourceTest {
         }
     }
 
+    private void attach( final String page, final String file ) throws Exception {
+        engine.getManager( com.wikantik.api.managers.AttachmentManager.class ).storeAttachment(
+                com.wikantik.api.spi.Wiki.contents().attachment( engine, page, file ),
+                new java.io.ByteArrayInputStream( "data".getBytes( java.nio.charset.StandardCharsets.UTF_8 ) ) );
+    }
+
+    /** The recent-changes set can hold an attachment entry ({@code Page/file}); it follows its page's visibility. */
+    @Test
+    void testChangesFiltersAttachmentEntriesOfAHiddenPage() throws Exception {
+        engine.saveText( "ChangesSecretAtt", "[{ALLOW view Admin}]\n\nSecret body." );
+        attach( "ChangesSecretAtt", "secret.txt" );
+        attach( "ChangesPageA", "open.txt" );
+        try {
+            final String json = doGet( null );
+
+            assertTrue( json.contains( "ChangesPageA/open.txt" ),
+                    "positive control: an attachment entry of a viewable page is in the feed: " + json );
+            assertFalse( json.contains( "ChangesSecretAtt" ), "a hidden page's attachment entry leaked: " + json );
+        } finally {
+            engine.deleteQuietly( "ChangesSecretAtt" );
+        }
+    }
+
     @Test
     void testChangesWithFutureSinceReturnsEmpty() throws Exception {
         final String json = doGet( "2099-01-01T00:00:00Z" );

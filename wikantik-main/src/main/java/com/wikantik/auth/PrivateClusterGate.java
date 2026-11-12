@@ -27,6 +27,7 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.util.TextUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -90,8 +91,8 @@ final class PrivateClusterGate {
      * @return the gate; disabled when {@value #PROP_PRIVATE_CLUSTERS} is blank
      */
     static PrivateClusterGate fromProperties( final Properties p, final PageManager pages ) {
-        return new PrivateClusterGate( commaList( p.getProperty( PROP_PRIVATE_CLUSTERS, "" ) ),
-                commaList( p.getProperty( PROP_VIEWERS, "" ) ), pages );
+        return new PrivateClusterGate( commaList( TextUtil.getStringProperty( p, PROP_PRIVATE_CLUSTERS, "" ) ),
+                commaList( TextUtil.getStringProperty( p, PROP_VIEWERS, "" ) ), pages );
     }
 
     private static Set< String > commaList( final String value ) {

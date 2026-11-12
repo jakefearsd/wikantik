@@ -286,4 +286,22 @@ class PrivateClusterGateTest {
         assertFalse( PrivateClusterGate.fromProperties( new Properties(), pages ).enabled() );
         verify( pages, never() ).getPureText( anyString(), anyInt() );
     }
+
+    @Test
+    void aSystemPropertyOverridesTheLoadedSettings() {
+        // The engine's Properties never carry -D values (PropertyReader keys them wrongly), so every setting
+        // must be read through TextUtil, which consults system properties first, as the other keys do.
+        final Properties props = new Properties();
+        System.setProperty( PrivateClusterGate.PROP_PRIVATE_CLUSTERS, "it-private" );
+        System.setProperty( PrivateClusterGate.PROP_VIEWERS, "Operators" );
+        try {
+            final PrivateClusterGate fromSystem = PrivateClusterGate.fromProperties( props, pages );
+
+            assertTrue( fromSystem.enabled(), "-Dwikantik.access.privateClusters must enable the gate" );
+            assertEquals( Set.of( "Operators" ), fromSystem.viewerGroups() );
+        } finally {
+            System.clearProperty( PrivateClusterGate.PROP_PRIVATE_CLUSTERS );
+            System.clearProperty( PrivateClusterGate.PROP_VIEWERS );
+        }
+    }
 }

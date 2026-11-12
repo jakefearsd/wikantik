@@ -46,7 +46,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.Permission;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -117,8 +116,8 @@ class LuceneSearchProviderIndexStoreTest {
         lenient().when( pageManager.getPageWithoutMetadata( anyString(), anyInt() ) )
             .thenAnswer( inv -> pageManager.getPage( inv.getArgument( 0 ), inv.getArgument( 1 ) ) );
         when( attachmentManager.listAttachments( any( Page.class ) ) ).thenReturn( Collections.emptyList() );
-        when( authorizationManager.checkStaticPermission( any( Session.class ), any( Permission.class ) ) ).thenReturn( true );
-        when( aclManager.getPermissions( any( Page.class ) ) ).thenReturn( null );
+        when( authorizationManager.filterViewable( any( Session.class ), any() ) )
+            .thenAnswer( inv -> new java.util.HashSet< String >( inv.getArgument( 1 ) ) );
 
         final Engine engine = MockEngineBuilder.engine()
                 .with( PageManager.class, pageManager )

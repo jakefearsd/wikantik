@@ -122,6 +122,12 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     private GroupManager groupManager;
     private UserManager userManager;
 
+    /** The wiki properties the private-cluster gate is built from on first use (null: never initialized, gate off). */
+    private Properties privateClusterSettings;
+
+    /** The private-cluster rule; built lazily because the page manager is not ready when this manager initializes. */
+    private volatile PrivateClusterGate privateClusterGate;
+
     /**
      * Constructs a new DefaultAuthorizationManager instance.
      * Required for SPI/reflection instantiation.
@@ -178,7 +184,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
      * {@code <wiki>:*}, which implies the static grant for every concrete page
      * (PagePermission implication), so for ACL-less pages the outcome is
      * "allowed" — identical to {@code decide()}. Every other combination falls
-     * through to the unmodified per-page path. */
+     * through to the unmodified per-page path. A page a private cluster hides from
+     * this session never takes the fast path; the per-page decision denies it. */
     @Override
     public Set< String > filterViewable( final Session session, final Collection< String > pageNames ) {
         final Set< String > out = new HashSet<>();
@@ -191,7 +198,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             // Deliberately skips the frontmatter parse: this page is used only for
             // ACL/permission checks below, never for page variables.
             final Page page = pageManager().getPageWithoutMetadata( name, PageProvider.LATEST_VERSION );
-            if ( blanketView && page != null ) {
+            if ( blanketView && page != null && !hiddenByPrivateCluster( session, page ) ) {
                 final Acl acl = aclManager().getPermissions( page );
                 if ( acl == null || acl.isEmpty() ) {
                     out.add( name );
@@ -245,11 +252,36 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         // already been migrated to the metadata-free accessor only for decide() to undo it
         // on the very next call.
         final Page page = pageManager().getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
+        // The private-cluster rule comes before the page's own rules, so a page rule can only narrow it (the
+        // effective access is the intersection). AllPermission and the bootstrap admin returned above.
+        if( hiddenByPrivateCluster( session, page ) ) {
+            return new Decision( false, "private-cluster" );
+        }
         final Acl acl = ( page == null ) ? null : aclManager().getPermissions( page );
         if( page == null || acl == null || acl.isEmpty() ) {
             return new Decision( true, null );
         }
         return decideByAcl( session, permission, acl );
+    }
+
+    /**
+     * True when {@code page} is in a private cluster and the session holds none of the viewer groups. No work at all
+     * while no private cluster is configured. Callers have already let AllPermission (and the bootstrap admin) through.
+     */
+    private boolean hiddenByPrivateCluster( final Session session, final Page page ) {
+        if( page == null ) {
+            return false;
+        }
+        final PrivateClusterGate gate = privateClusterGate();
+        if( gate == null || !gate.enabled() || !gate.isPrivate( page ) ) {
+            return false;
+        }
+        for( final String group : gate.viewerGroups() ) {
+            if( hasRoleOrPrincipal( session, new GroupPrincipal( group ) ) ) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -404,6 +436,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
         initializeSecurityPolicy( properties );
         initializeBootstrapAdmin( properties );
+        privateClusterSettings = properties;
+        privateClusterGate = null;
     }
 
     /** Initializes database-backed security policy when {@code wikantik.datasource} is configured, else the file-based fallback. */
@@ -503,6 +537,11 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
      */
     void setClock( final LongSupplier clock ) {
         this.clock = clock;
+    }
+
+    /** Installs the private-cluster gate directly (tests using the injecting constructor). Package-private by design. */
+    void setPrivateClusterGate( final PrivateClusterGate gate ) {
+        this.privateClusterGate = gate;
     }
 
     /**
@@ -661,6 +700,20 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         }
         return pageManager;
+    }
+
+    /** The private-cluster gate, built on first use from the settings read at initialization; null when never set. */
+    private PrivateClusterGate privateClusterGate() {
+        PrivateClusterGate gate = privateClusterGate;
+        if ( gate == null && privateClusterSettings != null ) {
+            gate = PrivateClusterGate.fromProperties( privateClusterSettings, pageManager() );
+            privateClusterGate = gate;
+            if ( gate.enabled() ) {
+                LOG.info( "Private clusters {} are hidden from all but administrators and groups {}",
+                        privateClusterSettings.getProperty( PrivateClusterGate.PROP_PRIVATE_CLUSTERS ), gate.viewerGroups() );
+            }
+        }
+        return gate;
     }
 
     private AclManager aclManager() {

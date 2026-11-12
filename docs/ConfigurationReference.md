@@ -58,6 +58,7 @@ The following settings come from `wikantik-main/src/main/resources/ini/wikantik.
 - [Recent articles](#recent-articles)
 - [Authentication](#authentication)
 - [Security & passwords](#security--passwords)
+- [Private clusters](#private-clusters)
 - [Cookies & sessions](#cookies--sessions)
 - [SSO](#sso)
 - [Authorization](#authorization)
@@ -486,6 +487,18 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.auth.password.verifyCache.ttlSeconds`** — TTL, in seconds, of the short-lived cache of successful bcrypt password verifications (AbstractUserDatabase). Speeds up stateless HTTP Basic clients (monitoring pollers, cron jobs, CI scripts) that resend credentials on every request and would otherwise pay a full ~150-250ms bcrypt key-stretch each time. A value <= 0 disables the cache entirely. Read via System.getProperty, not from this file - set it as a JVM system property (-Dwikantik.auth.password.verifyCache.ttlSeconds=...).
 - **`wikantik.plugin.jdbc.enabled`** — Kill switch for JDBCPlugin, which executes page-authored SQL (via `[{JDBC ...}]`) against the wiki's own datasource using the high-privilege application DB role. Ships disabled: enabling it means any editor with edit permission on a page can run arbitrary SQL as that role. Turn it on only if you accept that exposure, and pair it with the plugin's own admin-permission check.
 - **`wikantik.admin.bootstrap`** — Bootstrap admin override: the named user bypasses all policy checks (gets AllPermission) for wikantik.admin.bootstrap.maxAgeSeconds after startup. Intended only for recovering access to a fresh or locked-out installation; remove this property once a real admin account is confirmed working.
+
+## Private clusters
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.access.privateClusters` | `list` | *(blank: no cluster is private (the feature is off and adds no work).)* | `wikantik_access_privateClusters` | Comma-separated cluster paths whose pages are hidden from everyone except administrators (AllPermission) and the groups in … |
+| `wikantik.access.privateClusters.viewers` | `list` | *(blank: administrators only.)* | `wikantik_access_privateClusters_viewers` | Comma-separated group names allowed to use pages in private clusters, in addition to administrators (who are always allowed). … |
+
+Full descriptions (truncated above to keep the table scannable):
+
+- **`wikantik.access.privateClusters`** — Comma-separated cluster paths whose pages are hidden from everyone except administrators (AllPermission) and the groups in wikantik.access.privateClusters.viewers. A page is private when any of its cluster: memberships is one of these clusters or a sub-cluster of one; the cluster's hub page is private too. Every page action (view, edit, comment, rename, delete, upload) is refused, on every surface, because the rule sits in the page-permission decision; a page's own `[{ALLOW ...}]` rules can only narrow access further, never re-open a hidden page. Restart required after changing it; then run an ontology rebuild so pages that became private leave the public SPARQL/export store. `Example: wikantik.access.privateClusters = home-lab-infrastructure, remote-host-management`
+- **`wikantik.access.privateClusters.viewers`** — Comma-separated group names allowed to use pages in private clusters, in addition to administrators (who are always allowed). Members still need the ordinary permission for the action, and the page's own rules still apply. Restart required after changing it.
 
 ## Cookies & sessions
 

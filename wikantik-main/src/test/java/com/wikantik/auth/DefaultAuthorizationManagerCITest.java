@@ -491,6 +491,75 @@ class DefaultAuthorizationManagerCITest {
         assertTrue( mgr.filterViewable( null, java.util.List.of( "SomePage" ) ).isEmpty() );
     }
 
+    // ==================== private-cluster gate ====================
+
+    /** A private-cluster page with no ACL, served through the mocked page manager. */
+    private Page privateClusterPage( final String name ) {
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( name );
+        when( page.getVersion() ).thenReturn( 1 );
+        when( pageManager.getPageWithoutMetadata( name, PageProvider.LATEST_VERSION ) ).thenReturn( page );
+        when( pageManager.getPureText( name, 1 ) ).thenReturn( "---\ncluster: home-lab-infrastructure\n---\nLAN.\n" );
+        when( aclManager.getPermissions( page ) ).thenReturn( null );
+        return page;
+    }
+
+    /**
+     * With the setting blank (the shipped default) the gate adds no work to a decision: the page text is never read
+     * for it, on the single decision or on the batch path.
+     */
+    @Test
+    void aDisabledPrivateClusterGateNeverReadsPageText() {
+        privateClusterPage( "RouterPage" );
+        mgr.setPrivateClusterGate( PrivateClusterGate.fromProperties( new Properties(), pageManager ) );
+        final Session session = mockSession( false, new WikiPrincipal( "anon" ), Role.ALL );
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doReturn( false ).doReturn( true ).when( spy ).checkStaticPermission( any(), any() );
+
+        assertTrue( spy.checkPermission( session, new PagePermission( "test:RouterPage", "view" ) ) );
+        doReturn( false ).doReturn( true ).when( spy ).checkStaticPermission( any(), any() );
+        assertEquals( java.util.Set.of( "RouterPage" ), spy.filterViewable( session, java.util.List.of( "RouterPage" ) ) );
+
+        verify( pageManager, never() ).getPureText( anyString(), anyInt() );
+    }
+
+    /** A manager built without any gate configured (the test constructor) behaves as before and reads no text. */
+    @Test
+    void aManagerWithNoGateConfiguredNeverReadsPageText() {
+        privateClusterPage( "RouterPage" );
+        final Session session = mockSession( false, new WikiPrincipal( "anon" ), Role.ALL );
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doReturn( false ).doReturn( true ).when( spy ).checkStaticPermission( any(), any() );
+
+        assertTrue( spy.checkPermission( session, new PagePermission( "test:RouterPage", "view" ) ) );
+        verify( pageManager, never() ).getPureText( anyString(), anyInt() );
+    }
+
+    @Test
+    void anEnabledGateDeniesAPrivatePageToANonViewer() {
+        privateClusterPage( "RouterPage" );
+        mgr.setPrivateClusterGate( new PrivateClusterGate(
+                java.util.Set.of( "home-lab-infrastructure" ), java.util.Set.of( "HomeLab" ), pageManager ) );
+        final Session session = mockSession( true, new WikiPrincipal( "alice" ), Role.AUTHENTICATED );
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doReturn( false ).doReturn( true ).when( spy ).checkStaticPermission( any(), any() );
+
+        assertFalse( spy.isPermitted( session, new PagePermission( "test:RouterPage", "edit" ) ) );
+    }
+
+    @Test
+    void anEnabledGateAdmitsAViewerGroupMember() {
+        privateClusterPage( "RouterPage" );
+        mgr.setPrivateClusterGate( new PrivateClusterGate(
+                java.util.Set.of( "home-lab-infrastructure" ), java.util.Set.of( "HomeLab" ), pageManager ) );
+        final Session session = mockSession( true, new WikiPrincipal( "bob" ), new GroupPrincipal( "HomeLab" ) );
+        when( session.hasPrincipal( new GroupPrincipal( "HomeLab" ) ) ).thenReturn( true );
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doReturn( false ).doReturn( true ).when( spy ).checkStaticPermission( any(), any() );
+
+        assertTrue( spy.isPermitted( session, new PagePermission( "test:RouterPage", "view" ) ) );
+    }
+
     // ==================== getAuthorizer: not yet initialized ====================
 
     @Test

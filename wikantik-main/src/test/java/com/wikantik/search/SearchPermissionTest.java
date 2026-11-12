@@ -110,6 +110,47 @@ class SearchPermissionTest {
     }
 
     /**
+     * A page in a private cluster carries no access rules of its own, so the searcher's no-ACL fast path must not
+     * admit it: the private-cluster rule lives in the authorization manager, and the searcher has to ask it.
+     */
+    @Test
+    void testSearchExcludesPrivateClusterPagesForAnonymous() throws Exception {
+        engine.stop();
+        final Properties props = TestEngine.getTestProperties();
+        final long timestamp = System.nanoTime();
+        props.setProperty( SearchManager.PROP_SEARCHPROVIDER, "LuceneSearchProvider" );
+        props.setProperty( "wikantik.lucene.indexdelay", "0" );
+        props.setProperty( "wikantik.lucene.initialdelay", "0" );
+        props.setProperty( "wikantik.workDir", props.getProperty( "wikantik.workDir" ) + timestamp );
+        props.setProperty( "wikantik.fileSystemProvider.pageDir", props.getProperty( "wikantik.fileSystemProvider.pageDir" ) + timestamp );
+        props.setProperty( "wikantik.access.privateClusters", "home-lab-infrastructure" );
+        engine = TestEngine.build( props );
+        mgr = engine.getManager( SearchManager.class );
+
+        engine.saveText( "RestrictedSearchPage", "---\ncluster: home-lab-infrastructure\n---\nThe plugh4321 router.\n" );
+        engine.saveText( "PublicSearchPage", "---\ncluster: wikantik-development\n---\nThe plugh4321 notes.\n" );
+        // engine.saveText logs the shared mock session in as admin, who sees both once they are indexed.
+        Awaitility.await( "waiting for both pages to be indexed" )
+                .atMost( 10, TimeUnit.SECONDS )
+                .until( () -> names( mgr.findPages( "plugh4321", adminContext() ) ).size() == 2 );
+
+        com.wikantik.auth.SessionMonitor.getInstance( engine ).remove( HttpMockFactory.SHARED_SESSION_ID );
+        final HttpServletRequest anonymous = HttpMockFactory.createHttpRequest();
+        final Context anonCtx = Wiki.context().create( engine, anonymous, ContextEnum.PAGE_VIEW.getRequestContext() );
+        assertFalse( anonCtx.getWikiSession().isAuthenticated(), "precondition: the search runs as a guest" );
+
+        assertEquals( Set.of( "PublicSearchPage" ), names( mgr.findPages( "plugh4321", anonCtx ) ) );
+    }
+
+    private Context adminContext() {
+        return Wiki.context().create( engine, HttpMockFactory.createHttpRequest(), ContextEnum.PAGE_VIEW.getRequestContext() );
+    }
+
+    private static Set< String > names( final Collection< SearchResult > results ) {
+        return results.stream().map( r -> r.getPage().getName() ).collect( Collectors.toSet() );
+    }
+
+    /**
      * Helper that waits until search results appear for the given query.
      */
     private java.util.concurrent.Callable< Boolean > findsResultsFor( final String text ) {

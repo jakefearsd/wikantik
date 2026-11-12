@@ -54,7 +54,6 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.auth.AuthorizationManager;
-import com.wikantik.auth.acl.AclManager;
 import com.wikantik.api.core.Context;
 
 /**
@@ -90,7 +89,6 @@ class DefaultLuceneSearcherReadinessTest {
     private Engine engine;
     private Context context;
     private AuthorizationManager authManager;
-    private AclManager aclManager;
 
     @BeforeEach
     void setUp() {
@@ -100,7 +98,6 @@ class DefaultLuceneSearcherReadinessTest {
         engine = mock( Engine.class );
         context = mock( Context.class );
         authManager = mock( AuthorizationManager.class );
-        aclManager = mock( AclManager.class );
 
         final Analyzer analyzer = new StandardAnalyzer();
         when( lifecycle.getAnalyzer() ).thenReturn( analyzer );
@@ -108,13 +105,14 @@ class DefaultLuceneSearcherReadinessTest {
         when( engine.getApplicationName() ).thenReturn( "TestWiki" );
         when( context.getWikiSession() ).thenReturn( mock( Session.class ) );
         when( context.getEngine() ).thenReturn( engine );
-        when( authManager.checkStaticPermission( any(), any() ) ).thenReturn( true );
+        when( authManager.filterViewable( any(), any() ) )
+                .thenAnswer( inv -> new java.util.HashSet< String >( inv.getArgument( 1 ) ) );
     }
 
     private DefaultLuceneSearcher newSearcher() {
         final Executor direct = Runnable::run;
         return new DefaultLuceneSearcher( () -> indexDir.toString(), lifecycle, indexer,
-                pageManager, engine, direct, authManager, aclManager );
+                pageManager, engine, direct, authManager );
     }
 
     /** Writes one committed document so the index is genuinely readable. */

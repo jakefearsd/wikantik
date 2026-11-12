@@ -40,7 +40,6 @@ import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleHTMLEncoder;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
-import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -51,8 +50,6 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
-import com.wikantik.auth.acl.AclManager;
-import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
@@ -141,7 +138,6 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
 
     // Lazily resolved (initialised after SearchManager in engine startup sequence)
     private AuthorizationManager authorizationManager;
-    private AclManager aclManager;
 
     /**
      * Constructs a {@code DefaultLuceneSearcher}.
@@ -179,7 +175,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
     }
 
     /**
-     * Package-private constructor for tests that supply auth managers directly,
+     * Package-private constructor for tests that supply the authorization manager directly,
      * bypassing the lazy-resolution path. Reads through its own NIO-backed store.
      */
     DefaultLuceneSearcher( final Supplier<String> directorySupplier,
@@ -188,12 +184,10 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                             final PageManager pageManager,
                             final Engine engine,
                             final Executor searchExecutor,
-                            final AuthorizationManager authorizationManager,
-                            final AclManager aclManager ) {
+                            final AuthorizationManager authorizationManager ) {
         this( new LuceneIndexStore( directorySupplier, lifecycle, false ), lifecycle, indexer,
             pageManager, engine, searchExecutor );
         this.authorizationManager = authorizationManager;
-        this.aclManager = aclManager;
     }
 
 
@@ -249,22 +243,14 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                         new QueryScorer( luceneQuery ) );
             }
 
-            // AuthorizationManager and AclManager are initialized after SearchManager in the engine
-            // startup sequence, so resolve them lazily from the engine on first use.
+            // AuthorizationManager is initialized after SearchManager in the engine
+            // startup sequence, so resolve it lazily from the engine on first use.
             if ( authorizationManager == null ) {
                 authorizationManager = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
             }
-            if ( aclManager == null ) {
-                aclManager = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager();
-            }
             final AuthorizationManager mgr = authorizationManager;
-            final AclManager aclMgr = aclManager;
             final PageManager pm = pageManager;
             final Session session = wikiContext.getWikiSession();
-
-            final PagePermission globalViewPerm = new PagePermission(
-                    engine.getApplicationName() + ":*", PagePermission.VIEW_ACTION );
-            final boolean policyAllowsView = mgr.checkStaticPermission( session, globalViewPerm );
 
             final TopDocs hits = searcher.search( luceneQuery, MAX_SEARCH_HITS );
             final StoredFields storedFields = reader.storedFields();
@@ -274,7 +260,10 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
             // the full page contents. When highlighting is on we still need the
             // body for snippet extraction, so read the full document.
             final boolean needBody = highlighter != null;
-            list = new ArrayList<>( hits.scoreDocs.length );
+            // Pass 1: load each hit's page. Pass 2 keeps the ones the session may view, asked of the
+            // authorization manager in one batch: its filterViewable fast path is the only no-ACL
+            // shortcut, so every rule it applies (inline ACLs, private clusters) applies here too.
+            final List< Hit > loaded = new ArrayList<>( hits.scoreDocs.length );
             for ( final ScoreDoc hit : hits.scoreDocs ) {
                 // Highlighting off (default): read only the id, and via DocValues so
                 // we never decompress the stored-fields block. Highlighting on: read
@@ -288,31 +277,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                 final Page page = pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
 
                 if ( page != null ) {
-                    final Acl acl = aclMgr.getPermissions( page );
-                    final boolean allowed;
-                    if ( policyAllowsView && ( acl == null || acl.isEmpty() ) ) {
-                        allowed = true;
-                    } else {
-                        final PagePermission pp = new PagePermission( page, PagePermission.VIEW_ACTION );
-                        allowed = mgr.isPermitted( session, pp );
-                    }
-
-                    if ( allowed ) {
-                        final Date lastModified = page.getLastModified();
-                        final double recency = lastModified == null ? 1.0
-                                : LuceneHitSupport.recencyFactor( lastModified.getTime(), System.currentTimeMillis() );
-                        final int score = ( int ) ( hit.score * recency * 100 );
-
-                        final String text = doc != null ? doc.get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS ) : null;
-                        String[] fragments = new String[ 0 ];
-                        if ( text != null && highlighter != null ) {
-                            final TokenStream tokenStream = lifecycle.getAnalyzer().tokenStream(
-                                    DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS, new StringReader( text ) );
-                            fragments = highlighter.getBestFragments( tokenStream, text, MAX_FRAGMENTS );
-                        }
-
-                        list.add( new SearchResultImpl( page, score, fragments ) );
-                    }
+                    loaded.add( new Hit( page, hit.score, doc ) );
                 } else {
                     // A null page is AMBIGUOUS: the page may genuinely be gone, or the
                     // page provider may have failed transiently (an FS race, a closed
@@ -339,6 +304,15 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                         LOG.warn( "Lucene hit '{}' could not be loaded but the page still exists; "
                                   + "skipping it for this search and leaving the index intact", pageName );
                     }
+                }
+            }
+
+            final Set< String > viewable = loaded.isEmpty() ? Set.of()
+                    : mgr.filterViewable( session, loaded.stream().map( h -> h.page().getName() ).toList() );
+            list = new ArrayList<>( loaded.size() );
+            for ( final Hit hit : loaded ) {
+                if ( viewable.contains( hit.page().getName() ) ) {
+                    list.add( toResult( hit, highlighter ) );
                 }
             }
         } catch ( final IndexNotFoundException e ) {
@@ -383,6 +357,28 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         }
 
         return list;
+    }
+
+    /** A Lucene hit whose page loaded: the page, the raw Lucene score and the stored document (null unless highlighting). */
+    private record Hit( Page page, float score, Document doc ) {}
+
+    /** The search result for a hit the session may view: recency-weighted score plus highlight fragments when asked for. */
+    @SuppressWarnings( "PMD.CloseResource" ) // TokenStream close is handled implicitly via Lucene's internal lifecycle.
+    private SearchResult toResult( final Hit hit, final Highlighter highlighter )
+            throws IOException, InvalidTokenOffsetsException {
+        final Date lastModified = hit.page().getLastModified();
+        final double recency = lastModified == null ? 1.0
+                : LuceneHitSupport.recencyFactor( lastModified.getTime(), System.currentTimeMillis() );
+        final int score = ( int ) ( hit.score() * recency * 100 );
+
+        final String text = hit.doc() != null ? hit.doc().get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS ) : null;
+        String[] fragments = new String[ 0 ];
+        if ( text != null && highlighter != null ) {
+            final TokenStream tokenStream = lifecycle.getAnalyzer().tokenStream(
+                    DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS, new StringReader( text ) );
+            fragments = highlighter.getBestFragments( tokenStream, text, MAX_FRAGMENTS );
+        }
+        return new SearchResultImpl( hit.page(), score, fragments );
     }
 
     // -------------------------------------------------------------------------

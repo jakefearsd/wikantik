@@ -19,7 +19,6 @@
 package com.wikantik.search;
 
 import com.wikantik.MockEngineBuilder;
-import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
@@ -55,7 +54,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.Permission;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -554,68 +552,38 @@ class LuceneSearchProviderCITest {
         provider.updateLuceneIndex( page, "denied content deniedword777" );
         when( pageManager.getPage( "DeniedPage", PageProvider.LATEST_VERSION ) ).thenReturn( page );
 
-        // Policy does NOT allow view globally
-        when( authorizationManager.checkStaticPermission( any( Session.class ), any( Permission.class ) ) ).thenReturn( false );
-        // ACL denies permission too
-        final Acl acl = mock( Acl.class );
-        when( acl.isEmpty() ).thenReturn( false );
-        when( aclManager.getPermissions( page ) ).thenReturn( acl );
-        when( authorizationManager.isPermitted( any( Session.class ), any( Permission.class ) ) ).thenReturn( false );
+        // The authorization manager finds the page not viewable (an ACL, a private cluster, the policy).
+        when( authorizationManager.filterViewable( any( Session.class ), any() ) ).thenReturn( Set.of() );
 
         final Collection< SearchResult > results = provider.findPages( "deniedword777", LuceneSearchProvider.FLAG_CONTEXTS, wikiContext );
         assertNotNull( results );
-        assertTrue( results.isEmpty(), "Pages denied by ACL should not appear in results" );
+        assertTrue( results.isEmpty(), "Pages the session may not view should not appear in results" );
     }
 
+    /**
+     * The searcher keeps no permission shortcut of its own: it asks the authorization manager's batch
+     * {@code filterViewable} about every page it found, and keeps exactly the ones it returns. (Its old no-ACL fast
+     * path let a page with no inline rules through without asking, past rules the manager applies, such as private
+     * clusters.)
+     */
     @Test
-    void testFindPagesAllowedByPolicyFastPath() throws Exception {
-        final Page page = mockPage( "FastPathPage" );
-        when( attachmentManager.listAttachments( page ) ).thenReturn( Collections.emptyList() );
-        provider.updateLuceneIndex( page, "fastpath content fastword111" );
-        when( pageManager.getPage( "FastPathPage", PageProvider.LATEST_VERSION ) ).thenReturn( page );
+    void testFindPagesKeepsExactlyWhatTheAuthorizationManagerFindsViewable() throws Exception {
+        final Page open = mockPage( "OpenPage" );
+        final Page hidden = mockPage( "HiddenPage" );
+        when( attachmentManager.listAttachments( any( Page.class ) ) ).thenReturn( Collections.emptyList() );
+        provider.updateLuceneIndex( open, "shared content sharedword111" );
+        provider.updateLuceneIndex( hidden, "shared content sharedword111" );
+        when( pageManager.getPage( "OpenPage", PageProvider.LATEST_VERSION ) ).thenReturn( open );
+        when( pageManager.getPage( "HiddenPage", PageProvider.LATEST_VERSION ) ).thenReturn( hidden );
+        when( authorizationManager.filterViewable( any( Session.class ), any() ) ).thenReturn( Set.of( "OpenPage" ) );
 
-        // Policy allows view globally
-        when( authorizationManager.checkStaticPermission( any( Session.class ), any( Permission.class ) ) ).thenReturn( true );
-        // Page has no ACL -> fast path
-        when( aclManager.getPermissions( page ) ).thenReturn( null );
+        final Collection< SearchResult > results = provider.findPages( "sharedword111", 0, wikiContext );
 
-        final Collection< SearchResult > results = provider.findPages( "fastword111", 0, wikiContext );
-        assertEquals( 1, results.size(), "Fast path (no ACL) should allow the result" );
-    }
-
-    @Test
-    void testFindPagesAllowedByEmptyAclFastPath() throws Exception {
-        final Page page = mockPage( "EmptyAclPage" );
-        when( attachmentManager.listAttachments( page ) ).thenReturn( Collections.emptyList() );
-        provider.updateLuceneIndex( page, "emptyacl content emptyaclword222" );
-        when( pageManager.getPage( "EmptyAclPage", PageProvider.LATEST_VERSION ) ).thenReturn( page );
-
-        when( authorizationManager.checkStaticPermission( any( Session.class ), any( Permission.class ) ) ).thenReturn( true );
-        final Acl acl = mock( Acl.class );
-        when( acl.isEmpty() ).thenReturn( true );
-        when( aclManager.getPermissions( page ) ).thenReturn( acl );
-
-        final Collection< SearchResult > results = provider.findPages( "emptyaclword222", 0, wikiContext );
-        assertEquals( 1, results.size(), "Fast path (empty ACL) should allow the result" );
-    }
-
-    @Test
-    void testFindPagesAllowedByCheckPermission() throws Exception {
-        final Page page = mockPage( "AclCheckPage" );
-        when( attachmentManager.listAttachments( page ) ).thenReturn( Collections.emptyList() );
-        provider.updateLuceneIndex( page, "aclcheck content aclcheckword333" );
-        when( pageManager.getPage( "AclCheckPage", PageProvider.LATEST_VERSION ) ).thenReturn( page );
-
-        // Policy does NOT allow globally -> must check per-page
-        when( authorizationManager.checkStaticPermission( any( Session.class ), any( Permission.class ) ) ).thenReturn( false );
-        final Acl acl = mock( Acl.class );
-        when( acl.isEmpty() ).thenReturn( false );
-        when( aclManager.getPermissions( page ) ).thenReturn( acl );
-        // Per-page check succeeds
-        when( authorizationManager.isPermitted( any( Session.class ), any( Permission.class ) ) ).thenReturn( true );
-
-        final Collection< SearchResult > results = provider.findPages( "aclcheckword333", 0, wikiContext );
-        assertEquals( 1, results.size(), "Page allowed by per-page checkPermission should appear" );
+        assertEquals( List.of( "OpenPage" ), results.stream().map( r -> r.getPage().getName() ).toList() );
+        org.mockito.Mockito.verify( authorizationManager ).filterViewable( any( Session.class ),
+            org.mockito.ArgumentMatchers.argThat( names -> Set.copyOf( names ).equals( Set.of( "OpenPage", "HiddenPage" ) ) ) );
+        org.mockito.Mockito.verify( authorizationManager, org.mockito.Mockito.never() ).isPermitted( any(), any() );
+        org.mockito.Mockito.verify( authorizationManager, org.mockito.Mockito.never() ).checkStaticPermission( any(), any() );
     }
 
     @Test
@@ -808,9 +776,10 @@ class LuceneSearchProviderCITest {
         return page;
     }
 
+    /** The authorization manager finds every page it is asked about viewable. */
     private void stubAuthToAllow() {
-        when( authorizationManager.checkStaticPermission( any( Session.class ), any( Permission.class ) ) ).thenReturn( true );
-        when( aclManager.getPermissions( any( Page.class ) ) ).thenReturn( null );
+        when( authorizationManager.filterViewable( any( Session.class ), any() ) )
+            .thenAnswer( inv -> new java.util.HashSet< String >( inv.getArgument( 1 ) ) );
     }
 
     private static void setField( final LuceneSearchProvider target, final String fieldName, final Object value ) {

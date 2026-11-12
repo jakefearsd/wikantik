@@ -212,10 +212,20 @@ public class SpaRoutingFilter implements Filter {
             return;
         }
 
-        // Redirect / and /wiki/ to /wiki/Main (server-side, independent of SPA)
-        if ( "".equals( path ) || "/".equals( path ) || "/wiki/".equals( path ) || "/wiki".equals( path ) ) {
-            setNoCacheHeaders( resp );
-            resp.sendRedirect( contextPath + "/wiki/Main" );
+        // /wiki and /wiki/ have no page of their own; the front page lives at the site root.
+        if ( "/wiki/".equals( path ) || "/wiki".equals( path ) ) {
+            sendMovedPermanently( resp, contextPath + "/" );
+            return;
+        }
+
+        // The site root (and /index.html, which the container's welcome-file handling resolves it to)
+        // serves the front page in place, so the root URL carries real content and is canonical.
+        if ( "".equals( path ) || "/".equals( path ) || "/index.html".equals( path ) ) {
+            final Engine eng = resolveEngine();
+            final String front = eng != null ? eng.getFrontPage() : null;
+            // A missing front page still gets the plain shell with a 200 (never a 404 at the site root).
+            final boolean frontExists = front != null && !front.isEmpty() && resolvePageForCaching( front ) != null;
+            serveIndexHtml( req, resp, contextPath, frontExists ? front : null, front );
             return;
         }
 
@@ -232,7 +242,7 @@ public class SpaRoutingFilter implements Filter {
         // still receive the server-rendered semantic head + body fallback.
         if ( path.startsWith( "/wiki/" ) ) {
             final String pageName = extractPageName( path );
-            serveIndexHtml( req, resp, contextPath, pageName );
+            serveIndexHtml( req, resp, contextPath, pageName, frontPageName() );
             return;
         }
 
@@ -246,13 +256,13 @@ public class SpaRoutingFilter implements Filter {
         if ( isBrowserNavigation ) {
             for ( final String prefix : SPA_PREFIXES ) {
                 if ( path.startsWith( prefix ) ) {
-                    serveIndexHtml( req, resp, contextPath, null );
+                    serveIndexHtml( req, resp, contextPath, null, null );
                     return;
                 }
             }
             for ( final String exact : SPA_EXACT ) {
                 if ( path.equals( exact ) || path.startsWith( exact + "?" ) ) {
-                    serveIndexHtml( req, resp, contextPath, null );
+                    serveIndexHtml( req, resp, contextPath, null, null );
                     return;
                 }
             }
@@ -260,6 +270,12 @@ public class SpaRoutingFilter implements Filter {
 
         // Everything else passes through
         chain.doFilter( request, response );
+    }
+
+    /** The engine's front page name, or {@code null} when the engine is not available. */
+    private String frontPageName() {
+        final Engine eng = resolveEngine();
+        return eng != null ? eng.getFrontPage() : null;
     }
 
     /**
@@ -307,7 +323,8 @@ public class SpaRoutingFilter implements Filter {
      *                 rendering is needed
      */
     private void serveIndexHtml( final HttpServletRequest req, final HttpServletResponse resp,
-                                  final String contextPath, final String pageName ) throws IOException {
+                                  final String contextPath, final String pageName,
+                                  final String frontPageName ) throws IOException {
         final Page cacheablePage = pageName != null && !pageName.isEmpty()
                 ? resolvePageForCaching( pageName ) : null;
         // View permission is resolved ONCE per request and threaded into both the ETag
@@ -347,7 +364,7 @@ public class SpaRoutingFilter implements Filter {
             String rewritten = rewriteIndexHtml( html, contextPath );
             if ( pageName != null && !pageName.isEmpty() ) {
                 if ( viewAllowed ) {
-                    rewritten = injectSemantic( rewritten, req, resp, pageName );
+                    rewritten = injectSemantic( rewritten, req, resp, pageName, frontPageName );
                 } else {
                     // Denied: serve the bare SPA shell with a 404, exactly as for a page
                     // that does not exist, so the restricted page's existence — and its
@@ -490,7 +507,8 @@ public class SpaRoutingFilter implements Filter {
      * show a 404 for missing pages.
      */
     private String injectSemantic( final String indexHtml, final HttpServletRequest req,
-                                     final HttpServletResponse resp, final String pageName ) {
+                                     final HttpServletResponse resp, final String pageName,
+                                     final String frontPageName ) {
         final Engine eng = resolveEngine();
         if ( eng == null ) {
             return indexHtml;
@@ -539,7 +557,7 @@ public class SpaRoutingFilter implements Filter {
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
         final String appName = eng.getApplicationName();
         final String head = SemanticHeadRenderer.renderHead( pageName, parsed, baseUrl, appName, modified,
-                                                              hubMembers( pageName, parsed, req ) );
+                                                              hubMembers( pageName, parsed, req ), frontPageName );
         // Full flexmark render of the body, reused for BOTH the no-JS #root body
         // and the JSON data island (rendered once). Falls back to the lightweight
         // no-JS fragment if the full render is unavailable. Putting real rendered

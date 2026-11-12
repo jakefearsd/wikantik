@@ -162,6 +162,32 @@ class PageSeoModelTest {
     // ---- canonical URL shape ----
 
     @Test
+    void frontPageCanonicalIsTheSiteRoot() {
+        final PageSeoModel model = PageSeoModel.from( "Main",
+                com.wikantik.api.frontmatter.FrontmatterParser.parse( "# Main\n\nBody.\n" ),
+                BASE_URL + "/", APP_NAME, null, java.util.List.of(), "Main" );
+        assertEquals( BASE_URL + "/", model.canonical() );
+    }
+
+    @Test
+    void nonFrontPageCanonicalStaysUnderWiki() {
+        final PageSeoModel model = PageSeoModel.from( "Other",
+                com.wikantik.api.frontmatter.FrontmatterParser.parse( "# Other\n\nBody.\n" ),
+                BASE_URL, APP_NAME, null, java.util.List.of(), "Main" );
+        assertEquals( BASE_URL + "/wiki/Other", model.canonical() );
+    }
+
+    @Test
+    void frontPageOgUrlAndJsonLdUrlFollowTheRootCanonical() {
+        final String head = SemanticHeadRenderer.renderHead( "Main",
+                com.wikantik.api.frontmatter.FrontmatterParser.parse( "# Main\n\nBody.\n" ),
+                BASE_URL, APP_NAME, null, java.util.List.of(), "Main" );
+        assertTrue( head.contains( "<link rel=\"canonical\" href=\"" + BASE_URL + "/\"" ), head );
+        assertTrue( head.contains( "<meta property=\"og:url\" content=\"" + BASE_URL + "/\"" ), head );
+        assertTrue( head.contains( "\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"http:\\/\\/example.com\\/\"}" ), head );
+    }
+
+    @Test
     void canonicalUrlIsBaseUrlPlusWikiSlashPageName() {
         final PageSeoModel model = PageSeoModel.from( "SemanticArticle", "# X\n\nBody.\n",
                 BASE_URL, APP_NAME, null );

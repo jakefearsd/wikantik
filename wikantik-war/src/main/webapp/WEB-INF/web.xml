@@ -385,6 +385,10 @@
      <url-pattern>/change-password</url-pattern>
      <url-pattern>/login</url-pattern>
      <url-pattern>/</url-pattern>
+     <!-- The container resolves "/" through its welcome-file list to the static /index.html and then
+          matches filters against THAT path, so the "/" pattern above never fires for a real request
+          and the default servlet served the bare SPA shell. Map the resolved path too. -->
+     <url-pattern>/index.html</url-pattern>
    </filter-mapping>
 
    <filter>

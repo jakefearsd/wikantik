@@ -117,8 +117,22 @@ public final class SemanticHeadRenderer {
     public static String renderHead( final String pageName, final ParsedPage parsed,
                                       final String baseUrl, final String appName,
                                       final Date modified, final java.util.List< String > hubMembers ) {
+        return renderHead( pageName, parsed, baseUrl, appName, modified, hubMembers, null );
+    }
+
+    /**
+     * As {@link #renderHead(String, ParsedPage, String, String, Date, java.util.List)}, but
+     * naming the wiki's front page: when {@code pageName} is that page, its canonical URL is the
+     * site root ({@code baseUrl + "/"}) rather than {@code /wiki/{pageName}}.
+     *
+     * @param frontPageName the engine's front page name, or {@code null} when unknown
+     */
+    public static String renderHead( final String pageName, final ParsedPage parsed,
+                                      final String baseUrl, final String appName,
+                                      final Date modified, final java.util.List< String > hubMembers,
+                                      final String frontPageName ) {
         final PageSeoModel model =
-                PageSeoModel.from( pageName, parsed, baseUrl, appName, modified, hubMembers );
+                PageSeoModel.from( pageName, parsed, baseUrl, appName, modified, hubMembers, frontPageName );
 
         final StringBuilder sb = new StringBuilder( 2048 );
 

@@ -49,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -56,7 +57,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link SpaRoutingFilter} — redirects root paths to /wiki/Main,
+ * Tests for {@link SpaRoutingFilter} — serves the front page at the root, 301s /wiki to it,
  * serves the React SPA's index.html for SPA routes, and lets static assets
  * pass through. Also exercises the context-path-aware asset rewriting so
  * non-root IT test deployments still fetch {@code /assets/index-*.js} from
@@ -108,34 +109,148 @@ class SpaRoutingFilterTest {
     // ---- Redirect tests ----
 
     @Test
-    void testRootRedirectsToWikiMain() throws Exception {
-        final HttpServletRequest request = mockRequest( "/" );
+    void testWikiSlashRedirectsPermanentlyToRoot() throws Exception {
+        filter.doFilter( mockRequest( "/wiki/" ), response, chain );
 
-        filter.doFilter( request, response, chain );
-
-        verify( response ).sendRedirect( "/wiki/Main" );
-        verify( response ).setHeader( "Cache-Control", "no-store" );
+        verify( response ).setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+        verify( response ).setHeader( "Location", "/" );
         verify( chain, never() ).doFilter( any(), any() );
     }
 
     @Test
-    void testWikiSlashRedirectsToWikiMain() throws Exception {
-        final HttpServletRequest request = mockRequest( "/wiki/" );
+    void testWikiNoSlashRedirectsPermanentlyToRoot() throws Exception {
+        filter.doFilter( mockRequest( "/wiki" ), response, chain );
 
-        filter.doFilter( request, response, chain );
-
-        verify( response ).sendRedirect( "/wiki/Main" );
+        verify( response ).setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+        verify( response ).setHeader( "Location", "/" );
         verify( chain, never() ).doFilter( any(), any() );
     }
 
+    // ---- Home page served at / ----
+
+    private static final String ROOT_HOME_PAGE = "SpaHomeRoot";
+
+    /** An engine whose front page exists, so the root has content to render. */
+    private TestEngine homeEngine( final String text ) throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( "wikantik.frontPage", ROOT_HOME_PAGE );
+        final TestEngine engine = new TestEngine( props );
+        if ( text != null ) {
+            engine.saveText( ROOT_HOME_PAGE, text );
+        }
+        filter.setEngineForTest( engine );
+        return engine;
+    }
+
+    private String canonicalOf( final String html ) {
+        final java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile( "<link rel=\"canonical\" href=\"([^\"]*)\"" ).matcher( html );
+        assertTrue( m.find(), "no canonical link in: " + html );
+        return m.group( 1 );
+    }
+
     @Test
-    void testWikiNoSlashRedirectsToWikiMain() throws Exception {
-        final HttpServletRequest request = mockRequest( "/wiki" );
+    void rootServesFrontPageContentWithRootCanonical() throws Exception {
+        final TestEngine engine = homeEngine( "---\nsummary: Home summary for the root page test\n---\nHello root world." );
+        try {
+            filter.doFilter( mockRequest( "/" ), response, chain );
 
-        filter.doFilter( request, response, chain );
+            final String out = capturedOutput.asString();
+            verify( response, never() ).sendRedirect( any() );
+            verify( response, never() ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+            verify( chain, never() ).doFilter( any(), any() );
+            assertTrue( out.contains( "Hello root world." ), out );
+            assertTrue( canonicalOf( out ).endsWith( "/" ), canonicalOf( out ) );
+            assertFalse( canonicalOf( out ).contains( "/wiki/" ), canonicalOf( out ) );
+            assertTrue( out.contains( "<title>" + ROOT_HOME_PAGE + " - " ), out );
+            assertFalse( out.contains( "noscript-notice" ), "noscript notice must be stripped on the root" );
+        } finally {
+            engine.stop();
+        }
+    }
 
-        verify( response ).sendRedirect( "/wiki/Main" );
-        verify( chain, never() ).doFilter( any(), any() );
+    @Test
+    void rootUnderSubcontextServesFrontPageWithContextAwareAssets() throws Exception {
+        final TestEngine engine = homeEngine( "Hello subcontext root." );
+        try {
+            filter.doFilter( mockRequest( "/ctx", "/" ), response, chain );
+
+            final String out = capturedOutput.asString();
+            assertTrue( out.contains( "Hello subcontext root." ), out );
+            assertTrue( out.contains( "/ctx/assets/" ), out );
+            verify( response, never() ).sendRedirect( any() );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
+    void bareContextRootAndIndexHtmlBehaveLikeRoot() throws Exception {
+        final TestEngine engine = homeEngine( "Hello alias root." );
+        try {
+            filter.doFilter( mockRequest( "/ctx", "" ), response, chain );
+            assertTrue( capturedOutput.asString().contains( "Hello alias root." ) );
+
+            final CapturingServletOutputStream second = new CapturingServletOutputStream();
+            final HttpServletResponse response2 = mock( HttpServletResponse.class );
+            when( response2.getOutputStream() ).thenReturn( second );
+            filter.doFilter( mockRequest( "/index.html" ), response2, chain );
+            assertTrue( second.asString().contains( "Hello alias root." ), second.asString() );
+            assertTrue( canonicalOf( second.asString() ).endsWith( "/" ) );
+            verify( chain, never() ).doFilter( any(), any() );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
+    void rootWhenFrontPageMissingServesPlainShellWith200() throws Exception {
+        final TestEngine engine = homeEngine( null );
+        try {
+            filter.doFilter( mockRequest( "/" ), response, chain );
+
+            verify( response, never() ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+            verify( response, never() ).sendError( anyInt(), any() );
+            verify( response, never() ).sendRedirect( any() );
+            assertTrue( capturedOutput.asString().contains( "<div id=\"root\"></div>" ),
+                    capturedOutput.asString() );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
+    void rootWithoutEngineServesPlainShell() throws Exception {
+        filter.doFilter( mockRequest( "/" ), response, chain );
+
+        verify( response, never() ).sendRedirect( any() );
+        assertTrue( capturedOutput.asString().contains( "<div id=\"root\"></div>" ) );
+    }
+
+    @Test
+    void frontPageUnderWikiPathIsCanonicalAtRoot() throws Exception {
+        final TestEngine engine = homeEngine( "Hello wiki path." );
+        try {
+            filter.doFilter( mockRequest( "/wiki/" + ROOT_HOME_PAGE ), response, chain );
+
+            final String canonical = canonicalOf( capturedOutput.asString() );
+            assertTrue( canonical.endsWith( "/" ) && !canonical.contains( "/wiki/" ), canonical );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
+    void otherPagesKeepTheirWikiCanonical() throws Exception {
+        final TestEngine engine = homeEngine( "Home." );
+        try {
+            engine.saveText( "SpaOtherPage", "Other page." );
+            filter.doFilter( mockRequest( "/wiki/SpaOtherPage" ), response, chain );
+
+            assertTrue( canonicalOf( capturedOutput.asString() ).endsWith( "/wiki/SpaOtherPage" ) );
+        } finally {
+            engine.stop();
+        }
     }
 
     // ---- 301 redirect tests for renamed SPA routes ----
@@ -503,49 +618,20 @@ class SpaRoutingFilterTest {
     }
 
     @Test
-    void testRootUnderSubcontextRedirectsWithContextPrefix() throws Exception {
-        final HttpServletRequest request = mockRequest( "/wikantik-it-test-custom", "/" );
+    void testWikiSlashUnderSubcontextRedirectsToContextRoot() throws Exception {
+        filter.doFilter( mockRequest( "/wikantik-it-test-custom", "/wiki/" ), response, chain );
 
-        filter.doFilter( request, response, chain );
-
-        verify( response ).sendRedirect( "/wikantik-it-test-custom/wiki/Main" );
+        verify( response ).setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+        verify( response ).setHeader( "Location", "/wikantik-it-test-custom/" );
         verify( chain, never() ).doFilter( any(), any() );
     }
 
     @Test
-    void testWikiSlashUnderSubcontextRedirectsWithContextPrefix() throws Exception {
-        final HttpServletRequest request = mockRequest( "/wikantik-it-test-custom", "/wiki/" );
+    void testWikiNoSlashUnderSubcontextRedirectsToContextRoot() throws Exception {
+        filter.doFilter( mockRequest( "/wikantik-it-test-custom", "/wiki" ), response, chain );
 
-        filter.doFilter( request, response, chain );
-
-        verify( response ).sendRedirect( "/wikantik-it-test-custom/wiki/Main" );
-        verify( chain, never() ).doFilter( any(), any() );
-    }
-
-    @Test
-    void testWikiNoSlashUnderSubcontextRedirectsWithContextPrefix() throws Exception {
-        final HttpServletRequest request = mockRequest( "/wikantik-it-test-custom", "/wiki" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( response ).sendRedirect( "/wikantik-it-test-custom/wiki/Main" );
-        verify( chain, never() ).doFilter( any(), any() );
-    }
-
-    @Test
-    void testContextRootBareRedirectsToWikiMain() throws Exception {
-        // When the browser hits just the context root like /wikantik-it-test-custom
-        // (no trailing slash), the request URI equals the context path and the
-        // post-strip path is "".
-        final HttpServletRequest request = mock( HttpServletRequest.class );
-        when( request.getContextPath() ).thenReturn( "/wikantik-it-test-custom" );
-        when( request.getRequestURI() ).thenReturn( "/wikantik-it-test-custom" );
-        when( request.getHeader( "Accept" ) ).thenReturn( "text/html" );
-        when( request.getServletContext() ).thenReturn( servletContext );
-
-        filter.doFilter( request, response, chain );
-
-        verify( response ).sendRedirect( "/wikantik-it-test-custom/wiki/Main" );
+        verify( response ).setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+        verify( response ).setHeader( "Location", "/wikantik-it-test-custom/" );
         verify( chain, never() ).doFilter( any(), any() );
     }
 

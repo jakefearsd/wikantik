@@ -129,12 +129,26 @@ record PageSeoModel(
     static PageSeoModel from( final String pageName, final ParsedPage parsed, final String baseUrl,
                                final String appName, final Date modified,
                                final List< String > hubMembers ) {
+        return from( pageName, parsed, baseUrl, appName, modified, hubMembers, null );
+    }
+
+    /**
+     * As {@link #from(String, ParsedPage, String, String, Date, List)}, naming the wiki's front
+     * page: that page is served at the site root, so its canonical URL is {@code baseUrl + "/"}.
+     *
+     * @param frontPageName the engine's front page name, or {@code null} when unknown
+     */
+    static PageSeoModel from( final String pageName, final ParsedPage parsed, final String baseUrl,
+                               final String appName, final Date modified,
+                               final List< String > hubMembers, final String frontPageName ) {
         final Map< String, Object > meta = parsed.metadata();
 
         final String safePageName = orEmpty( pageName );
         final String safeAppName = orEmpty( appName );
         final String safeBaseUrl = stripTrailingSlash( orEmpty( baseUrl ) );
-        final String canonical = safeBaseUrl + "/wiki/" + safePageName;
+        final String canonical = !safePageName.isEmpty() && safePageName.equals( frontPageName )
+                ? safeBaseUrl + "/"
+                : safeBaseUrl + "/wiki/" + safePageName;
 
         final String fmTitle = strOrEmpty( meta.get( "title" ) );
         // Document title: human-authored frontmatter title when present, else the

@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.ClusterSummary;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
@@ -84,6 +85,12 @@ class ListClustersToolTest {
                         List.of(), "hub", Instant.EPOCH, false ),
                 3, Instant.EPOCH );
         when( svc.listClusters() ).thenReturn( List.of( secret, open ) );
+        when( svc.getCluster( "secret-cluster" ) ).thenReturn( java.util.Optional.of( new ClusterDetails(
+                "secret-cluster", secret.hubPage(), List.of( article( "01S1", "SecretClusterOpenArticle", "2026-01-01T00:00:00Z" ) ),
+                Map.of(), Instant.EPOCH ) ) );
+        when( svc.getCluster( "open-cluster" ) ).thenReturn( java.util.Optional.of( new ClusterDetails(
+                "open-cluster", open.hubPage(), List.of( article( "01P1", "OpenClusterArticle", "2026-01-01T00:00:00Z" ) ),
+                Map.of(), Instant.EPOCH ) ) );
 
         // Gate denies the restricted hub page only.
         final PageViewGate gate = slug -> !"SecretHub".equals( slug );
@@ -97,6 +104,46 @@ class ListClustersToolTest {
         // ...but the cluster itself (its name) still lists, and the public hub is untouched.
         assertTrue( text.contains( "secret-cluster" ), "the cluster name itself still lists" );
         assertTrue( text.contains( "PublicHub" ), "a guest-viewable hub page is unaffected" );
+    }
+
+    private static PageDescriptor article( final String id, final String slug, final String updated ) {
+        return new PageDescriptor( id, slug, slug, PageType.ARTICLE, null, List.of(), List.of(), "s",
+                Instant.parse( updated ), false, List.of() );
+    }
+
+    /** A cluster's count and freshness are over the members the caller may view; a fully hidden cluster is not listed. */
+    @Test
+    void execute_countsOnlyViewableMembersAndOmitsAFullyHiddenCluster() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        final PageDescriptor mixedHub = new PageDescriptor( "01H", "MixedHub", "Mixed hub", PageType.HUB, "mixed",
+                List.of(), "s", Instant.parse( "2026-01-01T00:00:00Z" ), false );
+        final PageDescriptor hiddenHub = new PageDescriptor( "01X", "HiddenHub", "Hidden hub", PageType.HUB, "hidden",
+                List.of(), "s", Instant.parse( "2026-09-09T00:00:00Z" ), false );
+        final PageDescriptor open = article( "01O", "OpenArticle", "2026-02-01T00:00:00Z" );
+        final PageDescriptor hiddenNewer = article( "01N", "HiddenNewer", "2026-09-09T00:00:00Z" );
+        final PageDescriptor hiddenOnly = article( "01Y", "HiddenOnly", "2026-09-09T00:00:00Z" );
+        when( svc.listClusters() ).thenReturn( List.of(
+                new ClusterSummary( "mixed", mixedHub, 2, Instant.parse( "2026-09-09T00:00:00Z" ) ),
+                new ClusterSummary( "hidden", hiddenHub, 1, Instant.parse( "2026-09-09T00:00:00Z" ) ) ) );
+        when( svc.getCluster( "mixed" ) ).thenReturn( java.util.Optional.of( new ClusterDetails( "mixed", mixedHub,
+                List.of( open, hiddenNewer ), Map.of(), Instant.EPOCH ) ) );
+        when( svc.getCluster( "hidden" ) ).thenReturn( java.util.Optional.of( new ClusterDetails( "hidden", hiddenHub,
+                List.of( hiddenOnly ), Map.of(), Instant.EPOCH ) ) );
+        final PageViewGate gate = slug -> "MixedHub".equals( slug ) || "OpenArticle".equals( slug );
+
+        final Map< String, Object > out = parse( new ListClustersTool( svc, gate ).execute( Map.of() ) );
+
+        final List< ? > clusters = ( List< ? > ) out.get( "clusters" );
+        assertEquals( 1, clusters.size(), "the fully hidden cluster is not listed: " + out );
+        assertEquals( 1, ( (Number) out.get( "count" ) ).intValue(), "the total follows the filtered list" );
+        final String text = clusters.toString();
+        assertTrue( text.contains( "mixed" ) );
+        assertFalse( text.contains( "hidden" ) || text.contains( "HiddenHub" ), "nothing of the hidden cluster: " + text );
+        @SuppressWarnings( "unchecked" )
+        final Map< String, Object > mixed = (Map< String, Object >) clusters.get( 0 );
+        assertEquals( 1, ( (Number) mixed.get( "articleCount" ) ).intValue(), "the hidden member is not counted: " + mixed );
+        assertTrue( mixed.toString().contains( "2026" ) && !mixed.toString().contains( "2026-09" ),
+                "freshness must not come from the hidden newer member: " + mixed );
     }
 
     @Test

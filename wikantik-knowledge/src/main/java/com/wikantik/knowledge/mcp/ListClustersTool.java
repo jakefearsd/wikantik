@@ -18,16 +18,23 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.ClusterSummary;
+import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.google.gson.Gson;
 import com.wikantik.mcp.AbstractMcpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /** MCP tool — returns every cluster with its hub page, article count, and freshness. */
 public class ListClustersTool extends AbstractMcpTool {
@@ -92,17 +99,30 @@ public class ListClustersTool extends AbstractMcpTool {
     @Override
     protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final List< ClusterSummary > clusters = service.listClusters();
-        // Guest view-ACL (partial): redact the hub-page descriptor when its page is not
-        // guest-viewable, so a restricted hub page's slug/title cannot leak. The cluster name +
-        // article count remain — the aggregate visibility of restricted member pages (and the
-        // count over only-visible pages) is a separate, deferred concern.
-        final List< ClusterSummary > visible = clusters.stream()
-                .map( c -> ( c.hubPage() != null && c.hubPage().slug() != null
-                             && !viewGate.canView( c.hubPage().slug() ) )
-                           ? new ClusterSummary( c.name(), null, c.articleCount(), c.updatedAt() )
-                           : c )
-                .toList();
+        // Guest view-ACL: every figure is over the members a guest may view. A hidden hub is redacted, the count
+        // and freshness come from the viewable members only, and a cluster with no viewable member is not listed
+        // (its size and last-edit time would say something about content that is hidden).
+        final List< ClusterSummary > visible = viewGate == PageViewGate.ALLOW_ALL
+                ? clusters
+                : clusters.stream().map( this::viewableSummary ).flatMap( Optional::stream ).toList();
         return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
                 McpToolUtils.paginate( "clusters", visible, arguments, 50 ) );
+    }
+
+    private Optional< ClusterSummary > viewableSummary( final ClusterSummary c ) {
+        final Optional< ClusterDetails > details = service.getCluster( c.name() );
+        if ( details.isEmpty() ) {
+            return Optional.empty();
+        }
+        final PageDescriptor hub = details.get().hubPage() != null && details.get().hubPage().slug() != null
+                && viewGate.canView( details.get().hubPage().slug() ) ? details.get().hubPage() : null;
+        final List< PageDescriptor > articles = details.get().articles().stream()
+                .filter( a -> a.slug() != null && viewGate.canView( a.slug() ) ).toList();
+        if ( hub == null && articles.isEmpty() ) {
+            return Optional.empty();
+        }
+        final Instant updated = Stream.concat( Stream.ofNullable( hub ), articles.stream() )
+                .map( PageDescriptor::updated ).filter( Objects::nonNull ).max( Comparator.naturalOrder() ).orElse( null );
+        return Optional.of( new ClusterSummary( c.name(), hub, articles.size(), updated ) );
     }
 }

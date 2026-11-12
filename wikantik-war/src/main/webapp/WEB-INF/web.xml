@@ -691,6 +691,10 @@
        <servlet-class>com.wikantik.rest.AdminOntologyResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminContentDatesResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminContentDatesResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminDerivedResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminDerivedResource</servlet-class>
    </servlet>
@@ -1023,6 +1027,10 @@
    <servlet-mapping>
        <servlet-name>AdminOntologyResource</servlet-name>
        <url-pattern>/admin/ontology/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminContentDatesResource</servlet-name>
+       <url-pattern>/admin/seo/content-dates/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminDerivedResource</servlet-name>

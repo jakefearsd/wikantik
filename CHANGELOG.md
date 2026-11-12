@@ -14,7 +14,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - `/` serves the front page server-rendered with canonical `{base}/`; `/wiki` and `/wiki/` redirect 301 to `/`.
-- The browser title is `{title} - Wikantik`, matching the server-rendered title; server-rendered pages carry one `<h1>` and no "JavaScript is required" text.
+- The browser title is `{title} - Wikantik`, matching the server-rendered title (a title that already contains "Wikantik" is used as is, on both sides); server-rendered pages carry one `<h1>` and no "JavaScript is required" text.
+- These apply to every install, with or without private clusters:
+  - `/api/changes` and `/api/outbound-links` now check view permission and leave out pages the caller may not view.
+  - `/api/bundle?debug=rankings` is admin-only and its `k` is capped. Scripts that read the rankings must log in as an admin.
+  - The export pickers (`/api/export/options`), the cluster list and its counts (`/api/structure/clusters`, MCP `list_clusters`), `cluster_status.member_count` on `/api/pages/{name}` and MCP `list_stale_citations` cover only what the caller may view. A cluster with no member the caller may view is not listed.
+  - The page-listing plugins (`IndexPlugin`, `UnusedPagesPlugin`, `UndefinedPagesPlugin`, `ReferringPagesPlugin`, `ReferredPagesPlugin`, `ReferringUndefinedPagesPlugin`, `RecentChangesPlugin`, `HubSetPlugin`) list only pages the reader may view, and their output is never cached across readers. `IfPlugin page=` and `HubSetPlugin hub=` treat a page the reader may not view as missing.
+  - The for-agent projection (`/api/pages/for-agent/{id}`, MCP `get_page_for_agent`) names in `agent_hints.prefer_pages`, a hub's synthesized summary and `stale_citations` only pages the caller may view.
+  - A hub's server-rendered JSON-LD `hasPart` names only members the caller may view. Server-rendered pages whose content depends on the reader (hubs, plugins, transclusions) keep a validator for anonymous readers only; a signed-in reader's copy is sent `Cache-Control: private, no-store`.
+  - Hidden nodes in the page graph snapshot have opaque ids, no longer derived from the page name.
 
 ## [2.5.15] - 2026-11-09
 

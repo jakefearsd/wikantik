@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.16] - 2026-11-12
+
 ### Added
 
 - **Private clusters.** `wikantik.access.privateClusters` and `.viewers` hide every page in the listed clusters (and their sub-clusters) from everyone except Admin and the viewer groups, on every surface. Default blank (off). See WikantikOperations section 1.12.

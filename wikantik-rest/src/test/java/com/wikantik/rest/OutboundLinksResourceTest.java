@@ -104,6 +104,36 @@ class OutboundLinksResourceTest {
     }
 
     @Test
+    void testOutboundLinksOfARestrictedPageAreDeniedToAnonymous() throws Exception {
+        engine.saveText( "RestOutboundSecret", "[{ALLOW view Admin}]\n\nLinks to [RestOutboundTarget]." );
+        try {
+            final JsonObject obj = gson.fromJson( doGet( "RestOutboundSecret" ), JsonObject.class );
+
+            assertTrue( obj.has( "error" ), "a restricted page's link list must be refused: " + obj );
+            assertEquals( 403, obj.get( "status" ).getAsInt() );
+            assertFalse( obj.toString().contains( "RestOutboundTarget" ) );
+        } finally {
+            engine.deleteQuietly( "RestOutboundSecret" );
+        }
+    }
+
+    @Test
+    void testOutboundLinksOmitTargetsTheCallerCannotView() throws Exception {
+        engine.saveText( "RestOutboundHidden", "[{ALLOW view Admin}]\n\nHidden." );
+        engine.saveText( "RestOutboundPublicLinker", "Links to [RestOutboundHidden](RestOutboundHidden) and [RestOutboundTarget](RestOutboundTarget)." );
+        try {
+            final JsonObject obj = gson.fromJson( doGet( "RestOutboundPublicLinker" ), JsonObject.class );
+
+            final String links = obj.getAsJsonArray( "links" ).toString();
+            assertTrue( links.contains( "RestOutboundTarget" ), "positive control: a viewable target is listed" );
+            assertFalse( links.contains( "RestOutboundHidden" ), "a hidden target was named: " + links );
+            assertEquals( 1, obj.get( "count" ).getAsInt() );
+        } finally {
+            engine.deleteQuietly( "RestOutboundHidden", "RestOutboundPublicLinker" );
+        }
+    }
+
+    @Test
     void testOutboundLinksMissingName() throws Exception {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/outbound-links" );
         Mockito.doReturn( null ).when( request ).getPathInfo();
@@ -122,7 +152,12 @@ class OutboundLinksResourceTest {
     // ----- Helper methods -----
 
     private String doGet( final String pageName ) throws Exception {
+        // A fresh session id per call: the mock requests otherwise share one session, and its login state.
+        final jakarta.servlet.http.HttpSession sess = Mockito.mock( jakarta.servlet.http.HttpSession.class );
+        Mockito.doReturn( "anon-outbound-" + System.nanoTime() ).when( sess ).getId();
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/outbound-links/" + pageName );
+        Mockito.doReturn( sess ).when( request ).getSession();
+        Mockito.doReturn( sess ).when( request ).getSession( Mockito.anyBoolean() );
         Mockito.doReturn( "/" + pageName ).when( request ).getPathInfo();
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();

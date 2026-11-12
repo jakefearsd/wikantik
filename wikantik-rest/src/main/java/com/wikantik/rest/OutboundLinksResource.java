@@ -65,13 +65,21 @@ public class OutboundLinksResource extends RestServletBase {
 
         LOG.debug( "GET outbound links: {}", pageName );
 
+        // Authorization: the link list of a restricted page is as sensitive as the page, and a viewable page
+        // must not name the restricted pages it links to (same rule as the backlinks list).
+        if ( !checkPagePermission( request, response, pageName, "view" ) ) {
+            return;
+        }
+
         final ReferenceManager refManager = getSubsystems().page().referenceManager();
 
         final Collection< String > refersTo = refManager.findRefersTo( pageName );
+        final java.util.Set< String > viewable = filterViewable( request,
+                refersTo == null ? List.of() : refersTo );
 
         final List< String > links = refersTo == null
                 ? List.of()
-                : refersTo.stream().sorted().distinct().toList();
+                : refersTo.stream().filter( viewable::contains ).sorted().distinct().toList();
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "name", pageName );

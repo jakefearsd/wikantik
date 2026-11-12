@@ -425,6 +425,81 @@ publish p95 44 ms, about 1.3 requests/s per editor from the script. A real edito
 2 requests/s per active editor: the default per-IP bucket of 100/s covers about 50 active editors behind one address.
 One account holds at most 4 seats in a session, which bounds the script's editors per page.
 
+### 1.12 Private clusters
+
+A private cluster hides every page in it from everyone except administrators and the groups you name. Use it for
+content that must stay out of search engines and agent retrieval, such as host pages and incident runbooks.
+
+Settings (`wikantik-custom.properties`; both ship blank, so a fresh install is unaffected):
+
+```properties
+wikantik.access.privateClusters = home-lab-infrastructure, remote-host-management
+wikantik.access.privateClusters.viewers =
+```
+
+`privateClusters` lists cluster paths. `privateClusters.viewers` lists groups allowed in addition to Admin.
+
+- A page is private when any of its `cluster:` memberships is a listed cluster or a sub-cluster of one. The cluster's
+  hub page is private too. The cluster comes from the page's stored frontmatter, so a new page is private from its
+  first save.
+- Every page action (view, edit, comment, rename, delete, upload) needs Admin or a viewer group. The rule sits in
+  `DefaultAuthorizationManager` (gate class `com.wikantik.auth.PrivateClusterGate`), so it applies on every surface.
+- A page's own `[{ALLOW ...}]` rules can only narrow access further. They cannot re-open a private page.
+- Public pages that link to a private page keep the link. Readers outside the viewer set get a 404 on it.
+
+**After changing either setting:** restart Tomcat (the lists are read at startup), then rebuild the ontology so pages
+that became private leave the public SPARQL/export store:
+
+```bash
+source <(grep -v '^#' test.properties | sed 's/^test.user.//' | sed 's/=/="/' | sed 's/$/"/')
+curl -s -u "${login}:${password}" -X POST http://localhost:8080/admin/ontology/rebuild
+curl -s -u "${login}:${password}" http://localhost:8080/admin/ontology/status | jq .
+```
+
+**Consequences.**
+
+- The admin MCP (`/wikantik-admin-mcp`) bypasses page permissions, so writers such as jakemon's runbook publisher keep
+  working, and an admin can still read the pages there.
+- The knowledge MCP and every public surface hide private pages from callers who are not viewers: pages, `?format=`,
+  search, sitemap and news sitemap, feeds, `/api/changes`, the Page Graph, structure, ontology/SPARQL, bundle and
+  briefing.
+- Page history and diff follow the cluster of the **latest** version. A page moved out of a private cluster exposes
+  its older versions.
+
+**Verify as anonymous** (no credentials; replace the host and page names):
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://wiki.wikantik.com/wiki/<PrivatePage>          # expect 404
+curl -s -o /dev/null -w '%{http_code}\n' 'https://wiki.wikantik.com/wiki/<PrivatePage>?format=md'  # expect 404
+curl -s https://wiki.wikantik.com/sitemap.xml | grep -c 'Incident'                                   # expect 0 (use a name from your private clusters)
+```
+
+### 1.13 Content dates backfill
+
+The sitemap `<lastmod>`, the news sitemap window and JSON-LD `dateModified` use a **content-changed date**, stored in
+`page_content_dates` (migration `V072`), not the save time. A save advances it only when the body changes
+substantially: the word-level difference (added plus removed words) reaches `min(minPercent of the old word count,
+minWords)`, or the page gains a heading. Small edits accumulate against the last baseline. Frontmatter-only edits
+never count. Feeds, ETags and `/api/changes` keep the real save time. Rule: `com.wikantik.seo.ContentChangeRule`.
+
+Settings: `wikantik.seo.contentChange.minPercent` (default `5`) and `wikantik.seo.contentChange.minWords`
+(default `100`).
+
+The table starts empty. Until a page has a row, its date falls back to its save time. After the first deploy that
+carries `V072`, run the backfill once; it replays each page's version history oldest to newest with the same rule:
+
+```bash
+source <(grep -v '^#' test.properties | sed 's/^test.user.//' | sed 's/=/="/' | sed 's/$/"/')
+curl -s -u "${login}:${password}" -X POST 'http://localhost:8080/admin/seo/content-dates/backfill?force=false'
+curl -s -u "${login}:${password}" http://localhost:8080/admin/seo/content-dates/status | jq .
+```
+
+`POST` answers 202 and runs in the background; a second `POST` during a run answers 409. Status reports `state`
+(`idle`, `running`, `done`, `failed`), `total`, `done`, `failed` and `startedAt`. Without `force`, pages that already
+have a date are skipped, so an interrupted run can be started again. `force=true` recomputes every page.
+
+**Verify:** `https://wiki.wikantik.com/sitemap.xml` should show varied `<lastmod>` dates instead of a few shared ones.
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

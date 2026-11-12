@@ -422,6 +422,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - Page-level ACLs via inline `[{ALLOW view Admin}]` syntax in page content
 - REST API permission enforcement — all `/api/*` endpoints check ACLs via `RestServletBase.checkPagePermission()`
 - Admin endpoints at `/admin/*` protected by `AdminAuthFilter` (requires `AllPermission`)
+- **Private clusters** — `wikantik.access.privateClusters` (+ `.viewers`) makes every page in a listed cluster (or sub-cluster) Admin/viewer-group only, for all actions. One gate, `PrivateClusterGate`, inside `DefaultAuthorizationManager`; a page ACL can only narrow further. The admin MCP bypasses it by design. Settings need a restart plus `POST /admin/ontology/rebuild`; runbook in WikantikOperations section 1.12.
 - Bootstrap admin override — `wikantik.admin.bootstrap` property guarantees admin access during initial setup
 - Database-backed policy grants — always active when `wikantik.datasource` is configured (the default)
 - NIST 800-63B password validation with common-password blocklist

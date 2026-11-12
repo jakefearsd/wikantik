@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Private clusters.** `wikantik.access.privateClusters` and `.viewers` hide every page in the listed clusters (and their sub-clusters) from everyone except Admin and the viewer groups, on every surface. Default blank (off). See WikantikOperations section 1.12.
+- **Content dates.** Sitemap `lastmod`, the news sitemap and JSON-LD `dateModified` now use a content-changed date (`page_content_dates`, migration `V072`) that moves only on a substantial body edit (`wikantik.seo.contentChange.minPercent`, `.minWords`). Backfill with `POST /admin/seo/content-dates/backfill`.
+
+### Changed
+
+- `/` serves the front page server-rendered with canonical `{base}/`; `/wiki` and `/wiki/` redirect 301 to `/`.
+- The browser title is `{title} - Wikantik`, matching the server-rendered title; server-rendered pages carry one `<h1>` and no "JavaScript is required" text.
+
 ## [2.5.15] - 2026-11-09
 
 ### Removed

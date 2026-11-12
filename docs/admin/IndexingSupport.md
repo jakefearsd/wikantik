@@ -70,10 +70,12 @@ If `since` is omitted, the feed lists every page the page manager reports as cha
 
 Implemented via **`com.wikantik.ui.SemanticHeadRenderer`** and **`com.wikantik.rest.SpaRoutingFilter`**. Every `/wiki/{slug}` request, whatever its `Accept` header, is served the SPA shell with a server-rendered head and body, so crawlers that send `Accept: */*` or no header still get content:
 
-- `<title>`, `<meta name="description">`, `<link rel="canonical">`
+- `<title>` (`{title} - Wikantik`), `<meta name="description">`, `<link rel="canonical">`
 - Open Graph tags (`og:title`, `og:description`, `og:url`, `og:type`)
 - JSON-LD structured data (schema.org `Article`, or another type derived from the page `type`)
 - The rendered page body (headings, paragraphs, lists, tables) inside `#root`
+
+`/` serves the front page (`Engine.getFrontPage()`) server-rendered in place, with canonical `{base}/`. `/wiki/<front page>` stays reachable and also canonicalises to `{base}/`. `/wiki` and `/wiki/` redirect 301 to `/`. Tomcat's welcome-file handling maps `/` to `/index.html` before the filter runs, so `SpaRoutingFilter` is mapped to `/index.html` as well as `/`.
 
 Other SPA routes (`/search`, `/admin/*`, `/edit/*` and so on) share URL space with JSON APIs, so `SpaRoutingFilter` forwards them to the shell only when the request's `Accept` header contains `text/html`.
 
@@ -81,8 +83,9 @@ Other SPA routes (`/search`, `/admin/*`, `/edit/*` and so on) share URL space wi
 
 Implemented by **`com.wikantik.ui.SitemapServlet`** at `/sitemap.xml`:
 
-- `<lastmod>` reflects actual page modification time (not deploy time)
-- All pages visible to anonymous users are enumerated (ACL-filtered)
+- `<lastmod>` is the page's content-changed date, not the save time: it moves only on a substantial body edit (see [Content dates backfill](WikantikOperations.md#113-content-dates-backfill)). It falls back to the save time when no date is stored. The news sitemap window and JSON-LD `dateModified` use the same date. Feeds, ETags and `/api/changes` keep the real save time.
+- The front page is listed as `{base}/`, not `/wiki/<front page>`
+- All pages visible to anonymous users are enumerated (ACL-filtered); pages in a [private cluster](WikantikOperations.md#112-private-clusters) are not listed
 - The sitemap is referenced from `robots.txt` (`wikantik-war/src/main/webapp/robots.txt`)
 
 See [docs/archive/Sitemap.md](../archive/Sitemap.md) and [docs/archive/SitemapOptimization.md](../archive/SitemapOptimization.md) for tuning details.

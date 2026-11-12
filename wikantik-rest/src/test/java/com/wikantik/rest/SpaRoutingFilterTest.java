@@ -840,32 +840,36 @@ class SpaRoutingFilterTest {
     }
 
     @Test
-    void pageWithNativeEmbedIsNeverEtaggedNorServed304() throws Exception {
+    void pageWithNativeEmbedIsCachedOnlyForTheAnonymousAudience() throws Exception {
         assertViewerDependentPageNotCacheable( "SpaEmbedPage", "intro\n\n![[SpaEmbedRestricted]]\n" );
     }
 
     @Test
-    void pageWithInsertKeywordInsertPageIsNeverEtaggedNorServed304() throws Exception {
+    void pageWithInsertKeywordInsertPageIsCachedOnlyForTheAnonymousAudience() throws Exception {
         assertViewerDependentPageNotCacheable( "SpaInsertKw", "intro [{INSERT InsertPage page='SpaEmbedRestricted'}]" );
     }
 
     @Test
-    void pageWithFullyQualifiedInsertPageIsNeverEtaggedNorServed304() throws Exception {
+    void pageWithFullyQualifiedInsertPageIsCachedOnlyForTheAnonymousAudience() throws Exception {
         assertViewerDependentPageNotCacheable( "SpaInsertFq",
                 "intro [{com.wikantik.plugin.InsertPage page='SpaEmbedRestricted'}]" );
     }
 
     @Test
-    void pageWithInsertKeywordFullyQualifiedInsertPageIsNeverEtaggedNorServed304() throws Exception {
+    void pageWithInsertKeywordFullyQualifiedInsertPageIsCachedOnlyForTheAnonymousAudience() throws Exception {
         assertViewerDependentPageNotCacheable( "SpaInsertKwFq",
                 "intro [{INSERT com.wikantik.plugin.InsertPage page='SpaEmbedRestricted'}]" );
     }
 
     @Test
-    void pageWithInsertPageIsNeverEtaggedNorServed304() throws Exception {
+    void pageWithInsertPageIsCachedOnlyForTheAnonymousAudience() throws Exception {
         assertViewerDependentPageNotCacheable( "SpaInsertPage", "intro [{insertpage page='SpaEmbedRestricted'}]" );
     }
 
+    /**
+     * A transcluding page renders per viewer: a signed-in caller's copy is never stored nor confirmed by a 304, and the
+     * anonymous copy (one audience, the same for every visitor) carries a validator of its own.
+     */
     private void assertViewerDependentPageNotCacheable( final String name, final String text ) throws Exception {
         final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
         try {
@@ -873,21 +877,35 @@ class SpaRoutingFilterTest {
             engine.saveText( name, text );
             filter.setEngineForTest( engine );
 
-            final HttpServletRequest request = mockRequest( "/wiki/" + name );
-            filter.doFilter( request, response, chain );
+            final HttpServletRequest signedIn = signedInRequest( engine, "/wiki/" + name );
+            when( signedIn.getHeader( "If-None-Match" ) ).thenReturn( "W/\"anything\"" );
+            filter.doFilter( signedIn, response, chain );
             verify( response, never() ).setHeader( eq( "ETag" ), any() );
             verify( response ).setHeader( "Cache-Control", "private, no-store" );
+            verify( response, never() ).setStatus( HttpServletResponse.SC_NOT_MODIFIED );
 
-            // Any validator the browser holds must be ignored: the body differs per viewer.
-            final HttpServletResponse response2 = mock( HttpServletResponse.class );
-            when( response2.getOutputStream() ).thenReturn( new CapturingServletOutputStream() );
-            final HttpServletRequest request2 = mockRequest( "/wiki/" + name );
-            when( request2.getHeader( "If-None-Match" ) ).thenReturn( "W/\"anything\"" );
-            filter.doFilter( request2, response2, chain );
-            verify( response2, never() ).setStatus( HttpServletResponse.SC_NOT_MODIFIED );
+            final HttpServletResponse anonymous = mock( HttpServletResponse.class );
+            when( anonymous.getOutputStream() ).thenReturn( new CapturingServletOutputStream() );
+            filter.doFilter( mockRequest( "/wiki/" + name ), anonymous, chain );
+            final ArgumentCaptor< String > etag = ArgumentCaptor.forClass( String.class );
+            verify( anonymous ).setHeader( eq( "ETag" ), etag.capture() );
+            assertTrue( etag.getValue().endsWith( "-a\"" ), "the anonymous copy is marked as such: " + etag.getValue() );
         } finally {
             engine.stop();
         }
+    }
+
+    private HttpServletRequest signedInRequest( final TestEngine engine, final String uri ) throws Exception {
+        final HttpServletRequest request = com.wikantik.HttpMockFactory.createIsolatedHttpRequest( uri );
+        when( request.getContextPath() ).thenReturn( "" );
+        when( request.getRequestURI() ).thenReturn( uri );
+        when( request.getHeader( "Accept" ) ).thenReturn( "text/html" );
+        when( request.getServletContext() ).thenReturn( servletContext );
+        final com.wikantik.api.core.Session session = com.wikantik.api.spi.Wiki.session().find( engine, request );
+        engine.getManager( com.wikantik.auth.AuthenticationManager.class )
+              .login( session, request, com.wikantik.auth.Users.ADMIN, com.wikantik.auth.Users.ADMIN_PASS );
+        assertTrue( session.isAuthenticated(), "fixture: admin login must succeed" );
+        return request;
     }
 
     // ---- JSON-LD dateModified is the content-changed date ----

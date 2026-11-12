@@ -112,20 +112,22 @@ public class SpaRoutingFilter implements Filter {
     }
 
     /**
-     *  Slugs of the pages in this page's cluster, when the page is a hub — used as the
+     *  Slugs of the pages in this page's cluster that {@code viewer} may view, when the page is a hub — used as the
      *  hub's JSON-LD {@code hasPart}.
      *
      *  <p>What a cluster contains is a fact held by the structural index, not by the hub's
      *  own frontmatter, so it has to be resolved here rather than derived from
-     *  {@code related:}. The hub itself is excluded: a collection is not part of itself.</p>
+     *  {@code related:}. The hub itself is excluded: a collection is not part of itself.
+     *  The index lists every member, including pages the caller may not view (a page that also joins a private
+     *  cluster, a member of a private sub-cluster), so the list is cut down to the caller's view: the hub's head then
+     *  differs per viewer, which {@link #isViewerDependent} accounts for.</p>
      *
      *  <p>Returns an empty list for non-hubs and whenever the index is unavailable — the
      *  emitter then falls back to frontmatter {@code related}, so SSR never breaks or
      *  blocks on a warming index.</p>
      */
-    private static java.util.List< String > hubMembers( final String pageName,
-                                                         final ParsedPage parsed,
-                                                         final HttpServletRequest req ) {
+    private static java.util.List< String > hubMembers( final Engine eng, final Session viewer, final String pageName,
+                                                         final ParsedPage parsed, final HttpServletRequest req ) {
         final Object type = parsed.metadata().get( "type" );
         if ( PageType.fromFrontmatter( type ) != PageType.HUB ) {
             return java.util.List.of();
@@ -146,12 +148,15 @@ public class SpaRoutingFilter implements Filter {
             if ( idx == null ) {
                 return java.util.List.of();
             }
-            return idx.getCluster( cluster )
+            final java.util.List< String > members = idx.getCluster( cluster )
                       .map( d -> d.articles().stream()
                                   .map( com.wikantik.api.pagegraph.PageDescriptor::slug )
                                   .filter( s -> !s.equals( pageName ) )
                                   .toList() )
                       .orElseGet( java.util.List::of );
+            final java.util.Set< String > viewable = viewer == null
+                    ? java.util.Set.of() : new PermissionFilter( eng ).filterViewableQuietly( viewer, members );
+            return members.stream().filter( viewable::contains ).toList();
         } catch ( final RuntimeException e ) {
             LOG.warn( "SpaRoutingFilter: hub membership unavailable for cluster '{}': {}",
                       cluster, e.getMessage() );
@@ -327,24 +332,27 @@ public class SpaRoutingFilter implements Filter {
                                   final String frontPageName ) throws IOException {
         final Page cacheablePage = pageName != null && !pageName.isEmpty()
                 ? resolvePageForCaching( pageName ) : null;
-        // View permission is resolved ONCE per request and threaded into both the ETag
+        // The caller and their view permission are resolved ONCE per request and threaded into both the ETag
         // and the injection step: a denied caller must neither be server-rendered nor
         // share a validator with a permitted one.
-        final boolean viewAllowed = cacheablePage == null || mayView( req, pageName );
-        if ( cacheablePage != null && isViewerDependent( pageName ) ) {
-            // Transclusion (![[...]] / InsertPage) renders per viewer: an embedded page the caller may not view is
-            // omitted, so one viewer's body must never be replayed to another via a 304 on the same browser.
+        final Session viewer = cacheablePage == null ? null : viewerSession( req );
+        final boolean viewAllowed = cacheablePage == null || mayView( viewer, pageName );
+        final boolean viewerDependent = cacheablePage != null && isViewerDependent( pageName );
+        if ( viewerDependent && !isAnonymous( viewer ) ) {
+            // A transclusion, a plugin or a hub's hasPart renders per viewer: whatever the caller may not view is
+            // omitted, so a signed-in caller's body must never be replayed to anyone else via a 304 on the same
+            // browser. Anonymous visitors all see the same thing, so their copy stays revalidatable (below).
             resp.setHeader( "Cache-Control", "private, no-store" );
         } else if ( cacheablePage != null ) {
             // The SSR output for a page is a pure function of (shell build, page
-            // version, mtime, viewer-allowed) — the underlying render cache is already
-            // shared across users by content hash. private+no-cache forces revalidation
+            // version, mtime, viewer-allowed, and — for a per-viewer page — the anonymous audience) — the underlying
+            // render cache is already shared across users by content hash. private+no-cache forces revalidation
             // on every navigation; matching validators short-circuit to a 304
             // before any body read, render, or injection work.
             final long lm = cacheablePage.getLastModified() == null
                     ? 0L : cacheablePage.getLastModified().getTime();
             final String etag = etagFor( shellFingerprint( req.getServletContext() ),
-                    Math.max( cacheablePage.getVersion(), 1 ), lm, viewAllowed );
+                    Math.max( cacheablePage.getVersion(), 1 ), lm, viewAllowed, viewerDependent );
             resp.setHeader( "ETag", etag );
             resp.setHeader( "Cache-Control", "private, no-cache" );
             if ( etag.equals( req.getHeader( "If-None-Match" ) ) ) {
@@ -364,7 +372,7 @@ public class SpaRoutingFilter implements Filter {
             String rewritten = rewriteIndexHtml( html, contextPath );
             if ( pageName != null && !pageName.isEmpty() ) {
                 if ( viewAllowed ) {
-                    rewritten = injectSemantic( rewritten, req, resp, pageName, frontPageName );
+                    rewritten = injectSemantic( rewritten, req, resp, pageName, frontPageName, viewer );
                 } else {
                     // Denied: serve the bare SPA shell with a 404, exactly as for a page
                     // that does not exist, so the restricted page's existence — and its
@@ -419,17 +427,29 @@ public class SpaRoutingFilter implements Filter {
      */
     static String etagFor( final String shellFp, final int version, final long lastModifiedMillis,
                             final boolean viewAllowed ) {
-        return "W/\"" + shellFp + '-' + version + '-' + lastModifiedMillis
-                + ( viewAllowed ? "-v" : "-d" ) + '"';
+        return etagFor( shellFp, version, lastModifiedMillis, viewAllowed, false );
     }
 
+    /**
+     * As {@link #etagFor(String, int, long, boolean)}, for a page whose body differs per viewer when
+     * {@code anonymousAudience} is set: only anonymous callers get a validator for such a page, and it is marked so that
+     * no copy cached for one audience can be confirmed for another.
+     */
+    static String etagFor( final String shellFp, final int version, final long lastModifiedMillis,
+                            final boolean viewAllowed, final boolean anonymousAudience ) {
+        return "W/\"" + shellFp + '-' + version + '-' + lastModifiedMillis
+                + ( viewAllowed ? "-v" : "-d" ) + ( anonymousAudience ? "-a" : "" ) + '"';
+    }
+
+    /** A native embed, or any plugin or variable call other than the {@code ALLOW}/{@code SET} directives. */
     private static final java.util.regex.Pattern VIEWER_DEPENDENT_MARKUP =
-            java.util.regex.Pattern.compile( "!\\[\\[|\\[\\{\\s*(?:INSERT\\s+)?(?:[\\w.]*\\.)?InsertPage\\b", java.util.regex.Pattern.CASE_INSENSITIVE );
+            java.util.regex.Pattern.compile( "!\\[\\[|\\[\\{(?!\\s*(?:ALLOW|SET)\\b)", java.util.regex.Pattern.CASE_INSENSITIVE );
 
     /**
-     * Whether the page's raw text transcludes other pages ({@code ![[...]]} native embeds or an
-     * {@code InsertPage} plugin call), making its rendered output depend on who is viewing. Fails
-     * <em>closed</em>: an unreadable page is treated as viewer-dependent (never cached).
+     * Whether the page's rendered output depends on who is viewing: its raw text transcludes other pages
+     * ({@code ![[...]]} native embeds, {@code InsertPage}), calls a plugin or variable (page listings, {@code If},
+     * {@code $username}, ...), or it is a hub, whose JSON-LD {@code hasPart} names only the members the caller may
+     * view. Fails <em>closed</em>: an unreadable page is treated as viewer-dependent.
      */
     private boolean isViewerDependent( final String pageName ) {
         final Engine eng = resolveEngine();
@@ -438,12 +458,18 @@ public class SpaRoutingFilter implements Filter {
         }
         try {
             final String text = PageSubsystemBridge.fromLegacyEngine( eng ).pages().getPureText( pageName, -1 );
-            return text == null || VIEWER_DEPENDENT_MARKUP.matcher( text ).find();
+            return text == null || VIEWER_DEPENDENT_MARKUP.matcher( text ).find() || isHub( text );
         } catch ( final RuntimeException ex ) {
             LOG.warn( "SpaRoutingFilter: could not read '{}' to classify viewer-dependence; treating as dependent: {}",
                     pageName, ex.getMessage() );
             return true;
         }
+    }
+
+    /** Whether the text declares {@code type: hub} in its frontmatter (only frontmatter is parsed, and only if present). */
+    private static boolean isHub( final String text ) {
+        return text.startsWith( "---" )
+                && PageType.fromFrontmatter( FrontmatterParser.parse( text ).metadata().get( "type" ) ) == PageType.HUB;
     }
 
     /** Null-safe page lookup mirroring injectSemantic's ladder; null = engine/pm/page unavailable. */
@@ -475,26 +501,50 @@ public class SpaRoutingFilter implements Filter {
      * server-rendered. A denied answer costs SEO on that page; a wrong "allowed"
      * answer discloses restricted content.
      *
-     * @param req      the current request, used to resolve the caller's session
-     *                 (a transient guest when unauthenticated)
+     * @param viewer   the caller's session (a transient guest when unauthenticated);
+     *                 {@code null} when it could not be resolved, which is denied
      * @param pageName the wiki page being navigated to
      * @return {@code true} if the caller holds {@code view} on the page
      */
-    private boolean mayView( final HttpServletRequest req, final String pageName ) {
+    private boolean mayView( final Session viewer, final String pageName ) {
         final Engine eng = resolveEngine();
         if ( eng == null ) {
             // Without an engine nothing is server-rendered anyway (injectSemantic bails
             // on the same condition), so there is no content to protect here.
             return true;
         }
+        if ( viewer == null ) {
+            return false;
+        }
         try {
-            final Session session = Wiki.session().find( eng, req );
-            return new PermissionFilter( eng ).canAccess( session, pageName, "view" );
+            return new PermissionFilter( eng ).canAccess( viewer, pageName, "view" );
         } catch ( final RuntimeException ex ) {
             LOG.warn( "SpaRoutingFilter: view-permission check failed for '{}' ({}) — refusing to server-render",
                     pageName, ex.toString() );
             return false;
         }
+    }
+
+    /**
+     * The caller's session (a transient guest when unauthenticated), or {@code null} when it cannot be resolved —
+     * every caller of this treats {@code null} as "may view nothing, share nothing".
+     */
+    private Session viewerSession( final HttpServletRequest req ) {
+        final Engine eng = resolveEngine();
+        if ( eng == null ) {
+            return null;
+        }
+        try {
+            return Wiki.session().find( eng, req );
+        } catch ( final RuntimeException ex ) {
+            LOG.warn( "SpaRoutingFilter: session lookup failed ({}) — treating the caller as unknown", ex.toString() );
+            return null;
+        }
+    }
+
+    /** Anonymous visitors are one audience: they all hold the same permissions, so they may share a cached copy. */
+    private static boolean isAnonymous( final Session viewer ) {
+        return viewer != null && viewer.isAnonymous();
     }
 
     /**
@@ -529,7 +579,7 @@ public class SpaRoutingFilter implements Filter {
      */
     private String injectSemantic( final String indexHtml, final HttpServletRequest req,
                                      final HttpServletResponse resp, final String pageName,
-                                     final String frontPageName ) {
+                                     final String frontPageName, final Session viewer ) {
         final Engine eng = resolveEngine();
         if ( eng == null ) {
             return indexHtml;
@@ -578,7 +628,7 @@ public class SpaRoutingFilter implements Filter {
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
         final String appName = eng.getApplicationName();
         final String head = SemanticHeadRenderer.renderHead( pageName, parsed, baseUrl, appName, modified,
-                                                              hubMembers( pageName, parsed, req ), frontPageName );
+                                                              hubMembers( eng, viewer, pageName, parsed, req ), frontPageName );
         // Full flexmark render of the body, reused for BOTH the no-JS #root body
         // and the JSON data island (rendered once). Falls back to the lightweight
         // no-JS fragment if the full render is unavailable. Putting real rendered

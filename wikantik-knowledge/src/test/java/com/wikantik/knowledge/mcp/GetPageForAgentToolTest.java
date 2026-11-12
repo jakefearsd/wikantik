@@ -67,7 +67,7 @@ class GetPageForAgentToolTest {
 
     @Test
     void unknown_canonical_id_returns_error_result() {
-        when( svc.project( "missing" ) ).thenReturn( Optional.empty() );
+        when( svc.project( eq( "missing" ), any() ) ).thenReturn( Optional.empty() );
         final McpSchema.CallToolResult result = tool.execute( Map.of( "canonical_id", "missing" ) );
         assertTrue( result.isError() );
     }
@@ -85,7 +85,7 @@ class GetPageForAgentToolTest {
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of(), List.of() );
-        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( p ) );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "canonical_id", "01ABC" ) );
 
@@ -113,7 +113,7 @@ class GetPageForAgentToolTest {
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of(), List.of() );
-        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( p ) );
 
         final McpSchema.CallToolResult result = named.execute( Map.of( "canonical_id", "01ABC" ) );
 
@@ -135,7 +135,7 @@ class GetPageForAgentToolTest {
                 Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE, null, null, null, "s",
                 List.of(), List.of(), List.of(), List.of(), null, null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md", false, List.of(), List.of() );
-        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( p ) );
 
         assertFalse( draftActive( live ) );
         active.set( true );
@@ -156,7 +156,7 @@ class GetPageForAgentToolTest {
                 List.of( new RecentChange( 7, Instant.parse( "2026-04-22T11:10:00Z" ), null, "tidy" ) ),
                 List.of(), null, null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md", false, List.of(), List.of() );
-        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( p ) );
 
         final McpSchema.CallToolResult result = live.execute( Map.of( "canonical_id", "01ABC" ) );
 
@@ -192,7 +192,7 @@ class GetPageForAgentToolTest {
                 null, false,
                 "/api/pages/Secret", "/wiki/Secret?format=md",
                 false, List.of(), List.of() );
-        when( svc.project( "01SECRET" ) ).thenReturn( Optional.of( secret ) );
+        when( svc.project( eq( "01SECRET" ), any() ) ).thenReturn( Optional.of( secret ) );
 
         final PageViewGate gate = slug -> !"Secret".equals( slug );
         final GetPageForAgentTool gated = new GetPageForAgentTool( svc, gate );
@@ -202,6 +202,29 @@ class GetPageForAgentToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertFalse( text.contains( "TOP SECRET SUMMARY" ),
                 "restricted page content must not leak through get_page_for_agent" );
+    }
+
+    /**
+     * The projection's fields derived from other pages (preferred pages, a hub's synthesized summary, citation
+     * targets) are cut to the guest's view: the tool hands the service its gate.
+     */
+    @Test
+    void projectionIsCutToWhatTheGuestMayView() {
+        final ForAgentProjection open = new ForAgentProjection(
+                "01OPEN", "Open", "Open Page", "article", null,
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE, null, null, null, "s",
+                List.of(), List.of(), List.of(), List.of(), null, null, false,
+                "/api/pages/Open", "/wiki/Open?format=md", false, List.of(), List.of() );
+        @SuppressWarnings( "unchecked" )
+        final org.mockito.ArgumentCaptor< java.util.function.Predicate< String > > viewable =
+                org.mockito.ArgumentCaptor.forClass( java.util.function.Predicate.class );
+        when( svc.project( eq( "01OPEN" ), viewable.capture() ) ).thenReturn( Optional.of( open ) );
+
+        final GetPageForAgentTool gated = new GetPageForAgentTool( svc, slug -> !"Secret".equals( slug ) );
+        assertFalse( gated.execute( Map.of( "canonical_id", "01OPEN" ) ).isError() );
+
+        assertFalse( viewable.getValue().test( "Secret" ), "a page the guest may not view must be withheld" );
+        assertTrue( viewable.getValue().test( "Open" ) );
     }
 
     @Test
@@ -218,7 +241,7 @@ class GetPageForAgentToolTest {
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of(), List.of() );
-        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( p ) );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "canonical_id", "01ABC" ) );
 

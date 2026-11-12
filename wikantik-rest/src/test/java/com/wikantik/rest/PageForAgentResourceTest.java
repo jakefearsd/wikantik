@@ -91,7 +91,7 @@ class PageForAgentResourceTest {
 
     @Test
     void unknown_id_returns_404() throws Exception {
-        when( svc.project( "missing" ) ).thenReturn( Optional.empty() );
+        when( svc.project( eq( "missing" ), any() ) ).thenReturn( Optional.empty() );
         final HttpServletRequest req = anonReq( "/missing" );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
         when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
@@ -121,7 +121,7 @@ class PageForAgentResourceTest {
                 null, false,
                 "/api/pages/ForAgentAclPage", "/wiki/ForAgentAclPage?format=md",
                 false, List.of(), List.of() );
-        when( svc.project( "01ZZZ" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ZZZ" ), any() ) ).thenReturn( Optional.of( p ) );
 
         final HttpServletRequest req = anonReq( "/01ZZZ" );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
@@ -155,7 +155,7 @@ class PageForAgentResourceTest {
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of(), List.of() );
         // The very same cached projection instance both times: only the serialisation may differ.
-        when( svc.project( "01DRAFT" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01DRAFT" ), any() ) ).thenReturn( Optional.of( p ) );
 
         assertFalse( draftActiveOf( get( "/01DRAFT" ) ), "unwired: false" );
 
@@ -201,7 +201,7 @@ class PageForAgentResourceTest {
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of(), List.of() );
-        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( p ) );
 
         final HttpServletRequest req = anonReq( "/01ABC" );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
@@ -257,7 +257,7 @@ class PageForAgentResourceTest {
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of(), List.of() );
-        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( p ) );
 
         final HttpServletRequest req = anonReq( "/01ABC" );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
@@ -290,7 +290,7 @@ class PageForAgentResourceTest {
                 null, false,
                 "/api/pages/Slug", "/wiki/Slug?format=md",
                 true, List.of( "headings_outline", "key_facts" ), List.of() );
-        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( p ) );
 
         final HttpServletRequest req = anonReq( "/01ABC" );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
@@ -323,7 +323,7 @@ class PageForAgentResourceTest {
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of(), List.of() );
-        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( p ) );
 
         final HttpServletRequest req = anonReq( "/01ABC" );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
@@ -341,6 +341,32 @@ class PageForAgentResourceTest {
     }
 
     // ----- Helper methods -----
+
+    /**
+     * The projection's fields derived from other pages (preferred pages, a hub's synthesized summary, citation
+     * targets) are cut to what the caller may view: the resource hands the service the caller's view check.
+     */
+    @Test
+    void projection_is_cut_to_what_the_caller_may_view() throws Exception {
+        engine.saveText( "ForAgentAclPage", "[{ALLOW view Admin}]\nRestricted body." );
+        final ForAgentProjection p = new ForAgentProjection(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", "article", null,
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE, null, null, null, "s",
+                List.of(), List.of(), List.of(), List.of(), null, null, false,
+                "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md", false, List.of(), List.of() );
+        @SuppressWarnings( "unchecked" )
+        final org.mockito.ArgumentCaptor< java.util.function.Predicate< String > > viewable =
+                org.mockito.ArgumentCaptor.forClass( java.util.function.Predicate.class );
+        when( svc.project( eq( "01ABC" ), viewable.capture() ) ).thenReturn( Optional.of( p ) );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( anonReq( "/01ABC" ), resp );
+
+        verify( resp ).setStatus( 200 );
+        assertFalse( viewable.getValue().test( "ForAgentAclPage" ), "a page the caller may not view must be withheld" );
+        assertTrue( viewable.getValue().test( "Slug" ) );
+    }
 
     /**
      * Builds a request backed by a fresh (not-logged-in) HttpSession id so the resource

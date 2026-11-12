@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -63,6 +64,11 @@ import java.util.stream.Collectors;
  * {@code updatedAtMillis}, so the new request misses the cache and gets a
  * fresh build. Stale entries evict on heap pressure — no event listener is
  * required.</p>
+ *
+ * <p>The cached projection is the same for every caller, so it holds every page the fields derived from OTHER pages
+ * could name; each call then cuts those fields down to what that caller may view (see {@code forCaller}). Building
+ * the cache from guest-viewable pages only was rejected: a viewer of a private cluster would then get no hints at all
+ * for that cluster's own pages.</p>
  */
 public class DefaultForAgentProjectionService implements ForAgentProjectionService {
 
@@ -137,7 +143,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
     }
 
     @Override
-    public Optional< ForAgentProjection > project( final String canonicalId ) {
+    public Optional< ForAgentProjection > project( final String canonicalId, final Predicate< String > viewable ) {
         if ( canonicalId == null || canonicalId.isBlank() ) {
             return Optional.empty();
         }
@@ -149,17 +155,70 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         final long updatedMs = d.updated() == null ? 0L : d.updated().toEpochMilli();
         final Serializable key = canonicalId + ":" + updatedMs;
 
-        final ForAgentProjection cached = readFromCache( key );
-        if ( cached != null ) {
-            return Optional.of( cached );
+        final Shared cached = readFromCache( key );
+        final Shared shared = cached != null ? cached : build( d );
+        if ( cached == null ) {
+            writeToCache( key, shared );
+            recordMetric( shared.base() );
         }
-        final ForAgentProjection built = build( d );
-        writeToCache( key, built );
-        recordMetric( built );
-        return Optional.of( built );
+        return Optional.of( forCaller( shared, viewable, cached == null ) );
     }
 
-    private ForAgentProjection build( final PageDescriptor d ) {
+    /**
+     * What is built once per page version and cached for every caller. Its {@code agent_hints} rank every preferred
+     * page with no cap, its summary is the authored one and its {@code stale_citations} name every target, whoever may
+     * view them: {@link #forCaller} cuts all three down per call, so the cache never decides what a caller sees.
+     */
+    private record Shared( ForAgentProjection base, boolean isHub ) {}
+
+    /**
+     * The shared projection as one caller may see it: preferred pages they may view (best first, capped), a hub
+     * summary synthesized from those titles only, and stale citations whose target is gone or viewable.
+     */
+    private ForAgentProjection forCaller( final Shared shared, final Predicate< String > viewable, final boolean fresh ) {
+        final ForAgentProjection b = shared.base();
+        final AgentHintsBlock hints = AgentHintsDeriver.visibleTo( b.agentHints(), id -> idViewable( id, viewable ) );
+        final SummaryOverlay overlay = overlayHubSummary( b, hints, shared.isHub() );
+        if ( fresh && overlay.synthesized() && metrics != null ) {
+            metrics.incrementHubSummarySynthesis();
+        }
+        final List< CitationRef > stale = b.staleCitations().stream()
+                .filter( c -> targetViewable( c.targetCanonicalId(), viewable ) )
+                .toList();
+        return new ForAgentProjection( b.canonicalId(), b.slug(), b.title(), b.type(), b.cluster(), b.audience(),
+                b.confidence(), b.verifiedAt(), b.verifiedBy(), b.updated(), overlay.summary(), b.keyFacts(),
+                b.headingsOutline(), b.recentChanges(), b.mcpToolHints(), b.runbook(), hints, overlay.synthesized(),
+                b.fullBodyUrl(), b.rawMarkdownUrl(), b.degraded(), b.missingFields(), stale );
+    }
+
+    /** Whether the caller may view the page with this canonical id; an unknown id or a failed lookup is hidden. */
+    private boolean idViewable( final String canonicalId, final Predicate< String > viewable ) {
+        try {
+            return index.resolveSlugFromCanonicalId( canonicalId ).map( viewable::test ).orElse( false );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "for-agent: could not resolve {} for a view check — leaving it out: {}", canonicalId, e.getMessage() );
+            return false;
+        }
+    }
+
+    /**
+     * A citation names its target page and section: it is shown when the caller may view the target, or when the
+     * target no longer exists (the citation is then stale because of that, and names nothing that can be read).
+     */
+    private boolean targetViewable( final String targetCanonicalId, final Predicate< String > viewable ) {
+        if ( targetCanonicalId == null ) {
+            return true;
+        }
+        try {
+            return index.resolveSlugFromCanonicalId( targetCanonicalId ).map( viewable::test ).orElse( true );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "for-agent: could not resolve citation target {} — leaving it out: {}", targetCanonicalId,
+                    e.getMessage() );
+            return false;
+        }
+    }
+
+    private Shared build( final PageDescriptor d ) {
         final List< String > missing = new ArrayList<>();
 
         // Verification — falls back to unverified() (provisional + both audiences) when absent.
@@ -175,16 +234,15 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         final List< McpToolHint > hints = resolveToolHints( frontmatter, d, missing );
         final Object runbook = buildRunbook( d, frontmatter, missing );
 
-        // Derived agent_hints — null on whole-block degradation, empty block on no-signal.
+        // Derived agent_hints, ranked and uncapped — null on whole-block degradation, empty block on no-signal.
         final AgentHintsBlock agentHints = deriveAgentHints( d, missing );
 
-        // Hub summary overlay — only fires when this page is a cluster hub and the authored
-        // summary matches the generic "Index of pages on…" pattern.
-        final SummaryOverlay overlay = overlayHubSummary( d, agentHints );
+        // Whether the hub-summary overlay may fire (per caller, in forCaller): only for a cluster hub with hints.
+        final boolean isHub = agentHints != null && hubSynth != null && isClusterHub( d );
 
         final List< CitationRef > staleCitations = loadStaleCitations( d, missing );
 
-        return new ForAgentProjection(
+        return new Shared( new ForAgentProjection(
                 d.canonicalId(),
                 d.slug(),
                 d.title(),
@@ -195,19 +253,19 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 verification.verifiedAt(),
                 verification.verifiedBy(),
                 d.updated(),
-                overlay.summary(),
+                d.summary(),
                 facts,
                 outline,
                 changes,
                 hints,
                 runbook,
                 agentHints,
-                overlay.synthesized(),
+                false,
                 "/api/pages/" + d.slug(),
                 "/wiki/" + d.slug() + "?format=md",
                 !missing.isEmpty(),
                 missing,
-                staleCitations );
+                staleCitations ), isHub );
     }
 
     /** Page body + parsed frontmatter, as loaded by {@link #loadBodyAndFrontmatter}. */
@@ -325,7 +383,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             return AgentHintsBlock.empty();
         }
         try {
-            return hintsDeriver.derive( d.canonicalId() );
+            return hintsDeriver.deriveRanked( d.canonicalId() );
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: agent_hints derivation threw for {}: {}", d.slug(), e.getMessage() );
             missing.add( "agent_hints" );
@@ -337,23 +395,20 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
     /** Effective (possibly hub-synthesized) summary, as computed by {@link #overlayHubSummary}. */
     private record SummaryOverlay( String summary, boolean synthesized ) {}
 
-    private SummaryOverlay overlayHubSummary( final PageDescriptor d, final AgentHintsBlock agentHints ) {
-        String effectiveSummary = d.summary();
-        boolean summarySynthesized = false;
-        if ( agentHints != null && hubSynth != null ) {
-            final boolean isHub = isClusterHub( d );
-            try {
-                final Optional< String > overlay = hubSynth.maybeOverlay( effectiveSummary, agentHints, isHub );
-                if ( overlay.isPresent() ) {
-                    effectiveSummary = overlay.get();
-                    summarySynthesized = true;
-                    if ( metrics != null ) metrics.incrementHubSummarySynthesis();
-                }
-            } catch ( final Exception e ) {
-                LOG.warn( "for-agent: hub summary overlay threw for {}: {}", d.slug(), e.getMessage() );
-            }
+    /** The authored summary, or — for a hub with a generic one — a summary naming the caller's preferred pages. */
+    private SummaryOverlay overlayHubSummary( final ForAgentProjection base, final AgentHintsBlock agentHints,
+                                              final boolean isHub ) {
+        if ( agentHints == null || hubSynth == null ) {
+            return new SummaryOverlay( base.summary(), false );
         }
-        return new SummaryOverlay( effectiveSummary, summarySynthesized );
+        try {
+            return hubSynth.maybeOverlay( base.summary(), agentHints, isHub )
+                           .map( synthesized -> new SummaryOverlay( synthesized, true ) )
+                           .orElseGet( () -> new SummaryOverlay( base.summary(), false ) );
+        } catch ( final Exception e ) {
+            LOG.warn( "for-agent: hub summary overlay threw for {}: {}", base.slug(), e.getMessage() );
+            return new SummaryOverlay( base.summary(), false );
+        }
     }
 
     /**
@@ -401,21 +456,22 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
 
     /* ----------------------------------------------------------------- caching */
 
-    private ForAgentProjection readFromCache( final Serializable key ) {
+    private Shared readFromCache( final Serializable key ) {
         if ( cache == null || !cache.enabled( CachingManager.CACHE_FOR_AGENT ) ) {
             return null;
         }
         try {
             // Supplier returns null — we want hits-only semantics here. The miss path
             // is handled below with an explicit put().
-            return ( ForAgentProjection ) cache.get( CachingManager.CACHE_FOR_AGENT, key, () -> null );
+            final Object hit = cache.get( CachingManager.CACHE_FOR_AGENT, key, () -> null );
+            return hit instanceof Shared shared ? shared : null;
         } catch ( final Exception e ) {
             LOG.warn( "for-agent: cache read failed for key {} — bypassing cache: {}", key, e.getMessage() );
             return null;
         }
     }
 
-    private void writeToCache( final Serializable key, final ForAgentProjection built ) {
+    private void writeToCache( final Serializable key, final Shared built ) {
         if ( cache == null || !cache.enabled( CachingManager.CACHE_FOR_AGENT ) ) {
             return;
         }

@@ -40,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Derives the {@link AgentHintsBlock} for a wiki page from existing
@@ -72,7 +73,37 @@ public final class AgentHintsDeriver {
         this.refs = refs;
     }
 
+    /** The hints a caller who may view every page would get: {@link #deriveRanked} cut to the usual size. */
     public AgentHintsBlock derive( final String canonicalId ) {
+        return visibleTo( deriveRanked( canonicalId ), id -> true );
+    }
+
+    /**
+     * Cuts a {@link #deriveRanked} block down to what one caller may see: the preferred pages they may view, best
+     * first, at most {@value #PREFER_PAGES_CAP}. The ranked block is what is cached for every caller; this runs per
+     * call, and checks pages only until the cap is reached.
+     *
+     * @param ranked   the uncapped block, or {@code null}
+     * @param viewable whether the caller may view the page with this canonical id
+     * @return the caller's block ({@code null} for a {@code null} block)
+     */
+    public static AgentHintsBlock visibleTo( final AgentHintsBlock ranked, final Predicate< String > viewable ) {
+        if ( ranked == null ) {
+            return null;
+        }
+        final List< PreferredPage > pages = ranked.prefer_pages() == null ? List.of() : ranked.prefer_pages().stream()
+                .filter( p -> viewable.test( p.canonical_id() ) )
+                .limit( PREFER_PAGES_CAP )
+                .toList();
+        return new AgentHintsBlock( ranked.prefer_tools(), pages );
+    }
+
+    /**
+     * Every preferred page, best first (the cluster hub, then cluster-mates by intra-cluster inbound links), with no
+     * cap and no view filter: a cluster-mate may be a page some callers may not view, so this block is never served
+     * as is; {@link #visibleTo} cuts it down per caller.
+     */
+    public AgentHintsBlock deriveRanked( final String canonicalId ) {
         try {
             final Optional< PageDescriptor > maybe = index.getByCanonicalId( canonicalId );
             if ( maybe.isEmpty() ) {
@@ -191,7 +222,6 @@ public final class AgentHintsDeriver {
         scored.stream()
               .sorted( Comparator.< Scored >comparingDouble( s -> s.score ).reversed()
                                  .thenComparing( s -> s.page.title() == null ? "" : s.page.title() ) )
-              .limit( PREFER_PAGES_CAP - out.size() )
               .forEach( s -> out.add( new PreferredPage(
                       s.page.canonicalId(),
                       s.page.title(),

@@ -183,7 +183,9 @@ public class GetPageForAgentTool extends AbstractMcpTool {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                     "canonical_id argument is required" );
         }
-        final Optional< ForAgentProjection > maybe = service.project( s );
+        // Fields derived from other pages (preferred pages, a hub's synthesized summary, citation targets) are cut to
+        // the same guest view as the page itself.
+        final Optional< ForAgentProjection > maybe = service.project( s, viewGate::canView );
         if ( maybe.isEmpty() ) {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                     "no page for canonical_id " + s );

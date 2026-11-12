@@ -19,6 +19,7 @@
 package com.wikantik.api.agent;
 
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Returns a token-budgeted, agent-shaped view of a wiki page. The
@@ -38,5 +39,24 @@ import java.util.Optional;
  */
 public interface ForAgentProjectionService {
 
-    Optional< ForAgentProjection > project( String canonicalId );
+    /**
+     * The projection with nothing withheld: every field derived from other pages names them whether or not a caller
+     * may view them. For internal use only; anything served to a caller goes through
+     * {@link #project(String, Predicate)}.
+     */
+    default Optional< ForAgentProjection > project( final String canonicalId ) {
+        return project( canonicalId, slug -> true );
+    }
+
+    /**
+     * The projection as {@code viewable} may see it. The fields derived from OTHER pages (the preferred pages of
+     * {@code agent_hints}, a hub summary synthesized from their titles, and the targets of {@code stale_citations})
+     * hold only pages whose slug {@code viewable} accepts. The caller still checks view permission on the page
+     * itself.
+     *
+     * @param canonicalId the page's canonical id
+     * @param viewable    whether the caller may view the page with this slug
+     * @return the projection, or empty when the canonical id is unknown
+     */
+    Optional< ForAgentProjection > project( String canonicalId, Predicate< String > viewable );
 }

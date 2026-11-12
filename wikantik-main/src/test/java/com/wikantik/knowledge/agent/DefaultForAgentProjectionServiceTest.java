@@ -144,15 +144,20 @@ class DefaultForAgentProjectionServiceTest {
     @Test
     void uses_cache_when_enabled() throws Exception {
         when( cache.enabled( CachingManager.CACHE_FOR_AGENT ) ).thenReturn( true );
-        final ForAgentProjection precomputed = miniProjection( "01ABC" );
-        when( cache.get( eq( CachingManager.CACHE_FOR_AGENT ), any(), any() ) ).thenReturn( precomputed );
+        final java.util.Map< java.io.Serializable, Object > store = new java.util.HashMap<>();
+        when( cache.get( eq( CachingManager.CACHE_FOR_AGENT ), any(), any() ) )
+                .thenAnswer( inv -> store.get( inv.< java.io.Serializable >getArgument( 1 ) ) );
+        org.mockito.Mockito.doAnswer( inv -> store.put( inv.getArgument( 1 ), inv.getArgument( 2 ) ) )
+                .when( cache ).put( eq( CachingManager.CACHE_FOR_AGENT ), any(), any() );
         final PageDescriptor d = new PageDescriptor(
                 "01ABC", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
                 null, List.of(), null, Instant.parse( "2026-04-22T11:10:00Z" ), false );
         when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
 
+        final ForAgentProjection first = svc.project( "01ABC" ).orElseThrow();
+        org.mockito.Mockito.clearInvocations( pm );
         final ForAgentProjection out = svc.project( "01ABC" ).orElseThrow();
-        assertSame( precomputed, out, "cache hit must short-circuit extractor work" );
+        assertEquals( first, out, "a cache hit serves the same projection" );
         verify( pm, never() ).getPureText( anyString(), anyInt() );
         verify( pm, never() ).getVersionHistory( anyString() );
     }
@@ -227,19 +232,6 @@ class DefaultForAgentProjectionServiceTest {
         assertTrue( p.missingFields().contains( "runbook" ) );
     }
 
-    private static ForAgentProjection miniProjection( final String id ) {
-        return new ForAgentProjection(
-                id, "Slug", "Title", "article", null,
-                Audience.HUMANS_AND_AGENTS, Confidence.PROVISIONAL,
-                null, null, null,
-                "summary",
-                List.of(), List.of(), List.of(), List.of(),
-                null,
-                null, false,
-                "/api/pages/Slug", "/wiki/Slug?format=md",
-                false, List.of(), List.of() );
-    }
-
     // ----------------------------------------------------------------- Task 6 tests
 
     @Test
@@ -253,9 +245,10 @@ class DefaultForAgentProjectionServiceTest {
         when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
         when( pm.getPureText( "HybridRetrieval", -1 ) ).thenReturn( "" );
         when( pm.getVersionHistory( "HybridRetrieval" ) ).thenReturn( List.of() );
+        when( idx.resolveSlugFromCanonicalId( "hub_x" ) ).thenReturn( Optional.of( "HubX" ) );
 
         final AgentHintsDeriver stubDeriver = mock( AgentHintsDeriver.class );
-        when( stubDeriver.derive( any( String.class ) ) ).thenReturn(
+        when( stubDeriver.deriveRanked( any( String.class ) ) ).thenReturn(
                 new AgentHintsBlock(
                         List.of( "search_knowledge", "list_clusters" ),
                         List.of( new PreferredPage( "hub_x", "Hub X", "cluster_hub" ) ) ) );
@@ -283,7 +276,7 @@ class DefaultForAgentProjectionServiceTest {
         when( pm.getVersionHistory( "HybridRetrieval" ) ).thenReturn( List.of() );
 
         final AgentHintsDeriver throwingDeriver = mock( AgentHintsDeriver.class );
-        when( throwingDeriver.derive( any() ) ).thenThrow( new RuntimeException( "boom" ) );
+        when( throwingDeriver.deriveRanked( any() ) ).thenThrow( new RuntimeException( "boom" ) );
 
         final DefaultForAgentProjectionService testSvc = newServiceUnderTest( throwingDeriver, new HubSummarySynthesizer() );
         final ForAgentProjection p = testSvc.project( "01ABC" ).orElseThrow();

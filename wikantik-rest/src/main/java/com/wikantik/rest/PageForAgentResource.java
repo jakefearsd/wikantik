@@ -87,7 +87,10 @@ public class PageForAgentResource extends RestServletBase {
             return;
         }
 
-        final Optional< ForAgentProjection > maybe = svc.project( canonicalId );
+        // Fields derived from other pages (preferred pages, a hub's synthesized summary, citation targets) hold only
+        // pages this caller may view; the page itself is checked below.
+        final Optional< ForAgentProjection > maybe =
+                svc.project( canonicalId, slug -> hasPagePermission( req, slug, "view" ) );
         if ( maybe.isEmpty() ) {
             resp.setStatus( 404 );
             resp.setContentType( "application/json; charset=UTF-8" );

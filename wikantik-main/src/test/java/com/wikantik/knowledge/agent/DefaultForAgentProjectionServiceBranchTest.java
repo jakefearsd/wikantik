@@ -290,9 +290,12 @@ class DefaultForAgentProjectionServiceBranchTest {
         when( pm.getPureText( "TechHub", -1 ) ).thenReturn( "" );
         when( idx.getCluster( "tech" ) ).thenReturn( Optional.of(
             new ClusterDetails( "tech", hubPage, List.of(), java.util.Map.of(), Instant.now() ) ) );
+        // Preferred pages are named only when their canonical id still resolves to a page.
+        when( idx.resolveSlugFromCanonicalId( "01A" ) ).thenReturn( Optional.of( "Java" ) );
+        when( idx.resolveSlugFromCanonicalId( "01B" ) ).thenReturn( Optional.of( "Python" ) );
 
         final AgentHintsDeriver deriver = mock( AgentHintsDeriver.class );
-        when( deriver.derive( "01HUB" ) ).thenReturn( new AgentHintsBlock(
+        when( deriver.deriveRanked( "01HUB" ) ).thenReturn( new AgentHintsBlock(
             List.of(),
             List.of( new PreferredPage( "01A", "Java", "article" ),
                      new PreferredPage( "01B", "Python", "article" ) ) ) );
@@ -320,7 +323,7 @@ class DefaultForAgentProjectionServiceBranchTest {
             new ClusterDetails( "tech", hubPage, List.of(), java.util.Map.of(), Instant.now() ) ) );
 
         final AgentHintsDeriver deriver = mock( AgentHintsDeriver.class );
-        when( deriver.derive( "01HUB" ) ).thenReturn( new AgentHintsBlock(
+        when( deriver.deriveRanked( "01HUB" ) ).thenReturn( new AgentHintsBlock(
             List.of(), List.of( new PreferredPage( "01A", "Java", "article" ) ) ) );
 
         final HubSummarySynthesizer throwingSynth = mock( HubSummarySynthesizer.class );
@@ -348,7 +351,7 @@ class DefaultForAgentProjectionServiceBranchTest {
         when( idx.getCluster( "tech" ) ).thenThrow( new RuntimeException( "cluster lookup boom" ) );
 
         final AgentHintsDeriver deriver = mock( AgentHintsDeriver.class );
-        when( deriver.derive( "01P" ) ).thenReturn( new AgentHintsBlock(
+        when( deriver.deriveRanked( "01P" ) ).thenReturn( new AgentHintsBlock(
             List.of(), List.of( new PreferredPage( "01A", "Java", "article" ) ) ) );
 
         final DefaultForAgentProjectionService svc = new DefaultForAgentProjectionService(

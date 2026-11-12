@@ -85,7 +85,7 @@ class KnowledgeMcpToolAssemblyTest {
         final PublicIdentity identity = mock( PublicIdentity.class );
         when( identity.userIdForLogin( "janne" ) ).thenReturn( Optional.of( "uid-1" ) );
         when( identity.displayName( "janne" ) ).thenReturn( "Janne Jalkanen" );
-        when( forAgent.project( "01ABC" ) ).thenReturn( Optional.of( new ForAgentProjection(
+        when( forAgent.project( org.mockito.ArgumentMatchers.eq( "01ABC" ), org.mockito.ArgumentMatchers.any() ) ).thenReturn( Optional.of( new ForAgentProjection(
                 "01ABC", "Slug", "T", "article", null, null, null, null, "janne", null, "s",
                 null, null, null, null, null, null, false, "/f", "/r", false, List.of(), List.of() ) ) );
 

@@ -64,7 +64,7 @@ public class EditIT extends WithIntegrationTestSetup {
 
         requiresJannesAccess.clickOnLogout();
         // The SPA re-fetches the page after logout, gets a 403, and redirects
-        // to /wiki/Main. Wait for the redirect to complete before asserting.
+        // to the home page (/). Wait for the redirect to complete before asserting.
         Selenide.$( "[data-testid=page-view][data-page-name=Main]" )
                 .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
         Assertions.assertEquals( "Main", requiresJannesAccess.wikiTitle() ); // no access for anonymous user, so redirected to main

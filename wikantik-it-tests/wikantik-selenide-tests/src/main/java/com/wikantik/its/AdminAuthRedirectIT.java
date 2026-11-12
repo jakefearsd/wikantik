@@ -37,9 +37,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * End-to-end test for the admin-route auth guard on an <em>anonymous</em>
  * session.
  *
- * <p>{@code AdminLayout} renders {@code <Navigate to="/wiki/Main" replace />}
+ * <p>{@code AdminLayout} renders {@code <Navigate to="/" replace />}
  * for any visitor who is not an authenticated Admin, so an anonymous hit on
- * {@code /admin} must end up on the reader (a {@code /wiki/} path) with the
+ * {@code /admin} must end up on the home page view (served at {@code /}) with the
  * admin shell — specifically the admin rail
  * ({@code data-testid="admin-sidebar"}) — never mounted.
  *
@@ -60,14 +60,14 @@ public class AdminAuthRedirectIT extends WithIntegrationTestSetup {
     void anonymousHittingAdmin_redirectsToReader_andAdminShellAbsent() {
         Selenide.open( Page.baseUrl() + "/admin" );
 
-        // The guard navigates to /wiki/Main; the reader article view mounts.
-        $( "[data-testid=page-view]" ).shouldBe(
+        // The guard navigates to /; the home (Main) page view mounts.
+        $( "[data-testid=page-view][data-page-name=Main]" ).shouldBe(
             com.codeborne.selenide.Condition.visible, Duration.ofSeconds( 15 ) );
 
         // End state is the reader, not the admin panel.
         final String path = URI.create( WebDriverRunner.url() ).getPath();
-        assertTrue( path.contains( "/wiki/" ),
-            "Anonymous /admin should redirect to a /wiki/ path, was: " + path );
+        assertTrue( !path.contains( "/admin" ),
+            "Anonymous /admin should leave the admin area, was: " + path );
 
         // The admin rail must never have mounted for an anonymous visitor.
         $( "[data-testid=admin-sidebar]" ).shouldNotBe( exist );

@@ -94,6 +94,25 @@ class StructureResourceTest {
         assertEquals( "wikantik-development", clusters.get( 0 ).getAsJsonObject().get( "name" ).getAsString() );
     }
 
+    /** SECURITY: the cluster list is public; a hub page the caller may not view is not described in it. */
+    @Test
+    void clusters_list_redacts_a_hub_the_caller_cannot_view() throws Exception {
+        final PageDescriptor secretHub = new PageDescriptor( "01S", "SecretHub", "Secret hub",
+                PageType.HUB, "secret", List.of(), "secret summary", Instant.EPOCH, false );
+        final PageDescriptor openHub = new PageDescriptor( "01P", "OpenHub", "Open hub",
+                PageType.HUB, "open", List.of(), "open summary", Instant.EPOCH, false );
+        when( svc.listClusters() ).thenReturn( List.of(
+                new ClusterSummary( "secret", secretHub, 2, Instant.EPOCH ),
+                new ClusterSummary( "open", openHub, 3, Instant.EPOCH ) ) );
+        resource.visible = java.util.Set.of( "OpenHub" );
+
+        final JsonObject body = callGet( "/clusters" );
+
+        assertTrue( body.toString().contains( "OpenHub" ), "positive control: a viewable hub is described" );
+        assertFalse( body.toString().contains( "SecretHub" ) || body.toString().contains( "01S" )
+                || body.toString().contains( "secret summary" ), "a hidden hub was described: " + body );
+    }
+
     @Test
     void tags_returns_tag_dictionary() throws Exception {
         when( svc.sitemap() ).thenReturn( new Sitemap( List.of(), 0, Instant.EPOCH ) );

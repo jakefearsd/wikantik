@@ -62,7 +62,7 @@ public class StructureResource extends RestServletBase {
 
         try {
             if ( "/clusters".equals( pathInfo ) || "/clusters/".equals( pathInfo ) ) {
-                writeClusters( resp, svc );
+                writeClusters( resp, svc, req );
             } else if ( pathInfo.startsWith( "/clusters/" ) ) {
                 writeCluster( resp, svc, pathInfo.substring( "/clusters/".length() ), req );
             } else if ( "/tags".equals( pathInfo ) ) {
@@ -81,13 +81,16 @@ public class StructureResource extends RestServletBase {
         }
     }
 
-    private void writeClusters( final HttpServletResponse resp, final StructuralIndexService svc )
-            throws IOException {
+    private void writeClusters( final HttpServletResponse resp, final StructuralIndexService svc,
+                                final HttpServletRequest req ) throws IOException {
         final JsonArray arr = new JsonArray();
         for ( final ClusterSummary c : svc.listClusters() ) {
             final JsonObject o = new JsonObject();
             o.addProperty( "name", c.name() );
-            if ( c.hubPage() != null ) o.add( "hub_page", describe( c.hubPage() ) );
+            // A hub the caller may not view is left out; the cluster name and count stay, as in the knowledge MCP.
+            if ( c.hubPage() != null && !viewableOnly( req, List.of( c.hubPage() ) ).isEmpty() ) {
+                o.add( "hub_page", describe( c.hubPage() ) );
+            }
             o.addProperty( "article_count", c.articleCount() );
             if ( c.updatedAt() != null ) o.addProperty( "updated_at", c.updatedAt().toString() );
             arr.add( o );

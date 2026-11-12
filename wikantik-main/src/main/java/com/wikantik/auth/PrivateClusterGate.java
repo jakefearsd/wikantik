@@ -106,6 +106,11 @@ final class PrivateClusterGate {
         return !privateClusters.isEmpty();
     }
 
+    /** @return the cluster paths configured as private, parsed once with the rest of the settings */
+    Set< String > privateClusters() {
+        return privateClusters;
+    }
+
     /** @return the groups allowed to use private pages, besides administrators */
     Set< String > viewerGroups() {
         return viewerGroups;

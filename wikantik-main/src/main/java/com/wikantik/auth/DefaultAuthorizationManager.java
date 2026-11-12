@@ -739,7 +739,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             privateClusterGate = gate;
             if ( gate.enabled() ) {
                 LOG.info( "Private clusters {} are hidden from all but administrators and groups {}",
-                        com.wikantik.util.TextUtil.getStringProperty( privateClusterSettings, PrivateClusterGate.PROP_PRIVATE_CLUSTERS, "" ), gate.viewerGroups() );
+                        gate.privateClusters(), gate.viewerGroups() );
             }
         }
         return gate;

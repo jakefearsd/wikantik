@@ -103,7 +103,7 @@ public final class HybridChunkSectionSource implements SectionCandidateSource {
      * first) for {@code query}, each truncated to {@code k}. The offline sweep harness fuses +
      * groups these itself, so it can explore fusion weights / rrf_k / top_k / grouping strategy
      * without a server restart per combo. Not wired to any production surface beyond the
-     * gated {@code /api/bundle?debug=rankings} endpoint.
+     * {@code /api/bundle?debug=rankings} endpoint, which answers administrators only.
      */
     public Map< String, List< DebugRank > > debugRankings( final String query, final int k ) {
         final int kk = k > 0 ? k : topK;

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Offline fusion/grouping sweep for the chunk-level BM25 hybrid bundle source.
 
-Fetches the raw dense + BM25 chunk rankings once per corpus query (via the gated
+Fetches the raw dense + BM25 chunk rankings once per corpus query (via the admin-only
 /api/bundle?debug=rankings endpoint), then sweeps fusion weights x rrf_k x top_k x
 section-grouping strategy *in-process* — no server restart per combo. Section recall@k
 is scored against the bundle-corpus gold (canonical_id + contiguous heading-path sublist),
 identical to spike-api-bundle.py. Two live combos are re-derived as validation anchors.
 
-Usage: python3 bin/eval/sweep-bm25-fusion.py [base_url]
+Usage: WIKI_USER=admin WIKI_PASSWORD=... python3 bin/eval/sweep-bm25-fusion.py [base_url]  (the endpoint is administrator-only)
 Requires: eval/bm25-chunk-spike/chunk-section-map.tsv (chunkId \t canonical_id \t heading_path_json).
 """
-import json, sys, urllib.parse, urllib.request
+import base64, json, os, sys, urllib.parse, urllib.request
 from bundle_eval_common import load_corpus, load_chunk_section_map, rrf_fuse, group_to_sections, sublist
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
@@ -22,7 +22,13 @@ FETCH_K = 800
 
 def fetch_rankings(query, k):
     url = BASE + "/api/bundle?" + urllib.parse.urlencode({"q": query, "debug": "rankings", "k": k})
-    with urllib.request.urlopen(url, timeout=90) as r:
+    req = urllib.request.Request(url)
+    # debug=rankings is administrator-only: pass WIKI_USER / WIKI_PASSWORD (HTTP Basic).
+    user, password = os.environ.get("WIKI_USER"), os.environ.get("WIKI_PASSWORD")
+    if user and password:
+        token = base64.b64encode(f"{user}:{password}".encode()).decode()
+        req.add_header("Authorization", "Basic " + token)
+    with urllib.request.urlopen(req, timeout=90) as r:
         d = json.load(r)
     dense = [(x["chunkId"], x["score"]) for x in d.get("dense", [])]
     bm25 = [(x["chunkId"], x["score"]) for x in d.get("bm25", [])]

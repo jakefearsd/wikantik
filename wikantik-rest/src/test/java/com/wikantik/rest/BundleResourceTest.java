@@ -252,9 +252,15 @@ class BundleResourceTest {
 
     /* ---------- debug=rankings ---------- */
 
+    /** A resource whose caller is an administrator, the only caller {@code debug=rankings} answers. */
     private static BundleResource resourceWithEngine( final Engine engine ) {
+        return resourceWithEngine( engine, true );
+    }
+
+    private static BundleResource resourceWithEngine( final Engine engine, final boolean administrator ) {
         return new BundleResource() {
             @Override protected Engine getEngine() { return engine; }
+            @Override protected boolean isAdministrator( final HttpServletRequest request ) { return administrator; }
         };
     }
 
@@ -328,6 +334,36 @@ class BundleResourceTest {
         resourceWithEngine( engine ).doGet( debugReq( "foo", null ), resp );
 
         verify( hybrid ).debugRankings( "foo", 500 );   // no k param → default 500
+    }
+
+    /** The raw chunk rankings are a content oracle over every page, hidden ones included: administrators only. */
+    @Test
+    void debugRankings_nonAdministrator_isRefusedWith403AndNeverRuns() throws Exception {
+        final HybridChunkSectionSource hybrid = mock( HybridChunkSectionSource.class );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.bundleSectionSources() ).thenReturn( Map.of( RetrievalMode.HYBRID, hybrid ) );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resourceWithEngine( engine, false ).doGet( debugReq( "foo", "10" ), resp );
+
+        verify( resp ).setStatus( 403 );
+        verify( hybrid, never() ).debugRankings( anyString(), anyInt() );
+    }
+
+    @Test
+    void debugRankings_kIsCapped() throws Exception {
+        final HybridChunkSectionSource hybrid = mock( HybridChunkSectionSource.class );
+        when( hybrid.debugRankings( anyString(), anyInt() ) ).thenReturn( new LinkedHashMap<>() );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.bundleSectionSources() ).thenReturn( Map.of( RetrievalMode.HYBRID, hybrid ) );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resourceWithEngine( engine ).doGet( debugReq( "foo", "1000000" ), resp );
+
+        verify( hybrid ).debugRankings( "foo", BundleResource.MAX_DEBUG_K );
     }
 
     @Test

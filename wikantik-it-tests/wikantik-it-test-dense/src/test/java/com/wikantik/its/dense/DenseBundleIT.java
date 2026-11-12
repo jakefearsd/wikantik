@@ -258,6 +258,7 @@ class DenseBundleIT {
     @Order( 3 )
     void denseRankerContributesCandidates() throws Exception {
         awaitBundleContaining( SEMANTIC_QUERY, TARGET );   // ensure the pipeline has caught up
+        // debug=rankings is administrator-only; this suite's shared client is logged in as the IT admin (see login()).
 
         final HttpResponse< String > r = get( "/api/bundle?debug=rankings&k=20&q="
             + URLEncoder.encode( SEMANTIC_QUERY, StandardCharsets.UTF_8 ) );

@@ -43,8 +43,8 @@ from), and the response carries a **coverage signal**.
 |---|---|---|---|
 | `q` | **yes** | — | The natural-language query. Missing/blank → `400` with `{"error":"q (query) parameter required"}`. |
 | `mode` | no | `hybrid` | Retrieval strategy: `hybrid` (BM25 + dense, RRF-fused), `dense` (vector-only), `lexical` (BM25-only). Case-insensitive; an unknown value returns a clear error listing the valid modes.  |
-| `debug` | no | — | `debug=rankings` returns the raw dense + BM25 chunk rankings (id + score) instead of a bundle, for tuning (used by `bin/eval/sweep-bm25-fusion.py`). Requires the chunk-hybrid source (`wikantik.bundle.bm25.enabled`). |
-| `k` | no | `500` | Only read with `debug=rankings`: how many ranked chunks to return. It does not change how many sections a normal bundle holds. |
+| `debug` | no | — | `debug=rankings` returns the raw dense + BM25 chunk rankings (id + score) instead of a bundle, for tuning (used by `bin/eval/sweep-bm25-fusion.py`). **Administrators only** (403 otherwise). Requires the chunk-hybrid source (`wikantik.bundle.bm25.enabled`). |
+| `k` | no | `500` | Only read with `debug=rankings`: how many ranked chunks to return (at most 1000). It does not change how many sections a normal bundle holds. |
 
 The `assemble_bundle` MCP tool takes the same `query` and `mode`; the no-`mode`
 path is fully backward compatible with the original `assemble(query)` contract.

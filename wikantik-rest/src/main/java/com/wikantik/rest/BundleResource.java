@@ -49,6 +49,16 @@ public class BundleResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( BundleResource.class );
 
+    /** Upper bound on {@code k} for {@code debug=rankings}; the offline sweep asks for 800. */
+    static final int MAX_DEBUG_K = 1_000;
+
+    /** Whether the caller holds {@link com.wikantik.auth.permissions.AllPermission}: a silent check, no audit row. */
+    protected boolean isAdministrator( final HttpServletRequest request ) {
+        final com.wikantik.api.core.Session session = Wiki.session().find( getEngine(), request );
+        return getSubsystems().auth().authorization().isPermitted( session,
+                new com.wikantik.auth.permissions.AllPermission( getEngine().getApplicationName() ) );
+    }
+
     private static final Gson BUNDLE_GSON = new GsonBuilder().serializeNulls().create();
 
     /**
@@ -93,6 +103,12 @@ public class BundleResource extends RestServletBase {
         // Spike sweep hook: raw dense + BM25 chunk rankings for the offline fusion/grouping sweep.
         // Only available when the chunk-hybrid source is active (wikantik.bundle.bm25.enabled).
         if ( "rankings".equals( req.getParameter( "debug" ) ) ) {
+            // The raw rankings cover every chunk, hidden pages' included, so they tell a caller which terms a
+            // hidden page contains. Administrators only.
+            if ( !isAdministrator( req ) ) {
+                sendError( resp, HttpServletResponse.SC_FORBIDDEN, "Forbidden" );
+                return;
+            }
             handleDebugRankings( req, resp, q );
             return;
         }
@@ -155,7 +171,7 @@ public class BundleResource extends RestServletBase {
         int k = 500;
         try {
             final String kp = req.getParameter( "k" );
-            if ( kp != null && !kp.isBlank() ) k = Integer.parseInt( kp.trim() );
+            if ( kp != null && !kp.isBlank() ) k = Math.min( Integer.parseInt( kp.trim() ), MAX_DEBUG_K );
         } catch ( final NumberFormatException ignored ) {
             LOG.debug( "Parameter k='{}' is not an integer; keeping default {}: {}", req.getParameter( "k" ), k, ignored.getMessage() );
             /* keep default */

@@ -506,6 +506,27 @@ public class SpaRoutingFilter implements Filter {
      * unchanged — the React app will still handle the route client-side and
      * show a 404 for missing pages.
      */
+    /**
+     * The date search engines see as "modified": the stored content-changed date, which bulk frontmatter edits do
+     * not move, else the page's file modification time (also the fallback when no service is wired or it fails).
+     */
+    private static java.util.Date contentChangedDate( final Engine eng, final Page page ) {
+        try {
+            final com.wikantik.seo.ContentDateService service =
+                    com.wikantik.seo.ContentDateWiringHelper.serviceOf( eng );
+            if ( service != null ) {
+                final java.time.Instant changed = service.contentDate( page );
+                if ( changed != null ) {
+                    return java.util.Date.from( changed );
+                }
+            }
+        } catch ( final RuntimeException ex ) {
+            LOG.warn( "SpaRoutingFilter: content date lookup failed for '{}', using last-modified: {}",
+                    page.getName(), ex.getMessage(), ex );
+        }
+        return page.getLastModified();
+    }
+
     private String injectSemantic( final String indexHtml, final HttpServletRequest req,
                                      final HttpServletResponse resp, final String pageName,
                                      final String frontPageName ) {
@@ -540,7 +561,7 @@ public class SpaRoutingFilter implements Filter {
                 return indexHtml;
             }
             rawText = pm.getPureText( page );
-            modified = page.getLastModified();
+            modified = contentChangedDate( eng, page );
         } catch ( final RuntimeException ex ) {
             LOG.warn( "SpaRoutingFilter: failed to load page '{}': {}", pageName, ex.getMessage() );
             return indexHtml;

@@ -225,4 +225,34 @@ class PreviewStructuredDataToolTest {
         assertNotNull( def.description() );
         assertNotNull( def.inputSchema() );
     }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testDateModifiedAndNewsEligibilityUseTheContentDate() {
+        final java.time.Instant old = java.time.Instant.parse( "2026-03-02T12:00:00Z" );
+        final PreviewStructuredDataTool dated = new PreviewStructuredDataTool( pm, "TestWiki",
+                "http://localhost:8080", page -> old );
+        pm.savePage( "PreviewDated", "---\ntype: article\ntags:\n- ai\nsummary: x\n---\nBody." );
+
+        final McpSchema.CallToolResult result = dated.execute( new HashMap<>( Map.of( "slug", "PreviewDated" ) ) );
+        final Map< String, Object > data = gson.fromJson(
+                ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text(), Map.class );
+
+        assertEquals( "2026-03-02T12:00:00Z", ( ( Map< String, Object > ) data.get( "jsonLd" ) ).get( "dateModified" ) );
+        assertEquals( false, ( ( Map< String, Object > ) data.get( "newsSitemap" ) ).get( "eligible" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testRecentContentDateMakesTaggedPageNewsEligible() {
+        final PreviewStructuredDataTool dated = new PreviewStructuredDataTool( pm, "TestWiki",
+                "http://localhost:8080", page -> java.time.Instant.now().minusSeconds( 3600 ) );
+        pm.savePage( "PreviewFresh", "---\ntype: article\ntags:\n- ai\nsummary: x\n---\nBody." );
+
+        final McpSchema.CallToolResult result = dated.execute( new HashMap<>( Map.of( "slug", "PreviewFresh" ) ) );
+        final Map< String, Object > data = gson.fromJson(
+                ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text(), Map.class );
+
+        assertEquals( true, ( ( Map< String, Object > ) data.get( "newsSitemap" ) ).get( "eligible" ) );
+    }
 }

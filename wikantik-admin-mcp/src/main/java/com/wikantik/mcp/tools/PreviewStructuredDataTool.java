@@ -27,9 +27,11 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.PageType;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * Read-only MCP tool that previews what structured data a page's frontmatter
@@ -48,11 +50,33 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
     private final String applicationName;
     private final String baseUrl;
 
+    private final Function< Page, Instant > contentDates;
+
     public PreviewStructuredDataTool( final PageManager pageManager, final String applicationName,
                                       final String baseUrl ) {
+        this( pageManager, applicationName, baseUrl, null );
+    }
+
+    /**
+     * @param contentDates the page's content-changed date (what the live page publishes as {@code dateModified}
+     *                     and what the news sitemap tests for recency); null, or a null result, means the page's
+     *                     file modification time
+     */
+    public PreviewStructuredDataTool( final PageManager pageManager, final String applicationName,
+                                      final String baseUrl, final Function< Page, Instant > contentDates ) {
         this.pageManager = pageManager;
         this.applicationName = applicationName;
         this.baseUrl = baseUrl;
+        this.contentDates = contentDates;
+    }
+
+    /** The date the live page publishes as modified: the content-changed date, else the file mtime. */
+    private Instant changedAt( final Page page ) {
+        final Instant stored = contentDates == null ? null : contentDates.apply( page );
+        if ( stored != null ) {
+            return stored;
+        }
+        return page.getLastModified() == null ? null : page.getLastModified().toInstant();
     }
 
     @Override
@@ -139,8 +163,13 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
         result.put( "openGraph", buildOpenGraph( pageName, appName, summary, tags ) );
 
         // JSON-LD
-        result.put( "jsonLd", buildJsonLd( pageName, appName, normalizedBaseUrl, summary, tags, date,
-                cluster, related, isHub ) );
+        final Map< String, Object > jsonLd = buildJsonLd( pageName, appName, normalizedBaseUrl, summary, tags, date,
+                cluster, related, isHub );
+        final Instant changed = changedAt( page );
+        if ( changed != null ) {
+            jsonLd.put( "dateModified", DATE_MODIFIED.format( changed ) );
+        }
+        result.put( "jsonLd", jsonLd );
 
         // Breadcrumb (clustered non-hub pages only)
         if ( cluster != null && !isHub ) {
@@ -151,7 +180,7 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
         result.put( "atomFeed", buildAtomFeed( summary, tags ) );
 
         // News sitemap eligibility
-        result.put( "newsSitemap", buildNewsSitemap( page, tags, metadata ) );
+        result.put( "newsSitemap", buildNewsSitemap( changedAt( page ), tags, metadata ) );
 
         // Warnings — literally the same checks as seo_readiness, not a copy of them.
         result.put( "warnings", buildWarnings( pageName, metadata, page, summary ) );
@@ -243,7 +272,7 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
         return atom;
     }
 
-    private Map< String, Object > buildNewsSitemap( final Page page, final List< String > tags,
+    private Map< String, Object > buildNewsSitemap( final Instant changed, final List< String > tags,
                                                       final Map< String, Object > metadata ) {
         final Map< String, Object > news = new LinkedHashMap<>();
 
@@ -261,7 +290,7 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
 
         final long cutoffMillis = System.currentTimeMillis()
                 - ( ( long ) NEWS_CUTOFF_DAYS * 24 * 60 * 60 * 1000 );
-        if ( page.getLastModified() != null && page.getLastModified().getTime() >= cutoffMillis ) {
+        if ( changed != null && changed.toEpochMilli() >= cutoffMillis ) {
             news.put( "eligible", true );
             news.put( "reason", "Has tags and modified within " + NEWS_CUTOFF_DAYS + " days" );
         } else {
@@ -306,6 +335,10 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
 
         return warnings;
     }
+
+    // Same shape JsonLdEmitter publishes for dateModified.
+    private static final DateTimeFormatter DATE_MODIFIED =
+            DateTimeFormatter.ofPattern( "yyyy-MM-dd'T'HH:mm:ss'Z'" ).withZone( ZoneOffset.UTC );
 
     private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ofPattern( "yyyy-MM-dd" );
 

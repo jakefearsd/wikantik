@@ -83,7 +83,11 @@ public class McpToolRegistry {
         final java.util.Properties mcpProps = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
         final String configuredBaseUrl = mcpProps.getProperty( "wikantik.baseURL", "" );
         final PreviewStructuredDataTool previewStructuredData = new PreviewStructuredDataTool(
-                pageManager, engine.getApplicationName(), configuredBaseUrl );
+                pageManager, engine.getApplicationName(), configuredBaseUrl, page -> {
+                    final com.wikantik.seo.ContentDateService dates =
+                            com.wikantik.seo.ContentDateWiringHelper.serviceOf( engine );
+                    return dates == null ? null : dates.contentDate( page );
+                } );
         final String indexNowApiKey = mcpProps.getProperty( "wikantik.indexnow.apiKey" );
         final PingSearchEnginesTool pingSearchEngines = new PingSearchEnginesTool(
                 configuredBaseUrl, indexNowApiKey, java.net.http.HttpClient.newHttpClient() );

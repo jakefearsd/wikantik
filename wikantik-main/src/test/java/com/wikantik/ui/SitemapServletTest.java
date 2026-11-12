@@ -945,6 +945,103 @@ class SitemapServletTest {
                 "Sitemap must contain <lastmod>" + expectedDate + "</lastmod>; was: " + sitemap );
     }
 
+    // ---- content-changed date drives lastmod and news eligibility -----------------------------
+
+    private String sitemapWithContentDates( final java.util.Map< String, java.time.Instant > dates,
+                                            final int expectedCalls ) throws Exception {
+        final com.wikantik.seo.ContentDateService svc = mock( com.wikantik.seo.ContentDateService.class );
+        when( svc.allContentDates() ).thenReturn( dates );
+        m_engine.setManager( com.wikantik.seo.ContentDateService.class, svc );
+        try {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
+            servlet.doGet( request, response );
+            Mockito.verify( svc, Mockito.times( expectedCalls ) ).allContentDates();
+            return stringWriter.toString();
+        } finally {
+            m_engine.setManager( com.wikantik.seo.ContentDateService.class, null );
+        }
+    }
+
+    private static String day( final java.time.Instant i ) {
+        return java.time.format.DateTimeFormatter.ofPattern( "yyyy-MM-dd", java.util.Locale.ROOT )
+                .format( i.atZone( java.time.ZoneId.systemDefault() ).toLocalDate() );
+    }
+
+    @Test
+    void testLastmodUsesStoredContentDateInsteadOfMtime() throws Exception {
+        m_engine.saveText( "SitemapLastmodPage", "Body for lastmod check." );
+        final java.time.Instant stored = java.time.Instant.parse( "2026-03-02T12:00:00Z" );
+
+        final String sitemap = sitemapWithContentDates( java.util.Map.of( "SitemapLastmodPage", stored ), 1 );
+
+        final int at = sitemap.indexOf( "/wiki/SitemapLastmodPage</loc>" );
+        Assertions.assertTrue( at >= 0, sitemap );
+        final String entry = sitemap.substring( at, sitemap.indexOf( "</url>", at ) );
+        Assertions.assertTrue( entry.contains( "<lastmod>" + day( stored ) + "</lastmod>" ), entry );
+    }
+
+    @Test
+    void testLastmodFallsBackToMtimeWithoutStoredDate() throws Exception {
+        m_engine.saveText( "SitemapLastmodPage", "Body for lastmod check." );
+        final com.wikantik.api.core.Page page =
+                m_engine.getManager( PageManager.class ).getPage( "SitemapLastmodPage" );
+
+        final String sitemap = sitemapWithContentDates( java.util.Map.of(), 1 );
+
+        final int at = sitemap.indexOf( "/wiki/SitemapLastmodPage</loc>" );
+        final String entry = sitemap.substring( at, sitemap.indexOf( "</url>", at ) );
+        Assertions.assertTrue( entry.contains( "<lastmod>" + day( page.getLastModified().toInstant() ) + "</lastmod>" ), entry );
+    }
+
+    @Test
+    void testTaggedPageWithOldContentDateIsNotNewsEvenWhenMtimeIsToday() throws Exception {
+        m_engine.saveText( "NewsTestPage",
+            "---\ntype: article\ntags: [ai, testing]\nsummary: A test article\n---\n# News Test\nBody." );
+
+        final String sitemap = sitemapWithContentDates( java.util.Map.of(
+            "NewsTestPage", java.time.Instant.now().minus( java.time.Duration.ofDays( 30 ) ) ), 1 );
+
+        Assertions.assertFalse( sitemap.contains( "<news:title>NewsTestPage</news:title>" ), sitemap );
+    }
+
+    @Test
+    void testTaggedPageWithRecentContentDateIsNewsWithThatPublicationDate() throws Exception {
+        m_engine.saveText( "NewsTestPage",
+            "---\ntype: article\ntags: [ai, testing]\nsummary: A test article\n---\n# News Test\nBody." );
+        final java.time.Instant recent = java.time.Instant.now().minus( java.time.Duration.ofHours( 3 ) );
+
+        final String sitemap = sitemapWithContentDates( java.util.Map.of( "NewsTestPage", recent ), 1 );
+
+        final int at = sitemap.indexOf( "<news:title>NewsTestPage</news:title>" );
+        Assertions.assertTrue( at >= 0, sitemap );
+        final String entry = sitemap.substring( sitemap.lastIndexOf( "<news:news>", at ), at );
+        Assertions.assertTrue( entry.contains( "<news:publication_date>" + day( recent ) + "</news:publication_date>" ), entry );
+    }
+
+    @Test
+    void testSitemapFallsBackToMtimeWhenContentDateServiceThrows() throws Exception {
+        m_engine.saveText( "SitemapLastmodPage", "Body for lastmod check." );
+        final com.wikantik.api.core.Page page =
+                m_engine.getManager( PageManager.class ).getPage( "SitemapLastmodPage" );
+        final com.wikantik.seo.ContentDateService svc = mock( com.wikantik.seo.ContentDateService.class );
+        when( svc.allContentDates() ).thenThrow( new IllegalStateException( "boom" ) );
+        m_engine.setManager( com.wikantik.seo.ContentDateService.class, svc );
+        try {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
+            servlet.doGet( request, response );
+            Assertions.assertTrue( stringWriter.toString().contains(
+                "<lastmod>" + day( page.getLastModified().toInstant() ) + "</lastmod>" ) );
+        } finally {
+            m_engine.setManager( com.wikantik.seo.ContentDateService.class, null );
+        }
+    }
+
     // ---- error-handling branches (spy-wrapped real managers, restored per test) --------------
 
     @Test

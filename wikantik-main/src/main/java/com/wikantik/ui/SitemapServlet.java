@@ -20,11 +20,13 @@ package com.wikantik.ui;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -220,8 +222,10 @@ public class SitemapServlet extends HttpServlet {
         final String baseUrl = BaseUrlResolver.resolve( engine, req, configuredBaseUrl );
 
         final String frontPage = engine.getFrontPage();
+        final Map< String, Instant > contentDates = loadContentDates();
 
         for ( final Page page : publicPages ) {
+            final Instant changed = changedInstant( page, contentDates );
             // Get page URL from URLConstructor - this already includes the base URL
             final String pageUrl = urlConstructor.makeURL(
                 ContextEnum.PAGE_VIEW.getRequestContext(),
@@ -239,8 +243,8 @@ public class SitemapServlet extends HttpServlet {
             out.println( "  <url>" );
             out.println( "    <loc>" + escapeXml( locUrl ) + "</loc>" );
 
-            if ( page.getLastModified() != null ) {
-                out.println( "    <lastmod>" + dateFormat.format( page.getLastModified().toInstant().atZone( ZoneId.systemDefault() ).toLocalDate() ) + "</lastmod>" );
+            if ( changed != null ) {
+                out.println( "    <lastmod>" + dateFormat.format( changed.atZone( ZoneId.systemDefault() ).toLocalDate() ) + "</lastmod>" );
             }
 
             // Add image entries for image attachments
@@ -248,8 +252,8 @@ public class SitemapServlet extends HttpServlet {
             writeImageEntries( out, page, baseUrl, attachmentManager );
 
             // Add Google News extension for recently modified pages that have frontmatter tags
-            if ( page.getLastModified() != null && page.getLastModified().getTime() >= newsCutoffMillis ) {
-                writeNewsEntryIfTagged( out, page, pageManager, appName, dateFormat );
+            if ( changed != null && changed.toEpochMilli() >= newsCutoffMillis ) {
+                writeNewsEntryIfTagged( out, page, changed, pageManager, appName, dateFormat );
             }
 
             out.println( "  </url>" );
@@ -357,7 +361,30 @@ public class SitemapServlet extends HttpServlet {
      * @param publicationName the publication name (wiki application name)
      * @param dateFormat the date formatter for publication date
      */
-    private void writeNewsEntryIfTagged( final PrintWriter out, final Page page,
+    /**
+     * Stored content-changed dates by page name, fetched once per request. Empty when the service is absent or
+     * fails, in which case every page falls back to its file modification time.
+     */
+    private Map< String, Instant > loadContentDates() {
+        try {
+            final com.wikantik.seo.ContentDateService service =
+                com.wikantik.seo.ContentDateWiringHelper.serviceOf( engine );
+            return service == null ? Map.of() : service.allContentDates();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Content dates unavailable for sitemap, using file modification times: {}", e.getMessage(), e );
+            return Map.of();
+        }
+    }
+
+    private static Instant changedInstant( final Page page, final Map< String, Instant > contentDates ) {
+        final Instant stored = contentDates.get( page.getName() );
+        if ( stored != null ) {
+            return stored;
+        }
+        return page.getLastModified() == null ? null : page.getLastModified().toInstant();
+    }
+
+    private void writeNewsEntryIfTagged( final PrintWriter out, final Page page, final Instant changed,
                                           final PageManager pageManager, final String publicationName,
                                           final DateTimeFormatter dateFormat ) {
         final String rawText = pageManager.getPureText( page );
@@ -379,8 +406,7 @@ public class SitemapServlet extends HttpServlet {
                 .collect( java.util.stream.Collectors.joining( ", " ) );
         }
 
-        final String pubDate = dateFormat.format(
-            page.getLastModified().toInstant().atZone( ZoneId.systemDefault() ).toLocalDate() );
+        final String pubDate = dateFormat.format( changed.atZone( ZoneId.systemDefault() ).toLocalDate() );
 
         out.println( "    <news:news>" );
         out.println( "      <news:publication>" );

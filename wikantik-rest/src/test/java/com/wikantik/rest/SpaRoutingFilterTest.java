@@ -890,6 +890,45 @@ class SpaRoutingFilterTest {
         }
     }
 
+    // ---- JSON-LD dateModified is the content-changed date ----
+
+    @Test
+    void ssrJsonLdDateModifiedIsTheStoredContentDate() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            engine.saveText( "SpaContentDatePage", "Body for the content date test." );
+            final com.wikantik.seo.ContentDateService svc = mock( com.wikantik.seo.ContentDateService.class );
+            when( svc.contentDate( any() ) ).thenReturn( java.time.Instant.parse( "2026-03-02T12:00:00Z" ) );
+            engine.setManager( com.wikantik.seo.ContentDateService.class, svc );
+            filter.setEngineForTest( engine );
+
+            filter.doFilter( mockRequest( "/wiki/SpaContentDatePage" ), response, chain );
+
+            final String html = capturedOutput.asString();
+            assertTrue( html.contains( "\"dateModified\":\"2026-03-02T12:00:00Z\"" ),
+                    "dateModified must be the content date, not the file mtime; head was: " + html );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
+    void ssrJsonLdDateModifiedFallsBackToMtimeWhenNoServiceIsWired() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        try {
+            engine.saveText( "SpaContentDatePage2", "Body for the fallback test." );
+            engine.setManager( com.wikantik.seo.ContentDateService.class, null );
+            filter.setEngineForTest( engine );
+
+            filter.doFilter( mockRequest( "/wiki/SpaContentDatePage2" ), response, chain );
+
+            assertTrue( capturedOutput.asString().contains( "\"dateModified\":\"" ),
+                    "without a service the page's mtime is still published" );
+        } finally {
+            engine.stop();
+        }
+    }
+
     // ---- view-ACL enforcement on the server-rendered body ----
 
     /**

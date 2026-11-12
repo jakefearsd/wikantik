@@ -62,6 +62,16 @@ public final class ContentDateWiringHelper {
         return new Wired( service, listener );
     }
 
+    /**
+     * The engine's content-date service, for consumers outside the wiring classes.
+     *
+     * @return the service, or null when none is wired (no datasource configured) — callers fall back to
+     *         {@code Page#getLastModified()}
+     */
+    public static ContentDateService serviceOf( final com.wikantik.api.core.Engine engine ) {
+        return engine instanceof WikiEngine we ? we.getContentDateService() : null;
+    }
+
     private static int intProp( final Properties props, final String key, final int dflt ) {
         final String raw = props.getProperty( key );
         if( raw == null || raw.isBlank() ) {

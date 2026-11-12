@@ -181,7 +181,8 @@ class SitemapServletInternalTest {
         servlet.doGet( req, resp );
 
         final String xml = sw.toString();
-        assertTrue( xml.contains( "Main" ), "Sitemap must include the Main page" );
+        // The front page is listed at the site root ({base}/), not under /wiki/Main.
+        assertTrue( xml.matches( "(?s).*<loc>https?://[^<]*?/</loc>.*" ), "Sitemap must include the front page at the root" );
 
         engine.getManager( PageManager.class ).deletePage( "Main" );
     }

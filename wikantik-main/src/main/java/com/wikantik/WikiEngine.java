@@ -843,6 +843,16 @@ public class WikiEngine implements Engine {
         return null;
     }
 
+    /**
+     * The content-changed date service, read straight from the registry (not via {@link #getManager}, whose callers
+     * are frozen by ArchUnit).
+     *
+     * @return the service, or null when no datasource is configured
+     */
+    public com.wikantik.seo.ContentDateService getContentDateService() {
+        return serviceRegistry.get( com.wikantik.seo.ContentDateService.class );
+    }
+
     /** Registers an object under the given type key. Not part of the {@link Engine} interface. */
     public < T > void setManager( final Class< T > clazz, final T manager ) {
         serviceRegistry.put( clazz, manager );

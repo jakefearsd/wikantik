@@ -47,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Sidebar (the reader-only {@code sidebar-search-trigger} is absent), then
  * walks every {@code admin-nav-*} link asserting the route changes to the
  * expected path and the clicked link becomes {@code active}, and finally that
- * "← Back to wiki" exits the admin shell to a {@code /wiki/} route.
+ * "← Back to wiki" exits the admin shell to the site root (the front page).
  */
 @Execution( ExecutionMode.CONCURRENT )
 public class AdminNavigationIT extends WithIntegrationTestSetup {
@@ -139,8 +139,16 @@ public class AdminNavigationIT extends WithIntegrationTestSetup {
         // Door out: back to the reader wiki.
         new OverviewDashboardAdminPage().open();
         new AdminSidebarPage().clickBackToWiki();
+        // Home is the site root (the front page's canonical URL), not /wiki/<front page>.
+        final String contextRoot = java.net.URI.create( Env.TESTS_BASE_URL ).getPath().replaceAll( "/+$", "" );
+        Selenide.Wait().withTimeout( java.time.Duration.ofSeconds( 15 ) ).until( d ->
+            new AdminSidebarPage().currentPath().replaceAll( "/+$", "" ).equals( contextRoot ) );
         final String backPath = new AdminSidebarPage().currentPath();
-        assertTrue( backPath.contains( "/wiki/" ),
-            "After Back to wiki the path should contain /wiki/, was: " + backPath );
+        assertTrue( backPath.replaceAll( "/+$", "" ).equals( contextRoot ),
+            "After Back to wiki the path should be the context root '" + contextRoot + "', was: " + backPath );
+        // And the front page's content is what is shown there.
+        Selenide.Wait().withTimeout( java.time.Duration.ofSeconds( 15 ) ).until( d -> Selenide.title().endsWith( "- Wikantik" ) );
+        assertTrue( Selenide.title().endsWith( "- Wikantik" ),
+            "the front page should be shown at the root, title was: " + Selenide.title() );
     }
 }

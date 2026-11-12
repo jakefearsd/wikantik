@@ -181,10 +181,14 @@ class ListStaleCitationsToolTest {
 
         final JsonObject all = JsonParser.parseString( ( ( McpSchema.TextContent ) tool.execute( Map.of() ).content().get( 0 ) ).text() )
                 .getAsJsonObject();
-        assertEquals( 2, all.get( "count" ).getAsInt(), "only the two rows between viewable pages: " + all );
+        // Listed: the row between two viewable pages, and the one whose target no longer exists. Not listed: rows
+        // from or to the hidden page, and the row whose source cannot be resolved.
+        final List< String > listed = new java.util.ArrayList<>();
+        all.getAsJsonArray( "citations" ).forEach( c -> listed.add( c.getAsJsonObject().get( "sourceCanonicalId" ).getAsString()
+                + "->" + c.getAsJsonObject().get( "targetCanonicalId" ).getAsString() ) );
+        assertEquals( java.util.Set.of( "open->open2", "open->gone" ), java.util.Set.copyOf( listed ), all.toString() );
+        assertEquals( 2, all.get( "count" ).getAsInt(), all.toString() );
         assertFalse( all.toString().contains( "secret" ), "a hidden page's id leaked: " + all );
-        assertFalse( all.toString().contains( "gone\"" ) && all.toString().contains( "\"sourceCanonicalId\":\"gone\"" ),
-                "a row whose source cannot be resolved was listed: " + all );
 
         final JsonObject byPage = JsonParser.parseString( ( ( McpSchema.TextContent ) tool.execute( Map.of( "page", "secret" ) ).content().get( 0 ) ).text() )
                 .getAsJsonObject();

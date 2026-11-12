@@ -90,29 +90,69 @@ class PrivateClusterDenseIT {
         await( "the private page never became the public page's similar page for an admin",
                 () -> get( admin, "/api/pages/" + PUBLIC_PAGE + "/similar" ).body(), body -> body.contains( PRIVATE_PAGE ) );
 
-        // As anonymous, immediately after.
+        // Positive controls on the surfaces judged below: the public twin is found by the same queries.
+        await( "dense /api/search never found the public twin", () -> get( anonymous, "/api/search?q=" + q ).body(),
+                body -> body.contains( PUBLIC_PAGE ) );
+
+        // As anonymous, immediately after, and then as a plain logged-in user.
         final String anonBundle = get( anonymous, "/api/bundle?q=" + q ).body();
         assertTrue( anonBundle.contains( PUBLIC_PAGE ), "positive control: the public twin is in the anonymous bundle: " + anonBundle );
-        assertHidden( "/api/bundle", anonBundle );
-        assertHidden( "/api/bundle?mode=dense", get( anonymous, "/api/bundle?mode=dense&q=" + q ).body() );
-        assertHidden( "/api/bundle?mode=lexical", get( anonymous, "/api/bundle?mode=lexical&q=" + MARKER ).body() );
-        assertHidden( "/api/search", get( anonymous, "/api/search?q=" + q ).body() );
-        assertHidden( "/api/pages/{public}/similar", get( anonymous, "/api/pages/" + PUBLIC_PAGE + "/similar" ).body() );
-        assertHidden( "/api/pages/{private}/similar", get( anonymous, "/api/pages/" + PRIVATE_PAGE + "/similar" ).body() );
-        assertHidden( "/api/briefing", get( anonymous, "/api/briefing?clusters=it-private&pins=" + PRIVATE_PAGE
-                + "&prompt=" + q + "&format=json" ).body() );
+        assertSurfacesHide( anonymous, "anonymous", q );
+        final HttpClient plain = plainUser();
+        assertTrue( get( plain, "/api/bundle?q=" + q ).body().contains( PUBLIC_PAGE ),
+                "positive control: the public twin is in the plain user's bundle" );
+        assertSurfacesHide( plain, "plain user", q );
 
         // The knowledge MCP's retrieval tools.
         final McpSession mcp = new McpSession( "knowledge-mcp" );
-        assertHidden( "mcp retrieve_context", mcp.call( "retrieve_context", Map.of( "query", QUERY ) ) );
+        final String retrieved = mcp.call( "retrieve_context", Map.of( "query", QUERY ) );
+        assertTrue( retrieved.contains( PUBLIC_PAGE ), "positive control: the public twin is retrieved over MCP: " + retrieved );
+        assertHidden( "mcp retrieve_context", retrieved );
         assertHidden( "mcp retrieve_context (marker)", mcp.call( "retrieve_context", Map.of( "query", MARKER ) ) );
-        assertHidden( "mcp assemble_bundle", mcp.call( "assemble_bundle", Map.of( "query", QUERY ) ) );
+        final String assembled = mcp.call( "assemble_bundle", Map.of( "query", QUERY ) );
+        assertTrue( assembled.contains( PUBLIC_PAGE ), "positive control: the public twin is in the MCP bundle: " + assembled );
+        assertHidden( "mcp assemble_bundle", assembled );
         assertHidden( "mcp get_briefing", mcp.call( "get_briefing", Map.of( "clusters", List.of( "it-private" ),
                 "pins", List.of( PRIVATE_PAGE ), "prompt", QUERY ) ) );
         assertHidden( "mcp get_page", mcp.call( "get_page", Map.of( "slug", PRIVATE_PAGE ) ) );
     }
 
     // ------------------------------------------------------------------ assertions
+
+    private static void assertSurfacesHide( final HttpClient who, final String label, final String q ) throws Exception {
+        assertHidden( label + " /api/bundle", get( who, "/api/bundle?q=" + q ).body() );
+        assertHidden( label + " /api/bundle?mode=dense", get( who, "/api/bundle?mode=dense&q=" + q ).body() );
+        assertHidden( label + " /api/bundle?mode=lexical", get( who, "/api/bundle?mode=lexical&q=" + MARKER ).body() );
+        assertHidden( label + " /api/search", get( who, "/api/search?q=" + q ).body() );
+        assertHidden( label + " /api/pages/{public}/similar", get( who, "/api/pages/" + PUBLIC_PAGE + "/similar" ).body() );
+        assertHidden( label + " /api/pages/{private}/similar", get( who, "/api/pages/" + PRIVATE_PAGE + "/similar" ).body() );
+        assertHidden( label + " /api/briefing", get( who, "/api/briefing?clusters=it-private&pins=" + PRIVATE_PAGE
+                + "&prompt=" + q + "&format=json" ).body() );
+        // debug=rankings is administrators only: a caller who is not one is refused, and sees no ranking at all.
+        final HttpResponse< String > rankings = get( who, "/api/bundle?debug=rankings&q=" + MARKER );
+        assertEquals( 403, rankings.statusCode(), label + " debug=rankings must be refused: " + rankings.body() );
+    }
+
+    /** A plain account (no groups), created through the admin API, signed in with its password already changed. */
+    private static HttpClient plainUser() throws Exception {
+        final String login = "densesweepuser";
+        final String initial = "ItDenseSweep1!";
+        final HttpResponse< String > created = send( admin, HttpRequest.newBuilder( URI.create( BASE + "/admin/users" ) )
+                .header( "Content-Type", "application/json" ).header( "Accept", "application/json" )
+                .POST( HttpRequest.BodyPublishers.ofString( "{\"loginName\":\"" + login + "\",\"fullName\":\"Dense Sweep User\","
+                        + "\"email\":\"" + login + "@example.com\",\"password\":\"" + initial + "\"}" ) ) );
+        assertEquals( 201, created.statusCode(), "create the plain user: " + created.body() );
+        final HttpClient client = client();
+        final HttpResponse< String > in = send( client, HttpRequest.newBuilder( URI.create( BASE + "/api/auth/login" ) )
+                .header( "Content-Type", "application/json" ).header( "Accept", "application/json" )
+                .POST( HttpRequest.BodyPublishers.ofString( "{\"username\":\"" + login + "\",\"password\":\"" + initial + "\"}" ) ) );
+        assertEquals( 200, in.statusCode(), "plain user login: " + in.body() );
+        final HttpResponse< String > changed = send( client, HttpRequest.newBuilder( URI.create( BASE + "/api/auth/profile" ) )
+                .header( "Content-Type", "application/json" ).header( "Accept", "application/json" )
+                .PUT( HttpRequest.BodyPublishers.ofString( "{\"currentPassword\":\"" + initial + "\",\"newPassword\":\"ItDenseSweep2!\"}" ) ) );
+        assertEquals( 200, changed.statusCode(), "forced password change: " + changed.body() );
+        return client;
+    }
 
     /**
      * Neither the marker nor the private page's name may appear, ignoring the caller's own echoed query, the public

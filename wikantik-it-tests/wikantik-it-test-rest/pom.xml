@@ -39,7 +39,7 @@
 
     <!-- Collaborative editing is on for this module's wiki only (CollabRestIT, CollabTwoBrowserIT); it changes the editor,
          so the shared Selenide suite (wikantik-it-test-custom-jdbc) keeps it off. A 4 s long-poll keeps timeout tests quick. -->
-    <it.extra.jvmargs>-Dwikantik.collab.enabled=true -Dwikantik.collab.poll.timeoutSeconds=4 -Dwikantik.access.privateClusters=it-private</it.extra.jvmargs>
+    <it.extra.jvmargs>-Dwikantik.collab.enabled=true -Dwikantik.collab.poll.timeoutSeconds=4 -Dwikantik.access.privateClusters=it-private -Dwikantik.access.privateClusters.viewers=ItPrivateViewers</it.extra.jvmargs>
   </properties>
 
   <build>

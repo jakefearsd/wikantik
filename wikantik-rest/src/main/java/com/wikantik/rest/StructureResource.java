@@ -81,24 +81,8 @@ public class StructureResource extends RestServletBase {
         }
     }
 
-    /** The members of one cluster the caller may view; {@code hub} is null when it is hidden or absent. */
-    private record VisibleCluster( PageDescriptor hub, List< PageDescriptor > articles ) {
-        boolean empty() {
-            return hub == null && articles.isEmpty();
-        }
-
-        /** Freshness of the newest viewable member, never of a hidden one. */
-        Instant updatedAt() {
-            return java.util.stream.Stream.concat( java.util.stream.Stream.ofNullable( hub ), articles.stream() )
-                    .map( PageDescriptor::updated ).filter( java.util.Objects::nonNull )
-                    .max( java.util.Comparator.naturalOrder() ).orElse( null );
-        }
-    }
-
     private VisibleCluster visibleMembers( final HttpServletRequest req, final ClusterDetails details ) {
-        final PageDescriptor hub = details.hubPage() != null && !viewableOnly( req, List.of( details.hubPage() ) ).isEmpty()
-                ? details.hubPage() : null;
-        return new VisibleCluster( hub, viewableOnly( req, details.articles() ) );
+        return VisibleCluster.of( details, pages -> viewableOnly( req, pages ) );
     }
 
     private void writeClusters( final HttpServletResponse resp, final StructuralIndexService svc,
@@ -115,14 +99,7 @@ public class StructureResource extends RestServletBase {
             if ( visible.empty() ) {
                 continue;
             }
-            final JsonObject o = new JsonObject();
-            o.addProperty( "name", c.name() );
-            if ( visible.hub() != null ) {
-                o.add( "hub_page", describe( visible.hub() ) );
-            }
-            o.addProperty( "article_count", visible.articles().size() );
-            final Instant updated = visible.updatedAt();
-            if ( updated != null ) o.addProperty( "updated_at", updated.toString() );
+            final JsonObject o = visible.summaryJson( c.name() );
             arr.add( o );
         }
         final JsonObject data = new JsonObject();
@@ -140,23 +117,7 @@ public class StructureResource extends RestServletBase {
             writeError( resp, 404, "cluster not found: " + name );
             return;
         }
-        final ClusterDetails details = d.get();
-        final JsonObject data = new JsonObject();
-        data.addProperty( "name", details.name() );
-        if ( visible.hub() != null ) {
-            data.add( "hub_page", describe( visible.hub() ) );
-        }
-        final JsonArray articles = new JsonArray();
-        visible.articles().forEach( p -> articles.add( describe( p ) ) );
-        data.add( "articles", articles );
-        final JsonObject tags = new JsonObject();
-        // Counted over the pages the caller can view, never the cluster's full membership.
-        final List< PageDescriptor > members = new java.util.ArrayList<>( visible.articles() );
-        if ( visible.hub() != null ) {
-            members.add( visible.hub() );
-        }
-        com.wikantik.api.pagegraph.TagAggregation.distribution( members ).forEach( tags::addProperty );
-        data.add( "tag_distribution", tags );
+        final JsonObject data = visible.detailJson( d.get().name() );
         writeEnvelope( resp, data );
     }
 
@@ -251,7 +212,7 @@ public class StructureResource extends RestServletBase {
         return pages.stream().filter( p -> ok.contains( p.slug() ) ).toList();
     }
 
-    private static JsonObject describe( final PageDescriptor p ) {
+    static JsonObject describe( final PageDescriptor p ) {
         final JsonObject o = new JsonObject();
         o.addProperty( "id",      p.canonicalId() );
         o.addProperty( "slug",    p.slug() );

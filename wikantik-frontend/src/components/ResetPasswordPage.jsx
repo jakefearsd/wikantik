@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { HOME_PATH } from '../utils/homePage';
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('');
@@ -89,7 +90,7 @@ export default function ResetPasswordPage() {
             Please check your inbox and use the new password to sign in.
           </p>
           <Link
-            to="/wiki/Main"
+            to={HOME_PATH}
             style={{
               display: 'inline-block',
               marginTop: 'var(--space-md)',
@@ -138,7 +139,7 @@ export default function ResetPasswordPage() {
 
           <div style={{ textAlign: 'center' }}>
             <Link
-              to="/wiki/Main"
+              to={HOME_PATH}
               style={{
                 color: 'var(--text-muted)',
                 textDecoration: 'none',

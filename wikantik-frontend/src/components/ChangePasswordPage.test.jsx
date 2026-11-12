@@ -32,7 +32,7 @@ beforeEach(() => {
 /**
  * Render ChangePasswordPage inside a MemoryRouter with the given initial URL.
  * AuthProvider wraps it so useAuth() does not throw.
- * A /wiki/Main and /login stub routes are included to capture navigation assertions.
+ * A / and /login stub routes are included to capture navigation assertions.
  */
 function renderChangePasswordPage(initialEntry = '/change-password', getUserResult) {
   if (getUserResult) {
@@ -45,7 +45,7 @@ function renderChangePasswordPage(initialEntry = '/change-password', getUserResu
       <AuthProvider>
         <Routes>
           <Route path="/change-password" element={<ChangePasswordPage />} />
-          <Route path="/wiki/Main" element={<div data-testid="wiki-main">Wiki Main</div>} />
+          <Route path="/" element={<div data-testid="wiki-main">Wiki Main</div>} />
           <Route path="/login" element={<div data-testid="login-page">Login</div>} />
         </Routes>
       </AuthProvider>
@@ -77,7 +77,7 @@ describe('ChangePasswordPage', () => {
     expect(api.updateProfile).not.toHaveBeenCalled();
   });
 
-  it('submits { currentPassword, newPassword } to api.updateProfile and navigates to /wiki/Main with replace on success', async () => {
+  it('submits { currentPassword, newPassword } to api.updateProfile and navigates to / with replace on success', async () => {
     const { api } = await import('../api/client');
     api.updateProfile.mockResolvedValue({});
     renderChangePasswordPage();
@@ -91,7 +91,7 @@ describe('ChangePasswordPage', () => {
       expect(api.updateProfile).toHaveBeenCalledWith({ currentPassword: 'oldpass', newPassword: 'newpass' });
     });
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/wiki/Main', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
     });
   });
 

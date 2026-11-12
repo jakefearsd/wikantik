@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import SsoLoginButton from './SsoLoginButton';
+import { HOME_PATH } from '../utils/homePage';
 
 const SSO_ERROR_MESSAGES = {
   sso_callback_failed: 'Single sign-on could not be completed. Please try signing in again.',
@@ -33,7 +34,7 @@ export default function LoginPage() {
     setCredError(null);
     try {
       const result = await login(username, password);
-      navigate(result?.mustChangePassword ? '/change-password' : '/wiki/Main');
+      navigate(result?.mustChangePassword ? '/change-password' : HOME_PATH);
     } catch {
       setCredError('Invalid credentials');
     } finally {

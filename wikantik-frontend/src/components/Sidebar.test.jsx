@@ -226,6 +226,19 @@ describe('Sidebar', () => {
     });
   });
 
+  describe('home links point at "/" (the canonical front-page URL)', () => {
+    it('the brand logo and the Main page link have href="/"', () => {
+      renderSidebar('/wiki/About');
+      expect(screen.getByRole('link', { name: 'Main page' })).toHaveAttribute('href', '/');
+      expect(screen.getByRole('link', { name: /Wik/ })).toHaveAttribute('href', '/');
+    });
+
+    it('marks Main page active when the route is "/"', () => {
+      renderSidebar('/');
+      expect(screen.getByRole('link', { name: 'Main page' })).toHaveAttribute('aria-current', 'page');
+    });
+  });
+
   describe('aria-current on active nav links (#6)', () => {
     it('active nav link has aria-current="page" when route matches', () => {
       renderSidebar('/wiki/Main');

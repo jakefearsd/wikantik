@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { HOME_PAGE, HOME_PATH } from '../utils/homePage';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -16,12 +17,15 @@ import Icon from './ui/Icon';
 // Admin sections. They are excluded from the "Uncategorized" bucket so a
 // clusterless system page isn't listed twice.
 const KNOWN_NAV_PAGES = new Set([
-  'Main', 'About', 'News', 'RecentChanges', 'PageIndex', 'SystemInfo',
+  HOME_PAGE, 'About', 'News', 'RecentChanges', 'PageIndex', 'SystemInfo',
   'UnusedPages', 'UndefinedPages',
 ]);
 
 export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {}, onOpenSearch = () => {} }) {
-  const { name: activePage } = useParams();
+  const { name: routeName } = useParams();
+  // The front page is served at "/", which carries no :name param.
+  const { pathname } = useLocation();
+  const activePage = routeName ?? (pathname === HOME_PATH ? HOME_PAGE : undefined);
   const [pages, setPages] = useState([]);
   const [pagesError, setPagesError] = useState(false);
   const [recentChanges, setRecentChanges] = useState([]);
@@ -86,7 +90,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
       ));
 
   const navLink = (to, label) => {
-    const isActive = activePage === to.replace('/wiki/', '');
+    const isActive = activePage === (to === HOME_PATH ? HOME_PAGE : to.replace('/wiki/', ''));
     return (
       <Link
         to={to}
@@ -106,7 +110,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
           <Icon name="chevron" size={18} />
         </button>
         <div className="sidebar-brand">
-          <Link to="/wiki/Main" style={{ color: 'inherit', textDecoration: 'none' }} onClick={onMobileClose}>
+          <Link to={HOME_PATH} style={{ color: 'inherit', textDecoration: 'none' }} onClick={onMobileClose}>
             Wik<span>antik</span>
           </Link>
         </div>
@@ -142,7 +146,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
         {/* Primary Navigation — matches JSP LeftMenu */}
         <div className="sidebar-section">
           <div className="sidebar-section-title">Navigation</div>
-          {navLink('/wiki/Main', 'Main page')}
+          {navLink(HOME_PATH, 'Main page')}
           {navLink('/wiki/About', 'About')}
           {navLink('/wiki/News', 'News')}
           {navLink('/wiki/RecentChanges', 'Recent Changes')}

@@ -118,6 +118,29 @@ class SitemapServletTest {
     }
 
     @Test
+    void testFrontPageIsListedAtSiteRootNotUnderWikiPath() throws Exception {
+        final String front = m_engine.getFrontPage();
+        m_engine.saveText( front, "Front page body." );
+        try {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
+
+            servlet.doGet( request, response );
+
+            final String sitemap = stringWriter.toString();
+            final java.util.regex.Matcher root = java.util.regex.Pattern.compile( "<loc>(https?://[^<]*?)/</loc>" ).matcher( sitemap );
+            Assertions.assertTrue( root.find(), "the front page must be listed as {base}/; got: " + sitemap );
+            Assertions.assertFalse( sitemap.contains( "/wiki/" + front + "</loc>" ),
+                "the front page must not also be listed under /wiki/" + front );
+            Assertions.assertTrue( sitemap.contains( "/wiki/TestPage1</loc>" ), "other pages keep their /wiki/ URL" );
+        } finally {
+            m_engine.deleteQuietly( front );
+        }
+    }
+
+    @Test
     void testSitemapGeneratesValidXml() throws Exception {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();

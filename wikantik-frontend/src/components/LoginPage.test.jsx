@@ -23,7 +23,7 @@ beforeEach(() => {
 /**
  * Render LoginPage inside a MemoryRouter with the given initial URL.
  * AuthProvider wraps it so useAuth() does not throw.
- * A /wiki/Main and /change-password stub route are included to capture navigation.
+ * A / and /change-password stub route are included to capture navigation.
  */
 function renderLoginPage(initialEntry = '/login') {
   return render(
@@ -31,7 +31,7 @@ function renderLoginPage(initialEntry = '/login') {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/wiki/Main" element={<div data-testid="wiki-main">Wiki Main</div>} />
+          <Route path="/" element={<div data-testid="wiki-main">Wiki Main</div>} />
           <Route path="/change-password" element={<div data-testid="change-password-page">Change Password</div>} />
         </Routes>
       </AuthProvider>

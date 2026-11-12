@@ -23,7 +23,7 @@ function renderWithRoutes() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="users" element={<div>USERS CONTENT</div>} />
         </Route>
-        <Route path="/wiki/Main" element={<div>WIKI MAIN PAGE</div>} />
+        <Route path="/" element={<div>WIKI MAIN PAGE</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -37,14 +37,14 @@ describe('AdminLayout', () => {
     expect(screen.queryByRole('link', { name: 'Knowledge Graph' })).toBeNull();
   });
 
-  it('redirects an authenticated non-admin to /wiki/Main', () => {
+  it('redirects an authenticated non-admin to /', () => {
     authValue = { user: { authenticated: true, roles: ['User'] }, loading: false };
     renderWithRoutes();
     expect(screen.queryByText('USERS CONTENT')).toBeNull();
     expect(screen.getByText('WIKI MAIN PAGE')).toBeInTheDocument();
   });
 
-  it('redirects an unauthenticated user to /wiki/Main', () => {
+  it('redirects an unauthenticated user to /', () => {
     authValue = { user: null, loading: false };
     renderWithRoutes();
     expect(screen.queryByText('USERS CONTENT')).toBeNull();

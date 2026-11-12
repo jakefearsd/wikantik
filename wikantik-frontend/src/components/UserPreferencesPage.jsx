@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import MyApiKeys from './MyApiKeys';
 import { displayNameChanged, displayNameError, isDisplayNameRejection } from '../utils/displayName';
 import { readStoredEditorMode, rememberEditorMode } from '../hooks/useEditorMode';
+import { HOME_PATH } from '../utils/homePage';
 
 
 export default function UserPreferencesPage() {
@@ -41,7 +42,7 @@ export default function UserPreferencesPage() {
   // continuation (.then/.catch/.finally) touches state.
   useEffect(() => {
     if (user && !user.authenticated) {
-      navigate('/wiki/Main');
+      navigate(HOME_PATH);
       return;
     }
     let ignore = false;
@@ -138,7 +139,7 @@ export default function UserPreferencesPage() {
     try {
       await api.deleteAccount(confirmName);
       await logout();
-      navigate('/wiki/Main');
+      navigate(HOME_PATH);
     } catch (err) {
       setDeleteError(err.body?.message || err.message || 'Failed to delete account');
     } finally {

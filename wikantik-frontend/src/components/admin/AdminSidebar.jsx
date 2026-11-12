@@ -1,6 +1,7 @@
 // AdminSidebar.jsx
 import { NavLink, Link } from 'react-router-dom';
 import '../../styles/admin.css';
+import { HOME_PATH } from '../../utils/homePage';
 
 // Grouped admin navigation. Rendered by App.jsx in the rail slot in place of the
 // reader Sidebar while on /admin/* (the "context swap"). The reader sidebar is
@@ -52,7 +53,7 @@ function navSlug(to) {
 export default function AdminSidebar() {
   return (
     <aside className="app-sidebar admin-sidebar" data-testid="admin-sidebar">
-      <Link to="/wiki/Main" className="admin-sidebar-back" data-testid="admin-back-to-wiki">← Back to wiki</Link>
+      <Link to={HOME_PATH} className="admin-sidebar-back" data-testid="admin-back-to-wiki">← Back to wiki</Link>
       <h2 className="admin-sidebar-title">Administration</h2>
       <nav className="admin-sidebar-nav">
         {/* `end` so /admin matches Overview exactly, not every /admin/* child */}

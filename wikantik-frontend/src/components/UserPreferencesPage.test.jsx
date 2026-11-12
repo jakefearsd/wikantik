@@ -133,7 +133,7 @@ function renderWithRoutes(initialPath = '/preferences') {
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
         <Route path="/preferences" element={<UserPreferencesPage />} />
-        <Route path="/wiki/Main" element={<div>MAIN PAGE MARKER</div>} />
+        <Route path="/" element={<div>MAIN PAGE MARKER</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -146,7 +146,7 @@ describe('UserPreferencesPage — auth gating', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('redirects to /wiki/Main when the user is present but not authenticated', async () => {
+  it('redirects to / when the user is present but not authenticated', async () => {
     useAuth.mockReturnValue({ user: { authenticated: false }, logout: mockLogout });
     renderWithRoutes();
     expect(await screen.findByText('MAIN PAGE MARKER')).toBeInTheDocument();
@@ -326,7 +326,7 @@ describe('UserPreferencesPage — delete account errors + cancel + navigation', 
     expect(await screen.findByTestId('delete-error')).toHaveTextContent('Failed to delete account');
   });
 
-  it('a successful delete logs out and redirects to /wiki/Main', async () => {
+  it('a successful delete logs out and redirects to /', async () => {
     renderWithRoutes();
     const trigger = await screen.findByTestId('delete-account-button');
     fireEvent.click(trigger);

@@ -16,7 +16,7 @@ function renderAt(path) {
 describe('AdminSidebar', () => {
   it('renders the back-to-wiki link and the Overview entry', () => {
     renderAt('/admin/users');
-    expect(screen.getByRole('link', { name: /back to wiki/i })).toHaveAttribute('href', '/wiki/Main');
+    expect(screen.getByRole('link', { name: /back to wiki/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/admin');
   });
 
@@ -40,7 +40,7 @@ describe('AdminSidebar', () => {
     expect(screen.getByTestId('admin-sidebar')).toBeInTheDocument();
 
     // Back-to-wiki link
-    expect(screen.getByTestId('admin-back-to-wiki')).toHaveAttribute('href', '/wiki/Main');
+    expect(screen.getByTestId('admin-back-to-wiki')).toHaveAttribute('href', '/');
 
     // Overview (exact /admin match)
     expect(screen.getByTestId('admin-nav-overview')).toHaveAttribute('href', '/admin');

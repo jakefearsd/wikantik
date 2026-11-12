@@ -1,6 +1,6 @@
 import { describe, it, vi, beforeEach, afterEach, expect } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from '../hooks/useAuth';
 import { ToastProvider } from '../components/ui/ToastProvider';
 import { api } from '../api/client';
@@ -175,6 +175,33 @@ async function withFakeTimers(fn) {
 }
 
 const TEST_TIMEOUT = 15000;
+
+describe('PageView at the home route', () => {
+  it('renders the front page at "/" without moving the URL to /wiki/Main', async () => {
+    api.getPage.mockImplementation(async (name) => ({
+      ...PAGE, name, metadata: {},
+    }));
+    function LocationProbe() {
+      return <div data-testid="loc">{useLocation().pathname}</div>;
+    }
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <ToastProvider>
+          <AuthProvider>
+            <LocationProbe />
+            <Routes>
+              <Route path="/" element={<PageView />} />
+            </Routes>
+          </AuthProvider>
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByTestId('page-view')).toBeInTheDocument());
+    expect(api.getPage).toHaveBeenCalledWith('Main', expect.anything());
+    await waitFor(() => expect(document.title).toBe('Main - Wikantik'));
+    expect(screen.getByTestId('loc')).toHaveTextContent(/^\/$/);
+  }, TEST_TIMEOUT);
+});
 
 describe('PageView comment integration', () => {
   it('renders the page and the Comments toggle reflecting the loaded thread count', async () => {

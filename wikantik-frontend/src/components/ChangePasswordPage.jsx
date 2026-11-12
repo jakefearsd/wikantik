@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { HOME_PATH } from '../utils/homePage';
 
 export default function ChangePasswordPage() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -27,7 +28,7 @@ export default function ChangePasswordPage() {
     try {
       await api.updateProfile({ currentPassword, newPassword });
       await refresh();
-      navigate('/wiki/Main', { replace: true });
+      navigate(HOME_PATH, { replace: true });
     } catch (err) {
       setError(err.body?.message || err.message || 'Failed to change password');
     } finally {

@@ -26,6 +26,7 @@ import TableOfContents from './TableOfContents';
 import { extractHeadings } from '../utils/headings';
 import useScrollSpy from '../hooks/useScrollSpy';
 import MetadataPanel from './MetadataPanel';
+import { HOME_PAGE, HOME_PATH } from '../utils/homePage';
 import DerivedProvenanceBanner from './DerivedProvenanceBanner';
 import LockedAccessRulesBanner from './LockedAccessRulesBanner';
 import SimilarPagesPanel from './SimilarPagesPanel';
@@ -133,7 +134,7 @@ function CommentComposer({ rect, quote, onSubmit, onCancel, canMention = false }
 const BLOCK_FLASH_MS = 2000;
 
 export default function PageView() {
-  const { name = 'Main' } = useParams();
+  const { name = HOME_PAGE } = useParams();
   const routerHash = useLocation().hash;
   const { user } = useAuth();
   const toast = useToast();
@@ -474,8 +475,8 @@ export default function PageView() {
   // this redirect the SPA would render a bare error banner and integration
   // tests that assert the post-logout page is Main would fail.
   useEffect(() => {
-    if (name !== 'Main' && (error?.status === 403 || error?.status === 401)) {
-      navigate('/wiki/Main', { replace: true });
+    if (name !== HOME_PAGE && (error?.status === 403 || error?.status === 401)) {
+      navigate(HOME_PATH, { replace: true });
     }
   }, [name, error, navigate]);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -490,7 +491,7 @@ export default function PageView() {
     try {
       await api.deletePage(name);
       setConfirmDelete(false);
-      navigate('/wiki/Main');
+      navigate(HOME_PATH);
     } catch (err) {
       setDeleteError(err.message || 'Failed to delete page');
     }

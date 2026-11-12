@@ -53,7 +53,7 @@ describe('ResetPasswordPage', () => {
 
     expect(await screen.findByText('Check your email')).toBeInTheDocument();
     expect(api.resetPassword).toHaveBeenCalledWith('user@example.com');
-    expect(screen.getByRole('link', { name: 'Return to wiki' })).toHaveAttribute('href', '/wiki/Main');
+    expect(screen.getByRole('link', { name: 'Return to wiki' })).toHaveAttribute('href', '/');
     // The form is replaced by the confirmation panel.
     expect(screen.queryByPlaceholderText('you@example.com')).not.toBeInTheDocument();
   });
@@ -104,6 +104,6 @@ describe('ResetPasswordPage', () => {
 
   it('has a "Back to wiki" link on the form', () => {
     renderPage();
-    expect(screen.getByRole('link', { name: 'Back to wiki' })).toHaveAttribute('href', '/wiki/Main');
+    expect(screen.getByRole('link', { name: 'Back to wiki' })).toHaveAttribute('href', '/');
   });
 });

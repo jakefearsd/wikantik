@@ -44,6 +44,13 @@ class JsonLdEmitterTest {
                 "expected comma-separated relatedLink entries; got: " + json );
     }
 
+    @Test
+    void breadcrumbHomeItemIsTheSiteRoot() {
+        final String json = JsonLdEmitter.buildBreadcrumbJsonLd( "P", BASE_URL, BASE_URL + "/wiki/P", "c" );
+        assertTrue( json.contains( "\"name\":\"Home\",\"item\":\"http:\\/\\/example.com\\/\"" ),
+                "Home breadcrumb must be {base}/; got: " + json );
+    }
+
     // ---- jsonStr: null input renders as an empty JSON string ----
 
     @Test

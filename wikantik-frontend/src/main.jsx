@@ -46,9 +46,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Suspense fallback={<div className="route-loading" aria-busy="true" />}>
         <Routes>
           <Route element={<App />}>
-            <Route path="/" element={<Navigate to="/wiki/Main" replace />} />
+            <Route path="/" element={<PageView />} />
             <Route path="/wiki/:name" element={<PageView />} />
-            <Route path="/wiki" element={<Navigate to="/wiki/Main" replace />} />
+            <Route path="/wiki" element={<Navigate to="/" replace />} />
             <Route path="/edit/:name" element={<PageEditor />} />
             <Route path="/diff/:name" element={<DiffViewer />} />
             <Route path="/search" element={<SearchResultsPage />} />

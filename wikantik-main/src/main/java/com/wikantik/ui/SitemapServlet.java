@@ -219,6 +219,8 @@ public class SitemapServlet extends HttpServlet {
         // Build fully qualified base URL using shared 3-tier resolution
         final String baseUrl = BaseUrlResolver.resolve( engine, req, configuredBaseUrl );
 
+        final String frontPage = engine.getFrontPage();
+
         for ( final Page page : publicPages ) {
             // Get page URL from URLConstructor - this already includes the base URL
             final String pageUrl = urlConstructor.makeURL(
@@ -231,8 +233,11 @@ public class SitemapServlet extends HttpServlet {
             // the correct base URL (especially for HTTPS behind proxy)
             final String finalUrl = fixBaseUrl( pageUrl, baseUrl );
 
+            // The front page's canonical URL is the site root, not /wiki/{frontPage}.
+            final String locUrl = page.getName().equals( frontPage ) ? baseUrl + "/" : finalUrl;
+
             out.println( "  <url>" );
-            out.println( "    <loc>" + escapeXml( finalUrl ) + "</loc>" );
+            out.println( "    <loc>" + escapeXml( locUrl ) + "</loc>" );
 
             if ( page.getLastModified() != null ) {
                 out.println( "    <lastmod>" + dateFormat.format( page.getLastModified().toInstant().atZone( ZoneId.systemDefault() ).toLocalDate() ) + "</lastmod>" );

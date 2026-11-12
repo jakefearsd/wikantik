@@ -652,10 +652,12 @@ public class RestApiIT {
             // to settle, then poll the snapshot itself for the seeded nodes and
             // edges rather than trusting a fixed buffer for the reference manager.
             waitForStructuralIndexUp();
+            // The snapshot is cached for 60 s and any earlier caller (another IT class) may have just filled that
+            // cache, so the budget must outlast the TTL: 150 x 500 ms = 75 s. A poll that succeeds returns at once.
             final HttpResponse< String > resp = pollUntilReady(
                     "page-graph snapshot to include " + prefix + "PageA.." + prefix
                             + "PageD and their seeded wikilink edges",
-                    60, 500L, () -> get( "/api/page-graph/snapshot" ),
+                    150, 500L, () -> get( "/api/page-graph/snapshot" ),
                     r -> pageGraphSnapshotHasSeededTopology( r, prefix ) );
             assertEquals( 200, resp.statusCode(),
                 "GET /api/page-graph/snapshot should return 200, got " + resp.statusCode()

@@ -79,9 +79,9 @@ public class SitemapIT {
     void sitemapContainsMainPage() throws Exception {
         final String sitemap = fetchSitemap();
 
-        // The Main page should be in the sitemap
-        Assertions.assertTrue( sitemap.contains( "Main" ),
-            "Sitemap should contain the Main page" );
+        // The front page is listed once, as the site root (the canonical URL of the home page), not as /wiki/Main.
+        Assertions.assertTrue( sitemap.contains( "<loc>" + baseUrl + "/</loc>" ),
+            "Sitemap should list the home page as the site root: " + sitemap );
     }
 
     @Test

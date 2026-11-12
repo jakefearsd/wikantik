@@ -61,8 +61,11 @@ public class HubSetPlugin extends AbstractReferralPlugin {
         final int max = TextUtil.parseIntParameter( params.get( PARAM_MAX ), ALL_ITEMS );
         final String detail = params.getOrDefault( PARAM_DETAIL, "links" );
 
+        // The listing depends on what the viewer may view, so keep the render out of the shared caches.
+        context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
         final PageManager pm = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages();
-        final Page hubPage = pm.getPage( hubName );
+        // A hub the viewer may not view reads as a hub that does not exist.
+        final Page hubPage = viewerMayView( context, hubName ) ? pm.getPage( hubName ) : null;
         if ( hubPage == null ) {
             return "<div class=\"error\">Hub '" + escapeHtml( hubName ) + "' does not exist.</div>";
         }

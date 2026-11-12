@@ -167,15 +167,21 @@ public class IfPlugin implements Plugin {
         final String is       = params.get( PARAM_IS );
         final String exists   = params.get( PARAM_EXISTS );
 
+        // Every condition here is about the viewer (who they are, what they may see), so the render differs per viewer.
+        context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
         boolean include = checkGroup( context, group );
         include |= checkUser(context, user);
         include |= checkIP(context, ip);
 
         if( page != null ) {
-            final String content = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPureText(page, WikiProvider.LATEST_VERSION).trim();
+            // A page the viewer may not view reads as a page that does not exist: no text to match, and not there.
+            final boolean visible = AbstractReferralPlugin.viewerMayView( context, page );
+            final String content = visible
+                    ? PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPureText(page, WikiProvider.LATEST_VERSION).trim()
+                    : "";
             include |= checkContains(content,contains);
             include |= checkIs(content,is);
-            include |= checkExists(context,page,exists);
+            include |= checkExists(context,page,exists,visible);
         }
 
         if( var != null ) {
@@ -188,9 +194,10 @@ public class IfPlugin implements Plugin {
         return include;
     }
 
-    private static boolean checkExists( final Context context, final String page, final String exists ) {
+    private static boolean checkExists( final Context context, final String page, final String exists, final boolean visible ) {
         return exists != null
-                && !PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().wikiPageExists( page ) ^ TextUtil.isPositive( exists );
+                && !( visible && PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().wikiPageExists( page ) )
+                   ^ TextUtil.isPositive( exists );
     }
 
     private static boolean checkVarExists( final String varContent, final String exists ) {

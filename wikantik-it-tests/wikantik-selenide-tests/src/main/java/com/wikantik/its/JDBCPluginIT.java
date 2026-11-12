@@ -71,7 +71,7 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
         final ViewWikiPage page = ViewWikiPage.open( "JDBCPluginTest" );
 
         // Verify page loads successfully
-        Assertions.assertEquals( "Wikantik: JDBCPluginTest", page.title() );
+        Assertions.assertEquals( "JDBCPluginTest - Wikantik", page.title() );
 
         // Find the first JDBC table (all products)
         final SelenideElement jdbcDiv = $( ".jdbc-results" );

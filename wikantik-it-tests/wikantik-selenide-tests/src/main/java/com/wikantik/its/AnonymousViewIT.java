@@ -43,7 +43,7 @@ public class AnonymousViewIT extends WithIntegrationTestSetup {
     @Test
     void anonymousView() {
         final ViewWikiPage main = ViewWikiPage.open( "Main" );
-        Assertions.assertEquals( "Wikantik: Main", main.title() );
+        Assertions.assertEquals( "Main - Wikantik", main.title() );
         Assertions.assertEquals( "Main", main.wikiTitle() );
 
         Assertions.assertTrue( main.wikiPageContent().contains( "You have successfully installed" ) );

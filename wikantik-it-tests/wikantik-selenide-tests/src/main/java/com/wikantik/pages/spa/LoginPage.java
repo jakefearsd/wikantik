@@ -35,7 +35,7 @@ import static com.codeborne.selenide.Selenide.$;
  * <p>Unlike the legacy haddock template which navigated to a dedicated
  * {@code /Login.jsp} URL, the React SPA shows login as a modal overlaid on
  * top of the current page. The underlying page never navigates away, so
- * assertions that used to check {@code title() == "Wikantik: Login"} or
+ * assertions that used to check {@code title() == "Login - Wikantik"} or
  * {@code wikiTitle() == "Login"} must be dropped from callers.
  */
 public class LoginPage implements SpaPage {

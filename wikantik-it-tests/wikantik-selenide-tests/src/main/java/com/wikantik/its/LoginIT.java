@@ -31,7 +31,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
  *
  * <p>The React SPA shows login as a modal overlaid on the current page rather
  * than a dedicated {@code /Login.jsp} route, so the legacy assertions that
- * checked {@code title() == "Wikantik: Login"} and
+ * checked {@code title() == "Login - Wikantik"} and
  * {@code wikiTitle() == "Login"} were dropped. The underlying page remains
  * visible behind the modal, so the page name reported by {@link
  * LoginPage#wikiTitle()} is the page you were on when you opened the modal.
@@ -42,7 +42,7 @@ public class LoginIT extends WithIntegrationTestSetup {
     @Test
     void loginAndLogout() {
         ViewWikiPage main = ViewWikiPage.open( "Main" );
-        Assertions.assertEquals( "Wikantik: Main", main.title() );
+        Assertions.assertEquals( "Main - Wikantik", main.title() );
         Assertions.assertEquals( "Main", main.wikiTitle() );
         Assertions.assertEquals( "G\u2019day (anonymous guest)", main.authenticatedText() );
 
@@ -51,7 +51,7 @@ public class LoginIT extends WithIntegrationTestSetup {
         Assertions.assertEquals( "Main", login.wikiTitle() );
 
         main = login.performLogin();
-        Assertions.assertEquals( "Wikantik: Main", main.title() );
+        Assertions.assertEquals( "Main - Wikantik", main.title() );
         Assertions.assertEquals( "G\u2019day, janne (authenticated)", main.authenticatedText() );
 
         main.clickOnLogout();
@@ -61,14 +61,14 @@ public class LoginIT extends WithIntegrationTestSetup {
     @Test
     void loginKO() {
         ViewWikiPage main = ViewWikiPage.open( "Main" );
-        Assertions.assertEquals( "Wikantik: Main", main.title() );
+        Assertions.assertEquals( "Main - Wikantik", main.title() );
         Assertions.assertEquals( "Main", main.wikiTitle() );
         Assertions.assertEquals( "G\u2019day (anonymous guest)", main.authenticatedText() );
 
         final LoginPage login = main.clickOnLogin();
         main = login.performLogin( "perry", "mason" );
         // Failed login leaves us on the Main page with an anonymous badge.
-        Assertions.assertEquals( "Wikantik: Main", main.title() );
+        Assertions.assertEquals( "Main - Wikantik", main.title() );
         Assertions.assertEquals( "G\u2019day (anonymous guest)", main.authenticatedText() );
     }
 

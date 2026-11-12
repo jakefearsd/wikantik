@@ -187,7 +187,7 @@ class ExportResourceTest {
     @Test
     void adminOptionsWithRealPermissionCheck_returns200() throws Exception {
         loginAdmin();
-        when( stubService.options() ).thenReturn( new ExportOptions( List.of( "finance" ), List.of( "tax" ) ) );
+        when( stubService.options( org.mockito.ArgumentMatchers.any() ) ).thenReturn( new ExportOptions( List.of( "finance" ), List.of( "tax" ) ) );
         final Resp r = resp();
 
         servlet().doGet( get( "/options", Map.of() ), r.mock() );

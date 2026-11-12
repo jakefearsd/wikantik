@@ -108,7 +108,7 @@ public class ExportResource extends RestServletBase {
         switch ( sub ) {
             case "", "/" -> download( req, resp, session );
             case "/preview" -> preview( req, resp, session );
-            case "/options" -> sendJson( resp, exportService( req ).options() );
+            case "/options" -> sendJson( resp, exportService( req ).options( session ) );
             default -> sendNotFound( resp, "Unknown export path: " + sub );
         }
     }

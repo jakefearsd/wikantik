@@ -113,10 +113,31 @@ public final class ExportService {
                 baseUrl, maxPages, Clock.systemUTC() );
     }
 
-    public ExportOptions options() {
-        final List< String > clusters = index.listClusters().stream().map( ClusterSummary::name ).sorted().toList();
-        final List< String > tags = index.listTags( 2 ).stream().map( TagSummary::tag ).limit( 300 ).toList();
+    /**
+     * What the pickers offer this caller: clusters with at least one member the caller may view, and tags used on two
+     * or more pages the caller may view. Export is granted to every logged-in user, so neither list may name a
+     * cluster or a tag that only hidden pages carry.
+     */
+    public ExportOptions options( final Session session ) {
+        final List< String > clusters = index.listClusters().stream().map( ClusterSummary::name )
+                .filter( name -> hasViewableMember( session, name ) ).sorted().toList();
+        final java.util.Set< String > viewable = permissions.filterViewableQuietly( session,
+                index.sitemap().pages().stream().map( PageDescriptor::slug ).toList() );
+        final List< String > tags = index.listTags( 2, d -> viewable.contains( d.slug() ) ).stream()
+                .map( TagSummary::tag ).limit( 300 ).toList();
         return new ExportOptions( clusters, tags );
+    }
+
+    private boolean hasViewableMember( final Session session, final String cluster ) {
+        final java.util.Optional< com.wikantik.api.pagegraph.ClusterDetails > details = index.getCluster( cluster );
+        if ( details.isEmpty() ) {
+            return false;
+        }
+        final List< String > slugs = new java.util.ArrayList<>( details.get().articles().stream().map( PageDescriptor::slug ).toList() );
+        if ( details.get().hubPage() != null ) {
+            slugs.add( details.get().hubPage().slug() );
+        }
+        return !permissions.filterViewableQuietly( session, slugs ).isEmpty();
     }
 
     public ExportPreview preview( final Session session, final ExportSelection selection ) {

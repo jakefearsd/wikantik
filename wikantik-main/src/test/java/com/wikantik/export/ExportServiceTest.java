@@ -112,6 +112,30 @@ class ExportServiceTest {
         service = ExportService.fromSubsystems( engine, subs );
     }
 
+    /**
+     * SECURITY: the export pickers list only clusters with a member the caller may view, and tags counted over
+     * viewable pages only. Export is granted to every logged-in user, so an unfiltered list would hand a plain
+     * account the names of wholly hidden clusters and of tags used only by hidden pages.
+     */
+    @Test
+    void optionsListOnlyWhatTheCallerMayView() throws Exception {
+        engine.saveText( "HiddenHub", "---\ntype: hub\ncluster: hiddenonly\ntags: [hiddentag]\n---\n[{ALLOW view Admin}]\n# Hidden\n" );
+        engine.saveText( "HiddenOne", "---\ntype: article\ncluster: hiddenonly\ntags: [hiddentag]\n---\n[{ALLOW view Admin}]\n# One\n" );
+        engine.saveText( "OpenOne", "---\ntype: article\ncluster: math\ntags: [opentag]\n---\n# Open one\n" );
+        engine.saveText( "OpenTwo", "---\ntype: article\ncluster: math\ntags: [opentag]\n---\n# Open two\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+
+        assertTrue( subs.pageGraph().structuralIndexService().listTags( 2 ).stream().anyMatch( t -> "hiddentag".equals( t.tag() ) ),
+                "fixture is vacuous: the unfiltered index does not list the hidden tag" );
+
+        final ExportOptions asGuest = service.options( guest() );
+
+        assertTrue( asGuest.clusters().contains( "math" ), "positive control: a viewable cluster is offered: " + asGuest );
+        assertTrue( asGuest.tags().contains( "opentag" ), "positive control: a tag of viewable pages is offered: " + asGuest );
+        assertFalse( asGuest.clusters().contains( "hiddenonly" ), "a cluster with no viewable member is offered: " + asGuest );
+        assertFalse( asGuest.tags().contains( "hiddentag" ), "a tag used only by hidden pages is offered: " + asGuest );
+    }
+
     @AfterEach
     void tearDown() { engine.stop(); }
 

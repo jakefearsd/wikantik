@@ -44,6 +44,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -314,6 +315,89 @@ class DefaultPageGraphServiceTest {
             assertTrue( e.source().equals( hidden.id() ) || e.source().equals( open.id() ), "edge source dangles: " + e );
             assertTrue( e.target().equals( hidden.id() ) || e.target().equals( open.id() ), "edge target dangles: " + e );
         }
+        // An edge id must not be a hash of the hidden page's name, which a guessed name could confirm offline.
+        for ( final String key : List.of( "SecretPage->OpenPage", "OpenPage->SecretPage" ) ) {
+            final String derivable = "pl-" + Integer.toHexString( key.hashCode() );
+            assertTrue( snap.edges().stream().noneMatch( e -> derivable.equals( e.id() ) ),
+                    "edge id " + derivable + " is derivable from the hidden name: " + snap.edges() );
+        }
+        // And the opaque node id has a form no page name can take (".." is refused in page names, an attachment
+        // name has exactly one period), so it can never collide with a real node id.
+        assertTrue( hidden.id().contains( ".." ), "opaque id must be unforgeable by a page name: " + hidden.id() );
+    }
+
+    /** Redacted nodes (and the edges touching them) are listed last, so the gap in a name-sorted list shows nothing. */
+    @Test
+    void snapshot_redactedNodesAreListedLast() {
+        when( refMgr.findCreated() ).thenReturn( linkedSet( "A", "B", "C", "D" ) );
+        when( refMgr.findRefersTo( "A" ) ).thenReturn( List.of( "B" ) );
+        when( refMgr.findRefersTo( "B" ) ).thenReturn( List.of( "C" ) );
+        when( refMgr.findRefersTo( "C" ) ).thenReturn( List.of( "D" ) );
+        when( refMgr.findRefersTo( "D" ) ).thenReturn( List.of() );
+        wireViewable( name -> !"B".equals( name ), service, "A", "B", "C", "D" );
+
+        final PageGraphSnapshot snap = service.snapshot( null );
+
+        assertEquals( List.of( "A", "C", "D" ), snap.nodes().stream().limit( 3 ).map( PageGraphNode::name ).toList() );
+        assertTrue( snap.nodes().get( 3 ).restricted(), "the redacted node goes last: " + snap.nodes() );
+        final String hiddenId = snap.nodes().get( 3 ).id();
+        final List< Boolean > touchesHidden = snap.edges().stream()
+                .map( e -> e.source().equals( hiddenId ) || e.target().equals( hiddenId ) ).toList();
+        assertEquals( List.of( false, true, true ), touchesHidden, "edges touching the redacted node go last: " + snap.edges() );
+    }
+
+    /** Among themselves the redacted nodes are in an order that does not follow their names. */
+    @Test
+    void snapshot_redactedNodesAreNotInNameOrder() {
+        final List< Integer > withSaltOne = redactedDegreeOutSequence( 1L );
+        final List< Integer > withSaltTwo = redactedDegreeOutSequence( 2L );
+
+        final List< Integer > nameOrder = List.of( 0, 1, 2, 3, 4, 5, 6, 7 );
+        assertEquals( nameOrder.stream().sorted().toList(), withSaltOne.stream().sorted().toList(), "all eight are present" );
+        assertNotEquals( nameOrder, withSaltOne, "the order must not follow the hidden names" );
+        assertNotEquals( withSaltOne, withSaltTwo, "the order depends on a per-snapshot salt, not on the names" );
+    }
+
+    /** Hidden pages H0..H7 where Hk links to k open pages, so a redacted node is recognised by its out-degree. */
+    private List< Integer > redactedDegreeOutSequence( final long salt ) {
+        final ReferenceManager refs = mock( ReferenceManager.class );
+        final PageManager pages = mock( PageManager.class );
+        when( structural.resolveCanonicalIdFromSlug( anyString() ) ).thenReturn( Optional.empty() );
+        final DefaultPageGraphService svc = new DefaultPageGraphService( structural, refs, pages );
+        svc.setRedactionSaltForTesting( salt );
+        final List< String > names = new java.util.ArrayList<>();
+        for ( int i = 1; i <= 7; i++ ) names.add( "O" + i );
+        for ( int k = 0; k <= 7; k++ ) names.add( "H" + k );
+        when( refs.findCreated() ).thenReturn( new LinkedHashSet<>( names ) );
+        for ( final String n : names ) when( refs.findRefersTo( n ) ).thenReturn( List.of() );
+        for ( int k = 1; k <= 7; k++ ) {
+            when( refs.findRefersTo( "H" + k ) ).thenReturn( names.subList( 0, k ) );
+        }
+        wireViewable( name -> !name.startsWith( "H" ), svc, pages, names.toArray( String[]::new ) );
+        return svc.snapshot( null ).nodes().stream().filter( PageGraphNode::restricted )
+                .map( PageGraphNode::degreeOut ).toList();
+    }
+
+    private void wireViewable( final java.util.function.Predicate< String > viewable, final DefaultPageGraphService svc,
+                               final String... names ) {
+        wireViewable( viewable, svc, pageMgr, names );
+    }
+
+    private static void wireViewable( final java.util.function.Predicate< String > viewable, final DefaultPageGraphService svc,
+                                      final PageManager pages, final String... names ) {
+        final AuthorizationManager authMgr = mock( AuthorizationManager.class );
+        final WikiEngine wikiEngine = mock( WikiEngine.class );
+        when( wikiEngine.getAuthSubsystem() ).thenReturn(
+                new AuthSubsystem.Services( null, authMgr, null, null, null, null, null, null, null ) );
+        svc.setEngine( wikiEngine );
+        for ( final String name : names ) {
+            final Page page = mock( Page.class );
+            when( page.getName() ).thenReturn( name );
+            when( page.getWiki() ).thenReturn( "" );
+            when( pages.getPage( name ) ).thenReturn( page );
+        }
+        when( authMgr.isPermitted( any(), any( Permission.class ) ) ).thenAnswer( inv ->
+                viewable.test( ( (Permission) inv.getArgument( 1 ) ).getName() ) );
     }
 
     @Test
@@ -362,10 +446,14 @@ class DefaultPageGraphServiceTest {
     private static PageGraphNode nodeNamedOrRestricted( final PageGraphSnapshot snap, final String sourcePageId ) {
         // Once redacted, name/sourcePage are wiped and the slug-valued id becomes an opaque "restricted-N",
         // so a node is found by its id (viewable) or, failing that, as the one restricted node.
-        return snap.nodes().stream()
-                .filter( n -> sourcePageId.equals( n.id() ) )
-                .findFirst()
-                .orElseGet( () -> snap.nodes().stream().filter( PageGraphNode::restricted ).findFirst().orElseThrow() );
+        final java.util.Optional< PageGraphNode > byId = snap.nodes().stream()
+                .filter( n -> sourcePageId.equals( n.id() ) ).findFirst();
+        if ( byId.isPresent() ) {
+            return byId.get();
+        }
+        final List< PageGraphNode > restricted = snap.nodes().stream().filter( PageGraphNode::restricted ).toList();
+        assertEquals( 1, restricted.size(), "an exact lookup needs exactly one redacted node, found " + restricted.size() );
+        return restricted.get( 0 );
     }
 
     /**

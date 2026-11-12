@@ -67,6 +67,8 @@ public class DefaultPageGraphService implements PageGraphService {
     private volatile Engine engine;
     private volatile PageGraphSnapshot cachedSnapshot;
     private volatile Instant cacheTimestamp;
+    private volatile long cachedSalt;
+    private volatile java.util.function.LongSupplier saltSource = new java.security.SecureRandom()::nextLong;
 
     public DefaultPageGraphService( final StructuralIndexService structural,
                                      final ReferenceManager refMgr,
@@ -75,6 +77,11 @@ public class DefaultPageGraphService implements PageGraphService {
         this.refMgr = refMgr;
         this.pageMgr = pageMgr;
         this.snapshotBuilder = new PageGraphSnapshotBuilder( structural, refMgr );
+    }
+
+    /** Test seam: fixes the salt that orders redacted nodes (otherwise a fresh random one per cached snapshot). */
+    void setRedactionSaltForTesting( final long salt ) {
+        this.saltSource = () -> salt;
     }
 
     /** Inject the engine for ACL checks. Set after construction so the engine
@@ -97,6 +104,7 @@ public class DefaultPageGraphService implements PageGraphService {
         if ( base == null || cacheTimestamp == null
                 || now.isAfter( cacheTimestamp.plusSeconds( CACHE_TTL_SECONDS ) ) ) {
             base = buildUnredacted();
+            cachedSalt = saltSource.getAsLong();
             cachedSnapshot = base;
             cacheTimestamp = now;
         }
@@ -136,35 +144,55 @@ public class DefaultPageGraphService implements PageGraphService {
             return base;
         }
 
-        final List< PageGraphNode > redacted = new ArrayList<>( base.nodes().size() );
-        final Map< String, String > opaqueIds = new HashMap<>();
+        final List< PageGraphNode > open = new ArrayList<>( base.nodes().size() );
+        final List< PageGraphNode > hidden = new ArrayList<>();
         for ( final PageGraphNode node : base.nodes() ) {
             if ( node.sourcePage() != null && !isViewable( node.sourcePage(), viewer, authMgr ) ) {
-                // A page with no canonical id is keyed by its own name (an attachment by "Page/file"): that id
-                // would name the hidden page, so it is swapped for an opaque one the edges are re-pointed to.
-                String id = node.id();
-                if ( id != null && id.equals( node.sourcePage() ) ) {
-                    id = "restricted-" + opaqueIds.size();
-                    opaqueIds.put( node.id(), id );
-                }
-                redacted.add( new PageGraphNode( id, null, null, "restricted",
-                        null, node.degreeIn(), node.degreeOut(), true,
-                        null, List.of() ) );
+                hidden.add( node );
             } else {
-                redacted.add( node );
+                open.add( node );
             }
         }
+        if ( hidden.isEmpty() ) {
+            return base;
+        }
+        // The base lists nodes in name order, so a redacted node left in place would bracket its name
+        // alphabetically. Redacted nodes go last, in an order drawn from a per-snapshot salt, and every id
+        // that could be derived from a name (the page's own name, an attachment's "Page/file", a ULID that
+        // dates the page) is replaced by an opaque one. ".." is refused in page names and an attachment name
+        // has exactly one period, so no real node id can equal an opaque one.
+        final long salt = cachedSalt;
+        hidden.sort( java.util.Comparator.comparingLong( n -> new java.util.SplittableRandom( salt ^ n.id().hashCode() ).nextLong() ) );
+        final Map< String, String > opaqueIds = new HashMap<>();
+        final List< PageGraphNode > nodes = new ArrayList<>( open );
+        for ( final PageGraphNode node : hidden ) {
+            final String id = "restricted.." + opaqueIds.size();
+            opaqueIds.put( node.id(), id );
+            nodes.add( new PageGraphNode( id, null, null, "restricted",
+                    null, node.degreeIn(), node.degreeOut(), true,
+                    null, List.of() ) );
+        }
         return new PageGraphSnapshot( base.generatedAt(), base.nodeCount(), base.edgeCount(),
-                base.hubDegreeThreshold(), redacted, opaqueIds.isEmpty() ? base.edges() : remapped( base.edges(), opaqueIds ) );
+                base.hubDegreeThreshold(), nodes, remapped( base.edges(), opaqueIds ) );
     }
 
+    /** Re-points edges at the opaque ids; an edge touching a redacted node gets a fresh id and is listed last. */
     private static List< PageGraphEdge > remapped( final List< PageGraphEdge > edges, final Map< String, String > ids ) {
-        final List< PageGraphEdge > out = new ArrayList<>( edges.size() );
+        final List< PageGraphEdge > plain = new ArrayList<>( edges.size() );
+        final List< PageGraphEdge > touching = new ArrayList<>();
         for ( final PageGraphEdge e : edges ) {
-            out.add( new PageGraphEdge( e.id(), ids.getOrDefault( e.source(), e.source() ),
-                    ids.getOrDefault( e.target(), e.target() ), e.relationshipType(), e.provenance() ) );
+            final String source = ids.getOrDefault( e.source(), e.source() );
+            final String target = ids.getOrDefault( e.target(), e.target() );
+            if ( ids.containsKey( e.source() ) || ids.containsKey( e.target() ) ) {
+                touching.add( new PageGraphEdge( "pl-" + Integer.toHexString( ( source + "->" + target ).hashCode() ),
+                        source, target, e.relationshipType(), e.provenance() ) );
+            } else {
+                plain.add( e );
+            }
         }
-        return out;
+        touching.sort( java.util.Comparator.comparing( PageGraphEdge::source ).thenComparing( PageGraphEdge::target ) );
+        plain.addAll( touching );
+        return plain;
     }
 
     private boolean isViewable( final String pageName, final Session viewer,

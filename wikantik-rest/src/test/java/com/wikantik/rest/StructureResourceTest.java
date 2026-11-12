@@ -87,6 +87,13 @@ class StructureResourceTest {
                 12,
                 Instant.parse( "2026-04-01T00:00:00Z" ) ) ) );
 
+        when( svc.getCluster( "wikantik-development" ) ).thenReturn( Optional.of( new ClusterDetails(
+                "wikantik-development",
+                new PageDescriptor( "01A", "WikantikDevelopment", "Wikantik Development",
+                        PageType.HUB, "wikantik-development", List.of(), "hub", Instant.EPOCH, false ),
+                List.of( tagged( "01B", "ArticleOne", List.of(), List.of() ) ), java.util.Map.of(),
+                Instant.parse( "2026-04-01T00:00:00Z" ) ) ) );
+
         final JsonObject body = callGet( "/clusters" );
         assertTrue( body.has( "data" ) );
         final var clusters = body.getAsJsonObject( "data" ).getAsJsonArray( "clusters" );
@@ -104,13 +111,69 @@ class StructureResourceTest {
         when( svc.listClusters() ).thenReturn( List.of(
                 new ClusterSummary( "secret", secretHub, 2, Instant.EPOCH ),
                 new ClusterSummary( "open", openHub, 3, Instant.EPOCH ) ) );
-        resource.visible = java.util.Set.of( "OpenHub" );
+        when( svc.getCluster( "secret" ) ).thenReturn( Optional.of( new ClusterDetails( "secret", secretHub,
+                List.of( tagged( "01T", "OpenMemberOfSecret", List.of(), List.of() ) ), java.util.Map.of(), Instant.EPOCH ) ) );
+        when( svc.getCluster( "open" ) ).thenReturn( Optional.of( new ClusterDetails( "open", openHub,
+                List.of( tagged( "01U", "OpenArticle", List.of(), List.of() ) ), java.util.Map.of(), Instant.EPOCH ) ) );
+        resource.visible = java.util.Set.of( "OpenHub", "OpenMemberOfSecret", "OpenArticle" );
 
         final JsonObject body = callGet( "/clusters" );
 
         assertTrue( body.toString().contains( "OpenHub" ), "positive control: a viewable hub is described" );
         assertFalse( body.toString().contains( "SecretHub" ) || body.toString().contains( "01S" )
                 || body.toString().contains( "secret summary" ), "a hidden hub was described: " + body );
+    }
+
+    private static PageDescriptor updatedAt( final String id, final String slug, final String instant ) {
+        return new PageDescriptor( id, slug, slug, PageType.ARTICLE, null, List.of(), List.of(), "s",
+                Instant.parse( instant ), false, List.of() );
+    }
+
+    /**
+     * SECURITY: a cluster's count and freshness are computed over the members the caller may view, and a cluster
+     * none of whose members is viewable is not listed at all (its size and last-edit time would be a signal about
+     * content the operator chose to hide).
+     */
+    @Test
+    void clusters_list_counts_only_viewable_members_and_omits_a_fully_hidden_cluster() throws Exception {
+        final PageDescriptor mixedHub = new PageDescriptor( "01H", "MixedHub", "Mixed hub", PageType.HUB, "mixed",
+                List.of(), "s", Instant.parse( "2026-01-01T00:00:00Z" ), false );
+        final PageDescriptor openArticle = updatedAt( "01O", "OpenArticle", "2026-02-01T00:00:00Z" );
+        final PageDescriptor hiddenNewer = updatedAt( "01N", "HiddenNewer", "2026-09-09T00:00:00Z" );
+        final PageDescriptor hiddenHub = new PageDescriptor( "01X", "HiddenHub", "Hidden hub", PageType.HUB, "hidden",
+                List.of(), "s", Instant.parse( "2026-09-09T00:00:00Z" ), false );
+        final PageDescriptor hiddenOnly = updatedAt( "01Y", "HiddenOnly", "2026-09-09T00:00:00Z" );
+        when( svc.listClusters() ).thenReturn( List.of(
+                new ClusterSummary( "mixed", mixedHub, 2, Instant.parse( "2026-09-09T00:00:00Z" ) ),
+                new ClusterSummary( "hidden", hiddenHub, 1, Instant.parse( "2026-09-09T00:00:00Z" ) ) ) );
+        when( svc.getCluster( "mixed" ) ).thenReturn( Optional.of( new ClusterDetails( "mixed", mixedHub,
+                List.of( openArticle, hiddenNewer ), java.util.Map.of(), Instant.parse( "2026-09-09T00:00:00Z" ) ) ) );
+        when( svc.getCluster( "hidden" ) ).thenReturn( Optional.of( new ClusterDetails( "hidden", hiddenHub,
+                List.of( hiddenOnly ), java.util.Map.of(), Instant.parse( "2026-09-09T00:00:00Z" ) ) ) );
+        resource.visible = java.util.Set.of( "MixedHub", "OpenArticle" );
+
+        final var clusters = callGet( "/clusters" ).getAsJsonObject( "data" ).getAsJsonArray( "clusters" );
+
+        assertEquals( 1, clusters.size(), "the fully hidden cluster is not listed: " + clusters );
+        final JsonObject mixed = clusters.get( 0 ).getAsJsonObject();
+        assertEquals( "mixed", mixed.get( "name" ).getAsString() );
+        assertEquals( 1, mixed.get( "article_count" ).getAsInt(), "the hidden member is not counted" );
+        assertEquals( "2026-02-01T00:00:00Z", mixed.get( "updated_at" ).getAsString(),
+                "freshness is that of the newest VIEWABLE member, not the hidden newer one" );
+        assertFalse( clusters.toString().contains( "hidden" ), "nothing of the hidden cluster: " + clusters );
+    }
+
+    @Test
+    void cluster_detail_of_a_fully_hidden_cluster_is_not_found() throws Exception {
+        final PageDescriptor hiddenHub = new PageDescriptor( "01X", "HiddenHub", "Hidden hub", PageType.HUB, "hidden",
+                List.of(), "s", Instant.EPOCH, false );
+        when( svc.getCluster( "hidden" ) ).thenReturn( Optional.of( new ClusterDetails( "hidden", hiddenHub,
+                List.of( updatedAt( "01Y", "HiddenOnly", "2026-09-09T00:00:00Z" ) ), java.util.Map.of(), Instant.EPOCH ) ) );
+        resource.visible = java.util.Set.of();
+
+        final HttpServletResponse resp = callRaw( "/clusters/hidden" );
+
+        verify( resp ).setStatus( 404 );
     }
 
     @Test

@@ -81,18 +81,48 @@ public class StructureResource extends RestServletBase {
         }
     }
 
+    /** The members of one cluster the caller may view; {@code hub} is null when it is hidden or absent. */
+    private record VisibleCluster( PageDescriptor hub, List< PageDescriptor > articles ) {
+        boolean empty() {
+            return hub == null && articles.isEmpty();
+        }
+
+        /** Freshness of the newest viewable member, never of a hidden one. */
+        Instant updatedAt() {
+            return java.util.stream.Stream.concat( java.util.stream.Stream.ofNullable( hub ), articles.stream() )
+                    .map( PageDescriptor::updated ).filter( java.util.Objects::nonNull )
+                    .max( java.util.Comparator.naturalOrder() ).orElse( null );
+        }
+    }
+
+    private VisibleCluster visibleMembers( final HttpServletRequest req, final ClusterDetails details ) {
+        final PageDescriptor hub = details.hubPage() != null && !viewableOnly( req, List.of( details.hubPage() ) ).isEmpty()
+                ? details.hubPage() : null;
+        return new VisibleCluster( hub, viewableOnly( req, details.articles() ) );
+    }
+
     private void writeClusters( final HttpServletResponse resp, final StructuralIndexService svc,
                                 final HttpServletRequest req ) throws IOException {
         final JsonArray arr = new JsonArray();
         for ( final ClusterSummary c : svc.listClusters() ) {
+            // Count and freshness are over the members the caller may view, and a cluster with none is not
+            // listed: its size and last-edit time would say something about content that is hidden.
+            final Optional< ClusterDetails > details = svc.getCluster( c.name() );
+            if ( details.isEmpty() ) {
+                continue;
+            }
+            final VisibleCluster visible = visibleMembers( req, details.get() );
+            if ( visible.empty() ) {
+                continue;
+            }
             final JsonObject o = new JsonObject();
             o.addProperty( "name", c.name() );
-            // A hub the caller may not view is left out; the cluster name and count stay, as in the knowledge MCP.
-            if ( c.hubPage() != null && !viewableOnly( req, List.of( c.hubPage() ) ).isEmpty() ) {
-                o.add( "hub_page", describe( c.hubPage() ) );
+            if ( visible.hub() != null ) {
+                o.add( "hub_page", describe( visible.hub() ) );
             }
-            o.addProperty( "article_count", c.articleCount() );
-            if ( c.updatedAt() != null ) o.addProperty( "updated_at", c.updatedAt().toString() );
+            o.addProperty( "article_count", visible.articles().size() );
+            final Instant updated = visible.updatedAt();
+            if ( updated != null ) o.addProperty( "updated_at", updated.toString() );
             arr.add( o );
         }
         final JsonObject data = new JsonObject();
@@ -104,27 +134,28 @@ public class StructureResource extends RestServletBase {
     private void writeCluster( final HttpServletResponse resp, final StructuralIndexService svc,
                                 final String name, final HttpServletRequest req ) throws IOException {
         final Optional< ClusterDetails > d = svc.getCluster( name );
-        if ( d.isEmpty() ) {
+        final VisibleCluster visible = d.isEmpty() ? null : visibleMembers( req, d.get() );
+        if ( visible == null || visible.empty() ) {
+            // A cluster none of whose members the caller may view answers as one that does not exist.
             writeError( resp, 404, "cluster not found: " + name );
             return;
         }
         final ClusterDetails details = d.get();
         final JsonObject data = new JsonObject();
         data.addProperty( "name", details.name() );
-        // Drop a restricted hub or article from the public cluster view.
-        if ( details.hubPage() != null && !viewableOnly( req, List.of( details.hubPage() ) ).isEmpty() ) {
-            data.add( "hub_page", describe( details.hubPage() ) );
+        if ( visible.hub() != null ) {
+            data.add( "hub_page", describe( visible.hub() ) );
         }
         final JsonArray articles = new JsonArray();
-        viewableOnly( req, details.articles() ).forEach( p -> articles.add( describe( p ) ) );
+        visible.articles().forEach( p -> articles.add( describe( p ) ) );
         data.add( "articles", articles );
         final JsonObject tags = new JsonObject();
         // Counted over the pages the caller can view, never the cluster's full membership.
-        final List< PageDescriptor > visibleMembers = new java.util.ArrayList<>( viewableOnly( req, details.articles() ) );
-        if ( details.hubPage() != null ) {
-            visibleMembers.addAll( viewableOnly( req, List.of( details.hubPage() ) ) );
+        final List< PageDescriptor > members = new java.util.ArrayList<>( visible.articles() );
+        if ( visible.hub() != null ) {
+            members.add( visible.hub() );
         }
-        com.wikantik.api.pagegraph.TagAggregation.distribution( visibleMembers ).forEach( tags::addProperty );
+        com.wikantik.api.pagegraph.TagAggregation.distribution( members ).forEach( tags::addProperty );
         data.add( "tag_distribution", tags );
         writeEnvelope( resp, data );
     }

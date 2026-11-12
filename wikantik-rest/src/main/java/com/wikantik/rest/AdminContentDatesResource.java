@@ -105,7 +105,13 @@ public class AdminContentDatesResource extends RestServletBase {
         final Run current = run;
         response.setStatus( HttpServletResponse.SC_OK );
         if( current == null ) {
-            sendJson( response, Map.of( "state", "idle", "total", 0, "done", 0, "failed", 0 ) );
+            final com.google.gson.JsonObject idle = new com.google.gson.JsonObject();
+            idle.addProperty( "state", "idle" );
+            idle.addProperty( "total", 0 );
+            idle.addProperty( "done", 0 );
+            idle.addProperty( "failed", 0 );
+            idle.add( "startedAt", com.google.gson.JsonNull.INSTANCE );
+            RestJson.sendJsonKeepingNulls( response, idle );
         } else {
             sendJson( response, current.toJson() );
         }
@@ -156,9 +162,13 @@ public class AdminContentDatesResource extends RestServletBase {
             r.state = "done";
             LOG.info( "AdminContentDatesResource: backfill finished total={} done={} failed={}",
                       r.total.get(), r.done.get(), r.failed.get() );
-        } catch( final RuntimeException e ) {
-            r.state = "failed";
-            LOG.warn( "AdminContentDatesResource: backfill aborted: {}", e.getMessage(), e );
+        } catch( final Throwable t ) {
+            LOG.error( "AdminContentDatesResource: backfill aborted: {}", t.getMessage(), t );
+        } finally {
+            // Whatever happened (including an Error), never leave "running": it would 409 every later POST.
+            if( !"done".equals( r.state ) ) {
+                r.state = "failed";
+            }
         }
     }
 }

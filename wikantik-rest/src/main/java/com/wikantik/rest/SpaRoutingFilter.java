@@ -498,15 +498,6 @@ public class SpaRoutingFilter implements Filter {
     }
 
     /**
-     * Load the named page and inject its {@link SemanticHeadRenderer}-generated
-     * semantic {@code <head>} fragment (meta tags, JSON-LD, feed autodiscovery)
-     * and body fallback (no-JS heading + paragraphs) into the SPA index.html.
-     *
-     * <p>If the engine or page is not available, the index.html is returned
-     * unchanged — the React app will still handle the route client-side and
-     * show a 404 for missing pages.
-     */
-    /**
      * The date search engines see as "modified": the stored content-changed date, which bulk frontmatter edits do
      * not move, else the page's file modification time (also the fallback when no service is wired or it fails).
      */
@@ -527,6 +518,15 @@ public class SpaRoutingFilter implements Filter {
         return page.getLastModified();
     }
 
+    /**
+     * Load the named page and inject its {@link SemanticHeadRenderer}-generated
+     * semantic {@code <head>} fragment (meta tags, JSON-LD, feed autodiscovery)
+     * and body fallback (no-JS heading + paragraphs) into the SPA index.html.
+     *
+     * <p>If the engine or page is not available, the index.html is returned
+     * unchanged — the React app will still handle the route client-side and
+     * show a 404 for missing pages.
+     */
     private String injectSemantic( final String indexHtml, final HttpServletRequest req,
                                      final HttpServletResponse resp, final String pageName,
                                      final String frontPageName ) {

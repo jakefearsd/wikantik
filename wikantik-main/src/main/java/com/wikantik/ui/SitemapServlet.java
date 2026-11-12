@@ -26,7 +26,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -222,10 +221,10 @@ public class SitemapServlet extends HttpServlet {
         final String baseUrl = BaseUrlResolver.resolve( engine, req, configuredBaseUrl );
 
         final String frontPage = engine.getFrontPage();
-        final Map< String, Instant > contentDates = loadContentDates();
+        final SitemapContentDates contentDates = SitemapContentDates.load( engine );
 
         for ( final Page page : publicPages ) {
-            final Instant changed = changedInstant( page, contentDates );
+            final Instant changed = contentDates.changedInstant( page );
             // Get page URL from URLConstructor - this already includes the base URL
             final String pageUrl = urlConstructor.makeURL(
                 ContextEnum.PAGE_VIEW.getRequestContext(),
@@ -361,29 +360,6 @@ public class SitemapServlet extends HttpServlet {
      * @param publicationName the publication name (wiki application name)
      * @param dateFormat the date formatter for publication date
      */
-    /**
-     * Stored content-changed dates by page name, fetched once per request. Empty when the service is absent or
-     * fails, in which case every page falls back to its file modification time.
-     */
-    private Map< String, Instant > loadContentDates() {
-        try {
-            final com.wikantik.seo.ContentDateService service =
-                com.wikantik.seo.ContentDateWiringHelper.serviceOf( engine );
-            return service == null ? Map.of() : service.allContentDates();
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "Content dates unavailable for sitemap, using file modification times: {}", e.getMessage(), e );
-            return Map.of();
-        }
-    }
-
-    private static Instant changedInstant( final Page page, final Map< String, Instant > contentDates ) {
-        final Instant stored = contentDates.get( page.getName() );
-        if ( stored != null ) {
-            return stored;
-        }
-        return page.getLastModified() == null ? null : page.getLastModified().toInstant();
-    }
-
     private void writeNewsEntryIfTagged( final PrintWriter out, final Page page, final Instant changed,
                                           final PageManager pageManager, final String publicationName,
                                           final DateTimeFormatter dateFormat ) {

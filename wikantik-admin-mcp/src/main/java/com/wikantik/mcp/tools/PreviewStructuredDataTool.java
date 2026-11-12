@@ -41,6 +41,9 @@ import java.util.function.Function;
  */
 public class PreviewStructuredDataTool extends AbstractMcpTool {
 
+    private static final org.apache.logging.log4j.Logger LOG =
+            org.apache.logging.log4j.LogManager.getLogger( PreviewStructuredDataTool.class );
+
     public static final String TOOL_NAME = "preview_structured_data";
 
     // Keep in sync with NEWS_CUTOFF_DAYS
@@ -72,7 +75,15 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
 
     /** The date the live page publishes as modified: the content-changed date, else the file mtime. */
     private Instant changedAt( final Page page ) {
-        final Instant stored = contentDates == null ? null : contentDates.apply( page );
+        Instant stored = null;
+        if ( contentDates != null ) {
+            try {
+                stored = contentDates.apply( page );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Content date lookup failed for page '{}', using file modification time: {}",
+                        page.getName(), e.getMessage(), e );
+            }
+        }
         if ( stored != null ) {
             return stored;
         }
@@ -180,7 +191,7 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
         result.put( "atomFeed", buildAtomFeed( summary, tags ) );
 
         // News sitemap eligibility
-        result.put( "newsSitemap", buildNewsSitemap( changedAt( page ), tags, metadata ) );
+        result.put( "newsSitemap", buildNewsSitemap( changed, tags, metadata ) );
 
         // Warnings — literally the same checks as seo_readiness, not a copy of them.
         result.put( "warnings", buildWarnings( pageName, metadata, page, summary ) );

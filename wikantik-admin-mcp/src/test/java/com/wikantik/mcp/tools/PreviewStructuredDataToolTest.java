@@ -255,4 +255,27 @@ class PreviewStructuredDataToolTest {
 
         assertEquals( true, ( ( Map< String, Object > ) data.get( "newsSitemap" ) ).get( "eligible" ) );
     }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testThrowingContentDateLookupFallsBackToFileModificationTime() {
+        final int[] calls = { 0 };
+        final PreviewStructuredDataTool broken = new PreviewStructuredDataTool( pm, "TestWiki",
+                "http://localhost:8080", page -> {
+                    calls[ 0 ]++;
+                    throw new IllegalStateException( "content dates down" );
+                } );
+        pm.savePage( "PreviewBroken", "---\ntype: article\ntags:\n- ai\nsummary: x\n---\nBody." );
+        final java.time.Instant mtime = pm.getPage( "PreviewBroken" ).getLastModified().toInstant();
+
+        final McpSchema.CallToolResult result = broken.execute( new HashMap<>( Map.of( "slug", "PreviewBroken" ) ) );
+        assertFalse( Boolean.TRUE.equals( result.isError() ) );
+        final Map< String, Object > data = gson.fromJson(
+                ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text(), Map.class );
+
+        assertEquals( java.time.format.DateTimeFormatter.ofPattern( "yyyy-MM-dd'T'HH:mm:ss'Z'" )
+                        .withZone( java.time.ZoneOffset.UTC ).format( mtime ),
+                ( ( Map< String, Object > ) data.get( "jsonLd" ) ).get( "dateModified" ) );
+        assertEquals( 1, calls[ 0 ], "lookup must run once per execute" );
+    }
 }

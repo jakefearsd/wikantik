@@ -110,6 +110,38 @@ class AdminContentDatesResourceTest {
         final Reply r = call( false, "/status", null );
         assertEquals( 200, r.status() );
         assertEquals( "idle", r.json().get( "state" ).getAsString() );
+        assertTrue( r.json().has( "startedAt" ), "idle status carries a startedAt key" );
+        assertTrue( r.json().get( "startedAt" ).isJsonNull() );
+    }
+
+    @Test
+    void pageListingFailureEndsInFailedState() throws Exception {
+        servlet = new AdminContentDatesResource() {
+            @Override
+            protected ContentDateService contentDateService() {
+                return service;
+            }
+
+            @Override
+            protected List< String > allPageNames() {
+                throw new IllegalStateException( "could not list pages" );
+            }
+        };
+        assertEquals( 202, call( true, "/backfill", null ).status() );
+
+        assertEquals( "failed", awaitTerminal().get( "state" ).getAsString() );
+    }
+
+    @Test
+    void anErrorDuringARunDoesNotLeaveStateRunning() throws Exception {
+        when( service.recompute( "B" ) ).thenThrow( new AssertionError( "an Error, not an Exception" ) );
+        assertEquals( 202, call( true, "/backfill", null ).status() );
+
+        assertEquals( "failed", awaitTerminal().get( "state" ).getAsString() );
+        // A later run is accepted rather than refused with 409 forever.
+        doReturn( new ContentDate( "B", Instant.EPOCH, 1 ) ).when( service ).recompute( "B" );
+        assertEquals( 202, call( true, "/backfill", null ).status() );
+        assertEquals( "done", awaitTerminal().get( "state" ).getAsString() );
     }
 
     @Test

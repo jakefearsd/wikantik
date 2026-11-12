@@ -919,10 +919,13 @@ class SpaRoutingFilterTest {
             engine.saveText( "SpaContentDatePage2", "Body for the fallback test." );
             engine.setManager( com.wikantik.seo.ContentDateService.class, null );
             filter.setEngineForTest( engine );
+            final java.time.Instant mtime = engine.getManager( com.wikantik.api.managers.PageManager.class )
+                    .getPage( "SpaContentDatePage2" ).getLastModified().toInstant();
 
             filter.doFilter( mockRequest( "/wiki/SpaContentDatePage2" ), response, chain );
 
-            assertTrue( capturedOutput.asString().contains( "\"dateModified\":\"" ),
+            assertTrue( capturedOutput.asString().contains( "\"dateModified\":\""
+                            + java.time.format.DateTimeFormatter.ISO_INSTANT.format( mtime.truncatedTo( java.time.temporal.ChronoUnit.SECONDS ) ) + "\"" ),
                     "without a service the page's mtime is still published" );
         } finally {
             engine.stop();

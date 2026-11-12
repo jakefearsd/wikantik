@@ -92,6 +92,20 @@ class ChangesResourceTest {
     }
 
     @Test
+    void testChangesOmitsPagesTheCallerCannotView() throws Exception {
+        // The change feed is public, but it must not name a page the (anonymous) caller may not view.
+        engine.saveText( "ChangesSecretPage", "[{ALLOW view Admin}]\n\nSecret body." );
+        try {
+            final String json = doGet( null );
+
+            assertTrue( json.contains( "ChangesPageA" ), "positive control: a public page is listed" );
+            assertFalse( json.contains( "ChangesSecretPage" ), "a restricted page leaked into /api/changes: " + json );
+        } finally {
+            engine.deleteQuietly( "ChangesSecretPage" );
+        }
+    }
+
+    @Test
     void testChangesWithFutureSinceReturnsEmpty() throws Exception {
         final String json = doGet( "2099-01-01T00:00:00Z" );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
@@ -158,7 +172,12 @@ class ChangesResourceTest {
     // ----- helpers -----
 
     private String doGet( final String since ) throws Exception {
+        // A fresh session id per call: the mock requests otherwise share one session, and its login state.
+        final jakarta.servlet.http.HttpSession sess = Mockito.mock( jakarta.servlet.http.HttpSession.class );
+        Mockito.doReturn( "anon-changes-" + System.nanoTime() ).when( sess ).getId();
         final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/api/changes" );
+        Mockito.doReturn( sess ).when( req ).getSession();
+        Mockito.doReturn( sess ).when( req ).getSession( Mockito.anyBoolean() );
         when( req.getParameter( "since" ) ).thenReturn( since );
 
         final HttpServletResponse resp = HttpMockFactory.createHttpResponse();

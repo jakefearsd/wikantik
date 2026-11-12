@@ -98,11 +98,15 @@ public class ChangesResource extends RestServletBase {
                     ? pm.getRecentChanges( since )
                     : pm.getRecentChanges();
 
+            // The feed is public, not unfiltered: a page the caller may not view (its own ACL, or a private
+            // cluster) is neither named nor dated here.
+            final Set< String > viewable = filterViewable( request, pages.stream().map( Page::getName ).toList() );
+
             final String baseUrl = BaseUrlResolver.resolve( engine, request, null );
 
             final List< Map< String, Object > > out = new ArrayList<>( pages.size() );
             for ( final Page p : pages ) {
-                if ( shouldSkipStale( p, since ) ) {
+                if ( shouldSkipStale( p, since ) || !viewable.contains( p.getName() ) ) {
                     continue;
                 }
                 final Map< String, Object > entry = new LinkedHashMap<>();

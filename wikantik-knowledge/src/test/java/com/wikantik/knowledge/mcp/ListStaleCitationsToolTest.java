@@ -155,4 +155,39 @@ class ListStaleCitationsToolTest {
         final JsonArray citations = obj.getAsJsonArray( "citations" );
         assertEquals( 2, citations.size(), "capped at limit=2" );
     }
+
+    /**
+     * SECURITY: a row carries the source page's span and claim text and the target's heading path, so a row whose
+     * source or (existing) target page the caller may not view is not listed, in a page query or corpus-wide.
+     */
+    @Test
+    void rowsOfPagesTheCallerCannotViewAreNotListed() {
+        final CitationRepository repo = mock( CitationRepository.class );
+        final com.wikantik.api.pagegraph.StructuralIndexService index = mock( com.wikantik.api.pagegraph.StructuralIndexService.class );
+        when( index.resolveSlugFromCanonicalId( "open" ) ).thenReturn( java.util.Optional.of( "OpenPage" ) );
+        when( index.resolveSlugFromCanonicalId( "open2" ) ).thenReturn( java.util.Optional.of( "OpenPageTwo" ) );
+        when( index.resolveSlugFromCanonicalId( "secret" ) ).thenReturn( java.util.Optional.of( "SecretPage" ) );
+        when( index.resolveSlugFromCanonicalId( "gone" ) ).thenReturn( java.util.Optional.empty() );
+        final CitationRow fromSecret = row( "secret", "open", CitationStatus.STALE );
+        final CitationRow toSecret = row( "open", "secret", CitationStatus.STALE );
+        final CitationRow fromGoneSource = row( "gone", "open", CitationStatus.STALE );
+        final CitationRow open = row( "open", "open2", CitationStatus.STALE );
+        final CitationRow openToMissingTarget = row( "open", "gone", CitationStatus.TARGET_MISSING );
+        when( repo.findByStatus( CitationStatus.STALE ) ).thenReturn( List.of( fromSecret, toSecret, fromGoneSource, open ) );
+        when( repo.findByStatus( CitationStatus.TARGET_MISSING ) ).thenReturn( List.of( openToMissingTarget ) );
+        when( repo.findBySource( "secret" ) ).thenReturn( List.of( fromSecret ) );
+        final PageViewGate gate = slug -> !"SecretPage".equals( slug );
+        final ListStaleCitationsTool tool = new ListStaleCitationsTool( repo, index, gate );
+
+        final JsonObject all = JsonParser.parseString( ( ( McpSchema.TextContent ) tool.execute( Map.of() ).content().get( 0 ) ).text() )
+                .getAsJsonObject();
+        assertEquals( 2, all.get( "count" ).getAsInt(), "only the two rows between viewable pages: " + all );
+        assertFalse( all.toString().contains( "secret" ), "a hidden page's id leaked: " + all );
+        assertFalse( all.toString().contains( "gone\"" ) && all.toString().contains( "\"sourceCanonicalId\":\"gone\"" ),
+                "a row whose source cannot be resolved was listed: " + all );
+
+        final JsonObject byPage = JsonParser.parseString( ( ( McpSchema.TextContent ) tool.execute( Map.of( "page", "secret" ) ).content().get( 0 ) ).text() )
+                .getAsJsonObject();
+        assertEquals( 0, byPage.get( "count" ).getAsInt(), "the page query for a hidden page lists nothing: " + byPage );
+    }
 }

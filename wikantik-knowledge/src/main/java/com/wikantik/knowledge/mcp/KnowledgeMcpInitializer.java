@@ -264,7 +264,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             tools.add( new SparqlQueryTool( deps.ontoMgr() ) );
         }
         if ( deps.citationRepo() != null ) {
-            tools.add( new ListStaleCitationsTool( deps.citationRepo() ) );
+            tools.add( new ListStaleCitationsTool( deps.citationRepo(), deps.structuralIndex(), deps.viewGate() ) );
         }
     }
 

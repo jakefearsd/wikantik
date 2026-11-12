@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.citation.CitationStatus;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.citation.CitationRepository;
 import com.wikantik.citation.CitationRow;
 import com.google.gson.Gson;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * MCP tool — returns citations whose status is not {@link CitationStatus#CURRENT}
@@ -46,8 +48,18 @@ public class ListStaleCitationsTool extends AbstractMcpTool {
 
     private final CitationRepository repo;
 
+    private final StructuralIndexService index;
+    private final PageViewGate viewGate;
+
     public ListStaleCitationsTool( final CitationRepository repo ) {
+        this( repo, null, PageViewGate.ALLOW_ALL );
+    }
+
+    /** @param index resolves a canonical id to the slug the {@code viewGate} judges */
+    public ListStaleCitationsTool( final CitationRepository repo, final StructuralIndexService index, final PageViewGate viewGate ) {
         this.repo = repo;
+        this.index = index;
+        this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
     }
 
     @Override
@@ -145,15 +157,33 @@ public class ListStaleCitationsTool extends AbstractMcpTool {
                 if ( r.status() != CitationStatus.CURRENT ) rows.add( r );
             }
         }
-        return toMaps( rows );
+        return toMaps( rows.stream().filter( this::viewable ).toList() );
     }
 
     private List< Map< String, Object > > collectCorpusWide( final int limit ) {
         final List< CitationRow > rows = new ArrayList<>();
         rows.addAll( repo.findByStatus( CitationStatus.STALE ) );
         rows.addAll( repo.findByStatus( CitationStatus.TARGET_MISSING ) );
-        final List< CitationRow > capped = rows.size() > limit ? rows.subList( 0, limit ) : rows;
-        return toMaps( capped );
+        // The cap applies to what the caller may see, not to the corpus.
+        final List< CitationRow > visible = rows.stream().filter( this::viewable ).toList();
+        return toMaps( visible.size() > limit ? visible.subList( 0, limit ) : visible );
+    }
+
+    /**
+     * A row carries the source page's span and claim text and the target's heading path: it is listed only when the
+     * guest may view its source, and its target when that page still exists. A source that cannot be resolved cannot
+     * be judged, so it is not listed.
+     */
+    private boolean viewable( final CitationRow r ) {
+        if ( viewGate == PageViewGate.ALLOW_ALL || index == null ) {
+            return true;
+        }
+        final Optional< String > source = index.resolveSlugFromCanonicalId( r.sourceCanonicalId() );
+        if ( source.isEmpty() || !viewGate.canView( source.get() ) ) {
+            return false;
+        }
+        final Optional< String > target = index.resolveSlugFromCanonicalId( r.targetCanonicalId() );
+        return target.isEmpty() || viewGate.canView( target.get() );
     }
 
     /**

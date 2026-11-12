@@ -22,10 +22,17 @@ import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Property;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -52,11 +59,46 @@ class PrivateClusterGateTest {
 
     private PageManager pages;
     private PrivateClusterGate gate;
+    private final List< String > warns = new ArrayList<>();
+    private AbstractAppender appender;
 
     @BeforeEach
     void setUp() {
         pages = mock( PageManager.class );
         gate = new PrivateClusterGate( Set.of( HOME_LAB, REMOTE ), Set.of( "HomeLab" ), pages );
+        captureWarnings();
+    }
+
+    @AfterEach
+    void releaseLog() {
+        final org.apache.logging.log4j.core.LoggerContext ctx =
+                ( org.apache.logging.log4j.core.LoggerContext ) LogManager.getContext( false );
+        ctx.getConfiguration().removeLogger( PrivateClusterGate.class.getName() );
+        ctx.updateLoggers();
+        appender.stop();
+    }
+
+    private void captureWarnings() {
+        appender = new AbstractAppender( "privateClusterGateTest", null, null, true, Property.EMPTY_ARRAY ) {
+            @Override
+            public void append( final LogEvent e ) {
+                if ( e.getLevel().isMoreSpecificThan( org.apache.logging.log4j.Level.WARN ) ) {
+                    warns.add( e.getMessage().getFormattedMessage() );
+                }
+            }
+        };
+        appender.start();
+        final org.apache.logging.log4j.core.LoggerContext ctx =
+                ( org.apache.logging.log4j.core.LoggerContext ) LogManager.getContext( false );
+        final org.apache.logging.log4j.core.config.Configuration config = ctx.getConfiguration();
+        final org.apache.logging.log4j.core.config.LoggerConfig lc =
+                org.apache.logging.log4j.core.config.LoggerConfig.newBuilder().setAdditivity( false )
+                        .setLevel( org.apache.logging.log4j.Level.WARN ).setLoggerName( PrivateClusterGate.class.getName() )
+                        .setIncludeLocation( "false" ).setRefs( new org.apache.logging.log4j.core.config.AppenderRef[ 0 ] )
+                        .setConfig( config ).build();
+        lc.addAppender( appender, org.apache.logging.log4j.Level.WARN, null );
+        config.addLogger( PrivateClusterGate.class.getName(), lc );
+        ctx.updateLoggers();
     }
 
     private Page page( final String name, final int version, final long lastModified, final String text ) {
@@ -184,6 +226,30 @@ class PrivateClusterGateTest {
         when( pages.getPureText( "Flaky", 1 ) ).thenReturn( "---\ncluster: home-lab-infrastructure\n---\nBody.\n" );
 
         assertTrue( gate.isPrivate( page ), "an empty read (a swallowed provider error) must not stick" );
+    }
+
+    @Test
+    void anUnreadableTextIsLoggedOncePerPageVersion() {
+        final Page v1 = page( "Flaky", 1, 1_000L, null );
+        assertFalse( gate.isPrivate( v1 ) );
+        assertFalse( gate.isPrivate( v1 ) );
+        assertEquals( 1, warns.stream().filter( w -> w.contains( "Flaky" ) ).count(), String.valueOf( warns ) );
+
+        final Page v2 = page( "Flaky", 2, 2_000L, "" );
+        assertFalse( gate.isPrivate( v2 ) );
+        assertEquals( 2, warns.stream().filter( w -> w.contains( "Flaky" ) ).count(), "a new version is logged again" );
+    }
+
+    @Test
+    void aTextOnItsOwnIsJudgedByTheSameRule() {
+        assertTrue( gate.isPrivateText( "---\ncluster: home-lab-infrastructure/lan\n---\nBody.\n" ) );
+        assertTrue( gate.isPrivateText( "---\ncluster: [notes, remote-host-management]\n---\nBody.\n" ) );
+        assertFalse( gate.isPrivateText( "---\ncluster: home-lab-infrastructure-notes\n---\nBody.\n" ) );
+        assertFalse( gate.isPrivateText( "no frontmatter" ) );
+        assertFalse( gate.isPrivateText( null ) );
+        assertFalse( gate.isPrivateText( "---\ncluster: home-lab-infrastructure\ntitle: [unclosed\n---\nBody.\n" ) );
+        assertFalse( new PrivateClusterGate( Set.of(), Set.of(), pages )
+                .isPrivateText( "---\ncluster: home-lab-infrastructure\n---\nBody.\n" ), "a disabled gate" );
     }
 
     @Test

@@ -102,8 +102,10 @@ public final class WikiCollabPermissions implements CollabPermissions {
     /**
      * Ruling F1: the policy's {@code view} and {@code edit} on {@code pageName} (the page is missing, so no stored rules
      * apply), then the rules of {@code baseText} as {@link DefaultAclManager#aclForText} reads them, each granting both
-     * actions to a principal the session holds, as the authorizer decides a stored page's rules. Refuses when the wiki's
-     * ACL manager cannot read a text it is handed, and when reading the rules fails.
+     * actions to a principal the session holds, as the authorizer decides a stored page's rules. Before those rules, the
+     * private-cluster rule applies to the text as it does to a stored page: a deleted page whose last text put it in a
+     * private cluster stays hidden from all but administrators and the viewer groups, and its own rules can only narrow
+     * that. Refuses when the wiki's ACL manager cannot read a text it is handed, and when reading the rules fails.
      */
     @Override
     public boolean mayAccessAsIf( final Object participantSession, final String pageName, final String baseText ) {
@@ -116,6 +118,10 @@ public final class WikiCollabPermissions implements CollabPermissions {
         final Permission view = PermissionFactory.getPagePermission( page, "view" );
         final Permission edit = PermissionFactory.getPagePermission( page, "edit" );
         if( !auth.isPermitted( session, view ) || !auth.isPermitted( session, edit ) ) {
+            return false;
+        }
+        if( auth.isHiddenByPrivateClusterText( session, baseText ) ) {
+            LOG.info( "Denying '{}': the deleted page's last text puts it in a private cluster", pageName );
             return false;
         }
         final AclManager acls = AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager();
@@ -133,8 +139,8 @@ public final class WikiCollabPermissions implements CollabPermissions {
 
     /**
      * Ruling F3': the rules {@link DefaultAclManager#aclForText} reads from {@code text}: a non-empty ACL (rules, or the
-     * lock of rules it cannot read) restricts. True (fail closed, logged) when the ACL manager cannot read a text it is
-     * handed or the parse fails.
+     * lock of rules it cannot read) restricts, and so does a text that puts the page in a private cluster. True (fail
+     * closed, logged) when the ACL manager cannot read a text it is handed or the parse fails.
      */
     @Override
     public boolean restricts( final String pageName, final String text ) {
@@ -145,7 +151,8 @@ public final class WikiCollabPermissions implements CollabPermissions {
             return true;
         }
         try {
-            return !reader.aclForText( Wiki.contents().page( engine, pageName ), text ).isEmpty();
+            return authorization().isPrivateClusterText( text )
+                    || !reader.aclForText( Wiki.contents().page( engine, pageName ), text ).isEmpty();
         } catch( final RuntimeException e ) {
             LOG.warn( "Treating the guard of '{}' as restricting: its access rules could not be read: {}", pageName,
                     e.toString() );

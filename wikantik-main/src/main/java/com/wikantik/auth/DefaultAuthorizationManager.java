@@ -276,12 +276,41 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         if( gate == null || !gate.enabled() || !gate.isPrivate( page ) ) {
             return false;
         }
+        return !holdsViewerGroup( session, gate );
+    }
+
+    private boolean holdsViewerGroup( final Session session, final PrivateClusterGate gate ) {
         for( final String group : gate.viewerGroups() ) {
             if( hasRoleOrPrincipal( session, new GroupPrincipal( group ) ) ) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isPrivateClusterText( final String pageText ) {
+        final PrivateClusterGate gate = privateClusterGate();
+        return gate != null && gate.enabled() && gate.isPrivateText( pageText );
+    }
+
+    /** {@inheritDoc}
+     * <p>Administrators ({@code AllPermission}, or the bootstrap administrator) are let in, as {@link #decide} lets
+     * them in before the rule is consulted; so are members of the viewer groups. */
+    @Override
+    public boolean isHiddenByPrivateClusterText( final Session session, final String pageText ) {
+        if( !isPrivateClusterText( pageText ) ) {
+            return false;
+        }
+        if( session == null ) {
+            return true;
+        }
+        if( isBootstrapAdmin( session )
+                || checkStaticPermission( session, new AllPermission( engine.getApplicationName() ) ) ) {
+            return false;
+        }
+        return !holdsViewerGroup( session, privateClusterGate() );
     }
 
     /**

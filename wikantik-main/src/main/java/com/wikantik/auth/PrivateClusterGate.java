@@ -68,6 +68,9 @@ final class PrivateClusterGate {
 
     private final Cache< String, CachedMembership > cache = Caffeine.newBuilder().maximumSize( 20_000 ).build();
 
+    /** Page versions whose unreadable text has been logged ({@code name@version}). */
+    private final Cache< String, Boolean > unreadableWarned = Caffeine.newBuilder().maximumSize( 20_000 ).build();
+
     /**
      * @param privateClusters the private cluster paths; empty turns the rule off
      * @param viewerGroups    the groups allowed in, besides administrators
@@ -132,22 +135,45 @@ final class PrivateClusterGate {
         final String text = pages.getPureText( page.getName(), page.getVersion() );
         if ( text == null || text.isEmpty() ) {
             // Not cached: getPureText answers "" for a provider failure it swallowed, and that must not stick.
+            warnUnreadable( page );
             return false;
         }
-        final boolean isPrivate = isPrivateText( page, text );
+        final boolean isPrivate = isPrivateText( page.getName() + " (version " + page.getVersion() + ")", text );
         cache.put( page.getName(), new CachedMembership( page.getVersion(), lastModified, isPrivate ) );
         return isPrivate;
     }
 
-    private boolean isPrivateText( final Page page, final String text ) {
+    /**
+     * The same rule for a page known only by its text (a deleted page's last text, guarding its collaborative draft).
+     * Not cached; text without readable frontmatter is not private.
+     *
+     * @param text the page's full stored text, frontmatter included; may be null
+     * @return whether that text puts the page in a private cluster
+     */
+    boolean isPrivateText( final String text ) {
+        if ( !enabled() || text == null || text.isEmpty() ) {
+            return false;
+        }
+        return isPrivateText( "(a page known only by its text)", text );
+    }
+
+    /** Logs a page version whose text came back empty once: a provider failure that exposes a page must be visible. */
+    private void warnUnreadable( final Page page ) {
+        if ( unreadableWarned.asMap().putIfAbsent( page.getName() + "@" + page.getVersion(), Boolean.TRUE ) == null ) {
+            LOG.warn( "The text of page {} (version {}) could not be read or is empty, so its cluster is unknown; it is "
+                    + "not treated as private for now and keeps only its own access rules", page.getName(),
+                    page.getVersion() );
+        }
+    }
+
+    private boolean isPrivateText( final String which, final String text ) {
         final Map< String, Object > meta;
         try {
             meta = FrontmatterParser.parseStrict( text ).metadata();
         } catch ( final FrontmatterParseException e ) {
-            // Cached with the answer, so this is logged once per page version.
-            LOG.warn( "The frontmatter of page {} (version {}) cannot be read, so its cluster is unknown; it is not "
-                    + "treated as private and keeps only its own access rules: {}", page.getName(), page.getVersion(),
-                    e.getMessage() );
+            // For a stored page this is cached with the answer, so it is logged once per page version.
+            LOG.warn( "The frontmatter of page {} cannot be read, so its cluster is unknown; it is not treated as "
+                    + "private and keeps only its own access rules: {}", which, e.getMessage() );
             return false;
         }
         final List< String > memberships = ClusterPath.memberships( meta.get( "cluster" ) );

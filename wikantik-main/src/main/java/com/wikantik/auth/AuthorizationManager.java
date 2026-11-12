@@ -121,6 +121,34 @@ public interface AuthorizationManager extends Initializable {
     boolean isPermitted( Session session, Permission permission );
 
     /**
+     * Whether {@code pageText}, read as a page's stored text, puts the page in a private cluster
+     * ({@code wikantik.access.privateClusters}), whoever asks. For a page known only by its text, such as a deleted
+     * page whose last text still guards its collaborative draft; a stored page gets the rule inside every page
+     * permission. The default (an implementation without the rule) answers false.
+     *
+     * @param pageText the page's full stored text, frontmatter included; may be null
+     * @return true when the text's cluster memberships include a private cluster or a sub-cluster of one
+     */
+    default boolean isPrivateClusterText( final String pageText ) {
+        return false;
+    }
+
+    /**
+     * The private-cluster rule for a page known only by its text: true when {@code pageText} puts the page in a
+     * private cluster and {@code session} may not use it (it holds neither {@code AllPermission} nor a viewer group).
+     * A caller judging access "as if" a page had this text denies when this is true, before reading the text's own
+     * access rules, which can only narrow access further. The default (an implementation without the rule) answers
+     * false.
+     *
+     * @param session  the session asking; null is hidden from whenever the text is private
+     * @param pageText the page's full stored text, frontmatter included; may be null
+     * @return true when the text is private and the session is not let in
+     */
+    default boolean isHiddenByPrivateClusterText( final Session session, final String pageText ) {
+        return false;
+    }
+
+    /**
      * Returns the subset of {@code pageNames} the session may {@code view}.
      * Silent — evaluates via {@link #isPermitted} semantics, never fires audit
      * events (bulk visibility filtering is speculative, not enforcement).

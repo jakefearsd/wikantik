@@ -547,6 +547,33 @@ class DefaultAuthorizationManagerCITest {
         assertFalse( spy.isPermitted( session, new PagePermission( "test:RouterPage", "edit" ) ) );
     }
 
+    /** The text-only form of the rule, for a page known only by its last text (a deleted page's draft guard). */
+    @Test
+    void theTextFormOfTheRuleHidesFromAllButAdministratorsAndViewers() {
+        final String privateText = "---\ncluster: home-lab-infrastructure\n---\nLAN.\n";
+        final Session outsider = mockSession( true, new WikiPrincipal( "alice" ), Role.AUTHENTICATED );
+        final Session viewer = mockSession( true, new WikiPrincipal( "bob" ), new GroupPrincipal( "HomeLab" ) );
+        when( viewer.hasPrincipal( new GroupPrincipal( "HomeLab" ) ) ).thenReturn( true );
+        final Session admin = mockSession( true, new WikiPrincipal( "root" ) );
+
+        assertFalse( mgr.isPrivateClusterText( privateText ), "no gate configured: nothing is private" );
+        assertFalse( mgr.isHiddenByPrivateClusterText( outsider, privateText ) );
+
+        mgr.setPrivateClusterGate( new PrivateClusterGate(
+                java.util.Set.of( "home-lab-infrastructure" ), java.util.Set.of( "HomeLab" ), pageManager ) );
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doAnswer( inv -> inv.getArgument( 0 ) == admin ).when( spy ).checkStaticPermission( any(), any() );
+
+        assertTrue( spy.isPrivateClusterText( privateText ) );
+        assertFalse( spy.isPrivateClusterText( "---\ncluster: elsewhere\n---\nx\n" ) );
+        assertTrue( spy.isHiddenByPrivateClusterText( outsider, privateText ) );
+        assertTrue( spy.isHiddenByPrivateClusterText( null, privateText ) );
+        assertFalse( spy.isHiddenByPrivateClusterText( viewer, privateText ) );
+        assertFalse( spy.isHiddenByPrivateClusterText( admin, privateText ) );
+        assertFalse( spy.isHiddenByPrivateClusterText( outsider, "---\ncluster: elsewhere\n---\nx\n" ) );
+        verify( pageManager, never() ).getPureText( anyString(), anyInt() );
+    }
+
     @Test
     void anEnabledGateAdmitsAViewerGroupMember() {
         privateClusterPage( "RouterPage" );

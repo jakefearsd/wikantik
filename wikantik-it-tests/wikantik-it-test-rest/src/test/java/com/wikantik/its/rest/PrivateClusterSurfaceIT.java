@@ -76,7 +76,9 @@ import static org.junit.jupiter.api.Assertions.fail;
  *       binary, so a name search over it would prove nothing.</li>
  *   <li>{@code /api/collab/*} beyond {@code join}: every call after {@code join} needs a session that {@code join}
  *       issued, and {@code join} is refused for a page the caller cannot view (asserted for anonymous and the plain
- *       user).</li>
+ *       user, with a control that the plain user can join the public page; this module has collab enabled).</li>
+ *   <li>{@code list_stale_citations} (knowledge MCP): no citation is seeded here, so any assertion would be vacuous.
+ *       Its per-row view filter is unit-tested in {@code ListStaleCitationsToolTest}.</li>
  *   <li>{@code /api/me/*} other than {@code /api/me/pages}: {@code mentions} and the rest list the caller's own
  *       notifications and are not keyed by page visibility. {@code /api/me/pages} is asserted.</li>
  *   <li>{@code /api/self/apikeys}, {@code /api/auth/*}, {@code /api/users/mentionable}, {@code /api/page-templates},
@@ -106,6 +108,10 @@ public class PrivateClusterSurfaceIT {
     private static final String TRANSCLUDER = "ItPublicTransclude";
     private static final String PRIVATE_MARKER = "zzprivmarker192";
     private static final String PUBLIC_MARKER = "zzpubmarker192";
+    /** Only the private hub's body carries this, so a hub quoted anywhere is recognised even without its name. */
+    private static final String HUB_MARKER = "zzhubmarker192";
+    /** A tag only the two private pages carry (and so used on two pages: the export picker would list it unfiltered). */
+    private static final String PRIVATE_TAG = "itprivtag";
     private static final String ATTACHMENT = "secret.txt";
     private static final String CLUSTER = "it-private";
     private static final String CONTROL_CLUSTER = "it-control";
@@ -115,15 +121,13 @@ public class PrivateClusterSurfaceIT {
     private static final String INITIAL_PASSWORD = "ItPrivateSweep1!";
     private static final String CHANGED_PASSWORD = "ItPrivateSweep2!";
     private static final long CONTROL_BUDGET_MS = 90_000L;
+    /** What a logged-in caller who cannot view the page gets from a collab join (forbidden: "No view permission on <page>"). */
+    private static final int PLAIN_COLLAB_REFUSAL = 403;
 
     /** The public page's own link to the runbook: a surface quoting the public page's text legitimately carries it. */
     private static final String PUBLIC_PAGE_LINK = "[" + RUNBOOK + "](" + RUNBOOK + ")";
     /** A briefing repeats a pin it cannot resolve, word for word as it does for a page that does not exist. */
     private static final String UNKNOWN_PIN_ECHO = "unknown pin: " + RUNBOOK;
-    /** A knowledge-MCP refusal repeats the slug it was given, as an object that says {@code exists:false}. */
-    private static final Pattern NOT_FOUND_ECHO = Pattern.compile( "\\{[^{}]*\"exists\"\\s*:\\s*false[^{}]*\\}" );
-    /** {@code read_pages} reports an unreadable slug as {@code {"slug":"X","error":"not_found"}}, as it does for any missing page. */
-    private static final Pattern NOT_FOUND_SLUG_ECHO = Pattern.compile( "\\{\\s*\"slug\"\\s*:\\s*\"[^\"]*\"\\s*,\\s*\"error\"\\s*:\\s*\"not_found\"\\s*\\}" );
 
     private static String baseUrl;
     private static String runbookCanonicalId;
@@ -206,11 +210,11 @@ public class PrivateClusterSurfaceIT {
 
     /** Seeds the private hub and runbook, the public control pages, the attachment and the transcluding page. */
     private static void seed( final Http admin ) throws Exception {
-        put( admin, HUB, "---\ntype: hub\ncluster: " + CLUSTER + "\nsummary: private hub\n---\n"
-                + "# Private hub\n\nMembers: [" + RUNBOOK + "](" + RUNBOOK + ")\n" );
-        put( admin, RUNBOOK, "---\ncluster: [it-public, " + CLUSTER + "]\nsummary: private runbook\n---\n"
+        put( admin, HUB, "---\ntype: hub\ncluster: " + CLUSTER + "\ntags: [" + PRIVATE_TAG + "]\nsummary: private hub\n---\n"
+                + "# Private hub\n\nHub " + HUB_MARKER + ". Members: [" + RUNBOOK + "](" + RUNBOOK + ")\n" );
+        put( admin, RUNBOOK, "---\ncluster: [it-public, " + CLUSTER + "]\ntags: [" + PRIVATE_TAG + "]\nsummary: private runbook\n---\n"
                 + "# Private runbook\n\nThe secret " + PRIVATE_MARKER + " lives here. Back to [" + PUBLIC + "](" + PUBLIC + ").\n" );
-        put( admin, CONTROL_HUB, "---\ntype: hub\ncluster: " + CONTROL_CLUSTER + "\nsummary: public control hub\n---\n"
+        put( admin, CONTROL_HUB, "---\ntype: hub\ncluster: " + CONTROL_CLUSTER + "\ntags: [itsweep]\nsummary: public control hub\n---\n"
                 + "# Control hub\n\nMembers: [" + PUBLIC + "](" + PUBLIC + ")\n" );
         put( admin, PUBLIC, "---\ncluster: " + CONTROL_CLUSTER + "\ntags: [itsweep]\nsummary: public sweep page\n---\n"
                 + "# Public page\n\nPublic " + PUBLIC_MARKER + " text. See [" + RUNBOOK + "](" + RUNBOOK + ").\n" );
@@ -253,15 +257,34 @@ public class PrivateClusterSurfaceIT {
     // ------------------------------------------------------------------ assertions
 
     /**
-     * A search-shaped answer repeats the caller's own query ({@code query}/{@code prompt}) and may quote the public
-     * page's link to the runbook or echo an unresolved pin or slug; none of that is the private page's, so exactly
-     * those echoes are removed before looking for it.
+     * The only text of a response that is allowed to name a private page although it is not the page's: the caller's
+     * own request ({@code query}/{@code prompt}), the PUBLIC pages' own bodies where they link to or embed the
+     * runbook, a briefing's {@code unknown pin: X}, and a refusal that repeats the exact slug or id it was asked for.
+     * Exactly these forms are removed; nothing else is exempt.
      */
     private static String withoutEchoes( final String body ) {
-        final String stripped = NOT_FOUND_SLUG_ECHO.matcher( NOT_FOUND_ECHO.matcher(
-                body.replace( PUBLIC_PAGE_LINK, "" ).replace( UNKNOWN_PIN_ECHO, "" ) ).replaceAll( "" ) ).replaceAll( "" );
+        String stripped = body.replace( PUBLIC_PAGE_LINK, "" ).replace( UNKNOWN_PIN_ECHO, "" )
+                .replace( "![[" + RUNBOOK + "]]", "" )
+                // the PUBLIC pages' own bodies as plain text (recent-articles excerpts, search snippets)
+                .replace( "See " + RUNBOOK + ".", "" ).replace( "Embed: " + RUNBOOK, "" )
+                .replaceAll( "InsertPage page(?:=|\\\\u003d)(?:'|\\\\u0027)" + RUNBOOK + "(?:'|\\\\u0027)", "" );
+        if ( runbookCanonicalId != null ) {
+            // a refusal that repeats the id it was asked for: the request, not the page
+            stripped = stripped.replace( "no page for canonical_id " + runbookCanonicalId, "" )
+                    .replace( "/id/page/" + runbookCanonicalId, "" );
+        }
+        for ( final String slug : List.of( RUNBOOK, HUB ) ) {
+            // refusals that repeat the page name the caller supplied
+            stripped = stripped.replace( "no page named " + slug, "" ).replace( "No view permission on " + slug, "" );
+            final String q = Pattern.quote( slug );
+            // {"exists":false,"pageName":"<slug>"} and {"slug":"<slug>","error":"not_found"}: the slug that was asked for
+            stripped = stripped
+                    .replaceAll( "\\{[^{}]*\"exists\"\\s*:\\s*false[^{}]*\"pageName\"\\s*:\\s*\"" + q + "\"[^{}]*\\}", "" )
+                    .replaceAll( "\\{[^{}]*\"pageName\"\\s*:\\s*\"" + q + "\"[^{}]*\"exists\"\\s*:\\s*false[^{}]*\\}", "" )
+                    .replaceAll( "\\{\\s*\"slug\"\\s*:\\s*\"" + q + "\"\\s*,\\s*\"error\"\\s*:\\s*\"not_found\"\\s*\\}", "" );
+        }
         try {
-            final com.google.gson.JsonElement parsed = JsonParser.parseString( stripped );
+            final JsonElement parsed = JsonParser.parseString( stripped );
             if ( parsed.isJsonObject() ) {
                 final JsonObject o = parsed.getAsJsonObject();
                 o.remove( "query" );
@@ -285,51 +308,17 @@ public class PrivateClusterSurfaceIT {
 
     private static void assertNoPrivateTextOrName( final String surface, final String raw ) {
         final String body = withoutEchoes( raw );
-        assertFalse( body.contains( PRIVATE_MARKER ), surface + " leaked the private marker: " + raw );
-        JsonElement json = null;
-        try {
-            json = JsonParser.parseString( body );
-        } catch ( final RuntimeException e ) {
-            // not JSON (XML, markdown, N-Triples): the name is looked for as text
-            json = null;
+        for ( final String forbidden : List.of( PRIVATE_MARKER, HUB_MARKER ) ) {
+            assertFalse( body.contains( forbidden ), surface + " leaked private text '" + forbidden + "': " + raw );
         }
-        if ( json != null && ( json.isJsonObject() || json.isJsonArray() ) ) {
-            // A result may quote a PUBLIC page's own text, which links to or embeds the runbook; what must not appear
-            // is the private page as a field: a name, a slug, a url, a list entry or an attachment path.
-            assertFalse( namesAPrivatePage( json ), surface + " names a private page: " + raw );
-        } else {
-            assertFalse( body.contains( RUNBOOK ), surface + " names the private page: " + raw );
-            assertFalse( body.contains( HUB ), surface + " names the private hub: " + raw );
+        // Names are matched on token boundaries over the WHOLE body, so "ItPrivateRunbook.md", an attachment path, a
+        // url fragment or free text all count; the runbook's canonical id is as good as its name.
+        for ( final String name : List.of( RUNBOOK, HUB ) ) {
+            assertFalse( Pattern.compile( "(?<![A-Za-z0-9])" + Pattern.quote( name ) + "(?![A-Za-z0-9])" ).matcher( body ).find(),
+                    surface + " names the private page '" + name + "': " + raw );
         }
-    }
-
-    private static boolean namesAPrivatePage( final JsonElement e ) {
-        if ( e.isJsonPrimitive() ) {
-            final String v = e.getAsString();
-            for ( final String name : List.of( RUNBOOK, HUB ) ) {
-                if ( v.equals( name ) || v.startsWith( name + "/" ) || v.endsWith( "/" + name ) || v.endsWith( "/wiki/" + name )
-                        || v.contains( "/wiki/" + name + "?" ) || v.contains( "/wiki/" + name + "%" ) ) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        if ( e.isJsonArray() ) {
-            for ( final JsonElement x : e.getAsJsonArray() ) {
-                if ( namesAPrivatePage( x ) ) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        if ( e.isJsonObject() ) {
-            for ( final Map.Entry< String, JsonElement > x : e.getAsJsonObject().entrySet() ) {
-                if ( List.of( RUNBOOK, HUB ).contains( x.getKey() ) || namesAPrivatePage( x.getValue() ) ) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        assertFalse( runbookCanonicalId != null && body.contains( runbookCanonicalId ),
+                surface + " carries the private runbook's canonical id: " + raw );
     }
 
     private static void assertDenied( final String surface, final HttpResponse< String > r ) {
@@ -369,7 +358,8 @@ public class PrivateClusterSurfaceIT {
      * Everything a caller who may not see {@code it-private} must not get through any HTTP read surface. Run for an
      * anonymous caller (twice: at once, and once the indexes have caught up) and for a plain logged-in user.
      */
-    private static void assertHttpSurfacesHide( final Http who, final String label ) throws Exception {
+    private static void assertHttpSurfacesHide( final Http who, final String label, final int collabRefusal,
+                                                final boolean collabControl ) throws Exception {
         // --- rendered pages and the raw-content filter
         assertDenied( label + " /wiki page", who.get( "/wiki/" + RUNBOOK, "text/html" ) );
         assertEquals( 404, who.get( "/wiki/" + RUNBOOK, "text/html" ).statusCode(), label );
@@ -453,9 +443,15 @@ public class PrivateClusterSurfaceIT {
         assertEquals( 403, tools.statusCode(), label + " /tools must refuse a caller with no API key: " + tools.body() );
         assertNoPrivateText( label + " /tools", tools );
 
-        // --- collaborative editing (enabled in this module): joining a page the caller cannot view is refused
+        // --- collaborative editing (this module runs with wikantik.collab.enabled=true): joining a page the caller
+        // cannot view is refused with exactly the expected status. A logged-in caller must be able to join the PUBLIC
+        // page, so the refusal comes from the gate and not from collab being unavailable to that caller.
+        if ( collabControl ) {
+            final HttpResponse< String > control = who.send( "POST", "/api/collab/" + PUBLIC + "/join", "{}" );
+            assertEquals( 200, control.statusCode(), label + " control: the caller can join the public page: " + control.body() );
+        }
         final HttpResponse< String > join = who.send( "POST", "/api/collab/" + RUNBOOK + "/join", "{}" );
-        assertTrue( join.statusCode() >= 400, label + " collab join of a hidden page must be refused: " + join.statusCode() + " " + join.body() );
+        assertEquals( collabRefusal, join.statusCode(), label + " collab join of a hidden page: " + join.body() );
         assertNoPrivateText( label + " collab join", join );
     }
 
@@ -471,7 +467,7 @@ public class PrivateClusterSurfaceIT {
 
         // Anonymous, immediately after the saves.
         final Http anon = new Http();
-        assertHttpSurfacesHide( anon, "[anonymous, at once]" );
+        assertHttpSurfacesHide( anon, "[anonymous, at once]", 401, false );
 
         // The admin sees it all.
         final HttpResponse< String > adminMd = admin.get( "/wiki/" + RUNBOOK + "?format=md", "text/markdown" );
@@ -518,7 +514,7 @@ public class PrivateClusterSurfaceIT {
         awaitControl( "/api/page-graph/snapshot", getOf( anon, "/api/page-graph/snapshot", "application/json" ),
                 b -> b.contains( "\"" + PUBLIC + "\"" ) );
 
-        assertHttpSurfacesHide( anon, "[anonymous, indexed]" );
+        assertHttpSurfacesHide( anon, "[anonymous, indexed]", 401, false );
     }
 
     @Test
@@ -529,6 +525,9 @@ public class PrivateClusterSurfaceIT {
             // Controls on the same surfaces: the PUBLIC page and its cluster are retrievable and listed.
             awaitMcp( "list_pages", mcp, "list_pages", Map.of(), b -> b.contains( PUBLIC ) );
             awaitMcp( "list_clusters", mcp, "list_clusters", Map.of(), b -> b.contains( CONTROL_CLUSTER ) );
+            awaitMcp( "list_metadata_values(cluster)", mcp, "list_metadata_values", Map.of( "field", "cluster" ),
+                    b -> b.contains( CONTROL_CLUSTER ) );
+            awaitMcp( "list_tags", mcp, "list_tags", Map.of(), b -> b.contains( "itsweep" ) );
             awaitMcp( "list_pages_by_filter", mcp, "list_pages_by_filter", Map.of( "cluster", CONTROL_CLUSTER ), b -> b.contains( PUBLIC ) );
             awaitMcp( "retrieve_context", mcp, "retrieve_context", Map.of( "query", PUBLIC_MARKER ), b -> b.contains( PUBLIC ) );
             awaitMcp( "get_briefing", mcp, "get_briefing", Map.of( "clusters", List.of( CONTROL_CLUSTER ), "prompt", PUBLIC_MARKER ),
@@ -550,12 +549,20 @@ public class PrivateClusterSurfaceIT {
             bodies.add( tool( mcp, "list_metadata_values", Map.of( "field", "cluster" ) ) );
             bodies.add( tool( mcp, "get_page_neighbors", Map.of( "slug", RUNBOOK ) ) );
             bodies.add( tool( mcp, "get_page_neighbors", Map.of( "slug", PUBLIC ) ) );
-            bodies.add( tool( mcp, "list_stale_citations", Map.of() ) );
             bodies.add( tool( mcp, "sparql_query", Map.of( "query",
                     "SELECT ?s WHERE { ?s ?p ?o . FILTER(CONTAINS(STR(?s), \"" + RUNBOOK + "\")) }" ) ) );
             for ( final String raw : bodies ) {
                 assertNoPrivateTextOrName( "knowledge MCP", raw );
             }
+            // Cluster and tag enumerations: the private cluster and tag are not offered (the public ones are the controls above).
+            final String clusterList = tool( mcp, "list_clusters", Map.of() );
+            final String clusterValues = tool( mcp, "list_metadata_values", Map.of( "field", "cluster" ) );
+            final String tagList = tool( mcp, "list_tags", Map.of() );
+            for ( final String hidden : List.of( CLUSTER, "it-public" ) ) {
+                assertFalse( clusterList.contains( "\"" + hidden + "\"" ), "list_clusters shows '" + hidden + "': " + clusterList );
+                assertFalse( clusterValues.contains( hidden ), "list_metadata_values(cluster) shows '" + hidden + "': " + clusterValues );
+            }
+            assertFalse( tagList.contains( PRIVATE_TAG ), "list_tags shows the private tag: " + tagList );
             // The briefing quotes public pages in full and the public page links to the runbook in its own body, so
             // the runbook's name alone proves nothing there: look for it as a briefing entry or for its text.
             final String briefing = tool( mcp, "get_briefing", Map.of( "clusters", List.of( CLUSTER ),
@@ -609,7 +616,7 @@ public class PrivateClusterSurfaceIT {
     @Test
     @Order( 5 )
     void aPlainLoggedInUserReachesNoPrivatePage() throws Exception {
-        assertHttpSurfacesHide( plainUser, "[plain user]" );
+        assertHttpSurfacesHide( plainUser, "[plain user]", PLAIN_COLLAB_REFUSAL, true );
 
         // Surfaces that need a login.
         assertNoPrivateTextOrName( "/api/me/pages", plainUser.get( "/api/me/pages", "application/json" ) );
@@ -617,10 +624,19 @@ public class PrivateClusterSurfaceIT {
                 "text", "Notes on ItPrivateRunbook, the Private runbook, and the Private hub.", "page", "" ) ) );
         assertNoPrivateTextOrName( "/api/mentions/scan", mentions );
         for ( final String path : List.of( "/api/export/options", "/api/export/preview?cluster=" + CLUSTER,
-                "/api/export/preview?cluster=it-public&hops=2", "/api/export/preview?tag=itsweep&hops=2" ) ) {
+                "/api/export/preview?cluster=it-public&hops=2", "/api/export/preview?tag=" + PRIVATE_TAG + "&hops=2",
+                "/api/export/preview?tag=itsweep&hops=2" ) ) {
+            // export is granted to every logged-in user (V060), so anything but 200 would make this check vacuous
             final HttpResponse< String > export = plainUser.get( path, "application/json" );
-            assertTrue( export.statusCode() == 200 || export.statusCode() == 403, path + " answered " + export.statusCode() + ": " + export.body() );
+            assertEquals( 200, export.statusCode(), path + ": " + export.body() );
             assertNoPrivateTextOrName( path, export );
+        }
+        // The pickers: no cluster or tag that only hidden pages carry, and the public ones as the control.
+        final String options = plainUser.get( "/api/export/options", "application/json" ).body();
+        assertTrue( options.contains( "\"" + CONTROL_CLUSTER + "\"" ) && options.contains( "\"itsweep\"" ),
+                "control: the export pickers offer the public cluster and tag: " + options );
+        for ( final String hidden : List.of( CLUSTER, "it-public", PRIVATE_TAG ) ) {
+            assertFalse( options.contains( "\"" + hidden + "\"" ), "the export pickers offer '" + hidden + "': " + options );
         }
         // The same MCP, as the plain user's identity, is the guest's: see anonymousReachesNoPrivatePageThroughTheKnowledgeMcp.
     }
@@ -642,6 +658,9 @@ public class PrivateClusterSurfaceIT {
                 b -> b.contains( RUNBOOK ) );
         awaitControl( "/api/structure/clusters for a viewer", getOf( viewerUser, "/api/structure/clusters", "application/json" ),
                 b -> b.contains( "\"" + CLUSTER + "\"" ) );
+        final String viewerOptions = viewerUser.get( "/api/export/options", "application/json" ).body();
+        assertTrue( viewerOptions.contains( "\"" + CLUSTER + "\"" ) && viewerOptions.contains( "\"" + PRIVATE_TAG + "\"" ),
+                "a viewer's export pickers do offer the private cluster and tag: " + viewerOptions );
         // A plain user still sees none of it (the viewers grant is the group's, not the wiki's).
         assertEquals( 404, plainUser.get( "/wiki/" + RUNBOOK + "?format=md", "text/markdown" ).statusCode() );
     }

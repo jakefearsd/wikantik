@@ -106,6 +106,14 @@ public class PrivateClusterSurfaceIT {
     private static final String PUBLIC = "ItPublicPage";
     private static final String CONTROL_HUB = "ItControlHub";
     private static final String TRANSCLUDER = "ItPublicTransclude";
+    /** A PUBLIC hub, and its public member, of a cluster the private runbook also joins (third entry of its list). */
+    private static final String SHARED_HUB = "ItSharedHub";
+    private static final String SHARED_SIBLING = "ItSharedSibling";
+    private static final String SHARED_CLUSTER = "it-shared";
+    /** A public page full of page-listing and page-reading plugins. */
+    private static final String PLUGINS = "ItPublicPlugins";
+    /** What a markdown {@code IfPlugin} (it cannot carry a body there) renders when its condition holds. */
+    private static final String IF_HELD = "Plugin insertion failed";
     private static final String PRIVATE_MARKER = "zzprivmarker192";
     private static final String PUBLIC_MARKER = "zzpubmarker192";
     /** Only the private hub's body carries this, so a hub quoted anywhere is recognised even without its name. */
@@ -131,6 +139,8 @@ public class PrivateClusterSurfaceIT {
 
     private static String baseUrl;
     private static String runbookCanonicalId;
+    private static String sharedHubCanonicalId;
+    private static String sharedSiblingCanonicalId;
     private static Http plainUser;
     private static Http viewerUser;
 
@@ -210,15 +220,33 @@ public class PrivateClusterSurfaceIT {
 
     /** Seeds the private hub and runbook, the public control pages, the attachment and the transcluding page. */
     private static void seed( final Http admin ) throws Exception {
-        put( admin, HUB, "---\ntype: hub\ncluster: " + CLUSTER + "\ntags: [" + PRIVATE_TAG + "]\nsummary: private hub\n---\n"
+        put( admin, HUB, "---\ntype: hub\ncluster: " + CLUSTER + "\ntags: [" + PRIVATE_TAG + "]\nsummary: private hub\n"
+                + "related: [" + RUNBOOK + "]\n---\n"
                 + "# Private hub\n\nHub " + HUB_MARKER + ". Members: [" + RUNBOOK + "](" + RUNBOOK + ")\n" );
-        put( admin, RUNBOOK, "---\ncluster: [it-public, " + CLUSTER + "]\ntags: [" + PRIVATE_TAG + "]\nsummary: private runbook\n---\n"
+        // The title is the slug, so a surface that quotes the runbook's title is caught by the name check.
+        put( admin, RUNBOOK, "---\ntitle: " + RUNBOOK + "\ncluster: [it-public, " + CLUSTER + ", " + SHARED_CLUSTER + "]\ntags: ["
+                + PRIVATE_TAG + "]\nsummary: private runbook\n---\n"
                 + "# Private runbook\n\nThe secret " + PRIVATE_MARKER + " lives here. Back to [" + PUBLIC + "](" + PUBLIC + ").\n" );
-        put( admin, CONTROL_HUB, "---\ntype: hub\ncluster: " + CONTROL_CLUSTER + "\ntags: [itsweep]\nsummary: public control hub\n---\n"
+        put( admin, CONTROL_HUB, "---\ntype: hub\ncluster: " + CONTROL_CLUSTER + "\ntags: [itsweep]\nsummary: public control hub\n"
+                + "related: [" + PUBLIC + "]\n---\n"
                 + "# Control hub\n\nMembers: [" + PUBLIC + "](" + PUBLIC + ")\n" );
         put( admin, PUBLIC, "---\ncluster: " + CONTROL_CLUSTER + "\ntags: [itsweep]\nsummary: public sweep page\n---\n"
                 + "# Public page\n\nPublic " + PUBLIC_MARKER + " text. See [" + RUNBOOK + "](" + RUNBOOK + ").\n" );
         put( admin, TRANSCLUDER, "# Transcluder\n\nEmbed: ![[" + RUNBOOK + "]]\n\n[{InsertPage page='" + RUNBOOK + "'}]\n" );
+        // A generic hub summary, so the for-agent projection synthesizes one from the hub's preferred pages' titles.
+        put( admin, SHARED_HUB, "---\ntype: hub\ncluster: " + SHARED_CLUSTER + "\ntags: [itsweep]\n"
+                + "summary: Index of pages on shared sweep things.\n---\n# Shared hub\n\nThe shared hub.\n" );
+        put( admin, SHARED_SIBLING, "---\ntitle: " + SHARED_SIBLING + "\ncluster: " + SHARED_CLUSTER + "\ntags: [itsweep]\n"
+                + "summary: public shared sibling\n---\n# Shared sibling\n\nShared sibling text.\n" );
+        // Each listing or page-reading plugin, with its public control beside it. (A markdown IfPlugin cannot hold a
+        // body, so what it shows when its condition holds is IF_HELD.)
+        put( admin, PLUGINS, "# Public plugins\n\nIndex: [{IndexPlugin include='It.*'}]\n\n"
+                + "Referring: [{ReferringPagesPlugin page='" + PUBLIC + "'}]\n\n"
+                + "Unused: [{UnusedPagesPlugin include='It*'}]\n\n"
+                + "Probe: [{IfPlugin page='" + RUNBOOK + "' contains='zzpriv'}]\n\n"
+                + "Control probe: [{IfPlugin page='" + PUBLIC + "' contains='zzpub'}]\n\n"
+                + "Hub set: [{HubSetPlugin hub='" + HUB + "'}]\n\n"
+                + "Control hub set: [{HubSetPlugin hub='" + CONTROL_HUB + "'}]\n" );
         final HttpResponse< String > up = admin.upload( "/api/attachments/" + RUNBOOK, ATTACHMENT,
                 "attachment " + PRIVATE_MARKER );
         assertTrue( up.statusCode() / 100 == 2, "attachment upload: " + up.statusCode() + " " + up.body() );
@@ -267,7 +295,13 @@ public class PrivateClusterSurfaceIT {
                 .replace( "![[" + RUNBOOK + "]]", "" )
                 // the PUBLIC pages' own bodies as plain text (recent-articles excerpts, search snippets)
                 .replace( "See " + RUNBOOK + ".", "" ).replace( "Embed: " + RUNBOOK, "" )
-                .replaceAll( "InsertPage page(?:=|\\\\u003d)(?:'|\\\\u0027)" + RUNBOOK + "(?:'|\\\\u0027)", "" );
+                .replaceAll( "InsertPage page(?:=|\\\\u003d)(?:'|\\\\u0027)" + RUNBOOK + "(?:'|\\\\u0027)", "" )
+                // the PLUGINS page's own source: the plugin calls that name the private pages they probe
+                .replaceAll( "IfPlugin page(?:=|\\\\u003d)(?:'|\\\\u0027)" + RUNBOOK + "(?:'|\\\\u0027)", "" )
+                .replaceAll( "HubSetPlugin hub(?:=|\\\\u003d)(?:'|\\\\u0027)" + HUB + "(?:'|\\\\u0027)", "" )
+                // HubSet's refusal repeats the hub it was asked for, word for word as for a hub that does not exist
+                .replaceAll( "Hub (?:'|\\\\u0027|&#39;|\\\\u0026#39;|&apos;)" + HUB
+                        + "(?:'|\\\\u0027|&#39;|\\\\u0026#39;|&apos;) does not exist", "" );
         if ( runbookCanonicalId != null ) {
             // a refusal that repeats the id it was asked for: the request, not the page
             stripped = stripped.replace( "no page for canonical_id " + runbookCanonicalId, "" )
@@ -455,6 +489,103 @@ public class PrivateClusterSurfaceIT {
         assertNoPrivateText( label + " collab join", join );
     }
 
+    /** The rendered HTML of a page as {@code GET /api/pages/{name}?render=true} returns it (not the raw source). */
+    private static String renderedHtml( final Http who, final String page ) throws Exception {
+        final HttpResponse< String > r = who.get( "/api/pages/" + page + "?render=true", "application/json" );
+        assertEquals( 200, r.statusCode(), page + " render: " + r.body() );
+        final JsonElement html = JsonParser.parseString( r.body() ).getAsJsonObject().get( "contentHtml" );
+        assertTrue( html != null && !html.isJsonNull(), page + " render carries contentHtml: " + r.body() );
+        return html.getAsString();
+    }
+
+    /** How a hub's JSON-LD {@code hasPart} names a member. */
+    private static String hasPartName( final String slug ) {
+        return "\"@type\":\"Article\",\"name\":\"" + slug + "\"";
+    }
+
+    private static int occurrences( final String haystack, final String needle ) {
+        int n = 0;
+        for ( int i = haystack.indexOf( needle ); i >= 0; i = haystack.indexOf( needle, i + needle.length() ) ) {
+            n++;
+        }
+        return n;
+    }
+
+    private static int memberCountOf( final String pageJson ) {
+        return JsonParser.parseString( pageJson ).getAsJsonObject().getAsJsonObject( "cluster_status" )
+                .get( "member_count" ).getAsInt();
+    }
+
+    private static int articleCountOf( final String clustersJson, final String cluster ) {
+        for ( final JsonElement c : JsonParser.parseString( clustersJson ).getAsJsonObject().getAsJsonObject( "data" )
+                .getAsJsonArray( "clusters" ) ) {
+            if ( cluster.equals( c.getAsJsonObject().get( "name" ).getAsString() ) ) {
+                return c.getAsJsonObject().get( "article_count" ).getAsInt();
+            }
+        }
+        fail( "cluster '" + cluster + "' is not listed: " + clustersJson );
+        return -1;
+    }
+
+    /**
+     * Pages that are public but whose content is drawn from OTHER pages: a public hub whose cluster the private runbook
+     * also joins (its JSON-LD hasPart, its member count, the for-agent projections of it and of its public member) and a
+     * page of listing and page-reading plugins. Each absence is judged next to its positive control, the public page on
+     * the same surface. Run once the structural index holds the shared cluster.
+     */
+    private static void assertSharedClusterAndPluginsHide( final Http who, final String label, final boolean signedIn )
+            throws Exception {
+        // --- the public hub of a cluster the private runbook also joins
+        final HttpResponse< String > hubHtml = who.get( "/wiki/" + SHARED_HUB, "text/html" );
+        assertEquals( 200, hubHtml.statusCode(), label + " SSR of the shared hub" );
+        assertTrue( hubHtml.body().contains( "\"hasPart\"" ) && hubHtml.body().contains( hasPartName( SHARED_SIBLING ) ),
+                label + " control: the hub's hasPart names its public member: " + hubHtml.body() );
+        assertNoPrivateTextOrName( label + " SSR of the shared hub (head and body)", hubHtml );
+        if ( signedIn ) {
+            assertEquals( "private, no-store", hubHtml.headers().firstValue( "Cache-Control" ).orElse( "" ),
+                    label + " a signed-in caller's copy of a per-viewer page is never stored" );
+        } else {
+            assertTrue( hubHtml.headers().firstValue( "ETag" ).orElse( "" ).endsWith( "-a\"" ),
+                    label + " the anonymous copy keeps a validator of its own: " + hubHtml.headers().map() );
+        }
+        final HttpResponse< String > hubApi = who.get( "/api/pages/" + SHARED_HUB, "application/json" );
+        assertEquals( 200, hubApi.statusCode(), hubApi.body() );
+        assertNoPrivateTextOrName( label + " /api/pages of the shared hub", hubApi );
+        // The cluster's members are the hub itself, its public member and (hidden here) the private runbook.
+        assertEquals( 2, memberCountOf( hubApi.body() ), label + " the hub counts only the members the caller may view: "
+                + hubApi.body() );
+        assertEquals( 2, articleCountOf( who.get( "/api/structure/clusters", "application/json" ).body(), SHARED_CLUSTER ),
+                label + " the shared cluster is listed, counting only the members the caller may view" );
+
+        // --- for-agent projections of the public hub and its public member (prefer_pages, synthesized hub summary)
+        final HttpResponse< String > siblingAgent = who.get( "/api/pages/for-agent/" + sharedSiblingCanonicalId, "application/json" );
+        assertEquals( 200, siblingAgent.statusCode(), siblingAgent.body() );
+        assertTrue( siblingAgent.body().contains( sharedHubCanonicalId ),
+                label + " control: the member's projection prefers its public hub: " + siblingAgent.body() );
+        assertNoPrivateTextOrName( label + " for-agent of the shared member", siblingAgent );
+        final HttpResponse< String > hubAgent = who.get( "/api/pages/for-agent/" + sharedHubCanonicalId, "application/json" );
+        assertEquals( 200, hubAgent.statusCode(), hubAgent.body() );
+        assertTrue( hubAgent.body().contains( sharedSiblingCanonicalId ) && hubAgent.body().contains( "Highest-signal pages: " + SHARED_SIBLING ),
+                label + " control: the hub's projection prefers, and its summary quotes, the public member: " + hubAgent.body() );
+        assertNoPrivateTextOrName( label + " for-agent of the shared hub", hubAgent );
+
+        // --- the page of listing and page-reading plugins, server-rendered and through the API
+        final HttpResponse< String > pluginsHtml = who.get( "/wiki/" + PLUGINS, "text/html" );
+        assertEquals( 200, pluginsHtml.statusCode(), label + " SSR of the plugins page" );
+        assertNoPrivateTextOrName( label + " SSR of the plugins page", pluginsHtml );
+        final String rendered = renderedHtml( who, PLUGINS );
+        assertNoPrivateTextOrName( label + " render of the plugins page", rendered );
+        assertTrue( rendered.contains( "/wiki/" + PUBLIC ) && rendered.contains( "/wiki/" + CONTROL_HUB )
+                        && rendered.contains( "/wiki/" + SHARED_SIBLING ),
+                label + " control: the listings name the public pages: " + rendered );
+        assertEquals( 1, occurrences( rendered, IF_HELD ),
+                label + " only the control IfPlugin holds; the probe of the private page must read as false: " + rendered );
+        if ( signedIn ) {
+            assertEquals( "private, no-store", pluginsHtml.headers().firstValue( "Cache-Control" ).orElse( "" ),
+                    label + " the plugins page is per viewer" );
+        }
+    }
+
     // ------------------------------------------------------------------ tests
 
     @Test
@@ -464,6 +595,8 @@ public class PrivateClusterSurfaceIT {
         seed( admin );
         createCallers( admin );
         runbookCanonicalId = canonicalIdOf( admin, RUNBOOK );
+        sharedHubCanonicalId = canonicalIdOf( admin, SHARED_HUB );
+        sharedSiblingCanonicalId = canonicalIdOf( admin, SHARED_SIBLING );
 
         // Anonymous, immediately after the saves.
         final Http anon = new Http();
@@ -515,6 +648,12 @@ public class PrivateClusterSurfaceIT {
                 b -> b.contains( "\"" + PUBLIC + "\"" ) );
 
         assertHttpSurfacesHide( anon, "[anonymous, indexed]", 401, false );
+
+        awaitIndexed( admin, SHARED_HUB );
+        awaitIndexed( admin, SHARED_SIBLING );
+        awaitControl( "hasPart of the shared hub", getOf( anon, "/wiki/" + SHARED_HUB, "text/html" ),
+                b -> b.contains( hasPartName( SHARED_SIBLING ) ) );
+        assertSharedClusterAndPluginsHide( anon, "[anonymous, indexed]", false );
     }
 
     @Test
@@ -539,6 +678,15 @@ public class PrivateClusterSurfaceIT {
             bodies.add( tool( mcp, "get_page", Map.of( "slug", HUB ) ) );
             bodies.add( tool( mcp, "read_pages", Map.of( "slugs", List.of( RUNBOOK, HUB ) ) ) );
             bodies.add( tool( mcp, "get_page_for_agent", Map.of( "canonical_id", runbookCanonicalId ) ) );
+            // The public hub and member of a cluster the runbook also joins: their projections hold no trace of it.
+            final String siblingProjection = tool( mcp, "get_page_for_agent", Map.of( "canonical_id", sharedSiblingCanonicalId ) );
+            assertTrue( siblingProjection.contains( sharedHubCanonicalId ),
+                    "control: the member's projection prefers its public hub: " + siblingProjection );
+            final String hubProjection = tool( mcp, "get_page_for_agent", Map.of( "canonical_id", sharedHubCanonicalId ) );
+            assertTrue( hubProjection.contains( sharedSiblingCanonicalId ),
+                    "control: the hub's projection prefers its public member: " + hubProjection );
+            bodies.add( siblingProjection );
+            bodies.add( hubProjection );
             bodies.add( tool( mcp, "get_page_by_id", Map.of( "canonical_id", runbookCanonicalId ) ) );
             bodies.add( tool( mcp, "retrieve_context", Map.of( "query", PRIVATE_MARKER ) ) );
             bodies.add( tool( mcp, "assemble_bundle", Map.of( "query", PRIVATE_MARKER ) ) );
@@ -617,6 +765,7 @@ public class PrivateClusterSurfaceIT {
     @Order( 5 )
     void aPlainLoggedInUserReachesNoPrivatePage() throws Exception {
         assertHttpSurfacesHide( plainUser, "[plain user]", PLAIN_COLLAB_REFUSAL, true );
+        assertSharedClusterAndPluginsHide( plainUser, "[plain user]", true );
 
         // Surfaces that need a login.
         assertNoPrivateTextOrName( "/api/me/pages", plainUser.get( "/api/me/pages", "application/json" ) );
@@ -661,6 +810,25 @@ public class PrivateClusterSurfaceIT {
         final String viewerOptions = viewerUser.get( "/api/export/options", "application/json" ).body();
         assertTrue( viewerOptions.contains( "\"" + CLUSTER + "\"" ) && viewerOptions.contains( "\"" + PRIVATE_TAG + "\"" ),
                 "a viewer's export pickers do offer the private cluster and tag: " + viewerOptions );
+        // The surfaces drawn from other pages do name the private page for a viewer: the absences above were filters.
+        final HttpResponse< String > hubHtml = viewerUser.get( "/wiki/" + SHARED_HUB, "text/html" );
+        assertTrue( hubHtml.body().contains( hasPartName( RUNBOOK ) ), "a viewer's hasPart names the private member" );
+        assertEquals( 3, memberCountOf( viewerUser.get( "/api/pages/" + SHARED_HUB, "application/json" ).body() ),
+                "a viewer's member count includes the private member" );
+        assertEquals( 3, articleCountOf( viewerUser.get( "/api/structure/clusters", "application/json" ).body(), SHARED_CLUSTER ) );
+        final String hubAgent = viewerUser.get( "/api/pages/for-agent/" + sharedHubCanonicalId, "application/json" ).body();
+        assertTrue( hubAgent.contains( runbookCanonicalId ) && hubAgent.contains( RUNBOOK ),
+                "a viewer's projection of the shared hub prefers, and quotes, the private member: " + hubAgent );
+        final String viewerPlugins = renderedHtml( viewerUser, PLUGINS );
+        assertTrue( viewerPlugins.contains( "/wiki/" + RUNBOOK ) && viewerPlugins.contains( "/wiki/" + HUB ),
+                "a viewer's listings name the private pages: " + viewerPlugins );
+        assertEquals( 2, occurrences( viewerPlugins, IF_HELD ), "a viewer's probe of the private page holds: " + viewerPlugins );
+        // ...and the viewer's renders were not kept for anyone else.
+        final Http anonAfter = new Http();
+        assertNoPrivateTextOrName( "plugins page render after a viewer's", renderedHtml( anonAfter, PLUGINS ) );
+        assertNoPrivateTextOrName( "plugins page SSR after a viewer's", anonAfter.get( "/wiki/" + PLUGINS, "text/html" ) );
+        assertNoPrivateTextOrName( "shared hub SSR after a viewer's", anonAfter.get( "/wiki/" + SHARED_HUB, "text/html" ) );
+
         // A plain user still sees none of it (the viewers grant is the group's, not the wiki's).
         assertEquals( 404, plainUser.get( "/wiki/" + RUNBOOK + "?format=md", "text/markdown" ).statusCode() );
     }

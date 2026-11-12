@@ -293,6 +293,38 @@ class PageResourceTest {
         assertTrue( status.has( "member_count" ), "member_count must always be present: " + status );
     }
 
+    /** A hub's member count covers the members the caller may view, like every other cluster count. */
+    @Test
+    void clusterStatusCountsOnlyMembersTheCallerMayView() throws Exception {
+        engine.saveText( "RestCountHub", "---\ntype: hub\ncluster: rest-count-demo\n---\nHub body." );
+        engine.saveText( "RestCountOpenA", "---\ncluster: rest-count-demo\n---\nA." );
+        engine.saveText( "RestCountOpenB", "---\ncluster: rest-count-demo\n---\nB." );
+        engine.saveText( "RestCountSecret", "---\ncluster: rest-count-demo\n---\n[{ALLOW view Admin}]\nSecret." );
+        final java.util.function.Function< String, com.wikantik.api.pagegraph.PageDescriptor > d = slug ->
+                new com.wikantik.api.pagegraph.PageDescriptor( "01COUNT" + slug, slug, slug,
+                        com.wikantik.api.pagegraph.PageType.ARTICLE, "rest-count-demo", List.of(), null,
+                        java.time.Instant.now(), false );
+        final com.wikantik.api.pagegraph.StructuralIndexService idx =
+                Mockito.mock( com.wikantik.api.pagegraph.StructuralIndexService.class );
+        Mockito.doReturn( java.util.Optional.of( new com.wikantik.api.pagegraph.ClusterDetails( "rest-count-demo",
+                d.apply( "RestCountHub" ), List.of( d.apply( "RestCountOpenA" ), d.apply( "RestCountOpenB" ),
+                d.apply( "RestCountSecret" ) ), Map.of(), java.time.Instant.now() ) ) )
+                .when( idx ).getCluster( "rest-count-demo" );
+        final WikiSubsystems real = servlet.getSubsystems();
+        final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pageGraph =
+                Mockito.mock( com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services.class );
+        Mockito.doReturn( idx ).when( pageGraph ).structuralIndexService();
+        final PageResource indexAware = Mockito.spy( servlet );
+        Mockito.doReturn( new WikiSubsystems( real.core(), real.persistence(), real.auth(), real.page(),
+                real.rendering(), real.search(), real.knowledge(), pageGraph ) ).when( indexAware ).getSubsystems();
+
+        final JsonObject asGuest = gson.fromJson( doGetAnonymouslyWith( indexAware, "RestCountHub" ), JsonObject.class )
+                .getAsJsonObject( "cluster_status" );
+        assertEquals( "RestCountHub", asGuest.get( "hub_slug" ).getAsString(), asGuest.toString() );
+        assertEquals( 2, asGuest.get( "member_count" ).getAsInt(),
+                "the guest's count must leave out the member they may not view: " + asGuest );
+    }
+
     /**
      * ClusterDeclarationDesign Phase 5: a page may name several clusters. The first is the
      * primary and keeps driving placement, so {@code path} must not change meaning; the rest

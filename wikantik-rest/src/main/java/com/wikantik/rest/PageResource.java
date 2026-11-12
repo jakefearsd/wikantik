@@ -20,8 +20,10 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.ClusterPath;
 import com.wikantik.api.pagegraph.ClusterStatus;
+import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 
 import com.wikantik.api.core.Context;
@@ -122,7 +124,7 @@ public class PageResource extends RestServletBase {
      *  <p>Never throws: a structural index that is absent or still warming degrades to the
      *  declared path with no hub, which the UI renders as an undeclared cluster.</p>
      */
-    private JsonObject clusterStatusJson( final Map< String, Object > metadata ) {
+    private JsonObject clusterStatusJson( final HttpServletRequest request, final Map< String, Object > metadata ) {
         // Phase 5: `cluster:` is a scalar or a list. The FIRST entry is the primary and keeps
         // driving placement — breadcrumbs, sidebar, JSON-LD — so `path` never changes meaning.
         final List< String > memberships =
@@ -130,7 +132,7 @@ public class PageResource extends RestServletBase {
         if ( memberships.isEmpty() ) {
             return null;
         }
-        final ClusterStatus status = resolveCluster( memberships.get( 0 ) );
+        final ClusterStatus status = resolveCluster( request, memberships.get( 0 ), true );
 
         final JsonObject out = new JsonObject();
         out.addProperty( "path", status.path() );
@@ -144,7 +146,7 @@ public class PageResource extends RestServletBase {
         if ( memberships.size() > 1 ) {
             final JsonArray all = new JsonArray();
             for ( final String path : memberships ) {
-                final ClusterStatus each = resolveCluster( path );
+                final ClusterStatus each = resolveCluster( request, path, false );
                 final JsonObject entry = new JsonObject();
                 entry.addProperty( "path", each.path() );
                 entry.addProperty( "hub_slug", each.hubSlug() );
@@ -161,15 +163,40 @@ public class PageResource extends RestServletBase {
      *  status when the index is unavailable — a warming or absent index must leave the page
      *  renderable rather than failing the whole payload.
      */
-    private ClusterStatus resolveCluster( final String cluster ) {
+    private ClusterStatus resolveCluster( final HttpServletRequest request, final String cluster,
+                                          final boolean countMembers ) {
         try {
             final StructuralIndexService idx = getSubsystems().pageGraph().structuralIndexService();
-            return ClusterStatus.of( cluster, idx == null ? null : idx.getCluster( cluster ).orElse( null ) );
+            final ClusterDetails details = idx == null ? null : idx.getCluster( cluster ).orElse( null );
+            return ClusterStatus.of( cluster, details == null ? null : asSeenBy( request, details, countMembers ) );
         } catch ( final RuntimeException e ) {
             LOG.warn( "cluster_status: structural index unavailable for cluster '{}': {}",
                       cluster, e.getMessage() );
             return ClusterStatus.of( cluster, null );
         }
+    }
+
+    /**
+     *  The cluster as the caller sees it: a hub they may not view is absent and, when {@code countMembers}, only the
+     *  members they may view are counted (as on every other cluster count). Secondary memberships report no count,
+     *  so they cost one check, for the hub.
+     */
+    private ClusterDetails asSeenBy( final HttpServletRequest request, final ClusterDetails details,
+                                     final boolean countMembers ) {
+        final List< String > names = new ArrayList<>();
+        if ( details.hubPage() != null ) {
+            names.add( details.hubPage().slug() );
+        }
+        if ( countMembers ) {
+            details.articles().forEach( a -> names.add( a.slug() ) );
+        }
+        final java.util.Set< String > viewable = filterViewable( request, names );
+        final PageDescriptor hub = details.hubPage() != null && viewable.contains( details.hubPage().slug() )
+                ? details.hubPage() : null;
+        final List< PageDescriptor > articles = countMembers
+                ? details.articles().stream().filter( a -> viewable.contains( a.slug() ) ).toList()
+                : details.articles();
+        return new ClusterDetails( details.name(), hub, articles, details.tagDistribution(), details.updatedAt() );
     }
 
     @Override
@@ -369,7 +396,7 @@ public class PageResource extends RestServletBase {
         permissions.put( "delete", hasPagePermission( request, pageName, "delete" ) );
         result.put( "permissions", permissions );
 
-        final JsonObject clusterStatus = clusterStatusJson( parsed.metadata() );
+        final JsonObject clusterStatus = clusterStatusJson( request, parsed.metadata() );
         if ( clusterStatus != null ) {
             result.put( "cluster_status", clusterStatus );
         }

@@ -91,8 +91,8 @@ export default function SearchResultsPage() {
     setMore({ key: null, results: [], cursor: undefined, busy: false, failed: false });
   }
 
-  // Set document title via hook — keeps the "Wikantik: " prefix consistent.
-  const searchTitle = tag ? `Pages tagged #${tag}` : query ? `Search results for ${query}` : 'Search';
+  // Set document title via hook — keeps the " - Wikantik" suffix consistent.
+  const searchTitle = tag ? `Pages tagged #${tag}` : query ? `Search: ${query}` : 'Search';
   useDocumentTitle(searchTitle);
 
   if (!query && !tag) {

@@ -440,9 +440,9 @@ export default function PageView() {
   };
 
   // Sync document.title with current page via hook. Integration tests assert
-  // titles like "Wikantik: Main" so keep the format stable.
+  // titles like "Main - Wikantik" (the server's format) so keep it stable.
   // Pass "Not Found" for 404s, the page name once loaded, or nothing while loading.
-  const titleArg = error?.status === 404 ? 'Not Found' : (page ? name : null);
+  const titleArg = error?.status === 404 ? 'Not Found' : (page ? (page.metadata?.title || name) : null);
   useDocumentTitle(titleArg);
 
   // Record this page in the per-user recently-viewed ring buffer (localStorage).

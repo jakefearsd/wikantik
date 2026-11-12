@@ -919,7 +919,7 @@ export default function PageEditor({ collabTransport } = {}) {
   }, [fullText, name, login, saveDraft, clearDraft, loadedContent, collabWanted]);
 
   useEffect(() => {
-    document.title = `Wikantik: ${isNew ? 'Create' : 'Edit'} ${name}`;
+    document.title = `${isNew ? 'Create' : 'Edit'} ${name} - Wikantik`;
   }, [name, isNew]);
 
   useEffect(() => {

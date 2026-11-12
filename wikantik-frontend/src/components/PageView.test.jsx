@@ -183,6 +183,19 @@ describe('PageView comment integration', () => {
     expect(screen.getByTestId('comments-toggle-button')).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
+  it('sets document.title from the frontmatter title in the server format', async () => {
+    api.getPage.mockImplementation(async () => ({
+      ...PAGE, name: 'NoSqlDatabaseTypes', metadata: { title: 'NoSQL Database Types' },
+    }));
+    renderPageView('/wiki/NoSqlDatabaseTypes');
+    await waitFor(() => expect(document.title).toBe('NoSQL Database Types - Wikantik'));
+  }, TEST_TIMEOUT);
+
+  it('falls back to the page name when there is no frontmatter title', async () => {
+    await mountAndSettle();
+    await waitFor(() => expect(document.title).toBe('Foo - Wikantik'));
+  }, TEST_TIMEOUT);
+
   it('hands renderMath the article and a staleness probe that flips on unmount', async () => {
     const { unmount } = await mountAndSettle();
     const call = renderMath.mock.calls.at(-1);

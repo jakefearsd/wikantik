@@ -39,9 +39,10 @@
         font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
         color: #6B6560;
       }
-      #loading-fallback h1 {
+      #loading-fallback .shell-title {
         font-family: 'Playfair Display', Georgia, serif;
         font-size: 2rem;
+        font-weight: 700;
         color: #2D2D2D;
         margin: 0 0 1.5rem 0;
       }
@@ -176,7 +177,7 @@
     <div id="modal-root"></div>
     <div id="root">
       <div id="loading-fallback">
-        <h1>Wikantik</h1>
+        <p class="shell-title">Wikantik</p>
         <div id="loading-spinner"></div>
         <p id="loading-msg">Loading&hellip;</p>
         <div id="loading-error">
@@ -187,8 +188,8 @@
       </div>
     </div>
     <noscript>
-      <div style="text-align:center;padding:4rem 2rem;font-family:'DM Sans',sans-serif;color:#2D2D2D">
-        <h1 style="font-family:'Playfair Display',Georgia,serif">Wikantik</h1>
+      <div id="noscript-notice" style="text-align:center;padding:4rem 2rem;font-family:'DM Sans',sans-serif;color:#2D2D2D">
+        <p class="shell-title" style="font-family:'Playfair Display',Georgia,serif;font-size:2rem;font-weight:700;margin:0 0 1.5rem 0">Wikantik</p>
         <p>JavaScript is required to use Wikantik. Please enable JavaScript in your browser settings.</p>
       </div>
     </noscript>

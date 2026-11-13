@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.17] - 2026-11-13
+
 ### Fixed
 
 - **Similar pages no longer re-rank the whole wiki on every call.** Context retrieval asks for the related pages of every result page, and each ask scored and sorted every page centroid: 44% of all CPU under the soak profile. Each page's ranking is now computed once per centroid snapshot (10 minutes), with the caller's view filter and limit still applied per call. CPU per request fell 41%, mean latency 30% and p95 latency 38% (`loadtest/results/CAMPAIGN-2026-11-13.md`).

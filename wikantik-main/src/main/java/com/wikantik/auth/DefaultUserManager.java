@@ -57,7 +57,6 @@ import java.util.WeakHashMap;
 public class DefaultUserManager implements UserManager {
 
     private static final String USERDATABASE_PACKAGE = "com.wikantik.auth.user";
-    private static final String SESSION_MESSAGES = "profile";
     private static final String PARAM_EMAIL = "email";
     private static final String PARAM_FULLNAME = "fullname";
     private static final String PARAM_PASSWORD = "password";

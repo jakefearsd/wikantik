@@ -178,7 +178,7 @@ final class DirectiveSpelling {
         for ( int i = at - 1; i >= 0 && text.charAt( i ) == '\\'; i-- ) {
             backslashes++;
         }
-        return backslashes % 2 == 1;
+        return ( backslashes & 1 ) == 1;
     }
 
     /** End of the word at {@code from}: up to whitespace, a closing brace, or {@code to}. */

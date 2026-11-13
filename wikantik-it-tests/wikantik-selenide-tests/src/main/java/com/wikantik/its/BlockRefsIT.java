@@ -21,7 +21,6 @@ package com.wikantik.its;
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
-import com.wikantik.its.environment.Env;
 import com.wikantik.pages.spa.EditWikiPage;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.AfterAll;

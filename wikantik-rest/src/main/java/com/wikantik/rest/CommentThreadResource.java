@@ -149,6 +149,7 @@ public class CommentThreadResource extends RestServletBase {
         }
     }
 
+    @Override
     protected void doPatch( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
         final String[] seg = segments( request );

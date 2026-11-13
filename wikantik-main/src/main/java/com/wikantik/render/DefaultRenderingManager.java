@@ -100,7 +100,6 @@ public class DefaultRenderingManager implements RenderingManager {
     private FilterManager filterManager;
     private PageManager pageManager;
     private AttachmentManager attachmentManager;
-    private VariableManager variableManager;
 
     /** If true, all titles will be cleaned. Written during {@code initialize()} on one thread and
      *  read from request-handling threads thereafter; volatile ensures the write is visible without
@@ -151,7 +150,6 @@ public class DefaultRenderingManager implements RenderingManager {
         this.filterManager = filterManager;
         this.pageManager = pageManager;
         this.attachmentManager = attachmentManager;
-        this.variableManager = variableManager;
     }
 
     /** Legacy no-arg constructor used by the SPI loader; delegates to the full constructor. */
@@ -179,7 +177,6 @@ public class DefaultRenderingManager implements RenderingManager {
         this.filterManager = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager();
         this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         this.attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
-        this.variableManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).variableManager();
 
         markupParserClass = properties.getProperty( PROP_PARSER, DEFAULT_PARSER );
         if( !ClassUtil.assignable( markupParserClass, MarkupParser.class.getName() ) ) {

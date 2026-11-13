@@ -22,10 +22,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.search.SearchResult;
 
-import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Read-side seam for {@code LuceneSearchProvider}.

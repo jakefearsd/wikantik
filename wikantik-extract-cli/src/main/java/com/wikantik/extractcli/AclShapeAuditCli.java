@@ -65,7 +65,6 @@ public final class AclShapeAuditCli {
 
     private static final Logger LOG = LogManager.getLogger( AclShapeAuditCli.class );
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final int PAGE_SIZE = 1_000;
     static final long DEFAULT_MIN_INTERVAL_MS = 50;
 
     private AclShapeAuditCli() {

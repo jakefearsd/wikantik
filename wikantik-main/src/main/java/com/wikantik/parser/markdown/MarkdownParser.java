@@ -36,10 +36,8 @@ import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.RenderDepth;
 import com.wikantik.parser.WikiDocument;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.StringReader;
 import java.util.Map;
 
 

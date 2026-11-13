@@ -472,18 +472,25 @@ class ServerFenceResolverHostileInputTest {
 
     // ---- time bounds (ReDoS) -----------------------------------------------------------------------------------------
 
+    /**
+     * The budget is several times what a bounded scan needs even on a loaded build host (the unit reactor runs forked
+     * JVMs on every core, and a one-second budget failed there by a few milliseconds), while an unbounded scan of
+     * the same input takes far longer than this: the inputs are sized so the two cannot be confused.
+     */
+    private static final Duration BOUNDED_SCAN_BUDGET = Duration.ofSeconds( 4 );
+
     private void within( final String name, final String html ) {
         final String marked = html.contains( "data-fence-drawing=\"" ) ? html : "data-fence-drawing=\"x\" " + html;
-        assertTimeoutPreemptively( Duration.ofSeconds( 1 ), () -> {
+        assertTimeoutPreemptively( BOUNDED_SCAN_BUDGET, () -> {
             assertNotNull( resolver( 20 ).resolve( marked ), name );
         }, name + " took too long on a " + marked.length() + "-char input" );
     }
 
     @Test
-    void adversarialFigureTagsResolveInUnderASecond() {
+    void adversarialFigureTagsResolveInBoundedTime() {
         final String t = "data-fence-drawing=\"" + FencePlaceholders.sign( "A -> B\n" ) + "\"";
-        within( "unclosed figure tags with quotes", ( "<figure \"" ).repeat( 12_000 ) );
-        within( "unclosed figure tags with single quotes", ( "<figure '" ).repeat( 12_000 ) );
+        within( "unclosed figure tags with quotes", ( "<figure \"" ).repeat( 30_000 ) );
+        within( "unclosed figure tags with single quotes", ( "<figure '" ).repeat( 30_000 ) );
         within( "one figure, one giant unterminated quote", "<figure " + t + " a=\"" + "x".repeat( 100_000 ) );
         within( "one figure, endless whitespace", "<figure " + t + " ".repeat( 100_000 ) );
         within( "one figure, endless equals signs", "<figure " + t + " a" + "=".repeat( 100_000 ) );
@@ -521,7 +528,7 @@ class ServerFenceResolverHostileInputTest {
     }
 
     @Test
-    void adversarialEnvelopesResolveInUnderASecond() {
+    void adversarialEnvelopesResolveInBoundedTime() {
         final String t = "data-fence-drawing=\"" + FencePlaceholders.sign( "A -> B\n" ) + "\"";
         final String head = "<figure data-fence=\"plantuml\" " + t + ">";
         within( "endless whitespace before pre", head + " ".repeat( 100_000 ) + "<pre" );
@@ -535,10 +542,10 @@ class ServerFenceResolverHostileInputTest {
     }
 
     @Test
-    void adversarialTitlesAndEntitiesResolveInUnderASecond() {
+    void adversarialTitlesAndEntitiesResolveInBoundedTime() {
         final String src = "title " + "a ".repeat( 20_000 ) + "\n" + "&amp;".repeat( 20_000 ) + "&#".repeat( 5_000 ) + "&".repeat( 20_000 );
         final String html = valid( src, 0 );
-        assertTimeoutPreemptively( Duration.ofSeconds( 1 ), () -> {
+        assertTimeoutPreemptively( BOUNDED_SCAN_BUDGET, () -> {
             assertTrue( resolver( 20 ).resolve( html ).contains( "data-fence-state=\"drawn\"" ) );
         } );
         assertEquals( Set.of( src ), drawnSources );

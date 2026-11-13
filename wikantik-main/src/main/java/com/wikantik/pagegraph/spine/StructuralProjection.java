@@ -39,8 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 
 /**
  * Immutable snapshot of the structural projection. Built by {@link StructuralProjectionBuilder}

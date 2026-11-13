@@ -390,7 +390,7 @@ public final class AclDirectives {
         for ( int k = index - 1; k >= floor && text.charAt( k ) == '\\'; k-- ) {
             backslashes++;
         }
-        return backslashes % 2 == 1;
+        return ( backslashes & 1 ) == 1;
     }
 
     /** Index just past the run of {@code ch} that starts at {@code start}, not going beyond {@code limit}. */

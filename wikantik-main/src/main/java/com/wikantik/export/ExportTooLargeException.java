@@ -25,6 +25,8 @@ package com.wikantik.export;
  */
 public final class ExportTooLargeException extends Exception {
 
+    private static final long serialVersionUID = 1L;
+
     private final int count;
     private final int cap;
 

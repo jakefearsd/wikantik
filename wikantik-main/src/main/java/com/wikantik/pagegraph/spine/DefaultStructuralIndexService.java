@@ -22,7 +22,6 @@ import com.github.f4b6a3.ulid.UlidCreator;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
-import com.wikantik.api.markdown.InlineTagSyntax;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.ClusterDetails;
 import com.wikantik.api.pagegraph.ClusterSummary;

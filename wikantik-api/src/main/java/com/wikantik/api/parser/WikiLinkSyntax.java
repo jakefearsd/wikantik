@@ -167,7 +167,7 @@ public final class WikiLinkSyntax {
         while ( pos - n - 1 >= 0 && s.charAt( pos - n - 1 ) == '\\' ) {
             n++;
         }
-        return n % 2 == 1;
+        return ( n & 1 ) == 1;
     }
 
     /**

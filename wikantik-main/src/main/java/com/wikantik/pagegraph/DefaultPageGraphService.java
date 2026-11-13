@@ -59,7 +59,6 @@ public class DefaultPageGraphService implements PageGraphService {
     private static final Logger LOG = LogManager.getLogger( DefaultPageGraphService.class );
     private static final long CACHE_TTL_SECONDS = 60;
 
-    private final StructuralIndexService structural;
     private final ReferenceManager refMgr;
     private final PageManager pageMgr;
     private final PageGraphSnapshotBuilder snapshotBuilder;
@@ -73,7 +72,6 @@ public class DefaultPageGraphService implements PageGraphService {
     public DefaultPageGraphService( final StructuralIndexService structural,
                                      final ReferenceManager refMgr,
                                      final PageManager pageMgr ) {
-        this.structural = structural;
         this.refMgr = refMgr;
         this.pageMgr = pageMgr;
         this.snapshotBuilder = new PageGraphSnapshotBuilder( structural, refMgr );

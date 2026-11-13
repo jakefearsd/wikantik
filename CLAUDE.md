@@ -116,18 +116,6 @@ The account (`testbot`, role `Admin`) lives in the local database. To recreate i
 
 ### Testing Commands
 ```bash
-# Run all tests
-mvn clean test
-
-# Run a specific test class
-mvn test -Dtest=MarkdownRendererTest
-
-# Run a specific test method
-mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
-
-# Debug a test
-mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
-
 # CANONICAL pre-commit gate (~6-8 min warm): Phase 1 runs every unit test once
 # (-T 1C -DskipITs), then the CI static checks (PMD ratchet, npm audit — fails only
 # under --all, the release gate — eslint, vitest --coverage), then Phase 2 runs the
@@ -140,9 +128,6 @@ bin/run-tests.sh --parallel 4
 bin/run-tests.sh --all
 
 # Fallbacks: bin/run-tests.sh (sequential IT phase). Dense module alone: bin/run-tests.sh --module dense
-
-# Run memory profiling test (from wikantik-main module)
-mvn test -Dtest=MemoryProfiling
 ```
 
 ### Local Deployment (Tomcat 11)
@@ -155,49 +140,7 @@ Configuration files (gitignored; templates in `wikantik-war/src/main/config/tomc
 - `tomcat/tomcat-11/lib/wikantik-custom.properties` — wiki settings (page provider, base URL, PostgreSQL JDBC, etc.)
 - `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` — Tomcat context with PostgreSQL JNDI DataSources
 
-#### First-time setup (fresh clone)
-
-```bash
-# 1. Create the database, application role, and full schema in one step
-#    (idempotent — safe to re-run). DB_APP_USER/DB_APP_PASSWORD must match
-#    POSTGRES_USER/POSTGRES_PASSWORD in .env (step 4) or the app can't connect.
-#    --no-migrate-role runs migrations as the superuser (simplest for local dev);
-#    omit it and pass DB_MIGRATE_PASSWORD='…' for a least-privilege migrate role.
-#    The script fails fast if you provide neither.
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
-    DB_APP_PASSWORD='choose-a-real-password' \
-    bin/db/install-fresh.sh --no-migrate-role
-
-# 2. Build the WAR (also builds the React frontend via npm automatically)
-mvn clean install -DskipTests -T 1C
-
-# 3. Bootstrap — downloads Tomcat if absent, copies and patches config templates,
-#    removes stale files, deploys the WAR. deploy-local.sh also runs migrate.sh
-#    so any pending migrations get applied on every redeploy.
-bin/deploy-local.sh
-
-# 4. deploy-local.sh renders ROOT.xml and wikantik-custom.properties from .env —
-#    on the very first run it copies .env.example to .env and exits; edit
-#    POSTGRES_PASSWORD in .env and re-run bin/deploy-local.sh
-
-# 5. Start Tomcat
-tomcat/tomcat-11/bin/startup.sh
-# Access at http://localhost:8080/ — first login: admin / admin123 (a new password is required on first login)
-# React SPA at http://localhost:8080/
-```
-
-#### Applying database migrations manually
-
-`deploy-local.sh` runs `migrate.sh` automatically on every deploy. To run
-migrations by hand (e.g. against production):
-
-```bash
-DB_NAME=wikantik DB_APP_USER=wikantik PGHOST=db.example.com PGUSER=postgres \
-    PGPASSWORD='…' bin/db/migrate.sh
-
-# Check what has been applied
-bin/db/migrate.sh --status
-```
+First-time setup on a fresh clone and running migrations by hand (e.g. against production): use the `local-setup` skill.
 
 #### Adding a schema change
 
@@ -230,9 +173,6 @@ first-time setup, Tomcat upgrades, or anything that touches
 # (~1,990 files without Apache headers). A red run is not a regression to chase.
 mvn apache-rat:check
 
-# Generate Javadocs with UML diagrams
-mvn javadoc:javadoc
-
 # CI-enforced complexity ratchet — fails on any NEW PMD design-rule violation
 # not already in the burn-down baseline build-support/pmd-complexity-baseline.properties
 # (entries only ever come out)
@@ -243,19 +183,7 @@ mvn pmd:check -Pcomplexity-gate
 mvn clean install -Pcoverage -DskipITs
 ```
 
-```bash
-# Full code-health site (coverage/coupling/PMD/CPD/SpotBugs/tests/tech-debt/deps)
-bin/site.sh                 # -> target/staging/index.html
-
-# ONE publish command for everything on www.wikantik.com — the marketing site
-# (docroot root) AND the code-health site (/site subdir). Same host, same
-# docroot, one interactive sudo prompt. Must be run with `!` so the prompt is
-# answerable.
-! bin/deploy-marketing.sh              # both (code-health half skipped + reported if unbuilt)
-! bin/deploy-marketing.sh --build-site # run bin/site.sh first, then publish both
-! bin/deploy-marketing.sh --marketing-only
-! bin/deploy-site.sh                   # thin shim for --site-only
-```
+Code-health site: `bin/site.sh` (-> `target/staging/index.html`). Publishing it and the marketing site to www.wikantik.com is `bin/deploy-marketing.sh` — it prompts for sudo, so it must be run with `!`; flags are in [WikantikOperations](docs/admin/WikantikOperations.md) and [ProjectReference](docs/developer/ProjectReference.md#code-health-site-and-static-analysis).
 
 High test coverage at the line level, above 90% is a goal for this development team,
 and while we recognize it is not a perfect measurement, it is one we choose to pursue.
@@ -322,94 +250,33 @@ The Page Graph is the only graph. The Knowledge Graph was removed; the note belo
 Naming convention: the bare word "graph" is a code smell. Always say
 "Page Graph" (or `pagegraph` in identifiers).
 
-### Core Components
-
-1. **WikiEngine** (`com.wikantik.WikiEngine`): Central orchestrator that manages all subsystems. Singleton per web application that provides access to all manager instances.
-
-2. **WikiContext** (`com.wikantik.WikiContext`): Request-scoped context object that holds current page, user session, and request state. Essential for any operation that needs context about the current request.
-
-3. **WikiSession** (`com.wikantik.WikiSession`): Manages user authentication state and principals. Integrates with JAAS for security.
-
-4. **Manager Classes**: Each major subsystem has a manager interface with a default implementation:
-   - `PageManager` - Page lifecycle and storage
-   - `AttachmentManager` - File attachment handling
-   - `PluginManager` - Plugin loading and execution
-   - `FilterManager` - Content filtering pipeline
-   - `SearchManager` - Search functionality
-   - `RenderingManager` - Wiki markup rendering
-
 ### Module Structure
 
-- **wikantik-bom**: Bill-of-materials POM pinning shared dependency versions
 - **wikantik-api**: Core interfaces and contracts (manager interfaces, frontmatter, page save, retrieval/bundle types, Page Graph interfaces)
 - **wikantik-main**: Main implementation — rendering, providers, auth, search, references, math parser, Obsidian vault importer (`com.wikantik.importer`: zip reader, planner, body rewriter, in-memory job registry; no schema change)
-- **wikantik-event**: Event system for decoupled communication
-- **wikantik-util**: Utility classes and helpers
 - **wikantik-jdbc**: **The one way to touch the database.** `com.wikantik.jdbc.Jdbc` is the only data-access primitive (`JdbcSupport` is the `extends` convenience); `inTransaction` rolls back on any `Throwable`. Enforced by `JdbcAccessArchTest` (J-1; sole carve-out `JDBCPlugin`). Its test-jar ships `PostgresTestDb` (pgvector, all migrations applied — no H2), `@RequiresPostgres`, `FaultInjectingDataSource`. **Adding a repository:** hold a `Jdbc`, write the migration first, test against `PostgresTestDb`; a multi-statement write gets a rollback test. ADR-0010.
-- **wikantik-cache**: EhCache-based caching layer (1-hour TTL for render caches, 10K entry capacity)
 - **wikantik-cache-memcached**: Memcached adapter, **opt-in, not wired into the WAR** (override the `CachingManager` mapping in `classmappings.xml`, set `wikantik.cache.memcached.servers`). Kept for multi-node deployments.
 - **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
 - **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`). Includes the structured-curation surfaces: `/api/frontmatter-schema`, `/api/frontmatter/validate`, and `/admin/embeddings/*` (dense-index status + frontmatter backfill).
 - **wikantik-mcp-core**: Shared MCP substrate — `McpTool`/`McpToolUtils`/`McpAudit`, endpoint bootstrap, the access filter, config. Hosts no tools since the Knowledge Graph removal (its shared `QueryNodesTool`/`SearchKnowledgeTool` were deleted). Extracted in 2.3.0 to break the `wikantik-knowledge → wikantik-admin-mcp` module cycle.
-- **wikantik-coverage-report**: Aggregated JaCoCo cross-module coverage report. Build-time only — produces no runtime artifact.
 - **wikantik-admin-mcp**: Admin MCP at `/wikantik-admin-mcp` — 20 tools: page authoring/inspection, `list_retrieval_queries`, `rename_cluster` (plan unless `confirm=true`), `list_content_opportunities` + `snooze_opportunity`. See `com.wikantik.mcp.McpServerInitializer`.
 - **wikantik-knowledge**: Knowledge MCP at `/knowledge-mcp` — 16 read-only tools when fully wired (retrieval, structural spine, `get_page_neighbors`, `get_page_for_agent`, `read_pages`, `get_ontology`/`sparql_query`, `list_stale_citations`, `get_briefing` — ADR-0011). Ontology query expansion sits behind `wikantik.search.ontologyExpansion.enabled` (default off). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 - **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
-- **wikantik-scim**: SCIM 2.0 provisioning server at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD + discovery (`ServiceProviderConfig`/`Schemas`/`ResourceTypes`) for IdP-driven onboarding/offboarding. User decommission routes through the unified `UserLifecycleService`; Group membership sync routes through `GroupManager`. SCIM Groups never grant the Admin role.
+- **wikantik-scim**: SCIM 2.0 provisioning server at `/scim/v2/*`. SCIM Groups never grant the Admin role. Details in `wikantik-scim/CLAUDE.md`.
 - **wikantik-extract-cli**: Offline CLIs (`ChunkerStatsCli`, `CorpusDivergenceCli`, `GenerateMainPageCli`, `GenerateConfigReferenceCli`, …). Also hosts `IngestDocumentsCli` — the derived-pages batch ingester (an HTTP client over `POST /api/ingest`, walks a folder).
-- **wikantik-ingest**: Tika + flexmark-html2md extraction for **derived pages**, isolating PDFBox/POI from wikantik-main. A page is derived iff its frontmatter has `derived_from`; its body is machine-owned (ADR-0004). Wiki side `com.wikantik.derived.*`; surfaces `POST /api/ingest`, `/admin/derived/{reflow,status}`.
-- **wikantik-plantuml**: Server-side drawing for ` ```plantuml ` fences — shaded MIT build, Ditaa stripped (LGPL), stdlib cut to C4, Smetana layout; sandboxed, time-bounded, SVG scrubbed. `PlantUmlLicenseArchTest` guards the licensing. `plantuml-mit` is **test-scope** in wikantik-main/-rest only and must never become compile scope. Config `wikantik.fences.plantuml.*`.
-- **wikantik-ontology**: RDF/OWL layer (Apache Jena, TDB2) — `wikantik.ttl` T-Box (`Page` + 5 content classes, SKOS), Page/Concept projectors, event-incremental sync (`OntologyEventListener`) with a nightly rebuild backstop. Public read surface `/sparql`, `/id/*`, `/export/*` materializes only anonymously-viewable pages. `SemanticHeadRenderer` takes JSON-LD `@type` from the ontology (`SemanticHeadOntologyAgreementTest`). **Kept by decision (2026-11-09)** after the KG removal.
-- **wikantik-connectors**: Seven connector types syncing into derived pages via `SyncOrchestrator` (`poll()` never throws — load-bearing). Six are admin-creatable (`ConnectorConfigCodec.UI_TYPES`); `filesystem` stays properties-only by design (D9: it reads host paths). Configs live in `connector_configs`, hot-applied without restart; secrets only in the encrypted `connector_credentials`. Kill switch `wikantik.connectors.enabled` (default true). UI `/admin/connectors`; guide `docs/admin/Connectors.md`.
-- **wikantik-insights** (Content Intelligence): search-visibility facts, opportunity rules, effect measurement (`com.wikantik.insights.*`). Depends on neither `wikantik-api` nor `wikantik-main` — page state arrives through the `PageFacts` port. Surfaces `/admin/insights/{acquisition,backlog,ingest}`. The reference implementation of the Simple Agility feedback loop.
-- **wikantik-observability**: Health checks, Prometheus metrics, request correlation
+- **wikantik-ingest**: Tika extraction for **derived pages** (frontmatter has `derived_from`; body is machine-owned, ADR-0004). Details in `wikantik-ingest/CLAUDE.md`.
+- **wikantik-plantuml**: Server-side drawing for ` ```plantuml ` fences. `plantuml-mit` is **test-scope** in wikantik-main/-rest only and must never become compile scope. Details in `wikantik-plantuml/CLAUDE.md`.
+- **wikantik-ontology**: RDF/OWL layer (Apache Jena, TDB2). **Kept by decision (2026-11-09)** after the KG removal. Details in `wikantik-ontology/CLAUDE.md`.
+- **wikantik-connectors**: Connector types syncing into derived pages via `SyncOrchestrator` (`poll()` never throws — load-bearing). Rules in `wikantik-connectors/CLAUDE.md`.
+- **wikantik-insights** (Content Intelligence): depends on neither `wikantik-api` nor `wikantik-main`; the reference implementation of the Simple Agility feedback loop. Details in `wikantik-insights/CLAUDE.md`.
 - **wikantik-frontend**: React SPA (Vite build) — reader, editor, admin panel, Page Graph viewer (the Knowledge Graph UI was removed 2026-11-08)
-- **wikantik-war**: WAR packaging — bundles the React build and wires all servlets/filters
-- **wikantik-wikipages**: Default wiki pages shipped with a fresh install
 - **wikantik-it-tests**: Cargo-launched Tomcat + PostgreSQL/pgvector ITs. Default gate modules: `wikantik-it-test-rest` (REST + Selenide browser, built on the `wikantik-selenide-tests` test-jar), `-sso` (Keycloak OIDC+SAML), `-custom-jdbc`, `-dense` (the only one with embeddings on). Opt-in: `-scim-fullloop` (Authentik).
 
 #### Agent-facing surface summary
 
-| Endpoint | Module | Protocol | Tools | Auth |
-|----------|--------|----------|-------|------|
-| `/wikantik-admin-mcp` | wikantik-admin-mcp | MCP (Streamable HTTP) | 20 write/analytics tools: page authoring + inspection, admin-bypass reads, orphan listing, `list_retrieval_queries`, `rename_cluster`, Content Intelligence `list_content_opportunities`/`snooze_opportunity` | `McpAccessFilter` (`mcp_admin`) |
-| `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 16 read-only tools (see the module entry); `get_page_for_agent` carries `draft_active` | `McpAccessFilter` (`mcp_read`) |
-| `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
-| `/scim/v2/*` | wikantik-scim | SCIM 2.0 | `Users` (CRUD, PATCH active, soft-delete) + `Groups` (CRUD, membership PATCH, hard delete) + discovery | `ScimAccessFilter` (bearer `wikantik.scim.token`) |
-| `/api/*` | wikantik-rest | REST/JSON | 36 servlets (38 url-patterns) in `web.xml` — pages, search, mentions, previews/embeds, Obsidian import/export, fence render, ingest, collab (dark behind `wikantik.collab.enabled`); full list in ProjectReference | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
-| `/admin/*` | wikantik-rest | REST/JSON | 28 servlets (34 url-patterns) — embeddings, collab drafts, audit, ontology, drift, derived, SEO content-date backfill, cluster rename, connectors, insights; full list in ProjectReference | `AdminAuthFilter` (`AllPermission`) |
-| `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public — view ACL **enforced** (WikiPageFormatFilter gates on the caller's session; 404 hides restricted pages) |
-| `/api/changes?since=…` | wikantik-rest | REST/JSON | Incremental change feed for sync pipelines | Public |
-| `/api/bundle?q=…` | wikantik-rest | REST/JSON | RAG-as-a-Service **context bundle** — ranked, de-duplicated, version-pinned-cited sections (NO answer synthesis); dense-chunk source by default. Mirrors the `assemble_bundle` MCP tool | `RestServletBase` (view ACL via the candidate retrieval) |
-| `/api/briefing?pins=…&clusters=…&prompt=…&format=md\|json` | wikantik-rest | REST/JSON + markdown | Session-start context briefing (members → cited → elsewhere); `briefing_log` telemetry. Mirrors `get_briefing` | `RestServletBase` (view ACL, as `/api/bundle`) |
-| `/sparql`, `/id/{type}/{id}`, `/export/*.ttl\|.nt` | wikantik-rest | RDF (SPARQL/JSON-LD/Turtle/N-Triples) | Public read-only ontology: SPARQL query, per-resource dereferencing, full dumps | Public, read-only, permissive CORS — **public/restricted ACL split** (only anonymously-viewable pages are materialized, so restricted content cannot be queried) |
-
-### Key Design Patterns
-
-1. **Provider Pattern**: Storage abstraction through provider interfaces
-   - `PageProvider` for page storage (FileSystem, Versioning)
-   - `AttachmentProvider` for attachment storage
-   - `SearchProvider` for pluggable search engines
-
-2. **Event-Driven Architecture**: WikiEvent system enables loose coupling
-   - Components communicate through events
-   - Listeners can react to page changes, user actions, etc.
-
-3. **Command Pattern**: UI actions modeled as commands
-   - URL-to-command mapping via CommandResolver
-   - Clean separation of UI actions from business logic
-
-4. **Plugin Architecture**: Extensible through multiple mechanisms
-   - Plugins for dynamic content generation
-   - Filters for content pre/post-processing
-   - Custom editors, templates, and providers
+The endpoint/module/protocol/auth table for every agent-facing surface (`/wikantik-admin-mcp`, `/knowledge-mcp`, `/tools/*`, `/scim/v2/*`, `/api/*`, `/admin/*`, `/wiki/{slug}?format=`, `/api/changes`, `/api/bundle`, `/api/briefing`, `/sparql`) is in [ProjectReference](docs/developer/ProjectReference.md#agent-facing-surface-summary).
 
 ### Rendering Pipeline
-
-1. **Parser**: `MarkdownParser` converts Markdown to Flexmark AST.
-2. **Filters**: Pre/post-processing of content
-3. **Plugins**: Dynamic content insertion via `[{Plugin}]` syntax (auto-normalized to `[{Plugin}]()` for Flexmark)
-4. **Renderer**: `MarkdownRenderer` produces HTML via Flexmark.
 
 - **Rendered fences** (` ```mermaid `, ` ```plantuml `; the `example` modifier keeps either as code): `com.wikantik.markdown.extensions.fences`, validated server- and client-side against one fixture (`wikantik-frontend/src/utils/__fixtures__/renderedFences.json`); unsafe sources show as source plus reason. Mermaid draws in the browser. PlantUML is server-drawn: a signed placeholder that `ServerFenceResolver` splices **once, at the outermost `textToHTML`**, so render caches never hold drawings. New renderer: see the `RenderedFenceRenderer` Javadoc. Corpus checkers: `bin/check-plantuml.sh`, `check-mermaid.mjs`.
 
@@ -443,15 +310,6 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - Overrides: `wikantik-custom.properties` (container lib or WEB-INF), cascade files, `-D` system properties. Precedence is documented in the generated reference.
 - Security policy: `policy_grants` table (database-backed) or `WEB-INF/wikantik.policy` (file-based fallback). Schema: `bin/db/migrations/V*.sql` only.
 
-### Extension Points
-
-When implementing new features, consider these extension mechanisms:
-- **Plugins**: For new wiki markup tags
-- **Filters**: For content processing
-- **Providers**: For custom storage backends
-- **Modules**: For larger feature additions
-- **Templates**: For UI customization
-
 ### Active Design Documents
 
 Read the linked design doc before touching the relevant subsystem. Detailed "what shipped" status for
@@ -474,10 +332,6 @@ each is recorded in [docs/developer/ProjectReference.md](docs/developer/ProjectR
 
 ### Testing Approach
 
-- Unit tests use JUnit 5
-- Integration tests use Selenide for browser automation
-- Test utilities in `com.wikantik.TestEngine`
-- Mock implementations available for most components
 - **Database tests**: `@RequiresPostgres` + `PostgresTestDb.createDataSource()`; call `PostgresTestDb.truncate(…)` in `@BeforeEach` (the container is shared — never `DROP`/`ALTER`). Test rollbacks with `FaultInjectingDataSource`. Never hand-write `CREATE TABLE`; write the migration.
 
 ### Critical: Integration Test Parallelism
@@ -565,13 +419,7 @@ false retry and a duplicate save. SPARQL needs `PREFIX wk: <https://wiki.wikanti
 `SELECT` returns `sparql-results-json` (`results.bindings`).
 
 ### Formatting LaTeX Math
-When writing LaTeX formulas in Wikantik:
-- **Inline Math**: Use `$math$` syntax with NO SPACES inside the boundary dollars (e.g. `$x$`, not `$ x $`) — the inline math parser requires content that doesn't start or end with a space, so a spaced form falls back to plain text instead of `<span class="math-inline">`. The rule is Pandoc's
-  (`InlineMathRule`, mirrored by the frontend `inlineMath.js`): a closing `$` followed by a digit is not math
-  (write `$\times$ 6`, not `$\times$6`), and `\$` inside a formula is a literal dollar sign (`$c = \$1.00$`).
-- **Block Math**: You MUST wrap `$$ ... $$` with blank lines before and after, and never wrap the block in `<div>` or `<center>` tags — either bypasses the markdown parser's block-math conversion (the `.math-display` class never gets assigned) and KaTeX silently ignores it. If you place `$$` adjacent to text without blank lines, the markdown parser will treat it as a standard paragraph. This causes two critical rendering defects:
-  1. HTML escaping breaks the operators (`=` becomes `&#61;`).
-  2. The parser's attribute extension will silently swallow bracketed letters (e.g., `\mathbb{E}` becomes `\mathbb`), destroying the formula.
+The inline (`$x$`, no inner spaces) and block (`$$` on its own, blank lines around it) rules live in the `wiki-content` skill — load it before writing formulas into a page.
 
 ## Agent skills
 

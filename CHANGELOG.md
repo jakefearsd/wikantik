@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Similar pages no longer re-rank the whole wiki on every call.** Context retrieval asks for the related pages of every result page, and each ask scored and sorted every page centroid: 44% of all CPU under the soak profile. Each page's ranking is now computed once per centroid snapshot (10 minutes), with the caller's view filter and limit still applied per call. CPU per request fell 41%, mean latency 30% and p95 latency 38% (`loadtest/results/CAMPAIGN-2026-11-13.md`).
+- **Scans over a page body are linear.** Link, citation, plugin and tag scans on the save and read paths no longer rescan the body once per unclosed `[`, which cost about 2 s per scan at 40 KB and minutes at the 256 KB page cap.
+- **The load-test harness targets the requested host and really writes.** A `BASE_URL` or `--base-url` from the caller now wins over `loadtest/loadtest.env`. The write scenario uses the current admin MCP argument names (`slug`, `slugs`) and valid display math, and its checks fail a batch write or delete that refused a page. Before, the scenario saved nothing while every check passed.
+
+### Changed
+
+- The generated front page declares a title and summary, carries one `<h1>`, and no longer links the private home-lab hub.
+
 ## [2.5.16] - 2026-11-12
 
 ### Added

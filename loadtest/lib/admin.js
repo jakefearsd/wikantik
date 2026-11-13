@@ -225,8 +225,11 @@ export function adminClusterRenamePlan(cfg) {
 /** Flush a render cache — a real operator action, and it forces re-render work. */
 export function adminCacheFlush(cfg) {
   const headers = { ...adminHeaders(cfg), 'Content-Type': 'application/json' };
-  const res = http.post(`${cfg.baseUrl}/admin/content/cache/flush?cache=documentCache`,
-    null, { headers, tags: { surface: 'admin_cache_flush' }, responseCallback: EXPECTED });
+  // The handler reads the cache name from a JSON body (a query parameter is ignored and a
+  // null body is rejected as malformed JSON); wikantik.renderingCache is the document cache.
+  const res = http.post(`${cfg.baseUrl}/admin/content/cache/flush`,
+    JSON.stringify({ cache: 'wikantik.renderingCache' }),
+    { headers, tags: { surface: 'admin_cache_flush' }, responseCallback: EXPECTED });
   check(res, { 'cache flush not 5xx': (r) => r.status < 500 });
   return res;
 }

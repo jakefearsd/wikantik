@@ -7,6 +7,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import { pick } from './slugs.js';
+import { mcpToolOk, MATH_BODIES, MATH_BAD } from './mcp-result.js';
 
 const SEARCH_TERMS = [
   'logistics', 'optimization', 'algorithm', 'monitoring', 'latency',
@@ -86,16 +87,8 @@ export function login(cfg) {
   return res;
 }
 
-// Math-bearing bodies so the save path exercises MathValidationPageFilter (the
-// new save-time LaTeX validator runs on every write). Mostly valid display
-// math; a minority is malformed so the refusal/422 path is profiled too.
-const MATH_BODIES = [
-  'Queue length: $$\nL_q = \\frac{\\lambda^2 E[S^2]}{2(1 - \\rho)}\n$$\nwith spaced inline $\\rho$ term.',
-  'Posterior: $$\np(\\theta \\mid D) = \\frac{p(D \\mid \\theta)\\,p(\\theta)}{p(D)}\n$$\nnormalised.',
-  'Matrix form: $$\n\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}\n$$\nis invertible when $ad \\ne bc$.',
-];
-// Deliberately malformed (inline-glued display) — exercises the 422 refusal path.
-const MATH_BAD = 'Broken inline:$$\\frac{a}{b}$$glued to prose.';
+// Math-bearing bodies (MATH_BODIES, MATH_BAD) live in ./mcp-result.js so node can test them: the save path
+// exercises MathValidationPageFilter on every write, and a minority is malformed so the refusal path is profiled too.
 
 /**
  * Authenticated create -> edit -> delete cycle on a scoped LoadTest page.
@@ -143,6 +136,8 @@ const KG_TERMS = [
   'distributed', 'failure', 'queue', 'gradient', 'bayesian',
 ];
 const mcpSessions = {}; // keyed by `${vu}@${path}` -> Mcp-Session-Id
+
+// mcpToolOk lives in ./mcp-result.js (unit-tested): it also fails a batch write/delete that refused a page.
 
 function mcpInit(cfg, vu, path) {
   const endpoint = path || '/wikantik-admin-mcp';
@@ -207,7 +202,7 @@ export function knowledgeAgentFlow(cfg, vu, slugs) {
     JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params }),
     { headers: hdr, tags: { surface },
       responseCallback: http.expectedStatuses({ min: 200, max: 499 }) });
-  check(res, { 'knowledge-mcp reached app': (r2) => r2.status !== 0 });
+  check(res, { 'knowledge-mcp tool succeeded': mcpToolOk });
   return res;
 }
 
@@ -222,9 +217,9 @@ export function mcpAgentFlow(cfg, vu, slug) {
   const r = Math.random();
   let params;
   if (r < 0.5) {
-    params = { name: 'read_page', arguments: { pageName: slug } };
+    params = { name: 'read_page', arguments: { slug } };
   } else if (r < 0.85) {
-    params = { name: 'get_backlinks', arguments: { pageName: slug } };
+    params = { name: 'get_backlinks', arguments: { slug } };
   } else {
     params = { name: 'get_wiki_stats', arguments: {} };
   }
@@ -232,7 +227,7 @@ export function mcpAgentFlow(cfg, vu, slug) {
     JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params }),
     { headers: hdr, tags: { surface: 'mcp_tool' },
       responseCallback: http.expectedStatuses({ min: 200, max: 499 }) });
-  check(res, { 'mcp tool reached app': (r2) => r2.status !== 0 });
+  check(res, { 'mcp tool succeeded': mcpToolOk });
   return res;
 }
 
@@ -255,16 +250,17 @@ export function mcpWriteCycle(cfg, vu, iter) {
     { headers: hdr, tags: { surface }, responseCallback: expected });
 
   const create = toolCall({ name: 'write_pages',
-    arguments: { pages: [{ pageName: name, content: `---\ntitle: Load ${name}\n---\n\n${body}\n` }] } },
+    arguments: { pages: [{ slug: name, content: `---\ntitle: Load ${name}\n---\n\n${body}\n` }] } },
     'write_mcp');
-  check(create, { 'mcp write reached app': (r) => r.status !== 0 });
+  check(create, { 'mcp write succeeded': mcpToolOk });
 
   if (iter % 10 === 3) {
     toolCall({ name: 'write_pages',
-      arguments: { pages: [{ pageName: `${name}-bad`, content: `---\ntitle: t\n---\n\n${MATH_BAD}\n` }] } },
+      arguments: { pages: [{ slug: `${name}-bad`, content: `---\ntitle: t\n---\n\n${MATH_BAD}\n` }] } },
       'write_mcp_reject');
   }
-  toolCall({ name: 'delete_pages', arguments: { pageNames: [name], confirm: true } }, 'write_mcp');
+  const del = toolCall({ name: 'delete_pages', arguments: { slugs: [name], confirm: true } }, 'write_mcp');
+  check(del, { 'mcp delete succeeded': mcpToolOk });
 }
 
 /** GET /wiki/{slug}?format=md — the raw RAG-ingestion content surface. */

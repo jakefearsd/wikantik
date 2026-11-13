@@ -130,6 +130,16 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Set up Node.js (load-harness tests)
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'   # loadtest/lib is ESM .js with no package.json: relies on 22's module detection
+
+      - name: Load-harness unit tests
+        # The k6-free helpers under loadtest/lib (metrics parsing, the MCP-reply check, the write bodies). The
+        # write check passing falsely is how the harness wrote nothing for weeks while every check was green.
+        run: node --test loadtest/*.test.mjs
+
       - name: Markdown relative links
         # Docs moved into docs/{user,admin,developer,archive} on 2026-10-05; this keeps them linked.
         run: python3 bin/check-md-links.py

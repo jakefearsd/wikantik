@@ -63,9 +63,17 @@ if ! command -v k6 >/dev/null 2>&1; then
   exit 2
 fi
 
-# Load credentials: loadtest.env first, then test.properties for admin creds.
-[[ -f "${LOADTEST_DIR}/loadtest.env" ]] && set -a && \
-  . "${LOADTEST_DIR}/loadtest.env" && set +a
+# Load settings: loadtest.env first, then test.properties for admin creds.
+# The caller's exported environment wins over loadtest.env — the file only
+# fills in what the caller left unset, so `BASE_URL=… bin/loadtest.sh` (and
+# bin/profile-iteration.sh --base-url) really target that host. Exporting a
+# variable empty (e.g. K6_PROMETHEUS_RW_SERVER_URL=) switches it off.
+LOADTEST_ENV_FILE="${LOADTEST_ENV_FILE:-${LOADTEST_DIR}/loadtest.env}"
+if [[ -f "${LOADTEST_ENV_FILE}" ]]; then
+  CALLER_ENV="$(export -p)"
+  set -a; . "${LOADTEST_ENV_FILE}"; set +a
+  eval "${CALLER_ENV}"
+fi
 if [[ -f "${REPO_ROOT}/test.properties" ]]; then
   : "${LOADTEST_ADMIN_USER:=$(grep -E '^test.user.login=' "${REPO_ROOT}/test.properties" | cut -d= -f2-)}"
   : "${LOADTEST_ADMIN_PASS:=$(grep -E '^test.user.password=' "${REPO_ROOT}/test.properties" | cut -d= -f2-)}"

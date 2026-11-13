@@ -100,6 +100,9 @@ typing cadence (a real editor adds its long-poll, so budget about 2 requests/s p
 
 ## Tests
 
-The Prometheus-text parser is unit-tested:
+The k6-free helpers are unit-tested (CI runs these in the `shell-tests` job): the Prometheus-text
+parser, and `lib/mcp-result.js` — the MCP-reply check (`mcpToolOk`, which also fails a batch
+write/delete that refused a page) and the math write bodies, which must keep display math isolated
+or the server refuses every write:
 
-    node --test loadtest/metrics-parse.test.mjs
+    node --test loadtest/*.test.mjs

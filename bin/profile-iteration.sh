@@ -39,14 +39,14 @@ usage() { sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//; $d'
 [[ "${1:-}" == "-h" || "${1:-}" == "--help" || -z "${1:-}" ]] && { usage; exit 0; }
 
 LABEL="$1"; shift
-DURATION=3m VUS=40 ADMIN_VUS=10 WRITE_VUS=0 BASE_URL="" NO_LOAD=0
+DURATION=3m VUS=40 ADMIN_VUS=10 WRITE_VUS=0 CLI_BASE_URL="" NO_LOAD=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --duration)  DURATION="$2"; shift 2 ;;
     --vus)       VUS="$2"; shift 2 ;;
     --admin-vus) ADMIN_VUS="$2"; shift 2 ;;
     --write-vus) WRITE_VUS="$2"; shift 2 ;;
-    --base-url)  BASE_URL="$2"; shift 2 ;;
+    --base-url)  CLI_BASE_URL="$2"; shift 2 ;;
     --no-load)   NO_LOAD=1; shift ;;
     -h|--help)   usage; exit 0 ;;
     *) echo "ERROR: unknown option '$1'" >&2; exit 2 ;;
@@ -56,8 +56,16 @@ done
 OUT_DIR="${REPO_ROOT}/loadtest/results/${LABEL}"
 mkdir -p "${OUT_DIR}"
 
-# Credentials (same precedence as bin/loadtest.sh).
-[[ -f "${REPO_ROOT}/loadtest/loadtest.env" ]] && { set -a; . "${REPO_ROOT}/loadtest/loadtest.env"; set +a; }
+# Settings (same precedence as bin/loadtest.sh): the caller's exported
+# environment wins over loadtest.env, and --base-url wins over both — so the
+# JFR recording and the k6 load always target the same host.
+LOADTEST_ENV_FILE="${LOADTEST_ENV_FILE:-${REPO_ROOT}/loadtest/loadtest.env}"
+if [[ -f "${LOADTEST_ENV_FILE}" ]]; then
+  CALLER_ENV="$(export -p)"
+  set -a; . "${LOADTEST_ENV_FILE}"; set +a
+  eval "${CALLER_ENV}"
+fi
+[[ -n "${CLI_BASE_URL}" ]] && BASE_URL="${CLI_BASE_URL}"
 if [[ -f "${REPO_ROOT}/test.properties" ]]; then
   : "${LOADTEST_ADMIN_USER:=$(grep -E '^test.user.login=' "${REPO_ROOT}/test.properties" | cut -d= -f2-)}"
   : "${LOADTEST_ADMIN_PASS:=$(grep -E '^test.user.password=' "${REPO_ROOT}/test.properties" | cut -d= -f2-)}"

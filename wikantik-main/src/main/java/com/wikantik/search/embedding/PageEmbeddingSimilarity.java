@@ -23,6 +23,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 
@@ -33,8 +35,12 @@ import java.util.function.Predicate;
  * not touch the Knowledge Graph.
  *
  * <p>The centroid map is cached for {@link #CACHE_TTL}; with ~1.5k pages at 1024 dimensions it is a
- * few MB, and a query is one dot product per page. An empty load (no embeddings yet) or a failed load
- * is retried after {@link #RETRY_TTL}, and a failed refresh keeps serving the previous centroids.
+ * few MB. Each page's ranking (its top {@link #MAX_CANDIDATES_EXAMINED} neighbours) is computed on
+ * first use and memoised in that snapshot, because it depends only on the page and the centroids:
+ * context retrieval asks for every result page on every request, and re-scoring the whole corpus each
+ * time was 44% of all CPU in the 2026-11-13 soak profile. The caller's {@code accept} filter and
+ * {@code limit} still apply per call. An empty load (no embeddings yet) or a failed load is retried
+ * after {@link #RETRY_TTL}, and a failed refresh keeps serving the previous centroids.
  */
 public class PageEmbeddingSimilarity {
 
@@ -50,11 +56,20 @@ public class PageEmbeddingSimilarity {
     /** A page name with its cosine similarity to the query page. */
     public record ScoredPage( String name, double score ) {}
 
-    /** Centroids plus when they were loaded and how long they stay fresh. */
-    private record Snapshot( Map< String, float[] > centroids, long loadedAtNanos, long ttlNanos ) {}
+    /**
+     * Centroids plus when they were loaded and how long they stay fresh, and the per-page rankings
+     * memoised against exactly these centroids (dropped with the snapshot on refresh).
+     */
+    private record Snapshot( Map< String, float[] > centroids, long loadedAtNanos, long ttlNanos,
+                             Map< String, List< ScoredPage > > rankings ) {
+        Snapshot( final Map< String, float[] > centroids, final long loadedAtNanos, final long ttlNanos ) {
+            this( centroids, loadedAtNanos, ttlNanos, new ConcurrentHashMap<>() );
+        }
+    }
 
     private final PageCentroidLoader loader;
     private final LongSupplier nanoClock;
+    private final AtomicLong rankingsComputed = new AtomicLong();
     private volatile Snapshot snapshot;
 
     public PageEmbeddingSimilarity( final DataSource dataSource, final String modelCode ) {
@@ -72,7 +87,7 @@ public class PageEmbeddingSimilarity {
 
     /** True iff at least one page has an embedded chunk for the active model. */
     public boolean isReady() {
-        return !centroids().isEmpty();
+        return !current().centroids().isEmpty();
     }
 
     /**
@@ -83,38 +98,43 @@ public class PageEmbeddingSimilarity {
      */
     public List< ScoredPage > similarTo( final String pageName, final int limit, final Predicate< String > accept ) {
         if ( pageName == null || pageName.isBlank() || limit <= 0 ) return List.of();
-        final Map< String, float[] > centroids = centroids();
-        final float[] query = centroids.get( pageName );
+        final Snapshot snap = current();
+        final float[] query = snap.centroids().get( pageName );
         if ( query == null ) return List.of();
 
-        final List< ScoredPage > ranked = new ArrayList<>( centroids.size() );
-        for ( final Map.Entry< String, float[] > e : centroids.entrySet() ) {
-            if ( e.getKey().equals( pageName ) || e.getValue().length != query.length ) continue;
-            ranked.add( new ScoredPage( e.getKey(), PageCentroidLoader.dot( query, e.getValue() ) ) );
-        }
-        ranked.sort( ( a, b ) -> Double.compare( b.score(), a.score() ) );
-
-        final List< ScoredPage > out = new ArrayList<>( limit );
-        final int examinable = Math.min( ranked.size(), MAX_CANDIDATES_EXAMINED );
-        for ( int i = 0; i < examinable && out.size() < limit; i++ ) {
+        final List< ScoredPage > ranked = snap.rankings().computeIfAbsent( pageName,
+            name -> rank( name, query, snap.centroids() ) );
+        final List< ScoredPage > out = new ArrayList<>( Math.min( limit, ranked.size() ) );
+        for ( int i = 0; i < ranked.size() && out.size() < limit; i++ ) {
             final ScoredPage candidate = ranked.get( i );
             if ( accept == null || accept.test( candidate.name() ) ) out.add( candidate );
         }
         return out;
     }
 
-    /**
-     * Returns the cached centroids, reloading when stale. A successful non-empty load is kept for
-     * {@link #CACHE_TTL}; an empty or failed load is remembered for {@link #RETRY_TTL} so a burst of
-     * page views cannot turn into a full scan per request. A failed refresh keeps serving the last
-     * good centroids rather than blanking the panel.
-     */
-    private Map< String, float[] > centroids() {
+    /** The query page's top {@link #MAX_CANDIDATES_EXAMINED} neighbours by centroid cosine, best first. */
+    private List< ScoredPage > rank( final String pageName, final float[] query, final Map< String, float[] > centroids ) {
+        rankingsComputed.incrementAndGet();
+        final List< ScoredPage > ranked = new ArrayList<>( centroids.size() );
+        for ( final Map.Entry< String, float[] > e : centroids.entrySet() ) {
+            if ( e.getKey().equals( pageName ) || e.getValue().length != query.length ) continue;
+            ranked.add( new ScoredPage( e.getKey(), PageCentroidLoader.dot( query, e.getValue() ) ) );
+        }
+        ranked.sort( ( a, b ) -> Double.compare( b.score(), a.score() ) );
+        return List.copyOf( ranked.subList( 0, Math.min( ranked.size(), MAX_CANDIDATES_EXAMINED ) ) );
+    }
+
+    /** Test seam: how many full rankings have been computed. */
+    long rankingsComputed() {
+        return rankingsComputed.get();
+    }
+
+    private Snapshot current() {
         final Snapshot current = snapshot;
-        if ( isFresh( current ) ) return current.centroids();
+        if ( isFresh( current ) ) return current;
         synchronized ( this ) {
             final Snapshot recheck = snapshot;
-            if ( isFresh( recheck ) ) return recheck.centroids();
+            if ( isFresh( recheck ) ) return recheck;
             final long now = nanoClock.getAsLong();
             final Map< String, float[] > loaded = loader.load();
             final Snapshot next;
@@ -127,7 +147,7 @@ public class PageEmbeddingSimilarity {
                 next = new Snapshot( loaded, now, CACHE_TTL.toNanos() );
             }
             snapshot = next;
-            return next.centroids();
+            return next;
         }
     }
 

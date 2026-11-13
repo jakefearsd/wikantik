@@ -196,6 +196,35 @@ class PageEmbeddingSimilarityTest {
     }
 
     @Test
+    void rankingIsComputedOncePerPagePerSnapshotWhileTheFilterStaysPerCall() {
+        // The 2026-11-13 soak profile: retrieve_context/bundle call similarTo once per result page per
+        // request, and re-scoring every centroid each time was 44% of all CPU. The ranking depends only
+        // on (page, snapshot), so it is memoised; the caller's filter and limit still apply per call.
+        chunk( "Alpha", 0, 1f, 0f, 0f, 0f );
+        chunk( "Beta", 0, 1f, 0.1f, 0f, 0f );
+        chunk( "Gamma", 0, 1f, 0.5f, 0f, 0f );
+        chunk( "Delta", 0, 1f, 1f, 0f, 0f );
+
+        assertEquals( List.of( "Beta", "Gamma" ),
+            similarity.similarTo( "Alpha", 2, name -> true ).stream().map( ScoredPage::name ).toList() );
+        assertEquals( List.of( "Gamma", "Delta" ),
+            similarity.similarTo( "Alpha", 2, name -> !name.equals( "Beta" ) ).stream().map( ScoredPage::name ).toList(),
+            "a different caller filter over the memoised ranking" );
+        assertEquals( List.of( "Beta" ),
+            similarity.similarTo( "Alpha", 1, name -> true ).stream().map( ScoredPage::name ).toList() );
+        assertEquals( 1, similarity.rankingsComputed(), "Alpha is ranked once, however many callers ask" );
+
+        similarity.similarTo( "Beta", 5, name -> true );
+        assertEquals( 2, similarity.rankingsComputed(), "each page gets its own ranking" );
+
+        clock.addAndGet( PageEmbeddingSimilarity.CACHE_TTL.toNanos() + 1 );
+        chunk( "Epsilon", 0, 1f, 0f, 0f, 0f );   // identical direction to Alpha: must now rank first
+        assertEquals( "Epsilon", similarity.similarTo( "Alpha", 1, name -> true ).get( 0 ).name(),
+            "a refreshed snapshot drops the old rankings" );
+        assertEquals( 3, similarity.rankingsComputed() );
+    }
+
+    @Test
     void databaseFailureDegradesToNoSuggestions() {
         chunk( "Alpha", 0, 1f, 0f, 0f, 0f );
         chunk( "Beta", 0, 1f, 0f, 0f, 0f );

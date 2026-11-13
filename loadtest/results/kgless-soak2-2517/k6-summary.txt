@@ -1,0 +1,88 @@
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✓ 'p(95)<2000' p(95)=20.52ms
+
+    http_req_failed
+    ✓ 'rate<0.10' rate=0.33%
+
+    verify_failures
+    ✓ 'count==0' count=0
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 186017  51.650886/s
+    checks_succeeded...: 100.00% 186017 out of 186017
+    checks_failed......: 0.00%   0 out of 186017
+
+    ✓ page view 200/404
+    ✓ raw 200/404
+    ✓ changes 200
+    ✓ search 200
+    ✓ mcp reached app
+    ✓ tools reached app
+    ✓ mcp tool succeeded
+    ✓ knowledge-mcp tool succeeded
+    ✓ mcp write succeeded
+    ✓ mcp delete succeeded
+    ✓ admin_groups_list not 5xx
+    ✓ admin_policy_list not 5xx
+    ✓ admin_drift_trend not 5xx
+    ✓ apikey create not 5xx
+    ✓ admin_insights_acq not 5xx
+    ✓ admin_apikeys_list not 5xx
+    ✓ admin dashboard burst not 5xx
+    ✓ admin_broken_links not 5xx
+    ✓ admin_derived_status not 5xx
+    ✓ admin_page_ownership not 5xx
+    ✓ admin_connectors_list not 5xx
+    ✓ admin_users_list not 5xx
+    ✓ cluster rename plan not 5xx
+    ✓ admin_pagegraph_conflicts not 5xx
+    ✓ admin_audit_list not 5xx
+    ✓ admin_retrieval_quality not 5xx
+    ✓ admin_llm_activity not 5xx
+    ✓ admin_orphaned_pages not 5xx
+    ✓ admin_content_stats not 5xx
+    ✓ admin_drift_status not 5xx
+    ✓ cache flush not 5xx
+    ✓ admin_insights_backlog not 5xx
+    ✓ admin_audit_verify not 5xx
+    ✓ admin_embed_status not 5xx
+    ✓ admin_no_fm not 5xx
+    ✓ admin_drift_pages not 5xx
+    ✓ policy create not 5xx
+    ✓ admin_audit_filtered not 5xx
+    ✓ admin_overview not 5xx
+    ✓ admin_index_status not 5xx
+    ✓ admin_drift_summary not 5xx
+    ✓ admin_frontmatter_issues not 5xx
+    ✓ admin_chunk_outliers not 5xx
+    ✓ admin_ontology_status not 5xx
+    ✓ admin_verification not 5xx
+    ✓ admin_agent_grade_audit not 5xx
+
+    CUSTOM
+    verify_failures................: 0      0/s
+
+    HTTP
+    http_req_duration..............: avg=6.57ms min=146.18µs med=2.02ms max=726.94ms p(90)=13.83ms p(95)=20.52ms
+      { expected_response:true }...: avg=6.59ms min=146.18µs med=2.04ms max=726.94ms p(90)=13.86ms p(95)=20.55ms
+    http_req_failed................: 0.33%  688 out of 205433
+    http_reqs......................: 205433 57.042079/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.02s  min=501.04ms med=1.01s  max=2.21s    p(90)=1.42s   p(95)=1.47s  
+    iterations.....................: 182423 50.652948/s
+    vus............................: 10     min=10            max=52
+    vus_max........................: 52     min=52            max=52
+
+    NETWORK
+    data_received..................: 3.2 GB 881 kB/s
+    data_sent......................: 43 MB  12 kB/s
+
+
+
+

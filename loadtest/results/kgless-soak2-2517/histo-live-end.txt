@@ -1,0 +1,65 @@
+3697253:
+ num     #instances         #bytes  class name (module)
+-------------------------------------------------------
+   1:        417172      124836336  [B (java.base@25.0.4)
+   2:        157234       10062976  java.util.concurrent.ConcurrentHashMap (java.base@25.0.4)
+   3:        407536        9780864  java.lang.String (java.base@25.0.4)
+   4:         52701        8864464  [Ljava.util.concurrent.ConcurrentHashMap$Node; (java.base@25.0.4)
+   5:        252953        8094496  java.util.concurrent.ConcurrentHashMap$Node (java.base@25.0.4)
+   6:        312883        7509192  java.util.LinkedList$Node (java.base@25.0.4)
+   7:        155981        4991392  java.util.LinkedList (java.base@25.0.4)
+   8:          1267        4920832  [F (java.base@25.0.4)
+   9:         51964        4572832  org.apache.catalina.session.StandardSession
+  10:        155977        3743448  java.util.Collections$SynchronizedSet (java.base@25.0.4)
+  11:        155934        3742416  javax.security.auth.Subject$SecureSet (java.base@25.0.4)
+  12:        155897        3741528  com.wikantik.auth.WikiPrincipal
+  13:          2504        3702552  [Ljdk.internal.vm.FillerElement; (java.base@25.0.4)
+  14:         51978        2910768  com.wikantik.WikiSession
+  15:           749        2727216  [J (java.base@25.0.4)
+  16:          1273        2620712  [C (java.base@25.0.4)
+  17:         19083        2427000  java.lang.Class (java.base@25.0.4)
+  18:         53181        2127240  java.util.WeakHashMap$Entry (java.base@25.0.4)
+  19:         21148        2071576  [Ljava.lang.Object; (java.base@25.0.4)
+  20:         60190        1926080  java.util.HashMap$Node (java.base@25.0.4)
+  21:         51978        1663296  javax.security.auth.Subject (java.base@25.0.4)
+  22:         59474        1427376  java.util.ArrayList (java.base@25.0.4)
+  23:         16058        1278376  [Ljava.util.HashMap$Node; (java.base@25.0.4)
+  24:         52103        1250472  java.beans.PropertyChangeSupport (java.desktop@25.0.4)
+  25:         40200         964800  com.wikantik.search.embedding.PageEmbeddingSimilarity$ScoredPage
+  26:          9128         935544  [I (java.base@25.0.4)
+  27:         21467         858680  java.util.LinkedHashMap$Entry (java.base@25.0.4)
+  28:         52103         833648  java.beans.PropertyChangeSupport$PropertyChangeListenerMap (java.desktop@25.0.4)
+  29:         51964         831424  org.apache.catalina.session.StandardSessionFacade
+  30:         10370         663680  java.util.LinkedHashMap (java.base@25.0.4)
+  31:          6391         562408  java.lang.reflect.Method (java.base@25.0.4)
+  32:           163         540720  [Ljava.util.WeakHashMap$Entry; (java.base@25.0.4)
+  33:         13106         524240  java.util.TreeMap$Entry (java.base@25.0.4)
+  34:         15623         499936  com.github.benmanes.caffeine.cache.PSMS
+  35:          8227         394896  java.util.HashMap (java.base@25.0.4)
+  36:         14074         337776  org.apache.catalina.loader.ResourceEntry
+  37:          6645         318960  java.lang.invoke.MemberName (java.base@25.0.4)
+  38:         18520         296320  java.lang.Object (java.base@25.0.4)
+  39:          9222         221328  java.util.ImmutableCollections$List12 (java.base@25.0.4)
+  40:          4620         184800  java.lang.invoke.MethodType (java.base@25.0.4)
+  41:          5595         179040  com.wikantik.auth.permissions.PagePermission
+  42:          2948         165088  org.postgresql.core.Field
+  43:          2400         153600  org.ehcache.impl.internal.store.heap.holders.SimpleOnHeapValueHolder
+  44:          4620         147840  jdk.internal.util.WeakReferenceKey (java.base@25.0.4)
+  45:          5347         147568  [Ljava.lang.Class; (java.base@25.0.4)
+  46:          4229         135328  org.apache.jena.tdb2.store.NodeId
+  47:          5585         134040  com.wikantik.auth.permissions.PermissionFactory$CacheKey
+  48:          2789         133872  java.util.TreeMap (java.base@25.0.4)
+  49:          2385         133560  com.wikantik.WikiPage
+  50:          8014         128224  java.util.jar.Attributes (java.base@25.0.4)
+  51:          2579         124560  [Ljava.lang.String; (java.base@25.0.4)
+  52:          2456         117888  org.apache.tomcat.util.buf.ByteChunk
+  53:          4764         114336  java.lang.invoke.ResolvedMethodName (java.base@25.0.4)
+  54:          2838         113520  java.lang.invoke.DirectMethodHandle (java.base@25.0.4)
+  55:          2348         112704  org.apache.tomcat.util.buf.CharChunk
+  56:          2011         112616  java.nio.HeapByteBufferR (java.base@25.0.4)
+  57:          2312         110976  org.apache.tomcat.util.buf.MessageBytes
+  58:           586          98560  [Z (java.base@25.0.4)
+  59:           176          93328  [Ljava.nio.ByteBuffer; (java.base@25.0.4)
+  60:          2287          91480  jdk.internal.util.SoftReferenceKey (java.base@25.0.4)
+...
+Total       3215000      239060552

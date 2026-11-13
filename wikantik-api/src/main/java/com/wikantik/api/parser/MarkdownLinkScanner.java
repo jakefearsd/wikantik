@@ -25,8 +25,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Lightweight utility for extracting Markdown-style links ({@code [text](Page)}) and native
@@ -37,13 +35,10 @@ import java.util.regex.Pattern;
  * link extraction during reference graph updates, and by MCP audit/verification
  * tools for structural analysis.
  *
- * <p>This class operates on raw Markdown text via regex — no AST construction,
+ * <p>This class operates on raw Markdown text with a linear scan — no AST construction,
  * no Flexmark, no rendering.  Typical execution time is microseconds per page.
  */
 public final class MarkdownLinkScanner {
-
-    /** Matches Markdown links: {@code [text](target)} where target may be empty (wikantik page link convention). */
-    static final Pattern LINK_PATTERN = Pattern.compile( "\\[([^\\]]*)\\]\\(([^)]*)\\)" );
 
     private MarkdownLinkScanner() {
     }
@@ -67,10 +62,10 @@ public final class MarkdownLinkScanner {
             return Set.of();
         }
         final Set< String > locals = new LinkedHashSet<>();
-        final Matcher matcher = LINK_PATTERN.matcher( bodyText );
+        final InlineLinkMatcher matcher = new InlineLinkMatcher( bodyText );
         while ( matcher.find() ) {
-            final String linkText = matcher.group( 1 );
-            String target = matcher.group( 2 );
+            final String linkText = matcher.text();
+            String target = matcher.target();
 
             // Wikantik convention: [PageName]() — empty target means the text IS the page name
             if ( target.isEmpty() ) {
@@ -94,7 +89,7 @@ public final class MarkdownLinkScanner {
             }
         }
         // Drop blank/whitespace-only entries — a malformed link such as [ ]( ) (e.g. illustrative
-        // syntax inside a code span the regex still matches) would otherwise yield a blank target
+        // syntax inside a code span the scan still matches) would otherwise yield a blank target
         // that becomes an illegal '' page reference downstream.
         locals.removeIf( s -> s == null || s.isBlank() );
         return locals;
@@ -132,10 +127,10 @@ public final class MarkdownLinkScanner {
         if ( text == null || text.isEmpty() ) {
             return links;
         }
-        final Matcher matcher = LINK_PATTERN.matcher( text );
+        final InlineLinkMatcher matcher = new InlineLinkMatcher( text );
         while ( matcher.find() ) {
-            final String linkText = matcher.group( 1 );
-            final String target = matcher.group( 2 );
+            final String linkText = matcher.text();
+            final String target = matcher.target();
             final Map< String, String > link = new LinkedHashMap<>();
             link.put( "target", target );
             link.put( "text", linkText );

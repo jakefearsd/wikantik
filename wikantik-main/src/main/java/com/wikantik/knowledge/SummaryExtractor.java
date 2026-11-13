@@ -37,7 +37,6 @@ public final class SummaryExtractor {
     /** Maximum character length for the returned summary. */
     static final int MAX_LENGTH = 200;
 
-    private static final Pattern PLUGIN_CALL = Pattern.compile( "\\[\\{[^}]*\\}\\](?:\\([^)]*\\))?" );
     private static final Pattern SENTENCE_SPLIT = Pattern.compile( "(?<=[.!?])\\s+" );
 
     private SummaryExtractor() {}
@@ -63,7 +62,7 @@ public final class SummaryExtractor {
         // Access-rule directives first, through the one place that knows their syntax (and keeps the words
         // either side of one apart), then every other plugin call, before markdown stripping. Callers pass the body
         // of the stripped FULL text (AclDirectiveText.parseStripped); this strip is the last line of defence.
-        String text = PLUGIN_CALL.matcher( AclDirectiveText.strip( body, " " ) ).replaceAll( " " );
+        String text = blankPluginCalls( AclDirectiveText.strip( body, " " ) );
 
         // Strip markdown (also strips frontmatter, headings, links, emphasis, etc.)
         text = MarkdownStripper.stripMarkdown( text );
@@ -86,5 +85,35 @@ public final class SummaryExtractor {
         if( firstNonEmpty == null ) return "";
         if( firstNonEmpty.length() <= MAX_LENGTH ) return firstNonEmpty;
         return firstNonEmpty.substring( 0, MAX_LENGTH ) + "...";
+    }
+
+    /**
+     * Replaces each plugin call ({@code [{...}]} and the {@code (...)} that may follow it) with a space: what the
+     * regex {@code \[\{[^}]*\}\](?:\([^)]*\))?} did, without rescanning to the next {@code }} or {@code )} from
+     * every opener (quadratic on a body of unclosed ones).
+     */
+    static String blankPluginCalls( final String s ) {
+        StringBuilder out = null;
+        int copied = 0;
+        int pos = 0;
+        boolean parenAhead = true;
+        while( true ) {
+            final int open = s.indexOf( "[{", pos );
+            final int brace = open < 0 ? -1 : s.indexOf( '}', open + 2 );
+            if( brace < 0 ) break;
+            pos = brace + 1; // every opener before this } shares it
+            if( brace + 1 >= s.length() || s.charAt( brace + 1 ) != ']' ) continue;
+            int end = brace + 2;
+            if( parenAhead && end < s.length() && s.charAt( end ) == '(' ) {
+                final int paren = s.indexOf( ')', end + 1 );
+                parenAhead = paren >= 0;
+                if( parenAhead ) end = paren + 1;
+            }
+            if( out == null ) out = new StringBuilder( s.length() );
+            out.append( s, copied, open ).append( ' ' );
+            copied = end;
+            pos = end;
+        }
+        return out == null ? s : out.append( s, copied, s.length() ).toString();
     }
 }

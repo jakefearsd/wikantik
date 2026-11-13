@@ -46,9 +46,6 @@ public final class WikiToMarkdownConverter {
     // --- Heuristic detection patterns ---
     private static final Pattern WIKI_HEADING = Pattern.compile( "^!{1,3}\\s" , Pattern.MULTILINE );
     private static final Pattern WIKI_ITALIC = Pattern.compile( "''[^']+?''" );
-    // JSPWiki's single-bracket [text|Page]; never the Obsidian alias wikilink [[Page|alias]], which is Markdown here
-    private static final Pattern WIKI_PIPE_LINK = Pattern.compile( "(?<!\\[)\\[(?!\\[)([^\\]|]+)\\|([^\\]]+)\\](?!\\])" );
-    private static final Pattern WIKI_PLUGIN_UNCONVERTED = Pattern.compile( "\\[\\{[^}]+\\}\\](?!\\()" );
     private static final Pattern WIKI_CODE_BLOCK_DELIM = Pattern.compile( "\\{\\{\\{" );
     private static final Pattern WIKI_BOLD = Pattern.compile( "__[^_]+?__" );
 
@@ -86,8 +83,8 @@ public final class WikiToMarkdownConverter {
         int score = 0;
         if( WIKI_HEADING.matcher( content ).find() )           score += 2;
         if( WIKI_ITALIC.matcher( content ).find() )            score += 2;
-        if( WIKI_PIPE_LINK.matcher( content ).find() )         score += 2;
-        if( WIKI_PLUGIN_UNCONVERTED.matcher( content ).find() ) score += 2;
+        if( WikiSyntaxProbe.hasWikiPipeLink( content ) )                    score += 2;
+        if( WikiSyntaxProbe.hasUnconvertedPlugin( content ) )                  score += 2;
         if( WIKI_CODE_BLOCK_DELIM.matcher( content ).find() )  score += 1;
         if( WIKI_BOLD.matcher( content ).find() )              score += 1;
         return score >= HEURISTIC_THRESHOLD;

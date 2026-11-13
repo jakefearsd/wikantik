@@ -19,6 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.parser.markdown.ReaderText;
+import com.wikantik.api.parser.InlineLinkMatcher;
 import com.wikantik.api.parser.WikiLinkSyntax;
 
 import java.util.regex.Pattern;
@@ -35,8 +36,6 @@ public final class MarkdownStripper {
     // Markdown stripping patterns
     private static final Pattern FRONTMATTER = Pattern.compile( "\\A---\\s*\\n.*?\\n---\\s*\\n", Pattern.DOTALL );
     private static final Pattern CODE_FENCE = Pattern.compile( "```[\\s\\S]*?```" );
-    private static final Pattern IMAGE = Pattern.compile( "!\\[([^\\]]*)\\]\\([^)]*\\)" );
-    private static final Pattern LINK = Pattern.compile( "\\[([^\\]]*)\\]\\([^)]*\\)" );
     private static final Pattern HEADING = Pattern.compile( "^#{1,6}\\s+", Pattern.MULTILINE );
     private static final Pattern BOLD_UNDERSCORE = Pattern.compile( "__([^_]+)__" );
     private static final Pattern BOLD_STAR = Pattern.compile( "\\*\\*([^*]+)\\*\\*" );
@@ -47,7 +46,6 @@ public final class MarkdownStripper {
     private static final Pattern INLINE_CODE = Pattern.compile( "`([^`]+)`" );
     /** One left-to-right pass, so a code span keeps its text verbatim ({@code `==x==`} keeps its {@code ==}). */
     private static final Pattern CODE_OR_HIGHLIGHT = Pattern.compile( INLINE_CODE.pattern() + "|" + HIGHLIGHT.pattern() );
-    private static final Pattern HTML_TAG = Pattern.compile( "<[^>]+>" );
     private static final Pattern MULTI_SPACE = Pattern.compile( "\\s+" );
 
     /**
@@ -62,8 +60,8 @@ public final class MarkdownStripper {
         s = ReaderText.derivedBody( s );
         s = CODE_FENCE.matcher( s ).replaceAll( " " );
         s = WikiLinkSyntax.toPlainText( s );
-        s = IMAGE.matcher( s ).replaceAll( "$1" );
-        s = LINK.matcher( s ).replaceAll( "$1" );
+        s = keepLinkText( s, InlineLinkMatcher.images( s ) );
+        s = keepLinkText( s, new InlineLinkMatcher( s ) );
         s = HEADING.matcher( s ).replaceAll( "" );
         s = BOLD_UNDERSCORE.matcher( s ).replaceAll( "$1" );
         s = BOLD_STAR.matcher( s ).replaceAll( "$1" );
@@ -71,8 +69,41 @@ public final class MarkdownStripper {
         s = ITALIC_STAR.matcher( s ).replaceAll( "$1" );
         s = CODE_OR_HIGHLIGHT.matcher( s ).replaceAll( m -> java.util.regex.Matcher.quoteReplacement(
                 m.group( 1 ) != null ? m.group( 1 ) : m.group( 2 ) ) );
-        s = HTML_TAG.matcher( s ).replaceAll( " " );
+        s = blankHtmlTags( s );
         s = MULTI_SPACE.matcher( s ).replaceAll( " " );
         return s.trim();
+    }
+
+    /** Replaces each link (or image) the matcher finds with its display text. */
+    private static String keepLinkText( final String s, final InlineLinkMatcher links ) {
+        StringBuilder out = null;
+        int copied = 0;
+        while( links.find() ) {
+            if( out == null ) out = new StringBuilder( s.length() );
+            out.append( s, copied, links.start() ).append( links.text() );
+            copied = links.end();
+        }
+        return out == null ? s : out.append( s, copied, s.length() ).toString();
+    }
+
+    /**
+     * Replaces each {@code <...>} run (at least one character between the brackets) with a space: what the regex
+     * {@code <[^>]+>} did, without rescanning to the next {@code >} from every {@code <}.
+     */
+    static String blankHtmlTags( final String s ) {
+        StringBuilder out = null;
+        int copied = 0;
+        int pos = 0;
+        while( true ) {
+            final int open = s.indexOf( '<', pos );
+            final int close = open < 0 ? -1 : s.indexOf( '>', open + 1 );
+            if( close < 0 ) break;
+            pos = close + 1;
+            if( close == open + 1 ) continue; // "<>" is not a tag
+            if( out == null ) out = new StringBuilder( s.length() );
+            out.append( s, copied, open ).append( ' ' );
+            copied = pos;
+        }
+        return out == null ? s : out.append( s, copied, s.length() ).toString();
     }
 }

@@ -32,6 +32,7 @@ import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.page.subsystem.lifecycle.PageLifecycle;
+import com.wikantik.api.parser.InlineLinkMatcher;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.util.TextUtil;
 
@@ -56,10 +57,6 @@ public class DefaultPageRenamer implements PageRenamer {
     /** Pre-compiled pattern for CamelCase wiki words (avoids re-compilation on every rename). */
     private static final Pattern CAMELCASE_PATTERN =
             Pattern.compile( "\\p{Lu}+\\p{Ll}+\\p{Lu}+[\\p{L}\\p{Digit}]*" );
-
-    /** Pre-compiled pattern for Markdown links: [text](target). */
-    private static final Pattern MARKDOWN_LINK_PATTERN =
-            Pattern.compile( "\\[([^\\]]*)]\\(([^)]*)\\)" );
 
     private boolean camelCase;
     
@@ -243,12 +240,12 @@ public class DefaultPageRenamer implements PageRenamer {
     private String replaceReferrerString( final String sourceText, final String from, final String to ) {
         final StringBuilder sb = new StringBuilder( sourceText.length() + 32 );
 
-        final Matcher matcher = MARKDOWN_LINK_PATTERN.matcher( sourceText );
+        final InlineLinkMatcher matcher = new InlineLinkMatcher( sourceText );
         int start = 0;
 
         while( matcher.find( start ) ) {
-            String text = matcher.group( 1 );
-            String link = matcher.group( 2 );
+            String text = matcher.text();
+            String link = matcher.target();
 
             link = replaceSingleLink( link, from, to );
 

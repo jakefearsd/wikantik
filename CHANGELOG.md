@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.18] - 2026-11-14
+
 ### Fixed
 
 - **A save can no longer re-key an existing page.** Saving a page with a `canonical_id` that differs from the id already bound to its slug, when the new id is unknown, now keeps the bound id (WARN logged). Bulk content rewrites had minted new ids for existing pages, leaving them indexed under the new id while their ownership, verification, comments and citations stayed on the old one, with a "slug is already claimed" WARN on every start (21 pages in production). Re-saving an affected page repairs it.

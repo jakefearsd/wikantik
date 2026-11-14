@@ -531,3 +531,9 @@ one to three days old. `npm audit signatures`: 415/415 verified.
 - @codemirror/view 6.43.14: still held (2026-10-12); no 6.43.15 yet.
 - tika 4.1.0 / junrar 8.1.2, vitest 5.0.5, happy-dom 21.0.3, katex 0.19.0: majors.
 - `commons-lang3` 3.21.0 under pluginManagement: the Apache parent's RAT dependency, not ours.
+
+## 2026-11-14 sweep
+
+- anthropic-java removed (no code imports it since 2.5.15). Stable bumps across the board: Lucene 10.6.0, pac4j 6.6.1, mcp-sdk 2.2.0, Jackson 2.23.0/3.3.0, Bouncy Castle 1.87, nibor autolink 0.12.0, plugins.
+- **Tika 3.3.2 -> 4.2.0 and junrar 7.6.1 -> 8.1.2 (supersedes the junrar hold above).** Tika 4 declares junrar 8.1.2 itself. Code changes: `tika-parsers-standard-package` is a jar-less pom artifact (`<type>pom</type>` in management and in wikantik-ingest); `Parser.parse` takes a `TikaInputStream` (`TikaSourceExtractor` wraps the source).
+- google-auth-library held at 1.57.0: 1.58.0 needs `api-common` 2.74.0, not yet on Central.

@@ -99,7 +99,7 @@
     <selenide.version>7.19.1</selenide.version>
     <selenium.version>4.52.0</selenium.version>
     <slf4j.version>2.0.20</slf4j.version>
-    <tika.version>3.3.2</tika.version>
+    <tika.version>4.2.0</tika.version>
     <plantuml.version>1.2026.10</plantuml.version><!-- plantuml-mit; shaded into wikantik-plantuml with Ditaa (LGPL) stripped -->
     <tomcat.version>11.0.27</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
@@ -137,12 +137,7 @@
     <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
     <sec.jackson3.version>3.3.0</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
     <sec.jackson2.version>2.23.0</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (core 2.22.1); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs fixed by 2.22.1; core GHSA-7hhh-6rmp-j9qf + GHSA-p6pp-m3f8-5c89 by 2.22.3 -->
-    <sec.junrar.version>7.6.1</sec.junrar.version>                       <!-- via tika-parsers; CVE-2026-41245 (fixed 7.6.0) + path-traversal
-                                                                              fix in 7.6.1 ("prevent directory creation outside target
-                                                                              directory") — reachable from POST /api/ingest, which feeds
-                                                                              uploaded archives to Tika's RAR parser. Tika 3.3.2 targets
-                                                                              7.6.0, so this stays on its line; the 8.x MAJOR remains held
-                                                                              (dependabot.yml ignores it). -->
+    <sec.junrar.version>8.1.2</sec.junrar.version>                       <!-- via tika-parser-pkg-module; CVE-2026-41245 + path-traversal fix (7.6.1); Tika 4.2.0 targets 8.1.2 natively -->
     <sec.guava.version>33.8.0-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
     <sec.okio.version>3.18.2</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
     <sec.httpclient5.version>5.6.5</sec.httpclient5.version>            <!-- via pac4j-saml->opensaml->shib-networking (5.3.1) + selenide-core
@@ -639,6 +634,7 @@
         <groupId>org.apache.tika</groupId>
         <artifactId>tika-parsers-standard-package</artifactId>
         <version>${tika.version}</version>
+        <type>pom</type><!-- jar-less aggregator since Tika 4 -->
       </dependency>
 
       <dependency>

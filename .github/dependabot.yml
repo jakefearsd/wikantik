@@ -11,15 +11,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    ignore:
-      # HELD DELIBERATELY — see docs/developer/dependency-upgrade-log.md (2026-08-16).
-      # junrar is a security pin of a Tika transitive (CVE-2026-41245, fixed in
-      # 7.6.0). Tika 3.3.2 itself declares junrar 7.6.0, so the pin matches
-      # upstream exactly. Forcing an untested major under Tika's RAR parser buys
-      # no security and risks the ingest path. Without this ignore, Dependabot
-      # re-proposes it every week until someone merges it by reflex.
-      - dependency-name: "com.github.junrar:junrar"
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/wikantik-frontend"

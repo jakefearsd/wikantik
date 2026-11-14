@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
@@ -279,7 +280,7 @@ class TikaSourceExtractorTest {
         }
 
         @Override
-        public void parse( final InputStream stream, final ContentHandler handler,
+        public void parse( final TikaInputStream stream, final ContentHandler handler,
                             final Metadata metadata, final ParseContext context ) {
             workerThread.set( Thread.currentThread() );
             entered.countDown();
@@ -310,7 +311,7 @@ class TikaSourceExtractorTest {
         }
 
         @Override
-        public void parse( final InputStream stream, final ContentHandler handler,
+        public void parse( final TikaInputStream stream, final ContentHandler handler,
                             final Metadata metadata, final ParseContext context ) {
             started.countDown();
             try {
@@ -330,7 +331,7 @@ class TikaSourceExtractorTest {
         }
 
         @Override
-        public void parse( final InputStream stream, final ContentHandler handler,
+        public void parse( final TikaInputStream stream, final ContentHandler handler,
                             final Metadata metadata, final ParseContext context ) {
             // no-op: succeeds immediately
         }
@@ -345,7 +346,7 @@ class TikaSourceExtractorTest {
         }
 
         @Override
-        public void parse( final InputStream stream, final ContentHandler handler,
+        public void parse( final TikaInputStream stream, final ContentHandler handler,
                             final Metadata metadata, final ParseContext context ) throws SAXException {
             throw new SAXException( "malformed markup" );
         }
@@ -360,7 +361,7 @@ class TikaSourceExtractorTest {
         }
 
         @Override
-        public void parse( final InputStream stream, final ContentHandler handler,
+        public void parse( final TikaInputStream stream, final ContentHandler handler,
                             final Metadata metadata, final ParseContext context ) throws TikaException {
             throw new TikaException( "unsupported format" );
         }
@@ -375,7 +376,7 @@ class TikaSourceExtractorTest {
         }
 
         @Override
-        public void parse( final InputStream stream, final ContentHandler handler,
+        public void parse( final TikaInputStream stream, final ContentHandler handler,
                             final Metadata metadata, final ParseContext context ) {
             throw new IllegalStateException( "totally unexpected" );
         }

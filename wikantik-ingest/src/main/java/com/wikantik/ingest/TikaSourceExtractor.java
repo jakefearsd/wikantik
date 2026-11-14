@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.WriteLimitReachedException;
 import org.apache.tika.metadata.HttpHeaders;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.AutoDetectParser;
@@ -235,8 +236,8 @@ public class TikaSourceExtractor implements SourceExtractor {
         final Future< Void > future = PER_CALL_EXECUTOR.submit( () -> {
             worker.set( Thread.currentThread() );
             try {
-                try ( source ) {
-                    parser.parse( source, bounded, md, new ParseContext() );
+                try ( source; TikaInputStream tis = TikaInputStream.get( source ) ) {
+                    parser.parse( tis, bounded, md, new ParseContext() );
                 }
             } finally {
                 if ( state.getAndSet( TASK_FINISHED ) == TASK_STUCK ) {

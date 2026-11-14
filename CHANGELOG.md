@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.19] - 2026-11-14
+
 ### Fixed
 
 - **Search finds restricted pages for callers allowed to view them, even when the embedder is down.** `/api/search` ran its BM25 half as a guest, so a page in a private cluster (or under a page ACL) was dropped before the caller's own view check, and a viewer or admin could find it only through the dense half, or not at all while embeddings were unavailable. The lexical search now runs as the caller (`ContextRetrievalService.retrieve(query, caller)`). MCP `retrieve_context` and `/tools` `search_wiki` still search as a guest.

@@ -8,6 +8,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A save can no longer re-key an existing page.** Saving a page with a `canonical_id` that differs from the id already bound to its slug, when the new id is unknown, now keeps the bound id (WARN logged). Bulk content rewrites had minted new ids for existing pages, leaving them indexed under the new id while their ownership, verification, comments and citations stayed on the old one, with a "slug is already claimed" WARN on every start (21 pages in production). Re-saving an affected page repairs it.
+- **Deleted pages no longer come back into search.** A save queued for indexing just before a delete was written after the delete, putting the deleted page back into the Lucene index until a search tripped over it (found by the 2026-11-14 write soak). The index drain now skips pages that no longer exist.
+
 - **MCP tool help no longer teaches the old argument name.** The `write_pages` input example and description still showed `pageName` for each page, which the schema refuses; several tools' error messages (`delete_pages`, `mark_page_verified`, `verify_pages`, `preview_structured_data`, `read_page`, `update_page`, and the knowledge `get_page`/`read_pages`) also named the old arguments. They now say `slug`/`slugs`. A test checks every declared input example of both MCP endpoints against the tool's own schema.
 - The load-test harness opens MCP sessions on protocol `2025-11-25` and checks the negotiated version, so it no longer logs an "unsupported protocol version" WARN per session.
 

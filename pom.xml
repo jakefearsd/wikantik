@@ -49,7 +49,7 @@
     <commons-collections.version>4.6.0</commons-collections.version>
     <commons-fileupload.version>2.0.0-M5</commons-fileupload.version>
     <commons-io.version>2.22.0</commons-io.version>
-    <commons-lang.version>3.21.0</commons-lang.version>
+    <commons-lang.version>3.22.0</commons-lang.version>
     <commons-net.version>3.13.0</commons-net.version>
     <commons-text.version>1.15.0</commons-text.version>
     <ehcache.version>3.12.0</ehcache.version>
@@ -57,7 +57,7 @@
     <flexmark.version>0.64.8</flexmark.version>
     <nibor-autolink.version>0.6.0</nibor-autolink.version>
     <freshcookies-security.version>0.60</freshcookies-security.version>
-    <gson.version>2.14.0</gson.version>
+    <gson.version>2.15.0</gson.version>
     <pgvector.image>pgvector/pgvector:pg18</pgvector.image>
     <postgresql-jdbc.version>42.7.14</postgresql-jdbc.version>
     <jakarta-activation.version>2.0.1</jakarta-activation.version>
@@ -90,24 +90,24 @@
          reserve goal sets it at process-test-resources. -->
     <junit.version>6.1.3</junit.version>
     <log4j2.version>2.26.1</log4j2.version>
-    <lucene.version>10.5.2</lucene.version>
+    <lucene.version>10.6.0</lucene.version>
     <mockito.version>5.24.0</mockito.version>
     <nekohtml.version>3.0.4</nekohtml.version>
-    <owasp-html-sanitizer.version>20261011.1</owasp-html-sanitizer.version>
-    <pac4j.version>6.5.9</pac4j.version>
+    <owasp-html-sanitizer.version>20261110.1</owasp-html-sanitizer.version>
+    <pac4j.version>6.6.1</pac4j.version>
     <rome.version>2.1.0</rome.version>
-    <selenide.version>7.19.0</selenide.version>
-    <selenium.version>4.51.0</selenium.version>
+    <selenide.version>7.19.1</selenide.version>
+    <selenium.version>4.52.0</selenium.version>
     <slf4j.version>2.0.20</slf4j.version>
     <tika.version>3.3.2</tika.version>
-    <plantuml.version>1.2026.8</plantuml.version><!-- plantuml-mit; shaded into wikantik-plantuml with Ditaa (LGPL) stripped; 1.2026.9 is under the 2-week age floor -->
+    <plantuml.version>1.2026.10</plantuml.version><!-- plantuml-mit; shaded into wikantik-plantuml with Ditaa (LGPL) stripped -->
     <tomcat.version>11.0.27</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
-    <mcp-sdk.version>2.1.0</mcp-sdk.version>
+    <mcp-sdk.version>2.2.0</mcp-sdk.version>
     <snakeyaml.version>2.7</snakeyaml.version>
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.9</xmemcached.version>
-    <micrometer.version>1.17.1</micrometer.version>
+    <micrometer.version>1.17.2</micrometer.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <caffeine.version>3.3.1</caffeine.version>
     <ulid-creator.version>5.2.4</ulid-creator.version>
@@ -116,9 +116,9 @@
     <!-- Google Drive connector stack. These move together: google-api-client 2.9.0 requires
          google-http-client 2.x, and the whole http-client family must converge on one version
          (transitives otherwise resolve at a mix via nearest-wins). -->
-    <google-api-client.version>2.9.1</google-api-client.version>
-    <google-auth-library.version>1.54.0</google-auth-library.version>
-    <google-api-services-drive.version>v3-rev20260916-2.0.0</google-api-services-drive.version>
+    <google-api-client.version>2.9.2</google-api-client.version>
+    <google-auth-library.version>1.57.0</google-auth-library.version><!-- 1.58.0 held: its parent POM needs com.google.api:api-common 2.74.0, not yet published to Central (2026-11-14); retry later -->
+    <google-api-services-drive.version>v3-rev20261106-2.9.2</google-api-services-drive.version>
     <google-http-client.version>2.2.0</google-http-client.version>
 
     <!-- ============================================================
@@ -128,22 +128,22 @@
          OSV.dev scan of the resolved tree on 2026-06-21. Remove a
          pin once the declaring dependency ships the fix itself.
          ============================================================ -->
-    <sec.bouncycastle.version>1.86</sec.bouncycastle.version>               <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588.
+    <sec.bouncycastle.version>1.87</sec.bouncycastle.version>               <!-- via pac4j-saml/oidc + tika-crypto; CVE-2026-5598/-0636/-5588.
                                                                                  HELD at 1.85: versions-plugin reports bcprov-jdk18on 1.85.2, but that
                                                                                  patch was released for bcprov ONLY — bcpkix/bcjmail/bcutil have no
                                                                                  1.85.2 (verified 404 on Central), and this one property drives all
                                                                                  four. Bumping it fails the build; splitting it would mix Bouncy
                                                                                  Castle artifact versions, which upstream advises against. -->
     <sec.commons-beanutils.version>1.11.0</sec.commons-beanutils.version> <!-- via tribuo->opencsv;          CVE-2025-48734 -->
-    <sec.jackson3.version>3.2.3</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
-    <sec.jackson2.version>2.22.3</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (core 2.22.1); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs fixed by 2.22.1; core GHSA-7hhh-6rmp-j9qf + GHSA-p6pp-m3f8-5c89 by 2.22.3 -->
+    <sec.jackson3.version>3.3.0</sec.jackson3.version>                    <!-- via mcp-sdk (Jackson 3 family); CVE-2026-29062 +2 -->
+    <sec.jackson2.version>2.23.0</sec.jackson2.version>                   <!-- via pac4j-core (2.22.0) + tika-parser-cad-module (core 2.22.1); GHSA-5jmj-h7xm-6q6v + 2.21.x GHSAs fixed by 2.22.1; core GHSA-7hhh-6rmp-j9qf + GHSA-p6pp-m3f8-5c89 by 2.22.3 -->
     <sec.junrar.version>7.6.1</sec.junrar.version>                       <!-- via tika-parsers; CVE-2026-41245 (fixed 7.6.0) + path-traversal
                                                                               fix in 7.6.1 ("prevent directory creation outside target
                                                                               directory") — reachable from POST /api/ingest, which feeds
                                                                               uploaded archives to Tika's RAR parser. Tika 3.3.2 targets
                                                                               7.6.0, so this stays on its line; the 8.x MAJOR remains held
                                                                               (dependabot.yml ignores it). -->
-    <sec.guava.version>33.7.2-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
+    <sec.guava.version>33.8.0-jre</sec.guava.version>                    <!-- via pac4j-oidc/pac4j-saml (opensaml); CVE-2023-2976, CVE-2020-8908 -->
     <sec.okio.version>3.18.2</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
     <sec.httpclient5.version>5.6.5</sec.httpclient5.version>            <!-- via pac4j-saml->opensaml->shib-networking (5.3.1) + selenide-core
                                                                               (5.6.2); GHSA-hjcp-jmpx-g3qm / CVE-2026-64607. -->
@@ -151,10 +151,10 @@
                                                                               and GHSA-v3jc-474w-2wm6 / CVE-2026-54428 (httpcore5-h2 5.2.4).
                                                                               The 5.6.x client / 5.4.x core pairing is the one selenide already
                                                                               resolves to across the IT modules. -->
-    <sec.jsoup.version>1.23.2</sec.jsoup.version>                        <!-- via wikantik-ingest -> flexmark-html2md-converter (1.15.4);
+    <sec.jsoup.version>1.24.1</sec.jsoup.version>                        <!-- via wikantik-ingest -> flexmark-html2md-converter (1.15.4);
                                                                               GHSA-pmhh-3w7g-xqp8 / CVE-2026-71497. wikantik-connectors already
                                                                               declares 1.23.1 directly, so this only fixes ingest built alone. -->
-    <sec.opentelemetry.version>1.67.0</sec.opentelemetry.version>       <!-- via selenium-remote-driver (1.66.0);
+    <sec.opentelemetry.version>1.68.0</sec.opentelemetry.version>       <!-- via selenium-remote-driver (1.66.0);
                                                                               GHSA-ccrj-gw8r-854m (quadratic W3C tracestate parsing). BOM import
                                                                               so api/common/context/sdk-* move together. -->
 

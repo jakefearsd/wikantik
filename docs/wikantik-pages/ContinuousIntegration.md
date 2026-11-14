@@ -24,7 +24,7 @@ Wikantik's CI is deliberately thin, to conserve GitHub Actions minutes: a set of
 | Workflow | Trigger | Runner | Role |
 |----------|---------|--------|------|
 | `quality-gates.yml` | push to `main`, weekly schedule (Mondays 04:00 UTC), manual | GitHub-hosted | `static-gates`, `shell-tests` and `osv-scan` on every push; the Java unit suite (`unit-tests`) only weekly and on manual dispatch; `report-failures` opens one issue per red job |
-| `release.yml` | push of a `v*.*.*` tag | GitHub-hosted | The release pipeline: WAR, multi-arch image to GHCR, GitHub Release |
+| `release.yml` | push of a `v*.*.*` tag | GitHub-hosted | The release pipeline: WAR, amd64 image to GHCR, GitHub Release |
 | `dependency-review.yml` | pull requests | GitHub-hosted | Dependency diff review |
 | `codeql.yml` | manual (`workflow_dispatch`) | GitHub-hosted | Security scanning on demand |
 | `ci-cd.yml`, `staging-deploy.yml` | manual (`workflow_dispatch`) | `self-hosted` | Legacy build-and-deploy and staging flows; dormant, no self-hosted runner has been registered since about May 2026 |
@@ -46,7 +46,7 @@ The integration reactor (Cargo-launched Tomcat 11, PostgreSQL with pgvector, Sel
 
 ## The release pipeline
 
-Pushing a tag matching `v*.*.*` triggers `release.yml`, which builds the WAR with `-DskipTests`, builds the multi-arch (amd64 and arm64) image, publishes `ghcr.io/jakefearsd/wikantik:X.Y.Z` and `:latest`, and creates a GitHub Release with the WAR attached. It skips the test suite by design, so the local gate before tagging is the only test gate. Deployment is not a CI job: it is driven from the developer box with `bin/deploy-release.sh`. See [Wikantik Release and Deploy Process](WikantikReleaseAndDeployProcess).
+Pushing a tag matching `v*.*.*` triggers `release.yml`, which builds the WAR with `-DskipTests`, builds the amd64 image (arm64 was dropped in 2.5.18: there is no ARM deployment target, and its emulated build was slow and once hung for hours), publishes `ghcr.io/jakefearsd/wikantik:X.Y.Z` and `:latest`, and creates a GitHub Release with the WAR attached. It skips the test suite by design, so the local gate before tagging is the only test gate. Deployment is not a CI job: it is driven from the developer box with `bin/deploy-release.sh`. See [Wikantik Release and Deploy Process](WikantikReleaseAndDeployProcess).
 
 ## Retrieval quality is a runtime job, not a CI job
 

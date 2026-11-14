@@ -133,7 +133,7 @@ by hand if you're pointing at RDS/Cloud SQL.
 ## GHCR image
 
 `.github/workflows/release.yml` publishes
-`ghcr.io/jakefearsd/wikantik:{version,latest}` on every tag push (multi-arch).
+`ghcr.io/jakefearsd/wikantik:{version,latest}` on every tag push (linux/amd64 only since 2.5.18; an ARM host such as Graviton needs `linux/arm64` restored in `release.yml`).
 The Terraform modules treat the image as **private**: `ghcr_user`/`ghcr_token`
 (a GitHub PAT with `read:packages`, or a fine-grained token scoped to the
 package) are required inputs, and cloud-init's `docker login ghcr.io` uses

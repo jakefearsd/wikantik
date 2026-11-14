@@ -12,11 +12,14 @@ const GOOD = '```mermaid\ngraph TD\n  A --> B\n```\n';
 const BAD = '```mermaid\ngraph TD\n  A --> --> B [\n```\n';
 let dir;
 const run = (args, input) => spawnSync('node', [SCRIPT, ...args], { encoding: 'utf8', input, timeout: 60000 });
+// Each test starts a node process that loads mermaid: seconds on an idle box, more while the IT phase runs
+// alongside. The child gets 60 s, so the test must too (vitest's default 5 s failed the 2026-11-14 gate).
+const SPAWN_TEST = { timeout: 60000 };
 
 beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'check-mermaid-')); });
 afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
 
-describe('check-mermaid', () => {
+describe('check-mermaid', SPAWN_TEST, () => {
   it('reportsOkAndFail', () => {
     writeFileSync(join(dir, 'Page.md'), `# Title\n\n${GOOD}\ntext\n\n${BAD}`);
     const r = run(['--json', dir]);
@@ -63,7 +66,7 @@ describe('check-mermaid', () => {
   });
 });
 
-describe('check-mermaid contract', () => {
+describe('check-mermaid contract', SPAWN_TEST, () => {
   it('exitsTwoWhenCheckerBreaks', () => {
     // A dangling symlink named *.md: listed as a file, but readFileSync throws ENOENT.
     symlinkSync(join(dir, 'missing-target'), join(dir, 'broken.md'));

@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Search finds restricted pages for callers allowed to view them, even when the embedder is down.** `/api/search` ran its BM25 half as a guest, so a page in a private cluster (or under a page ACL) was dropped before the caller's own view check, and a viewer or admin could find it only through the dense half, or not at all while embeddings were unavailable. The lexical search now runs as the caller (`ContextRetrievalService.retrieve(query, caller)`). MCP `retrieve_context` and `/tools` `search_wiki` still search as a guest.
+
+### Changed
+
+- **Dependencies upgraded.** Backend: Lucene 10.6.0, pac4j 6.6.1, mcp-sdk 2.2.0, Jackson 2.23.0 / 3.3.0, Bouncy Castle 1.87, Guava 33.8.0, jsoup 1.24.1, OpenTelemetry 1.68.0, Tika 4.2.0 and junrar 8.1.2, nibor autolink 0.12.0, and the Maven plugins. `anthropic-java` is removed (unused since 2.5.15). Frontend: vitest 5.0.5, KaTeX 0.19.1, Mermaid 12.2.0 and minor bumps. Held: `@codemirror/view` at 6.43.13 (6.43.15 misplaces ArrowDown on wrapped lines) and google-auth-library at 1.57.0.
+- **Test infrastructure:** `bin/run-tests.sh` can use an external embedder (`IT_EMBED_URL`, from the environment or `.env`) instead of starting a local Ollama container, and the non-dense IT modules no longer reach any embedder.
+
 ## [2.5.18] - 2026-11-14
 
 ### Fixed

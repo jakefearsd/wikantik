@@ -55,6 +55,13 @@ public class AdminAuditResource extends RestServletBase {
     private static final int DEFAULT_LIMIT = 100;
     private static final int MAX_LIMIT = 1000;
 
+    /** Test seam: clock (epoch millis) driving the verify-cache TTL. */
+    java.util.function.LongSupplier clockMs = System::currentTimeMillis;
+
+    /** Verify result (first broken seq, if any), cached for {@code wikantik.admin.scanCacheTTL} seconds. */
+    private final ScanCache< java.util.Optional< Long > > verifyCache =
+            new ScanCache<>( () -> clockMs.getAsLong() );
+
     /** Resolves the AuditService from the engine, or returns null if unavailable. */
     private AuditService auditService() {
         final var eng = getEngine();
@@ -172,11 +179,15 @@ public class AdminAuditResource extends RestServletBase {
 
     private void doVerify( final AuditService audit,
                            final HttpServletResponse response ) throws IOException {
-        final var broken = audit.verifyChain( 1, Long.MAX_VALUE );
-        if ( broken.isPresent() ) {
-            sendJson( response, Map.of( "ok", false, "firstBrokenSeq", broken.get() ) );
+        final var snap = verifyCache.get( ScanCache.ttlSeconds( getEngine() ),
+                () -> audit.verifyChain( 1, Long.MAX_VALUE ) );
+        // verifiedAt is when the chain was actually verified; a cached answer may be up to the TTL old.
+        final String verifiedAt = Instant.ofEpochMilli( snap.computedAtMs() ).toString();
+        if ( snap.value().isPresent() ) {
+            sendJson( response, Map.of( "ok", false, "firstBrokenSeq", snap.value().get(),
+                    "verifiedAt", verifiedAt ) );
         } else {
-            sendJson( response, Map.of( "ok", true ) );
+            sendJson( response, Map.of( "ok", true, "verifiedAt", verifiedAt ) );
         }
     }
 

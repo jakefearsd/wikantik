@@ -97,19 +97,7 @@ public final class FrontmatterBackfillAdminHandlers {
 
     /** TTL in seconds for {@link #cachedPagesWithoutFm}; {@code <= 0} disables caching. */
     private long pagesWithoutFrontmatterCacheTtlSeconds() {
-        final Engine eng = engine.get();
-        if ( eng == null ) {
-            return 30L;
-        }
-        final String raw = eng.getWikiProperties()
-                .getProperty( "wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL", "30" );
-        try {
-            return Long.parseLong( raw.trim() );
-        } catch ( final NumberFormatException e ) {
-            // Fail SAFE, not closed: a typo must not silently restore the full-corpus scan.
-            LOG.warn( "Invalid wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL='{}' — using 30s", raw );
-            return 30L;
-        }
+        return ScanCache.ttlSeconds( engine.get() );
     }
 
     /** Drops the cached scan so the next poll rescans. Called once a backfill completes,

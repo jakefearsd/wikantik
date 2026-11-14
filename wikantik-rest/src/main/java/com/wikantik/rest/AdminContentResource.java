@@ -277,22 +277,33 @@ public class AdminContentResource extends RestServletBase {
         sendJson( response, Map.of( "pages", locked ) );
     }
 
+    /** Test seam: clock (epoch millis) driving the scan-cache TTL. */
+    java.util.function.LongSupplier clockMs = System::currentTimeMillis;
+
+    /** Successful block-ref scan results, cached for {@code wikantik.admin.scanCacheTTL} seconds. */
+    private final ScanCache< List< Map< String, Object > > > blockRefCache =
+            new ScanCache<>( () -> clockMs.getAsLong() );
+
     /** Test seam: replaces the real scan when set. */
     java.util.function.Supplier< List< BrokenBlockRefs.Entry > > blockRefScan;
 
     /** Block references whose target page exists but has no such block; empty (never an error) on failure. */
     private List< Map< String, Object > > brokenBlockRefs() {
-        final List< Map< String, Object > > out = new ArrayList<>();
         try {
-            final List< BrokenBlockRefs.Entry > entries = blockRefScan != null ? blockRefScan.get()
-                    : new BrokenBlockRefs().find( getSubsystems().page().pages(), WikiLinkResolver.forEngine( getEngine() ) );
-            for ( final BrokenBlockRefs.Entry e : entries ) {
-                out.add( e.toMap() );
-            }
+            return blockRefCache.get( ScanCache.ttlSeconds( getEngine() ), () -> {
+                final List< BrokenBlockRefs.Entry > entries = blockRefScan != null ? blockRefScan.get()
+                        : new BrokenBlockRefs().find( getSubsystems().page().pages(), WikiLinkResolver.forEngine( getEngine() ) );
+                final List< Map< String, Object > > out = new ArrayList<>();
+                for ( final BrokenBlockRefs.Entry e : entries ) {
+                    out.add( e.toMap() );
+                }
+                return List.copyOf( out );
+            } ).value();
         } catch ( final RuntimeException e ) {
+            // A failed scan is never cached: the next request retries.
             LOG.warn( "Broken block reference scan failed: {}", e.getMessage(), e );
+            return List.of();
         }
-        return out;
     }
 
     // ---- POST handlers ----

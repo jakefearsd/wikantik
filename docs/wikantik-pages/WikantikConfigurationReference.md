@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-11-11'
+date: '2026-11-13'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -448,7 +448,7 @@ Full descriptions (truncated above to keep the table scannable):
 |---|---|---|---|---|
 | `wikantik.recentArticles.cacheTTL` | `int` | `60` | `wikantik_recentArticles_cacheTTL` | How long (in seconds) a recent-articles result set is cached before being recomputed. |
 | `wikantik.admin.derived.statusCacheTTL` | `int` | `30` | `wikantik_admin_derived_statusCacheTTL` | How long (in seconds) the /admin/derived/status counters are cached before being recomputed. … |
-| `wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL` | `int` | `30` | `wikantik_admin_kg_pagesWithoutFrontmatterCacheTTL` | How long (in seconds) the /admin/embeddings/pages-without-frontmatter result is cached before being recomputed. … |
+| `wikantik.admin.scanCacheTTL` | `int` | `30` | `wikantik_admin_scanCacheTTL` | How long (in seconds) the results of the operator-only full-corpus admin scans are cached before being recomputed. … |
 | `wikantik.recentArticles.defaultCount` | `int` | `10` | `wikantik_recentArticles_defaultCount` | Default number of articles returned when a caller does not specify a count. |
 | `wikantik.recentArticles.defaultExcerptLength` | `int` | `200` | `wikantik_recentArticles_defaultExcerptLength` | Default length (in characters) of the generated excerpt per article. |
 | `wikantik.recentArticles.excludePatterns` | `list` | *(blank: no additional pages excluded.)* | `wikantik_recentArticles_excludePatterns` | Comma-separated regular expressions matching page names to exclude from recent-articles results, in addition to the built-in system-page exclusion. |
@@ -456,7 +456,7 @@ Full descriptions (truncated above to keep the table scannable):
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.admin.derived.statusCacheTTL`** — How long (in seconds) the /admin/derived/status counters are cached before being recomputed. That endpoint returns three integers but computes them by reading and YAML-parsing the frontmatter of EVERY page, so an admin dashboard polling it runs a full-corpus scan per poll; the 2026-09-26 profiling campaign attributed roughly 5-6% of all CPU to it, on a corpus whose answer is a constant zero. A value <= 0 disables the cache and restores the per-request scan. The cache is dropped immediately after a reflow, so operator actions are never reported stale.
-- **`wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL`** — How long (in seconds) the /admin/embeddings/pages-without-frontmatter result is cached before being recomputed. Like the derived-status endpoint above, it answers by reading and YAML-parsing the frontmatter of EVERY page; getAllPages() and the page text are already cached, so the cost is purely the per-page SnakeYAML parse. The 2026-09-26 profiling campaign measured it at 46% of FrontmatterParser.parseYaml and 62% of split once the derived endpoint was memoised. A value <= 0 disables the cache and restores the per-request scan; an unparseable value falls back to the default rather than silently re-enabling the scan.
+- **`wikantik.admin.scanCacheTTL`** — How long (in seconds) the results of the operator-only full-corpus admin scans are cached before being recomputed. Governs three endpoints: /admin/embeddings/pages-without-frontmatter (reads and YAML-parses the frontmatter of EVERY page), the broken block-reference scan behind /admin/content/broken-links (parses every page body for wikilinks), and /admin/audit/verify (re-hashes the whole audit chain). Each recomputed a full scan per request; the 2026-11-13 profiling run put the block-reference scan at ~11.7% and the audit verify at ~5.5% of CPU. A cached /admin/audit/verify answer carries a verifiedAt timestamp so an operator can see how old it is. A value <= 0 disables the cache and restores the per-request scan; an unparseable value falls back to the default rather than silently re-enabling the scans.
 
 ## Authentication
 

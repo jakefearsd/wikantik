@@ -131,6 +131,43 @@ class AdminAuditResourceTest {
     // -----------------------------------------------------------------------
 
     @Test
+    void verifyIsCachedWithinTtlAndReportsVerifiedAt() throws Exception {
+        final java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong( 1_700_000_000_000L );
+        resource.clockMs = now::get;
+        when( auditService.verifyChain( anyLong(), anyLong() ) ).thenReturn( Optional.empty() );
+        when( req.getPathInfo() ).thenReturn( "/verify" );
+        stubAllParamsNull();
+
+        resource.doGet( req, resp );
+        final JsonObject first = json();
+        resource.doGet( req, resp );
+        verify( auditService, times( 1 ) ).verifyChain( anyLong(), anyLong() );
+        assertTrue( first.get( "ok" ).getAsBoolean() );
+        assertEquals( Instant.ofEpochMilli( 1_700_000_000_000L ).toString(), first.get( "verifiedAt" ).getAsString() );
+
+        now.addAndGet( 31_000L );
+        resource.doGet( req, resp );
+        verify( auditService, times( 2 ) ).verifyChain( anyLong(), anyLong() );
+    }
+
+    @Test
+    void verifyTtlZeroRunsEveryTime() throws Exception {
+        final java.util.Properties props = new java.util.Properties();
+        props.setProperty( "wikantik.admin.scanCacheTTL", "0" );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getAuditService() ).thenReturn( auditService );
+        when( engine.getWikiProperties() ).thenReturn( props );
+        resource.setEngine( engine );
+        when( auditService.verifyChain( anyLong(), anyLong() ) ).thenReturn( Optional.empty() );
+        when( req.getPathInfo() ).thenReturn( "/verify" );
+        stubAllParamsNull();
+
+        resource.doGet( req, resp );
+        resource.doGet( req, resp );
+        verify( auditService, times( 2 ) ).verifyChain( anyLong(), anyLong() );
+    }
+
+    @Test
     void auditServiceUnavailableReturns503() throws Exception {
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getAuditService() ).thenReturn( null );

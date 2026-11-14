@@ -356,6 +356,52 @@ class AdminContentResourceTest {
     }
 
     @Test
+    void testBlockRefScanIsCachedWithinTtlAndRerunsAfter() throws Exception {
+        final java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong( 1_000_000L );
+        final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        servlet.clockMs = now::get;
+        servlet.blockRefScan = () -> {
+            calls.incrementAndGet();
+            return java.util.List.of();
+        };
+        engine.getWikiProperties().setProperty( "wikantik.admin.scanCacheTTL", "30" );
+        doGet( "/broken-links" );
+        doGet( "/broken-links" );
+        assertEquals( 1, calls.get(), "second request within the TTL must reuse the scan" );
+        now.addAndGet( 29_999L );
+        doGet( "/broken-links" );
+        assertEquals( 1, calls.get() );
+        now.addAndGet( 2L );
+        doGet( "/broken-links" );
+        assertEquals( 2, calls.get(), "after the TTL the scan runs again" );
+    }
+
+    @Test
+    void testBlockRefScanTtlZeroDisablesCache() throws Exception {
+        final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        servlet.blockRefScan = () -> {
+            calls.incrementAndGet();
+            return java.util.List.of();
+        };
+        engine.getWikiProperties().setProperty( "wikantik.admin.scanCacheTTL", "0" );
+        doGet( "/broken-links" );
+        doGet( "/broken-links" );
+        assertEquals( 2, calls.get() );
+    }
+
+    @Test
+    void testBlockRefScanFailureIsNotCached() throws Exception {
+        final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        servlet.blockRefScan = () -> {
+            calls.incrementAndGet();
+            throw new IllegalStateException( "boom" );
+        };
+        doGet( "/broken-links" );
+        doGet( "/broken-links" );
+        assertEquals( 2, calls.get(), "a failed scan must be retried, not cached as empty" );
+    }
+
+    @Test
     void testGetStatsHasCacheDetails() throws Exception {
         final String json = doGet( "/stats" );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );

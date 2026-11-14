@@ -164,7 +164,7 @@ public class UpdatePageTool extends DefaultAuthorTool {
             final String content = McpToolUtils.getString( arguments, "content" );
             final String expectedHash = McpToolUtils.getString( arguments, "expectedContentHash" );
             try {
-                WikiPageNameValidator.requireValid( pageName, "pageName" );
+                WikiPageNameValidator.requireValid( pageName, "slug" );
             } catch ( final IllegalArgumentException iae ) {
                 McpAudit.logWrite( TOOL_NAME, "rejected-invalid-name", String.valueOf( pageName ), defaultAuthor );
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, iae.getMessage() );

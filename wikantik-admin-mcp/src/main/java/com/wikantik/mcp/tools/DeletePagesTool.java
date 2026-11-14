@@ -130,7 +130,7 @@ public class DeletePagesTool extends AbstractMcpTool {
         final List< ? > raw = McpToolUtils.pageSlugs( arguments );
         if ( raw == null || raw.isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "pageNames must be a non-empty array of strings" );
+                    "slugs must be a non-empty array of strings" );
         }
         final boolean confirm = McpToolUtils.getBoolean( arguments, "confirm" );
         if ( !confirm ) {
@@ -185,7 +185,7 @@ public class DeletePagesTool extends AbstractMcpTool {
         entry.put( "pageName", pageName );
 
         try {
-            WikiPageNameValidator.requireValid( pageName, "pageName" );
+            WikiPageNameValidator.requireValid( pageName, "slug" );
         } catch ( final IllegalArgumentException iae ) {
             entry.put( "deleted", false );
             entry.put( "error", iae.getMessage() );

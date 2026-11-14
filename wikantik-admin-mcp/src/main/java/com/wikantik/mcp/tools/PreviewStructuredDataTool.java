@@ -131,7 +131,7 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
     protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String pageName = McpToolUtils.pageSlug( arguments );
         if ( pageName == null || pageName.isBlank() ) {
-            return SlugToolSupport.blankSlugError( "Missing required parameter: pageName" );
+            return SlugToolSupport.blankSlugError( "Missing required parameter: slug" );
         }
 
         final Page page = pageManager.getPage( pageName );

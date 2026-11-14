@@ -526,7 +526,7 @@ class UpdatePageToolTest {
             "content", "body",
             "expectedContentHash", "h" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
-        assertTrue( text.contains( "pageName is required" ) );
+        assertTrue( text.contains( "slug is required" ) );
     }
 
     @Test

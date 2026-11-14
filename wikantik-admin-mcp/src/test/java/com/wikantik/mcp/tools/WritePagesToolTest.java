@@ -179,7 +179,7 @@ class WritePagesToolTest {
             "pages", List.of(
                 Map.of( "slug", "", "content", "body" ) ) ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
-        assertTrue( text.contains( "pageName must not be blank" ) );
+        assertTrue( text.contains( "slug must not be blank" ) );
         assertTrue( text.contains( "\"failedCount\":1" ) );
     }
 

@@ -103,7 +103,7 @@ public class GetPageTool extends AbstractMcpTool {
         final String pageName = McpToolUtils.pageSlug( arguments );
         if ( pageName == null || pageName.isBlank() ) {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                    "a page identifier is required (one of: slug, pageName, name)" );
+                    "a page identifier is required (slug)" );
         }
         final RetrievedPage page = service.getPage( pageName );
         if ( page == null ) {

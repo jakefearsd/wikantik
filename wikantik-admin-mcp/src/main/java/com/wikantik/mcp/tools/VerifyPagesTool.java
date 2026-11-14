@@ -136,7 +136,7 @@ public class VerifyPagesTool extends AbstractMcpTool {
         if ( pageNames == null || pageNames.isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "No page names provided",
-                    "Provide an array of page names in the pageNames parameter." );
+                    "Provide an array of page names in the slugs parameter." );
         }
 
         final Set< String > activeChecks = checks != null && !checks.isEmpty()

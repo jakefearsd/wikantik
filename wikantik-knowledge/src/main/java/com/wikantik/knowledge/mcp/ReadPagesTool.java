@@ -121,7 +121,7 @@ public class ReadPagesTool extends AbstractMcpTool {
         final List< ? > rawList = McpToolUtils.pageSlugs( arguments );
         if ( rawList == null || rawList.isEmpty() ) {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                    "a page-id list is required and must contain at least one entry (one of: slugs, pageNames, names)" );
+                    "a page-id list is required and must contain at least one entry (slugs)" );
         }
         if ( rawList.size() > MAX_SLUGS ) {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,

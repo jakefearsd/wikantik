@@ -85,7 +85,7 @@ public class ReadPageTool extends AbstractMcpTool {
     protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
         final String pageName = McpToolUtils.pageSlug( arguments );
         if ( pageName == null || pageName.isBlank() ) {
-            return SlugToolSupport.blankSlugError( "pageName must not be blank" );
+            return SlugToolSupport.blankSlugError( "slug must not be blank" );
         }
         final int version = McpToolUtils.getInt( arguments, "version", PageProvider.LATEST_VERSION );
 

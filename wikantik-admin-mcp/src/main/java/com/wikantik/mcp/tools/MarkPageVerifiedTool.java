@@ -140,7 +140,7 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool {
         final List< ? > nameList = McpToolUtils.pageSlugs( arguments );
         if ( nameList == null || nameList.isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                "pageNames must be a non-empty array" );
+                "slugs must be a non-empty array" );
         }
         final String verifierArg = McpToolUtils.getString( arguments, "verifier" );
         final String verifier = verifierArg != null && !verifierArg.isBlank()

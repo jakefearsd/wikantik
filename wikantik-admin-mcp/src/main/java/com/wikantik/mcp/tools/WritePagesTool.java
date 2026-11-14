@@ -79,10 +79,10 @@ public class WritePagesTool extends DefaultAuthorTool {
         properties.put( "pages", Map.of(
             "type", "array",
             "items", pageSchema,
-            "description", "Pages to create. Each item: {pageName, content, metadata?}.",
+            "description", "Pages to create. Each item: {slug, content, metadata?}.",
             "examples", List.of( List.of(
                     Map.of(
-                            "pageName", "AgentMemoryRunbook",
+                            "slug", "AgentMemoryRunbook",
                             "content", "---\ntitle: Agent Memory Runbook\nsummary: How to recover stuck agents.\n---\n\n# Agent Memory Runbook\n\n...",
                             "metadata", Map.of(
                                     "type", "runbook",
@@ -138,7 +138,7 @@ public class WritePagesTool extends DefaultAuthorTool {
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "pageName", pageName );
             try {
-                WikiPageNameValidator.requireValid( pageName, "pageName" );
+                WikiPageNameValidator.requireValid( pageName, "slug" );
             } catch ( final IllegalArgumentException iae ) {
                 entry.put( "created", false );
                 entry.put( "error", iae.getMessage() );

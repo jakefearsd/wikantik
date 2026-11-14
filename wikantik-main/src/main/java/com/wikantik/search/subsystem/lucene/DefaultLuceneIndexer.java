@@ -129,6 +129,15 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
     /** Pages taken off {@link #updates} by the running drain and not yet committed. Guarded by {@link #updates}. */
     private int inFlight;
 
+    /** Orders saves and deletes: each queued save and each removal takes the next value. Guarded by {@link #updates}. */
+    private long sequence;
+
+    /**
+     * The sequence value of each page's latest removal, kept only while saves are queued or in flight; a queued save
+     * older than its page's removal is skipped by the drain. Guarded by {@link #updates}.
+     */
+    private final Map< String, Long > removedAt = new HashMap<>();
+
     /** Failed drains per page name, for the {@link #MAX_INDEX_ATTEMPTS} bound. Guarded by {@code this}. */
     private final Map< String, Integer > failedAttempts = new HashMap<>();
 
@@ -225,10 +234,9 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                 text = pageManager.getPureText( page );
             }
             if ( text != null ) {
-                final Object[] pair = new Object[ 2 ];
-                pair[ 0 ] = page;
-                pair[ 1 ] = text;
-                updates.add( pair );
+                synchronized ( updates ) {
+                    updates.add( new Object[]{ page, text, ++sequence } );
+                }
                 LOG.debug( "Scheduling page {} for index update", page.getName() );
             }
         }
@@ -236,6 +244,12 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
     @Override
     public synchronized void pageRemoved( final Page page ) {
+        synchronized ( updates ) {
+            // A save queued (or taken by a running drain) before this delete must not write the page back.
+            if ( !updates.isEmpty() || inFlight > 0 ) {
+                removedAt.put( page.getName(), ++sequence );
+            }
+        }
         try {
             store.writer().deleteDocuments( new Term( LUCENE_ID, page.getName() ) );
             store.commit();
@@ -823,19 +837,25 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                 }
             }
             inFlight -= batchSize;
+            if ( updates.isEmpty() && inFlight == 0 ) {
+                removedAt.clear();
+            }
         }
     }
 
     /**
-     * True when a queued page no longer exists. Without this check, a save queued before a delete would be
-     * written after {@link #pageRemoved} had already removed the document, putting the deleted page back into
-     * the index until a search tripped over it. Checked under this indexer's lock, which {@link #pageRemoved}
-     * also takes: a delete the check does not yet see removes the document after this batch commits.
-     * Attachments are left to their own lifecycle.
+     * True when the page was removed after this save was queued. Without this check the save would be written
+     * after {@link #pageRemoved} had already removed the document, putting the deleted page back into the index
+     * until a search tripped over it. It compares queue order instead of asking the page store whether the page
+     * exists, because the store reports a transient failure as "absent" and a real save would be dropped. A save
+     * queued after the removal (the page was recreated) is newer and is written.
      */
     private boolean deletedSinceQueued( final Object[] item ) {
-        final Page page = pageOf( item );
-        return !( page instanceof Attachment ) && !pageManager.wikiPageExists( page.getName() );
+        final long queuedAt = item.length > 2 && item[ 2 ] instanceof Long l ? l : 0L;
+        synchronized ( updates ) {
+            final Long removed = removedAt.get( pageOf( item ).getName() );
+            return removed != null && removed > queuedAt;
+        }
     }
 
     private static Page pageOf( final Object[] item ) {

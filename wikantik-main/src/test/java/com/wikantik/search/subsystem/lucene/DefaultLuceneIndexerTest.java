@@ -51,6 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -416,19 +417,42 @@ class DefaultLuceneIndexerTest {
         // Save queues the page; the delete removes its document at once; the drain then runs.
         // Writing the queued text would put the deleted page back into the index, where it
         // stays until a search trips over it (the 2026-11-14 write soak logged 1,183 such hits).
-        when( pageManager.wikiPageExists( "Doomed" ) ).thenReturn( true );
-        when( pageManager.wikiPageExists( "Survivor" ) ).thenReturn( true );
-        updates.add( new Object[]{ mockPage( "Doomed" ), "doomed text" } );
-        updates.add( new Object[]{ mockPage( "Survivor" ), "survivor text" } );
-
         final DefaultLuceneIndexer indexer = newIndexer();
-        when( pageManager.wikiPageExists( "Doomed" ) ).thenReturn( false );
+        when( pageManager.getPureText( any( Page.class ) ) ).thenReturn( "page text" );
+        indexer.reindexPage( mockPage( "Doomed" ) );
+        indexer.reindexPage( mockPage( "Survivor" ) );
         indexer.pageRemoved( mockPage( "Doomed" ) );
         final LuceneIndexer.DrainStats stats = indexer.drainUpdateQueue();
 
         assertEquals( 1, indexer.documentCount(), "only the surviving page may be in the index" );
         assertEquals( 1, stats.indexed() );
         assertEquals( 1, stats.skipped() );
+    }
+
+    @Test
+    void drainUpdateQueue_indexesAPageRecreatedAfterItsDelete() {
+        final DefaultLuceneIndexer indexer = newIndexer();
+        when( pageManager.getPureText( any( Page.class ) ) ).thenReturn( "page text" );
+        indexer.reindexPage( mockPage( "Phoenix" ) );
+        indexer.pageRemoved( mockPage( "Phoenix" ) );
+        indexer.reindexPage( mockPage( "Phoenix" ) ); // saved again after the delete
+
+        indexer.drainUpdateQueue();
+
+        assertEquals( 1, indexer.documentCount(), "the save after the delete must be indexed" );
+    }
+
+    @Test
+    void drainUpdateQueue_neverAsksThePageStoreWhetherAQueuedPageExists() {
+        // The store's existence check turns a transient failure into "absent"; trusting it would drop a real save.
+        final DefaultLuceneIndexer indexer = newIndexer();
+        when( pageManager.getPureText( any( Page.class ) ) ).thenReturn( "page text" );
+        when( pageManager.wikiPageExists( anyString() ) ).thenReturn( false );
+        indexer.reindexPage( mockPage( "Flaky" ) );
+
+        indexer.drainUpdateQueue();
+
+        assertEquals( 1, indexer.documentCount() );
     }
 
     @Test

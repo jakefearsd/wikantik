@@ -128,7 +128,6 @@ class LuceneSearchProviderIndexOpsTest {
     @Test
     void lastUpdateInstantAdvancesAfterReindexDrain( @TempDir final Path tmp ) throws Exception {
         final PageManager pm = Mockito.mock( PageManager.class );
-        Mockito.when( pm.wikiPageExists( Mockito.anyString() ) ).thenReturn( true ); // the drain skips deleted pages
         final LuceneSearchProvider provider = new LuceneSearchProvider(
                 pm, Mockito.mock( AttachmentManager.class ));
         wireDirectory( provider, tmp );

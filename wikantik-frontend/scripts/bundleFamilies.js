@@ -1,6 +1,6 @@
 // Package families shared by vite.config.js (chunking) and scripts/check-dist.js (the post-build guard).
 
-// Every package only Mermaid (12.1.0) pulls in — exactly what its npm install added to the lockfile. Re-derive it
+// Every package only Mermaid (12.2.0) pulls in — exactly what its npm install added to the lockfile. Re-derive it
 // from the lockfile diff when upgrading Mermaid. A regex alternation over package paths.
 //
 // It includes general-purpose packages that nothing else uses TODAY: uuid, marked, dayjs, lodash-es, dompurify,

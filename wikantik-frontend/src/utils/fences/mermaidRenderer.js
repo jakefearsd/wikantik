@@ -3,7 +3,7 @@
 // its own lazy split; see the codeSplitting comment in vite.config.js and the chunking rule in registry.js).
 import mermaid from 'mermaid';
 
-// Config keys a diagram may never override. Mermaid 12.1.0's defaults (secure … maxEdges) plus the keys the
+// Config keys a diagram may never override. Mermaid 12.2.0's defaults (secure … maxEdges) plus the keys the
 // server policy also guards (controller Ruling K). The server already refuses every `%%{…}%%` directive and
 // all front matter; this is defense in depth should a check ever be missed.
 export const SECURE_KEYS = Object.freeze([

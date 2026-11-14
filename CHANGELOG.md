@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **MCP tool help no longer teaches the old argument name.** The `write_pages` input example and description still showed `pageName` for each page, which the schema refuses; several tools' error messages (`delete_pages`, `mark_page_verified`, `verify_pages`, `preview_structured_data`, `read_page`, `update_page`, and the knowledge `get_page`/`read_pages`) also named the old arguments. They now say `slug`/`slugs`. A test checks every declared input example of both MCP endpoints against the tool's own schema.
+- The load-test harness opens MCP sessions on protocol `2025-11-25` and checks the negotiated version, so it no longer logs an "unsupported protocol version" WARN per session.
+
+### Changed
+
+- **Release images are `linux/amd64` only.** The arm64 leg was built under QEMU emulation, made every release slower, and once hung for hours. There is no ARM deployment target; restore `linux/arm64` in `release.yml` if one appears.
+- **Operator scans are cached.** `/admin/content` broken block references and `/admin/audit/verify` are cached like `/admin/embeddings/pages-without-frontmatter`, for `wikantik.admin.scanCacheTTL` seconds (default 30; `0` disables). The audit verify reply adds `verifiedAt`, the time the chain was really checked. **Renamed key:** `wikantik.admin.kg.pagesWithoutFrontmatterCacheTTL` is replaced by `wikantik.admin.scanCacheTTL`.
+- **"LLM activity" is now "Embedding activity".** It only ever recorded embedding calls. Keys `wikantik.llm_activity.*` are now `wikantik.embedding_activity.*` (same defaults), the endpoint `/admin/llm-activity` is now `/admin/embedding-activity`, and the admin tab and overview card are renamed to match.
+- **Metric renamed:** `wikantik_hub_summary_synthesis_total` is now `wikantik_hub_summary_overlay_total`. It counts the template summary overlaid on hub pages for agents, and no model is involved. The admin overview key `hubSynthesis` is now `hubSummaryOverlays`.
+
 ## [2.5.17] - 2026-11-13
 
 ### Fixed

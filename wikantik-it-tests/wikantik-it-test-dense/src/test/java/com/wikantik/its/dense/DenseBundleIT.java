@@ -110,12 +110,11 @@ class DenseBundleIT {
 
     /**
      * Same source as the deployed wiki's {@code wikantik.search.embedding.base-url}: the
-     * {@code it.embed.port} Maven property, which {@code bin/run-tests.sh} sets from its own
-     * {@code EMBED_PORT}. Probing a different endpoint from the one the wiki was configured
+     * {@code it.embed.url} Maven property, which {@code bin/run-tests.sh} sets from its own
+     * {@code EMBED_URL}. Probing a different endpoint from the one the wiki was configured
      * with would make this suite's readiness check meaningless.
      */
-    private static final String EMBEDDER =
-        "http://localhost:" + System.getProperty( "it.embed.port", "11435" );
+    private static final String EMBEDDER = System.getProperty( "it.embed.url", "http://localhost:11435" );
 
     /**
      * Budget for the async chunk → embed → HNSW-upsert pipeline to catch up.
@@ -157,8 +156,8 @@ class DenseBundleIT {
             "No embedder at " + EMBEDDER + ( unreachable == null ? "" : " (" + unreachable + ")" )
                 + ". bin/run-tests.sh starts it; if you invoked "
                 + "maven directly, run: COMPOSE_PROJECT_NAME=wikantik-embed-test "
-                + "WIKANTIK_EMBEDDING_PORT=" + System.getProperty( "it.embed.port", "11435" )
-                + " docker compose -f docker/docker-compose.embeddings.yml up -d" );
+                + "WIKANTIK_EMBEDDING_PORT=11435 docker compose -f docker/docker-compose.embeddings.yml up -d"
+                + " (or pass -Dit.embed.url=<an external embedder>)" );
         assertTrue( tags.body().contains( "qwen3-embedding:0.6b" ),
             "Embedder at " + EMBEDDER + " does not serve qwen3-embedding:0.6b — the wiki is "
                 + "configured for model code qwen3-embedding-0.6b (1024 dims) and every "

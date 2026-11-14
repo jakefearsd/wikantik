@@ -184,12 +184,21 @@ IT_MODULES=(
 # own container rather than reusing whatever happens to be listening: depending on
 # ambient machine state is what made PreviewClickHoldsStillIT hang for 120s.
 EMBED_PORT=11435
-EMBED_URL="http://localhost:${EMBED_PORT}"
+# IT_EMBED_URL names an EXTERNAL embedder (e.g. http://inference.lan:11434) to use instead of the
+# local container: when set, this script never starts, stops or sweeps the container and only waits
+# for the model at that URL. It is read from the environment or, failing that, from the repo's
+# gitignored .env (one IT_EMBED_URL= line), so a machine without a local Ollama can set it once.
+# (Not WIKANTIK_-prefixed: bin/agent-build.sh strips those from the child environment.)
+if [[ -z "${IT_EMBED_URL+set}" && -f "${REPO_DIR}/.env" ]]; then  # set-but-empty = use the container
+  IT_EMBED_URL="$(grep -E '^IT_EMBED_URL=' "${REPO_DIR}/.env" | tail -1 | cut -d= -f2- | tr -d "\"'" )"
+fi
+IT_EMBED_URL="${IT_EMBED_URL%/}"
+EMBED_URL="${IT_EMBED_URL:-http://localhost:${EMBED_PORT}}"
 # Handed to the IT reactor so the dense module's wikantik-custom.properties (resource
 # filtering) and DenseBundleIT's readiness probe (failsafe system property) both derive
 # their endpoint from THIS value. The module pom carries 11435 as a fallback for a direct
 # maven invocation; whenever the suite runs, this is the number that wins.
-EMBED_MVN_OPT="-Dit.embed.port=${EMBED_PORT}"
+EMBED_MVN_OPT="-Dit.embed.url=${EMBED_URL}"
 EMBED_MODEL_TAG="qwen3-embedding:0.6b"
 EMBED_PROJECT="wikantik-embed-test"
 EMBED_COMPOSE="${REPO_DIR}/docker/docker-compose.embeddings.yml"
@@ -214,6 +223,12 @@ EMBED_READY_TRIES=450     # x 2s sleep = 900s
 EMBED_READY_SLEEP=2
 
 embed_start() {
+  if [[ -n "${IT_EMBED_URL}" ]]; then
+    echo ">>> Using the external embedder ${EMBED_URL} (IT_EMBED_URL); no local container"
+    embeddings_model_ready "${EMBED_URL}" "${EMBED_MODEL_TAG}" && { echo "    embedder ready"; return 0; }
+    echo "    WARNING: ${EMBED_URL} does not serve ${EMBED_MODEL_TAG}."
+    return 1
+  fi
   echo ">>> Starting shared embedder on ${EMBED_URL}"
   COMPOSE_PROJECT_NAME="${EMBED_PROJECT}" WIKANTIK_EMBEDDING_PORT="${EMBED_PORT}" \
     WIKANTIK_EMBEDDING_MODEL_TAG="${EMBED_MODEL_TAG}" \
@@ -250,6 +265,7 @@ embed_start() {
 # `-v` would take it):
 #   docker compose -p wikantik-embed-test -f docker/docker-compose.embeddings.yml down
 embed_stop() {
+  [[ -n "${IT_EMBED_URL}" ]] && return 0
   COMPOSE_PROJECT_NAME="${EMBED_PROJECT}" WIKANTIK_EMBEDDING_PORT="${EMBED_PORT}" \
     WIKANTIK_EMBEDDING_MODEL_TAG="${EMBED_MODEL_TAG}" \
     docker compose -f "${EMBED_COMPOSE}" stop >/dev/null 2>&1 || true
@@ -274,6 +290,7 @@ embed_stop() {
 # volume referenced, and the following `up -d` restarts the existing container
 # rather than recreating it.
 embed_preclean() {
+  [[ -n "${IT_EMBED_URL}" ]] && return 0
   echo ">>> Sweeping any stale embedder container from a previous run"
   COMPOSE_PROJECT_NAME="${EMBED_PROJECT}" WIKANTIK_EMBEDDING_PORT="${EMBED_PORT}" \
     WIKANTIK_EMBEDDING_MODEL_TAG="${EMBED_MODEL_TAG}" \

@@ -19,6 +19,10 @@
 # does not start a container, so it runs anywhere.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Every run-tests.sh call below exercises the LOCAL-container path, so pin IT_EMBED_URL set-but-empty: otherwise a
+# developer's .env IT_EMBED_URL (an external embedder) would silently switch the script under test to the external
+# path. The external path has its own block at the end.
+export IT_EMBED_URL=
 COMPOSE="${REPO_DIR}/docker/docker-compose.embeddings.yml"
 fails=0
 check() { # check <description> <pattern>
@@ -428,7 +432,7 @@ chmod +x "${RTSHIM}/mvn"
 # set -e is active for this whole file: guard with `|| rt_rc=$?` rather than a
 # bare `cmd; rc=$?`, which set -e would abort on before the assignment ever runs.
 rt_rc=0
-PATH="${RTSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" \
+PATH="${RTSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" IT_EMBED_URL= \
   "$RUNTESTS" --module dense >"${RTSHIM}/out.log" 2>&1 || rt_rc=$?
 
 if [ -f "$RTCALLS" ] && grep -q " up -d" "$RTCALLS" 2>/dev/null; then
@@ -483,10 +487,10 @@ fi
 # DenseBundleIT's readiness probe (failsafe system property) from -Dit.embed.port. If the
 # shell starts a container on one port while Maven configures the wiki for the pom's
 # fallback, the suite probes a live embedder and the wiki talks to nothing.
-if [ -f "$RTMVNARGS" ] && grep -q -- '-Dit.embed.port=11435' "$RTMVNARGS"; then
-  pass "run-tests passes the embedder port to maven as -Dit.embed.port"
+if [ -f "$RTMVNARGS" ] && grep -q -- '-Dit.embed.url=http://localhost:11435' "$RTMVNARGS"; then
+  pass "run-tests passes the embedder URL to maven as -Dit.embed.url"
 else
-  fail "run-tests did not pass -Dit.embed.port to maven — the wiki and the test can now disagree about the endpoint: $( [ -f "$RTMVNARGS" ] && cat "$RTMVNARGS" || echo '(mvn never invoked)' )"
+  fail "run-tests did not pass -Dit.embed.url to maven — the wiki and the test can now disagree about the endpoint: $( [ -f "$RTMVNARGS" ] && cat "$RTMVNARGS" || echo '(mvn never invoked)' )"
 fi
 
 if [ -f "$RTMVNARGS" ] && grep -q -- '-Pintegration-tests' "$RTMVNARGS"; then
@@ -524,7 +528,7 @@ fi
 : > "$RTCALLS"
 : > "$RTENV"
 rt_rc2=0
-PATH="${RTSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" \
+PATH="${RTSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${RTLOGDIR}" IT_EMBED_URL= \
   "$RUNTESTS" --fullloop >"${RTSHIM}/out-fullloop.log" 2>&1 || rt_rc2=$?
 
 # The assertion is on the embedder specifically, not on docker in general: every
@@ -930,6 +934,31 @@ if [ -n "${sweep_line:-}" ] && [ -n "${embed_line:-}" ] && [ "$sweep_line" -lt "
   pass "the sweep runs BEFORE the embedder starts (it would otherwise tear down this run's own embedder)"
 else
   fail "sweep/embedder ordering wrong (sweep=${sweep_line:-none} embed=${embed_line:-none}) — see ${SWSHIM}/out.log"
+fi
+
+# ----------------------------------------------------------------------------
+# External embedder: IT_EMBED_URL names one, and run-tests.sh must use it WITHOUT touching the local container
+# (the owner runs no local Ollama), and hand that same URL to Maven so the wiki and DenseBundleIT agree.
+# ----------------------------------------------------------------------------
+rm -f "$RTCALLS" "$RTMVNARGS" "$RTCURLCOUNT"
+ext_rc=0
+EXTLOGDIR="${RTSHIM}/logs-external"; mkdir -p "$EXTLOGDIR"   # own lock dir: earlier blocks may still hold theirs
+PATH="${RTSHIM}:${PATH}" WIKANTIK_TEST_SUITE_LOG_DIR="${EXTLOGDIR}" IT_EMBED_URL=http://embedder.example:11434/ \
+  "$RUNTESTS" --module dense >"${RTSHIM}/out-external.log" 2>&1 || ext_rc=$?
+if [ -f "$RTCALLS" ] && grep -qE ' (up|stop|down)( |$)' "$RTCALLS" 2>/dev/null; then
+  fail "with IT_EMBED_URL set, run-tests still drove the local embedder container: $(cat "$RTCALLS")"
+else
+  pass "with IT_EMBED_URL set, run-tests never starts, stops or sweeps the local embedder container"
+fi
+if [ -f "$RTMVNARGS" ] && grep -q -- '-Dit.embed.url=http://embedder.example:11434 ' "$RTMVNARGS"; then
+  pass "with IT_EMBED_URL set, maven gets -Dit.embed.url=<that URL> (trailing slash trimmed)"
+else
+  fail "with IT_EMBED_URL set, maven did not get -Dit.embed.url=http://embedder.example:11434: $( [ -f "$RTMVNARGS" ] && cat "$RTMVNARGS" || echo '(mvn never invoked)' )"
+fi
+if grep -q 'Using the external embedder http://embedder.example:11434' "${RTSHIM}/out-external.log"; then
+  pass "run-tests says it is using the external embedder"
+else
+  fail "run-tests did not announce the external embedder: $(tail -5 "${RTSHIM}/out-external.log")"
 fi
 
 if [ "$fails" -ne 0 ]; then echo "test-embeddings: ${fails} failure(s)"; exit 1; fi

@@ -47,7 +47,7 @@ import static org.mockito.Mockito.when;
 class AdminOverviewResourceCardTest {
 
     private static final String[] EXPECTED_CARD_KEYS = {
-        "health", "load", "llmActivity", "retrieval",
+        "health", "load", "embeddingActivity", "retrieval",
         "searchIndex", "users", "recent",
         "renderCache", "auth", "agentSurface",
         "contentQuality", "retrievalModes", "attachments"
@@ -100,25 +100,25 @@ class AdminOverviewResourceCardTest {
         assertCardPresentOrDegraded( "load" );
     }
 
-    // ---- llmActivity card ----
+    // ---- embeddingActivity card ----
 
     @Test
-    void llmActivityCard_isPresentOrDegraded() throws Exception {
-        assertCardPresentOrDegraded( "llmActivity" );
+    void embeddingActivityCard_isPresentOrDegraded() throws Exception {
+        assertCardPresentOrDegraded( "embeddingActivity" );
     }
 
     @Test
-    void llmActivityCard_whenPresent_hasExpectedFields() throws Exception {
+    void embeddingActivityCard_whenPresent_hasExpectedFields() throws Exception {
         final JsonObject env = callDoGet();
         final JsonObject data = env.getAsJsonObject( "data" );
-        if ( data.has( "llmActivity" ) ) {
-            final JsonObject card = data.getAsJsonObject( "llmActivity" );
+        if ( data.has( "embeddingActivity" ) ) {
+            final JsonObject card = data.getAsJsonObject( "embeddingActivity" );
             // All four fields must be present when card succeeds
-            assertTrue( card.has( "inFlight" ), "llmActivity.inFlight required" );
-            assertTrue( card.has( "windowMinutes" ), "llmActivity.windowMinutes required" );
-            assertTrue( card.has( "capacity" ), "llmActivity.capacity required" );
-            assertTrue( card.has( "count" ), "llmActivity.count required" );
-            assertTrue( card.has( "errors" ), "llmActivity.errors required" );
+            assertTrue( card.has( "inFlight" ), "embeddingActivity.inFlight required" );
+            assertTrue( card.has( "windowMinutes" ), "embeddingActivity.windowMinutes required" );
+            assertTrue( card.has( "capacity" ), "embeddingActivity.capacity required" );
+            assertTrue( card.has( "count" ), "embeddingActivity.count required" );
+            assertTrue( card.has( "errors" ), "embeddingActivity.errors required" );
         }
     }
 
@@ -204,7 +204,7 @@ class AdminOverviewResourceCardTest {
         final JsonObject data = env.getAsJsonObject( "data" );
         if ( data.has( "agentSurface" ) ) {
             final JsonObject card = data.getAsJsonObject( "agentSurface" );
-            assertTrue( card.has( "hubSynthesis" ) );
+            assertTrue( card.has( "hubSummaryOverlays" ) );
             assertTrue( card.has( "hintFailures" ) );
             assertTrue( card.has( "forAgentBytes" ) );
         }

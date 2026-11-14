@@ -159,10 +159,10 @@ public final class SearchWiringHelper {
             return;
         }
         final String modelCode = cfg.model().code();
-        final com.wikantik.llm.activity.LlmActivityLog embedActivityLog =
-            com.wikantik.llm.activity.LlmActivityLogHolder.getOrCreate( props );
+        final com.wikantik.search.embedding.activity.EmbeddingActivityLog embedActivityLog =
+            com.wikantik.search.embedding.activity.EmbeddingActivityLogHolder.getOrCreate( props );
         final TextEmbeddingClient client = embedActivityLog.enabled()
-            ? new com.wikantik.llm.activity.RecordingEmbeddingClient(
+            ? new com.wikantik.search.embedding.activity.RecordingEmbeddingClient(
                   clientOpt.get(), embedActivityLog, cfg.backend(), modelCode )
             : clientOpt.get();
 

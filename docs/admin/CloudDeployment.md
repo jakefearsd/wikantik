@@ -78,7 +78,7 @@ value).
 
 Full detail — exact env vars, `wikantik-custom.properties` equivalents for
 the bare-metal path, how to verify a tier is actually enforced
-(`/admin/llm-activity`, warn-log lines) — lives in
+(`/admin/embedding-activity`, warn-log lines) — lives in
 **[docs/admin/CostTiers.md](CostTiers.md)**. Don't duplicate that reasoning here;
 this page only covers how the cloud Terraform/compose surface sets the tier.
 

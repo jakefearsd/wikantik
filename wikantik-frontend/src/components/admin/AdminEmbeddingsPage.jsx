@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import ContentEmbeddingsTab from './ContentEmbeddingsTab';
-import LlmActivityTab from './LlmActivityTab';
+import EmbeddingActivityTab from './EmbeddingActivityTab';
 import PageHeader from './PageHeader';
 import '../../styles/admin.css';
 
 const TABS = [
   { id: 'content-embeddings', label: 'Content embeddings',
     description: 'Inspect the embedding index that powers hybrid search and similar pages: model, dimension and chunk coverage. Identify pages missing frontmatter and bulk-backfill it.' },
-  { id: 'llm-activity', label: 'LLM activity',
+  { id: 'embedding-activity', label: 'Embedding activity',
     description: 'Live view of recent and in-flight LLM calls (embeddings) for roughly the last hour. Held in memory only; cleared on restart.' },
 ];
 
@@ -38,7 +38,7 @@ export default function AdminEmbeddingsPage() {
       </p>
       <div data-testid={`embeddings-tab-panel-${activeTab}`}>
         {activeTab === 'content-embeddings' && <ContentEmbeddingsTab />}
-        {activeTab === 'llm-activity' && <LlmActivityTab />}
+        {activeTab === 'embedding-activity' && <EmbeddingActivityTab />}
       </div>
     </div>
   );

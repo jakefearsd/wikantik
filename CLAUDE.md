@@ -235,9 +235,10 @@ The Page Graph is the only graph. The Knowledge Graph was removed; the note belo
   in the following release (migration `V070` dropped the `kg_*`/`hub_*`/`chunk_entity_mentions`
   tables; plans `docs/superpowers/plans/2026-11-08-kg-retirement-pass.md` and
   `2026-11-09-kg-deletion.md`). Do not reintroduce it without new evidence. `kg_include`
-  frontmatter was stripped from every prod page (2026-11-09) — don't write it. Renaming the
-  KG-named leftovers below is **deferred by decision**; don't start it unasked. Still here despite
-  the names: `kg_content_chunks`/`content_chunk_embeddings` (dense retrieval), the
+  frontmatter was stripped from every prod page (2026-11-09) — don't write it. The LLM-activity log and
+  hub-synthesis metric leftovers were renamed (embedding activity, `wikantik_hub_summary_overlay_total`);
+  renaming the remaining KG-named leftovers below stays **deferred by decision**; don't start it
+  unasked. Still here despite the names: `kg_content_chunks`/`content_chunk_embeddings` (dense retrieval), the
   `wikantik-knowledge` module and `/knowledge-mcp` endpoint (retrieval + structure tools), and
   `com.wikantik.knowledge.*` (chunking, bundle, briefing, agent projection, eval, query log).
   "Similar pages" and agent `relatedPages` come from page-embedding centroids

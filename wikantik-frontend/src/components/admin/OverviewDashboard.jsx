@@ -5,7 +5,7 @@ import PageHeader from './PageHeader';
 import MetricCard from './MetricCard';
 import '../../styles/admin.css';
 
-const POLL_MS = 20000; // live cards (load, llmActivity) refresh on this cadence
+const POLL_MS = 20000; // live cards (load, embeddingActivity) refresh on this cadence
 
 // Each entry: how to render one card from the payload. `dim` marks the diagnostic band.
 function statusCards(_d) {
@@ -13,7 +13,7 @@ function statusCards(_d) {
     { key: 'health',      label: 'Health',        render: (c) => <MetricCard label="Health" value={c?.status ?? '—'} meta={c?.version} degraded={!c} /> },
     { key: 'load',        label: 'Load',           render: (c) => <MetricCard label="Load" value={c ? `${c.inflight}/${c.permitsMax}` : null} meta={c ? `${c.rejected} shed` : null} degraded={!c} /> },
     { key: 'retrieval',   label: 'Retrieval',      render: (c) => <MetricCard label="Retrieval" value={c?.ndcg5} meta="nDCG@5" to="/admin/retrieval-quality" degraded={!c} /> },
-    { key: 'llmActivity', label: 'LLM activity',   render: (c) => <MetricCard label="LLM activity" value={c?.inFlight} meta={c ? `${c.count}/${c.windowMinutes}m · ${c.errors} err` : null} accent degraded={!c} /> },
+    { key: 'embeddingActivity', label: 'Embedding activity',   render: (c) => <MetricCard label="Embedding activity" value={c?.inFlight} meta={c ? `${c.count}/${c.windowMinutes}m · ${c.errors} err` : null} accent degraded={!c} /> },
     { key: 'searchIndex', label: 'Search & index', render: (c) => <MetricCard label="Search & index" value={c?.indexable} meta={c ? `/${c.total} · ${c.embeddingsPct}% emb` : null} to="/admin/content" degraded={!c} /> },
     { key: 'users',       label: 'Users',          render: (c) => <MetricCard label="Users" value={c?.users} meta={c ? `${c.apiKeys} keys · ${c.locked} locked` : null} to="/admin/users" degraded={!c} /> },
     { key: 'recent',      label: 'Recent',         render: (c) => <MetricCard label="Recent" degraded={!c}>{c?.items && <ul className="metric-card-feed">{c.items.map((it, i) => <li key={i}>{it}</li>)}</ul>}</MetricCard> },
@@ -24,7 +24,7 @@ function metricCards(_d) {
   return [
     { key: 'renderCache',     label: 'Render cache',         render: (c) => <MetricCard dim label="Render cache" value={c?.hits} meta={c ? `${c.misses} miss · ${c.evictions} evict` : null} degraded={!c} /> },
     { key: 'auth',            label: 'Auth activity',        render: (c) => <MetricCard dim label="Auth activity" value={c?.logins} meta={c ? `${c.failed} failed` : null} degraded={!c} /> },
-    { key: 'agentSurface',    label: 'Agent surface',        render: (c) => <MetricCard dim label="Agent surface" value={c?.hubSynthesis} meta={c ? `${c.forAgentBytes}B avg · ${c.hintFailures} hint fails` : null} degraded={!c} /> },
+    { key: 'agentSurface',    label: 'Agent surface',        render: (c) => <MetricCard dim label="Agent surface" value={c?.hubSummaryOverlays} meta={c ? `hub overlays · ${c.forAgentBytes}B avg · ${c.hintFailures} hint fails` : null} degraded={!c} /> },
     { key: 'contentQuality',  label: 'Content quality',      render: (c) => <MetricCard dim label="Content quality" value={c?.authoritative} meta={c ? `${c.provisional} prov · ${c.stale} stale · ${c.noVerification} none` : null} degraded={!c} /> },
     { key: 'retrievalModes',  label: 'Retrieval modes',      render: (c) => <MetricCard dim label="Retrieval modes" value={c?.hybrid ?? c?.bm25} meta={c ? `bm25 ${c.bm25 ?? '—'} · hybrid ${c.hybrid ?? '—'} · graph ${c.hybridGraph ?? '—'}` : null} degraded={!c} /> },
     { key: 'attachments',     label: 'Attachments',          render: (c) => <MetricCard dim label="Attachments" value={c?.provider} meta={c ? `${c.maxSize} · ${c.allowedCount} allowed` : null} degraded={!c} /> },

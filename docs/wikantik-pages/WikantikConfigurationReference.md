@@ -762,10 +762,10 @@ Full descriptions (truncated above to keep the table scannable):
 
 | Key | Type | Default | Override | Description |
 |---|---|---|---|---|
-| `wikantik.llm_activity.enabled` | `boolean` | `true` | `wikantik_llm_activity_enabled` | In-memory record of recent LLM calls, surfaced at /admin/llm-activity. Not persisted; state is lost on restart. |
-| `wikantik.llm_activity.window_minutes` | `int` | `60` | `wikantik_llm_activity_window_minutes` | How far back the in-memory activity window looks, in minutes. |
-| `wikantik.llm_activity.max_records` | `int` | `5000` | `wikantik_llm_activity_max_records` | Maximum number of recent LLM calls retained in memory before the oldest are evicted. |
-| `wikantik.llm_activity.payload_chars` | `int` | `500` | `wikantik_llm_activity_payload_chars` | Maximum number of characters of request/response payload retained per recorded call. |
+| `wikantik.embedding_activity.enabled` | `boolean` | `true` | `wikantik_embedding_activity_enabled` | In-memory record of recent embedding calls, surfaced at /admin/embedding-activity. Not persisted; state is lost on restart. |
+| `wikantik.embedding_activity.window_minutes` | `int` | `60` | `wikantik_embedding_activity_window_minutes` | How far back the in-memory activity window looks, in minutes. |
+| `wikantik.embedding_activity.max_records` | `int` | `5000` | `wikantik_embedding_activity_max_records` | Maximum number of recent embedding calls retained in memory before the oldest are evicted. |
+| `wikantik.embedding_activity.payload_chars` | `int` | `500` | `wikantik_embedding_activity_payload_chars` | Maximum number of characters of request/response payload retained per recorded call. |
 | `wikantik.retrieval.cron.enabled` | `boolean` | `true` | `wikantik_retrieval_cron_enabled` | Whether the nightly scheduled retrieval-quality run is registered. |
 | `wikantik.retrieval.cron.hour_utc` | `int` | `3` | `wikantik_retrieval_cron_hour_utc` | UTC hour of day the nightly retrieval-quality run fires. |
 | `wikantik.querylog.enabled` | `boolean` | `true` | `wikantik_querylog_enabled` | Retrieval query log. … |

@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.llm.activity;
+package com.wikantik.search.embedding.activity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -46,19 +46,19 @@ class RecordingEmbeddingClientTest {
 
     @Test
     void recordsOkOnSyncEmbed() {
-        final LlmActivityLog log = new LlmActivityLog( true, 60, 100, 500 );
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
         final RecordingEmbeddingClient rec =
             new RecordingEmbeddingClient( delegate( false ), log, "ollama", "nomic-embed" );
 
         assertEquals( 2, rec.embed( List.of( "a", "b" ), EmbeddingKind.QUERY ).size() );
-        final LlmActivityLog.Snapshot snap = log.snapshot( 10, null, null );
+        final EmbeddingActivityLog.Snapshot snap = log.snapshot( 10, null, null );
         assertEquals( "OK", snap.calls().get( 0 ).status() );
         assertEquals( "EMBEDDING", snap.calls().get( 0 ).subsystem() );
     }
 
     @Test
     void recordsErrorAndRethrowsOnSyncEmbedFailure() {
-        final LlmActivityLog log = new LlmActivityLog( true, 60, 100, 500 );
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
         final RecordingEmbeddingClient rec =
             new RecordingEmbeddingClient( delegate( true ), log, "ollama", "nomic-embed" );
 
@@ -69,7 +69,7 @@ class RecordingEmbeddingClientTest {
 
     @Test
     void recordsOkOnAsyncEmbed() throws Exception {
-        final LlmActivityLog log = new LlmActivityLog( true, 60, 100, 500 );
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
         final RecordingEmbeddingClient rec =
             new RecordingEmbeddingClient( delegate( false ), log, "ollama", "nomic-embed" );
 
@@ -79,7 +79,7 @@ class RecordingEmbeddingClientTest {
 
     @Test
     void recordsErrorOnAsyncEmbedFailure() {
-        final LlmActivityLog log = new LlmActivityLog( true, 60, 100, 500 );
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
         final RecordingEmbeddingClient rec =
             new RecordingEmbeddingClient( delegate( true ), log, "ollama", "nomic-embed" );
 
@@ -92,7 +92,7 @@ class RecordingEmbeddingClientTest {
     @Test
     void delegatesDimensionAndModelName() {
         final RecordingEmbeddingClient rec = new RecordingEmbeddingClient(
-            delegate( false ), new LlmActivityLog( true, 60, 100, 500 ), "ollama", "nomic-embed" );
+            delegate( false ), new EmbeddingActivityLog( true, 60, 100, 500 ), "ollama", "nomic-embed" );
         assertEquals( 1, rec.dimension() );
         assertTrue( rec.modelName().contains( "nomic" ) );
     }

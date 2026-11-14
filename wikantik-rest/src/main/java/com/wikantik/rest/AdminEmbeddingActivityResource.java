@@ -21,11 +21,11 @@ package com.wikantik.rest;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
-import com.wikantik.llm.activity.CallStatus;
-import com.wikantik.llm.activity.LlmActivityLog;
-import com.wikantik.llm.activity.LlmActivityLogHolder;
-import com.wikantik.llm.activity.LlmCallView;
-import com.wikantik.llm.activity.Subsystem;
+import com.wikantik.search.embedding.activity.CallStatus;
+import com.wikantik.search.embedding.activity.EmbeddingActivityLog;
+import com.wikantik.search.embedding.activity.EmbeddingActivityLogHolder;
+import com.wikantik.search.embedding.activity.EmbeddingCallView;
+import com.wikantik.search.embedding.activity.Subsystem;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
@@ -34,19 +34,19 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 
 /**
- * {@code GET /admin/llm-activity} — read-only snapshot of recent and in-flight LLM
- * calls (embeddings). Backed by the in-memory {@link LlmActivityLog}; nothing is
+ * {@code GET /admin/embedding-activity} — read-only snapshot of recent and in-flight LLM
+ * calls (embeddings). Backed by the in-memory {@link EmbeddingActivityLog}; nothing is
  * persisted. Auth is via the shared {@code AdminAuthFilter}.
  *
  * <p>Query parameters: {@code limit} (default 200), {@code subsystem}
  * (embedding),
  * {@code status} (in_flight|ok|error).</p>
  */
-public class AdminLlmActivityResource extends RestServletBase {
+public class AdminEmbeddingActivityResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final int DEFAULT_LIMIT = 200;
-    private static final Logger LOG = LogManager.getLogger( AdminLlmActivityResource.class );
+    private static final Logger LOG = LogManager.getLogger( AdminEmbeddingActivityResource.class );
 
     /** Test seam — {@code doGet} is protected on the servlet base. */
     void doGetForTesting( final HttpServletRequest req, final HttpServletResponse resp )
@@ -57,7 +57,7 @@ public class AdminLlmActivityResource extends RestServletBase {
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp )
             throws IOException {
-        final LlmActivityLog log = LlmActivityLogHolder.get();
+        final EmbeddingActivityLog log = EmbeddingActivityLogHolder.get();
 
         int limit = DEFAULT_LIMIT;
         final String limitRaw = req.getParameter( "limit" );
@@ -74,10 +74,10 @@ public class AdminLlmActivityResource extends RestServletBase {
         final Subsystem subsystem = parseSubsystem( req.getParameter( "subsystem" ) );
         final CallStatus status = parseStatus( req.getParameter( "status" ) );
 
-        final LlmActivityLog.Snapshot snap = log.snapshot( limit, subsystem, status );
+        final EmbeddingActivityLog.Snapshot snap = log.snapshot( limit, subsystem, status );
 
         final JsonArray calls = new JsonArray();
-        for ( final LlmCallView c : snap.calls() ) {
+        for ( final EmbeddingCallView c : snap.calls() ) {
             calls.add( callToJson( c ) );
         }
         final JsonObject data = new JsonObject();
@@ -94,7 +94,7 @@ public class AdminLlmActivityResource extends RestServletBase {
         resp.getWriter().write( envelope.toString() );
     }
 
-    private static JsonObject callToJson( final LlmCallView c ) {
+    private static JsonObject callToJson( final EmbeddingCallView c ) {
         final JsonObject o = new JsonObject();
         o.addProperty( "seq",             c.seq() );
         o.addProperty( "startedAt",       c.startedAt() );

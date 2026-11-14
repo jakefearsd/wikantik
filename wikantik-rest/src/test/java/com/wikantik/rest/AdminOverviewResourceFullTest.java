@@ -35,9 +35,9 @@ import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.core.subsystem.WikiProperties;
-import com.wikantik.llm.activity.LlmActivityLog;
-import com.wikantik.llm.activity.LlmActivityLogHolder;
-import com.wikantik.llm.activity.Subsystem;
+import com.wikantik.search.embedding.activity.EmbeddingActivityLog;
+import com.wikantik.search.embedding.activity.EmbeddingActivityLogHolder;
+import com.wikantik.search.embedding.activity.Subsystem;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -76,8 +76,8 @@ import static org.mockito.Mockito.when;
  */
 class AdminOverviewResourceFullTest {
 
-    private static void installLlmLog( final LlmActivityLog log ) throws Exception {
-        final var m = LlmActivityLogHolder.class.getDeclaredMethod( "setForTesting", LlmActivityLog.class );
+    private static void installActivityLog( final EmbeddingActivityLog log ) throws Exception {
+        final var m = EmbeddingActivityLogHolder.class.getDeclaredMethod( "setForTesting", EmbeddingActivityLog.class );
         m.setAccessible( true );
         m.invoke( null, log );
     }
@@ -86,7 +86,7 @@ class AdminOverviewResourceFullTest {
     void tearDown() throws Exception {
         com.wikantik.api.observability.MeterRegistryHolder.clear();
         ApiKeyServiceHolder.setForTesting( null );
-        installLlmLog( null );
+        installActivityLog( null );
     }
 
     private static final class Stub extends AdminOverviewResource {
@@ -127,19 +127,19 @@ class AdminOverviewResourceFullTest {
         gaugeAnchors.add( reg.gauge( "wikantik_cache.size", 512 ) );
         reg.counter( "wikantik.auth.logins", "result", "success" ).increment( 20 );
         reg.counter( "wikantik.auth.logins", "result", "failure" ).increment( 4 );
-        reg.counter( "wikantik_hub_summary_synthesis_total" ).increment( 6 );
+        reg.counter( "wikantik_hub_summary_overlay_total" ).increment( 6 );
         reg.counter( "wikantik_agent_hints_derivation_failures_total" ).increment( 1 );
         gaugeAnchors.add( reg.gauge( "wikantik.search.hybrid.vector_index.size", 999 ) );
         final DistributionSummary bytes = DistributionSummary.builder( "wikantik_for_agent_response_bytes" ).register( reg );
         bytes.record( 1000 );
         bytes.record( 3000 );
 
-        // --- LLM activity: one ok + one error call ---
-        final LlmActivityLog log = new LlmActivityLog( true, 60, 100, 500 );
+        // --- Embedding activity: one ok + one error call ---
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
         log.succeed( log.begin( Subsystem.EMBEDDING, "ollama", "nomic", "embed", "x" ), "ok" );
         log.fail( log.begin( Subsystem.EMBEDDING, "ollama", "nomic", "embed", "y" ),
                 new RuntimeException( "boom" ) );
-        installLlmLog( log );
+        installActivityLog( log );
 
         // --- retrieval quality runner: overall + per-mode ---
         final RetrievalQualityRunner runner = mock( RetrievalQualityRunner.class );
@@ -225,7 +225,7 @@ class AdminOverviewResourceFullTest {
         assertEquals( 32, load.get( "permitsMax" ).getAsInt() );
         assertEquals( 2, load.get( "rejected" ).getAsInt() );
 
-        final JsonObject llm = data.getAsJsonObject( "llmActivity" );
+        final JsonObject llm = data.getAsJsonObject( "embeddingActivity" );
         assertEquals( 2, llm.get( "count" ).getAsInt() );
         assertEquals( 1, llm.get( "errors" ).getAsInt() );
         assertEquals( 0, llm.get( "inFlight" ).getAsInt() );
@@ -267,7 +267,7 @@ class AdminOverviewResourceFullTest {
         assertEquals( 4, auth.get( "failed" ).getAsInt() );
 
         final JsonObject agent = data.getAsJsonObject( "agentSurface" );
-        assertEquals( 6, agent.get( "hubSynthesis" ).getAsInt() );
+        assertEquals( 6, agent.get( "hubSummaryOverlays" ).getAsInt() );
         assertEquals( 1, agent.get( "hintFailures" ).getAsInt() );
         assertEquals( 2000.0, agent.get( "forAgentBytes" ).getAsDouble() ); // mean of 1000,3000
         assertEquals( 2, agent.get( "forAgentCount" ).getAsInt() );

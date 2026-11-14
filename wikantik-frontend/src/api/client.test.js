@@ -1143,9 +1143,9 @@ describe('api.admin.embeddings methods', () => {
     expect(opts?.method || 'GET').toBe('GET');
   });
 
-  it('getLlmActivity builds the query string', async () => {
-    await api.admin.embeddings.getLlmActivity({ subsystem: 'EMBEDDING', status: 'OK' });
-    expect(lastCall()[0]).toBe('/admin/llm-activity?limit=200&subsystem=EMBEDDING&status=OK');
+  it('getEmbeddingActivity builds the query string', async () => {
+    await api.admin.embeddings.getEmbeddingActivity({ subsystem: 'EMBEDDING', status: 'OK' });
+    expect(lastCall()[0]).toBe('/admin/embedding-activity?limit=200&subsystem=EMBEDDING&status=OK');
   });
 });
 

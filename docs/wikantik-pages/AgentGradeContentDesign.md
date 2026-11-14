@@ -98,7 +98,7 @@ Tuning of the agent surface based on external-agent feedback (Gemini's report on
 3. **`read_pages` MCP tool on `/knowledge-mcp`** — batched raw-markdown reads (cap 20). Per-page failures (`not_found`, `internal_error`) come back as data on a 200 response; only input validation fails the call. Removes the per-page read tax for cluster-spanning research.
 4. **`/admin/agent-grade-audit` weak-signal report** — operator surface listing pages flagged by `no_cluster`, `no_inbound_cluster_links` (non-hubs only), `generic_hub_summary`, `no_verified_at`, or `stale_verification`. Sorted by flag count then `canonical_id`. The schema-burden alternative (mandatory frontmatter) was rejected; this audit is the operator's compensating tool to find pages worth manual improvement.
 
-Three Prometheus counters land alongside: `wikantik_agent_hints_derivation_failures_total`, `wikantik_hub_summary_synthesis_total`, `wikantik_read_pages_partial_failures_total{reason}`.
+Three Prometheus counters land alongside: `wikantik_agent_hints_derivation_failures_total`, `wikantik_hub_summary_overlay_total`, `wikantik_read_pages_partial_failures_total{reason}`.
 
 Design spec and implementation plan retired once the work shipped; status is tracked in `docs/developer/ProjectReference.md` § Other subsystems (Derived agent hints).
 

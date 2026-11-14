@@ -25,9 +25,9 @@ import static org.mockito.Mockito.when;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.wikantik.llm.activity.LlmActivityLog;
-import com.wikantik.llm.activity.LlmActivityLogHolder;
-import com.wikantik.llm.activity.Subsystem;
+import com.wikantik.search.embedding.activity.EmbeddingActivityLog;
+import com.wikantik.search.embedding.activity.EmbeddingActivityLogHolder;
+import com.wikantik.search.embedding.activity.Subsystem;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
@@ -35,17 +35,17 @@ import java.io.StringWriter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-class AdminLlmActivityResourceTest {
+class AdminEmbeddingActivityResourceTest {
 
     @AfterEach
     void reset() throws Exception {
-        final var m = LlmActivityLogHolder.class.getDeclaredMethod( "setForTesting", LlmActivityLog.class );
+        final var m = EmbeddingActivityLogHolder.class.getDeclaredMethod( "setForTesting", EmbeddingActivityLog.class );
         m.setAccessible( true );
-        m.invoke( null, ( LlmActivityLog ) null );
+        m.invoke( null, ( EmbeddingActivityLog ) null );
     }
 
-    private static void installHolder( final LlmActivityLog log ) throws Exception {
-        final var m = LlmActivityLogHolder.class.getDeclaredMethod( "setForTesting", LlmActivityLog.class );
+    private static void installHolder( final EmbeddingActivityLog log ) throws Exception {
+        final var m = EmbeddingActivityLogHolder.class.getDeclaredMethod( "setForTesting", EmbeddingActivityLog.class );
         m.setAccessible( true );
         m.invoke( null, log );
     }
@@ -56,13 +56,13 @@ class AdminLlmActivityResourceTest {
         when( req.getParameter( "limit" ) ).thenReturn( limit );
         final StringWriter sw = new StringWriter();
         when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
-        new AdminLlmActivityResource().doGetForTesting( req, resp );
+        new AdminEmbeddingActivityResource().doGetForTesting( req, resp );
         return JsonParser.parseString( sw.toString() ).getAsJsonObject();
     }
 
     @Test
     void returnsSnapshotEnvelopeWithRecordedCalls() throws Exception {
-        final LlmActivityLog log = new LlmActivityLog( true, 60, 100, 500 );
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
         log.succeed( log.begin( Subsystem.EMBEDDING, "ollama", "nomic", "embed", "x" ), "ok" );
         installHolder( log );
 
@@ -76,14 +76,14 @@ class AdminLlmActivityResourceTest {
 
     @Test
     void reportsDisabledWhenLogDisabled() throws Exception {
-        installHolder( new LlmActivityLog( false, 60, 100, 500 ) );
+        installHolder( new EmbeddingActivityLog( false, 60, 100, 500 ) );
         final JsonObject data = doGet( null ).getAsJsonObject( "data" );
         assertEquals( false, data.get( "enabled" ).getAsBoolean() );
     }
 
     @Test
     void limitParameterCapsResultCount() throws Exception {
-        final LlmActivityLog log = new LlmActivityLog( true, 60, 100, 500 );
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
         for ( int i = 0; i < 5; i++ ) {
             log.succeed( log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "n" + i ), "ok" );
         }

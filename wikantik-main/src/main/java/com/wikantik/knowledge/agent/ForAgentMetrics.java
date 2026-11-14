@@ -40,7 +40,7 @@ public final class ForAgentMetrics {
 
     private DistributionSummary responseBytes;
     private Counter hintsDerivationFailures;
-    private Counter hubSummarySynthesis;
+    private Counter hubSummaryOverlay;
 
     public void bind( final MeterRegistry registry ) {
         if ( registry == null ) return;
@@ -52,8 +52,8 @@ public final class ForAgentMetrics {
         this.hintsDerivationFailures = Counter.builder( "wikantik_agent_hints_derivation_failures_total" )
                 .description( "Whole-block agent_hints derivation failures (deriver exception caught by projection service)" )
                 .register( registry );
-        this.hubSummarySynthesis = Counter.builder( "wikantik_hub_summary_synthesis_total" )
-                .description( "Hub-summary overlay activations (generic summary detected and replaced by Top-3 highlight)" )
+        this.hubSummaryOverlay = Counter.builder( "wikantik_hub_summary_overlay_total" )
+                .description( "Times a for-agent response replaced a hub's generic authored summary with a deterministic top-3 preferred-pages overlay (template-based; no model involved)" )
                 .register( registry );
     }
 
@@ -67,8 +67,8 @@ public final class ForAgentMetrics {
         if ( hintsDerivationFailures != null ) hintsDerivationFailures.increment();
     }
 
-    public void incrementHubSummarySynthesis() {
-        if ( hubSummarySynthesis != null ) hubSummarySynthesis.increment();
+    public void incrementHubSummaryOverlay() {
+        if ( hubSummaryOverlay != null ) hubSummaryOverlay.increment();
     }
 
     public static ForAgentMetrics resolveAndBind() {

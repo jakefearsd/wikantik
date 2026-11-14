@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.llm.activity;
+package com.wikantik.search.embedding.activity;
 
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -29,19 +29,19 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Bounded, in-memory record of recent LLM calls. Thread-safe. Holds at most
+ * Bounded, in-memory record of recent embedding calls. Thread-safe. Holds at most
  * {@code maxRecords} entries and drops finalized entries older than the configured
  * window. Never persisted — state is lost on restart by design.
  *
  * <p>All public methods are self-protecting: a recorder failure is logged and
- * swallowed so it can never disturb the LLM call being recorded.</p>
+ * swallowed so it can never disturb the embedding call being recorded.</p>
  */
-public final class LlmActivityLog {
+public final class EmbeddingActivityLog {
 
-    private static final Logger LOG = LogManager.getLogger( LlmActivityLog.class );
+    private static final Logger LOG = LogManager.getLogger( EmbeddingActivityLog.class );
 
     /** Immutable result of {@link #snapshot}. */
-    public record Snapshot( List< LlmCallView > calls, int inFlight, boolean enabled,
+    public record Snapshot( List< EmbeddingCallView > calls, int inFlight, boolean enabled,
                             int windowMinutes, int maxRecords ) {}
 
     private final boolean enabled;
@@ -50,11 +50,11 @@ public final class LlmActivityLog {
     private final int maxRecords;
     private final int payloadChars;
 
-    private final Deque< LlmCall > buffer = new ArrayDeque<>();
+    private final Deque< EmbeddingCall > buffer = new ArrayDeque<>();
     private final Object lock = new Object();
     private final AtomicLong seq = new AtomicLong();
 
-    public LlmActivityLog( final boolean enabled, final int windowMinutes,
+    public EmbeddingActivityLog( final boolean enabled, final int windowMinutes,
                            final int maxRecords, final int payloadChars ) {
         this.enabled = enabled;
         this.windowMinutes = Math.max( 1, windowMinutes );
@@ -67,10 +67,10 @@ public final class LlmActivityLog {
     public int windowMinutes()  { return windowMinutes; }
     public int maxRecords()     { return maxRecords; }
 
-    /** Records the start of a call. Always returns a usable {@link LlmCall}, even on failure. */
-    public LlmCall begin( final Subsystem subsystem, final String backend, final String model,
+    /** Records the start of a call. Always returns a usable {@link EmbeddingCall}, even on failure. */
+    public EmbeddingCall begin( final Subsystem subsystem, final String backend, final String model,
                           final String operation, final String promptPreview ) {
-        final LlmCall call = new LlmCall( seq.incrementAndGet(), Instant.now(), System.nanoTime(),
+        final EmbeddingCall call = new EmbeddingCall( seq.incrementAndGet(), Instant.now(), System.nanoTime(),
                                           subsystem, backend, model, operation,
                                           truncate( promptPreview ) );
         try {
@@ -79,33 +79,33 @@ public final class LlmActivityLog {
                 prune();
             }
         } catch ( final RuntimeException e ) {
-            LOG.warn( "LlmActivityLog.begin failed: {}", e.getMessage() );
+            LOG.warn( "EmbeddingActivityLog.begin failed: {}", e.getMessage() );
         }
         return call;
     }
 
     /** Finalizes a call as successful. Emits a DEBUG log line. Never throws. */
-    public void succeed( final LlmCall call, final String responsePreview ) {
+    public void succeed( final EmbeddingCall call, final String responsePreview ) {
         try {
             call.finishOk( durationMs( call ), truncate( responsePreview ) );
-            LOG.debug( "LLM call ok: {} {} {} {}ms",
+            LOG.debug( "embedding call ok: {} {} {} {}ms",
                        call.subsystem(), call.model(), call.operation(), call.durationMs() );
         } catch ( final RuntimeException e ) {
-            LOG.warn( "LlmActivityLog.succeed failed: {}", e.getMessage() );
+            LOG.warn( "EmbeddingActivityLog.succeed failed: {}", e.getMessage() );
         }
     }
 
     /** Finalizes a call as failed. Emits a WARN log line. Never throws. */
-    public void fail( final LlmCall call, final Throwable error ) {
+    public void fail( final EmbeddingCall call, final Throwable error ) {
         try {
             final String msg = error == null
                 ? "unknown error"
                 : error.getClass().getSimpleName() + ": " + error.getMessage();
             call.finishError( durationMs( call ), msg );
-            LOG.warn( "LLM call failed: {} {} {} — {}",
+            LOG.warn( "embedding call failed: {} {} {} — {}",
                       call.subsystem(), call.model(), call.operation(), msg );
         } catch ( final RuntimeException e ) {
-            LOG.warn( "LlmActivityLog.fail failed: {}", e.getMessage() );
+            LOG.warn( "EmbeddingActivityLog.fail failed: {}", e.getMessage() );
         }
     }
 
@@ -114,11 +114,11 @@ public final class LlmActivityLog {
                               final CallStatus statusFilter ) {
         synchronized ( lock ) {
             prune();
-            final List< LlmCallView > out = new ArrayList<>();
+            final List< EmbeddingCallView > out = new ArrayList<>();
             int inFlight = 0;
-            final Iterator< LlmCall > it = buffer.descendingIterator();
+            final Iterator< EmbeddingCall > it = buffer.descendingIterator();
             while ( it.hasNext() ) {
-                final LlmCall c = it.next();
+                final EmbeddingCall c = it.next();
                 if ( c.status() == CallStatus.IN_FLIGHT ) {
                     inFlight++;
                 }
@@ -136,7 +136,7 @@ public final class LlmActivityLog {
         }
     }
 
-    private long durationMs( final LlmCall call ) {
+    private long durationMs( final EmbeddingCall call ) {
         return Math.max( 0L, ( System.nanoTime() - call.startedNanos() ) / 1_000_000L );
     }
 
@@ -150,9 +150,9 @@ public final class LlmActivityLog {
     /** Caller must hold {@code lock}. Evicts only finalized records; in-flight is never dropped. */
     private void prune() {
         final long cutoff = System.currentTimeMillis() - windowMillis;
-        final Iterator< LlmCall > it = buffer.iterator(); // head = oldest
+        final Iterator< EmbeddingCall > it = buffer.iterator(); // head = oldest
         while ( it.hasNext() ) {
-            final LlmCall c = it.next();
+            final EmbeddingCall c = it.next();
             if ( c.status() == CallStatus.IN_FLIGHT ) {
                 continue;
             }

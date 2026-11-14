@@ -100,9 +100,9 @@ public class AdminOverviewResource extends RestServletBase {
             return o;
         } );
 
-        // llmActivity (in-memory snapshot)
-        c.put( "llmActivity", () -> {
-            final var snap = com.wikantik.llm.activity.LlmActivityLogHolder.get().snapshot( Integer.MAX_VALUE, null, null );
+        // embeddingActivity (in-memory snapshot)
+        c.put( "embeddingActivity", () -> {
+            final var snap = com.wikantik.search.embedding.activity.EmbeddingActivityLogHolder.get().snapshot( Integer.MAX_VALUE, null, null );
             final JsonObject o = new JsonObject();
             o.addProperty( "inFlight", snap.inFlight() );
             o.addProperty( "windowMinutes", snap.windowMinutes() );
@@ -170,7 +170,7 @@ public class AdminOverviewResource extends RestServletBase {
 
         // recent — top 8 LLM call summaries as strings.
         c.put( "recent", () -> {
-            final var snap = com.wikantik.llm.activity.LlmActivityLogHolder.get().snapshot( 8, null, null );
+            final var snap = com.wikantik.search.embedding.activity.EmbeddingActivityLogHolder.get().snapshot( 8, null, null );
             final JsonArray items = new JsonArray();
             for ( final var v : snap.calls() ) {
                 items.add( v.operation() + " " + v.subsystem() );
@@ -201,7 +201,7 @@ public class AdminOverviewResource extends RestServletBase {
         // agentSurface (metric-backed)
         c.put( "agentSurface", () -> {
             final JsonObject o = new JsonObject();
-            o.addProperty( "hubSynthesis", (long) MetricReads.counter( reg, "wikantik_hub_summary_synthesis_total", 0 ) );
+            o.addProperty( "hubSummaryOverlays", (long) MetricReads.counter( reg, "wikantik_hub_summary_overlay_total", 0 ) );
             o.addProperty( "hintFailures", (long) MetricReads.counter( reg, "wikantik_agent_hints_derivation_failures_total", 0 ) );
             o.addProperty( "forAgentBytes", (long) MetricReads.summaryMean( reg, "wikantik_for_agent_response_bytes", 0 ) );
             o.addProperty( "forAgentCount", MetricReads.summaryCount( reg, "wikantik_for_agent_response_bytes", 0 ) );

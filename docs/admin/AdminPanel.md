@@ -19,7 +19,7 @@ Every screen below calls a servlet under `/admin/*`, all protected by
 
 ## Overview
 
-`/admin` shows a dashboard of live cards: health and version, request load, retrieval quality (nDCG@5), LLM activity, search and index
+`/admin` shows a dashboard of live cards: health and version, request load, retrieval quality (nDCG@5), Embedding activity, search and index
 status, users and keys, and a recent-activity feed, plus a diagnostic band (render cache,
 auth activity, agent surface, content quality, retrieval modes, attachments). Cards with a
 destination link to the screen that handles them.
@@ -113,12 +113,12 @@ derived pages it produced). Delete can optionally delete those pages.
 ### Embeddings
 
 `/admin/embeddings`. Two tabs: **Content embeddings** (dense-index health, the frontmatter
-backfill and the pages-without-frontmatter list) and **LLM activity** (about the last hour of
-in-flight and recent LLM calls, held in memory only).
+backfill and the pages-without-frontmatter list) and **Embedding activity** (about the last hour of
+in-flight and recent embedding calls, held in memory only).
 
-- Backed by: `/admin/embeddings/*` (`AdminEmbeddingsResource`) and `/admin/llm-activity`
-  (`AdminLlmActivityResource`).
-- Source: `AdminEmbeddingsPage.jsx`, `ContentEmbeddingsTab.jsx`, `LlmActivityTab.jsx`.
+- Backed by: `/admin/embeddings/*` (`AdminEmbeddingsResource`) and `/admin/embedding-activity`
+  (`AdminEmbeddingActivityResource`).
+- Source: `AdminEmbeddingsPage.jsx`, `ContentEmbeddingsTab.jsx`, `EmbeddingActivityTab.jsx`.
 - Deep doc: [IndexRebuild.md](IndexRebuild.md).
 
 ### Retrieval Quality

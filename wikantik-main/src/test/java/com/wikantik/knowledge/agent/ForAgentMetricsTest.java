@@ -43,8 +43,8 @@ class ForAgentMetricsTest {
         final ForAgentMetrics m = new ForAgentMetrics();
         final SimpleMeterRegistry reg = new SimpleMeterRegistry();
         m.bind( reg );
-        m.incrementHubSummarySynthesis();
-        final Counter c = reg.find( "wikantik_hub_summary_synthesis_total" ).counter();
+        m.incrementHubSummaryOverlay();
+        final Counter c = reg.find( "wikantik_hub_summary_overlay_total" ).counter();
         assertNotNull( c );
         assertEquals( 1.0, c.count(), 0.001 );
     }
@@ -54,7 +54,7 @@ class ForAgentMetricsTest {
         // No bind() called.
         final ForAgentMetrics m = new ForAgentMetrics();
         m.incrementHintsDerivationFailures();
-        m.incrementHubSummarySynthesis();
+        m.incrementHubSummaryOverlay();
         // No exception — no-op when no registry bound.
     }
 }

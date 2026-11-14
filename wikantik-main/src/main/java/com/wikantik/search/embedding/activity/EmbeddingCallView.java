@@ -16,11 +16,26 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.llm.activity;
+package com.wikantik.search.embedding.activity;
 
-/** Lifecycle state of a recorded LLM call. */
-public enum CallStatus {
-    IN_FLIGHT,
-    OK,
-    ERROR
-}
+/**
+ * Immutable, JSON-friendly projection of an {@link EmbeddingCall}. {@code startedAt} is an
+ * ISO-8601 string so the servlet can serialise without an {@code Instant} adapter.
+ * {@code inputTokens}/{@code outputTokens} are reserved for a future enhancement and
+ * are {@code null} in this version.
+ */
+public record EmbeddingCallView(
+    long seq,
+    String startedAt,
+    String subsystem,
+    String backend,
+    String model,
+    String operation,
+    String status,
+    long durationMs,
+    String promptPreview,
+    String responsePreview,
+    Integer inputTokens,
+    Integer outputTokens,
+    String errorMessage
+) {}

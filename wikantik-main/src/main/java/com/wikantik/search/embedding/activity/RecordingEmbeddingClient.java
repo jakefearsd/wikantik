@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.llm.activity;
+package com.wikantik.search.embedding.activity;
 
 import com.wikantik.search.embedding.EmbeddingKind;
 import com.wikantik.search.embedding.TextEmbeddingClient;
@@ -25,18 +25,18 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link TextEmbeddingClient} decorator that records each embedding call into an
- * {@link LlmActivityLog}. Both the synchronous {@code embed} path and the native
+ * {@link EmbeddingActivityLog}. Both the synchronous {@code embed} path and the native
  * async {@code embedAsync} path are recorded; the async path finalizes its record
  * when the returned future completes.
  */
 public final class RecordingEmbeddingClient implements TextEmbeddingClient {
 
     private final TextEmbeddingClient delegate;
-    private final LlmActivityLog log;
+    private final EmbeddingActivityLog log;
     private final String backend;
     private final String model;
 
-    public RecordingEmbeddingClient( final TextEmbeddingClient delegate, final LlmActivityLog log,
+    public RecordingEmbeddingClient( final TextEmbeddingClient delegate, final EmbeddingActivityLog log,
                                      final String backend, final String model ) {
         this.delegate = delegate;
         this.log = log;
@@ -46,7 +46,7 @@ public final class RecordingEmbeddingClient implements TextEmbeddingClient {
 
     @Override
     public List< float[] > embed( final List< String > texts, final EmbeddingKind kind ) {
-        final LlmCall call = log.begin( Subsystem.EMBEDDING, backend, model, "embed",
+        final EmbeddingCall call = log.begin( Subsystem.EMBEDDING, backend, model, "embed",
                                         size( texts ) + " texts" );
         try {
             final List< float[] > result = delegate.embed( texts, kind );
@@ -61,7 +61,7 @@ public final class RecordingEmbeddingClient implements TextEmbeddingClient {
     @Override
     public CompletableFuture< List< float[] > > embedAsync( final List< String > texts,
                                                             final EmbeddingKind kind ) {
-        final LlmCall call = log.begin( Subsystem.EMBEDDING, backend, model, "embed",
+        final EmbeddingCall call = log.begin( Subsystem.EMBEDDING, backend, model, "embed",
                                         size( texts ) + " texts" );
         return delegate.embedAsync( texts, kind ).whenComplete( ( result, error ) -> {
             if ( error != null ) {

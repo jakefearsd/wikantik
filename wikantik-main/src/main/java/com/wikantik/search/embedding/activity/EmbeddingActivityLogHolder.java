@@ -16,53 +16,53 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.llm.activity;
+package com.wikantik.search.embedding.activity;
 
 import java.util.Properties;
 import com.wikantik.util.TextUtil;
 
 /**
- * Process-wide handle for the single {@link LlmActivityLog}. Mirrors the
+ * Process-wide handle for the single {@link EmbeddingActivityLog}. Mirrors the
  * {@code MeterRegistryHolder} pattern: the log is a cross-cutting observability
  * singleton reached both by the recording decorators (during subsystem wiring)
  * and by the admin servlet. Not persisted.
  */
-public final class LlmActivityLogHolder {
+public final class EmbeddingActivityLogHolder {
 
     /** Returned before any log is installed, so callers never see {@code null}. */
-    private static final LlmActivityLog DISABLED = new LlmActivityLog( false, 60, 1, 500 );
+    private static final EmbeddingActivityLog DISABLED = new EmbeddingActivityLog( false, 60, 1, 500 );
 
-    private static volatile LlmActivityLog instance;
+    private static volatile EmbeddingActivityLog instance;
 
-    private LlmActivityLogHolder() {}
+    private EmbeddingActivityLogHolder() {}
 
     /**
      * Returns the installed log, creating it from {@code props} on first call.
      * Idempotent — later calls return the same instance and ignore {@code props}.
      */
-    public static synchronized LlmActivityLog getOrCreate( final Properties props ) {
+    public static synchronized EmbeddingActivityLog getOrCreate( final Properties props ) {
         if ( instance == null ) {
             final boolean enabled = TextUtil.getBooleanProperty(
-                props, "wikantik.llm_activity.enabled", true );
+                props, "wikantik.embedding_activity.enabled", true );
             final int window = TextUtil.getIntegerProperty(
-                props, "wikantik.llm_activity.window_minutes", 60 );
+                props, "wikantik.embedding_activity.window_minutes", 60 );
             final int maxRecords = TextUtil.getIntegerProperty(
-                props, "wikantik.llm_activity.max_records", 5000 );
+                props, "wikantik.embedding_activity.max_records", 5000 );
             final int payloadChars = TextUtil.getIntegerProperty(
-                props, "wikantik.llm_activity.payload_chars", 500 );
-            instance = new LlmActivityLog( enabled, window, maxRecords, payloadChars );
+                props, "wikantik.embedding_activity.payload_chars", 500 );
+            instance = new EmbeddingActivityLog( enabled, window, maxRecords, payloadChars );
         }
         return instance;
     }
 
     /** The installed log, or a permanently-disabled fallback if none is installed yet. */
-    public static LlmActivityLog get() {
-        final LlmActivityLog i = instance;
+    public static EmbeddingActivityLog get() {
+        final EmbeddingActivityLog i = instance;
         return i != null ? i : DISABLED;
     }
 
     /** Test-only: install a specific log (or {@code null} to reset). */
-    static void setForTesting( final LlmActivityLog log ) {
+    static void setForTesting( final EmbeddingActivityLog log ) {
         instance = log;
     }
 }

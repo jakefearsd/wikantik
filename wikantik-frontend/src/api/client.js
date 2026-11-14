@@ -640,7 +640,7 @@ export const api = {
       return request(`/admin/insights/backlog${qs ? '?' + qs : ''}`);
     },
 
-    // Embeddings + LLM activity (the retrieval index's operator surface)
+    // Embeddings + Embedding activity (the retrieval index's operator surface)
     embeddings: {
       getStatus: () => request('/admin/embeddings/status'),
       getPagesWithoutFrontmatter: (limit = 50, offset = 0) =>
@@ -648,11 +648,11 @@ export const api = {
       backfillFrontmatter: () =>
         request('/admin/embeddings/backfill-frontmatter', { method: 'POST' }),
       getBackfillStatus: () => request('/admin/embeddings/backfill-frontmatter'),
-      getLlmActivity: ({ limit = 200, subsystem, status } = {}) => {
+      getEmbeddingActivity: ({ limit = 200, subsystem, status } = {}) => {
         const params = new URLSearchParams({ limit });
         if (subsystem) params.set('subsystem', subsystem);
         if (status) params.set('status', status);
-        return request(`/admin/llm-activity?${params}`);
+        return request(`/admin/embedding-activity?${params}`);
       },
     },
 

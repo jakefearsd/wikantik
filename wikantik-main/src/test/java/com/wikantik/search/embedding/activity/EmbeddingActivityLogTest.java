@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.llm.activity;
+package com.wikantik.search.embedding.activity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -28,23 +28,23 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
-class LlmActivityLogTest {
+class EmbeddingActivityLogTest {
 
-    private static LlmActivityLog log( final int maxRecords ) {
-        return new LlmActivityLog( true, 60, maxRecords, 20 );
+    private static EmbeddingActivityLog log( final int maxRecords ) {
+        return new EmbeddingActivityLog( true, 60, maxRecords, 20 );
     }
 
     @Test
     void beginThenSucceedTransitionsToOk() {
-        final LlmActivityLog log = log( 100 );
-        final LlmCall call = log.begin( Subsystem.EMBEDDING, "ollama", "nomic", "embed", "3 texts" );
+        final EmbeddingActivityLog log = log( 100 );
+        final EmbeddingCall call = log.begin( Subsystem.EMBEDDING, "ollama", "nomic", "embed", "3 texts" );
         assertEquals( CallStatus.IN_FLIGHT, call.status() );
 
         log.succeed( call, "3 vectors" );
         assertEquals( CallStatus.OK, call.status() );
         assertTrue( call.durationMs() >= 0 );
 
-        final LlmActivityLog.Snapshot snap = log.snapshot( 50, null, null );
+        final EmbeddingActivityLog.Snapshot snap = log.snapshot( 50, null, null );
         assertEquals( 1, snap.calls().size() );
         assertEquals( "OK", snap.calls().get( 0 ).status() );
         assertEquals( 0, snap.inFlight() );
@@ -52,8 +52,8 @@ class LlmActivityLogTest {
 
     @Test
     void failTransitionsToErrorAndKeepsMessage() {
-        final LlmActivityLog log = log( 100 );
-        final LlmCall call = log.begin( Subsystem.EMBEDDING, "ollama", "gemma", "embed", "p" );
+        final EmbeddingActivityLog log = log( 100 );
+        final EmbeddingCall call = log.begin( Subsystem.EMBEDDING, "ollama", "gemma", "embed", "p" );
         log.fail( call, new IllegalStateException( "boom" ) );
         assertEquals( CallStatus.ERROR, call.status() );
         assertTrue( call.errorMessage().contains( "boom" ) );
@@ -61,43 +61,43 @@ class LlmActivityLogTest {
 
     @Test
     void inFlightCallIsCountedAndVisible() {
-        final LlmActivityLog log = log( 100 );
+        final EmbeddingActivityLog log = log( 100 );
         log.begin( Subsystem.EMBEDDING, "ollama", "nomic", "embed", "x" );
-        final LlmActivityLog.Snapshot snap = log.snapshot( 50, null, null );
+        final EmbeddingActivityLog.Snapshot snap = log.snapshot( 50, null, null );
         assertEquals( 1, snap.inFlight() );
         assertEquals( "IN_FLIGHT", snap.calls().get( 0 ).status() );
     }
 
     @Test
     void promptPreviewIsTruncatedToConfiguredLength() {
-        final LlmActivityLog log = new LlmActivityLog( true, 60, 100, 5 );
-        final LlmCall call = log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed",
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 5 );
+        final EmbeddingCall call = log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed",
                                         "abcdefghijklmnop" );
         assertEquals( "abcde…", call.promptPreview() );
     }
 
     @Test
     void countCapEvictsOldestFinalizedRecords() {
-        final LlmActivityLog log = log( 3 );
+        final EmbeddingActivityLog log = log( 3 );
         for ( int i = 0; i < 10; i++ ) {
-            final LlmCall c = log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "n" + i );
+            final EmbeddingCall c = log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "n" + i );
             log.succeed( c, "ok" );
         }
-        final LlmActivityLog.Snapshot snap = log.snapshot( 50, null, null );
+        final EmbeddingActivityLog.Snapshot snap = log.snapshot( 50, null, null );
         assertEquals( 3, snap.calls().size() );
         assertEquals( "n9", snap.calls().get( 0 ).promptPreview() );
     }
 
     @Test
     void inFlightRecordSurvivesCountCapEviction() {
-        final LlmActivityLog log = log( 3 );
+        final EmbeddingActivityLog log = log( 3 );
         // An in-flight call recorded first, never finalized.
         log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "in-flight-call" );
         // Many finalized calls that blow past the count cap of 3.
         for ( int i = 0; i < 20; i++ ) {
             log.succeed( log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "n" + i ), "ok" );
         }
-        final LlmActivityLog.Snapshot snap = log.snapshot( 99, null, null );
+        final EmbeddingActivityLog.Snapshot snap = log.snapshot( 99, null, null );
         assertEquals( 1, snap.inFlight() );
         final boolean inFlightStillPresent = snap.calls().stream()
             .anyMatch( c -> "IN_FLIGHT".equals( c.status() )
@@ -107,11 +107,11 @@ class LlmActivityLogTest {
 
     @Test
     void snapshotIsNewestFirstAndRespectsLimit() {
-        final LlmActivityLog log = log( 100 );
+        final EmbeddingActivityLog log = log( 100 );
         for ( int i = 0; i < 5; i++ ) {
             log.succeed( log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "n" + i ), "ok" );
         }
-        final LlmActivityLog.Snapshot snap = log.snapshot( 2, null, null );
+        final EmbeddingActivityLog.Snapshot snap = log.snapshot( 2, null, null );
         assertEquals( 2, snap.calls().size() );
         assertEquals( "n4", snap.calls().get( 0 ).promptPreview() );
         assertEquals( "n3", snap.calls().get( 1 ).promptPreview() );
@@ -119,7 +119,7 @@ class LlmActivityLogTest {
 
     @Test
     void snapshotFiltersByStatusAndSubsystem() {
-        final LlmActivityLog log = log( 100 );
+        final EmbeddingActivityLog log = log( 100 );
         log.succeed( log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "e" ), "ok" );
         log.fail( log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "j" ),
                   new RuntimeException( "x" ) );
@@ -132,7 +132,7 @@ class LlmActivityLogTest {
 
     @Test
     void concurrentWritesAreAllRecorded() throws Exception {
-        final LlmActivityLog log = log( 10_000 );
+        final EmbeddingActivityLog log = log( 10_000 );
         final int threads = 8;
         final int perThread = 200;
         final ExecutorService pool = Executors.newFixedThreadPool( threads );
@@ -156,8 +156,8 @@ class LlmActivityLogTest {
 
     @Test
     void recorderMethodsNeverThrowOnNullArguments() {
-        final LlmActivityLog log = log( 100 );
-        final LlmCall call = log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", null );
+        final EmbeddingActivityLog log = log( 100 );
+        final EmbeddingCall call = log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", null );
         assertNotNull( call );
         log.succeed( call, null );
         log.fail( call, null );

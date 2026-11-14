@@ -74,7 +74,7 @@ function adminGet(cfg, path, surface) {
 
 const DASHBOARD = [
   ['/admin/overview', 'admin_overview'],                       // ~10+ bounded DB round-trips
-  ['/admin/llm-activity?limit=50', 'admin_llm_activity'],      // in-memory ring buffer
+  ['/admin/embedding-activity?limit=50', 'admin_embedding_activity'],      // in-memory ring buffer
   ['/admin/content/stats', 'admin_content_stats'],
   ['/admin/content/index-status', 'admin_index_status'],
   ['/admin/ontology/status', 'admin_ontology_status'],
@@ -103,7 +103,7 @@ export function adminDashboardBurst(cfg) {
     '/admin/content/stats',
     '/admin/content/index-status',
     '/admin/drift/summary',
-    '/admin/llm-activity?limit=50',
+    '/admin/embedding-activity?limit=50',
   ].map((p) => ['GET', `${cfg.baseUrl}${p}`, null,
     { headers: adminHeaders(cfg), tags: { surface: 'admin_dashboard_burst' },
       responseCallback: EXPECTED }]);

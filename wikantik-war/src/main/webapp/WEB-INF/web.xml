@@ -568,8 +568,8 @@
        <servlet-class>com.wikantik.rest.AdminRetrievalQualityResource</servlet-class>
    </servlet>
    <servlet>
-       <servlet-name>AdminLlmActivityResource</servlet-name>
-       <servlet-class>com.wikantik.rest.AdminLlmActivityResource</servlet-class>
+       <servlet-name>AdminEmbeddingActivityResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminEmbeddingActivityResource</servlet-class>
    </servlet>
    <servlet>
        <servlet-name>AdminOverviewResource</servlet-name>
@@ -920,8 +920,8 @@
        <url-pattern>/admin/embeddings/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
-       <servlet-name>AdminLlmActivityResource</servlet-name>
-       <url-pattern>/admin/llm-activity</url-pattern>
+       <servlet-name>AdminEmbeddingActivityResource</servlet-name>
+       <url-pattern>/admin/embedding-activity</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminOverviewResource</servlet-name>

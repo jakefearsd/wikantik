@@ -1,9 +1,9 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import LlmActivityTab from './LlmActivityTab';
+import EmbeddingActivityTab from './EmbeddingActivityTab';
 
 vi.mock('../../api/client', () => ({
-  api: { admin: { embeddings: { getLlmActivity: vi.fn() } } },
+  api: { admin: { embeddings: { getEmbeddingActivity: vi.fn() } } },
 }));
 import { api } from '../../api/client';
 
@@ -24,52 +24,52 @@ const call = (overrides = {}) => ({
   ...overrides,
 });
 
-// getLlmActivity resolves the already-unwrapped data object (the client strips
+// getEmbeddingActivity resolves the already-unwrapped data object (the client strips
 // the {data:...} envelope), so the mock returns that shape directly.
 const payload = (calls, extra = {}) => ({
   calls, inFlight: 0, enabled: true, windowMinutes: 60, capacity: 5000, ...extra,
 });
 
-describe('LlmActivityTab', () => {
+describe('EmbeddingActivityTab', () => {
   beforeEach(() => {
-    api.admin.embeddings.getLlmActivity.mockReset();
+    api.admin.embeddings.getEmbeddingActivity.mockReset();
   });
 
   it('renders a row per recorded call', async () => {
-    api.admin.embeddings.getLlmActivity.mockResolvedValue(payload([call(), call({ seq: 2, model: 'nomic' })]));
-    render(<LlmActivityTab />);
+    api.admin.embeddings.getEmbeddingActivity.mockResolvedValue(payload([call(), call({ seq: 2, model: 'nomic' })]));
+    render(<EmbeddingActivityTab />);
     expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
     expect(screen.getByText('nomic')).toBeInTheDocument();
   });
 
   it('shows an error row distinctly', async () => {
-    api.admin.embeddings.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getEmbeddingActivity.mockResolvedValue(
       payload([call({ status: 'ERROR', errorMessage: 'timeout after 30s', responsePreview: null })]),
     );
-    render(<LlmActivityTab />);
+    render(<EmbeddingActivityTab />);
     expect(await screen.findByText(/timeout after 30s/)).toBeInTheDocument();
   });
 
   it('shows a disabled notice when the log is disabled', async () => {
-    api.admin.embeddings.getLlmActivity.mockResolvedValue(payload([], { enabled: false }));
-    render(<LlmActivityTab />);
-    expect(await screen.findByText(/wikantik\.llm_activity\.enabled/)).toBeInTheDocument();
+    api.admin.embeddings.getEmbeddingActivity.mockResolvedValue(payload([], { enabled: false }));
+    render(<EmbeddingActivityTab />);
+    expect(await screen.findByText(/wikantik\.embedding_activity\.enabled/)).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no calls', async () => {
-    api.admin.embeddings.getLlmActivity.mockResolvedValue(payload([]));
-    render(<LlmActivityTab />);
-    expect(await screen.findByText(/No LLM calls/i)).toBeInTheDocument();
+    api.admin.embeddings.getEmbeddingActivity.mockResolvedValue(payload([]));
+    render(<EmbeddingActivityTab />);
+    expect(await screen.findByText(/No embedding calls/i)).toBeInTheDocument();
   });
 
   it('filters table rows by status when a chip is clicked', async () => {
-    api.admin.embeddings.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getEmbeddingActivity.mockResolvedValue(
       payload([
         call({ seq: 1, status: 'OK', model: 'gemma4-assist' }),
         call({ seq: 2, status: 'ERROR', model: 'nomic', errorMessage: 'boom' }),
       ]),
     );
-    render(<LlmActivityTab />);
+    render(<EmbeddingActivityTab />);
     expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Error' }));
@@ -79,13 +79,13 @@ describe('LlmActivityTab', () => {
   });
 
   it('keeps header totals unfiltered while a filter is active', async () => {
-    api.admin.embeddings.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getEmbeddingActivity.mockResolvedValue(
       payload([
         call({ seq: 1, status: 'OK', model: 'gemma4-assist' }),
         call({ seq: 2, status: 'ERROR', model: 'nomic' }),
       ]),
     );
-    render(<LlmActivityTab />);
+    render(<EmbeddingActivityTab />);
     expect(await screen.findByText('gemma4-assist')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Error' }));
@@ -95,10 +95,10 @@ describe('LlmActivityTab', () => {
   });
 
   it('summarises in-flight and error counts in the header', async () => {
-    api.admin.embeddings.getLlmActivity.mockResolvedValue(
+    api.admin.embeddings.getEmbeddingActivity.mockResolvedValue(
       payload([call(), call({ seq: 2, status: 'ERROR', errorMessage: 'x' })], { inFlight: 3 }),
     );
-    render(<LlmActivityTab />);
+    render(<EmbeddingActivityTab />);
     expect(await screen.findByText(/3 in-flight/)).toBeInTheDocument();
     expect(screen.getByText(/1 error/)).toBeInTheDocument();
   });

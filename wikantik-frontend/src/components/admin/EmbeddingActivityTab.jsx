@@ -9,7 +9,7 @@ const SUBSYSTEM_LABELS = {
 };
 
 const SUBSYSTEM_BADGE_CLASS = {
-  EMBEDDING: 'llm-badge-embedding',
+  EMBEDDING: 'embedding-activity-badge-embedding',
 };
 
 // Filter chip options: { value, label }. 'all' matches everything.
@@ -32,7 +32,7 @@ function fmtDuration(ms, status) {
   return `${ms.toLocaleString()}ms`;
 }
 
-export default function LlmActivityTab() {
+export default function EmbeddingActivityTab() {
   const [snapshot, setSnapshot] = useState(null);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
@@ -43,14 +43,14 @@ export default function LlmActivityTab() {
   // setState sits inside the async .then/.catch callbacks (not directly in
   // this function's own body), so calling fetchActivity() synchronously from
   // the effect is the shape react-hooks/set-state-in-effect allows.
-  const fetchActivity = () => api.admin.embeddings.getLlmActivity({ limit: 200 })
+  const fetchActivity = () => api.admin.embeddings.getEmbeddingActivity({ limit: 200 })
     .then(res => {
       const data = res || {};
       setSnapshot(data);
       setError(null);
       activeRef.current = (data.inFlight || 0) > 0;
     })
-    .catch(e => setError(e.message || 'Failed to load LLM activity'));
+    .catch(e => setError(e.message || 'Failed to load Embedding activity'));
 
   useEffect(() => {
     let cancelled = false;
@@ -77,13 +77,13 @@ export default function LlmActivityTab() {
       </div>
     );
   }
-  if (!snapshot) return <div className="admin-loading">Loading LLM activity…</div>;
+  if (!snapshot) return <div className="admin-loading">Loading Embedding activity…</div>;
 
   if (!snapshot.enabled) {
     return (
       <div className="admin-message warning" role="status">
-        LLM activity recording is disabled. Set{' '}
-        <code>wikantik.llm_activity.enabled = true</code> to enable it.
+        Embedding activity recording is disabled. Set{' '}
+        <code>wikantik.embedding_activity.enabled = true</code> to enable it.
       </div>
     );
   }
@@ -107,7 +107,7 @@ export default function LlmActivityTab() {
         {errorCount} error{errorCount === 1 ? '' : 's'}
       </div>
 
-      <div className="llm-filter-bar">
+      <div className="embedding-activity-filter-bar">
         <FilterChipGroup
           label="Status"
           options={STATUS_FILTERS}
@@ -119,8 +119,8 @@ export default function LlmActivityTab() {
       {filtered.length === 0 ? (
         <div className="admin-empty">
           {filterActive
-            ? 'No LLM calls match the current filter.'
-            : 'No LLM calls recorded in the current window.'}
+            ? 'No embedding calls match the current filter.'
+            : 'No embedding calls recorded in the current window.'}
         </div>
       ) : (
         <table className="admin-table">
@@ -152,13 +152,13 @@ export default function LlmActivityTab() {
 
 function FilterChipGroup({ label, options, selected, onSelect }) {
   return (
-    <div className="llm-filter-group">
-      <span className="llm-filter-label">{label}</span>
+    <div className="embedding-activity-filter-group">
+      <span className="embedding-activity-filter-label">{label}</span>
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
-          className={`llm-chip${selected === opt.value ? ' llm-chip-active' : ''}`}
+          className={`embedding-activity-chip${selected === opt.value ? ' embedding-activity-chip-active' : ''}`}
           aria-pressed={selected === opt.value}
           onClick={() => onSelect(opt.value)}
         >
@@ -182,7 +182,7 @@ function ActivityRow({ call, expanded, onToggle }) {
         <td>{fmtTime(call.startedAt)}</td>
         <td>
           <span
-            className={`llm-badge ${
+            className={`embedding-activity-badge ${
               SUBSYSTEM_BADGE_CLASS[call.subsystem] || ''
             }`}
           >

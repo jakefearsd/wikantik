@@ -130,8 +130,8 @@ public class ContentChunkRepository extends JdbcSupport {
 
     /**
      * Enumerates every distinct page name that currently has at least one
-     * chunk row. Used by the admin batch-extraction job to walk the corpus
-     * without loading all chunk bodies up-front.
+     * chunk row. Used by the content index rebuild ({@code ContentIndexRebuildService})
+     * to walk the corpus without loading all chunk bodies up-front.
      *
      * @return alphabetically-sorted list of page names
      */
@@ -149,7 +149,8 @@ public class ContentChunkRepository extends JdbcSupport {
     /**
      * Returns every chunk id on the given page, ordered by {@code chunk_index}.
      * A thin form of {@link #findByPage} used by callers that will re-hydrate
-     * through {@link #findByIds} anyway (e.g. the batch extractor).
+     * through {@link #findByIds} anyway, and by {@code ChunkProjector} to learn which
+     * chunk ids a page held before a rename or re-chunk.
      */
     public List< UUID > listChunkIdsForPage( final String pageName ) {
         final String sql = "SELECT id FROM kg_content_chunks "
@@ -293,7 +294,8 @@ public class ContentChunkRepository extends JdbcSupport {
 
     /**
      * Chunk projection returned by {@link #findByIds(List)}: id + page + text,
-     * which is exactly what the extractor pipeline needs.
+     * which is what retrieval needs to assemble cited context (the bundle's
+     * contributing-chunk assembly).
      */
     public record MentionableChunk(
         UUID id,

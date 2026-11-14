@@ -180,7 +180,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         final AgentHintsBlock hints = AgentHintsDeriver.visibleTo( b.agentHints(), id -> idViewable( id, viewable ) );
         final SummaryOverlay overlay = overlayHubSummary( b, hints, shared.isHub() );
         if ( fresh && overlay.synthesized() && metrics != null ) {
-            metrics.incrementHubSummarySynthesis();
+            metrics.incrementHubSummaryOverlay();
         }
         final List< CitationRef > stale = b.staleCitations().stream()
                 .filter( c -> targetViewable( c.targetCanonicalId(), viewable ) )

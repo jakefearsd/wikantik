@@ -16,9 +16,9 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.llm.activity;
+package com.wikantik.search.embedding.activity;
 
-/** Which LLM-using subsystem issued a call. */
+/** Which model-using subsystem issued a call. */
 public enum Subsystem {
     EMBEDDING
 }

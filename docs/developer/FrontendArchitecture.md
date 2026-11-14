@@ -68,7 +68,7 @@ The full route table from `main.jsx`:
 | `/admin/users` | `AdminUsersPage` | User management |
 | `/admin/content` | `AdminContentPage` | Content & index tools |
 | `/admin/security` | `AdminSecurityPage` | Groups + policy grants |
-| `/admin/embeddings` | `AdminEmbeddingsPage` | Content embeddings + LLM activity |
+| `/admin/embeddings` | `AdminEmbeddingsPage` | Content embeddings + Embedding activity |
 | `/admin/apikeys` | `AdminApiKeysPage` | API key management |
 | `/admin/retrieval-quality` | `AdminRetrievalQualityPage` | Retrieval experiment harness |
 | `/admin/drift` | `AdminDriftPage` | Vocabulary drift burn-down dashboard |
@@ -325,7 +325,7 @@ Links are grouped into four sections:
 - Connectors (`/admin/connectors`)
 
 **Knowledge & Search**
-- Embeddings (`/admin/embeddings`) — content embeddings and LLM activity; see [docs/admin/AdminPanel.md](../admin/AdminPanel.md)
+- Embeddings (`/admin/embeddings`) — content embeddings and Embedding activity; see [docs/admin/AdminPanel.md](../admin/AdminPanel.md)
 - Retrieval Quality (`/admin/retrieval-quality`) — see [docs/admin/RetrievalQuality.md](../admin/RetrievalQuality.md)
 - Drift (`/admin/drift`) — vocabulary drift burn-down dashboard
 - Search Visibility (`/admin/insights`)
@@ -355,7 +355,7 @@ Dashboard | Orphaned Pages | Broken Links | Versions | Chunk Inspector | Index S
 `AdminEmbeddingsPage` has two tabs:
 
 - **Content embeddings** (`ContentEmbeddingsTab`) — dense-index health; bulk-backfill missing frontmatter; list pages without frontmatter.
-- **LLM activity** (`LlmActivityTab`) — live in-memory view of recent/in-flight LLM calls; last ~1 hour only, cleared on restart.
+- **Embedding activity** (`EmbeddingActivityTab`) — live in-memory view of recent/in-flight embedding calls; last ~1 hour only, cleared on restart.
 
 ## Shared UI Components (`components/ui/`)
 

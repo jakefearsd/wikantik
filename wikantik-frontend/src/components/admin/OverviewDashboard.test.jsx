@@ -11,7 +11,7 @@ const payload = {
   load: { inflight: 3, permitsMax: 390, rejected: 0 },
   users: { users: 5, apiKeys: 3, locked: 1 },
   auth: { logins: 42, failed: 3 },
-  agentSurface: { hubSynthesis: 7, hintFailures: 0, forAgentBytes: 1024, forAgentCount: 15 },
+  agentSurface: { hubSummaryOverlays: 7, hintFailures: 0, forAgentBytes: 1024, forAgentCount: 15 },
   contentQuality: { authoritative: 80, provisional: 15, stale: 5, noVerification: 10 },
   retrievalModes: { bm25: 100, hybrid: 250, hybridGraph: 30 },
   attachments: { provider: 'BasicAttachmentProvider', maxSize: '10MB', allowedCount: 200, forbiddenCount: 0 },
@@ -45,7 +45,7 @@ describe('OverviewDashboard', () => {
 
   it('enriched agentSurface card shows forAgentBytes and hintFailures in meta', async () => {
     render(<MemoryRouter><OverviewDashboard /></MemoryRouter>);
-    expect(await screen.findByText('1024B avg · 0 hint fails')).toBeInTheDocument();
+    expect(await screen.findByText('hub overlays · 1024B avg · 0 hint fails')).toBeInTheDocument();
   });
 
   it('new contentQuality card renders authoritative value and breakdown meta', async () => {

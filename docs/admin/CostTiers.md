@@ -109,20 +109,20 @@ after measurement showed neither paid for its latency and cost. There is no tier
 
 ## Verifying a tier is actually enforced
 
-### 1. `/admin/llm-activity` — proves which subsystems actually called out
+### 1. `/admin/embedding-activity` — proves which subsystems actually called out
 
-`GET /admin/llm-activity` (admin-only, `AdminAuthFilter`) is a live, in-memory
-log of every model call — subsystem, backend, model, status, duration. Today it
-records one subsystem, `EMBEDDING` (`wikantik-main/src/main/java/com/wikantik/llm/activity/Subsystem.java`).
+`GET /admin/embedding-activity` (admin-only, `AdminAuthFilter`) is a live, in-memory
+log of every embedding call — subsystem, backend, model, status, duration. Today it
+records one subsystem, `EMBEDDING` (`wikantik-main/src/main/java/com/wikantik/search/embedding/activity/Subsystem.java`).
 
 Filter with `?subsystem=embedding` and `?status=ok|error|in_flight`.
 
 Under the **search** tier, after a few real searches/bundle requests, the log
 should show `EMBEDDING` entries. Under **core**, the log should show nothing at all.
 
-Gating: the log itself is controlled by `wikantik.llm_activity.enabled`
+Gating: the log itself is controlled by `wikantik.embedding_activity.enabled`
 (default `true`, `ini/wikantik.properties`). It is a **process-wide
-singleton** (`LlmActivityLogHolder`) — created once, on first use, from
+singleton** (`EmbeddingActivityLogHolder`) — created once, on first use, from
 whatever properties were live at that moment. Changing the flag requires a
 restart to take effect.
 

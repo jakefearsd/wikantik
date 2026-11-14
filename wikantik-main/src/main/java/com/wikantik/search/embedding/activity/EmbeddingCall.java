@@ -16,16 +16,16 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.llm.activity;
+package com.wikantik.search.embedding.activity;
 
 import java.time.Instant;
 
 /**
- * One recorded LLM call. Created IN_FLIGHT by {@link LlmActivityLog#begin}; mutated
+ * One recorded embedding call. Created IN_FLIGHT by {@link EmbeddingActivityLog#begin}; mutated
  * exactly once to OK/ERROR by {@code succeed}/{@code fail}. Mutable finalization
  * fields are volatile so a snapshot taken on another thread sees a consistent state.
  */
-public final class LlmCall {
+public final class EmbeddingCall {
 
     private final long seq;
     private final Instant startedAt;
@@ -43,7 +43,7 @@ public final class LlmCall {
     private volatile Integer outputTokens;
     private volatile String errorMessage;
 
-    public LlmCall( final long seq, final Instant startedAt, final long startedNanos,
+    public EmbeddingCall( final long seq, final Instant startedAt, final long startedNanos,
                     final Subsystem subsystem, final String backend, final String model,
                     final String operation, final String promptPreview ) {
         this.seq = seq;
@@ -83,8 +83,8 @@ public final class LlmCall {
     public Integer outputTokens()  { return outputTokens; }
     public String errorMessage()   { return errorMessage; }
 
-    public LlmCallView toView() {
-        return new LlmCallView(
+    public EmbeddingCallView toView() {
+        return new EmbeddingCallView(
             seq,
             startedAt == null ? null : startedAt.toString(),
             subsystem.name(),

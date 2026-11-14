@@ -36,6 +36,16 @@ public interface ContextRetrievalService {
     RetrievalResult retrieve( ContextQuery query );
 
     /**
+     * Runs the pipeline with the lexical (BM25) search performed as {@code caller}: that search filters by its
+     * context's session, so a session-less search drops every page a guest may not view, and a caller allowed to
+     * view a restricted page could then find it only through the dense half. Callers still apply their own view
+     * check to the result. A {@code null} caller behaves like {@link #retrieve(ContextQuery)}.
+     */
+    default RetrievalResult retrieve( final ContextQuery query, final com.wikantik.api.core.Context caller ) {
+        return retrieve( query );
+    }
+
+    /**
      * Fetch a single page by name. Returns {@code null} if the page does
      * not exist. Does not consult the search stack — this is a direct
      * page lookup for pinned-context flows.

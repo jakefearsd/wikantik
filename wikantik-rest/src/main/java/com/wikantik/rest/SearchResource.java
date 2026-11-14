@@ -118,7 +118,10 @@ public class SearchResource extends RestServletBase {
         }
         final RetrievalResult retrieval;
         try {
-            retrieval = ctxService.retrieve( new ContextQuery( effectiveQuery, Math.min( limit > 0 ? limit : DEFAULT_LIMIT, ContextQuery.MAX_PAGES_CAP ), 3, null ) );
+            // As the caller: the lexical search filters by session, and a guest's would hide restricted pages the
+            // caller may view (filterViewable below still applies the caller's own check).
+            retrieval = ctxService.retrieve( new ContextQuery( effectiveQuery, Math.min( limit > 0 ? limit : DEFAULT_LIMIT, ContextQuery.MAX_PAGES_CAP ), 3, null ),
+                    callerContext( request ) );
         } catch ( final RuntimeException e ) {
             // Malformed user queries (e.g. unbalanced brackets, Lucene-reserved
             // operator misuse) surface here as ProviderException wrapping a
@@ -253,4 +256,18 @@ public class SearchResource extends RestServletBase {
         }
         return false;
     }
+
+    /**
+     * The caller's search context, so the retrieval's lexical half filters by the caller's session; {@code null}
+     * (the service then searches as a guest) when one cannot be built.
+     */
+    private com.wikantik.api.core.Context callerContext( final HttpServletRequest request ) {
+        try {
+            return Wiki.context().create( getEngine(), request, com.wikantik.api.core.ContextEnum.WIKI_FIND.getRequestContext() );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Could not build the caller's search context ({}); searching as a guest", e.getMessage(), e );
+            return null;
+        }
+    }
+
 }

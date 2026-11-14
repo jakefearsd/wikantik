@@ -47,6 +47,13 @@ public class FakeSearchManager implements SearchManager {
         byToken.put( token.toLowerCase( java.util.Locale.ROOT ), List.of( results ) );
     }
 
+    private com.wikantik.api.core.Context lastContext;
+
+    /** The context most recently passed to {@link #findPages} (whose session the lexical search runs as). */
+    public com.wikantik.api.core.Context lastContext() {
+        return lastContext;
+    }
+
     /** The query string most recently passed to {@link #findPages} (e.g. to assert expansion). */
     public String lastQuery() {
         return lastQuery;
@@ -56,6 +63,7 @@ public class FakeSearchManager implements SearchManager {
     public Collection< SearchResult > findPages( final String query,
             final com.wikantik.api.core.Context ctx ) {
         this.lastQuery = query;
+        this.lastContext = ctx;
         if ( !byToken.isEmpty() ) {
             final String q = query == null ? "" : query.toLowerCase( java.util.Locale.ROOT );
             final List< SearchResult > out = new java.util.ArrayList<>();

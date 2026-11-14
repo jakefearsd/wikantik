@@ -247,9 +247,15 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
 
     @Override
     public RetrievalResult retrieve( final ContextQuery query ) {
+        return retrieve( query, null );
+    }
+
+    @Override
+    public RetrievalResult retrieve( final ContextQuery query, final Context caller ) {
         if ( query == null ) throw new IllegalArgumentException( "query required" );
 
-        final Context ctx = buildContext();
+        // BM25 filters by this context's session: the caller's when given, else a session-less (guest) context.
+        final Context ctx = caller != null ? caller : buildContext();
         final String effectiveQuery = expandWithOntology( query.query() );
         final Collection< SearchResult > bm25;
         try {

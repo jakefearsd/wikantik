@@ -512,6 +512,22 @@ class DefaultContextRetrievalServiceTest {
     // ------------------------------------------------------------------
 
     @Test
+    void theLexicalSearchRunsAsTheCallerWhenOneIsGiven() {
+        // BM25 filters by the context's session. Run as a session-less guest, it dropped every page a guest may not
+        // view, so a private-cluster viewer (or an admin) could find a restricted page only through the dense half,
+        // and never at all while the embedder was down.
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Main", "main", "a", new java.util.Date() );
+        final FakeSearchManager sm = new FakeSearchManager();
+        final var svc = FakeDeps.minimal().search( sm ).pageManager( pm ).build();
+        final com.wikantik.api.core.Context caller = mock( com.wikantik.api.core.Context.class );
+
+        svc.retrieve( new com.wikantik.api.knowledge.ContextQuery( "anything", 5, 3, null ), caller );
+
+        assertSame( caller, sm.lastContext(), "BM25 must search as the caller" );
+    }
+
+    @Test
     void ontologyExpansionRetrievesPageThatPlainQueryMisses() {
         final FakePageManager pm = new FakePageManager();
         pm.addPage( "QuickSortPage", "---\nsummary: quicksort\n---\n\nbody", "a", new java.util.Date() );

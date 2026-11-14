@@ -334,7 +334,7 @@ class SearchResourceTest {
             .lastModified( engine.getManager( PageManager.class ).getPage( "RestSearchAlpha" ).getLastModified() )
             .build();
         Mockito.doReturn( new RetrievalResult( "search", List.of( beta, alpha ), 2 ) )
-               .when( mockCrs ).retrieve( Mockito.any() );
+               .when( mockCrs ).retrieve( Mockito.any(), Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
 
         final String json = doSearch( "search", null );
@@ -343,6 +343,24 @@ class SearchResourceTest {
         assertTrue( results.size() >= 2, "Expected both pages back, got: " + results );
         assertEquals( "RestSearchBeta", results.get( 0 ).getAsJsonObject().get( "name" ).getAsString() );
         assertEquals( "RestSearchAlpha", results.get( 1 ).getAsJsonObject().get( "name" ).getAsString() );
+    }
+
+    @Test
+    void theRetrievalSearchRunsAsTheRequestingCaller() throws Exception {
+        // The lexical (BM25) half filters by the session it runs as; a session-less context made every restricted
+        // page invisible to it, even for a caller allowed to view the page.
+        final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
+        Mockito.doReturn( new RetrievalResult( "search", List.of(), 0 ) )
+               .when( mockCrs ).retrieve( Mockito.any(), Mockito.any() );
+        engine.setManager( ContextRetrievalService.class, mockCrs );
+
+        doSearch( "search", null );
+
+        final org.mockito.ArgumentCaptor< com.wikantik.api.core.Context > caller =
+                org.mockito.ArgumentCaptor.forClass( com.wikantik.api.core.Context.class );
+        Mockito.verify( mockCrs ).retrieve( Mockito.any(), caller.capture() );
+        assertNotNull( caller.getValue(), "the search must hand the retrieval service the caller's context" );
+        assertNotNull( caller.getValue().getWikiSession(), "with the caller's session" );
     }
 
     @Test
@@ -356,7 +374,7 @@ class SearchResourceTest {
             .author( "janne" )
             .build();
         Mockito.doReturn( new RetrievalResult( "Alpha", List.of( alpha ), 1 ) )
-               .when( mockCrs ).retrieve( Mockito.any() );
+               .when( mockCrs ).retrieve( Mockito.any(), Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
 
         final JsonObject entry = gson.fromJson( doSearch( "Alpha", null ), JsonObject.class )
@@ -375,7 +393,7 @@ class SearchResourceTest {
             .contributingChunks( List.of( chunk ) )
             .build();
         Mockito.doReturn( new RetrievalResult( "Alpha", List.of( alpha ), 1 ) )
-               .when( mockCrs ).retrieve( Mockito.any() );
+               .when( mockCrs ).retrieve( Mockito.any(), Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
 
         final String json = doSearch( "Alpha", null );
@@ -396,7 +414,7 @@ class SearchResourceTest {
             .summary( "" )
             .build();
         Mockito.doReturn( new RetrievalResult( "search", List.of( denseOnly ), 1 ) )
-               .when( mockCrs ).retrieve( Mockito.any() );
+               .when( mockCrs ).retrieve( Mockito.any(), Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
 
         final String json = doSearch( "search", null );
@@ -421,7 +439,7 @@ class SearchResourceTest {
             .summary( "" )
             .build();
         Mockito.doReturn( new RetrievalResult( "search", List.of( nativePage, derivedPage ), 2 ) )
-               .when( mockCrs ).retrieve( Mockito.any() );
+               .when( mockCrs ).retrieve( Mockito.any(), Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
 
         final String json = doSearch( "search", null );
@@ -448,7 +466,7 @@ class SearchResourceTest {
             RetrievedPage.builder( "ExtraPage", 1.0 ).summary( "" ).build()
         );
         Mockito.doReturn( new RetrievalResult( "search", pages, 3 ) )
-               .when( mockCrs ).retrieve( Mockito.any() );
+               .when( mockCrs ).retrieve( Mockito.any(), Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
 
         final String json = doSearch( "search", "1" );
@@ -500,7 +518,7 @@ class SearchResourceTest {
             "You have entered a query Lucene cannot process [...]: parse fail",
             new org.apache.lucene.queryparser.classic.ParseException( "bad syntax" ) );
         Mockito.doThrow( new RuntimeException( "retrieval error", wrap ) )
-               .when( throwingCrs ).retrieve( Mockito.any() );
+               .when( throwingCrs ).retrieve( Mockito.any(), Mockito.any() );
         engine.setManager( ContextRetrievalService.class, throwingCrs );
 
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
@@ -522,7 +540,7 @@ class SearchResourceTest {
         // CRS throws a plain RuntimeException → 500.
         final ContextRetrievalService throwingCrs = Mockito.mock( ContextRetrievalService.class );
         Mockito.doThrow( new RuntimeException( "disk offline" ) )
-               .when( throwingCrs ).retrieve( Mockito.any() );
+               .when( throwingCrs ).retrieve( Mockito.any(), Mockito.any() );
         engine.setManager( ContextRetrievalService.class, throwingCrs );
 
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
@@ -588,7 +606,7 @@ class SearchResourceTest {
             .summary( "" )
             .build();
         Mockito.doReturn( new RetrievalResult( "zzqq", List.of( restricted, publicPage ), 2 ) )
-               .when( mockCrs ).retrieve( Mockito.any() );
+               .when( mockCrs ).retrieve( Mockito.any(), Mockito.any() );
         engine.setManager( ContextRetrievalService.class, mockCrs );
 
         // Anonymous request: a fresh, not-logged-in session id.

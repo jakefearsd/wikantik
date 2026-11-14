@@ -115,6 +115,8 @@ class LuceneSearchProviderIndexStoreTest {
 
         lenient().when( pageManager.getPageWithoutMetadata( anyString(), anyInt() ) )
             .thenAnswer( inv -> pageManager.getPage( inv.getArgument( 0 ), inv.getArgument( 1 ) ) );
+        // The drain skips pages that no longer exist (a save queued before a delete); these pages all do.
+        lenient().when( pageManager.wikiPageExists( anyString() ) ).thenReturn( true );
         when( attachmentManager.listAttachments( any( Page.class ) ) ).thenReturn( Collections.emptyList() );
         when( authorizationManager.filterViewable( any( Session.class ), any() ) )
             .thenAnswer( inv -> new java.util.HashSet< String >( inv.getArgument( 1 ) ) );

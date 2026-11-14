@@ -721,6 +721,8 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         for ( final Object[] item : batch ) {
             if ( isSystemPageExcluded( pageOf( item ).getName() ) ) {
                 LOG.debug( "Drain loop skipping system page '{}'", pageOf( item ).getName() );
+            } else if ( deletedSinceQueued( item ) ) {
+                LOG.debug( "Drain loop skipping '{}': the page was deleted after its save was queued", pageOf( item ).getName() );
             } else {
                 toWrite.add( item );
             }
@@ -822,6 +824,18 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
             }
             inFlight -= batchSize;
         }
+    }
+
+    /**
+     * True when a queued page no longer exists. Without this check, a save queued before a delete would be
+     * written after {@link #pageRemoved} had already removed the document, putting the deleted page back into
+     * the index until a search tripped over it. Checked under this indexer's lock, which {@link #pageRemoved}
+     * also takes: a delete the check does not yet see removes the document after this batch commits.
+     * Attachments are left to their own lifecycle.
+     */
+    private boolean deletedSinceQueued( final Object[] item ) {
+        final Page page = pageOf( item );
+        return !( page instanceof Attachment ) && !pageManager.wikiPageExists( page.getName() );
     }
 
     private static Page pageOf( final Object[] item ) {

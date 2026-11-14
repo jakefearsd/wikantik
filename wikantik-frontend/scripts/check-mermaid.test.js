@@ -94,7 +94,9 @@ describe('check-mermaid contract', SPAWN_TEST, () => {
 
   it.runIf(typeof nodeModule.enableCompileCache === 'function')('cachesCompiledModulesWithoutTouchingStdout', () => {
     const cache = join(dir, 'cache');
+    // vitest 5 sets NODE_DISABLE_COMPILE_CACHE=1 in its workers, which Node honours in the child too.
     const env = { ...process.env, CHECK_MERMAID_COMPILE_CACHE: cache };
+    delete env.NODE_DISABLE_COMPILE_CACHE;
     const r = spawnSync('node', [SCRIPT, '--json', '-'], { encoding: 'utf8', input: GOOD, timeout: 60000, env });
     expect(r.status).toBe(0);
     expect(JSON.parse(r.stdout)).toHaveLength(1);

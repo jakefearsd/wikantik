@@ -46,7 +46,7 @@ class SearchResourceQueryLogTest {
     @Test
     void doGet_logsQuery_withApiSearchSurfaceAndResultCount() throws Exception {
         final ContextRetrievalService ctx = mock( ContextRetrievalService.class );
-        when( ctx.retrieve( any() ) ).thenReturn( new RetrievalResult( "deploy", List.of(), 0 ) );
+        when( ctx.retrieve( any(), any() ) ).thenReturn( new RetrievalResult( "deploy", List.of(), 0 ) );
         final QueryLogService qlog = mock( QueryLogService.class );
         final SearchResource servlet = new SearchResource() {
             @Override protected ContextRetrievalService retrievalService() { return ctx; }
@@ -81,7 +81,7 @@ class SearchResourceQueryLogTest {
     @Test
     void doGet_onlyTheSubmittedQuery_isLogged_notEachTypeaheadKeystroke() throws Exception {
         final ContextRetrievalService ctx = mock( ContextRetrievalService.class );
-        when( ctx.retrieve( any() ) ).thenReturn( new RetrievalResult( "x", List.of(), 0 ) );
+        when( ctx.retrieve( any(), any() ) ).thenReturn( new RetrievalResult( "x", List.of(), 0 ) );
         final QueryLogService qlog = mock( QueryLogService.class );
         final SearchResource servlet = new SearchResource() {
             @Override protected ContextRetrievalService retrievalService() { return ctx; }

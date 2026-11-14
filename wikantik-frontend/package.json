@@ -29,7 +29,7 @@
     "cytoscape": "^3.34.4",
     "cytoscape-cose-bilkent": "^4.1.0",
     "dom-anchor-text-quote": "^4.0.2",
-    "katex": "^0.18.11",
+    "katex": "^0.19.1",
     "lowlight": "^3.3.0",
     "mdast-util-to-string": "^4.0.0",
     "mermaid": "12.1.0",

@@ -35,6 +35,10 @@ updates:
       # DOMObserver.flush calls view.update([]) on any selection change; happy-dom
       # dispatches selectionchange synchronously from Selection.collapse (browsers
       # queue it), so the update re-enters itself and PageEditor.realCodeMirror.test
-      # fails. Only this version is ignored, so 6.43.15+ still surfaces for review.
+      # fails. 6.43.15 (tried 2026-11-14) still does that under happy-dom and, in a real
+      # browser, intermittently lands ArrowDown from a wrapped line one character short of
+      # the next line (LivePreviewKeyboardIT.arrowDownOnAWrappedLineAboveATableEntersItOnly-
+      # FromTheLastVisualRow failed 2 of 3 collab runs; 0 of 3 on 6.43.13). Pinned exactly
+      # at 6.43.13 in package.json; 6.43.16+ still surfaces for review.
       - dependency-name: "@codemirror/view"
-        versions: ["6.43.14"]
+        versions: ["6.43.14", "6.43.15"]

@@ -67,7 +67,7 @@
     <jakarta-servlet-api.version>6.1.0</jakarta-servlet-api.version>
     <jakarta-xml-bind-api.version>4.0.5</jakarta-xml-bind-api.version>
     <jaxb-runtime.version>4.0.9</jaxb-runtime.version>
-    <jacoco-version>0.8.15</jacoco-version>
+    <jacoco-version>0.8.16</jacoco-version>
     <!-- Default per-module line-coverage floor for the JaCoCo `check` ratchet (see the
          coverage-check execution in pluginManagement). Every module with production
          code overrides this with its own measured floor. -->
@@ -163,7 +163,7 @@
     <plugin.clean.version>3.5.0</plugin.clean.version>
     <plugin.compiler.version>3.16.0</plugin.compiler.version>
     <plugin.dependency.version>3.11.0</plugin.dependency.version>
-    <plugin.enforcer.version>3.6.3</plugin.enforcer.version>
+    <plugin.enforcer.version>3.7.0</plugin.enforcer.version>
     <plugin.install.version>3.2.0</plugin.install.version>
     <plugin.jar.version>3.5.1</plugin.jar.version>
     <plugin.javadoc.version>3.12.0</plugin.javadoc.version>
@@ -173,11 +173,11 @@
     <plugin.remote-resources.version>3.3.0</plugin.remote-resources.version>
     <plugin.resources.version>3.5.0</plugin.resources.version>
     <plugin.source.version>3.4.0</plugin.source.version>
-    <plugin.surefire.version>3.6.0</plugin.surefire.version>
+    <plugin.surefire.version>3.6.1</plugin.surefire.version>
     <plugin.war.version>3.5.1</plugin.war.version>
-    <plugin.build-helper.version>3.6.2</plugin.build-helper.version>
+    <plugin.build-helper.version>3.8.0</plugin.build-helper.version>
     <plugin.checksum.version>1.11</plugin.checksum.version>
-    <plugin.cargo.version>1.10.29</plugin.cargo.version>
+    <plugin.cargo.version>1.10.30</plugin.cargo.version>
     <plugin.docker.version>0.49.0</plugin.docker.version>
     <plugin.pmd.version>3.28.0</plugin.pmd.version>
     <plugin.site.version>3.22.0</plugin.site.version>
@@ -188,7 +188,7 @@
     <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
     <plugin.cyclonedx.version>2.9.3</plugin.cyclonedx.version>
     <plugin.sonar.version>5.8.0.7211</plugin.sonar.version>
-    <plugin.versions.version>2.23.0</plugin.versions.version>
+    <plugin.versions.version>2.25.1</plugin.versions.version>
     <plugin.sonar-report.version>0.1</plugin.sonar-report.version>
     <!-- Override the parent pom's compiler defaults. Since org.apache:apache 39 the
          parent derives ALL THREE of source/target/release from its own ${javaVersion}
@@ -1582,7 +1582,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>taglist-maven-plugin</artifactId>
-        <version>3.2.3</version>
+        <version>3.3.0</version>
         <configuration>
           <aggregate>true</aggregate>
           <tagListOptions>

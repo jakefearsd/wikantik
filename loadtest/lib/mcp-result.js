@@ -14,6 +14,12 @@ export const MATH_BODIES = [
 // Deliberately malformed (inline-glued display) — exercises the refusal path.
 export const MATH_BAD = 'Broken inline:$$\\frac{a}{b}$$glued to prose.';
 
+/**
+ * The MCP protocol version the harness asks for. It must be one the server (MCP Java SDK) supports: an unsupported
+ * one is answered with the server's own version plus a WARN per session (2024-11-05 caused ~100 WARNs an hour).
+ */
+export const MCP_PROTOCOL_VERSION = '2025-11-25';
+
 /** The JSON-RPC message in an MCP reply: the `data:` line of an SSE reply, or the whole body. Null if unparseable. */
 function rpcMessage(body) {
   const text = String(body);
@@ -47,4 +53,13 @@ export function mcpToolOk(r) {
   if (Array.isArray(payload.results) && payload.results.some((p) => p && p.error)) return false;
   const s = payload.summary || {};
   return !(s.failedCount > 0 || s.skippedCount > 0);
+}
+
+/** True when an MCP initialize reply opened a session on exactly MCP_PROTOCOL_VERSION. */
+export function mcpInitOk(res) {
+  if (!res || res.status !== 200) return false;
+  const headers = res.headers || {};
+  if (!(headers['Mcp-Session-Id'] || headers['mcp-session-id'])) return false;
+  const msg = rpcMessage(res.body);
+  return !!(msg && msg.result && msg.result.protocolVersion === MCP_PROTOCOL_VERSION);
 }

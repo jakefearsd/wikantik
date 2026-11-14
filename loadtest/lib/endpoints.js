@@ -7,7 +7,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import { pick } from './slugs.js';
-import { mcpToolOk, MATH_BODIES, MATH_BAD } from './mcp-result.js';
+import { mcpToolOk, mcpInitOk, MCP_PROTOCOL_VERSION, MATH_BODIES, MATH_BAD } from './mcp-result.js';
 
 const SEARCH_TERMS = [
   'logistics', 'optimization', 'algorithm', 'monitoring', 'latency',
@@ -145,13 +145,14 @@ function mcpInit(cfg, vu, path) {
   if (mcpSessions[key]) return mcpSessions[key];
   const res = http.post(`${cfg.baseUrl}${endpoint}`,
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize',
-      params: { protocolVersion: '2024-11-05', capabilities: {},
+      params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {},
         clientInfo: { name: 'k6', version: '1' } } }),
     { headers: { 'Content-Type': 'application/json',
         Accept: 'application/json, text/event-stream',
         Authorization: `Bearer ${cfg.mcpKey}` },
       tags: { surface: 'mcp_init' },
       responseCallback: http.expectedStatuses({ min: 200, max: 499 }) });
+  check(res, { 'mcp initialize: session on the requested protocol': (r) => mcpInitOk(r) });
   const sid = res.headers['Mcp-Session-Id'] || res.headers['mcp-session-id'];
   if (sid) mcpSessions[key] = sid;
   return sid;

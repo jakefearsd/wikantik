@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mcpToolOk, MATH_BODIES, MATH_BAD } from './lib/mcp-result.js';
+import { mcpToolOk, mcpInitOk, MCP_PROTOCOL_VERSION, MATH_BODIES, MATH_BAD } from './lib/mcp-result.js';
 
 const sse = (obj) => `id: 1\nevent: message\ndata: ${JSON.stringify(obj)}\n\n`;
 const toolResult = (payload, isError = false) => sse({ jsonrpc: '2.0', id: 3, result: {
@@ -61,4 +61,15 @@ const displayIsolated = (text) => {
 test('every harness math body isolates its display math; the deliberate bad one does not', () => {
   for (const b of MATH_BODIES) assert.equal(displayIsolated(b), true, b);
   assert.equal(displayIsolated(MATH_BAD), false);
+});
+
+// The server (MCP Java SDK) answers an unsupported requested version with its own and logs a WARN per session;
+// the harness asked for 2024-11-05 and produced ~100 such WARNs an hour. mcpInitOk pins the negotiated version.
+test('initialize is ok only when the server agrees to the protocol version the harness asked for', () => {
+  const init = (version) => ({ status: 200, headers: { 'Mcp-Session-Id': 's1' },
+    body: sse({ jsonrpc: '2.0', id: 1, result: { protocolVersion: version, capabilities: {}, serverInfo: { name: 'w' } } }) });
+  assert.equal(mcpInitOk(init(MCP_PROTOCOL_VERSION)), true);
+  assert.equal(mcpInitOk(init('2024-11-05')), false, 'server fell back to another version');
+  assert.equal(mcpInitOk({ ...init(MCP_PROTOCOL_VERSION), headers: {} }), false, 'no session id');
+  assert.equal(mcpInitOk({ status: 401, headers: {}, body: '' }), false);
 });

@@ -172,7 +172,8 @@ public final class PageGraphWiringHelper {
                     final SystemPageRegistry sys = coreSubsystem.systemPageRegistry();
                     return sys != null && sys.isSystemPage( name );
                 },
-                props ),
+                props,
+                engine.pageCanonicalIdsDao() ),
             -1003 );
         filterManager.addPageFilter(
             new com.wikantik.knowledge.agent.RunbookValidationPageFilter(

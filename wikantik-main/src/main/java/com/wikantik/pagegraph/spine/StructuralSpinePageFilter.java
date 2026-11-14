@@ -38,7 +38,10 @@ import org.apache.logging.log4j.Logger;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.function.Predicate;
 
 /**
@@ -79,6 +82,7 @@ public class StructuralSpinePageFilter implements PageFilter {
             "wikantik.cluster_declaration.enforcement.enabled";
 
     private final StructuralIndexService structuralIndex;
+    private final PageCanonicalIdsDao canonicalIds;
     private final Predicate< String > isSystemPage;
     private final boolean enabled;
     private final boolean duplicateDeclarationEnforced;
@@ -86,6 +90,18 @@ public class StructuralSpinePageFilter implements PageFilter {
     public StructuralSpinePageFilter( final StructuralIndexService structuralIndex,
                                        final Predicate< String > isSystemPage,
                                        final Properties props ) {
+        this( structuralIndex, isSystemPage, props, null );
+    }
+
+    /**
+     * @param canonicalIds the durable {@code page_canonical_ids} gateway the re-key guard consults; may be null
+     *                     (guard disabled — only the in-memory projection is available)
+     */
+    public StructuralSpinePageFilter( final StructuralIndexService structuralIndex,
+                                       final Predicate< String > isSystemPage,
+                                       final Properties props,
+                                       final PageCanonicalIdsDao canonicalIds ) {
+        this.canonicalIds = canonicalIds;
         this.structuralIndex = structuralIndex;
         this.isSystemPage = isSystemPage == null ? name -> false : isSystemPage;
         this.enabled = Boolean.parseBoolean(
@@ -107,7 +123,8 @@ public class StructuralSpinePageFilter implements PageFilter {
             return content;
         }
 
-        final ParsedPage parsed = FrontmatterParser.parse( content );
+        final String guarded = restoreBoundCanonicalId( pageName, content );
+        final ParsedPage parsed = FrontmatterParser.parse( guarded );
         // Mutable working copy — we may inject canonical_id and rewrite.
         final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
 
@@ -121,7 +138,58 @@ public class StructuralSpinePageFilter implements PageFilter {
         // kg_include is no longer validated: the Knowledge Graph is retired (2026-11-08) and a legacy value of any
         // shape is inert, so it must never block a save.
 
-        return rewritten ? FrontmatterWriter.writeLike( content, metadata, parsed.body() ) : content;
+        return rewritten ? FrontmatterWriter.writeLike( guarded, metadata, parsed.body() ) : guarded;
+    }
+
+    private static final Pattern FRONTMATTER_BLOCK =
+            Pattern.compile( "\\A---[ \\t]*\\r?\\n(.*?\\r?\\n)---[ \\t]*(?:\\r?\\n|\\z)", Pattern.DOTALL );
+    private static final Pattern CANONICAL_ID_LINE =
+            Pattern.compile( "^canonical_id:[^\\r\\n]*", Pattern.MULTILINE );
+
+    /**
+     * Save-time re-key guard. When the slug is bound in {@code page_canonical_ids} to id X but the authored
+     * frontmatter carries a different id Y that has no row of its own, Y is a freshly minted id that would
+     * orphan the page's ownership, verification, comments and citations; rewrite it back to X. A Y that is a
+     * known id (bound to another slug) is left alone - we do not guess. The durable binding is consulted, not
+     * the in-memory projection, which may already hold Y. Only the {@code canonical_id} line is touched, so the
+     * rest of the text (including CRLF line endings) is preserved byte-for-byte.
+     */
+    private String restoreBoundCanonicalId( final String pageName, final String content ) {
+        if ( canonicalIds == null || pageName == null || content == null ) {
+            return content;
+        }
+        final Matcher block = FRONTMATTER_BLOCK.matcher( content );
+        if ( !block.find() ) {
+            return content;
+        }
+        final Matcher line = CANONICAL_ID_LINE.matcher( block.group( 1 ) );
+        if ( !line.find() ) {
+            return content;
+        }
+        final String authored = unquote( line.group().substring( "canonical_id:".length() ).trim() );
+        if ( authored.isEmpty() ) {
+            return content;
+        }
+        final Optional< PageCanonicalIdsDao.Row > bound = canonicalIds.findBySlug( pageName );
+        if ( bound.isEmpty() || bound.get().canonicalId().equals( authored )
+                || canonicalIds.findByCanonicalId( authored ).isPresent() ) {
+            return content;
+        }
+        final String boundId = bound.get().canonicalId();
+        LOG.warn( "StructuralSpinePageFilter: page '{}' was saved with canonical_id={} but its slug is bound to "
+                + "canonical_id={} and {} is unknown; restoring {} so the page keeps its identity",
+                pageName, authored, boundId, authored, boundId );
+        final int start = block.start( 1 ) + line.start();
+        final int end = block.start( 1 ) + line.end();
+        return content.substring( 0, start ) + "canonical_id: " + boundId + content.substring( end );
+    }
+
+    private static String unquote( final String v ) {
+        if ( v.length() >= 2 && ( v.startsWith( "\"" ) && v.endsWith( "\"" )
+                || v.startsWith( "'" ) && v.endsWith( "'" ) ) ) {
+            return v.substring( 1, v.length() - 1 ).trim();
+        }
+        return v;
     }
 
     /**

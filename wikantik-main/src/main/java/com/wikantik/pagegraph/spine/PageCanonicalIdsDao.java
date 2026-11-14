@@ -169,7 +169,8 @@ public class PageCanonicalIdsDao extends JdbcSupport {
     /** Shared stale-slug-owner warning: same recovery hint from both upsert branches. */
     private static void warnStaleSlugOwner( final String conflict, final UpsertSpec spec, final String ownerId ) {
         LOG.warn( "upsert({}, {}): " + conflict + ". Frontmatter and DB are out of sync — skipping DB "
-                + "write so the in-memory projection continues cleanly. To fix: run "
+                + "write so the in-memory projection continues cleanly. To fix: re-save the page (the save-time "
+                + "guard restores the id bound to its slug); failing that, run "
                 + "bin/db/one-shots/reconcile_page_canonical_ids.sh (or manually DELETE the stale row "
                 + "from page_canonical_ids WHERE canonical_id='{}' AND current_slug='{}').",
                   spec.canonicalId(), spec.currentSlug(), spec.currentSlug(),

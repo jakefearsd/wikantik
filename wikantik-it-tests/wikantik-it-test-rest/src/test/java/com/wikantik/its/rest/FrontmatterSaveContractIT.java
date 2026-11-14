@@ -75,6 +75,9 @@ public class FrontmatterSaveContractIT {
     /** Page name for the invalid-runbook test; must not exist before the test runs. */
     private static final String PAGE_INVALID_RUNBOOK = "FmSaveInvalidRunbook-" + IT_SUFFIX;
 
+    /** Page name for the canonical_id re-key guard test. */
+    private static final String PAGE_REKEY = "FmSaveRekeyGuard-" + IT_SUFFIX;
+
     private static final Gson GSON = new Gson();
     private static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
 
@@ -286,5 +289,39 @@ public class FrontmatterSaveContractIT {
         final HttpResponse< String > getResp = get( "/api/pages/" + PAGE_INVALID_RUNBOOK );
         assertEquals( 404, getResp.statusCode(),
                 "Page must NOT exist after a 422-rejected save: " + getResp.body() );
+    }
+
+    @Test
+    @Order( 5 )
+    @SuppressWarnings( "unchecked" )
+    void putWithFreshlyMintedCanonicalIdDoesNotRekeyExistingPage() throws Exception {
+        // A bulk writer that re-saves an existing page carrying a different, unknown canonical_id must not
+        // re-key it: the id bound to the slug is restored (rename-stability of the id is its whole point).
+        loginAsAdmin();
+        final HttpResponse< String > created = put( "/api/pages/" + PAGE_REKEY, GSON.toJson( Map.of(
+                "content", "Body of the re-key guard test page.",
+                "metadata", Map.of( "type", "article" ),
+                "replaceMetadata", true ) ) );
+        assertEquals( 200, created.statusCode(), created.body() );
+
+        final String boundId = canonicalIdOf( PAGE_REKEY );
+        assertNotNull( boundId, "the first save must assign a canonical_id" );
+
+        final String rogueId = "01HZZ" + IT_SUFFIX.toUpperCase().replace( '-', '0' ) + "00000000000000";
+        final HttpResponse< String > resaved = put( "/api/pages/" + PAGE_REKEY, GSON.toJson( Map.of(
+                "content", "Body of the re-key guard test page, edited.",
+                "metadata", Map.of( "type", "article", "canonical_id", rogueId ),
+                "replaceMetadata", true ) ) );
+        assertEquals( 200, resaved.statusCode(), resaved.body() );
+
+        assertEquals( boundId, canonicalIdOf( PAGE_REKEY ),
+                "re-saving with an unknown canonical_id must keep the id bound to the slug" );
+    }
+
+    private String canonicalIdOf( final String page ) throws IOException, InterruptedException {
+        final HttpResponse< String > resp = get( "/api/pages/" + page );
+        assertEquals( 200, resp.statusCode(), resp.body() );
+        final JsonObject metadata = JsonParser.parseString( resp.body() ).getAsJsonObject().getAsJsonObject( "metadata" );
+        return metadata.has( "canonical_id" ) ? metadata.get( "canonical_id" ).getAsString() : null;
     }
 }

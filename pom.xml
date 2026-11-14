@@ -44,7 +44,6 @@
     <maven.version>3.5</maven.version>
 
     <akismet-java.version>1.0.0</akismet-java.version>
-    <anthropic-java.version>2.73.0</anthropic-java.version>
     <awaitility.version>4.3.0</awaitility.version>
     <bcrypt.version>0.10.2</bcrypt.version>
     <commons-collections.version>4.6.0</commons-collections.version>
@@ -155,7 +154,7 @@
     <sec.jsoup.version>1.23.2</sec.jsoup.version>                        <!-- via wikantik-ingest -> flexmark-html2md-converter (1.15.4);
                                                                               GHSA-pmhh-3w7g-xqp8 / CVE-2026-71497. wikantik-connectors already
                                                                               declares 1.23.1 directly, so this only fixes ingest built alone. -->
-    <sec.opentelemetry.version>1.67.0</sec.opentelemetry.version>       <!-- via anthropic-java-core (1.62.0) + selenium-remote-driver (1.66.0);
+    <sec.opentelemetry.version>1.67.0</sec.opentelemetry.version>       <!-- via selenium-remote-driver (1.66.0);
                                                                               GHSA-ccrj-gw8r-854m (quadratic W3C tracestate parsing). BOM import
                                                                               so api/common/context/sdk-* move together. -->
 
@@ -265,11 +264,6 @@
         <groupId>at.favre.lib</groupId>
         <artifactId>bcrypt</artifactId>
         <version>${bcrypt.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.anthropic</groupId>
-        <artifactId>anthropic-java</artifactId>
-        <version>${anthropic-java.version}</version>
       </dependency>
 
       <dependency>

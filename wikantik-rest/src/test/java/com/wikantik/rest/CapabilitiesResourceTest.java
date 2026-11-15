@@ -226,6 +226,22 @@ class CapabilitiesResourceTest {
     }
 
     @Test
+    void testWorkFalseByDefault() throws Exception {
+        engine.getWikiProperties().remove( "wikantik.work.enabled" );
+        assertFalse( doGetAsJson().get( "work" ).getAsBoolean() );
+    }
+
+    @Test
+    void testWorkTrueWhenFlagOn() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.work.enabled", "true" );
+        try {
+            assertTrue( doGetAsJson().get( "work" ).getAsBoolean() );
+        } finally {
+            engine.getWikiProperties().remove( "wikantik.work.enabled" );
+        }
+    }
+
+    @Test
     void testToTokenMapsAllEnumValues() {
         assertEquals( "full", CapabilitiesResource.toToken( GenAiMode.FULL ) );
         assertEquals( "none", CapabilitiesResource.toToken( GenAiMode.NONE ) );

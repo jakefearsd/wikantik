@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-11-13'
+date: '2026-11-15'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -93,6 +93,7 @@ The following settings come from `wikantik-main/src/main/resources/ini/wikantik.
 - [Context bundle & briefing](#context-bundle--briefing)
 - [Content Intelligence](#content-intelligence)
 - [Citations](#citations)
+- [Work](#work)
 - [Connectors](#connectors)
 - [Export](#export)
 - [Import](#import)
@@ -881,6 +882,16 @@ Full descriptions (truncated above to keep the table scannable):
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.citations.enabled`** — Parse cite:// body markup into the derived `citations` table, grade span-level staleness as the base churns, and surface stale citations (admin/drift, the list_stale_citations MCP tool, the for-agent projection). Requires a datasource; degrades to a no-op when absent. Set false to disable citation tracking entirely.
+
+## Work
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.work.enabled` | `boolean` | `false` | `wikantik_work_enabled` | Work management: projects, epics/stories/tasks, comments and an activity log, served under /api/work/* and the /work SPA routes. … |
+
+Full descriptions (truncated above to keep the table scannable):
+
+- **`wikantik.work.enabled`** — Work management: projects, epics/stories/tasks, comments and an activity log, served under /api/work/* and the /work SPA routes. Work items never enter the page store, search index or Page Graph. Off by default: when false, /api/work/* returns 404, the services are not started and the navigation entry is hidden (the SPA routes stay registered).
 
 ## Connectors
 

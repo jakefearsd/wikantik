@@ -82,6 +82,9 @@ public class CapabilitiesResource extends RestServletBase {
     /** Config property: {@code wikantik.citations.enabled} (default {@code true}). */
     public static final String PROP_CITATIONS_ENABLED = "wikantik.citations.enabled";
 
+    /** Config property: {@code wikantik.work.enabled} (default {@code false}). */
+    public static final String PROP_WORK_ENABLED = "wikantik.work.enabled";
+
     /** Where the collaboration registry comes from; tests swap it. */
     private transient Function< Engine, Optional< CollabSessionRegistry > > collabRegistry = CollabWiring::registryFor;
 
@@ -115,6 +118,7 @@ public class CapabilitiesResource extends RestServletBase {
             result.put( "ontology", TextUtil.getBooleanProperty( props, PROP_ONTOLOGY_ENABLED, true ) );
             result.put( "connectors", TextUtil.getBooleanProperty( props, PROP_CONNECTORS_ENABLED, true ) );
             result.put( "citations", TextUtil.getBooleanProperty( props, PROP_CITATIONS_ENABLED, true ) );
+            result.put( "work", TextUtil.getBooleanProperty( props, PROP_WORK_ENABLED, false ) );
             // the live kill switch, not the property: the registry's flag can change at runtime (ruling P8)
             result.put( "collab", Map.of( "enabled", collabRegistry.apply( getEngine() )
                     .map( CollabSessionRegistry::isEnabled ).orElse( false ) ) );

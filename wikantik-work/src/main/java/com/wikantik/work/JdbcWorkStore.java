@@ -81,14 +81,14 @@ public class JdbcWorkStore implements WorkStore {
         ORDER BY key
         """;
 
-    private static final String ITEM_SELECT = """
+    static final String ITEM_SELECT = """
         SELECT i.id, i.project_id, p.key || '-' || i.seq AS item_key, i.level, i.parent_id, i.product_id, i.kind,
                i.title, i.body, i.status, i.priority, i.rank, i.due_on, i.assignee, i.reporter, i.autonomy,
                i.done_means, i.allow_direct, i.version, i.created_at, i.updated_at, i.closed_at
           FROM work_item i JOIN work_project p ON p.id = i.project_id
         """;
 
-    private static final RowMapper< Item > ITEM_ROW = rs -> new Item(
+    static final RowMapper< Item > ITEM_ROW = rs -> new Item(
         rs.getLong( "id" ), rs.getLong( "project_id" ), rs.getString( "item_key" ),
         WorkLevel.fromWire( rs.getString( "level" ) ), nullableLong( rs, "parent_id" ),
         nullableLong( rs, "product_id" ), WorkKind.fromWire( rs.getString( "kind" ) ), rs.getString( "title" ),
@@ -122,9 +122,11 @@ public class JdbcWorkStore implements WorkStore {
     private static final double RANK_STEP = 1024.0;
 
     private final Jdbc jdbc;
+    private final JdbcWorkDiscussion discussion;
 
     public JdbcWorkStore( final DataSource dataSource ) {
         this.jdbc = new Jdbc( dataSource );
+        this.discussion = new JdbcWorkDiscussion( jdbc, this );
     }
 
     private static Instant instant( final ResultSet rs, final String column ) throws SQLException {
@@ -404,7 +406,7 @@ public class JdbcWorkStore implements WorkStore {
         } );
     }
 
-    private Item itemById( final Connection conn, final long id ) throws SQLException {
+    Item itemById( final Connection conn, final long id ) throws SQLException {
         return jdbc.queryOne( conn, ITEM_SELECT + " WHERE i.id = ?", ps -> ps.setLong( 1, id ), ITEM_ROW )
             .orElseThrow( () -> new SQLException( "work_item " + id + " not found" ) );
     }
@@ -669,5 +671,64 @@ public class JdbcWorkStore implements WorkStore {
                 SELECT c.id, c.product_id FROM work_item c JOIN descendants d ON c.parent_id = d.id )
             SELECT DISTINCT product_id FROM descendants WHERE product_id IS NOT NULL ORDER BY product_id
             """, ps -> ps.setLong( 1, epicId ), rs -> rs.getLong( 1 ) ) );
+    }
+
+    // ---- discussion (see JdbcWorkDiscussion)
+
+    @Override
+    public Comment addComment( final Item item, final String author, final Actor.Kind kind, final String body,
+                               final List< String > mentioned ) throws SQLException {
+        return discussion.addComment( item, author, kind, body, mentioned );
+    }
+
+    @Override
+    public Comment editComment( final long commentId, final String body, final String actor ) throws SQLException {
+        return discussion.editComment( commentId, body, actor );
+    }
+
+    @Override
+    public void removeComment( final long commentId, final String actor ) throws SQLException {
+        discussion.removeComment( commentId, actor );
+    }
+
+    @Override
+    public Optional< Comment > comment( final long id ) throws SQLException {
+        return discussion.comment( id );
+    }
+
+    @Override
+    public List< Comment > comments( final long itemId ) throws SQLException {
+        return discussion.comments( itemId );
+    }
+
+    @Override
+    public Link addLink( final Item item, final String kind, final String target, final String actor )
+            throws SQLException {
+        return discussion.addLink( item, kind, target, actor );
+    }
+
+    @Override
+    public void removeLink( final long linkId, final String actor ) throws SQLException {
+        discussion.removeLink( linkId, actor );
+    }
+
+    @Override
+    public List< Link > links( final long itemId ) throws SQLException {
+        return discussion.links( itemId );
+    }
+
+    @Override
+    public boolean isBlocked( final long itemId ) throws SQLException {
+        return discussion.isBlocked( itemId );
+    }
+
+    @Override
+    public List< Item > mentioning( final String login, final Set< Long > projectIds ) throws SQLException {
+        return discussion.mentioning( login, projectIds );
+    }
+
+    @Override
+    public List< Item > assignedOpen( final String login, final Set< Long > projectIds ) throws SQLException {
+        return discussion.assignedOpen( login, projectIds );
     }
 }

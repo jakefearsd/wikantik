@@ -108,4 +108,37 @@ public interface WorkStore {
 
     /** Distinct products of all descendants of the epic. */
     Set< Long > productIdsUnder( long epicId ) throws SQLException;
+
+    // ---- discussion: comments, mentions, links
+
+    /** Inserts the comment, one mention row per login and a {@code commented} event, in one transaction. */
+    Comment addComment( Item item, String author, Actor.Kind kind, String body, List< String > mentioned )
+        throws SQLException;
+
+    /** Replaces the body, sets {@code edited_at} and writes {@code comment_edited}. */
+    Comment editComment( long commentId, String body, String actor ) throws SQLException;
+
+    /** Sets {@code removed_at} (the stored body is kept) and writes {@code comment_removed}. */
+    void removeComment( long commentId, String actor ) throws SQLException;
+
+    Optional< Comment > comment( long id ) throws SQLException;
+
+    /** Oldest first; a removed comment is returned with an empty body. */
+    List< Comment > comments( long itemId ) throws SQLException;
+
+    Link addLink( Item item, String kind, String target, String actor ) throws SQLException;
+
+    /** Deletes the row; the {@code unlinked} event is the record. */
+    void removeLink( long linkId, String actor ) throws SQLException;
+
+    List< Link > links( long itemId ) throws SQLException;
+
+    /** True when a {@code blocked_by} link targets an item key whose status is not done or cancelled. */
+    boolean isBlocked( long itemId ) throws SQLException;
+
+    /** Open items in the given projects with a mention of the login, newest-updated first. */
+    List< Item > mentioning( String login, Set< Long > projectIds ) throws SQLException;
+
+    /** Open items in the given projects assigned to the login, newest-updated first. */
+    List< Item > assignedOpen( String login, Set< Long > projectIds ) throws SQLException;
 }

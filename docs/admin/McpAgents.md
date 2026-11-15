@@ -10,7 +10,7 @@ instead of repeating the numbers.
 
 | Endpoint | Protocol | Tools | Access | Minimum key scope |
 |---|---|---|---|---|
-| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 20 read and write tools | `McpAccessFilter` | `mcp_admin` |
+| `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 22 read and write tools | `McpAccessFilter` | `mcp_admin` |
 | `/knowledge-mcp` | MCP (Streamable HTTP) | 16 read-only tools | `McpAccessFilter`, registered as `KnowledgeMcpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
 | `/tools/*` | OpenAPI 3.1 over plain HTTP | 2 | `ToolsAccessFilter` | `tools` |
 
@@ -177,7 +177,7 @@ a bearer token.
 "Access" says what the tool can change: **read** tools never modify wiki content;
 **write** tools do.
 
-### /wikantik-admin-mcp (20 tools by default)
+### /wikantik-admin-mcp (22 tools by default)
 
 The authoritative per-tool descriptions are in
 `wikantik-admin-mcp/src/main/resources/wikantik-mcp-instructions.txt`, which the server
@@ -207,6 +207,8 @@ returns as its instructions on `initialize`. Every write tool refuses system pag
 | `list_retrieval_queries` | Real retrieval queries from the query log, ranked by frequency | read |
 | `list_content_opportunities` | The ranked content-opportunity backlog; see [ContentIntelligence.md](ContentIntelligence.md) | read |
 | `snooze_opportunity` | Decline an opportunity for 1-365 days with a required reason | write |
+| `list_comment_threads` | Reader comment threads the commenter made available to agents, by page or cluster; each comment is marked `trusted` or not | read |
+| `respond_to_comment_thread` | Reply to, resolve or dismiss a comment thread as an agent; `resolve` needs a trusted comment, `dismiss` needs a reason | write (comments only) |
 
 ### /knowledge-mcp (16 tools by default)
 

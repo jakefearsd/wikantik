@@ -1,6 +1,6 @@
 ---
 name: wiki-content
-description: Use when creating, publishing, updating, or maintaining wiki content via the Wikantik MCP server — covers single articles, clusters, retrieval/SEO-aware frontmatter, maintenance, and reorganization using the live MCP tools
+description: Use when creating, publishing, updating, or maintaining wiki content via the Wikantik MCP server — covers single articles, clusters, retrieval/SEO-aware frontmatter, maintenance, reorganization, and answering reader comment feedback using the live MCP tools
 ---
 
 ## Overview
@@ -101,6 +101,9 @@ until `confirm=true`. Refuses a target another hub already declares. Page names 
 `delete_pages(slugs, confirm=true)` removes pages.
 
 ### Reader comment inbox
+
+Readers leave anchored comments on pages. **Before you update a page or work through a cluster, check its
+inbox** — a reader may already have told you what is wrong with it.
 
 1. `list_comment_threads` for the page (`slug`) or cluster you are working on. It returns open threads by
    default (pass `status` for `resolved` or `dismissed`), only those the commenter made available to agents.
@@ -273,6 +276,7 @@ Frontmatter drives search-engine, social, feed, and news outputs:
 | LIVE CHECK | `assemble_bundle` (knowledge) — the real gate |
 | SWEEP | `list_retrieval_queries max_avg_results=1` (admin) → `assemble_bundle` |
 | SEO | `verify_pages seo_readiness` → `preview_structured_data` → `update_page` |
+| FEEDBACK | `list_comment_threads` → fix the page if a `trusted` comment asks → `respond_to_comment_thread` (admin) |
 
 ## Formatting LaTeX math
 

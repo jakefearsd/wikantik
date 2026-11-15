@@ -70,6 +70,11 @@ write_pages and update_page refuse a text holding an unreadable access rule with
 each gives the reason, the body line or frontmatter field, and how to write it instead; at most 50 are listed,
 plus the total count.
 
+Reader comment threads are a different thing from `%% comment %%` text. A thread is feedback a reader
+anchored to a passage of the rendered page; it is not part of the page source and read_page never shows it.
+Read threads with list_comment_threads and answer them with respond_to_comment_thread. Check a page's
+threads before you rewrite it.
+
 == Page naming ==
 
 Page names use CamelCase (e.g. SecurityPolicy, ProjectAlpha, MeetingNotes2026).

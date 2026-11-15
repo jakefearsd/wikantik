@@ -52,12 +52,20 @@ public class CommentStore {
                                        final String author, final String body,
                                        final MentionService mentionSvc,
                                        final Optional< String > ownerForMention ) {
+        return createThread( canonicalId, anchor, author, body, mentionSvc, ownerForMention, true, false );
+    }
+
+    public CommentThread createThread( final String canonicalId, final TextQuoteSelector anchor,
+                                       final String author, final String body,
+                                       final MentionService mentionSvc,
+                                       final Optional< String > ownerForMention,
+                                       final boolean agentAvailable, final boolean authorCouldEdit ) {
         final UUID threadId = UUID.randomUUID();
         final UUID commentId = UUID.randomUUID();
         try {
             jdbc.inTransaction( c -> {
                 jdbc.update( c, "INSERT INTO comment_threads (id, canonical_id, anchor_exact, anchor_prefix, " +
-                        "anchor_suffix, status, created_by) VALUES (?, ?, ?, ?, ?, 'open', ?)",
+                        "anchor_suffix, status, created_by, agent_available) VALUES (?, ?, ?, ?, ?, 'open', ?, ?)",
                         ps -> {
                             ps.setObject( 1, threadId );
                             ps.setString( 2, canonicalId );
@@ -65,8 +73,9 @@ public class CommentStore {
                             ps.setString( 4, anchor.prefix() );
                             ps.setString( 5, anchor.suffix() );
                             ps.setString( 6, author );
+                            ps.setBoolean( 7, agentAvailable );
                         } );
-                insertComment( c, commentId, threadId, author, body );
+                insertComment( c, commentId, threadId, author, body, authorCouldEdit );
                 mentionSvc.recordCreate( c, commentId, author, body, ownerForMention );
                 return null;
             } );
@@ -80,10 +89,15 @@ public class CommentStore {
 
     public Comment addComment( final UUID threadId, final String author, final String body,
                                final MentionService mentionSvc ) {
+        return addComment( threadId, author, body, mentionSvc, false );
+    }
+
+    public Comment addComment( final UUID threadId, final String author, final String body,
+                               final MentionService mentionSvc, final boolean authorCouldEdit ) {
         final UUID commentId = UUID.randomUUID();
         try {
             jdbc.inTransaction( c -> {
-                insertComment( c, commentId, threadId, author, body );
+                insertComment( c, commentId, threadId, author, body, authorCouldEdit );
                 mentionSvc.recordReply( c, commentId, author, body );
                 return null;
             } );
@@ -96,19 +110,30 @@ public class CommentStore {
     }
 
     private void insertComment( final Connection c, final UUID id, final UUID threadId,
-                                final String author, final String body ) throws SQLException {
-        jdbc.update( c, "INSERT INTO comments (id, thread_id, author, body) VALUES (?, ?, ?, ?)",
+                                final String author, final String body,
+                                final boolean authorCouldEdit ) throws SQLException {
+        jdbc.update( c, "INSERT INTO comments (id, thread_id, author, body, author_could_edit) " +
+                "VALUES (?, ?, ?, ?, ?)",
                 ps -> {
                     ps.setObject( 1, id );
                     ps.setObject( 2, threadId );
                     ps.setString( 3, author );
                     ps.setString( 4, body );
+                    ps.setBoolean( 5, authorCouldEdit );
                 } );
     }
 
     public Optional< Comment > editComment( final UUID commentId, final String oldBody,
                                             final String newBody, final String mentioningLogin,
                                             final MentionService mentionSvc ) {
+        return editComment( commentId, oldBody, newBody, mentioningLogin, mentionSvc, null );
+    }
+
+    /** Edits a comment; a non-null {@code authorCouldEdit} also refreshes the trust snapshot. */
+    public Optional< Comment > editComment( final UUID commentId, final String oldBody,
+                                            final String newBody, final String mentioningLogin,
+                                            final MentionService mentionSvc,
+                                            final Boolean authorCouldEdit ) {
         // A miss (0 rows updated) commits an empty transaction rather than rolling back —
         // identical in effect, since nothing was written, and it keeps the abort path out
         // of the shared primitive.
@@ -116,10 +141,12 @@ public class CommentStore {
         try {
             applied = jdbc.inTransaction( c -> {
                 final int rows = jdbc.update( c,
-                        "UPDATE comments SET body = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?",
+                        "UPDATE comments SET body = ?, edited_at = CURRENT_TIMESTAMP, " +
+                        "author_could_edit = COALESCE( ?, author_could_edit ) WHERE id = ?",
                         ps -> {
                             ps.setString( 1, newBody );
-                            ps.setObject( 2, commentId );
+                            ps.setObject( 2, authorCouldEdit, java.sql.Types.BOOLEAN );
+                            ps.setObject( 3, commentId );
                         } );
                 if ( rows == 0 ) {
                     return Boolean.FALSE;
@@ -195,8 +222,9 @@ public class CommentStore {
     public List< CommentThread > listByCanonicalId( final String canonicalId, final String statusFilter ) {
         final StringBuilder sql = new StringBuilder(
                 "SELECT id, canonical_id, anchor_exact, anchor_prefix, anchor_suffix, status, " +
-                "created_by, created_at, resolved_by, resolved_at FROM comment_threads WHERE canonical_id = ?" );
-        final boolean byStatus = "open".equals( statusFilter ) || "resolved".equals( statusFilter );
+                "created_by, created_at, resolved_by, resolved_at, agent_available FROM comment_threads WHERE canonical_id = ?" );
+        final boolean byStatus = CommentThread.OPEN.equals( statusFilter ) || CommentThread.RESOLVED.equals( statusFilter )
+                || CommentThread.DISMISSED.equals( statusFilter );
         if ( byStatus ) sql.append( " AND status = ?" );
         sql.append( " ORDER BY created_at" );
 
@@ -225,7 +253,7 @@ public class CommentStore {
             return jdbc.inTransaction( c -> {
                 final Optional< ThreadRow > row = jdbc.queryOne( c,
                         "SELECT id, canonical_id, anchor_exact, anchor_prefix, anchor_suffix, status, " +
-                        "created_by, created_at, resolved_by, resolved_at FROM comment_threads WHERE id = ?",
+                        "created_by, created_at, resolved_by, resolved_at, agent_available FROM comment_threads WHERE id = ?",
                         ps -> ps.setObject( 1, threadId ), CommentStore::readThreadRow );
                 if ( row.isEmpty() ) return Optional.< CommentThread >empty();
                 return Optional.of( toThread( row.get(), loadComments( c, threadId ) ) );
@@ -238,7 +266,7 @@ public class CommentStore {
 
     public Optional< Comment > findComment( final UUID commentId ) {
         try {
-            return jdbc.queryOne( "SELECT id, thread_id, author, body, created_at, edited_at " +
+            return jdbc.queryOne( "SELECT id, thread_id, author, body, created_at, edited_at, via_agent, author_could_edit " +
                     "FROM comments WHERE id = ?",
                     ps -> ps.setObject( 1, commentId ), CommentStore::readComment );
         } catch ( final SQLException e ) {
@@ -248,13 +276,14 @@ public class CommentStore {
     }
 
     private List< Comment > loadComments( final Connection c, final UUID threadId ) throws SQLException {
-        return jdbc.query( c, "SELECT id, thread_id, author, body, created_at, edited_at " +
+        return jdbc.query( c, "SELECT id, thread_id, author, body, created_at, edited_at, via_agent, author_could_edit " +
                 "FROM comments WHERE thread_id = ? ORDER BY created_at",
                 ps -> ps.setObject( 1, threadId ), CommentStore::readComment );
     }
 
     private record ThreadRow( UUID id, String canonicalId, TextQuoteSelector anchor, String status,
-                              String createdBy, Instant createdAt, String resolvedBy, Instant resolvedAt ) {}
+                              String createdBy, Instant createdAt, String resolvedBy, Instant resolvedAt,
+                              boolean agentAvailable ) {}
 
     private static ThreadRow readThreadRow( final ResultSet rs ) throws SQLException {
         return new ThreadRow(
@@ -266,12 +295,14 @@ public class CommentStore {
                 rs.getString( "created_by" ),
                 toInstant( rs.getTimestamp( "created_at" ) ),
                 rs.getString( "resolved_by" ),
-                toInstant( rs.getTimestamp( "resolved_at" ) ) );
+                toInstant( rs.getTimestamp( "resolved_at" ) ),
+                rs.getBoolean( "agent_available" ) );
     }
 
     private static CommentThread toThread( final ThreadRow r, final List< Comment > comments ) {
         return new CommentThread( r.id(), r.canonicalId(), r.anchor(), r.status(),
-                r.createdBy(), r.createdAt(), r.resolvedBy(), r.resolvedAt(), comments );
+                r.createdBy(), r.createdAt(), r.resolvedBy(), r.resolvedAt(), comments,
+                r.agentAvailable() );
     }
 
     private static Comment readComment( final ResultSet rs ) throws SQLException {
@@ -281,7 +312,9 @@ public class CommentStore {
                 rs.getString( "author" ),
                 rs.getString( "body" ),
                 toInstant( rs.getTimestamp( "created_at" ) ),
-                toInstant( rs.getTimestamp( "edited_at" ) ) );
+                toInstant( rs.getTimestamp( "edited_at" ) ),
+                rs.getBoolean( "via_agent" ),
+                rs.getBoolean( "author_could_edit" ) );
     }
 
     private static Instant toInstant( final Timestamp ts ) {

@@ -27,13 +27,20 @@ public record CommentThread(
         UUID id,
         String canonicalId,
         TextQuoteSelector anchor,
-        String status,          // "open" | "resolved"
+        String status,          // "open" | "resolved" | "dismissed"
         String createdBy,
         Instant createdAt,
         String resolvedBy,
         Instant resolvedAt,
-        List< Comment > comments ) {
+        List< Comment > comments,
+        boolean agentAvailable ) {
 
     public static final String OPEN = "open";
     public static final String RESOLVED = "resolved";
+    public static final String DISMISSED = "dismissed";
+
+    /** True when any comment was written by a human who could edit the page, so an agent may act on it. */
+    public boolean actionable() {
+        return comments != null && comments.stream().anyMatch( c -> !c.viaAgent() && c.authorCouldEdit() );
+    }
 }

@@ -186,4 +186,49 @@ class CommentStoreTest {
             }
         }
     }
+
+    private static final TextQuoteSelector ANCHOR = new TextQuoteSelector( "x", null, null );
+
+    @Test
+    void newThreadDefaultsToAgentAvailableAndUntrusted() {
+        final CommentThread t = store.createThread( "CID1", ANCHOR, "alice", "hi", mentions, Optional.empty() );
+        assertTrue( t.agentAvailable() );
+        assertFalse( t.comments().get( 0 ).authorCouldEdit() );
+        assertFalse( t.comments().get( 0 ).viaAgent() );
+        assertFalse( t.actionable() );
+    }
+
+    @Test
+    void threadRecordsAgentAvailableFalse() {
+        final CommentThread t = store.createThread( "CID1", ANCHOR, "alice", "hi", mentions,
+                Optional.empty(), false, true );
+        assertFalse( t.agentAvailable() );
+        assertTrue( t.comments().get( 0 ).authorCouldEdit() );
+        assertTrue( t.actionable() );
+    }
+
+    @Test
+    void trustedReplyMakesThreadActionable() {
+        final CommentThread t = store.createThread( "CID1", ANCHOR, "alice", "hi", mentions, Optional.empty() );
+        store.addComment( t.id(), "bob", "do it", mentions, true );
+        assertTrue( store.findThread( t.id() ).orElseThrow().actionable() );
+    }
+
+    @Test
+    void editCanRevokeTrust() {
+        final CommentThread t = store.createThread( "CID1", ANCHOR, "alice", "hi", mentions,
+                Optional.empty(), true, true );
+        final Comment c = t.comments().get( 0 );
+        store.editComment( c.id(), c.body(), "changed", "alice", mentions, false );
+        assertFalse( store.findThread( t.id() ).orElseThrow().actionable() );
+    }
+
+    @Test
+    void listsDismissedThreadsByStatus() throws Exception {
+        final CommentThread t = store.createThread( "CID1", ANCHOR, "alice", "hi", mentions, Optional.empty() );
+        new com.wikantik.jdbc.Jdbc( ds ).update( "UPDATE comment_threads SET status = 'dismissed' WHERE id = ?",
+                ps -> ps.setObject( 1, t.id() ) );
+        assertEquals( 1, store.listByCanonicalId( "CID1", "dismissed" ).size() );
+        assertEquals( 0, store.listByCanonicalId( "CID1", "open" ).size() );
+    }
 }

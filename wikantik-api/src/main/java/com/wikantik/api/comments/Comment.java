@@ -28,5 +28,7 @@ public record Comment(
         String author,
         String body,
         Instant createdAt,
-        Instant editedAt ) {
+        Instant editedAt,
+        boolean viaAgent,
+        boolean authorCouldEdit ) {
 }

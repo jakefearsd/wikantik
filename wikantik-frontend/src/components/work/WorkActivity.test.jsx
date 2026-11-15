@@ -26,17 +26,40 @@ function renderActivity() {
 beforeEach(() => vi.clearAllMocks());
 
 describe('WorkActivity', () => {
+  // The server's cursor is exclusive and compound: strictly older in (at, id) order, newest first.
+  const serve = (all) => (params) => {
+    const sorted = [...all].sort((a, b) => (a.at === b.at ? b.id - a.id : (a.at < b.at ? 1 : -1)));
+    const rest = params.before === undefined ? sorted
+      : sorted.filter((e) => (params.beforeId === undefined ? e.at < params.before
+        : e.at < params.before || (e.at === params.before && e.id < params.beforeId)));
+    return Promise.resolve(rest.slice(0, params.limit));
+  };
+
   it('loadsFiftyThenMoreWithBeforeCursor', async () => {
-    const first = page(1, 50);
-    getActivity.mockResolvedValueOnce(first).mockResolvedValueOnce([first[49], ...page(51, 3)]);
+    const all = page(1, 53);
+    getActivity.mockImplementation(serve(all));
     renderActivity();
     expect(await screen.findByText('PLAT-1')).toBeInTheDocument();
     expect(getActivity).toHaveBeenCalledWith({ project: 'PLAT', limit: 50 });
+    expect(screen.queryByText('PLAT-51')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
     expect(await screen.findByText('PLAT-53')).toBeInTheDocument();
-    expect(getActivity).toHaveBeenLastCalledWith({ project: 'PLAT', before: first[49].at, limit: 50 });
-    // the repeated event id 50 is shown once; a short page ends the offer
+    expect(getActivity).toHaveBeenLastCalledWith({ project: 'PLAT', before: all[49].at, beforeId: all[49].id, limit: 50 });
     expect(screen.getAllByText('PLAT-50')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+  });
+
+  it('sameTimestampEventsAcrossAPageBoundaryAreAllShown', async () => {
+    // 120 events, all with the same timestamp (one update writes several events at once)
+    const all = Array.from({ length: 120 }, (_, i) => ev(i + 1, { at: '2026-11-15T10:00:00Z' }));
+    getActivity.mockImplementation(serve(all));
+    renderActivity();
+    await screen.findByText('PLAT-120');
+    for (let i = 0; i < 2; i++) {
+      fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
+      await screen.findByText(`PLAT-${i === 0 ? 70 : 1}`);
+    }
+    for (let n = 1; n <= 120; n++) expect(screen.getAllByText(`PLAT-${n}`)).toHaveLength(1);
     expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
   });
 

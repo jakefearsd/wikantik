@@ -21,8 +21,9 @@ const MEMBERS = [
 ];
 const reload = vi.fn();
 
-function renderSettings({ role = 'lead', admin = false } = {}) {
-  useAuth.mockReturnValue({ user: { authenticated: true, loginPrincipal: 'me-login', roles: admin ? ['Admin'] : [] } });
+function renderSettings({ role = 'lead', admin = false, authLoading = false } = {}) {
+  useAuth.mockReturnValue(authLoading ? { user: null, loading: true }
+    : { user: { authenticated: true, loginPrincipal: 'me-login', roles: admin ? ['Admin'] : [] }, loading: false });
   render(
     <MemoryRouter initialEntries={['/work/PLAT/settings']}>
       <WorkProjectContext.Provider value={{ project: PROJECT, role, reload }}>
@@ -156,5 +157,61 @@ describe('WorkSettings', () => {
     expect(await screen.findByText('boom')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Bob B')).toBeInTheDocument();
+  });
+
+  it('after your own role change it re-reads the project (so the page redirects) and shows no error panel', async () => {
+    renderSettings();
+    await screen.findByText('Bob B');
+    listMembers.mockClear();
+    listMembers.mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
+    fireEvent.change(screen.getByLabelText('Role of Me Myself'), { target: { value: 'member' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, change my role' }));
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    await waitFor(() => expect(listMembers).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    expect(screen.getByText('Bob B')).toBeInTheDocument();
+  });
+
+  it('after removing yourself you land on the work home', async () => {
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Me Myself' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove me' }));
+    expect(await screen.findByText('HOME')).toBeInTheDocument();
+  });
+
+  it('waits for the signed-in user before deciding anything', async () => {
+    renderSettings({ authLoading: true });
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(listMembers).not.toHaveBeenCalled();
+  });
+
+  it('a double click on Add member submits once', async () => {
+    let release;
+    putMember.mockReturnValue(new Promise((r) => { release = r; }));
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.change(screen.getByLabelText('Login or group name'), { target: { value: 'carol' } });
+    const add = screen.getByRole('button', { name: 'Add member' });
+    fireEvent.click(add);
+    fireEvent.click(add);
+    expect(putMember).toHaveBeenCalledTimes(1);
+    expect(add).toBeDisabled();
+    release();
+    await waitFor(() => expect(add).not.toBeDisabled());
+  });
+
+  it('a double click on the archive confirmation archives once', async () => {
+    let release;
+    archiveProject.mockReturnValue(new Promise((r) => { release = r; }));
+    renderSettings({ admin: true });
+    await screen.findByText('Bob B');
+    fireEvent.click(screen.getByRole('button', { name: 'Archive project' }));
+    const yes = screen.getByRole('button', { name: 'Yes, archive PLAT' });
+    fireEvent.click(yes);
+    fireEvent.click(yes);
+    expect(archiveProject).toHaveBeenCalledTimes(1);
+    release();
+    expect(await screen.findByText('HOME')).toBeInTheDocument();
   });
 });

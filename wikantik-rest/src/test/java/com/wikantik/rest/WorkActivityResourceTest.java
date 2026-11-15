@@ -64,21 +64,35 @@ class WorkActivityResourceTest {
 
     @Test
     void listsActivityNewestFirstWithDisplayNames() throws Exception {
-        Mockito.when( svc.activity( eq( ALICE ), eq( "PLAT" ), any(), anyInt() ) ).thenReturn( List.of( event() ) );
+        Mockito.when( svc.activity( eq( ALICE ), eq( "PLAT" ), any(), any(), anyInt() ) ).thenReturn( List.of( event() ) );
         final JsonObject e = get( Map.of( "project", "PLAT", "before", "2026-11-02T00:00:00Z" ) ).json()
             .getAsJsonArray().get( 0 ).getAsJsonObject();
         assertEquals( "Name of alice", e.get( "actorName" ).getAsString() );
         assertEquals( "alice", e.get( "actor" ).getAsString() );
         assertEquals( "2026-11-01T10:00:00Z", e.get( "at" ).getAsString() );
-        Mockito.verify( svc ).activity( ALICE, "PLAT", Instant.parse( "2026-11-02T00:00:00Z" ), 0 );
+        Mockito.verify( svc ).activity( ALICE, "PLAT", Instant.parse( "2026-11-02T00:00:00Z" ), null, 0 );
+    }
+
+    @Test
+    void beforeIdIsPassedWithBefore() throws Exception {
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), anyInt() ) ).thenReturn( List.of() );
+        get( Map.of( "project", "PLAT", "before", "2026-11-02T00:00:00Z", "beforeId", "42" ) );
+        Mockito.verify( svc ).activity( ALICE, "PLAT", Instant.parse( "2026-11-02T00:00:00Z" ), 42L, 0 );
+    }
+
+    @Test
+    void anUnparseableBeforeIdIs400OnBeforeId() throws Exception {
+        final WorkHttp.Result r = get( Map.of( "project", "PLAT", "before", "2026-11-02T00:00:00Z", "beforeId", "x1" ) );
+        assertEquals( 400, r.status() );
+        assertEquals( "beforeId", r.json().getAsJsonObject().get( "field" ).getAsString() );
     }
 
     @Test
     void limitIsClampedTo200() throws Exception {
-        Mockito.when( svc.activity( any(), anyString(), any(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), anyInt() ) ).thenReturn( List.of() );
         get( Map.of( "project", "PLAT", "limit", "100000" ) );
         final ArgumentCaptor< Integer > limit = ArgumentCaptor.forClass( Integer.class );
-        Mockito.verify( svc ).activity( any(), anyString(), any(), limit.capture() );
+        Mockito.verify( svc ).activity( any(), anyString(), any(), any(), limit.capture() );
         assertEquals( 200, limit.getValue() );
     }
 
@@ -108,7 +122,7 @@ class WorkActivityResourceTest {
 
     @Test
     void notFoundMapsTo404WithoutEchoingTheKey() throws Exception {
-        Mockito.when( svc.activity( any(), anyString(), any(), anyInt() ) ).thenThrow( new WorkNotFoundException( "x" ) );
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), anyInt() ) ).thenThrow( new WorkNotFoundException( "x" ) );
         final WorkHttp.Result r = get( Map.of( "project", "HIDDEN" ) );
         assertEquals( 404, r.status() );
         assertFalse( r.body().contains( "HIDDEN" ), r.body() );
@@ -116,7 +130,7 @@ class WorkActivityResourceTest {
 
     @Test
     void deniedMapsTo403WithReason() throws Exception {
-        Mockito.when( svc.activity( any(), anyString(), any(), anyInt() ) ).thenThrow( new WorkDeniedException( "nope" ) );
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), anyInt() ) ).thenThrow( new WorkDeniedException( "nope" ) );
         final WorkHttp.Result r = get( Map.of( "project", "PLAT" ) );
         assertEquals( 403, r.status() );
         assertEquals( "nope", r.json().getAsJsonObject().get( "message" ).getAsString() );

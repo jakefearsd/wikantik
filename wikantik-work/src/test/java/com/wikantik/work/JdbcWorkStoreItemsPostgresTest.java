@@ -346,6 +346,58 @@ class JdbcWorkStoreItemsPostgresTest {
         assertTrue( store.productIdsUnder( 987654L ).isEmpty() );
     }
 
+    /** Gives the first {@code n} events (by id) the instant {@code at}; the rest keep theirs. */
+    private void stamp( final int n, final java.time.Instant at ) throws SQLException {
+        try ( java.sql.Connection c = PostgresTestDb.createDataSource().getConnection();
+              java.sql.PreparedStatement ps = c.prepareStatement(
+                  "UPDATE work_event SET at = ? WHERE id IN (SELECT id FROM work_event ORDER BY id LIMIT ?)" ) ) {
+            ps.setTimestamp( 1, java.sql.Timestamp.from( at ) );
+            ps.setInt( 2, n );
+            ps.executeUpdate();
+        }
+    }
+
+    private List< Long > walk( final int pageSize, final boolean compound ) throws SQLException {
+        final List< Long > ids = new ArrayList<>();
+        WorkEvent last = null;
+        for ( int guard = 0; guard < 50; guard++ ) {
+            final List< WorkEvent > page = last == null
+                ? store.projectEvents( plat.id(), null, null, pageSize )
+                : store.projectEvents( plat.id(), last.at(), compound ? last.id() : null, pageSize );
+            if ( page.isEmpty() ) {
+                break;
+            }
+            page.forEach( e -> ids.add( e.id() ) );
+            last = page.get( page.size() - 1 );
+        }
+        return ids;
+    }
+
+    @Test
+    void compoundCursorWalksEventsSharingOneTimestampExactlyOnce() throws SQLException {
+        for ( int i = 0; i < 8; i++ ) {
+            create( "t" + i );
+        }
+        final java.time.Instant newer = java.time.Instant.parse( "2026-11-10T10:00:00Z" );
+        final java.time.Instant older = java.time.Instant.parse( "2026-11-09T10:00:00Z" );
+        // events 1-6 share the older instant; the newest ones are 7-8, sharing the newer instant
+        stamp( 6, older );
+        try ( java.sql.Connection c = PostgresTestDb.createDataSource().getConnection();
+              java.sql.PreparedStatement ps = c.prepareStatement( "UPDATE work_event SET at = ? WHERE at > ?" ) ) {
+            ps.setTimestamp( 1, java.sql.Timestamp.from( newer ) );
+            ps.setTimestamp( 2, java.sql.Timestamp.from( older ) );
+            ps.executeUpdate();
+        }
+        final List< Long > all = new ArrayList<>( walk( 100, true ) );
+        assertEquals( 8, all.size() );
+        for ( final int pageSize : new int[] { 1, 2, 3, 4, 5, 7 } ) {
+            final List< Long > ids = walk( pageSize, true );
+            assertEquals( all, ids, "page size " + pageSize + " must return every event exactly once, in order" );
+        }
+        // the timestamp-only cursor is the defect: a boundary inside a shared-timestamp group drops the rest of it
+        assertTrue( walk( 3, false ).size() < 8, "a timestamp-only cursor loses same-timestamp events" );
+    }
+
     @Test
     void projectEventsPageNewestFirstAndCarryItemKey() throws SQLException {
         create( "a" );

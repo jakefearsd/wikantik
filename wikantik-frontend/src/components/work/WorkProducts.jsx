@@ -66,12 +66,13 @@ function ProductForm({ product, onDone, onCancel }) {
 
 /** /work/products: admins only. */
 export default function WorkProducts() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const toast = useToast();
   const isAdmin = !!user?.roles?.includes('Admin');
   const [state, setState] = useState({ products: null, error: null });
   const [mode, setMode] = useState(null); // null | 'new' | product key being edited
   const [archiving, setArchiving] = useState(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const seq = useRef(0);
 
   const load = useCallback(() => {
@@ -86,15 +87,20 @@ export default function WorkProducts() {
 
   useEffect(() => { if (isAdmin) load(); }, [isAdmin, load]);
 
+  // Until /api/auth/user resolves the user is null: deciding now would bounce a signed-in admin.
+  if (authLoading) return <Spinner label="Loading…" />;
   if (!isAdmin) return <Navigate to="/work" replace />;
   if (state.error) return <WorkLoadError error={state.error} fallback="Could not load the products." onRetry={load} />;
   if (!state.products) return <Spinner label="Loading products…" />;
 
   const done = () => { setMode(null); load(); };
   function archive(key) {
+    if (archiveBusy) return;
+    setArchiveBusy(true);
     archiveProduct(key)
       .then(() => { setArchiving(null); toast.success(`Archived ${key}`); load(); })
-      .catch((err) => { setArchiving(null); toast.error(err?.message || 'Could not archive the product.'); });
+      .catch((err) => { setArchiving(null); toast.error(err?.message || 'Could not archive the product.'); })
+      .finally(() => setArchiveBusy(false));
   }
   const active = state.products.filter((p) => !p.archivedAt);
 
@@ -129,7 +135,7 @@ export default function WorkProducts() {
                           <div className="work-confirm" role="alertdialog" aria-label="Confirm">
                             <p>Archive {p.key}? It will no longer be offered on items.</p>
                             <div className="work-actions">
-                              <button type="button" className="btn btn-sm btn-danger" onClick={() => archive(p.key)}>Yes, archive {p.key}</button>
+                              <button type="button" className="btn btn-sm btn-danger" disabled={archiveBusy} onClick={() => archive(p.key)}>Yes, archive {p.key}</button>
                               <button type="button" className="btn btn-sm btn-ghost" onClick={() => setArchiving(null)}>Cancel</button>
                             </div>
                           </div>

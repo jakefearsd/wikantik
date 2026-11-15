@@ -44,7 +44,18 @@ public class WorkActivityResource extends WorkResourceBase {
                     throw new WorkValidationException( "before", "before must be an ISO-8601 instant." );
                 }
             }
-            c.json( c.svc.activity( c.actor, project, before, clampLimit( c ) ) );
+            Long beforeId = null;
+            if ( c.query( "beforeId" ) != null ) {
+                try {
+                    beforeId = Long.valueOf( c.query( "beforeId" ) );
+                } catch ( final NumberFormatException e ) {
+                    throw new WorkValidationException( "beforeId", "beforeId must be a number." );
+                }
+                if ( before == null ) {
+                    throw new WorkValidationException( "beforeId", "beforeId needs before." );
+                }
+            }
+            c.json( c.svc.activity( c.actor, project, before, beforeId, clampLimit( c ) ) );
         } );
     }
 }

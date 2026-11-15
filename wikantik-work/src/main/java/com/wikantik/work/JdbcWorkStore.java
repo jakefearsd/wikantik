@@ -663,14 +663,20 @@ public class JdbcWorkStore implements WorkStore {
     }
 
     @Override
-    public List< WorkEvent > projectEvents( final long projectId, final Instant before, final int limit )
-            throws SQLException {
+    public List< WorkEvent > projectEvents( final long projectId, final Instant before, final Long beforeId,
+                                            final int limit ) throws SQLException {
         final Instant cutoff = before == null ? Instant.now().plusSeconds( 1 ) : before;
-        return jdbc.query( EVENT_SELECT + " WHERE e.project_id = ? AND e.at < ? ORDER BY e.at DESC, e.id DESC LIMIT ?",
+        final boolean compound = before != null && beforeId != null;
+        final String cursor = compound ? "(e.at, e.id) < (?, ?)" : "e.at < ?";
+        return jdbc.query( EVENT_SELECT + " WHERE e.project_id = ? AND " + cursor + " ORDER BY e.at DESC, e.id DESC LIMIT ?",
             ps -> {
                 ps.setLong( 1, projectId );
                 ps.setTimestamp( 2, timestamp( cutoff ) );
-                ps.setInt( 3, limit > 0 ? limit : DEFAULT_ITEM_LIMIT );
+                int next = 3;
+                if ( compound ) {
+                    ps.setLong( next++, beforeId );
+                }
+                ps.setInt( next, limit > 0 ? limit : DEFAULT_ITEM_LIMIT );
             }, EVENT_ROW );
     }
 

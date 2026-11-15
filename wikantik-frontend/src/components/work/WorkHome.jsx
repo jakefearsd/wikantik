@@ -51,7 +51,7 @@ function NewProjectForm({ onCancel }) {
 
 /** /work: the viewer's projects and the items waiting on them. */
 export default function WorkHome() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { capabilities, loading } = useCapabilities();
   const enabled = !loading && !!capabilities?.work;
   const isAdmin = !!user?.roles?.includes('Admin');
@@ -71,7 +71,7 @@ export default function WorkHome() {
 
   useEffect(() => { if (enabled) load(); }, [enabled, load]);
 
-  if (loading) return <Spinner label="Loading…" />;
+  if (loading || authLoading) return <Spinner label="Loading…" />;
   if (!capabilities?.work) return <EmptyState message="Work management is not enabled" />;
   if (state.error) return <WorkLoadError error={state.error} fallback="Could not load your projects." onRetry={load} />;
   if (!state.me) return <Spinner label="Loading…" />;

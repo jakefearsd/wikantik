@@ -396,9 +396,15 @@ public class WorkService {
 
     public List< WorkEvent > activity( final Actor actor, final String projectKey, final Instant before,
                                        final int limit ) throws SQLException {
+        return activity( actor, projectKey, before, null, limit );
+    }
+
+    /** As above; {@code beforeId} (with {@code before}) makes the cursor the compound {@code (at, id)}. */
+    public List< WorkEvent > activity( final Actor actor, final String projectKey, final Instant before,
+                                       final Long beforeId, final int limit ) throws SQLException {
         final Scope s = scope( actor, projectKey );
         s.require( Action.VIEW, null );
-        return store.projectEvents( s.project().id(), before,
+        return store.projectEvents( s.project().id(), before, beforeId,
             limit <= 0 ? DEFAULT_ACTIVITY : Math.min( limit, MAX_ACTIVITY ) );
     }
 

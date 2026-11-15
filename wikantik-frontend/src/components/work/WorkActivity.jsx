@@ -52,7 +52,7 @@ function ActivityFeed() {
     const mine = seq.current;
     const last = events[events.length - 1];
     setLoadingMore(true); setMoreError(null);
-    getActivity({ project: project.key, before: last.at, limit: PAGE })
+    getActivity({ project: project.key, before: last.at, beforeId: last.id, limit: PAGE })
       .then((page) => {
         if (mine !== seq.current) return;
         setState((s) => {

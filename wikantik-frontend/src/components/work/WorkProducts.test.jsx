@@ -17,8 +17,9 @@ const PRODUCT = {
   wikiCluster: 'Wikantik', autonomyCeiling: 'delegated', deployGate: 'human', archivedAt: null,
 };
 
-function renderProducts(admin = true) {
-  useAuth.mockReturnValue({ user: { authenticated: true, roles: admin ? ['Admin'] : [] } });
+function renderProducts(admin = true, authLoading = false) {
+  useAuth.mockReturnValue(authLoading ? { user: null, loading: true }
+    : { user: { authenticated: true, roles: admin ? ['Admin'] : [] }, loading: false });
   render(
     <MemoryRouter initialEntries={['/work/products']}>
       <Routes>
@@ -109,5 +110,26 @@ describe('WorkProducts', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'N' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create product' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Admins only.'));
+  });
+
+  it('does not redirect an admin while the signed-in user is still loading', async () => {
+    renderProducts(true, true);
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('HOME')).not.toBeInTheDocument();
+    expect(listProducts).not.toHaveBeenCalled();
+  });
+
+  it('a double click on the archive confirmation archives once', async () => {
+    let release;
+    archiveProduct.mockReturnValue(new Promise((r) => { release = r; }));
+    renderProducts();
+    await screen.findByText('Wikantik');
+    fireEvent.click(screen.getByRole('button', { name: 'Archive wikantik' }));
+    const yes = screen.getByRole('button', { name: 'Yes, archive wikantik' });
+    fireEvent.click(yes);
+    fireEvent.click(yes);
+    expect(archiveProduct).toHaveBeenCalledTimes(1);
+    release();
+    await waitFor(() => expect(listProducts).toHaveBeenCalledTimes(2));
   });
 });

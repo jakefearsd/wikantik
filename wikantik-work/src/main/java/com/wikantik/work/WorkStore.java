@@ -112,7 +112,16 @@ public interface WorkStore {
     List< WorkEvent > itemEvents( long itemId ) throws SQLException;
 
     /** Newest first; {@code before} null means now. */
-    List< WorkEvent > projectEvents( long projectId, Instant before, int limit ) throws SQLException;
+    default List< WorkEvent > projectEvents( final long projectId, final Instant before, final int limit ) throws SQLException {
+        return projectEvents( projectId, before, null, limit );
+    }
+
+    /**
+     * Newest first. With {@code beforeId} the cursor is the compound {@code (at, id)}: events strictly older in
+     * {@code (at, id)} order, so a page boundary inside a group of events sharing one timestamp loses nothing.
+     * Without it the cursor is the timestamp alone ({@code at < before}).
+     */
+    List< WorkEvent > projectEvents( long projectId, Instant before, Long beforeId, int limit ) throws SQLException;
 
     /** Distinct products of all descendants of the epic. */
     Set< Long > productIdsUnder( long epicId ) throws SQLException;

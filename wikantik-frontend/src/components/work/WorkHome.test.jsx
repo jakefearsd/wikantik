@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({ getMe: vi.fn(), createProject: vi.fn() }));
@@ -97,5 +97,16 @@ describe('WorkHome', () => {
     expect(await screen.findByText('boom')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('PLAT Platform')).toBeInTheDocument();
+  });
+
+  it('waits for the signed-in user before showing admin controls', async () => {
+    useAuth.mockReturnValue({ user: null, loading: true });
+    useCapabilities.mockReturnValue({ capabilities: { work: true }, loading: false });
+    getMe.mockResolvedValue(ME);
+    render(<MemoryRouter><WorkHome /></MemoryRouter>);
+    await waitFor(() => expect(getMe).toHaveBeenCalled());
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('PLAT Platform')).not.toBeInTheDocument();
   });
 });

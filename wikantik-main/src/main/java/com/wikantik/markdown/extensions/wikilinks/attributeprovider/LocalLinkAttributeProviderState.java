@@ -54,6 +54,10 @@ public class LocalLinkAttributeProviderState extends AbstractLinkState implement
      */
     @Override
     public void setAttributes( final MutableAttributes attributes, final WikantikLink link ) {
+        if( Boolean.TRUE.equals( wikiContext().getVariable( Context.VAR_LINKS_AS_TYPED ) ) ) {
+            new LocalReadLinkAttributeProviderState( wikiContext() ).setAttributes( attributes, link );
+            return;
+        }
         final int hashMark = link.getUrl().toString().indexOf( '#' );
         final String attachment = PageSubsystemBridge.fromLegacyEngine( wikiContext().getEngine() ).attachments().getAttachmentInfoName( wikiContext(), link.getWikiLink() );
         if( attachment != null ) {

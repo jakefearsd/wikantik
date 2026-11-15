@@ -40,6 +40,7 @@ import com.wikantik.markdown.extensions.wikilinks.postprocessor.WikiHtmlInline;
 import com.wikantik.markdown.nodes.NativeWikiLinkNode;
 import com.wikantik.markdown.nodes.NativeWikiLinkNode.Kind;
 import com.wikantik.markdown.nodes.WikiEmbedBlock;
+import com.wikantik.parser.MarkupParser;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.util.TextUtil;
@@ -96,6 +97,10 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
             return;
         }
         final WikiLinkRef r = ref.get();
+        if ( Boolean.TRUE.equals( context.getVariable( Context.VAR_LINKS_AS_TYPED ) ) ) {
+            replace( state, node, typedLink( r ) );
+            return;
+        }
         final String attachment = attachmentName( r );
         if ( attachment != null ) {
             replace( state, node, attachmentNode( r, attachment ) );
@@ -190,6 +195,20 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
             return "";
         }
         return " width=\"" + size[ 0 ] + "\"" + ( size[ 1 ] >= 0 ? " height=\"" + size[ 1 ] + "\"" : "" );
+    }
+
+    /**
+     * The link in {@link Context#VAR_LINKS_AS_TYPED} mode: no page, title, alias, heading or attachment lookup, and an
+     * embed is just a link. The URL comes only from the cleaned text the author typed.
+     */
+    private NativeWikiLinkNode typedLink( final WikiLinkRef r ) {
+        final String fragment = r.heading() != null ? "#" + WikiLinkFragments.of( r.heading() ) : "";
+        if ( r.isSamePage() ) {
+            return linkNode( fragment, r.displayText(), Kind.ANCHOR, "" );
+        }
+        final String name = MarkupParser.cleanLink( r.target().strip() );
+        final String url = context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), name ) + fragment;
+        return linkNode( url, r.displayText(), Kind.PAGE, name );
     }
 
     private NativeWikiLinkNode pageLink( final WikiLinkRef r ) {

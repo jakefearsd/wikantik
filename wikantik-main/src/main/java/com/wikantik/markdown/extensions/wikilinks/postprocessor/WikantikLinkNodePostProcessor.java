@@ -175,6 +175,10 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
     private void processImageNode( final NodeTracker state, final Image imageNode ) {
         final String url = imageNode.getUrl().toString();
 
+        if( Boolean.TRUE.equals( context.getVariable( com.wikantik.api.core.Context.VAR_LINKS_AS_TYPED ) ) ) {
+            return; // as typed: no attachment lookup
+        }
+
         // Skip external URLs, absolute paths, and path traversal
         if( linkOperations.isExternalLink( url ) || url.startsWith( "/" ) || url.contains( ".." ) ) {
             return;

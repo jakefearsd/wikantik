@@ -52,6 +52,11 @@ public class LocalLinkNodePostProcessorState extends AbstractLinkState implement
     public void process( final NodeTracker state, final WikantikLink link ) {
         final String url = link.getUrl().toString();
 
+        if ( Boolean.TRUE.equals( wikiContext().getVariable( Context.VAR_LINKS_AS_TYPED ) ) ) {
+            processAsTyped( link, url );
+            return;
+        }
+
         // Guard: skip attachment lookup for path traversal attempts
         if ( url.contains( ".." ) || url.startsWith( "/" ) ) {
             processAsWikiLink( state, link, url );
@@ -85,6 +90,22 @@ public class LocalLinkNodePostProcessorState extends AbstractLinkState implement
         } else {
             processAsWikiLink( state, link, url );
         }
+    }
+
+    /**
+     * {@link Context#VAR_LINKS_AS_TYPED} mode: no attachment, page or heading lookup. The URL is the read URL of the
+     * cleaned typed page name; a typed heading becomes a section reference derived from the typed text alone.
+     */
+    private void processAsTyped( final WikantikLink link, final String url ) {
+        final int hashMark = url.indexOf( '#' );
+        final String page = MarkupParser.cleanLink( ( hashMark == -1 ? url : url.substring( 0, hashMark ) ).strip() );
+        String target = page;
+        if ( hashMark != -1 ) {
+            final String sectref = ( "#section-" + wikiContext().getEngine().encodeName(
+                page + "-" + MarkupParser.wikifyLink( url.substring( hashMark + 1 ) ) ) ).replace( '%', '_' );
+            target = page + sectref;
+        }
+        link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_VIEW.getRequestContext(), target ) ) );
     }
 
     private void processAsWikiLink( final NodeTracker state, final WikantikLink link, final String url ) {

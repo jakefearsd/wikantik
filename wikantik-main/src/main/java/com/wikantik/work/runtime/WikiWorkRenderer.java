@@ -20,15 +20,13 @@ package com.wikantik.work.runtime;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.render.RenderingManager;
+import com.wikantik.variables.VariableManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.work.WorkRenderer;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Renders work item text (descriptions, comments) to HTML through the page pipeline, display-only.
@@ -53,7 +51,10 @@ public final class WikiWorkRenderer implements WorkRenderer {
      *   <li>nothing is registered with the reference manager (that only happens when a page is saved);</li>
      *   <li>the context is flagged {@link Context#VAR_VIEWER_SENSITIVE}, so the shared document and HTML caches never
      *       store the output;</li>
-     *   <li>plugins do not run, as in the editor preview.</li>
+     *   <li>plugins and page filters do not run (the editor preview also runs no plugins; the citation filter would
+     *       resolve {@code cite://} ids to page slugs with no access check);</li>
+     *   <li>links are rendered as typed ({@link Context#VAR_LINKS_AS_TYPED}): no lookup of pages, titles, aliases,
+     *       headings or attachments happens, and embeds are drawn as links, so the output never reveals what exists.</li>
      * </ul>
      */
     @Override
@@ -65,60 +66,10 @@ public final class WikiWorkRenderer implements WorkRenderer {
         ctx.setRealPage( scratch );
         ctx.setVariable( Context.VAR_EXECUTE_PLUGINS, Boolean.FALSE );
         ctx.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
-        final String html = rm.textToHTML( ctx, demoteEmbeds( markdown == null ? "" : markdown ) );
-        return uniformLinks( ctx, html );
-    }
-
-    /** A link the pipeline drew for a page that does not exist: an anchor carrying the create-page class. */
-    private static final Pattern CREATE_PAGE_ANCHOR = Pattern.compile( "<a\\b[^>]*\\bclass=\"createpage\"[^>]*>" );
-    private static final Pattern HREF = Pattern.compile( "\\bhref=\"([^\"]*)\"" );
-    private static final String PROBE = "WorkRendererProbe";
-
-    /**
-     * The pipeline draws a link to a missing page as an edit link and one to an existing page as a read link. In a
-     * work item that difference would tell any reader which page names exist, so a missing-page link is redrawn
-     * exactly as a read link: view URL, {@code wikipage} class, no "Create" title.
-     */
-    private static String uniformLinks( final Context ctx, final String html ) {
-        final String editPrefix = urlPrefix( ctx, ContextEnum.PAGE_EDIT );
-        final String viewPrefix = urlPrefix( ctx, ContextEnum.PAGE_VIEW );
-        final Matcher m = CREATE_PAGE_ANCHOR.matcher( html );
-        final StringBuilder out = new StringBuilder();
-        while ( m.find() ) {
-            final Matcher href = HREF.matcher( m.group() );
-            String replacement = m.group();
-            if ( href.find() && href.group( 1 ).startsWith( editPrefix ) ) {
-                replacement = "<a href=\"" + viewPrefix + href.group( 1 ).substring( editPrefix.length() )
-                    + "\" class=\"wikipage\">";
-            }
-            m.appendReplacement( out, Matcher.quoteReplacement( replacement ) );
-        }
-        m.appendTail( out );
-        return out.toString();
-    }
-
-    private static String urlPrefix( final Context ctx, final ContextEnum kind ) {
-        final String url = ctx.getURL( kind.getRequestContext(), PROBE );
-        return url.substring( 0, url.lastIndexOf( PROBE ) );
-    }
-
-    /**
-     * Page embeds ({@code ![[Page]]}) would show a page's content, or that it is missing or restricted, so they are
-     * drawn as plain links instead. Fenced code is left alone.
-     */
-    static String demoteEmbeds( final String markdown ) {
-        if ( !markdown.contains( "![[" ) ) {
-            return markdown;
-        }
-        final StringBuilder out = new StringBuilder( markdown.length() );
-        boolean fenced = false;
-        for ( final String line : markdown.split( "\n", -1 ) ) {
-            if ( line.stripLeading().startsWith( "```" ) || line.stripLeading().startsWith( "~~~" ) ) {
-                fenced = !fenced;
-            }
-            out.append( fenced ? line : line.replace( "![[", "[[" ) ).append( '\n' );
-        }
-        out.setLength( out.length() - 1 );
-        return out.toString();
+        // Links as typed: no page, title, alias, heading or attachment lookup, so output never reveals what exists.
+        ctx.setVariable( Context.VAR_LINKS_AS_TYPED, Boolean.TRUE );
+        // No page filters: the citation filter rewrites cite:// links to a page's current slug without any access check.
+        ctx.setVariable( VariableManager.VAR_RUNFILTERS, Boolean.FALSE );
+        return rm.textToHTML( ctx, markdown == null ? "" : markdown );
     }
 }

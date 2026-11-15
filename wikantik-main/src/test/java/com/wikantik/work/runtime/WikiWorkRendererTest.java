@@ -27,13 +27,23 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.api.pagegraph.PageTitleLookup;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /** Work text renders like a page, but display-only: no side effects on pages, references or shared caches. */
 class WikiWorkRendererTest {
@@ -41,10 +51,29 @@ class WikiWorkRendererTest {
     private TestEngine engine;
     private WikiWorkRenderer renderer;
 
+    /** Pages the stubbed title index knows: slug to matchable phrases. Mutated mid-test, so lookups are never cached. */
+    private final Map< String, List< String > > indexed = new LinkedHashMap<>();
+    private final Map< String, String > canonicalIds = new LinkedHashMap<>();
+    private final StructuralIndexService index = mock( StructuralIndexService.class );
+
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
+        engine = TestEngine.build( TestEngine.with( "wikantik.translatorReader.matchEnglishPlurals", "true" ) );
+        engine.setManager( StructuralIndexService.class, index );
         renderer = new WikiWorkRenderer( engine );
+    }
+
+    @BeforeEach
+    void stubIndex() {
+        when( index.titleLookup() ).thenAnswer( inv -> {
+            final List< PageTitleLookup.TitleEntry > entries = new ArrayList<>();
+            indexed.forEach( ( slug, phrases ) -> entries.add( new PageTitleLookup.TitleEntry( slug, slug, phrases ) ) );
+            final PageTitleLookup lookup = mock( PageTitleLookup.class );
+            when( lookup.entries() ).thenReturn( entries );
+            return Optional.of( lookup );
+        } );
+        when( index.resolveSlugFromCanonicalId( anyString() ) )
+            .thenAnswer( inv -> Optional.ofNullable( canonicalIds.get( (String) inv.getArgument( 0 ) ) ) );
     }
 
     @AfterEach
@@ -112,36 +141,131 @@ class WikiWorkRendererTest {
         assertEquals( htmls, new HashSet<>( caches.keys( CachingManager.CACHE_HTML ) ), "HTML cache untouched" );
     }
 
-    @Test
-    void linkToMissingPageRendersLikeExistingPage() throws Exception {
-        engine.saveText( "RealWorkTarget", "I exist" );
-        final String existing = renderer.toHtml( "see [[RealWorkTarget]] and [t](RealWorkTarget)" );
-        final String missing = renderer.toHtml( "see [[GhostWorkTarget]] and [t](GhostWorkTarget)" );
+    // ---- existence must be invisible: render, create the target, render the SAME text, expect IDENTICAL output ----
 
-        assertEquals( existing.replace( "RealWorkTarget", "X" ), missing.replace( "GhostWorkTarget", "X" ),
-            "existence of a page must not be visible in the markup" );
+    @FunctionalInterface
+    private interface Create { void run() throws Exception; }
+
+    private void assertIdenticalOnceTargetExists( final String text, final Create create ) throws Exception {
+        final String before = renderer.toHtml( text );
+        create.run();
+        final String after = renderer.toHtml( text );
+        assertEquals( before, after, "creating the target changed how the text renders" );
     }
 
     @Test
-    void embedsAreDrawnAsPlainLinksSoTheyRevealNothing() throws Exception {
-        engine.saveText( "EmbedHost", "secret page content" );
-        final String existing = renderer.toHtml( "![[EmbedHost]]" );
-        final String missing = renderer.toHtml( "![[EmbedGhost]]" );
-        assertFalse( existing.contains( "secret page content" ), existing );
-        assertEquals( existing.replace( "EmbedHost", "X" ), missing.replace( "EmbedGhost", "X" ) );
+    void exactNameLink() throws Exception {
+        assertIdenticalOnceTargetExists( "see [[ExactAlpha]]", () -> engine.saveText( "ExactAlpha", "x" ) );
     }
 
     @Test
-    void embedMarkerInsideAFenceIsLeftAlone() {
-        assertEquals( "```\n![[Keep]]\n```\n![x]", WikiWorkRenderer.demoteEmbeds( "```\n![[Keep]]\n```\n![x]" ) );
-        assertEquals( "see [[Page]]", WikiWorkRenderer.demoteEmbeds( "see ![[Page]]" ) );
+    void differentCaseLink() throws Exception {
+        assertIdenticalOnceTargetExists( "see [[casebeta]]", () -> {
+            engine.saveText( "CaseBeta", "x" );
+            indexed.put( "CaseBeta", List.of( "casebeta" ) );
+        } );
     }
 
     @Test
-    void lowerCasedLinkRendersTheSameForExistingAndMissingPages() throws Exception {
-        engine.saveText( "CaseTarget", "I exist" );
-        final String existing = renderer.toHtml( "[[casetarget]]" );
-        final String missing = renderer.toHtml( "[[caseghost]]" );
-        assertEquals( existing.replaceAll( "(?i)casetarget", "X" ), missing.replaceAll( "(?i)caseghost", "X" ) );
+    void pluralLink() throws Exception {
+        assertIdenticalOnceTargetExists( "see [[PluralGammas]]", () -> engine.saveText( "PluralGamma", "x" ) );
+    }
+
+    @Test
+    void titlePhraseLink() throws Exception {
+        assertIdenticalOnceTargetExists( "see [[Secret Merger Plan]]", () -> {
+            engine.saveText( "PrivatePlanX", "x" );
+            indexed.put( "PrivatePlanX", List.of( "secret merger plan" ) );
+        } );
+    }
+
+    @Test
+    void aliasLink() throws Exception {
+        assertIdenticalOnceTargetExists( "see [[Hush Alias]]", () -> {
+            engine.saveText( "AliasHolder", "x" );
+            indexed.put( "AliasHolder", List.of( "hush alias" ) );
+        } );
+    }
+
+    @Test
+    void wikilinkWithHeading() throws Exception {
+        assertIdenticalOnceTargetExists( "see [[HeadPage#Intro]]", () -> engine.saveText( "HeadPage", "# Intro\ntext" ) );
+    }
+
+    @Test
+    void markdownLinkWithHeading() throws Exception {
+        assertIdenticalOnceTargetExists( "see [t](MdHeadPage#intro)",
+            () -> engine.saveText( "MdHeadPage", "# Intro\ntext" ) );
+    }
+
+    @Test
+    void markdownLinkToAPage() throws Exception {
+        assertIdenticalOnceTargetExists( "see [t](MdPlain)", () -> engine.saveText( "MdPlain", "x" ) );
+    }
+
+    @Test
+    void attachmentWikilink() throws Exception {
+        engine.saveText( "AttPage", "x" );
+        assertIdenticalOnceTargetExists( "get [[AttPage/file.pdf]]",
+            () -> engine.addAttachment( "AttPage", "file.pdf", new byte[] { 1, 2, 3 } ) );
+    }
+
+    @Test
+    void attachmentMarkdownLink() throws Exception {
+        engine.saveText( "AttMdPage", "x" );
+        assertIdenticalOnceTargetExists( "get [doc](AttMdPage/file.pdf)",
+            () -> engine.addAttachment( "AttMdPage", "file.pdf", new byte[] { 1, 2, 3 } ) );
+    }
+
+    @Test
+    void imageEmbedOfAnAttachment() throws Exception {
+        engine.saveText( "ImgPage", "x" );
+        assertIdenticalOnceTargetExists( "![[ImgPage/img.png]]",
+            () -> engine.addAttachment( "ImgPage", "img.png", new byte[] { 1, 2, 3 } ) );
+    }
+
+    @Test
+    void markdownImageOfAnAttachment() throws Exception {
+        engine.saveText( "ImgMdPage", "x" );
+        assertIdenticalOnceTargetExists( "![alt](ImgMdPage/img.png)",
+            () -> engine.addAttachment( "ImgMdPage", "img.png", new byte[] { 1, 2, 3 } ) );
+    }
+
+    @Test
+    void pageEmbed() throws Exception {
+        assertIdenticalOnceTargetExists( "![[EmbedExisting]]", () -> engine.saveText( "EmbedExisting", "secret content" ) );
+    }
+
+    @Test
+    void pageEmbedInsideAParagraph() throws Exception {
+        assertIdenticalOnceTargetExists( "before ![[EmbedInline]] after",
+            () -> engine.saveText( "EmbedInline", "secret content" ) );
+    }
+
+    /**
+     * A page filter that, like the citation filter, rewrites a reference to what exists. The citation filter's own
+     * input ({@code href="cite://..."}) does not survive the HTML sanitiser in this engine, so a stand-in with the same
+     * effect proves the property that matters: no page filter runs on work text.
+     */
+    @Test
+    void postTranslateFiltersDoNotRunOnWorkText() throws Exception {
+        engine.getManager( com.wikantik.filters.FilterManager.class ).addPageFilter( new com.wikantik.api.filters.PageFilter() {
+            @Override
+            public String postTranslate( final com.wikantik.api.core.Context context, final String html ) {
+                return html.replace( "cite-abc", canonicalIds.getOrDefault( "abc", "cite-abc" ) );
+            }
+        }, -1001 );
+        assertIdenticalOnceTargetExists( "see cite-abc here", () -> {
+            engine.saveText( "CitedSlugPage", "x" );
+            canonicalIds.put( "abc", "CitedSlugPage" );
+        } );
+    }
+
+    @Test
+    void renderedLinksStillLookLikeLinks() {
+        final String html = renderer.toHtml( "see [[Some Page]] and [t](Other)" );
+        assertTrue( html.contains( "class=\"wikipage\"" ), html );
+        assertTrue( html.contains( ">Some Page</a>" ), html );
+        assertTrue( html.contains( ">t</a>" ), html );
     }
 }

@@ -60,6 +60,14 @@ public interface Context extends Cloneable, Command {
      */
     String VAR_RENDER_UNCACHEABLE = "_Render.uncacheable";
 
+    /**
+     * Set to {@link Boolean#TRUE} to render local links <em>as typed</em>: a wikilink, Markdown link, heading link,
+     * attachment-shaped link or embed performs no lookup of pages, titles, aliases, headings or attachments, and is
+     * drawn as one fixed read-link anchor built only from the text the author typed. A render in this mode therefore
+     * cannot reveal whether (or under what name) anything exists. Absent, link rendering is unchanged.
+     */
+    String VAR_LINKS_AS_TYPED = "_Render.linksAsTyped";
+
     /** Name of the variable which is set to Boolean.TRUE or Boolean.FALSE depending on whether WYSIWYG is currently in effect. */
     String VAR_WYSIWYG_EDITOR_MODE = "WYSIWYG_EDITOR_MODE";
 

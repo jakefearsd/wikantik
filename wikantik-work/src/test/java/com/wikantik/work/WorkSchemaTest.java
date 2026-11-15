@@ -90,14 +90,16 @@ class WorkSchemaTest {
     @Test
     void statusCheckRejectsUnknown() throws SQLException {
         final long p = project();
-        assertThrows( SQLException.class, () -> item( p, 1, "bogus" ) );
+        assertEquals( "23514",
+            assertThrows( SQLException.class, () -> item( p, 1, "bogus" ) ).getSQLState() );
     }
 
     @Test
     void itemKeyIsUniquePerProject() throws SQLException {
         final long p = project();
         item( p, 1, "draft" );
-        assertThrows( SQLException.class, () -> item( p, 1, "draft" ) );
+        assertEquals( "23505",
+            assertThrows( SQLException.class, () -> item( p, 1, "draft" ) ).getSQLState() );
     }
 
     @Test

@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS work_member (
     PRIMARY KEY (project_id, principal_kind, principal)
 );
 
+-- "which projects am I in": lookups start from the principal, not the project.
+CREATE INDEX IF NOT EXISTS idx_work_member_principal ON work_member (principal_kind, principal);
+
 CREATE TABLE IF NOT EXISTS work_product (
     id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     key              TEXT NOT NULL UNIQUE CHECK (key ~ '^[a-z][a-z0-9-]{1,39}$'),
@@ -140,8 +143,8 @@ CREATE TABLE IF NOT EXISTS work_link (
 
 CREATE INDEX IF NOT EXISTS idx_work_link_item ON work_link (item_id);
 
--- Nothing is hard-deleted except membership and links. work_event is append-only by convention:
--- the other tables share the uniform grant; the application never updates it.
-GRANT SELECT, INSERT, UPDATE ON work_project, work_product, work_item, work_item_revision, work_event,
-    work_comment, work_mention TO :app_user;
+-- Nothing is hard-deleted except membership and links. work_event and work_item_revision are append-only,
+-- so they are granted SELECT and INSERT only.
+GRANT SELECT, INSERT, UPDATE ON work_project, work_product, work_item, work_comment, work_mention TO :app_user;
+GRANT SELECT, INSERT ON work_item_revision, work_event TO :app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON work_member, work_link TO :app_user;

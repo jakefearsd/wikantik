@@ -151,7 +151,8 @@ final class JdbcWorkDiscussion {
         return jdbc.queryOne( """
             SELECT EXISTS ( SELECT 1
               FROM work_link l
-              JOIN work_item b ON b.status NOT IN ('done','cancelled')
+              JOIN work_item li ON li.id = l.item_id
+              JOIN work_item b ON b.status NOT IN ('done','cancelled') AND b.project_id = li.project_id
               JOIN work_project bp ON bp.id = b.project_id
              WHERE l.item_id = ? AND l.kind = 'blocked_by'
                AND UPPER( TRIM( l.target ) ) = UPPER( bp.key || '-' || b.seq ) )

@@ -369,6 +369,9 @@ class WorkServiceTest {
     void authorOrLeadRemovesComment() throws SQLException {
         when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "alice", "x", NOW, null, null ) ) );
         assertThrows( WorkDeniedException.class, () -> service.removeComment( bob, 5 ) );
+        when( store.comment( 6 ) ).thenReturn( Optional.of( new Comment( 6, 12, "vera", "x", NOW, null, null ) ) );
+        assertThrows( WorkDeniedException.class, () -> service.removeComment( viewer, 6 ),
+            "a demoted viewer may not remove even their own comment" );
         service.removeComment( alice, 5 );
         service.removeComment( lead, 5 );
         service.removeComment( admin, 5 );
@@ -443,5 +446,26 @@ class WorkServiceTest {
         assertEquals( "kind", invalid( () -> service.addLink( alice, "PLAT-3", "weird", "x" ) ).field() );
         assertEquals( "target", invalid( () -> service.addLink( alice, "PLAT-3", "url", "javascript:alert(1)" ) )
             .field() );
+    }
+
+    @Test
+    void blockedByTargetInInvisibleProjectIsRejected() throws SQLException {
+        final WorkValidationException hidden = invalid( () -> service.addLink( alice, "PLAT-3", "blocked_by",
+            "OPS-1" ) );
+        final WorkValidationException unknown = invalid( () -> service.addLink( alice, "PLAT-3", "blocked_by",
+            "OPS-999" ) );
+        assertEquals( "target", hidden.field() );
+        assertEquals( hidden.getMessage(), unknown.getMessage() );
+        verify( store, never() ).addLink( any(), anyString(), anyString(), anyString() );
+    }
+
+    @Test
+    void blockedByMustBeSameProjectItemNotSelf() throws SQLException {
+        assertEquals( "target", invalid( () -> service.addLink( alice, "PLAT-3", "blocked_by", "plat-3" ) ).field() );
+        assertEquals( "target", invalid( () -> service.addLink( alice, "PLAT-3", "blocked_by", "nonsense" ) ).field() );
+        when( store.addLink( any(), anyString(), anyString(), anyString() ) )
+            .thenReturn( new Link( 1, 12, "blocked_by", "PLAT-2" ) );
+        service.addLink( alice, "PLAT-3", "blocked_by", "plat-2" );
+        verify( store ).addLink( any(), eq( "blocked_by" ), eq( "PLAT-2" ), eq( "alice" ) );
     }
 }

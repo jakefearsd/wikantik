@@ -375,7 +375,8 @@ public class WorkService {
     public void removeComment( final Actor actor, final long commentId ) throws SQLException {
         final ItemScope is = commentScope( actor, commentId );
         final Comment c = store.comment( commentId ).orElseThrow( () -> new WorkNotFoundException( NOT_FOUND ) );
-        final boolean lead = actor.admin() || is.scope().role() != null && is.scope().role().atLeast( WorkRole.LEAD );
+        is.scope().require( Action.COMMENT, is.item() );
+        final boolean lead = WorkPolicy.may( actor, is.scope().role(), Action.MANAGE_PROJECT, is.item() ).allowed();
         if ( !c.author().equals( actor.login() ) && !lead ) {
             throw new WorkDeniedException( "Only the author or a project lead may remove a comment." );
         }
@@ -395,7 +396,24 @@ public class WorkService {
                 || "url".equals( kind ) && !target.matches( "(?i)^https?://\\S+$" ) ) {
             throw new WorkValidationException( "target", "target is missing, too long, or not an http(s) address." );
         }
-        return store.addLink( is.item(), kind, target.trim(), actor.login() );
+        String stored = target.trim();
+        if ( "blocked_by".equals( kind ) ) {
+            stored = sameProjectBlocker( is, stored );
+        }
+        return store.addLink( is.item(), kind, stored, actor.login() );
+    }
+
+    /**
+     * A blocker must be another item of the same project. Malformed, unknown, foreign-project and self targets
+     * all get the one message, so nothing about other projects can be probed through a link.
+     */
+    private String sameProjectBlocker( final ItemScope is, final String target ) throws SQLException {
+        final String canonical = target.toUpperCase( java.util.Locale.ROOT );
+        final Item blocker = ITEM_KEY.matcher( canonical ).matches() ? store.item( canonical ).orElse( null ) : null;
+        if ( blocker == null || blocker.projectId() != is.item().projectId() || blocker.id() == is.item().id() ) {
+            throw new WorkValidationException( "target", "A blocker must be another item in this project." );
+        }
+        return blocker.key().toUpperCase( java.util.Locale.ROOT );
     }
 
     public void removeLink( final Actor actor, final long linkId ) throws SQLException {

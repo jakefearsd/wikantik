@@ -225,4 +225,13 @@ class JdbcWorkStoreDiscussionPostgresTest {
         assertEquals( l, store.link( l.id() ).orElseThrow() );
         assertTrue( store.link( -1 ).isEmpty() );
     }
+
+    @Test
+    void crossProjectBlockedByRowDoesNotBlock() throws SQLException {
+        final Project ops = store.createProject( "OPS", "Ops", "" );
+        final Item other = create( ops, "secret" );
+        final Item item = create( plat, "x" );
+        store.addLink( item, "blocked_by", other.key(), "alice" );
+        assertFalse( store.isBlocked( item.id() ), "an open item in another project must not make this one blocked" );
+    }
 }

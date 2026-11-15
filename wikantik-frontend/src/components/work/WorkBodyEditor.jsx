@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import WorkBody from './WorkBody';
 
 const grow = (el) => {
@@ -10,30 +10,59 @@ const grow = (el) => {
 /**
  * The item text: the rendered body, and for people who may edit it a plain auto-growing Markdown textarea.
  * (The page editor is not embedded: it is built around wiki pages, uploads and page-link completion.) Preview
- * shows the last saved rendering; the unsaved text stays in the textarea. `onSave(body)` resolves true on success.
+ * shows the last saved rendering; the unsaved text stays in the textarea.
+ *
+ * Like every editor it remembers the item version it was opened against: `onSave(body, baseVersion)` resolves
+ * true on success (anything else keeps the text), and while open with `version` past that base it calls
+ * `onStale(text)` so the page can raise the conflict banner. `rebase` changes on "keep editing on top of theirs".
  */
-export default function WorkBodyEditor({ html, body, canEdit, onSave }) {
-  const [draft, setDraft] = useState(null);
+export default function WorkBodyEditor({ html, body, canEdit, error, onSave, version, rebase = 0, onStale }) {
+  const [edit, setEdit] = useState(null); // { draft, base, orig }
+  const [seenRebase, setSeenRebase] = useState(rebase);
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const ref = useRef(null);
+  const openRef = useRef(null);
+  const refocus = useRef(false);
+  const editing = edit !== null;
+
+  if (seenRebase !== rebase) {
+    setSeenRebase(rebase);
+    if (edit) setEdit({ ...edit, base: version });
+  }
+
+  const draft = edit?.draft;
+  const stale = editing && version !== undefined && version > edit.base;
+  useEffect(() => {
+    if (stale) onStale?.(draft);
+  }, [stale, draft, onStale]);
+
+  useEffect(() => {
+    if (editing) ref.current?.focus();
+    else if (refocus.current) { refocus.current = false; openRef.current?.focus(); }
+  }, [editing]);
+
+  const close = () => { refocus.current = true; setEdit(null); setPreview(false); };
 
   function save() {
     if (saving) return;
-    if (draft === body) { setDraft(null); return; }
+    if (edit.draft === edit.orig) { close(); return; }
     setSaving(true);
-    onSave(draft)
-      .then((ok) => { if (ok) { setDraft(null); setPreview(false); } })
+    onSave(edit.draft, edit.base)
+      .then((ok) => { if (ok === true) close(); })
       .catch((e) => console.warn('WorkBodyEditor: saving the text failed', e))
       .finally(() => setSaving(false));
   }
 
-  if (draft === null) {
+  if (!editing) {
     return (
       <section className="work-section" aria-label="Description">
         <WorkBody html={html} />
         {canEdit && (
-          <button type="button" className="btn btn-ghost btn-sm" aria-label="Edit text" onClick={() => setDraft(body ?? '')}>Edit text</button>
+          <button
+            ref={openRef} type="button" className="btn btn-ghost btn-sm" aria-label="Edit text"
+            onClick={() => setEdit({ draft: body ?? '', base: version, orig: body ?? '' })}
+          >Edit text</button>
         )}
       </section>
     );
@@ -52,13 +81,14 @@ export default function WorkBodyEditor({ html, body, canEdit, onSave }) {
       ) : (
         <textarea
           ref={(el) => { ref.current = el; grow(el); }}
-          className="work-body-input" aria-label="Item text" rows={6} value={draft} disabled={saving}
-          onChange={(e) => { setDraft(e.target.value); grow(e.target); }}
+          className="work-body-input" aria-label="Item text" rows={6} value={edit.draft} disabled={saving}
+          onChange={(e) => { setEdit({ ...edit, draft: e.target.value }); grow(e.target); }}
         />
       )}
+      {error && <p className="work-field-error" role="alert">{error}</p>}
       <div className="work-actions">
         <button type="button" className="btn btn-primary btn-sm" aria-label="Save text" disabled={saving} onClick={save}>Save</button>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={saving} onClick={() => { setDraft(null); setPreview(false); }}>Cancel</button>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={saving} onClick={close}>Cancel</button>
       </div>
     </section>
   );

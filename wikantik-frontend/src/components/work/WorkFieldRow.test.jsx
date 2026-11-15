@@ -19,7 +19,7 @@ describe('WorkFieldRow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit Priority' }));
     fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Priority' }));
-    expect(onSave).toHaveBeenCalledWith(2);
+    expect(onSave).toHaveBeenCalledWith(2, undefined);
     await waitFor(() => expect(screen.queryByLabelText('Priority')).toBeNull());
   });
 
@@ -44,7 +44,7 @@ describe('WorkFieldRow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New' } });
     fireEvent.keyDown(screen.getByLabelText('Title'), { key: 'Enter' });
-    expect(onSave).toHaveBeenCalledWith('New');
+    expect(onSave).toHaveBeenCalledWith('New', undefined);
   });
 
   it('does not send a request for an unchanged value', () => {
@@ -59,5 +59,30 @@ describe('WorkFieldRow', () => {
   it('shows helper text', () => {
     render(<WorkFieldRow label="Autonomy" value="" display="Project default" helper="Takes effect in a later release" canEdit={false} onSave={vi.fn()} />);
     expect(screen.getByText('Takes effect in a later release')).toBeInTheDocument();
+  });
+
+  it('Enter on the Cancel or Save button does not trigger a save from the key handler', () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    render(<WorkFieldRow label="Title" value="Old" display="Old" canEdit onSave={onSave} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New' } });
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Cancel editing Title' }), { key: 'Enter' });
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('moves focus into the editor, and back to the Edit button when it closes', async () => {
+    render(<WorkFieldRow label="Title" value="Old" display="Old" canEdit onSave={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    await waitFor(() => expect(screen.getByLabelText('Title')).toHaveFocus());
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel editing Title' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Title' })).toHaveFocus());
+  });
+
+  it('returns focus to the Edit button after a successful save', async () => {
+    render(<WorkFieldRow label="Title" value="Old" display="Old" canEdit onSave={vi.fn().mockResolvedValue(true)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Title' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Title' })).toHaveFocus());
   });
 });

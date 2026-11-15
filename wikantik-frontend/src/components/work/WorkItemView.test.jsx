@@ -61,20 +61,6 @@ describe('WorkItemView', () => {
     expect(listMembers).toHaveBeenCalledWith('PLAT');
   });
 
-  it('keeps the rendered body when the page re-renders around it (typing in the comment box)', async () => {
-    renderView();
-    await ready();
-    const host = screen.getByText('body').closest('.work-body');
-    const marker = document.createElement('span');
-    marker.setAttribute('data-injected', 'yes');
-    host.appendChild(marker);
-    const box = screen.getByLabelText('Add a comment');
-    fireEvent.change(box, { target: { value: 'typing' } });
-    fireEvent.change(box, { target: { value: 'typing more' } });
-    expect(host.querySelector('[data-injected]')).not.toBeNull();
-    expect(screen.getByText('body')).toBeInTheDocument();
-  });
-
   it('shows the key, level, and breadcrumbs to the board and the parent item', async () => {
     renderView();
     await ready();
@@ -430,5 +416,152 @@ describe('WorkItemView', () => {
     await ready();
     expect(listProducts).not.toHaveBeenCalled();
     expect(listItems).not.toHaveBeenCalled();
+  });
+
+  it('400 on the body keeps the typed text and shows the message beside the editor', async () => {
+    patchItem.mockRejectedValue(Object.assign(new Error('bad'), { status: 400, body: { field: 'body', message: 'Text is too long.' } }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit text' }));
+    fireEvent.change(screen.getByLabelText('Item text'), { target: { value: 'my long text' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
+    expect(await screen.findByText('Text is too long.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Item text').value).toBe('my long text');
+  });
+
+  it('400 on the title keeps the typed title and shows the message beside it', async () => {
+    patchItem.mockRejectedValue(Object.assign(new Error('bad'), { status: 400, body: { field: 'title', message: 'A title is required.' } }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: ' ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Title' }));
+    expect(await screen.findByText('A title is required.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Title').value).toBe(' ');
+  });
+
+  it('a 400 on the note during a handoff is shown in the handoff form and keeps it open', async () => {
+    patchItem.mockRejectedValue(Object.assign(new Error('bad'), { status: 400, body: { field: 'note', message: 'Changing status and assignee together needs a note.' } }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+    fireEvent.change(screen.getByLabelText('Status after handoff'), { target: { value: 'review' } });
+    fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'ana-login' } });
+    fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'go' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
+    const msg = await screen.findByText('Changing status and assignee together needs a note.');
+    expect(msg.closest('form')).not.toBeNull();
+    expect(screen.getByLabelText('Handoff note').value).toBe('go');
+  });
+
+  it('a 409 from the handoff form keeps the note and the choices', async () => {
+    const theirs = makeView({}, { status: 'done', version: 5 });
+    patchItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: theirs }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+    fireEvent.change(screen.getByLabelText('Status after handoff'), { target: { value: 'review' } });
+    fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'ana-login' } });
+    fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'my handoff note' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
+    await screen.findByRole('alert');
+    expect(screen.getByLabelText('Handoff note').value).toBe('my handoff note');
+    expect(screen.getByLabelText('Status after handoff').value).toBe('review');
+    expect(screen.getByLabelText('Hand off to').value).toBe('ana-login');
+  });
+
+  it('a failed comment (409) keeps the typed comment', async () => {
+    addComment.mockRejectedValue(Object.assign(new Error('Conflict'), { status: 409 }));
+    renderView();
+    await ready();
+    fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'my comment' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(screen.getByLabelText('Add a comment').value).toBe('my comment');
+  });
+
+  it('the conflict review shows display names, never logins, for assignee and handoff', async () => {
+    const theirs = makeView({}, { assignee: 'bob-login', assigneeName: 'Bob Brown', version: 5 });
+    patchItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: theirs }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+    fireEvent.change(screen.getByLabelText('Status after handoff'), { target: { value: 'review' } });
+    fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'ana-login' } });
+    fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'note' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Review their version' }));
+    const review = screen.getByTestId('conflict-review');
+    expect(review).toHaveTextContent('Ana Alvarez');
+    expect(review).not.toHaveTextContent('-login');
+  });
+
+  it('the conflict review shows their parent and product', async () => {
+    const theirs = makeView({ parentKey: 'PLAT-9', productKey: 'docs' }, { version: 5 });
+    patchItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: theirs }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Product' }));
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Product' }));
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Review their version' }));
+    expect(within(screen.getByTestId('conflict-review')).getByText('docs')).toBeInTheDocument();
+  });
+
+  it('a refetch after a comment raises the conflict banner for an open editor and keeps its base version', async () => {
+    addComment.mockResolvedValue({ id: 9 });
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My title' } });
+    // someone else edited the item meanwhile
+    getItem.mockResolvedValue(makeView({}, { title: 'Their title', version: 5 }));
+    fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent('This item changed while you were editing');
+    expect(screen.getByLabelText('Title').value).toBe('My title');
+    // saving still sends the version the editor was opened against, so the server decides
+    patchItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: makeView({}, { title: 'Their title', version: 5 }) }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Title' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledTimes(1));
+    expect(patchItem.mock.calls[0][1].expectedVersion).toBe(4);
+  });
+
+  it('an editor with no draft open adopts the newest version after a refetch', async () => {
+    addComment.mockResolvedValue({ id: 9 });
+    renderView();
+    await ready();
+    getItem.mockResolvedValue(makeView({}, { version: 5 }));
+    fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    await waitFor(() => expect(getItem).toHaveBeenCalledTimes(2));
+    patchItem.mockResolvedValue(makeView({}, { priority: 1, version: 6 }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Priority' }));
+    fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Priority' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 5, changes: { priority: 1 } }));
+  });
+
+  it('a load that started before a save cannot replace the newer view', async () => {
+    addComment.mockResolvedValue({ id: 9 });
+    renderView();
+    await ready();
+    let resolveLoad;
+    getItem.mockImplementation(() => new Promise((r) => { resolveLoad = r; }));
+    fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    await waitFor(() => expect(getItem).toHaveBeenCalledTimes(2));
+    patchItem.mockResolvedValue(makeView({}, { priority: 1, version: 5 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Priority' }));
+    fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Priority' }));
+    expect(await screen.findByText('P1')).toBeInTheDocument();
+    resolveLoad(makeView({}, { priority: 3, version: 4 }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.getByText('P1')).toBeInTheDocument();
   });
 });

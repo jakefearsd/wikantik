@@ -73,20 +73,37 @@ describe('WorkTimeline', () => {
     expect(screen.queryByTestId('revision-diff')).toBeNull();
   });
 
-  it('says so when an edit has no earlier version to compare', async () => {
-    listEvents.mockResolvedValue([ev(2, 'edited')]);
-    listRevisions.mockResolvedValue([rev(1, 'T', 'a')]);
+  it('maps edits to revisions by order, not by arithmetic: revision versions have gaps', async () => {
+    listEvents.mockResolvedValue([
+      ev(1, 'created'), ev(2, 'edited'), ev(3, 'status', { fromValue: 'draft', toValue: 'ready' }), ev(4, 'edited'), ev(5, 'edited'),
+    ]);
+    listRevisions.mockResolvedValue([rev(1, 'T', 'a'), rev(2, 'T', 'b'), rev(5, 'T', 'c'), rev(9, 'T', 'd')]);
     render(<WorkTimeline itemKey="PLAT-7" />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Show changes' }));
-    expect(await screen.findByText('No earlier version to compare.')).toBeInTheDocument();
+    const buttons = await screen.findAllByRole('button', { name: 'Show changes' });
+    expect(buttons).toHaveLength(3);
+    fireEvent.click(buttons[1]);
+    const diff = await screen.findByTestId('revision-diff');
+    expect(diff.querySelector('.work-diff-del')).toHaveTextContent('b');
+    expect(diff.querySelector('.work-diff-add')).toHaveTextContent('c');
+    fireEvent.click(screen.getAllByRole('button', { name: /changes/ })[2]);
+    const last = screen.getAllByTestId('revision-diff')[1];
+    expect(last.querySelector('.work-diff-del')).toHaveTextContent('c');
+    expect(last.querySelector('.work-diff-add')).toHaveTextContent('d');
+  });
+
+  it('shows an edit without a diff link when there are fewer revisions than edits', async () => {
+    listEvents.mockResolvedValue([ev(1, 'created'), ev(2, 'edited'), ev(3, 'edited')]);
+    listRevisions.mockResolvedValue([rev(1, 'T', 'a'), rev(4, 'T', 'b')]);
+    render(<WorkTimeline itemKey="PLAT-7" />);
+    expect(await screen.findAllByRole('button', { name: 'Show changes' })).toHaveLength(1);
   });
 
   it('reports a revisions failure inline', async () => {
     listEvents.mockResolvedValue([ev(2, 'edited')]);
     listRevisions.mockRejectedValue(new Error('no history'));
     render(<WorkTimeline itemKey="PLAT-7" />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Show changes' }));
-    expect(await screen.findByText('no history')).toBeInTheDocument();
+    expect(await screen.findByText(/no history/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show changes' })).toBeNull();
   });
 
   it('reloads when refreshKey changes and ignores a stale response', async () => {

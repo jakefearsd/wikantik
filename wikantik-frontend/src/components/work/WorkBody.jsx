@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
 import { renderMath } from '../../utils/math';
+import { probe } from './workBodyRenderProbe';
 import { renderFences } from '../../utils/fences/renderFences';
 
 /**
@@ -9,6 +10,7 @@ import { renderFences } from '../../utils/fences/renderFences';
  */
 const WorkBody = memo(function WorkBody({ html }) {
   const ref = useRef(null);
+  probe();
   useEffect(() => {
     const root = ref.current;
     if (!root || !html) return undefined;

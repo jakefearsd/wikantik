@@ -33,6 +33,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -244,6 +245,138 @@ public class CommentStore {
             } );
         } catch ( final SQLException e ) {
             LOG.warn( "listByCanonicalId({}) failed: {}", canonicalId, e.getMessage(), e );
+        }
+        return threads;
+    }
+
+    /** What an agent may do to a thread. */
+    public enum AgentAction { REPLY, RESOLVE, DISMISS }
+
+    /** Result of {@link #respondAsAgent}; everything but {@code OK} is a refusal that wrote nothing. */
+    public enum AgentOutcome { OK, NOT_FOUND, NOT_OPEN, NOT_AGENT_AVAILABLE, NOT_ACTIONABLE }
+
+    /** {@code comment} is null unless {@code outcome} is {@code OK}; {@code status} is the thread's status afterwards. */
+    public record AgentResponse( AgentOutcome outcome, Comment comment, String status ) {}
+
+    private record LockedThread( String status, boolean agentAvailable, String createdBy ) {}
+
+    private static final int INBOX_COMMENT_CAP = 50;
+
+    /**
+     * Posts an agent comment and optionally closes the thread, atomically. The thread row is locked
+     * for the duration, so two concurrent responses cannot both close it.
+     */
+    public AgentResponse respondAsAgent( final UUID threadId, final AgentAction action,
+                                         final String agentAuthor, final String body,
+                                         final MentionService mentionSvc ) {
+        final UUID commentId = UUID.randomUUID();
+        try {
+            return jdbc.inTransaction( c -> {
+                final Optional< LockedThread > locked = jdbc.queryOne( c,
+                        "SELECT status, agent_available, created_by FROM comment_threads WHERE id = ? FOR UPDATE",
+                        ps -> ps.setObject( 1, threadId ),
+                        rs -> new LockedThread( rs.getString( "status" ), rs.getBoolean( "agent_available" ),
+                                rs.getString( "created_by" ) ) );
+                if ( locked.isEmpty() ) {
+                    return new AgentResponse( AgentOutcome.NOT_FOUND, null, null );
+                }
+                final LockedThread t = locked.get();
+                if ( !t.agentAvailable() ) {
+                    return new AgentResponse( AgentOutcome.NOT_AGENT_AVAILABLE, null, t.status() );
+                }
+                if ( !CommentThread.OPEN.equals( t.status() ) ) {
+                    return new AgentResponse( AgentOutcome.NOT_OPEN, null, t.status() );
+                }
+                if ( action == AgentAction.RESOLVE && !hasTrustedComment( c, threadId ) ) {
+                    return new AgentResponse( AgentOutcome.NOT_ACTIONABLE, null, t.status() );
+                }
+                jdbc.update( c, "INSERT INTO comments (id, thread_id, author, body, via_agent, author_could_edit) " +
+                        "VALUES (?, ?, ?, ?, TRUE, FALSE)",
+                        ps -> {
+                            ps.setObject( 1, commentId );
+                            ps.setObject( 2, threadId );
+                            ps.setString( 3, agentAuthor );
+                            ps.setString( 4, body );
+                        } );
+                mentionSvc.recordAgentResponse( c, commentId, agentAuthor, t.createdBy() );
+                String status = CommentThread.OPEN;
+                if ( action != AgentAction.REPLY ) {
+                    status = action == AgentAction.RESOLVE ? CommentThread.RESOLVED : CommentThread.DISMISSED;
+                    final String closed = status;
+                    jdbc.update( c, "UPDATE comment_threads SET status = ?, resolved_by = ?, " +
+                            "resolved_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'open'",
+                            ps -> {
+                                ps.setString( 1, closed );
+                                ps.setString( 2, agentAuthor );
+                                ps.setObject( 3, threadId );
+                            } );
+                }
+                final Comment saved = jdbc.queryOne( c,
+                        "SELECT id, thread_id, author, body, created_at, edited_at, via_agent, author_could_edit " +
+                        "FROM comments WHERE id = ?",
+                        ps -> ps.setObject( 1, commentId ), CommentStore::readComment ).orElseThrow(
+                        () -> new IllegalStateException( "agent comment vanished after insert: " + commentId ) );
+                return new AgentResponse( AgentOutcome.OK, saved, status );
+            } );
+        } catch ( final SQLException e ) {
+            LOG.warn( "respondAsAgent(threadId={}, action={}) failed: {}", threadId, action, e.getMessage(), e );
+            throw new RuntimeException( "agent response failed", e );
+        }
+    }
+
+    private boolean hasTrustedComment( final Connection c, final UUID threadId ) throws SQLException {
+        return jdbc.queryOne( c, "SELECT EXISTS ( SELECT 1 FROM comments WHERE thread_id = ? " +
+                "AND NOT via_agent AND author_could_edit )",
+                ps -> ps.setObject( 1, threadId ), rs -> rs.getBoolean( 1 ) ).orElse( false );
+    }
+
+    /**
+     * Agent-available threads in {@code status} (anything but resolved/dismissed counts as open), oldest
+     * first, each with its {@value #INBOX_COMMENT_CAP} most recent comments in chronological order.
+     *
+     * @param canonicalIds pages to include; null means every page, empty means none
+     */
+    public List< CommentThread > listAgentInbox( final String status, final Collection< String > canonicalIds,
+                                                 final int limit ) {
+        final List< CommentThread > threads = new ArrayList<>();
+        if ( canonicalIds != null && canonicalIds.isEmpty() ) {
+            return threads;
+        }
+        final String wanted = CommentThread.RESOLVED.equals( status ) || CommentThread.DISMISSED.equals( status )
+                ? status : CommentThread.OPEN;
+        final StringBuilder sql = new StringBuilder(
+                "SELECT id, canonical_id, anchor_exact, anchor_prefix, anchor_suffix, status, " +
+                "created_by, created_at, resolved_by, resolved_at, agent_available FROM comment_threads " +
+                "WHERE agent_available AND status = ?" );
+        if ( canonicalIds != null ) sql.append( " AND canonical_id = ANY( ? )" );
+        sql.append( " ORDER BY created_at, id LIMIT ?" );
+        try {
+            jdbc.inTransaction( c -> {
+                final List< ThreadRow > rows = jdbc.query( c, sql.toString(),
+                        ps -> {
+                            int i = 1;
+                            ps.setString( i++, wanted );
+                            if ( canonicalIds != null ) {
+                                ps.setArray( i++, c.createArrayOf( "text", canonicalIds.toArray( new String[ 0 ] ) ) );
+                            }
+                            ps.setInt( i, limit );
+                        }, CommentStore::readThreadRow );
+                for ( final ThreadRow row : rows ) {
+                    final List< Comment > recent = jdbc.query( c,
+                            "SELECT id, thread_id, author, body, created_at, edited_at, via_agent, author_could_edit " +
+                            "FROM comments WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+                            ps -> {
+                                ps.setObject( 1, row.id() );
+                                ps.setInt( 2, INBOX_COMMENT_CAP );
+                            }, CommentStore::readComment );
+                    final List< Comment > chronological = new ArrayList<>( recent );
+                    java.util.Collections.reverse( chronological );
+                    threads.add( toThread( row, chronological ) );
+                }
+                return null;
+            } );
+        } catch ( final SQLException e ) {
+            LOG.warn( "listAgentInbox(status={}) failed: {}", wanted, e.getMessage(), e );
         }
         return threads;
     }

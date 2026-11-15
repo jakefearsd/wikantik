@@ -239,4 +239,20 @@ class CommentStoreTransactionTest {
             }
         }
     }
+
+    /** Statement order for DISMISS: lock (1), comment insert (2), status update (3). */
+    @Test
+    void failedStatusUpdateRollsBackTheAgentComment() throws SQLException {
+        final UUID commentId = seedThreadWithComment();
+        final UUID threadId = threadIdOf( commentId );
+        final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
+        final CommentStore faultyStore = new CommentStore( faulty );
+        final MentionService realMentions = new MentionService( faulty, login -> false );
+        faulty.failOn( 3, new RuntimeException( "simulated status update failure" ) );
+
+        assertThrows( RuntimeException.class, () -> faultyStore.respondAsAgent( threadId,
+                CommentStore.AgentAction.DISMISS, "agent:bot", "no", realMentions ) );
+
+        assertEquals( 1, countRows( "comments" ), "the agent comment must not survive the rollback" );
+    }
 }

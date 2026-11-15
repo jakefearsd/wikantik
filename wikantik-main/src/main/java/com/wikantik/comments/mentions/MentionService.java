@@ -118,6 +118,15 @@ public class MentionService {
         }
     }
 
+    /** An agent's comment notifies the thread's creator, when that is an existing member (never another agent). */
+    public void recordAgentResponse( final Connection c, final UUID commentId,
+                                     final String agentAuthor, final String threadCreator ) throws SQLException {
+        if ( threadCreator == null || threadCreator.startsWith( com.wikantik.api.comments.AgentAuthors.PREFIX ) || !userExists.test( threadCreator ) ) {
+            return;
+        }
+        insertIfAbsent( c, commentId, threadCreator, agentAuthor, false );
+    }
+
     public List< Mention > findByComment( final UUID commentId ) {
         try {
             return jdbc.query( "SELECT id, comment_id, mentioned_login, mentioning_login, is_owner_mention, " +

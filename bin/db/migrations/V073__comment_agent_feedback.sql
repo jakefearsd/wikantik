@@ -14,7 +14,6 @@
 -- KIND, either express or implied.  See the License for the
 -- specific language governing permissions and limitations
 -- under the License.
--- V072: per-page content-changed date. Moves only on substantial body edits (see ContentChangeRule), so the
 -- V073: agent feedback loop on comments. agent_available marks a thread agents may respond to;
 -- via_agent marks a comment posted through an agent credential; author_could_edit snapshots whether
 -- the author held edit permission on the page when writing (the trust signal). Idempotent.

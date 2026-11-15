@@ -231,4 +231,171 @@ class CommentStoreTest {
         assertEquals( 1, store.listByCanonicalId( "CID1", "dismissed" ).size() );
         assertEquals( 0, store.listByCanonicalId( "CID1", "open" ).size() );
     }
+
+    @Test
+    void legacyEditKeepsTrustSnapshot() {
+        final CommentThread t = store.createThread( "CID1", ANCHOR, "alice", "hi", mentions,
+                Optional.empty(), true, true );
+        final Comment c = t.comments().get( 0 );
+        store.editComment( c.id(), c.body(), "changed", "alice", mentions );
+        assertTrue( store.findThread( t.id() ).orElseThrow().actionable() );
+    }
+
+    // ---- agent response ----
+
+    private static final String AGENT = "agent:bot";
+
+    private CommentThread agentThread( final boolean agentAvailable, final boolean trusted ) {
+        return store.createThread( "CID1", ANCHOR, "alice", "please fix", mentions,
+                Optional.empty(), agentAvailable, trusted );
+    }
+
+    private int commentCount( final UUID threadId ) {
+        return store.findThread( threadId ).orElseThrow().comments().size();
+    }
+
+    @Test
+    void replyKeepsThreadOpenAndMarksCommentViaAgent() {
+        final CommentThread t = agentThread( true, false );
+        final CommentStore.AgentResponse r = store.respondAsAgent( t.id(), CommentStore.AgentAction.REPLY,
+                AGENT, "looking", mentions );
+        assertEquals( CommentStore.AgentOutcome.OK, r.outcome() );
+        assertEquals( "open", r.status() );
+        assertTrue( r.comment().viaAgent() );
+        assertFalse( r.comment().authorCouldEdit() );
+        assertEquals( AGENT, r.comment().author() );
+        assertEquals( "open", store.findThread( t.id() ).orElseThrow().status() );
+        assertEquals( 2, commentCount( t.id() ) );
+    }
+
+    @Test
+    void resolveClosesActionableThreadAndRecordsAgentAsResolver() {
+        final CommentThread t = agentThread( true, true );
+        final CommentStore.AgentResponse r = store.respondAsAgent( t.id(), CommentStore.AgentAction.RESOLVE,
+                AGENT, "done", mentions );
+        assertEquals( CommentStore.AgentOutcome.OK, r.outcome() );
+        assertEquals( "resolved", r.status() );
+        final CommentThread after = store.findThread( t.id() ).orElseThrow();
+        assertEquals( "resolved", after.status() );
+        assertEquals( AGENT, after.resolvedBy() );
+    }
+
+    @Test
+    void resolveRefusedOnUntrustedThread() {
+        final CommentThread t = agentThread( true, false );
+        final CommentStore.AgentResponse r = store.respondAsAgent( t.id(), CommentStore.AgentAction.RESOLVE,
+                AGENT, "done", mentions );
+        assertEquals( CommentStore.AgentOutcome.NOT_ACTIONABLE, r.outcome() );
+        assertNull( r.comment() );
+        assertEquals( 1, commentCount( t.id() ) );
+        assertEquals( "open", store.findThread( t.id() ).orElseThrow().status() );
+    }
+
+    @Test
+    void dismissAllowedOnUntrustedThread() {
+        final CommentThread t = agentThread( true, false );
+        final CommentStore.AgentResponse r = store.respondAsAgent( t.id(), CommentStore.AgentAction.DISMISS,
+                AGENT, "not needed", mentions );
+        assertEquals( CommentStore.AgentOutcome.OK, r.outcome() );
+        assertEquals( "dismissed", r.status() );
+        assertEquals( "dismissed", store.findThread( t.id() ).orElseThrow().status() );
+    }
+
+    @Test
+    void secondCloseIsRefused() {
+        final CommentThread t = agentThread( true, true );
+        store.respondAsAgent( t.id(), CommentStore.AgentAction.DISMISS, AGENT, "no", mentions );
+        final int before = commentCount( t.id() );
+        final CommentStore.AgentResponse r = store.respondAsAgent( t.id(), CommentStore.AgentAction.RESOLVE,
+                AGENT, "yes", mentions );
+        assertEquals( CommentStore.AgentOutcome.NOT_OPEN, r.outcome() );
+        assertEquals( before, commentCount( t.id() ) );
+    }
+
+    @Test
+    void refusedWhenThreadNotAgentAvailable() {
+        final CommentThread t = agentThread( false, true );
+        final CommentStore.AgentResponse r = store.respondAsAgent( t.id(), CommentStore.AgentAction.REPLY,
+                AGENT, "hi", mentions );
+        assertEquals( CommentStore.AgentOutcome.NOT_AGENT_AVAILABLE, r.outcome() );
+        assertEquals( 1, commentCount( t.id() ) );
+    }
+
+    @Test
+    void unknownThreadIsNotFound() {
+        final CommentStore.AgentResponse r = store.respondAsAgent( UUID.randomUUID(),
+                CommentStore.AgentAction.REPLY, AGENT, "hi", mentions );
+        assertEquals( CommentStore.AgentOutcome.NOT_FOUND, r.outcome() );
+        assertNull( r.comment() );
+    }
+
+    @Test
+    void resolveRefusedAfterTrustedCommentDeleted() {
+        final CommentThread t = agentThread( true, true );
+        store.addComment( t.id(), "bob", "untrusted reply", mentions, false );
+        store.deleteComment( t.comments().get( 0 ).id() );
+        final CommentStore.AgentResponse r = store.respondAsAgent( t.id(), CommentStore.AgentAction.RESOLVE,
+                AGENT, "done", mentions );
+        assertEquals( CommentStore.AgentOutcome.NOT_ACTIONABLE, r.outcome() );
+    }
+
+    @Test
+    void agentResponseNotifiesThreadCreator() {
+        final MentionService live = new MentionService( ds, "alice"::equals );
+        final CommentThread t = agentThread( true, false );
+        final CommentStore.AgentResponse r = store.respondAsAgent( t.id(), CommentStore.AgentAction.REPLY,
+                AGENT, "looking", live );
+        final var rows = live.findByComment( r.comment().id() );
+        assertEquals( 1, rows.size() );
+        assertEquals( "alice", rows.get( 0 ).mentionedLogin() );
+        assertEquals( AGENT, rows.get( 0 ).mentioningLogin() );
+    }
+
+    @Test
+    void agentResponseDoesNotNotifyUnknownCreator() {
+        final CommentThread t = agentThread( true, false );
+        final CommentStore.AgentResponse r = store.respondAsAgent( t.id(), CommentStore.AgentAction.REPLY,
+                AGENT, "looking", mentions );
+        assertTrue( mentions.findByComment( r.comment().id() ).isEmpty() );
+    }
+
+    @Test
+    void inboxListsOnlyAgentAvailableOpenThreads() {
+        final CommentThread open = agentThread( true, true );
+        agentThread( false, true );
+        final CommentThread closed = agentThread( true, true );
+        store.respondAsAgent( closed.id(), CommentStore.AgentAction.DISMISS, AGENT, "no", mentions );
+
+        final List< CommentThread > inbox = store.listAgentInbox( "open", null, 50 );
+        assertEquals( 1, inbox.size() );
+        assertEquals( open.id(), inbox.get( 0 ).id() );
+        assertEquals( closed.id(), store.listAgentInbox( "dismissed", null, 50 ).get( 0 ).id() );
+        assertEquals( 1, store.listAgentInbox( "bogus", null, 50 ).size() );
+    }
+
+    @Test
+    void inboxFiltersByCanonicalIdsAndHonoursLimit() {
+        final CommentThread a = store.createThread( "CIDA", ANCHOR, "alice", "a", mentions, Optional.empty() );
+        store.createThread( "CIDB", ANCHOR, "alice", "b", mentions, Optional.empty() );
+        final CommentThread c = store.createThread( "CIDC", ANCHOR, "alice", "c", mentions, Optional.empty() );
+
+        final List< CommentThread > some = store.listAgentInbox( "open", List.of( "CIDA", "CIDC" ), 50 );
+        assertEquals( List.of( a.id(), c.id() ), some.stream().map( CommentThread::id ).toList() );
+        assertEquals( 3, store.listAgentInbox( "open", null, 50 ).size() );
+        assertEquals( 1, store.listAgentInbox( "open", null, 1 ).size() );
+        assertEquals( a.id(), store.listAgentInbox( "open", null, 1 ).get( 0 ).id() );
+        assertTrue( store.listAgentInbox( "open", List.of(), 50 ).isEmpty() );
+    }
+
+    @Test
+    void inboxCapsCommentsAtFiftyMostRecent() {
+        final CommentThread t = agentThread( true, true );
+        for ( int i = 1; i <= 54; i++ ) {
+            store.addComment( t.id(), "bob", "r" + i, mentions );
+        }
+        final List< Comment > got = store.listAgentInbox( "open", null, 50 ).get( 0 ).comments();
+        assertEquals( 50, got.size() );
+        assertEquals( "r54", got.get( 49 ).body() );
+        assertEquals( "r5", got.get( 0 ).body() );
+    }
 }

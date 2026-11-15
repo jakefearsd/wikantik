@@ -149,6 +149,8 @@ describe('WorkItemView', () => {
     // Reload fetches the item again
     getItem.mockResolvedValue(theirs);
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    // the draft differs from what the editor opened with, so discarding it asks first
+    fireEvent.click(screen.getByRole('button', { name: 'Discard and reload' }));
     await waitFor(() => expect(getItem).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
     expect(await screen.findByText('Their rewrite')).toBeInTheDocument();
@@ -563,5 +565,133 @@ describe('WorkItemView', () => {
     resolveLoad(makeView({}, { priority: 3, version: 4 }));
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.getByText('P1')).toBeInTheDocument();
+  });
+
+  const spyConsole = () => vi.spyOn(console, 'error').mockImplementation((...a) => {
+    if (String(a[0]).includes('Maximum update depth')) throw new Error('update depth loop');
+  });
+
+  it('onlyOneEditorOpenAtATime', async () => {
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    for (const name of ['Edit Status', 'Edit Priority', 'Edit text', 'Edit Parent']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
+    expect(screen.getByRole('button', { name: 'Hand off' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Hand off' })).toHaveAccessibleDescription('Finish or cancel the open edit first');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel editing Title' }));
+    for (const name of ['Edit Title', 'Edit Status', 'Edit Priority', 'Edit text', 'Hand off']) {
+      expect(screen.getByRole('button', { name })).not.toBeDisabled();
+    }
+  });
+
+  it('opening the body editor or the handoff form locks the field editors too', async () => {
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit text' }));
+    expect(screen.getByRole('button', { name: 'Edit Title' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+    expect(screen.getByRole('button', { name: 'Edit Title' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Edit text' })).toBeDisabled();
+  });
+
+  it('ownSaveNeverRaisesAConflict', async () => {
+    const spy = spyConsole();
+    patchItem.mockResolvedValueOnce(makeView({}, { title: 'Second', version: 5 })).mockResolvedValueOnce(makeView({}, { title: 'Second', priority: 1, version: 6 }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Second' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Title' }));
+    await screen.findByRole('heading', { level: 1, name: 'Second' });
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Priority' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Priority' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledTimes(2));
+    expect(patchItem.mock.calls.map((c) => c[1].expectedVersion)).toEqual([4, 5]);
+    expect(screen.queryByRole('alert')).toBeNull();
+    spy.mockRestore();
+  });
+
+  it('refetchWithNewerVersionWhileEditingShowsBannerOnce', async () => {
+    const spy = spyConsole();
+    addComment.mockResolvedValue({ id: 9 });
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My title' } });
+    getItem.mockResolvedValue(makeView({}, { priority: 1, version: 5 }));
+    fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(1));
+    expect(screen.getByLabelText('Title').value).toBe('My title');
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(spy).not.toHaveBeenCalledWith(expect.stringContaining('Maximum update depth'), expect.anything());
+    spy.mockRestore();
+  });
+
+  it('a comment alone does not move the item version, so it raises no banner', async () => {
+    addComment.mockResolvedValue({ id: 9 });
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    await waitFor(() => expect(getItem).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('keepEditingIsDisabledUntilReviewWhenSameFieldChanged', async () => {
+    addComment.mockResolvedValue({ id: 9 });
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My title' } });
+    getItem.mockResolvedValue(makeView({}, { title: 'Their title', version: 5 }));
+    fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    const keep = await screen.findByRole('button', { name: 'Keep editing on top of theirs' });
+    expect(keep).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Review their version' }));
+    expect(within(screen.getByTestId('conflict-review')).getByText('Their title')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keep editing on top of theirs' })).not.toBeDisabled();
+  });
+
+  it('keepEditingOnOtherFieldChangeSendsCurrentVersionAndOnlyThatField', async () => {
+    addComment.mockResolvedValue({ id: 9 });
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My title' } });
+    getItem.mockResolvedValue(makeView({}, { priority: 1, version: 5 }));
+    fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    const keep = await screen.findByRole('button', { name: 'Keep editing on top of theirs' });
+    expect(keep).not.toBeDisabled();
+    fireEvent.click(keep);
+    expect(screen.queryByRole('alert')).toBeNull();
+    patchItem.mockResolvedValue(makeView({}, { title: 'My title', priority: 1, version: 6 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Title' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 5, changes: { title: 'My title' } }));
+  });
+
+  it('Reload with an unchanged editor needs no confirmation', async () => {
+    addComment.mockResolvedValue({ id: 9 });
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    getItem.mockResolvedValue(makeView({}, { priority: 1, version: 5 }));
+    fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Reload' }));
+    expect(screen.queryByRole('button', { name: 'Discard and reload' })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(screen.queryByLabelText('Title')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Priority' })).not.toBeDisabled();
   });
 });

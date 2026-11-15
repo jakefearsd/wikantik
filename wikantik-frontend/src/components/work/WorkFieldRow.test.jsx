@@ -19,7 +19,7 @@ describe('WorkFieldRow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit Priority' }));
     fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Priority' }));
-    expect(onSave).toHaveBeenCalledWith(2, undefined);
+    expect(onSave).toHaveBeenCalledWith(2);
     await waitFor(() => expect(screen.queryByLabelText('Priority')).toBeNull());
   });
 
@@ -44,7 +44,7 @@ describe('WorkFieldRow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New' } });
     fireEvent.keyDown(screen.getByLabelText('Title'), { key: 'Enter' });
-    expect(onSave).toHaveBeenCalledWith('New', undefined);
+    expect(onSave).toHaveBeenCalledWith('New');
   });
 
   it('does not send a request for an unchanged value', () => {
@@ -84,5 +84,26 @@ describe('WorkFieldRow', () => {
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Title' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Title' })).toHaveFocus());
+  });
+
+  it('is locked, with an accessible hint, while the page says another editor is open', () => {
+    const onOpen = vi.fn();
+    render(<WorkFieldRow label="Title" value="Old" display="Old" canEdit locked onOpen={onOpen} onSave={vi.fn()} />);
+    const edit = screen.getByRole('button', { name: 'Edit Title' });
+    expect(edit).toBeDisabled();
+    expect(edit).toHaveAccessibleDescription('Finish or cancel the open edit first');
+    fireEvent.click(edit);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('reports open, draft and close to the page', () => {
+    const h = { onOpen: vi.fn(), onDraft: vi.fn(), onClose: vi.fn() };
+    render(<WorkFieldRow label="Title" value="Old" display="Old" canEdit onSave={vi.fn()} {...h} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Title' }));
+    expect(h.onOpen).toHaveBeenCalledWith('Old');
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New' } });
+    expect(h.onDraft).toHaveBeenCalledWith('New');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel editing Title' }));
+    expect(h.onClose).toHaveBeenCalled();
   });
 });

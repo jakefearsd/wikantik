@@ -52,30 +52,62 @@ function mineText(field, value, nameOf) {
   return field === 'assignee' ? nameOf(value) : String(value);
 }
 
-function ConflictBanner({ conflict, nameOf, onReload, onKeep }) {
+/** The control-string value the field editors use for a field of `view`; compared with what an editor opened with. */
+function valueOf(view, name) {
+  const item = view.item;
+  switch (name) {
+    case 'parentKey': return view.parentKey || '';
+    case 'productKey': return view.productKey || '';
+    case 'assignee': return item.assignee || '';
+    case 'priority': return String(item.priority);
+    case 'dueOn': return item.dueOn || '';
+    case 'kind': return item.kind || 'software';
+    case 'allowDirect': return item.allowDirect == null ? '' : String(item.allowDirect);
+    case 'autonomy': case 'doneMeans': return item[name] || '';
+    case 'body': return item.body ?? '';
+    case 'handoff': return JSON.stringify({ status: item.status, assignee: item.assignee || '' });
+    default: return item[name] ?? '';
+  }
+}
+
+function ConflictBanner({ banner, nameOf, onReload, onKeep }) {
   const [review, setReview] = useState(false);
+  const [seen, setSeen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const { changes, current, sameFieldChanged, hasDraft } = banner;
   return (
     <div className="work-conflict error-banner" role="alert">
       <p><strong>This item changed while you were editing.</strong> Nothing you typed has been discarded.</p>
       <div className="work-actions">
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onReload}>Reload</button>
-        <button type="button" className="btn btn-ghost btn-sm" aria-expanded={review} onClick={() => setReview((r) => !r)}>Review their version</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => (hasDraft ? setConfirming(true) : onReload())}>Reload</button>
+        <button type="button" className="btn btn-ghost btn-sm" aria-expanded={review} onClick={() => { setReview((r) => !r); setSeen(true); }}>Review their version</button>
+        <button
+          type="button" className="btn btn-primary btn-sm" disabled={sameFieldChanged && !seen}
+          title={sameFieldChanged && !seen ? 'Review their version first: they changed the same field' : undefined}
+          onClick={onKeep}
+        >Keep editing on top of theirs</button>
       </div>
+      {confirming && (
+        <div className="work-actions" role="group" aria-label="Confirm reload">
+          <span>Discard your unsaved changes and show their version?</span>
+          <button type="button" className="btn btn-danger btn-sm" onClick={onReload}>Discard and reload</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)}>Keep editing</button>
+        </div>
+      )}
       {review && (
         <div className="work-conflict-review" data-testid="conflict-review">
-          {Object.keys(conflict.changes).map((field) => (
+          {Object.keys(changes).map((field) => (
             <div key={field} className="work-conflict-pair">
               <div>
                 <h3 className="work-conflict-title">Their version ({field})</h3>
-                <pre className="work-conflict-text">{theirValue(conflict.current, field)}</pre>
+                <pre className="work-conflict-text">{theirValue(current, field)}</pre>
               </div>
               <div>
                 <h3 className="work-conflict-title">Your unsaved text ({field})</h3>
-                <pre className="work-conflict-text">{mineText(field, conflict.changes[field], nameOf)}</pre>
+                <pre className="work-conflict-text">{mineText(field, changes[field], nameOf)}</pre>
               </div>
             </div>
           ))}
-          <button type="button" className="btn btn-primary btn-sm" onClick={onKeep}>Keep editing on top of theirs</button>
         </div>
       )}
     </div>
@@ -94,7 +126,8 @@ function ItemPage({ itemKey }) {
   const [parents, setParents] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [epoch, setEpoch] = useState(0);
-  const [rebase, setRebase] = useState(0);
+  // The one versioned editor that may be open: { name, base, orig, draft }. base is the item version it opened at.
+  const [open, setOpen] = useState(null);
   const [activity, setActivity] = useState(0);
   const seq = useRef(0);
   const projectKey = view?.projectKey;
@@ -152,11 +185,11 @@ function ItemPage({ itemKey }) {
 
   /**
    * PATCH; resolves true when accepted, 'restore' when the value was refused and the editor should close,
-   * false to keep the caller's draft. `base` is the version the editor was opened against (never the refetched
-   * one), so the server, not this page, decides whether a concurrent edit is overwritten. A 409 raises the banner.
+   * false to keep the caller's draft. The version sent is the one the open editor was opened against (never a
+   * refetched one), so the server, not this page, decides whether a concurrent edit is overwritten.
    */
-  const save = useCallback((changes, note, base, source = 'field') => {
-    const body = { expectedVersion: base ?? view.item.version, changes };
+  const save = useCallback((changes, note, source = 'field') => {
+    const body = { expectedVersion: open?.base ?? view.item.version, changes };
     if (note) body.note = note;
     setFieldErrors({});
     return patchItem(itemKey, body)
@@ -175,14 +208,13 @@ function ItemPage({ itemKey }) {
         } else fail(e, 'Could not save the change.');
         return false;
       });
-  }, [view, itemKey, fail]);
+  }, [view, open, itemKey, fail]);
 
-  // An open editor whose base version fell behind the displayed one (a refetch brought someone else's edit):
-  // raise the banner now instead of waiting for the save. Idempotent so repeated calls do not loop.
-  const markStale = useCallback((changes) => setConflict((prev) => {
-    if (prev && prev.current === view && JSON.stringify(prev.changes) === JSON.stringify(changes)) return prev;
-    return { changes, current: view };
+  const openEditor = useCallback((name, orig) => setOpen({
+    name, base: view.item.version, orig, draft: name === 'handoff' ? { ...orig, note: '' } : orig,
   }), [view]);
+  const closeEditor = useCallback((name) => setOpen((o) => (o && o.name === name ? null : o)), []);
+  const setDraft = useCallback((draft) => setOpen((o) => (o ? { ...o, draft } : o)), []);
 
   /** Runs a discussion or link write, then refreshes the item (and the history). */
   const mutate = useCallback((call, failure) => call()
@@ -209,11 +241,30 @@ function ItemPage({ itemKey }) {
   const isLead = role === 'lead';
   const isEpic = item.level === 'epic';
   const statusOptions = (isEpic ? EPIC_STATUSES : STATUSES).map((s) => ({ value: s, label: STATUS_LABELS[s] }));
-  const field = (name) => (v, base) => save({ [name]: v }, undefined, base);
+  const field = (name) => (v) => save({ [name]: v });
   const errEntry = (name) => (fieldErrors[name]?.source === 'handoff' ? undefined : fieldErrors[name]?.message);
   const err = errEntry;
   const handoffError = Object.values(fieldErrors).find((x) => x.source === 'handoff')?.message;
-  const staleFor = (name) => (d) => markStale({ [name]: d });
+  const editor = (name) => ({
+    locked: open != null && open.name !== name,
+    onOpen: (orig) => openEditor(name, orig),
+    onDraft: setDraft,
+    onClose: () => closeEditor(name),
+  });
+  // Staleness is derived: an editor opened at `base` and an item that has moved on since.
+  const stale = open != null && item.version > open.base;
+  let banner = null;
+  if (conflict || stale) {
+    const source = conflict ? conflict.current || view : view;
+    const changes = conflict ? conflict.changes
+      : open.name === 'handoff' ? open.draft : { [open.name]: open.draft };
+    banner = {
+      changes,
+      current: source,
+      hasDraft: !!open && JSON.stringify(open.draft) !== JSON.stringify(open.name === 'handoff' ? { ...open.orig, note: '' } : open.orig),
+      sameFieldChanged: !!open && valueOf(source, open.name) !== (typeof open.orig === 'string' ? open.orig : JSON.stringify(open.orig)),
+    };
+  }
   const withCurrent = (opts, value, label) => (value && !opts.some((o) => o.value === value) ? [...opts, { value, label }] : opts);
   const productOptions = withCurrent([{ value: '', label: 'None' },
     ...products.map((p) => ({ value: p.key, label: p.name ? `${p.key} – ${p.name}` : p.key }))], view.productKey, view.productKey);
@@ -232,14 +283,20 @@ function ItemPage({ itemKey }) {
         {view.blocked && <Badge variant="danger" title="Blocked by an open item">Blocked</Badge>}
         <h1 className="work-heading">{item.title}</h1>
       </header>
-      {conflict && (
+      {banner && (
         <ConflictBanner
-          conflict={conflict} nameOf={nameOf}
-          onReload={() => { setConflict(null); setEpoch((n) => n + 1); load(); }}
+          banner={banner} nameOf={nameOf}
+          onReload={() => { setConflict(null); setOpen(null); setEpoch((n) => n + 1); load(); }}
           onKeep={() => {
             setConflict(null);
-            if (conflict.current) { setView(conflict.current); setRebase((n) => n + 1); }
-            else load().then(() => setRebase((n) => n + 1));
+            const rebase = (v) => setOpen((o) => (o ? { ...o, base: v.item.version } : o));
+            if (conflict?.current) { setView(conflict.current); rebase(conflict.current); }
+            else if (conflict) {
+              getItem(itemKey)
+                .then((v) => { seq.current += 1; setView(v); rebase(v); })
+                .catch((e) => fail(e, 'Could not reload the item.'));
+            }
+            else rebase(view);
           }}
         />
       )}
@@ -247,8 +304,8 @@ function ItemPage({ itemKey }) {
         <div className="work-item-main">
           <WorkBodyEditor
             key={epoch} html={view.bodyHtml} body={item.body} canEdit={canEdit} error={err('body')}
-            version={item.version} rebase={rebase} onStale={staleFor('body')}
-            onSave={(body, base) => save({ body }, undefined, base)}
+            {...editor('body')}
+            onSave={(body) => save({ body })}
           />
           {isEpic && <WorkEpicView view={view} />}
           <WorkLinks
@@ -269,29 +326,29 @@ function ItemPage({ itemKey }) {
         </div>
         <aside className="work-item-side" aria-label="Details" key={epoch}>
           <h2 className="work-subheading">Details</h2>
-          <WorkFieldRow label="Title" error={err('title')} version={item.version} rebase={rebase} onStale={staleFor('title')} value={item.title} canEdit={canEdit} onSave={field('title')} />
-          <WorkFieldRow label="Status" error={err('status')} version={item.version} rebase={rebase} onStale={staleFor('status')} type="select" value={item.status} display={STATUS_LABELS[item.status] || item.status}
+          <WorkFieldRow label="Title" error={err('title')} {...editor('title')} value={item.title} canEdit={canEdit} onSave={field('title')} />
+          <WorkFieldRow label="Status" error={err('status')} {...editor('status')} type="select" value={item.status} display={STATUS_LABELS[item.status] || item.status}
             options={statusOptions} canEdit={canEdit} onSave={field('status')} />
-          <WorkFieldRow label="Assignee" error={err('assignee')} version={item.version} rebase={rebase} onStale={staleFor('assignee')} type="select" value={item.assignee || ''} display={item.assigneeName || 'Unassigned'}
+          <WorkFieldRow label="Assignee" error={err('assignee')} {...editor('assignee')} type="select" value={item.assignee || ''} display={item.assigneeName || 'Unassigned'}
             options={assigneeOptions} parse={blankToNull} canEdit={canEdit} onSave={field('assignee')} />
-          <WorkFieldRow label="Priority" error={err('priority')} version={item.version} rebase={rebase} onStale={staleFor('priority')} type="select" value={String(item.priority)} display={`P${item.priority}`}
+          <WorkFieldRow label="Priority" error={err('priority')} {...editor('priority')} type="select" value={String(item.priority)} display={`P${item.priority}`}
             options={PRIORITY_OPTIONS} parse={Number} canEdit={canEdit} onSave={field('priority')} />
-          <WorkFieldRow label="Due" error={err('dueOn')} version={item.version} rebase={rebase} onStale={staleFor('dueOn')} type="date" value={item.dueOn || ''} display={item.dueOn || 'No due date'}
+          <WorkFieldRow label="Due" error={err('dueOn')} {...editor('dueOn')} type="date" value={item.dueOn || ''} display={item.dueOn || 'No due date'}
             parse={blankToNull} canEdit={canEdit} onSave={field('dueOn')} />
-          <WorkFieldRow label="Kind" error={err('kind')} version={item.version} rebase={rebase} onStale={staleFor('kind')} type="select" value={item.kind || 'software'} options={KIND_OPTIONS} canEdit={canEdit} onSave={field('kind')} />
+          <WorkFieldRow label="Kind" error={err('kind')} {...editor('kind')} type="select" value={item.kind || 'software'} options={KIND_OPTIONS} canEdit={canEdit} onSave={field('kind')} />
           {!isEpic && (
             <>
               <WorkFieldRow label="Parent" type="select" value={view.parentKey || ''} display={view.parentKey || 'None'}
-                options={parentOptions} parse={blankToNull} canEdit={canEdit} error={err('parentKey')} version={item.version} rebase={rebase} onStale={staleFor('parentKey')} onSave={field('parentKey')} />
+                options={parentOptions} parse={blankToNull} canEdit={canEdit} error={err('parentKey')} {...editor('parentKey')} onSave={field('parentKey')} />
               <WorkFieldRow label="Product" type="select" value={view.productKey || ''} display={view.productKey || 'None'}
-                options={productOptions} parse={blankToNull} canEdit={canEdit} error={err('productKey')} version={item.version} rebase={rebase} onStale={staleFor('productKey')} onSave={field('productKey')} />
+                options={productOptions} parse={blankToNull} canEdit={canEdit} error={err('productKey')} {...editor('productKey')} onSave={field('productKey')} />
             </>
           )}
           {canEdit && (
             <WorkHandoff
               status={item.status} assignee={item.assignee} statusOptions={statusOptions} assigneeOptions={assigneeOptions}
-              error={handoffError} version={item.version} rebase={rebase} onStale={(d) => markStale(d)}
-              onSend={(status, assignee, note, base) => save({ status, assignee }, note, base, 'handoff').then((r) => r === true)}
+              error={handoffError} {...editor('handoff')}
+              onSend={(status, assignee, note) => save({ status, assignee }, note, 'handoff').then((r) => r === true)}
             />
           )}
           <dl className="work-facts">
@@ -301,11 +358,11 @@ function ItemPage({ itemKey }) {
             <dt>Updated</dt><dd>{dateText(item.updatedAt)}</dd>
           </dl>
           <h2 className="work-subheading">Policy</h2>
-          <WorkFieldRow label="Autonomy" error={err('autonomy')} version={item.version} rebase={rebase} onStale={staleFor('autonomy')} type="select" value={item.autonomy || ''} display={labelOf(AUTONOMY_OPTIONS, item.autonomy || '')}
+          <WorkFieldRow label="Autonomy" error={err('autonomy')} {...editor('autonomy')} type="select" value={item.autonomy || ''} display={labelOf(AUTONOMY_OPTIONS, item.autonomy || '')}
             options={AUTONOMY_OPTIONS} parse={blankToNull} canEdit={isLead} helper={LATER} onSave={field('autonomy')} />
-          <WorkFieldRow label="Done means" error={err('doneMeans')} version={item.version} rebase={rebase} onStale={staleFor('doneMeans')} type="select" value={item.doneMeans || ''} display={labelOf(DONE_MEANS_OPTIONS, item.doneMeans || '')}
+          <WorkFieldRow label="Done means" error={err('doneMeans')} {...editor('doneMeans')} type="select" value={item.doneMeans || ''} display={labelOf(DONE_MEANS_OPTIONS, item.doneMeans || '')}
             options={DONE_MEANS_OPTIONS} parse={blankToNull} canEdit={isLead} helper={LATER} onSave={field('doneMeans')} />
-          <WorkFieldRow label="Allow direct" error={err('allowDirect')} version={item.version} rebase={rebase} onStale={staleFor('allowDirect')} type="select" value={item.allowDirect == null ? '' : String(item.allowDirect)}
+          <WorkFieldRow label="Allow direct" error={err('allowDirect')} {...editor('allowDirect')} type="select" value={item.allowDirect == null ? '' : String(item.allowDirect)}
             display={labelOf(ALLOW_DIRECT_OPTIONS, item.allowDirect == null ? '' : String(item.allowDirect))}
             options={ALLOW_DIRECT_OPTIONS} parse={(v) => (v === '' ? null : v === 'true')} canEdit={isLead} helper={LATER} onSave={field('allowDirect')} />
         </aside>

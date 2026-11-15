@@ -80,7 +80,7 @@ class MyMentionsResourceTest {
 
     private MentionFeedItem item( final String canonicalId, final String snippet, final String mentionedBy ) {
         return new MentionFeedItem( UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), canonicalId, null,
-                snippet, mentionedBy, false, Instant.parse( "2026-05-01T12:00:00Z" ), null );
+                snippet, mentionedBy, false, Instant.parse( "2026-05-01T12:00:00Z" ), null, false );
     }
 
     private JsonArray feedOf( final MentionFeedItem... items ) throws Exception {
@@ -199,7 +199,7 @@ class MyMentionsResourceTest {
         final Instant when = Instant.parse( "2026-05-01T12:00:00Z" );
         final MentionFeedItem item = new MentionFeedItem(
                 id, threadId, commentId, "CID-123", null,
-                "hello @alice", "bob", false, when, null );
+                "hello @alice", "bob", false, when, null, false );
         Mockito.when( feed.list( Mockito.eq( "alice" ), Mockito.eq( MentionFeedDao.Status.ALL ),
                 Mockito.anyInt(), Mockito.any() ) ).thenReturn( List.of( item ) );
 
@@ -351,7 +351,7 @@ class MyMentionsResourceTest {
         final UUID commentId = UUID.randomUUID();
         final MentionFeedItem item = new MentionFeedItem(
                 id, threadId, commentId, "CID-123", null,
-                "snippet", "bob", false, /* mentionedAt */ null, /* readAt */ null );
+                "snippet", "bob", false, /* mentionedAt */ null, /* readAt */ null, false );
         Mockito.when( feed.list( Mockito.eq( "alice" ), Mockito.any(), Mockito.anyInt(), Mockito.any() ) )
                 .thenReturn( List.of( item ) );
         final JsonObject res = invokeGet( null, null );

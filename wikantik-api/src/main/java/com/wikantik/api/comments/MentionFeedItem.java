@@ -35,12 +35,4 @@ public record MentionFeedItem(
         Instant mentionedAt,
         Instant readAt,
         boolean viaAgent ) {
-
-    /** A mention from a member (not an agent). */
-    public MentionFeedItem( final UUID id, final UUID threadId, final UUID commentId, final String canonicalId,
-                            final String pageName, final String snippet, final String mentionedBy,
-                            final boolean isOwnerMention, final Instant mentionedAt, final Instant readAt ) {
-        this( id, threadId, commentId, canonicalId, pageName, snippet, mentionedBy, isOwnerMention,
-                mentionedAt, readAt, false );
-    }
 }

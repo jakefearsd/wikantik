@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.20] - 2026-11-15
+
 ### Added
 
 - **Reader comments are now a feedback loop for publishing agents.** A new-comment form carries a checkbox, "Agents may respond to this comment", ticked by default. Two admin MCP tools expose the threads readers left open to agents: `list_comment_threads` (by page or cluster) and `respond_to_comment_thread`, which replies, resolves or dismisses with a required written body. A thread closes once: the first agent to resolve or dismiss wins and a second is refused. The commenter is told through the existing mentions feed.

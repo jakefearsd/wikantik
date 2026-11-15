@@ -55,6 +55,15 @@ services:
     # cache.
     environment:
       WIKANTIK_JVM_MAX_RAM_PERCENTAGE: "50"
+    # Embeddings come from radeongpuembedder (../radeongpuembedder), a separate
+    # compose project on the same host publishing Ollama on :11434 and running on
+    # the iGPU. Linux Docker does not define host.docker.internal on its own; this
+    # maps it to the host so .env.prod can say
+    # WIKANTIK_EMBEDDING_BASE_URL=http://host.docker.internal:11434. Pointing that
+    # variable at another embedder (e.g. http://inference.lan:11434) needs no change
+    # here, but every stored vector must then be re-embedded.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:

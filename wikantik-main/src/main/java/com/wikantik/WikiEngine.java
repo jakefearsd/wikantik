@@ -1153,6 +1153,9 @@ public class WikiEngine implements Engine {
             this.setContentOpportunityService(
                 com.wikantik.insights.runtime.InsightsWiring.build( ds, props, structuralIndex ) );
 
+            // Wire work management (default off: wikantik.work.enabled). Null when disabled; callers no-op.
+            this.setWorkService( com.wikantik.work.runtime.WorkWiring.build( ds, props, this ) );
+
             // Wire the briefing log (S3 telemetry for session-start context briefings; default on).
             this.setBriefingLogService( com.wikantik.knowledge.querylog.BriefingLogWiring.build( ds, props ) );
 
@@ -1475,6 +1478,20 @@ public class WikiEngine implements Engine {
     /** The content-opportunity engine facade, or {@code null} if it was not wired. */
     public com.wikantik.insights.runtime.ContentOpportunityService contentOpportunityService() {
         return contentOpportunityService;
+    }
+
+    /** Work-management service; set at startup, null while {@code wikantik.work.enabled} is false (callers no-op).
+     *  A plain field, like {@code contentOpportunityService} (DecompositionArchTest R-2: not a manager). */
+    private volatile com.wikantik.work.WorkService workService;
+
+    /** Called at startup once the persistence DataSource is available. */
+    public void setWorkService( final com.wikantik.work.WorkService service ) {
+        this.workService = service;
+    }
+
+    /** The work-management service, or {@code null} if the feature is off or was not wired. */
+    public com.wikantik.work.WorkService workService() {
+        return workService;
     }
 
     /** Briefing-request log; set at startup, read by nothing yet (write-only telemetry). Null

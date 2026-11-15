@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -64,7 +65,7 @@ public class WorkService {
     }
 
     /** A resolved project and the actor's standing in it; the one thing every method starts from. */
-    private record Scope( Actor actor, Project project, WorkRole role ) {
+    private record Scope( Actor actor, Project project, WorkRole role, Consumer< Action > onDenied ) {
 
         /** The role to show: a wiki admin without a member row counts as lead. */
         WorkRole effectiveRole() {
@@ -74,6 +75,7 @@ public class WorkService {
         void require( final Action action, final Item item ) {
             final Decision d = WorkPolicy.may( actor, role, action, item );
             if ( !d.allowed() ) {
+                onDenied.accept( action );
                 throw new WorkDeniedException( d.reason() );
             }
         }
@@ -90,14 +92,29 @@ public class WorkService {
     private final WorkDirectory directory;
     private final Clock clock;
     private final ItemPatchApplier applier;
+    private final Consumer< Action > denialListener;
 
     public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
                         final Clock clock ) {
+        this( store, renderer, directory, clock, action -> { } );
+    }
+
+    /**
+     * @param denialListener called with the attempted action whenever this service throws
+     *                       {@link WorkDeniedException}; null means no listener
+     */
+    public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
+                        final Clock clock, final Consumer< Action > denialListener ) {
+        this.denialListener = denialListener == null ? action -> { } : denialListener;
         this.store = store;
         this.renderer = renderer;
         this.directory = directory;
         this.clock = clock;
         this.applier = new ItemPatchApplier( store, this::isMember );
+    }
+
+    private void denied( final Action action ) {
+        denialListener.accept( action );
     }
 
     // ---- scope resolution
@@ -113,7 +130,7 @@ public class WorkService {
         if ( role == null && !actor.admin() ) {
             throw new WorkNotFoundException( NOT_FOUND );
         }
-        return new Scope( actor, project, role );
+        return new Scope( actor, project, role, this::denied );
     }
 
     private record ItemScope( Scope scope, Item item ) {
@@ -363,6 +380,7 @@ public class WorkService {
         final Comment c = store.comment( commentId ).orElseThrow( () -> new WorkNotFoundException( NOT_FOUND ) );
         is.scope().require( Action.COMMENT, is.item() );
         if ( !c.author().equals( actor.login() ) ) {
+            denied( Action.COMMENT );
             throw new WorkDeniedException( "Only the author may edit a comment." );
         }
         is.scope().requireWritable();
@@ -378,6 +396,7 @@ public class WorkService {
         is.scope().require( Action.COMMENT, is.item() );
         final boolean lead = WorkPolicy.may( actor, is.scope().role(), Action.MANAGE_PROJECT, is.item() ).allowed();
         if ( !c.author().equals( actor.login() ) && !lead ) {
+            denied( Action.COMMENT );
             throw new WorkDeniedException( "Only the author or a project lead may remove a comment." );
         }
         is.scope().requireWritable();
@@ -447,9 +466,10 @@ public class WorkService {
 
     // ---- helpers
 
-    private static void require( final Actor actor, final Action action ) {
+    private void require( final Actor actor, final Action action ) {
         final Decision d = WorkPolicy.may( actor, null, action, null );
         if ( !d.allowed() ) {
+            denied( action );
             throw new WorkDeniedException( d.reason() );
         }
     }

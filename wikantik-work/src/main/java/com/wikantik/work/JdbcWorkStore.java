@@ -748,4 +748,12 @@ public class JdbcWorkStore implements WorkStore {
     public List< Item > assignedOpen( final String login, final Set< Long > projectIds ) throws SQLException {
         return discussion.assignedOpen( login, projectIds );
     }
+
+    @Override
+    public List< ItemCount > itemCounts() throws SQLException {
+        return jdbc.query( "SELECT status, level, kind, COUNT(*) AS n FROM work_item GROUP BY status, level, kind",
+            ps -> { }, rs -> new ItemCount( WorkStatus.fromWire( rs.getString( "status" ) ),
+                WorkLevel.fromWire( rs.getString( "level" ) ), WorkKind.fromWire( rs.getString( "kind" ) ),
+                rs.getLong( "n" ) ) );
+    }
 }

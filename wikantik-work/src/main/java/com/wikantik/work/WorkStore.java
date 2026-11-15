@@ -150,4 +150,13 @@ public interface WorkStore {
 
     /** Open items in the given projects assigned to the login, newest-updated first. */
     List< Item > assignedOpen( String login, Set< Long > projectIds ) throws SQLException;
+
+    // ---- metrics
+
+    /** The number of items in one status, level and kind. */
+    record ItemCount( WorkStatus status, WorkLevel level, WorkKind kind, long count ) {
+    }
+
+    /** Item counts grouped by status, level and kind, in one query; groups with no items are absent. */
+    List< ItemCount > itemCounts() throws SQLException;
 }

@@ -26,6 +26,8 @@ import com.wikantik.comments.CommentStore.AgentAction;
 import com.wikantik.comments.CommentStore.AgentResponse;
 import com.wikantik.comments.mentions.MentionService;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +44,7 @@ import java.util.UUID;
 public class RespondToCommentThreadTool extends DefaultAuthorTool {
 
     public static final String TOOL_NAME = "respond_to_comment_thread";
+    private static final Logger LOG = LogManager.getLogger( RespondToCommentThreadTool.class );
 
     /** {@link DefaultAuthorTool}'s initial author, i.e. no client name was ever supplied. */
     private static final String NO_CLIENT_NAME = "mcp-agent";
@@ -162,6 +165,7 @@ public class RespondToCommentThreadTool extends DefaultAuthorTool {
             return UUID.fromString( raw.strip() );
         } catch ( final IllegalArgumentException e ) {
             // Caller-supplied value; the refusal tells them what to pass.
+            LOG.debug( "threadId '{}' is not a UUID: {}", raw, e.getMessage() );
             return null;
         }
     }

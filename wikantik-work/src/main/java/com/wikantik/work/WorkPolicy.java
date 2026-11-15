@@ -30,8 +30,7 @@ public final class WorkPolicy {
      * later phases can add item-scoped rules without a signature change.
      */
     public static Decision may( final Actor actor, final WorkRole roleOrNull, final Action action, final Item itemOrNull ) {
-        if ( actor.kind() == Actor.Kind.AGENT
-                && ( action == Action.SET_POLICY || action == Action.MANAGE_PROJECT || action == Action.MANAGE_INSTANCE ) ) {
+        if ( actor.kind() == Actor.Kind.AGENT && isManagement( action ) ) {
             return Decision.deny( "An agent may not change policy, manage a project or manage the work instance." );
         }
         if ( actor.admin() ) {
@@ -43,15 +42,23 @@ public final class WorkPolicy {
         if ( roleOrNull == null ) {
             return Decision.deny( "You are not a member of this project." );
         }
-        final WorkRole needed = switch ( action ) {
+        final WorkRole needed = roleNeeded( action );
+        if ( roleOrNull.atLeast( needed ) ) {
+            return Decision.allow();
+        }
+        return Decision.deny( "This action needs the " + needed.wire() + " role; you hold " + roleOrNull.wire() + "." );
+    }
+
+    private static boolean isManagement( final Action action ) {
+        return action == Action.SET_POLICY || action == Action.MANAGE_PROJECT || action == Action.MANAGE_INSTANCE;
+    }
+
+    private static WorkRole roleNeeded( final Action action ) {
+        return switch ( action ) {
             case VIEW -> WorkRole.VIEWER;
             case CREATE_ITEM, EDIT_ITEM, MOVE, COMMENT, LINK -> WorkRole.MEMBER;
             case MANAGE_PROJECT, SET_POLICY -> WorkRole.LEAD;
             case MANAGE_INSTANCE -> throw new IllegalStateException( "handled above" );
         };
-        if ( roleOrNull.atLeast( needed ) ) {
-            return Decision.allow();
-        }
-        return Decision.deny( "This action needs the " + needed.wire() + " role; you hold " + roleOrNull.wire() + "." );
     }
 }

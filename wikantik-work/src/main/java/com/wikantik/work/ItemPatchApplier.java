@@ -19,10 +19,10 @@
 package com.wikantik.work;
 
 import java.sql.SQLException;
-import java.time.DateTimeException;
-import java.time.LocalDate;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Validates new items and applies an {@link ItemPatch} to an existing one. Pure of policy: it knows the data
@@ -63,7 +63,7 @@ final class ItemPatchApplier {
         final Item parent = d.parentKey() == null ? null : resolveParent( project, d.parentKey(), -1 );
         final Product product = d.productKey() == null ? null : resolveProduct( d.productKey() );
         final int priority = d.priority() == null ? 3 : d.priority();
-        final String assignee = blankToNull( d.assignee() );
+        final String assignee = PatchValues.blankToNull( d.assignee() );
         final Item next = new Item( 0, project.id(), null, d.level(), parent == null ? null : parent.id(),
             product == null ? null : product.id(), d.kind() == null ? WorkKind.SOFTWARE : d.kind(), d.title(),
             d.body() == null ? "" : d.body(), WorkStatus.DRAFT, priority, 0, d.dueOn(), assignee, null, null, null,
@@ -84,53 +84,81 @@ final class ItemPatchApplier {
         Long parentId = current.parentId();
         Item newParent = null;
         if ( changes.containsKey( "parentKey" ) ) {
-            final String key = string( "parentKey", changes.get( "parentKey" ) );
-            newParent = key == null ? null : resolveParent( project, key, current.id() );
+            newParent = changedParent( project, current, changes.get( "parentKey" ) );
             parentId = newParent == null ? null : newParent.id();
         }
-        Long productId = current.productId();
-        if ( changes.containsKey( "productKey" ) ) {
-            final String key = string( "productKey", changes.get( "productKey" ) );
-            productId = key == null ? null : resolveProduct( key ).id();
-        }
-        final WorkStatus status = changes.containsKey( "status" ) ? status( changes.get( "status" ) )
-            : current.status();
-        final String assignee = changes.containsKey( "assignee" )
-            ? blankToNull( string( "assignee", changes.get( "assignee" ) ) ) : current.assignee();
-        final double rank = changes.containsKey( "rank" ) ? number( "rank", changes.get( "rank" ) )
+        final Long productId = changes.containsKey( "productKey" )
+            ? changedProduct( changes.get( "productKey" ) ) : current.productId();
+        final WorkStatus status = pick( changes, "status", PatchValues::status, current.status() );
+        final String assignee = pick( changes, "assignee", PatchValues::assignee, current.assignee() );
+        final double rank = changes.containsKey( "rank" ) ? PatchValues.number( "rank", changes.get( "rank" ) )
             : status != current.status() ? store.maxRank( project.id(), status ) + RANK_STEP : current.rank();
-        final Item next = new Item( current.id(), current.projectId(), current.key(), current.level(), parentId,
-            productId,
-            changes.containsKey( "kind" ) ? kind( changes.get( "kind" ) ) : current.kind(),
-            changes.containsKey( "title" ) ? string( "title", changes.get( "title" ) ) : current.title(),
-            changes.containsKey( "body" ) ? bodyOf( changes.get( "body" ) ) : current.body(),
-            status,
-            changes.containsKey( "priority" ) ? priority( changes.get( "priority" ) ) : current.priority(),
-            rank,
-            changes.containsKey( "dueOn" ) ? dueOn( changes.get( "dueOn" ) ) : current.dueOn(),
-            assignee, current.reporter(),
-            changes.containsKey( "autonomy" ) ? autonomy( changes.get( "autonomy" ) ) : current.autonomy(),
-            changes.containsKey( "doneMeans" ) ? doneMeans( changes.get( "doneMeans" ) ) : current.doneMeans(),
-            changes.containsKey( "allowDirect" ) ? allowDirect( changes.get( "allowDirect" ) )
-                : current.allowDirect(),
-            current.version(), current.createdAt(), current.updatedAt(), current.closedAt() );
+        final Item next = merged( current, changes, parentId, productId, status, rank, assignee );
         validate( next, newParent );
         checkAssignee( project, current.assignee(), assignee );
-        if ( status != current.status() && !java.util.Objects.equals( assignee, current.assignee() )
+        checkHandoffNote( current, next, note );
+        return next;
+    }
+
+    /** The current item with the patched fields replaced; the fields resolved by {@link #apply} come in ready. */
+    private static Item merged( final Item current, final Map< String, Object > changes, final Long parentId,
+            final Long productId, final WorkStatus status, final double rank, final String assignee ) {
+        return new Item( current.id(), current.projectId(), current.key(), current.level(), parentId, productId,
+            pick( changes, "kind", PatchValues::kind, current.kind() ),
+            pick( changes, "title", v -> PatchValues.string( "title", v ), current.title() ),
+            pick( changes, "body", PatchValues::bodyOf, current.body() ),
+            status,
+            pick( changes, "priority", PatchValues::priority, current.priority() ),
+            rank,
+            pick( changes, "dueOn", PatchValues::dueOn, current.dueOn() ),
+            assignee, current.reporter(),
+            pick( changes, "autonomy", PatchValues::autonomy, current.autonomy() ),
+            pick( changes, "doneMeans", PatchValues::doneMeans, current.doneMeans() ),
+            pick( changes, "allowDirect", PatchValues::allowDirect, current.allowDirect() ),
+            current.version(), current.createdAt(), current.updatedAt(), current.closedAt() );
+    }
+
+    private static < T > T pick( final Map< String, Object > changes, final String key,
+            final Function< Object, T > coerce, final T current ) {
+        return changes.containsKey( key ) ? coerce.apply( changes.get( key ) ) : current;
+    }
+
+    private Item changedParent( final Project project, final Item current, final Object value ) throws SQLException {
+        final String key = PatchValues.string( "parentKey", value );
+        return key == null ? null : resolveParent( project, key, current.id() );
+    }
+
+    private Long changedProduct( final Object value ) throws SQLException {
+        final String key = PatchValues.string( "productKey", value );
+        return key == null ? null : resolveProduct( key ).id();
+    }
+
+    private static void checkHandoffNote( final Item current, final Item next, final String note ) {
+        if ( next.status() != current.status() && !Objects.equals( next.assignee(), current.assignee() )
                 && ( note == null || note.isBlank() ) ) {
             throw new WorkValidationException( "note", "Changing status and assignee together needs a note." );
         }
-        return next;
     }
 
     /** Field rules; {@code newParent} is the freshly resolved parent, null when the parent is not being set. */
     private static void validate( final Item next, final Item newParent ) {
-        if ( next.title() == null || next.title().isBlank() ) {
+        validateTitle( next.title() );
+        validateShape( next, newParent );
+        if ( next.priority() < 1 || next.priority() > 4 ) {
+            throw new WorkValidationException( "priority", "Priority must be between 1 and 4." );
+        }
+    }
+
+    private static void validateTitle( final String title ) {
+        if ( title == null || title.isBlank() ) {
             throw new WorkValidationException( "title", "A title is required." );
         }
-        if ( next.title().length() > MAX_TITLE ) {
+        if ( title.length() > MAX_TITLE ) {
             throw new WorkValidationException( "title", "A title may be at most " + MAX_TITLE + " characters." );
         }
+    }
+
+    private static void validateShape( final Item next, final Item newParent ) {
         if ( !WorkStatus.allowedFor( next.level() ).contains( next.status() ) ) {
             throw new WorkValidationException( "status",
                 "A " + next.level().wire() + " cannot have status " + next.status().wire() + "." );
@@ -141,9 +169,6 @@ final class ItemPatchApplier {
         if ( newParent != null && !newParent.level().canParent( next.level() ) ) {
             throw new WorkValidationException( "parentKey",
                 "A " + newParent.level().wire() + " cannot be the parent of a " + next.level().wire() + "." );
-        }
-        if ( next.priority() < 1 || next.priority() > 4 ) {
-            throw new WorkValidationException( "priority", "Priority must be between 1 and 4." );
         }
     }
 
@@ -175,86 +200,5 @@ final class ItemPatchApplier {
             throw new WorkValidationException( "productKey", "No such product: " + key );
         }
         return product;
-    }
-
-    // ---- value coercion: JSON-ish types in, domain types out; every failure names its field
-
-    private static String blankToNull( final String s ) {
-        return s == null || s.isBlank() ? null : s.trim();
-    }
-
-    private static String string( final String field, final Object v ) {
-        if ( v == null ) {
-            return null;
-        }
-        if ( v instanceof String s ) {
-            return s;
-        }
-        throw new WorkValidationException( field, field + " must be text." );
-    }
-
-    private static String requiredString( final String field, final Object v ) {
-        final String s = string( field, v );
-        if ( s == null ) {
-            throw new WorkValidationException( field, field + " cannot be cleared." );
-        }
-        return s;
-    }
-
-    private static String bodyOf( final Object v ) {
-        final String s = string( "body", v );
-        return s == null ? "" : s;
-    }
-
-    private static double number( final String field, final Object v ) {
-        if ( v instanceof Number n && Double.isFinite( n.doubleValue() ) ) {
-            return n.doubleValue();
-        }
-        throw new WorkValidationException( field, field + " must be a number." );
-    }
-
-    private static int priority( final Object v ) {
-        final double d = number( "priority", v );
-        if ( d != Math.rint( d ) ) {
-            throw new WorkValidationException( "priority", "Priority must be a whole number." );
-        }
-        return d < Integer.MIN_VALUE || d > Integer.MAX_VALUE ? 0 : (int) d;
-    }
-
-    private static WorkStatus status( final Object v ) {
-        return WorkStatus.fromWire( requiredString( "status", v ) );
-    }
-
-    private static WorkKind kind( final Object v ) {
-        return WorkKind.fromWire( requiredString( "kind", v ) );
-    }
-
-    private static Autonomy autonomy( final Object v ) {
-        final String s = string( "autonomy", v );
-        return s == null ? null : Autonomy.fromWire( s );
-    }
-
-    private static DoneMeans doneMeans( final Object v ) {
-        final String s = string( "doneMeans", v );
-        return s == null ? null : DoneMeans.fromWire( s );
-    }
-
-    private static Boolean allowDirect( final Object v ) {
-        if ( v == null || v instanceof Boolean ) {
-            return (Boolean) v;
-        }
-        throw new WorkValidationException( "allowDirect", "allowDirect must be true or false." );
-    }
-
-    private static LocalDate dueOn( final Object v ) {
-        final String s = string( "dueOn", v );
-        if ( s == null || s.isBlank() ) {
-            return null;
-        }
-        try {
-            return LocalDate.parse( s.trim() );
-        } catch ( final DateTimeException e ) {
-            throw new WorkValidationException( "dueOn", "dueOn must be an ISO date such as 2026-11-15." );
-        }
     }
 }

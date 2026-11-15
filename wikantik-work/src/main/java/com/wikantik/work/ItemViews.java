@@ -1,0 +1,92 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.work;
+
+import com.wikantik.work.WorkScopes.Scope;
+import com.wikantik.work.WorkService.ItemSummary;
+import com.wikantik.work.WorkService.ItemView;
+import com.wikantik.work.WorkService.SummaryColumn;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/** Builds what a reader is shown of an item or a board: the full view, and the card summaries. */
+final class ItemViews {
+
+    private final WorkStore store;
+    private final WorkRenderer renderer;
+
+    ItemViews( final WorkStore store, final WorkRenderer renderer ) {
+        this.store = store;
+        this.renderer = renderer;
+    }
+
+    ItemView view( final Scope s, final Item item ) throws SQLException {
+        final String html = item.body() == null || item.body().isBlank() ? "" : renderer.toHtml( item.body() );
+        final List< Product > products = store.products();
+        final Item parent = item.parentId() == null ? null : store.itemById( item.parentId() ).orElse( null );
+        final String productKey = item.productId() == null ? null : productKey( products, item.productId() );
+        return new ItemView( item, html, s.project().key(), parent == null ? null : parent.key(), productKey,
+            derivedProductKeys( item, products ), store.comments( item.id() ), store.links( item.id() ),
+            store.isBlocked( item.id() ), s.effectiveRole() );
+    }
+
+    /** The product keys an epic's descendants carry; empty for any other level. */
+    private List< String > derivedProductKeys( final Item item, final List< Product > products ) throws SQLException {
+        final List< String > derived = new ArrayList<>();
+        if ( item.level() == WorkLevel.EPIC ) {
+            for ( final long productId : store.productIdsUnder( item.id() ) ) {
+                final String k = productKey( products, productId );
+                if ( k != null ) {
+                    derived.add( k );
+                }
+            }
+        }
+        return derived;
+    }
+
+    List< ItemSummary > summarise( final long projectId, final List< Item > items ) throws SQLException {
+        final Map< Long, WorkStore.ItemExtras > extras = store.itemExtras( projectId,
+            items.stream().map( Item::id ).toList() );
+        final WorkStore.ItemExtras none = new WorkStore.ItemExtras( 0, false, null, null );
+        return items.stream().map( i -> {
+            final WorkStore.ItemExtras e = extras.getOrDefault( i.id(), none );
+            return new ItemSummary( i, e.commentCount(), e.blocked(), e.productKey(), e.parentKey() );
+        } ).toList();
+    }
+
+    /** The board's columns with card extras, computed for every column's items in one batch. */
+    List< SummaryColumn > summaryColumns( final long projectId, final List< BoardColumn > columns )
+            throws SQLException {
+        final List< Item > all = columns.stream().flatMap( c -> c.items().stream() ).toList();
+        final Map< Long, ItemSummary > byId = new HashMap<>();
+        summarise( projectId, all ).forEach( x -> byId.put( x.item().id(), x ) );
+        return columns.stream().map( c -> new SummaryColumn( c.status(), c.total(),
+            c.items().stream().map( i -> byId.get( i.id() ) ).toList() ) ).toList();
+    }
+
+    private static String productKey( final List< Product > products, final long id ) {
+        final Optional< Product > p = products.stream().filter( x -> x.id() == id ).findFirst();
+        return p.map( Product::key ).orElse( null );
+    }
+}

@@ -25,6 +25,7 @@ import com.wikantik.work.Product;
 import com.wikantik.work.WorkNotFoundException;
 
 import java.util.List;
+import java.util.function.Function;
 
 /** {@code /api/work/products/*}: the product catalogue. */
 public class WorkProductResource extends WorkResourceBase {
@@ -69,15 +70,33 @@ public class WorkProductResource extends WorkResourceBase {
 
     /** The product described by {@code b}; fields absent from the body keep the {@code base} value. */
     private static Product from( final JsonObject b, final String key, final Product base ) {
-        final String ceiling = b.has( "autonomyCeiling" ) ? optString( b, "autonomyCeiling" ) : null;
-        final String gate = b.has( "deployGate" ) ? optString( b, "deployGate" ) : null;
         return new Product( base == null ? 0 : base.id(), key,
-            b.has( "name" ) || base == null ? optString( b, "name" ) : base.name(),
-            b.has( "repoUrl" ) || base == null ? optString( b, "repoUrl" ) : base.repoUrl(),
-            b.has( "defaultBranch" ) || base == null ? optString( b, "defaultBranch" ) : base.defaultBranch(),
-            b.has( "wikiCluster" ) || base == null ? optString( b, "wikiCluster" ) : base.wikiCluster(),
-            ceiling == null ? ( base == null ? null : base.autonomyCeiling() ) : Autonomy.fromWire( ceiling ),
-            gate == null ? ( base == null ? null : base.deployGate() ) : DeployGate.fromWire( gate ),
+            text( b, "name", base, Product::name ),
+            text( b, "repoUrl", base, Product::repoUrl ),
+            text( b, "defaultBranch", base, Product::defaultBranch ),
+            text( b, "wikiCluster", base, Product::wikiCluster ),
+            ceiling( b, base ), gate( b, base ),
             base == null ? null : base.archivedAt() );
+    }
+
+    private static String text( final JsonObject b, final String field, final Product base,
+                                final Function< Product, String > current ) {
+        return b.has( field ) || base == null ? optString( b, field ) : current.apply( base );
+    }
+
+    private static Autonomy ceiling( final JsonObject b, final Product base ) {
+        final String wire = b.has( "autonomyCeiling" ) ? optString( b, "autonomyCeiling" ) : null;
+        if ( wire != null ) {
+            return Autonomy.fromWire( wire );
+        }
+        return base == null ? null : base.autonomyCeiling();
+    }
+
+    private static DeployGate gate( final JsonObject b, final Product base ) {
+        final String wire = b.has( "deployGate" ) ? optString( b, "deployGate" ) : null;
+        if ( wire != null ) {
+            return DeployGate.fromWire( wire );
+        }
+        return base == null ? null : base.deployGate();
     }
 }

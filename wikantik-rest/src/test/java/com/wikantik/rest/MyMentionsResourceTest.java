@@ -98,6 +98,25 @@ class MyMentionsResourceTest {
     }
 
     @Test
+    void mentionFromAgentIsLabelled() throws Exception {
+        final MentionFeedItem agent = new MentionFeedItem( UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "CID-1", null, "agent says", "agent:wikantik-cli", false,
+                Instant.parse( "2026-05-01T12:00:00Z" ), null, true );
+        final JsonObject m = feedOf( agent ).get( 0 ).getAsJsonObject();
+        assertEquals( "wikantik-cli", m.get( "mentionedBy" ).getAsString() );
+        assertTrue( m.get( "viaAgent" ).getAsBoolean() );
+        Mockito.verify( identity, Mockito.never() ).displayName( "agent:wikantik-cli" );
+    }
+
+    @Test
+    void mentionFromMemberWithAgentPrefixIsNotLabelledAsAgent() throws Exception {
+        Mockito.when( identity.displayName( "agent:sneaky" ) ).thenReturn( "Sneaky Person" );
+        final JsonObject m = feedOf( item( "CID-1", "hi", "agent:sneaky" ) ).get( 0 ).getAsJsonObject();
+        assertEquals( "Sneaky Person", m.get( "mentionedBy" ).getAsString() );
+        assertFalse( m.get( "viaAgent" ).getAsBoolean() );
+    }
+
+    @Test
     void snippet_is_included_when_the_recipient_can_view_the_page() throws Exception {
         final JsonArray mentions = feedOf( item( "CID-1", "see this", "bob" ) );
         assertEquals( "see this", mentions.get( 0 ).getAsJsonObject().get( "snippet" ).getAsString() );

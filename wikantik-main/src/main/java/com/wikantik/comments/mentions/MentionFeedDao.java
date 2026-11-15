@@ -53,7 +53,7 @@ public class MentionFeedDao {
                                          final int limit, final Optional< Instant > before ) {
         final StringBuilder sql = new StringBuilder(
                 "SELECT m.id, m.created_at AS mentioned_at, m.read_at, m.mentioning_login, " +
-                "       m.is_owner_mention, c.id AS comment_id, c.thread_id, c.body, t.canonical_id " +
+                "       m.is_owner_mention, c.id AS comment_id, c.thread_id, c.body, c.via_agent, t.canonical_id " +
                 "FROM comment_mentions m " +
                 "JOIN comments c ON c.id = m.comment_id " +
                 "JOIN comment_threads t ON t.id = c.thread_id " +
@@ -91,6 +91,7 @@ public class MentionFeedDao {
                 rs.getString( "mentioning_login" ),
                 rs.getBoolean( "is_owner_mention" ),
                 at == null ? null : at.toInstant(),
-                ra == null ? null : ra.toInstant() );
+                ra == null ? null : ra.toInstant(),
+                rs.getBoolean( "via_agent" ) );
     }
 }

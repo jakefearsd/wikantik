@@ -19,10 +19,12 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
+import com.wikantik.api.comments.AgentAuthors;
 import com.wikantik.api.comments.Comment;
 import com.wikantik.api.comments.CommentThread;
 import com.wikantik.api.comments.TextQuoteSelector;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.comments.CommentStore;
@@ -89,6 +91,12 @@ public class CommentThreadResource extends RestServletBase {
     protected String currentUser( final HttpServletRequest request ) {
         final Engine engine = getEngine();
         return Wiki.session().find( engine, request ).getLoginPrincipal().getName();
+    }
+
+    /** Seam — whether the caller is signed in (not an anonymous or asserted session); overridable for unit tests. */
+    protected boolean isAuthenticated( final HttpServletRequest request ) {
+        final Session s = Wiki.session().find( getEngine(), request );
+        return s != null && s.isAuthenticated();
     }
 
     /**
@@ -219,8 +227,11 @@ public class CommentThreadResource extends RestServletBase {
         final String owner = pageOwnerService().getOwner( canonical );
         final Optional< String > ownerForMention =
                 owner.equals( user ) ? Optional.empty() : Optional.of( owner );
+        final boolean agentAvailable = !body.has( "agentAvailable" ) || body.get( "agentAvailable" ).isJsonNull()
+                || body.get( "agentAvailable" ).getAsBoolean();
         final CommentThread t = commentStore().createThread(
-                canonical, anchor, user, text, mentionService(), ownerForMention );
+                canonical, anchor, user, text, mentionService(), ownerForMention,
+                agentAvailable, authorCouldEdit( request, pageName ) );
         sendJson( response, threadToMap( t, publicIdentity() ) );
     }
 
@@ -236,7 +247,8 @@ public class CommentThreadResource extends RestServletBase {
             return;
         }
         final Comment c = commentStore().addComment(
-                ctx.threadId, currentUser( request ), text, mentionService() );
+                ctx.threadId, currentUser( request ), text, mentionService(),
+                authorCouldEdit( request, ctx.slug ) );
         sendJson( response, commentToMap( c, publicIdentity() ) );
     }
 
@@ -247,10 +259,11 @@ public class CommentThreadResource extends RestServletBase {
         final boolean ok = resolve
                 ? commentStore().resolve( ctx.threadId, currentUser( request ) )
                 : commentStore().reopen( ctx.threadId );
+        if ( !ok ) { sendNotFound( response, "Comment thread not found" ); return; }
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "id", ctx.threadId.toString() );
         result.put( "status", resolve ? CommentThread.RESOLVED : CommentThread.OPEN );
-        result.put( "updated", ok );
+        result.put( "updated", true );
         sendJson( response, result );
     }
 
@@ -271,7 +284,8 @@ public class CommentThreadResource extends RestServletBase {
             return;
         }
         final Comment updated = commentStore().editComment(
-                cc.commentId(), cc.comment().body(), text, currentUser( request ), mentionService() )
+                cc.commentId(), cc.comment().body(), text, currentUser( request ), mentionService(),
+                authorCouldEdit( request, cc.threadCtx().slug() ) )
                 .orElse( null );
         if ( updated == null ) { sendNotFound( response, "Comment not found" ); return; }
         sendJson( response, commentToMap( updated, publicIdentity() ) );
@@ -342,8 +356,14 @@ public class CommentThreadResource extends RestServletBase {
         }
     }
 
+    /** Whether the signed-in caller may edit the page: the trust snapshot stored with each comment. */
+    private boolean authorCouldEdit( final HttpServletRequest request, final String pageName ) {
+        return isAuthenticated( request ) && hasPagePermission( request, pageName, "edit" );
+    }
+
     private static String normalizeStatus( final String raw ) {
-        if ( "open".equals( raw ) || "resolved".equals( raw ) ) return raw;
+        if ( CommentThread.OPEN.equals( raw ) || CommentThread.RESOLVED.equals( raw )
+                || CommentThread.DISMISSED.equals( raw ) ) return raw;
         return "all";
     }
 
@@ -375,6 +395,16 @@ public class CommentThreadResource extends RestServletBase {
         return names;
     }
 
+    /**
+     * True when {@code stored} names an agent that actually commented on the thread: it carries the
+     * {@link AgentAuthors#PREFIX} <em>and</em> one of the thread's {@code viaAgent} comments is by it. A
+     * member whose login merely starts with the prefix is therefore never mistaken for an agent.
+     */
+    private static boolean isAgentPrincipal( final CommentThread t, final String stored ) {
+        return stored != null && stored.startsWith( AgentAuthors.PREFIX )
+                && t.comments().stream().anyMatch( c -> c.viaAgent() && stored.equals( c.author() ) );
+    }
+
     /** Display name for a stored principal; {@code null} when the field is unset (e.g. {@code resolvedBy} on an open thread). */
     private static String shownName( final PublicIdentity identity, final String storedPrincipal ) {
         return storedPrincipal == null ? null : identity.displayName( storedPrincipal );
@@ -395,15 +425,21 @@ public class CommentThreadResource extends RestServletBase {
         anchor.put( "prefix", t.anchor().prefix() );
         anchor.put( "suffix", t.anchor().suffix() );
         m.put( "anchor", anchor );
-        m.put( "createdBy", shownName( identity, t.createdBy() ) );
-        m.put( "createdById", uidOf( identity, t.createdBy() ) );
+        final boolean createdByAgent = isAgentPrincipal( t, t.createdBy() );
+        m.put( "createdBy", createdByAgent ? AgentAuthors.displayName( t.createdBy() )
+                : shownName( identity, t.createdBy() ) );
+        m.put( "createdById", createdByAgent ? null : uidOf( identity, t.createdBy() ) );
         m.put( "createdAt", t.createdAt() == null ? null : t.createdAt().toString() );
-        m.put( "resolvedBy", shownName( identity, t.resolvedBy() ) );
-        m.put( "resolvedById", uidOf( identity, t.resolvedBy() ) );
+        final boolean resolvedByAgent = isAgentPrincipal( t, t.resolvedBy() );
+        m.put( "resolvedBy", resolvedByAgent ? AgentAuthors.displayName( t.resolvedBy() )
+                : shownName( identity, t.resolvedBy() ) );
+        m.put( "resolvedById", resolvedByAgent ? null : uidOf( identity, t.resolvedBy() ) );
         m.put( "resolvedAt", t.resolvedAt() == null ? null : t.resolvedAt().toString() );
         final List< Map< String, Object > > comments = new ArrayList<>();
         for ( final Comment c : t.comments() ) comments.add( commentToMap( c, identity ) );
         m.put( "comments", comments );
+        m.put( "agentAvailable", t.agentAvailable() );
+        m.put( "actionable", t.actionable() );
         return m;
     }
 
@@ -411,8 +447,9 @@ public class CommentThreadResource extends RestServletBase {
         final Map< String, Object > m = new LinkedHashMap<>();
         m.put( "id", c.id().toString() );
         m.put( "threadId", c.threadId().toString() );
-        m.put( "author", shownName( identity, c.author() ) );
-        m.put( "authorId", uidOf( identity, c.author() ) );
+        m.put( "author", c.viaAgent() ? AgentAuthors.displayName( c.author() ) : shownName( identity, c.author() ) );
+        m.put( "authorId", c.viaAgent() ? null : uidOf( identity, c.author() ) );
+        m.put( "viaAgent", c.viaAgent() );
         m.put( "body", c.body() );
         m.put( "createdAt", c.createdAt() == null ? null : c.createdAt().toString() );
         m.put( "editedAt", c.editedAt() == null ? null : c.editedAt().toString() );

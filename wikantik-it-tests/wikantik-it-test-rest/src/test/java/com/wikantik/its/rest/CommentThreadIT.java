@@ -483,4 +483,24 @@ public class CommentThreadIT {
         assertEquals( commentText, row.get( "snippet" ), "Alice can view the page, so the snippet is present" );
         assertFalse( feed.body().contains( "\"janne\"" ), "janne's login must not appear: " + feed.body() );
     }
+
+    /** A thread created with {@code agentAvailable:false} reads back with the flag off and no agent comments. */
+    @Test
+    @Order( 5 )
+    @SuppressWarnings( "unchecked" )
+    void thread_created_without_agent_availability_reads_back_with_the_flag_off() throws Exception {
+        loginAsAdmin();
+        final HttpResponse< String > createResp = post( "/api/comment-threads?page=" + PAGE_SLUG,
+                GSON.toJson( Map.of( "exact", ANCHOR_EXACT, "prefix", "", "suffix", "",
+                        "text", "humans only, please", "agentAvailable", false ) ) );
+        assertEquals( 200, createResp.statusCode(), "POST create thread should return 200: " + createResp.body() );
+        final String threadId = ( String ) parseJson( createResp.body() ).get( "id" );
+
+        final Map< String, Object > thread = threadsFor( "all" ).stream()
+                .filter( t -> threadId.equals( t.get( "id" ) ) ).findFirst().orElseThrow();
+        assertEquals( Boolean.FALSE, thread.get( "agentAvailable" ), "flag must round-trip: " + thread );
+        final List< Map< String, Object > > comments = ( List< Map< String, Object > > ) thread.get( "comments" );
+        assertEquals( 1, comments.size() );
+        assertEquals( Boolean.FALSE, comments.get( 0 ).get( "viaAgent" ), "a REST comment is never via an agent" );
+    }
 }

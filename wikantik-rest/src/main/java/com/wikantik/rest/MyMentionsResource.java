@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.api.comments.AgentAuthors;
 import com.wikantik.api.comments.MentionFeedItem;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
@@ -46,7 +47,7 @@ import org.apache.logging.log4j.Logger;
  * Mapped to {@code /api/me/mentions/*}.
  *
  * <p>Rows are stored against logins, but {@code mentionedBy} goes out as the author's current
- * display name. The comment {@code snippet} is only included when the caller can still view the
+ * display name (an agent's name, with {@code viaAgent: true}, when the comment came through an agent credential). The comment {@code snippet} is only included when the caller can still view the
  * page the comment is on: the feed outlives page ACL changes, and a recipient who lost access
  * must not keep reading the discussion through it.</p>
  *
@@ -156,7 +157,9 @@ public class MyMentionsResource extends RestServletBase {
             m.put( "canonicalId", r.canonicalId() );
             m.put( "pageName", slug );
             m.put( "snippet", canViewPage( request, resolved ) ? r.snippet() : null );
-            m.put( "mentionedBy", identity.displayName( r.mentionedBy() ) );
+            m.put( "mentionedBy", r.viaAgent() ? AgentAuthors.displayName( r.mentionedBy() )
+                    : identity.displayName( r.mentionedBy() ) );
+            m.put( "viaAgent", r.viaAgent() );
             m.put( "isOwnerMention", r.isOwnerMention() );
             m.put( "mentionedAt", r.mentionedAt() == null ? null : r.mentionedAt().toString() );
             m.put( "readAt", r.readAt() == null ? null : r.readAt().toString() );

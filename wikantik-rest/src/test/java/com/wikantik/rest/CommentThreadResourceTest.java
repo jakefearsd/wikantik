@@ -81,6 +81,10 @@ class CommentThreadResourceTest {
         Mockito.doReturn( true ).when( servlet ).checkPagePermission(
                 Mockito.any(), Mockito.any(), Mockito.anyString(), Mockito.anyString() );
         Mockito.doReturn( "alice" ).when( servlet ).currentUser( Mockito.any() );
+        // Default caller: a signed-in editor. Trust tests re-stub these.
+        Mockito.doReturn( true ).when( servlet ).isAuthenticated( Mockito.any() );
+        Mockito.doReturn( true ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.anyString(), Mockito.anyString() );
 
         // Identity defaults: a stored principal is shown as itself and nobody has a uid. Individual tests
         // override the logins they care about (a later stubbing wins).
@@ -230,6 +234,162 @@ class CommentThreadResourceTest {
         assertEquals( "alice", stored.createdBy() );
         assertEquals( "alice", stored.resolvedBy() );
         assertEquals( "alice", stored.comments().get( 0 ).author() );
+    }
+
+    // ---- agent feedback loop: flag, trust, dismissed, agent authors ----
+
+    private static JsonObject createBodyWithFlag( final boolean agentAvailable ) {
+        final JsonObject body = createBody( "first" );
+        body.addProperty( "agentAvailable", agentAvailable );
+        return body;
+    }
+
+    private JsonObject firstThread() throws Exception {
+        return get( "?page=PageOne&status=all" ).getAsJsonArray( "threads" ).get( 0 ).getAsJsonObject();
+    }
+
+    @Test
+    void createDefaultsAgentAvailableTrue() throws Exception {
+        final JsonObject created = post( "?page=PageOne", null, createBody( "first" ) );
+        assertTrue( created.get( "agentAvailable" ).getAsBoolean(), created.toString() );
+        assertTrue( store.listByCanonicalId( "CID1", "all" ).get( 0 ).agentAvailable() );
+    }
+
+    @Test
+    void createHonoursAgentAvailableFalse() throws Exception {
+        final JsonObject created = post( "?page=PageOne", null, createBodyWithFlag( false ) );
+        assertFalse( created.get( "agentAvailable" ).getAsBoolean(), created.toString() );
+        assertFalse( firstThread().get( "agentAvailable" ).getAsBoolean() );
+        assertFalse( store.listByCanonicalId( "CID1", "all" ).get( 0 ).agentAvailable() );
+    }
+
+    @Test
+    void editorCommentIsTrustedAndThreadActionable() throws Exception {
+        post( "?page=PageOne", null, createBody( "first" ) );
+        final var stored = store.listByCanonicalId( "CID1", "all" ).get( 0 );
+        assertTrue( stored.comments().get( 0 ).authorCouldEdit() );
+        assertTrue( stored.actionable() );
+        assertTrue( firstThread().get( "actionable" ).getAsBoolean() );
+    }
+
+    @Test
+    void commentOnlyUserIsNotTrusted() throws Exception {
+        Mockito.doReturn( false ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.anyString(), Mockito.eq( "edit" ) );
+        post( "?page=PageOne", null, createBody( "first" ) );
+        final var stored = store.listByCanonicalId( "CID1", "all" ).get( 0 );
+        assertFalse( stored.comments().get( 0 ).authorCouldEdit() );
+        assertFalse( firstThread().get( "actionable" ).getAsBoolean() );
+    }
+
+    @Test
+    void anonymousCommentIsNeverTrusted() throws Exception {
+        Mockito.doReturn( false ).when( servlet ).isAuthenticated( Mockito.any() );
+        post( "?page=PageOne", null, createBody( "first" ) );
+        assertFalse( store.listByCanonicalId( "CID1", "all" ).get( 0 ).comments().get( 0 ).authorCouldEdit() );
+    }
+
+    @Test
+    void replyAndEditRecomputeTrust() throws Exception {
+        Mockito.doReturn( false ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.anyString(), Mockito.eq( "edit" ) );
+        final String threadId = post( "?page=PageOne", null, createBody( "first" ) ).get( "id" ).getAsString();
+        final JsonObject reply = post( null, "/" + threadId + "/comments", textBody( "reply" ) );
+        final java.util.UUID replyId = java.util.UUID.fromString( reply.get( "id" ).getAsString() );
+        assertFalse( store.findComment( replyId ).orElseThrow().authorCouldEdit() );
+
+        // The author is later granted edit; editing the reply refreshes the snapshot.
+        Mockito.doReturn( true ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.anyString(), Mockito.eq( "edit" ) );
+        patch( "/" + threadId + "/comments/" + replyId, textBody( "reply, edited" ) );
+        assertTrue( store.findComment( replyId ).orElseThrow().authorCouldEdit() );
+    }
+
+    private String agentThread( final String agentAuthor ) {
+        final var t = store.createThread( "CID1", new com.wikantik.api.comments.TextQuoteSelector( "hello", null, null ),
+                "alice", "please fix", mentionService, Optional.empty(), true, true );
+        store.respondAsAgent( t.id(), CommentStore.AgentAction.REPLY, agentAuthor, "on it", mentionService );
+        return t.id().toString();
+    }
+
+    @Test
+    void agentCommentShowsStrippedNameAndViaAgent() throws Exception {
+        agentThread( "agent:wikantik-cli" );
+        final JsonArray comments = firstThread().getAsJsonArray( "comments" );
+        final JsonObject agent = comments.get( 1 ).getAsJsonObject();
+        assertEquals( "wikantik-cli", agent.get( "author" ).getAsString() );
+        assertTrue( agent.get( "viaAgent" ).getAsBoolean() );
+        assertFalse( agent.has( "authorId" ), "agents have no uid: " + agent );
+        assertFalse( comments.get( 0 ).getAsJsonObject().get( "viaAgent" ).getAsBoolean() );
+        Mockito.verify( identity, Mockito.never() ).displayName( "agent:wikantik-cli" );
+        Mockito.verify( identity, Mockito.never() ).userIdForLogin( "agent:wikantik-cli" );
+    }
+
+    @Test
+    void memberLoginStartingWithAgentPrefixIsNotAnAgent() throws Exception {
+        // A human whose login merely starts with "agent:" is rendered as a member, not an agent.
+        store.createThread( "CID1", new com.wikantik.api.comments.TextQuoteSelector( "hello", null, null ),
+                "agent:sneaky", "hi", mentionService, Optional.empty() );
+        Mockito.when( identity.displayName( "agent:sneaky" ) ).thenReturn( "Sneaky Person" );
+        Mockito.when( identity.userIdForLogin( "agent:sneaky" ) ).thenReturn( Optional.of( "uid-9" ) );
+        final JsonObject c = firstThread().getAsJsonArray( "comments" ).get( 0 ).getAsJsonObject();
+        assertEquals( "Sneaky Person", c.get( "author" ).getAsString() );
+        assertEquals( "uid-9", c.get( "authorId" ).getAsString() );
+        assertFalse( c.get( "viaAgent" ).getAsBoolean() );
+    }
+
+    @Test
+    void resolvedByAgentIsShownAsAgent() throws Exception {
+        final String threadId = agentThread( "agent:wikantik-cli" );
+        store.respondAsAgent( java.util.UUID.fromString( threadId ), CommentStore.AgentAction.RESOLVE,
+                "agent:wikantik-cli", "done", mentionService );
+        final JsonObject thread = firstThread();
+        assertEquals( "resolved", thread.get( "status" ).getAsString() );
+        assertEquals( "wikantik-cli", thread.get( "resolvedBy" ).getAsString() );
+        assertFalse( thread.has( "resolvedById" ), thread.toString() );
+    }
+
+    @Test
+    void resolvedByMemberWithAgentPrefixGoesThroughPublicIdentity() throws Exception {
+        final String threadId = createThread();
+        Mockito.doReturn( "agent:sneaky" ).when( servlet ).currentUser( Mockito.any() );
+        Mockito.when( identity.displayName( "agent:sneaky" ) ).thenReturn( "Sneaky Person" );
+        post( null, "/" + threadId + "/resolve", new JsonObject() );
+        assertEquals( "Sneaky Person", firstThread().get( "resolvedBy" ).getAsString() );
+    }
+
+    @Test
+    void listAcceptsDismissedStatus() throws Exception {
+        final String threadId = agentThread( "agent:wikantik-cli" );
+        createThread();
+        store.respondAsAgent( java.util.UUID.fromString( threadId ), CommentStore.AgentAction.DISMISS,
+                "agent:wikantik-cli", "not needed", mentionService );
+        final JsonArray dismissed = get( "?page=PageOne&status=dismissed" ).getAsJsonArray( "threads" );
+        assertEquals( 1, dismissed.size() );
+        assertEquals( "dismissed", dismissed.get( 0 ).getAsJsonObject().get( "status" ).getAsString() );
+    }
+
+    @Test
+    void resolveOfMissingThreadDoesNotReportResolved() throws Exception {
+        final String threadId = createThread();
+        // The thread authorises, then vanishes before the update (store reports false).
+        final CommentStore racing = Mockito.spy( store );
+        Mockito.doReturn( false ).when( racing ).resolve( Mockito.any(), Mockito.anyString() );
+        Mockito.doReturn( racing ).when( servlet ).commentStore();
+        final JsonObject res = post( null, "/" + threadId + "/resolve", new JsonObject() );
+        assertTrue( res.get( "error" ).getAsBoolean(), res.toString() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+        assertFalse( res.has( "updated" ), res.toString() );
+    }
+
+    @Test
+    void reopenOfMissingThreadDoesNotReportOpen() throws Exception {
+        final String threadId = createThread();
+        final CommentStore racing = Mockito.spy( store );
+        Mockito.doReturn( false ).when( racing ).reopen( Mockito.any() );
+        Mockito.doReturn( racing ).when( servlet ).commentStore();
+        final JsonObject res = post( null, "/" + threadId + "/reopen", new JsonObject() );
+        assertEquals( 404, res.get( "status" ).getAsInt(), res.toString() );
     }
 
     private static JsonObject textBody( final String text ) {

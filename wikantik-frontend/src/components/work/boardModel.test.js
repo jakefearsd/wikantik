@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { STATUSES, DEFAULT_STATUSES, STATUS_LABELS, orderColumns, rankForInsert, addToColumns, moveInColumns, groupByEpic, isOverdue } from './boardModel';
+import { STATUSES, DEFAULT_STATUSES, STATUS_LABELS, orderColumns, rankForInsert, addToColumns, moveInColumns, revertCard, groupByEpic, isOverdue } from './boardModel';
 
 const item = (id, rank, extra = {}) => ({ id, key: `P-${id}`, rank, status: 'ready', level: 'task', ...extra });
 
@@ -63,6 +63,20 @@ describe('moveInColumns', () => {
     const next = moveInColumns(cols, 'P-1', 'ready', 1);
     expect(next[0].items.map((i) => i.id)).toEqual([2, 1]);
     expect(next[0].total).toBe(2);
+  });
+});
+
+describe('revertCard', () => {
+  it('puts only that card back, by rank, leaving the rest as they are', () => {
+    const a = item(1, 1); const b = item(2, 2); const c = item(3, 3);
+    let cols = [{ status: 'ready', total: 3, items: [a, b, c] }, { status: 'review', total: 0, items: [] }];
+    cols = moveInColumns(cols, 'P-2', 'review', 0, 9);
+    cols = moveInColumns(cols, 'P-3', 'review', 1);
+    const reverted = revertCard(cols, b);
+    expect(reverted[0].items.map((i) => i.id)).toEqual([1, 2]);
+    expect(reverted[0].items[1]).toMatchObject({ rank: 2, status: 'ready' });
+    expect(reverted[1].items.map((i) => i.id)).toEqual([3]);
+    expect(reverted[0].total + reverted[1].total).toBe(3);
   });
 });
 

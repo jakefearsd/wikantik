@@ -8,16 +8,16 @@ import { getBoard, getMe, listMembers, listProducts, patchItem } from '../../api
 import { useWorkProject } from './useWorkProject';
 import WorkCard from './WorkCard';
 import WorkItemForm from './WorkItemForm';
-import { STATUS_LABELS, addToColumns, groupByEpic, moveInColumns, orderColumns, rankForInsert } from './boardModel';
+import { STATUS_LABELS, addToColumns, groupByEpic, moveInColumns, orderColumns, rankForInsert, revertCard } from './boardModel';
 
 const CHANGERS = new Set(['member', 'lead']);
 
-function Column({ column, canEdit, grouped, allItems, onDragStart, onMove, onDrop }) {
+function Column({ column, canEdit, grouped, allItems, onDragStart, onDragEnd, onMove, onDrop }) {
   const { status, total, items } = column;
   const count = total > items.length ? `${items.length} of ${total}` : String(total);
   const card = (item) => (
     <WorkCard key={item.id} item={item} productKey={item.productKey} draggable={canEdit}
-      onDragStart={onDragStart} onMove={canEdit ? onMove : undefined} />
+      onDragStart={onDragStart} onDragEnd={onDragEnd} onMove={canEdit ? onMove : undefined} />
   );
   return (
     <section
@@ -58,6 +58,7 @@ export default function WorkBoard() {
   const assigneeFilter = params.get('assignee') || '';
   const [formOpen, setFormOpen] = useState(false);
   const dragged = useRef(null);
+  const loadSeq = useRef(0);
   const columns = state.projectKey === project.key ? state.columns : null;
 
   const setColumns = useCallback((next) => setState((s) => ({
@@ -70,10 +71,17 @@ export default function WorkBoard() {
     else setLoadError(e?.message || 'Could not load the board.');
   }, []);
 
-  const load = useCallback(() => getBoard(project.key,
-    { ...(productFilter ? { product: productFilter } : {}), ...(assigneeFilter ? { assignee: assigneeFilter } : {}) })
-    .then((cols) => { setNotFound(false); setLoadError(null); setColumns(cols || []); })
-    .catch(fail), [project.key, productFilter, assigneeFilter, setColumns, fail]);
+  // Only the latest request may write state: an older response arriving late is dropped.
+  const load = useCallback(() => {
+    const seq = ++loadSeq.current;
+    return getBoard(project.key,
+      { ...(productFilter ? { product: productFilter } : {}), ...(assigneeFilter ? { assignee: assigneeFilter } : {}) })
+      .then((cols) => {
+        if (seq !== loadSeq.current) return;
+        setNotFound(false); setLoadError(null); setColumns(cols || []);
+      })
+      .catch((e) => { if (seq === loadSeq.current) fail(e); });
+  }, [project.key, productFilter, assigneeFilter, setColumns, fail]);
 
   function setFilter(name, value) {
     const next = new URLSearchParams(params);
@@ -104,7 +112,7 @@ export default function WorkBoard() {
     const rank = rankForInsert(others, at, { append: status === item.status });
     const changes = status === item.status ? { rank } : { status };
     if (status !== item.status && rank !== undefined) changes.rank = rank;
-    const previous = columns;
+    const original = columns.flatMap((c) => c.items).find((i) => i.key === item.key);
     setColumns(moveInColumns(columns, item.key, status, at, rank));
     patchItem(item.key, { expectedVersion: item.version, changes })
       .then((view) => setColumns((cols) => (cols || []).map((c) => ({
@@ -118,7 +126,7 @@ export default function WorkBoard() {
           setNotFound(true);
         } else {
           toast.error(err?.message || `Could not move ${item.key}.`);
-          setColumns(previous);
+          setColumns((cols) => revertCard(cols || [], original));
         }
       });
   }
@@ -183,12 +191,19 @@ export default function WorkBoard() {
           <Column key={c.status} column={c} canEdit={canEdit} grouped={grouped}
             allItems={allItems}
             onDragStart={(item) => { dragged.current = item.key; }}
+            onDragEnd={() => { dragged.current = null; }}
             onMove={(item, status) => move(item, status)} onDrop={onDrop} />
         ))}
       </div>
       <WorkItemForm isOpen={formOpen} project={project} products={products} onClose={() => setFormOpen(false)}
-        onCreated={(item) => {
-          setColumns((cols) => addToColumns(cols || [], item));
+        onCreated={(created, view) => {
+          const item = {
+            ...created, productKey: view?.productKey ?? null, parentKey: view?.parentKey ?? null,
+            blocked: !!view?.blocked, commentCount: view?.comments?.length ?? 0,
+          };
+          const matches = (!productFilter || item.productKey === productFilter)
+            && (!assigneeFilter || item.assignee === assigneeFilter);
+          if (matches) setColumns((cols) => addToColumns(cols || [], item));
           toast.success(`Created ${item.key}`);
         }} />
     </div>

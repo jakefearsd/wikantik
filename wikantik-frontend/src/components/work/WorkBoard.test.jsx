@@ -234,4 +234,81 @@ describe('WorkBoard', () => {
     await waitFor(() => expect(screen.getByLabelText('Filter by product')).toHaveValue('wikantik'));
     await waitFor(() => expect(screen.getByLabelText('Filter by assignee')).toHaveValue('dan-login'));
   });
+
+  const deferred = () => { let resolve; let reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
+
+  it('failedMoveRevertsOnlyThatCard', async () => {
+    board = boardOf({ ready: [item(1, 'ready'), item(2, 'ready')], review: [item(3, 'review')] });
+    const first = deferred();
+    const second = deferred();
+    patchItem.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.change(screen.getByLabelText('Move PLAT-1 to…'), { target: { value: 'review' } });
+    fireEvent.change(screen.getByLabelText('Move PLAT-2 to…'), { target: { value: 'in_progress' } });
+    await waitFor(() => expect(within(column('in_progress')).getByText('Item 2')).toBeInTheDocument());
+    first.reject(Object.assign(new Error('Refused'), { status: 403 }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Refused'));
+    expect(within(column('ready')).getByText('Item 1')).toBeInTheDocument();
+    expect(within(column('review')).queryByText('Item 1')).not.toBeInTheDocument();
+    expect(within(column('in_progress')).getByText('Item 2')).toBeInTheDocument();
+    expect(within(column('ready')).queryByText('Item 2')).not.toBeInTheDocument();
+  });
+
+  it('staleBoardResponseIsIgnored', async () => {
+    renderBoard();
+    await screen.findByText('Item 1');
+    const stale = deferred();
+    const fresh = deferred();
+    getBoard.mockReset();
+    getBoard.mockReturnValueOnce(stale.promise).mockReturnValueOnce(fresh.promise);
+    patchItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: {} }));
+    fireEvent.change(screen.getByLabelText('Move PLAT-1 to…'), { target: { value: 'review' } });
+    await waitFor(() => expect(getBoard).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText('Filter by product'), { target: { value: 'wikantik' } });
+    await waitFor(() => expect(getBoard).toHaveBeenCalledTimes(2));
+    fresh.resolve(boardOf({ ready: [item(8, 'ready', { title: 'Fresh card' })] }));
+    expect(await screen.findByText('Fresh card')).toBeInTheDocument();
+    stale.resolve(boardOf({ ready: [item(9, 'ready', { title: 'Stale card' })] }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText('Stale card')).not.toBeInTheDocument();
+    expect(screen.getByText('Fresh card')).toBeInTheDocument();
+  });
+
+  it('cancelledDragDoesNotLeaveAStaleCardToDrop', async () => {
+    renderBoard();
+    const card = (await screen.findByText('Item 1')).closest('.work-card');
+    fireEvent.dragStart(card, { dataTransfer: dt() });
+    fireEvent.dragEnd(card, { dataTransfer: dt() });
+    fireEvent.drop(column('review'), { dataTransfer: dt() });
+    expect(patchItem).not.toHaveBeenCalled();
+  });
+
+  it('createdItemCarriesExtrasFromTheItemView', async () => {
+    createItem.mockResolvedValue({ item: item(77, 'draft', { title: 'Brand new', productKey: undefined }),
+      productKey: 'wikantik', parentKey: 'PLAT-2', blocked: true, comments: [] });
+    renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.click(screen.getByRole('button', { name: 'New item' }));
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Brand new' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    fireEvent.click(await screen.findByLabelText('Show draft and cancelled'));
+    const card = (await screen.findByText('Brand new')).closest('.work-card');
+    expect(within(card).getByText('wikantik')).toBeInTheDocument();
+    expect(within(card).getByText('Blocked')).toBeInTheDocument();
+  });
+
+  it('createdItemOutsideTheActiveFilterIsNotAdded', async () => {
+    createItem.mockResolvedValue({ item: item(77, 'draft', { title: 'Other product' }), productKey: 'other', comments: [] });
+    renderBoard({ url: '/work/PLAT?product=wikantik' });
+    await screen.findByText('Item 1');
+    fireEvent.click(screen.getByRole('button', { name: 'New item' }));
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Other product' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(createItem).toHaveBeenCalled());
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    fireEvent.click(screen.getByLabelText('Show draft and cancelled'));
+    expect(screen.queryByText('Other product')).not.toBeInTheDocument();
+  });
 });
+

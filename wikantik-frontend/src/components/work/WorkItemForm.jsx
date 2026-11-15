@@ -56,7 +56,7 @@ function FormBody({ project, products, onClose, onCreated }) {
     if (dueOn) draft.dueOn = dueOn;
     createItem(draft)
       .then((view) => {
-        onCreated?.(view.item);
+        onCreated?.(view.item, view);
         onClose();
       })
       .catch((err) => {
@@ -124,7 +124,7 @@ function FormBody({ project, products, onClose, onCreated }) {
   );
 }
 
-/** Modal "New item" form. onCreated receives the created Item; the board adds it without reloading. */
+/** Modal "New item" form. onCreated receives the created Item and the full ItemView; the board adds it without reloading. */
 export default function WorkItemForm({ isOpen, onClose, project, products, onCreated }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} labelledBy="work-item-form-title" className="work-form-modal">

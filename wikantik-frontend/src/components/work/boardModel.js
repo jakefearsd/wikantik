@@ -28,6 +28,17 @@ export function rankForInsert(others, index, { append = false } = {}) {
   return (others[index - 1].rank + others[index].rank) / 2;
 }
 
+/**
+ * A copy of columns with just this card put back where `original` (the card as it was before a move) had it:
+ * its old status, at the position its old rank gives. Every other card is left as it is now.
+ */
+export function revertCard(columns, original) {
+  const target = columns.find((c) => c.status === original.status);
+  const others = (target?.items || []).filter((i) => i.key !== original.key);
+  const hit = others.findIndex((i) => i.rank > original.rank);
+  return moveInColumns(columns, original.key, original.status, hit < 0 ? others.length : hit, original.rank);
+}
+
 /** A copy of columns with a newly created item appended to the column of its status. */
 export function addToColumns(columns, item) {
   return columns.map((c) => (c.status === item.status

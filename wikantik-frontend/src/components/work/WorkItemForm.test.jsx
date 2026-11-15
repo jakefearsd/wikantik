@@ -61,14 +61,15 @@ describe('WorkItemForm', () => {
   });
 
   it('creates the item and reports it without closing on error', async () => {
-    createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9', status: 'draft' } });
+    const view = { item: { id: 9, key: 'PLAT-9', status: 'draft' }, productKey: 'wikantik' };
+    createItem.mockResolvedValue(view);
     const { onCreated, onClose } = setup();
     await waitFor(() => expect(parentOptions().join()).toContain('PLAT-2'));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: ' Ship it ' } });
     fireEvent.change(screen.getByLabelText('Parent'), { target: { value: 'PLAT-2' } });
     fireEvent.change(screen.getByLabelText('Product'), { target: { value: 'wikantik' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ id: 9, key: 'PLAT-9', status: 'draft' }));
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(view.item, view));
     expect(createItem).toHaveBeenCalledWith(expect.objectContaining({
       project: 'PLAT', level: 'task', title: 'Ship it', parentKey: 'PLAT-2', productKey: 'wikantik',
     }));

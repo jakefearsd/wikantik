@@ -297,4 +297,39 @@ class WorkItemResourceTest {
         Mockito.verify( svc ).items( any(), anyString(), f.capture() );
         assertEquals( 200, f.getValue().limit() );
     }
+
+    @Test
+    void aNonIntegerExpectedVersionIs400() throws Exception {
+        for ( final String bad : List.of( "1e99", "1.5", "99999999999", "\"1\"", "null" ) ) {
+            final WorkHttp.Result r = send( "PATCH", "/api/work/items", "/PLAT-1",
+                "{\"expectedVersion\":" + bad + ",\"changes\":{\"title\":\"x\"}}" );
+            assertEquals( 400, r.status(), bad + ": " + r.body() );
+            assertEquals( "expectedVersion", r.json().getAsJsonObject().get( "field" ).getAsString(), bad );
+        }
+        Mockito.verify( svc, Mockito.never() ).updateItem( any(), anyString(), any() );
+    }
+
+    @Test
+    void anOversizedBodyIs413() throws Exception {
+        final String big = "{\"body\":\"" + "x".repeat( 262_200 ) + "\"}";
+        final WorkHttp.Result r = send( "POST", "/api/work/items", "/PLAT-1/comments", big );
+        assertEquals( 413, r.status(), r.body() );
+        Mockito.verifyNoInteractions( svc );
+    }
+
+    @Test
+    void aBodyJustUnderTheLimitIsAccepted() throws Exception {
+        Mockito.when( svc.addComment( any(), anyString(), any() ) ).thenReturn(
+            new Comment( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null, null ) );
+        final String big = "{\"body\":\"" + "x".repeat( 262_000 ) + "\"}";
+        assertEquals( 201, send( "POST", "/api/work/items", "/PLAT-1/comments", big ).status() );
+    }
+
+    @Test
+    void disabledFeatureIs404EvenForAnAnonymousCaller() throws Exception {
+        Mockito.doReturn( null ).when( servlet ).workService();
+        Mockito.doReturn( null ).when( servlet ).actor( any() );
+        assertEquals( 404, get( "/PLAT-1", Map.of() ).status() );
+        Mockito.verify( servlet, Mockito.never() ).actor( any() );
+    }
 }

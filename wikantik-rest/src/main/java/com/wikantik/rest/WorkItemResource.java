@@ -124,15 +124,25 @@ public class WorkItemResource extends WorkResourceBase {
         }
     }
 
+    /** A whole number that fits an int; anything else (missing, text, 1.5, 1e99) is a 400 on the field. */
+    private static int expectedVersion( final JsonObject b ) {
+        final JsonElement v = b.get( "expectedVersion" );
+        if ( v == null || !v.isJsonPrimitive() || !v.getAsJsonPrimitive().isNumber() ) {
+            throw new WorkValidationException( "expectedVersion", "expectedVersion is required." );
+        }
+        try {
+            return new java.math.BigDecimal( v.getAsString() ).intValueExact();
+        } catch ( final ArithmeticException | NumberFormatException e ) {
+            throw new WorkValidationException( "expectedVersion", "expectedVersion must be a whole number." );
+        }
+    }
+
     private void patch( final Call c ) throws Exception {
         final JsonObject b = c.body();
         if ( b == null ) {
             return;
         }
-        final JsonElement version = b.get( "expectedVersion" );
-        if ( version == null || !version.isJsonPrimitive() || !version.getAsJsonPrimitive().isNumber() ) {
-            throw new WorkValidationException( "expectedVersion", "expectedVersion is required." );
-        }
+        final int expectedVersion = expectedVersion( b );
         final Map< String, Object > changes = new LinkedHashMap<>();
         final JsonElement raw = b.get( "changes" );
         if ( raw != null && !raw.isJsonNull() ) {
@@ -144,6 +154,6 @@ public class WorkItemResource extends WorkResourceBase {
             }
         }
         c.json( c.svc.updateItem( c.actor, c.pathParam( 0 ),
-            new ItemPatch( version.getAsInt(), changes, optString( b, "note" ) ) ) );
+            new ItemPatch( expectedVersion, changes, optString( b, "note" ) ) ) );
     }
 }

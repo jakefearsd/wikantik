@@ -186,36 +186,87 @@ public class WorkApiIT {
         assertEquals( "Racy two", current.getAsJsonObject( "item" ).get( "title" ).getAsString() );
     }
 
+    /** One request of the sweep: the real, populated target and the same request against one that does not exist. */
+    private record Probe( String method, String real, String ghost, Object body, Object ghostBody, int expected ) {
+        Probe( final String method, final String real, final String ghost, final Object body, final int expected ) {
+            this( method, real, ghost, body, body, expected );
+        }
+    }
+
     @Test
     @Order( 3 )
     void nonMemberGets404Everywhere() throws Exception {
-        final String[] hidden = { "/api/work/projects/PLAT", "/api/work/projects/PLAT/members",
-            "/api/work/projects/PLAT/board", "/api/work/items?project=PLAT", "/api/work/items/PLAT-1",
-            "/api/work/items/PLAT-1/revisions", "/api/work/items/PLAT-1/events", "/api/work/activity?project=PLAT" };
-        for ( final String path : hidden ) {
-            final HttpResponse< String > r = outsider.get( path );
-            assertEquals( 404, r.statusCode(), path + ": " + r.body() );
-            // indistinguishable from a project and item that never existed
-            final HttpResponse< String > ghost = outsider.get( path.replace( "PLAT", "GHOST" ) );
-            assertEquals( 404, ghost.statusCode(), path );
-            assertEquals( ghost.body().replace( "GHOST", "PLAT" ), r.body(), path );
-            assertFalse( r.body().contains( "PLAT" ), path + " echoes the key: " + r.body() );
+        // the real numeric ids of a comment and a link in PLAT, found as the member
+        final JsonObject story = ok( member.get( "/api/work/items/PLAT-2" ) );
+        final long commentId = story.getAsJsonArray( "comments" ).get( 0 ).getAsJsonObject().get( "id" ).getAsLong();
+        final long linkId = story.getAsJsonArray( "links" ).get( 0 ).getAsJsonObject().get( "id" ).getAsLong();
+        final long ghostId = 987654321L;
+        final Map< String, Object > member1 = Map.of( "principal", "wapimember", "principalKind", "user", "role", "member" );
+        final Map< String, Object > member2 = Map.of( "principal", "wapimember", "principalKind", "user" );
+        final Map< String, Object > patchBody = Map.of( "expectedVersion", 1, "changes", Map.of( "title", "x" ) );
+        final Map< String, Object > newItem = Map.of( "level", "epic", "title", "x" );
+
+        // every route of the endpoint table, every method; project/product creation and the product writes are
+        // admin-only by design, so for a non-member they are 403 whether or not the target exists
+        final List< Probe > probes = List.of(
+            new Probe( "POST", "/api/work/projects", "/api/work/projects", Map.of( "key", "PLAT", "name", "x" ), 403 ),
+            new Probe( "GET", "/api/work/projects/PLAT", "/api/work/projects/GHOST", null, 404 ),
+            new Probe( "PATCH", "/api/work/projects/PLAT", "/api/work/projects/GHOST", Map.of( "name", "x" ), 404 ),
+            new Probe( "POST", "/api/work/projects/PLAT/archive", "/api/work/projects/GHOST/archive", null, 404 ),
+            new Probe( "GET", "/api/work/projects/PLAT/members", "/api/work/projects/GHOST/members", null, 404 ),
+            new Probe( "PUT", "/api/work/projects/PLAT/members", "/api/work/projects/GHOST/members", member1, 404 ),
+            new Probe( "DELETE", "/api/work/projects/PLAT/members", "/api/work/projects/GHOST/members", member2, 404 ),
+            new Probe( "GET", "/api/work/projects/PLAT/board", "/api/work/projects/GHOST/board", null, 404 ),
+            new Probe( "POST", "/api/work/products", "/api/work/products", Map.of( "key", "wikantik", "name", "x" ), 403 ),
+            new Probe( "PATCH", "/api/work/products/wikantik", "/api/work/products/ghostprod", Map.of( "name", "x" ), 404 ),
+            new Probe( "POST", "/api/work/products/wikantik/archive", "/api/work/products/ghostprod/archive", null, 403 ),
+            new Probe( "GET", "/api/work/items?project=PLAT", "/api/work/items?project=GHOST", null, 404 ),
+            new Probe( "POST", "/api/work/items", "/api/work/items", withProject( newItem, "PLAT" ),
+                withProject( newItem, "GHOST" ), 404 ),
+            new Probe( "GET", "/api/work/items/PLAT-1", "/api/work/items/GHOST-1", null, 404 ),
+            new Probe( "PATCH", "/api/work/items/PLAT-1", "/api/work/items/GHOST-1", patchBody, 404 ),
+            new Probe( "GET", "/api/work/items/PLAT-1/revisions", "/api/work/items/GHOST-1/revisions", null, 404 ),
+            new Probe( "GET", "/api/work/items/PLAT-1/events", "/api/work/items/GHOST-1/events", null, 404 ),
+            new Probe( "POST", "/api/work/items/PLAT-1/comments", "/api/work/items/GHOST-1/comments", Map.of( "body", "x" ), 404 ),
+            new Probe( "PATCH", "/api/work/comments/" + commentId, "/api/work/comments/" + ghostId, Map.of( "body", "x" ), 404 ),
+            new Probe( "DELETE", "/api/work/comments/" + commentId, "/api/work/comments/" + ghostId, null, 404 ),
+            new Probe( "POST", "/api/work/items/PLAT-1/links", "/api/work/items/GHOST-1/links",
+                Map.of( "kind", "page", "target", "Main" ), 404 ),
+            new Probe( "DELETE", "/api/work/links/" + linkId, "/api/work/links/" + ghostId, null, 404 ),
+            new Probe( "GET", "/api/work/activity?project=PLAT", "/api/work/activity?project=GHOST", null, 404 ) );
+
+        for ( final Probe p : probes ) {
+            final HttpResponse< String > real = outsider.send( p.method, p.real, p.body );
+            final HttpResponse< String > ghost = outsider.send( p.method, p.ghost, p.ghostBody );
+            final String label = p.method + " " + p.real;
+            assertEquals( p.expected, real.statusCode(), label + ": " + real.body() );
+            assertEquals( ghost.statusCode(), real.statusCode(), label + " status differs from the ghost target" );
+            assertEquals( ghost.body(), real.body(), label + " body differs from the ghost target" );
+            assertFalse( real.body().contains( "PLAT" ) || real.body().contains( "wikantik" ), label + " echoes a key: " + real.body() );
+            if ( "GET".equals( p.method ) ) {
+                // the "real" target really is there: the member reads it
+                assertEquals( 200, member.get( p.real ).statusCode(), label + " (as the member): the real target must exist" );
+            }
         }
+        // the lists carry no target; an outsider's are empty
         assertEquals( "[]", WorkIt.GSON.toJson( json( outsider.get( "/api/work/projects" ) ) ) );
         assertEquals( "[]", WorkIt.GSON.toJson( json( outsider.get( "/api/work/products" ) ) ) );
         final JsonObject me = ok( outsider.get( "/api/work/me" ) );
         assertEquals( 0, me.getAsJsonArray( "waitingOn" ).size() );
         assertEquals( 0, me.getAsJsonArray( "projects" ).size() );
-        // writes are as blind as reads
-        assertEquals( 404, outsider.send( "POST", "/api/work/items", Map.of( "project", "PLAT", "level", "epic",
-            "title", "x" ) ).statusCode() );
-        assertEquals( 404, outsider.send( "POST", "/api/work/items/PLAT-1/comments", Map.of( "body", "x" ) ).statusCode() );
-        assertEquals( 404, outsider.send( "PATCH", "/api/work/items/PLAT-1", Map.of( "expectedVersion", 1,
-            "changes", Map.of( "title", "x" ) ) ).statusCode() );
         // and an anonymous caller is only asked to sign in
         final Caller anonymous = new Caller();
         assertEquals( 401, anonymous.get( "/api/work/projects" ).statusCode() );
         assertEquals( 401, anonymous.get( "/api/work/items/PLAT-1" ).statusCode() );
+        // nothing the sweep did changed the project
+        assertEquals( "Platform", ok( member.get( "/api/work/projects/PLAT" ) ).get( "name" ).getAsString() );
+        assertEquals( 1, ok( member.get( "/api/work/items/PLAT-2" ) ).getAsJsonArray( "comments" ).size() );
+    }
+
+    private static Map< String, Object > withProject( final Map< String, Object > fields, final String project ) {
+        final Map< String, Object > m = new java.util.LinkedHashMap<>( fields );
+        m.put( "project", project );
+        return m;
     }
 
     @Test

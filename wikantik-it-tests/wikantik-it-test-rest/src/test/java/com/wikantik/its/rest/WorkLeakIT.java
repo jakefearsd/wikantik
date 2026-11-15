@@ -31,18 +31,27 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Work items never reach a wiki surface. An item whose title and body carry a unique token (and a wikilink to a real
- * page) is created; then an ordinary page carrying a second token is created <em>after</em> it. Once that ordinary
- * page shows up on a surface the index has demonstrably caught up, so the item's token being absent from the same
- * surface means something. Checked as the wiki admin, who can see everything a project member can.
+ * Work items never reach a wiki surface. An item whose title and body carry a shared word and a word of its own (and
+ * a wikilink to a real page) is created; then an ordinary page carrying the shared word is created <em>after</em> it.
+ * On every surface listed below the ordinary page is first waited for (a 200 answer that shows it: the positive
+ * control, so the index has demonstrably caught up and the path is right), and only then is the item's own word, its
+ * key and its title asserted absent from that same answer. The surfaces are queried by the shared word, which appears
+ * in both, so a surface that echoes the request back echoes something that is not the item's own text.
+ * Checked as the wiki admin, who can see everything a project member can.
  *
- * <p>{@code /api/bundle} has no positive control here: this module runs without an embedder, so a bundle is empty
- * for any query. It is still asserted (an empty answer can only get less empty by a leak).
+ * <h2>Not covered here</h2>
+ * <ul>
+ *   <li>{@code /api/pages?q=}: it filters by page name, not text, so no query can make the ordinary page show up
+ *       through it and carry a control; {@code /api/pages?limit=1000} lists the same pages and is covered.</li>
+ * </ul>
  */
 public class WorkLeakIT {
 
-    private static final String WORK_TOKEN = "zqworkleak7";
-    private static final String PAGE_TOKEN = "zqpagecontrol7";
+    /** In the item and in the ordinary page: what the surfaces are queried by. */
+    private static final String SHARED = "zqleakshared7";
+    /** Only in the item (title and body). */
+    private static final String ITEM_ONLY = "zqitemonly7";
+    private static final String ITEM_TITLE = "Leak probe item";
     private static final String TARGET = "WorkLeakTarget";
     private static final String LINKER = "WorkLeakLinker";
 
@@ -52,10 +61,12 @@ public class WorkLeakIT {
         assertTrue( r.statusCode() == 200 || r.statusCode() == 201, "save " + page + ": " + r.statusCode() + " " + r.body() );
     }
 
-    private static List< String > surfaces( final String token ) {
-        return List.of( "/api/search?q=" + token, "/api/bundle?q=" + token, "/api/changes?since=2000-01-01T00:00:00Z",
-            "/sitemap.xml", "/api/pages?limit=1000", "/api/pages?q=" + token, "/api/recent-changes",
-            "/api/structure/pages?limit=1000", "/api/backlinks/" + TARGET );
+    /** Surfaces that index or list pages; each must show the ordinary page, via a 200, before absence means anything. */
+    private static List< String > surfaces() {
+        return List.of( "/api/search?q=" + SHARED, "/api/bundle?mode=lexical&q=" + SHARED,
+            "/api/changes?since=2000-01-01T00:00:00Z", "/sitemap.xml", "/api/pages?limit=1000",
+            "/api/recent-changes", "/api/structure/pages?limit=1000",
+            "/api/backlinks/" + TARGET );
     }
 
     @Test
@@ -63,32 +74,24 @@ public class WorkLeakIT {
         final Caller admin = WorkIt.admin();
         put( admin, TARGET, "# Target\n\nA page that work items link to.\n" );
 
-        assertEquals( 201, admin.send( "POST", "/api/work/projects", Map.of( "key", "LEAK", "name", "Leak probe" ) ).statusCode() );
+        assertEquals( 201, admin.send( "POST", "/api/work/projects", Map.of( "key", "LEAK", "name", "Leak project" ) ).statusCode() );
         final HttpResponse< String > item = admin.send( "POST", "/api/work/items", Map.of( "project", "LEAK", "level", "epic",
-            "title", "Title " + WORK_TOKEN, "body", "Body " + WORK_TOKEN + " links [[" + TARGET + "]] and [" + TARGET
-                + "](" + TARGET + ")." ) );
+            "title", ITEM_TITLE + " " + ITEM_ONLY, "body", SHARED + " " + ITEM_ONLY + " links [[" + TARGET + "]] and ["
+                + TARGET + "](" + TARGET + ")." ) );
         assertEquals( 201, item.statusCode(), item.body() );
         final String itemKey = ( ( JsonObject ) WorkIt.json( item ) ).getAsJsonObject( "item" ).get( "key" ).getAsString();
         // the item exists and is readable where it should be
         assertEquals( 200, admin.get( "/api/work/items/" + itemKey ).statusCode() );
 
-        // an ordinary page, created after the item, with its own token and a link to the same target
-        put( admin, LINKER, "# Linker\n\nControl " + PAGE_TOKEN + " links to [" + TARGET + "](" + TARGET + ").\n" );
+        // an ordinary page, created after the item, with the shared word and a link to the same target
+        put( admin, LINKER, "# Linker\n\nThe word " + SHARED + " links to [" + TARGET + "](" + TARGET + ").\n" );
 
-        // positive controls: the ordinary page IS found on the surfaces that index it
-        WorkIt.await( "/api/search", admin, "/api/search?q=" + PAGE_TOKEN, b -> b.contains( LINKER ) );
-        WorkIt.await( "/sitemap.xml", admin, "/sitemap.xml", b -> b.contains( LINKER ) );
-        WorkIt.await( "/api/changes", admin, "/api/changes?since=2000-01-01T00:00:00Z", b -> b.contains( LINKER ) );
-        WorkIt.await( "/api/pages", admin, "/api/pages?limit=1000", b -> b.contains( LINKER ) );
-        WorkIt.await( "/api/backlinks", admin, "/api/backlinks/" + TARGET, b -> b.contains( LINKER ) );
-
-        // the work item's token and key are on none of them
-        for ( final String path : surfaces( WORK_TOKEN ) ) {
-            final HttpResponse< String > r = admin.get( path );
-            // a surface may repeat the caller's own query back; that is the request, not the item
-            final String body = r.body().replaceAll( "\"(?:query|prompt)\"\\s*:\\s*\"[^\"]*\"", "" );
-            assertFalse( body.contains( WORK_TOKEN ), path + " leaked the work token: " + r.body() );
-            assertFalse( body.contains( itemKey ), path + " leaked the work item key: " + r.body() );
+        for ( final String path : surfaces() ) {
+            // positive control: a 200 that shows the ordinary page
+            final String body = WorkIt.await( path, admin, path, b -> b.contains( LINKER ) );
+            assertFalse( body.contains( ITEM_ONLY ), path + " leaked the item's own word: " + body );
+            assertFalse( body.contains( itemKey ), path + " leaked the item key: " + body );
+            assertFalse( body.contains( ITEM_TITLE ), path + " leaked the item title: " + body );
         }
         // the wikilink in the item body adds no backlink: the target's only referrer is the ordinary page
         final String backlinks = admin.get( "/api/backlinks/" + TARGET ).body();

@@ -86,6 +86,8 @@ public abstract class WorkResourceBase extends RestServletBase {
     /** The one neutral 404 message. */
     static final String NOT_FOUND = "Not found.";
     static final int MAX_LIMIT = 200;
+    /** No work request body is larger than this many characters; longer is a 413. */
+    static final long MAX_BODY_CHARS = 262_144L;
 
     private static final Set< String > NAME_KEYS = Set.of( "assignee", "reporter", "author", "actor", "editedBy" );
 
@@ -192,9 +194,9 @@ public abstract class WorkResourceBase extends RestServletBase {
             return v == null || v.isBlank() ? null : v.trim();
         }
 
-        /** The JSON body, or null after a 400 has been sent. */
+        /** The JSON body (at most {@value #MAX_BODY_CHARS} characters), or null after a 400 or 413 has been sent. */
         JsonObject body() throws IOException {
-            return parseJsonBody( req, resp );
+            return RestJson.parseJsonBody( req, resp, MAX_BODY_CHARS );
         }
 
         void json( final Object value ) throws IOException {

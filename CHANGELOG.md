@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Reader comments are now a feedback loop for publishing agents.** A new-comment form carries a checkbox, "Agents may respond to this comment", ticked by default. Two admin MCP tools expose the threads readers left open to agents: `list_comment_threads` (by page or cluster) and `respond_to_comment_thread`, which replies, resolves or dismisses with a required written body. A thread closes once: the first agent to resolve or dismiss wins and a second is refused. The commenter is told through the existing mentions feed.
+- **A trust rule for agent responses.** A comment is marked trusted only when its author was signed in and could edit the page when posting. An agent may resolve a thread only when it holds a trusted human comment; otherwise it can reply or dismiss. Comment bodies reach agents as data, with each comment marked trusted or not.
+- **Dismissed threads.** `dismissed` is a third thread status beside open and resolved. The reason stays visible as the agent's closing comment and the thread can be reopened. Agent comments show an "agent" badge and are stored under `agent:<client name>`, so a client cannot post under a member's name. Migration `V073` adds the columns; existing threads become available to agents but carry no trusted comment until an editor replies.
+
+### Fixed
+
+- **Headings no longer show a zero as a lowercase "o".** The display font drew old-style figures, so "Stage 0" read as "Stage o"; headings now use lining figures.
+- **Resolving or reopening a missing comment thread no longer reports success.** The REST handler returned the new status even when nothing changed; it now returns 404.
+- A non-boolean `agentAvailable` value on thread creation returns 400 instead of a server error.
+
+### Changed
+
+- **Production embeds on the wiki host.** The prod compose file maps `host.docker.internal` to the host so the wiki can use an embedder running there; the deployment docs describe the on-host iGPU embedder, with the previous inference host as the fallback. Dev and the integration suite embed from a separate host.
+- The admin MCP now has 22 tools; `docs/admin/McpAgents.md`, the server instructions and the `wiki-content` skill describe the comment inbox.
+
 ## [2.5.19] - 2026-11-14
 
 ### Fixed

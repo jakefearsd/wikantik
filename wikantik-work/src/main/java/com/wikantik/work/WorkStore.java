@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Persistence for work management. Every method throws {@link SQLException}; callers translate. This
@@ -73,4 +74,38 @@ public interface WorkStore {
     void updateProduct( Product p ) throws SQLException;
 
     void archiveProduct( long id, Instant at ) throws SQLException;
+
+    // ---- items
+
+    /**
+     * Creates an item in one transaction: allocates the next key, inserts the row (rank = last in its status),
+     * revision 1 and a {@code created} event. The draft's id, key, version, rank, timestamps and closedAt are
+     * ignored; the reporter is {@code actor}.
+     */
+    Item createItem( Project project, Item draft, String actor, Actor.Kind kind ) throws SQLException;
+
+    /** Looks an item up by key such as {@code PLAT-15}, case-insensitively; empty for a malformed or unknown key. */
+    Optional< Item > item( String key ) throws SQLException;
+
+    /**
+     * Applies {@code next} over {@code current} in one transaction, guarded by {@code current.version()}
+     * (stale: {@link WorkConflictException}). Writes a revision when title or body changed and one event per
+     * changed field.
+     */
+    Item updateItem( Item current, Item next, String actor, Actor.Kind kind, String note ) throws SQLException;
+
+    List< Item > items( ItemFilter filter ) throws SQLException;
+
+    /** Every status in order; {@code done} and {@code cancelled} show the 50 most recently closed. */
+    List< BoardColumn > board( long projectId, ItemFilter filter ) throws SQLException;
+
+    List< ItemRevision > revisions( long itemId ) throws SQLException;
+
+    List< WorkEvent > itemEvents( long itemId ) throws SQLException;
+
+    /** Newest first; {@code before} null means now. */
+    List< WorkEvent > projectEvents( long projectId, Instant before, int limit ) throws SQLException;
+
+    /** Distinct products of all descendants of the epic. */
+    Set< Long > productIdsUnder( long epicId ) throws SQLException;
 }

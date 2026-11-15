@@ -1,0 +1,94 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+
+package com.wikantik.work;
+
+import com.wikantik.jdbc.testing.FaultInjectingDataSource;
+import com.wikantik.jdbc.testing.PostgresTestDb;
+import com.wikantik.jdbc.testing.RequiresPostgres;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import javax.sql.DataSource;
+import java.sql.SQLException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/** Proves item writes are all-or-nothing: a failing statement leaves nothing behind. */
+@RequiresPostgres
+class JdbcWorkStoreItemsRollbackTest {
+
+    private DataSource ds;
+    private JdbcWorkStore store;
+    private Project plat;
+
+    @BeforeEach
+    void setUp() throws SQLException {
+        ds = PostgresTestDb.createDataSource();
+        PostgresTestDb.truncate( "work_link", "work_mention", "work_comment", "work_event",
+            "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
+        store = new JdbcWorkStore( ds );
+        plat = store.createProject( "PLAT", "Platform", "" );
+    }
+
+    private int nextSeq() throws SQLException {
+        try ( var c = ds.getConnection(); var ps = c.prepareStatement( "SELECT next_seq FROM work_project WHERE id = ?" ) ) {
+            ps.setLong( 1, plat.id() );
+            try ( var rs = ps.executeQuery() ) {
+                rs.next();
+                return rs.getInt( 1 );
+            }
+        }
+    }
+
+    @Test
+    void createRollsBackWhenEventInsertFails() throws SQLException {
+        final int before = nextSeq();
+        // statements: 1 bump next_seq, 2 max rank, 3 insert item, 4 insert revision, 5 insert event
+        final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
+        faulty.failOn( 5, new RuntimeException( "boom: event insert" ) );
+        final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
+        assertThrows( RuntimeException.class, () -> faultyStore.createItem( plat,
+            JdbcWorkStoreItemsPostgresTest.draft( "x" ), "alice", Actor.Kind.HUMAN ) );
+        assertEquals( 1, faulty.rollbacks() );
+        assertTrue( store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0 ) ).isEmpty() );
+        assertEquals( before, nextSeq() );
+    }
+
+    @Test
+    void updateRollsBackWhenRevisionInsertFails() throws SQLException {
+        final Item i = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "x" ), "alice", Actor.Kind.HUMAN );
+        // statements: 1 update item, 2 insert revision
+        final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
+        faulty.failOn( 2, new RuntimeException( "boom: revision insert" ) );
+        final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
+        final Item next = new Item( i.id(), i.projectId(), i.key(), i.level(), null, null, i.kind(), "changed",
+            i.body(), i.status(), i.priority(), i.rank(), null, null, i.reporter(), null, null, null, i.version(),
+            null, null, null );
+        assertThrows( RuntimeException.class, () -> faultyStore.updateItem( i, next, "bob", Actor.Kind.HUMAN, null ) );
+        assertEquals( 1, faulty.rollbacks() );
+        final Item after = store.item( "PLAT-1" ).orElseThrow();
+        assertEquals( "x", after.title() );
+        assertEquals( 1, after.version() );
+        assertEquals( 1, store.revisions( i.id() ).size() );
+        assertEquals( 1, store.itemEvents( i.id() ).size() );
+    }
+}

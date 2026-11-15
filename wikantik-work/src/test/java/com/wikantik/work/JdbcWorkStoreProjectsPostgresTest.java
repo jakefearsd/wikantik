@@ -91,6 +91,24 @@ class JdbcWorkStoreProjectsPostgresTest {
     }
 
     @Test
+    void agentNeverMatchesUserRowOfSameLogin() throws SQLException {
+        final Project p = store.createProject( "WIKI", "Wiki", "" );
+        store.putMember( p.id(), "alice", "user", WorkRole.LEAD );
+        final Actor agent = new Actor( "alice", Set.of(), false, Actor.Kind.AGENT, 7L );
+        assertEquals( Optional.empty(), store.roleFor( p.id(), agent ) );
+        assertTrue( store.visibleProjects( agent ).isEmpty() );
+    }
+
+    @Test
+    void agentNeverInheritsGroupRows() throws SQLException {
+        final Project p = store.createProject( "WIKI", "Wiki", "" );
+        store.putMember( p.id(), "editors", "group", WorkRole.LEAD );
+        final Actor agent = new Actor( "bot", Set.of( "editors" ), false, Actor.Kind.AGENT, 7L );
+        assertEquals( Optional.empty(), store.roleFor( p.id(), agent ) );
+        assertTrue( store.visibleProjects( agent ).isEmpty() );
+    }
+
+    @Test
     void highestRoleWins() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
         store.putMember( p.id(), "alice", "user", WorkRole.VIEWER );

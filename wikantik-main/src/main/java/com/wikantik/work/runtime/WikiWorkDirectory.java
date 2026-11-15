@@ -54,6 +54,8 @@ public final class WikiWorkDirectory implements WorkDirectory {
             AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase().findByLoginName( login );
             return true;
         } catch ( final NoSuchPrincipalException e ) {
+            // Expected: the login does not name an account.
+            LOG.debug( "No account has the login '{}': {}", login, e.getMessage() );
             return false;
         } catch ( final RuntimeException e ) {
             LOG.warn( "User lookup failed while checking that a login exists; treating it as unknown: {}",

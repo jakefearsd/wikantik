@@ -137,6 +137,11 @@ final class JdbcWorkDiscussion {
         } );
     }
 
+    Optional< Link > link( final long id ) throws SQLException {
+        return jdbc.queryOne( "SELECT id, item_id, kind, target FROM work_link WHERE id = ?",
+            ps -> ps.setLong( 1, id ), LINK_ROW );
+    }
+
     List< Link > links( final long itemId ) throws SQLException {
         return jdbc.query( "SELECT id, item_id, kind, target FROM work_link WHERE item_id = ? ORDER BY id",
             ps -> ps.setLong( 1, itemId ), LINK_ROW );

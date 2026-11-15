@@ -358,4 +358,14 @@ class JdbcWorkStoreItemsPostgresTest {
         assertEquals( 3, store.projectEvents( plat.id(), java.time.Instant.now().plusSeconds( 60 ), 10 ).size() );
         assertEquals( 0, store.projectEvents( plat.id(), java.time.Instant.EPOCH, 10 ).size() );
     }
+
+    @Test
+    void itemByIdAndMaxRank() throws SQLException {
+        final Item a = create( "a" );
+        final Item b = create( "b" );
+        assertEquals( a.key(), store.itemById( a.id() ).orElseThrow().key() );
+        assertTrue( store.itemById( -1 ).isEmpty() );
+        assertEquals( b.rank(), store.maxRank( plat.id(), WorkStatus.DRAFT ) );
+        assertEquals( 0.0, store.maxRank( plat.id(), WorkStatus.REVIEW ) );
+    }
 }

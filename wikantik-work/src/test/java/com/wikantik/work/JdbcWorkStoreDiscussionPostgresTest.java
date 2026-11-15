@@ -217,4 +217,12 @@ class JdbcWorkStoreDiscussionPostgresTest {
         assertEquals( 1, faulty.rollbacks() );
         assertEquals( 1, store.links( item.id() ).size() );
     }
+
+    @Test
+    void linkLookupById() throws SQLException {
+        final Item item = create( plat, "x" );
+        final Link l = store.addLink( item, "url", "https://example.com", "alice" );
+        assertEquals( l, store.link( l.id() ).orElseThrow() );
+        assertTrue( store.link( -1 ).isEmpty() );
+    }
 }

@@ -84,6 +84,12 @@ public interface WorkStore {
      */
     Item createItem( Project project, Item draft, String actor, Actor.Kind kind ) throws SQLException;
 
+    /** Looks an item up by its numeric id; empty when unknown. */
+    Optional< Item > itemById( long id ) throws SQLException;
+
+    /** The highest rank among the project's items in the status, or 0 when there are none. */
+    double maxRank( long projectId, WorkStatus status ) throws SQLException;
+
     /** Looks an item up by key such as {@code PLAT-15}, case-insensitively; empty for a malformed or unknown key. */
     Optional< Item > item( String key ) throws SQLException;
 
@@ -122,6 +128,9 @@ public interface WorkStore {
     void removeComment( long commentId, String actor ) throws SQLException;
 
     Optional< Comment > comment( long id ) throws SQLException;
+
+    /** Looks a link up by id; empty when unknown. */
+    Optional< Link > link( long id ) throws SQLException;
 
     /** Oldest first; a removed comment is returned with an empty body. */
     List< Comment > comments( long itemId ) throws SQLException;

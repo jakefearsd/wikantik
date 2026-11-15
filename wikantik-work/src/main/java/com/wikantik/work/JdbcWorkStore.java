@@ -442,6 +442,18 @@ public class JdbcWorkStore implements WorkStore {
     }
 
     @Override
+    public Optional< Item > itemById( final long id ) throws SQLException {
+        return jdbc.queryOne( ITEM_SELECT + " WHERE i.id = ?", ps -> ps.setLong( 1, id ), ITEM_ROW );
+    }
+
+    @Override
+    public double maxRank( final long projectId, final WorkStatus status ) throws SQLException {
+        return jdbc.queryOne( "SELECT COALESCE( MAX( rank ), 0 ) FROM work_item WHERE project_id = ? AND status = ?",
+            ps -> { ps.setLong( 1, projectId ); ps.setString( 2, status.wire() ); },
+            rs -> rs.getDouble( 1 ) ).orElse( 0.0 );
+    }
+
+    @Override
     public Optional< Item > item( final String key ) throws SQLException {
         if ( key == null ) {
             return Optional.empty();
@@ -710,6 +722,11 @@ public class JdbcWorkStore implements WorkStore {
     @Override
     public void removeLink( final long linkId, final String actor ) throws SQLException {
         discussion.removeLink( linkId, actor );
+    }
+
+    @Override
+    public Optional< Link > link( final long id ) throws SQLException {
+        return discussion.link( id );
     }
 
     @Override

@@ -649,6 +649,26 @@
        <servlet-class>com.wikantik.rest.OutboundLinksResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>WorkProjectResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkProjectResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>WorkProductResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkProductResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>WorkItemResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkItemResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>WorkActivityResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkActivityResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>WorkMeResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkMeResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>CommentThreadResource</servlet-name>
        <servlet-class>com.wikantik.rest.CommentThreadResource</servlet-class>
    </servlet>
@@ -987,6 +1007,31 @@
    <servlet-mapping>
        <servlet-name>OutboundLinksResource</servlet-name>
        <url-pattern>/api/outbound-links/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkProjectResource</servlet-name>
+       <url-pattern>/api/work/projects</url-pattern>
+       <url-pattern>/api/work/projects/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkProductResource</servlet-name>
+       <url-pattern>/api/work/products</url-pattern>
+       <url-pattern>/api/work/products/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkItemResource</servlet-name>
+       <url-pattern>/api/work/items</url-pattern>
+       <url-pattern>/api/work/items/*</url-pattern>
+       <url-pattern>/api/work/comments/*</url-pattern>
+       <url-pattern>/api/work/links/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkActivityResource</servlet-name>
+       <url-pattern>/api/work/activity</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkMeResource</servlet-name>
+       <url-pattern>/api/work/me</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>CommentThreadResource</servlet-name>

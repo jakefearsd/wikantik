@@ -1,0 +1,149 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.rest;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.wikantik.work.ItemDraft;
+import com.wikantik.work.ItemPatch;
+import com.wikantik.work.WorkKind;
+import com.wikantik.work.WorkLevel;
+import com.wikantik.work.WorkValidationException;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * {@code /api/work/items/*}, {@code /api/work/comments/*} and {@code /api/work/links/*}: items and everything
+ * hanging off them.
+ */
+public class WorkItemResource extends WorkResourceBase {
+
+    private static final long serialVersionUID = 1L;
+    private static final Set< String > DRAFT_FIELDS = Set.of( "project", "projectKey", "level", "parentKey",
+        "productKey", "kind", "title", "body", "priority", "dueOn", "assignee" );
+
+    @Override
+    protected void routes( final List< Object[] > r ) {
+        route( r, "GET", "items", c -> {
+            final String project = c.query( "project" );
+            if ( project == null ) {
+                throw new WorkValidationException( "project", "project is required." );
+            }
+            c.json( c.svc.items( c.actor, project, filter( c, true ) ) );
+        } );
+        route( r, "POST", "items", this::create );
+        route( r, "GET", "items/{}", c -> c.json( c.svc.item( c.actor, c.pathParam( 0 ) ) ) );
+        route( r, "PATCH", "items/{}", this::patch );
+        route( r, "GET", "items/{}/revisions", c -> c.json( c.svc.revisions( c.actor, c.pathParam( 0 ) ) ) );
+        route( r, "GET", "items/{}/events", c -> c.json( c.svc.events( c.actor, c.pathParam( 0 ) ) ) );
+        route( r, "POST", "items/{}/comments", c -> {
+            final JsonObject b = c.body();
+            if ( b != null ) {
+                c.created( c.svc.addComment( c.actor, c.pathParam( 0 ), optString( b, "body" ) ) );
+            }
+        } );
+        route( r, "PATCH", "comments/{}", c -> {
+            final JsonObject b = c.body();
+            if ( b != null ) {
+                c.json( c.svc.editComment( c.actor, c.idParam( 0 ), optString( b, "body" ) ) );
+            }
+        } );
+        route( r, "DELETE", "comments/{}", c -> {
+            c.svc.removeComment( c.actor, c.idParam( 0 ) );
+            c.noContent();
+        } );
+        route( r, "POST", "items/{}/links", c -> {
+            final JsonObject b = c.body();
+            if ( b != null ) {
+                c.created( c.svc.addLink( c.actor, c.pathParam( 0 ), optString( b, "kind" ), optString( b, "target" ) ) );
+            }
+        } );
+        route( r, "DELETE", "links/{}", c -> {
+            c.svc.removeLink( c.actor, c.idParam( 0 ) );
+            c.noContent();
+        } );
+    }
+
+    private void create( final Call c ) throws Exception {
+        final JsonObject b = c.body();
+        if ( b == null ) {
+            return;
+        }
+        for ( final String field : b.keySet() ) {
+            if ( !DRAFT_FIELDS.contains( field ) ) {
+                throw new WorkValidationException( field, "Unknown field: " + field );
+            }
+        }
+        final String project = b.has( "projectKey" ) ? optString( b, "projectKey" ) : optString( b, "project" );
+        final String level = optString( b, "level" );
+        final String kind = optString( b, "kind" );
+        c.created( c.svc.createItem( c.actor, new ItemDraft( project, level == null ? null : WorkLevel.fromWire( level ),
+            optString( b, "parentKey" ), optString( b, "productKey" ), kind == null ? null : WorkKind.fromWire( kind ),
+            optString( b, "title" ), optString( b, "body" ), priority( b ), dueOn( b ), optString( b, "assignee" ) ) ) );
+    }
+
+    private static Integer priority( final JsonObject b ) {
+        final JsonElement v = b.get( "priority" );
+        if ( v == null || v.isJsonNull() ) {
+            return null;
+        }
+        try {
+            return v.getAsInt();
+        } catch ( final RuntimeException e ) {
+            throw new WorkValidationException( "priority", "priority must be a whole number." );
+        }
+    }
+
+    private static LocalDate dueOn( final JsonObject b ) {
+        final String v = optString( b, "dueOn" );
+        try {
+            return v == null || v.isBlank() ? null : LocalDate.parse( v );
+        } catch ( final DateTimeParseException e ) {
+            throw new WorkValidationException( "dueOn", "dueOn must be a date such as 2026-12-31." );
+        }
+    }
+
+    private void patch( final Call c ) throws Exception {
+        final JsonObject b = c.body();
+        if ( b == null ) {
+            return;
+        }
+        final JsonElement version = b.get( "expectedVersion" );
+        if ( version == null || !version.isJsonPrimitive() || !version.getAsJsonPrimitive().isNumber() ) {
+            throw new WorkValidationException( "expectedVersion", "expectedVersion is required." );
+        }
+        final Map< String, Object > changes = new LinkedHashMap<>();
+        final JsonElement raw = b.get( "changes" );
+        if ( raw != null && !raw.isJsonNull() ) {
+            if ( !raw.isJsonObject() ) {
+                throw new WorkValidationException( "changes", "changes must be an object." );
+            }
+            for ( final Map.Entry< String, JsonElement > e : raw.getAsJsonObject().entrySet() ) {
+                changes.put( e.getKey(), plainValue( e.getKey(), e.getValue() ) );
+            }
+        }
+        c.json( c.svc.updateItem( c.actor, c.pathParam( 0 ),
+            new ItemPatch( version.getAsInt(), changes, optString( b, "note" ) ) ) );
+    }
+}

@@ -23,6 +23,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -62,6 +63,14 @@ public class WorkService {
     public record ItemView( Item item, String bodyHtml, String projectKey, String parentKey, String productKey,
                             List< String > derivedProductKeys, List< Comment > comments, List< Link > links,
                             boolean blocked, WorkRole viewerRole ) {
+    }
+
+    /** An item with what its card shows: comment count, blocked flag, product key and parent key. */
+    public record ItemSummary( Item item, int commentCount, boolean blocked, String productKey, String parentKey ) {
+    }
+
+    /** A board column whose items are summaries. */
+    public record SummaryColumn( WorkStatus status, int total, List< ItemSummary > items ) {
     }
 
     /** A resolved project and the actor's standing in it; the one thing every method starts from. */
@@ -340,6 +349,37 @@ public class WorkService {
         final Scope s = scope( actor, projectKey );
         s.require( Action.VIEW, null );
         return store.board( s.project().id(), scoped( s, filter ) );
+    }
+
+    /** {@link #items} with card extras, computed for the whole result in one batch. */
+    public List< ItemSummary > itemSummaries( final Actor actor, final String projectKey, final ItemFilter filter )
+            throws SQLException {
+        final Scope s = scope( actor, projectKey );
+        s.require( Action.VIEW, null );
+        return summarise( s.project().id(), store.items( scoped( s, filter ) ) );
+    }
+
+    /** {@link #board} with card extras, computed for every column's items in one batch. */
+    public List< SummaryColumn > boardSummaries( final Actor actor, final String projectKey, final ItemFilter filter )
+            throws SQLException {
+        final Scope s = scope( actor, projectKey );
+        s.require( Action.VIEW, null );
+        final List< BoardColumn > columns = store.board( s.project().id(), scoped( s, filter ) );
+        final List< Item > all = columns.stream().flatMap( c -> c.items().stream() ).toList();
+        final Map< Long, ItemSummary > byId = new HashMap<>();
+        summarise( s.project().id(), all ).forEach( x -> byId.put( x.item().id(), x ) );
+        return columns.stream().map( c -> new SummaryColumn( c.status(), c.total(),
+            c.items().stream().map( i -> byId.get( i.id() ) ).toList() ) ).toList();
+    }
+
+    private List< ItemSummary > summarise( final long projectId, final List< Item > items ) throws SQLException {
+        final Map< Long, WorkStore.ItemExtras > extras = store.itemExtras( projectId,
+            items.stream().map( Item::id ).toList() );
+        final WorkStore.ItemExtras none = new WorkStore.ItemExtras( 0, false, null, null );
+        return items.stream().map( i -> {
+            final WorkStore.ItemExtras e = extras.getOrDefault( i.id(), none );
+            return new ItemSummary( i, e.commentCount(), e.blocked(), e.productKey(), e.parentKey() );
+        } ).toList();
     }
 
     public List< ItemRevision > revisions( final Actor actor, final String key ) throws SQLException {

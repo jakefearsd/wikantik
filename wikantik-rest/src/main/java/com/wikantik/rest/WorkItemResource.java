@@ -50,7 +50,7 @@ public class WorkItemResource extends WorkResourceBase {
             if ( project == null ) {
                 throw new WorkValidationException( "project", "project is required." );
             }
-            c.json( c.svc.items( c.actor, project, filter( c, true ) ) );
+            c.tree( summariesTree( c.svc.itemSummaries( c.actor, project, filter( c, true ) ) ) );
         } );
         route( r, "POST", "items", this::create );
         route( r, "GET", "items/{}", c -> c.json( c.svc.item( c.actor, c.pathParam( 0 ) ) ) );

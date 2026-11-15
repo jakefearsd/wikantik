@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import Select from '../ui/Select';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { useToast } from '../../hooks/useToast';
-import { getBoard, getMe, listProducts, patchItem } from '../../api/work';
+import { getBoard, getMe, listMembers, listProducts, patchItem } from '../../api/work';
 import { useWorkProject } from './useWorkProject';
 import WorkCard from './WorkCard';
 import WorkItemForm from './WorkItemForm';
@@ -11,11 +12,11 @@ import { STATUS_LABELS, addToColumns, groupByEpic, moveInColumns, orderColumns, 
 
 const CHANGERS = new Set(['member', 'lead']);
 
-function Column({ column, productKeys, canEdit, grouped, allItems, onDragStart, onMove, onDrop }) {
+function Column({ column, canEdit, grouped, allItems, onDragStart, onMove, onDrop }) {
   const { status, total, items } = column;
   const count = total > items.length ? `${items.length} of ${total}` : String(total);
   const card = (item) => (
-    <WorkCard key={item.id} item={item} productKey={productKeys.get(item.productId)} draggable={canEdit}
+    <WorkCard key={item.id} item={item} productKey={item.productKey} draggable={canEdit}
       onDragStart={onDragStart} onMove={canEdit ? onMove : undefined} />
   );
   return (
@@ -51,6 +52,10 @@ export default function WorkBoard() {
   const [grouped, setGrouped] = useState(false);
   const [waiting, setWaiting] = useState([]);
   const [products, setProducts] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [params, setParams] = useSearchParams();
+  const productFilter = params.get('product') || '';
+  const assigneeFilter = params.get('assignee') || '';
   const [formOpen, setFormOpen] = useState(false);
   const dragged = useRef(null);
   const columns = state.projectKey === project.key ? state.columns : null;
@@ -65,21 +70,30 @@ export default function WorkBoard() {
     else setLoadError(e?.message || 'Could not load the board.');
   }, []);
 
-  const load = useCallback(() => getBoard(project.key)
+  const load = useCallback(() => getBoard(project.key,
+    { ...(productFilter ? { product: productFilter } : {}), ...(assigneeFilter ? { assignee: assigneeFilter } : {}) })
     .then((cols) => { setNotFound(false); setLoadError(null); setColumns(cols || []); })
-    .catch(fail), [project.key, setColumns, fail]);
+    .catch(fail), [project.key, productFilter, assigneeFilter, setColumns, fail]);
+
+  function setFilter(name, value) {
+    const next = new URLSearchParams(params);
+    if (value) next.set(name, value); else next.delete(name);
+    setParams(next, { replace: true });
+  }
+
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    load();
     getMe()
       .then((me) => setWaiting((me?.waitingOn || []).filter((i) => i.projectId === project.id)))
       .catch((e) => console.warn('WorkBoard: failed to load the waiting-on list', e));
     listProducts()
       .then((list) => setProducts(list || []))
       .catch((e) => console.warn('WorkBoard: failed to load products', e));
-  }, [load, project.id]);
-
-  const productKeys = new Map(products.map((p) => [p.id, p.key]));
+    listMembers(project.key)
+      .then((list) => setMembers(list || []))
+      .catch((e) => console.warn('WorkBoard: failed to load members', e));
+  }, [project.id, project.key]);
 
   function move(item, status, index) {
     const current = columns.find((c) => c.status === item.status);
@@ -144,6 +158,12 @@ export default function WorkBoard() {
         <label className="work-toggle">
           <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> Show draft and cancelled
         </label>
+        <Select ariaLabel="Filter by product" placeholder="All products" value={productFilter}
+          options={products.map((p) => ({ value: p.key, label: p.name || p.key }))}
+          onChange={(v) => setFilter('product', v)} />
+        <Select ariaLabel="Filter by assignee" placeholder="All assignees" value={assigneeFilter}
+          options={members.map((m) => ({ value: m.principal, label: m.displayName || m.principal }))}
+          onChange={(v) => setFilter('assignee', v)} />
         {canEdit && (
           <button type="button" className="btn btn-primary work-new-item" onClick={() => setFormOpen(true)}>New item</button>
         )}
@@ -160,7 +180,7 @@ export default function WorkBoard() {
       )}
       <div className="work-columns">
         {ordered.map((c) => (
-          <Column key={c.status} column={c} productKeys={productKeys} canEdit={canEdit} grouped={grouped}
+          <Column key={c.status} column={c} canEdit={canEdit} grouped={grouped}
             allItems={allItems}
             onDragStart={(item) => { dragged.current = item.key; }}
             onMove={(item, status) => move(item, status)} onDrop={onDrop} />

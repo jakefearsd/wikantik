@@ -72,13 +72,19 @@ class WorkItemResourceTest {
 
     @Test
     void listsItemsOfAProject() throws Exception {
-        Mockito.when( svc.items( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( List.of( WorkHttp.item( "PLAT-1", null, 1 ) ) );
+        Mockito.when( svc.itemSummaries( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( List.of(
+            WorkHttp.summary( WorkHttp.item( "PLAT-1", null, 1 ), 4, true, "web", "PLAT-0" ) ) );
         final WorkHttp.Result r = get( null, Map.of( "project", "PLAT", "status", "draft,ready", "level", "task",
             "assignee", "alice", "q", "x", "dueBefore", "2026-12-31" ) );
         assertEquals( 200, r.status() );
-        assertEquals( "PLAT-1", r.json().getAsJsonArray().get( 0 ).getAsJsonObject().get( "key" ).getAsString() );
+        final JsonObject first = r.json().getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertEquals( "PLAT-1", first.get( "key" ).getAsString() );
+        assertEquals( 4, first.get( "commentCount" ).getAsInt() );
+        assertEquals( true, first.get( "blocked" ).getAsBoolean() );
+        assertEquals( "web", first.get( "productKey" ).getAsString() );
+        assertEquals( "PLAT-0", first.get( "parentKey" ).getAsString() );
         final ArgumentCaptor< ItemFilter > f = ArgumentCaptor.forClass( ItemFilter.class );
-        Mockito.verify( svc ).items( eq( ALICE ), eq( "PLAT" ), f.capture() );
+        Mockito.verify( svc ).itemSummaries( eq( ALICE ), eq( "PLAT" ), f.capture() );
         assertEquals( 2, f.getValue().statuses().size() );
         assertEquals( "alice", f.getValue().assignee() );
         assertEquals( "2026-12-31", f.getValue().dueBefore().toString() );
@@ -291,10 +297,10 @@ class WorkItemResourceTest {
 
     @Test
     void limitIsClampedTo200() throws Exception {
-        Mockito.when( svc.items( any(), anyString(), any() ) ).thenReturn( List.of() );
+        Mockito.when( svc.itemSummaries( any(), anyString(), any() ) ).thenReturn( List.of() );
         get( null, Map.of( "project", "PLAT", "limit", "5000" ) );
         final ArgumentCaptor< ItemFilter > f = ArgumentCaptor.forClass( ItemFilter.class );
-        Mockito.verify( svc ).items( any(), anyString(), f.capture() );
+        Mockito.verify( svc ).itemSummaries( any(), anyString(), f.capture() );
         assertEquals( 200, f.getValue().limit() );
     }
 

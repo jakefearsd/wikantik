@@ -234,4 +234,53 @@ class JdbcWorkStoreDiscussionPostgresTest {
         store.addLink( item, "blocked_by", other.key(), "alice" );
         assertFalse( store.isBlocked( item.id() ), "an open item in another project must not make this one blocked" );
     }
+
+    private Item child( final Item parent, final Long productId, final String title ) throws SQLException {
+        return store.createItem( plat, new Item( 0, 0, null, WorkLevel.TASK, parent == null ? null : parent.id(),
+            productId, WorkKind.SOFTWARE, title, "", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0,
+            null, null, null ), "alice", Actor.Kind.HUMAN );
+    }
+
+    @Test
+    void itemExtrasCountsCommentsBlockedProductAndParentInOneBatch() throws SQLException {
+        final Product web = store.createProduct( new Product( 0, "web", "Web", null, null, null,
+            Autonomy.DELEGATED, DeployGate.HUMAN, null ) );
+        final Item story = create( plat, "story" );
+        final Item blocker = create( plat, "blocker" );
+        final Item a = child( story, web.id(), "a" );
+        final Item b = child( null, null, "b" );
+        store.addComment( a, "alice", Actor.Kind.HUMAN, "one", List.of() );
+        final Comment gone = store.addComment( a, "alice", Actor.Kind.HUMAN, "two", List.of() );
+        store.removeComment( gone.id(), "alice" );
+        store.addLink( b, "blocked_by", blocker.key(), "alice" );
+
+        final var extras = store.itemExtras( plat.id(), List.of( a.id(), b.id() ) );
+
+        assertEquals( 2, extras.size() );
+        assertEquals( new WorkStore.ItemExtras( 1, false, "web", story.key() ), extras.get( a.id() ) );
+        assertEquals( new WorkStore.ItemExtras( 0, true, null, null ), extras.get( b.id() ) );
+    }
+
+    @Test
+    void itemExtrasBlockedIgnoresDoneBlockersAndOtherProjects() throws SQLException {
+        final Project ops = store.createProject( "OPS", "Ops", "" );
+        final Item blocker = create( ops, "ops blocker" );
+        final Item item = create( plat, "x" );
+        store.addLink( item, "blocked_by", blocker.key(), "alice" );
+        assertFalse( store.itemExtras( plat.id(), List.of( item.id() ) ).get( item.id() ).blocked(),
+            "a blocker in another project does not block" );
+        assertTrue( store.itemExtras( ops.id(), List.of( item.id() ) ).isEmpty(),
+            "ids outside the project are not returned" );
+        final Item local = create( plat, "local blocker" );
+        store.addLink( item, "blocked_by", local.key(), "alice" );
+        assertTrue( store.itemExtras( plat.id(), List.of( item.id() ) ).get( item.id() ).blocked() );
+        move( local, WorkStatus.DONE );
+        assertFalse( store.itemExtras( plat.id(), List.of( item.id() ) ).get( item.id() ).blocked() );
+    }
+
+    @Test
+    void itemExtrasOfNothingIsEmpty() throws SQLException {
+        assertTrue( store.itemExtras( plat.id(), List.of() ).isEmpty() );
+        assertTrue( store.itemExtras( plat.id(), null ).isEmpty() );
+    }
 }

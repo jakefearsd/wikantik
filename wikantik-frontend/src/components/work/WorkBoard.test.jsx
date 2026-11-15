@@ -3,30 +3,31 @@ import { render, screen, fireEvent, createEvent, waitFor, within } from '@testin
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
-  getBoard: vi.fn(), getMe: vi.fn(), listProducts: vi.fn(), patchItem: vi.fn(), listItems: vi.fn(), createItem: vi.fn(),
+  getBoard: vi.fn(), getMe: vi.fn(), listProducts: vi.fn(), listMembers: vi.fn(), patchItem: vi.fn(), listItems: vi.fn(), createItem: vi.fn(),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 
-import { getBoard, getMe, listProducts, patchItem, listItems, createItem } from '../../api/work';
+import { getBoard, getMe, listProducts, listMembers, patchItem, listItems, createItem } from '../../api/work';
 import { WorkProjectContext } from './useWorkProject';
 import WorkBoard from './WorkBoard';
 
 const PROJECT = { id: 1, key: 'PLAT', name: 'Platform' };
 const item = (id, status, extra = {}) => ({
   id, key: `PLAT-${id}`, projectId: 1, level: 'task', title: `Item ${id}`, status, priority: 3,
-  rank: id * 1024, version: id, productId: 3, assigneeName: null, dueOn: null, parentId: null, ...extra,
+  rank: id * 1024, version: id, productId: 3, productKey: 'wikantik', parentKey: null, commentCount: 0,
+  blocked: false, assigneeName: null, dueOn: null, parentId: null, ...extra,
 });
 const boardOf = (byStatus, totals = {}) => ['draft', 'refining', 'ready', 'in_progress', 'review', 'done', 'cancelled']
   .map((s) => ({ status: s, total: totals[s] ?? (byStatus[s] || []).length, items: byStatus[s] || [] }));
 
 let board;
-function renderBoard({ role = 'member', me = { waitingOn: [], projects: [] } } = {}) {
+function renderBoard({ role = 'member', me = { waitingOn: [], projects: [] }, url = '/work/PLAT' } = {}) {
   getBoard.mockImplementation(() => Promise.resolve(board));
   getMe.mockResolvedValue(me);
   const reload = vi.fn();
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[url]}>
       <WorkProjectContext.Provider value={{ project: PROJECT, role, reload }}>
         <WorkBoard />
       </WorkProjectContext.Provider>
@@ -50,6 +51,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   listProducts.mockResolvedValue([{ id: 3, key: 'wikantik', name: 'Wikantik' }]);
   listItems.mockResolvedValue([]);
+  listMembers.mockResolvedValue([
+    { principal: 'carol-login', principalKind: 'user', role: 'member', displayName: 'Carol C' },
+    { principal: 'dan-login', principalKind: 'user', role: 'lead', displayName: 'Dan D' },
+  ]);
   board = boardOf({ ready: [item(1, 'ready'), item(2, 'ready')], review: [item(3, 'review')] });
 });
 
@@ -189,5 +194,44 @@ describe('WorkBoard', () => {
     fireEvent.click(await screen.findByLabelText('Show draft and cancelled'));
     expect(within(column('draft')).getByText('Brand new')).toBeInTheDocument();
     expect(getBoard).toHaveBeenCalledTimes(1);
+  });
+
+  it('showsProductKeyCommentCountAndBlockedFromTheResponse', async () => {
+    board = boardOf({ ready: [item(1, 'ready', { commentCount: 5, blocked: true })] });
+    renderBoard();
+    const card = (await screen.findByText('Item 1')).closest('.work-card');
+    expect(within(card).getByText('wikantik')).toBeInTheDocument();
+    expect(within(card).getByLabelText('5 comments')).toBeInTheDocument();
+    expect(within(card).getByText('Blocked')).toBeInTheDocument();
+  });
+
+  it('filtersBoardByProduct', async () => {
+    renderBoard();
+    await screen.findByText('Item 1');
+    await waitFor(() => expect(within(screen.getByLabelText('Filter by product')).getAllByRole('option')).toHaveLength(2));
+    expect(within(screen.getByLabelText('Filter by product')).getByRole('option', { name: 'All products' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Filter by product'), { target: { value: 'wikantik' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { product: 'wikantik' }));
+    fireEvent.change(screen.getByLabelText('Filter by product'), { target: { value: '' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', {}));
+  });
+
+  it('filtersBoardByAssignee', async () => {
+    renderBoard();
+    await screen.findByText('Item 1');
+    const select = screen.getByLabelText('Filter by assignee');
+    await waitFor(() => expect(within(select).getByRole('option', { name: 'Carol C' })).toBeInTheDocument());
+    expect(within(select).queryByRole('option', { name: 'carol-login' })).not.toBeInTheDocument();
+    expect(within(select).getByRole('option', { name: 'All assignees' })).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: 'carol-login' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { assignee: 'carol-login' }));
+  });
+
+  it('filterSelectionSurvivesReloadViaUrl', async () => {
+    renderBoard({ url: '/work/PLAT?product=wikantik&assignee=dan-login' });
+    await screen.findByText('Item 1');
+    expect(getBoard).toHaveBeenCalledWith('PLAT', { product: 'wikantik', assignee: 'dan-login' });
+    await waitFor(() => expect(screen.getByLabelText('Filter by product')).toHaveValue('wikantik'));
+    await waitFor(() => expect(screen.getByLabelText('Filter by assignee')).toHaveValue('dan-login'));
   });
 });

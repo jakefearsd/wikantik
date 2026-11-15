@@ -105,6 +105,11 @@ final class WorkHttp {
             Instant.parse( "2026-11-02T10:00:00Z" ), null );
     }
 
+    static WorkService.ItemSummary summary( final Item item, final int comments, final boolean blocked,
+                                            final String productKey, final String parentKey ) {
+        return new WorkService.ItemSummary( item, comments, blocked, productKey, parentKey );
+    }
+
     static WorkService.ItemView view( final String key, final String assignee, final int version ) {
         return new WorkService.ItemView( item( key, assignee, version ), "<p>Body</p>", "PLAT", null, null, List.of(),
             List.of(), List.of(), false, WorkRole.MEMBER );

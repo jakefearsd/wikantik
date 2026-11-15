@@ -740,6 +740,13 @@ public class JdbcWorkStore implements WorkStore {
     }
 
     @Override
+    public java.util.Map< Long, ItemExtras > itemExtras( final long projectId,
+                                                         final java.util.Collection< Long > itemIds )
+            throws SQLException {
+        return discussion.itemExtras( projectId, itemIds );
+    }
+
+    @Override
     public List< Item > mentioning( final String login, final Set< Long > projectIds ) throws SQLException {
         return discussion.mentioning( login, projectIds );
     }

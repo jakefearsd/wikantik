@@ -59,7 +59,7 @@ public class WorkProjectResource extends WorkResourceBase {
             c.noContent();
         } );
         route( r, "DELETE", "projects/{}/members", this::removeMember );
-        route( r, "GET", "projects/{}/board", c -> c.json( c.svc.board( c.actor, c.pathParam( 0 ), filter( c, false ) ) ) );
+        route( r, "GET", "projects/{}/board", c -> c.tree( boardTree( c.svc.boardSummaries( c.actor, c.pathParam( 0 ), filter( c, false ) ) ) ) );
     }
 
     private void update( final Call c ) throws Exception {

@@ -203,6 +203,10 @@ public abstract class WorkResourceBase extends RestServletBase {
             write( resp, HttpServletResponse.SC_OK, toTree( value ) );
         }
 
+        void tree( final JsonElement tree ) throws IOException {
+            write( resp, HttpServletResponse.SC_OK, tree );
+        }
+
         void created( final Object value ) throws IOException {
             write( resp, HttpServletResponse.SC_CREATED, toTree( value ) );
         }
@@ -371,6 +375,35 @@ public abstract class WorkResourceBase extends RestServletBase {
         final Map< String, String > cache = new HashMap<>();
         final Function< String, String > names = login -> cache.computeIfAbsent( login, this::displayName );
         return enrich( WORK_GSON.toJsonTree( value ), names );
+    }
+
+    /** An item list with each item's card extras (commentCount, blocked, productKey, parentKey) beside its fields. */
+    protected JsonElement summariesTree( final List< WorkService.ItemSummary > summaries ) {
+        final JsonArray out = new JsonArray();
+        summaries.forEach( x -> out.add( summaryTree( x ) ) );
+        return out;
+    }
+
+    /** Board columns {status, total, items} whose items carry the card extras. */
+    protected JsonElement boardTree( final List< WorkService.SummaryColumn > columns ) {
+        final JsonArray out = new JsonArray();
+        for ( final WorkService.SummaryColumn c : columns ) {
+            final JsonObject o = new JsonObject();
+            o.addProperty( "status", c.status().wire() );
+            o.addProperty( "total", c.total() );
+            o.add( "items", summariesTree( c.items() ) );
+            out.add( o );
+        }
+        return out;
+    }
+
+    private JsonObject summaryTree( final WorkService.ItemSummary x ) {
+        final JsonObject o = toTree( x.item() ).getAsJsonObject();
+        o.addProperty( "commentCount", x.commentCount() );
+        o.addProperty( "blocked", x.blocked() );
+        o.addProperty( "productKey", x.productKey() );
+        o.addProperty( "parentKey", x.parentKey() );
+        return o;
     }
 
     /** A project's JSON with the viewer's {@code role} added. */

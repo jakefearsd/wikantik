@@ -56,7 +56,7 @@ class WorkServiceVisibilityPostgresTest {
 
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
-        "item", "items", "board", "revisions", "events", "activity", "waitingOn" );
+        "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1" );
 

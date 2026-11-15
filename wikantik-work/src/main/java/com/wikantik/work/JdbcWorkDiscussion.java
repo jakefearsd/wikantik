@@ -24,7 +24,9 @@ import com.wikantik.jdbc.RowMapper;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -157,6 +159,37 @@ final class JdbcWorkDiscussion {
              WHERE l.item_id = ? AND l.kind = 'blocked_by'
                AND UPPER( TRIM( l.target ) ) = UPPER( bp.key || '-' || b.seq ) )
             """, ps -> ps.setLong( 1, itemId ), rs -> rs.getBoolean( 1 ) ).orElse( false );
+    }
+
+    Map< Long, WorkStore.ItemExtras > itemExtras( final long projectId, final java.util.Collection< Long > itemIds )
+            throws SQLException {
+        if ( itemIds == null || itemIds.isEmpty() ) {
+            return Map.of();
+        }
+        final Map< Long, WorkStore.ItemExtras > out = new HashMap<>();
+        jdbc.withConnection( conn -> jdbc.query( conn, """
+            SELECT i.id,
+                   ( SELECT COUNT(*) FROM work_comment c WHERE c.item_id = i.id AND c.removed_at IS NULL ) AS comments,
+                   EXISTS ( SELECT 1
+                              FROM work_link l
+                              JOIN work_item b ON b.status NOT IN ('done','cancelled') AND b.project_id = i.project_id
+                             WHERE l.item_id = i.id AND l.kind = 'blocked_by'
+                               AND UPPER( TRIM( l.target ) ) = UPPER( pp.key || '-' || b.seq ) ) AS blocked,
+                   pr.key AS product_key,
+                   CASE WHEN par.id IS NULL THEN NULL ELSE pp.key || '-' || par.seq END AS parent_key
+              FROM work_item i
+              JOIN work_project pp ON pp.id = i.project_id
+              LEFT JOIN work_product pr ON pr.id = i.product_id
+              LEFT JOIN work_item par ON par.id = i.parent_id
+             WHERE i.project_id = ? AND i.id = ANY( ? )
+            """,
+            ps -> { ps.setLong( 1, projectId ); ps.setArray( 2, projectArray( conn, new java.util.HashSet<>( itemIds ) ) ); },
+            rs -> {
+                out.put( rs.getLong( "id" ), new WorkStore.ItemExtras( rs.getInt( "comments" ),
+                    rs.getBoolean( "blocked" ), rs.getString( "product_key" ), rs.getString( "parent_key" ) ) );
+                return null;
+            } ) );
+        return out;
     }
 
     List< Item > mentioning( final String login, final Set< Long > projectIds ) throws SQLException {

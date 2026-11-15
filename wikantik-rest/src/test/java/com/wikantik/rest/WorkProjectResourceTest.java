@@ -19,7 +19,6 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
-import com.wikantik.work.BoardColumn;
 import com.wikantik.work.ItemFilter;
 import com.wikantik.work.Member;
 import com.wikantik.work.WorkConflictException;
@@ -125,14 +124,21 @@ class WorkProjectResourceTest {
 
     @Test
     void boardPassesFiltersAndIgnoresStatus() throws Exception {
-        Mockito.when( svc.board( any(), anyString(), any() ) ).thenReturn( List.of(
-            new BoardColumn( WorkStatus.DRAFT, 1, List.of( WorkHttp.item( "PLAT-1", "carol", 1 ) ) ) ) );
+        Mockito.when( svc.boardSummaries( any(), anyString(), any() ) ).thenReturn( List.of(
+            new WorkService.SummaryColumn( WorkStatus.DRAFT, 1, List.of(
+                WorkHttp.summary( WorkHttp.item( "PLAT-1", "carol", 1 ), 2, false, null, null ) ) ) ) );
         final JsonObject col = call( "GET", "/PLAT/board", Map.of( "assignee", "carol", "status", "done", "limit", "9999" ), null )
             .json().getAsJsonArray().get( 0 ).getAsJsonObject();
         assertEquals( "draft", col.get( "status" ).getAsString() );
-        assertEquals( "Name of carol", col.getAsJsonArray( "items" ).get( 0 ).getAsJsonObject().get( "assigneeName" ).getAsString() );
+        final JsonObject card = col.getAsJsonArray( "items" ).get( 0 ).getAsJsonObject();
+        assertEquals( "Name of carol", card.get( "assigneeName" ).getAsString() );
+        assertEquals( 2, card.get( "commentCount" ).getAsInt() );
+        assertEquals( false, card.get( "blocked" ).getAsBoolean() );
+        assertEquals( true, card.get( "productKey" ).isJsonNull() );
+        assertEquals( true, card.get( "parentKey" ).isJsonNull() );
+        assertEquals( 1, col.get( "total" ).getAsInt() );
         final ArgumentCaptor< ItemFilter > f = ArgumentCaptor.forClass( ItemFilter.class );
-        Mockito.verify( svc ).board( eq( ALICE ), eq( "PLAT" ), f.capture() );
+        Mockito.verify( svc ).boardSummaries( eq( ALICE ), eq( "PLAT" ), f.capture() );
         assertEquals( "carol", f.getValue().assignee() );
         assertEquals( null, f.getValue().statuses() );
     }

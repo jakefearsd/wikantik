@@ -20,7 +20,9 @@ package com.wikantik.work;
 
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -141,6 +143,17 @@ public interface WorkStore {
     void removeLink( long linkId, String actor ) throws SQLException;
 
     List< Link > links( long itemId ) throws SQLException;
+
+    /** What a card shows beyond the item's own columns; see {@link #itemExtras}. */
+    record ItemExtras( int commentCount, boolean blocked, String productKey, String parentKey ) {
+    }
+
+    /**
+     * Comment count (removed comments excluded), blocked flag (same rule as {@link #isBlocked}, same project),
+     * product key and parent key for the given items of one project, in a single query. Ids that are not in
+     * the project are absent from the result.
+     */
+    Map< Long, ItemExtras > itemExtras( long projectId, Collection< Long > itemIds ) throws SQLException;
 
     /** True when a {@code blocked_by} link targets an item key whose status is not done or cancelled. */
     boolean isBlocked( long itemId ) throws SQLException;

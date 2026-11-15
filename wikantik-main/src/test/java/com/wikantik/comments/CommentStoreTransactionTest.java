@@ -229,6 +229,17 @@ class CommentStoreTransactionTest {
         }
     }
 
+    private String statusOf( final UUID threadId ) throws SQLException {
+        try ( Connection c = ds.getConnection();
+              PreparedStatement ps = c.prepareStatement( "SELECT status FROM comment_threads WHERE id = ?" ) ) {
+            ps.setObject( 1, threadId );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                rs.next();
+                return rs.getString( 1 );
+            }
+        }
+    }
+
     private String bodyOf( final UUID commentId ) throws SQLException {
         try ( Connection c = ds.getConnection();
               PreparedStatement ps = c.prepareStatement( "SELECT body FROM comments WHERE id = ?" ) ) {
@@ -254,5 +265,6 @@ class CommentStoreTransactionTest {
                 CommentStore.AgentAction.DISMISS, "agent:bot", "no", realMentions ) );
 
         assertEquals( 1, countRows( "comments" ), "the agent comment must not survive the rollback" );
+        assertEquals( "open", statusOf( threadId ), "the thread must still be open after the rollback" );
     }
 }

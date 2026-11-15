@@ -263,6 +263,12 @@ public class CommentStore {
     private static final int INBOX_COMMENT_CAP = 50;
 
     /**
+     * One inbox row: the thread with its {@value #INBOX_COMMENT_CAP} most recent comments, whether any
+     * comment on the thread (not just those returned) is trusted, and whether older comments were cut.
+     */
+    public record InboxThread( CommentThread thread, boolean actionable, boolean commentsTruncated ) {}
+
+    /**
      * Posts an agent comment and optionally closes the thread, atomically. The thread row is locked
      * for the duration, so two concurrent responses cannot both close it.
      */
@@ -303,13 +309,17 @@ public class CommentStore {
                 if ( action != AgentAction.REPLY ) {
                     status = action == AgentAction.RESOLVE ? CommentThread.RESOLVED : CommentThread.DISMISSED;
                     final String closed = status;
-                    jdbc.update( c, "UPDATE comment_threads SET status = ?, resolved_by = ?, " +
+                    final int updated = jdbc.update( c, "UPDATE comment_threads SET status = ?, resolved_by = ?, " +
                             "resolved_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'open'",
                             ps -> {
                                 ps.setString( 1, closed );
                                 ps.setString( 2, agentAuthor );
                                 ps.setObject( 3, threadId );
                             } );
+                    if ( updated != 1 ) {
+                        // The row is locked and was open a moment ago; anything else is a bug, so roll back.
+                        throw new IllegalStateException( "closing thread " + threadId + " updated " + updated + " rows" );
+                    }
                 }
                 final Comment saved = jdbc.queryOne( c,
                         "SELECT id, thread_id, author, body, created_at, edited_at, via_agent, author_could_edit " +
@@ -336,9 +346,9 @@ public class CommentStore {
      *
      * @param canonicalIds pages to include; null means every page, empty means none
      */
-    public List< CommentThread > listAgentInbox( final String status, final Collection< String > canonicalIds,
-                                                 final int limit ) {
-        final List< CommentThread > threads = new ArrayList<>();
+    public List< InboxThread > listAgentInbox( final String status, final Collection< String > canonicalIds,
+                                               final int limit ) {
+        final List< InboxThread > threads = new ArrayList<>();
         if ( canonicalIds != null && canonicalIds.isEmpty() ) {
             return threads;
         }
@@ -346,13 +356,15 @@ public class CommentStore {
                 ? status : CommentThread.OPEN;
         final StringBuilder sql = new StringBuilder(
                 "SELECT id, canonical_id, anchor_exact, anchor_prefix, anchor_suffix, status, " +
-                "created_by, created_at, resolved_by, resolved_at, agent_available FROM comment_threads " +
-                "WHERE agent_available AND status = ?" );
+                "created_by, created_at, resolved_by, resolved_at, agent_available, " +
+                "EXISTS ( SELECT 1 FROM comments k WHERE k.thread_id = comment_threads.id " +
+                "AND NOT k.via_agent AND k.author_could_edit ) AS trusted " +
+                "FROM comment_threads WHERE agent_available AND status = ?" );
         if ( canonicalIds != null ) sql.append( " AND canonical_id = ANY( ? )" );
         sql.append( " ORDER BY created_at, id LIMIT ?" );
         try {
             jdbc.inTransaction( c -> {
-                final List< ThreadRow > rows = jdbc.query( c, sql.toString(),
+                final List< InboxRow > rows = jdbc.query( c, sql.toString(),
                         ps -> {
                             int i = 1;
                             ps.setString( i++, wanted );
@@ -360,23 +372,28 @@ public class CommentStore {
                                 ps.setArray( i++, c.createArrayOf( "text", canonicalIds.toArray( new String[ 0 ] ) ) );
                             }
                             ps.setInt( i, limit );
-                        }, CommentStore::readThreadRow );
-                for ( final ThreadRow row : rows ) {
+                        }, rs -> new InboxRow( readThreadRow( rs ), rs.getBoolean( "trusted" ) ) );
+                for ( final InboxRow inboxRow : rows ) {
+                    final ThreadRow row = inboxRow.row();
+                    // One more than the cap, so truncation is exact rather than a guess.
                     final List< Comment > recent = jdbc.query( c,
                             "SELECT id, thread_id, author, body, created_at, edited_at, via_agent, author_could_edit " +
                             "FROM comments WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
                             ps -> {
                                 ps.setObject( 1, row.id() );
-                                ps.setInt( 2, INBOX_COMMENT_CAP );
+                                ps.setInt( 2, INBOX_COMMENT_CAP + 1 );
                             }, CommentStore::readComment );
-                    final List< Comment > chronological = new ArrayList<>( recent );
+                    final boolean truncated = recent.size() > INBOX_COMMENT_CAP;
+                    final List< Comment > chronological = new ArrayList<>(
+                            truncated ? recent.subList( 0, INBOX_COMMENT_CAP ) : recent );
                     java.util.Collections.reverse( chronological );
-                    threads.add( toThread( row, chronological ) );
+                    threads.add( new InboxThread( toThread( row, chronological ), inboxRow.trusted(), truncated ) );
                 }
                 return null;
             } );
         } catch ( final SQLException e ) {
             LOG.warn( "listAgentInbox(status={}) failed: {}", wanted, e.getMessage(), e );
+            throw new RuntimeException( "agent inbox listing failed", e );
         }
         return threads;
     }
@@ -413,6 +430,8 @@ public class CommentStore {
                 "FROM comments WHERE thread_id = ? ORDER BY created_at",
                 ps -> ps.setObject( 1, threadId ), CommentStore::readComment );
     }
+
+    private record InboxRow( ThreadRow row, boolean trusted ) {}
 
     private record ThreadRow( UUID id, String canonicalId, TextQuoteSelector anchor, String status,
                               String createdBy, Instant createdAt, String resolvedBy, Instant resolvedAt,

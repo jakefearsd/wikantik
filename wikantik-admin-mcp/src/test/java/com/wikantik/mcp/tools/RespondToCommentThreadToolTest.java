@@ -64,10 +64,14 @@ class RespondToCommentThreadToolTest {
         mentions = mock( MentionService.class );
         index = mock( StructuralIndexService.class );
         tool = new RespondToCommentThreadTool( store, mentions, index );
-        tool.setDefaultAuthor( "claude" );
         when( store.findThread( threadId ) ).thenReturn( Optional.of( new CommentThread( threadId, "c1",
                 new TextQuoteSelector( "e", "p", "s" ), "open", "alice", Instant.now(), null, null, java.util.List.of(), true ) ) );
         when( index.resolveSlugFromCanonicalId( "c1" ) ).thenReturn( Optional.of( "PageOne" ) );
+    }
+
+    /** Runs the tool as an MCP client named "claude", the way McpServerInitializer binds identity per call. */
+    private McpSchema.CallToolResult call( final Map< String, Object > args ) {
+        return CallerIdentity.runAs( "claude", () -> tool.execute( args ) );
     }
 
     private static String text( final McpSchema.CallToolResult r ) {
@@ -87,27 +91,27 @@ class RespondToCommentThreadToolTest {
 
     @Test
     void nonUuidThreadIdIsRefusedNotThrown() {
-        assertRefusal( tool.execute( Map.of( "threadId", "not-a-uuid", "action", "reply", "body", "x" ) ),
+        assertRefusal( call( Map.of( "threadId", "not-a-uuid", "action", "reply", "body", "x" ) ),
                 "threadId must be a thread id from list_comment_threads" );
         verifyNoInteractions( store );
     }
 
     @Test
     void missingThreadIdIsRefused() {
-        assertRefusal( tool.execute( Map.of( "action", "reply", "body", "x" ) ),
+        assertRefusal( call( Map.of( "action", "reply", "body", "x" ) ),
                 "threadId must be a thread id from list_comment_threads" );
     }
 
     @Test
     void blankBodyIsRefused() {
-        assertRefusal( tool.execute( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "  " ) ),
+        assertRefusal( call( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "  " ) ),
                 "body is required: say what you did or why you are dismissing" );
         verifyNoInteractions( store );
     }
 
     @Test
     void unknownActionIsRefused() {
-        assertRefusal( tool.execute( Map.of( "threadId", threadId.toString(), "action", "delete", "body", "x" ) ),
+        assertRefusal( call( Map.of( "threadId", threadId.toString(), "action", "delete", "body", "x" ) ),
                 "action must be reply, resolve or dismiss" );
         verifyNoInteractions( store );
     }
@@ -117,14 +121,14 @@ class RespondToCommentThreadToolTest {
         when( store.findThread( threadId ) ).thenReturn( Optional.empty() );
         when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
                 .thenReturn( new AgentResponse( AgentOutcome.NOT_FOUND, null, null ) );
-        assertRefusal( tool.execute( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) ),
+        assertRefusal( call( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) ),
                 "No such comment thread, or its page no longer exists" );
     }
 
     @Test
     void pageWithoutSlugIsRefusedAndNothingIsWritten() {
         when( index.resolveSlugFromCanonicalId( "c1" ) ).thenReturn( Optional.empty() );
-        assertRefusal( tool.execute( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) ),
+        assertRefusal( call( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) ),
                 "No such comment thread, or its page no longer exists" );
         verify( store, never() ).respondAsAgent( any(), any(), any(), any(), any() );
     }
@@ -133,7 +137,7 @@ class RespondToCommentThreadToolTest {
     void notAgentAvailableIsRefused() {
         when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
                 .thenReturn( new AgentResponse( AgentOutcome.NOT_AGENT_AVAILABLE, null, "open" ) );
-        assertRefusal( tool.execute( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) ),
+        assertRefusal( call( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) ),
                 "The commenter did not make this thread available to agents" );
     }
 
@@ -141,7 +145,7 @@ class RespondToCommentThreadToolTest {
     void notOpenIsRefused() {
         when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
                 .thenReturn( new AgentResponse( AgentOutcome.NOT_OPEN, null, "resolved" ) );
-        assertRefusal( tool.execute( Map.of( "threadId", threadId.toString(), "action", "dismiss", "body", "x" ) ),
+        assertRefusal( call( Map.of( "threadId", threadId.toString(), "action", "dismiss", "body", "x" ) ),
                 "Thread is no longer open" );
     }
 
@@ -149,7 +153,7 @@ class RespondToCommentThreadToolTest {
     void notActionableIsRefused() {
         when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
                 .thenReturn( new AgentResponse( AgentOutcome.NOT_ACTIONABLE, null, "open" ) );
-        assertRefusal( tool.execute( Map.of( "threadId", threadId.toString(), "action", "resolve", "body", "x" ) ),
+        assertRefusal( call( Map.of( "threadId", threadId.toString(), "action", "resolve", "body", "x" ) ),
                 "No comment on this thread is from someone who may edit the page; reply or dismiss instead" );
     }
 
@@ -159,7 +163,7 @@ class RespondToCommentThreadToolTest {
         when( store.respondAsAgent( threadId, AgentAction.REPLY, "agent:claude", "done", mentions ) )
                 .thenReturn( new AgentResponse( AgentOutcome.OK, saved( threadId, commentId ), "open" ) );
 
-        final McpSchema.CallToolResult r = tool.execute( Map.of( "threadId", threadId.toString(), "action", "reply", "body", " done " ) );
+        final McpSchema.CallToolResult r = call( Map.of( "threadId", threadId.toString(), "action", "reply", "body", " done " ) );
 
         assertTrue( !Boolean.TRUE.equals( r.isError() ), text( r ) );
         final Map< ?, ? > body = gson.fromJson( text( r ), Map.class );
@@ -171,14 +175,73 @@ class RespondToCommentThreadToolTest {
 
     @Test
     void blankClientNameBecomesAgentUnknown() {
-        final RespondToCommentThreadTool unnamed = new RespondToCommentThreadTool( store, mentions, index );
-        unnamed.setDefaultAuthor( "  " );
         when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
                 .thenReturn( new AgentResponse( AgentOutcome.OK, saved( threadId, UUID.randomUUID() ), "open" ) );
 
-        unnamed.execute( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) );
+        CallerIdentity.runAs( "  ", () -> tool.execute( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) ) );
 
         verify( store ).respondAsAgent( eq( threadId ), eq( AgentAction.REPLY ), eq( "agent:unknown" ), eq( "x" ), eq( mentions ) );
+    }
+
+    @Test
+    void callWithNoNameAfterANamedCallIsAgentUnknown() {
+        when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
+                .thenReturn( new AgentResponse( AgentOutcome.OK, saved( threadId, UUID.randomUUID() ), "open" ) );
+        final Map< String, Object > args = Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" );
+
+        CallerIdentity.runAs( "claude", () -> tool.execute( args ) );
+        CallerIdentity.runAs( null, () -> tool.execute( args ) );
+
+        verify( store ).respondAsAgent( eq( threadId ), eq( AgentAction.REPLY ), eq( "agent:claude" ), eq( "x" ), eq( mentions ) );
+        verify( store ).respondAsAgent( eq( threadId ), eq( AgentAction.REPLY ), eq( "agent:unknown" ), eq( "x" ), eq( mentions ) );
+    }
+
+    @Test
+    void aClientLiterallyNamedMcpAgentKeepsThatName() {
+        when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
+                .thenReturn( new AgentResponse( AgentOutcome.OK, saved( threadId, UUID.randomUUID() ), "open" ) );
+        CallerIdentity.runAs( "mcp-agent", () -> tool.execute(
+                Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) ) );
+        verify( store ).respondAsAgent( eq( threadId ), eq( AgentAction.REPLY ), eq( "agent:mcp-agent" ), eq( "x" ), eq( mentions ) );
+    }
+
+    @Test
+    void interleavedCallsFromTwoClientsEachStoreTheirOwnName() throws Exception {
+        when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
+                .thenReturn( new AgentResponse( AgentOutcome.OK, saved( threadId, UUID.randomUUID() ), "open" ) );
+        final Map< String, Object > args = Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" );
+        final java.util.concurrent.CountDownLatch alphaBound = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.CountDownLatch betaBound = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool( 2 );
+        try {
+            final var alpha = pool.submit( () -> CallerIdentity.runAs( "alpha", () -> {
+                alphaBound.countDown();
+                awaitQuietly( betaBound );   // both identities are bound before either call runs
+                return tool.execute( args );
+            } ) );
+            final var beta = pool.submit( () -> CallerIdentity.runAs( "beta", () -> {
+                betaBound.countDown();
+                awaitQuietly( alphaBound );
+                return tool.execute( args );
+            } ) );
+            alpha.get( 10, java.util.concurrent.TimeUnit.SECONDS );
+            beta.get( 10, java.util.concurrent.TimeUnit.SECONDS );
+        } finally {
+            pool.shutdownNow();
+        }
+        verify( store ).respondAsAgent( eq( threadId ), eq( AgentAction.REPLY ), eq( "agent:alpha" ), eq( "x" ), eq( mentions ) );
+        verify( store ).respondAsAgent( eq( threadId ), eq( AgentAction.REPLY ), eq( "agent:beta" ), eq( "x" ), eq( mentions ) );
+    }
+
+    private static void awaitQuietly( final java.util.concurrent.CountDownLatch latch ) {
+        try {
+            if ( !latch.await( 10, java.util.concurrent.TimeUnit.SECONDS ) ) {
+                throw new IllegalStateException( "other caller never bound its identity" );
+            }
+        } catch ( final InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException( "interrupted waiting for the other caller", e );
+        }
     }
 
     @Test
@@ -186,7 +249,7 @@ class RespondToCommentThreadToolTest {
         when( store.respondAsAgent( threadId, AgentAction.RESOLVE, "agent:claude", "fixed", mentions ) )
                 .thenReturn( new AgentResponse( AgentOutcome.OK, saved( threadId, UUID.randomUUID() ), "resolved" ) );
         try ( MockedStatic< McpAudit > audit = Mockito.mockStatic( McpAudit.class ) ) {
-            final McpSchema.CallToolResult r = tool.execute(
+            final McpSchema.CallToolResult r = call(
                     Map.of( "threadId", threadId.toString(), "action", "resolve", "body", "fixed" ) );
             assertEquals( "resolved", gson.fromJson( text( r ), Map.class ).get( "status" ) );
             audit.verify( () -> McpAudit.logWrite( eq( "respond_to_comment_thread" ), eq( "resolve" ),
@@ -199,7 +262,7 @@ class RespondToCommentThreadToolTest {
         when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
                 .thenReturn( new AgentResponse( AgentOutcome.NOT_OPEN, null, "resolved" ) );
         try ( MockedStatic< McpAudit > audit = Mockito.mockStatic( McpAudit.class ) ) {
-            tool.execute( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) );
+            call( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) );
             audit.verifyNoInteractions();
         }
     }

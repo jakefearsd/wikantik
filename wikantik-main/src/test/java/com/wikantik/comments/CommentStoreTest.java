@@ -366,10 +366,10 @@ class CommentStoreTest {
         final CommentThread closed = agentThread( true, true );
         store.respondAsAgent( closed.id(), CommentStore.AgentAction.DISMISS, AGENT, "no", mentions );
 
-        final List< CommentThread > inbox = store.listAgentInbox( "open", null, 50 );
+        final List< CommentStore.InboxThread > inbox = store.listAgentInbox( "open", null, 50 );
         assertEquals( 1, inbox.size() );
-        assertEquals( open.id(), inbox.get( 0 ).id() );
-        assertEquals( closed.id(), store.listAgentInbox( "dismissed", null, 50 ).get( 0 ).id() );
+        assertEquals( open.id(), inbox.get( 0 ).thread().id() );
+        assertEquals( closed.id(), store.listAgentInbox( "dismissed", null, 50 ).get( 0 ).thread().id() );
         assertEquals( 1, store.listAgentInbox( "bogus", null, 50 ).size() );
     }
 
@@ -379,11 +379,11 @@ class CommentStoreTest {
         store.createThread( "CIDB", ANCHOR, "alice", "b", mentions, Optional.empty() );
         final CommentThread c = store.createThread( "CIDC", ANCHOR, "alice", "c", mentions, Optional.empty() );
 
-        final List< CommentThread > some = store.listAgentInbox( "open", List.of( "CIDA", "CIDC" ), 50 );
-        assertEquals( List.of( a.id(), c.id() ), some.stream().map( CommentThread::id ).toList() );
+        final List< CommentStore.InboxThread > some = store.listAgentInbox( "open", List.of( "CIDA", "CIDC" ), 50 );
+        assertEquals( List.of( a.id(), c.id() ), some.stream().map( i -> i.thread().id() ).toList() );
         assertEquals( 3, store.listAgentInbox( "open", null, 50 ).size() );
         assertEquals( 1, store.listAgentInbox( "open", null, 1 ).size() );
-        assertEquals( a.id(), store.listAgentInbox( "open", null, 1 ).get( 0 ).id() );
+        assertEquals( a.id(), store.listAgentInbox( "open", null, 1 ).get( 0 ).thread().id() );
         assertTrue( store.listAgentInbox( "open", List.of(), 50 ).isEmpty() );
     }
 
@@ -393,9 +393,87 @@ class CommentStoreTest {
         for ( int i = 1; i <= 54; i++ ) {
             store.addComment( t.id(), "bob", "r" + i, mentions );
         }
-        final List< Comment > got = store.listAgentInbox( "open", null, 50 ).get( 0 ).comments();
+        final CommentStore.InboxThread row = store.listAgentInbox( "open", null, 50 ).get( 0 );
+        final List< Comment > got = row.thread().comments();
         assertEquals( 50, got.size() );
         assertEquals( "r54", got.get( 49 ).body() );
         assertEquals( "r5", got.get( 0 ).body() );
+        assertTrue( row.commentsTruncated() );
+    }
+
+    @Test
+    void inboxIsNotTruncatedAtExactlyFiftyComments() {
+        final CommentThread t = agentThread( true, true );   // 1 comment
+        for ( int i = 2; i <= 50; i++ ) {
+            store.addComment( t.id(), "bob", "r" + i, mentions );
+        }
+        final CommentStore.InboxThread row = store.listAgentInbox( "open", null, 50 ).get( 0 );
+        assertEquals( 50, row.thread().comments().size() );
+        assertFalse( row.commentsTruncated(), "exactly 50 comments is not truncated" );
+
+        store.addComment( t.id(), "bob", "r51", mentions );
+        final CommentStore.InboxThread over = store.listAgentInbox( "open", null, 50 ).get( 0 );
+        assertEquals( 50, over.thread().comments().size() );
+        assertTrue( over.commentsTruncated() );
+    }
+
+    @Test
+    void inboxActionableCountsCommentsOlderThanTheCap() {
+        // the only trusted comment is the first one; 55 later untrusted replies push it out of the window
+        final CommentThread t = agentThread( true, true );
+        for ( int i = 1; i <= 55; i++ ) {
+            store.addComment( t.id(), "bob", "r" + i, mentions );
+        }
+        final CommentStore.InboxThread row = store.listAgentInbox( "open", null, 50 ).get( 0 );
+        assertTrue( row.thread().comments().stream().noneMatch( c -> c.authorCouldEdit() ), "trusted comment is outside the window" );
+        assertTrue( row.actionable(), "actionability is computed over all comments" );
+        assertFalse( store.listAgentInbox( "open", null, 50 ).isEmpty() );
+    }
+
+    @Test
+    void inboxActionableIsFalseWithoutATrustedComment() {
+        agentThread( true, false );
+        assertFalse( store.listAgentInbox( "open", null, 50 ).get( 0 ).actionable() );
+    }
+
+    @Test
+    void inboxFailureIsThrownNotReturnedAsEmpty() {
+        final com.wikantik.jdbc.testing.FaultInjectingDataSource faulty =
+                new com.wikantik.jdbc.testing.FaultInjectingDataSource( ds );
+        faulty.failOn( 1, new RuntimeException( "simulated inbox failure" ) );
+        assertThrows( RuntimeException.class, () -> new CommentStore( faulty ).listAgentInbox( "open", null, 50 ) );
+    }
+
+    @Test
+    void concurrentClosesAreSerialisedByTheThreadLock() throws Exception {
+        for ( int round = 0; round < 20; round++ ) {
+            final CommentThread t = agentThread( true, true );
+            final java.util.concurrent.CountDownLatch go = new java.util.concurrent.CountDownLatch( 1 );
+            final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool( 2 );
+            try {
+                final java.util.concurrent.Future< CommentStore.AgentResponse > resolve = pool.submit( () -> {
+                    go.await();
+                    return store.respondAsAgent( t.id(), CommentStore.AgentAction.RESOLVE, AGENT, "fixed", mentions );
+                } );
+                final java.util.concurrent.Future< CommentStore.AgentResponse > dismiss = pool.submit( () -> {
+                    go.await();
+                    return store.respondAsAgent( t.id(), CommentStore.AgentAction.DISMISS, AGENT, "no", mentions );
+                } );
+                go.countDown();
+                final CommentStore.AgentResponse r = resolve.get( 30, java.util.concurrent.TimeUnit.SECONDS );
+                final CommentStore.AgentResponse d = dismiss.get( 30, java.util.concurrent.TimeUnit.SECONDS );
+
+                final boolean resolveWon = r.outcome() == CommentStore.AgentOutcome.OK;
+                assertEquals( CommentStore.AgentOutcome.OK, resolveWon ? r.outcome() : d.outcome(), "round " + round );
+                assertEquals( CommentStore.AgentOutcome.NOT_OPEN, resolveWon ? d.outcome() : r.outcome(),
+                        "exactly one close wins in round " + round );
+                final CommentThread after = store.findThread( t.id() ).orElseThrow();
+                assertEquals( resolveWon ? CommentThread.RESOLVED : CommentThread.DISMISSED, after.status() );
+                assertEquals( 1, after.comments().stream().filter( Comment::viaAgent ).count(),
+                        "exactly one agent comment in round " + round );
+            } finally {
+                pool.shutdownNow();
+            }
+        }
     }
 }

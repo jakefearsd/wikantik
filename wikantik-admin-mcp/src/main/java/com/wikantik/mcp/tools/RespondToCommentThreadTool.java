@@ -23,12 +23,15 @@ import com.wikantik.api.comments.CommentThread;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.comments.CommentStore;
 import com.wikantik.comments.CommentStore.AgentAction;
+import com.wikantik.comments.CommentStore.AgentOutcome;
 import com.wikantik.comments.CommentStore.AgentResponse;
 import com.wikantik.comments.mentions.MentionService;
+import com.wikantik.mcp.AbstractMcpTool;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -41,16 +44,15 @@ import java.util.UUID;
  * stored as an agent comment ({@code agent:<client name>}) and the whole response is one transaction
  * in {@link CommentStore#respondAsAgent}.
  */
-public class RespondToCommentThreadTool extends DefaultAuthorTool {
+public class RespondToCommentThreadTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "respond_to_comment_thread";
     private static final Logger LOG = LogManager.getLogger( RespondToCommentThreadTool.class );
 
-    /** {@link DefaultAuthorTool}'s initial author, i.e. no client name was ever supplied. */
-    private static final String NO_CLIENT_NAME = "mcp-agent";
-
     private static final String BAD_THREAD_ID = "threadId must be a thread id from list_comment_threads";
     private static final String NO_SUCH_THREAD = "No such comment thread, or its page no longer exists";
+    private static final String NO_SUCH_THREAD_HINT =
+            "Re-run list_comment_threads; the thread or page may have been deleted.";
 
     /** Null when no datasource is configured; the tool then refuses at call time. */
     private final CommentStore store;
@@ -97,62 +99,90 @@ public class RespondToCommentThreadTool extends DefaultAuthorTool {
                 .build();
     }
 
+    /** A parsed, valid request. */
+    private record Request( UUID threadId, AgentAction action, String body ) {}
+
+    /** Either a parsed request or the refusal to return. */
+    private record Parsed( Request request, McpSchema.CallToolResult refusal ) {}
+
+    /** Message and hint of each refusal the store can report. */
+    private static final Map< AgentOutcome, String[] > REFUSALS = new EnumMap<>( AgentOutcome.class );
+
+    static {
+        REFUSALS.put( AgentOutcome.NOT_FOUND, new String[] { NO_SUCH_THREAD, NO_SUCH_THREAD_HINT } );
+        REFUSALS.put( AgentOutcome.NOT_AGENT_AVAILABLE, new String[] {
+                "The commenter did not make this thread available to agents",
+                "Only threads listed by list_comment_threads can be answered." } );
+        REFUSALS.put( AgentOutcome.NOT_OPEN, new String[] {
+                "Thread is no longer open", "Someone closed it first; list_comment_threads shows open threads." } );
+        REFUSALS.put( AgentOutcome.NOT_ACTIONABLE, new String[] {
+                "No comment on this thread is from someone who may edit the page; reply or dismiss instead",
+                "Only a comment marked trusted can justify resolving." } );
+    }
+
     @Override
     protected McpSchema.CallToolResult doExecute( final Map< String, Object > arguments ) throws Exception {
-        if ( store == null || mentions == null || index == null ) {
+        if ( !wired() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "The comment subsystem is not available",
                     "It needs a configured datasource and the structural index." );
         }
+        final Parsed parsed = parseRequest( arguments );
+        if ( parsed.refusal() != null ) {
+            return parsed.refusal();
+        }
+        final Request req = parsed.request();
+
+        // The page must still be addressable by slug; check before anything is written.
+        final Optional< CommentThread > thread = store.findThread( req.threadId() );
+        if ( thread.isEmpty() || index.resolveSlugFromCanonicalId( thread.get().canonicalId() ).isEmpty() ) {
+            return refuse( NO_SUCH_THREAD, NO_SUCH_THREAD_HINT );
+        }
+
+        final String author = AgentAuthors.of( CallerIdentity.clientName() );
+        final AgentResponse response = store.respondAsAgent( req.threadId(), req.action(), author, req.body(), mentions );
+        if ( response.outcome() != AgentOutcome.OK ) {
+            final String[] refusal = REFUSALS.get( response.outcome() );
+            return refuse( refusal[ 0 ], refusal[ 1 ] );
+        }
+        return success( req, author, response );
+    }
+
+    private boolean wired() {
+        return store != null && mentions != null && index != null;
+    }
+
+    private static Parsed parseRequest( final Map< String, Object > arguments ) {
         final UUID threadId = parseThreadId( McpToolUtils.getString( arguments, "threadId" ) );
         if ( threadId == null ) {
-            return refuse( BAD_THREAD_ID, "Call list_comment_threads and pass a threadId from its output." );
+            return refused( BAD_THREAD_ID, "Call list_comment_threads and pass a threadId from its output." );
         }
         final String body = McpToolUtils.getString( arguments, "body" );
         if ( body == null || body.isBlank() ) {
-            return refuse( "body is required: say what you did or why you are dismissing",
+            return refused( "body is required: say what you did or why you are dismissing",
                     "A reply explains the change; a dismissal records the reason." );
         }
         final AgentAction action = parseAction( McpToolUtils.getString( arguments, "action" ) );
         if ( action == null ) {
-            return refuse( "action must be reply, resolve or dismiss", "Use reply to keep the thread open." );
+            return refused( "action must be reply, resolve or dismiss", "Use reply to keep the thread open." );
         }
+        return new Parsed( new Request( threadId, action, body.strip() ), null );
+    }
 
-        // The page must still be addressable by slug; check before anything is written.
-        final Optional< CommentThread > thread = store.findThread( threadId );
-        if ( thread.isEmpty() || index.resolveSlugFromCanonicalId( thread.get().canonicalId() ).isEmpty() ) {
-            return refuse( NO_SUCH_THREAD, "Re-run list_comment_threads; the thread or page may have been deleted." );
-        }
+    private static Parsed refused( final String message, final String hint ) {
+        return new Parsed( null, refuse( message, hint ) );
+    }
 
-        final String author = AgentAuthors.of( NO_CLIENT_NAME.equals( getDefaultAuthor() ) ? null : getDefaultAuthor() );
-        final AgentResponse response = store.respondAsAgent( threadId, action, author, body.strip(), mentions );
-        switch ( response.outcome() ) {
-            case OK -> {
-                final String actionName = action.name().toLowerCase( Locale.ROOT );
-                McpAudit.logWrite( TOOL_NAME, actionName, threadId.toString(), getDefaultAuthor() );
-                final Map< String, Object > out = new LinkedHashMap<>();
-                out.put( "threadId", threadId.toString() );
-                out.put( "action", actionName );
-                out.put( "status", response.status() );
-                out.put( "commentId", response.comment().id().toString() );
-                return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, out );
-            }
-            case NOT_FOUND -> {
-                return refuse( NO_SUCH_THREAD, "Re-run list_comment_threads; the thread or page may have been deleted." );
-            }
-            case NOT_AGENT_AVAILABLE -> {
-                return refuse( "The commenter did not make this thread available to agents",
-                        "Only threads listed by list_comment_threads can be answered." );
-            }
-            case NOT_OPEN -> {
-                return refuse( "Thread is no longer open", "Someone closed it first; list_comment_threads shows open threads." );
-            }
-            case NOT_ACTIONABLE -> {
-                return refuse( "No comment on this thread is from someone who may edit the page; reply or dismiss instead",
-                        "Only a comment marked trusted can justify resolving." );
-            }
-        }
-        throw new IllegalStateException( "unhandled outcome " + response.outcome() );
+    private static McpSchema.CallToolResult success( final Request req, final String author,
+                                                     final AgentResponse response ) {
+        final String actionName = req.action().name().toLowerCase( Locale.ROOT );
+        McpAudit.logWrite( TOOL_NAME, actionName, req.threadId().toString(), AgentAuthors.displayName( author ) );
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( "threadId", req.threadId().toString() );
+        out.put( "action", actionName );
+        out.put( "status", response.status() );
+        out.put( "commentId", response.comment().id().toString() );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, out );
     }
 
     private static McpSchema.CallToolResult refuse( final String message, final String hint ) {
@@ -164,8 +194,9 @@ public class RespondToCommentThreadTool extends DefaultAuthorTool {
         try {
             return UUID.fromString( raw.strip() );
         } catch ( final IllegalArgumentException e ) {
-            // Caller-supplied value; the refusal tells them what to pass.
-            LOG.debug( "threadId '{}' is not a UUID: {}", raw, e.getMessage() );
+            // Caller-supplied value; the refusal tells them what to pass. Bounded and control-stripped for the log.
+            final String shown = raw.length() > 100 ? raw.substring( 0, 100 ) : raw;
+            LOG.debug( "threadId '{}' is not a UUID: {}", shown.replaceAll( "\\p{Cntrl}", "?" ), e.getMessage() );
             return null;
         }
     }

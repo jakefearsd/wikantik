@@ -39,6 +39,7 @@ import com.wikantik.mcp.prompts.WikiPrompts;
 import com.wikantik.mcp.resources.WikiEventSubscriptionBridge;
 import com.wikantik.mcp.resources.WikiResources;
 import com.wikantik.mcp.tools.AuthorConfigurable;
+import com.wikantik.mcp.tools.CallerIdentity;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
@@ -144,7 +145,8 @@ public class McpServerInitializer implements ServletContextListener {
             for ( final McpTool tool : toolRegistry.authorConfigurableTools() ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) -> {
                     resolveAuthor( exchange, tool );
-                    return auditedExecute( tool, request.arguments(), exchange, true );
+                    return CallerIdentity.runAs( clientName( exchange ),
+                            () -> auditedExecute( tool, request.arguments(), exchange, true ) );
                 } );
             }
 
@@ -312,8 +314,24 @@ public class McpServerInitializer implements ServletContextListener {
         }
     }
 
+    /** The client's {@code clientInfo.name}, or null when absent or blank. */
+    private static String clientName( final io.modelcontextprotocol.server.McpSyncServerExchange exchange ) {
+        try {
+            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
+            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
+                return clientInfo.name();
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.info( "Could not read MCP client name: {}", e.getMessage() );
+        }
+        return null;
+    }
+
     private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
                                         final McpTool tool ) {
+        if ( !( tool instanceof AuthorConfigurable ) ) {
+            return;   // identity-per-call tools read CallerIdentity instead
+        }
         try {
             final McpSchema.Implementation clientInfo = exchange.getClientInfo();
             if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {

@@ -47,8 +47,9 @@ import org.apache.logging.log4j.Logger;
  * Mapped to {@code /api/me/mentions/*}.
  *
  * <p>Rows are stored against logins, but {@code mentionedBy} goes out as the author's current
- * display name (an agent's name, with {@code viaAgent: true}, when the comment came through an agent credential). The comment {@code snippet} is only included when the caller can still view the
- * page the comment is on: the feed outlives page ACL changes, and a recipient who lost access
+ * display name (an agent's name, with {@code viaAgent: true}, when the comment came
+ * through an agent credential). The comment {@code snippet} is only included when the caller can still view
+ * the page the comment is on: the feed outlives page ACL changes, and a recipient who lost access
  * must not keep reading the discussion through it.</p>
  *
  * <ul>

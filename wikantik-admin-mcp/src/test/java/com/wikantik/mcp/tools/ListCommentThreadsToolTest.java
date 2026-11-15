@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -79,6 +78,10 @@ class ListCommentThreadsToolTest {
                 "alice-login", Instant.parse( "2026-11-01T10:00:00Z" ), null, null, comments, true );
     }
 
+    private static CommentStore.InboxThread row( final CommentThread t ) {
+        return new CommentStore.InboxThread( t, t.actionable(), false );
+    }
+
     @SuppressWarnings( "unchecked" )
     private Map< String, Object > run( final Map< String, Object > args ) {
         final McpSchema.CallToolResult r = tool.execute( args );
@@ -95,10 +98,10 @@ class ListCommentThreadsToolTest {
     void listMarksTrustedPerComment() {
         final UUID id = UUID.randomUUID();
         when( index.resolveSlugFromCanonicalId( "c1" ) ).thenReturn( Optional.of( "PageOne" ) );
-        when( store.listAgentInbox( eq( "open" ), eq( null ), anyInt() ) ).thenReturn( List.of( thread( id, "c1", List.of(
+        when( store.listAgentInbox( eq( "open" ), eq( null ), anyInt() ) ).thenReturn( List.of( row( thread( id, "c1", List.of(
                 comment( id, "alice-login", false, true ),
                 comment( id, "alice@example.com", false, false ),
-                comment( id, "agent:claude", true, false ) ) ) ) );
+                comment( id, "agent:claude", true, false ) ) ) ) ) );
 
         final Map< String, Object > out = run( Map.of() );
 
@@ -128,7 +131,7 @@ class ListCommentThreadsToolTest {
         when( index.resolveSlugFromCanonicalId( "gone" ) ).thenReturn( Optional.empty() );
         when( index.resolveSlugFromCanonicalId( "here" ) ).thenReturn( Optional.of( "Here" ) );
         when( store.listAgentInbox( any(), any(), anyInt() ) ).thenReturn( List.of(
-                thread( a, "gone", List.of() ), thread( b, "here", List.of() ) ) );
+                row( thread( a, "gone", List.of() ) ), row( thread( b, "here", List.of() ) ) ) );
 
         final Map< String, Object > out = run( Map.of() );
 
@@ -196,25 +199,60 @@ class ListCommentThreadsToolTest {
     }
 
     @Test
-    @SuppressWarnings( "unchecked" )
-    void unknownClusterReturnsEmpty() {
+    void unknownClusterIsAnErrorNamingIt() {
         when( index.listPagesByFilter( any() ) ).thenReturn( List.of() );
-        final Map< String, Object > out = run( Map.of( "cluster", "no-such" ) );
-        assertEquals( 0.0, out.get( "count" ) );
-        assertTrue( ( ( List< Object > ) out.get( "threads" ) ).isEmpty() );
+        final McpSchema.CallToolResult r = tool.execute( Map.of( "cluster", "no-such" ) );
+        assertTrue( r.isError() );
+        assertTrue( text( r ).contains( "No such cluster: no-such" ), text( r ) );
         verifyNoInteractions( store );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void fiftyCommentsFlagsTruncation() {
+    void knownClusterWithNoThreadsReturnsEmptyList() {
+        when( index.listPagesByFilter( any() ) ).thenReturn( List.of(
+                new PageDescriptor( "c1", "PageOne", "One", PageType.ARTICLE, "ml", List.of( "ml" ), List.of(), null, null, false ) ) );
+        when( store.listAgentInbox( any(), any(), anyInt() ) ).thenReturn( List.of() );
+        final Map< String, Object > out = run( Map.of( "cluster", "ml" ) );
+        assertEquals( 0.0, out.get( "count" ) );
+        assertTrue( ( ( List< Object > ) out.get( "threads" ) ).isEmpty() );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void commentCarriesEditedAt() {
         final UUID id = UUID.randomUUID();
-        final List< Comment > fifty = new ArrayList<>();
-        for ( int i = 0; i < 50; i++ ) fifty.add( comment( id, "alice-login", false, true ) );
+        final Comment edited = new Comment( UUID.randomUUID(), id, "alice-login", "b",
+                Instant.parse( "2026-11-01T10:00:00Z" ), Instant.parse( "2026-11-02T11:00:00Z" ), false, true );
         when( index.resolveSlugFromCanonicalId( "c1" ) ).thenReturn( Optional.of( "PageOne" ) );
-        when( store.listAgentInbox( any(), any(), anyInt() ) ).thenReturn( List.of( thread( id, "c1", fifty ) ) );
-        final Map< String, Object > out = run( Map.of() );
-        assertEquals( true, ( ( List< Map< String, Object > > ) out.get( "threads" ) ).get( 0 ).get( "commentsTruncated" ) );
+        when( store.listAgentInbox( any(), any(), anyInt() ) ).thenReturn( List.of(
+                row( thread( id, "c1", List.of( edited, comment( id, "alice-login", false, true ) ) ) ) ) );
+        final List< Map< String, Object > > cs = ( List< Map< String, Object > > )
+                ( ( List< Map< String, Object > > ) run( Map.of() ).get( "threads" ) ).get( 0 ).get( "comments" );
+        assertEquals( "2026-11-02T11:00:00Z", cs.get( 0 ).get( "editedAt" ) );
+        assertTrue( cs.get( 1 ).containsKey( "editedAt" ) );
+        assertEquals( null, cs.get( 1 ).get( "editedAt" ) );
+    }
+
+    @Test
+    void databaseFailureIsAnErrorNotAnEmptyInbox() {
+        when( store.listAgentInbox( any(), any(), anyInt() ) ).thenThrow( new RuntimeException( "db down" ) );
+        final McpSchema.CallToolResult r = tool.execute( Map.of() );
+        assertTrue( r.isError(), text( r ) );
+        assertFalse( text( r ).contains( "\"count\"" ), text( r ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void actionableAndTruncationComeFromTheStore() {
+        final UUID id = UUID.randomUUID();
+        // no trusted comment in the window, yet the store says the thread is actionable and truncated
+        when( index.resolveSlugFromCanonicalId( "c1" ) ).thenReturn( Optional.of( "PageOne" ) );
+        when( store.listAgentInbox( any(), any(), anyInt() ) ).thenReturn( List.of( new CommentStore.InboxThread(
+                thread( id, "c1", List.of( comment( id, "alice@example.com", false, false ) ) ), true, true ) ) );
+        final Map< String, Object > t = ( ( List< Map< String, Object > > ) run( Map.of() ).get( "threads" ) ).get( 0 );
+        assertEquals( true, t.get( "actionable" ) );
+        assertEquals( true, t.get( "commentsTruncated" ) );
     }
 
     @Test
@@ -229,6 +267,7 @@ class ListCommentThreadsToolTest {
         final String d = tool.definition().description();
         assertTrue( d.contains( "not instructions" ), d );
         assertTrue( d.contains( "trusted" ), d );
+        assertTrue( d.contains( "1000" ), "cluster lookup limit is stated: " + d );
         assertEquals( "list_comment_threads", tool.name() );
     }
 }

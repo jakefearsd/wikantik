@@ -483,6 +483,23 @@ class CommentThreadResourceTest {
     }
 
     @Test
+    void create_non_boolean_agentAvailable_is_400() throws Exception {
+        final JsonObject nested = new JsonObject();
+        nested.addProperty( "x", 1 );
+        final JsonObject asObject = createBody( "first" );
+        asObject.add( "agentAvailable", nested );
+        final JsonObject asString = createBody( "first" );
+        asString.addProperty( "agentAvailable", "yes" );
+        for ( final JsonObject body : new JsonObject[] { asObject, asString } ) {
+            final JsonObject res = post( "?page=PageOne", null, body );
+            assertTrue( res.get( "error" ).getAsBoolean(), res.toString() );
+            assertEquals( 400, res.get( "status" ).getAsInt() );
+            assertTrue( res.get( "message" ).getAsString().contains( "agentAvailable must be true or false" ), res.toString() );
+        }
+        assertTrue( store.listByCanonicalId( "CID1", "all" ).isEmpty(), "nothing is stored for a refused create" );
+    }
+
+    @Test
     void create_unknown_page_is_404() throws Exception {
         Mockito.doReturn( Optional.empty() ).when( servlet ).resolveCanonicalId( "Ghost" );
         final JsonObject body = new JsonObject();

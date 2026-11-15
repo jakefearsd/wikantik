@@ -227,8 +227,16 @@ public class CommentThreadResource extends RestServletBase {
         final String owner = pageOwnerService().getOwner( canonical );
         final Optional< String > ownerForMention =
                 owner.equals( user ) ? Optional.empty() : Optional.of( owner );
-        final boolean agentAvailable = !body.has( "agentAvailable" ) || body.get( "agentAvailable" ).isJsonNull()
-                || body.get( "agentAvailable" ).getAsBoolean();
+        final boolean agentAvailable;
+        if ( !body.has( "agentAvailable" ) || body.get( "agentAvailable" ).isJsonNull() ) {
+            agentAvailable = true;
+        } else if ( body.get( "agentAvailable" ).isJsonPrimitive()
+                && body.get( "agentAvailable" ).getAsJsonPrimitive().isBoolean() ) {
+            agentAvailable = body.get( "agentAvailable" ).getAsBoolean();
+        } else {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "agentAvailable must be true or false" );
+            return;
+        }
         final CommentThread t = commentStore().createThread(
                 canonical, anchor, user, text, mentionService(), ownerForMention,
                 agentAvailable, authorCouldEdit( request, pageName ) );

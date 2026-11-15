@@ -346,6 +346,42 @@ describe('PageView comment integration', () => {
     expect(await screen.findByText(/first comment/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
+  async function openComposer() {
+    const { container } = await mountAndSettle();
+    const article = container.querySelector('article.article-prose');
+    const p = article.querySelector('p');
+    const foxNode = Array.from(p.childNodes).find(
+      (n) => n.nodeType === Node.TEXT_NODE && n.data.includes('fox'));
+    const foxStart = foxNode.data.indexOf('fox');
+    const range = document.createRange();
+    range.setStart(foxNode, foxStart);
+    range.setEnd(foxNode, foxStart + 3);
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      rangeCount: 1, isCollapsed: false, getRangeAt: () => range, removeAllRanges: vi.fn(),
+    });
+    fireEvent.mouseUp(article);
+    fireEvent.click(await screen.findByTestId('comment-add-floating'));
+    const textarea = await screen.findByPlaceholderText('Add a comment');
+    fireEvent.change(textarea, { target: { value: 'a new comment' } });
+  }
+
+  it('ticks "Agents may respond to this comment" by default and submits agentAvailable: true', async () => {
+    await openComposer();
+    const box = screen.getByLabelText('Agents may respond to this comment');
+    expect(box.checked).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /^Comment$/ }));
+    await waitFor(() => expect(api.createCommentThread).toHaveBeenCalledTimes(1));
+    expect(api.createCommentThread.mock.calls[0][1].agentAvailable).toBe(true);
+  }, TEST_TIMEOUT);
+
+  it('submits agentAvailable: false when the box is unticked', async () => {
+    await openComposer();
+    fireEvent.click(screen.getByLabelText('Agents may respond to this comment'));
+    fireEvent.click(screen.getByRole('button', { name: /^Comment$/ }));
+    await waitFor(() => expect(api.createCommentThread).toHaveBeenCalledTimes(1));
+    expect(api.createCommentThread.mock.calls[0][1].agentAvailable).toBe(false);
+  }, TEST_TIMEOUT);
+
   it('selection over math renders the math hint instead of the Comment button', async () => {
     const { container } = await mountAndSettle();
     const article = container.querySelector('article.article-prose');

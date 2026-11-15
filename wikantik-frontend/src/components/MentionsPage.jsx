@@ -7,6 +7,7 @@ import { formatRelative } from '../utils/datetime';
 import { flattenMentions } from '../utils/mentionTokens';
 import EmptyState from './ui/EmptyState';
 import Icon from './ui/Icon';
+import Badge from './ui/Badge';
 
 export default function MentionsPage() {
   const [status, setStatus] = useState('unread');
@@ -125,6 +126,7 @@ export default function MentionsPage() {
           >
             <div className="mentions-item-meta">
               <span className="mentions-item-author">{m.mentionedBy}</span>
+              {m.viaAgent && <Badge variant="default" className="comment-agent-badge" title="Posted by an agent">agent</Badge>}
               <span className="mentions-item-context">
                 on <Link
                   to={`/wiki/${encodeURIComponent(m.pageName)}?thread=${encodeURIComponent(m.threadId)}&comment=${encodeURIComponent(m.commentId)}`}

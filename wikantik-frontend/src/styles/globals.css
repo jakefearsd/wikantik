@@ -150,6 +150,10 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Playfair Display (--font-display) defaults to old-style figures, whose
+     zero reads as a lowercase "o" in headings ("Stage 0" -> "Stage o").
+     Inherited, so every display-font heading gets lining figures. */
+  font-variant-numeric: lining-nums;
 }
 
 ::selection {

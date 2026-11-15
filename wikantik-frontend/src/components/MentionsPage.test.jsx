@@ -205,4 +205,13 @@ describe('MentionsPage', () => {
       expect(screen.getAllByTitle('Mark read').length).toBe(initialCount);
     });
   });
+
+  it('labels a mention from an agent with the agent badge in the mentions list', async () => {
+    api.listMyMentions.mockResolvedValue({ mentions: [
+      { ...SAMPLE[0], id: 'm3', mentionedBy: 'wikantik-cli', viaAgent: true },
+    ] });
+    renderPage();
+    expect(await screen.findByText('wikantik-cli')).toBeTruthy();
+    expect(screen.getByText('agent')).toBeTruthy();
+  });
 });

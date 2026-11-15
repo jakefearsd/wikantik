@@ -50,10 +50,11 @@ import '../styles/fences.css';
  *  re-renders cheap while typing. */
 function CommentComposer({ rect, quote, onSubmit, onCancel, canMention = false }) {
   const [text, setText] = useState('');
+  const [agentAvailable, setAgentAvailable] = useState(true);
   const taRef = useRef(null);
   useEffect(() => { taRef.current?.focus(); }, []);
   const grow = (el) => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
-  const submit = () => { if (text.trim()) onSubmit(text.trim()); };
+  const submit = () => { if (text.trim()) onSubmit(text.trim(), { agentAvailable }); };
   // Mention picker — fetch candidates on every keystroke that opens an `@<token>`.
   // The hook handles debounce/state; we just wire onChange/onKeyDown into the
   // existing textarea handlers and render the dumb popover next to the composer.
@@ -109,6 +110,14 @@ function CommentComposer({ rect, quote, onSubmit, onCancel, canMention = false }
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); submit(); }
         }}
       />
+      <label className="comment-composer-agent">
+        <input
+          type="checkbox"
+          checked={agentAvailable}
+          onChange={(e) => setAgentAvailable(e.target.checked)}
+        />
+        {' '}Agents may respond to this comment
+      </label>
       <div className="comment-composer-actions">
         <button type="button" className="comment-composer-cancel" onClick={onCancel}>Cancel</button>
         <button
@@ -423,10 +432,10 @@ export default function PageView() {
     }
   }, [searchParams, threads]);
 
-  const createThread = async (text) => {
+  const createThread = async (text, { agentAvailable = true } = {}) => {
     if (!selection?.selector || !text.trim()) return;
     try {
-      await api.createCommentThread(name, { ...selection.selector, text: text.trim() });
+      await api.createCommentThread(name, { ...selection.selector, text: text.trim(), agentAvailable });
     } catch (e) {
       console.warn('Failed to create comment thread', e);
       toast.error(`Couldn't post comment: ${e.message || 'unknown error'}`);

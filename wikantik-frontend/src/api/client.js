@@ -239,10 +239,10 @@ export const api = {
   listCommentThreads: (page, status = 'all') =>
     request(`/api/comment-threads?page=${encodeURIComponent(page)}&status=${encodeURIComponent(status)}`),
 
-  createCommentThread: (page, { exact, prefix, suffix, text }) =>
+  createCommentThread: (page, { exact, prefix, suffix, text, agentAvailable = true }) =>
     request(`/api/comment-threads?page=${encodeURIComponent(page)}`, {
       method: 'POST',
-      body: JSON.stringify({ exact, prefix, suffix, text }),
+      body: JSON.stringify({ exact, prefix, suffix, text, agentAvailable }),
     }),
 
   addCommentReply: (threadId, text) =>

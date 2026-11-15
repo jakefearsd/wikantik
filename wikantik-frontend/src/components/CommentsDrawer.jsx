@@ -5,6 +5,7 @@ import MentionPicker from './MentionPicker';
 import CommentBody from './CommentBody';
 import EmptyState from './ui/EmptyState';
 import Icon from './ui/Icon';
+import Badge from './ui/Badge';
 
 function ThreadCard({
   thread, detached, canModerate, canMention, focusedThreadId, mentionNames, currentUserId,
@@ -62,6 +63,11 @@ function ThreadCard({
   return (
     <div className={`comment-thread${isFocused ? ' focused' : ''}`} onClick={() => onFocusThread(thread.id)}>
       <div className="comment-thread-anchor">“{thread.anchor?.exact}”</div>
+      {thread.status === 'dismissed' && (
+        <Badge variant="warning" className="comment-dismissed-badge" title="An agent dismissed this thread; its last comment gives the reason">
+          Dismissed by agent
+        </Badge>
+      )}
       {thread.comments.map((c) => {
         // `author` is a display name; `authorId` is the opaque uid the viewer's own
         // `user.userId` is compared with. Anonymous viewers have no id, so nothing is "mine".
@@ -69,6 +75,7 @@ function ThreadCard({
         return (
           <div key={c.id} className={`comment-item${mine ? ' mine' : ''}`}>
             <span className="comment-author">{c.author}</span>
+            {c.viaAgent && <Badge variant="default" className="comment-agent-badge" title="Posted by an agent">agent</Badge>}
             {mine && <span className="comment-author-you">(you)</span>}
             <CommentBody body={c.body} mentionNames={mentionNames} />
           </div>
@@ -130,7 +137,7 @@ function ThreadCard({
         </div>
       ) : (
         <div className="comment-reply-row" onClick={(e) => e.stopPropagation()}>
-          {thread.status === 'resolved' && (
+          {(thread.status === 'resolved' || thread.status === 'dismissed') && (
             <button onClick={() => onReopen(thread.id)}>Reopen</button>
           )}
           {deleteButton}
@@ -151,6 +158,7 @@ export default function CommentsDrawer({
   const visible = threads.filter((t) => {
     if (statusFilter === 'open') return t.status === 'open';
     if (statusFilter === 'resolved') return t.status === 'resolved';
+    if (statusFilter === 'dismissed') return t.status === 'dismissed';
     return true;
   });
   const attached = visible.filter((t) => !isDetached(t.id));
@@ -167,6 +175,7 @@ export default function CommentsDrawer({
         <select value={statusFilter} onChange={(e) => onStatusFilter(e.target.value)}>
           <option value="open">Open</option>
           <option value="resolved">Resolved</option>
+          <option value="dismissed">Dismissed</option>
           <option value="all">All</option>
         </select>
         <button aria-label="Close comments" onClick={onClose}>✕</button>

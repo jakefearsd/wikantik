@@ -213,4 +213,36 @@ describe('CommentsDrawer', () => {
       expect(api.listMentionableUsers).not.toHaveBeenCalled();
     });
   });
+  it('shows an agent badge beside a viaAgent comment author', () => {
+    const agentThread = { id: 'T3', status: 'open', agentAvailable: true, anchor: { exact: 'gamma' },
+      comments: [{ id: 'C3', author: 'wikantik-cli', authorId: null, viaAgent: true, body: 'agent note' }] };
+    setup({ threads: [agentThread], statusFilter: 'open' });
+    expect(screen.getByText('wikantik-cli')).toBeTruthy();
+    expect(screen.getByText('agent')).toBeTruthy();
+  });
+
+  it('shows a dismissed thread with a Reopen control and no reply box', () => {
+    const dismissed = { id: 'T4', status: 'dismissed', anchor: { exact: 'delta' },
+      comments: [
+        { id: 'C4', author: 'Alice A', authorId: 'u-alice', body: 'please fix' },
+        { id: 'C5', author: 'wikantik-cli', authorId: null, viaAgent: true, body: 'not applicable here' },
+      ] };
+    const props = setup({ threads: [dismissed], statusFilter: 'dismissed' });
+    expect(screen.getByText('not applicable here')).toBeTruthy();
+    expect(screen.getByText('Dismissed by agent')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('Reply…')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /reopen/i }));
+    expect(props.onReopen).toHaveBeenCalledWith('T4');
+  });
+
+  it('filters to dismissed threads when the Dismissed filter is chosen', () => {
+    const dismissed = { id: 'T4', status: 'dismissed', anchor: { exact: 'delta' },
+      comments: [{ id: 'C5', author: 'wikantik-cli', authorId: null, viaAgent: true, body: 'not applicable here' }] };
+    const props = setup({ threads: [...threads, dismissed], statusFilter: 'dismissed' });
+    expect(screen.getByText('not applicable here')).toBeTruthy();
+    expect(screen.queryByText('first note')).toBeNull();
+    expect(screen.queryByText('done note')).toBeNull();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'dismissed' } });
+    expect(props.onStatusFilter).toHaveBeenCalledWith('dismissed');
+  });
 });

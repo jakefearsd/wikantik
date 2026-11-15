@@ -196,7 +196,7 @@ describe('anchored comment thread methods', () => {
     const [url, opts] = lastCall();
     expect(url).toContain('/api/comment-threads?page=Foo');
     expect(opts.method).toBe('POST');
-    expect(JSON.parse(opts.body)).toEqual({ exact: 'e', prefix: 'p', suffix: 's', text: 't' });
+    expect(JSON.parse(opts.body)).toEqual({ exact: 'e', prefix: 'p', suffix: 's', text: 't', agentAvailable: true });
   });
 
   it('addCommentReply POSTs the reply text to the thread comments', async () => {

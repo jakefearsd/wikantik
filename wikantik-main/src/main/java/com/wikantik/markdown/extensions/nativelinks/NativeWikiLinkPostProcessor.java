@@ -43,7 +43,6 @@ import com.wikantik.markdown.nodes.WikiEmbedBlock;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.util.TextUtil;
-import com.wikantik.wikilink.WikiLinkFragments;
 import com.wikantik.wikilink.WikiLinkResolver;
 import com.wikantik.wikilink.WikiLinkResolver.Resolution;
 
@@ -197,7 +196,7 @@ public class NativeWikiLinkPostProcessor extends NodePostProcessor {
     }
 
     private NativeWikiLinkNode pageLink( final WikiLinkRef r ) {
-        final String fragment = r.heading() != null ? "#" + WikiLinkFragments.of( r.heading() ) : "";
+        final String fragment = TypedWikiLink.fragment( r );
         if ( r.isSamePage() ) {
             return linkNode( fragment, r.displayText(), Kind.ANCHOR, "" );
         }

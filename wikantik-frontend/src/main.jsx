@@ -21,6 +21,7 @@ const WorkHome = React.lazy(() => import('./components/work/WorkHome'));
 const WorkLayout = React.lazy(() => import('./components/work/WorkLayout'));
 const WorkBoard = React.lazy(() => import('./components/work/WorkBoard'));
 const WorkPlaceholder = React.lazy(() => import('./components/work/WorkPlaceholder'));
+const WorkItemView = React.lazy(() => import('./components/work/WorkItemView'));
 const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage'));
 
 const AdminLayout = React.lazy(() => import('./components/admin/AdminLayout'));
@@ -67,7 +68,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/work" element={<WorkGate />}>
               <Route index element={<WorkHome />} />
               <Route path="products" element={<WorkPlaceholder title="Products" />} />
-              <Route path="item/:key" element={<WorkPlaceholder title="Item view" />} />
+              <Route path="item/:key" element={<WorkItemView />} />
               <Route path=":project" element={<WorkLayout />}>
                 <Route index element={<WorkBoard />} />
                 <Route path="dates" element={<WorkPlaceholder title="Dates" />} />

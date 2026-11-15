@@ -500,6 +500,16 @@ have a date are skipped, so an interrupted run can be started again. `force=true
 
 **Verify:** `https://wiki.wikantik.com/sitemap.xml` should show varied `<lastmod>` dates instead of a few shared ones.
 
+### 1.14 Enabling work management
+
+Work management (projects, a board, epics/stories/tasks, comments and history, at `/work`) is off by default.
+
+1. Set `wikantik.work.enabled=true` in `wikantik-custom.properties` and restart. `/api/capabilities` then reports `"work": true`.
+2. Migration `V074__work_management_core.sql` is applied by `bin/db/migrate.sh` like any other (`bin/redeploy.sh` runs it).
+3. An Admin creates the first product at `/work/products` and the first project at `/work` ("New project"), then adds members under the project's Settings tab. Only members and Admins see a project; everyone else gets "Not found".
+
+To turn it off, set the property back to `false` (or remove it) and restart: `/api/work/*` returns 404 and the navigation entry disappears. The data is kept, and returns when the flag is turned back on.
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

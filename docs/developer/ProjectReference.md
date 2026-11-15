@@ -360,6 +360,10 @@ rate-limit bucket (A8). Plans: [Phase 0](../superpowers/plans/2026-11-06-multied
 [Phase 2](../superpowers/plans/2026-11-06-multiedit-phase2-presence-meta-external.md),
 [Phase 3](../superpowers/plans/2026-11-07-multiedit-phase3-draft-ux-attribution.md).
 
+### Work management — status — [design](../superpowers/specs/2026-11-15-work-management-design.md)
+
+Phase 1 (core) is built and ships off by default (`wikantik.work.enabled=false`). Module `wikantik-work` (schema `V074`: `work_project`, `work_member`, `work_product`, `work_item`, `work_item_revision`, `work_event`, `work_comment`, `work_mention`, `work_link`), `WorkService` as the only door to the data, runtime wiring in `wikantik-main` (`com.wikantik.work.runtime`), REST under `/api/work/*`, and the `/work` UI (board, dates, activity, item and epic views, settings, products). `WorkBoardIT` drives it in a browser. Phases 2 (agents, queues, claims, `/work-mcp`), 3 (changes and autonomy) and 4 (deployments and incidents) are designed, not built; the policy columns exist but drive nothing yet. Rules: `wikantik-work/CLAUDE.md`.
+
 ### Other subsystems
 
 - **[PageGraphVsKnowledgeGraph.md](../wikantik-pages/PageGraphVsKnowledgeGraph.md)** — Historical explainer contrasting the Page Graph with the Knowledge Graph, which was removed 2026-11; only the Page Graph remains.
@@ -378,6 +382,7 @@ rate-limit bucket (A8). Plans: [Phase 0](../superpowers/plans/2026-11-06-multied
 | `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 16 read-only tools (see the module entry); `get_page_for_agent` carries `draft_active` | `McpAccessFilter` (`mcp_read`) |
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
 | `/scim/v2/*` | wikantik-scim | SCIM 2.0 | `Users` (CRUD, PATCH active, soft-delete) + `Groups` (CRUD, membership PATCH, hard delete) + discovery | `ScimAccessFilter` (bearer `wikantik.scim.token`) |
+| `/api/work/*` | wikantik-rest | REST/JSON | Work management: projects, members, products, items, comments, links, board, events, revisions, activity, `me`; 404 unless `wikantik.work.enabled` | Session; project membership (non-members get 404, Admins see all) |
 | `/api/*` | wikantik-rest | REST/JSON | 36 servlets (38 url-patterns) in `web.xml` — pages, search, mentions, previews/embeds, Obsidian import/export, fence render, ingest, collab (dark behind `wikantik.collab.enabled`); full list in ProjectReference | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
 | `/admin/*` | wikantik-rest | REST/JSON | 28 servlets (34 url-patterns) — embeddings, collab drafts, audit, ontology, drift, derived, SEO content-date backfill, cluster rename, connectors, insights; full list in ProjectReference | `AdminAuthFilter` (`AllPermission`) |
 | `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public — view ACL **enforced** (WikiPageFormatFilter gates on the caller's session; 404 hides restricted pages) |

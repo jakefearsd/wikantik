@@ -297,7 +297,18 @@ class JdbcWorkStoreItemsPostgresTest {
             "alice", Actor.Kind.HUMAN );
         create( "unrelated" );
         assertEquals( 2, store.items( new ItemFilter( plat.id(), null, null, null, null, null, "login", null, 0 ) ).size() );
-        assertEquals( 0, store.items( new ItemFilter( plat.id(), null, null, null, null, null, "100%", null, 0 ) ).size() );
+    }
+
+    @Test
+    void textFilterTreatsPercentAndUnderscoreLiterally() throws SQLException {
+        final Item pct = create( "100% done" );
+        create( "1000 done" );
+        final Item under = create( "a_b marker" );
+        create( "axb marker" );
+        assertEquals( List.of( pct.id() ), store.items( new ItemFilter( plat.id(), null, null, null, null, null,
+            "100%", null, 0 ) ).stream().map( Item::id ).toList() );
+        assertEquals( List.of( under.id() ), store.items( new ItemFilter( plat.id(), null, null, null, null, null,
+            "a_b", null, 0 ) ).stream().map( Item::id ).toList() );
     }
 
     @Test

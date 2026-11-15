@@ -16,6 +16,11 @@ const SearchResultsPage = React.lazy(() => import('./components/SearchResultsPag
 const DiffViewer = React.lazy(() => import('./components/DiffViewer'));
 const UserPreferencesPage = React.lazy(() => import('./components/UserPreferencesPage'));
 const MentionsPage = React.lazy(() => import('./components/MentionsPage'));
+const WorkGate = React.lazy(() => import('./components/work/WorkGate'));
+const WorkHome = React.lazy(() => import('./components/work/WorkHome'));
+const WorkLayout = React.lazy(() => import('./components/work/WorkLayout'));
+const WorkBoard = React.lazy(() => import('./components/work/WorkBoard'));
+const WorkPlaceholder = React.lazy(() => import('./components/work/WorkPlaceholder'));
 const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage'));
 
 const AdminLayout = React.lazy(() => import('./components/admin/AdminLayout'));
@@ -59,6 +64,17 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             } />
             <Route path="/preferences" element={<UserPreferencesPage />} />
             <Route path="/me/mentions" element={<MentionsPage />} />
+            <Route path="/work" element={<WorkGate />}>
+              <Route index element={<WorkHome />} />
+              <Route path="products" element={<WorkPlaceholder title="Products" />} />
+              <Route path="item/:key" element={<WorkPlaceholder title="Item view" />} />
+              <Route path=":project" element={<WorkLayout />}>
+                <Route index element={<WorkBoard />} />
+                <Route path="dates" element={<WorkPlaceholder title="Dates" />} />
+                <Route path="activity" element={<WorkPlaceholder title="Activity" />} />
+                <Route path="settings" element={<WorkPlaceholder title="Settings" />} />
+              </Route>
+            </Route>
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/change-password" element={<ChangePasswordPage />} />

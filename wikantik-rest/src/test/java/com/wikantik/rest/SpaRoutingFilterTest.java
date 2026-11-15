@@ -422,6 +422,27 @@ class SpaRoutingFilterTest {
         assertTrue( capturedOutput.asString().contains( "<div id=\"root\">" ) );
     }
 
+    @Test
+    void workRoutesServeIndexHtml() throws Exception {
+        for ( final String path : new String[] { "/work", "/work/PLAT", "/work/PLAT/dates", "/work/item/PLAT-1", "/work/products" } ) {
+            final HttpServletRequest req = mockRequest( path );
+
+            filter.doFilter( req, response, chain );
+
+            verify( chain, never() ).doFilter( any(), any() );
+        }
+        assertTrue( capturedOutput.asString().contains( "<div id=\"root\">" ) );
+    }
+
+    @Test
+    void workApiCallsPassThroughToTheServlets() throws Exception {
+        final HttpServletRequest request = mockApiRequest( "/api/work/projects" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( any(), any() );
+    }
+
     // ---- Passthrough tests (API calls with non-HTML Accept) ----
 
     @Test

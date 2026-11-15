@@ -19,6 +19,9 @@
 package com.wikantik.mcp;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.comments.CommentStore;
+import com.wikantik.comments.mentions.MentionService;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
@@ -144,6 +147,15 @@ public class McpToolRegistry {
                 engine instanceof com.wikantik.WikiEngine we2 ? we2.contentOpportunityService() : null;
         readOnlyList.add( new ListContentOpportunitiesTool( opportunityService ) );
         authorConfigurableList.add( new SnoozeOpportunityTool( opportunityService ) );
+
+        // Reader comment threads (agent feedback loop). Registered UNCONDITIONALLY for the same
+        // reason as the tools above: both refuse at call time when no datasource is wired.
+        final var persistence = engine instanceof com.wikantik.WikiEngine we3 ? we3.getPersistenceSubsystem() : null;
+        final CommentStore commentStore = persistence == null ? null : persistence.comments();
+        final MentionService mentionService = persistence == null ? null : persistence.mentions();
+        readOnlyList.add( new ListCommentThreadsTool( commentStore, structuralIndex,
+                AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() ) );
+        authorConfigurableList.add( new RespondToCommentThreadTool( commentStore, mentionService, structuralIndex ) );
 
         readOnly = List.copyOf( readOnlyList );
         authorConfigurable = List.copyOf( authorConfigurableList );

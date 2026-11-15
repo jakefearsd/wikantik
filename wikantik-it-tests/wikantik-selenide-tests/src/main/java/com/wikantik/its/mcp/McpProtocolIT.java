@@ -58,7 +58,9 @@ public class McpProtocolIT extends WithMcpTestSetup {
             // Query-log read surface — retrieval query history across all four agent surfaces
             "list_retrieval_queries",
             // Content intelligence — the ranked opportunity backlog and its decline path
-            "list_content_opportunities", "snooze_opportunity"
+            "list_content_opportunities", "snooze_opportunity",
+            // Agent comment feedback loop — answer reader comment threads
+            "list_comment_threads", "respond_to_comment_thread"
     );
 
     @Test

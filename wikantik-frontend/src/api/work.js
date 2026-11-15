@@ -64,3 +64,4 @@ export const removeLink = (id) => request(`${base}/links/${enc(id)}`, { method: 
 // Activity and the viewer
 export const getActivity = (params) => request(`${base}/activity${query(params)}`);
 export const getMe = () => request(`${base}/me`);
+export const archiveProduct = (key) => request(`${base}/products/${enc(key)}/archive`, { method: 'POST' });

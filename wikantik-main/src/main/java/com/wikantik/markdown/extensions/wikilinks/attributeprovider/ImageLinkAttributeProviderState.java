@@ -54,7 +54,8 @@ public class ImageLinkAttributeProviderState implements NodeAttributeProviderSta
         if( isLinkFromText && linkOperations.isExternalLink( link.getText().toString() ) ) {
             attributes.replaceValue( "class", MarkupParser.CLASS_EXTERNAL );
             attributes.replaceValue( "href", urlRef );
-        } else if ( isLinkFromText && linkOperations.linkExists( link.getText().toString() ) ) {
+        } else if ( isLinkFromText && !Boolean.TRUE.equals( wikiContext.getVariable( Context.VAR_LINKS_AS_TYPED ) )
+                    && linkOperations.linkExists( link.getText().toString() ) ) {
             final String pagelink = wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), link.getText().toString() );
             attributes.replaceValue( "class", MarkupParser.CLASS_WIKIPAGE );
             attributes.replaceValue( "href", pagelink );

@@ -58,7 +58,9 @@ class WikiWorkRendererTest {
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build( TestEngine.with( "wikantik.translatorReader.matchEnglishPlurals", "true" ) );
+        engine = TestEngine.build( TestEngine.with( "wikantik.translatorReader.matchEnglishPlurals", "true" ),
+            TestEngine.with( "wikantik.interWikiRef.img", "https://img.example/%s" ),
+            TestEngine.with( "wikantik.interWikiRef.ext", "https://ext.example/%s" ) );
         engine.setManager( StructuralIndexService.class, index );
         renderer = new WikiWorkRenderer( engine );
     }
@@ -205,30 +207,43 @@ class WikiWorkRendererTest {
 
     @Test
     void attachmentWikilink() throws Exception {
-        engine.saveText( "AttPage", "x" );
-        assertIdenticalOnceTargetExists( "get [[AttPage/file.pdf]]",
-            () -> engine.addAttachment( "AttPage", "file.pdf", new byte[] { 1, 2, 3 } ) );
+        assertIdenticalOnceTargetExists( "get [[AttPage/file.pdf]]", () -> {
+            engine.saveText( "AttPage", "x" );
+            engine.addAttachment( "AttPage", "file.pdf", new byte[] { 1, 2, 3 } );
+        } );
     }
 
+    /**
+     * The default pipeline answers an {@code x/y} link with an attachment link whether or not the attachment exists,
+     * so before/after equality alone would pass with the guard removed; the shape itself is pinned too.
+     */
     @Test
     void attachmentMarkdownLink() throws Exception {
-        engine.saveText( "AttMdPage", "x" );
-        assertIdenticalOnceTargetExists( "get [doc](AttMdPage/file.pdf)",
-            () -> engine.addAttachment( "AttMdPage", "file.pdf", new byte[] { 1, 2, 3 } ) );
+        final String shape = renderer.toHtml( "get [doc](AttMdPage/file.pdf)" );
+        assertTrue( shape.contains( "class=\"wikipage\"" ) && !shape.contains( "attach" ),
+            "drawn as a plain page link, never as an attachment link: " + shape );
+        assertIdenticalOnceTargetExists( "get [doc](AttMdPage/file.pdf)", () -> {
+            engine.saveText( "AttMdPage", "x" );
+            engine.addAttachment( "AttMdPage", "file.pdf", new byte[] { 1, 2, 3 } );
+        } );
     }
 
     @Test
     void imageEmbedOfAnAttachment() throws Exception {
-        engine.saveText( "ImgPage", "x" );
-        assertIdenticalOnceTargetExists( "![[ImgPage/img.png]]",
-            () -> engine.addAttachment( "ImgPage", "img.png", new byte[] { 1, 2, 3 } ) );
+        assertIdenticalOnceTargetExists( "![[ImgPage/img.png]]", () -> {
+            engine.saveText( "ImgPage", "x" );
+            engine.addAttachment( "ImgPage", "img.png", new byte[] { 1, 2, 3 } );
+        } );
     }
 
     @Test
     void markdownImageOfAnAttachment() throws Exception {
-        engine.saveText( "ImgMdPage", "x" );
-        assertIdenticalOnceTargetExists( "![alt](ImgMdPage/img.png)",
-            () -> engine.addAttachment( "ImgMdPage", "img.png", new byte[] { 1, 2, 3 } ) );
+        final String shape = renderer.toHtml( "![alt](ImgMdPage/img.png)" );
+        assertFalse( shape.contains( "attach" ), "the image source is not rewritten to an attachment URL: " + shape );
+        assertIdenticalOnceTargetExists( "![alt](ImgMdPage/img.png)", () -> {
+            engine.saveText( "ImgMdPage", "x" );
+            engine.addAttachment( "ImgMdPage", "img.png", new byte[] { 1, 2, 3 } );
+        } );
     }
 
     @Test
@@ -258,6 +273,80 @@ class WikiWorkRendererTest {
         assertIdenticalOnceTargetExists( "see cite-abc here", () -> {
             engine.saveText( "CitedSlugPage", "x" );
             canonicalIds.put( "abc", "CitedSlugPage" );
+        } );
+    }
+
+    @Test
+    void externalImageLinkWhoseTextIsAPageName() throws Exception {
+        assertIdenticalOnceTargetExists( "see [ProbeSecretPage](https://example.com/a.png) end",
+            () -> engine.saveText( "ProbeSecretPage", "x" ) );
+    }
+
+    @Test
+    void interwikiImageLinkWhoseTextIsAPageName() throws Exception {
+        assertIdenticalOnceTargetExists( "see [ProbeInterPage](img:a.png) end",
+            () -> engine.saveText( "ProbeInterPage", "x" ) );
+    }
+
+    @Test
+    void interwikiLinkWhoseTextIsAPageName() throws Exception {
+        assertIdenticalOnceTargetExists( "see [ProbeInterTwo](ext:Somewhere) end",
+            () -> engine.saveText( "ProbeInterTwo", "x" ) );
+    }
+
+    /** Every link syntax the pipeline supports; link text and targets are names a lookup could match. */
+    private static final String CORPUS = String.join( "\n\n",
+        "[[Alpha]]", "[[Alpha|alias text]]", "[[Alpha#Heading]]", "[[Alpha#^blockid]]", "[[#Same Heading]]",
+        "[[alpha]]", "[[Secret Merger Plan]]", "![[Alpha]]", "![[Alpha#Heading]]", "![[Alpha/file.pdf]]",
+        "![[Alpha/img.png]]", "see ![[Alpha]] inline", "[[Alpha/file.pdf]]",
+        "[Alpha](Alpha)", "[t](Alpha)", "[t](Alpha#sec)", "[t](Alpha/file.pdf)", "![a](Alpha/img.png)", "![Alpha](Alpha)",
+        "[Alpha](https://host/x.png)", "[Alpha](https://host/page)", "[Alpha](http://host/x.gif)",
+        "[Alpha](img:x.png)", "[Alpha](ext:Page)", "[Alpha](ext:x.png)", "![Alpha](https://host/x.png)",
+        "[1](#fn)", "[1](1)", "<https://host/auto>", "https://host/bare", "www.example.com", "<a@b.com>",
+        "[Alpha](./relative)", "[Alpha](/abs/path)", "[Alpha](../up)", "[Alpha](mailto:a@b.com)" );
+
+    /**
+     * The structural guard: with links-as-typed on, none of the entry points that ask "does this page, title,
+     * heading or attachment exist" is called, whatever the link syntax.
+     */
+    @Test
+    void noExistenceLookupHappensForAnyLinkSyntax() throws Exception {
+        final com.wikantik.WikiEngine spied = org.mockito.Mockito.spy( engine );
+        final com.wikantik.api.managers.AttachmentManager realAttachments =
+            engine.getManager( com.wikantik.api.managers.AttachmentManager.class );
+        final com.wikantik.api.managers.AttachmentManager attachments = org.mockito.Mockito.spy( realAttachments );
+        spied.setManager( com.wikantik.api.managers.AttachmentManager.class, attachments );
+        final PageManager realPages = engine.getManager( PageManager.class );
+        final PageManager pages = org.mockito.Mockito.spy( realPages );
+        spied.setManager( PageManager.class, pages );
+        try {
+            final String html = new WikiWorkRenderer( spied ).toHtml( CORPUS );
+            assertTrue( html.contains( "alias text" ), "the corpus really rendered: " + html );
+
+            org.mockito.Mockito.verify( spied, org.mockito.Mockito.never() ).getFinalPageName( org.mockito.ArgumentMatchers.any() );
+            org.mockito.Mockito.verifyNoInteractions( index );
+            org.mockito.Mockito.verify( attachments, org.mockito.Mockito.never() ).getAttachmentInfoName(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+            org.mockito.Mockito.verify( attachments, org.mockito.Mockito.never() ).getAttachmentInfo(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+            org.mockito.Mockito.verify( pages, org.mockito.Mockito.never() ).pageExists( org.mockito.ArgumentMatchers.anyString() );
+            org.mockito.Mockito.verify( pages, org.mockito.Mockito.never() ).getPage( org.mockito.ArgumentMatchers.anyString() );
+        } finally {
+            spied.setManager( com.wikantik.api.managers.AttachmentManager.class, realAttachments );
+            spied.setManager( PageManager.class, realPages );
+        }
+    }
+
+    /** The same corpus, extended to the equality form: create a page named after every link's text and target. */
+    @Test
+    void wholeCorpusRendersIdenticallyOncePagesExist() throws Exception {
+        assertIdenticalOnceTargetExists( CORPUS, () -> {
+            for ( final String name : List.of( "Alpha", "ProbeX", "Somewhere" ) ) {
+                engine.saveText( name, "# Heading\ntext ^blockid" );
+            }
+            engine.addAttachment( "Alpha", "file.pdf", new byte[] { 1 } );
+            engine.addAttachment( "Alpha", "img.png", new byte[] { 1 } );
+            indexed.put( "Alpha", List.of( "alpha", "secret merger plan" ) );
         } );
     }
 

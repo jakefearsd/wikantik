@@ -34,11 +34,13 @@ public class ImageLinkNodePostProcessorState implements NodePostProcessorState< 
     private final boolean isLinkFromText;
     private final String urlRef;
     private final LinkParsingOperations linkOperations;
+    private final boolean linksAsTyped;
 
     public ImageLinkNodePostProcessorState( final Context wikiContext, final String urlRef, final boolean isLinkFromText ) {
         this.isLinkFromText = isLinkFromText;
         this.urlRef = urlRef;
         this.linkOperations = new LinkParsingOperations( wikiContext );
+        this.linksAsTyped = Boolean.TRUE.equals( wikiContext.getVariable( Context.VAR_LINKS_AS_TYPED ) );
     }
 
     /**
@@ -52,7 +54,7 @@ public class ImageLinkNodePostProcessorState implements NodePostProcessorState< 
                                                                "src=\"" + urlRef + "\" " +
                                                                "alt=\"" + link.getText().toString() + "\" />" );
         if( ( isLinkFromText && linkOperations.isExternalLink( link.getText().toString() ) ) ||
-                ( isLinkFromText && linkOperations.linkExists( link.getText().toString() ) ) ) {
+                ( isLinkFromText && !linksAsTyped && linkOperations.linkExists( link.getText().toString() ) ) ) {
             link.setUrl( CharSubSequence.of( urlRef ) );
             link.removeChildren();
             link.appendChild( img );

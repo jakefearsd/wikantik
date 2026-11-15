@@ -26,10 +26,14 @@ public final class WorkPolicy {
 
     /**
      * Decides whether {@code actor} holding {@code roleOrNull} on the project may perform {@code action}.
-     * Wiki admins may do everything. SET_POLICY always requires a human. {@code itemOrNull} is accepted so
+     * Agents (admin or not) never SET_POLICY, MANAGE_PROJECT or MANAGE_INSTANCE. Otherwise wiki admins may do everything. {@code itemOrNull} is accepted so
      * later phases can add item-scoped rules without a signature change.
      */
     public static Decision may( final Actor actor, final WorkRole roleOrNull, final Action action, final Item itemOrNull ) {
+        if ( actor.kind() == Actor.Kind.AGENT
+                && ( action == Action.SET_POLICY || action == Action.MANAGE_PROJECT || action == Action.MANAGE_INSTANCE ) ) {
+            return Decision.deny( "An agent may not change policy, manage a project or manage the work instance." );
+        }
         if ( actor.admin() ) {
             return Decision.allow();
         }
@@ -38,9 +42,6 @@ public final class WorkPolicy {
         }
         if ( roleOrNull == null ) {
             return Decision.deny( "You are not a member of this project." );
-        }
-        if ( action == Action.SET_POLICY && actor.kind() != Actor.Kind.HUMAN ) {
-            return Decision.deny( "Only a person may change autonomy and policy settings." );
         }
         final WorkRole needed = switch ( action ) {
             case VIEW -> WorkRole.VIEWER;

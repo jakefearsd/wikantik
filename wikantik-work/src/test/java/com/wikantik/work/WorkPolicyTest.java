@@ -81,6 +81,26 @@ class WorkPolicyTest {
         final Decision d = WorkPolicy.may( agent, WorkRole.LEAD, Action.SET_POLICY, null );
         assertFalse( d.allowed() );
         assertFalse( d.reason().isBlank() );
-        assertTrue( WorkPolicy.may( agent, WorkRole.LEAD, Action.MANAGE_PROJECT, null ).allowed() );
+        assertFalse( WorkPolicy.may( agent, WorkRole.LEAD, Action.MANAGE_PROJECT, null ).allowed() );
+    }
+
+    @ParameterizedTest
+    @CsvSource( { "SET_POLICY", "MANAGE_PROJECT", "MANAGE_INSTANCE" } )
+    void adminAgentIsDeniedAuthorityActions( final Action action ) {
+        final Actor adminAgent = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 7L );
+        for ( final WorkRole role : new WorkRole[] { null, WorkRole.MEMBER, WorkRole.LEAD } ) {
+            final Decision d = WorkPolicy.may( adminAgent, role, action, null );
+            assertFalse( d.allowed(), action + " with role " + role );
+            assertFalse( d.reason().isBlank() );
+        }
+    }
+
+    @Test
+    void adminAgentBehavesLikeAdminForOtherActions() {
+        final Actor adminAgent = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 7L );
+        for ( final Action action : new Action[] { Action.VIEW, Action.CREATE_ITEM, Action.EDIT_ITEM, Action.MOVE,
+                Action.COMMENT, Action.LINK } ) {
+            assertTrue( WorkPolicy.may( adminAgent, null, action, null ).allowed(), action.name() );
+        }
     }
 }

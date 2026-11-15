@@ -4,14 +4,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
   getItem: vi.fn(), patchItem: vi.fn(), listMembers: vi.fn(), listEvents: vi.fn(), listRevisions: vi.fn(),
-  addComment: vi.fn(), editComment: vi.fn(), removeComment: vi.fn(), addLink: vi.fn(), removeLink: vi.fn(), listItems: vi.fn(),
+  listProducts: vi.fn(), addComment: vi.fn(), editComment: vi.fn(), removeComment: vi.fn(), addLink: vi.fn(), removeLink: vi.fn(), listItems: vi.fn(),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { authenticated: true, loginPrincipal: 'ana-login' } }) }));
 
 import {
-  getItem, patchItem, listMembers, listEvents, listRevisions, addComment, addLink, listItems,
+  getItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
 } from '../../api/work';
 import WorkItemView from './WorkItemView';
 
@@ -47,6 +47,7 @@ beforeEach(() => {
   listEvents.mockResolvedValue([]);
   listRevisions.mockResolvedValue([]);
   listItems.mockResolvedValue([]);
+  listProducts.mockResolvedValue([{ id: 3, key: 'wikantik', name: 'Wikantik' }, { id: 4, key: 'docs', name: 'Docs' }]);
 });
 
 const ready = () => screen.findByRole('heading', { level: 1, name: 'Fix the flux capacitor' });
@@ -346,5 +347,88 @@ describe('WorkItemView', () => {
     await ready();
     expect(await screen.findByText('created this item')).toBeInTheDocument();
     expect(listEvents).toHaveBeenCalledWith('PLAT-7');
+  });
+
+  it('offers exactly priorities 1 to 4, labelled', async () => {
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Priority' }));
+    const labels = within(screen.getByLabelText('Priority')).getAllByRole('option').map((o) => o.textContent);
+    expect(labels).toEqual(['P1 – highest', 'P2 – high', 'P3 – normal', 'P4 – lowest']);
+  });
+
+  it('productFieldPatchesProductKey', async () => {
+    patchItem.mockResolvedValue(makeView({ productKey: 'docs' }, { version: 5 }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Product' }));
+    await waitFor(() => expect(within(screen.getByLabelText('Product')).getAllByRole('option')).toHaveLength(3));
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: 'docs' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Product' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { productKey: 'docs' } }));
+  });
+
+  it('clearingProductSendsNull', async () => {
+    patchItem.mockResolvedValue(makeView({ productKey: null }, { version: 5 }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Product' }));
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Product' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { productKey: null } }));
+  });
+
+  it('parentOptionsAreLimitedToTheParentLevel', async () => {
+    listItems.mockImplementation(({ level }) => Promise.resolve(level === 'epic'
+      ? [{ id: 1, key: 'PLAT-1', title: 'Big epic', level: 'epic' }, { id: 2, key: 'PLAT-2', title: 'Other epic', level: 'epic' }] : []));
+    patchItem.mockResolvedValue(makeView({ parentKey: 'PLAT-1' }, { level: 'story', version: 5 }));
+    renderView(makeView({}, { level: 'story' }));
+    await ready();
+    await waitFor(() => expect(listItems).toHaveBeenCalledWith({ project: 'PLAT', level: 'epic' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Parent' }));
+    const labels = within(screen.getByLabelText('Parent')).getAllByRole('option').map((o) => o.textContent);
+    expect(labels).toEqual(['None', 'PLAT-1 – Big epic', 'PLAT-2 – Other epic']);
+    expect(listItems).not.toHaveBeenCalledWith(expect.objectContaining({ level: 'story' }));
+    fireEvent.change(screen.getByLabelText('Parent'), { target: { value: 'PLAT-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Parent' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { parentKey: 'PLAT-1' } }));
+  });
+
+  it('a task\'s parent candidates are stories', async () => {
+    renderView();
+    await ready();
+    await waitFor(() => expect(listItems).toHaveBeenCalledWith({ project: 'PLAT', level: 'story' }));
+  });
+
+  it('epicShowsNoParentOrProductEditor', async () => {
+    renderView(makeView({ derivedProductKeys: ['wikantik'], parentKey: null, productKey: null }, { key: 'PLAT-1', level: 'epic', title: 'Big epic' }));
+    await screen.findByRole('heading', { level: 1, name: 'Big epic' });
+    expect(screen.queryByRole('button', { name: 'Edit Parent' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit Product' })).toBeNull();
+    expect(listProducts).not.toHaveBeenCalled();
+    expect(screen.getAllByText('wikantik').length).toBeGreaterThan(0);
+  });
+
+  it('validationErrorIsShownBesideTheFieldAndValueRestored', async () => {
+    patchItem.mockRejectedValue(Object.assign(new Error('An epic has no product of its own.'), {
+      status: 400, body: { error: true, status: 400, field: 'productKey', message: 'Unknown product: nope' },
+    }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Product' }));
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: 'docs' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Product' }));
+    const msg = await screen.findByText('Unknown product: nope');
+    expect(msg.closest('.work-field')).toHaveTextContent('Product');
+    expect(screen.queryByLabelText('Product')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Product' })).toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('viewers do not load products or parent candidates', async () => {
+    renderView(makeView({ viewerRole: 'viewer' }));
+    await ready();
+    expect(listProducts).not.toHaveBeenCalled();
+    expect(listItems).not.toHaveBeenCalled();
   });
 });

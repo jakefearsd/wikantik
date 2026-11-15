@@ -4,11 +4,11 @@ import Select from '../ui/Select';
 /**
  * One field that edits in place: the value and an Edit button, or a control with Save and Cancel. The draft
  * lives here, so a save that does not go through (conflict, refusal) leaves exactly what was typed.
- * `onSave(value)` resolves true when the server accepted it. `value` is the control's string; `parse` turns the
+ * `onSave(value)` resolves true when the server accepted it, 'restore' when it refused the value (the editor closes, the previous value shows) and false to keep the draft. `value` is the control's string; `parse` turns the
  * draft into what is sent.
  */
 export default function WorkFieldRow({
-  label, value = '', display, type = 'text', options = [], canEdit = false, helper, parse, onSave,
+  label, value = '', display, type = 'text', options = [], canEdit = false, helper, error, parse, onSave,
 }) {
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -53,6 +53,7 @@ export default function WorkFieldRow({
           )}
         </span>
       )}
+      {error && <span className="work-field-error" role="alert">{error}</span>}
       {helper && <span className="work-field-helper">{helper}</span>}
     </div>
   );

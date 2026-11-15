@@ -115,3 +115,9 @@ export function isOverdue(item, now = new Date()) {
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   return item.dueOn < today;
 }
+
+/** Priority is 1 (highest) to 4 (lowest): the schema and service reject anything else. */
+export const PRIORITY_OPTIONS = [
+  { value: '1', label: 'P1 – highest' }, { value: '2', label: 'P2 – high' },
+  { value: '3', label: 'P3 – normal' }, { value: '4', label: 'P4 – lowest' },
+];

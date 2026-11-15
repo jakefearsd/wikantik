@@ -7,9 +7,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useToast } from '../../hooks/useToast';
 import {
-  addComment, addLink, editComment, getItem, listMembers, patchItem, removeComment, removeLink,
+  addComment, addLink, editComment, getItem, listItems, listMembers, listProducts, patchItem, removeComment, removeLink,
 } from '../../api/work';
-import { STATUSES, STATUS_LABELS } from './boardModel';
+import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS } from './boardModel';
 import WorkBodyEditor from './WorkBodyEditor';
 import WorkComments from './WorkComments';
 import WorkEpicView from './WorkEpicView';
@@ -20,7 +20,7 @@ import WorkTimeline from './WorkTimeline';
 
 const EPIC_STATUSES = ['draft', 'in_progress', 'done', 'cancelled'];
 const KIND_OPTIONS = ['software', 'docs', 'admin'].map((k) => ({ value: k, label: k }));
-const PRIORITY_OPTIONS = [1, 2, 3, 4, 5].map((p) => ({ value: String(p), label: `P${p}` }));
+const PARENT_LEVEL = { story: 'epic', task: 'story' };
 const AUTONOMY_OPTIONS = [
   { value: '', label: 'Project default' }, { value: 'supervised', label: 'Supervised' },
   { value: 'delegated', label: 'Delegated' }, { value: 'autonomous', label: 'Autonomous' },
@@ -83,6 +83,9 @@ function ItemPage({ itemKey }) {
   const [loadError, setLoadError] = useState(null);
   const [members, setMembers] = useState([]);
   const [conflict, setConflict] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [parents, setParents] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [epoch, setEpoch] = useState(0);
   const [activity, setActivity] = useState(0);
   const seq = useRef(0);
@@ -119,6 +122,21 @@ function ItemPage({ itemKey }) {
     return () => { cancelled = true; };
   }, [projectKey]);
 
+  const level = view?.item.level;
+  const role0 = view?.viewerRole;
+  const editsRelations = (role0 === 'member' || role0 === 'lead') && level && level !== 'epic';
+  useEffect(() => {
+    if (!editsRelations || !projectKey) return undefined;
+    let cancelled = false;
+    listProducts()
+      .then((rows) => { if (!cancelled) setProducts(rows || []); })
+      .catch((e) => console.warn('WorkItemView: could not load the products', e));
+    listItems({ project: projectKey, level: PARENT_LEVEL[level] })
+      .then((rows) => { if (!cancelled) setParents(rows || []); })
+      .catch((e) => console.warn('WorkItemView: could not load parent candidates', e));
+    return () => { cancelled = true; };
+  }, [editsRelations, projectKey, level]);
+
   const fail = useCallback((e, fallback) => {
     if (e?.status === 404) setNotFound(true);
     else toast.error(e?.message || fallback);
@@ -128,6 +146,7 @@ function ItemPage({ itemKey }) {
   const save = useCallback((changes, note) => {
     const body = { expectedVersion: view.item.version, changes };
     if (note) body.note = note;
+    setFieldErrors({});
     return patchItem(itemKey, body)
       .then((next) => {
         setView(next);
@@ -137,7 +156,10 @@ function ItemPage({ itemKey }) {
       })
       .catch((e) => {
         if (e?.status === 409) setConflict({ changes, current: e.current || null });
-        else fail(e, 'Could not save the change.');
+        else if (e?.status === 400 && e.body?.field) {
+          setFieldErrors({ [e.body.field]: e.body.message || e.message });
+          return 'restore';
+        } else fail(e, 'Could not save the change.');
         return false;
       });
   }, [view, itemKey, fail]);
@@ -165,6 +187,12 @@ function ItemPage({ itemKey }) {
   const isEpic = item.level === 'epic';
   const statusOptions = (isEpic ? EPIC_STATUSES : STATUSES).map((s) => ({ value: s, label: STATUS_LABELS[s] }));
   const field = (name) => (v) => save({ [name]: v });
+  const err = (name) => fieldErrors[name];
+  const withCurrent = (opts, value, label) => (value && !opts.some((o) => o.value === value) ? [...opts, { value, label }] : opts);
+  const productOptions = withCurrent([{ value: '', label: 'None' },
+    ...products.map((p) => ({ value: p.key, label: p.name ? `${p.key} – ${p.name}` : p.key }))], view.productKey, view.productKey);
+  const parentOptions = withCurrent([{ value: '', label: 'None' },
+    ...parents.filter((p) => p.key !== item.key).map((p) => ({ value: p.key, label: `${p.key} – ${p.title}` }))], view.parentKey, view.parentKey);
 
   return (
     <article className="work-item">
@@ -207,34 +235,42 @@ function ItemPage({ itemKey }) {
         </div>
         <aside className="work-item-side" aria-label="Details" key={epoch}>
           <h2 className="work-subheading">Details</h2>
-          <WorkFieldRow label="Title" value={item.title} canEdit={canEdit} onSave={field('title')} />
-          <WorkFieldRow label="Status" type="select" value={item.status} display={STATUS_LABELS[item.status] || item.status}
+          <WorkFieldRow label="Title" error={err('title')} value={item.title} canEdit={canEdit} onSave={field('title')} />
+          <WorkFieldRow label="Status" error={err('status')} type="select" value={item.status} display={STATUS_LABELS[item.status] || item.status}
             options={statusOptions} canEdit={canEdit} onSave={field('status')} />
-          <WorkFieldRow label="Assignee" type="select" value={item.assignee || ''} display={item.assigneeName || 'Unassigned'}
+          <WorkFieldRow label="Assignee" error={err('assignee')} type="select" value={item.assignee || ''} display={item.assigneeName || 'Unassigned'}
             options={assigneeOptions} parse={blankToNull} canEdit={canEdit} onSave={field('assignee')} />
-          <WorkFieldRow label="Priority" type="select" value={String(item.priority)} display={`P${item.priority}`}
+          <WorkFieldRow label="Priority" error={err('priority')} type="select" value={String(item.priority)} display={`P${item.priority}`}
             options={PRIORITY_OPTIONS} parse={Number} canEdit={canEdit} onSave={field('priority')} />
-          <WorkFieldRow label="Due" type="date" value={item.dueOn || ''} display={item.dueOn || 'No due date'}
+          <WorkFieldRow label="Due" error={err('dueOn')} type="date" value={item.dueOn || ''} display={item.dueOn || 'No due date'}
             parse={blankToNull} canEdit={canEdit} onSave={field('dueOn')} />
-          <WorkFieldRow label="Kind" type="select" value={item.kind || 'software'} options={KIND_OPTIONS} canEdit={canEdit} onSave={field('kind')} />
+          <WorkFieldRow label="Kind" error={err('kind')} type="select" value={item.kind || 'software'} options={KIND_OPTIONS} canEdit={canEdit} onSave={field('kind')} />
+          {!isEpic && (
+            <>
+              <WorkFieldRow label="Parent" type="select" value={view.parentKey || ''} display={view.parentKey || 'None'}
+                options={parentOptions} parse={blankToNull} canEdit={canEdit} error={err('parentKey')} onSave={field('parentKey')} />
+              <WorkFieldRow label="Product" type="select" value={view.productKey || ''} display={view.productKey || 'None'}
+                options={productOptions} parse={blankToNull} canEdit={canEdit} error={err('productKey')} onSave={field('productKey')} />
+            </>
+          )}
           {canEdit && (
             <WorkHandoff
               status={item.status} assignee={item.assignee} statusOptions={statusOptions} assigneeOptions={assigneeOptions}
-              onSend={(status, assignee, note) => save({ status, assignee }, note)}
+              onSend={(status, assignee, note) => save({ status, assignee }, note).then((r) => r === true)}
             />
           )}
           <dl className="work-facts">
             <dt>Reporter</dt><dd>{item.reporterName || 'Unknown'}</dd>
-            {view.productKey && (<><dt>Product</dt><dd>{view.productKey}</dd></>)}
+            {isEpic && (view.derivedProductKeys || []).length > 0 && (<><dt>Products</dt><dd>{view.derivedProductKeys.join(', ')}</dd></>)}
             <dt>Created</dt><dd>{dateText(item.createdAt)}</dd>
             <dt>Updated</dt><dd>{dateText(item.updatedAt)}</dd>
           </dl>
           <h2 className="work-subheading">Policy</h2>
-          <WorkFieldRow label="Autonomy" type="select" value={item.autonomy || ''} display={labelOf(AUTONOMY_OPTIONS, item.autonomy || '')}
+          <WorkFieldRow label="Autonomy" error={err('autonomy')} type="select" value={item.autonomy || ''} display={labelOf(AUTONOMY_OPTIONS, item.autonomy || '')}
             options={AUTONOMY_OPTIONS} parse={blankToNull} canEdit={isLead} helper={LATER} onSave={field('autonomy')} />
-          <WorkFieldRow label="Done means" type="select" value={item.doneMeans || ''} display={labelOf(DONE_MEANS_OPTIONS, item.doneMeans || '')}
+          <WorkFieldRow label="Done means" error={err('doneMeans')} type="select" value={item.doneMeans || ''} display={labelOf(DONE_MEANS_OPTIONS, item.doneMeans || '')}
             options={DONE_MEANS_OPTIONS} parse={blankToNull} canEdit={isLead} helper={LATER} onSave={field('doneMeans')} />
-          <WorkFieldRow label="Allow direct" type="select" value={item.allowDirect == null ? '' : String(item.allowDirect)}
+          <WorkFieldRow label="Allow direct" error={err('allowDirect')} type="select" value={item.allowDirect == null ? '' : String(item.allowDirect)}
             display={labelOf(ALLOW_DIRECT_OPTIONS, item.allowDirect == null ? '' : String(item.allowDirect))}
             options={ALLOW_DIRECT_OPTIONS} parse={(v) => (v === '' ? null : v === 'true')} canEdit={isLead} helper={LATER} onSave={field('allowDirect')} />
         </aside>

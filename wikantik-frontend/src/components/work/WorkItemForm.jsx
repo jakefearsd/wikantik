@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import Modal from '../ui/Modal';
 import Select from '../ui/Select';
 import { listItems, createItem } from '../../api/work';
+import { PRIORITY_OPTIONS } from './boardModel';
 
 const LEVELS = [
   { value: 'task', label: 'Task', parentLevel: 'story' },
@@ -107,7 +108,7 @@ function FormBody({ project, products, onClose, onCreated }) {
         <div>
           <label className="work-form-field" htmlFor={`${uid}-priority`}>Priority</label>
           <Select id={`${uid}-priority`} ariaLabel="Priority" value={priority}
-            options={['1', '2', '3', '4'].map((p) => ({ value: p, label: `P${p}` }))} onChange={setPriority} />
+            options={PRIORITY_OPTIONS} onChange={setPriority} />
         </div>
         <div>
           <label className="work-form-field" htmlFor={`${uid}-due`}>Due date</label>

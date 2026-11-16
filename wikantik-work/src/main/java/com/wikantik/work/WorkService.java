@@ -141,14 +141,14 @@ public class WorkService {
     // ---- projects
 
     public List< Project > listProjects( final Actor actor ) throws SQLException {
-        return store.visibleProjects( actor );
+        return scopes.standing().visibleProjects( actor );
     }
 
     /** {@link #listProjects} with the caller's role in each, resolved in the same pass. */
     public List< ProjectRole > listProjectsWithRoles( final Actor actor ) throws SQLException {
         final List< ProjectRole > out = new ArrayList<>();
-        for ( final Project p : store.visibleProjects( actor ) ) {
-            final WorkRole role = store.roleFor( p.id(), actor ).orElse( null );
+        for ( final Project p : scopes.standing().visibleProjects( actor ) ) {
+            final WorkRole role = scopes.standing().roleIn( p.id(), actor ).orElse( null );
             if ( role != null || actor.instanceAdmin() ) {
                 out.add( new ProjectRole( p, new Scope( actor, p, role, scopes::denied ).effectiveRole() ) );
             }
@@ -239,7 +239,7 @@ public class WorkService {
         if ( actor.instanceAdmin() ) {
             return store.products();
         }
-        if ( store.visibleProjects( actor ).isEmpty() ) {
+        if ( scopes.standing().visibleProjects( actor ).isEmpty() ) {
             return List.of();
         }
         return store.products().stream().map( p -> new Product( p.id(), p.key(), p.name(), null, null, null, null,
@@ -474,7 +474,7 @@ public class WorkService {
         if ( actor.kind() == Actor.Kind.AGENT ) {
             return List.of();
         }
-        final Set< Long > ids = store.visibleProjects( actor ).stream().map( Project::id )
+        final Set< Long > ids = scopes.standing().visibleProjects( actor ).stream().map( Project::id )
             .collect( Collectors.toCollection( LinkedHashSet::new ) );
         if ( ids.isEmpty() ) {
             return List.of();

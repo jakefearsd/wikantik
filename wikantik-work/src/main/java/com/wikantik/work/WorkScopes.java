@@ -85,13 +85,20 @@ final class WorkScopes {
     }
 
     private final WorkStore store;
+    private final WorkStanding standing;
     private final WorkDirectory directory;
     private final Consumer< Action > denialListener;
 
     WorkScopes( final WorkStore store, final WorkDirectory directory, final Consumer< Action > denialListener ) {
         this.store = store;
+        this.standing = new WorkStanding( store );
         this.directory = directory;
         this.denialListener = denialListener == null ? action -> { } : denialListener;
+    }
+
+    /** The one resolver of roles and visible projects; it applies an agent's sponsor ceiling. */
+    WorkStanding standing() {
+        return standing;
     }
 
     void denied( final Action action ) {
@@ -105,7 +112,7 @@ final class WorkScopes {
         if ( project == null ) {
             throw new WorkNotFoundException( NOT_FOUND );
         }
-        final WorkRole role = store.roleFor( project.id(), actor ).orElse( null );
+        final WorkRole role = standing.roleIn( project.id(), actor ).orElse( null );
         if ( role == null && !actor.instanceAdmin() ) {
             throw new WorkNotFoundException( NOT_FOUND );
         }
@@ -162,7 +169,7 @@ final class WorkScopes {
 
     boolean isMember( final long projectId, final String login ) throws SQLException {
         final Set< String > groups = directory.groupsOf( login );
-        return store.roleFor( projectId, Actor.human( login, groups == null ? Set.of() : groups, false ) )
+        return standing.roleIn( projectId, Actor.human( login, groups == null ? Set.of() : groups, false ) )
             .isPresent();
     }
 

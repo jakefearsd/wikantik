@@ -66,7 +66,7 @@ class WorkServiceFixWaveTest {
     private final Actor lead = Actor.human( "u-c01d", Set.of(), false );
     private final Actor ana = Actor.human( "u-7f3a", Set.of(), false );
     private final Actor admin = Actor.human( "root", Set.of(), true );
-    private final Actor agentAdmin = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 9L, null );
+    private final Actor agentAdmin = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 9L, admin );
 
     private void role( final String login, final WorkRole role ) throws SQLException {
         when( store.roleFor( eq( 1L ), argThat( a -> a != null && login.equals( a.login() ) ) ) )

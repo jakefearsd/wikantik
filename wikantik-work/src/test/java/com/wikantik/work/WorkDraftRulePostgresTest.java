@@ -89,7 +89,7 @@ class WorkDraftRulePostgresTest {
         final Agent a = svc.registry().registerAgent( admin, new AgentDraft( "builder", "", "", List.of( "implementer" ),
             "lena" ) ).agent();
         svc.putMember( admin, "PLAT", "builder", "agent", WorkRole.MEMBER );
-        agent = Actor.agent( a.id(), a.name() );
+        agent = WorkAgentFixtures.sponsored( a.id(), a.name() );
     }
 
     private Item draftByAgent() throws SQLException {

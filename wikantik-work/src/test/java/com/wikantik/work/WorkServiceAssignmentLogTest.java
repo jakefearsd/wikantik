@@ -86,7 +86,7 @@ class WorkServiceAssignmentLogTest {
         svc.registry().createQueue( admin, "implementer", "Implementer", "" );
         final Agent agent = svc.registry().registerAgent( admin, new AgentDraft( "codex@docker2", "", "",
             List.of( "implementer" ), "bob" ) ).agent();
-        codex = Actor.agent( agent.id(), agent.name() );
+        codex = WorkAgentFixtures.sponsored( agent.id(), agent.name() );
     }
 
     private String ready( final Actor by, final String project, final String title ) throws SQLException {
@@ -129,7 +129,7 @@ class WorkServiceAssignmentLogTest {
     void strangerGetsEmptyLog() throws SQLException {
         ready( lena, "AAA", "alpha work" );
         assertTrue( log( mallory ).isEmpty() );
-        assertTrue( svc.assignmentLog( Actor.agent( 999_999, "ghost" ), AssignmentLogQuery.all() ).isEmpty() );
+        assertTrue( svc.assignmentLog( WorkAgentFixtures.sponsored( 999_999, "ghost" ), AssignmentLogQuery.all() ).isEmpty() );
     }
 
     @Test

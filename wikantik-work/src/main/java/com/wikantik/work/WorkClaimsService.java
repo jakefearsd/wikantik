@@ -118,8 +118,8 @@ public final class WorkClaimsService {
             }
             return ids;
         }
-        for ( final Project p : store.visibleProjects( a ) ) {
-            if ( p.archivedAt() == null && ( !agent || store.roleFor( p.id(), a ).orElse( null ) == WorkRole.MEMBER ) ) {
+        for ( final Project p : scopes.standing().visibleProjects( a ) ) {
+            if ( p.archivedAt() == null && ( !agent || scopes.standing().roleIn( p.id(), a ).orElse( null ) == WorkRole.MEMBER ) ) {
                 ids.add( p.id() );
             }
         }
@@ -144,7 +144,7 @@ public final class WorkClaimsService {
             return List.of();
         }
         final Set< Long > ids = new LinkedHashSet<>();
-        for ( final Project p : store.visibleProjects( a ) ) {
+        for ( final Project p : scopes.standing().visibleProjects( a ) ) {
             ids.add( p.id() );
         }
         return store.claims().claimsHeldBy( a.agentId(), ids );

@@ -44,8 +44,8 @@ final class WorkClaimFixtures {
         store.createQueue( "reviewer", "Reviewer", "" );
         a = agent( "agent-a", List.of( "implementer" ) );
         b = agent( "agent-b", List.of( "implementer" ) );
-        actorA = Actor.agent( a.id(), a.name() );
-        actorB = Actor.agent( b.id(), b.name() );
+        actorA = WorkAgentFixtures.sponsored( a.id(), a.name() );
+        actorB = WorkAgentFixtures.sponsored( b.id(), b.name() );
         store.putMember( plat.id(), String.valueOf( a.id() ), "agent", WorkRole.MEMBER, LENA );
         store.putMember( plat.id(), String.valueOf( b.id() ), "agent", WorkRole.MEMBER, LENA );
     }

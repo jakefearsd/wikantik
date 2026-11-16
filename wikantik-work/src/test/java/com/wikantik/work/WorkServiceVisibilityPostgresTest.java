@@ -83,6 +83,9 @@ class WorkServiceVisibilityPostgresTest {
     private Actor rogueAgent;
     private Actor flaggedAgent;
     private Actor codexActor;
+    /** The member agent itself (it holds a claim in PLAT) under a sponsor who is not a member, and under none. */
+    private Actor codexUnderAStranger;
+    private Actor codexWithNoSponsor;
 
     private WorkService service;
     private long commentId;
@@ -95,13 +98,15 @@ class WorkServiceVisibilityPostgresTest {
         final JdbcWorkStore store = new JdbcWorkStore( ds );
         store.createQueue( "implementer", "Implementer", "" );
         final long codex = WorkAgentFixtures.agent( ds, "codex@docker2" );
-        rogueAgent = Actor.agent( WorkAgentFixtures.agent( ds, "rogue@x" ), "rogue@x" );
+        rogueAgent = WorkAgentFixtures.sponsored( WorkAgentFixtures.agent( ds, "rogue@x" ), "rogue@x" );
         flaggedAgent = new Actor( "flagged@x", Set.of(), true, Actor.Kind.AGENT,
             WorkAgentFixtures.agent( ds, "flagged@x" ), null );
         WorkAgentFixtures.exec( ds, "INSERT INTO work_agent_queue (agent_id, queue_key) VALUES (" + codex
             + ", 'implementer')" );
         final Project plat = store.createProject( "PLAT", "Platform", "secret roadmap" );
-        codexActor = Actor.agent( codex, "codex@docker2" );
+        codexActor = WorkAgentFixtures.sponsored( codex, "codex@docker2" );
+        codexUnderAStranger = Actor.agent( codex, "codex@docker2", Actor.human( "mallory", Set.of(), false ) );
+        codexWithNoSponsor = Actor.agent( codex, "codex@docker2" );
         store.putMember( plat.id(), String.valueOf( codex ), "agent", WorkRole.MEMBER,
             Actor.human( "admin", java.util.Set.of(), false ) );
         store.putMember( plat.id(), "lena", "user", WorkRole.LEAD, Actor.human( "admin", java.util.Set.of(), false ) );
@@ -132,7 +137,7 @@ class WorkServiceVisibilityPostgresTest {
     }
 
     private List< Actor > strangers() {
-        return List.of( mallory, rogueAgent, flaggedAgent );
+        return List.of( mallory, rogueAgent, flaggedAgent, codexUnderAStranger, codexWithNoSponsor );
     }
 
     /** A public method and the object to call it on: the service itself, or the facade an accessor returns. */
@@ -295,7 +300,7 @@ class WorkServiceVisibilityPostgresTest {
             assertThrows( WorkNotFoundException.class, attempt );
         }
         final WorkClaimsService.Handoff handoff = new WorkClaimsService.Handoff( 1, null, null, "implementer", "n" );
-        for ( final Actor stranger : List.of( mallory, rogueAgent, flaggedAgent ) ) {
+        for ( final Actor stranger : strangers() ) {
             assertThrows( WorkNotFoundException.class, () -> service.claims().claim( stranger, "PLAT-2" ) );
             assertThrows( WorkNotFoundException.class, () -> service.claims().release( stranger, "PLAT-3", "x" ) );
             assertThrows( WorkNotFoundException.class, () -> service.claims().handoff( stranger, "PLAT-2", handoff ) );
@@ -351,7 +356,7 @@ class WorkServiceVisibilityPostgresTest {
         assertTrue( service.registry().self( mallory ).isEmpty(), "a person has no agent record" );
         assertTrue( service.registry().self( lena ).isEmpty() );
         assertTrue( service.registry().self( admin ).isEmpty() );
-        assertTrue( service.registry().self( Actor.agent( 999_999, "ghost" ) ).isEmpty() );
+        assertTrue( service.registry().self( WorkAgentFixtures.sponsored( 999_999, "ghost" ) ).isEmpty() );
     }
 
     @Test

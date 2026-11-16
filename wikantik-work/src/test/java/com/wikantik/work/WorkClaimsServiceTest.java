@@ -56,9 +56,9 @@ class WorkClaimsServiceTest {
     private static final Instant UNTIL = Instant.parse( "2026-11-16T16:00:00Z" );
 
     private final Actor lena = Actor.human( "lena", Set.of(), false );
-    private final Actor codex = Actor.agent( 7, "codex@docker2" );
-    private final Actor other = Actor.agent( 8, "other@host" );
-    private final Actor viewerAgent = Actor.agent( 9, "viewer@host" );
+    private final Actor codex = WorkAgentFixtures.sponsored( 7, "codex@docker2" );
+    private final Actor other = WorkAgentFixtures.sponsored( 8, "other@host" );
+    private final Actor viewerAgent = WorkAgentFixtures.sponsored( 9, "viewer@host" );
 
     private WorkStore store;
     private WorkClaimStore claims;

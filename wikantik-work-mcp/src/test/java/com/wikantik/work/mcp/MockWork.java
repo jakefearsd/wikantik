@@ -45,7 +45,7 @@ final class MockWork {
     final WorkClaimsService claims = mock( WorkClaimsService.class );
     final WorkRegistryService registry = mock( WorkRegistryService.class );
     final WorkDirectory directory = mock( WorkDirectory.class );
-    final Actor agent = Actor.agent( 7, "builder" );
+    final Actor agent = Actor.agent( 7, "builder", com.wikantik.work.Actor.human( "admin", java.util.Set.of(), true ) );
 
     MockWork() throws java.sql.SQLException {
         when( svc.claims() ).thenReturn( claims );

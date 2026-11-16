@@ -316,7 +316,7 @@ public final class WorkRegistryService {
     }
 
     private boolean canSeeRegistry( final Actor actor ) throws SQLException {
-        return actor.instanceAdmin() || !store.visibleProjects( actor ).isEmpty();
+        return actor.instanceAdmin() || !scopes.standing().visibleProjects( actor ).isEmpty();
     }
 
     private Agent requireActiveAgent( final long agentId ) throws SQLException {

@@ -110,7 +110,7 @@ final class WorkMcpFixture {
         svc.registry().createQueue( admin, "reviewer", "Reviewer", "" );
         builder = svc.registry().registerAgent( admin, new AgentDraft( "builder", "Acme", "claude-code",
             List.of( "implementer" ), "lena" ) ).agent();
-        builderActor = Actor.agent( builder.id(), builder.name() );
+        builderActor = Actor.agent( builder.id(), builder.name(), com.wikantik.work.Actor.human( "admin", java.util.Set.of(), true ) );
         svc.putMember( admin, "PLAT", "builder", "agent", WorkRole.MEMBER );
     }
 
@@ -118,6 +118,9 @@ final class WorkMcpFixture {
         return new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
+            @Override public Optional< Person > person( final String login ) {
+                return Optional.of( new Person( login, Set.of(), "admin".equals( login ) ) );
+            }
             @Override public String displayName( final String login ) {
                 return displayNames.getOrDefault( login, "Someone" );
             }

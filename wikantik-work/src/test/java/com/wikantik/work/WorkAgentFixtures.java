@@ -36,6 +36,15 @@ final class WorkAgentFixtures {
     private WorkAgentFixtures() {
     }
 
+    /**
+     * An agent actor for a test that goes through the service: sponsored by a wiki admin, so the sponsor ceiling
+     * limits nothing and the test sees the agent's own rows. (A sponsorless {@link Actor#agent(long, String)} has no
+     * standing at the service; it is for store-level tests.)
+     */
+    static Actor sponsored( final long agentId, final String name ) {
+        return Actor.agent( agentId, name, Actor.human( "sponsor-root", java.util.Set.of(), true ) );
+    }
+
     static long scalar( final DataSource ds, final String sql ) throws SQLException {
         try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
               ResultSet rs = s.executeQuery( sql ) ) {

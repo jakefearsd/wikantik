@@ -61,17 +61,6 @@ class WorkMcpActorsTest {
             "a request that carries no key record gives an empty context" );
     }
 
-    @Test
-    void boundKeyIsAgent() throws SQLException {
-        final ApiKeyService.Record key = WorkMcpFixture.record( f.builder.apiKeyId(), "lena", ApiKeyService.Scope.WORK );
-
-        final Actor actor = WorkMcpActors.actorFor( WorkMcpActors.extract( requestWith( key ) ), f.svc );
-
-        assertNotNull( actor );
-        assertEquals( Actor.Kind.AGENT, actor.kind() );
-        assertEquals( f.builder.id(), actor.agentId() );
-        assertFalse( actor.admin() );
-    }
 
     @Test
     void extractCarriesTheRecordUnderTheDocumentedKey() {
@@ -82,7 +71,7 @@ class WorkMcpActorsTest {
 
     @Test
     void aKeyOfAnotherScopeIsNoActor() throws SQLException {
-        final ApiKeyService.Record key = WorkMcpFixture.record( f.builder.apiKeyId(), "lena", ApiKeyService.Scope.MCP_READ );
+        final ApiKeyService.Record key = WorkMcpFixture.record( 9_001, "lena", ApiKeyService.Scope.MCP_READ );
         assertNull( WorkMcpActors.actorFor( WorkMcpActors.extract( requestWith( key ) ), f.svc ) );
     }
 
@@ -97,12 +86,6 @@ class WorkMcpActorsTest {
         assertFalse( actor.admin() );
     }
 
-    @Test
-    void aRetiredAgentsKeyIsNoActorNotItsOwner() throws SQLException {
-        f.svc.registry().retireAgent( f.admin, f.builder.id() );
-        final ApiKeyService.Record key = WorkMcpFixture.record( f.builder.apiKeyId(), "lena", ApiKeyService.Scope.WORK );
-        assertNull( WorkMcpActors.actorFor( WorkMcpActors.extract( requestWith( key ) ), f.svc ) );
-    }
 
     // ---- agent tokens (phase 3a)
 

@@ -100,7 +100,8 @@ class WorkMcpSessionActorTest {
         final ApiKeyService keys = mock( ApiKeyService.class );
         when( keys.verify( anyString() ) ).thenAnswer( inv -> Optional.ofNullable( tokens.get( inv.getArgument( 0 ) ) ) );
         filter = new KeyOnlyMcpAccessFilter( new SlidingWindowRateLimiter( 0, 0 ), keys, ApiKeyService.Scope.WORK );
-        sessionId = initialize( token( keyOf( f.builder ) ) );
+        filter.agentTokens( com.wikantik.work.runtime.WikiWorkActors.agentVerifier( f.svc ) );
+        sessionId = initialize( credential( f.builder ) );
     }
 
     @AfterEach
@@ -194,8 +195,15 @@ class WorkMcpSessionActorTest {
         throw new AssertionError( "no tool result (HTTP " + r.status() + ") in: " + r.body() );
     }
 
-    private ApiKeyService.Record keyOf( final Agent a ) {
-        return WorkMcpFixture.record( a.apiKeyId(), "lena", ApiKeyService.Scope.WORK );
+    private final Map< Long, String > credentials = new HashMap<>();
+
+    /** The agent's own token: issued once per agent (issuing again would rotate it) straight from the store. */
+    private String credential( final Agent a ) throws Exception {
+        if ( !credentials.containsKey( a.id() ) ) {
+            credentials.put( a.id(), new com.wikantik.work.JdbcWorkStore( f.ds ).credentials().issue( a.id(), "admin" )
+                .token() );
+        }
+        return credentials.get( a.id() );
     }
 
     private static String agentName( final String contextText ) {
@@ -206,12 +214,12 @@ class WorkMcpSessionActorTest {
     @Test
     void aSecondKeyOnTheSessionIsRefusedAndTheFirstGoesOnActingAsItself() throws Exception {
         final Agent other = f.svc.registry().registerAgent( f.admin, new AgentDraft( "reviewer-bot", "", "",
-            List.of( "reviewer" ), "lena" ) ).agent();
+            List.of( "reviewer" ) ) ).agent();
         f.svc.putMember( f.admin, "SECRET", "reviewer-bot", "agent", WorkRole.MEMBER );
-        final String builder = token( keyOf( f.builder ) );
+        final String builder = credential( f.builder );
 
         final String asBuilder = callContext( builder );
-        final Reply asOther = rawContext( token( keyOf( other ) ) );
+        final Reply asOther = rawContext( credential( other ) );
         final String asBuilderAgain = callContext( builder );
 
         assertEquals( "builder", agentName( asBuilder ) );
@@ -223,17 +231,17 @@ class WorkMcpSessionActorTest {
 
     @Test
     void aKeyRetiredMidSessionLosesAccessOnItsNextCall() throws Exception {
-        final String key = token( keyOf( f.builder ) );
+        final String key = credential( f.builder );
         assertEquals( "builder", agentName( callContext( key ) ) );
 
         f.svc.registry().retireAgent( f.admin, f.builder.id() );
 
-        assertEquals( "This endpoint needs a work API key.", callContext( key ) );
+        assertEquals( 403, rawContext( key ).status(), "retiring revokes the credential: refused at the door" );
     }
 
     @Test
     void aRequestWithoutAKeyOnTheSameSessionIsRefused() throws Exception {
-        assertEquals( "builder", agentName( callContext( token( keyOf( f.builder ) ) ) ) );
+        assertEquals( "builder", agentName( callContext( credential( f.builder ) ) ) );
 
         assertEquals( 403, rawContext( null ).status(),
             "no key on this request: never fall back to the key the session started with" );
@@ -241,38 +249,33 @@ class WorkMcpSessionActorTest {
 
     @Test
     void aKeyOfAnotherScopeOnTheSameSessionIsRefused() throws Exception {
-        assertEquals( 403, rawContext( token( WorkMcpFixture.record( f.builder.apiKeyId(), "lena",
+        assertEquals( 403, rawContext( token( WorkMcpFixture.record( 9_001, "lena",
             ApiKeyService.Scope.MCP_READ ) ) ).status() );
     }
 
     // ---- agent tokens (phase 3a): the same session rules, verified by the work module
 
-    /** A live credential for the agent, issued straight from the store (the registry issues them from Task 6). */
-    private String agentToken( final Agent a ) throws Exception {
-        filter.agentTokens( com.wikantik.work.runtime.WikiWorkActors.agentVerifier( f.svc ) );
-        return new com.wikantik.work.JdbcWorkStore( f.ds ).credentials().issue( a.id(), "admin" ).token();
-    }
-
     @Test
     void anAgentTokenRunsATool() throws Exception {
-        final String token = agentToken( f.builder );
+        final String token = credential( f.builder );
         sessionId = initialize( token );
         assertEquals( "builder", agentName( callContext( token ) ) );
     }
 
     @Test
-    void retiringTheAgentStopsTheNextCall() throws Exception {
-        final String token = agentToken( f.builder );
-        sessionId = initialize( token );
+    void anAgentNobodyStandsBehindRunsNothing() throws Exception {
+        final String token = credential( f.builder );
         assertEquals( "builder", agentName( callContext( token ) ) );
-        f.svc.registry().retireAgent( f.admin, f.builder.id() );
+        f.svc.registry().releaseSponsorship( f.admin, f.builder.id() );
         assertTrue( callContext( token ).contains( "This endpoint needs a work API key." ),
-            "the token still verifies, but a retired agent is no actor" );
+            "the token still verifies, but a sponsorless agent is no actor" );
+        f.svc.registry().takeOver( f.admin, f.builder.id() );
+        assertEquals( "builder", agentName( callContext( token ) ), "taken over: the same token works again" );
     }
 
     @Test
     void aRotatedAwayTokenIsRefusedAtTheDoor() throws Exception {
-        final String token = agentToken( f.builder );
+        final String token = credential( f.builder );
         sessionId = initialize( token );
         final String next = new com.wikantik.work.JdbcWorkStore( f.ds ).credentials().issue( f.builder.id(), "admin" )
             .token();
@@ -282,7 +285,7 @@ class WorkMcpSessionActorTest {
 
     @Test
     void aDirectoryOutageAnswersUnavailable() throws Exception {
-        final String token = agentToken( f.builder );
+        final String token = credential( f.builder );
         sessionId = initialize( token );
         f.directoryDown = true;
         assertTrue( callContext( token ).contains( "Work is unavailable right now." ) );

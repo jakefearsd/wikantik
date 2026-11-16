@@ -161,6 +161,11 @@ final class WorkScopes {
         return directory.person( login );
     }
 
+    /** The public display name of a login. */
+    String displayName( final String login ) {
+        return directory.displayName( login );
+    }
+
     /** The groups the login belongs to; never null. */
     Set< String > groupsOf( final String login ) {
         final Set< String > groups = directory.groupsOf( login );

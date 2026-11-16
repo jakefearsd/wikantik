@@ -86,8 +86,7 @@ class WorkDraftRulePostgresTest {
         svc.createProject( admin, "PLAT", "Platform", "" );
         svc.putMember( admin, "PLAT", "lena", "user", WorkRole.LEAD );
         svc.registry().createQueue( admin, "implementer", "Implementer", "" );
-        final Agent a = svc.registry().registerAgent( admin, new AgentDraft( "builder", "", "", List.of( "implementer" ),
-            "lena" ) ).agent();
+        final Agent a = svc.registry().registerAgent( admin, new AgentDraft( "builder", "", "", List.of( "implementer" ) ) ).agent();
         svc.putMember( admin, "PLAT", "builder", "agent", WorkRole.MEMBER );
         agent = WorkAgentFixtures.sponsored( a.id(), a.name() );
     }

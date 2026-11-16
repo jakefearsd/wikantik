@@ -62,6 +62,12 @@ public interface WorkRegistryStore {
     /** Every sponsor the agent has had, newest first. */
     List< SponsorChange > sponsorHistory( long agentId ) throws SQLException;
 
+    /** The ids of the agents that have a member row in any of the projects. */
+    java.util.Set< Long > agentsWithMemberRowIn( java.util.Collection< Long > projectIds ) throws SQLException;
+
+    /** The ids of the projects the agent has a member row in. */
+    List< Long > projectsWithAgentMember( long agentId ) throws SQLException;
+
     Optional< Agent > agent( long id ) throws SQLException;
 
     /** Case-insensitive. */

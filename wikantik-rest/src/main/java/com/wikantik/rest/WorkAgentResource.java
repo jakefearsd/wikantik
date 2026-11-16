@@ -24,6 +24,7 @@ import com.google.gson.JsonObject;
 import com.wikantik.work.Agent;
 import com.wikantik.work.AgentDraft;
 import com.wikantik.work.WorkNotFoundException;
+import com.wikantik.work.WorkRegistryService;
 import com.wikantik.work.WorkService;
 import com.wikantik.work.WorkValidationException;
 
@@ -46,12 +47,22 @@ public class WorkAgentResource extends WorkResourceBase {
 
     @Override
     protected void routes( final List< Object[] > r ) {
-        route( r, "GET", "agents", c -> c.tree( agentsTree( c, c.svc.registry().listAgents( c.actor ) ) ) );
+        route( r, "GET", "agents", c -> c.tree( agentsTree( c, c.svc.registry().agentViews( c.actor ) ) ) );
         route( r, "POST", "agents", this::register );
         route( r, "PATCH", "agents/{}", this::update );
         route( r, "POST", "agents/{}/rotate-key", this::rotate );
         route( r, "POST", "agents/{}/retire", c -> {
             c.svc.registry().retireAgent( c.actor, agentId( c ) );
+            c.noContent();
+        } );
+        // The caller takes the agent over (PUT) or gives it up (DELETE): nobody names another person as sponsor.
+        route( r, "PUT", "agents/{}/sponsor", c -> {
+            final long id = agentId( c );
+            c.svc.registry().takeOver( c.actor, id );
+            c.tree( agentTree( c, viewOf( c, id ) ) );
+        } );
+        route( r, "DELETE", "agents/{}/sponsor", c -> {
+            c.svc.registry().releaseSponsorship( c.actor, agentId( c ) );
             c.noContent();
         } );
     }
@@ -73,7 +84,7 @@ public class WorkAgentResource extends WorkResourceBase {
     private void register( final Call c ) throws Exception {
         final JsonObject b = c.body();
         if ( b != null ) {
-            secret( c, c.svc.registry().registerAgent( c.actor, draft( b, optString( b, "owner" ) ) ), 201 );
+            secret( c, c.svc.registry().registerAgent( c.actor, draft( b ) ), 201 );
         }
     }
 
@@ -81,7 +92,7 @@ public class WorkAgentResource extends WorkResourceBase {
     private void rotate( final Call c ) throws Exception {
         final JsonObject b = c.optionalBody();
         if ( b != null ) {
-            secret( c, c.svc.registry().rotateAgentKey( c.actor, agentId( c ), optString( b, "owner" ) ), 200 );
+            secret( c, c.svc.registry().rotateCredential( c.actor, agentId( c ) ), 200 );
         }
     }
 
@@ -92,15 +103,18 @@ public class WorkAgentResource extends WorkResourceBase {
             return;
         }
         final long id = agentId( c );
-        c.svc.registry().updateAgent( c.actor, id, draft( b, null ) );
-        final Agent updated = c.svc.registry().listAgents( c.actor ).stream().filter( a -> a.id() == id ).findFirst()
-            .orElseThrow( () -> new WorkNotFoundException( NOT_FOUND ) );
-        c.tree( agentTree( c, updated ) );
+        c.svc.registry().updateAgent( c.actor, id, draft( b ) );
+        c.tree( agentTree( c, viewOf( c, id ) ) );
     }
 
-    private static AgentDraft draft( final JsonObject b, final String owner ) {
-        return new AgentDraft( optString( b, "name" ), optString( b, "vendor" ), optString( b, "runtime" ), queues( b ),
-            owner );
+    /** The agent as the caller may now see it; hidden and missing are one answer. */
+    private static WorkRegistryService.AgentView viewOf( final Call c, final long id ) throws java.sql.SQLException {
+        return c.svc.registry().agentViews( c.actor ).stream().filter( v -> v.agent().id() == id ).findFirst()
+            .orElseThrow( () -> new WorkNotFoundException( NOT_FOUND ) );
+    }
+
+    private static AgentDraft draft( final JsonObject b ) {
+        return new AgentDraft( optString( b, "name" ), optString( b, "vendor" ), optString( b, "runtime" ), queues( b ) );
     }
 
     /**
@@ -128,25 +142,37 @@ public class WorkAgentResource extends WorkResourceBase {
     /** {@code {agent, token}}, never cached: the one time the token is shown. */
     private void secret( final Call c, final WorkService.AgentWithToken made, final int status ) throws Exception {
         final JsonObject out = new JsonObject();
-        out.add( "agent", agentTree( c, made.agent() ) );
+        out.add( "agent", agentTree( c, viewOf( c, made.agent().id() ) ) );
         out.addProperty( "token", made.token() );
         c.resp.setHeader( "Cache-Control", "no-store" );
         c.resp.setHeader( "Pragma", "no-cache" );
         WorkJson.write( c.resp, status, out );
     }
 
-    private JsonArray agentsTree( final Call c, final List< Agent > agents ) {
+    private JsonArray agentsTree( final Call c, final List< WorkRegistryService.AgentView > agents ) {
         final JsonArray out = new JsonArray();
         agents.forEach( a -> out.add( agentTree( c, a ) ) );
         return out;
     }
 
-    /** One agent; the key id only for a wiki admin, and not even a null in its place for anyone else. */
-    private JsonObject agentTree( final Call c, final Agent agent ) {
+    /**
+     * An agent as the caller sees it: its sponsor by public name (the login only for a wiki admin, as people are
+     * shown everywhere else), a plain status, and whether the caller is the sponsor. Never a credential.
+     */
+    private JsonObject agentTree( final Call c, final WorkRegistryService.AgentView view ) {
+        final Agent agent = view.agent();
         final JsonObject o = toTree( agent, c.actor ).getAsJsonObject();
-        if ( !c.actor.instanceAdmin() ) {
-            o.remove( "apiKeyId" );
+        o.remove( "apiKeyId" );
+        o.remove( "sponsor" );
+        if ( view.sponsorName() != null ) {
+            o.addProperty( "sponsorName", view.sponsorName() );
         }
+        if ( c.actor.instanceAdmin() && agent.sponsor() != null ) {
+            o.addProperty( "sponsor", agent.sponsor() );
+        }
+        o.addProperty( "status", view.status().name().toLowerCase( java.util.Locale.ROOT ) );
+        o.addProperty( "sponsoredByMe", c.actor.kind() == com.wikantik.work.Actor.Kind.HUMAN
+            && c.actor.login().equals( agent.sponsor() ) );
         return o;
     }
 }

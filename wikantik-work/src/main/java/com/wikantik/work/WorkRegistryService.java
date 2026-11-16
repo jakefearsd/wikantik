@@ -47,19 +47,19 @@ public final class WorkRegistryService {
     private final WorkStore store;
     private final WorkScopes scopes;
     private final WorkPeople people;
-    private final AgentKeys keys;
     private final GuardedListener listener;
     private final Clock clock;
     private final RegistryChanges changes;
+    private final AgentSponsorship sponsorship;
 
     WorkRegistryService( final WorkStore store, final WorkScopes scopes, final WorkPeople people, final AgentKeys keys,
                   final Clock clock, final GuardedListener listener, final WorkAudit audit ) {
         this.store = store;
         this.changes = new RegistryChanges( keys, audit );
+        this.sponsorship = new AgentSponsorship( store, scopes );
         this.listener = listener;
         this.scopes = scopes;
         this.people = people;
-        this.keys = keys;
         this.clock = clock;
     }
 
@@ -113,63 +113,84 @@ public final class WorkRegistryService {
 
     // ---- agents
 
-    /** A wiki admin sees every agent with its key id; anyone who belongs to a project sees them without it. */
-    public List< Agent > listAgents( final Actor actor ) throws SQLException {
-        if ( actor.instanceAdmin() ) {
-            return store.agents();
-        }
-        if ( !canSeeRegistry( actor ) ) {
-            return List.of();
-        }
-        return store.agents().stream().map( a -> new Agent( a.id(), a.name(), a.vendor(), a.runtime(), a.sponsor(), null,
-            a.queues(), a.createdAt(), a.retiredAt() ) ).toList();
+    /** How an agent stands right now: computed from its row and the directory, never stored. */
+    public enum AgentStatus { ACTIVE, RETIRED, NO_SPONSOR, SPONSOR_GONE }
+
+    /** An agent as the registry shows it: with its sponsor's public name (null when it has none) and status. */
+    public record AgentView( Agent agent, String sponsorName, AgentStatus status ) {
     }
 
     /**
-     * The calling agent's own record (its key id never included), whether or not it was admitted to any project:
-     * it needs to know its own name, vendor, runtime and queues. Empty for a person, for an agent actor without an
-     * id, and for a retired agent.
+     * The agents the caller may know of: every agent for a wiki admin; for anyone else the agents they sponsor and
+     * the agents that are members of a project they can see. Never a key id.
+     */
+    public List< Agent > listAgents( final Actor actor ) throws SQLException {
+        return sponsorship.visibleAgents( actor ).stream().map( WorkRegistryService::withoutKey ).toList();
+    }
+
+    /** {@link #listAgents} with each agent's sponsor name and status. */
+    public List< AgentView > agentViews( final Actor actor ) throws SQLException {
+        final List< AgentView > out = new ArrayList<>();
+        for ( final Agent a : listAgents( actor ) ) {
+            out.add( view( a ) );
+        }
+        return out;
+    }
+
+    private AgentView view( final Agent a ) {
+        return new AgentView( a, a.sponsor() == null ? null : scopes.displayName( a.sponsor() ),
+            sponsorship.status( a ) );
+    }
+
+    private static Agent withoutKey( final Agent a ) {
+        return new Agent( a.id(), a.name(), a.vendor(), a.runtime(), a.sponsor(), null, a.queues(), a.createdAt(),
+            a.retiredAt() );
+    }
+
+    /**
+     * The calling agent's own record, whether or not it was admitted to any project: it needs to know its own name,
+     * vendor, runtime and queues. Empty for a person, for an agent actor without an id, and for a retired agent.
      */
     public java.util.Optional< Agent > self( final Actor actor ) throws SQLException {
         if ( actor.kind() != Actor.Kind.AGENT || actor.agentId() == null ) {
             return java.util.Optional.empty();
         }
-        return store.agent( actor.agentId() ).filter( Agent::active ).map( a -> new Agent( a.id(), a.name(),
-            a.vendor(), a.runtime(), a.sponsor(), null, a.queues(), a.createdAt(), a.retiredAt() ) );
+        return store.agent( actor.agentId() ).filter( Agent::active ).map( WorkRegistryService::withoutKey );
     }
 
+    /**
+     * Registers an agent for the caller, who becomes its sponsor: a lead of any unarchived project or a wiki admin.
+     * The agent gets its own credential; the token is returned once and only its hash is kept. No API key is
+     * involved. (The agent row and the credential are two transactions: if the second fails the agent exists with
+     * no credential, which a rotation supplies.)
+     */
     public WorkService.AgentWithToken registerAgent( final Actor actor, final AgentDraft draft ) throws SQLException {
-        scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
+        sponsorship.requireMayRegister( actor );
         final String name = agentName( draft.name() );
         final List< String > queues = servedQueues( draft.queues(), Set.of() );
         if ( store.agentByName( name ).isPresent() ) {
             throw RegistryChanges.exists( "Agent " + name + " already exists." );
         }
-        final String owner = ownerLogin( actor, draft.owner() == null || draft.owner().isBlank()
-                ? actor.login() : draft.owner() );
-        final AgentKeys.Minted minted = keys.mint( owner, "work-agent:" + name, actor.login() );
+        final Agent agent;
         try {
-            final Agent created = store.registerAgent( name, RegistryChanges.orEmpty( draft.vendor() ), RegistryChanges.orEmpty( draft.runtime() ),
-                minted.keyId(), queues );
-            // The registrant stands behind the agent. (Two transactions only until the key binding goes.)
-            store.setSponsor( created.id(), actor.login(), actor.login() );
-            final Agent agent = store.agent( created.id() ).orElse( created );
-            LOG.info( "Work agent '{}' registered by {}", name, actor.login() );
-            changes.audit( actor, "work.agent.register", AGENT, name, null );
-            return new WorkService.AgentWithToken( agent, minted.token() );
+            agent = store.registerAgent( name, RegistryChanges.orEmpty( draft.vendor() ),
+                RegistryChanges.orEmpty( draft.runtime() ), queues, actor.login() );
         } catch ( final SQLException e ) {
-            changes.revokeQuietly( minted.keyId(), actor );
             throw RegistryChanges.duplicateOrRethrow( e, "Agent " + name + " already exists." );
-        } catch ( final RuntimeException e ) {
-            changes.revokeQuietly( minted.keyId(), actor );
-            throw e;
         }
+        final String token = store.credentials().issue( agent.id(), actor.login() ).token();
+        LOG.info( "Work agent '{}' registered by {}", name, actor.login() );
+        changes.audit( actor, "work.agent.register", AGENT, name, null );
+        return new WorkService.AgentWithToken( withoutKey( agent ), token );
     }
 
-    /** A partial update: a null name, vendor, runtime or queue list leaves that field as it is. */
+    /**
+     * A partial update: a null name, vendor, runtime or queue list leaves that field as it is. For the agent's
+     * sponsor while they lead a project, or a wiki admin.
+     */
     public void updateAgent( final Actor actor, final long agentId, final AgentDraft patch ) throws SQLException {
-        scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
-        final Agent existing = requireActiveAgent( agentId );
+        final Agent existing = sponsorship.requireVisible( actor, agentId, false );
+        sponsorship.requireMayEdit( actor, existing );
         final AgentDraft draft = RegistryChanges.merged( patch, existing );
         final String name = agentName( draft.name() );
         final List< String > queues = servedQueues( draft.queues(), new LinkedHashSet<>( existing.queues() ) );
@@ -190,47 +211,51 @@ public final class WorkRegistryService {
     }
 
     /**
-     * Mint, rebind, then revoke the old key: the agent is never left on a revoked key nor a live key orphaned. With
-     * {@code newOwner} (a display name, or from an admin a login, as on register) the new key is owned by that person;
-     * without, by whoever owned the old key (never by the rotating admin), even when the old key was revoked out of
-     * band: rotation is how such an agent is restored.
+     * Issues a new credential and revokes the old one in one transaction: the old token is nobody from the next
+     * request. For the agent's sponsor or a wiki admin.
      */
-    public WorkService.AgentWithToken rotateAgentKey( final Actor actor, final long agentId, final String newOwner )
-            throws SQLException {
-        scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
-        final Agent existing = requireActiveAgent( agentId );
-        final String label = "work-agent:" + existing.name();
-        final String owner = newOwner == null || newOwner.isBlank() ? null : ownerLogin( actor, newOwner );
-        final AgentKeys.Minted minted = changes.rotationKey( actor, existing, owner, label );
-        try {
-            store.rebindAgentKey( agentId, minted.keyId() );
-        } catch ( final SQLException | RuntimeException e ) {
-            changes.revokeQuietly( minted.keyId(), actor );
-            throw e;
-        }
-        if ( existing.apiKeyId() != null ) {
-            changes.revokeQuietly( existing.apiKeyId(), actor );
-        }
-        LOG.info( "Work agent '{}' key rotated by {}{}", existing.name(), actor.login(),
-            owner == null ? "" : " to a new owner" );
-        changes.audit( actor, "work.agent.rotate_key", AGENT, existing.name(),
-            owner == null ? null : "new owner " + owner );
-        return new WorkService.AgentWithToken( new Agent( existing.id(), existing.name(), existing.vendor(),
-            existing.runtime(), existing.sponsor(), minted.keyId(), existing.queues(), existing.createdAt(), null ), minted.token() );
+    public WorkService.AgentWithToken rotateCredential( final Actor actor, final long agentId ) throws SQLException {
+        final Agent existing = sponsorship.requireVisible( actor, agentId, false );
+        sponsorship.requireSponsorOrAdmin( actor, existing );
+        final String token = store.credentials().issue( agentId, actor.login() ).token();
+        LOG.info( "Work agent '{}' credential rotated by {}", existing.name(), actor.login() );
+        changes.audit( actor, "work.agent.rotate_key", AGENT, existing.name(), null );
+        return new WorkService.AgentWithToken( withoutKey( existing ), token );
     }
 
+    /** Retires the agent, releases its claims and revokes its credential; repeatable. Sponsor or wiki admin. */
     public void retireAgent( final Actor actor, final long agentId ) throws SQLException {
-        scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
-        final Agent existing = store.agent( agentId )
-            .orElseThrow( () -> new WorkNotFoundException( "No such agent: " + agentId ) );
+        final Agent existing = sponsorship.requireVisible( actor, agentId, true );
+        sponsorship.requireSponsorOrAdmin( actor, existing );
         if ( existing.active() ) {
             listener.released( store.claims().retireAgent( agentId, clock.instant(), actor ) );
         }
-        if ( existing.apiKeyId() != null ) {
-            changes.revokeQuietly( existing.apiKeyId(), actor );
-        }
+        store.credentials().revokeAll( agentId );
         LOG.info( "Work agent '{}' retired by {}", existing.name(), actor.login() );
         changes.audit( actor, "work.agent.retire", AGENT, existing.name(), null );
+    }
+
+    /**
+     * The caller becomes the agent's sponsor. Doing it oneself is the acceptance: nobody can make another person a
+     * sponsor. A wiki admin may at any time; a lead of a project the agent is in may only while nobody stands
+     * behind it ({@link AgentSponsorship#requireMayTakeOver}).
+     */
+    public Agent takeOver( final Actor actor, final long agentId ) throws SQLException {
+        final Agent existing = sponsorship.requireVisible( actor, agentId, false );
+        sponsorship.requireMayTakeOver( actor, existing );
+        store.setSponsor( agentId, actor.login(), actor.login() );
+        LOG.info( "Work agent '{}' taken over by {}", existing.name(), actor.login() );
+        changes.audit( actor, "work.agent.takeover", AGENT, existing.name(), null );
+        return withoutKey( store.agent( agentId ).orElse( existing ) );
+    }
+
+    /** The sponsor (or a wiki admin) gives the agent up: it is no actor until someone takes it over. */
+    public void releaseSponsorship( final Actor actor, final long agentId ) throws SQLException {
+        final Agent existing = sponsorship.requireVisible( actor, agentId, false );
+        sponsorship.requireSponsorOrAdmin( actor, existing );
+        store.setSponsor( agentId, null, actor.login() );
+        LOG.info( "Work agent '{}' released by its sponsor ({})", existing.name(), actor.login() );
+        changes.audit( actor, "work.agent.sponsor_released", AGENT, existing.name(), null );
     }
 
     /**
@@ -343,21 +368,8 @@ public final class WorkRegistryService {
 
     // ---- helpers
 
-    private String ownerLogin( final Actor actor, final String reference ) throws SQLException {
-        return people.login( actor, reference )
-            .orElseThrow( () -> new WorkValidationException( "owner", NO_SUCH_USER ) );
-    }
-
     private boolean canSeeRegistry( final Actor actor ) throws SQLException {
         return actor.instanceAdmin() || !scopes.standing().visibleProjects( actor ).isEmpty();
-    }
-
-    private Agent requireActiveAgent( final long agentId ) throws SQLException {
-        final Agent a = store.agent( agentId ).orElse( null );
-        if ( a == null || !a.active() ) {
-            throw new WorkNotFoundException( "No such agent: " + agentId );
-        }
-        return a;
     }
 
     private static String agentName( final String raw ) {

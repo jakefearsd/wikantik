@@ -21,5 +21,5 @@ package com.wikantik.work;
 import java.util.List;
 
 /** The caller-supplied fields of an agent to register. {@code owner} names the key's person; null = the caller. */
-public record AgentDraft( String name, String vendor, String runtime, List< String > queues, String owner ) {
+public record AgentDraft( String name, String vendor, String runtime, List< String > queues ) {
 }

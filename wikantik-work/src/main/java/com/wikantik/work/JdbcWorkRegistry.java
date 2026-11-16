@@ -157,6 +157,27 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
             rs -> new SponsorChange( rs.getString( "sponsor" ), instant( rs, "since" ), rs.getString( "changed_by" ) ) );
     }
 
+    @Override
+    public java.util.Set< Long > agentsWithMemberRowIn( final java.util.Collection< Long > projectIds )
+            throws SQLException {
+        if ( projectIds.isEmpty() ) {
+            return java.util.Set.of();
+        }
+        final Long[] ids = projectIds.toArray( new Long[ 0 ] );
+        return new java.util.HashSet<>( jdbc.withConnection( conn -> jdbc.query( conn,
+            "SELECT DISTINCT principal FROM work_member WHERE principal_kind = 'agent' "
+                + "AND project_id = ANY( ? ) AND principal ~ '^[0-9]{1,18}$'",
+            ps -> ps.setArray( 1, conn.createArrayOf( "bigint", ids ) ),
+            rs -> Long.parseLong( rs.getString( 1 ) ) ) ) );
+    }
+
+    @Override
+    public List< Long > projectsWithAgentMember( final long agentId ) throws SQLException {
+        return jdbc.query( "SELECT project_id FROM work_member WHERE principal_kind = 'agent' AND principal = ? "
+                + "ORDER BY project_id",
+            ps -> ps.setString( 1, String.valueOf( agentId ) ), rs -> rs.getLong( 1 ) );
+    }
+
     private void insertQueues( final java.sql.Connection conn, final long agentId, final List< String > queues )
             throws SQLException {
         final List< SqlBinder > binders = new ArrayList<>();

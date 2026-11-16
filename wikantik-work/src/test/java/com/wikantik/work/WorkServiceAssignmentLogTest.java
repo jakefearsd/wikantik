@@ -85,7 +85,7 @@ class WorkServiceAssignmentLogTest {
         svc.putMember( admin, "BBB", "lena", "user", WorkRole.LEAD );   // lena leads both; removed below where needed
         svc.registry().createQueue( admin, "implementer", "Implementer", "" );
         final Agent agent = svc.registry().registerAgent( admin, new AgentDraft( "codex@docker2", "", "",
-            List.of( "implementer" ), "bob" ) ).agent();
+            List.of( "implementer" ) ) ).agent();
         codex = WorkAgentFixtures.sponsored( agent.id(), agent.name() );
     }
 

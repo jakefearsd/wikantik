@@ -55,7 +55,7 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > WRITES = Set.of( "createProject", "updateProject", "archiveProject",
         "putMember", "removeMember", "createProduct", "updateProduct", "archiveProduct", "createItem", "updateItem",
         "addComment", "editComment", "removeComment", "addLink", "removeLink", "createQueue", "updateQueue",
-        "retireQueue", "registerAgent", "updateAgent", "rotateAgentKey", "retireAgent", "claim", "release", "handoff" );
+        "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey", "agentNameForKey", "isAgentKey",
@@ -74,7 +74,7 @@ class WorkServiceVisibilityPostgresTest {
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
-        "listProjectsWithRoles", "listQueues", "listAgents", "claimable", "myClaims", "assignmentLog" );
+        "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "claimable", "myClaims", "assignmentLog" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer" );
 
@@ -319,32 +319,48 @@ class WorkServiceVisibilityPostgresTest {
         }
     }
 
+    /** Queues are instance-wide: only a wiki admin changes them. */
     @Test
-    void everyInstanceWriteRequiresAdmin() {
-        final AgentDraft agent = new AgentDraft( "new@x", "", "", List.of(), "lena" );
+    void everyQueueWriteRequiresAdmin() {
         final WorkRegistryService r = service.registry();
-        for ( final Actor caller : List.of( mallory, rogueAgent, flaggedAgent ) ) {
+        for ( final Actor caller : strangers() ) {
             final List< org.junit.jupiter.api.function.Executable > attempts = List.of(
                 () -> r.createQueue( caller, "ops", "Ops", "" ),
                 () -> r.updateQueue( caller, "implementer", "Impl", "" ),
-                () -> r.retireQueue( caller, "implementer" ),
-                () -> r.registerAgent( caller, agent ),
-                () -> r.updateAgent( caller, 1, agent ),
-                () -> r.rotateAgentKey( caller, 1, null ),
-                () -> r.retireAgent( caller, 1 ) );
+                () -> r.retireQueue( caller, "implementer" ) );
             for ( final var attempt : attempts ) {
                 assertThrows( WorkDeniedException.class, attempt, caller.login() );
             }
         }
     }
 
+    /**
+     * A stranger registers nothing, and an agent it cannot see does not exist for it: every write on one is the
+     * same not-found as for an id that names nothing. (An agent caller is refused outright: agents never manage
+     * agents.)
+     */
     @Test
-    void anAdminSeesKeyIdsAndAProjectMemberDoesNot() throws Exception {
-        assertTrue( service.registry().listAgents( admin ).stream().allMatch( a -> a.apiKeyId() != null ) );
-        assertEquals( 3, service.registry().listAgents( lena ).size() );
-        assertTrue( service.registry().listAgents( lena ).stream().allMatch( a -> a.apiKeyId() == null ) );
-        assertEquals( 1, service.registry().listQueues( lena ).size() );
+    void aStrangerCannotRegisterOrTouchAnAgent() throws SQLException {
+        final AgentDraft agent = new AgentDraft( "new@x", "", "", List.of() );
+        final WorkRegistryService r = service.registry();
+        final long rogue = rogueAgent.agentId();
+        for ( final Actor caller : List.of( mallory, flaggedAgent, codexUnderAStranger, codexWithNoSponsor ) ) {
+            assertThrows( WorkDeniedException.class, () -> r.registerAgent( caller, agent ), caller.login() );
+            final List< org.junit.jupiter.api.function.Executable > attempts = List.of(
+                () -> r.updateAgent( caller, rogue, agent ),
+                () -> r.rotateCredential( caller, rogue ),
+                () -> r.takeOver( caller, rogue ),
+                () -> r.releaseSponsorship( caller, rogue ),
+                () -> r.retireAgent( caller, rogue ) );
+            for ( final var attempt : attempts ) {
+                assertEquals( assertThrows( WorkNotFoundException.class, () -> r.retireAgent( caller, 999_999 ) )
+                    .getMessage().replace( "999999", String.valueOf( rogue ) ),
+                    assertThrows( WorkNotFoundException.class, attempt, caller.login() ).getMessage() );
+            }
+        }
+        assertEquals( 0, service.registry().listAgents( mallory ).size() );
     }
+
 
     @Test
     void selfIsTheCallingAgentsOwnRecordOnly() throws Exception {

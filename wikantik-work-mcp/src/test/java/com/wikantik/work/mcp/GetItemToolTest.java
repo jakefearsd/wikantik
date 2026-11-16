@@ -135,7 +135,6 @@ class GetItemToolTest {
         assertTrue( text.contains( "Jane Doe" ), text );
         assertFalse( text.contains( "jdoe" ), "a login never reaches an agent: " + text );
         assertFalse( text.contains( "\"lena\"" ), text );
-        assertFalse( text.contains( String.valueOf( f.builder.apiKeyId() ) + "," ), "no key id" );
     }
 
     @Test

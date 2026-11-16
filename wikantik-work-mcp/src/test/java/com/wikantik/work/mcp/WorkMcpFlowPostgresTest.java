@@ -72,7 +72,7 @@ class WorkMcpFlowPostgresTest {
         f = new WorkMcpFixture();
         tools = WorkMcpInitializer.assembleTools( f.svc, f.directory() );
         reviewer = f.svc.registry().registerAgent( f.admin, new AgentDraft( "reviewer-bot", "Acme", "claude-code",
-            List.of( "reviewer" ), "lena" ) ).agent();
+            List.of( "reviewer" ) ) ).agent();
         f.svc.putMember( f.admin, "PLAT", "reviewer-bot", "agent", WorkRole.MEMBER );
         f.svc.putMember( f.admin, "PLAT", "mo", "user", WorkRole.MEMBER );
         f.displayNames.put( "mo", "Mo Member" );
@@ -85,8 +85,8 @@ class WorkMcpFlowPostgresTest {
             args.put( ( String ) kv[ i ], kv[ i + 1 ] );
         }
         final HttpServletRequest request = mock( HttpServletRequest.class );
-        when( request.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) )
-            .thenReturn( WorkMcpFixture.record( who.apiKeyId(), "lena", ApiKeyService.Scope.WORK ) );
+        when( request.getAttribute( com.wikantik.auth.apikeys.AgentTokenAuth.ATTR_AGENT_REF ) )
+            .thenReturn( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 0, who.id() ) );
         final WorkMcpTool t = tools.stream().filter( x -> x.name().equals( tool ) ).findFirst().orElseThrow();
         return WorkMcpInitializer.dispatch( t, f.svc, WorkMcpActors.extract( request ), args );
     }
@@ -201,7 +201,7 @@ class WorkMcpFlowPostgresTest {
         final int v = version( f.builder, key );
         // the second agent serves implementer too, so only the holder's claim stands in its way
         final Agent other = f.svc.registry().registerAgent( f.admin, new AgentDraft( "second", "Acme", "claude-code",
-            List.of( "implementer" ), "lena" ) ).agent();
+            List.of( "implementer" ) ) ).agent();
         f.svc.putMember( f.admin, "PLAT", "second", "agent", WorkRole.MEMBER );
 
         final String claimText = WorkMcpFixture.text( call( other, "claim_item", "key", key ) );

@@ -111,7 +111,7 @@ final class WorkMcpFixture {
         svc.registry().createQueue( admin, "implementer", "Implementer", "" );
         svc.registry().createQueue( admin, "reviewer", "Reviewer", "" );
         builder = svc.registry().registerAgent( admin, new AgentDraft( "builder", "Acme", "claude-code",
-            List.of( "implementer" ), "lena" ) ).agent();
+            List.of( "implementer" ) ) ).agent();
         builderActor = Actor.agent( builder.id(), builder.name(), com.wikantik.work.Actor.human( "admin", java.util.Set.of(), true ) );
         svc.putMember( admin, "PLAT", "builder", "agent", WorkRole.MEMBER );
     }

@@ -107,11 +107,11 @@ class WorkAgentIdentityPostgresTest {
     }
 
     private WorkService.AgentWithToken register( final String name ) throws SQLException {
-        return service.registry().registerAgent( admin, new AgentDraft( name, "", "", List.of( "implementer" ), "lena" ) );
+        return service.registry().registerAgent( admin, new AgentDraft( name, "", "", List.of( "implementer" ) ) );
     }
 
     private Actor actorFor( final WorkService.AgentWithToken r ) throws SQLException {
-        return service.registry().actorForApiKey( r.agent().apiKeyId(), "lena" );
+        return service.registry().actorForAgent( r.agent().id() );
     }
 
     @Test
@@ -219,41 +219,8 @@ class WorkAgentIdentityPostgresTest {
         service.removeMember( admin, "PLAT", "codex", "agent" );
     }
 
-    @Test
-    void rotatedOldKeyIsNoActorEvenIfRevokeFailed() throws SQLException {
-        final WorkService.AgentWithToken r = register( "codex" );
-        final int oldKey = r.agent().apiKeyId();
-        failingRevokes.add( oldKey );
-        final WorkService.AgentWithToken rotated = service.registry().rotateAgentKey( admin, r.agent().id(), null );
-        assertNull( service.registry().actorForApiKey( oldKey, "lena" ),
-            "the old token is still live but must not become its owner" );
-        final Actor now = service.registry().actorForApiKey( rotated.agent().apiKeyId(), "lena" );
-        assertEquals( r.agent().id(), now.agentId() );
-    }
 
-    @Test
-    void rotatedTwiceBothOldKeysAreNoActor() throws SQLException {
-        final WorkService.AgentWithToken r = register( "codex" );
-        final int first = r.agent().apiKeyId();
-        final int second = service.registry().rotateAgentKey( admin, r.agent().id(), null ).agent().apiKeyId();
-        final int third = service.registry().rotateAgentKey( admin, r.agent().id(), null ).agent().apiKeyId();
-        assertNull( service.registry().actorForApiKey( first, "lena" ) );
-        assertNull( service.registry().actorForApiKey( second, "lena" ) );
-        assertEquals( Actor.Kind.AGENT, service.registry().actorForApiKey( third, "lena" ).kind() );
-    }
 
-    @Test
-    void repeatRetireRetriesTheRevoke() throws SQLException {
-        final WorkService.AgentWithToken r = register( "codex" );
-        final int key = r.agent().apiKeyId();
-        failingRevokes.add( key );
-        service.registry().retireAgent( admin, r.agent().id() );
-        assertEquals( List.of( key ), revokeAttempts );
-        failingRevokes.clear();
-        service.registry().retireAgent( admin, r.agent().id() );
-        assertEquals( List.of( key, key ), revokeAttempts, "retiring again completes a retirement whose revoke failed" );
-        assertNull( service.registry().actorForApiKey( key, "lena" ) );
-    }
 
     @Test
     void unboundNeverBoundKeyStillActsAsOwner() throws SQLException {

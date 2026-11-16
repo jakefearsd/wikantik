@@ -65,7 +65,7 @@ class GetWorkContextToolTest {
     @Test
     void anUnadmittedAgentStillGetsItsOwnRecord() throws SQLException {
         final com.wikantik.work.Agent loner = f.svc.registry().registerAgent( f.admin,
-            new com.wikantik.work.AgentDraft( "loner", "Acme", "cli", java.util.List.of( "reviewer" ), "lena" ) ).agent();
+            new com.wikantik.work.AgentDraft( "loner", "Acme", "cli", java.util.List.of( "reviewer" ) ) ).agent();
 
         final JsonObject out = WorkMcpFixture.json( tool.call( com.wikantik.work.Actor.agent( loner.id(), "loner", com.wikantik.work.Actor.human( "admin", java.util.Set.of(), true ) ),
             Map.of() ) );

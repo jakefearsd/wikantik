@@ -88,14 +88,17 @@ public final class WorkPolicy {
     }
 
     private static boolean isManagement( final Action action ) {
-        return action == Action.SET_POLICY || action == Action.MANAGE_PROJECT || action == Action.MANAGE_INSTANCE;
+        return action == Action.SET_POLICY || action == Action.MANAGE_PROJECT || action == Action.MANAGE_INSTANCE
+            || action == Action.MANAGE_AGENT;
     }
 
     private static WorkRole roleNeeded( final Action action ) {
         return switch ( action ) {
             case VIEW -> WorkRole.VIEWER;
             case CREATE_ITEM, EDIT_ITEM, MOVE, COMMENT, LINK, CLAIM -> WorkRole.MEMBER;
-            case MANAGE_PROJECT, SET_POLICY -> WorkRole.LEAD;
+            // Managing an agent is decided by sponsorship (AgentSponsorship), not by a role in one project; asked
+            // here it takes a lead, the least that may ever register one.
+            case MANAGE_PROJECT, SET_POLICY, MANAGE_AGENT -> WorkRole.LEAD;
             case MANAGE_INSTANCE -> throw new IllegalStateException( "handled above" );
         };
     }

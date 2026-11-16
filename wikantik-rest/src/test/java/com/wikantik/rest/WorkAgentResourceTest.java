@@ -49,8 +49,8 @@ class WorkAgentResourceTest {
     private static final Actor ADMIN = Actor.human( "root", Set.of(), true );
     private static final Actor MEMBER = Actor.human( "dana", Set.of(), false );
     private static final Instant T = Instant.parse( "2026-11-15T10:00:00Z" );
-    private static final Agent BUILDER = new Agent( 5, "builder", "acme", "claude-code", null, 42, List.of( "triage" ), T, null );
-    private static final String TOKEN = "wkk_secret-token-value";
+    private static final Agent BUILDER = new Agent( 5, "builder", "acme", "claude-code", "root", null, List.of( "triage" ), T, null );
+    private static final String TOKEN = "wka_secret-token-value";
 
     private WorkService svc;
     private WorkRegistryService registry;
@@ -61,7 +61,17 @@ class WorkAgentResourceTest {
         svc = Mockito.mock( WorkService.class );
         registry = Mockito.mock( WorkRegistryService.class );
         Mockito.when( svc.registry() ).thenReturn( registry );
+        try {
+            Mockito.when( registry.agentViews( any() ) ).thenReturn( List.of( view( BUILDER ) ) );
+        } catch ( final java.sql.SQLException e ) {
+            throw new IllegalStateException( e );
+        }
         servlet = WorkHttp.wire( new WorkAgentResource(), svc, ADMIN );
+    }
+
+    private static WorkRegistryService.AgentView view( final Agent a ) {
+        return new WorkRegistryService.AgentView( a, a.sponsor() == null ? null : "Root Admin",
+            a.active() ? WorkRegistryService.AgentStatus.ACTIVE : WorkRegistryService.AgentStatus.RETIRED );
     }
 
     private WorkHttp.Result send( final String method, final String path, final String body ) throws Exception {
@@ -72,16 +82,16 @@ class WorkAgentResourceTest {
     void registerReturnsTokenOnceWithNoStore() throws Exception {
         Mockito.when( registry.registerAgent( eq( ADMIN ), any() ) ).thenReturn( new WorkService.AgentWithToken( BUILDER, TOKEN ) );
         final WorkHttp.Result r = send( "POST", null,
-            "{\"name\":\"builder\",\"vendor\":\"acme\",\"runtime\":\"claude-code\",\"queues\":[\"triage\"],\"owner\":\"Dana D\"}" );
+            "{\"name\":\"builder\",\"vendor\":\"acme\",\"runtime\":\"claude-code\",\"queues\":[\"triage\"]}" );
         assertEquals( 201, r.status() );
         final JsonObject o = r.json().getAsJsonObject();
         assertEquals( TOKEN, o.get( "token" ).getAsString() );
         assertEquals( "builder", o.getAsJsonObject( "agent" ).get( "name" ).getAsString() );
-        assertEquals( 42, o.getAsJsonObject( "agent" ).get( "apiKeyId" ).getAsInt(), "the registering admin sees the key id" );
+        assertFalse( o.getAsJsonObject( "agent" ).has( "apiKeyId" ), "an agent has no API key" );
         assertEquals( "no-store", r.headers().get( "Cache-Control" ) );
         final ArgumentCaptor< AgentDraft > d = ArgumentCaptor.forClass( AgentDraft.class );
         Mockito.verify( registry ).registerAgent( eq( ADMIN ), d.capture() );
-        assertEquals( new AgentDraft( "builder", "acme", "claude-code", List.of( "triage" ), "Dana D" ), d.getValue() );
+        assertEquals( new AgentDraft( "builder", "acme", "claude-code", List.of( "triage" ) ), d.getValue() );
     }
 
     @Test
@@ -101,33 +111,13 @@ class WorkAgentResourceTest {
         Mockito.verifyNoInteractions( registry );
     }
 
-    @Test
-    void listHidesKeyIdFromNonAdmin() throws Exception {
-        servlet = WorkHttp.wire( new WorkAgentResource(), svc, MEMBER );
-        Mockito.when( registry.listAgents( MEMBER ) ).thenReturn( List.of(
-            new Agent( 5, "builder", "acme", "claude-code", null, null, List.of( "triage" ), T, null ) ) );
-        final JsonObject a = send( "GET", null, null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
-        assertFalse( a.has( "apiKeyId" ), "not even as null" );
-        assertEquals( "builder", a.get( "name" ).getAsString() );
-    }
 
-    @Test
-    void evenIfTheServiceLeakedAKeyIdANonAdminStillDoesNotGetIt() throws Exception {
-        servlet = WorkHttp.wire( new WorkAgentResource(), svc, MEMBER );
-        Mockito.when( registry.listAgents( MEMBER ) ).thenReturn( List.of( BUILDER ) );
-        assertFalse( send( "GET", null, null ).body().contains( "apiKeyId" ) );
-    }
 
-    @Test
-    void anAdminListSeesKeyIds() throws Exception {
-        Mockito.when( registry.listAgents( ADMIN ) ).thenReturn( List.of( BUILDER ) );
-        assertEquals( 42, send( "GET", null, null ).json().getAsJsonArray().get( 0 ).getAsJsonObject().get( "apiKeyId" ).getAsInt() );
-    }
 
     @Test
     void nonMemberListIsEmpty() throws Exception {
         servlet = WorkHttp.wire( new WorkAgentResource(), svc, MEMBER );
-        Mockito.when( registry.listAgents( MEMBER ) ).thenReturn( List.of() );
+        Mockito.when( registry.agentViews( MEMBER ) ).thenReturn( List.of() );
         assertEquals( "[]", send( "GET", null, null ).body() );
     }
 
@@ -142,31 +132,21 @@ class WorkAgentResourceTest {
 
     @Test
     void rotateReturnsNewToken() throws Exception {
-        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", null, 43, List.of( "triage" ), T, null );
-        Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) ).thenReturn( new WorkService.AgentWithToken( rebound, "wkk_new" ) );
+        Mockito.when( registry.rotateCredential( ADMIN, 5 ) ).thenReturn( new WorkService.AgentWithToken( BUILDER, "wka_new" ) );
         final WorkHttp.Result r = send( "POST", "/5/rotate-key", null );
         assertEquals( 200, r.status() );
-        assertEquals( "wkk_new", r.json().getAsJsonObject().get( "token" ).getAsString() );
-        assertEquals( 43, r.json().getAsJsonObject().getAsJsonObject( "agent" ).get( "apiKeyId" ).getAsInt() );
+        assertEquals( "wka_new", r.json().getAsJsonObject().get( "token" ).getAsString() );
+        assertEquals( "builder", r.json().getAsJsonObject().getAsJsonObject( "agent" ).get( "name" ).getAsString() );
         assertEquals( "no-store", r.headers().get( "Cache-Control" ) );
     }
 
-    @Test
-    void rotateMayNameANewOwner() throws Exception {
-        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", null, 44, List.of( "triage" ), T, null );
-        Mockito.when( registry.rotateAgentKey( ADMIN, 5, "Lena Lead" ) )
-            .thenReturn( new WorkService.AgentWithToken( rebound, "wkk_newer" ) );
-        final WorkHttp.Result r = send( "POST", "/5/rotate-key", "{\"owner\":\"Lena Lead\"}" );
-        assertEquals( 200, r.status() );
-        assertEquals( "wkk_newer", r.json().getAsJsonObject().get( "token" ).getAsString() );
-    }
 
     @Test
     void patchUpdatesAndReturnsTheAgent() throws Exception {
         Mockito.when( registry.listAgents( ADMIN ) ).thenReturn( List.of( BUILDER ) );
         final WorkHttp.Result r = send( "PATCH", "/5", "{\"name\":\"builder\",\"vendor\":\"acme\",\"runtime\":\"x\",\"queues\":[\"triage\"]}" );
         assertEquals( 200, r.status() );
-        Mockito.verify( registry ).updateAgent( ADMIN, 5, new AgentDraft( "builder", "acme", "x", List.of( "triage" ), null ) );
+        Mockito.verify( registry ).updateAgent( ADMIN, 5, new AgentDraft( "builder", "acme", "x", List.of( "triage" ) ) );
         assertEquals( "builder", r.json().getAsJsonObject().get( "name" ).getAsString() );
         assertFalse( r.body().contains( "token" ) );
     }
@@ -181,7 +161,7 @@ class WorkAgentResourceTest {
     void unknownAgentIs404() throws Exception {
         Mockito.doThrow( new WorkNotFoundException( "No such agent: 99" ) ).when( registry ).retireAgent( any(), anyLong() );
         Mockito.doThrow( new WorkNotFoundException( "No such agent: 99" ) ).when( registry ).updateAgent( any(), anyLong(), any() );
-        Mockito.when( registry.rotateAgentKey( any(), anyLong(), any() ) ).thenThrow( new WorkNotFoundException( "No such agent: 99" ) );
+        Mockito.when( registry.rotateCredential( any(), anyLong() ) ).thenThrow( new WorkNotFoundException( "No such agent: 99" ) );
         for ( final String[] call : new String[][] { { "POST", "/99/retire", null }, { "PATCH", "/99", "{\"name\":\"x\"}" },
             { "POST", "/99/rotate-key", null }, { "POST", "/abc/retire", null } } ) {
             final WorkHttp.Result r = send( call[ 0 ], call[ 1 ], call[ 2 ] );
@@ -191,23 +171,6 @@ class WorkAgentResourceTest {
         }
     }
 
-    @Test
-    void aNonAdminGets403WhetherOrNotTheAgentExistsAndWhateverTheIdLooksLike() throws Exception {
-        servlet = WorkHttp.wire( new WorkAgentResource(), svc, MEMBER );
-        // like the real service: authorise before looking anything up
-        Mockito.doThrow( new WorkDeniedException( "Only a wiki admin may do that." ) ).when( registry ).retireAgent( any(), anyLong() );
-        Mockito.doThrow( new WorkDeniedException( "Only a wiki admin may do that." ) ).when( registry ).updateAgent( any(), anyLong(), any() );
-        Mockito.when( registry.rotateAgentKey( any(), anyLong(), any() ) ).thenThrow( new WorkDeniedException( "Only a wiki admin may do that." ) );
-        for ( final String[] call : new String[][] { { "POST", "%s/retire", null }, { "PATCH", "%s", "{\"name\":\"x\"}" },
-            { "POST", "%s/rotate-key", null } } ) {
-            final WorkHttp.Result known = send( call[ 0 ], call[ 1 ].formatted( "/5" ), call[ 2 ] );
-            final WorkHttp.Result unknown = send( call[ 0 ], call[ 1 ].formatted( "/99999" ), call[ 2 ] );
-            final WorkHttp.Result nonsense = send( call[ 0 ], call[ 1 ].formatted( "/abc" ), call[ 2 ] );
-            assertEquals( 403, known.status(), call[ 1 ] );
-            assertEquals( known.body(), unknown.body(), call[ 1 ] );
-            assertEquals( known.body(), nonsense.body(), call[ 1 ] );
-        }
-    }
 
     @Test
     void theTokenIsNotInAnyLogLine() throws Exception {
@@ -266,7 +229,7 @@ class WorkAgentResourceTest {
         final org.apache.logging.log4j.Level before = core.getLevel();
         org.apache.logging.log4j.core.config.Configurator.setLevel( logger, org.apache.logging.log4j.Level.ALL );
         core.addAppender( capture );
-        Mockito.when( registry.rotateAgentKey( any(), anyLong(), any() ) ).thenThrow( new WorkNotFoundException( "x" ) );
+        Mockito.when( registry.rotateCredential( any(), anyLong() ) ).thenThrow( new WorkNotFoundException( "x" ) );
         try {
             send( "POST", "/evil%0Aforged-line/rotate-key", null );
         } finally {
@@ -283,25 +246,15 @@ class WorkAgentResourceTest {
         Mockito.when( registry.listAgents( ADMIN ) ).thenReturn( List.of( BUILDER ) );
         final WorkHttp.Result r = send( "PATCH", "/5", "{\"runtime\":\"codex-2\"}" );
         assertEquals( 200, r.status() );
-        Mockito.verify( registry ).updateAgent( ADMIN, 5, new AgentDraft( null, null, "codex-2", null, null ) );
+        Mockito.verify( registry ).updateAgent( ADMIN, 5, new AgentDraft( null, null, "codex-2", null ) );
     }
 
-    @Test
-    void aRotationWhoseOwnerIsGoneIsA400OnOwner() throws Exception {
-        final String message = "This agent's key owner no longer exists. Name a new owner.";
-        Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) )
-            .thenThrow( new com.wikantik.work.WorkValidationException( "owner", message ) );
-        final WorkHttp.Result r = send( "POST", "/5/rotate-key", null );
-        assertEquals( 400, r.status() );
-        assertEquals( "owner", r.json().getAsJsonObject().get( "field" ).getAsString() );
-        assertEquals( message, r.json().getAsJsonObject().get( "message" ).getAsString() );
-    }
 
     @Test
     void aRotatePostWithABlankBodyIsAPlainRotation() throws Exception {
         // A client that sends no JSON but a non-zero or unknown length (chunked) still means "rotate, same owner".
         final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", null, 45, List.of( "triage" ), T, null );
-        Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) )
+        Mockito.when( registry.rotateCredential( ADMIN, 5 ) )
             .thenReturn( new WorkService.AgentWithToken( rebound, "wkk_blank" ) );
         final WorkHttp.Result r = send( "POST", "/5/rotate-key", "  \n" );
         assertEquals( 200, r.status(), r.body() );
@@ -310,11 +263,87 @@ class WorkAgentResourceTest {
 
     @Test
     void aRotationDuringAUserDatabaseOutageIs503NotAnOwnerRefusal() throws Exception {
-        Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) )
+        Mockito.when( registry.rotateCredential( ADMIN, 5 ) )
             .thenThrow( new com.wikantik.work.WorkUnavailableException( "test: user database unreachable" ) );
         final WorkHttp.Result r = send( "POST", "/5/rotate-key", null );
         assertEquals( 503, r.status(), r.body() );
         assertTrue( r.body().contains( "Service temporarily unavailable" ), r.body() );
         assertFalse( r.body().contains( "unreachable" ), "the cause stays in the log: " + r.body() );
+    }
+
+    // ---- sponsors (phase 3a)
+
+    @Test
+    void anAgentIsShownWithItsSponsorsNameStatusAndWhetherItIsTheCallers() throws Exception {
+        final JsonObject a = send( "GET", null, null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertEquals( "Root Admin", a.get( "sponsorName" ).getAsString() );
+        assertEquals( "active", a.get( "status" ).getAsString() );
+        assertTrue( a.get( "sponsoredByMe" ).getAsBoolean() );
+        assertEquals( "root", a.get( "sponsor" ).getAsString(), "a wiki admin also sees the login" );
+        assertFalse( a.has( "apiKeyId" ) );
+    }
+
+    @Test
+    void sponsorLoginIsShownOnlyToAnAdmin() throws Exception {
+        servlet = WorkHttp.wire( new WorkAgentResource(), svc, MEMBER );
+        final WorkHttp.Result r = send( "GET", null, null );
+        final JsonObject a = r.json().getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertEquals( "Root Admin", a.get( "sponsorName" ).getAsString() );
+        assertFalse( a.has( "sponsor" ), "a login never reaches a non-admin: " + r.body() );
+        assertFalse( a.get( "sponsoredByMe" ).getAsBoolean() );
+    }
+
+    @Test
+    void aSponsorlessOrRetiredAgentSaysSoPlainly() throws Exception {
+        final Agent loose = new Agent( 6, "loose", "", "", null, null, List.of(), T, null );
+        Mockito.when( registry.agentViews( ADMIN ) ).thenReturn( List.of(
+            new WorkRegistryService.AgentView( loose, null, WorkRegistryService.AgentStatus.NO_SPONSOR ),
+            new WorkRegistryService.AgentView( BUILDER, "Root Admin", WorkRegistryService.AgentStatus.SPONSOR_GONE ) ) );
+        final var list = send( "GET", null, null ).json().getAsJsonArray();
+        assertEquals( "no_sponsor", list.get( 0 ).getAsJsonObject().get( "status" ).getAsString() );
+        assertFalse( list.get( 0 ).getAsJsonObject().has( "sponsorName" ) );
+        assertEquals( "sponsor_gone", list.get( 1 ).getAsJsonObject().get( "status" ).getAsString() );
+    }
+
+    @Test
+    void puttingTheSponsorTakesTheAgentOverAndReturnsIt() throws Exception {
+        Mockito.when( registry.takeOver( ADMIN, 5 ) ).thenReturn( BUILDER );
+        final WorkHttp.Result r = send( "PUT", "/5/sponsor", null );
+        assertEquals( 200, r.status() );
+        assertEquals( "builder", r.json().getAsJsonObject().get( "name" ).getAsString() );
+        Mockito.verify( registry ).takeOver( ADMIN, 5 );
+    }
+
+    @Test
+    void aRefusedTakeoverIsA403WithTheReason() throws Exception {
+        Mockito.when( registry.takeOver( any(), anyLong() ) ).thenThrow( new WorkDeniedException(
+            "This agent has a sponsor. Ask them to release it, or ask a wiki administrator." ) );
+        final WorkHttp.Result r = send( "PUT", "/5/sponsor", null );
+        assertEquals( 403, r.status() );
+        assertTrue( r.body().contains( "This agent has a sponsor. Ask them to release it, or ask a wiki administrator." ) );
+    }
+
+    @Test
+    void deletingTheSponsorReleasesIt() throws Exception {
+        assertEquals( 204, send( "DELETE", "/5/sponsor", null ).status() );
+        Mockito.verify( registry ).releaseSponsorship( ADMIN, 5 );
+    }
+
+    @Test
+    void anAgentTheCallerCannotSeeIs404OnEveryRoute() throws Exception {
+        servlet = WorkHttp.wire( new WorkAgentResource(), svc, MEMBER );
+        final WorkNotFoundException hidden = new WorkNotFoundException( "No such agent: 5" );
+        Mockito.when( registry.rotateCredential( any(), anyLong() ) ).thenThrow( hidden );
+        Mockito.when( registry.takeOver( any(), anyLong() ) ).thenThrow( hidden );
+        Mockito.doThrow( hidden ).when( registry ).releaseSponsorship( any(), anyLong() );
+        Mockito.doThrow( hidden ).when( registry ).retireAgent( any(), anyLong() );
+        Mockito.doThrow( hidden ).when( registry ).updateAgent( any(), anyLong(), any() );
+        final String missing = send( "POST", "/999/rotate-key", null ).body();
+        for ( final WorkHttp.Result r : List.of( send( "POST", "/5/rotate-key", null ), send( "PUT", "/5/sponsor", null ),
+                send( "DELETE", "/5/sponsor", null ), send( "POST", "/5/retire", null ),
+                send( "PATCH", "/5", "{\"vendor\":\"x\"}" ) ) ) {
+            assertEquals( 404, r.status() );
+            assertEquals( missing, r.body(), "hidden and missing are one answer" );
+        }
     }
 }

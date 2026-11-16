@@ -71,10 +71,8 @@ class WorkClaimListenerPostgresTest {
             svc.putMember( admin, project, "lena", "user", WorkRole.LEAD );
         }
         svc.registry().createQueue( admin, "implementer", "Implementer", "" );
-        agentA = svc.registry().registerAgent( admin, new AgentDraft( "agent-a", "", "", List.of( "implementer" ),
-            "lena" ) ).agent();
-        agentB = svc.registry().registerAgent( admin, new AgentDraft( "agent-b", "", "", List.of( "implementer" ),
-            "lena" ) ).agent();
+        agentA = svc.registry().registerAgent( admin, new AgentDraft( "agent-a", "", "", List.of( "implementer" ) ) ).agent();
+        agentB = svc.registry().registerAgent( admin, new AgentDraft( "agent-b", "", "", List.of( "implementer" ) ) ).agent();
         a = WorkAgentFixtures.sponsored( agentA.id(), agentA.name() );
         b = WorkAgentFixtures.sponsored( agentB.id(), agentB.name() );
         svc.putMember( admin, "PLAT", "agent-a", "agent", WorkRole.MEMBER );

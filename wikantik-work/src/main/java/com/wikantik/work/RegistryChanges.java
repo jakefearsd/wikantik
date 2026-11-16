@@ -77,7 +77,7 @@ final class RegistryChanges {
         return new AgentDraft( patch.name() == null ? existing.name() : patch.name(),
             patch.vendor() == null ? existing.vendor() : patch.vendor(),
             patch.runtime() == null ? existing.runtime() : patch.runtime(),
-            patch.queues() == null ? existing.queues() : patch.queues(), patch.owner() );
+            patch.queues() == null ? existing.queues() : patch.queues() );
     }
 
     static String orEmpty( final String s ) {

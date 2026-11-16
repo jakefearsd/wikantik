@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import WorkOwnerPicker from './WorkOwnerPicker';
 import { registerAgent, updateAgent } from '../../api/work';
 import { useToast } from '../../hooks/useToast';
 
 const NAME_PATTERN = /^[a-z0-9][a-z0-9._-]{0,39}(@[a-z0-9][a-z0-9.-]{0,39})?$/;
 const NAME_MESSAGE = 'Agent name is lowercase letters, digits, dots, dashes and underscores, optionally followed by @host (up to 40 characters before the @).';
-const FIELDS = ['name', 'queues', 'owner'];
+const FIELDS = ['name', 'queues'];
 
 /** Field errors by control: the server's `field`, else a conflict on the name, else the form as a whole. */
 function toErrors(err, fallback) {
@@ -18,12 +17,12 @@ function toErrors(err, fallback) {
 
 /**
  * Register an agent, or (with `agent`) edit one. `onRegistered({ agent, token })` receives the one-time token; this
- * form keeps none of it. Editing never mints or shows a key and cannot change the key owner.
+ * form keeps none of it. Whoever registers an agent becomes its sponsor. Editing never mints or shows a key.
  */
 export default function WorkAgentForm({ queues, agent, locked = false, lockedHint, onRegistered, onSaved, onCancel }) {
   const toast = useToast();
   const editing = !!agent;
-  const [f, setF] = useState({ name: agent?.name || '', vendor: agent?.vendor || '', runtime: agent?.runtime || '', owner: '' });
+  const [f, setF] = useState({ name: agent?.name || '', vendor: agent?.vendor || '', runtime: agent?.runtime || '' });
   const [picked, setPicked] = useState(agent?.queues || []);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -41,14 +40,15 @@ export default function WorkAgentForm({ queues, agent, locked = false, lockedHin
     if (!NAME_PATTERN.test(f.name)) { setErrors({ name: NAME_MESSAGE }); return; }
     setErrors({}); setBusy(true);
     const fields = { name: f.name, vendor: f.vendor.trim(), runtime: f.runtime.trim(), queues: picked };
-    const request = editing ? updateAgent(agent.id, fields) : registerAgent({ ...fields, owner: f.owner || null });
+    const request = editing ? updateAgent(agent.id, fields) : registerAgent(fields);
     request
       .then((made) => {
         if (editing) { toast.success(`Saved ${f.name}`); onSaved(); } else onRegistered(made);
       })
       .catch((err) => {
         setBusy(false);
-        if (err?.status === 403) toast.error(err.message);
+        // A refusal (not a lead, not this agent's sponsor) is shown in place, in the server's words.
+        if (err?.status === 403) setErrors({ form: err.message });
         else setErrors(toErrors(err, editing ? 'Could not save the agent.' : 'Could not register the agent.'));
       });
   }
@@ -63,10 +63,6 @@ export default function WorkAgentForm({ queues, agent, locked = false, lockedHin
       <input id="work-a-vendor" className="work-field-input" value={f.vendor} onChange={set('vendor')} />
       <label className="work-form-field" htmlFor="work-a-runtime">Runtime</label>
       <input id="work-a-runtime" className="work-field-input" value={f.runtime} onChange={set('runtime')} />
-      {!editing && (
-        <WorkOwnerPicker owner={f.owner} disabled={busy} onChange={(owner) => setF((s) => ({ ...s, owner }))}
-          error={errors.owner} errorId="work-a-err-owner" />
-      )}
       <fieldset className="work-fieldset" aria-describedby={described('queues')}>
         <legend>Queues</legend>
         {offered.length === 0 && <span className="work-muted">No queues to join yet.</span>}

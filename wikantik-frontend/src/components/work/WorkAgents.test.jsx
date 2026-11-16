@@ -6,6 +6,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 vi.mock('../../api/work', () => ({
   listAgents: vi.fn(), listQueues: vi.fn(), createQueue: vi.fn(), updateQueue: vi.fn(), retireQueue: vi.fn(),
   registerAgent: vi.fn(), updateAgent: vi.fn(), rotateAgentKey: vi.fn(), retireAgent: vi.fn(),
+  takeOverAgent: vi.fn(), releaseAgentSponsorship: vi.fn(),
 }));
 vi.mock('../../api/client', () => ({ api: { listMentionableUsers: vi.fn() } }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
@@ -13,6 +14,7 @@ const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 import {
   listAgents, listQueues, createQueue, registerAgent, rotateAgentKey, retireAgent, retireQueue, updateAgent, updateQueue,
+  takeOverAgent, releaseAgentSponsorship,
 } from '../../api/work';
 import { api } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -20,8 +22,8 @@ import WorkAgents from './WorkAgents';
 
 const SECRET = 'wk_SECRET_TOKEN_VALUE_123';
 const AGENTS = [
-  { id: 2, name: 'old-bot', vendor: 'acme', runtime: 'x', queues: ['triage'], createdAt: '2026-01-01T00:00:00Z', retiredAt: '2026-02-01T00:00:00Z', apiKeyId: 7731 },
-  { id: 1, name: 'triage-bot', vendor: 'acme', runtime: 'claude', queues: ['triage'], createdAt: '2026-01-02T00:00:00Z', retiredAt: null, apiKeyId: 8842 },
+  { id: 2, name: 'old-bot', vendor: 'acme', runtime: 'x', queues: ['triage'], createdAt: '2026-01-01T00:00:00Z', retiredAt: '2026-02-01T00:00:00Z', sponsorName: 'Root Admin', status: 'retired', sponsoredByMe: true },
+  { id: 1, name: 'triage-bot', vendor: 'acme', runtime: 'claude', queues: ['triage'], createdAt: '2026-01-02T00:00:00Z', retiredAt: null, sponsorName: 'Root Admin', status: 'active', sponsoredByMe: true },
 ];
 const QUEUES = [
   { key: 'triage', name: 'Triage', description: 'Incoming', retiredAt: null },
@@ -67,13 +69,6 @@ async function openRegister() {
 }
 
 describe('WorkAgents', () => {
-  it('adminOnly: a non-admin is sent home and nothing is loaded', async () => {
-    renderPage({ admin: false });
-    expect(await screen.findByText('HOME')).toBeInTheDocument();
-    expect(listAgents).not.toHaveBeenCalled();
-    expect(listQueues).not.toHaveBeenCalled();
-  });
-
   it('does not bounce an admin whose user arrives late', async () => {
     const { again } = renderPage({ authLoading: true });
     expect(screen.queryByText('HOME')).not.toBeInTheDocument();
@@ -139,18 +134,6 @@ describe('WorkAgents', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(/Agent name/);
     }
     expect(registerAgent).not.toHaveBeenCalled();
-  });
-
-  it('ownerPickerUsesDisplayNames', async () => {
-    renderPage();
-    await openRegister();
-    const owner = await screen.findByLabelText('Key owner');
-    expect(within(owner).getByRole('option', { name: 'Alice A' })).toBeInTheDocument();
-    fireEvent.change(owner, { target: { value: 'Bob B' } });
-    fireEvent.click(screen.getByLabelText('Triage'));
-    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
-    await waitFor(() => expect(registerAgent).toHaveBeenCalledWith(
-      { name: 'new-bot', vendor: '', runtime: '', queues: ['triage'], owner: 'Bob B' }));
   });
 
   it('registerShowsTokenOnceWithCopyAndWarning', async () => {
@@ -382,16 +365,6 @@ describe('WorkAgents', () => {
     expect(screen.getByLabelText('Agent name')).not.toHaveAttribute('aria-invalid');
   });
 
-  it('owner picker searches as you type and shows a load failure', async () => {
-    renderPage();
-    await openRegister();
-    fireEvent.change(await screen.findByLabelText('Find key owner'), { target: { value: 'zed' } });
-    await waitFor(() => expect(api.listMentionableUsers).toHaveBeenCalledWith('zed', expect.any(Number)));
-    api.listMentionableUsers.mockRejectedValue(new Error('nope'));
-    fireEvent.change(screen.getByLabelText('Find key owner'), { target: { value: 'yy' } });
-    expect(await screen.findByText(/Could not search users/)).toBeInTheDocument();
-  });
-
   // ---- every minted key keeps its own panel ----
   const REG = 'REG_TOKEN_AAA';
   const ROT = 'ROT_TOKEN_BBB';
@@ -475,14 +448,6 @@ describe('WorkAgents', () => {
     expect(sessionStorage.length).toBe(0);
   });
 
-  it('StrictMode: the owner list loads when the register form opens', async () => {
-    renderPage({ strict: true });
-    await screen.findByText('triage-bot');
-    fireEvent.click(screen.getByRole('button', { name: 'Register agent' }));
-    const owner = await screen.findByLabelText('Key owner');
-    await waitFor(() => expect(within(owner).getByRole('option', { name: 'Alice A' })).toBeInTheDocument(), { timeout: 150 });
-  });
-
   it('a vendor-only edit sends the unchanged name and succeeds', async () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Edit triage-bot' }));
@@ -499,26 +464,6 @@ describe('WorkAgents', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Rotate key of triage-bot' }));
     return screen.findByRole('alertdialog', { name: 'Confirm' });
   }
-
-  it('rotate offers an optional New owner and sends none by default', async () => {
-    renderPage();
-    const dialog = await openRotate();
-    expect(within(dialog).getByLabelText('New owner')).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('button', { name: /Yes, rotate/ }));
-    await screen.findByText(SECRET);
-    expect(rotateAgentKey).toHaveBeenCalledWith(1);
-  });
-
-  it('rotate sends the chosen new owner', async () => {
-    renderPage();
-    const dialog = await openRotate();
-    const owner = within(dialog).getByLabelText('New owner');
-    await waitFor(() => expect(within(owner).getByRole('option', { name: 'Alice A' })).toBeInTheDocument());
-    fireEvent.change(owner, { target: { value: 'Alice A' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: /Yes, rotate/ }));
-    await screen.findByText(SECRET);
-    expect(rotateAgentKey).toHaveBeenCalledWith(1, 'Alice A');
-  });
 
   it('a server refusal of the rotation is shown verbatim in the dialog, which stays open', async () => {
     const msg = 'Name the new owner: the key owner no longer exists.';
@@ -553,5 +498,100 @@ describe('WorkAgents', () => {
     expect(live).toHaveAttribute('role', 'status');
     expect(live).toHaveAttribute('aria-live', 'polite');
     expect(live).toHaveTextContent('A key for new-bot is shown below.');
+  });
+
+  // ---- sponsors (phase 3a): leads use this page too; the server decides what each person sees and may do
+
+  const MINE = { id: 11, name: 'mine-bot', vendor: '', runtime: '', queues: ['triage'], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, sponsorName: 'Lena Lead', status: 'active', sponsoredByMe: true };
+  const THEIRS = { id: 12, name: 'their-bot', vendor: '', runtime: '', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, sponsorName: 'Pat P', status: 'active', sponsoredByMe: false };
+  const LOOSE = { id: 13, name: 'loose-bot', vendor: '', runtime: '', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, status: 'no_sponsor', sponsoredByMe: false };
+  const ORPHAN = { id: 14, name: 'orphan-bot', vendor: '', runtime: '', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, sponsorName: 'Gone G', status: 'sponsor_gone', sponsoredByMe: false };
+  const row = (name) => screen.getByText(name).closest('[data-testid="agent-row"]');
+
+  it('a lead who is not an admin opens the page and sees the agents the server returns', async () => {
+    listAgents.mockResolvedValue([MINE, THEIRS]);
+    renderPage({ admin: false });
+    expect(await screen.findByText('mine-bot')).toBeInTheDocument();
+    expect(screen.queryByText('HOME')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'New queue' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Edit queue/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Register agent' })).toBeInTheDocument();
+  });
+
+  it('each agent names its sponsor, and says plainly when nobody stands behind it', async () => {
+    listAgents.mockResolvedValue([MINE, LOOSE, ORPHAN]);
+    renderPage({ admin: false });
+    expect(within(await waitFor(() => row('mine-bot'))).getByText('Sponsor: Lena Lead')).toBeInTheDocument();
+    expect(within(row('loose-bot')).getByText('Suspended: no sponsor')).toBeInTheDocument();
+    expect(within(row('orphan-bot')).getByText('Suspended: its sponsor no longer has an account')).toBeInTheDocument();
+  });
+
+  it('a non-admin manages only the agents they sponsor, and may take over one with no sponsor', async () => {
+    listAgents.mockResolvedValue([MINE, THEIRS, LOOSE, ORPHAN]);
+    renderPage({ admin: false });
+    await screen.findByText('mine-bot');
+    for (const label of ['Edit mine-bot', 'Rotate key of mine-bot', 'Retire mine-bot', 'Release sponsorship of mine-bot']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+    expect(within(row('their-bot')).queryAllByRole('button')).toHaveLength(0);
+    expect(within(row('loose-bot')).getByRole('button', { name: 'Take over loose-bot' })).toBeInTheDocument();
+    expect(within(row('orphan-bot')).getByRole('button', { name: 'Take over orphan-bot' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Take over mine-bot' })).toBeNull();
+  });
+
+  it('an admin may manage and take over any agent', async () => {
+    listAgents.mockResolvedValue([THEIRS]);
+    renderPage({ admin: true });
+    await screen.findByText('their-bot');
+    expect(screen.getByRole('button', { name: 'Rotate key of their-bot' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take over their-bot' })).toBeInTheDocument();
+  });
+
+  it('releasing sponsorship says what it means, then releases and reloads', async () => {
+    listAgents.mockResolvedValue([MINE]);
+    releaseAgentSponsorship.mockResolvedValue(undefined);
+    renderPage({ admin: false });
+    fireEvent.click(await screen.findByRole('button', { name: 'Release sponsorship of mine-bot' }));
+    expect(screen.getByText('Release mine-bot? This agent stops working until someone takes it over.')).toBeInTheDocument();
+    expect(releaseAgentSponsorship).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, release mine-bot' }));
+    await waitFor(() => expect(releaseAgentSponsorship).toHaveBeenCalledWith(11));
+    await waitFor(() => expect(listAgents).toHaveBeenCalledTimes(2));
+  });
+
+  it('taking over says what it means, and a refusal is shown in the server\'s words', async () => {
+    listAgents.mockResolvedValue([LOOSE]);
+    takeOverAgent.mockRejectedValueOnce(Object.assign(new Error('Taking over an agent takes a lead of a project it is in, or a wiki administrator.'), { status: 403 }));
+    takeOverAgent.mockResolvedValue({ ...LOOSE, status: 'active', sponsoredByMe: true });
+    renderPage({ admin: false });
+    fireEvent.click(await screen.findByRole('button', { name: 'Take over loose-bot' }));
+    expect(screen.getByText('Take over loose-bot? You become responsible for what this agent does. It can never do more than you can.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, take over loose-bot' }));
+    expect(await screen.findByText('Taking over an agent takes a lead of a project it is in, or a wiki administrator.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, take over loose-bot' }));
+    await waitFor(() => expect(takeOverAgent).toHaveBeenCalledTimes(2));
+    expect(takeOverAgent).toHaveBeenLastCalledWith(13);
+    await waitFor(() => expect(listAgents).toHaveBeenCalledTimes(2));
+  });
+
+  it('registering asks for no owner, and a refusal is shown in the server\'s words', async () => {
+    listAgents.mockResolvedValue([]);
+    registerAgent.mockRejectedValueOnce(Object.assign(new Error('Only a project lead or a wiki administrator may register an agent.'), { status: 403 }));
+    renderPage({ admin: false });
+    fireEvent.click(await screen.findByRole('button', { name: 'Register agent' }));
+    expect(screen.queryByLabelText(/owner/i)).toBeNull();
+    fireEvent.change(screen.getByLabelText('Agent name'), { target: { value: 'new-bot' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+    await waitFor(() => expect(registerAgent).toHaveBeenCalledWith({ name: 'new-bot', vendor: '', runtime: '', queues: [] }));
+    expect(await screen.findByText('Only a project lead or a wiki administrator may register an agent.')).toBeInTheDocument();
+  });
+
+  it('rotating sends only the agent', async () => {
+    listAgents.mockResolvedValue([MINE]);
+    renderPage({ admin: false });
+    fireEvent.click(await screen.findByRole('button', { name: 'Rotate key of mine-bot' }));
+    expect(screen.queryByLabelText('New owner')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, rotate mine-bot' }));
+    await waitFor(() => expect(rotateAgentKey).toHaveBeenCalledWith(11));
   });
 });

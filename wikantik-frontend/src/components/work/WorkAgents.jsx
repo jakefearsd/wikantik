@@ -1,21 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
-import { listAgents, listQueues, retireAgent, rotateAgentKey } from '../../api/work';
+import { listAgents, listQueues, releaseAgentSponsorship, retireAgent, rotateAgentKey, takeOverAgent } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import WorkAgentForm from './WorkAgentForm';
 import WorkConfirm from './WorkConfirm';
 import WorkLoadError from './WorkLoadError';
-import WorkOwnerPicker from './WorkOwnerPicker';
 import WorkQueues from './WorkQueues';
 import WorkTokenPanel from './WorkTokenPanel';
 
 const LOCK_HINT = 'work-agents-lock-hint';
 const day = (iso) => (iso ? String(iso).slice(0, 10) : '');
 
-/** /work/agents: instance admins only. Agents (with the one-time key panel) and queues. */
+// What each confirmation asks, says on its button, and says when the server refuses without a message.
+const ACTIONS = {
+  rotate: { yes: (n) => `Yes, rotate ${n}`, ask: (n) => `Rotate the key of ${n}? The old key stops working immediately.`, failed: 'Could not rotate the key.' },
+  retire: { yes: (n) => `Yes, retire ${n}`, ask: (n) => `Retire ${n}? This releases all its claims, revokes its key, and cannot be undone.`, failed: 'Could not retire the agent.' },
+  release: { yes: (n) => `Yes, release ${n}`, ask: (n) => `Release ${n}? This agent stops working until someone takes it over.`, failed: 'Could not release the agent.' },
+  takeover: { yes: (n) => `Yes, take over ${n}`, ask: (n) => `Take over ${n}? You become responsible for what this agent does. It can never do more than you can.`, failed: 'Could not take over the agent.' },
+};
+// Why an agent that is not retired is doing nothing, in plain words.
+const SUSPENDED = {
+  no_sponsor: 'Suspended: no sponsor',
+  sponsor_gone: 'Suspended: its sponsor no longer has an account',
+};
+
+/**
+ * /work/agents: agents (with the one-time key panel) and queues. Open to anyone who can see a work project; the
+ * server returns the agents that person may know of. An agent is managed by its sponsor or a wiki admin; queues
+ * are instance-wide and managed by wiki admins only.
+ */
 export default function WorkAgents() {
   const { user, loading: authLoading } = useAuth();
   const toast = useToast();
@@ -24,9 +39,8 @@ export default function WorkAgents() {
   const [refreshError, setRefreshError] = useState(null); // a failed re-read that kept the previous lists
   const [editing, setEditing] = useState(null); // agent id being edited
   const [registering, setRegistering] = useState(false);
-  const [pending, setPending] = useState(null); // { agent, action: 'rotate' | 'retire' }
+  const [pending, setPending] = useState(null); // { agent, action: a key of ACTIONS }
   const [busy, setBusy] = useState(false);
-  const [newOwner, setNewOwner] = useState(''); // rotate: display name of the person who should own the new key; '' keeps the owner
   const [pendingError, setPendingError] = useState(null); // the server's refusal of the open confirmation
   const [announce, setAnnounce] = useState('');
   // Every minted key, each with its own panel. Append-only until that entry's Done: a later register or rotate can
@@ -64,11 +78,11 @@ export default function WorkAgents() {
       });
   }, []);
 
-  useEffect(() => { if (isAdmin) load(); }, [isAdmin, load]);
+  const signedIn = !!user?.authenticated;
+  useEffect(() => { if (signedIn) load(); }, [signedIn, load]);
 
-  // Until /api/auth/user resolves the user is null: deciding now would bounce a signed-in admin.
+  // Until /api/auth/user resolves the user is null: nothing is loaded for a visitor who is not signed in.
   if (authLoading) return <Spinner label="Loading…" />;
-  if (!isAdmin) return <Navigate to="/work" replace />;
   const locked = keys.length > 0;
   const lockProps = { disabled: locked, 'aria-describedby': locked ? LOCK_HINT : undefined };
   const panel = keys.map((k, i) => (
@@ -88,28 +102,45 @@ export default function WorkAgents() {
     load();
   }
 
+  function ask(agent, action) {
+    setPendingError(null);
+    setPending({ agent, action });
+  }
+
   function confirmed() {
     if (busy || locked || !pending) return;
     const { agent, action } = pending;
     setBusy(true);
     const done = () => { if (mounted.current) { setPending(null); setBusy(false); } };
+    // Keep the confirmation open with the server's own words, so the person sees why and can act on it.
+    const refused = (err) => {
+      if (!mounted.current) return;
+      setPendingError(err?.message || ACTIONS[action].failed);
+      setBusy(false);
+    };
     if (action === 'rotate') {
-      const owner = newOwner || null;
-      (owner ? rotateAgentKey(agent.id, owner) : rotateAgentKey(agent.id))
-        .then((made) => { if (mounted.current) { addKey(agent.name, made.token); setNewOwner(''); } done(); })
-        .catch((err) => {
-          // Keep the confirmation open with the server's own words (e.g. an unknown new owner), so it can be fixed in place.
-          if (!mounted.current) return;
-          setPendingError(err?.message || 'Could not rotate the key.');
-          setBusy(false);
-        });
-    } else {
+      rotateAgentKey(agent.id)
+        .then((made) => { if (mounted.current) addKey(agent.name, made.token); done(); })
+        .catch(refused);
+    } else if (action === 'retire') {
       retireAgent(agent.id)
         .then(() => { toast.success(`Retired ${agent.name}`); return load(); })
-        .catch((err) => toast.error(err?.message || 'Could not retire the agent.'))
+        .catch((err) => toast.error(err?.message || ACTIONS.retire.failed))
         .finally(done);
+    } else {
+      (action === 'takeover' ? takeOverAgent(agent.id) : releaseAgentSponsorship(agent.id))
+        .then(() => {
+          toast.success(action === 'takeover' ? `You now sponsor ${agent.name}` : `Released ${agent.name}`);
+          done();
+          return load();
+        })
+        .catch(refused);
     }
   }
+
+  // The server is the authority; these only decide which buttons are worth offering.
+  const manages = (a) => !a.retiredAt && (isAdmin || a.sponsoredByMe);
+  const mayTakeOver = (a) => !a.retiredAt && !a.sponsoredByMe && (isAdmin || !!SUSPENDED[a.status]);
 
   return (
     <div className="work-products work-agents">
@@ -138,31 +169,41 @@ export default function WorkAgents() {
                     Queues: {(a.queues || []).length ? a.queues.map((k) => <span key={k} className="work-chip">{queueName(k)}</span>) : 'none'}
                   </div>
                   <div className="work-muted">
+                    {a.sponsorName ? `Sponsor: ${a.sponsorName}` : 'No sponsor'}
+                  </div>
+                  {!a.retiredAt && SUSPENDED[a.status] && <div className="work-form-error">{SUSPENDED[a.status]}</div>}
+                  <div className="work-muted">
                     Created {day(a.createdAt)}{a.retiredAt && `, retired ${day(a.retiredAt)}`}
                   </div>
                 </div>}
-                {!a.retiredAt && editing !== a.id && (pending?.agent.id === a.id
+                {editing !== a.id && (manages(a) || mayTakeOver(a)) && (pending?.agent.id === a.id
                   ? (
                     <WorkConfirm disabled={busy || locked} describedBy={LOCK_HINT} error={pendingError}
-                      onYes={confirmed} onNo={() => { setPending(null); setPendingError(null); setNewOwner(''); }}
-                      fields={pending.action === 'rotate' ? (
-                        <WorkOwnerPicker owner={newOwner} onChange={setNewOwner} disabled={busy} idPrefix="work-r-owner"
-                          findLabel="Find new owner" ariaLabel="New owner" placeholder="Keep the current owner" />
-                      ) : null}
-                      yes={pending.action === 'rotate' ? `Yes, rotate ${a.name}` : `Yes, retire ${a.name}`}>
-                      {pending.action === 'rotate'
-                        ? `Rotate the key of ${a.name}? The old key stops working immediately.`
-                        : `Retire ${a.name}? This releases all its claims, revokes its key, and cannot be undone.`}
+                      onYes={confirmed} onNo={() => { setPending(null); setPendingError(null); }}
+                      yes={ACTIONS[pending.action].yes(a.name)}>
+                      {ACTIONS[pending.action].ask(a.name)}
                     </WorkConfirm>
                   )
                   : (
                     <div className="work-actions">
-                      <button type="button" className="btn btn-sm" aria-label={`Edit ${a.name}`} {...lockProps}
-                        onClick={() => setEditing(a.id)}>Edit</button>
-                      <button type="button" className="btn btn-sm" aria-label={`Rotate key of ${a.name}`} {...lockProps}
-                        onClick={() => { setPendingError(null); setNewOwner(''); setPending({ agent: a, action: 'rotate' }); }}>Rotate key</button>
-                      <button type="button" className="btn btn-sm btn-ghost" aria-label={`Retire ${a.name}`} {...lockProps}
-                        onClick={() => { setPendingError(null); setPending({ agent: a, action: 'retire' }); }}>Retire</button>
+                      {manages(a) && (
+                        <>
+                          <button type="button" className="btn btn-sm" aria-label={`Edit ${a.name}`} {...lockProps}
+                            onClick={() => setEditing(a.id)}>Edit</button>
+                          <button type="button" className="btn btn-sm" aria-label={`Rotate key of ${a.name}`} {...lockProps}
+                            onClick={() => ask(a, 'rotate')}>Rotate key</button>
+                          <button type="button" className="btn btn-sm btn-ghost" aria-label={`Retire ${a.name}`} {...lockProps}
+                            onClick={() => ask(a, 'retire')}>Retire</button>
+                        </>
+                      )}
+                      {a.sponsoredByMe && !a.retiredAt && (
+                        <button type="button" className="btn btn-sm btn-ghost" aria-label={`Release sponsorship of ${a.name}`} {...lockProps}
+                          onClick={() => ask(a, 'release')}>Release sponsorship</button>
+                      )}
+                      {mayTakeOver(a) && (
+                        <button type="button" className="btn btn-sm" aria-label={`Take over ${a.name}`} {...lockProps}
+                          onClick={() => ask(a, 'takeover')}>Take over</button>
+                      )}
                     </div>
                   ))}
               </li>
@@ -170,7 +211,7 @@ export default function WorkAgents() {
           </ul>
         )}
       </section>
-      <WorkQueues queues={state.queues} reload={load} />
+      <WorkQueues queues={state.queues} reload={load} canManage={isAdmin} />
     </div>
   );
 }

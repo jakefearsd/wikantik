@@ -58,7 +58,8 @@ function QueueForm({ queue, onDone, onCancel }) {
 }
 
 /** The queue half of /work/agents. `queues` is the loaded list; `reload` re-reads it. */
-export default function WorkQueues({ queues, reload }) {
+/** `canManage`: queues are instance-wide, so only a wiki admin creates, edits or retires one. */
+export default function WorkQueues({ queues, reload, canManage = true }) {
   const toast = useToast();
   const [creating, setCreating] = useState(false);
   const [retiring, setRetiring] = useState(null);
@@ -78,10 +79,10 @@ export default function WorkQueues({ queues, reload }) {
   return (
     <section className="work-section" aria-label="Queues">
       <h2 className="work-subheading">Queues</h2>
-      {creating
+      {canManage && (creating
         ? <QueueForm onDone={() => { setCreating(false); reload(); }} onCancel={() => setCreating(false)} />
         : <p><button type="button" className="btn btn-sm"
-          onClick={() => setCreating(true)}>New queue</button></p>}
+          onClick={() => setCreating(true)}>New queue</button></p>)}
       {sorted.length === 0 ? <EmptyState message="No queues yet." /> : (
         <ul className="work-product-rows">
           {sorted.map((q) => (
@@ -95,7 +96,7 @@ export default function WorkQueues({ queues, reload }) {
                     {q.description && <div className="work-muted">{q.description}</div>}
                   </div>
                 )}
-              {!q.retiredAt && editing !== q.key && (retiring === q.key
+              {canManage && !q.retiredAt && editing !== q.key && (retiring === q.key
                 ? (
                   <WorkConfirm yes={`Yes, retire ${q.key}`} disabled={busy} onYes={() => retire(q.key)} onNo={() => setRetiring(null)}>
                     Retire queue {q.key}? It will no longer be offered when assigning work; items already in it stay claimable by the agents that serve it.

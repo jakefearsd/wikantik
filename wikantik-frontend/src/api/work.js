@@ -81,13 +81,14 @@ export const updateQueue = (key, changes) => request(`${base}/queues/${enc(key)}
 export const retireQueue = (key) => request(`${base}/queues/${enc(key)}/retire`, { method: 'POST' });
 
 // Agents. registerAgent and rotateAgentKey resolve { agent, token }: the token is shown once and is the caller's
-// to drop; this module keeps no copy of it.
+// to drop; this module keeps no copy of it. The person who registers an agent is its sponsor.
 export const listAgents = () => request(`${base}/agents`);
 export const registerAgent = (agent) => request(`${base}/agents`, json('POST', agent));
 export const updateAgent = (id, changes) => request(`${base}/agents/${enc(id)}`, json('PATCH', changes));
-// `owner` (a display name) is optional: without it the key keeps its current owner.
-export const rotateAgentKey = (id, owner) =>
-  request(`${base}/agents/${enc(id)}/rotate-key`, owner ? json('POST', { owner }) : { method: 'POST' });
+export const rotateAgentKey = (id) => request(`${base}/agents/${enc(id)}/rotate-key`, { method: 'POST' });
+// The caller becomes the agent's sponsor (resolves the agent), or gives it up: nobody names someone else.
+export const takeOverAgent = (id) => request(`${base}/agents/${enc(id)}/sponsor`, { method: 'PUT' });
+export const releaseAgentSponsorship = (id) => request(`${base}/agents/${enc(id)}/sponsor`, { method: 'DELETE' });
 export const retireAgent = (id) => request(`${base}/agents/${enc(id)}/retire`, { method: 'POST' });
 
 // Claims

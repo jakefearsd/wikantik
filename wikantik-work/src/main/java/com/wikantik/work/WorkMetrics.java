@@ -26,9 +26,11 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.LongSupplier;
 
 /**
@@ -36,8 +38,9 @@ import java.util.function.LongSupplier;
  * {@code wikantik_work_denied_total{action}}. Deliberately no project, product or item label, so cardinality is
  * bounded by the three enums.
  *
- * <p>The gauges are read on scrape. One scrape reads all of them, so the grouped count is cached briefly and shared;
- * a failing query is logged and every gauge reads zero until the next refresh.</p>
+ * <p>The gauges are read on scrape. One scrape reads all of them, so the grouped count and the active-claim count are
+ * cached briefly (5 s) and shared; a failing read makes its gauges read zero until the next refresh, and is warned
+ * once per outage (with the stack), not on every scrape.</p>
  */
 public final class WorkMetrics implements WorkListener {
 
@@ -57,9 +60,15 @@ public final class WorkMetrics implements WorkListener {
     private final LongSupplier nanoClock;
     private final long ttlNanos;
 
-    private Map< Key, Long > snapshot = Map.of();
+    /** One scrape's reads, shared by every gauge until the TTL lapses. */
+    private record Snapshot( Map< Key, Long > items, long activeClaims ) {
+    }
+
+    private Snapshot snapshot = new Snapshot( Map.of(), 0L );
     private long loadedAt;
     private boolean loaded;
+    /** The reads failing right now: each is warned once when it starts failing, not on every scrape. */
+    private final Set< String > failing = new HashSet<>();
 
     public WorkMetrics( final MeterRegistry registry, final WorkStore store ) {
         this( registry, store, System::nanoTime, DEFAULT_TTL_NANOS );
@@ -112,39 +121,61 @@ public final class WorkMetrics implements WorkListener {
     }
 
     private double activeClaims() {
-        try {
-            return store.claims().activeClaimCount();
-        } catch ( final SQLException | RuntimeException e ) {
-            LOG.warn( "Could not read the active claim count for metrics; reporting zero: {}", e.getMessage(), e );
-            return 0.0;
-        }
+        return current().activeClaims();
     }
 
     private double countOf( final Key key ) {
-        return current().getOrDefault( key, 0L );
+        return current().items().getOrDefault( key, 0L );
     }
 
-    private synchronized Map< Key, Long > current() {
+    private synchronized Snapshot current() {
         final long now = nanoClock.getAsLong();
         if ( !loaded || now - loadedAt >= ttlNanos ) {
-            snapshot = load();
+            snapshot = new Snapshot( loadItems(), loadActiveClaims() );
             loadedAt = now;
             loaded = true;
         }
         return snapshot;
     }
 
-    private Map< Key, Long > load() {
+    private Map< Key, Long > loadItems() {
         try {
             final List< WorkStore.ItemCount > counts = store.itemCounts();
             final Map< Key, Long > out = new HashMap<>();
             for ( final WorkStore.ItemCount c : counts ) {
                 out.put( new Key( c.status(), c.level(), c.kind() ), c.count() );
             }
+            recovered( ITEMS );
             return out;
         } catch ( final SQLException | RuntimeException e ) {
-            LOG.warn( "Could not read work item counts for metrics; reporting zero: {}", e.getMessage(), e );
+            failed( ITEMS, "work item counts", e );
             return Map.of();
+        }
+    }
+
+    private long loadActiveClaims() {
+        try {
+            final long n = store.claims().activeClaimCount();
+            recovered( CLAIMS_ACTIVE );
+            return n;
+        } catch ( final SQLException | RuntimeException e ) {
+            failed( CLAIMS_ACTIVE, "the active claim count", e );
+            return 0L;
+        }
+    }
+
+    /** WARN with the stack when a read starts failing; quiet (DEBUG) while the outage lasts. */
+    private void failed( final String read, final String what, final Exception e ) {
+        if ( failing.add( read ) ) {
+            LOG.warn( "Could not read {} for metrics; reporting zero until it recovers: {}", what, e.getMessage(), e );
+        } else {
+            LOG.debug( "Still cannot read {} for metrics: {}", what, e.getMessage() );
+        }
+    }
+
+    private void recovered( final String read ) {
+        if ( failing.remove( read ) ) {
+            LOG.info( "Metrics read {} recovered", read );
         }
     }
 }

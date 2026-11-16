@@ -37,6 +37,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -169,10 +170,13 @@ public class WorkMcpInitializer implements ServletContextListener {
             actor = WorkMcpActors.actorFor( context, svc );
             result = tool.call( actor, args );
         } catch ( final SQLException e ) {
-            LOG.warn( "Work MCP could not resolve the caller's key for {}: {}", tool.name(), e.getMessage(), e );
+            LOG.warn( "Work MCP could not resolve the caller's key for {}: {} (SQLState {})", tool.name(),
+                e.getClass().getSimpleName(), e.getSQLState() );
             result = WorkMcpTool.error( WorkMcpTool.UNAVAILABLE );
         }
-        LOG.info( "Work MCP tools/call name={} caller={} durationMs={} isError={}", tool.name(),
+        // Writes at INFO (they change state); reads at DEBUG, or an agent polling the board floods the log.
+        LOG.log( tool.writes() ? Level.INFO : Level.DEBUG, "Work MCP tools/call name={} caller={} durationMs={} "
+                + "isError={}", tool.name(),
                 actor == null ? "none" : actor.kind() == Actor.Kind.AGENT ? "agent:" + actor.agentId() : "person",
                 ( System.nanoTime() - t0 ) / 1_000_000L, Boolean.TRUE.equals( result.isError() ) );
         return result;

@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +42,7 @@ class WorkMetricsTest {
 
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
     private final WorkStore store = mock( WorkStore.class );
+    private final WorkClaimStore claimStore = mock( WorkClaimStore.class );
     private final AtomicLong nanos = new AtomicLong();
 
     private WorkMetrics metrics() {
@@ -153,5 +155,81 @@ class WorkMetricsTest {
         when( claims.activeClaimCount() ).thenThrow( new SQLException( "down" ) );
         metrics();
         assertEquals( 0.0, registry.find( "wikantik_work_claims_active" ).gauge().value() );
+    }
+
+    private double active() {
+        return registry.find( "wikantik_work_claims_active" ).gauge().value();
+    }
+
+    /** WARN events of {@link WorkMetrics} while {@code action} runs. */
+    private static List< org.apache.logging.log4j.core.LogEvent > warnings( final Runnable action ) {
+        final List< org.apache.logging.log4j.core.LogEvent > out = new java.util.concurrent.CopyOnWriteArrayList<>();
+        final String logger = WorkMetrics.class.getName();
+        final var core = ( org.apache.logging.log4j.core.Logger ) org.apache.logging.log4j.LogManager.getLogger( logger );
+        final var capture = new org.apache.logging.log4j.core.appender.AbstractAppender( "metrics-capture", null, null,
+            true, org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY ) {
+            @Override
+            public void append( final org.apache.logging.log4j.core.LogEvent e ) {
+                if ( e.getLevel() == org.apache.logging.log4j.Level.WARN ) {
+                    out.add( e.toImmutable() );
+                }
+            }
+        };
+        capture.start();
+        final org.apache.logging.log4j.Level before = core.getLevel();
+        org.apache.logging.log4j.core.config.Configurator.setLevel( logger, org.apache.logging.log4j.Level.WARN );
+        core.addAppender( capture );
+        try {
+            action.run();
+        } finally {
+            core.removeAppender( capture );
+            org.apache.logging.log4j.core.config.Configurator.setLevel( logger, before );
+            capture.stop();
+        }
+        return out;
+    }
+
+    @Test
+    void theActiveClaimGaugeSharesTheFiveSecondSnapshot() throws SQLException {
+        final AtomicInteger calls = new AtomicInteger();
+        when( store.claims() ).thenReturn( claimStore );
+        when( claimStore.activeClaimCount() ).thenAnswer( inv -> ( long ) calls.incrementAndGet() );
+        metrics();
+        assertEquals( 1.0, active() );
+        assertEquals( 1.0, active(), "a second scrape within the TTL reads the snapshot" );
+        nanos.addAndGet( TTL_NANOS + 1 );
+        assertEquals( 2.0, active() );
+        assertEquals( 2, calls.get() );
+    }
+
+    @Test
+    void anOutageIsWarnedOnceWithItsStackNotOnEveryScrape() throws SQLException {
+        when( store.claims() ).thenReturn( claimStore );
+        when( claimStore.activeClaimCount() ).thenThrow( new SQLException( "down" ) );
+        when( store.itemCounts() ).thenThrow( new SQLException( "down" ) );
+        metrics();
+        final List< org.apache.logging.log4j.core.LogEvent > warned = warnings( () -> {
+            for ( int i = 0; i < 4; i++ ) {
+                assertEquals( 0.0, active() );
+                assertEquals( 0.0, gauge( "draft" ).value() );
+                nanos.addAndGet( TTL_NANOS + 1 );
+            }
+        } );
+        assertEquals( 2, warned.size(), "one WARN per failing read for the whole outage: " + warned );
+        assertTrue( warned.stream().allMatch( e -> e.getThrown() != null ), "the first carries the stack" );
+        // Recovery, then a new outage: warned again.
+        org.mockito.Mockito.reset( claimStore );
+        when( claimStore.activeClaimCount() ).thenReturn( 3L );
+        assertEquals( 3.0, active() );
+        nanos.addAndGet( TTL_NANOS + 1 );
+        when( claimStore.activeClaimCount() ).thenThrow( new SQLException( "down again" ) );
+        final List< org.apache.logging.log4j.core.LogEvent > again = warnings( () -> {
+            nanos.addAndGet( TTL_NANOS + 1 );
+            active();
+            nanos.addAndGet( TTL_NANOS + 1 );
+            active();
+        } );
+        assertEquals( 1, again.stream().filter( e -> e.getMessage().getFormattedMessage().contains( "claim" ) ).count(),
+            again.toString() );
     }
 }

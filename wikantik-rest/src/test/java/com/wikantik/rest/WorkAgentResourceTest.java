@@ -249,4 +249,32 @@ class WorkAgentResourceTest {
         assertEquals( 404, send( "GET", "/5/nonsense", null ).status() );
         assertEquals( 404, send( "DELETE", "/5", null ).status() );
     }
+
+    @Test
+    void aNonNumericAgentIdIsLoggedWithoutTheCallersText() throws Exception {
+        final List< String > warned = new java.util.concurrent.CopyOnWriteArrayList<>();
+        final String logger = WorkAgentResource.class.getName();
+        final var core = ( org.apache.logging.log4j.core.Logger ) org.apache.logging.log4j.LogManager.getLogger( logger );
+        final var capture = new org.apache.logging.log4j.core.appender.AbstractAppender( "agent-id-capture", null, null,
+            true, org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY ) {
+            @Override
+            public void append( final org.apache.logging.log4j.core.LogEvent e ) {
+                warned.add( e.getMessage().getFormattedMessage() );
+            }
+        };
+        capture.start();
+        final org.apache.logging.log4j.Level before = core.getLevel();
+        org.apache.logging.log4j.core.config.Configurator.setLevel( logger, org.apache.logging.log4j.Level.ALL );
+        core.addAppender( capture );
+        Mockito.when( registry.rotateAgentKey( any(), anyLong(), any() ) ).thenThrow( new WorkNotFoundException( "x" ) );
+        try {
+            send( "POST", "/evil%0Aforged-line/rotate-key", null );
+        } finally {
+            core.removeAppender( capture );
+            org.apache.logging.log4j.core.config.Configurator.setLevel( logger, before );
+            capture.stop();
+        }
+        assertTrue( warned.stream().anyMatch( m -> m.contains( "not a number" ) ), warned.toString() );
+        assertTrue( warned.stream().noneMatch( m -> m.contains( "evil" ) || m.contains( "forged" ) ), warned.toString() );
+    }
 }

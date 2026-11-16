@@ -110,7 +110,8 @@ public abstract class WorkMcpTool {
             final Integer current = WorkConflictException.STALE.equals( e.reason() ) ? currentVersion( actor, arguments ) : null;
             return error( current == null ? base : base + " (currentVersion: " + current + ")" );
         } catch ( final SQLException e ) {
-            LOG.warn( "Work tool {} failed: {}", name(), e.getMessage(), e );
+            // Never the message: a constraint violation's message carries row values.
+            LOG.warn( "Work tool {} failed: {} (SQLState {})", name(), e.getClass().getSimpleName(), e.getSQLState() );
             return error( UNAVAILABLE );
         } catch ( final RuntimeException e ) {
             // A bug or an unexpected state: log it in full, tell the client nothing of it.

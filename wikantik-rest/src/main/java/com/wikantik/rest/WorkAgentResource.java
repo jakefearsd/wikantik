@@ -64,7 +64,8 @@ public class WorkAgentResource extends WorkResourceBase {
         try {
             return Long.parseLong( c.pathParam( 0 ) );
         } catch ( final NumberFormatException e ) {
-            LOG.warn( "Work API agent id is not a number: {}", c.pathParam( 0 ) );
+            // Only that it was not a number: the segment is the caller's text and never goes into the log.
+            LOG.warn( "Work API agent id in the path is not a number" );
             return -1L;
         }
     }

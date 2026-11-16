@@ -173,7 +173,9 @@ class WriteToolsAuditTest {
         assertEquals( 1, lines.size(), lines.toString() );
         final String line = lines.get( 0 );
         assertTrue( line.chars().noneMatch( c -> c == '\n' || c == '\r' || c == 0x2028 ), line );
-        assertTrue( line.startsWith( "MCP_WORK_REFUSED tool=release_item item=PLAT-1MCP_WRITE" ), line );
+        assertTrue( line.startsWith( "MCP_WORK_REFUSED tool=release_item item=PLAT-1MCP_WRITEtoolclaim_item" ), line );
+        assertEquals( 4, line.chars().filter( c -> c == '=' ).count(), "no forged key=value pair: " + line );
+        assertEquals( 5, line.split( " " ).length, "the tag and four fields, no forged one: " + line );
         assertTrue( line.length() < 200, "the key is capped: " + line.length() );
     }
 

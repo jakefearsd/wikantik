@@ -571,6 +571,12 @@ public final class WikiSession implements Session {
      *         anonymous requests that can share the transient thread-local guest
      */
     private static boolean needsPersistentSession( final HttpServletRequest request ) {
+        // 0. A verified API-key request is stateless whatever else it carries: an identity cookie or another
+        //    user's JSESSIONID is not the key's credential and must neither join nor create a session.
+        if ( request.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) != null
+                && ApiKeyPrincipalRequest.AUTH_TYPE.equals( request.getAuthType() ) ) {
+            return false;
+        }
         // 1. Already has an HttpSession — keep current behavior.
         if ( request.getSession( false ) != null ) {
             return true;

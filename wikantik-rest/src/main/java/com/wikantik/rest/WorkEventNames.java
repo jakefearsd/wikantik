@@ -35,6 +35,8 @@ import java.util.function.Function;
  */
 final class WorkEventNames {
 
+    private static final org.apache.logging.log4j.Logger LOG =
+        org.apache.logging.log4j.LogManager.getLogger( WorkEventNames.class );
     private static final String QUEUE_PREFIX = "queue:";
     private static final String AGENT_PREFIX = "agent:";
 
@@ -95,7 +97,8 @@ final class WorkEventNames {
         try {
             return Long.parseLong( idText.trim() );
         } catch ( final NumberFormatException e ) {
-            return null;   // not an agent id: shown as unknown rather than guessed at
+            LOG.warn( "A stored event value is not an agent id: {}", idText );
+            return null;   // shown as unknown rather than guessed at
         }
     }
 

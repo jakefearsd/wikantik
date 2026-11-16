@@ -122,8 +122,7 @@ public class WorkItemResource extends WorkResourceBase {
 
     private void claim( final Call c ) throws Exception {
         final WorkClaimsService.ClaimResult result = c.svc.claims().claim( c.actor, c.pathParam( 0 ) );
-        final JsonObject out = new JsonObject();
-        out.add( "item", toTree( result.view(), c.actor ) );
+        final JsonObject out = toTree( result.view(), c.actor ).getAsJsonObject();
         out.addProperty( "renewed", result.renewed() );
         c.tree( out );
     }

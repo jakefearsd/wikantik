@@ -53,7 +53,6 @@ class WorkApiKeyFilterTest {
     @BeforeEach
     void setUp() throws Exception {
         PostgresTestDb.createDataSource();
-        PostgresTestDb.truncate( "api_keys" );
         keys = new ApiKeyService( PostgresTestDb.createDataSource() );
         enabled = true;
         filter = new WorkApiKeyFilter( () -> keys, () -> enabled );
@@ -105,10 +104,10 @@ class WorkApiKeyFilterTest {
         final ArgumentCaptor< jakarta.servlet.ServletRequest > passed = ArgumentCaptor.forClass( jakarta.servlet.ServletRequest.class );
         Mockito.verify( chain ).doFilter( passed.capture(), Mockito.eq( resp ) );
         final HttpServletRequest wrapped = ( HttpServletRequest ) passed.getValue();
-        assertTrue( wrapped instanceof ApiKeyPrincipalRequest );
         final ApiKeyService.Record rec = ( ApiKeyService.Record ) wrapped.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD );
         assertEquals( ApiKeyService.Scope.WORK, rec.scope() );
         assertEquals( "alice", rec.principalLogin() );
+        assertNoPrincipal( wrapped );
     }
 
     @Test
@@ -120,10 +119,20 @@ class WorkApiKeyFilterTest {
         assertEquals( 401, status.get() );
     }
 
+    /** The owner of a key must not leak to later filters: no principal, no remote user. */
+    private static void assertNoPrincipal( final HttpServletRequest forwarded ) {
+        org.junit.jupiter.api.Assertions.assertNull( forwarded.getUserPrincipal() );
+        org.junit.jupiter.api.Assertions.assertNull( forwarded.getRemoteUser() );
+        assertEquals( ApiKeyPrincipalRequest.AUTH_TYPE, forwarded.getAuthType() );
+    }
+
     @Test
     void allKeyAccepted() throws Exception {
-        run( request( "Bearer " + token( ApiKeyService.Scope.ALL ) ) );
-        Mockito.verify( chain ).doFilter( Mockito.any(), Mockito.eq( resp ) );
+        final HttpServletRequest req = request( "Bearer " + token( ApiKeyService.Scope.ALL ) );
+        run( req );
+        final ArgumentCaptor< jakarta.servlet.ServletRequest > passed = ArgumentCaptor.forClass( jakarta.servlet.ServletRequest.class );
+        Mockito.verify( chain ).doFilter( passed.capture(), Mockito.eq( resp ) );
+        assertNoPrincipal( ( HttpServletRequest ) passed.getValue() );
     }
 
     @Test

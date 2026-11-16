@@ -41,6 +41,8 @@ import java.util.List;
 public class WorkAgentResource extends WorkResourceBase {
 
     private static final long serialVersionUID = 1L;
+    private static final org.apache.logging.log4j.Logger LOG =
+        org.apache.logging.log4j.LogManager.getLogger( WorkAgentResource.class );
 
     @Override
     protected void routes( final List< Object[] > r ) {
@@ -62,6 +64,7 @@ public class WorkAgentResource extends WorkResourceBase {
         try {
             return Long.parseLong( c.pathParam( 0 ) );
         } catch ( final NumberFormatException e ) {
+            LOG.warn( "Work API agent id is not a number: {}", c.pathParam( 0 ) );
             return -1L;
         }
     }

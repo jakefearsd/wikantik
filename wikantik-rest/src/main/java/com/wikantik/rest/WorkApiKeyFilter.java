@@ -21,7 +21,6 @@ package com.wikantik.rest;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import jakarta.servlet.Filter;
@@ -42,8 +41,9 @@ import java.util.function.Supplier;
 
 /**
  * Turns an {@code Authorization: Bearer} API key on {@code /api/work/*} into a request carrying the verified key
- * record ({@link ApiKeyPrincipalRequest#ATTR_API_KEY_RECORD}); {@link WorkResourceBase} then derives the actor from
- * that record and from nothing else.
+ * record (the request attribute {@code ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD}) and <b>no user principal</b>
+ * ({@link WorkKeyRequest}); {@link WorkResourceBase} then derives the actor from that record and from nothing else.
+ * Exposing the key owner as the request's principal would let the cookie-based filters downstream log the owner in.
  *
  * <ul>
  *   <li>No bearer header: untouched (session authentication applies, as before).</li>
@@ -127,8 +127,6 @@ public class WorkApiKeyFilter implements Filter {
             deny( resp, HttpServletResponse.SC_FORBIDDEN, SCOPE_BODY );
             return;
         }
-        final ApiKeyPrincipalRequest wrapper = new ApiKeyPrincipalRequest( req, record.principalLogin() );
-        wrapper.setAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD, record );
-        chain.doFilter( wrapper, response );
+        chain.doFilter( new WorkKeyRequest( req, record ), response );
     }
 }

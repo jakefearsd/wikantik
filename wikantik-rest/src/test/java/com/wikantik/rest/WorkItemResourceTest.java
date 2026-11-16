@@ -418,8 +418,10 @@ class WorkItemResourceTest {
         final WorkHttp.Result r = send( "POST", "/api/work/items", "/PLAT-1/claim", null );
         assertEquals( 200, r.status() );
         assertEquals( true, r.json().getAsJsonObject().get( "renewed" ).getAsBoolean() );
-        assertEquals( "PLAT-1", r.json().getAsJsonObject().getAsJsonObject( "item" ).getAsJsonObject( "item" )
-            .get( "key" ).getAsString() );
+        final JsonObject o = r.json().getAsJsonObject();
+        assertEquals( "PLAT-1", o.getAsJsonObject( "item" ).get( "key" ).getAsString(), "an ItemView at the top level" );
+        assertEquals( "PLAT", o.get( "projectKey" ).getAsString() );
+        assertFalse( o.getAsJsonObject( "item" ).has( "item" ) );
     }
 
     @Test

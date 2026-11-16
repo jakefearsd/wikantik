@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Work management, phase 1 (off by default).** A new `wikantik-work` module keeps projects, epics, stories and tasks as first-class rows in `work_*` tables, not as wiki pages. Each project has a key, its own members (viewer, member or lead; users or groups) and a board; products are instance-wide. Items carry a kind (software, documentation, admin), status, priority, dates, an assignee, a parent, comments, links and a hand-off action. The UI lives at `/work`: project home, board with drag between columns, item and epic pages with in-place editing and conflict review, a dates view, an activity feed and project settings. The REST API is `/api/work/*`. Switch it on with `wikantik.work.enabled = true`.
+- **Work is invisible to non-members.** Someone who is not a member of a project gets the same 404 for a project, item or comment that exists as for one that does not, and work never appears in wiki search, page rendering or link resolution. Item and comment text renders through the Markdown pipeline in a restricted mode that does no page lookups. People are shown by display name; logins appear only to instance admins.
+- **Every change is recorded.** An append-only event log holds each status move, field edit, hand-off, comment, link, membership change, settings change and archive, with who did it. Nothing is hard-deleted: items are cancelled and projects archived (archived projects are read-only). Migrations `V074` and `V075` add the tables and grants.
+- Later phases (agent queues and a work MCP endpoint, changes and autonomy levels, deployments and incidents) are designed in `docs/superpowers/specs/2026-11-15-work-management-design.md` and not built; their policy columns are stored but have no effect yet.
+
+### Changed
+
+- Markdown link rendering has a "links as typed" mode (`Context.VAR_LINKS_AS_TYPED`) used by work text. Ordinary page rendering is unchanged.
+
 ## [2.5.20] - 2026-11-15
 
 ### Added

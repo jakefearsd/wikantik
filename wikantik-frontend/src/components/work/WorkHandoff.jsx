@@ -50,6 +50,9 @@ export default function WorkHandoff({
       </>
     );
   }
+  // Work in a queue is ready or in review until an agent claims it, so a hand-off to a queue never offers In progress.
+  const toQueue = !!toTarget.queue;
+  const offered = toQueue ? statusOptions.filter((o) => o.value !== 'in_progress') : statusOptions;
   const targetChanged = targetValue(toTarget) !== targetValue(queue ? { queue } : { assignee });
   const hasTarget = targetValue(toTarget) !== '';
   const ok = targetChanged && hasTarget && note.trim() !== '' && !saving;
@@ -57,7 +60,7 @@ export default function WorkHandoff({
   function send() {
     if (!ok) return;
     setSaving(true);
-    onSend(toStatus, toTarget.queue ? { queue: toTarget.queue } : { assignee: toTarget.assignee }, note.trim())
+    onSend(toQueue && toStatus === 'in_progress' ? 'ready' : toStatus, toTarget.queue ? { queue: toTarget.queue } : { assignee: toTarget.assignee }, note.trim())
       .then((done) => { if (done) { close(); setNote(''); } })
       .catch((e) => console.warn('WorkHandoff: handoff failed', e))
       .finally(() => setSaving(false));
@@ -66,12 +69,16 @@ export default function WorkHandoff({
   return (
     <form ref={formRef} className="work-handoff" onSubmit={(e) => { e.preventDefault(); send(); }} aria-label="Hand off this item">
       <label className="work-form-field" htmlFor={`${uid}-status`}>Status after handoff</label>
-      <Select id={`${uid}-status`} ariaLabel="Status after handoff" value={toStatus} options={statusOptions} onChange={(v) => { setToStatus(v); draft({ status: v }); }} />
+      <Select id={`${uid}-status`} ariaLabel="Status after handoff" value={toQueue && toStatus === 'in_progress' ? 'ready' : toStatus} options={offered} onChange={(v) => { setToStatus(v); draft({ status: v }); }} />
       <label className="work-form-field" htmlFor={`${uid}-who`}>Hand off to</label>
       <AssigneePicker
         id={`${uid}-who`} ariaLabel="Hand off to" members={members} queues={queues} value={toTarget}
         labels={{ assigneeName, queueName }} allowNone={false} placeholder="Choose a person or queue"
-        onChange={(t) => { const next = t.queue ? { queue: t.queue } : { assignee: t.assignee }; setToTarget(next); draft({ target: next }); }} />
+        onChange={(t) => {
+          const next = t.queue ? { queue: t.queue } : { assignee: t.assignee };
+          const status = next.queue && toStatus === 'in_progress' ? 'ready' : toStatus;
+          setToTarget(next); setToStatus(status); draft({ target: next, status });
+        }} />
       {!targetChanged && <p className="work-field-helper">Choose a different person or queue. To change only the status, edit Status.</p>}
       {claimHolder && (
         <p className="work-claim-warning">

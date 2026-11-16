@@ -265,7 +265,7 @@ function ArchiveSection({ project }) {
       <p className="work-muted">An archived project becomes read-only and moves to the Archived list. Its items are kept.</p>
       {confirming
         ? <Confirm yes={`Yes, archive ${project.key}`} disabled={busy} onYes={archive} onNo={() => setConfirming(false)}>
-            Archive {project.key} {project.name}? Nobody will be able to change it; it stays readable under Archived.
+            Archive {project.key} {project.name}? Nobody will be able to change it; it stays readable under Archived. Any claim an agent holds on an item in this project is released.
           </Confirm>
         : <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirming(true)}>Archive project</button>}
     </section>

@@ -420,6 +420,19 @@ describe('WorkItemView', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it('the in-queue status rule is shown beside the Status field, not as a toast', async () => {
+    const rule = 'Work in a queue is ready or in review until an agent claims it.';
+    patchItem.mockRejectedValue(Object.assign(new Error(rule), { status: 400, body: { field: 'status', message: rule } }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Status' }));
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'in_progress' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Status' }));
+    const msg = await screen.findByText(rule);
+    expect(msg.closest('.work-field')).toHaveTextContent('Status');
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it('viewers do not load products or parent candidates', async () => {
     renderView(makeView({ viewerRole: 'viewer' }));
     await ready();

@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from 'react';
  * Shows an agent's plaintext key exactly once. The token lives only in the props of this panel: it is never
  * logged, stored or put in a message, and the caller drops it from its state when `onDone` fires.
  */
-export default function WorkTokenPanel({ agentName, token, onDone }) {
+export default function WorkTokenPanel({ agentName, token, onDone, autoFocus = true }) {
   const [copied, setCopied] = useState(null); // null | true | false
   const panel = useRef(null);
-  useEffect(() => { panel.current?.focus(); }, []);
+  // Only the first panel takes focus: a later one must not pull it from a panel the admin is already using.
+  useEffect(() => { if (autoFocus) panel.current?.focus(); }, [autoFocus]);
 
   function copy() {
     // The only place the token leaves the page, and only on an explicit click. Only a resolved writeText is "Copied."

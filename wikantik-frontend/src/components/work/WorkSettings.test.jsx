@@ -145,6 +145,7 @@ describe('WorkSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Archive project' }));
     expect(window.confirm).not.toHaveBeenCalled();
     expect(archiveProject).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/claim an agent holds .* is released/);
     fireEvent.click(screen.getByRole('button', { name: 'Yes, archive PLAT' }));
     await waitFor(() => expect(archiveProject).toHaveBeenCalledWith('PLAT'));
     expect(await screen.findByText('HOME')).toBeInTheDocument();

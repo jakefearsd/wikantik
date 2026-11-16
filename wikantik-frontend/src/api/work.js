@@ -85,7 +85,9 @@ export const retireQueue = (key) => request(`${base}/queues/${enc(key)}/retire`,
 export const listAgents = () => request(`${base}/agents`);
 export const registerAgent = (agent) => request(`${base}/agents`, json('POST', agent));
 export const updateAgent = (id, changes) => request(`${base}/agents/${enc(id)}`, json('PATCH', changes));
-export const rotateAgentKey = (id) => request(`${base}/agents/${enc(id)}/rotate-key`, { method: 'POST' });
+// `owner` (a display name) is optional: without it the key keeps its current owner.
+export const rotateAgentKey = (id, owner) =>
+  request(`${base}/agents/${enc(id)}/rotate-key`, owner ? json('POST', { owner }) : { method: 'POST' });
 export const retireAgent = (id) => request(`${base}/agents/${enc(id)}/retire`, { method: 'POST' });
 
 // Claims

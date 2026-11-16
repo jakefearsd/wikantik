@@ -492,4 +492,66 @@ describe('WorkAgents', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Save agent' })).not.toBeInTheDocument());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  // ---- hardening wave B: rotation owner, refusals in the dialog, focus and announcements ----
+  async function openRotate() {
+    const row = (await screen.findAllByTestId('agent-row'))[0];
+    fireEvent.click(within(row).getByRole('button', { name: 'Rotate key of triage-bot' }));
+    return screen.findByRole('alertdialog', { name: 'Confirm' });
+  }
+
+  it('rotate offers an optional New owner and sends none by default', async () => {
+    renderPage();
+    const dialog = await openRotate();
+    expect(within(dialog).getByLabelText('New owner')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /Yes, rotate/ }));
+    await screen.findByText(SECRET);
+    expect(rotateAgentKey).toHaveBeenCalledWith(1);
+  });
+
+  it('rotate sends the chosen new owner', async () => {
+    renderPage();
+    const dialog = await openRotate();
+    const owner = within(dialog).getByLabelText('New owner');
+    await waitFor(() => expect(within(owner).getByRole('option', { name: 'Alice A' })).toBeInTheDocument());
+    fireEvent.change(owner, { target: { value: 'Alice A' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Yes, rotate/ }));
+    await screen.findByText(SECRET);
+    expect(rotateAgentKey).toHaveBeenCalledWith(1, 'Alice A');
+  });
+
+  it('a server refusal of the rotation is shown verbatim in the dialog, which stays open', async () => {
+    const msg = 'Name the new owner: the key owner no longer exists.';
+    rotateAgentKey.mockRejectedValue(Object.assign(new Error(msg), { status: 400 }));
+    renderPage();
+    const dialog = await openRotate();
+    fireEvent.click(within(dialog).getByRole('button', { name: /Yes, rotate/ }));
+    expect(await within(await screen.findByRole('alertdialog', { name: 'Confirm' })).findByText(msg)).toBeInTheDocument();
+    expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
+  });
+
+  it('the locked Yes is described by the lock explanation', async () => {
+    const finishRegister = await registerInFlight();
+    await openRotate();
+    await act(async () => { finishRegister(); });
+    await screen.findByText(REG);
+    const yes = screen.getByRole('button', { name: /Yes, rotate/ });
+    expect(yes).toBeDisabled();
+    expect(yes).toHaveAccessibleDescription(/Copy or dismiss the key shown above first/);
+  });
+
+  it('a newly shown key panel does not steal focus from the panel being used, and is announced politely', async () => {
+    const finishRegister = await registerInFlight();
+    await rotateTriage();
+    const rotPanel = await screen.findByRole('dialog', { name: 'API key for triage-bot' });
+    await waitFor(() => expect(rotPanel).toHaveFocus());
+    await act(async () => { finishRegister(); });
+    const regPanel = await screen.findByRole('dialog', { name: 'API key for new-bot' });
+    expect(regPanel).not.toHaveFocus();
+    expect(rotPanel).toHaveFocus();
+    const live = screen.getByTestId('work-agents-announce');
+    expect(live).toHaveAttribute('role', 'status');
+    expect(live).toHaveAttribute('aria-live', 'polite');
+    expect(live).toHaveTextContent('A key for new-bot is shown below.');
+  });
 });

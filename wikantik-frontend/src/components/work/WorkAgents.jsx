@@ -8,6 +8,7 @@ import { useToast } from '../../hooks/useToast';
 import WorkAgentForm from './WorkAgentForm';
 import WorkConfirm from './WorkConfirm';
 import WorkLoadError from './WorkLoadError';
+import WorkOwnerPicker from './WorkOwnerPicker';
 import WorkQueues from './WorkQueues';
 import WorkTokenPanel from './WorkTokenPanel';
 
@@ -25,11 +26,24 @@ export default function WorkAgents() {
   const [registering, setRegistering] = useState(false);
   const [pending, setPending] = useState(null); // { agent, action: 'rotate' | 'retire' }
   const [busy, setBusy] = useState(false);
+  const [newOwner, setNewOwner] = useState(''); // rotate: display name of the person who should own the new key; '' keeps the owner
+  const [pendingError, setPendingError] = useState(null); // the server's refusal of the open confirmation
+  const [announce, setAnnounce] = useState('');
   // Every minted key, each with its own panel. Append-only until that entry's Done: a later register or rotate can
   // never replace a key the admin has not copied. Component state only: dropped on Done and on unmount.
   const [keys, setKeys] = useState([]); // [{ id, agentName, token }]
   const nextKey = useRef(0);
-  const addKey = (agentName, token) => setKeys((k) => [...k, { id: ++nextKey.current, agentName, token }]);
+  const keyCount = useRef(0);
+  const addKey = (agentName, token) => {
+    // A key shown while another panel is open must not pull focus from it: say so politely instead.
+    if (keyCount.current > 0) setAnnounce(`A key for ${agentName} is shown below.`);
+    keyCount.current += 1;
+    setKeys((k) => [...k, { id: ++nextKey.current, agentName, token }]);
+  };
+  const dropKey = (id) => {
+    keyCount.current = Math.max(0, keyCount.current - 1);
+    setKeys((all) => all.filter((x) => x.id !== id));
+  };
   const seq = useRef(0);
   const mounted = useRef(true);
   // Set true in the body too: StrictMode's simulated unmount would otherwise leave it false for good.
@@ -57,8 +71,8 @@ export default function WorkAgents() {
   if (!isAdmin) return <Navigate to="/work" replace />;
   const locked = keys.length > 0;
   const lockProps = { disabled: locked, 'aria-describedby': locked ? LOCK_HINT : undefined };
-  const panel = keys.map((k) => (
-    <WorkTokenPanel key={k.id} agentName={k.agentName} token={k.token} onDone={() => setKeys((all) => all.filter((x) => x.id !== k.id))} />
+  const panel = keys.map((k, i) => (
+    <WorkTokenPanel key={k.id} agentName={k.agentName} token={k.token} autoFocus={i === 0} onDone={() => dropKey(k.id)} />
   ));
   // The key panel sits above every load state: a failed or slow list read must never hide an unseen key.
   if (state.error) return <div className="work-products">{panel}<WorkLoadError error={state.error} fallback="Could not load agents and queues." onRetry={load} /></div>;
@@ -80,10 +94,15 @@ export default function WorkAgents() {
     setBusy(true);
     const done = () => { if (mounted.current) { setPending(null); setBusy(false); } };
     if (action === 'rotate') {
-      rotateAgentKey(agent.id)
-        .then((made) => { if (mounted.current) addKey(agent.name, made.token); })
-        .catch((err) => toast.error(err?.message || 'Could not rotate the key.'))
-        .finally(done);
+      const owner = newOwner || null;
+      (owner ? rotateAgentKey(agent.id, owner) : rotateAgentKey(agent.id))
+        .then((made) => { if (mounted.current) { addKey(agent.name, made.token); setNewOwner(''); } done(); })
+        .catch((err) => {
+          // Keep the confirmation open with the server's own words (e.g. an unknown new owner), so it can be fixed in place.
+          if (!mounted.current) return;
+          setPendingError(err?.message || 'Could not rotate the key.');
+          setBusy(false);
+        });
     } else {
       retireAgent(agent.id)
         .then(() => { toast.success(`Retired ${agent.name}`); return load(); })
@@ -96,6 +115,7 @@ export default function WorkAgents() {
     <div className="work-products work-agents">
       <h1 className="work-heading">Agents &amp; queues</h1>
       {panel}
+      <p role="status" aria-live="polite" className="work-visually-hidden" data-testid="work-agents-announce">{announce}</p>
       {locked && <p id={LOCK_HINT} className="work-visually-hidden">Copy or dismiss the key shown above first.</p>}
       {refreshError && <div className="work-form-error" role="alert">{refreshError}</div>}
       <section className="work-section" aria-label="Agents">
@@ -123,7 +143,12 @@ export default function WorkAgents() {
                 </div>}
                 {!a.retiredAt && editing !== a.id && (pending?.agent.id === a.id
                   ? (
-                    <WorkConfirm disabled={busy || locked} onYes={confirmed} onNo={() => setPending(null)}
+                    <WorkConfirm disabled={busy || locked} describedBy={LOCK_HINT} error={pendingError}
+                      onYes={confirmed} onNo={() => { setPending(null); setPendingError(null); setNewOwner(''); }}
+                      fields={pending.action === 'rotate' ? (
+                        <WorkOwnerPicker owner={newOwner} onChange={setNewOwner} disabled={busy} idPrefix="work-r-owner"
+                          findLabel="Find new owner" ariaLabel="New owner" placeholder="Keep the current owner" />
+                      ) : null}
                       yes={pending.action === 'rotate' ? `Yes, rotate ${a.name}` : `Yes, retire ${a.name}`}>
                       {pending.action === 'rotate'
                         ? `Rotate the key of ${a.name}? The old key stops working immediately.`
@@ -135,9 +160,9 @@ export default function WorkAgents() {
                       <button type="button" className="btn btn-sm" aria-label={`Edit ${a.name}`} {...lockProps}
                         onClick={() => setEditing(a.id)}>Edit</button>
                       <button type="button" className="btn btn-sm" aria-label={`Rotate key of ${a.name}`} {...lockProps}
-                        onClick={() => setPending({ agent: a, action: 'rotate' })}>Rotate key</button>
+                        onClick={() => { setPendingError(null); setNewOwner(''); setPending({ agent: a, action: 'rotate' }); }}>Rotate key</button>
                       <button type="button" className="btn btn-sm btn-ghost" aria-label={`Retire ${a.name}`} {...lockProps}
-                        onClick={() => setPending({ agent: a, action: 'retire' })}>Retire</button>
+                        onClick={() => { setPendingError(null); setPending({ agent: a, action: 'retire' }); }}>Retire</button>
                     </div>
                   ))}
               </li>

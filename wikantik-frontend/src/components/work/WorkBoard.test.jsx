@@ -118,6 +118,16 @@ describe('WorkBoard', () => {
       { expectedVersion: 1, changes: { status: 'review', rank: 1500 } }));
   });
 
+  it('dropping a queued card on In progress shows the server rule and puts the card back', async () => {
+    const rule = 'Work in a queue is ready or in review until an agent claims it.';
+    patchItem.mockRejectedValue(Object.assign(new Error(rule), { status: 400, body: { field: 'status', message: rule } }));
+    renderBoard();
+    await dragTo('Item 1', 'in_progress');
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(rule));
+    expect(within(column('ready')).getByText('Item 1')).toBeInTheDocument();
+    expect(within(column('in_progress')).queryByText('Item 1')).not.toBeInTheDocument();
+  });
+
   it('refusedMoveShowsReasonAndRestoresCard', async () => {
     patchItem.mockRejectedValue(Object.assign(new Error('Done needs a linked change'), { status: 403 }));
     renderBoard();

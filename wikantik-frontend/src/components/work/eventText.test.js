@@ -93,6 +93,11 @@ describe('eventText', () => {
     expect(eventSentence(ev('released', { actorName: 'Admin A', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'agent retired' })))
       .toBe('Admin A retired codex@docker2, ending its claim (now ready)');
   });
+  it('released: project archived names the archiver and the holder whose claim ended', () => {
+    expect(eventSentence(ev('released', { actorName: 'Admin A', actorKind: 'human', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'project archived' })))
+      .toBe("Admin A archived this project, ending codex@docker2's claim (now ready)");
+    expect(eventText(ev('released', { actorName: 'Admin A', fromValue: 'agent:3', toValue: 'review', note: 'project archived' })).note).toBeNull();
+  });
   it('released: an agent moving its own item ends its own claim', () => {
     const own = { actorName: 'codex@docker2', actorKind: 'agent', agentId: 3, fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'review' };
     expect(eventSentence(ev('released', { ...own, note: 'moved' }))).toBe('codex@docker2 moved this item, ending its own claim (now review)');

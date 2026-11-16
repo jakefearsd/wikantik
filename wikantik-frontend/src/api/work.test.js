@@ -91,6 +91,8 @@ describe('work api client', () => {
     expect(collabRequest.mock.calls.at(-1)[0]).toBe('/api/work/agents/7');
     await work.rotateAgentKey(7);
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/rotate-key', { method: 'POST' });
+    await work.rotateAgentKey(7, 'Alice A');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/rotate-key', { method: 'POST', body: JSON.stringify({ owner: 'Alice A' }) });
     await work.retireAgent(7);
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/retire', { method: 'POST' });
   });

@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react';
-import Select from '../ui/Select';
+import { useState } from 'react';
+import WorkOwnerPicker from './WorkOwnerPicker';
 import { registerAgent, updateAgent } from '../../api/work';
-import { api } from '../../api/client';
 import { useToast } from '../../hooks/useToast';
 
 const NAME_PATTERN = /^[a-z0-9][a-z0-9._-]{0,39}(@[a-z0-9][a-z0-9.-]{0,39})?$/;
 const NAME_MESSAGE = 'Agent name is lowercase letters, digits, dots, dashes and underscores, optionally followed by @host (up to 40 characters before the @).';
 const FIELDS = ['name', 'queues', 'owner'];
-const SEARCH_DELAY_MS = 250;
 
 /** Field errors by control: the server's `field`, else a conflict on the name, else the form as a whole. */
 function toErrors(err, fallback) {
@@ -16,39 +14,6 @@ function toErrors(err, fallback) {
   if (FIELDS.includes(field)) return { [field]: message };
   if (err?.status === 409 && err?.body?.reason === 'exists') return { name: message };
   return { form: message };
-}
-
-/** Key-owner picker: search-as-you-type over the people directory; the chosen name stays selectable. */
-function OwnerPicker({ owner, onChange, disabled, error, errorId }) {
-  const [query, setQuery] = useState('');
-  const [names, setNames] = useState([]);
-  const [loadError, setLoadError] = useState(null);
-
-  useEffect(() => {
-    let live = true;
-    const timer = setTimeout(() => {
-      api.listMentionableUsers(query, 20)
-        .then((r) => { if (live) { setNames((r?.users || []).map((u) => u.displayName).filter(Boolean)); setLoadError(null); } })
-        .catch((err) => {
-          console.warn('WorkAgentForm: could not search users', err);
-          if (live) setLoadError('Could not search users.');
-        });
-    }, query === '' ? 0 : SEARCH_DELAY_MS);
-    return () => { live = false; clearTimeout(timer); };
-  }, [query]);
-
-  const options = owner && !names.includes(owner) ? [owner, ...names] : names;
-  return (
-    <>
-      <label className="work-form-field" htmlFor="work-a-owner-q">Find key owner</label>
-      <input id="work-a-owner-q" className="work-field-input" value={query} onChange={(e) => setQuery(e.target.value)} disabled={disabled}
-        aria-describedby={loadError ? 'work-a-owner-load' : undefined} />
-      {loadError && <div id="work-a-owner-load" className="work-field-error" role="alert">{loadError}</div>}
-      <Select ariaLabel="Key owner" value={owner} options={options} placeholder="Me (default)" disabled={disabled}
-        onChange={onChange} />
-      {error && <div id={errorId} className="work-field-error" role="alert">{error}</div>}
-    </>
-  );
 }
 
 /**
@@ -99,7 +64,7 @@ export default function WorkAgentForm({ queues, agent, locked = false, lockedHin
       <label className="work-form-field" htmlFor="work-a-runtime">Runtime</label>
       <input id="work-a-runtime" className="work-field-input" value={f.runtime} onChange={set('runtime')} />
       {!editing && (
-        <OwnerPicker owner={f.owner} disabled={busy} onChange={(owner) => setF((s) => ({ ...s, owner }))}
+        <WorkOwnerPicker owner={f.owner} disabled={busy} onChange={(owner) => setF((s) => ({ ...s, owner }))}
           error={errors.owner} errorId="work-a-err-owner" />
       )}
       <fieldset className="work-fieldset" aria-describedby={described('queues')}>

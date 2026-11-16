@@ -28,6 +28,25 @@ describe('WorkHandoff', () => {
     await waitFor(() => expect(onSend).toHaveBeenCalledWith('review', { queue: 'reviewer' }, 'ready for review'));
   });
 
+  it('a queue target never offers In progress; a draft of it falls back to ready', async () => {
+    const { onSend } = setup(); // item is in_progress with a person
+    const status = screen.getByLabelText('Status after handoff');
+    expect([...status.options].map((o) => o.value)).toContain('in_progress');
+    fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'queue:reviewer' } });
+    expect([...status.options].map((o) => o.value)).toEqual(['ready', 'review']);
+    expect(status.value).toBe('ready');
+    fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'queued' } });
+    send();
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('ready', { queue: 'reviewer' }, 'queued'));
+  });
+
+  it('going back to a person offers In progress again', () => {
+    setup();
+    fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'queue:reviewer' } });
+    fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'ana-login' } });
+    expect([...screen.getByLabelText('Status after handoff').options].map((o) => o.value)).toContain('in_progress');
+  });
+
   it('handing to a person sends the person alone', async () => {
     const { onSend } = setup();
     fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'ana-login' } });

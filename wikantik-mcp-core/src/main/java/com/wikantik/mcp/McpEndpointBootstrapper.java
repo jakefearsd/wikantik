@@ -23,11 +23,13 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
+import io.modelcontextprotocol.server.McpTransportContextExtractor;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletRegistration;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -61,6 +63,7 @@ public final class McpEndpointBootstrapper {
     private final int loadOnStartup;
     private final Engine engine;
     private final com.wikantik.auth.apikeys.ApiKeyService.Scope requiredScope;
+    private final boolean keyOnly;
 
     private McpEndpointBootstrapper( final Builder b ) {
         this.logTag = b.logTag;
@@ -70,6 +73,7 @@ public final class McpEndpointBootstrapper {
         this.loadOnStartup = b.loadOnStartup;
         this.engine = b.engine;
         this.requiredScope = b.requiredScope;
+        this.keyOnly = b.keyOnly;
     }
 
     public static Builder builder() {
@@ -102,7 +106,14 @@ public final class McpEndpointBootstrapper {
             LOG.info( "{}: DB-backed API keys unavailable (no datasource) — legacy property keys only.", logTag );
         }
 
-        final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService, requiredScope );
+        final McpAccessFilter accessFilter;
+        if ( keyOnly ) {
+            // Key-only: mcp.access.allowUnrestricted and mcp.access.allowedCidrs do not apply to this endpoint.
+            LOG.info( "{}: key-only access — mcp.access.allowUnrestricted and mcp.access.allowedCidrs are ignored.", logTag );
+            accessFilter = new McpAccessFilter( "", false, rateLimiter, apiKeyService, requiredScope );
+        } else {
+            accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService, requiredScope );
+        }
         final FilterRegistration.Dynamic filterReg =
                 servletContext.addFilter( filterName, accessFilter );
         // isMatchAfter=true: run AFTER web.xml filters (RequestCorrelationFilter,
@@ -119,12 +130,25 @@ public final class McpEndpointBootstrapper {
      * {@code McpServer.sync(...)} when building the server.
      */
     public HttpServletStreamableServerTransportProvider registerTransport( final ServletContext servletContext ) {
+        return registerTransport( servletContext, null );
+    }
+
+    /**
+     * As {@link #registerTransport(ServletContext)}, with a {@code contextExtractor} the SDK calls once per HTTP
+     * request (not once per MCP session) to build the {@code McpTransportContext} that reaches that request's tool
+     * calls. {@code null} keeps the SDK's default (an empty context).
+     */
+    public HttpServletStreamableServerTransportProvider registerTransport(
+            final ServletContext servletContext,
+            final McpTransportContextExtractor< HttpServletRequest > contextExtractor ) {
         // The transport starts a non-daemon session sweeper; record it so contextDestroyed can dispose it.
         SdkSessionSweepers.track();
-        final HttpServletStreamableServerTransportProvider transportProvider =
-                HttpServletStreamableServerTransportProvider.builder()
-                        .mcpEndpoint( endpointPath )
-                        .build();
+        final HttpServletStreamableServerTransportProvider.Builder transportBuilder =
+                HttpServletStreamableServerTransportProvider.builder().mcpEndpoint( endpointPath );
+        if ( contextExtractor != null ) {
+            transportBuilder.contextExtractor( contextExtractor );
+        }
+        final HttpServletStreamableServerTransportProvider transportProvider = transportBuilder.build();
         final ServletRegistration.Dynamic registration =
                 servletContext.addServlet( servletName, transportProvider );
         registration.addMapping( endpointPath );
@@ -140,6 +164,7 @@ public final class McpEndpointBootstrapper {
         private String servletName;
         private int loadOnStartup = 2;
         private Engine engine;
+        private boolean keyOnly;
         private com.wikantik.auth.apikeys.ApiKeyService.Scope requiredScope =
                 com.wikantik.auth.apikeys.ApiKeyService.Scope.MCP_ADMIN;
 
@@ -165,6 +190,12 @@ public final class McpEndpointBootstrapper {
 
         /** Minimum API-key scope this endpoint requires (admin: MCP; knowledge: MCP_READ). */
         public Builder requiredScope( final com.wikantik.auth.apikeys.ApiKeyService.Scope value ) { this.requiredScope = value; return this; }
+
+        /**
+         * When true the access filter ignores {@code mcp.access.allowUnrestricted} and
+         * {@code mcp.access.allowedCidrs}: only a valid API key whose scope covers the required one gets in.
+         */
+        public Builder keyOnly( final boolean value ) { this.keyOnly = value; return this; }
 
         public McpEndpointBootstrapper build() {
             if ( logTag == null || endpointPath == null || filterName == null

@@ -140,6 +140,52 @@ class McpEndpointBootstrapperTest {
         assertEquals( java.util.List.of(), liveSweeperThreads() );
     }
 
+    /** The extractor handed to registerTransport is what the SDK calls with each POST; its context reaches the tool. */
+    @Test
+    void contextExtractorReachesTransport() throws Exception {
+        final ServletContext context = mock( ServletContext.class );
+        when( context.addServlet( anyString(), any( Servlet.class ) ) ).thenReturn( mock( ServletRegistration.Dynamic.class ) );
+        final java.util.concurrent.atomic.AtomicReference< jakarta.servlet.http.HttpServletRequest > seen =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        final io.modelcontextprotocol.server.McpTransportContextExtractor< jakarta.servlet.http.HttpServletRequest > extractor = req -> {
+            seen.set( req );
+            return io.modelcontextprotocol.common.McpTransportContext.create( java.util.Map.of( "who", "me" ) );
+        };
+        final var provider = validBuilder().build().registerTransport( context, extractor );
+        io.modelcontextprotocol.server.McpServer.sync( provider )
+                .serverInfo( new io.modelcontextprotocol.spec.McpSchema.Implementation( "t", "T", "1" ) ).build();
+        try {
+            final var servlet = ( jakarta.servlet.http.HttpServlet ) provider;
+            final var req = mock( jakarta.servlet.http.HttpServletRequest.class );
+            final var resp = mock( jakarta.servlet.http.HttpServletResponse.class );
+            when( req.getRequestURI() ).thenReturn( "/test-mcp" );
+            when( req.getMethod() ).thenReturn( "POST" );
+            when( req.getContentType() ).thenReturn( "application/json" );
+            when( req.getHeader( "Accept" ) ).thenReturn( "application/json, text/event-stream" );
+            when( req.getReader() ).thenReturn( new java.io.BufferedReader( new java.io.StringReader(
+                    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\","
+                    + "\"capabilities\":{},\"clientInfo\":{\"name\":\"t\",\"version\":\"1\"}}}" ) ) );
+            when( req.getInputStream() ).thenReturn( new jakarta.servlet.ServletInputStream() {
+                private final java.io.ByteArrayInputStream in = new java.io.ByteArrayInputStream( (
+                    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\","
+                    + "\"capabilities\":{},\"clientInfo\":{\"name\":\"t\",\"version\":\"1\"}}}" ).getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
+                @Override public boolean isFinished() { return in.available() == 0; }
+                @Override public boolean isReady() { return true; }
+                @Override public void setReadListener( final jakarta.servlet.ReadListener l ) { }
+                @Override public int read() { return in.read(); }
+            } );
+            when( resp.getWriter() ).thenReturn( new java.io.PrintWriter( new java.io.StringWriter() ) );
+
+            servlet.service( req, resp );
+
+            assertNotNull( seen.get(), "the SDK called our extractor with the request" );
+            assertEquals( req, seen.get() );
+        } finally {
+            provider.closeGracefully().block();
+            SdkSessionSweepers.disposeAll();
+        }
+    }
+
     private static java.util.List< Thread > liveSweeperThreads() {
         return Thread.getAllStackTraces().keySet().stream()
                 .filter( t -> t.isAlive() && t.getName().startsWith( "streamable-http-server-transport-session-sweeper" ) )

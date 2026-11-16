@@ -107,6 +107,8 @@
      <url-pattern>/wikantik-admin-mcp/*</url-pattern>
      <url-pattern>/knowledge-mcp</url-pattern>
      <url-pattern>/knowledge-mcp/*</url-pattern>
+     <url-pattern>/work-mcp</url-pattern>
+     <url-pattern>/work-mcp/*</url-pattern>
    </filter-mapping>
 
    <!-- Per-client-IP rate limiting for the public HTTP surface. Three tiers:
@@ -475,6 +477,12 @@
    <!-- Knowledge MCP server bootstrap — must come after WikiBootstrapServletContextListener -->
    <listener>
        <listener-class>com.wikantik.knowledge.mcp.KnowledgeMcpInitializer</listener-class>
+   </listener>
+
+   <!-- Work MCP server bootstrap (key-only /work-mcp) — must come after WikiBootstrapServletContextListener;
+        registers nothing when wikantik.work.enabled is false -->
+   <listener>
+       <listener-class>com.wikantik.work.mcp.WorkMcpInitializer</listener-class>
    </listener>
 
    <!-- OpenAPI tool server bootstrap — must come after WikiBootstrapServletContextListener -->

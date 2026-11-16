@@ -245,6 +245,7 @@
     <module>wikantik-observability</module>
     <module>wikantik-insights</module>
     <module>wikantik-work</module>
+    <module>wikantik-work-mcp</module>
     <module>wikantik-rest</module>
     <module>wikantik-extract-cli</module>
     <module>wikantik-war</module>

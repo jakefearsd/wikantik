@@ -103,4 +103,32 @@ class WorkApiRegistrationTest {
         assertEquals( "WorkAgentResource", byPattern.get( "/api/work/agents/*" ) );
         assertEquals( "WorkItemResource", byPattern.get( "/api/work/claimable" ) );
     }
+
+    @Test
+    void theWorkMcpListenerFollowsTheEngineBootstrapAndTheKnowledgeListener() throws Exception {
+        final List< String > listeners = new ArrayList<>();
+        for ( final Element l : list( web().getElementsByTagName( "listener" ) ) ) {
+            listeners.add( text( l, "listener-class" ) );
+        }
+        final int work = listeners.indexOf( "com.wikantik.work.mcp.WorkMcpInitializer" );
+        assertTrue( work >= 0, "WorkMcpInitializer is not registered: " + listeners );
+        assertTrue( work > listeners.indexOf( "com.wikantik.bootstrap.WikiBootstrapServletContextListener" ),
+            "the engine (and its WorkService) must exist first" );
+        assertTrue( work > listeners.indexOf( "com.wikantik.knowledge.mcp.KnowledgeMcpInitializer" ) );
+    }
+
+    @Test
+    void workMcpIsTimedByTheRequestMetricsFilter() throws Exception {
+        for ( final Element m : list( web().getElementsByTagName( "filter-mapping" ) ) ) {
+            if ( "RequestMetricsFilter".equals( text( m, "filter-name" ) ) ) {
+                final List< String > patterns = new ArrayList<>();
+                for ( final Element p : list( m.getElementsByTagName( "url-pattern" ) ) ) {
+                    patterns.add( p.getTextContent().trim() );
+                }
+                assertTrue( patterns.containsAll( List.of( "/work-mcp", "/work-mcp/*" ) ), patterns.toString() );
+                return;
+            }
+        }
+        throw new AssertionError( "RequestMetricsFilter has no mapping" );
+    }
 }

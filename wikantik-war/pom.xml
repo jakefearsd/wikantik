@@ -90,6 +90,14 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- The /work-mcp endpoint. Compile scope on purpose: a provided or test dependency would drop the jar
+             from WEB-INF/lib and the listener would fail at deploy time. -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>wikantik-work-mcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>wikantik-rest</artifactId>

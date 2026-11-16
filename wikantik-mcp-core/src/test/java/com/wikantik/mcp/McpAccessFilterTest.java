@@ -152,4 +152,85 @@ class McpAccessFilterTest {
         assertEquals( HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 ( ( McpAccessFilter.Outcome.Denied ) outcome ).status() );
     }
+
+    // ----- key-only mode (the work endpoint): ignores allowUnrestricted and the CIDR allowlist -----
+
+    private McpAccessFilter keyOnlyFilter( final ApiKeyService svc ) {
+        // allowUnrestricted=true and a matching CIDR as the other endpoints might be configured: a key-only filter
+        // is built from "" / false by the bootstrapper, and must refuse a keyless request on that basis alone.
+        return new McpAccessFilter( "", false, new SlidingWindowRateLimiter( 0, 0 ), svc, ApiKeyService.Scope.WORK );
+    }
+
+    @Test
+    void keyOnlyRejectsKeylessRequestEvenWhenUnrestrictedConfigured() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.allowUnrestricted", "true" );
+        props.setProperty( "mcp.access.allowedCidrs", "10.0.0.0/8" );
+        final McpConfig config = new McpConfig( props );
+        // What the bootstrapper does in key-only mode: pass no CIDRs and no unrestricted flag, whatever the config says.
+        final McpAccessFilter filter = new McpAccessFilter( "", false, new SlidingWindowRateLimiter( 0, 0 ),
+                mock( ApiKeyService.class ), ApiKeyService.Scope.WORK );
+        assertTrue( config.allowUnrestricted(), "precondition: the properties would open the other endpoints" );
+        when( request.getRemoteAddr() ).thenReturn( "10.1.2.3" );
+        final StringWriter body = new StringWriter();
+        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        assertTrue( body.toString().contains( "Access denied" ), body.toString() );
+    }
+
+    @Test
+    void keyOnlyRejectsMcpReadKeyForWorkScope() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( "wkk_read" ) ).thenReturn( Optional.of( dbRecord( 4, "dan", ApiKeyService.Scope.MCP_READ ) ) );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_read" );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+        when( response.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        keyOnlyFilter( svc ).doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    @Test
+    void keyOnlyAcceptsAWorkKeyAndPassesItsRecordOn() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        final ApiKeyService.Record record = dbRecord( 5, "erin", ApiKeyService.Scope.WORK );
+        when( svc.verify( "wkk_work" ) ).thenReturn( Optional.of( record ) );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_work" );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+
+        keyOnlyFilter( svc ).doFilter( request, response, chain );
+
+        verify( chain ).doFilter( any( HttpServletRequest.class ), eq( response ) );
+        verify( request ).setAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD, record );
+    }
+
+    @Test
+    void keyOnlyWithoutAKeyServiceFailsClosed() throws Exception {
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+        when( response.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        keyOnlyFilter( null ).doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+    }
+
+    @Test
+    void configDrivenConstructorsStillHonourUnrestrictedAndCidrs() throws Exception {
+        final Properties open = new Properties();
+        open.setProperty( "mcp.access.allowUnrestricted", "true" );
+        final McpAccessFilter unrestricted = new McpAccessFilter( new McpConfig( open ),
+                new SlidingWindowRateLimiter( 0, 0 ), mock( ApiKeyService.class ), ApiKeyService.Scope.MCP_READ );
+        when( request.getRemoteAddr() ).thenReturn( "1.2.3.4" );
+
+        unrestricted.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+    }
 }

@@ -71,7 +71,17 @@ public class McpAccessFilter extends AbstractApiAccessFilter {
 
     public McpAccessFilter( final McpConfig config, final SlidingWindowRateLimiter rateLimiter,
                             final ApiKeyService apiKeyService, final ApiKeyService.Scope requiredScope ) {
-        super( surfaceFor( requiredScope ), config.allowedCidrs(), config.allowUnrestricted(),
-                rateLimiter::tryAcquire, apiKeyService );
+        this( config.allowedCidrs(), config.allowUnrestricted(), rateLimiter, apiKeyService, requiredScope );
+    }
+
+    /**
+     * Explicit access policy, independent of {@link McpConfig}. An endpoint that must be reachable by key only
+     * (the work endpoint) passes no CIDRs and {@code allowUnrestricted=false}, so a request without a valid key
+     * whose scope covers {@code requiredScope} is refused whatever {@code mcp.access.*} says for the other endpoints.
+     */
+    public McpAccessFilter( final String allowedCidrs, final boolean allowUnrestricted,
+                            final SlidingWindowRateLimiter rateLimiter, final ApiKeyService apiKeyService,
+                            final ApiKeyService.Scope requiredScope ) {
+        super( surfaceFor( requiredScope ), allowedCidrs, allowUnrestricted, rateLimiter::tryAcquire, apiKeyService );
     }
 }

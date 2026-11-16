@@ -174,7 +174,8 @@ public class CsrfProtectionFilter implements Filter {
     static boolean isMcpEndpoint( final HttpServletRequest request ) {
         final String servletPath = request.getServletPath();
         return "/wikantik-admin-mcp".equals( servletPath )
-            || "/knowledge-mcp".equals( servletPath );
+            || "/knowledge-mcp".equals( servletPath )
+            || "/work-mcp".equals( servletPath );
     }
 
     /**

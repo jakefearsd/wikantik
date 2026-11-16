@@ -83,7 +83,7 @@ public final class WorkWiring {
     }
 
     /** How long a claim lasts: {@link #PROP_CLAIM_EXPIRY} when within 1 to 10080 minutes, else 240 with a warning. */
-    static Duration claimExpiry( final Properties props ) {
+    public static Duration claimExpiry( final Properties props ) {
         final int minutes = TextUtil.getIntegerProperty( props, PROP_CLAIM_EXPIRY, DEFAULT_EXPIRY_MINUTES );
         if ( minutes < 1 || minutes > MAX_EXPIRY_MINUTES ) {
             LOG.warn( "{}={} is outside 1..{}; using {} minutes", PROP_CLAIM_EXPIRY, minutes, MAX_EXPIRY_MINUTES,

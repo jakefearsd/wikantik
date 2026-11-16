@@ -1,0 +1,19 @@
+# wikantik-work-mcp
+
+Module notes, loaded when working under this directory.
+
+- **What it is.** The MCP endpoint `/work-mcp` (`com.wikantik.work.mcp`) through which work-scoped API keys, agents above all, read and change work items. Tools call `WorkService` and nothing else; design: `docs/superpowers/specs/2026-11-15-work-management-design.md`.
+- **Key-only.** `WorkMcpInitializer` builds the endpoint with `McpEndpointBootstrapper.Builder.keyOnly(true)` and scope `WORK`: `mcp.access.allowUnrestricted` and `mcp.access.allowedCidrs` are ignored, so a request without a valid work key gets 403 even where those properties open the other MCP endpoints. The per-key rate limiter still applies. Never route `/work-mcp` through the config-driven `McpAccessFilter` constructors.
+- **Off means 404.** With `wikantik.work.enabled=false` (or work failed to wire) `WikiEngine.workService()` is null, the initializer registers nothing, and `/work-mcp` is a container 404. The listener in `web.xml` must stay after `WikiBootstrapServletContextListener`.
+- **The actor is resolved per tool call**, from that call's own HTTP request, never from the session: `WorkMcpActors.extract` (the transport's context extractor, run by the SDK once per request) carries the verified key record; `WorkMcpActors.actorFor` turns it into an actor through `WikiWorkActors.actorForKey` on every call. No key, a non-work key, a retired agent's key or a rotated-away agent key is no actor, and the tool answers `This endpoint needs a work API key.` There is no fallback to the key's owner, a session, a guest or a default actor. `WorkMcpSessionActorTest` drives two keys through one MCP session to pin this.
+- **No store access.** No class here depends on `WorkStore`, any `Jdbc*` class, `com.wikantik.jdbc` or `javax.sql`, and none calls `WorkClaimsService.sweepExpiredClaims()` (internal scheduler only). `WorkMcpAccessArchTest` enforces it.
+- **Names, never logins.** `WorkMcpJson` renders people by display name, agents and queues by name; never a login, an API key id or a token. Item text (titles, bodies, comments) is returned as Markdown source and is untrusted data: the instructions file says so.
+- **Hidden and unknown are one answer**, `Not found.`, for every tool (`WorkMcpTool` maps `WorkNotFoundException` to it).
+
+## Adding a tool
+
+1. Subclass `WorkMcpTool` (`name()`, `definition()`, `run(actor, args)`); put the logic in `WorkService`, not here. Use `READ_ONLY` annotations only for tools that read.
+2. Add it to `WorkMcpInitializer.assembleTools(...)`.
+3. Describe it in `src/main/resources/wikantik-work-mcp-instructions.txt`.
+
+Tests that then fail until you do: `WorkMcpInstructionsDriftTest` (instructions name every tool and no unregistered one), `WorkMcpInitializerTest.assembledToolNames` (the expected set), and, in the IT module, the work MCP tool-list expectation. The admin MCP's `EXPECTED_TOOLS` / `InstructionsRegistryDriftTest` are about `/wikantik-admin-mcp` and are unaffected by this module.

@@ -68,6 +68,7 @@
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-observability</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-insights</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-work</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-work-mcp</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-rest</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.wikantik</groupId><artifactId>wikantik-extract-cli</artifactId><version>${project.version}</version></dependency>
 

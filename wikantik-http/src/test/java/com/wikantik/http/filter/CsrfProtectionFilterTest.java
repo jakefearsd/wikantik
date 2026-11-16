@@ -155,6 +155,13 @@ class CsrfProtectionFilterTest {
     }
 
     @Test
+    void workMcpIsAnMcpEndpoint() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "/work-mcp" ).when( request ).getServletPath();
+        assertTrue( CsrfProtectionFilter.isMcpEndpoint( request ) );
+    }
+
+    @Test
     void testIsMcpEndpointReturnsFalseForOther() {
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
         Mockito.doReturn( "/api/auth" ).when( request ).getServletPath();

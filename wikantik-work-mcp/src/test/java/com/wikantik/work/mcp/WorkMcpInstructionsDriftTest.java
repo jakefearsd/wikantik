@@ -107,6 +107,7 @@ class WorkMcpInstructionsDriftTest {
 
     @Test
     void instructionsSayOneSessionOneKey() throws IOException {
-        assertTrue( instructions().contains( "One session, one key" ), "the h11 rule" );
+        assertTrue( instructions().contains( "One session, one credential" ),
+            "the h11 rule: a session belongs to the agent token or key that opened it" );
     }
 }

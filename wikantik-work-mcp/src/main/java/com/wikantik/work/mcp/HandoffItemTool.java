@@ -70,7 +70,8 @@ public final class HandoffItemTool extends WorkMcpTool {
         props.put( "key", prop( "string", "The item key.", "PLAT-12" ) );
         props.put( "expectedVersion", prop( "integer", "The item's version as you last read it.", 3 ) );
         props.put( "status", prop( "string", "The status the item takes: draft, refining, ready, in_progress, "
-            + "review, done or cancelled.", "review" ) );
+            + "review, done or cancelled. To a queue: ready or review (only a claim puts queued work in progress).",
+            "review" ) );
         props.put( "assignee", prop( "string", "A person's DISPLAY NAME, never a login. Give this or queue.",
             "Lena Lead" ) );
         props.put( "queue", prop( "string", "A queue key. Give this or assignee.", "reviewer" ) );

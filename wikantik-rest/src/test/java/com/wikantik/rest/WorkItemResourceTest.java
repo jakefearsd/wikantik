@@ -180,6 +180,19 @@ class WorkItemResourceTest {
     }
 
     @Test
+    void movingAQueuedCardToInProgressIs400WithTheRule() throws Exception {
+        // The board's "move to In progress" on a queued card is a PATCH of status; the rule's message reaches it.
+        final String rule = "Work in a queue is ready or in review until an agent claims it.";
+        Mockito.when( svc.updateItem( any(), anyString(), any() ) )
+            .thenThrow( new WorkValidationException( "status", rule ) );
+        final WorkHttp.Result r = send( "PATCH", "/api/work/items", "/PLAT-1",
+            "{\"expectedVersion\":1,\"changes\":{\"status\":\"in_progress\"}}" );
+        assertEquals( 400, r.status() );
+        assertEquals( "status", r.json().getAsJsonObject().get( "field" ).getAsString() );
+        assertEquals( rule, r.json().getAsJsonObject().get( "message" ).getAsString() );
+    }
+
+    @Test
     void aNestedValueInChangesIs400() throws Exception {
         final WorkHttp.Result r = send( "PATCH", "/api/work/items", "/PLAT-1",
             "{\"expectedVersion\":1,\"changes\":{\"title\":{\"a\":1}}}" );

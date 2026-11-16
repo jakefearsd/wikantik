@@ -259,4 +259,57 @@ class WorkHandoffDirectionsPostgresTest {
         assertEquals( "No such queue.", assertThrows( WorkValidationException.class, () -> svc.updateItem( lena, key,
             new ItemPatch( next.version(), Map.of( "queue", "nowhere" ), null ) ) ).getMessage() );
     }
+
+    // ---- P27: no in-progress work in a queue without a claim
+
+    private static final String QUEUED_IN_PROGRESS = "Work in a queue is ready or in review until an agent claims it.";
+
+    private int version( final String key ) throws SQLException {
+        return svc.item( lena, key ).item().version();
+    }
+
+    @Test
+    void aPersonCannotMoveAQueuedItemToInProgress() throws SQLException {
+        final String key = create( null );
+        svc.claims().handoff( lena, key, new WorkClaimsService.Handoff( version( key ), WorkStatus.READY, null,
+            "implementer", "to the queue" ) );
+        final WorkValidationException e = assertThrows( WorkValidationException.class, () -> svc.updateItem( lena,
+            key, new ItemPatch( version( key ), Map.of( "status", "in_progress" ), null ) ) );
+        assertEquals( "status", e.field() );
+        assertEquals( QUEUED_IN_PROGRESS, e.getMessage() );
+        assertEquals( WorkStatus.READY, svc.item( lena, key ).item().status() );
+    }
+
+    @Test
+    void noOneHandsAnItemToAQueueAsInProgress() throws SQLException {
+        final String toPerson = create( "Mo Member" );
+        svc.updateItem( lena, toPerson, new ItemPatch( version( toPerson ), Map.of( "status", "in_progress" ), null ) );
+        // A person's in-progress item handed to a queue with its status unchanged, or named in_progress: refused.
+        for ( final WorkStatus status : java.util.Arrays.asList( null, WorkStatus.IN_PROGRESS ) ) {
+            final WorkValidationException e = assertThrows( WorkValidationException.class, () -> svc.claims().handoff(
+                lena, toPerson, new WorkClaimsService.Handoff( version( toPerson ), status, null, "implementer",
+                    "to the queue" ) ) );
+            assertEquals( QUEUED_IN_PROGRESS, e.getMessage() );
+        }
+        assertEquals( "mo", svc.item( lena, toPerson ).item().assignee() );
+    }
+
+    @Test
+    void aHolderHandingItsClaimedWorkToAnotherQueueChoosesReadyOrReview() throws SQLException {
+        final String key = create( null );
+        svc.claims().handoff( lena, key, new WorkClaimsService.Handoff( version( key ), WorkStatus.READY, null,
+            "implementer", "to the queue" ) );
+        final Item held = svc.claims().claim( a, key ).view().item();
+        assertEquals( WorkStatus.IN_PROGRESS, held.status() );
+        assertThrows( WorkValidationException.class, () -> svc.claims().handoff( a, key, new WorkClaimsService.Handoff(
+            held.version(), WorkStatus.IN_PROGRESS, null, "reviewer", "please review" ) ) );
+        assertThrows( WorkValidationException.class, () -> svc.claims().handoff( a, key, new WorkClaimsService.Handoff(
+            held.version(), null, null, "reviewer", "please review" ) ) );
+        assertEquals( a.agentId(), svc.item( lena, key ).item().claimedByAgent(), "a refused hand-off keeps the claim" );
+        // The holder may still edit its claimed in-progress item: nothing about its status or target changes.
+        svc.updateItem( a, key, new ItemPatch( held.version(), Map.of( "body", "progress notes" ), null ) );
+        svc.claims().handoff( a, key, new WorkClaimsService.Handoff( version( key ), WorkStatus.REVIEW, null,
+            "reviewer", "please review" ) );
+        assertEquals( WorkStatus.REVIEW, svc.item( lena, key ).item().status() );
+    }
 }

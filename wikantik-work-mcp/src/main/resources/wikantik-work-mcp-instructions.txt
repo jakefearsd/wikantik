@@ -18,7 +18,8 @@ update_item        key, expectedVersion, and any of title, body, status, priorit
                    refused by name (use handoff_item to change who has it).
 comment_on_item    key, body (Markdown). Returns {id, at}.
 handoff_item       key, expectedVersion, status, exactly one of assignee (a person's display name, never a login)
-                   or queue (a queue key), and a note. Returns the item. Your claim on it ends.
+                   or queue (a queue key), and a note. Returns the item. Your claim on it ends. To a queue the
+                   status must be ready or review: work in a queue is in progress only while an agent claims it.
 release_item       key and an optional note. Gives up your claim; the item goes back where it was waiting.
                    Returns {key, status}.
 create_item        project, level (epic, story or task), title, and optionally body, parentKey, productKey, kind,

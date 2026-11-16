@@ -29,6 +29,7 @@ final class ItemTargets {
 
     static final String ONE_TARGET = "Assign a person or a queue, not both.";
     static final String NO_QUEUE = "No such queue.";
+    static final String QUEUED_IN_PROGRESS = "Work in a queue is ready or in review until an agent claims it.";
 
     /** Whether a login holds a role on a project; the service resolves it through the directory's groups. */
     @FunctionalInterface
@@ -72,6 +73,21 @@ final class ItemTargets {
         }
         return changes.containsKey( "assignee" ) && PatchValues.assignee( changes.get( "assignee" ) ) != null
             ? null : current.queue();
+    }
+
+    /**
+     * Work in a queue is in progress only while an agent holds its claim, and claiming is what puts it there. Any
+     * change of status, person or queue ends a claim, so a change that leaves the item in a queue as
+     * {@code in_progress} would leave it there unclaimed: refused for everyone. A change that moves nothing (a text
+     * edit, a holder's own update) leaves the claim, and so the state, as it was.
+     */
+    static void requireClaimForQueuedWork( final Item current, final Item next ) {
+        final boolean moves = current.status() != next.status()
+            || !java.util.Objects.equals( current.assignee(), next.assignee() )
+            || !java.util.Objects.equals( current.queue(), next.queue() );
+        if ( moves && next.queue() != null && next.status() == WorkStatus.IN_PROGRESS ) {
+            throw new WorkValidationException( "status", QUEUED_IN_PROGRESS );
+        }
     }
 
     /** The queue must exist and not be retired; unknown and retired are the same refusal. */

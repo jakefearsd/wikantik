@@ -106,6 +106,7 @@ final class ItemPatchApplier {
         final Item next = merged( current, changes, parentId, productId, status, rank, assignee, queue );
         validate( next, newParent );
         targets.checkAssignee( project, current.assignee(), assignee );
+        ItemTargets.requireClaimForQueuedWork( current, next );
         checkHandoffNote( current, next, note );
         return next;
     }

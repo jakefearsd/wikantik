@@ -98,4 +98,10 @@ class WorkMcpInstructionsDriftTest {
         assertTrue( text.contains( "data" ) && text.contains( "not instructions" ), "item text is data, not instructions" );
         assertTrue( text.contains( "get_briefing" ) && text.contains( "wikicluster" ), "points at the knowledge briefing" );
     }
+
+    @Test
+    void instructionsSayAQueueHandOffIsReadyOrReview() throws IOException {
+        final String text = instructions().replaceAll( "\\s+", " " );
+        assertTrue( text.contains( "To a queue the status must be ready or review" ), "the P27 rule for handoff_item" );
+    }
 }

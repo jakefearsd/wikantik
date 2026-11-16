@@ -220,6 +220,20 @@ class WorkMcpFlowPostgresTest {
     }
 
     @Test
+    void aHandOffToAQueueAsInProgressIsAStatusRefusal() throws SQLException {
+        final String key = f.ready( "PLAT", "Still going" ).key();
+        ok( call( f.builder, "claim_item", "key", key ) );
+        final int eventsBefore = events( key ).size();
+
+        final String hand = WorkMcpFixture.text( call( f.builder, "handoff_item", "key", key, "expectedVersion",
+            version( f.builder, key ), "status", "in_progress", "queue", "reviewer", "note", "Half done." ) );
+
+        assertEquals( "status: Work in a queue is ready or in review until an agent claims it.", hand );
+        assertEquals( eventsBefore, events( key ).size(), "the refused hand-off writes nothing" );
+        assertEquals( f.builder.id(), f.svc.item( f.lena, key ).item().claimedByAgent(), "and keeps the claim" );
+    }
+
+    @Test
     void releaseReturnsItemToQueue() throws SQLException {
         final String key = f.ready( "PLAT", "Give it back" ).key();
         ok( call( f.builder, "claim_item", "key", key ) );

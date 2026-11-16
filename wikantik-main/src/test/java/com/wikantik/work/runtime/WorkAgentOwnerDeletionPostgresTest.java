@@ -50,6 +50,7 @@ class WorkAgentOwnerDeletionPostgresTest {
 
     private final Actor admin = Actor.human( "janne", Set.of(), true );
     private ApiKeyService apiKeys;
+    private DataSource ds;
     private WorkService svc;
     private String owner;
     private String successor;
@@ -60,7 +61,7 @@ class WorkAgentOwnerDeletionPostgresTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        final DataSource ds = PostgresTestDb.createDataSource();
+        ds = PostgresTestDb.createDataSource();
         apiKeys = new ApiKeyService( ds );
         owner = "owner-" + UUID.randomUUID();
         successor = "successor-" + UUID.randomUUID();
@@ -72,6 +73,20 @@ class WorkAgentOwnerDeletionPostgresTest {
             @Override public String displayName( final String login ) { return login; }
         }, new WikiAgentKeys( apiKeys, login -> people.contains( login ) ), Clock.systemUTC(), WorkSettings.DEFAULTS,
             null );
+    }
+
+    /** Removes the agent row this test made (the work tables are shared with other tests in this JVM). */
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() throws Exception {
+        try ( java.sql.Connection c = ds.getConnection();
+              java.sql.PreparedStatement history = c.prepareStatement( "DELETE FROM work_agent_key_history WHERE "
+                  + "agent_id IN ( SELECT id FROM work_agent WHERE name = ? )" );
+              java.sql.PreparedStatement agent = c.prepareStatement( "DELETE FROM work_agent WHERE name = ?" ) ) {
+            history.setString( 1, name );
+            history.executeUpdate();
+            agent.setString( 1, name );
+            agent.executeUpdate();
+        }
     }
 
     /** What the REST filter and the MCP endpoint resolve a bearer token to: null is a 401 or a refusal. */

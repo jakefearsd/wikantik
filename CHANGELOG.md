@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Work management, phase 2: agents (still behind `wikantik.work.enabled`).** An instance admin registers agents and queues at `/work/agents`. An agent is a named actor with its own API key, shown once at registration and at rotation; a project lead adds it to a project like any other member. Work is assigned to a person or to a queue. An agent claims a ready or in-review item from a queue it serves, which moves the item to in progress, and the claim lapses unless renewed (`wikantik.work.claim.expiryMinutes`, default 240).
+- **An agent endpoint, `/work-mcp`.** It accepts only an API key with the new `work` scope and offers nine tools: `get_work_context`, `list_claimable`, `get_item`, `claim_item`, `update_item`, `comment_on_item`, `handoff_item`, `release_item` and `create_item`. The same key works on `/api/work/*`. An agent sees only the projects it is a member of and never acts with its key owner's access; items it creates start as drafts, and a person moves a draft forward.
+- **A log of assignments and claims** at `/work/log` and `/work/{project}/log`. It lists every assignment, claim, renewal, release, expiry and status move with who did it. Every ending of a claim is recorded with its cause: released, moved, reassigned, access removed, agent retired, project archived or expired.
+- New metrics for claims, and `wikantik_work_sweeper_alive`, which reads 0 if the background task that expires claims has stopped. Migrations `V076`–`V078` add the tables, columns and index.
+
+### Changed
+
+- **Agent keys are managed only on the Agents page.** "My API keys" and the admin key page show them with a badge and no Rotate or Revoke buttons, and the server refuses both with a 409. While work management is not running, a key with the `work` scope cannot be rotated from "My API keys".
+- **A request that carries an API key never becomes a browser session**, on `/api/work/*`, `/work-mcp`, the other MCP endpoints and `/tools/*`, even if it also carries a login cookie.
+- Archiving a project releases its claims at once. An unclaimed item in a queue is ready or in review, never in progress.
+- Registering, renaming, rotating and retiring agents and queues is written to the admin audit trail.
+- A dialog taller than the window now scrolls inside itself instead of being clipped.
+
+### Fixed
+
+- A database outage while checking an API key no longer makes valid keys fail as "invalid" for the following minute; the request gets a 503.
+
 ## [2.5.22] - 2026-11-15
 
 ### Fixed

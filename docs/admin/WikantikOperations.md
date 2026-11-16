@@ -510,6 +510,49 @@ Work management (projects, a board, epics/stories/tasks, comments and history, a
 
 To turn it off, set the property back to `false` (or remove it) and restart: `/api/work/*` returns 404 and the navigation entry disappears. The data is kept, and returns when the flag is turned back on.
 
+### 1.15 Agents and work queues
+
+An agent is a registered identity (a coding agent, for instance) that takes work from a queue, claims it, and hands it on. Only an Admin creates queues and registers agents, and only an Admin sees logins and key ids. This needs work management on (section 1.14); migrations `V076`, `V077` and `V078` are applied by `bin/db/migrate.sh` (`bin/redeploy.sh` runs it).
+
+**Create a queue.** Open `/work/agents` (Admin only; "Agents & queues" on the Work home) and choose "New queue": a key (lower case, letters, digits and hyphens, 2-30 characters), a name and an optional description. Items are put in a queue from the item form or the item page's Assignee control ("Queue · name"); a queue is one assignment target, so an item is for a person or a queue, never both.
+
+**Register an agent and copy its key.** On `/work/agents` choose "Register agent": a name (for example `codex@docker2`), optional vendor and runtime, the queues it serves, and optionally the person who owns the key (default: you). The page then shows the agent's API key **once**; copy it into the agent's environment before choosing "Done", because it is not stored in a recoverable form and the page forgets it. The key has scope `work`: it works on `/api/work/*` and `/work-mcp` and nowhere else (see [ApiKeys.md](ApiKeys.md)). Treat it as a secret. To get another, use "Rotate key": the old key stops working immediately, the new one is shown once, and claims the agent holds are untouched. An old key is never usable again, not even as its owner (a rotated-away key acts as nobody). "Retire" ends an agent for good: its key is revoked, every claim it holds is released with the reason `agent retired`, Rotating or retiring asks first.
+
+**Admit the agent to a project.** An agent sees and does nothing in a project until it is a member: under the project's Settings tab, add the agent as `viewer` (reads) or `member` (reads and claims, comments, edits and hands off). An agent is never a `lead`, never an administrator, and does not inherit the access of its key owner or of any group. Changing a member to `viewer` or removing it releases every claim it holds in that project (reason `access removed`) and the items return to their queue. An agent may not move an item out of `draft`: a person moves a draft to Ready.
+
+**When an item is claimable.** An agent can claim an item when it is a member of the item's project, serves the item's queue, and the item is `ready` or `review`, unclaimed and not blocked by an open item. The board shows such items as "Available to agents". A claim moves a `ready` item to In progress (a `review` item stays in review) and shows the agent and the time on the card ("name · until 14:05") and on the item page. The agent finishes by handing the item to a queue or a person with a note (hand-off), or releases it.
+
+**Claim expiry and the sweep.** A claim lasts `wikantik.work.claim.expiryMinutes` minutes (default 240, allowed 1 to 10080; an invalid value is logged and replaced by 240). The agent renews by claiming the item again, which restarts the clock. A background pass (`WorkClaimSweeper`, every 60 seconds) returns lapsed claims to their queue and logs a `claim_expired` event. To change the lifetime, set `wikantik.work.claim.expiryMinutes` in `wikantik-custom.properties` and restart; the value is read at startup. The generated reference lists the key ([ConfigurationReference.md](../ConfigurationReference.md)).
+
+**Reading the log.** `/work/log` ("Assignments and claims") lists, newest first, every assignment, hand-off, status change, claim, renewal, release, expiry and membership change in the projects you can see; `/work/<PROJECT>/log` (the project's "Assignments and claims" tab) shows one project. Each line names who did it (agents wear an "agent" badge) and ends with the time. How to read them:
+
+- *assigned this to Queue · name* / *assigned this to person*: an item was put in a queue or given to a person.
+- *claimed this (ready → in progress) · until 14:05*: an agent took it. *renewed its claim*: the same agent claimed it again; runs of renewals fold into one line unless you choose "Show every renewal".
+- *handed this to name: in progress → review*: a hand-off, with the hand-off note under it.
+- *released name's claim*: a deliberate release, with the person's note. *moved this item, ending name's claim*, *reassigned this item, ending …*, *removed name's access to this project, ending its claim* and *retired name, ending its claim* are consequences of someone else's action, not releases.
+- *claim by name expired*: nobody renewed it; the item went back to its queue.
+
+Items waiting on a person show on the Work home under "Waiting on you", with who handed them over and the note.
+
+**Security log and metrics.** Grep the `SecurityLog` (where it is written is set in [LoggingConfig.md](LoggingConfig.md)) for:
+
+- `MCP_WRITE tool=... action=... target=... author=...`: a write made through `/work-mcp` (claim, create, comment, update, hand-off, release), authored by the agent's name.
+- `MCP_WORK_REFUSED tool=... item=... agent=... kind=...`: a write refused; `kind` is `needs_key`, `not_found`, `denied`, `validation`, or a conflict reason such as `stale` or `not_claimable`. A burst from one agent means it is misbehaving or misconfigured.
+- `Work API access denied: invalid key, ip=...` and `Work API access denied: key id=... scope=... does not cover work, ip=...`: a bad key or a key of the wrong scope on `/api/work/*`.
+
+Metrics on `/metrics` (instance-wide, no project, item or agent labels): `wikantik_work_claims_total{outcome}` with outcomes `claimed`, `renewed`, `refused`, `released` and `expired`, and the gauge `wikantik_work_claims_active`. `released` counts every ending that is not an expiry, including the ones a move or a retirement causes, so it matches the log.
+
+**Troubleshooting.**
+
+- An agent gets "This endpoint needs a work API key." on `/work-mcp` (or 401/403 on `/api/work/*`): the key is revoked, belongs to a retired agent, was rotated away, or has a different scope. Check the agent on `/work/agents` and the key on `/admin/apikeys`; rotate to issue a fresh `work` key. `/work-mcp` ignores `mcp.access.allowUnrestricted` and the CIDR list on purpose, so a request with no key is always refused (403).
+- `not_claimable: ...`: the message says why: another agent holds it (and until when), it is not ready or in review, it is blocked, or it is not in a queue the agent serves. Add the queue to the agent (Edit on `/work/agents`) or fix the item.
+- Agents do not see an item at all (`Not found.`): the agent is not a member of the project.
+- A claim is stuck (the agent died and the expiry is hours away): any member of the project opens the item and chooses "Release claim"; the item goes back to its queue.
+- "A person moves a draft forward.": an agent tried to move a draft to another status. A person moves it to Ready.
+- A hand-off or edit is refused as `stale`: the item changed; the agent re-reads it and retries.
+
+**Running the integration tests after a change.** The IT modules resolve the WAR from `~/.m2`, not from `target/`. After changing code, run `mvn install -DskipTests` before `bin/run-tests.sh --module <m>`, or the suite runs the old WAR and fails in confusing ways. (`bin/run-tests.sh --parallel 4` builds first.)
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

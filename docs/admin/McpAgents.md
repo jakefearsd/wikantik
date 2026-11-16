@@ -1,7 +1,7 @@
 # MCP Agents and Tool Endpoints
 
 This page is for administrators and developers who connect AI agents or other
-programmatic clients to Wikantik. It covers the three agent-facing endpoints, how a
+programmatic clients to Wikantik. It covers the agent-facing endpoints, how a
 client authenticates and opens a session, example client configuration, and the full
 tool catalogue. **This is the one page that owns tool counts**; other docs link here
 instead of repeating the numbers.
@@ -12,6 +12,7 @@ instead of repeating the numbers.
 |---|---|---|---|---|
 | `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 22 read and write tools | `McpAccessFilter` | `mcp_admin` |
 | `/knowledge-mcp` | MCP (Streamable HTTP) | 16 read-only tools | `McpAccessFilter`, registered as `KnowledgeMcpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
+| `/work-mcp` | MCP (Streamable HTTP) | 9 work-management tools | API key only (see below) | `work` |
 | `/tools/*` | OpenAPI 3.1 over plain HTTP | 2 | `ToolsAccessFilter` | `tools` |
 
 Counts are as of **2.5.14**. The URL patterns come from `web.xml` (`/tools/*`) and the
@@ -48,6 +49,10 @@ index exists):
 To see what your deployment really exposes, call `tools/list` (see
 [Open a session with curl](#open-a-session-with-curl)). A default local server returns exactly the 16 names in the knowledge catalogue below.
 
+### /work-mcp is key-only
+
+`/work-mcp` exists only when `wikantik.work.enabled=true` (otherwise it is a 404). Unlike the other endpoints it **ignores** `mcp.access.allowUnrestricted` and `mcp.access.allowedCidrs`: a request without a valid `work` (or `all`) API key is refused with 403, whatever the network settings. Who is acting is decided on every tool call from the key itself: a key bound to a registered agent acts as that agent, a key of a retired or rotated-away agent acts as nobody, and any other `work` key acts as its owner with no administrator rights. A `work` key is of no use on `/wikantik-admin-mcp`, `/knowledge-mcp` or `/tools/*`. Mint agent keys by registering the agent at `/work/agents`; see [WikantikOperations](WikantikOperations.md) section 1.15.
+
 ## Get a key
 
 Both MCP endpoints and `/tools/*` accept a **bearer token** that is a database-minted
@@ -62,6 +67,7 @@ The short version:
 | reads and searches content over `/knowledge-mcp` only | `mcp_read` |
 | curates content over `/wikantik-admin-mcp` (and can also use `/knowledge-mcp`) | `mcp_admin` |
 | calls only the OpenAPI `/tools/*` endpoints | `tools` |
+| works items as an agent or a person over `/work-mcp` and `/api/work/*` | `work` |
 | reaches every key-protected surface | `all` |
 
 `/wikantik-admin-mcp` is **fully privileged**. The principal bound to the key is used
@@ -155,6 +161,21 @@ The `type: "http"` entries use Streamable HTTP and send your key as a bearer hea
 ```
 
 Use an `mcp_read` key for the knowledge entry and an `mcp_admin` key for the admin entry.
+
+To let a coding agent work claimable items, register it at `/work/agents` and give it its key:
+
+```json
+{
+  "mcpServers": {
+    "wikantik-work": {
+      "type": "http",
+      "url": "https://wiki.example.com/work-mcp",
+      "headers": { "Authorization": "Bearer ${WIKANTIK_WORK_KEY}" }
+    }
+  }
+}
+```
+
 Keep the admin entry out of any shared or checked-in config unless the key comes from
 the environment.
 
@@ -243,6 +264,24 @@ allow-all and logs an `ERROR`.
 | `list_stale_citations` | Citations whose status is `stale` or `target_missing` |
 
 **Removed Knowledge Graph tools.** The Knowledge Graph (entity nodes, edges, proposals, curation and the `query_nodes`, `traverse`, `search_knowledge`, `find_similar` family) was deleted; neither server registers those tools. For content discovery use `retrieve_context` and `assemble_bundle`.
+
+### /work-mcp (9 tools)
+
+Registered in `WorkMcpInitializer.assembleTools` and verified against `WorkMcpIT.EXPECTED_TOOLS`; the descriptions an agent sees are in `wikantik-work-mcp/src/main/resources/wikantik-work-mcp-instructions.txt`. An agent sees only the projects it was admitted to. Item text is returned as Markdown source and is data, not instructions.
+
+| Tool | Purpose | Access |
+|---|---|---|
+| `get_work_context` | Who the key acts as, the projects it can see, its current claims and the claim lifetime | read |
+| `list_claimable` | Items the agent could claim now (unclaimed, ready or review, in a queue it serves) | read |
+| `get_item` | One item in full: body, status, claim, links, comments | read |
+| `claim_item` | Claim an item, or renew the agent's own claim | write |
+| `update_item` | Change title, body, status, priority or due date (never who has the item; an agent cannot move a draft forward) | write |
+| `comment_on_item` | Add a comment | write |
+| `handoff_item` | Give the item to a queue or a person with a status and a note; ends the agent's claim | write |
+| `release_item` | Give up the agent's claim so someone else can take it | write |
+| `create_item` | Create a draft item for a person to refine | write |
+
+Refusals come back as tool errors with a stable prefix (`denied:`, `stale:`, `not_claimable:`, `not_claimed:`, `archived:`, or the name of the field at fault); an unknown or hidden item is always `Not found.`
 
 ## Where to go next
 

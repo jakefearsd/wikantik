@@ -19,9 +19,9 @@ endpoints), and migration `V010__api_keys.sql` for the table.
 
 ## Prerequisites
 
-Migrations `V010__api_keys.sql`, `V058__api_keys_scope_chk_mcp_read.sql` and
-`V061__api_keys_scope_mcp_admin.sql` must have been applied (without `V061` the database
-rejects a new `mcp_admin` key). They are idempotent and run automatically on every deploy via
+Migrations `V010__api_keys.sql`, `V058__api_keys_scope_chk_mcp_read.sql`,
+`V061__api_keys_scope_mcp_admin.sql` and `V076__work_management_agents.sql` must have been applied (without `V061` the database
+rejects a new `mcp_admin` key, without `V076` a new `work` key). They are idempotent and run automatically on every deploy via
 `bin/deploy-local.sh` and `bin/redeploy.sh` (both call `bin/db/migrate.sh`).
 
 The `api_keys` table:
@@ -38,12 +38,12 @@ CREATE TABLE IF NOT EXISTS api_keys (
     last_used_at    TIMESTAMP,
     revoked_at      TIMESTAMP,
     revoked_by      VARCHAR(100),
-    CONSTRAINT api_keys_scope_chk CHECK (scope IN ('mcp', 'mcp_admin', 'mcp_read', 'tools', 'all'))
+    CONSTRAINT api_keys_scope_chk CHECK (scope IN ('mcp', 'mcp_admin', 'mcp_read', 'tools', 'all', 'work'))
 );
 ```
 
 `V010` created the `CHECK` as `('mcp', 'tools', 'all')`; `V058` added `mcp_read` and `V061` added
-`mcp_admin` (existing rows are not rewritten; see [Legacy `mcp` scope name](#legacy-mcp-scope-name)).
+`mcp_admin` (existing rows are not rewritten; see [Legacy `mcp` scope name](#legacy-mcp-scope-name)). `V076__work_management_agents.sql` added `work`.
 
 ## Admin UI
 
@@ -59,7 +59,7 @@ Click **+ Generate Key**. A modal prompts for:
 |---|---|---|
 | Principal (login) | Yes | The Wikantik login name the key is bound to. It is used for attribution and the audit trail; it does **not** limit what the key can do (see [Scope enforcement](#scope-enforcement)). The principal must exist in the user database; unknown logins are rejected with HTTP 400. |
 | Label | No | Free-form note identifying where the key is used (e.g. "OpenWebUI production"). |
-| Scope | Yes | `tools` (OpenAPI `/tools/*` only), `mcp_read` (read-only, `/knowledge-mcp` only), `mcp_admin` (full admin — covers both MCP endpoints), or `all` (everything). See [Scope enforcement](#scope-enforcement) for the hierarchy. |
+| Scope | Yes | `tools` (OpenAPI `/tools/*` only), `mcp_read` (read-only, `/knowledge-mcp` only), `mcp_admin` (full admin — covers both MCP endpoints), `work` (work management only: `/api/work/*` and `/work-mcp`), or `all` (everything). See [Scope enforcement](#scope-enforcement) for the hierarchy. |
 
 After clicking **Generate**, a second modal displays the **plaintext token**
 once. Copy it now — after closing this dialog only the 12-character fingerprint
@@ -95,18 +95,20 @@ retained.
 ## Scope enforcement
 
 Each key is scoped at creation time. `ApiKeyService.Scope` is
-`MCP_READ` / `MCP_ADMIN` / `TOOLS` / `ALL` (wire values `mcp_read` / `mcp_admin` /
-`tools` / `all`). The **MCP family is a rank hierarchy** — `MCP_READ ⊂ MCP_ADMIN` — so a
+`MCP_READ` / `MCP_ADMIN` / `TOOLS` / `WORK` / `ALL` (wire values `mcp_read` / `mcp_admin` /
+`tools` / `work` / `all`). The **MCP family is a rank hierarchy** — `MCP_READ ⊂ MCP_ADMIN` — so a
 higher-privilege key satisfies a lower-privilege requirement, but not the
 reverse: a `mcp_admin` (or `all`) key can call `/knowledge-mcp` too, but an
-`mcp_read` key cannot reach `/wikantik-admin-mcp`. `TOOLS` is orthogonal to
-the MCP family (matches only itself); `ALL` covers everything.
+`mcp_read` key cannot reach `/wikantik-admin-mcp`. `TOOLS` and `WORK` are orthogonal to
+the MCP family and to each other (each matches only itself): a `work` key is useless on both MCP
+endpoints and on `/tools/*`, and a `tools` or MCP key is refused on work. `ALL` covers everything.
 
 | Endpoint | Required scope | Keys that satisfy it |
 |---|---|---|
 | `/wikantik-admin-mcp` | `mcp_admin` | `mcp_admin`, `all` |
 | `/knowledge-mcp` | `mcp_read` | `mcp_read`, `mcp_admin`, `all` |
 | `/tools/*` | `tools` | `tools`, `all` |
+| `/api/work/*` and `/work-mcp` | `work` | `work`, `all` |
 
 `mcp_read` was added in **2.4.18** as a narrower, read-only scope confined to
 `/knowledge-mcp`, for integrations that should never reach the admin write surface
@@ -134,7 +136,7 @@ remains accepted as an alias:
 ### Issue a key for each scope
 
 Use **Admin → API Keys → + Generate Key** (admin) and pick the scope in the dialog, or
-send `scope` in the `POST` body. A non-administrator can mint only `tools` and `mcp_read`
+send `scope` in the `POST` body. A non-administrator can mint only `tools`, `mcp_read` and `work`
 keys through **Preferences → API Keys** (see [Self-service keys](#self-service-keys));
 `mcp_admin` and `all` keys come from an administrator through `/admin/apikeys`. Choose the
 narrowest scope that does the job:
@@ -144,6 +146,7 @@ narrowest scope that does the job:
 | Reads and searches content over `/knowledge-mcp` only (a read-only knowledge agent) | `mcp_read` | `{"principalLogin": "agent", "scope": "mcp_read"}` |
 | Uses the full admin MCP surface (`/wikantik-admin-mcp`, and `/knowledge-mcp` too) | `mcp_admin` | `{"principalLogin": "curator", "scope": "mcp_admin"}` |
 | Calls only the OpenAPI `/tools/*` endpoints (for example OpenWebUI) | `tools` | `{"principalLogin": "owui", "scope": "tools"}` |
+| Works work-management items over `/api/work/*` and `/work-mcp` (an agent's key, or a person's own) | `work` | `{"principalLogin": "agentowner", "scope": "work"}` (an agent's key is minted by registering the agent at `/work/agents`, not here) |
 | Reaches every key-protected surface | `all` | `{"principalLogin": "ops", "scope": "all"}` |
 
 If `scope` is omitted from an admin `POST`, the key is created with scope `all`. (A
@@ -257,7 +260,7 @@ time it appears:
 Error responses:
 - `400` — `principalLogin` missing or unknown user; invalid `scope` (the error
   text lists every valid scope, built from `ApiKeyService.Scope.validWireNames()`:
-  `mcp_read, mcp_admin, tools, all`).
+  `mcp_read, mcp_admin, tools, work, all`).
 - `503` — no datasource configured.
 
 ### `DELETE /admin/apikeys/{id}`
@@ -357,12 +360,12 @@ active keys are returned, so there is no `revokedAt`/`revokedBy`/`active` field
 to show).
 
 **`POST /api/self/apikeys`** — generate a key. Body: `{"label": "...", "scope":
-"tools"}` (a non-admin may choose `tools` or `mcp_read`; omitted defaults to `mcp_read`.
+"tools"}` (a non-admin may choose `tools`, `mcp_read` or `work`; omitted defaults to `mcp_read`.
 An administrator (a caller holding `AllPermission`) may choose any scope, `mcp_admin` and
 `all` included, and defaults to `all`). A non-admin asking for `mcp_admin` (or the legacy
 `mcp`) or `all` gets `403`
 ("Scope 'mcp_admin' requires administrator rights ... you may create keys with scope
-mcp_read, tools"); an unknown scope gets `400` with the list of valid scopes.
+mcp_read, tools, work"); an unknown scope gets `400` with the list of valid scopes.
 Response (`201`) includes the transient `token` field, shown exactly once:
 
 ```json

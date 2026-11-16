@@ -18,8 +18,10 @@
  */
 package com.wikantik.its.rest;
 
+import com.codeborne.selenide.CollectionCondition;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
+import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.its.RestSeedHelper;
 import com.wikantik.its.WithIntegrationTestSetup;
 import com.wikantik.its.environment.Env;
@@ -30,7 +32,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static com.codeborne.selenide.Condition.attribute;
@@ -42,6 +48,7 @@ import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.$$;
 import static com.codeborne.selenide.Selenide.$x;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -50,6 +57,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * its text and comments on it, and the timeline shows what happened. The member then sees the board and the item;
  * a user who is not a member sees only the neutral not-found state, no "Work" navigation entry, and cannot find the
  * item through the wiki's own search.
+ *
+ * <p>The agent flow ({@link #agentClaimsAndHandsOffAndEveryStepIsVisible()}): an admin creates a queue and registers an
+ * agent, whose key the page shows once; a story goes into the queue and to Ready; the agent claims it and hands it to the
+ * admin over REST; the board card, the item's claim panel, "Waiting on you" and the project's "Assignments and claims"
+ * page each show what happened, naming the agent.
  */
 public class WorkBoardIT extends WithIntegrationTestSetup {
 
@@ -125,7 +137,7 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         type( $x( "//label[normalize-space()='Description']/following-sibling::textarea[1]" ),
             "First draft of the text " + workToken );
         $( "select[aria-label='Product']" ).selectOptionByValue( "uit-product" );
-        $$( "button" ).findBy( text( "Create item" ) ).click();
+        submitItemForm();
         final SelenideElement draftCard = $( "[data-testid=column-draft]" ).$$( "article.work-card" )
             .findBy( text( title ) ).shouldBe( visible, WAIT );
         final String itemKey = draftCard.getAttribute( "data-item-key" );
@@ -197,6 +209,172 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         $( "[data-testid=search-results-page]" ).shouldHave( attribute( "data-query", workToken ), WAIT );
         $( ".admin-empty-message" ).shouldHave( text( "No results for" ), WAIT );
         assertEquals( 0, none.pagesFound().size(), "work items are not searchable: " + none.pagesFound() );
+    }
+
+    // ---- agents: queue, key, claim, hand-off, and where each of them shows ----
+
+    @Test
+    void agentClaimsAndHandsOffAndEveryStepIsVisible() throws Exception {
+        final String queueKey = "uiq-" + suffix;
+        final String queueName = "Implementer " + suffix;
+        final String agentName = "codex-" + suffix + "@ui";
+        final String projectKey = "UA" + suffix.substring( 0, 6 ).toUpperCase( java.util.Locale.ROOT );
+        final String productKey = "uia-" + suffix;
+        final String note = "Built it, please look " + workToken;
+        final String adminName = adminDisplayName();
+
+        signIn( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
+        RestSeedHelper.awaitAdminReady();
+
+        // A queue, then an agent serving it. The page shows the agent's key once.
+        open( "/work/agents" );
+        $( "h1.work-heading" ).shouldHave( text( "Agents & queues" ), WAIT );
+        $$( "button" ).findBy( exactText( "New queue" ) ).shouldBe( visible, WAIT ).click();
+        type( $( "#work-q-key" ).shouldBe( visible, WAIT ), queueKey );
+        type( $( "#work-q-name" ), queueName );
+        $$( "button" ).findBy( exactText( "Create queue" ) ).click();
+        $$( "[data-testid=queue-row]" ).findBy( text( queueName ) ).shouldBe( visible, WAIT );
+        $$( "button" ).findBy( exactText( "Register agent" ) ).shouldBe( visible, WAIT ).click();
+        type( $( "#work-a-name" ).shouldBe( visible, WAIT ), agentName );
+        $$( "label.work-check" ).findBy( text( queueName ) ).shouldBe( visible, WAIT ).$( "input" ).click();
+        $$( "button" ).findBy( exactText( "Register" ) ).click();
+        final SelenideElement tokenValue = $( ".work-token-value" ).shouldBe( visible, WAIT );
+        final String token = tokenValue.getText();
+        assertTrue( token != null && token.length() >= 16, "the key panel shows a key" );
+        $( "section.work-token-panel" ).shouldHave( text( "API key for " + agentName ), WAIT );
+        $$( "[data-testid=agent-row]" ).findBy( text( agentName ) ).shouldBe( visible, WAIT );
+        assertTrue( WebDriverRunner.source().contains( token ),
+            "positive control: the key is on the page while the panel is open" );
+        // After "Done" the key text is gone from the page (the panel was there a moment ago, and the agent still is).
+        $$( "section.work-token-panel button" ).findBy( exactText( "Done" ) ).click();
+        $( ".work-token-value" ).shouldNot( exist );
+        $$( "[data-testid=agent-row]" ).findBy( text( agentName ) ).shouldBe( visible );
+        assertFalse( WebDriverRunner.source().contains( token ), "the key is gone from the page" );
+
+        // A project and a product, with the agent admitted as a member (over REST).
+        open( "/work" );
+        $( "h1.work-heading" ).shouldHave( text( "Work" ), WAIT );
+        $$( "button" ).findBy( text( "New project" ) ).shouldBe( visible, WAIT ).click();
+        type( $( "#work-new-key" ).shouldBe( visible, WAIT ), projectKey );
+        type( $( "#work-new-name" ), "Agent flow " + suffix );
+        $$( "button" ).findBy( text( "Create project" ) ).click();
+        $( "h1.work-heading" ).shouldHave( text( projectKey ), WAIT );
+        open( "/work/products" );
+        $$( "button" ).findBy( text( "New product" ) ).shouldBe( visible, WAIT ).click();
+        type( $( "#work-prod-key" ).shouldBe( visible, WAIT ), productKey );
+        type( $( "#work-prod-name" ), "Agent product " + suffix );
+        $$( "button" ).findBy( text( "Create product" ) ).click();
+        $$( ".work-product-row" ).findBy( text( productKey ) ).shouldBe( visible, WAIT );
+        final WorkIt.Caller admin = WorkIt.admin();
+        final HttpResponse< String > admitted = admin.send( "PUT", "/api/work/projects/" + projectKey + "/members",
+            Map.of( "principal", agentName, "principalKind", "agent", "role", "member" ) );
+        assertEquals( 204, admitted.statusCode(), "admit the agent: " + admitted.body() );
+        // A hand-off goes to a member: the admin joins the project as a member too, so there is someone to hand to.
+        final HttpResponse< String > joined = admin.send( "PUT", "/api/work/projects/" + projectKey + "/members",
+            Map.of( "principal", adminName, "principalKind", "user", "role", "member" ) );
+        assertEquals( 204, joined.statusCode(), "admit the admin: " + joined.body() );
+
+        // A story, created into the queue, then moved to Ready by a person (an agent cannot move a draft forward).
+        open( "/work/" + projectKey );
+        $$( "label.work-toggle" ).findBy( text( "Show draft and cancelled" ) ).shouldBe( visible, WAIT ).$( "input" ).click();
+        $( "[data-testid=column-draft]" ).shouldBe( visible, WAIT );
+        $$( "button" ).findBy( text( "New item" ) ).shouldBe( visible, WAIT ).click();
+        $$( "label.work-form-radio" ).findBy( text( "Story" ) ).shouldBe( visible, WAIT ).$( "input" ).click();
+        type( $x( "//label[normalize-space()='Title']/following-sibling::input[1]" ).shouldBe( visible, WAIT ), title );
+        type( $x( "//label[normalize-space()='Description']/following-sibling::textarea[1]" ), "For the agent " + workToken );
+        $( "select[aria-label='Product']" ).selectOptionByValue( productKey );
+        $( "select[id$='-assignee']" ).shouldBe( visible, WAIT ).selectOptionByValue( "queue:" + queueKey );
+        submitItemForm();
+        final SelenideElement draftCard = $( "[data-testid=column-draft]" ).$$( "article.work-card" )
+            .findBy( text( title ) ).shouldBe( visible, WAIT );
+        final String itemKey = draftCard.getAttribute( "data-item-key" );
+        assertTrue( itemKey != null && itemKey.startsWith( projectKey + "-" ), "the story gets a key in the project: " + itemKey );
+        draftCard.$( "select[aria-label^='Move ']" ).selectOption( "Ready" );
+        awaitServerStatus( itemKey, "ready" );
+        Selenide.refresh();
+        final SelenideElement readyCard = $( "[data-testid=column-ready] article.work-card[data-item-key='" + itemKey + "']" )
+            .shouldBe( visible, WAIT );
+        readyCard.$( ".work-card-queue" ).shouldHave( text( queueName ), WAIT );
+        readyCard.$( ".work-card-available" ).shouldHave( text( "Available to agents" ), WAIT );
+
+        // The agent claims it over REST (key from the page); the card moves to In progress and says who and until when.
+        final HttpResponse< String > claimed = WorkIt.bearer( token, "POST", "/api/work/items/" + itemKey + "/claim", null );
+        assertEquals( 200, claimed.statusCode(), "the agent claims: " + WorkIt.status( claimed ) );
+        final com.google.gson.JsonObject claimedView = WorkIt.json( claimed ).getAsJsonObject();
+        final int version = ( claimedView.has( "item" ) ? claimedView.getAsJsonObject( "item" ) : claimedView ).get( "version" ).getAsInt();
+        Selenide.refresh();
+        final SelenideElement claimedCard = $( "[data-testid=column-in_progress] article.work-card[data-item-key='" + itemKey + "']" )
+            .shouldBe( visible, WAIT );
+        claimedCard.$( ".work-card-claim" ).shouldHave( text( agentName + " · until" ), WAIT );
+        assertEquals( 0, $$( "[data-testid=column-ready] article.work-card[data-item-key='" + itemKey + "']" ).size(),
+            "the card left Ready" );
+
+        // The item page's claim panel names the agent and the times; a person may release it.
+        claimedCard.$( "a.work-card-key" ).click();
+        final SelenideElement panel = $( "section.work-claim" ).shouldBe( visible, WAIT );
+        panel.shouldHave( text( "Claimed by " + agentName ), WAIT );
+        panel.shouldHave( text( "until" ), WAIT );
+        panel.$$( "button" ).findBy( exactText( "Release claim" ) ).shouldBe( visible, WAIT );
+
+        // The agent hands it to the admin with a note (REST, as the agent).
+        final HttpResponse< String > handed = WorkIt.bearer( token, "POST", "/api/work/items/" + itemKey + "/handoff",
+            WorkIt.GSON.toJson( Map.of( "expectedVersion", version, "status", "in_progress", "assignee", adminName,
+                "note", note ) ) );
+        assertEquals( 200, handed.statusCode(), "the agent hands off: " + WorkIt.status( handed ) );
+
+        // "Waiting on you" on the Work home: the item, the agent that handed it over, and the note.
+        open( "/work" );
+        final SelenideElement lane = $( "[data-testid=waiting-lane]" ).shouldBe( visible, WAIT );
+        lane.shouldHave( text( itemKey ), WAIT );
+        lane.shouldHave( text( agentName ), WAIT );
+        lane.shouldHave( text( "(agent)" ), WAIT );
+        lane.$( "blockquote.work-waiting-note" ).shouldHave( text( note ), WAIT );
+
+        // The project's "Assignments and claims": assignment to the queue, claim, hand-off, release; newest first.
+        open( "/work/" + projectKey + "/log" );
+        $$( "li.work-log-row" ).filter( text( itemKey ) ).shouldHave( CollectionCondition.size( 5 ), WAIT );
+        final List< String > rows = new ArrayList<>( $$( "li.work-log-row" ).filter( text( itemKey ) ).texts() );
+        final int assigned = indexOf( rows, "assigned this to Queue · " + queueName );
+        final int claim = indexOf( rows, agentName + " agent claimed this" );
+        final int handoff = indexOf( rows, agentName + " agent handed this to " + adminName );
+        final int released = indexOf( rows, agentName + " agent handed this item on, ending its own claim" );
+        assertTrue( released < handoff && handoff < claim && claim < assigned,
+            "the log runs release, hand-off, claim, assignment from the newest: " + rows );
+        assertTrue( rows.get( handoff ).contains( note ), "the hand-off row carries its note: " + rows.get( handoff ) );
+        // The agent's rows wear an agent badge; the assignment (made by a person) does not.
+        final var itemRows = $$( "li.work-log-row" ).filter( text( itemKey ) );
+        itemRows.get( claim ).$( ".work-agent-badge" ).shouldBe( visible );
+        itemRows.get( released ).$( ".work-agent-badge" ).shouldBe( visible );
+        assertEquals( 0, itemRows.get( assigned ).$$( ".work-agent-badge" ).size(), "the person's assignment has no agent badge" );
+    }
+
+    /**
+     * Presses "Create item". On a short window the dialog's last row sits just below the fold, where a text search
+     * (Selenium's {@code getText} of a button the window does not show) finds nothing; scrolling it into view first is
+     * what a person does.
+     */
+    private static void submitItemForm() {
+        final SelenideElement submit = $( "form.work-form button[type=submit]" ).shouldBe( exist, WAIT );
+        Selenide.executeJavaScript( "arguments[0].scrollIntoView({ block: 'center' });", submit );
+        submit.shouldHave( exactText( "Create item" ) ).click();
+    }
+
+    private static int indexOf( final List< String > rows, final String fragment ) {
+        for ( int i = 0; i < rows.size(); i++ ) {
+            if ( rows.get( i ).replace( '\n', ' ' ).toLowerCase( java.util.Locale.ROOT ).contains( fragment.toLowerCase( java.util.Locale.ROOT ) ) ) {
+                return i;
+            }
+        }
+        throw new AssertionError( "no log row contains \"" + fragment + "\": " + rows );
+    }
+
+    /** The admin's display name, as the wiki reports it (the name people see, never the login). */
+    private static String adminDisplayName() throws Exception {
+        final HttpResponse< String > r = WorkIt.admin().get( "/api/auth/me" );
+        assertEquals( 200, r.statusCode(), "who am I: " + r.statusCode() );
+        final String name = WorkIt.json( r ).getAsJsonObject().get( "fullName" ).getAsString();
+        assertTrue( !name.isBlank(), "the admin has a display name" );
+        return name;
     }
 
     // ---- helpers ----

@@ -404,4 +404,25 @@ class JdbcWorkStoreAttributionPostgresTest {
         assertNull( store.project( "PLAT" ).orElseThrow().archivedAt() );
         assertEquals( item.version(), reload( item ).version() );
     }
+
+    @Test
+    void archivingAnAlreadyArchivedProjectIsStillRefusedForAnUnattributedAgent() throws SQLException {
+        final java.time.Instant at = java.time.Instant.now();
+        store.archiveProject( plat.id(), at, LENA );
+        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        final long events = WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" );
+        assertThrows( IllegalArgumentException.class, () -> store.archiveProject( plat.id(), at.plusSeconds( 5 ), ghost ) );
+        assertEquals( events, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" ) );
+        assertEquals( at.truncatedTo( java.time.temporal.ChronoUnit.MILLIS ),
+            store.project( "PLAT" ).orElseThrow().archivedAt().truncatedTo( java.time.temporal.ChronoUnit.MILLIS ) );
+    }
+
+    @Test
+    void updatingAProjectWithNothingChangedIsStillRefusedForAnUnattributedAgent() throws SQLException {
+        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        final long events = WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" );
+        assertThrows( IllegalArgumentException.class,
+            () -> store.updateProject( plat.id(), plat.name(), plat.description(), plat.defaultAutonomy(), ghost ) );
+        assertEquals( events, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" ) );
+    }
 }

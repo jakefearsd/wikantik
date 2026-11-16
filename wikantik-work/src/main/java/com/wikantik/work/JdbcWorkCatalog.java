@@ -76,8 +76,17 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
         ORDER BY key
         """;
 
+    /** The claim half of the store; a member losing access releases its claims inside the member transaction. */
+    final JdbcWorkClaims claims;
+
     JdbcWorkCatalog( final Jdbc jdbc ) {
         super( jdbc );
+        this.claims = new JdbcWorkClaims( jdbc, this );
+    }
+
+    /** The claim half of the store; declared here so {@link JdbcWorkStore} inherits it as {@code WorkStore.claims()}. */
+    public WorkClaimStore claims() {
+        return claims;
     }
 
     // ---- projects
@@ -111,6 +120,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     public void updateProject( final long id, final String name, final String description,
                                final Autonomy defaultAutonomy, final Actor by )
             throws SQLException {
+        requireAttributed( by.kind(), by.agentId() );
         jdbc.inTransaction( conn -> {
             final Project current = jdbc.queryOne( conn, "SELECT " + PROJECT_COLUMNS
                     + " FROM work_project WHERE id = ? FOR UPDATE", ps -> ps.setLong( 1, id ), PROJECT_ROW )
@@ -120,7 +130,6 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
             addIfChanged( changed, "description", current.description(), description );
             addIfChanged( changed, "default_autonomy", current.defaultAutonomy().wire(), defaultAutonomy.wire() );
             if ( changed.isEmpty() ) {
-        requireAttributed( by.kind(), by.agentId() );
                 return null;
             }
             jdbc.update( conn, "UPDATE work_project SET name = ?, description = ?, default_autonomy = ? WHERE id = ?",
@@ -148,12 +157,12 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     @Override
     public void archiveProject( final long id, final Instant at, final Actor by )
             throws SQLException {
+        requireAttributed( by.kind(), by.agentId() );
         jdbc.inTransaction( conn -> {
             final int rows = jdbc.update( conn, "UPDATE work_project SET archived_at = ? WHERE id = ? "
                     + "AND archived_at IS NULL",
                 ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, id ); } );
             if ( rows > 0 ) {
-        requireAttributed( by.kind(), by.agentId() );
                 appendEvent( conn, projectEvent( id, by, WorkEvent.SETTINGS, null, at.toString(),
                     "archived" ) );
             }
@@ -197,6 +206,9 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
             appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
                 before == null ? null : memberValue( principalKind, principal, before ),
                 memberValue( principalKind, principal, role ), null ) );
+            if ( role == WorkRole.VIEWER && "agent".equals( principalKind ) ) {
+                claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED );
+            }
             return null;
         } );
     }
@@ -217,6 +229,9 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
             if ( removed.isPresent() ) {
                 appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
                     memberValue( principalKind, principal, removed.get() ), null, null ) );
+                if ( "agent".equals( principalKind ) ) {
+                    claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED );
+                }
             }
             return null;
         } );

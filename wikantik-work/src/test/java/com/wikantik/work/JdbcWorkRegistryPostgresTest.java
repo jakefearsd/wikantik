@@ -166,5 +166,18 @@ class JdbcWorkRegistryPostgresTest {
         final Agent other = store.registerAgent( "three", "", "", newKey(), List.of() );
         final SQLException e2 = assertThrows( SQLException.class, () -> store.rebindAgentKey( other.id(), key ) );
         assertEquals( "23505", e2.getSQLState() );
+        // The refused rebind left the other agent bound to its own key.
+        assertEquals( other.id(), store.agentByApiKey( other.apiKeyId() ).orElseThrow().id() );
+        assertEquals( other.apiKeyId(), store.agent( other.id() ).orElseThrow().apiKeyId() );
+    }
+
+    @Test
+    void renameDiffersOnlyInCaseIsRejected() throws SQLException {
+        store.registerAgent( "codex@x", "", "", newKey(), List.of() );
+        final Agent two = store.registerAgent( "other", "", "", newKey(), List.of() );
+        final SQLException e = assertThrows( SQLException.class,
+            () -> store.updateAgent( two.id(), "Codex@x", "", "", List.of() ) );
+        assertEquals( "23505", e.getSQLState() );
+        assertEquals( "other", store.agent( two.id() ).orElseThrow().name() );
     }
 }

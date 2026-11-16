@@ -32,6 +32,9 @@ import java.util.Set;
  */
 public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
 
+    /** Claims, release and expiry (kept on their own interface to keep this one small). */
+    WorkClaimStore claims();
+
     // ---- items
 
     /**

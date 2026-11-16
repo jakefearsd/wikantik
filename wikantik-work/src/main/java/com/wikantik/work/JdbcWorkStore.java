@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -91,8 +90,6 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
             ? Actor.Kind.AGENT : Actor.Kind.HUMAN,
         nullableLong( rs, "agent_id" ), rs.getString( "type" ), rs.getString( "from_value" ),
         rs.getString( "to_value" ), rs.getString( "note" ) );
-
-    private static final Pattern ITEM_KEY = Pattern.compile( "^([A-Za-z][A-Za-z0-9]{1,9})-(\\d{1,9})$" );
 
     private static final int DEFAULT_ITEM_LIMIT = 200;
     private static final int CLOSED_COLUMN_CAP = 50;
@@ -196,7 +193,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         if ( key == null ) {
             return Optional.empty();
         }
-        final Matcher m = ITEM_KEY.matcher( key.trim() );
+        final Matcher m = ItemKeys.PATTERN.matcher( key.trim() );
         if ( !m.matches() ) {
             return Optional.empty();
         }

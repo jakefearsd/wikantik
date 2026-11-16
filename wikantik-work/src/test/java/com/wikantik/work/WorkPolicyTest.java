@@ -153,6 +153,8 @@ class WorkPolicyTest {
     void agentWithAdminFlagGetsNothingBeyondItsRole() {
         final Actor flagged = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 7L );
         final Actor plain = Actor.agent( 7L, "bot" );
+        assertFalse( flagged.admin(), "only a human can be an admin: the flag is dropped at construction" );
+        assertFalse( flagged.instanceAdmin() );
         for ( final Action action : Action.values() ) {
             assertFalse( WorkPolicy.may( flagged, null, action, null ).allowed(), "no role: " + action );
             assertEquals( WorkPolicy.may( plain, WorkRole.MEMBER, action, null ).allowed(),

@@ -163,7 +163,19 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
 
     @Override
     public void rebindAgentKey( final long id, final int apiKeyId ) throws SQLException {
-        jdbc.update( "UPDATE work_agent SET api_key_id = ? WHERE id = ?",
-            ps -> { ps.setInt( 1, apiKeyId ); ps.setLong( 2, id ); } );
+        jdbc.inTransaction( conn -> {
+            jdbc.update( conn, "INSERT INTO work_agent_key_history (api_key_id, agent_id) "
+                    + "SELECT api_key_id, id FROM work_agent WHERE id = ? ON CONFLICT DO NOTHING",
+                ps -> ps.setLong( 1, id ) );
+            jdbc.update( conn, "UPDATE work_agent SET api_key_id = ? WHERE id = ?",
+                ps -> { ps.setInt( 1, apiKeyId ); ps.setLong( 2, id ); } );
+            return null;
+        } );
+    }
+
+    @Override
+    public boolean wasEverAgentKey( final int apiKeyId ) throws SQLException {
+        return jdbc.queryOne( "SELECT 1 FROM work_agent_key_history WHERE api_key_id = ?",
+            ps -> ps.setInt( 1, apiKeyId ), rs -> 1 ).isPresent();
     }
 }

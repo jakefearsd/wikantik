@@ -29,6 +29,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -84,5 +85,17 @@ class JdbcWorkRegistryRollbackTest {
         final Agent a = store.registerAgent( "before", "v", "r", newKey(), List.of( "implementer" ) );
         assertThrows( SQLException.class, () -> store.updateAgent( a.id(), "after", "v2", "r2", List.of( "ghost" ) ) );
         assertEquals( a, store.agent( a.id() ).orElseThrow() );
+    }
+
+    @Test
+    void rebindRollsBackTheHistoryRowWhenTheUpdateFails() throws SQLException {
+        final int first = newKey();
+        final Agent a = store.registerAgent( "before", "v", "r", first, List.of() );
+        final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
+        faulty.failOn( 2, new RuntimeException( "boom: update" ) ); // 1 insert history, 2 update binding
+        assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty ).rebindAgentKey( a.id(), newKey() ) );
+        assertEquals( 1, faulty.rollbacks() );
+        assertFalse( store.wasEverAgentKey( first ) );
+        assertEquals( first, store.agent( a.id() ).orElseThrow().apiKeyId() );
     }
 }

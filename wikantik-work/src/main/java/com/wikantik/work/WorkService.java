@@ -46,7 +46,6 @@ import java.util.stream.Collectors;
  * <p>Every public method is classified as a read or a write by {@code WorkServiceVisibilityPostgresTest}; add a
  * method and that test fails until it is classified.
  */
-@SuppressWarnings( "PMD.TooManyMethods" ) // the single facade over work management: one public method per operation
 public class WorkService {
 
     private static final String NOT_FOUND = WorkScopes.NOT_FOUND;
@@ -75,7 +74,7 @@ public class WorkService {
     private final WorkPeople people;
     private final Clock clock;
     private final ItemPatchApplier applier;
-    private final WorkRegistry registry;
+    private final WorkRegistryService registry;
 
     /** A newly registered or rotated agent and its API token, which is shown once and never stored or logged. */
     public record AgentWithToken( Agent agent, String token ) {
@@ -118,7 +117,7 @@ public class WorkService {
         this.store = store;
         this.scopes = new WorkScopes( store, directory, observer::denied );
         this.people = new WorkPeople( directory );
-        this.registry = new WorkRegistry( store, scopes, people, keys, clock );
+        this.registry = new WorkRegistryService( store, scopes, people, keys, clock );
         this.views = new ItemViews( store, renderer, people );
         this.clock = clock;
         this.applier = new ItemPatchApplier( store, scopes::isMember );
@@ -257,52 +256,9 @@ public class WorkService {
 
     // ---- queues, agents and identity
 
-    /** Admin or anyone with a visible project; everyone else gets an empty list. */
-    public List< Queue > listQueues( final Actor actor ) throws SQLException {
-        return registry.listQueues( actor );
-    }
-
-    public Queue createQueue( final Actor actor, final String key, final String name, final String description )
-            throws SQLException {
-        return registry.createQueue( actor, key, name, description );
-    }
-
-    public void updateQueue( final Actor actor, final String key, final String name, final String description )
-            throws SQLException {
-        registry.updateQueue( actor, key, name, description );
-    }
-
-    public void retireQueue( final Actor actor, final String key ) throws SQLException {
-        registry.retireQueue( actor, key );
-    }
-
-    /** Admin: every agent with its key id; anyone with a visible project: every agent without it; else empty. */
-    public List< Agent > listAgents( final Actor actor ) throws SQLException {
-        return registry.listAgents( actor );
-    }
-
-    public AgentWithToken registerAgent( final Actor actor, final AgentDraft draft ) throws SQLException {
-        return registry.registerAgent( actor, draft );
-    }
-
-    public void updateAgent( final Actor actor, final long agentId, final AgentDraft draft ) throws SQLException {
-        registry.updateAgent( actor, agentId, draft );
-    }
-
-    public AgentWithToken rotateAgentKey( final Actor actor, final long agentId ) throws SQLException {
-        return registry.rotateAgentKey( actor, agentId );
-    }
-
-    public void retireAgent( final Actor actor, final long agentId ) throws SQLException {
-        registry.retireAgent( actor, agentId );
-    }
-
-    /**
-     * Who an API key stands for: the active agent it is bound to; null (no actor) when it is bound to a retired
-     * agent; otherwise its owner as a person, never admin.
-     */
-    public Actor actorForApiKey( final int apiKeyId, final String ownerLogin ) throws SQLException {
-        return registry.actorForApiKey( apiKeyId, ownerLogin );
+    /** Queues, agents and the identity an API key stands for. */
+    public WorkRegistryService registry() {
+        return registry;
     }
 
     // ---- items

@@ -23,7 +23,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Resolves who is asking and what they can see: the project, item or comment a request names, through project
@@ -33,8 +32,6 @@ import java.util.regex.Pattern;
 final class WorkScopes {
 
     static final String NOT_FOUND = "No such project, item or comment.";
-    private static final Pattern ITEM_KEY = Pattern.compile( "^([A-Za-z][A-Za-z0-9]{1,9})-(\\d{1,9})$" );
-
     /** A resolved project and the actor's standing in it; the one thing every method starts from. */
     record Scope( Actor actor, Project project, WorkRole role, Consumer< Action > onDenied ) {
 
@@ -43,10 +40,10 @@ final class WorkScopes {
          * everything a lead may); an agent shows its own row (it is denied management actions regardless).
          */
         WorkRole effectiveRole() {
-            if ( actor.admin() && actor.kind() == Actor.Kind.HUMAN ) {
+            if ( actor.instanceAdmin() ) {
                 return WorkRole.LEAD;
             }
-            return role != null ? role : WorkRole.LEAD;
+            return role;
         }
 
         void require( final Action action, final Item item ) {
@@ -105,7 +102,7 @@ final class WorkScopes {
 
     /** Resolves an item key through its project's visibility; the item is only looked up once visible. */
     ItemScope itemScope( final Actor actor, final String itemKey ) throws SQLException {
-        final Matcher m = itemKey == null ? null : ITEM_KEY.matcher( itemKey.trim() );
+        final Matcher m = itemKey == null ? null : ItemKeys.PATTERN.matcher( itemKey.trim() );
         if ( m == null || !m.matches() ) {
             throw new WorkNotFoundException( NOT_FOUND );
         }

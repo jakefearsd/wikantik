@@ -60,5 +60,12 @@ public interface WorkRegistryStore {
     void updateAgent( long id, String name, String vendor, String runtime, List< String > queues )
         throws SQLException;
 
+    /**
+     * One transaction: records the agent's current key in the key history, then binds the new key. A key in the
+     * history never acts as a person again (see {@link #wasEverAgentKey}).
+     */
     void rebindAgentKey( long id, int apiKeyId ) throws SQLException;
+
+    /** Whether the key was ever unbound from an agent by a rebind (a key still bound is found by agentByApiKey). */
+    boolean wasEverAgentKey( int apiKeyId ) throws SQLException;
 }

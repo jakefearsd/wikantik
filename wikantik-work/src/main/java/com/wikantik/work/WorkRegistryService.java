@@ -30,16 +30,16 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Queues, agents and the identity an API key stands for. Package-private collaborator of {@link WorkService}, which
- * delegates one line per method. Only a human wiki admin manages any of it; the check comes before every lookup, so
+ * Queues, agents and the identity an API key stands for: the registry facade, reached through
+ * {@link WorkService#registry()}. Only a human wiki admin manages any of it; the check comes before every lookup, so
  * a caller who may not manage gets the denial whether or not the queue or agent exists.
  *
  * <p>Registry writes leave no {@code work_event} (the event table requires a project); each is logged at INFO with
  * who did what, never with a key or token.
  */
-final class WorkRegistry {
+public final class WorkRegistryService {
 
-    private static final Logger LOG = LogManager.getLogger( WorkRegistry.class );
+    private static final Logger LOG = LogManager.getLogger( WorkRegistryService.class );
     private static final String UNIQUE_VIOLATION = "23505";
     private static final String NO_SUCH_USER = "No such user.";
 
@@ -49,7 +49,7 @@ final class WorkRegistry {
     private final AgentKeys keys;
     private final Clock clock;
 
-    WorkRegistry( final WorkStore store, final WorkScopes scopes, final WorkPeople people, final AgentKeys keys,
+    WorkRegistryService( final WorkStore store, final WorkScopes scopes, final WorkPeople people, final AgentKeys keys,
                   final Clock clock ) {
         this.store = store;
         this.scopes = scopes;
@@ -60,11 +60,11 @@ final class WorkRegistry {
 
     // ---- queues
 
-    List< Queue > listQueues( final Actor actor ) throws SQLException {
+    public List< Queue > listQueues( final Actor actor ) throws SQLException {
         return canSeeRegistry( actor ) ? store.queues() : List.of();
     }
 
-    Queue createQueue( final Actor actor, final String key, final String name, final String description )
+    public Queue createQueue( final Actor actor, final String key, final String name, final String description )
             throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         WorkInputs.requireQueueKey( key );
@@ -81,7 +81,7 @@ final class WorkRegistry {
         }
     }
 
-    void updateQueue( final Actor actor, final String key, final String name, final String description )
+    public void updateQueue( final Actor actor, final String key, final String name, final String description )
             throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         WorkInputs.requireQueueKey( key );
@@ -91,7 +91,7 @@ final class WorkRegistry {
         LOG.info( "Work queue '{}' updated by {}", key, actor.login() );
     }
 
-    void retireQueue( final Actor actor, final String key ) throws SQLException {
+    public void retireQueue( final Actor actor, final String key ) throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         WorkInputs.requireQueueKey( key );
         requireQueue( key );
@@ -106,7 +106,7 @@ final class WorkRegistry {
     // ---- agents
 
     /** A wiki admin sees every agent with its key id; anyone who belongs to a project sees them without it. */
-    List< Agent > listAgents( final Actor actor ) throws SQLException {
+    public List< Agent > listAgents( final Actor actor ) throws SQLException {
         if ( actor.instanceAdmin() ) {
             return store.agents();
         }
@@ -117,7 +117,7 @@ final class WorkRegistry {
             a.queues(), a.createdAt(), a.retiredAt() ) ).toList();
     }
 
-    WorkService.AgentWithToken registerAgent( final Actor actor, final AgentDraft draft ) throws SQLException {
+    public WorkService.AgentWithToken registerAgent( final Actor actor, final AgentDraft draft ) throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final String name = agentName( draft.name() );
         final List< String > queues = servedQueues( draft.queues(), Set.of() );
@@ -142,7 +142,7 @@ final class WorkRegistry {
         }
     }
 
-    void updateAgent( final Actor actor, final long agentId, final AgentDraft draft ) throws SQLException {
+    public void updateAgent( final Actor actor, final long agentId, final AgentDraft draft ) throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final Agent existing = requireActiveAgent( agentId );
         final String name = agentName( draft.name() );
@@ -160,7 +160,7 @@ final class WorkRegistry {
     }
 
     /** Mint, rebind, then revoke the old key: the agent is never left on a revoked key nor a live key orphaned. */
-    WorkService.AgentWithToken rotateAgentKey( final Actor actor, final long agentId ) throws SQLException {
+    public WorkService.AgentWithToken rotateAgentKey( final Actor actor, final long agentId ) throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final Agent existing = requireActiveAgent( agentId );
         final AgentKeys.Minted minted = keys.mint( actor.login(), "work-agent:" + existing.name() );
@@ -178,14 +178,13 @@ final class WorkRegistry {
             existing.runtime(), minted.keyId(), existing.queues(), existing.createdAt(), null ), minted.token() );
     }
 
-    void retireAgent( final Actor actor, final long agentId ) throws SQLException {
+    public void retireAgent( final Actor actor, final long agentId ) throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final Agent existing = store.agent( agentId )
             .orElseThrow( () -> new WorkNotFoundException( "No such agent: " + agentId ) );
-        if ( !existing.active() ) {
-            return;
+        if ( existing.active() ) {
+            store.claims().retireAgent( agentId, clock.instant(), actor );
         }
-        store.claims().retireAgent( agentId, clock.instant(), actor );
         if ( existing.apiKeyId() != null ) {
             revokeQuietly( existing.apiKeyId(), actor );
         }
@@ -194,11 +193,15 @@ final class WorkRegistry {
 
     /**
      * The only place an actor's kind is derived: a key bound to an active agent is that agent; a key bound to a
-     * retired agent is no actor (null, never its owner); any other key is its owner as a person, never admin.
+     * retired agent, or one that was ever bound to an agent and since rotated away, is no actor (null, never its
+     * owner, even if its revocation failed); a key never bound to an agent is its owner as a person, never admin.
      */
-    Actor actorForApiKey( final int apiKeyId, final String ownerLogin ) throws SQLException {
+    public Actor actorForApiKey( final int apiKeyId, final String ownerLogin ) throws SQLException {
         final Agent bound = store.agentByApiKey( apiKeyId ).orElse( null );
         if ( bound == null ) {
+            if ( store.wasEverAgentKey( apiKeyId ) ) {
+                return null;
+            }
             return Actor.human( ownerLogin, scopes.groupsOf( ownerLogin ), false );
         }
         return bound.active() ? Actor.agent( bound.id(), bound.name() ) : null;

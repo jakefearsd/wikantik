@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -58,6 +59,9 @@ class WorkServiceVisibilityPostgresTest {
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey" );
 
+    /** Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. */
+    private static final Set< String > FACADES = Set.of( "registry" );
+
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
@@ -69,6 +73,7 @@ class WorkServiceVisibilityPostgresTest {
     private final Actor lena = Actor.human( "lena", Set.of(), false );
     private final Actor admin = Actor.human( "admin", Set.of(), true );
     private Actor rogueAgent;
+    private Actor flaggedAgent;
 
     private WorkService service;
     private long commentId;
@@ -82,6 +87,8 @@ class WorkServiceVisibilityPostgresTest {
         store.createQueue( "implementer", "Implementer", "" );
         final long codex = WorkAgentFixtures.agent( ds, "codex@docker2" );
         rogueAgent = Actor.agent( WorkAgentFixtures.agent( ds, "rogue@x" ), "rogue@x" );
+        flaggedAgent = new Actor( "flagged@x", Set.of(), true, Actor.Kind.AGENT,
+            WorkAgentFixtures.agent( ds, "flagged@x" ) );
         WorkAgentFixtures.exec( ds, "INSERT INTO work_agent_queue (agent_id, queue_key) VALUES (" + codex
             + ", 'implementer')" );
         final Project plat = store.createProject( "PLAT", "Platform", "secret roadmap" );
@@ -104,18 +111,56 @@ class WorkServiceVisibilityPostgresTest {
     }
 
     private List< Actor > strangers() {
-        return List.of( mallory, rogueAgent );
+        return List.of( mallory, rogueAgent, flaggedAgent );
     }
 
-    private static List< Method > publicMethods() {
-        return Arrays.stream( WorkService.class.getDeclaredMethods() )
-            .filter( m -> Modifier.isPublic( m.getModifiers() ) && !m.isSynthetic() ).toList();
+    /** A public method and the object to call it on: the service itself, or the facade an accessor returns. */
+    private record Op( Method method, Object target ) {
+        String name() {
+            return method.getName();
+        }
+    }
+
+    private static boolean isOwnPublic( final Method m ) {
+        return Modifier.isPublic( m.getModifiers() ) && !m.isSynthetic();
+    }
+
+    private List< Op > ops() throws Exception {
+        final List< Op > out = new ArrayList<>();
+        for ( final Method m : WorkService.class.getDeclaredMethods() ) {
+            if ( isOwnPublic( m ) && !FACADES.contains( m.getName() ) ) {
+                out.add( new Op( m, service ) );
+            }
+        }
+        for ( final String accessor : FACADES ) {
+            final Object facade = WorkService.class.getMethod( accessor ).invoke( service );
+            for ( final Method m : facade.getClass().getDeclaredMethods() ) {
+                if ( isOwnPublic( m ) ) {
+                    out.add( new Op( m, facade ) );
+                }
+            }
+        }
+        return out;
     }
 
     @Test
-    void everyPublicMethodIsClassifiedAsReadOrWrite() {
+    void everySubFacadeIsListedSoItCannotEscapeClassification() {
+        for ( final Method m : WorkService.class.getDeclaredMethods() ) {
+            final boolean facade = isOwnPublic( m ) && m.getParameterCount() == 0
+                && m.getReturnType().getName().matches( "com\\.wikantik\\.work\\.\\w*Service" );
+            if ( facade ) {
+                assertTrue( FACADES.contains( m.getName() ), m.getName() + " returns a service facade: add it to FACADES" );
+            }
+        }
+        for ( final String accessor : FACADES ) {
+            assertDoesNotThrow( () -> WorkService.class.getMethod( accessor ), accessor + " is not a WorkService method" );
+        }
+    }
+
+    @Test
+    void everyPublicMethodIsClassifiedAsReadOrWrite() throws Exception {
         final Set< String > all = new TreeSet<>();
-        publicMethods().forEach( m -> all.add( m.getName() ) );
+        ops().forEach( op -> all.add( op.name() ) );
         assertTrue( Collections.disjoint( READS, WRITES ), "a method cannot be both a read and a write" );
         assertTrue( Collections.disjoint( SYSTEM, READS ) && Collections.disjoint( SYSTEM, WRITES ) );
         final Set< String > classified = new TreeSet<>( READS );
@@ -164,7 +209,8 @@ class WorkServiceVisibilityPostgresTest {
 
     @Test
     void everyReadMethodHidesInvisibleProject() throws Exception {
-        for ( final Method m : publicMethods() ) {
+        for ( final Op op : ops() ) {
+            final Method m = op.method();
             if ( !READS.contains( m.getName() ) ) {
                 continue;
             }
@@ -172,7 +218,7 @@ class WorkServiceVisibilityPostgresTest {
             for ( final Object[] asLead : argumentSets( m, lena ) ) {
                 final Object seen;
                 try {
-                    seen = invoke( m, service, asLead );
+                    seen = invoke( m, op.target(), asLead );
                 } catch ( final WorkNotFoundException e ) {
                     continue;  // this fixture combination does not address the project; try the next
                 }
@@ -188,7 +234,7 @@ class WorkServiceVisibilityPostgresTest {
                         }
                     }
                     try {
-                        final Object result = invoke( m, service, asStranger );
+                        final Object result = invoke( m, op.target(), asStranger );
                         assertTrue( isEmptyResult( result ), m.getName() + " leaked to " + stranger.login() + ": "
                             + result );
                     } catch ( final WorkNotFoundException expected ) {
@@ -224,8 +270,9 @@ class WorkServiceVisibilityPostgresTest {
     }
 
     @Test
-    void systemMethodsTakeNoActor() {
-        for ( final Method m : publicMethods() ) {
+    void systemMethodsTakeNoActor() throws Exception {
+        for ( final Op op : ops() ) {
+            final Method m = op.method();
             if ( SYSTEM.contains( m.getName() ) ) {
                 assertTrue( Arrays.stream( m.getParameterTypes() ).noneMatch( t -> t == Actor.class ),
                     m.getName() + " must not accept a caller-supplied actor" );
@@ -236,25 +283,28 @@ class WorkServiceVisibilityPostgresTest {
     @Test
     void everyInstanceWriteRequiresAdmin() {
         final AgentDraft agent = new AgentDraft( "new@x", "", "", List.of(), "lena" );
-        final List< org.junit.jupiter.api.function.Executable > attempts = List.of(
-            () -> service.createQueue( mallory, "ops", "Ops", "" ),
-            () -> service.updateQueue( mallory, "implementer", "Impl", "" ),
-            () -> service.retireQueue( mallory, "implementer" ),
-            () -> service.registerAgent( mallory, agent ),
-            () -> service.updateAgent( mallory, 1, agent ),
-            () -> service.rotateAgentKey( mallory, 1 ),
-            () -> service.retireAgent( mallory, 1 ) );
-        for ( final var attempt : attempts ) {
-            assertThrows( WorkDeniedException.class, attempt );
+        final WorkRegistryService r = service.registry();
+        for ( final Actor caller : List.of( mallory, rogueAgent, flaggedAgent ) ) {
+            final List< org.junit.jupiter.api.function.Executable > attempts = List.of(
+                () -> r.createQueue( caller, "ops", "Ops", "" ),
+                () -> r.updateQueue( caller, "implementer", "Impl", "" ),
+                () -> r.retireQueue( caller, "implementer" ),
+                () -> r.registerAgent( caller, agent ),
+                () -> r.updateAgent( caller, 1, agent ),
+                () -> r.rotateAgentKey( caller, 1 ),
+                () -> r.retireAgent( caller, 1 ) );
+            for ( final var attempt : attempts ) {
+                assertThrows( WorkDeniedException.class, attempt, caller.login() );
+            }
         }
     }
 
     @Test
     void anAdminSeesKeyIdsAndAProjectMemberDoesNot() throws Exception {
-        assertTrue( service.listAgents( admin ).stream().allMatch( a -> a.apiKeyId() != null ) );
-        assertEquals( 2, service.listAgents( lena ).size() );
-        assertTrue( service.listAgents( lena ).stream().allMatch( a -> a.apiKeyId() == null ) );
-        assertEquals( 1, service.listQueues( lena ).size() );
+        assertTrue( service.registry().listAgents( admin ).stream().allMatch( a -> a.apiKeyId() != null ) );
+        assertEquals( 3, service.registry().listAgents( lena ).size() );
+        assertTrue( service.registry().listAgents( lena ).stream().allMatch( a -> a.apiKeyId() == null ) );
+        assertEquals( 1, service.registry().listQueues( lena ).size() );
     }
 
     @Test

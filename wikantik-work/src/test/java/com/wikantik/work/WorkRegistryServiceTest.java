@@ -110,35 +110,35 @@ class WorkRegistryServiceTest {
     @Test
     void nonAdminCannotManageQueuesOrAgents() {
         final AgentDraft d = draft( "codex@docker2", "lena", "implementer" );
-        assertThrows( WorkDeniedException.class, () -> service.createQueue( mallory, "ops", "Ops", "" ) );
-        assertThrows( WorkDeniedException.class, () -> service.updateQueue( mallory, "ops", "Ops", "" ) );
-        assertThrows( WorkDeniedException.class, () -> service.retireQueue( mallory, "ops" ) );
-        assertThrows( WorkDeniedException.class, () -> service.registerAgent( mallory, d ) );
-        assertThrows( WorkDeniedException.class, () -> service.updateAgent( mallory, 1, d ) );
-        assertThrows( WorkDeniedException.class, () -> service.rotateAgentKey( mallory, 1 ) );
-        assertThrows( WorkDeniedException.class, () -> service.retireAgent( mallory, 1 ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().createQueue( mallory, "ops", "Ops", "" ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().updateQueue( mallory, "ops", "Ops", "" ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().retireQueue( mallory, "ops" ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().registerAgent( mallory, d ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().updateAgent( mallory, 1, d ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().rotateAgentKey( mallory, 1 ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().retireAgent( mallory, 1 ) );
     }
 
     @Test
     void nonAdminGetsDenialNotNotFoundForUnknownAgent() throws SQLException {
         when( store.agent( 999 ) ).thenReturn( Optional.empty() );
         when( store.queue( "ghost" ) ).thenReturn( Optional.empty() );
-        assertThrows( WorkDeniedException.class, () -> service.updateAgent( mallory, 999,
+        assertThrows( WorkDeniedException.class, () -> service.registry().updateAgent( mallory, 999,
             draft( "x", "lena" ) ) );
-        assertThrows( WorkDeniedException.class, () -> service.rotateAgentKey( mallory, 999 ) );
-        assertThrows( WorkDeniedException.class, () -> service.retireAgent( mallory, 999 ) );
-        assertThrows( WorkDeniedException.class, () -> service.retireQueue( mallory, "ghost" ) );
-        assertThrows( WorkDeniedException.class, () -> service.updateQueue( mallory, "ghost", "G", "" ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().rotateAgentKey( mallory, 999 ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().retireAgent( mallory, 999 ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().retireQueue( mallory, "ghost" ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().updateQueue( mallory, "ghost", "G", "" ) );
     }
 
     @Test
     void adminGetsNotFoundForUnknownAgentAndQueue() throws SQLException {
         when( store.agent( 999 ) ).thenReturn( Optional.empty() );
-        assertThrows( WorkNotFoundException.class, () -> service.updateAgent( admin, 999, draft( "x", "lena" ) ) );
-        assertThrows( WorkNotFoundException.class, () -> service.rotateAgentKey( admin, 999 ) );
-        assertThrows( WorkNotFoundException.class, () -> service.retireAgent( admin, 999 ) );
-        assertThrows( WorkNotFoundException.class, () -> service.retireQueue( admin, "nope" ) );
-        assertThrows( WorkNotFoundException.class, () -> service.updateQueue( admin, "nope", "N", "" ) );
+        assertThrows( WorkNotFoundException.class, () -> service.registry().updateAgent( admin, 999, draft( "x", "lena" ) ) );
+        assertThrows( WorkNotFoundException.class, () -> service.registry().rotateAgentKey( admin, 999 ) );
+        assertThrows( WorkNotFoundException.class, () -> service.registry().retireAgent( admin, 999 ) );
+        assertThrows( WorkNotFoundException.class, () -> service.registry().retireQueue( admin, "nope" ) );
+        assertThrows( WorkNotFoundException.class, () -> service.registry().updateQueue( admin, "nope", "N", "" ) );
         verify( store, never() ).updateAgent( org.mockito.ArgumentMatchers.anyLong(), anyString(), anyString(),
             anyString(), anyList() );
         verify( store, never() ).rebindAgentKey( org.mockito.ArgumentMatchers.anyLong(), anyInt() );
@@ -150,9 +150,9 @@ class WorkRegistryServiceTest {
         final Actor bot = Actor.agent( 5, "bot" );
         final Actor flagged = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 5L );
         for ( final Actor a : List.of( bot, flagged ) ) {
-            assertThrows( WorkDeniedException.class, () -> service.createQueue( a, "ops", "Ops", "" ) );
-            assertThrows( WorkDeniedException.class, () -> service.registerAgent( a, draft( "x", "lena" ) ) );
-            assertThrows( WorkDeniedException.class, () -> service.retireAgent( a, 1 ) );
+            assertThrows( WorkDeniedException.class, () -> service.registry().createQueue( a, "ops", "Ops", "" ) );
+            assertThrows( WorkDeniedException.class, () -> service.registry().registerAgent( a, draft( "x", "lena" ) ) );
+            assertThrows( WorkDeniedException.class, () -> service.registry().retireAgent( a, 1 ) );
         }
     }
 
@@ -160,7 +160,7 @@ class WorkRegistryServiceTest {
     void registerMintsThenStores() throws SQLException {
         when( store.registerAgent( eq( "codex@docker2" ), eq( "openai" ), eq( "codex" ), eq( 100 ),
             eq( List.of( "implementer" ) ) ) ).thenReturn( agent( 7, "codex@docker2", 100, null ) );
-        final WorkService.AgentWithToken r = service.registerAgent( admin,
+        final WorkService.AgentWithToken r = service.registry().registerAgent( admin,
             draft( "Codex@Docker2", "lena", "implementer" ) );
         assertEquals( List.of( "lena|work-agent:codex@docker2" ), keys.minted );
         assertEquals( "token-100", r.token() );
@@ -174,7 +174,7 @@ class WorkRegistryServiceTest {
         final SQLException boom = new SQLException( "boom", "XX000" );
         when( store.registerAgent( anyString(), anyString(), anyString(), anyInt(), anyList() ) ).thenThrow( boom );
         final SQLException thrown = assertThrows( SQLException.class,
-            () -> service.registerAgent( admin, draft( "codex@docker2", "lena", "implementer" ) ) );
+            () -> service.registry().registerAgent( admin, draft( "codex@docker2", "lena", "implementer" ) ) );
         assertSame( boom, thrown );
         assertEquals( List.of( "100|admin" ), keys.revoked );
     }
@@ -184,7 +184,7 @@ class WorkRegistryServiceTest {
         when( store.registerAgent( anyString(), anyString(), anyString(), anyInt(), anyList() ) )
             .thenThrow( new SQLException( "dup", "23505" ) );
         final WorkConflictException e = assertThrows( WorkConflictException.class,
-            () -> service.registerAgent( admin, draft( "codex", "lena", "implementer" ) ) );
+            () -> service.registry().registerAgent( admin, draft( "codex", "lena", "implementer" ) ) );
         assertEquals( WorkConflictException.EXISTS, e.reason() );
         assertEquals( List.of( "100|admin" ), keys.revoked );
     }
@@ -193,32 +193,32 @@ class WorkRegistryServiceTest {
     void registerRejectsDuplicateNameBeforeMinting() throws SQLException {
         when( store.agentByName( "codex" ) ).thenReturn( Optional.of( agent( 1, "codex", 3, null ) ) );
         final WorkConflictException e = assertThrows( WorkConflictException.class,
-            () -> service.registerAgent( admin, draft( "CODEX", "lena" ) ) );
+            () -> service.registry().registerAgent( admin, draft( "CODEX", "lena" ) ) );
         assertEquals( WorkConflictException.EXISTS, e.reason() );
         assertTrue( keys.minted.isEmpty() );
     }
 
     @Test
     void registerValidatesBeforeMinting() {
-        assertThrows( WorkValidationException.class, () -> service.registerAgent( admin, draft( "bad name!", "lena" ) ) );
-        assertThrows( WorkValidationException.class, () -> service.registerAgent( admin, draft( null, "lena" ) ) );
+        assertThrows( WorkValidationException.class, () -> service.registry().registerAgent( admin, draft( "bad name!", "lena" ) ) );
+        assertThrows( WorkValidationException.class, () -> service.registry().registerAgent( admin, draft( null, "lena" ) ) );
         assertTrue( keys.minted.isEmpty() );
     }
 
     @Test
     void retiredQueueRefusedForAgent() {
         final WorkValidationException e = assertThrows( WorkValidationException.class,
-            () -> service.registerAgent( admin, draft( "codex", "lena", "old" ) ) );
+            () -> service.registry().registerAgent( admin, draft( "codex", "lena", "old" ) ) );
         assertEquals( "queues", e.field() );
         assertThrows( WorkValidationException.class,
-            () -> service.registerAgent( admin, draft( "codex", "lena", "nope" ) ) );
+            () -> service.registry().registerAgent( admin, draft( "codex", "lena", "nope" ) ) );
         assertTrue( keys.minted.isEmpty() );
     }
 
     @Test
     void unknownOwnerRejected() {
         final WorkValidationException e = assertThrows( WorkValidationException.class,
-            () -> service.registerAgent( admin, draft( "codex", "nobody", "implementer" ) ) );
+            () -> service.registry().registerAgent( admin, draft( "codex", "nobody", "implementer" ) ) );
         assertEquals( "owner", e.field() );
         assertTrue( keys.minted.isEmpty() );
     }
@@ -227,7 +227,7 @@ class WorkRegistryServiceTest {
     void ownerDefaultsToTheCaller() throws SQLException {
         when( store.registerAgent( anyString(), anyString(), anyString(), anyInt(), anyList() ) )
             .thenReturn( agent( 7, "codex", 100, null ) );
-        service.registerAgent( admin, draft( "codex", null, "implementer" ) );
+        service.registry().registerAgent( admin, draft( "codex", null, "implementer" ) );
         assertEquals( List.of( "admin|work-agent:codex" ), keys.minted );
     }
 
@@ -236,7 +236,7 @@ class WorkRegistryServiceTest {
         when( store.agent( 1 ) ).thenReturn( Optional.of( agent( 1, "codex", 3, null ) ) );
         when( store.agentByName( "other" ) ).thenReturn( Optional.of( agent( 2, "other", 4, null ) ) );
         assertEquals( WorkConflictException.EXISTS, assertThrows( WorkConflictException.class,
-            () -> service.updateAgent( admin, 1, draft( "Other", "ignored" ) ) ).reason() );
+            () -> service.registry().updateAgent( admin, 1, draft( "Other", "ignored" ) ) ).reason() );
         verify( store, never() ).updateAgent( org.mockito.ArgumentMatchers.anyLong(), anyString(), anyString(),
             anyString(), anyList() );
     }
@@ -246,37 +246,37 @@ class WorkRegistryServiceTest {
         when( store.agent( 1 ) ).thenReturn( Optional.of( agent( 1, "codex", 3, null ) ) );
         doThrow( new SQLException( "dup", "23505" ) ).when( store ).updateAgent( eq( 1L ), anyString(), anyString(),
             anyString(), anyList() );
-        assertThrows( WorkConflictException.class, () -> service.updateAgent( admin, 1, draft( "fresh", null ) ) );
+        assertThrows( WorkConflictException.class, () -> service.registry().updateAgent( admin, 1, draft( "fresh", null ) ) );
     }
 
     @Test
     void updateAgentStoresNormalisedName() throws SQLException {
         when( store.agent( 1 ) ).thenReturn( Optional.of( agent( 1, "codex", 3, null ) ) );
-        service.updateAgent( admin, 1, draft( " Codex ", "ignored", "implementer" ) );
+        service.registry().updateAgent( admin, 1, draft( " Codex ", "ignored", "implementer" ) );
         verify( store ).updateAgent( 1L, "codex", "openai", "codex", List.of( "implementer" ) );
     }
 
     @Test
     void createQueueConflictsOnExistingKeyAndOnUniqueViolation() throws SQLException {
         assertEquals( WorkConflictException.EXISTS, assertThrows( WorkConflictException.class,
-            () -> service.createQueue( admin, "implementer", "Again", "" ) ).reason() );
+            () -> service.registry().createQueue( admin, "implementer", "Again", "" ) ).reason() );
         when( store.createQueue( "fresh", "Fresh", "" ) ).thenThrow( new SQLException( "dup", "23505" ) );
-        assertThrows( WorkConflictException.class, () -> service.createQueue( admin, "fresh", "Fresh", null ) );
-        assertThrows( WorkValidationException.class, () -> service.createQueue( admin, "Bad Key", "X", "" ) );
+        assertThrows( WorkConflictException.class, () -> service.registry().createQueue( admin, "fresh", "Fresh", null ) );
+        assertThrows( WorkValidationException.class, () -> service.registry().createQueue( admin, "Bad Key", "X", "" ) );
     }
 
     @Test
     void queueWritesGoThrough() throws SQLException {
-        service.updateQueue( admin, "implementer", " Impl ", null );
+        service.registry().updateQueue( admin, "implementer", " Impl ", null );
         verify( store ).updateQueue( "implementer", "Impl", "" );
-        service.retireQueue( admin, "implementer" );
+        service.registry().retireQueue( admin, "implementer" );
         verify( store ).retireQueue( "implementer", NOW );
     }
 
     @Test
     void rotateRevokesOldAfterRebind() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
-        final WorkService.AgentWithToken r = service.rotateAgentKey( admin, 7 );
+        final WorkService.AgentWithToken r = service.registry().rotateAgentKey( admin, 7 );
         assertEquals( 100, r.agent().apiKeyId() );
         assertEquals( "token-100", r.token() );
         assertEquals( List.of( "55|admin" ), keys.revoked );
@@ -288,21 +288,21 @@ class WorkRegistryServiceTest {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
         final SQLException boom = new SQLException( "boom" );
         doThrow( boom ).when( store ).rebindAgentKey( 7L, 100 );
-        assertSame( boom, assertThrows( SQLException.class, () -> service.rotateAgentKey( admin, 7 ) ) );
+        assertSame( boom, assertThrows( SQLException.class, () -> service.registry().rotateAgentKey( admin, 7 ) ) );
         assertEquals( List.of( "100|admin" ), keys.revoked, "only the new key is revoked; the old stays bound" );
     }
 
     @Test
     void rotateOfRetiredAgentIsNotFound() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, NOW ) ) );
-        assertThrows( WorkNotFoundException.class, () -> service.rotateAgentKey( admin, 7 ) );
+        assertThrows( WorkNotFoundException.class, () -> service.registry().rotateAgentKey( admin, 7 ) );
         assertTrue( keys.minted.isEmpty() );
     }
 
     @Test
     void retireRevokesKey() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
-        service.retireAgent( admin, 7 );
+        service.registry().retireAgent( admin, 7 );
         verify( claims ).retireAgent( 7L, NOW, admin );
         assertEquals( List.of( "55|admin" ), keys.revoked );
     }
@@ -311,31 +311,38 @@ class WorkRegistryServiceTest {
     void retireSurvivesARevokeFailure() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
         keys.revokeFails = new IllegalStateException( "key service down" );
-        service.retireAgent( admin, 7 );
+        service.registry().retireAgent( admin, 7 );
         verify( claims ).retireAgent( 7L, NOW, admin );
     }
 
     @Test
-    void retireOfRetiredAgentChangesNothing() throws SQLException {
+    void retireOfRetiredAgentRetriesTheRevokeAndReleasesNothingNew() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, NOW ) ) );
-        service.retireAgent( admin, 7 );
+        service.registry().retireAgent( admin, 7 );
         verify( claims, never() ).retireAgent( org.mockito.ArgumentMatchers.anyLong(), any(), any() );
-        assertTrue( keys.revoked.isEmpty() );
+        assertEquals( List.of( "55|admin" ), keys.revoked );
+    }
+
+    @Test
+    void aKeyInTheHistoryIsNoActor() throws SQLException {
+        when( store.agentByApiKey( 58 ) ).thenReturn( Optional.empty() );
+        when( store.wasEverAgentKey( 58 ) ).thenReturn( true );
+        assertNull( service.registry().actorForApiKey( 58, "lena" ) );
     }
 
     @Test
     void nonAdminSeesAgentsWithoutKeyIds() throws SQLException {
         when( store.agents() ).thenReturn( List.of( agent( 7, "codex", 55, null ) ) );
         when( store.visibleProjects( mallory ) ).thenReturn( List.of() );
-        assertTrue( service.listAgents( mallory ).isEmpty() );
-        assertTrue( service.listQueues( mallory ).isEmpty() );
+        assertTrue( service.registry().listAgents( mallory ).isEmpty() );
+        assertTrue( service.registry().listQueues( mallory ).isEmpty() );
         final Actor lena = Actor.human( "lena", Set.of(), false );
         when( store.visibleProjects( lena ) ).thenReturn( List.of( new Project( 1, "PLAT", "P", "", Autonomy.DELEGATED, NOW, null ) ) );
-        final List< Agent > seen = service.listAgents( lena );
+        final List< Agent > seen = service.registry().listAgents( lena );
         assertEquals( 1, seen.size() );
         assertNull( seen.get( 0 ).apiKeyId() );
         assertEquals( "codex", seen.get( 0 ).name() );
-        assertEquals( 55, service.listAgents( admin ).get( 0 ).apiKeyId() );
+        assertEquals( 55, service.registry().listAgents( admin ).get( 0 ).apiKeyId() );
     }
 
     @Test
@@ -343,9 +350,9 @@ class WorkRegistryServiceTest {
         when( store.agentByApiKey( 55 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
         when( store.agentByApiKey( 56 ) ).thenReturn( Optional.of( agent( 8, "gone", 56, NOW ) ) );
         when( store.agentByApiKey( 57 ) ).thenReturn( Optional.empty() );
-        assertEquals( Actor.agent( 7, "codex" ), service.actorForApiKey( 55, "lena" ) );
-        assertNull( service.actorForApiKey( 56, "lena" ) );
-        assertEquals( Actor.human( "lena", Set.of(), false ), service.actorForApiKey( 57, "lena" ) );
+        assertEquals( Actor.agent( 7, "codex" ), service.registry().actorForApiKey( 55, "lena" ) );
+        assertNull( service.registry().actorForApiKey( 56, "lena" ) );
+        assertEquals( Actor.human( "lena", Set.of(), false ), service.registry().actorForApiKey( 57, "lena" ) );
     }
 
     @Test

@@ -23,6 +23,11 @@ import java.util.Set;
 /** Who is acting: a person or an agent, with group memberships and the wiki-admin flag. */
 public record Actor( String login, Set<String> groups, boolean admin, Kind kind, Long agentId ) {
 
+    /** An agent is never an admin whatever flag it is built with: the flag is a person's, so it is dropped here. */
+    public Actor {
+        admin = admin && kind == Kind.HUMAN;
+    }
+
     /** Whether the actor is a person or an agent. */
     public enum Kind { HUMAN, AGENT }
 
@@ -31,9 +36,9 @@ public record Actor( String login, Set<String> groups, boolean admin, Kind kind,
         return new Actor( name, Set.of(), false, Kind.AGENT, agentId );
     }
 
-    /** Whether the actor is a person with the wiki-admin flag; an agent is never an instance admin, whatever its flag. */
+    /** Whether the actor is a person with the wiki-admin flag; the same as {@link #admin()}, which only a person can be. */
     public boolean instanceAdmin() {
-        return admin && kind == Kind.HUMAN;
+        return admin;
     }
 
     /** A human actor. */

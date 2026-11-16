@@ -180,4 +180,29 @@ class JdbcWorkRegistryPostgresTest {
         assertEquals( "23505", e.getSQLState() );
         assertEquals( "other", store.agent( two.id() ).orElseThrow().name() );
     }
+
+    @Test
+    void rebindRecordsTheOldKeyInHistory() throws SQLException {
+        final int first = newKey();
+        final int second = newKey();
+        final Agent a = store.registerAgent( "a", "", "", first, List.of() );
+        assertFalse( store.wasEverAgentKey( first ), "a bound key is not history yet" );
+        store.rebindAgentKey( a.id(), second );
+        assertTrue( store.wasEverAgentKey( first ) );
+        assertFalse( store.wasEverAgentKey( second ) );
+        assertEquals( second, store.agent( a.id() ).orElseThrow().apiKeyId() );
+        assertFalse( store.wasEverAgentKey( newKey() ), "a key never bound to an agent" );
+    }
+
+    @Test
+    void rebindToAKeyBoundElsewhereLeavesNoHistory() throws SQLException {
+        final int first = newKey();
+        final int other = newKey();
+        final Agent a = store.registerAgent( "a", "", "", first, List.of() );
+        store.registerAgent( "b", "", "", other, List.of() );
+        final SQLException e = assertThrows( SQLException.class, () -> store.rebindAgentKey( a.id(), other ) );
+        assertEquals( "23505", e.getSQLState() );
+        assertFalse( store.wasEverAgentKey( first ) );
+        assertEquals( first, store.agent( a.id() ).orElseThrow().apiKeyId() );
+    }
 }

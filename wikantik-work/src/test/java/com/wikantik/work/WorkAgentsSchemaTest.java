@@ -43,7 +43,7 @@ class WorkAgentsSchemaTest {
     @BeforeEach
     void setUp() {
         ds = PostgresTestDb.createDataSource();
-        PostgresTestDb.truncate( "work_agent_queue", "work_agent", "work_queue",
+        PostgresTestDb.truncate( "work_agent_key_history", "work_agent_queue", "work_agent", "work_queue",
             "work_link", "work_mention", "work_comment", "work_event",
             "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
     }
@@ -84,7 +84,8 @@ class WorkAgentsSchemaTest {
                 found.add( rs.getString( 1 ) );
             }
         }
-        assertTrue( found.containsAll( java.util.List.of( "work_queue", "work_agent", "work_agent_queue" ) ),
+        assertTrue( found.containsAll( java.util.List.of( "work_queue", "work_agent", "work_agent_queue",
+            "work_agent_key_history" ) ),
             "found: " + found );
     }
 
@@ -182,6 +183,33 @@ class WorkAgentsSchemaTest {
         exec( sql );
         exec( sql );
         assertEquals( before, fingerprint() );
+    }
+
+    @Test
+    void keyHistoryTableExistsAndIsKeyedByTheApiKey() throws SQLException {
+        final long key = apiKey( "work" );
+        final long a = agent( "codex", key );
+        exec( "INSERT INTO work_agent_key_history (api_key_id, agent_id) VALUES (" + key + "," + a + ")" );
+        assertEquals( "23505", state( assertThrows( SQLException.class, () -> exec(
+            "INSERT INTO work_agent_key_history (api_key_id, agent_id) VALUES (" + key + "," + a + ")" ) ) ) );
+        assertEquals( "23503", state( assertThrows( SQLException.class, () -> exec(
+            "INSERT INTO work_agent_key_history (api_key_id, agent_id) VALUES (" + apiKey( "work" ) + ",999999)" ) ) ) );
+        assertEquals( "23503", state( assertThrows( SQLException.class, () -> exec(
+            "INSERT INTO work_agent_key_history (api_key_id, agent_id) VALUES (999999," + a + ")" ) ) ) );
+    }
+
+    @Test
+    void v077IsANoOpWhenReapplied() throws Exception {
+        final long key = apiKey( "work" );
+        exec( "INSERT INTO work_agent_key_history (api_key_id, agent_id) VALUES (" + key + ","
+            + agent( "codex", apiKey( "work" ) ) + ")" );
+        final String before = fingerprint() + scalar( "SELECT count(*) FROM work_agent_key_history" );
+        final java.nio.file.Path file = java.nio.file.Path.of( "..", "bin", "db", "migrations",
+            "V077__work_agent_key_history.sql" );
+        final String sql = java.nio.file.Files.readString( file ).replace( ":app_user", "CURRENT_USER" );
+        exec( sql );
+        exec( sql );
+        assertEquals( before, fingerprint() + scalar( "SELECT count(*) FROM work_agent_key_history" ) );
     }
 
     /** Columns, constraints, indexes and row counts, so a re-run that added anything shows up. */

@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
+import com.wikantik.work.WaitingItem;
 
 import java.util.List;
 
@@ -31,7 +32,7 @@ public class WorkMeResource extends WorkResourceBase {
     protected void routes( final List< Object[] > r ) {
         route( r, "GET", "me", c -> {
             final JsonObject out = new JsonObject();
-            out.add( "waitingOn", toTree( c.svc.waitingOn( c.actor ), c.actor ) );
+            out.add( "waitingOn", toTree( c.svc.waitingOn( c.actor ).stream().map( WaitingItem::item ).toList(), c.actor ) );
             out.add( "projects", visibleProjects( c ) );
             c.json( out );
         } );

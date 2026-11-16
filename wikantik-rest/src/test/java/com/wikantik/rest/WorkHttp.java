@@ -114,6 +114,6 @@ final class WorkHttp {
 
     static WorkService.ItemView view( final String key, final String assignee, final int version ) {
         return new WorkService.ItemView( item( key, assignee, version ), "<p>Body</p>", "PLAT", null, null, List.of(),
-            List.of(), List.of(), false, WorkRole.MEMBER, false );
+            List.of(), List.of(), false, WorkRole.MEMBER, false, null );
     }
 }

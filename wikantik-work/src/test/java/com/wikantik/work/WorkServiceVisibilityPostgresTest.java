@@ -54,26 +54,27 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > WRITES = Set.of( "createProject", "updateProject", "archiveProject",
         "putMember", "removeMember", "createProduct", "updateProduct", "archiveProduct", "createItem", "updateItem",
         "addComment", "editComment", "removeComment", "addLink", "removeLink", "createQueue", "updateQueue",
-        "retireQueue", "registerAgent", "updateAgent", "rotateAgentKey", "retireAgent" );
+        "retireQueue", "registerAgent", "updateAgent", "rotateAgentKey", "retireAgent", "claim", "release", "handoff" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
-    private static final Set< String > SYSTEM = Set.of( "actorForApiKey" );
+    private static final Set< String > SYSTEM = Set.of( "actorForApiKey", "sweepExpiredClaims" );
 
     /** Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. */
-    private static final Set< String > FACADES = Set.of( "registry" );
+    private static final Set< String > FACADES = Set.of( "registry", "claims" );
 
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
-        "listProjectsWithRoles", "listQueues", "listAgents" );
+        "listProjectsWithRoles", "listQueues", "listAgents", "claimable", "myClaims" );
 
-    private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1" );
+    private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer" );
 
     private final Actor mallory = Actor.human( "mallory", Set.of(), false );
     private final Actor lena = Actor.human( "lena", Set.of(), false );
     private final Actor admin = Actor.human( "admin", Set.of(), true );
     private Actor rogueAgent;
     private Actor flaggedAgent;
+    private Actor codexActor;
 
     private WorkService service;
     private long commentId;
@@ -92,6 +93,9 @@ class WorkServiceVisibilityPostgresTest {
         WorkAgentFixtures.exec( ds, "INSERT INTO work_agent_queue (agent_id, queue_key) VALUES (" + codex
             + ", 'implementer')" );
         final Project plat = store.createProject( "PLAT", "Platform", "secret roadmap" );
+        codexActor = Actor.agent( codex, "codex@docker2" );
+        store.putMember( plat.id(), String.valueOf( codex ), "agent", WorkRole.MEMBER,
+            Actor.human( "admin", java.util.Set.of(), false ) );
         store.putMember( plat.id(), "lena", "user", WorkRole.LEAD, Actor.human( "admin", java.util.Set.of(), false ) );
         store.createProduct( new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED, DeployGate.HUMAN,
             null ) );
@@ -101,6 +105,10 @@ class WorkServiceVisibilityPostgresTest {
             item.kind(), item.title(), item.body(), item.status(), item.priority(), item.rank(), null, "lena",
             item.reporter(), null, null, null, item.version(), item.createdAt(), item.updatedAt(), null, null, null, null, null, null );
         store.updateItem( item, assigned, Actor.human( "lena", java.util.Set.of(), false ), null );
+        // PLAT-2 is claimable, PLAT-3 is held by codex: claimable and myClaims return real data to prove against
+        store.createItem( plat, queued( "claimable item" ), lena );
+        final Item held = store.createItem( plat, queued( "held item" ), lena );
+        store.claims().claim( held, codexActor, java.time.Duration.ofHours( 1 ) );
         commentId = store.addComment( item, Actor.human( "lena", java.util.Set.of(), false ), "secret comment", List.of() ).id();
         linkId = store.addLink( item, "url", "https://example.com/secret", Actor.human( "lena", java.util.Set.of(), false ) ).id();
         service = new WorkService( store, md -> md, new WorkDirectory() {
@@ -108,6 +116,11 @@ class WorkServiceVisibilityPostgresTest {
             @Override public boolean exists( final String login ) { return true; }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC() );
+    }
+
+    private static Item queued( final String title ) {
+        return new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, title, "body", WorkStatus.READY, 3,
+            0, null, null, null, null, null, null, 0, null, null, null, "implementer", null, null, null, null );
     }
 
     private List< Actor > strangers() {
@@ -215,7 +228,8 @@ class WorkServiceVisibilityPostgresTest {
                 continue;
             }
             int provedAgainstRealData = 0;
-            for ( final Object[] asLead : argumentSets( m, lena ) ) {
+            for ( final Actor proving : List.of( lena, codexActor ) ) {
+            for ( final Object[] asLead : argumentSets( m, proving ) ) {
                 final Object seen;
                 try {
                     seen = invoke( m, op.target(), asLead );
@@ -242,6 +256,7 @@ class WorkServiceVisibilityPostgresTest {
                     }
                 }
             }
+            }
             assertTrue( provedAgainstRealData > 0,
                 m.getName() + " never returned real data to the project lead, so it proved nothing" );
         }
@@ -266,6 +281,12 @@ class WorkServiceVisibilityPostgresTest {
             () -> service.removeLink( mallory, linkId ) );
         for ( final var attempt : attempts ) {
             assertThrows( WorkNotFoundException.class, attempt );
+        }
+        final WorkClaimsService.Handoff handoff = new WorkClaimsService.Handoff( 1, null, null, "implementer", "n" );
+        for ( final Actor stranger : List.of( mallory, rogueAgent, flaggedAgent ) ) {
+            assertThrows( WorkNotFoundException.class, () -> service.claims().claim( stranger, "PLAT-2" ) );
+            assertThrows( WorkNotFoundException.class, () -> service.claims().release( stranger, "PLAT-3", "x" ) );
+            assertThrows( WorkNotFoundException.class, () -> service.claims().handoff( stranger, "PLAT-2", handoff ) );
         }
     }
 

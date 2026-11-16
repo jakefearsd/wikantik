@@ -152,6 +152,23 @@ class WorkAgentIdentityPostgresTest {
     }
 
     @Test
+    void admittedAgentNamedLikeAMemberGetsNoneOfTheirWork() throws SQLException {
+        service.putMember( admin, "PLAT", "jake", "user", WorkRole.MEMBER );
+        final Item item = service.createItem( lena, draft( "PLAT" ) ).item();
+        service.updateItem( admin, item.key(), new ItemPatch( item.version(),
+            java.util.Map.of( "assignee", "jake" ), null ) );
+        final Item mentioned = service.createItem( lena, draft( "PLAT" ) ).item();
+        service.addComment( admin, mentioned.key(), "over to @jake please" );
+        final Actor person = Actor.human( "jake", Set.of(), false );
+        assertEquals( 2, service.waitingOn( person ).size(), "the person has an assignment and a mention" );
+        final Actor agent = actorFor( register( "jake" ) );
+        service.putMember( admin, "PLAT", "jake", "agent", WorkRole.MEMBER );
+        assertEquals( List.of( "PLAT" ), service.listProjects( agent ).stream().map( Project::key ).toList() );
+        assertTrue( service.waitingOn( agent ).isEmpty(), "an agent never receives a person's lane by name" );
+        assertTrue( service.claims().myClaims( agent ).isEmpty() );
+    }
+
+    @Test
     void agentMemberAsLeadRejected() throws SQLException {
         register( "codex" );
         final WorkValidationException e = assertThrows( WorkValidationException.class,

@@ -315,7 +315,7 @@ class WorkItemResourceTest {
             null, "<p>yo</p>", List.of( "Name of alice" ), null );
         final WorkService.ItemView v = WorkHttp.view( "PLAT-1", null, 1 );
         Mockito.when( svc.item( ALICE, "PLAT-1" ) ).thenReturn( new WorkService.ItemView( v.item(), v.bodyHtml(),
-            v.projectKey(), null, null, List.of(), List.of( mine, theirs ), List.of(), false, WorkRole.MEMBER, false ) );
+            v.projectKey(), null, null, List.of(), List.of( mine, theirs ), List.of(), false, WorkRole.MEMBER, false, null ) );
         final var comments = get( "/PLAT-1", Map.of() ).json().getAsJsonObject().getAsJsonArray( "comments" );
         assertTrue( comments.get( 0 ).getAsJsonObject().get( "mine" ).getAsBoolean() );
         assertFalse( comments.get( 1 ).getAsJsonObject().get( "mine" ).getAsBoolean() );

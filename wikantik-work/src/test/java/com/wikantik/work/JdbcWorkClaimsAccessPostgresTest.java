@@ -225,6 +225,22 @@ class JdbcWorkClaimsAccessPostgresTest {
     }
 
     @Test
+    void claimWithAMismatchedProjectIdIsEmpty() throws Exception {
+        final Project ops = fx.store.createProject( "OPS", "Operations", "" );
+        fx.store.putMember( ops.id(), String.valueOf( fx.a.id() ), "agent", WorkRole.MEMBER, WorkClaimFixtures.LENA );
+        final Item real = fx.ready( "in PLAT" );
+        // a copy that names a project the agent belongs to, for an item that lives in another one
+        final Item wrongCopy = new Item( real.id(), ops.id(), real.key(), real.level(), real.parentId(),
+            real.productId(), real.kind(), real.title(), real.body(), real.status(), real.priority(), real.rank(),
+            real.dueOn(), real.assignee(), real.reporter(), real.autonomy(), real.doneMeans(), real.allowDirect(),
+            real.version(), real.createdAt(), real.updatedAt(), real.closedAt(), real.queue(), real.claimedByAgent(),
+            real.claimedAt(), real.claimExpiresAt(), real.reporterAgentId() );
+        assertTrue( claims.claim( wrongCopy, fx.actorA, HOUR ).isEmpty() );
+        assertEquals( real, fx.reload( real ) );
+        assertTrue( fx.events( real, WorkEvent.CLAIMED ).isEmpty() );
+    }
+
+    @Test
     void nonNumericAgentPrincipalIsWarnedAboutAndLeavesClaimsAlone() throws Exception {
         final Item held = claims.claim( fx.ready( "x" ), fx.actorA, HOUR ).orElseThrow();
         final String logger = JdbcWorkClaims.class.getName();
@@ -240,6 +256,7 @@ class JdbcWorkClaimsAccessPostgresTest {
             }
         };
         capture.start();
+        final Level before = core.getLevel();
         Configurator.setLevel( logger, Level.WARN );
         core.addAppender( capture );
         try {
@@ -249,6 +266,7 @@ class JdbcWorkClaimsAccessPostgresTest {
         } finally {
             core.removeAppender( capture );
             capture.stop();
+            Configurator.setLevel( logger, before );
         }
         assertEquals( 2, warnings.size(), warnings.toString() );
         assertTrue( warnings.get( 0 ).contains( String.valueOf( fx.plat.id() ) ) );

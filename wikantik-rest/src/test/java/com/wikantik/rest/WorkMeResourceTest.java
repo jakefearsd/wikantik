@@ -50,7 +50,7 @@ class WorkMeResourceTest {
 
     @Test
     void returnsWaitingOnItemsAndProjectsWithRole() throws Exception {
-        Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( WorkHttp.item( "PLAT-1", "alice", 1 ) ) );
+        Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem( WorkHttp.item( "PLAT-1", "alice", 1 ), "assigned", null ) ) );
         Mockito.when( svc.listProjectsWithRoles( ALICE ) ).thenReturn( List.of(
             new WorkService.ProjectRole( WorkHttp.project( "PLAT" ), WorkRole.LEAD ) ) );
         final JsonObject o = get().json().getAsJsonObject();
@@ -60,7 +60,7 @@ class WorkMeResourceTest {
 
     @Test
     void responseShowsDisplayNameNotLogin() throws Exception {
-        Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( WorkHttp.item( "PLAT-1", "alice", 1 ) ) );
+        Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem( WorkHttp.item( "PLAT-1", "alice", 1 ), "assigned", null ) ) );
         final JsonObject item = get().json().getAsJsonObject().getAsJsonArray( "waitingOn" ).get( 0 ).getAsJsonObject();
         assertEquals( "Name of alice", item.get( "assigneeName" ).getAsString() );
         assertEquals( "Name of alice", item.get( "assignee" ).getAsString(), "not even your own login" );

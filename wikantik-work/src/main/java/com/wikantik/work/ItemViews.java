@@ -73,7 +73,8 @@ final class ItemViews {
         final String productKey = item.productId() == null ? null : productKey( products, item.productId() );
         return new ItemView( item, html, s.project().key(), parent == null ? null : parent.key(), productKey,
             derivedProductKeys( item, products ), store.comments( item.id() ).stream().map( this::comment ).toList(),
-            store.links( item.id() ), store.isBlocked( item.id() ), s.effectiveRole(), s.project().archivedAt() != null );
+            store.links( item.id() ), store.isBlocked( item.id() ), s.effectiveRole(), s.project().archivedAt() != null,
+            wikiCluster( products, item.productId() ) );
     }
 
     /** The product keys an epic's descendants carry; empty for any other level. */
@@ -108,6 +109,12 @@ final class ItemViews {
         summarise( projectId, all ).forEach( x -> byId.put( x.item().id(), x ) );
         return columns.stream().map( c -> new SummaryColumn( c.status(), c.total(),
             c.items().stream().map( i -> byId.get( i.id() ) ).toList() ) ).toList();
+    }
+
+    /** The product's wiki cluster; null when the item has no product or the product names none. */
+    private static String wikiCluster( final List< Product > products, final Long productId ) {
+        return productId == null ? null : products.stream().filter( x -> x.id() == productId ).findFirst()
+            .map( Product::wikiCluster ).filter( c -> !c.isBlank() ).orElse( null );
     }
 
     private static String productKey( final List< Product > products, final long id ) {

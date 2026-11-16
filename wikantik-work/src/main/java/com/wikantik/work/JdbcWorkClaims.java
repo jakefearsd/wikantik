@@ -43,8 +43,9 @@ import static com.wikantik.work.JdbcWorkStore.ITEM_SELECT;
  * needed. A claim first takes shared locks on the agent row and the agent's member row, so a retirement, removal
  * or demotion that is in flight is waited for (and the claim then finds no row) rather than raced. Lock order is
  * always agent row, member row, item row; retirement locks agent then items, removal and demotion lock the member
- * row then items, and none takes the others' rows, so they cannot form a cycle. Endings (release, expiry, loss of access, retirement) lock the rows they end in the same statement, name
- * the holder from the locked row and write their event on the same connection.
+ * row then items, and none takes the others' rows, so they cannot form a cycle.
+ * Endings (release, expiry, loss of access, retirement) lock the rows they end in the same statement, name the
+ * holder from the locked row and write their event on the same connection.
  */
 final class JdbcWorkClaims implements WorkClaimStore {
 
@@ -79,7 +80,7 @@ final class JdbcWorkClaims implements WorkClaimStore {
                status           = CASE WHEN i.status = 'ready' THEN 'in_progress' ELSE i.status END,
                version          = i.version + CASE WHEN i.status = 'ready' THEN 1 ELSE 0 END,
                updated_at       = now()
-         WHERE i.id = ?
+         WHERE i.id = ? AND i.project_id = ?
            AND (   i.claimed_by_agent = ?
                 OR (     i.claimed_by_agent IS NULL AND i.status IN ('ready', 'review')
                      AND EXISTS ( SELECT 1 FROM work_agent_queue aq
@@ -157,8 +158,9 @@ final class JdbcWorkClaims implements WorkClaimStore {
                 ps.setLong( 2, agentId );
                 ps.setDouble( 3, seconds );
                 ps.setLong( 4, item.id() );
-                ps.setLong( 5, agentId );
+                ps.setLong( 5, item.projectId() );
                 ps.setLong( 6, agentId );
+                ps.setLong( 7, agentId );
             }, rs -> new Taken( rs.getLong( "id" ), rs.getLong( "project_id" ), rs.getBoolean( "taken" ),
                 rs.getString( "status" ) ) );
             if ( won.isEmpty() ) {

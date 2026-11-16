@@ -50,10 +50,13 @@ public class WorkService {
 
     private static final String NOT_FOUND = WorkScopes.NOT_FOUND;
 
-    /** An item together with everything a reader needs to show it; {@code archived}: its project is read-only. */
+    /**
+     * An item together with everything a reader needs to show it; {@code archived}: its project is read-only;
+     * {@code wikiCluster}: the wiki cluster of the item's product, null when it has none.
+     */
     public record ItemView( Item item, String bodyHtml, String projectKey, String parentKey, String productKey,
                             List< String > derivedProductKeys, List< CommentView > comments, List< Link > links,
-                            boolean blocked, WorkRole viewerRole, boolean archived ) {
+                            boolean blocked, WorkRole viewerRole, boolean archived, String wikiCluster ) {
     }
 
     /** A visible project and the caller's role in it. */
@@ -75,6 +78,7 @@ public class WorkService {
     private final Clock clock;
     private final ItemPatchApplier applier;
     private final WorkRegistryService registry;
+    private final WorkClaimsService claims;
 
     /** A newly registered or rotated agent and its API token, which is shown once and never stored or logged. */
     public record AgentWithToken( Agent agent, String token ) {
@@ -117,10 +121,11 @@ public class WorkService {
         this.store = store;
         this.scopes = new WorkScopes( store, directory, observer::denied );
         this.people = new WorkPeople( directory );
+        this.applier = new ItemPatchApplier( store, scopes::isMember );
         this.registry = new WorkRegistryService( store, scopes, people, keys, clock );
         this.views = new ItemViews( store, renderer, people );
+        this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
-        this.applier = new ItemPatchApplier( store, scopes::isMember );
     }
 
     // ---- projects
@@ -259,6 +264,11 @@ public class WorkService {
     /** Queues, agents and the identity an API key stands for. */
     public WorkRegistryService registry() {
         return registry;
+    }
+
+    /** Claims, release, hand-off and the claimable lists. */
+    public WorkClaimsService claims() {
+        return claims;
     }
 
     // ---- items
@@ -425,8 +435,15 @@ public class WorkService {
 
     // ---- me
 
-    /** Open items assigned to the actor plus items that mention them, across visible projects only. */
-    public List< Item > waitingOn( final Actor actor ) throws SQLException {
+    /**
+     * What waits on the actor: open items assigned to a person (each with the hand-off that put it there) and items
+     * that mention them, across visible projects only. An agent has no such lane: it works from its queues and
+     * claims, never from a name that may be shared with a person.
+     */
+    public List< WaitingItem > waitingOn( final Actor actor ) throws SQLException {
+        if ( actor.kind() == Actor.Kind.AGENT ) {
+            return List.of();
+        }
         final Set< Long > ids = store.visibleProjects( actor ).stream().map( Project::id )
             .collect( Collectors.toCollection( LinkedHashSet::new ) );
         if ( ids.isEmpty() ) {
@@ -436,11 +453,15 @@ public class WorkService {
         for ( final Item i : store.assignedOpen( actor.login(), ids ) ) {
             byId.putIfAbsent( i.id(), i );
         }
+        final Set< Long > assigned = new LinkedHashSet<>( byId.keySet() );
         for ( final Item i : store.mentioning( actor.login(), ids ) ) {
             byId.putIfAbsent( i.id(), i );
         }
-        final List< Item > out = new ArrayList<>( byId.values() );
-        out.sort( Comparator.comparing( Item::updatedAt, Comparator.nullsLast( Comparator.reverseOrder() ) ) );
-        return out;
+        final List< Item > ordered = new ArrayList<>( byId.values() );
+        ordered.sort( Comparator.comparing( Item::updatedAt, Comparator.nullsLast( Comparator.reverseOrder() ) ) );
+        final Map< Long, WorkEvent > handoffs = store.lastHandoffs( assigned );
+        return ordered.stream().map( i -> assigned.contains( i.id() )
+            ? new WaitingItem( i, WaitingItem.ASSIGNED, handoffs.get( i.id() ) )
+            : new WaitingItem( i, WaitingItem.MENTIONED, null ) ).toList();
     }
 }

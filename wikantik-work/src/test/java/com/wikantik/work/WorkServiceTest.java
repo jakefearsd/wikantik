@@ -393,7 +393,7 @@ class WorkServiceTest {
         when( store.assignedOpen( "alice", Set.of( 1L ) ) ).thenReturn( List.of( older ) );
         when( store.mentioning( "alice", Set.of( 1L ) ) ).thenReturn( List.of( newer, older ) );
         assertEquals( List.of( "PLAT-4", "PLAT-3" ),
-            service.waitingOn( alice ).stream().map( Item::key ).toList() );
+            service.waitingOn( alice ).stream().map( w -> w.item().key() ).toList() );
         verify( store, never() ).assignedOpen( eq( "alice" ), eq( Set.of( 1L, 2L ) ) );
     }
 

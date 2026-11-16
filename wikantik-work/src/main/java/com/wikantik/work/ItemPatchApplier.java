@@ -33,7 +33,7 @@ final class ItemPatchApplier {
 
     /** The closed set of keys an {@link ItemPatch} may carry. */
     static final Set< String > KEYS = Set.of( "title", "body", "status", "priority", "rank", "dueOn", "assignee",
-        "parentKey", "productKey", "kind", "autonomy", "doneMeans", "allowDirect" );
+        "queue", "parentKey", "productKey", "kind", "autonomy", "doneMeans", "allowDirect" );
 
     static final Set< String > POLICY_KEYS = Set.of( "autonomy", "doneMeans", "allowDirect" );
     static final Set< String > MOVE_KEYS = Set.of( "status", "rank" );
@@ -42,18 +42,12 @@ final class ItemPatchApplier {
     private static final double RANK_STEP = 1024.0;
     private static final String NO_PARENT = "No such item in this project.";
 
-    /** Whether a login holds a role on a project; the service resolves it through the directory's groups. */
-    @FunctionalInterface
-    interface MemberCheck {
-        boolean isMember( long projectId, String login ) throws SQLException;
-    }
-
     private final WorkStore store;
-    private final MemberCheck members;
+    private final ItemTargets targets;
 
-    ItemPatchApplier( final WorkStore store, final MemberCheck members ) {
+    ItemPatchApplier( final WorkStore store, final ItemTargets.MemberCheck members ) {
         this.store = store;
-        this.members = members;
+        this.targets = new ItemTargets( store, members );
     }
 
     /**
@@ -81,10 +75,9 @@ final class ItemPatchApplier {
         final Item next = new Item( 0, project.id(), null, d.level(), parent == null ? null : parent.id(),
             product == null ? null : product.id(), d.kind() == null ? WorkKind.SOFTWARE : d.kind(), d.title(),
             d.body() == null ? "" : d.body(), WorkStatus.DRAFT, priority, 0, d.dueOn(), assignee, null, null, null,
-            null, 0, null, null, null, d.queue(), null, null, null, null );
-        JdbcWorkCatalog.requireOneTarget( next );
+            null, 0, null, null, null, PatchValues.blankToNull( d.queue() ), null, null, null, null );
+        targets.checkNew( project, next );
         validate( next, parent );
-        checkAssignee( project, null, assignee );
         return next;
     }
 
@@ -105,19 +98,22 @@ final class ItemPatchApplier {
         final Long productId = changes.containsKey( "productKey" )
             ? changedProduct( changes.get( "productKey" ) ) : current.productId();
         final WorkStatus status = pick( changes, "status", PatchValues::status, current.status() );
-        final String assignee = pick( changes, "assignee", PatchValues::assignee, current.assignee() );
+        final String queue = targets.changedQueue( current, changes );
+        final String assignee = queue != null && changes.containsKey( "queue" ) ? null
+            : pick( changes, "assignee", PatchValues::assignee, current.assignee() );
         final double rank = changes.containsKey( "rank" ) ? PatchValues.number( "rank", changes.get( "rank" ) )
             : status != current.status() ? store.maxRank( project.id(), status ) + RANK_STEP : current.rank();
-        final Item next = merged( current, changes, parentId, productId, status, rank, assignee );
+        final Item next = merged( current, changes, parentId, productId, status, rank, assignee, queue );
         validate( next, newParent );
-        checkAssignee( project, current.assignee(), assignee );
+        targets.checkAssignee( project, current.assignee(), assignee );
         checkHandoffNote( current, next, note );
         return next;
     }
 
     /** The current item with the patched fields replaced; the fields resolved by {@link #apply} come in ready. */
     private static Item merged( final Item current, final Map< String, Object > changes, final Long parentId,
-            final Long productId, final WorkStatus status, final double rank, final String assignee ) {
+            final Long productId, final WorkStatus status, final double rank, final String assignee,
+            final String queue ) {
         return new Item( current.id(), current.projectId(), current.key(), current.level(), parentId, productId,
             pick( changes, "kind", PatchValues::kind, current.kind() ),
             pick( changes, "title", v -> PatchValues.string( "title", v ), current.title() ),
@@ -131,8 +127,7 @@ final class ItemPatchApplier {
             pick( changes, "doneMeans", PatchValues::doneMeans, current.doneMeans() ),
             pick( changes, "allowDirect", PatchValues::allowDirect, current.allowDirect() ),
             current.version(), current.createdAt(), current.updatedAt(), current.closedAt(),
-            // Naming a person takes the item off its queue: an item has one assignment target.
-            changes.containsKey( "assignee" ) && assignee != null ? null : current.queue(),
+            queue,
             current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(), current.reporterAgentId() );
     }
 
@@ -187,13 +182,6 @@ final class ItemPatchApplier {
         if ( newParent != null && !newParent.level().canParent( next.level() ) ) {
             throw new WorkValidationException( "parentKey",
                 "A " + newParent.level().wire() + " cannot be the parent of a " + next.level().wire() + "." );
-        }
-    }
-
-    private void checkAssignee( final Project project, final String before, final String after )
-            throws SQLException {
-        if ( after != null && !after.equals( before ) && !members.isMember( project.id(), after ) ) {
-            throw new WorkValidationException( "assignee", "The assignee is not a member of this project." );
         }
     }
 

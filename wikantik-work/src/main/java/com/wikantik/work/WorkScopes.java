@@ -158,9 +158,16 @@ final class WorkScopes {
         }
     }
 
-    /** Denies, and records the denial, unless {@code actor} wrote {@code comment}. */
+    /**
+     * Denies, and records the denial, unless {@code actor} wrote {@code comment}. An agent wrote it when the comment
+     * carries the agent's id; a person when it carries no agent id and their login. Names are never compared across
+     * the two, so an agent and a person who share a name cannot touch each other's comments.
+     */
     void requireAuthor( final Actor actor, final Comment comment, final String message ) {
-        if ( !comment.author().equals( actor.login() ) ) {
+        final boolean wrote = actor.kind() == Actor.Kind.AGENT
+            ? actor.agentId() != null && actor.agentId().equals( comment.authorAgentId() )
+            : comment.authorAgentId() == null && comment.author().equals( actor.login() );
+        if ( !wrote ) {
             denied( Action.COMMENT );
             throw new WorkDeniedException( message );
         }

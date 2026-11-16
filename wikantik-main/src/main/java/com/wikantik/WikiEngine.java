@@ -1942,7 +1942,7 @@ public class WikiEngine implements Engine {
                 io.micrometer.core.instrument.Gauge.builder( com.wikantik.work.runtime.WorkClaimSweeper.ALIVE_GAUGE,
                         this, e -> {
                             final com.wikantik.work.runtime.WorkClaimSweeper s =
-                                e.getManager( com.wikantik.work.runtime.WorkClaimSweeper.class );
+                                e.serviceRegistry.get( com.wikantik.work.runtime.WorkClaimSweeper.class );
                             return s != null && s.alive() ? 1d : 0d;
                         } )
                     .description( "1 while the work claim-expiry sweeper runs, 0 once it has stopped" )

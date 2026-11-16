@@ -67,6 +67,7 @@ public final class WorkClaimSweeper implements AutoCloseable {
      * because claims then never lapse, and hand it on to the JVM's default handler as an uncaught throwable would be.
      */
     private static void stopped( final Thread t, final Throwable e ) {
+        // LOG.error justified: claims stop expiring until a restart, which an operator must see and act on.
         LOG.error( "work claim sweeper stopped — claims will not expire until restart: {}", e.toString(), e );
         final Thread.UncaughtExceptionHandler fallback = Thread.getDefaultUncaughtExceptionHandler();
         if ( fallback != null ) {

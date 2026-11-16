@@ -93,6 +93,53 @@ final class WorkIt {
         return caller;
     }
 
+    /** A client with no cookie jar: every request carries exactly the headers it is given. */
+    private static final HttpClient PLAIN = HttpClient.newBuilder().followRedirects( HttpClient.Redirect.NEVER ).build();
+
+    /**
+     * One request that carries only {@code Authorization: Bearer <token>} (no cookie jar, no session), plus any extra
+     * headers given as name/value pairs. A null token sends no Authorization header at all.
+     */
+    static HttpResponse< String > bearer( final String token, final String method, final String path, final String body,
+                                          final String... extraHeaders ) throws Exception {
+        final HttpRequest.Builder b = HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
+            .header( "Accept", "application/json" )
+            .method( method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString( body ) );
+        if ( body != null ) {
+            b.header( "Content-Type", "application/json" );
+        }
+        if ( token != null ) {
+            b.header( "Authorization", "Bearer " + token );
+        }
+        for ( int i = 0; i + 1 < extraHeaders.length; i += 2 ) {
+            b.setHeader( extraHeaders[ i ], extraHeaders[ i + 1 ] );
+        }
+        return PLAIN.send( b.build(), HttpResponse.BodyHandlers.ofString() );
+    }
+
+    /** Every {@code Set-Cookie} header of the response, as sent. */
+    static List< String > setCookies( final HttpResponse< ? > r ) {
+        return r.headers().allValues( "Set-Cookie" );
+    }
+
+    /** An agent registered by the admin; the token is kept in memory only, never printed. */
+    record Agent( long id, String name, String token ) {
+    }
+
+    /** Registers an agent through the admin API (201) and keeps its one-time token. */
+    static Agent registerAgent( final Caller admin, final String name, final String... queues ) throws Exception {
+        final HttpResponse< String > r = admin.send( "POST", "/api/work/agents", Map.of( "name", name,
+            "vendor", "it", "runtime", "it", "queues", List.of( queues ) ) );
+        assertEquals( 201, r.statusCode(), "register " + name + ": " + status( r ) );
+        final com.google.gson.JsonObject o = json( r ).getAsJsonObject();
+        return new Agent( o.getAsJsonObject( "agent" ).get( "id" ).getAsLong(), name, o.get( "token" ).getAsString() );
+    }
+
+    /** The status line only: response bodies of key-bearing calls are not written to logs or messages. */
+    static String status( final HttpResponse< String > r ) {
+        return r.statusCode() + ( r.statusCode() >= 400 ? " " + r.body() : "" );
+    }
+
     static JsonElement json( final HttpResponse< String > r ) {
         return JsonParser.parseString( r.body() );
     }

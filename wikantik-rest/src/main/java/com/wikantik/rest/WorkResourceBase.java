@@ -239,7 +239,7 @@ public abstract class WorkResourceBase extends RestServletBase {
         } catch ( final WorkDeniedException e ) {
             sendError( response, HttpServletResponse.SC_FORBIDDEN, e.reason() );
         } catch ( final WorkValidationException e ) {
-            sendValidation( response, e );
+            WorkJson.writeValidation( response, e );
         } catch ( final WorkConflictException e ) {
             conflict( request, response, svc, actor, segs, e );
         } catch ( final WorkUnavailableException e ) {
@@ -253,13 +253,6 @@ public abstract class WorkResourceBase extends RestServletBase {
     }
 
     // ---- error bodies
-
-    private void sendValidation( final HttpServletResponse response, final WorkValidationException e )
-            throws IOException {
-        final JsonObject body = WorkJson.errorBody( HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
-        body.addProperty( "field", e.field() );
-        WorkJson.write( response, HttpServletResponse.SC_BAD_REQUEST, body );
-    }
 
     /**
      * A 409 with its {@code reason}: {@code stale} (and, for an item PATCH, the {@code current} item to merge against),

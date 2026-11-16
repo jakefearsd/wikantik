@@ -28,6 +28,7 @@ import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import com.wikantik.work.WorkValidationException;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
@@ -113,6 +114,14 @@ final class WorkJson {
         .registerTypeAdapter( LocalDate.class, ( com.google.gson.JsonSerializer< LocalDate > )
             ( src, t, ctx ) -> new JsonPrimitive( src.toString() ) )
         .create();
+
+    /** A 400 naming the field: {@link #errorBody} plus {@code field}. */
+    static void writeValidation( final HttpServletResponse response, final WorkValidationException e )
+            throws IOException {
+        final JsonObject body = errorBody( HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
+        body.addProperty( "field", e.field() );
+        write( response, HttpServletResponse.SC_BAD_REQUEST, body );
+    }
 
     static JsonObject errorBody( final int status, final String message ) {
         final JsonObject body = new JsonObject();

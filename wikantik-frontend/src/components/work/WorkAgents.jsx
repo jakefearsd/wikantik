@@ -25,8 +25,11 @@ export default function WorkAgents() {
   const [registering, setRegistering] = useState(false);
   const [pending, setPending] = useState(null); // { agent, action: 'rotate' | 'retire' }
   const [busy, setBusy] = useState(false);
-  // The one-time key. Component state only: dropped on Done and on unmount, never persisted anywhere.
-  const [secret, setSecret] = useState(null); // { agentName, token }
+  // Every minted key, each with its own panel. Append-only until that entry's Done: a later register or rotate can
+  // never replace a key the admin has not copied. Component state only: dropped on Done and on unmount.
+  const [keys, setKeys] = useState([]); // [{ id, agentName, token }]
+  const nextKey = useRef(0);
+  const addKey = (agentName, token) => setKeys((k) => [...k, { id: ++nextKey.current, agentName, token }]);
   const seq = useRef(0);
   const mounted = useRef(true);
   // Set true in the body too: StrictMode's simulated unmount would otherwise leave it false for good.
@@ -52,9 +55,11 @@ export default function WorkAgents() {
   // Until /api/auth/user resolves the user is null: deciding now would bounce a signed-in admin.
   if (authLoading) return <Spinner label="Loading…" />;
   if (!isAdmin) return <Navigate to="/work" replace />;
-  const locked = !!secret;
+  const locked = keys.length > 0;
   const lockProps = { disabled: locked, 'aria-describedby': locked ? LOCK_HINT : undefined };
-  const panel = secret && <WorkTokenPanel agentName={secret.agentName} token={secret.token} onDone={() => setSecret(null)} />;
+  const panel = keys.map((k) => (
+    <WorkTokenPanel key={k.id} agentName={k.agentName} token={k.token} onDone={() => setKeys((all) => all.filter((x) => x.id !== k.id))} />
+  ));
   // The key panel sits above every load state: a failed or slow list read must never hide an unseen key.
   if (state.error) return <div className="work-products">{panel}<WorkLoadError error={state.error} fallback="Could not load agents and queues." onRetry={load} /></div>;
   if (!state.agents) return <div className="work-products">{panel}<Spinner label="Loading agents…" /></div>;
@@ -65,18 +70,18 @@ export default function WorkAgents() {
   function registered(made) {
     if (!mounted.current) return;
     setRegistering(false);
-    setSecret({ agentName: made.agent?.name || 'agent', token: made.token });
+    addKey(made.agent?.name || 'agent', made.token);
     load();
   }
 
   function confirmed() {
-    if (busy || !pending) return;
+    if (busy || locked || !pending) return;
     const { agent, action } = pending;
     setBusy(true);
     const done = () => { if (mounted.current) { setPending(null); setBusy(false); } };
     if (action === 'rotate') {
       rotateAgentKey(agent.id)
-        .then((made) => { if (mounted.current) setSecret({ agentName: agent.name, token: made.token }); })
+        .then((made) => { if (mounted.current) addKey(agent.name, made.token); })
         .catch((err) => toast.error(err?.message || 'Could not rotate the key.'))
         .finally(done);
     } else {
@@ -96,7 +101,7 @@ export default function WorkAgents() {
       <section className="work-section" aria-label="Agents">
         <h2 className="work-subheading">Agents</h2>
         {registering
-          ? <WorkAgentForm queues={state.queues} onRegistered={registered} onCancel={() => setRegistering(false)} />
+          ? <WorkAgentForm queues={state.queues} locked={locked} lockedHint={LOCK_HINT} onRegistered={registered} onCancel={() => setRegistering(false)} />
           : <p><button type="button" className="btn btn-sm" {...lockProps} onClick={() => setRegistering(true)}>Register agent</button></p>}
         {sorted.length === 0 ? <EmptyState message="No agents registered yet." /> : (
           <ul className="work-product-rows">
@@ -118,7 +123,7 @@ export default function WorkAgents() {
                 </div>}
                 {!a.retiredAt && editing !== a.id && (pending?.agent.id === a.id
                   ? (
-                    <WorkConfirm disabled={busy} onYes={confirmed} onNo={() => setPending(null)}
+                    <WorkConfirm disabled={busy || locked} onYes={confirmed} onNo={() => setPending(null)}
                       yes={pending.action === 'rotate' ? `Yes, rotate ${a.name}` : `Yes, retire ${a.name}`}>
                       {pending.action === 'rotate'
                         ? `Rotate the key of ${a.name}? The old key stops working immediately.`
@@ -140,7 +145,7 @@ export default function WorkAgents() {
           </ul>
         )}
       </section>
-      <WorkQueues queues={state.queues} reload={load}/>
+      <WorkQueues queues={state.queues} reload={load} />
     </div>
   );
 }

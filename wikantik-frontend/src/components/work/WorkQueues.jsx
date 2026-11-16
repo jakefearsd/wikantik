@@ -7,7 +7,7 @@ import WorkConfirm from './WorkConfirm';
 const KEY_PATTERN = /^[a-z][a-z0-9-]{1,29}$/;
 const KEY_MESSAGE = 'Key must start with a lowercase letter and use only lowercase letters, digits and hyphens (2 to 30 characters).';
 
-function QueueForm({ queue, onDone, onCancel, locked }) {
+function QueueForm({ queue, onDone, onCancel }) {
   const toast = useToast();
   const editing = !!queue;
   const [f, setF] = useState({ key: queue?.key || '', name: queue?.name || '', description: queue?.description || '' });
@@ -19,7 +19,7 @@ function QueueForm({ queue, onDone, onCancel, locked }) {
 
   function submit(e) {
     e.preventDefault();
-    if (busy || locked) return;
+    if (busy) return;
     if (!editing && !KEY_PATTERN.test(f.key)) { setErrors({ key: KEY_MESSAGE }); return; }
     if (!f.name.trim()) { setErrors({ name: 'Enter a name.' }); return; }
     setErrors({}); setBusy(true);
@@ -58,7 +58,7 @@ function QueueForm({ queue, onDone, onCancel, locked }) {
 }
 
 /** The queue half of /work/agents. `queues` is the loaded list; `reload` re-reads it. */
-export default function WorkQueues({ queues, reload, locked = false, lockedHint }) {
+export default function WorkQueues({ queues, reload }) {
   const toast = useToast();
   const [creating, setCreating] = useState(false);
   const [retiring, setRetiring] = useState(null);
@@ -80,7 +80,7 @@ export default function WorkQueues({ queues, reload, locked = false, lockedHint 
       <h2 className="work-subheading">Queues</h2>
       {creating
         ? <QueueForm onDone={() => { setCreating(false); reload(); }} onCancel={() => setCreating(false)} />
-        : <p><button type="button" className="btn btn-sm" disabled={locked} aria-describedby={locked ? lockedHint : undefined}
+        : <p><button type="button" className="btn btn-sm"
           onClick={() => setCreating(true)}>New queue</button></p>}
       {sorted.length === 0 ? <EmptyState message="No queues yet." /> : (
         <ul className="work-product-rows">
@@ -103,8 +103,7 @@ export default function WorkQueues({ queues, reload, locked = false, lockedHint 
                 )
                 : (
                   <div className="work-actions">
-                    <button type="button" className="btn btn-sm" aria-label={`Edit queue ${q.key}`} disabled={locked}
-                      aria-describedby={locked ? lockedHint : undefined} onClick={() => setEditing(q.key)}>Edit</button>
+                    <button type="button" className="btn btn-sm" aria-label={`Edit queue ${q.key}`} onClick={() => setEditing(q.key)}>Edit</button>
                     <button type="button" className="btn btn-sm btn-ghost" aria-label={`Retire queue ${q.key}`}
                       onClick={() => setRetiring(q.key)}>Retire</button>
                   </div>

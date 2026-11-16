@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Select from '../ui/Select';
 import { registerAgent, updateAgent } from '../../api/work';
 import { api } from '../../api/client';
@@ -23,7 +23,6 @@ function OwnerPicker({ owner, onChange, disabled, error, errorId }) {
   const [query, setQuery] = useState('');
   const [names, setNames] = useState([]);
   const [loadError, setLoadError] = useState(null);
-  const first = useRef(true);
 
   useEffect(() => {
     let live = true;
@@ -34,8 +33,7 @@ function OwnerPicker({ owner, onChange, disabled, error, errorId }) {
           console.warn('WorkAgentForm: could not search users', err);
           if (live) setLoadError('Could not search users.');
         });
-    }, first.current ? 0 : SEARCH_DELAY_MS);
-    first.current = false;
+    }, query === '' ? 0 : SEARCH_DELAY_MS);
     return () => { live = false; clearTimeout(timer); };
   }, [query]);
 
@@ -57,7 +55,7 @@ function OwnerPicker({ owner, onChange, disabled, error, errorId }) {
  * Register an agent, or (with `agent`) edit one. `onRegistered({ agent, token })` receives the one-time token; this
  * form keeps none of it. Editing never mints or shows a key and cannot change the key owner.
  */
-export default function WorkAgentForm({ queues, agent, onRegistered, onSaved, onCancel }) {
+export default function WorkAgentForm({ queues, agent, locked = false, lockedHint, onRegistered, onSaved, onCancel }) {
   const toast = useToast();
   const editing = !!agent;
   const [f, setF] = useState({ name: agent?.name || '', vendor: agent?.vendor || '', runtime: agent?.runtime || '', owner: '' });
@@ -74,7 +72,7 @@ export default function WorkAgentForm({ queues, agent, onRegistered, onSaved, on
 
   function submit(e) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || (locked && !editing)) return;
     if (!NAME_PATTERN.test(f.name)) { setErrors({ name: NAME_MESSAGE }); return; }
     setErrors({}); setBusy(true);
     const fields = { name: f.name, vendor: f.vendor.trim(), runtime: f.runtime.trim(), queues: picked };
@@ -119,7 +117,8 @@ export default function WorkAgentForm({ queues, agent, onRegistered, onSaved, on
       {note('queues')}
       {errors.form && <div className="work-form-error" role="alert">{errors.form}</div>}
       <div className="work-actions">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{editing ? 'Save agent' : 'Register'}</button>
+        <button type="submit" className="btn btn-primary btn-sm" disabled={busy || (locked && !editing)}
+          aria-describedby={locked && !editing ? lockedHint : undefined}>{editing ? 'Save agent' : 'Register'}</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
       </div>
     </form>

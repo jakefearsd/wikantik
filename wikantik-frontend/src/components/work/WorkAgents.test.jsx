@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
@@ -390,5 +390,106 @@ describe('WorkAgents', () => {
     api.listMentionableUsers.mockRejectedValue(new Error('nope'));
     fireEvent.change(screen.getByLabelText('Find key owner'), { target: { value: 'yy' } });
     expect(await screen.findByText(/Could not search users/)).toBeInTheDocument();
+  });
+
+  // ---- every minted key keeps its own panel ----
+  const REG = 'REG_TOKEN_AAA';
+  const ROT = 'ROT_TOKEN_BBB';
+  function deferred() { let resolve; const promise = new Promise((r) => { resolve = r; }); return { promise, resolve }; }
+
+  let unmountPage;
+  async function registerInFlight() {
+    const reg = deferred();
+    registerAgent.mockReturnValue(reg.promise);
+    rotateAgentKey.mockResolvedValue({ agent: AGENTS[1], token: ROT });
+    unmountPage = renderPage().unmount;
+    await openRegister();
+    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+    return () => reg.resolve({ agent: { id: 9, name: 'new-bot' }, token: REG });
+  }
+  async function rotateTriage() {
+    const row = (await screen.findAllByTestId('agent-row'))[0];
+    fireEvent.click(within(row).getByRole('button', { name: 'Rotate key of triage-bot' }));
+    fireEvent.click(screen.getByRole('button', { name: /Yes, rotate/ }));
+  }
+
+  it('aRotationCompletingWhileARegisterIsInFlightKeepsBothKeys', async () => {
+    const finishRegister = await registerInFlight();
+    await rotateTriage();
+    await screen.findByText(ROT);
+    await act(async () => { finishRegister(); });
+    const rotPanel = await screen.findByRole('dialog', { name: 'API key for triage-bot' });
+    const regPanel = await screen.findByRole('dialog', { name: 'API key for new-bot' });
+    expect(within(rotPanel).getByText(ROT)).toBeInTheDocument();
+    expect(within(regPanel).getByText(REG)).toBeInTheDocument();
+  });
+
+  it('doneRemovesOnlyThatKey', async () => {
+    const finishRegister = await registerInFlight();
+    await rotateTriage();
+    await screen.findByText(ROT);
+    await act(async () => { finishRegister(); });
+    const regPanel = await screen.findByRole('dialog', { name: 'API key for new-bot' });
+    fireEvent.click(within(regPanel).getByRole('button', { name: 'Done' }));
+    expect(screen.queryByText(REG)).not.toBeInTheDocument();
+    expect(screen.getByText(ROT)).toBeInTheDocument();
+  });
+
+  it('anAlreadyOpenRegisterFormIsLockedWhileAKeyIsShown', async () => {
+    renderPage();
+    await openRegister();
+    const row = (await screen.findAllByTestId('agent-row'))[0];
+    fireEvent.click(within(row).getByRole('button', { name: 'Rotate key of triage-bot' }));
+    fireEvent.click(screen.getByRole('button', { name: /Yes, rotate/ }));
+    await screen.findByText(SECRET);
+    const submit = screen.getByRole('button', { name: 'Register' });
+    expect(submit).toBeDisabled();
+    expect(submit).toHaveAccessibleDescription(/Copy or dismiss the key shown above first/);
+    fireEvent.click(submit);
+    expect(registerAgent).not.toHaveBeenCalled();
+  });
+
+  it('anAlreadyOpenRotateConfirmIsLockedWhileAKeyIsShown', async () => {
+    const finishRegister = await registerInFlight();
+    const row = (await screen.findAllByTestId('agent-row'))[0];
+    fireEvent.click(within(row).getByRole('button', { name: 'Rotate key of triage-bot' }));
+    await act(async () => { finishRegister(); });
+    await screen.findByText(REG);
+    const yes = screen.getByRole('button', { name: /Yes, rotate/ });
+    expect(yes).toBeDisabled();
+    fireEvent.click(yes);
+    expect(rotateAgentKey).not.toHaveBeenCalled();
+    expect(screen.getByText(REG)).toBeInTheDocument();
+  });
+
+  it('unmountDropsEveryKey', async () => {
+    const finishRegister = await registerInFlight();
+    await rotateTriage();
+    await screen.findByText(ROT);
+    await act(async () => { finishRegister(); });
+    await screen.findByText(REG);
+    unmountPage();
+    expect(document.body.textContent).not.toContain(REG);
+    expect(document.body.textContent).not.toContain(ROT);
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  it('StrictMode: the owner list loads when the register form opens', async () => {
+    renderPage({ strict: true });
+    await screen.findByText('triage-bot');
+    fireEvent.click(screen.getByRole('button', { name: 'Register agent' }));
+    const owner = await screen.findByLabelText('Key owner');
+    await waitFor(() => expect(within(owner).getByRole('option', { name: 'Alice A' })).toBeInTheDocument(), { timeout: 150 });
+  });
+
+  it('a vendor-only edit sends the unchanged name and succeeds', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit triage-bot' }));
+    fireEvent.change(screen.getByLabelText('Vendor'), { target: { value: 'globex' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save agent' }));
+    await waitFor(() => expect(updateAgent).toHaveBeenCalledWith(1, expect.objectContaining({ name: 'triage-bot', vendor: 'globex' })));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save agent' })).not.toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

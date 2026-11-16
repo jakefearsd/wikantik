@@ -53,6 +53,7 @@ class ConfigSurfaceDriftTest {
         Map.entry( "wikantik.insights.ingest.rows", "metric (InsightsMetrics.ROWS_METRIC)" ),
         Map.entry( "wikantik.insights.ingest.last_success_timestamp", "metric (InsightsMetrics.LAST_SUCCESS_METRIC)" ),
         Map.entry( "wikantik.apikey.record", "request attribute" ),
+        Map.entry( "wikantik.work.agentRef", "request attribute" ),
         Map.entry( "wikantik.context", "request attribute" ),
         Map.entry( "wikantik.runFilters", "Context variable" ),
         Map.entry( "wikantik.policy", "policy file name" ),

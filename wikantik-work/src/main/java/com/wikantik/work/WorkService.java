@@ -210,7 +210,8 @@ public class WorkService {
             WorkInputs.requireAgentRole( role );
         }
         listener.released( store.putMember( s.project().id(),
-            registry.memberPrincipal( actor, principal, principalKind, true ), principalKind, role, actor ) );
+            registry.memberPrincipal( actor, principal, principalKind, true ), principalKind, role, actor,
+            claims.sponsorsHoldingClaimsIn( s.project().id() ) ) );
     }
 
     public void removeMember( final Actor actor, final String key, final String principal,
@@ -220,7 +221,8 @@ public class WorkService {
         s.requireWritable();
         WorkInputs.requireMemberRef( principal, principalKind );
         listener.released( store.removeMember( s.project().id(),
-            registry.memberPrincipal( actor, principal, principalKind, false ), principalKind, actor ) );
+            registry.memberPrincipal( actor, principal, principalKind, false ), principalKind, actor,
+            claims.sponsorsHoldingClaimsIn( s.project().id() ) ) );
     }
 
     public WorkRole roleIn( final Actor actor, final String key ) throws SQLException {

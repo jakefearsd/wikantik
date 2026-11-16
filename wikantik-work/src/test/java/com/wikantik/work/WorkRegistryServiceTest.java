@@ -172,7 +172,7 @@ class WorkRegistryServiceTest {
         when( store.agentByName( "codex" ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
         when( store.agentByName( "gone" ) ).thenReturn( Optional.of( agent( 8, "gone", 56, NOW ) ) );
         service.putMember( admin, "PLAT", "Codex", "agent", WorkRole.MEMBER );
-        verify( store ).putMember( 1L, "7", "agent", WorkRole.MEMBER, admin );
+        verify( store ).putMember( 1L, "7", "agent", WorkRole.MEMBER, admin, java.util.List.of() );
         assertEquals( "principal", assertThrows( WorkValidationException.class,
             () -> service.putMember( admin, "PLAT", "gone", "agent", WorkRole.MEMBER ) ).field() );
         assertThrows( WorkValidationException.class,
@@ -180,7 +180,7 @@ class WorkRegistryServiceTest {
         assertEquals( "role", assertThrows( WorkValidationException.class,
             () -> service.putMember( admin, "PLAT", "codex", "agent", WorkRole.LEAD ) ).field() );
         service.removeMember( admin, "PLAT", "gone", "agent" );
-        verify( store ).removeMember( 1L, "8", "agent", admin );
+        verify( store ).removeMember( 1L, "8", "agent", admin, java.util.List.of() );
     }
 
 

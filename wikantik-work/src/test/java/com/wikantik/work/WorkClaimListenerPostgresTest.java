@@ -60,6 +60,10 @@ class WorkClaimListenerPostgresTest {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
             @Override public String displayName( final String login ) { return login; }
+            @Override public Optional< Person > person( final String login ) {
+                // The agents here are sponsored by the wiki admin who registered them.
+                return Optional.of( new Person( login, Set.of(), "admin".equals( login ) ) );
+            }
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return "Lena Lead".equals( name ) ? Optional.of( "lena" ) : Optional.empty();
             }
@@ -73,8 +77,8 @@ class WorkClaimListenerPostgresTest {
         svc.registry().createQueue( admin, "implementer", "Implementer", "" );
         agentA = svc.registry().registerAgent( admin, new AgentDraft( "agent-a", "", "", List.of( "implementer" ) ) ).agent();
         agentB = svc.registry().registerAgent( admin, new AgentDraft( "agent-b", "", "", List.of( "implementer" ) ) ).agent();
-        a = WorkAgentFixtures.sponsored( agentA.id(), agentA.name() );
-        b = WorkAgentFixtures.sponsored( agentB.id(), agentB.name() );
+        a = Actor.agent( agentA.id(), agentA.name(), admin );
+        b = Actor.agent( agentB.id(), agentB.name(), admin );
         svc.putMember( admin, "PLAT", "agent-a", "agent", WorkRole.MEMBER );
         svc.putMember( admin, "OPS", "agent-a", "agent", WorkRole.MEMBER );
         svc.putMember( admin, "PLAT", "agent-b", "agent", WorkRole.MEMBER );

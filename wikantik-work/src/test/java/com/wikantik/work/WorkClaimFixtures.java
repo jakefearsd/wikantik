@@ -51,7 +51,8 @@ final class WorkClaimFixtures {
     }
 
     Agent agent( final String name, final List< String > queues ) throws SQLException {
-        return store.registerAgent( name, "", "", ( int ) WorkAgentFixtures.apiKey( ds, "work" ), queues );
+        // Sponsored on its row by the same admin WorkAgentFixtures.sponsored resolves, as the claim lock requires.
+        return store.registerAgent( name, "", "", queues, "sponsor-root" );
     }
 
     /** A task with the given status, priority, due date, person and queue (the last two exclusive). */

@@ -243,7 +243,8 @@ public final class WorkRegistryService {
     public Agent takeOver( final Actor actor, final long agentId ) throws SQLException {
         final Agent existing = sponsorship.requireVisible( actor, agentId, false );
         sponsorship.requireMayTakeOver( actor, existing );
-        store.setSponsor( agentId, actor.login(), actor.login() );
+        // One transaction: the new sponsor, the history row, and the end of every claim outside their reach.
+        listener.released( store.claims().setSponsorAndRelease( agentId, actor, actor.login(), actor ) );
         LOG.info( "Work agent '{}' taken over by {}", existing.name(), actor.login() );
         changes.audit( actor, "work.agent.takeover", AGENT, existing.name(), null );
         return withoutKey( store.agent( agentId ).orElse( existing ) );
@@ -253,7 +254,8 @@ public final class WorkRegistryService {
     public void releaseSponsorship( final Actor actor, final long agentId ) throws SQLException {
         final Agent existing = sponsorship.requireVisible( actor, agentId, false );
         sponsorship.requireSponsorOrAdmin( actor, existing );
-        store.setSponsor( agentId, null, actor.login() );
+        // With nobody behind it the agent may hold nothing: every claim ends in the same transaction.
+        listener.released( store.claims().setSponsorAndRelease( agentId, null, actor.login(), actor ) );
         LOG.info( "Work agent '{}' released by its sponsor ({})", existing.name(), actor.login() );
         changes.audit( actor, "work.agent.sponsor_released", AGENT, existing.name(), null );
     }

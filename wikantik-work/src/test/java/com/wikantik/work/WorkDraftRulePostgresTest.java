@@ -88,7 +88,7 @@ class WorkDraftRulePostgresTest {
         svc.registry().createQueue( admin, "implementer", "Implementer", "" );
         final Agent a = svc.registry().registerAgent( admin, new AgentDraft( "builder", "", "", List.of( "implementer" ) ) ).agent();
         svc.putMember( admin, "PLAT", "builder", "agent", WorkRole.MEMBER );
-        agent = WorkAgentFixtures.sponsored( a.id(), a.name() );
+        agent = Actor.agent( a.id(), a.name(), admin );
     }
 
     private Item draftByAgent() throws SQLException {

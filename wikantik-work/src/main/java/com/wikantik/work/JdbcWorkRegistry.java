@@ -136,11 +136,21 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
     public void setSponsor( final long agentId, final String sponsorOrNull, final String changedBy )
             throws SQLException {
         jdbc.inTransaction( conn -> {
-            jdbc.update( conn, "UPDATE work_agent SET sponsor = ? WHERE id = ?",
-                ps -> { ps.setString( 1, sponsorOrNull ); ps.setLong( 2, agentId ); } );
-            insertSponsorChange( conn, agentId, sponsorOrNull, changedBy );
+            setSponsor( conn, agentId, sponsorOrNull, changedBy );
             return null;
         } );
+    }
+
+    /**
+     * The sponsor change on the caller's connection, for a transaction that also ends claims. The UPDATE takes the
+     * agent row's lock, so a claim in flight (which share-locks that row with the sponsor it was resolved under) is
+     * waited for, and one that waited finds its sponsor gone from the row.
+     */
+    void setSponsor( final java.sql.Connection conn, final long agentId, final String sponsorOrNull,
+                     final String changedBy ) throws SQLException {
+        jdbc.update( conn, "UPDATE work_agent SET sponsor = ? WHERE id = ?",
+            ps -> { ps.setString( 1, sponsorOrNull ); ps.setLong( 2, agentId ); } );
+        insertSponsorChange( conn, agentId, sponsorOrNull, changedBy );
     }
 
     private void insertSponsorChange( final java.sql.Connection conn, final long agentId, final String sponsor,

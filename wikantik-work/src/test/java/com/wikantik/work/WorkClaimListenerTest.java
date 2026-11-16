@@ -135,14 +135,14 @@ class WorkClaimListenerTest {
 
     @Test
     void removingAnAgentMemberReportsOneReleasedPerClaim() throws SQLException {
-        when( store.removeMember( anyLong(), eq( "7" ), eq( "agent" ), any( Actor.class ) ) ).thenReturn( 2 );
+        when( store.removeMember( anyLong(), eq( "7" ), eq( "agent" ), any( Actor.class ), any() ) ).thenReturn( 2 );
         service.removeMember( admin, "PLAT", "codex@docker2", "agent" );
         assertEquals( List.of( ClaimOutcome.RELEASED, ClaimOutcome.RELEASED ), outcomes );
     }
 
     @Test
     void demotingAnAgentToViewerReportsItsReleases() throws SQLException {
-        when( store.putMember( anyLong(), eq( "7" ), eq( "agent" ), eq( WorkRole.VIEWER ), any( Actor.class ) ) )
+        when( store.putMember( anyLong(), eq( "7" ), eq( "agent" ), eq( WorkRole.VIEWER ), any( Actor.class ), any() ) )
             .thenReturn( 1 );
         service.putMember( admin, "PLAT", "codex@docker2", "agent", WorkRole.VIEWER );
         assertEquals( List.of( ClaimOutcome.RELEASED ), outcomes );
@@ -168,7 +168,7 @@ class WorkClaimListenerTest {
         stored( item( WorkStatus.IN_PROGRESS, 7L ) );
         when( store.writeItem( any(), any(), any( Actor.class ), any(), org.mockito.ArgumentMatchers.anyBoolean() ) )
             .thenThrow( new WorkConflictException( "stale" ) );
-        when( store.removeMember( anyLong(), any(), any(), any( Actor.class ) ) ).thenThrow( new SQLException( "down" ) );
+        when( store.removeMember( anyLong(), any(), any(), any( Actor.class ), any() ) ).thenThrow( new SQLException( "down" ) );
         when( claims.retireAgent( anyLong(), any(), any( Actor.class ) ) ).thenThrow( new SQLException( "down" ) );
         assertThrows( WorkConflictException.class, () -> service.claims().handoff( lena, "PLAT-1", toLena() ) );
         assertThrows( WorkConflictException.class, () -> service.updateItem( lena, "PLAT-1",
@@ -183,7 +183,7 @@ class WorkClaimListenerTest {
         listenerThrows = true;
         stored( item( WorkStatus.IN_PROGRESS, 7L ) );
         storeClearsTheClaim();
-        when( store.removeMember( anyLong(), any(), any(), any( Actor.class ) ) ).thenReturn( 1 );
+        when( store.removeMember( anyLong(), any(), any(), any( Actor.class ), any() ) ).thenReturn( 1 );
         when( claims.retireAgent( anyLong(), any(), any( Actor.class ) ) ).thenReturn( 1 );
         assertEquals( WorkStatus.REVIEW, service.claims().handoff( lena, "PLAT-1", toLena() ).item().status() );
         service.updateItem( lena, "PLAT-1", new ItemPatch( 4, Map.of( "status", "ready" ), null ) );

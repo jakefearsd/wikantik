@@ -56,6 +56,8 @@ final class JdbcWorkClaims implements WorkClaimStore {
     static final String AGENT_RETIRED = "agent retired";
     /** Note on a release caused by archiving the item's project. */
     static final String PROJECT_ARCHIVED = "project archived";
+    /** The sponsor of the holding agent no longer has the standing to lend it (membership, takeover, release). */
+    static final String SPONSOR_ACCESS_REMOVED = "sponsor access removed";
 
     private static final Logger LOG = LogManager.getLogger( JdbcWorkClaims.class );
     private static final Pattern AGENT_ID = Pattern.compile( "\\d{1,18}" );
@@ -96,6 +98,22 @@ final class JdbcWorkClaims implements WorkClaimStore {
     /** Shared lock on the agent row: a retirement in flight is waited for, and a retired agent finds no row. */
     private static final String AGENT_LOCK_SQL =
         "SELECT 1 FROM work_agent WHERE id = ? AND retired_at IS NULL FOR SHARE";
+
+    /**
+     * The agent lock for an actor resolved with a sponsor: the row must still name that sponsor. A change of sponsor
+     * updates the row, so it is waited for, and a claim resolved under the old sponsor then finds no row.
+     */
+    private static final String SPONSORED_AGENT_LOCK_SQL =
+        "SELECT 1 FROM work_agent WHERE id = ? AND retired_at IS NULL AND sponsor = ? FOR SHARE";
+
+    /**
+     * Shared lock on every member row that gives the sponsor at least {@code member} in the project (their own row
+     * or a group's). No row means the sponsor has no standing to lend, and the agent cannot claim; a removal or
+     * demotion of one of those rows in flight is waited for.
+     */
+    private static final String SPONSOR_LOCK_SQL = "SELECT 1 FROM work_member WHERE project_id = ? "
+        + "AND ( ( principal_kind = 'user' AND principal = ? ) OR ( principal_kind = 'group' AND principal = ANY( ? ) ) ) "
+        + "AND role IN ( 'member', 'lead' ) FOR SHARE";
 
     /** Shared lock on the agent's member row: a removal or demotion in flight is waited for. */
     private static final String MEMBER_LOCK_SQL = "SELECT 1 FROM work_member WHERE project_id = ? "
@@ -157,12 +175,14 @@ final class JdbcWorkClaims implements WorkClaimStore {
         }
         final double seconds = expiry.toMillis() / 1000.0;
         return jdbc.inTransaction( conn -> {
-            // Lock order is always agent row, member row, project row, item row; see the class comment on why.
-            if ( !holdsRow( conn, AGENT_LOCK_SQL, ps -> ps.setLong( 1, agentId ) )
+            // Lock order is always agent row, the agent's member row, the sponsor's member rows, project row, item
+            // row; see the class comment on why.
+            if ( !holdsAgentRow( conn, agentId, agent.sponsor() )
                     || !holdsRow( conn, MEMBER_LOCK_SQL, ps -> {
                         ps.setLong( 1, item.projectId() );
                         ps.setString( 2, String.valueOf( agentId ) );
-                    } ) ) {
+                    } )
+                    || !sponsorStands( conn, item.projectId(), agent.sponsor() ) ) {
                 return Optional.< Claimed >empty();
             }
             if ( !holdsRow( conn, PROJECT_LOCK_SQL, ps -> ps.setLong( 1, item.projectId() ) ) ) {
@@ -199,7 +219,37 @@ final class JdbcWorkClaims implements WorkClaimStore {
 
     private boolean holdsRow( final Connection conn, final String lockSql, final SqlBinder binder )
             throws SQLException {
-        return jdbc.queryOne( conn, lockSql, binder, rs -> 1 ).isPresent();
+        return !jdbc.query( conn, lockSql, binder, rs -> 1 ).isEmpty();
+    }
+
+    /** The agent row lock; an actor resolved with a sponsor must still have that sponsor on its row. */
+    private boolean holdsAgentRow( final Connection conn, final long agentId, final Actor sponsor )
+            throws SQLException {
+        if ( sponsor == null ) {
+            return holdsRow( conn, AGENT_LOCK_SQL, ps -> ps.setLong( 1, agentId ) );
+        }
+        return holdsRow( conn, SPONSORED_AGENT_LOCK_SQL, ps -> {
+            ps.setLong( 1, agentId );
+            ps.setString( 2, sponsor.login() );
+        } );
+    }
+
+    /**
+     * Whether the sponsor can lend the agent {@code member} standing in the project, share-locking the rows that say
+     * so. A wiki admin sponsor needs none. An actor with no sponsor resolved is not checked here: the service gives
+     * such an actor no standing at all, and only store-level callers build one.
+     */
+    private boolean sponsorStands( final Connection conn, final long projectId, final Actor sponsor )
+            throws SQLException {
+        if ( sponsor == null || sponsor.instanceAdmin() ) {
+            return true;
+        }
+        final String[] groups = sponsor.groups() == null ? new String[ 0 ] : sponsor.groups().toArray( new String[ 0 ] );
+        return holdsRow( conn, SPONSOR_LOCK_SQL, ps -> {
+            ps.setLong( 1, projectId );
+            ps.setString( 2, sponsor.login() );
+            ps.setArray( 3, conn.createArrayOf( "text", groups ) );
+        } );
     }
 
     @Override
@@ -309,6 +359,77 @@ final class JdbcWorkClaims implements WorkClaimStore {
         final long agentId = Long.parseLong( agentPrincipal );
         return recordReleases( conn, end( conn, "w.claimed_by_agent = ? AND w.project_id = ?", "FOR NO KEY UPDATE OF w",
             ps -> { ps.setLong( 1, agentId ); ps.setLong( 2, projectId ); } ), by, note );
+    }
+
+    /**
+     * After a member row of the project changed, on that transaction's connection: each listed sponsor who is not a
+     * wiki admin and whose role there is now below {@code member} loses, for the agents they sponsor, every claim in
+     * the project.
+     */
+    int releaseForSponsors( final Connection conn, final long projectId, final java.util.Collection< Actor > sponsors,
+                            final Actor by ) throws SQLException {
+        int released = 0;
+        for ( final Actor sponsor : sponsors ) {
+            if ( sponsor == null || sponsor.instanceAdmin() || stands( conn, projectId, sponsor ) ) {
+                continue;
+            }
+            released += recordReleases( conn, end( conn, "w.project_id = ? AND w.claimed_by_agent IN "
+                    + "( SELECT s.id FROM work_agent s WHERE s.sponsor = ? )", "FOR NO KEY UPDATE OF w",
+                ps -> { ps.setLong( 1, projectId ); ps.setString( 2, sponsor.login() ); } ), by,
+                SPONSOR_ACCESS_REMOVED );
+        }
+        return released;
+    }
+
+    private boolean stands( final Connection conn, final long projectId, final Actor sponsor ) throws SQLException {
+        final WorkRole role = catalog.roleOn( conn, projectId, sponsor ).orElse( null );
+        return role != null && role.atLeast( WorkRole.MEMBER );
+    }
+
+    @Override
+    public List< Holder > claimHolders( final Long projectIdOrNull ) throws SQLException {
+        return jdbc.query( "SELECT DISTINCT w.claimed_by_agent, a.name, a.sponsor, w.project_id FROM work_item w "
+                + "JOIN work_agent a ON a.id = w.claimed_by_agent WHERE w.claimed_by_agent IS NOT NULL "
+                + "AND ( ?::bigint IS NULL OR w.project_id = ? ) ORDER BY w.project_id, w.claimed_by_agent",
+            ps -> {
+                ps.setObject( 1, projectIdOrNull, java.sql.Types.BIGINT );
+                ps.setObject( 2, projectIdOrNull, java.sql.Types.BIGINT );
+            },
+            rs -> new Holder( rs.getLong( 1 ), rs.getString( 2 ), rs.getString( 3 ), rs.getLong( 4 ) ) );
+    }
+
+    @Override
+    public int releaseForStanding( final long projectId, final java.util.Collection< Long > agentIds, final Actor by,
+                                   final String note ) throws SQLException {
+        if ( agentIds.isEmpty() ) {
+            return 0;
+        }
+        final Object[] ids = agentIds.toArray();
+        return jdbc.inTransaction( conn -> recordReleases( conn, end( conn,
+            "w.project_id = ? AND w.claimed_by_agent = ANY( ? )", "FOR NO KEY UPDATE OF w",
+            ps -> { ps.setLong( 1, projectId ); ps.setArray( 2, conn.createArrayOf( "bigint", ids ) ); } ), by, note ) );
+    }
+
+    @Override
+    public int setSponsorAndRelease( final long agentId, final Actor newSponsorOrNull, final String changedBy,
+                                     final Actor by ) throws SQLException {
+        return jdbc.inTransaction( conn -> {
+            catalog.setSponsor( conn, agentId, newSponsorOrNull == null ? null : newSponsorOrNull.login(), changedBy );
+            if ( newSponsorOrNull != null && newSponsorOrNull.instanceAdmin() ) {
+                return 0;
+            }
+            int released = 0;
+            final List< Long > projects = jdbc.query( conn, "SELECT DISTINCT project_id FROM work_item "
+                + "WHERE claimed_by_agent = ? ORDER BY project_id", ps -> ps.setLong( 1, agentId ), rs -> rs.getLong( 1 ) );
+            for ( final long projectId : projects ) {
+                if ( newSponsorOrNull == null || !stands( conn, projectId, newSponsorOrNull ) ) {
+                    released += recordReleases( conn, end( conn, "w.claimed_by_agent = ? AND w.project_id = ?",
+                        "FOR NO KEY UPDATE OF w", ps -> { ps.setLong( 1, agentId ); ps.setLong( 2, projectId ); } ), by,
+                        SPONSOR_ACCESS_REMOVED );
+                }
+            }
+            return released;
+        } );
     }
 
     /** Releases every claim in the project on the caller's connection, inside the archive transaction. */

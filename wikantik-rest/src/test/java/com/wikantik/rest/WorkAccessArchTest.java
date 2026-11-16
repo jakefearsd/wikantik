@@ -51,7 +51,9 @@ class WorkAccessArchTest {
     static final ArchRule no_rest_route_sweeps_expired_claims = noClasses()
         .that( resideInAPackage( "com.wikantik.rest.." ) )
         .should().callMethod( com.wikantik.work.WorkClaimsService.class, "sweepExpiredClaims" )
-        .because( "claim expiry is run by the scheduler, never on a caller's request" );
+        .orShould().callMethod( com.wikantik.work.WorkClaimsService.class, "sweepStanding" )
+        .because( "the claim sweeps (expiry, and sponsors who lost standing) are run by the scheduler, never on a "
+            + "caller's request" );
 
     @ArchTest
     static final ArchRule only_the_work_packages_touch_the_store = noClasses()

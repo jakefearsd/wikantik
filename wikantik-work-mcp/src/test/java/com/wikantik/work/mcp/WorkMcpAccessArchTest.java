@@ -50,7 +50,8 @@ class WorkMcpAccessArchTest {
         .should().dependOnClassesThat().haveSimpleNameStartingWith( "Jdbc" );
 
     private static final ArchRule NO_SWEEP = noClasses().that().resideInAPackage( PKG )
-        .should().callMethod( WorkClaimsService.class, "sweepExpiredClaims" );
+        .should().callMethod( WorkClaimsService.class, "sweepExpiredClaims" )
+        .orShould().callMethod( WorkClaimsService.class, "sweepStanding" );
 
     private static JavaClasses production() {
         return new ClassFileImporter().withImportOption( ImportOption.Predefined.DO_NOT_INCLUDE_TESTS )

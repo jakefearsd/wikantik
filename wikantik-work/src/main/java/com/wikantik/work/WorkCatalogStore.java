@@ -63,6 +63,15 @@ public interface WorkCatalogStore {
     int putMember( long projectId, String principal, String principalKind, WorkRole role, Actor by ) throws SQLException;
 
     /**
+     * {@link #putMember(long, String, String, WorkRole, Actor)}, and in the same transaction, after the change, each
+     * listed sponsor's role in the project is read again; where it is now below {@code member} (and the sponsor is
+     * not a wiki admin) the claims held in the project by the agents they sponsor are released with the reason
+     * {@code sponsor access removed}. The count returned includes those.
+     */
+    int putMember( long projectId, String principal, String principalKind, WorkRole role, Actor by,
+                   java.util.Collection< Actor > sponsorsToRecheck ) throws SQLException;
+
+    /**
      * Deletes the grant with a {@code member} event (to null), in one transaction; no grant, nothing written. An
      * agent's claims in the project are released in the same transaction.
      *
@@ -70,6 +79,10 @@ public interface WorkCatalogStore {
      */
     int removeMember( long projectId, String principal, String principalKind, Actor by )
         throws SQLException;
+
+    /** {@link #removeMember(long, String, String, Actor)} with the sponsor recheck of {@link #putMember}. */
+    int removeMember( long projectId, String principal, String principalKind, Actor by,
+                      java.util.Collection< Actor > sponsorsToRecheck ) throws SQLException;
 
     List< Member > members( long projectId ) throws SQLException;
 

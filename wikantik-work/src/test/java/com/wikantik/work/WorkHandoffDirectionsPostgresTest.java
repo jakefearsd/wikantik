@@ -101,7 +101,7 @@ class WorkHandoffDirectionsPostgresTest {
     private Actor admit( final String name, final String queue ) throws SQLException {
         final Agent agent = svc.registry().registerAgent( admin, new AgentDraft( name, "", "", List.of( queue ) ) ).agent();
         svc.putMember( admin, "PLAT", name, "agent", WorkRole.MEMBER );
-        return WorkAgentFixtures.sponsored( agent.id(), agent.name() );
+        return Actor.agent( agent.id(), agent.name(), admin );
     }
 
     private String create( final String assignee ) throws SQLException {

@@ -80,4 +80,27 @@ public interface WorkClaimStore {
      * @return how many claims that released; retiring an already-retired agent releases none
      */
     int retireAgent( long agentId, Instant at, Actor by ) throws SQLException;
+
+    /** An agent holding at least one live claim in a project, with the sponsor on its row (null for none). */
+    record Holder( long agentId, String agentName, String sponsor, long projectId ) {
+    }
+
+    /** The distinct agent and project pairs with a live claim, in one project or (null) everywhere. */
+    List< Holder > claimHolders( Long projectIdOrNull ) throws SQLException;
+
+    /**
+     * One transaction: ends the claims the listed agents hold in the project and writes a {@code released} event
+     * for each, with {@code note} as the reason and {@code by} as the actor. Returns how many ended.
+     */
+    int releaseForStanding( long projectId, java.util.Collection< Long > agentIds, Actor by, String note )
+        throws SQLException;
+
+    /**
+     * One transaction: sets the agent's sponsor ({@code newSponsorOrNull}: the new sponsor as resolved now, null to
+     * leave the agent with none), records the change in the sponsor history, and releases the agent's claims in
+     * every project where nobody, or the new sponsor, lacks {@code member} standing (a wiki admin sponsor lacks
+     * none). The reason is {@code sponsor access removed}; {@code by} is the person acting. A claim in flight
+     * under the old sponsor waits on the agent row and then finds that sponsor gone.
+     */
+    int setSponsorAndRelease( long agentId, Actor newSponsorOrNull, String changedBy, Actor by ) throws SQLException;
 }

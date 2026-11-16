@@ -163,7 +163,7 @@ final class WorkInputs {
      * a consequence would lose the person's words.
      */
     static final Set< String > RELEASE_REASONS = Set.of( "moved", "reassigned", "access removed", "agent retired",
-        "project archived" );
+        "project archived", "sponsor access removed" );
 
     static void requireReleaseNote( final String note ) {
         if ( note != null && RELEASE_REASONS.contains( note.trim().toLowerCase( Locale.ROOT ) ) ) {

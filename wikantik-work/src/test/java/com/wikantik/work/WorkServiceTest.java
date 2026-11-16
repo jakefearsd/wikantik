@@ -82,6 +82,7 @@ class WorkServiceTest {
     @BeforeEach
     void setUp() throws SQLException {
         store = mock( WorkStore.class );
+        org.mockito.Mockito.when( store.claims() ).thenReturn( org.mockito.Mockito.mock( WorkClaimStore.class ) );
         final WorkDirectory directory = new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
@@ -409,7 +410,7 @@ class WorkServiceTest {
         when( store.createProject( "NEW", "New", "" ) )
             .thenReturn( new Project( 3, "NEW", "New", "", Autonomy.SUPERVISED, NOW, null ) );
         assertEquals( "NEW", service.createProject( admin, "NEW", "New", "" ).key() );
-        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), any( Actor.class ) );
+        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), any( Actor.class ), any() );
     }
 
     @Test
@@ -423,7 +424,7 @@ class WorkServiceTest {
         assertThrows( WorkDeniedException.class,
             () -> service.putMember( alice, "PLAT", "bob", "user", WorkRole.LEAD ) );
         service.putMember( lead, "PLAT", "bob", "user", WorkRole.LEAD );
-        verify( store ).putMember( 1, "bob", "user", WorkRole.LEAD, Actor.human( "lena", java.util.Set.of(), false ) );
+        verify( store ).putMember( 1, "bob", "user", WorkRole.LEAD, Actor.human( "lena", java.util.Set.of(), false ), java.util.List.of() );
         assertThrows( WorkNotFoundException.class,
             () -> service.putMember( outsider, "PLAT", "bob", "user", WorkRole.LEAD ) );
     }

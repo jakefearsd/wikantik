@@ -60,7 +60,7 @@ class WorkServiceVisibilityPostgresTest {
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey", "agentNameForKey", "isAgentKey",
         "agentForToken", "actorForAgent",
-        "sweepExpiredClaims", "claimExpiry" );
+        "sweepExpiredClaims", "sweepStanding", "claimExpiry" );
 
     /**
      * Methods that return only the caller's own record, never project data: an agent's own agent row. They are not

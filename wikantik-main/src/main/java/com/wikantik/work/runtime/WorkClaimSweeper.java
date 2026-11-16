@@ -96,22 +96,44 @@ public final class WorkClaimSweeper implements AutoCloseable {
         }
     }
 
+    /**
+     * One cycle: lapsed claims are expired (draining a backlog, a full batch at a time), then claims whose holder's
+     * sponsor lost standing are ended. The two are independent: a failure in one never skips the other.
+     */
     private void cycle() {
+        sweepExpired();
+        if ( !isClosed() ) {
+            attempt( "standing", () -> service.claims().sweepStanding() );
+        }
+    }
+
+    private void sweepExpired() {
         for ( int pass = 0; pass < MAX_PASSES_PER_CYCLE && !isClosed(); pass++ ) {
-            try {
-                if ( service.claims().sweepExpiredClaims() < FULL_BATCH ) {
-                    return;
-                }
-            } catch ( final SQLException | RuntimeException e ) {
-                if ( isClosed() ) {
-                    // Interrupted by close(): shutting down, not a failure.
-                    LOG.debug( "Work claim sweep interrupted by shutdown: {}", e.getMessage() );
-                } else {
-                    LOG.warn( "Work claim sweep failed; the next pass will try again: {}", e.getMessage(), e );
-                }
+            final Integer swept = attempt( "expiry", () -> service.claims().sweepExpiredClaims() );
+            if ( swept == null || swept < FULL_BATCH ) {
                 return;
             }
         }
+    }
+
+    /** One sweep; null when it failed (logged, and the next cycle tries again). */
+    private Integer attempt( final String what, final Sweep sweep ) {
+        try {
+            return sweep.run();
+        } catch ( final SQLException | RuntimeException e ) {
+            if ( isClosed() ) {
+                // Interrupted by close(): shutting down, not a failure.
+                LOG.debug( "Work claim {} sweep interrupted by shutdown: {}", what, e.getMessage() );
+            } else {
+                LOG.warn( "Work claim {} sweep failed; the next pass will try again: {}", what, e.getMessage(), e );
+            }
+            return null;
+        }
+    }
+
+    @FunctionalInterface
+    private interface Sweep {
+        int run() throws SQLException;
     }
 
     /** Sleeps one interval; false when the sweeper was closed meanwhile. */

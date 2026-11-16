@@ -65,4 +65,11 @@ class WorkInputsAgentTest {
     void agentPrincipalKindAccepted() {
         assertDoesNotThrow( () -> WorkInputs.requireMember( "9", "agent", WorkRole.MEMBER ) );
     }
+
+    @Test
+    void sponsorAccessRemovedIsReserved() {
+        org.junit.jupiter.api.Assertions.assertThrows( WorkValidationException.class,
+            () -> WorkInputs.requireReleaseNote( "sponsor access removed" ),
+            "a person's release note must never pass for the system's reason" );
+    }
 }

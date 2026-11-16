@@ -86,7 +86,7 @@ class WorkServiceAssignmentLogTest {
         svc.registry().createQueue( admin, "implementer", "Implementer", "" );
         final Agent agent = svc.registry().registerAgent( admin, new AgentDraft( "codex@docker2", "", "",
             List.of( "implementer" ) ) ).agent();
-        codex = WorkAgentFixtures.sponsored( agent.id(), agent.name() );
+        codex = Actor.agent( agent.id(), agent.name(), admin );
     }
 
     private String ready( final Actor by, final String project, final String title ) throws SQLException {

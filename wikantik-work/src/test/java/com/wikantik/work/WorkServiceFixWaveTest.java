@@ -76,6 +76,7 @@ class WorkServiceFixWaveTest {
     @BeforeEach
     void setUp() throws SQLException {
         store = mock( WorkStore.class );
+        org.mockito.Mockito.when( store.claims() ).thenReturn( org.mockito.Mockito.mock( WorkClaimStore.class ) );
         service = new WorkService( store, md -> {
             rendered.add( md );
             return "<p>" + md + "</p>";
@@ -101,7 +102,7 @@ class WorkServiceFixWaveTest {
     @Test
     void aMemberIsAddedByDisplayNameAndStoredByLogin() throws SQLException {
         service.putMember( lead, "PLAT", "Ana Lima", "user", WorkRole.MEMBER );
-        verify( store ).putMember( 1, "u-7f3a", "user", WorkRole.MEMBER, lead );
+        verify( store ).putMember( 1, "u-7f3a", "user", WorkRole.MEMBER, lead, java.util.List.of() );
     }
 
     @Test
@@ -112,21 +113,21 @@ class WorkServiceFixWaveTest {
             WorkRole.MEMBER ) );
         assertEquals( "principal", real.field() );
         assertEquals( real.getMessage(), unreal.getMessage() );
-        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), any( Actor.class ) );
+        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), any( Actor.class ), any() );
     }
 
     @Test
     void anAdminMayAlsoSendALogin() throws SQLException {
         service.putMember( admin, "PLAT", "u-7f3a", "user", WorkRole.VIEWER );
-        verify( store ).putMember( 1, "u-7f3a", "user", WorkRole.VIEWER, admin );
+        verify( store ).putMember( 1, "u-7f3a", "user", WorkRole.VIEWER, admin, java.util.List.of() );
         service.removeMember( admin, "PLAT", "Bo", "user" );
-        verify( store ).removeMember( 1, "u-c01d", "user", admin );
+        verify( store ).removeMember( 1, "u-c01d", "user", admin, java.util.List.of() );
     }
 
     @Test
     void groupsAreNamedAsTheyAre() throws SQLException {
         service.putMember( lead, "PLAT", "editors", "group", WorkRole.VIEWER );
-        verify( store ).putMember( 1, "editors", "group", WorkRole.VIEWER, lead );
+        verify( store ).putMember( 1, "editors", "group", WorkRole.VIEWER, lead, java.util.List.of() );
     }
 
     @Test

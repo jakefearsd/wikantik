@@ -96,8 +96,9 @@ final class WorkAgentFixtures {
 
     /** An agent row bound to the given key. */
     static long agent( final DataSource ds, final String name, final long keyId ) throws SQLException {
-        return scalar( ds, "INSERT INTO work_agent (name, api_key_id) VALUES ('" + name + "'," + keyId
-            + ") RETURNING id" );
+        // Sponsored on its row by the admin that sponsored(...) resolves: the claim lock compares the two.
+        return scalar( ds, "INSERT INTO work_agent (name, api_key_id, sponsor) VALUES ('" + name + "'," + keyId
+            + ", 'sponsor-root') RETURNING id" );
     }
 
     /** An agent row on a fresh work-scope key. */

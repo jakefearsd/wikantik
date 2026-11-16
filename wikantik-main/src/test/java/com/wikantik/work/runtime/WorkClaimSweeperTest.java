@@ -289,4 +289,47 @@ class WorkClaimSweeperTest {
         assertTrue( events.stream().noneMatch( e -> e.getLevel().isMoreSpecificThan( org.apache.logging.log4j.Level.WARN )
             && e.getMessage().getFormattedMessage().contains( "sweep failed" ) ), "no WARN on shutdown: " + events );
     }
+
+    // ---- the standing sweep (phase 3a) runs in the same cycle
+
+    @Test
+    void aCycleRunsBothSweeps() throws Exception {
+        final CountDownLatch expiry = new CountDownLatch( 2 );
+        final CountDownLatch standing = new CountDownLatch( 2 );
+        when( service.claims() ).thenReturn( claims );
+        when( claims.sweepExpiredClaims() ).thenAnswer( inv -> {
+            expiry.countDown();
+            return 0;
+        } );
+        when( claims.sweepStanding() ).thenAnswer( inv -> {
+            standing.countDown();
+            return 0;
+        } );
+        try ( WorkClaimSweeper sweeper = WorkClaimSweeper.start( service, Duration.ofMillis( 50 ) ) ) {
+            await( expiry );
+            await( standing );
+        }
+    }
+
+    @Test
+    void aFailureInOneSweepDoesNotSkipTheOther() throws Exception {
+        final CountDownLatch standing = new CountDownLatch( 2 );
+        final CountDownLatch expiry = new CountDownLatch( 3 );
+        when( service.claims() ).thenReturn( claims );
+        when( claims.sweepExpiredClaims() ).thenAnswer( inv -> {
+            expiry.countDown();
+            throw new java.sql.SQLException( "expiry sweep down" );
+        } );
+        when( claims.sweepStanding() ).thenAnswer( inv -> {
+            standing.countDown();
+            if ( standing.getCount() == 1 ) {
+                throw new IllegalStateException( "standing sweep down once" );
+            }
+            return 0;
+        } );
+        try ( WorkClaimSweeper sweeper = WorkClaimSweeper.start( service, Duration.ofMillis( 50 ) ) ) {
+            await( standing );
+            await( expiry );
+        }
+    }
 }

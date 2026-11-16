@@ -197,6 +197,13 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     @Override
     public int putMember( final long projectId, final String principal, final String principalKind,
                            final WorkRole role, final Actor by ) throws SQLException {
+        return putMember( projectId, principal, principalKind, role, by, List.of() );
+    }
+
+    @Override
+    public int putMember( final long projectId, final String principal, final String principalKind,
+                           final WorkRole role, final Actor by, final java.util.Collection< Actor > sponsorsToRecheck )
+            throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
         if ( "agent".equals( principalKind ) ) {
             WorkInputs.requireAgentRole( role );
@@ -222,8 +229,9 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
             appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
                 before == null ? null : memberValue( principalKind, principal, before ),
                 memberValue( principalKind, principal, role ), null ) );
-            return role == WorkRole.VIEWER && "agent".equals( principalKind )
+            final int own = role == WorkRole.VIEWER && "agent".equals( principalKind )
                 ? claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED ) : 0;
+            return own + claims.releaseForSponsors( conn, projectId, sponsorsToRecheck, by );
         } );
     }
 
@@ -234,6 +242,13 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     @Override
     public int removeMember( final long projectId, final String principal, final String principalKind,
                               final Actor by ) throws SQLException {
+        return removeMember( projectId, principal, principalKind, by, List.of() );
+    }
+
+    @Override
+    public int removeMember( final long projectId, final String principal, final String principalKind,
+                              final Actor by, final java.util.Collection< Actor > sponsorsToRecheck )
+            throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
         return jdbc.inTransaction( conn -> {
             final Optional< WorkRole > removed = jdbc.queryOne( conn, "DELETE FROM work_member WHERE project_id = ? "
@@ -243,9 +258,9 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
             if ( removed.isPresent() ) {
                 appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
                     memberValue( principalKind, principal, removed.get() ), null, null ) );
-                if ( "agent".equals( principalKind ) ) {
-                    return claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED );
-                }
+                final int own = "agent".equals( principalKind )
+                    ? claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED ) : 0;
+                return own + claims.releaseForSponsors( conn, projectId, sponsorsToRecheck, by );
             }
             return 0;
         } );
@@ -319,14 +334,20 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
 
     @Override
     public Optional< WorkRole > roleFor( final long projectId, final Actor actor ) throws SQLException {
+        return jdbc.withConnection( conn -> roleOn( conn, projectId, actor ) );
+    }
+
+    /** {@link #roleFor} on the caller's connection: the role as this transaction sees the member rows. */
+    Optional< WorkRole > roleOn( final Connection conn, final long projectId, final Actor actor )
+            throws SQLException {
         final String[] groups = groupArray( actor );
         final String agent = agentPrincipal( actor );
-        final List< WorkRole > roles = jdbc.withConnection( conn -> jdbc.query( conn, ROLES_FOR_SQL, ps -> {
+        final List< WorkRole > roles = jdbc.query( conn, ROLES_FOR_SQL, ps -> {
             ps.setLong( 1, projectId );
             ps.setString( 2, userPrincipal( actor ) );
             ps.setArray( 3, conn.createArrayOf( "text", groups ) );
             ps.setString( 4, agent );
-        }, rs -> WorkRole.fromWire( rs.getString( 1 ) ) ) );
+        }, rs -> WorkRole.fromWire( rs.getString( 1 ) ) );
         return Optional.ofNullable( WorkRole.highest( roles ) );
     }
 

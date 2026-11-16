@@ -83,7 +83,7 @@ final class WorkMcpFixture {
         displayNames.put( "jdoe", "Jane Doe" );
         final AgentKeys keys = new AgentKeys() {
             @Override
-            public Minted mint( final String ownerLogin, final String label ) {
+            public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
                 try {
                     return new Minted( ( int ) apiKey( "work" ), "tok" );
                 } catch ( final SQLException e ) {
@@ -92,8 +92,8 @@ final class WorkMcpFixture {
             }
 
             @Override
-            public Minted remint( final int oldKeyId, final String label ) {
-                return mint( null, label );
+            public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
+                return mint( null, label, createdBy );
             }
 
             @Override

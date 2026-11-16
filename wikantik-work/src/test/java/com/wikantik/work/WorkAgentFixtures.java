@@ -56,6 +56,35 @@ final class WorkAgentFixtures {
             + UUID.randomUUID().toString().replace( "-", "" ) + "', 'owner', '" + scope + "') RETURNING id" );
     }
 
+    /** A fresh work key (random hash) owned by {@code owner}, as an agent-key fake mints it; null owner is 'owner'. */
+    static long ownedKey( final DataSource ds, final String owner ) throws SQLException {
+        try ( Connection c = ds.getConnection(); java.sql.PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO api_keys (key_hash, principal_login, scope) VALUES (?, ?, 'work') RETURNING id" ) ) {
+            ps.setString( 1, UUID.randomUUID().toString().replace( "-", "" ) );
+            ps.setString( 2, owner == null ? "owner" : owner );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                rs.next();
+                return rs.getLong( 1 );
+            }
+        }
+    }
+
+    /** The owner of a key: what a remint keeps (the fakes must preserve it, as the real port does). */
+    static String ownerOf( final DataSource ds, final long keyId ) {
+        try ( Connection c = ds.getConnection(); java.sql.PreparedStatement ps = c.prepareStatement(
+                "SELECT principal_login FROM api_keys WHERE id = ?" ) ) {
+            ps.setLong( 1, keyId );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                if ( !rs.next() ) {
+                    throw new WorkConflictException( "The agent's current API key was not found." );
+                }
+                return rs.getString( 1 );
+            }
+        } catch ( final SQLException e ) {
+            throw new IllegalStateException( e );
+        }
+    }
+
     /** An agent row bound to the given key. */
     static long agent( final DataSource ds, final String name, final long keyId ) throws SQLException {
         return scalar( ds, "INSERT INTO work_agent (name, api_key_id) VALUES ('" + name + "'," + keyId

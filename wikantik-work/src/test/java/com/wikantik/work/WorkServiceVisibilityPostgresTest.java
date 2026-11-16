@@ -324,7 +324,7 @@ class WorkServiceVisibilityPostgresTest {
                 () -> r.retireQueue( caller, "implementer" ),
                 () -> r.registerAgent( caller, agent ),
                 () -> r.updateAgent( caller, 1, agent ),
-                () -> r.rotateAgentKey( caller, 1 ),
+                () -> r.rotateAgentKey( caller, 1, null ),
                 () -> r.retireAgent( caller, 1 ) );
             for ( final var attempt : attempts ) {
                 assertThrows( WorkDeniedException.class, attempt, caller.login() );

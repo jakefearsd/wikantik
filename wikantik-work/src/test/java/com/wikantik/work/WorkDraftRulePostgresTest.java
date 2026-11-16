@@ -58,17 +58,17 @@ class WorkDraftRulePostgresTest {
         PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
         final AgentKeys keys = new AgentKeys() {
             @Override
-            public Minted mint( final String ownerLogin, final String label ) {
+            public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
                 try {
-                    return new Minted( ( int ) WorkAgentFixtures.apiKey( ds, "work" ), "tok" );
+                    return new Minted( ( int ) WorkAgentFixtures.ownedKey( ds, ownerLogin ), "tok" );
                 } catch ( final SQLException e ) {
                     throw new IllegalStateException( e );
                 }
             }
 
             @Override
-            public Minted remint( final int oldKeyId, final String label ) {
-                return mint( null, label );
+            public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
+                return mint( WorkAgentFixtures.ownerOf( ds, oldKeyId ), label, createdBy );
             }
 
             @Override

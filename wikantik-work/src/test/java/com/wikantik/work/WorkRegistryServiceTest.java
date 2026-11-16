@@ -58,18 +58,21 @@ class WorkRegistryServiceTest {
         final List< String > minted = new ArrayList<>();
         final List< String > reminted = new ArrayList<>();
         final List< String > revoked = new ArrayList<>();
+        final List< String > creators = new ArrayList<>();
         int next = 100;
         RuntimeException revokeFails;
 
         @Override
-        public Minted mint( final String ownerLogin, final String label ) {
+        public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
             minted.add( ownerLogin + "|" + label );
+            creators.add( createdBy );
             return new Minted( next++, "token-" + ( next - 1 ) );
         }
 
         @Override
-        public Minted remint( final int oldKeyId, final String label ) {
+        public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
             reminted.add( oldKeyId + "|" + label );
+            creators.add( createdBy );
             return new Minted( next++, "token-" + ( next - 1 ) );
         }
 
@@ -88,6 +91,8 @@ class WorkRegistryServiceTest {
     private WorkClaimStore claims;
     private FakeKeys keys;
     private WorkService service;
+    /** What reached the admin audit trail: {@code actor|action|type|target|detail}. */
+    private final List< String > audited = new ArrayList<>();
 
     private static Agent agent( final long id, final String name, final Integer key, final Instant retired ) {
         return new Agent( id, name, "", "", key, List.of( "implementer" ), NOW, retired );
@@ -107,7 +112,9 @@ class WorkRegistryServiceTest {
             @Override public boolean exists( final String login ) { return "lena".equals( login )
                 || "admin".equals( login ); }
             @Override public String displayName( final String login ) { return login; }
-        }, keys, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null );
+        }, keys, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null,
+            ( actor, action, type, target, detail ) -> audited.add( actor + "|" + action + "|" + type + "|" + target
+                + "|" + detail ) );
     }
 
     private AgentDraft draft( final String name, final String owner, final String... queues ) {
@@ -122,7 +129,7 @@ class WorkRegistryServiceTest {
         assertThrows( WorkDeniedException.class, () -> service.registry().retireQueue( mallory, "ops" ) );
         assertThrows( WorkDeniedException.class, () -> service.registry().registerAgent( mallory, d ) );
         assertThrows( WorkDeniedException.class, () -> service.registry().updateAgent( mallory, 1, d ) );
-        assertThrows( WorkDeniedException.class, () -> service.registry().rotateAgentKey( mallory, 1 ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().rotateAgentKey( mallory, 1, null ) );
         assertThrows( WorkDeniedException.class, () -> service.registry().retireAgent( mallory, 1 ) );
     }
 
@@ -132,7 +139,7 @@ class WorkRegistryServiceTest {
         when( store.queue( "ghost" ) ).thenReturn( Optional.empty() );
         assertThrows( WorkDeniedException.class, () -> service.registry().updateAgent( mallory, 999,
             draft( "x", "lena" ) ) );
-        assertThrows( WorkDeniedException.class, () -> service.registry().rotateAgentKey( mallory, 999 ) );
+        assertThrows( WorkDeniedException.class, () -> service.registry().rotateAgentKey( mallory, 999, null ) );
         assertThrows( WorkDeniedException.class, () -> service.registry().retireAgent( mallory, 999 ) );
         assertThrows( WorkDeniedException.class, () -> service.registry().retireQueue( mallory, "ghost" ) );
         assertThrows( WorkDeniedException.class, () -> service.registry().updateQueue( mallory, "ghost", "G", "" ) );
@@ -142,7 +149,7 @@ class WorkRegistryServiceTest {
     void adminGetsNotFoundForUnknownAgentAndQueue() throws SQLException {
         when( store.agent( 999 ) ).thenReturn( Optional.empty() );
         assertThrows( WorkNotFoundException.class, () -> service.registry().updateAgent( admin, 999, draft( "x", "lena" ) ) );
-        assertThrows( WorkNotFoundException.class, () -> service.registry().rotateAgentKey( admin, 999 ) );
+        assertThrows( WorkNotFoundException.class, () -> service.registry().rotateAgentKey( admin, 999, null ) );
         assertThrows( WorkNotFoundException.class, () -> service.registry().retireAgent( admin, 999 ) );
         assertThrows( WorkNotFoundException.class, () -> service.registry().retireQueue( admin, "nope" ) );
         assertThrows( WorkNotFoundException.class, () -> service.registry().updateQueue( admin, "nope", "N", "" ) );
@@ -283,7 +290,7 @@ class WorkRegistryServiceTest {
     @Test
     void rotateRevokesOldAfterRebind() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
-        final WorkService.AgentWithToken r = service.registry().rotateAgentKey( admin, 7 );
+        final WorkService.AgentWithToken r = service.registry().rotateAgentKey( admin, 7, null );
         assertEquals( 100, r.agent().apiKeyId() );
         assertEquals( "token-100", r.token() );
         assertEquals( List.of( "55|admin" ), keys.revoked );
@@ -293,7 +300,7 @@ class WorkRegistryServiceTest {
     @Test
     void rotateKeepsTheOriginalOwner() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
-        service.registry().rotateAgentKey( admin, 7 );
+        service.registry().rotateAgentKey( admin, 7, null );
         assertEquals( List.of( "55|work-agent:codex" ), keys.reminted, "the replacement is minted from the old key" );
         assertTrue( keys.minted.isEmpty(), "rotation never mints a key owned by the rotating admin" );
     }
@@ -301,7 +308,7 @@ class WorkRegistryServiceTest {
     @Test
     void rotateOfAnAgentWithNoKeyMintsForTheAdmin() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", null, null ) ) );
-        service.registry().rotateAgentKey( admin, 7 );
+        service.registry().rotateAgentKey( admin, 7, null );
         assertEquals( List.of( "admin|work-agent:codex" ), keys.minted );
         assertTrue( keys.reminted.isEmpty() );
         assertTrue( keys.revoked.isEmpty() );
@@ -311,10 +318,10 @@ class WorkRegistryServiceTest {
     void rotateWhenTheOldKeyCannotBeRemintedChangesNothing() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
         final AgentKeys failing = new AgentKeys() {
-            @Override public Minted mint( final String o, final String l ) {
+            @Override public Minted mint( final String o, final String l, final String by ) {
                 throw new AssertionError( "must not mint" );
             }
-            @Override public Minted remint( final int id, final String l ) {
+            @Override public Minted remint( final int id, final String l, final String by ) {
                 throw new WorkConflictException( "The agent's key no longer exists." );
             }
             @Override public void revoke( final int id, final String by ) {
@@ -326,7 +333,7 @@ class WorkRegistryServiceTest {
             @Override public boolean exists( final String login ) { return true; }
             @Override public String displayName( final String login ) { return login; }
         }, failing, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null );
-        assertThrows( WorkConflictException.class, () -> svc.registry().rotateAgentKey( admin, 7 ) );
+        assertThrows( WorkConflictException.class, () -> svc.registry().rotateAgentKey( admin, 7, null ) );
         verify( store, never() ).rebindAgentKey( org.mockito.ArgumentMatchers.anyLong(), anyInt() );
     }
 
@@ -335,14 +342,14 @@ class WorkRegistryServiceTest {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
         final SQLException boom = new SQLException( "boom" );
         doThrow( boom ).when( store ).rebindAgentKey( 7L, 100 );
-        assertSame( boom, assertThrows( SQLException.class, () -> service.registry().rotateAgentKey( admin, 7 ) ) );
+        assertSame( boom, assertThrows( SQLException.class, () -> service.registry().rotateAgentKey( admin, 7, null ) ) );
         assertEquals( List.of( "100|admin" ), keys.revoked, "only the new key is revoked; the old stays bound" );
     }
 
     @Test
     void rotateOfRetiredAgentIsNotFound() throws SQLException {
         when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, NOW ) ) );
-        assertThrows( WorkNotFoundException.class, () -> service.registry().rotateAgentKey( admin, 7 ) );
+        assertThrows( WorkNotFoundException.class, () -> service.registry().rotateAgentKey( admin, 7, null ) );
         assertTrue( keys.minted.isEmpty() );
     }
 
@@ -428,5 +435,87 @@ class WorkRegistryServiceTest {
         assertTrue( service.registry().isAgentKey( 55 ) );
         assertEquals( Optional.empty(), service.registry().agentNameForKey( 57 ) );
         assertFalse( service.registry().isAgentKey( 57 ) );
+    }
+
+    // ---- P28: accountability
+
+    @Test
+    void keysRecordTheActingAdminAsCreatorWhileTheOwnerStaysTheOwner() throws SQLException {
+        when( store.agentByName( "codex" ) ).thenReturn( Optional.empty() );
+        when( store.registerAgent( eq( "codex" ), anyString(), anyString(), anyInt(), anyList() ) )
+            .thenReturn( agent( 7, "codex", 100, null ) );
+        service.registry().registerAgent( admin, draft( "codex", "lena", "implementer" ) );
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 100, null ) ) );
+        service.registry().rotateAgentKey( admin, 7, null );
+        assertEquals( List.of( "lena|work-agent:codex" ), keys.minted, "the owner is the principal" );
+        assertEquals( List.of( "100|work-agent:codex" ), keys.reminted );
+        assertEquals( List.of( "admin", "admin" ), keys.creators, "the acting admin is the creator of both keys" );
+    }
+
+    @Test
+    void everyRegistryChangeReachesTheAdminAuditTrailWithoutAKeyOrToken() throws SQLException {
+        when( store.queue( "ops" ) ).thenReturn( Optional.empty(), Optional.of( new Queue( "ops", "Ops", "", null ) ) );
+        when( store.createQueue( "ops", "Ops", "" ) ).thenReturn( new Queue( "ops", "Ops", "", null ) );
+        when( store.agentByName( "codex" ) ).thenReturn( Optional.empty() );
+        when( store.registerAgent( eq( "codex" ), anyString(), anyString(), anyInt(), anyList() ) )
+            .thenReturn( agent( 7, "codex", 100, null ) );
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 100, null ) ) );
+        when( store.agentByName( "codex2" ) ).thenReturn( Optional.empty() );
+        final WorkRegistryService r = service.registry();
+        r.createQueue( admin, "ops", "Ops", "" );
+        r.updateQueue( admin, "ops", "Operations", "" );
+        r.retireQueue( admin, "ops" );
+        final String token = r.registerAgent( admin, draft( "codex", "lena", "implementer" ) ).token();
+        r.updateAgent( admin, 7, draft( "codex2", null, "implementer" ) );
+        final String rotated = r.rotateAgentKey( admin, 7, null ).token();
+        r.retireAgent( admin, 7 );
+        assertEquals( List.of(
+            "admin|work.queue.create|work_queue|ops|null",
+            "admin|work.queue.update|work_queue|ops|null",
+            "admin|work.queue.retire|work_queue|ops|null",
+            "admin|work.agent.register|work_agent|codex|null",
+            "admin|work.agent.update|work_agent|codex2|renamed from codex",
+            "admin|work.agent.rotate_key|work_agent|codex|null",
+            "admin|work.agent.retire|work_agent|codex|null" ), audited );
+        for ( final String entry : audited ) {
+            assertFalse( entry.contains( token ) || entry.contains( rotated ) || entry.contains( "100" )
+                || entry.contains( "101" ), "no token or key id: " + entry );
+        }
+    }
+
+    @Test
+    void aFailingAuditNeverUndoesTheChange() throws SQLException {
+        final WorkService svc = new WorkService( store, md -> md, new WorkDirectory() {
+            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
+            @Override public boolean exists( final String login ) { return true; }
+            @Override public String displayName( final String login ) { return login; }
+        }, keys, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null,
+            ( actor, action, type, target, detail ) -> { throw new IllegalStateException( "audit down" ); } );
+        when( store.queue( "ops" ) ).thenReturn( Optional.of( new Queue( "ops", "Ops", "", null ) ) );
+        svc.registry().retireQueue( admin, "ops" );
+        verify( store ).retireQueue( "ops", NOW );
+    }
+
+    // ---- M5: rotation may name a new owner
+
+    @Test
+    void rotationWithANewOwnerMintsUnderThatOwner() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        final WorkService.AgentWithToken r = service.registry().rotateAgentKey( admin, 7, "lena" );
+        assertEquals( List.of( "lena|work-agent:codex" ), keys.minted );
+        assertTrue( keys.reminted.isEmpty(), "a named owner is minted for, not re-minted from the old key" );
+        assertEquals( List.of( "55|admin" ), keys.revoked, "the old key is revoked" );
+        verify( store ).rebindAgentKey( 7, r.agent().apiKeyId() );
+        assertEquals( "admin|work.agent.rotate_key|work_agent|codex|new owner lena", audited.get( 0 ) );
+    }
+
+    @Test
+    void rotationToAnUnknownOwnerChangesNothing() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        final WorkValidationException e = assertThrows( WorkValidationException.class,
+            () -> service.registry().rotateAgentKey( admin, 7, "ghost" ) );
+        assertEquals( "owner", e.field() );
+        assertTrue( keys.minted.isEmpty() && keys.reminted.isEmpty() && keys.revoked.isEmpty() );
+        verify( store, never() ).rebindAgentKey( org.mockito.ArgumentMatchers.anyLong(), anyInt() );
     }
 }

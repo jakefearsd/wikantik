@@ -42,6 +42,8 @@ public final class WorkRegistryService {
     private static final Logger LOG = LogManager.getLogger( WorkRegistryService.class );
     private static final String UNIQUE_VIOLATION = "23505";
     private static final String NO_SUCH_USER = "No such user.";
+    private static final String QUEUE = "work_queue";
+    private static final String AGENT = "work_agent";
 
     private final WorkStore store;
     private final WorkScopes scopes;
@@ -49,10 +51,12 @@ public final class WorkRegistryService {
     private final AgentKeys keys;
     private final GuardedListener listener;
     private final Clock clock;
+    private final WorkAudit audit;
 
     WorkRegistryService( final WorkStore store, final WorkScopes scopes, final WorkPeople people, final AgentKeys keys,
-                  final Clock clock, final GuardedListener listener ) {
+                  final Clock clock, final GuardedListener listener, final WorkAudit audit ) {
         this.store = store;
+        this.audit = audit;
         this.listener = listener;
         this.scopes = scopes;
         this.people = people;
@@ -77,6 +81,7 @@ public final class WorkRegistryService {
         try {
             final Queue q = store.createQueue( key, name.trim(), description == null ? "" : description );
             LOG.info( "Work queue '{}' created by {}", key, actor.login() );
+            audit( actor, "work.queue.create", QUEUE, key, null );
             return q;
         } catch ( final SQLException e ) {
             throw duplicateOrRethrow( e, "Queue " + key + " already exists." );
@@ -91,6 +96,7 @@ public final class WorkRegistryService {
         requireQueue( key );
         store.updateQueue( key, name.trim(), description == null ? "" : description );
         LOG.info( "Work queue '{}' updated by {}", key, actor.login() );
+        audit( actor, "work.queue.update", QUEUE, key, null );
     }
 
     public void retireQueue( final Actor actor, final String key ) throws SQLException {
@@ -99,6 +105,7 @@ public final class WorkRegistryService {
         requireQueue( key );
         store.retireQueue( key, clock.instant() );
         LOG.info( "Work queue '{}' retired by {}", key, actor.login() );
+        audit( actor, "work.queue.retire", QUEUE, key, null );
     }
 
     private Queue requireQueue( final String key ) throws SQLException {
@@ -139,14 +146,14 @@ public final class WorkRegistryService {
         if ( store.agentByName( name ).isPresent() ) {
             throw exists( "Agent " + name + " already exists." );
         }
-        final String owner = people.login( actor, draft.owner() == null || draft.owner().isBlank()
-                ? actor.login() : draft.owner() )
-            .orElseThrow( () -> new WorkValidationException( "owner", NO_SUCH_USER ) );
-        final AgentKeys.Minted minted = keys.mint( owner, "work-agent:" + name );
+        final String owner = ownerLogin( actor, draft.owner() == null || draft.owner().isBlank()
+                ? actor.login() : draft.owner() );
+        final AgentKeys.Minted minted = keys.mint( owner, "work-agent:" + name, actor.login() );
         try {
             final Agent agent = store.registerAgent( name, orEmpty( draft.vendor() ), orEmpty( draft.runtime() ),
                 minted.keyId(), queues );
             LOG.info( "Work agent '{}' registered by {}", name, actor.login() );
+            audit( actor, "work.agent.register", AGENT, name, null );
             return new WorkService.AgentWithToken( agent, minted.token() );
         } catch ( final SQLException e ) {
             revokeQuietly( minted.keyId(), actor );
@@ -171,18 +178,32 @@ public final class WorkRegistryService {
         } catch ( final SQLException e ) {
             throw duplicateOrRethrow( e, "Agent " + name + " already exists." );
         }
-        LOG.info( "Work agent '{}' updated by {}", existing.name(), actor.login() );
+        LOG.info( "Work agent '{}' updated by {} (name '{}' -> '{}')", existing.name(), actor.login(), existing.name(),
+            name );
+        audit( actor, "work.agent.update", AGENT, name, existing.name().equals( name ) ? null
+            : "renamed from " + existing.name() );
     }
 
-    /** Mint, rebind, then revoke the old key: the agent is never left on a revoked key nor a live key orphaned. */
-    public WorkService.AgentWithToken rotateAgentKey( final Actor actor, final long agentId ) throws SQLException {
+    /**
+     * Mint, rebind, then revoke the old key: the agent is never left on a revoked key nor a live key orphaned. With
+     * {@code newOwner} (a display name, or from an admin a login, as on register) the new key is owned by that person;
+     * without, by whoever owned the old key (never by the rotating admin), even when the old key was revoked out of
+     * band: rotation is how such an agent is restored.
+     */
+    public WorkService.AgentWithToken rotateAgentKey( final Actor actor, final long agentId, final String newOwner )
+            throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final Agent existing = requireActiveAgent( agentId );
         final String label = "work-agent:" + existing.name();
-        // The replacement stays owned by whoever owned the old key, not by the admin rotating it.
-        final AgentKeys.Minted minted = existing.apiKeyId() == null
-            ? keys.mint( actor.login(), label )
-            : keys.remint( existing.apiKeyId(), label );
+        final String owner = newOwner == null || newOwner.isBlank() ? null : ownerLogin( actor, newOwner );
+        final AgentKeys.Minted minted;
+        if ( owner != null ) {
+            minted = keys.mint( owner, label, actor.login() );
+        } else if ( existing.apiKeyId() == null ) {
+            minted = keys.mint( actor.login(), label, actor.login() );
+        } else {
+            minted = keys.remint( existing.apiKeyId(), label, actor.login() );
+        }
         try {
             store.rebindAgentKey( agentId, minted.keyId() );
         } catch ( final SQLException | RuntimeException e ) {
@@ -192,7 +213,9 @@ public final class WorkRegistryService {
         if ( existing.apiKeyId() != null ) {
             revokeQuietly( existing.apiKeyId(), actor );
         }
-        LOG.info( "Work agent '{}' key rotated by {}", existing.name(), actor.login() );
+        LOG.info( "Work agent '{}' key rotated by {}{}", existing.name(), actor.login(),
+            owner == null ? "" : " to a new owner" );
+        audit( actor, "work.agent.rotate_key", AGENT, existing.name(), owner == null ? null : "new owner " + owner );
         return new WorkService.AgentWithToken( new Agent( existing.id(), existing.name(), existing.vendor(),
             existing.runtime(), minted.keyId(), existing.queues(), existing.createdAt(), null ), minted.token() );
     }
@@ -208,6 +231,7 @@ public final class WorkRegistryService {
             revokeQuietly( existing.apiKeyId(), actor );
         }
         LOG.info( "Work agent '{}' retired by {}", existing.name(), actor.login() );
+        audit( actor, "work.agent.retire", AGENT, existing.name(), null );
     }
 
     /**
@@ -271,6 +295,21 @@ public final class WorkRegistryService {
     }
 
     // ---- helpers
+
+    private String ownerLogin( final Actor actor, final String reference ) throws SQLException {
+        return people.login( actor, reference )
+            .orElseThrow( () -> new WorkValidationException( "owner", NO_SUCH_USER ) );
+    }
+
+    /** The admin audit trail entry for a registry change; never a token or key id. */
+    private void audit( final Actor actor, final String action, final String type, final String target,
+                        final String detail ) {
+        try {
+            audit.record( actor.login(), action, type, target, detail );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Could not audit {} of {} '{}': {}", action, type, target, e.getMessage(), e );
+        }
+    }
 
     private boolean canSeeRegistry( final Actor actor ) throws SQLException {
         return actor.instanceAdmin() || !store.visibleProjects( actor ).isEmpty();

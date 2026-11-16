@@ -77,7 +77,7 @@ public final class WorkWiring {
         final AgentKeys agentKeys = apiKeys != null ? new WikiAgentKeys( apiKeys ) : AgentKeys.NONE;
         final WorkService service = new WorkService( store, new WikiWorkRenderer( engine ),
             new WikiWorkDirectory( engine ), agentKeys, Clock.systemUTC(),
-            new WorkSettings( claimExpiry( props ) ), listener );
+            new WorkSettings( claimExpiry( props ) ), listener, new WikiWorkAudit( engine ) );
         LOG.info( "Work management started ({}=true, metrics {})", PROP_ENABLED, registry != null ? "on" : "off" );
         return service;
     }

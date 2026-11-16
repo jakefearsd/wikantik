@@ -143,12 +143,22 @@ class WorkAgentResourceTest {
     @Test
     void rotateReturnsNewToken() throws Exception {
         final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", 43, List.of( "triage" ), T, null );
-        Mockito.when( registry.rotateAgentKey( ADMIN, 5 ) ).thenReturn( new WorkService.AgentWithToken( rebound, "wkk_new" ) );
+        Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) ).thenReturn( new WorkService.AgentWithToken( rebound, "wkk_new" ) );
         final WorkHttp.Result r = send( "POST", "/5/rotate-key", null );
         assertEquals( 200, r.status() );
         assertEquals( "wkk_new", r.json().getAsJsonObject().get( "token" ).getAsString() );
         assertEquals( 43, r.json().getAsJsonObject().getAsJsonObject( "agent" ).get( "apiKeyId" ).getAsInt() );
         assertEquals( "no-store", r.headers().get( "Cache-Control" ) );
+    }
+
+    @Test
+    void rotateMayNameANewOwner() throws Exception {
+        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", 44, List.of( "triage" ), T, null );
+        Mockito.when( registry.rotateAgentKey( ADMIN, 5, "Lena Lead" ) )
+            .thenReturn( new WorkService.AgentWithToken( rebound, "wkk_newer" ) );
+        final WorkHttp.Result r = send( "POST", "/5/rotate-key", "{\"owner\":\"Lena Lead\"}" );
+        assertEquals( 200, r.status() );
+        assertEquals( "wkk_newer", r.json().getAsJsonObject().get( "token" ).getAsString() );
     }
 
     @Test
@@ -171,7 +181,7 @@ class WorkAgentResourceTest {
     void unknownAgentIs404() throws Exception {
         Mockito.doThrow( new WorkNotFoundException( "No such agent: 99" ) ).when( registry ).retireAgent( any(), anyLong() );
         Mockito.doThrow( new WorkNotFoundException( "No such agent: 99" ) ).when( registry ).updateAgent( any(), anyLong(), any() );
-        Mockito.when( registry.rotateAgentKey( any(), anyLong() ) ).thenThrow( new WorkNotFoundException( "No such agent: 99" ) );
+        Mockito.when( registry.rotateAgentKey( any(), anyLong(), any() ) ).thenThrow( new WorkNotFoundException( "No such agent: 99" ) );
         for ( final String[] call : new String[][] { { "POST", "/99/retire", null }, { "PATCH", "/99", "{\"name\":\"x\"}" },
             { "POST", "/99/rotate-key", null }, { "POST", "/abc/retire", null } } ) {
             final WorkHttp.Result r = send( call[ 0 ], call[ 1 ], call[ 2 ] );
@@ -187,7 +197,7 @@ class WorkAgentResourceTest {
         // like the real service: authorise before looking anything up
         Mockito.doThrow( new WorkDeniedException( "Only a wiki admin may do that." ) ).when( registry ).retireAgent( any(), anyLong() );
         Mockito.doThrow( new WorkDeniedException( "Only a wiki admin may do that." ) ).when( registry ).updateAgent( any(), anyLong(), any() );
-        Mockito.when( registry.rotateAgentKey( any(), anyLong() ) ).thenThrow( new WorkDeniedException( "Only a wiki admin may do that." ) );
+        Mockito.when( registry.rotateAgentKey( any(), anyLong(), any() ) ).thenThrow( new WorkDeniedException( "Only a wiki admin may do that." ) );
         for ( final String[] call : new String[][] { { "POST", "%s/retire", null }, { "PATCH", "%s", "{\"name\":\"x\"}" },
             { "POST", "%s/rotate-key", null } } ) {
             final WorkHttp.Result known = send( call[ 0 ], call[ 1 ].formatted( "/5" ), call[ 2 ] );

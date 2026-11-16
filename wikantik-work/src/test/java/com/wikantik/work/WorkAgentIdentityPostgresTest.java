@@ -53,17 +53,17 @@ class WorkAgentIdentityPostgresTest {
         store = new JdbcWorkStore( ds );
         final AgentKeys keys = new AgentKeys() {
             @Override
-            public Minted mint( final String ownerLogin, final String label ) {
+            public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
                 try {
-                    return new Minted( ( int ) WorkAgentFixtures.apiKey( ds, "work" ), "tok" );
+                    return new Minted( ( int ) WorkAgentFixtures.ownedKey( ds, ownerLogin ), "tok" );
                 } catch ( final SQLException e ) {
                     throw new IllegalStateException( e );
                 }
             }
 
             @Override
-            public Minted remint( final int oldKeyId, final String label ) {
-                return mint( null, label );
+            public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
+                return mint( WorkAgentFixtures.ownerOf( ds, oldKeyId ), label, createdBy );
             }
 
             @Override
@@ -211,7 +211,7 @@ class WorkAgentIdentityPostgresTest {
         final WorkService.AgentWithToken r = register( "codex" );
         final int oldKey = r.agent().apiKeyId();
         failingRevokes.add( oldKey );
-        final WorkService.AgentWithToken rotated = service.registry().rotateAgentKey( admin, r.agent().id() );
+        final WorkService.AgentWithToken rotated = service.registry().rotateAgentKey( admin, r.agent().id(), null );
         assertNull( service.registry().actorForApiKey( oldKey, "lena" ),
             "the old token is still live but must not become its owner" );
         final Actor now = service.registry().actorForApiKey( rotated.agent().apiKeyId(), "lena" );
@@ -222,8 +222,8 @@ class WorkAgentIdentityPostgresTest {
     void rotatedTwiceBothOldKeysAreNoActor() throws SQLException {
         final WorkService.AgentWithToken r = register( "codex" );
         final int first = r.agent().apiKeyId();
-        final int second = service.registry().rotateAgentKey( admin, r.agent().id() ).agent().apiKeyId();
-        final int third = service.registry().rotateAgentKey( admin, r.agent().id() ).agent().apiKeyId();
+        final int second = service.registry().rotateAgentKey( admin, r.agent().id(), null ).agent().apiKeyId();
+        final int third = service.registry().rotateAgentKey( admin, r.agent().id(), null ).agent().apiKeyId();
         assertNull( service.registry().actorForApiKey( first, "lena" ) );
         assertNull( service.registry().actorForApiKey( second, "lena" ) );
         assertEquals( Actor.Kind.AGENT, service.registry().actorForApiKey( third, "lena" ).kind() );

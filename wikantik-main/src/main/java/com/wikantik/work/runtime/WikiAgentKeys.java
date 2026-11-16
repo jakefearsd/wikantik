@@ -32,16 +32,17 @@ public final class WikiAgentKeys implements AgentKeys {
     }
 
     @Override
-    public Minted mint( final String ownerLogin, final String label ) {
-        return generate( ownerLogin, label );
+    public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
+        return generate( ownerLogin, label, createdBy );
     }
 
+    /** Works from a revoked old key too: it still names the owner, and re-minting from it is the recovery path. */
     @Override
-    public Minted remint( final int oldKeyId, final String label ) {
+    public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
         final ApiKeyService.Record old = service.findById( oldKeyId )
             .orElseThrow( () -> new WorkConflictException( "The agent's current API key (id " + oldKeyId
                 + ") was not found, so it cannot be rotated." ) );
-        return generate( old.principalLogin(), label );
+        return generate( old.principalLogin(), label, createdBy );
     }
 
     @Override
@@ -49,9 +50,12 @@ public final class WikiAgentKeys implements AgentKeys {
         service.revoke( keyId, revokedBy );
     }
 
-    /** The only place a key is created here: scope is always {@code WORK}, never copied from another key. */
-    private Minted generate( final String ownerLogin, final String label ) {
-        final ApiKeyService.Generated g = service.generate( ownerLogin, label, ApiKeyService.Scope.WORK, ownerLogin );
+    /**
+     * The only place a key is created here: scope is always {@code WORK}, never copied from another key; the owner is
+     * the key's principal and the acting admin its creator.
+     */
+    private Minted generate( final String ownerLogin, final String label, final String createdBy ) {
+        final ApiKeyService.Generated g = service.generate( ownerLogin, label, ApiKeyService.Scope.WORK, createdBy );
         return new Minted( g.record().id(), g.plaintext() );
     }
 }

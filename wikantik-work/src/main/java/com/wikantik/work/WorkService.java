@@ -118,12 +118,20 @@ public class WorkService {
     public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
                         final AgentKeys keys, final Clock clock, final WorkSettings settings,
                         final WorkListener listener ) {
+        this( store, renderer, directory, keys, clock, settings, listener, WorkAudit.NONE );
+    }
+
+    /** @param audit the admin audit trail registry changes are written to */
+    public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
+                        final AgentKeys keys, final Clock clock, final WorkSettings settings,
+                        final WorkListener listener, final WorkAudit audit ) {
         final GuardedListener observer = new GuardedListener( listener );
         this.store = store;
         this.scopes = new WorkScopes( store, directory, observer::denied );
         this.people = new WorkPeople( directory );
         this.applier = new ItemPatchApplier( store, scopes::isMember );
-        this.registry = new WorkRegistryService( store, scopes, people, keys, clock, observer );
+        this.registry = new WorkRegistryService( store, scopes, people, keys, clock, observer,
+            audit == null ? WorkAudit.NONE : audit );
         this.views = new ItemViews( store, renderer, people );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;

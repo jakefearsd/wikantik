@@ -51,7 +51,7 @@ class WikiAgentKeysTest {
 
     @Test
     void mintsWorkScopedKeyForOwner() {
-        final AgentKeys.Minted m = keys.mint( owner, "work-agent:codex" );
+        final AgentKeys.Minted m = keys.mint( owner, "work-agent:codex", "janne" );
         final ApiKeyService.Record r = service.findById( m.keyId() ).orElseThrow();
         assertEquals( owner, r.principalLogin() );
         assertEquals( ApiKeyService.Scope.WORK, r.scope(), "a minted agent key is work-scoped and nothing broader" );
@@ -63,7 +63,7 @@ class WikiAgentKeysTest {
     void remintKeepsOwnerAndScope() {
         // The old key is deliberately broader than work: the replacement must still be work-only.
         final ApiKeyService.Generated old = service.generate( owner, "old", ApiKeyService.Scope.ALL, "someone" );
-        final AgentKeys.Minted m = keys.remint( old.record().id(), "work-agent:codex" );
+        final AgentKeys.Minted m = keys.remint( old.record().id(), "work-agent:codex", "janne" );
         assertNotEquals( old.record().id(), m.keyId() );
         final ApiKeyService.Record r = service.findById( m.keyId() ).orElseThrow();
         assertEquals( owner, r.principalLogin(), "owner is the old key's owner" );
@@ -76,16 +76,39 @@ class WikiAgentKeysTest {
     void remintOfUnknownKeyMintsNothing() {
         final int before = service.list().size();
         final WorkConflictException e = assertThrows( WorkConflictException.class,
-            () -> keys.remint( Integer.MAX_VALUE, "work-agent:ghost" ) );
+            () -> keys.remint( Integer.MAX_VALUE, "work-agent:ghost", "janne" ) );
         assertFalse( e.getMessage().isBlank() );
         assertEquals( before, service.list().size(), "no key was minted" );
     }
 
     @Test
     void revokeDelegates() {
-        final AgentKeys.Minted m = keys.mint( owner, "x" );
+        final AgentKeys.Minted m = keys.mint( owner, "x", "janne" );
         keys.revoke( m.keyId(), "admin" );
         assertFalse( service.findById( m.keyId() ).orElseThrow().isActive() );
         assertTrue( service.verify( m.token() ).isEmpty() );
+    }
+
+    @Test
+    void theActingAdminIsTheCreatorAndTheOwnerThePrincipal() {
+        final AgentKeys.Minted m = keys.mint( owner, "work-agent:codex", "janne" );
+        final ApiKeyService.Record r = service.findById( m.keyId() ).orElseThrow();
+        assertEquals( owner, r.principalLogin() );
+        assertEquals( "janne", r.createdBy() );
+        final AgentKeys.Minted again = keys.remint( m.keyId(), "work-agent:codex", "root" );
+        final ApiKeyService.Record r2 = service.findById( again.keyId() ).orElseThrow();
+        assertEquals( owner, r2.principalLogin() );
+        assertEquals( "root", r2.createdBy() );
+    }
+
+    @Test
+    void anAgentKeyRevokedOutOfBandIsRestoredByARemint() {
+        // The recovery path: the old key was revoked (owner deleted, or by hand); re-minting from it still works.
+        final AgentKeys.Minted m = keys.mint( owner, "work-agent:codex", "janne" );
+        service.revokeAllForPrincipal( owner );
+        assertTrue( service.verify( m.token() ).isEmpty() );
+        final AgentKeys.Minted restored = keys.remint( m.keyId(), "work-agent:codex", "janne" );
+        assertTrue( service.verify( restored.token() ).isPresent(), "the re-minted key works" );
+        assertEquals( owner, service.findById( restored.keyId() ).orElseThrow().principalLogin() );
     }
 }

@@ -49,7 +49,7 @@ public class WorkAgentResource extends WorkResourceBase {
         route( r, "GET", "agents", c -> c.tree( agentsTree( c, c.svc.registry().listAgents( c.actor ) ) ) );
         route( r, "POST", "agents", this::register );
         route( r, "PATCH", "agents/{}", this::update );
-        route( r, "POST", "agents/{}/rotate-key", c -> secret( c, c.svc.registry().rotateAgentKey( c.actor, agentId( c ) ), 200 ) );
+        route( r, "POST", "agents/{}/rotate-key", this::rotate );
         route( r, "POST", "agents/{}/retire", c -> {
             c.svc.registry().retireAgent( c.actor, agentId( c ) );
             c.noContent();
@@ -74,6 +74,19 @@ public class WorkAgentResource extends WorkResourceBase {
         if ( b != null ) {
             secret( c, c.svc.registry().registerAgent( c.actor, draft( b, optString( b, "owner" ) ) ), 201 );
         }
+    }
+
+    /** The body is optional: {@code {owner}} mints the new key under that person, a bare POST keeps the old owner. */
+    private void rotate( final Call c ) throws Exception {
+        String owner = null;
+        if ( c.req.getContentLength() != 0 ) {
+            final JsonObject b = c.body();
+            if ( b == null ) {
+                return;
+            }
+            owner = optString( b, "owner" );
+        }
+        secret( c, c.svc.registry().rotateAgentKey( c.actor, agentId( c ), owner ), 200 );
     }
 
     private void update( final Call c ) throws Exception {

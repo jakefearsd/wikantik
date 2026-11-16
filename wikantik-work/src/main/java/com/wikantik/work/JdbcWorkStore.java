@@ -96,6 +96,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     private static final int DEFAULT_ITEM_LIMIT = 200;
     private static final int CLOSED_COLUMN_CAP = 50;
+    private static final long NO_HOLDER = -1L;
     private static final double RANK_STEP = 1024.0;
 
     private final JdbcWorkDiscussion discussion;
@@ -110,6 +111,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     @Override
     public Item createItem( final Project project, final Item draft, final Actor by ) throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
+        requireOneTarget( draft );
         final WorkStatus status = draft.status() == null ? WorkStatus.DRAFT : draft.status();
         final String body = draft.body() == null ? "" : draft.body();
         return jdbc.inTransaction( conn -> {
@@ -225,6 +227,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     private Item writeItem( final Item current, final Item next, final Actor by, final String note,
                             final boolean asHandoff ) throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
+        requireOneTarget( next );
         final boolean clearClaim = endsClaim( current, next );
         final boolean textChanged = !Objects.equals( current.title(), next.title() )
             || !Objects.equals( current.body(), next.body() );
@@ -233,6 +236,13 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         final int version = current.version() + 1;
         final String body = next.body() == null ? "" : next.body();
         return jdbc.inTransaction( conn -> {
+            // The holder as the row is now, under lock: the caller's copy may predate a claim (claims need not
+            // bump the version), so the release is decided and named from here.
+            final long holder = jdbc.queryOne( conn, "SELECT claimed_by_agent FROM work_item WHERE id = ? FOR UPDATE",
+                ps -> ps.setLong( 1, current.id() ), rs -> {
+                    final long v = rs.getLong( 1 );
+                    return rs.wasNull() ? NO_HOLDER : v;
+                } ).orElse( NO_HOLDER );
             final int rows = jdbc.update( conn, """
                 UPDATE work_item SET parent_id = ?, product_id = ?, kind = ?, title = ?, body = ?, status = ?,
                     priority = ?, rank = ?, due_on = ?, assignee = ?, autonomy = ?, done_means = ?,
@@ -277,8 +287,8 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
             for ( final WorkEvent e : WorkEventDiff.changeEvents( current, next, by, note, asHandoff ) ) {
                 appendEvent( conn, e );
             }
-            if ( clearClaim && current.claimedByAgent() != null ) {
-                appendEvent( conn, WorkEventDiff.releasedEvent( current, next, by ) );
+            if ( clearClaim && holder != NO_HOLDER ) {
+                appendEvent( conn, WorkEventDiff.releasedEvent( current, next, by, holder ) );
             }
             return itemById( conn, current.id() );
         } );

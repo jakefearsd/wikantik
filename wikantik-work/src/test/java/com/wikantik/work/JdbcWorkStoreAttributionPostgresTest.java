@@ -323,4 +323,85 @@ class JdbcWorkStoreAttributionPostgresTest {
         assertEquals( 1, onBoard );
         assertEquals( 3, store.items( filter.withQueue( null ) ).size() );
     }
+
+    private static Item both( final Item i ) {
+        return with( i, i.title(), i.body(), i.status(), "lena", "implementer" );
+    }
+
+    @Test
+    void personAndQueueTogetherAreRefusedBeforeAnySql() throws SQLException {
+        final Item item = create( "x" );
+        final Item d = JdbcWorkStoreItemsPostgresTest.draft( "y" );
+        final Item bothDraft = new Item( 0, 0, null, d.level(), null, null, d.kind(), "y", "b", WorkStatus.DRAFT, 3,
+            0, null, "lena", null, null, null, null, 0, null, null, null, "implementer", null, null, null, null );
+        final WorkValidationException e = assertThrows( WorkValidationException.class,
+            () -> store.createItem( plat, bothDraft, LENA ) );
+        assertEquals( "queue", e.field() );
+        assertEquals( "Assign a person or a queue, not both.", e.getMessage() );
+        assertEquals( 1, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_item" ) );
+        assertThrows( WorkValidationException.class, () -> store.updateItem( item, both( item ), LENA, null ) );
+        assertThrows( WorkValidationException.class, () -> store.handoff( item, both( item ), LENA, "n" ) );
+        final Item after = reload( item );
+        assertNull( after.assignee() );
+        assertNull( after.queue() );
+        assertEquals( item.version(), after.version() );
+    }
+
+    @Test
+    void staleCopyWithoutClaimStillRecordsRelease() throws SQLException {
+        final Item item = create( "x" );
+        claim( item );
+        store.updateItem( item, moved( item, WorkStatus.READY, null, null ), LENA, null );
+        final List< WorkEvent > released = released( item );
+        assertEquals( 1, released.size() );
+        assertEquals( "agent:" + agentId, released.get( 0 ).fromValue() );
+        assertNull( reload( item ).claimedByAgent() );
+    }
+
+    @Test
+    void staleCopyNamesTheActualHolder() throws SQLException {
+        final Item item = create( "x" );
+        claim( item );
+        final Item seen = reload( item );
+        final long other = WorkAgentFixtures.agent( ds, "other" );
+        WorkAgentFixtures.exec( ds, "UPDATE work_item SET claimed_by_agent = " + other + " WHERE id = " + item.id() );
+        store.updateItem( seen, moved( seen, WorkStatus.DRAFT, "bob", null ), LENA, null );
+        assertEquals( "agent:" + other, released( item ).get( 0 ).fromValue() );
+    }
+
+    @Test
+    void bodyEditKeepsAClaimTakenAfterTheRead() throws SQLException {
+        final Item item = create( "x" );
+        claim( item );
+        store.updateItem( item, with( item, item.title(), "new body", item.status(), null, null ), LENA, null );
+        assertEquals( agentId, reload( item ).claimedByAgent() );
+        assertTrue( released( item ).isEmpty() );
+    }
+
+    @Test
+    void everyOtherAgentWritePathIsRefusedToo() throws SQLException {
+        final Item item = create( "x" );
+        final Comment c = store.addComment( item, LENA, "hi", List.of() );
+        final Link l = store.addLink( item, "url", "https://example.com", LENA );
+        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        final long events = WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" );
+        final Item next = with( item, "z", item.body(), item.status(), null, null );
+        for ( final org.junit.jupiter.api.function.Executable w : List.< org.junit.jupiter.api.function.Executable >of(
+            () -> store.editComment( c.id(), "two", ghost, List.of() ),
+            () -> store.removeComment( c.id(), ghost ),
+            () -> store.addLink( item, "url", "https://example.org", ghost ),
+            () -> store.removeLink( l.id(), ghost ),
+            () -> store.archiveProject( plat.id(), java.time.Instant.now(), ghost ),
+            () -> store.updateProject( plat.id(), "Renamed", "", plat.defaultAutonomy(), ghost ),
+            () -> store.removeMember( plat.id(), "bob", "user", ghost ),
+            () -> store.handoff( item, next, ghost, "n" ) ) ) {
+            assertThrows( IllegalArgumentException.class, w );
+        }
+        assertEquals( events, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" ) );
+        assertEquals( "hi", store.comment( c.id() ).orElseThrow().body() );
+        assertEquals( 1, store.links( item.id() ).size() );
+        assertEquals( plat.name(), store.project( "PLAT" ).orElseThrow().name() );
+        assertNull( store.project( "PLAT" ).orElseThrow().archivedAt() );
+        assertEquals( item.version(), reload( item ).version() );
+    }
 }

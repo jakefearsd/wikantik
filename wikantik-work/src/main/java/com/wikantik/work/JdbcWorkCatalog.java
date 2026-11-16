@@ -122,6 +122,7 @@ abstract class JdbcWorkCatalog implements WorkCatalogStore {
             addIfChanged( changed, "description", current.description(), description );
             addIfChanged( changed, "default_autonomy", current.defaultAutonomy().wire(), defaultAutonomy.wire() );
             if ( changed.isEmpty() ) {
+        requireAttributed( by.kind(), by.agentId() );
                 return null;
             }
             jdbc.update( conn, "UPDATE work_project SET name = ?, description = ?, default_autonomy = ? WHERE id = ?",
@@ -154,6 +155,7 @@ abstract class JdbcWorkCatalog implements WorkCatalogStore {
                     + "AND archived_at IS NULL",
                 ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, id ); } );
             if ( rows > 0 ) {
+        requireAttributed( by.kind(), by.agentId() );
                 appendEvent( conn, projectEvent( id, by, WorkEvent.SETTINGS, null, at.toString(),
                     "archived" ) );
             }
@@ -175,6 +177,7 @@ abstract class JdbcWorkCatalog implements WorkCatalogStore {
     @Override
     public void putMember( final long projectId, final String principal, final String principalKind,
                            final WorkRole role, final Actor by ) throws SQLException {
+        requireAttributed( by.kind(), by.agentId() );
         jdbc.inTransaction( conn -> {
             final WorkRole before = jdbc.queryOne( conn, "SELECT role FROM work_member WHERE project_id = ? "
                     + "AND principal_kind = ? AND principal = ? FOR UPDATE",
@@ -207,6 +210,7 @@ abstract class JdbcWorkCatalog implements WorkCatalogStore {
     @Override
     public void removeMember( final long projectId, final String principal, final String principalKind,
                               final Actor by ) throws SQLException {
+        requireAttributed( by.kind(), by.agentId() );
         jdbc.inTransaction( conn -> {
             final Optional< WorkRole > removed = jdbc.queryOne( conn, "DELETE FROM work_member WHERE project_id = ? "
                     + "AND principal_kind = ? AND principal = ? RETURNING role",
@@ -224,6 +228,15 @@ abstract class JdbcWorkCatalog implements WorkCatalogStore {
                                            final String from, final String to, final String note ) {
         return new WorkEvent( 0, projectId, null, null, null, by.login(), by.kind(), by.agentId(), type, from, to,
             note );
+    }
+
+    static final String ONE_TARGET = "Assign a person or a queue, not both.";
+
+    /** An item is assigned to a person or a queue, never both; refused before any SQL. */
+    static void requireOneTarget( final Item item ) {
+        if ( item.assignee() != null && item.queue() != null ) {
+            throw new WorkValidationException( "queue", ONE_TARGET );
+        }
     }
 
     /** An agent write without the agent's registry id is a programming error: refuse it, never record it. */

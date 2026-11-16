@@ -68,6 +68,7 @@ final class ItemPatchApplier {
             product == null ? null : product.id(), d.kind() == null ? WorkKind.SOFTWARE : d.kind(), d.title(),
             d.body() == null ? "" : d.body(), WorkStatus.DRAFT, priority, 0, d.dueOn(), assignee, null, null, null,
             null, 0, null, null, null, d.queue(), null, null, null, null );
+        JdbcWorkCatalog.requireOneTarget( next );
         validate( next, parent );
         checkAssignee( project, null, assignee );
         return next;
@@ -116,8 +117,9 @@ final class ItemPatchApplier {
             pick( changes, "doneMeans", PatchValues::doneMeans, current.doneMeans() ),
             pick( changes, "allowDirect", PatchValues::allowDirect, current.allowDirect() ),
             current.version(), current.createdAt(), current.updatedAt(), current.closedAt(),
-            current.queue(), current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(),
-            current.reporterAgentId() );
+            // Naming a person takes the item off its queue: an item has one assignment target.
+            changes.containsKey( "assignee" ) && assignee != null ? null : current.queue(),
+            current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(), current.reporterAgentId() );
     }
 
     private static < T > T pick( final Map< String, Object > changes, final String key,

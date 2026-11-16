@@ -81,10 +81,10 @@ final class WorkEventDiff {
      * from, the note {@code reassigned} when the assignee or queue changed (even with a status change), else
      * {@code moved}. The actor is whoever made the change.
      */
-    static WorkEvent releasedEvent( final Item cur, final Item nxt, final Actor by ) {
+    static WorkEvent releasedEvent( final Item cur, final Item nxt, final Actor by, final long holder ) {
         final boolean reassigned = !Objects.equals( cur.assignee(), nxt.assignee() )
             || !Objects.equals( cur.queue(), nxt.queue() );
-        return event( cur, by, WorkEvent.RELEASED, "agent:" + cur.claimedByAgent(), null,
+        return event( cur, by, WorkEvent.RELEASED, "agent:" + holder, null,
             reassigned ? "reassigned" : "moved" );
     }
 

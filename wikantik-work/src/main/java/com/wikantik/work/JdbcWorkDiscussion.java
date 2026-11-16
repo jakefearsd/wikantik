@@ -98,6 +98,7 @@ final class JdbcWorkDiscussion {
 
     Comment editComment( final long commentId, final String body, final Actor by,
                          final List< String > mentioned ) throws SQLException {
+        JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         return jdbc.inTransaction( conn -> {
             final Comment c = jdbc.queryOne( conn, "UPDATE work_comment SET body = ?, edited_at = NOW() "
                     + "WHERE id = ? AND removed_at IS NULL RETURNING " + COMMENT_COLUMNS,
@@ -113,6 +114,7 @@ final class JdbcWorkDiscussion {
     }
 
     void removeComment( final long commentId, final Actor by ) throws SQLException {
+        JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         jdbc.inTransaction( conn -> {
             final long itemId = jdbc.queryOne( conn, "UPDATE work_comment SET removed_at = NOW() "
                     + "WHERE id = ? AND removed_at IS NULL RETURNING item_id",
@@ -136,6 +138,7 @@ final class JdbcWorkDiscussion {
 
     Link addLink( final Item item, final String kind, final String target, final Actor by )
             throws SQLException {
+        JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         return jdbc.inTransaction( conn -> {
             final Link l = jdbc.queryOne( conn, "INSERT INTO work_link (item_id, kind, target) VALUES (?,?,?) "
                     + "RETURNING id, item_id, kind, target",
@@ -149,6 +152,7 @@ final class JdbcWorkDiscussion {
 
     /** One statement deletes and returns the row, so of two concurrent removals only one writes an event. */
     void removeLink( final long linkId, final Actor by ) throws SQLException {
+        JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         jdbc.inTransaction( conn -> {
             final Optional< Link > removed = jdbc.queryOne( conn,
                 "DELETE FROM work_link WHERE id = ? RETURNING id, item_id, kind, target",

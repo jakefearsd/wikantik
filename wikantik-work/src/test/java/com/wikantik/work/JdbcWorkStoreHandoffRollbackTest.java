@@ -64,9 +64,9 @@ class JdbcWorkStoreHandoffRollbackTest {
             current.kind(), current.title(), current.body(), WorkStatus.REVIEW, current.priority(), current.rank(),
             null, null, current.reporter(), null, null, null, current.version(), null, null, null, "reviewer",
             current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(), null );
-        // statements: 1 update item, 2 insert handoff event, 3 insert released event
+        // statements: 1 lock the row (holder read), 2 update item, 3 insert handoff event, 4 insert released event
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
-        faulty.failOn( 3, new RuntimeException( "boom: released insert" ) );
+        faulty.failOn( 4, new RuntimeException( "boom: released insert" ) );
         final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
         assertThrows( RuntimeException.class, () -> faultyStore.handoff( current, next, lena, "ready" ) );
         assertEquals( 1, faulty.rollbacks() );

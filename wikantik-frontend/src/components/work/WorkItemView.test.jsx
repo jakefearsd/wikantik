@@ -145,8 +145,11 @@ describe('WorkItemView', () => {
     fireEvent.change(ta, { target: { value: 'New text' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
     await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { body: 'New text' } }));
-    expect(await screen.findByText('New text')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Item text')).toBeNull();
+    // The saved view is set in one commit and the editor closes in the next (the save promise resolves first).
+    // A node found between the two is replaced by the second, so wait for the close, then read the settled page
+    // (this failed about half the time under --coverage: the found element was no longer in the document).
+    await waitFor(() => expect(screen.queryByLabelText('Item text')).toBeNull());
+    expect(screen.getByText('New text')).toBeInTheDocument();
   });
 
   it('conflictKeepsUnsavedTextAndOffersReload', async () => {
@@ -725,7 +728,7 @@ describe('WorkItemView', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Reload' }));
     expect(screen.queryByRole('button', { name: 'Discard and reload' })).toBeNull();
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
-    expect(screen.queryByLabelText('Title')).toBeNull();
+    await waitFor(() => expect(screen.queryByLabelText('Title')).toBeNull());
     expect(screen.getByRole('button', { name: 'Edit Priority' })).not.toBeDisabled();
   });
 

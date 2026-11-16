@@ -1008,7 +1008,7 @@ describe('PageEditor collaborative mode', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Apply' }));
     await until(() => server.metadata.summary === 'Mine');
     expect(screen.queryByTestId('collab-recovery-meta')).toBeNull();
-  });
+  }, 30000);
 
   it('a refused-publish violation clears when the field changes by another route (a remote edit)', async () => {
     server.config.publishInvalid = true;
@@ -1037,7 +1037,7 @@ describe('PageEditor collaborative mode', () => {
     fireEvent.blur(raw);
     await until(() => server.metadata.tags?.includes('fixed'));
     await until(() => !screen.getByTestId('editor-save').disabled);
-  }, 30000);
+  });
   // ── Phase 3 Task 11: draft banner, publish dialog, notices, convert-and-publish ──
 
   const idsOf = ({ j }) => ({ sessionId: j.sessionId, participantId: j.participantId });

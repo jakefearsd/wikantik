@@ -255,6 +255,10 @@ public class WorkAgentApiIT {
         assertEquals( "reassigned", flow.get( 3 ).get( "note" ).getAsString() );
         assertActor( flow.get( 4 ), "agent", CLAUDE );
         assertActor( flow.get( 5 ), "agent", CLAUDE );
+        assertEquals( "in_progress|" + B_LOGIN, flow.get( 5 ).get( "toValue" ).getAsString(), "the admin sees the raw assignee" );
+        assertEquals( "in_progress|" + B_NAME, flow.get( 5 ).get( "toValueName" ).getAsString().isEmpty() ? ""
+            : "in_progress|" + flow.get( 5 ).get( "toValueName" ).getAsString() );
+        assertEquals( "review|queue:reviewer", flow.get( 5 ).get( "fromValue" ).getAsString() );
         assertEquals( "needs a human", flow.get( 5 ).get( "note" ).getAsString() );
         assertActor( flow.get( 6 ), "agent", CLAUDE );
         assertEquals( "agent:" + claude.id(), flow.get( 6 ).get( "fromValue" ).getAsString() );
@@ -265,10 +269,9 @@ public class WorkAgentApiIT {
         final JsonArray activity = json( personA.get( "/api/work/activity?project=AGT&item=" + key + "&limit=200" ) ).getAsJsonArray();
         final List< String > fromActivity = types( activity );
         fromActivity.remove( "created" );
-        final List< String > reversed = new ArrayList<>( fromActivity );
-        java.util.Collections.reverse( reversed );
-        assertTrue( sequence.equals( fromActivity ) || sequence.equals( reversed ),
-            "the project activity shows the same log: " + activity );
+        final List< String > newestFirst = new ArrayList<>( sequence );
+        java.util.Collections.reverse( newestFirst );
+        assertEquals( newestFirst, fromActivity, "the project activity is newest first: " + activity );
         for ( final String name : List.of( CODEX, CLAUDE, A_NAME, B_NAME ) ) {
             assertTrue( activity.toString().contains( name ), "activity names " + name );
         }
@@ -477,5 +480,37 @@ public class WorkAgentApiIT {
         assertTrue( adminSees.contains( A_LOGIN ) || adminSees.contains( "janne" ), "admin sees logins: " + adminSees );
         assertTrue( personB.get( "/api/work/activity?project=AGT&limit=500" ).body().contains( A_NAME ),
             "the display name is shown instead" );
+    }
+
+    // ---- a person moves a draft forward
+
+    @Test
+    void agentCannotMoveADraftForward() throws Exception {
+        final HttpResponse< String > created = asAgent( codex, "POST", "/api/work/items", Map.of( "project", "AGT",
+            "level", "task", "title", "Agent draft" ) );
+        assertEquals( 201, created.statusCode(), created.body() );
+        final JsonObject draft = json( created ).getAsJsonObject();
+        final String key = keyOf( draft );
+        assertEquals( "draft", itemOf( draft ).get( "status" ).getAsString() );
+        final int eventsBefore = events( admin, key ).size();
+
+        final HttpResponse< String > patch = asAgent( codex, "PATCH", "/api/work/items/" + key, Map.of(
+            "expectedVersion", versionOf( draft ), "changes", Map.of( "status", "ready" ) ) );
+        assertEquals( 403, patch.statusCode(), patch.body() );
+        assertTrue( patch.body().contains( "A person moves a draft forward." ), patch.body() );
+        final HttpResponse< String > handoff = asAgent( codex, "POST", "/api/work/items/" + key + "/handoff", Map.of(
+            "expectedVersion", versionOf( draft ), "status", "ready", "queue", "implementer", "note", "forward" ) );
+        assertEquals( 403, handoff.statusCode(), handoff.body() );
+        assertTrue( handoff.body().contains( "A person moves a draft forward." ), handoff.body() );
+
+        final JsonObject still = itemNow( key );
+        assertEquals( "draft", still.get( "status" ).getAsString() );
+        assertEquals( versionOf( draft ), still.get( "version" ).getAsInt() );
+        assertEquals( eventsBefore, events( admin, key ).size(), "the refusals left no event" );
+
+        // positive control: a person moves the same draft to ready
+        final JsonObject moved = ok( personA.send( "PATCH", "/api/work/items/" + key, Map.of( "expectedVersion",
+            versionOf( draft ), "changes", Map.of( "status", "ready" ) ) ) );
+        assertEquals( "ready", itemOf( moved ).get( "status" ).getAsString() );
     }
 }

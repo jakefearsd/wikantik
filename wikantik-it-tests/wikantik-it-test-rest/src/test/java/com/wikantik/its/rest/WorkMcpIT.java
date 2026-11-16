@@ -318,6 +318,8 @@ public class WorkMcpIT {
         // tool output never carries a login, a key id or a token
         final String all = String.join( "\n", TOOL_OUTPUT );
         assertFalse( all.contains( PERSON_LOGIN ), "a login in tool output" );
+        assertFalse( all.toLowerCase( java.util.Locale.ROOT ).contains( "janne" ),
+            "neither the IT admin's login nor the agents' owner (the same account) appears in tool output" );
         assertFalse( all.contains( "apiKeyId" ) );
         assertFalse( all.contains( agentA.token() ) || all.contains( agentB.token() ) );
         assertTrue( all.contains( PERSON_NAME ), "positive control: the display name is there" );
@@ -424,22 +426,36 @@ public class WorkMcpIT {
         assertFalse( asA.toolError(), asA.raw() );
         assertEquals( "mcpa@it", JsonParser.parseString( asA.toolText() ).getAsJsonObject().getAsJsonObject( "agent" ).get( "name" ).getAsString() );
 
+        // the second agent's key on the FIRST agent's session id acts as the second agent
         final Reply asB = rawCall( agentB.token(), session, "get_work_context", Map.of() );
-        if ( asB.status() == 200 && !asB.toolError() ) {
-            assertEquals( "mcpb@it", JsonParser.parseString( asB.toolText() ).getAsJsonObject().getAsJsonObject( "agent" ).get( "name" ).getAsString(),
-                "the second key is the second agent, never the first" );
-            // and a write on that session by B is B's: it claims in B's queue only
-            final String key = queuedItem( "mcpreview" );
-            final Reply claim = rawCall( agentB.token(), session, "claim_item", Map.of( "key", key ) );
-            assertFalse( claim.toolError(), claim.raw() );
-            assertEquals( "mcpb@it", itemClaimant( key ) );
-            // A, same session, cannot take an item from B's queue
-            final String other = queuedItem( "mcpreview" );
-            assertTrue( rawCall( agentA.token(), session, "claim_item", Map.of( "key", other ) ).toolError() );
-            assertTrue( itemNow( other ).get( "claimedByAgent" ).isJsonNull() );
-        } else {
-            assertTrue( asB.status() == 401 || asB.status() == 403 || asB.status() == 404 || asB.toolError(), asB.raw() );
-        }
+        assertEquals( 200, asB.status(), "B's call on A's session: " + asB.raw() );
+        assertFalse( asB.toolError(), asB.raw() );
+        assertEquals( "mcpb@it", agentName( asB ), "the second key is the second agent, never the first" );
+        final String key = queuedItem( "mcpreview" );
+        final Reply claim = rawCall( agentB.token(), session, "claim_item", Map.of( "key", key ) );
+        assertEquals( 200, claim.status(), claim.raw() );
+        assertFalse( claim.toolError(), claim.raw() );
+        assertEquals( "mcpb@it", itemClaimant( key ) );
+        // B's context on that session shows B's claim; A's next call on the same session still reports A, without it
+        assertTrue( claimKeys( rawCall( agentB.token(), session, "get_work_context", Map.of() ) ).contains( key ) );
+        final Reply asAAgain = rawCall( agentA.token(), session, "get_work_context", Map.of() );
+        assertEquals( "mcpa@it", agentName( asAAgain ) );
+        assertFalse( claimKeys( asAAgain ).contains( key ), "A does not hold B's claim" );
+        // A, same session, cannot take an item from B's queue
+        final String other = queuedItem( "mcpreview" );
+        assertTrue( rawCall( agentA.token(), session, "claim_item", Map.of( "key", other ) ).toolError() );
+        assertTrue( itemNow( other ).get( "claimedByAgent" ).isJsonNull() );
+    }
+
+    private static String agentName( final Reply r ) {
+        return JsonParser.parseString( r.toolText() ).getAsJsonObject().getAsJsonObject( "agent" ).get( "name" ).getAsString();
+    }
+
+    private static List< String > claimKeys( final Reply r ) {
+        final List< String > keys = new ArrayList<>();
+        JsonParser.parseString( r.toolText() ).getAsJsonObject().getAsJsonArray( "claims" )
+            .forEach( c -> keys.add( c.getAsJsonObject().get( "key" ).getAsString() ) );
+        return keys;
     }
 
     private static String itemClaimant( final String key ) throws Exception {

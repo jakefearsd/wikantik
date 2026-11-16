@@ -84,13 +84,28 @@ public class WorkKeySessionIT {
             + WorkIt.setCookies( login ).stream().map( c -> c.substring( 0, Math.min( c.indexOf( '=' ), c.length() ) ) ).toList() );
     }
 
+    /** The project keys in a {@code /me} body ({@code projects}) or a {@code /projects} list, as far as the two fixtures go. */
+    private static java.util.Set< String > projectKeys( final String body ) {
+        final com.google.gson.JsonElement e = com.google.gson.JsonParser.parseString( body );
+        final com.google.gson.JsonArray arr = e.isJsonArray() ? e.getAsJsonArray() : e.getAsJsonObject().getAsJsonArray( "projects" );
+        final java.util.Set< String > keys = new java.util.TreeSet<>();
+        for ( final com.google.gson.JsonElement p : arr ) {
+            final String k = p.getAsJsonObject().get( "key" ).getAsString();
+            if ( PROJECT.equals( k ) || "SEO".equals( k ) ) {
+                keys.add( k );
+            }
+        }
+        return keys;
+    }
+
     private static boolean authenticated( final String... headers ) throws Exception {
         final HttpResponse< String > r = WorkIt.bearer( null, "GET", ID_PROBE, null, headers );
         assertEquals( 200, r.statusCode(), ID_PROBE );
         return json( r ).getAsJsonObject().get( "authenticated" ).getAsBoolean();
     }
 
-    private static void assertNoSessionFromKey( final String token, final String what ) throws Exception {
+    private static void assertNoSessionFromKey( final String token, final String what, final java.util.Set< String > projectsSeen )
+            throws Exception {
         final String real = genuineRememberMeCookie();
         // positive control: that cookie, alone, authenticates; no cookie and a made-up one do not
         assertTrue( authenticated( "Cookie", real ), "cookie authentication works in this run" );
@@ -107,6 +122,12 @@ public class WorkKeySessionIT {
             final HttpResponse< String > w = WorkIt.bearer( token, "GET", "/api/work/projects", null, "Cookie", cookie );
             assertEquals( 200, w.statusCode() );
             assertTrue( WorkIt.setCookies( w ).isEmpty(), what + ": /projects sets no cookie" );
+            // the caller is who the key says, on every variant: /me names exactly the projects that identity may see
+            assertEquals( projectsSeen, projectKeys( r.body() ), what + ": /api/work/me identity with cookie "
+                + cookie.split( "=" )[ 0 ] );
+            assertEquals( projectsSeen, projectKeys( w.body() ).stream().filter( k -> !k.isEmpty() && !"EXTRA".equals( k ) )
+                .filter( k -> projectsSeen.contains( k ) || k.equals( PROJECT ) || k.equals( "SEO" ) ).collect( java.util.stream.Collectors.toSet() ),
+                what + ": /api/work/projects identity" );
             returned.addAll( WorkIt.setCookies( r ) );
         }
         assertTrue( returned.isEmpty() );
@@ -119,7 +140,7 @@ public class WorkKeySessionIT {
 
     @Test
     void agentKeyNeverStartsASession() throws Exception {
-        assertNoSessionFromKey( agent.token(), "agent key" );
+        assertNoSessionFromKey( agent.token(), "agent key", java.util.Set.of( "SEO" ) );
         final String list = WorkIt.bearer( agent.token(), "GET", "/api/work/projects", null,
             "Cookie", genuineRememberMeCookie() ).body();
         assertTrue( list.contains( "\"SEO\"" ), "the agent sees what it was admitted to: " + list );
@@ -128,7 +149,7 @@ public class WorkKeySessionIT {
 
     @Test
     void unboundWorkKeyNeverStartsASession() throws Exception {
-        assertNoSessionFromKey( workKey, "unbound work key" );
+        assertNoSessionFromKey( workKey, "unbound work key", java.util.Set.of() );
         final String list = WorkIt.bearer( workKey, "GET", "/api/work/projects", null,
             "Cookie", genuineRememberMeCookie() ).body();
         assertFalse( list.contains( "\"" + PROJECT + "\"" ), "the key acts as a person with no admin rights: " + list );
@@ -141,6 +162,14 @@ public class WorkKeySessionIT {
         return WorkIt.bearer( token, "POST", path, INIT, "Accept", "application/json, text/event-stream" );
     }
 
+    /**
+     * The IT harness runs {@code /wikantik-admin-mcp} and {@code /knowledge-mcp} with
+     * {@code mcp.access.allowUnrestricted=true}, which admits any caller, so a scope refusal there cannot be asserted
+     * end to end; what is asserted on them is that a work key gets no more than a keyless caller. Scope refusal is
+     * owned by the unit tests {@code ApiKeyScopeTest}, {@code AbstractApiAccessFilterTest}, {@code McpAccessFilterTest},
+     * {@code ToolsAccessFilterTest} and {@code McpEndpointBootstrapperKeyOnlyTest}. {@code /tools/*} is gated in this
+     * module, so its refusal is asserted for real.
+     */
     @Test
     void workKeyIsRefusedOnTheOtherKeyedSurfaces() throws Exception {
         final String all = mint( "all" );

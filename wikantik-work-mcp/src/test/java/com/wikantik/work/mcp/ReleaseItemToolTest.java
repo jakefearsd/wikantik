@@ -21,6 +21,7 @@ package com.wikantik.work.mcp;
 import com.wikantik.work.WorkConflictException;
 import com.wikantik.work.WorkDeniedException;
 import com.wikantik.work.WorkNotFoundException;
+import com.wikantik.work.WorkValidationException;
 import com.wikantik.work.WorkStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import java.sql.SQLException;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -95,5 +97,18 @@ class ReleaseItemToolTest {
         assertEquals( "note: must be a string.", WorkMcpFixture.text( tool.call( w.agent, Map.of( "key", "PLAT-1", "note", 4 ) ) ) );
         assertEquals( "status: Unknown argument.", WorkMcpFixture.text( tool.call( w.agent, Map.of( "key", "PLAT-1", "status", "ready" ) ) ) );
         verifyNoInteractions( w.svc, w.claims );
+    }
+
+    @Test
+    void aReservedReleaseNoteIsRefusedByNameAndTheRefusalIsLogged() throws SQLException {
+        when( w.claims.release( any(), any(), eq( "moved" ) ) )
+            .thenThrow( new WorkValidationException( "note", "Choose a different note." ) );
+        final java.util.concurrent.atomic.AtomicReference< String > text = new java.util.concurrent.atomic.AtomicReference<>();
+        final java.util.List< String > lines = WriteToolsAuditTest.audited( () -> text.set(
+            WorkMcpFixture.text( tool.call( w.agent, Map.of( "key", "PLAT-1", "note", "moved" ) ) ) ) );
+        assertEquals( "note: Choose a different note.", text.get() );
+        assertEquals( 1, lines.size(), lines.toString() );
+        assertTrue( lines.get( 0 ).startsWith( "MCP_WORK_REFUSED tool=release_item item=PLAT-1" )
+            && lines.get( 0 ).endsWith( "kind=validation" ), lines.get( 0 ) );
     }
 }

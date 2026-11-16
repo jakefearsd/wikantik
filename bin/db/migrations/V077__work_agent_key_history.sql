@@ -13,6 +13,7 @@
 -- "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 -- KIND, either express or implied.  See the License for the
 -- specific language governing permissions and limitations
+-- under the License.
 -- V077: work management agent key history. A key that was ever bound to an agent and then unbound (rotation)
 -- must never act as its owner (a person) if it survives revocation: actorForApiKey treats a key found here as no actor.
 -- Insert-only, like work_event. Requires V076. Idempotent.

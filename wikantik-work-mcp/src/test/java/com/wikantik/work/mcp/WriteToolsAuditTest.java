@@ -63,7 +63,7 @@ class WriteToolsAuditTest {
         }
     }
 
-    private static List< String > audited( final Runnable action ) {
+    static List< String > audited( final Runnable action ) {
         final LoggerContext ctx = ( LoggerContext ) org.apache.logging.log4j.LogManager.getContext( false );
         final LoggerConfig config = ctx.getConfiguration().getLoggerConfig( "SecurityLog" );
         final Level previous = config.getLevel();

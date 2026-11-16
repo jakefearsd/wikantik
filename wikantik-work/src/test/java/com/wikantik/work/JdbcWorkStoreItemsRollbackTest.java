@@ -73,6 +73,38 @@ class JdbcWorkStoreItemsRollbackTest {
         assertEquals( before, nextSeq() );
     }
 
+    private static Item draftFor( final String assignee, final String queue ) {
+        return new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "x", "body", WorkStatus.DRAFT, 3, 0,
+            null, assignee, null, null, null, null, 0, null, null, null, queue, null, null, null, null );
+    }
+
+    private void createRollsBackWhenAssignedInsertFails( final Item draft ) throws SQLException {
+        final int before = nextSeq();
+        // statements: 1 bump next_seq, 2 max rank, 3 insert item, 4 insert revision, 5 insert created event,
+        // 6 insert assigned event (only an item created with a person or a queue writes it)
+        final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
+        faulty.failOn( 6, new RuntimeException( "boom: assigned insert" ) );
+        final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
+        assertThrows( RuntimeException.class, () -> faultyStore.createItem( plat, draft,
+            Actor.human( "alice", java.util.Set.of(), false ) ) );
+        assertEquals( 1, faulty.rollbacks() );
+        assertTrue( store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null, null ) ).isEmpty() );
+        assertEquals( 0, WorkAgentFixtures.scalar( ds, "SELECT count(*) FROM work_event WHERE project_id = " + plat.id() ),
+            "the created event rolled back with it" );
+        assertEquals( before, nextSeq() );
+    }
+
+    @Test
+    void createRollsBackWhenTheAssignedEventForAQueueFails() throws SQLException {
+        WorkAgentFixtures.exec( ds, "INSERT INTO work_queue (key, name) VALUES ('implementer', 'Implementer') ON CONFLICT DO NOTHING" );
+        createRollsBackWhenAssignedInsertFails( draftFor( null, "implementer" ) );
+    }
+
+    @Test
+    void createRollsBackWhenTheAssignedEventForAPersonFails() throws SQLException {
+        createRollsBackWhenAssignedInsertFails( draftFor( "bob", null ) );
+    }
+
     @Test
     void updateRollsBackWhenRevisionInsertFails() throws SQLException {
         final Item i = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "x" ), Actor.human( "alice", java.util.Set.of(), false ) );

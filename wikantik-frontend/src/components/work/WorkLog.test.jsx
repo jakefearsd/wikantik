@@ -27,6 +27,7 @@ function renderLog(url = '/work/log') {
     <MemoryRouter initialEntries={[url]}>
       <Routes>
         <Route path="/work/log" element={<><WorkLog /><Where /></>} />
+        <Route path="/work/:project/log" element={<><WorkLog /><Where /></>} />
         <Route path="/work/item/:key" element={<div>ITEM PAGE</div>} />
         <Route path="/work" element={<div>HOME</div>} />
       </Routes>
@@ -134,6 +135,39 @@ describe('WorkLog', () => {
     expect(await screen.findByText('boom')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('PLAT-15')).toBeInTheDocument();
+  });
+
+  it('insideAProjectTheRequestCarriesTheProjectAndOffersNoProjectFilter', async () => {
+    getAssignmentLog.mockResolvedValue({ events: [ev({ projectArchived: true })] });
+    renderLog('/work/PLAT/log?kind=claims');
+    await screen.findAllByRole('listitem');
+    expect(getAssignmentLog).toHaveBeenCalledWith({
+      types: ['claimed', 'claim_renewed', 'released', 'claim_expired'], project: 'PLAT', limit: 50,
+    });
+    expect(screen.queryByLabelText('Project')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Kind of event')).toHaveValue('claims');
+    expect(screen.getByText('(archived)')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Who'), { target: { value: 'agents' } });
+    await waitFor(() => expect(getAssignmentLog).toHaveBeenLastCalledWith(expect.objectContaining({ project: 'PLAT', actorKind: 'agent' })));
+    expect(screen.getByTestId('where')).toHaveTextContent('/work/PLAT/log?kind=claims&who=agents');
+  });
+
+  it('aLoadMoreInFlightWhenAFilterChangesCannotDisableOrPolluteTheNextQuery', async () => {
+    const full = (prefix) => Array.from({ length: 50 }, (_, i) => ev({ id: 2000 + i + (prefix === 'B' ? 100 : 0), itemKey: `${prefix}-${i + 1}` }));
+    let resolveStale;
+    getAssignmentLog
+      .mockResolvedValueOnce({ events: full('A') })
+      .mockReturnValueOnce(new Promise((r) => { resolveStale = r; }))
+      .mockResolvedValueOnce({ events: full('B') });
+    renderLog();
+    await screen.findByText('A-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByRole('button', { name: 'Loading…' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Who'), { target: { value: 'agents' } });
+    await screen.findByText('B-1');
+    resolveStale({ events: [ev({ id: 1, itemKey: 'STALE-1' })] });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Load more' })).toBeEnabled());
+    expect(screen.queryByText('STALE-1')).not.toBeInTheDocument();
   });
 
   describe('renewals', () => {

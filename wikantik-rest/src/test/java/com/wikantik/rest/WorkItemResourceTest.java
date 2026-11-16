@@ -446,6 +446,17 @@ class WorkItemResourceTest {
     }
 
     @Test
+    void releaseWithAReservedNoteIs400() throws Exception {
+        Mockito.when( claims.release( any(), anyString(), any() ) )
+            .thenThrow( new com.wikantik.work.WorkValidationException( "note", "Choose a different note." ) );
+        final WorkHttp.Result r = send( "POST", "/api/work/items", "/PLAT-1/release", "{\"note\":\"moved\"}" );
+        assertEquals( 400, r.status() );
+        assertEquals( "note", r.json().getAsJsonObject().get( "field" ).getAsString() );
+        assertEquals( "Choose a different note.", r.json().getAsJsonObject().get( "message" ).getAsString() );
+        Mockito.verify( claims ).release( ALICE, "PLAT-1", "moved" );
+    }
+
+    @Test
     void releaseTakesAnOptionalNote() throws Exception {
         Mockito.when( claims.release( any(), anyString(), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 3 ) );
         assertEquals( 200, send( "POST", "/api/work/items", "/PLAT-1/release", "{\"note\":\"blocked on infra\"}" ).status() );

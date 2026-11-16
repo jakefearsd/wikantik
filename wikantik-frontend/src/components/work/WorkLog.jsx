@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import EmptyState from '../ui/EmptyState';
 import Select from '../ui/Select';
 import Spinner from '../ui/Spinner';
@@ -56,22 +56,25 @@ function LogRow({ event, count }) {
 
 /**
  * /work/log: who took what and what happened next, over every project the viewer can see (or one, with ?project=).
+ * At /work/:project/log (inside the project shell) the project is fixed by the path and its filter is not offered.
  * The filters live in the URL so a filtered view can be shared. Kind, project, people/agents and agent are sent to
  * the server, so "Load more" pages through the filtered log and nothing is hidden by a client-side filter over a
  * partial list. Consecutive renewals of one claim fold into one line unless "Show every renewal" is on.
  */
 export default function WorkLog() {
   const [params, setParams] = useSearchParams();
+  const { project: fixedProject } = useParams();
   const kind = KINDS[params.get('kind')] ? params.get('kind') : '';
   const who = WHO[params.get('who')] ? params.get('who') : '';
   const agent = /^\d+$/.test(params.get('agent') || '') ? params.get('agent') : '';
-  const project = params.get('project') || '';
+  const project = fixedProject || params.get('project') || '';
   const everyRenewal = params.get('renewals') === 'all';
   const queryKey = [kind, who, agent, project].join('|');
 
-  const [state, setState] = useState({ key: null, events: null, more: false, error: null });
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [moreError, setMoreError] = useState(null);
+  const [state, setState] = useState({ key: null, gen: 0, events: null, more: false, error: null });
+  // The state of a Load more, tagged with the load it belongs to: a new query makes a new generation, so a Load more
+  // still in flight for the old one can neither leave this one's button disabled nor append stale rows.
+  const [moreState, setMoreState] = useState({ gen: -1, loading: false, error: null });
   const [options, setOptions] = useState({ agents: [], projects: [] });
   const seq = useRef(0);
 
@@ -86,11 +89,11 @@ export default function WorkLog() {
       .then((body) => {
         if (mine !== seq.current) return;
         const events = body?.events || [];
-        setState({ key: queryKey, events, more: events.length >= PAGE, error: null });
+        setState({ key: queryKey, gen: mine, events, more: events.length >= PAGE, error: null });
       })
       .catch((error) => {
         console.warn('WorkLog: could not load the log', error);
-        if (mine === seq.current) setState({ key: queryKey, events: null, more: false, error });
+        if (mine === seq.current) setState({ key: queryKey, gen: mine, events: null, more: false, error });
       });
   }, [scope, queryKey]);
 
@@ -115,13 +118,15 @@ export default function WorkLog() {
   }, { replace: true });
 
   const events = state.key === queryKey ? state.events : null;
+  const more = moreState.gen === state.gen ? moreState : { loading: false, error: null };
   const view = useMemo(() => foldRenewals(events || [], !everyRenewal), [events, everyRenewal]);
   const days = useMemo(() => groupByDay(view.rows), [view.rows]);
 
   function loadMore() {
     const mine = seq.current;
     const last = events[events.length - 1];
-    setLoadingMore(true); setMoreError(null);
+    const gen = state.gen;
+    setMoreState({ gen, loading: true, error: null });
     getAssignmentLog(scope({ before: last.at, beforeId: last.id, limit: PAGE }))
       .then((body) => {
         if (mine !== seq.current) return;
@@ -133,12 +138,12 @@ export default function WorkLog() {
       })
       .catch((error) => {
         console.warn('WorkLog: could not load more of the log', error);
-        if (mine === seq.current) setMoreError(error?.message || 'Could not load more.');
+        if (mine === seq.current) setMoreState({ gen, loading: false, error: error?.message || 'Could not load more.' });
       })
-      .finally(() => { if (mine === seq.current) setLoadingMore(false); });
+      .finally(() => { if (mine === seq.current) setMoreState((m) => (m.gen === gen ? { ...m, loading: false } : m)); });
   }
 
-  const filtering = !!(kind || who || agent || project);
+  const filtering = !!(kind || who || agent || (project && !fixedProject));
   const toolbar = (
     <div className="work-board-toolbar work-log-filters">
       <label className="work-toggle">Kind
@@ -153,14 +158,16 @@ export default function WorkLog() {
         <Select ariaLabel="Agent" value={agent} placeholder="Any agent"
           options={options.agents.map((a) => ({ value: String(a.id), label: a.name }))} onChange={set('agent')} />
       </label>
-      <label className="work-toggle">Project
-        <Select ariaLabel="Project" value={project} placeholder="All my projects"
-          options={options.projects.map((p) => ({ value: p.key, label: `${p.key} ${p.name}` }))} onChange={set('project')} />
-      </label>
+      {!fixedProject && (
+        <label className="work-toggle">Project
+          <Select ariaLabel="Project" value={project} placeholder="All my projects"
+            options={options.projects.map((p) => ({ value: p.key, label: `${p.key} ${p.name}` }))} onChange={set('project')} />
+        </label>
+      )}
     </div>
   );
 
-  const heading = (
+  const heading = fixedProject ? null : (
     <header className="work-header">
       <h1 className="work-heading"><Link to="/work">Work</Link> <span aria-hidden="true">▸</span> Assignments and claims</h1>
     </header>
@@ -169,7 +176,7 @@ export default function WorkLog() {
   let body;
   if (state.key !== queryKey || (!events && !state.error)) body = <Spinner label="Loading…" />;
   else if (state.error) {
-    body = <WorkLoadError error={state.error} fallback="Could not load the log." onRetry={() => { setState({ key: null, events: null, more: false, error: null }); load(); }} />;
+    body = <WorkLoadError error={state.error} fallback="Could not load the log." onRetry={() => { setState({ key: null, gen: 0, events: null, more: false, error: null }); load(); }} />;
   } else if (events.length === 0) {
     body = <EmptyState message={filtering ? 'No assignments or claims match these filters.' : 'No assignments or claims yet.'} />;
   } else {
@@ -194,10 +201,10 @@ export default function WorkLog() {
             </ul>
           </section>
         ))}
-        {moreError && <p className="work-form-error" role="alert">{moreError}</p>}
+        {more.error && <p className="work-form-error" role="alert">{more.error}</p>}
         {state.more && (
-          <button type="button" className="btn btn-sm" disabled={loadingMore} onClick={loadMore}>
-            {loadingMore ? 'Loading…' : 'Load more'}
+          <button type="button" className="btn btn-sm" disabled={more.loading} onClick={loadMore}>
+            {more.loading ? 'Loading…' : 'Load more'}
           </button>
         )}
       </>

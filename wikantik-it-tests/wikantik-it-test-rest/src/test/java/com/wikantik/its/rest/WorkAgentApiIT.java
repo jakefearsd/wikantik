@@ -34,6 +34,7 @@ import java.util.Map;
 import static com.wikantik.its.rest.WorkIt.json;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -328,47 +329,106 @@ public class WorkAgentApiIT {
         assertEquals( 200, asAgent( codex, "GET", "/api/work/items/" + openKey, null ).statusCode() );
     }
 
-    @Test
-    void assignmentLogShowsClaimAssignmentAndTransitions() throws Exception {
-        final String hidden = keyOf( newItem( "HID", "Hidden log item", "implementer" ) );
-        final String key = keyOf( newItem( "AGT", "Logged work", "implementer" ) );
-        claim( codex, key );
-        final JsonObject claimedView = itemOf( ok( admin.get( "/api/work/items/" + key ) ) );
-        ok( personA.send( "POST", "/api/work/items/" + key + "/handoff", Map.of( "expectedVersion",
-            claimedView.get( "version" ).getAsInt(), "status", "review", "assignee", B_NAME, "note", "over to B" ) ) );
-
-        final HttpResponse< String > r = personA.get( "/api/work/log?project=AGT&limit=200" );
-        assertEquals( 200, r.statusCode(), r.body() );
-        final JsonArray events = json( r ).getAsJsonObject().getAsJsonArray( "events" );
-        final List< String > ofItem = new java.util.ArrayList<>();
-        JsonObject claimedEvent = null;
-        for ( int i = 0; i < events.size(); i++ ) {
-            final JsonObject e = events.get( i ).getAsJsonObject();
-            if ( key.equals( e.get( "itemKey" ).isJsonNull() ? null : e.get( "itemKey" ).getAsString() ) ) {
-                ofItem.add( e.get( "type" ).getAsString() );
-                if ( "claimed".equals( e.get( "type" ).getAsString() ) ) {
-                    claimedEvent = e;
-                }
+    /** The rows of the log's page for one item, newest first (the order the endpoint returns). */
+    private static List< JsonObject > logRowsOf( final JsonArray events, final String itemKey ) {
+        final List< JsonObject > out = new ArrayList<>();
+        for ( final JsonElement e : events ) {
+            final JsonObject o = e.getAsJsonObject();
+            if ( !o.get( "itemKey" ).isJsonNull() && itemKey.equals( o.get( "itemKey" ).getAsString() ) ) {
+                out.add( o );
             }
         }
-        // newest first: the hand-off and the release it caused, then the claim, then the queue assignment
-        assertTrue( ofItem.indexOf( "handoff" ) < ofItem.indexOf( "claimed" ), ofItem.toString() );
-        assertTrue( ofItem.contains( "released" ) && ofItem.contains( "assigned" ), ofItem.toString() );
-        assertEquals( CODEX, claimedEvent.get( "actorName" ).getAsString() );
-        assertEquals( "agent", claimedEvent.get( "actorKind" ).getAsString() );
-        assertEquals( "Logged work", claimedEvent.get( "itemTitle" ).getAsString() );
-        assertEquals( "AGT", claimedEvent.get( "projectKey" ).getAsString() );
-        assertFalse( r.body().contains( hidden ), "no event of a project the agent or person is not in" );
+        return out;
+    }
 
-        // the agent sees only what it was admitted to, even though its key's owner is an admin
-        final String asCodex = asAgent( codex, "GET", "/api/work/log?limit=200", null ).body();
-        assertTrue( asCodex.contains( key ), asCodex );
-        assertFalse( asCodex.contains( hidden ), asCodex );
+    private static java.util.Set< String > projectKeysOf( final JsonArray events ) {
+        final java.util.Set< String > out = new java.util.TreeSet<>();
+        for ( final JsonElement e : events ) {
+            out.add( e.getAsJsonObject().get( "projectKey" ).getAsString() );
+        }
+        return out;
+    }
+
+    private static JsonArray logOf( final HttpResponse< String > r ) {
+        assertEquals( 200, r.statusCode(), r.body() );
+        return json( r ).getAsJsonObject().getAsJsonArray( "events" );
+    }
+
+    @Test
+    void assignmentLogShowsClaimAssignmentAndTransitions() throws Exception {
+        newItem( "HID", "Hidden log item", "implementer" );
+
+        // route 1: created INTO a queue (creation writes `assigned`), made ready by a person, claimed, handed to B
+        final HttpResponse< String > created = personA.send( "POST", "/api/work/items", Map.of( "project", "AGT",
+            "level", "task", "title", "Queue at creation", "queue", "implementer" ) );
+        assertEquals( 201, created.statusCode(), created.body() );
+        final JsonObject draft = json( created ).getAsJsonObject();
+        final String viaCreation = keyOf( draft );
+        ok( personA.send( "PATCH", "/api/work/items/" + viaCreation, Map.of(
+            "expectedVersion", versionOf( draft ), "changes", Map.of( "status", "ready" ) ) ) );
+        final JsonObject claimedA = claim( codex, viaCreation );
+        // a person cannot give a release the note of a system reason: refused, and the claim stands
+        final HttpResponse< String > refused = personA.send( "POST", "/api/work/items/" + viaCreation + "/release",
+            Map.of( "note", "moved" ) );
+        assertEquals( 400, refused.statusCode(), refused.body() );
+        assertEquals( "note", json( refused ).getAsJsonObject().get( "field" ).getAsString() );
+        assertEquals( "Choose a different note.", json( refused ).getAsJsonObject().get( "message" ).getAsString() );
+        assertEquals( CODEX, itemOf( ok( admin.get( "/api/work/items/" + viaCreation ) ) ).get( "claimedByName" ).getAsString() );
+        ok( personA.send( "POST", "/api/work/items/" + viaCreation + "/handoff", Map.of( "expectedVersion",
+            versionOf( claimedA ), "status", "review", "assignee", B_NAME, "note", "over to B" ) ) );
+
+        // route 2: created as a draft, then moved into the queue by a hand-off (writes `handoff`, never `assigned`)
+        final String viaHandoff = keyOf( newItem( "AGT", "Queue by hand-off", "implementer" ) );
+        final JsonObject claimedB = claim( codex, viaHandoff );
+        ok( personA.send( "POST", "/api/work/items/" + viaHandoff + "/handoff", Map.of( "expectedVersion",
+            versionOf( claimedB ), "status", "review", "assignee", B_NAME, "note", "also over to B" ) ) );
+
+        final JsonArray events = logOf( personA.get( "/api/work/log?project=AGT&limit=200" ) );
+
+        final List< JsonObject > a = logRowsOf( events, viaCreation );
+        assertEquals( List.of( "released", "handoff", "claimed", "status", "assigned" ),
+            a.stream().map( o -> o.get( "type" ).getAsString() ).toList(), a.toString() );
+        assertActor( a.get( 0 ), "human", A_NAME );
+        assertEquals( "agent:" + codex.id(), a.get( 0 ).get( "fromValue" ).getAsString() );
+        assertEquals( CODEX, a.get( 0 ).get( "fromValueName" ).getAsString(), "the release names the agent" );
+        assertEquals( "reassigned", a.get( 0 ).get( "note" ).getAsString() );
+        assertActor( a.get( 1 ), "human", A_NAME );
+        assertEquals( B_NAME, a.get( 1 ).get( "toValueName" ).getAsString() );
+        assertActor( a.get( 2 ), "agent", CODEX );
+        assertEquals( "in_progress", a.get( 2 ).get( "toValue" ).getAsString() );
+        assertActor( a.get( 3 ), "human", A_NAME );
+        assertEquals( "ready", a.get( 3 ).get( "toValue" ).getAsString() );
+        assertActor( a.get( 4 ), "human", A_NAME );
+        assertTrue( a.get( 4 ).get( "fromValue" ).isJsonNull() );
+        assertEquals( "queue:implementer", a.get( 4 ).get( "toValue" ).getAsString() );
+        assertEquals( "Queue implementer", a.get( 4 ).get( "toValueName" ).getAsString(), "the queue's name" );
+        for ( final JsonObject row : a ) {
+            assertEquals( "Queue at creation", row.get( "itemTitle" ).getAsString() );
+            assertEquals( "AGT", row.get( "projectKey" ).getAsString() );
+        }
+
+        final List< JsonObject > b = logRowsOf( events, viaHandoff );
+        assertEquals( List.of( "released", "handoff", "claimed", "handoff" ),
+            b.stream().map( o -> o.get( "type" ).getAsString() ).toList(), b.toString() );
+        assertActor( b.get( 0 ), "human", A_NAME );
+        assertEquals( CODEX, b.get( 0 ).get( "fromValueName" ).getAsString() );
+        assertActor( b.get( 1 ), "human", A_NAME );
+        assertActor( b.get( 2 ), "agent", CODEX );
+        assertEquals( "ready|queue:implementer", b.get( 3 ).get( "toValue" ).getAsString() );
+
+        // visibility: the admin's unfiltered log has the hidden project's rows (positive control); the agent, whose
+        // key's owner is that admin, sees only the project it was admitted to; so does a member of AGT only
+        final java.util.Set< String > adminSees = projectKeysOf( logOf( admin.get( "/api/work/log?limit=200" ) ) );
+        assertTrue( adminSees.containsAll( List.of( "AGT", "HID" ) ), adminSees.toString() );
+        final JsonArray asCodex = logOf( asAgent( codex, "GET", "/api/work/log?limit=200", null ) );
+        assertEquals( java.util.Set.of( "AGT" ), projectKeysOf( asCodex ) );
+        assertEquals( java.util.Set.of( "AGT" ), projectKeysOf( logOf( personA.get( "/api/work/log?limit=200" ) ) ) );
+        assertFalse( logRowsOf( asCodex, viaCreation ).isEmpty() );
         // a person who belongs to nothing gets an empty list, the same 200 a member gets, never a 404
         final Caller stranger = WorkIt.account( admin, "wagstranger", "Wag Stranger" );
         final HttpResponse< String > none = stranger.get( "/api/work/log" );
         assertEquals( 200, none.statusCode(), none.body() );
-        assertEquals( 0, json( none ).getAsJsonObject().getAsJsonArray( "events" ).size() );
+        assertEquals( 0, logOf( none ).size() );
         // an unknown type is a 400 whatever the project
         assertEquals( 400, personA.get( "/api/work/log?types=comment" ).statusCode() );
         assertEquals( 400, personA.get( "/api/work/activity?project=GHOST&types=nonsense" ).statusCode() );

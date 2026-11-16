@@ -282,7 +282,13 @@ class WorkMcpFlowPostgresTest {
         assertEquals( f.builder.id(), item.reporterAgentId() );
         assertEquals( null, item.assignee() );
         assertEquals( out.get( "version" ).getAsInt(), item.version() );
-        assertLastEvent( events( key ), "created", f.builder );
+        // created into a queue: the creation is followed by the first assignment, both by the agent
+        final List< String > log = events( key );
+        assertEquals( 2, log.size(), log.toString() );
+        assertTrue( log.get( 0 ).startsWith( "created|" ), log.toString() );
+        assertEquals( "agent/" + f.builder.id(), agentFields( log.get( 0 ) ) );
+        assertLastEvent( log, "assigned", f.builder );
+        assertTrue( log.get( 1 ).contains( "|null|queue:implementer|" ), log.get( 1 ) );
         assertEquals( "status: New items always start as drafts.", WorkMcpFixture.text(
             call( f.builder, "create_item", "project", "PLAT", "level", "task", "title", "x", "status", "ready" ) ) );
     }
@@ -344,7 +350,8 @@ class WorkMcpFlowPostgresTest {
         assertEquals( events, events( key ).size() );
         assertEquals( v, version( f.builder, key ) );
         assertEquals( revisions, f.scalar( "SELECT count(*) FROM work_item_revision WHERE item_id = " + itemId( key ) ) );
-        assertEquals( 0, rowCount( "SELECT count(*) FROM work_event WHERE type = 'assigned' AND item_id = " + itemId( key ) ) );
+        assertEquals( 1, rowCount( "SELECT count(*) FROM work_event WHERE type = 'assigned' AND item_id = " + itemId( key ) ),
+            "only the assignment made at creation; the refused updates wrote none" );
     }
 
     @Test

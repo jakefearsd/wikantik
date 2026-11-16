@@ -80,6 +80,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <Route index element={<WorkBoard />} />
                 <Route path="dates" element={<WorkDates />} />
                 <Route path="activity" element={<WorkActivity />} />
+                <Route path="log" element={<WorkLog />} />
                 <Route path="settings" element={<WorkSettings />} />
               </Route>
             </Route>

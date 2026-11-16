@@ -734,4 +734,20 @@ class AdminApiKeysResourceTest {
         assertFalse( keys.get( 1 ).getAsJsonObject().get( "agentKey" ).getAsBoolean() );
         assertFalse( keys.get( 1 ).getAsJsonObject().has( "agent" ) );
     }
+
+    @Test
+    void withWorkNotRunningAWorkKeyIsStillRevocableByAnAdmin() throws Exception {
+        // The test engine has no work service: the guard cannot tell agent keys apart, and revoke stays allowed
+        // (the admin resource has no rotate endpoint; P32 refuses rotation only).
+        final AdminApiKeysResource real = RestTestSupport.initServlet( () -> new AdminApiKeysResource(), engine );
+        when( mockService.findById( 42 ) ).thenReturn( Optional.of( new ApiKeyService.Record( 42, "h", "alice", "w",
+            ApiKeyService.Scope.WORK, Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null, false ) ) );
+        when( mockService.revoke( Mockito.eq( 42 ), any() ) ).thenReturn( true );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        real.doDelete( createRequest( "42", null ), response );
+        assertTrue( sw.toString().contains( "\"success\"" ), sw.toString() );
+        Mockito.verify( mockService ).revoke( Mockito.eq( 42 ), any() );
+    }
 }

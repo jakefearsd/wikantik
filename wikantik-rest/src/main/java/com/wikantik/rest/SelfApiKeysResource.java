@@ -121,6 +121,11 @@ public class SelfApiKeysResource extends RestServletBase {
         return AgentKeyGuard.agentOf( getEngine(), keyId );
     }
 
+    /** Whether work management is running (its registry can tell agent keys). Package-visible for unit tests. */
+    boolean workRunning() {
+        return AgentKeyGuard.work( getEngine() ) != null;
+    }
+
     /**
      * Whether the caller may see the agent registry (a wiki admin, or a member of any work project), and so the name
      * of the agent a key of theirs belongs to. Package-visible so unit tests can inject the decision.
@@ -261,7 +266,8 @@ public class SelfApiKeysResource extends RestServletBase {
             sendNotFound( response, "Key not found: " + id );
             return;
         }
-        if ( AgentKeyGuard.refused( this, this::agentKeyName, id, response ) ) {
+        if ( AgentKeyGuard.rotationRefusedWhileWorkIsDown( this, workRunning(), rec.get().scope(), response )
+                || AgentKeyGuard.refused( this, this::agentKeyName, id, response ) ) {
             return;
         }
         final ApiKeyService.Record old = rec.get();

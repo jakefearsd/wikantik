@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
+import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.work.WorkService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
@@ -40,6 +41,10 @@ final class AgentKeyGuard {
 
     /** The one refusal for a rotate or revoke of an agent key. */
     static final String REFUSAL = "This key belongs to a work agent. Rotate or retire the agent on the Agents page.";
+
+    /** The refusal to rotate a {@code work} key while the registry that knows agent keys is not running (P32). */
+    static final String WORK_NOT_RUNNING =
+        "Work management is not running, so a key with the work scope cannot be rotated right now.";
 
     private static final Logger LOG = LogManager.getLogger( AgentKeyGuard.class );
 
@@ -80,6 +85,23 @@ final class AgentKeyGuard {
                 e.getClass().getSimpleName(), e.getSQLState() );
             servlet.sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service temporarily unavailable" );
         }
+        return true;
+    }
+
+    /**
+     * Sends 503 and returns true when a key of the {@code work} scope is to be rotated while work management is not
+     * running (flag off, or wiring failed): agent keys and their history persist in the database, but nothing can
+     * tell them apart now, and rotating one would hand its owner a fresh key that acts as the owner. Revoking stays
+     * allowed in that state (it disables, it never grants). Returns false, sending nothing, otherwise.
+     */
+    static boolean rotationRefusedWhileWorkIsDown( final RestServletBase servlet, final boolean workRunning,
+                                                   final ApiKeyService.Scope scope,
+                                                   final HttpServletResponse response ) throws IOException {
+        if ( workRunning || scope != ApiKeyService.Scope.WORK ) {
+            return false;
+        }
+        LOG.info( "Refused a generic rotation of a work key while work management is not running" );
+        servlet.sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, WORK_NOT_RUNNING );
         return true;
     }
 

@@ -58,6 +58,7 @@ class SelfApiKeysResourceTest {
     private final java.util.Map< Integer, String > agentKeys = new java.util.HashMap<>();
     private java.sql.SQLException agentLookupFails;
     private boolean seesRegistry;
+    private boolean workRunning = true;
 
     private SelfApiKeysResource newServlet() throws Exception {
         final SelfApiKeysResource servlet = new SelfApiKeysResource() {
@@ -79,6 +80,10 @@ class SelfApiKeysResourceTest {
             @Override
             boolean callerSeesAgentRegistry( final HttpServletRequest request ) {
                 return seesRegistry;
+            }
+            @Override
+            boolean workRunning() {
+                return workRunning;
             }
         };
         final ServletConfig config = Mockito.mock( ServletConfig.class );
@@ -565,5 +570,60 @@ class SelfApiKeysResourceTest {
         final SelfApiKeysResource servlet = realServlet();
         assertEquals( Optional.empty(), servlet.agentKeyName( 5 ) );
         assertFalse( servlet.callerSeesAgentRegistry( mock( HttpServletRequest.class ) ) );
+    }
+
+    // ---- P32: with work management not running, the guard cannot tell, so a work key is not rotated
+
+    private static final String WORK_NOT_RUNNING =
+        "Work management is not running, so a key with the work scope cannot be rotated right now.";
+
+    @Test
+    void withWorkNotRunningAWorkKeyIsNotRotated() throws Exception {
+        workRunning = false;
+        when( mockService.findById( 5 ) ).thenReturn( Optional.of( rec( 5, "alice", "anything", ApiKeyService.Scope.WORK ) ) );
+        final StringWriter out = new StringWriter();
+        final HttpServletResponse response = mockResponse( out );
+
+        newServlet().doPost( postRequest( "/5/rotate", null ), response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+        assertTrue( out.toString().contains( WORK_NOT_RUNNING ), out.toString() );
+        verify( mockService, never() ).revoke( anyInt(), anyString() );
+        verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
+    }
+
+    @Test
+    void withWorkNotRunningOtherKeysStillRotateAndAWorkKeyStillRevokes() throws Exception {
+        workRunning = false;
+        when( mockService.findById( 6 ) ).thenReturn( Optional.of( rec( 6, "alice", "ci", ApiKeyService.Scope.TOOLS ) ) );
+        when( mockService.revoke( 6, "alice" ) ).thenReturn( true );
+        stubGenerate( ApiKeyService.Scope.TOOLS );
+        final HttpServletResponse rotate = mockResponse( new StringWriter() );
+        newServlet().doPost( postRequest( "/6/rotate", null ), rotate );
+        verify( rotate ).setStatus( HttpServletResponse.SC_CREATED );
+
+        when( mockService.findById( 5 ) ).thenReturn( Optional.of( rec( 5, "alice", "w", ApiKeyService.Scope.WORK ) ) );
+        when( mockService.revoke( 5, "alice" ) ).thenReturn( true );
+        final HttpServletRequest del = mock( HttpServletRequest.class );
+        when( del.getPathInfo() ).thenReturn( "/5" );
+        final StringWriter out = new StringWriter();
+        newServlet().doDelete( del, mockResponse( out ) );
+        verify( mockService ).revoke( 5, "alice" );
+        assertTrue( out.toString().contains( "\"success\": true" ), out.toString() );
+    }
+
+    @Test
+    void withWorkRunningAnOrdinaryWorkKeyRotatesAsBefore() throws Exception {
+        when( mockService.findById( 5 ) ).thenReturn( Optional.of( rec( 5, "alice", "w", ApiKeyService.Scope.WORK ) ) );
+        when( mockService.revoke( 5, "alice" ) ).thenReturn( true );
+        stubGenerate( ApiKeyService.Scope.WORK );
+        final HttpServletResponse response = mockResponse( new StringWriter() );
+        newServlet().doPost( postRequest( "/5/rotate", null ), response );
+        verify( response ).setStatus( HttpServletResponse.SC_CREATED );
+    }
+
+    @Test
+    void theRealWorkRunningCheckIsFalseWhenTheEngineHasNoWorkService() throws Exception {
+        assertFalse( realServlet().workRunning() );
     }
 }

@@ -328,7 +328,9 @@ rotated or revoked through `/api/self/apikeys` or `/admin/apikeys`: both answer 
 Rotate or retire the agent on the Agents page."` (an admin bulk revoke reports such a key as failed and revokes the rest).
 Listings carry `agentKey: true` and, where the caller can see the agent registry, `agent` (the agent's name); the key
 pages show an "agent key" badge and no Rotate or Revoke. Rotate or retire the agent at `/work/agents` instead
-([WikantikOperations.md](WikantikOperations.md) section 1.15).
+([WikantikOperations.md](WikantikOperations.md) section 1.15). While work management is not running (flag off, or it
+failed to start) nothing can tell agent keys apart, so `/api/self/apikeys` refuses to rotate any `work` key with
+`503 "Work management is not running, so a key with the work scope cannot be rotated right now."`; revoking stays allowed.
 
 ### SPA: API Keys panel in user preferences
 

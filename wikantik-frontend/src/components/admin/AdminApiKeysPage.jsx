@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
@@ -37,7 +38,22 @@ const BULK_ACTIONS = [
 
 const COLUMNS = [
   { id: 'principalLogin', label: 'Principal', sortable: true },
-  { id: 'label', label: 'Label', render: (k) => k.label || '—' },
+  {
+    id: 'label',
+    label: 'Label',
+    render: (k) => (
+      <>
+        {k.label || '—'}
+        {k.agentKey && (
+          <>
+            {' '}<span className="admin-badge active">agent key</span>
+            {k.agent && <> <strong>{k.agent}</strong></>}
+            <div className="form-hint">Managed on the <Link to="/work/agents">Agents page</Link></div>
+          </>
+        )}
+      </>
+    ),
+  },
   {
     id: 'scope',
     label: 'Scope',
@@ -84,6 +100,7 @@ export default function AdminApiKeysPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [revealed, setRevealed] = useState(null); // { token, record }
   const [confirmRevoke, setConfirmRevoke] = useState(null);
+  const [revokeError, setRevokeError] = useState(null);
 
   const loadKeys = () => api.admin.listApiKeys()
     .then(data => setKeys(data.keys || []))
@@ -103,9 +120,15 @@ export default function AdminApiKeysPage() {
   };
 
   const handleRevoke = async (id) => {
-    await api.admin.revokeApiKey(id);
-    setConfirmRevoke(null);
-    await loadKeys();
+    try {
+      await api.admin.revokeApiKey(id);
+      setConfirmRevoke(null);
+      setRevokeError(null);
+      await loadKeys();
+    } catch (err) {
+      // e.g. a 409 from a stale tab: the key became an agent's. Keep the dialog open and say what the server said.
+      setRevokeError(err.message || 'Failed to revoke key');
+    }
   };
 
   const handleBulkAction = async (action, selectedRows) => {
@@ -122,13 +145,13 @@ export default function AdminApiKeysPage() {
   };
 
   const rowAction = (k) => {
-    if (!k.active) return [];
+    if (!k.active || k.agentKey) return [];
     return [
       {
         id: 'revoke',
         label: 'Revoke',
         variant: 'danger',
-        onClick: () => setConfirmRevoke(k),
+        onClick: () => { setRevokeError(null); setConfirmRevoke(k); },
       },
     ];
   };
@@ -198,6 +221,7 @@ export default function AdminApiKeysPage() {
               Revoke key <strong>{confirmRevoke.label || `#${confirmRevoke.id}`}</strong> belonging to{' '}
               <strong>{confirmRevoke.principalLogin}</strong>? Any client using this token will start receiving HTTP 403.
             </p>
+            {revokeError && <div className="error-banner" role="alert">{revokeError}</div>}
             <div className="modal-actions" style={{ marginTop: 'var(--space-lg)' }}>
               <button className="btn btn-ghost" onClick={() => setConfirmRevoke(null)}>Cancel</button>
               <button className="btn btn-primary btn-danger" onClick={() => handleRevoke(confirmRevoke.id)}>

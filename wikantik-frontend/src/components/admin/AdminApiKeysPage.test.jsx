@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import AdminApiKeysPage from './AdminApiKeysPage';
 import { api } from '../../api/client';
+import { MemoryRouter } from 'react-router-dom';
 
 const activeKey = {
     id: 1,
@@ -58,7 +59,7 @@ describe('AdminApiKeysPage', () => {
     });
 
     it('hides revoked keys by default and reveals them when the toggle flips', async () => {
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
 
         expect(await screen.findByText('alice')).toBeInTheDocument();
         expect(screen.queryByText('bob')).not.toBeInTheDocument();
@@ -68,7 +69,7 @@ describe('AdminApiKeysPage', () => {
     });
 
     it('offersWorkScope', async () => {
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         fireEvent.click(await screen.findByRole('button', { name: /\+ Generate Key/i }));
         const values = Array.from(screen.getByRole('combobox').querySelectorAll('option')).map((o) => o.value);
         expect(values).toEqual(['tools', 'mcp_read', 'work', 'mcp_admin', 'all']);
@@ -76,21 +77,21 @@ describe('AdminApiKeysPage', () => {
 
     it('marks a key stored under the legacy mcp scope name', async () => {
         api.admin.listApiKeys.mockResolvedValue({ keys: [activeKey, activeKey2] });
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         const row = (await screen.findByText('charlie')).closest('tr');
         expect(row.textContent).toContain("legacy 'mcp'");
         expect(screen.getByText('alice').closest('tr').textContent).not.toContain('legacy');
     });
 
     it('renders fingerprint but never the full hash', async () => {
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
         expect(screen.getByText(/abcdef012345/)).toBeInTheDocument();
         expect(screen.queryByText(/abcdef0123456789/)).not.toBeInTheDocument();
     });
 
     it('shows Active/Revoked badges and hides Revoke button for revoked keys', async () => {
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const activeRow = screen.getByText('alice').closest('tr');
@@ -105,13 +106,13 @@ describe('AdminApiKeysPage', () => {
 
     it('shows the empty-state message when no keys are returned', async () => {
         api.admin.listApiKeys.mockResolvedValueOnce({ keys: [] });
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText(/No API keys found/i)).toBeInTheDocument();
     });
 
     it('surfaces a list error in the banner', async () => {
         api.admin.listApiKeys.mockRejectedValueOnce(new Error('boom'));
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('boom')).toBeInTheDocument();
     });
 
@@ -127,7 +128,7 @@ describe('AdminApiKeysPage', () => {
             token: 'wkk_plaintext-once',
         });
 
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /\+ Generate Key/i }));
@@ -159,7 +160,7 @@ describe('AdminApiKeysPage', () => {
             Object.assign(new Error('principalLogin is required'), { status: 400 })
         );
 
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /\+ Generate Key/i }));
@@ -174,7 +175,7 @@ describe('AdminApiKeysPage', () => {
     it('revoke flow opens confirmation, calls API, and refreshes the list', async () => {
         const revoke = vi.spyOn(api.admin, 'revokeApiKey').mockResolvedValue({ success: true, id: 1 });
 
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const row = screen.getByText('alice').closest('tr');
@@ -193,7 +194,7 @@ describe('AdminApiKeysPage', () => {
     it('cancel on the revoke dialog does not call the API', async () => {
         const revoke = vi.spyOn(api.admin, 'revokeApiKey').mockResolvedValue({ success: true });
 
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const row = screen.getByText('alice').closest('tr');
@@ -217,7 +218,7 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
     });
 
     it('selecting rows surfaces the bulk-action bar', async () => {
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         // Select alice's row checkbox
@@ -238,7 +239,7 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
             message: '1 of 1 keys revoked',
         });
 
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         // Select alice
@@ -266,7 +267,7 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
             message: '1 of 2 keys revoked',
         });
 
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         // Select alice and charlie
@@ -294,7 +295,7 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
             message: '0 of 1 keys revoked',
         });
 
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const aliceRow = screen.getByText('alice').closest('tr');
@@ -313,7 +314,7 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
     it('per-row Revoke button still works after AdminTable adoption', async () => {
         const revoke = vi.spyOn(api.admin, 'revokeApiKey').mockResolvedValue({ success: true, id: 1 });
 
-        render(<AdminApiKeysPage />);
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
         expect(await screen.findByText('alice')).toBeInTheDocument();
 
         const aliceRow = screen.getByText('alice').closest('tr');
@@ -324,5 +325,44 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
 
         await waitFor(() => expect(revoke).toHaveBeenCalledWith(1));
         expect(api.admin.listApiKeys).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('AdminApiKeysPage — agent keys', () => {
+    const agentKey = {
+        id: 11, principalLogin: 'dana', label: 'work-agent:triage', scope: 'work', fingerprint: 'a1a1a1a1a1a1',
+        createdAt: '2026-04-06T10:00:00Z', createdBy: 'admin', lastUsedAt: null, revokedAt: null, revokedBy: null,
+        active: true, agentKey: true, agent: 'Triage',
+    };
+
+    beforeEach(() => {
+        vi.spyOn(api.admin, 'listApiKeys').mockResolvedValue({ keys: [activeKey, agentKey] });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('badges an agent key with its agent, links to the Agents page, and offers no Revoke', async () => {
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
+        const row = (await screen.findByText('dana')).closest('tr');
+        expect(within(row).getByText('agent key')).toBeInTheDocument();
+        expect(within(row).getByText('Triage')).toBeInTheDocument();
+        expect(within(row).getByText(/Managed on the/)).toBeInTheDocument();
+        expect(within(row).getByRole('link', { name: /agents page/i })).toHaveAttribute('href', '/work/agents');
+        expect(within(row).queryByRole('button', { name: /Revoke/i })).toBeNull();
+        expect(within(screen.getByText('alice').closest('tr')).getByRole('button', { name: /Revoke/i })).toBeInTheDocument();
+    });
+
+    it('shows the server refusal in the dialog when an older tab revokes an agent key', async () => {
+        const msg = 'This key belongs to a work agent. Rotate or retire the agent on the Agents page.';
+        vi.spyOn(api.admin, 'revokeApiKey').mockRejectedValue(new Error(msg));
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
+        const row = (await screen.findByText('alice')).closest('tr');
+        fireEvent.click(within(row).getByRole('button', { name: /Revoke/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Revoke Key/i }));
+        expect(await screen.findByText(msg)).toBeInTheDocument();
+        // the table is still on screen
+        expect(screen.getByText('dana')).toBeInTheDocument();
     });
 });

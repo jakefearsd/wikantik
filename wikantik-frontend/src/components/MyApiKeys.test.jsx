@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MyApiKeys from './MyApiKeys';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 
@@ -27,7 +28,7 @@ beforeEach(() => {
 });
 
 async function openScopeOptions() {
-  render(<MyApiKeys />);
+  render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
   await screen.findByText('laptop');
   fireEvent.click(screen.getByRole('button', { name: /new key/i }));
   return within(screen.getByRole('combobox')).getAllByRole('option').map((o) => o.value);
@@ -35,14 +36,14 @@ async function openScopeOptions() {
 
 describe('MyApiKeys', () => {
   it('lists the user’s keys', async () => {
-    render(<MyApiKeys />);
+    render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
     await screen.findByText('laptop');
     expect(screen.getByText('tools')).toBeInTheDocument();
   });
 
   it('generates a key and reveals the token once', async () => {
     api.self.createApiKey.mockResolvedValue({ id: 3, label: 'ci', scope: 'all', token: 'wkk_SECRET' });
-    render(<MyApiKeys />);
+    render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
     await screen.findByText('laptop');
 
     // Toolbar "+ New key" opens the form; the form's "Generate key" submit does the work.
@@ -55,7 +56,7 @@ describe('MyApiKeys', () => {
 
   it('revokes a key after confirmation', async () => {
     api.self.revokeApiKey.mockResolvedValue({ success: true, id: 1 });
-    render(<MyApiKeys />);
+    render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
     await screen.findByText('laptop');
 
     // The row's "Revoke" opens a confirm whose primary button is "Revoke key".
@@ -66,7 +67,7 @@ describe('MyApiKeys', () => {
   });
 
   it('marks a key stored under the legacy mcp scope name', async () => {
-    render(<MyApiKeys />);
+    render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
     const cell = (await screen.findByText('mcp_admin')).closest('td');
     expect(within(cell).getByText(/legacy 'mcp'/)).toBeInTheDocument();
     const toolsCell = screen.getByText('tools', { selector: 'code' }).closest('td');
@@ -80,5 +81,54 @@ describe('MyApiKeys', () => {
   it('offers an admin every scope', async () => {
     useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Authenticated', 'Admin'] } });
     expect(await openScopeOptions()).toEqual(['tools', 'mcp_read', 'work', 'mcp_admin', 'all']);
+  });
+
+  describe('agent keys', () => {
+    const AGENT_KEYS = [
+      ...KEYS,
+      { id: 7, label: 'work-agent:triage', scope: 'work', agentKey: true, agent: 'Triage',
+        createdAt: '2026-06-03T10:00:00Z', lastUsedAt: null },
+      { id: 8, label: 'work-agent:other', scope: 'work', agentKey: true,
+        createdAt: '2026-06-03T10:00:00Z', lastUsedAt: null },
+    ];
+
+    it('badges an agent key with the agent name and offers no Rotate or Revoke', async () => {
+      api.self.listApiKeys.mockResolvedValue({ keys: AGENT_KEYS });
+      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
+      const row = (await screen.findByText('work-agent:triage')).closest('tr');
+      expect(within(row).getByText('agent key')).toBeInTheDocument();
+      expect(within(row).getByText('Triage')).toBeInTheDocument();
+      expect(within(row).getByText('Managed on the Agents page')).toBeInTheDocument();
+      expect(within(row).queryByRole('button', { name: /rotate|revoke/i })).toBeNull();
+      // an ordinary key keeps both
+      const plain = screen.getByText('laptop').closest('tr');
+      expect(within(plain).getByRole('button', { name: /rotate/i })).toBeInTheDocument();
+      expect(within(plain).getByRole('button', { name: /revoke/i })).toBeInTheDocument();
+    });
+
+    it('shows the badge without a name when the server gave none, and no link for a non-admin', async () => {
+      api.self.listApiKeys.mockResolvedValue({ keys: AGENT_KEYS });
+      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
+      const row = (await screen.findByText('work-agent:other')).closest('tr');
+      expect(within(row).getByText('agent key')).toBeInTheDocument();
+      expect(within(row).queryByRole('link')).toBeNull();
+    });
+
+    it('links an admin to the Agents page', async () => {
+      useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Authenticated', 'Admin'] } });
+      api.self.listApiKeys.mockResolvedValue({ keys: AGENT_KEYS });
+      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
+      const row = (await screen.findByText('work-agent:triage')).closest('tr');
+      expect(within(row).getByRole('link', { name: /agents page/i })).toHaveAttribute('href', '/work/agents');
+    });
+
+    it('shows the server refusal from an older tab as that message', async () => {
+      const msg = 'This key belongs to a work agent. Rotate or retire the agent on the Agents page.';
+      api.self.rotateApiKey.mockRejectedValue(new Error(msg));
+      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
+      const row = (await screen.findByText('laptop')).closest('tr');
+      fireEvent.click(within(row).getByRole('button', { name: /rotate/i }));
+      expect(await screen.findByRole('alert')).toHaveTextContent(msg);
+    });
   });
 });

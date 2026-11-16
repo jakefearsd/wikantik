@@ -73,12 +73,12 @@ describe('MyApiKeys', () => {
     expect(within(toolsCell).queryByText(/legacy/)).toBeNull();
   });
 
-  it('offers a non-admin only the self-service scopes', async () => {
-    expect(await openScopeOptions()).toEqual(['tools', 'mcp_read']);
+  it('offersWorkScope: a non-admin gets the self-service scopes including work', async () => {
+    expect(await openScopeOptions()).toEqual(['tools', 'mcp_read', 'work']);
   });
 
   it('offers an admin every scope', async () => {
     useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Authenticated', 'Admin'] } });
-    expect(await openScopeOptions()).toEqual(['tools', 'mcp_read', 'mcp_admin', 'all']);
+    expect(await openScopeOptions()).toEqual(['tools', 'mcp_read', 'work', 'mcp_admin', 'all']);
   });
 });

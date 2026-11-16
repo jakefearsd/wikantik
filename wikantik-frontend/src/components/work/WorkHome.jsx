@@ -94,6 +94,7 @@ export default function WorkHome() {
       {isAdmin && (
         <div className="work-actions">
           <Link to="/work/products">Products</Link>
+          <Link to="/work/agents">Agents &amp; queues</Link>
           {!creating && <button type="button" className="btn btn-sm" onClick={() => setCreating(true)}>New project</button>}
         </div>
       )}

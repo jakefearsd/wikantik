@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import Badge from '../ui/Badge';
 import Select from '../ui/Select';
 import Spinner from '../ui/Spinner';
-import { archiveProject, listMembers, putMember, removeMember, updateProject } from '../../api/work';
+import { archiveProject, listAgents, listMembers, putMember, removeMember, updateProject } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useWorkProject } from './useWorkProject';
 import WorkLoadError from './WorkLoadError';
 
 const ROLES = ['viewer', 'member', 'lead'];
-const KINDS = [{ value: 'user', label: 'User' }, { value: 'group', label: 'Group' }];
+const AGENT_ROLES = ['viewer', 'member'];
+const KINDS = [{ value: 'user', label: 'User' }, { value: 'group', label: 'Group' }, { value: 'agent', label: 'Agent' }];
+const RELEASES = 'Any work this agent has claimed in this project goes back to its queue.';
+const isAgent = (m) => m.principalKind === 'agent';
 const LATER = 'Takes effect in a later release';
 
 /** Inline confirmation strip: no browser dialogs. */
@@ -60,6 +64,27 @@ function Details({ project, onSaved, readOnly }) {
   );
 }
 
+function PendingConfirm({ pending, busy, onYes, onNo }) {
+  const { member, action, role } = pending;
+  const name = member.displayName || 'member';
+  if (isAgent(member)) {
+    return (
+      <Confirm disabled={busy} onYes={onYes} onNo={onNo}
+        yes={action === 'remove' ? `Yes, remove ${name}` : `Yes, make ${name} a viewer`}>
+        {action === 'remove' ? `Remove ${name} from this project?` : `Make ${name} a viewer in this project?`} {RELEASES}
+      </Confirm>
+    );
+  }
+  return (
+    <Confirm disabled={busy} onYes={onYes} onNo={onNo}
+      yes={action === 'remove' ? 'Yes, remove me' : 'Yes, change my role'}>
+      {action === 'remove'
+        ? 'You are about to remove yourself as lead. You will lose access to these settings.'
+        : `You are about to change your own role from lead to ${role}. You will lose access to these settings.`}
+    </Confirm>
+  );
+}
+
 function Members({ project, reloadProject, readOnly }) {
   const toast = useToast();
   const navigate = useNavigate();
@@ -68,6 +93,7 @@ function Members({ project, reloadProject, readOnly }) {
   const [pending, setPending] = useState(null); // { member, action: 'role' | 'remove', role? }
   const [adding, setAdding] = useState({ principal: '', kind: 'user', role: 'member' });
   const [addError, setAddError] = useState(null);
+  const [agents, setAgents] = useState(null); // registered agents, read once an agent is being added
   const seq = useRef(0);
 
   // quiet: a refresh after the viewer changed their own access keeps the list on failure (a 403/404 there is
@@ -83,6 +109,19 @@ function Members({ project, reloadProject, readOnly }) {
   }, [project.key]);
 
   useEffect(() => { load(); }, [load]);
+
+  const wantsAgents = adding.kind === 'agent';
+  useEffect(() => {
+    if (!wantsAgents || agents) return undefined;
+    let live = true;
+    listAgents()
+      .then((list) => { if (live) setAgents(list || []); })
+      .catch((err) => {
+        console.warn('WorkSettings: could not load the agents', err);
+        if (live) setAddError('Could not load the agents.');
+      });
+    return () => { live = false; };
+  }, [wantsAgents, agents]);
 
   // The server marks the viewer's own row; the page never needs (or sees) a login.
   const isMe = (m) => m.self === true;
@@ -106,6 +145,7 @@ function Members({ project, reloadProject, readOnly }) {
   function changeRole(m, role) {
     if (role === m.role) return;
     if (isMe(m) && m.role === 'lead') { setPending({ member: m, action: 'role', role }); return; }
+    if (isAgent(m) && role === 'viewer') { setPending({ member: m, action: 'role', role }); return; }
     doRole(m, role);
   }
   function doRole(m, role) {
@@ -114,7 +154,7 @@ function Members({ project, reloadProject, readOnly }) {
       { self: isMe(m), afterSelf: afterOwnRoleChange });
   }
   function askRemove(m) {
-    if (isMe(m)) { setPending({ member: m, action: 'remove' }); return; }
+    if (isMe(m) || isAgent(m)) { setPending({ member: m, action: 'remove' }); return; }
     doRemove(m);
   }
   function doRemove(m) {
@@ -127,7 +167,10 @@ function Members({ project, reloadProject, readOnly }) {
     e.preventDefault();
     if (busy) return;
     const principal = adding.principal.trim();
-    if (!principal) { setAddError(adding.kind === 'user' ? 'Enter a display name.' : 'Enter a group name.'); return; }
+    if (!principal) {
+      setAddError(adding.kind === 'user' ? 'Enter a display name.' : adding.kind === 'agent' ? 'Choose an agent.' : 'Enter a group name.');
+      return;
+    }
     setAddError(null);
     setBusy(true);
     putMember(project.key, { principal, principalKind: adding.kind, role: adding.role })
@@ -150,10 +193,12 @@ function Members({ project, reloadProject, readOnly }) {
             {state.members.map((m) => (
               <li key={`${m.principalKind}:${m.principal}`} className="work-member-row">
                 <span className="work-member-name">{m.displayName || 'Unnamed member'}</span>
-                <span className="work-chip">{m.principalKind}</span>
+                {isAgent(m)
+                  ? <Badge variant="default" className="work-agent-badge" title="An agent, not a person">agent</Badge>
+                  : <span className="work-chip">{m.principalKind}</span>}
                 {readOnly ? <span className="work-chip">{m.role}</span> : (
                   <>
-                    <Select ariaLabel={`Role of ${m.displayName || 'member'}`} value={m.role} options={ROLES}
+                    <Select ariaLabel={`Role of ${m.displayName || 'member'}`} value={m.role} options={isAgent(m) ? AGENT_ROLES : ROLES}
                       disabled={busy} onChange={(r) => changeRole(m, r)} />
                     <button type="button" className="work-link-button" aria-label={`Remove ${m.displayName || 'member'}`}
                       disabled={busy} onClick={() => askRemove(m)}>Remove</button>
@@ -163,24 +208,26 @@ function Members({ project, reloadProject, readOnly }) {
             ))}
           </ul>
         )}
-      {pending && (
-        <Confirm
-          disabled={busy}
-          yes={pending.action === 'remove' ? 'Yes, remove me' : 'Yes, change my role'}
-          onYes={() => (pending.action === 'remove' ? doRemove(pending.member) : doRole(pending.member, pending.role))}
-          onNo={() => { setPending(null); load(); }}
-        >
-          {pending.action === 'remove'
-            ? 'You are about to remove yourself as lead. You will lose access to these settings.'
-            : `You are about to change your own role from lead to ${pending.role}. You will lose access to these settings.`}
-        </Confirm>
-      )}
+      {pending && <PendingConfirm pending={pending} busy={busy} onYes={() => (pending.action === 'remove'
+        ? doRemove(pending.member) : doRole(pending.member, pending.role))} onNo={() => { setPending(null); load(); }} />}
       {!readOnly && <form className="work-link-form" onSubmit={add}>
-        <label className="work-visually-hidden" htmlFor="work-add-principal">Display name or group name</label>
-        <input id="work-add-principal" className="work-field-input" placeholder={adding.kind === 'user' ? 'Display name' : 'Group name'} value={adding.principal}
-          onChange={(e) => setAdding({ ...adding, principal: e.target.value })} aria-invalid={addError ? 'true' : undefined} />
-        <Select ariaLabel="Kind" value={adding.kind} options={KINDS} disabled={busy} onChange={(kind) => setAdding({ ...adding, kind })} />
-        <Select ariaLabel="Role for new member" value={adding.role} options={ROLES} onChange={(role) => setAdding({ ...adding, role })} />
+        {adding.kind === 'agent'
+          ? (
+            <Select ariaLabel="Agent to add" value={adding.principal} placeholder="Choose an agent" disabled={busy || !agents}
+              options={(agents || []).filter((a) => !a.retiredAt).map((a) => a.name)}
+              onChange={(principal) => setAdding({ ...adding, principal })} />
+          )
+          : (
+            <>
+              <label className="work-visually-hidden" htmlFor="work-add-principal">Display name or group name</label>
+              <input id="work-add-principal" className="work-field-input" placeholder={adding.kind === 'user' ? 'Display name' : 'Group name'} value={adding.principal}
+                onChange={(e) => setAdding({ ...adding, principal: e.target.value })} aria-invalid={addError ? 'true' : undefined} />
+            </>
+          )}
+        <Select ariaLabel="Kind" value={adding.kind} options={KINDS} disabled={busy}
+          onChange={(kind) => setAdding({ principal: (kind === 'agent') !== (adding.kind === 'agent') ? '' : adding.principal, kind, role: kind === 'agent' && adding.role === 'lead' ? 'member' : adding.role })} />
+        <Select ariaLabel="Role for new member" value={adding.role} options={adding.kind === 'agent' ? AGENT_ROLES : ROLES}
+          onChange={(role) => setAdding({ ...adding, role })} />
         <button type="submit" className="btn btn-sm" disabled={busy}>Add member</button>
         {addError && <span className="work-field-error" role="alert">{addError}</span>}
       </form>}

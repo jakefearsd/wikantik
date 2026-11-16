@@ -61,4 +61,52 @@ describe('work api client', () => {
     collabRequest.mockRejectedValue(err);
     await expect(work.patchItem('PLAT-1', { expectedVersion: 1, changes: {} })).rejects.toBe(err);
   });
+
+  it('exports the phase 2 queue, agent and claim functions', () => {
+    for (const name of ['listQueues', 'createQueue', 'updateQueue', 'retireQueue', 'listAgents', 'registerAgent',
+      'updateAgent', 'rotateAgentKey', 'retireAgent', 'listClaimable', 'claimItem', 'releaseItem', 'handoffItem']) {
+      expect(typeof work[name], name).toBe('function');
+    }
+  });
+
+  it('addresses queues and agents with the right verbs and encoded keys', async () => {
+    await work.listQueues();
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/queues');
+    await work.createQueue({ key: 'triage', name: 'Triage', description: 'd' });
+    expect(collabRequest.mock.calls.at(-1)[0]).toBe('/api/work/queues');
+    expect(collabRequest.mock.calls.at(-1)[1].method).toBe('POST');
+    await work.updateQueue('a b', { name: 'N' });
+    expect(collabRequest.mock.calls.at(-1)[0]).toBe('/api/work/queues/a%20b');
+    expect(collabRequest.mock.calls.at(-1)[1].method).toBe('PATCH');
+    await work.retireQueue('triage');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/queues/triage/retire', { method: 'POST' });
+    await work.registerAgent({ name: 'bot', vendor: 'v', runtime: 'r', queues: ['triage'], owner: null });
+    expect(JSON.parse(collabRequest.mock.calls.at(-1)[1].body)).toEqual({ name: 'bot', vendor: 'v', runtime: 'r', queues: ['triage'], owner: null });
+    await work.updateAgent(7, { name: 'bot2' });
+    expect(collabRequest.mock.calls.at(-1)[0]).toBe('/api/work/agents/7');
+    await work.rotateAgentKey(7);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/rotate-key', { method: 'POST' });
+    await work.retireAgent(7);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/retire', { method: 'POST' });
+  });
+
+  it('addresses claims and builds the claimable query', async () => {
+    await work.listClaimable({ project: 'PLAT', queue: 'triage', limit: '' });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/claimable?project=PLAT&queue=triage');
+    await work.claimItem('PLAT-1');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-1/claim', { method: 'POST' });
+    await work.releaseItem('PLAT-1');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-1/release', { method: 'POST' });
+    await work.releaseItem('PLAT-1', 'stuck');
+    expect(JSON.parse(collabRequest.mock.calls.at(-1)[1].body)).toEqual({ note: 'stuck' });
+    await work.handoffItem('PLAT-1', { expectedVersion: 2, status: 'review', note: 'n' });
+    expect(collabRequest.mock.calls.at(-1)[0]).toBe('/api/work/items/PLAT-1/handoff');
+  });
+
+  it('handoffItem rejects with status, reason and current on a 409 like patchItem', async () => {
+    const current = { item: { key: 'PLAT-1', version: 5 } };
+    collabRequest.mockRejectedValue(Object.assign(new Error('x'), { status: 409, body: { reason: 'stale', current } }));
+    await expect(work.handoffItem('PLAT-1', { expectedVersion: 1 }))
+      .rejects.toMatchObject({ status: 409, reason: 'stale', current });
+  });
 });

@@ -40,6 +40,7 @@ describe('WorkHome', () => {
     expect(link).toHaveAttribute('href', '/work/PLAT');
     expect(link.closest('li')).toHaveTextContent('member');
     expect(screen.queryByRole('link', { name: 'Products' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Agents & queues' })).not.toBeInTheDocument();
   });
 
   it('showsWaitingOnYou', async () => {
@@ -54,6 +55,7 @@ describe('WorkHome', () => {
   it('adminSeesCreateProject', async () => {
     renderHome({ admin: true });
     expect(await screen.findByRole('link', { name: 'Products' })).toHaveAttribute('href', '/work/products');
+    expect(screen.getByRole('link', { name: 'Agents & queues' })).toHaveAttribute('href', '/work/agents');
     fireEvent.click(screen.getByRole('button', { name: 'New project' }));
     for (const bad of ['p', 'plat', '1PLAT', 'TOOLONGKEY1X', 'PL-AT']) {
       fireEvent.change(screen.getByLabelText('Key'), { target: { value: bad } });

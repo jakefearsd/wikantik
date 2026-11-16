@@ -4,10 +4,10 @@ import RevealedTokenModal from './apikeys/RevealedTokenModal';
 import { useAuth } from '../hooks/useAuth';
 
 // The server lets only administrators self-mint the admin-surface scopes (mcp_admin, all);
-// everyone else may mint tools and mcp_read. Mirror that here so the picker never
+// everyone else may mint tools, mcp_read and work. Mirror that here so the picker never
 // offers a scope the server will refuse.
-const SELF_SERVICE_SCOPES = ['tools', 'mcp_read'];
-const ADMIN_SCOPES = ['tools', 'mcp_read', 'mcp_admin', 'all'];
+const SELF_SERVICE_SCOPES = ['tools', 'mcp_read', 'work'];
+const ADMIN_SCOPES = ['tools', 'mcp_read', 'work', 'mcp_admin', 'all'];
 
 export default function MyApiKeys() {
   const { user } = useAuth();

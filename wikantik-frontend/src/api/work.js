@@ -46,15 +46,17 @@ export const getItem = (key) => request(`${base}/items/${enc(key)}`);
  * { status: 409, reason: 'archived' } and no current; other failures reject with { status, body }.
  */
 export function patchItem(key, body) {
-  return request(`${base}/items/${enc(key)}`, json('PATCH', body)).catch((e) => {
-    if (e && e.status === 409) {
-      const reason = e.body?.reason || 'stale';
-      throw Object.assign(new Error(e.message || (reason === 'archived' ? 'This project is archived.'
-        : 'Item changed since it was loaded')),
-      { status: 409, reason, current: reason === 'stale' ? e.body?.current : undefined, body: e.body });
-    }
-    throw e;
-  });
+  return request(`${base}/items/${enc(key)}`, json('PATCH', body)).catch(staleOrArchived);
+}
+
+function staleOrArchived(e) {
+  if (e && e.status === 409) {
+    const reason = e.body?.reason || 'stale';
+    throw Object.assign(new Error(e.message || (reason === 'archived' ? 'This project is archived.'
+      : 'Item changed since it was loaded')),
+    { status: 409, reason, current: reason === 'stale' ? e.body?.current : undefined, body: e.body });
+  }
+  throw e;
 }
 
 export const listRevisions = (key) => request(`${base}/items/${enc(key)}/revisions`);
@@ -69,3 +71,26 @@ export const removeLink = (id) => request(`${base}/links/${enc(id)}`, { method: 
 export const getActivity = (params) => request(`${base}/activity${query(params)}`);
 export const getMe = () => request(`${base}/me`);
 export const archiveProduct = (key) => request(`${base}/products/${enc(key)}/archive`, { method: 'POST' });
+
+// Queues (writes: instance admins only)
+export const listQueues = () => request(`${base}/queues`);
+export const createQueue = (queue) => request(`${base}/queues`, json('POST', queue));
+export const updateQueue = (key, changes) => request(`${base}/queues/${enc(key)}`, json('PATCH', changes));
+export const retireQueue = (key) => request(`${base}/queues/${enc(key)}/retire`, { method: 'POST' });
+
+// Agents. registerAgent and rotateAgentKey resolve { agent, token }: the token is shown once and is the caller's
+// to drop; this module keeps no copy of it.
+export const listAgents = () => request(`${base}/agents`);
+export const registerAgent = (agent) => request(`${base}/agents`, json('POST', agent));
+export const updateAgent = (id, changes) => request(`${base}/agents/${enc(id)}`, json('PATCH', changes));
+export const rotateAgentKey = (id) => request(`${base}/agents/${enc(id)}/rotate-key`, { method: 'POST' });
+export const retireAgent = (id) => request(`${base}/agents/${enc(id)}/retire`, { method: 'POST' });
+
+// Claims
+export const listClaimable = (params) => request(`${base}/claimable${query(params)}`);
+export const claimItem = (key) => request(`${base}/items/${enc(key)}/claim`, { method: 'POST' });
+export const releaseItem = (key, note) =>
+  request(`${base}/items/${enc(key)}/release`, note ? json('POST', { note }) : { method: 'POST' });
+/** POST a handoff; body is { expectedVersion, status, assignee, queue, note }. Rejects like patchItem on 409. */
+export const handoffItem = (key, body) =>
+  request(`${base}/items/${enc(key)}/handoff`, json('POST', body)).catch(staleOrArchived);

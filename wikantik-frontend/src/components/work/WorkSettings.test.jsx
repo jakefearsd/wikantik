@@ -3,12 +3,12 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
-  listMembers: vi.fn(), putMember: vi.fn(), removeMember: vi.fn(), updateProject: vi.fn(), archiveProject: vi.fn(),
+  listMembers: vi.fn(), listAgents: vi.fn(), putMember: vi.fn(), removeMember: vi.fn(), updateProject: vi.fn(), archiveProject: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { listMembers, putMember, removeMember, updateProject, archiveProject } from '../../api/work';
+import { listMembers, listAgents, putMember, removeMember, updateProject, archiveProject } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { WorkProjectContext } from './useWorkProject';
 import WorkSettings from './WorkSettings';
@@ -19,6 +19,13 @@ const MEMBERS = [
   { principal: 'bob', principalKind: 'user', role: 'member', displayName: 'Bob B' },
   { principal: 'Devs', principalKind: 'group', role: 'viewer', displayName: 'Devs' },
 ];
+const AGENTS = [
+  { id: 1, name: 'triage-bot', retiredAt: null, queues: [] },
+  { id: 2, name: 'old-bot', retiredAt: '2026-01-01T00:00:00Z', queues: [] },
+  { id: 3, name: 'build-bot', retiredAt: null, queues: [] },
+];
+const AGENT_MEMBER = { principal: 'build-bot', principalKind: 'agent', role: 'member', displayName: 'build-bot' };
+const RELEASE_TEXT = 'Any work this agent has claimed in this project goes back to its queue.';
 const reload = vi.fn();
 
 function renderSettings({ role = 'lead', admin = false, authLoading = false } = {}) {
@@ -40,6 +47,7 @@ function renderSettings({ role = 'lead', admin = false, authLoading = false } = 
 beforeEach(() => {
   vi.clearAllMocks();
   listMembers.mockResolvedValue(MEMBERS);
+  listAgents.mockResolvedValue(AGENTS);
   putMember.mockResolvedValue(undefined);
   removeMember.mockResolvedValue(undefined);
   updateProject.mockResolvedValue({});
@@ -236,5 +244,92 @@ describe('WorkSettings', () => {
     renderSettings({ admin: true });
     await screen.findByText('Bob B');
     expect(screen.getByText(/becomes read-only and moves to the Archived list/)).toBeInTheDocument();
+  });
+
+  it('addAgentMemberOffersActiveAgentsOnly', async () => {
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'agent' } });
+    const pick = await screen.findByLabelText('Agent to add');
+    const names = within(pick).getAllByRole('option').map((o) => o.textContent);
+    expect(names).toContain('triage-bot');
+    expect(names).toContain('build-bot');
+    expect(names).not.toContain('old-bot');
+    fireEvent.change(pick, { target: { value: 'build-bot' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
+    await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'build-bot', principalKind: 'agent', role: 'member' }));
+  });
+
+  it('agentRoleOptionsAreViewerAndMemberOnly', async () => {
+    listMembers.mockResolvedValue([...MEMBERS, AGENT_MEMBER]);
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'agent' } });
+    const opts = (el) => within(el).getAllByRole('option').map((o) => o.value);
+    expect(opts(screen.getByLabelText('Role for new member'))).toEqual(['viewer', 'member']);
+    expect(opts(screen.getByLabelText('Role of build-bot'))).toEqual(['viewer', 'member']);
+    expect(opts(screen.getByLabelText('Role of Bob B'))).toEqual(['viewer', 'member', 'lead']);
+  });
+
+  it('switching the new member to an agent resets a lead role choice', async () => {
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.change(screen.getByLabelText('Role for new member'), { target: { value: 'lead' } });
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'agent' } });
+    expect(screen.getByLabelText('Role for new member')).toHaveValue('member');
+  });
+
+  it('agentRowShowsAgentChip', async () => {
+    listMembers.mockResolvedValue([...MEMBERS, AGENT_MEMBER]);
+    renderSettings();
+    const row = (await screen.findByText('build-bot')).closest('li');
+    expect(within(row).getByText('agent')).toHaveClass('badge');
+  });
+
+  it('removing an agent asks first and says its claims go back to the queue', async () => {
+    listMembers.mockResolvedValue([...MEMBERS, AGENT_MEMBER]);
+    renderSettings();
+    await screen.findByText('build-bot');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove build-bot' }));
+    expect(removeMember).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(RELEASE_TEXT);
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove build-bot' }));
+    await waitFor(() => expect(removeMember).toHaveBeenCalledWith('PLAT', { principal: 'build-bot', principalKind: 'agent' }));
+  });
+
+  it('demoting an agent to viewer asks first and says its claims go back to the queue', async () => {
+    listMembers.mockResolvedValue([...MEMBERS, AGENT_MEMBER]);
+    renderSettings();
+    await screen.findByText('build-bot');
+    fireEvent.change(screen.getByLabelText('Role of build-bot'), { target: { value: 'viewer' } });
+    expect(putMember).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(RELEASE_TEXT);
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, make build-bot a viewer' }));
+    await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'build-bot', principalKind: 'agent', role: 'viewer' }));
+  });
+
+  it('shows the server refusal when an agent cannot be added', async () => {
+    putMember.mockRejectedValue(Object.assign(new Error('An agent is a viewer or member.'), { status: 400 }));
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'agent' } });
+    fireEvent.change(await screen.findByLabelText('Agent to add'), { target: { value: 'triage-bot' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
+    expect(await screen.findByText('An agent is a viewer or member.')).toBeInTheDocument();
+  });
+
+  it('an archived project offers no agent controls', async () => {
+    listMembers.mockResolvedValue([...MEMBERS, AGENT_MEMBER]);
+    useAuth.mockReturnValue({ user: { authenticated: true, roles: [] }, loading: false });
+    render(
+      <MemoryRouter initialEntries={['/work/PLAT/settings']}>
+        <WorkProjectContext.Provider value={{ project: { ...PROJECT, archived: true }, role: 'lead', reload }}>
+          <Routes><Route path="/work/PLAT/settings" element={<WorkSettings />} /></Routes>
+        </WorkProjectContext.Provider>
+      </MemoryRouter>,
+    );
+    await screen.findByText('build-bot');
+    expect(screen.queryByRole('button', { name: 'Remove build-bot' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Kind')).not.toBeInTheDocument();
   });
 });

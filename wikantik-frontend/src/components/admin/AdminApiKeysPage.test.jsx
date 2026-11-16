@@ -67,6 +67,13 @@ describe('AdminApiKeysPage', () => {
         expect(screen.getByText('bob')).toBeInTheDocument();
     });
 
+    it('offersWorkScope', async () => {
+        render(<AdminApiKeysPage />);
+        fireEvent.click(await screen.findByRole('button', { name: /\+ Generate Key/i }));
+        const values = Array.from(screen.getByRole('combobox').querySelectorAll('option')).map((o) => o.value);
+        expect(values).toEqual(['tools', 'mcp_read', 'work', 'mcp_admin', 'all']);
+    });
+
     it('marks a key stored under the legacy mcp scope name', async () => {
         api.admin.listApiKeys.mockResolvedValue({ keys: [activeKey, activeKey2] });
         render(<AdminApiKeysPage />);

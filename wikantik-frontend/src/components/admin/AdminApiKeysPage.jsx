@@ -11,6 +11,7 @@ const UNSET = Symbol('unset');
 const SCOPE_OPTIONS = [
   { value: 'tools', label: 'Tools (OpenAPI)' },
   { value: 'mcp_read', label: 'MCP read (knowledge consumer)' },
+  { value: 'work', label: 'Work (work management API and /work-mcp)' },
   { value: 'mcp_admin', label: 'MCP admin (full)' },
   { value: 'all', label: 'All (MCP admin + Tools)' },
 ];

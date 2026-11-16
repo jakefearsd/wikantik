@@ -23,6 +23,10 @@ public final class WorkPolicy {
 
     private static final String HUMAN_CLAIM = "People are assigned work; assign it to yourself instead.";
 
+    /** What an agent may not do to an item another agent holds the claim on. */
+    private static final java.util.Set< Action > FENCED = java.util.EnumSet.of( Action.EDIT_ITEM, Action.MOVE,
+        Action.LINK, Action.OPEN_CHANGE, Action.REVIEW_CHANGE, Action.MERGE_CHANGE );
+
     private WorkPolicy() {
     }
 
@@ -83,7 +87,7 @@ public final class WorkPolicy {
     }
 
     private static boolean claimedByOther( final Actor actor, final Action action, final Item item ) {
-        return ( action == Action.EDIT_ITEM || action == Action.MOVE || action == Action.LINK )
+        return FENCED.contains( action )
             && item != null && item.claimedByAgent() != null && !item.claimedByAgent().equals( actor.agentId() );
     }
 
@@ -95,7 +99,8 @@ public final class WorkPolicy {
     private static WorkRole roleNeeded( final Action action ) {
         return switch ( action ) {
             case VIEW -> WorkRole.VIEWER;
-            case CREATE_ITEM, EDIT_ITEM, MOVE, COMMENT, LINK, CLAIM -> WorkRole.MEMBER;
+            case CREATE_ITEM, EDIT_ITEM, MOVE, COMMENT, LINK, CLAIM, OPEN_CHANGE, REVIEW_CHANGE, MERGE_CHANGE,
+                 ACKNOWLEDGE -> WorkRole.MEMBER;
             // Managing an agent is decided by sponsorship (AgentSponsorship), not by a role in one project; asked
             // here it takes a lead, the least that may ever register one.
             case MANAGE_PROJECT, SET_POLICY, MANAGE_AGENT -> WorkRole.LEAD;

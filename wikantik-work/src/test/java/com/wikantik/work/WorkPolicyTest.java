@@ -187,4 +187,25 @@ class WorkPolicyTest {
         assertTrue( WorkPolicy.mayChangeStatus( Actor.human( "root", Set.of(), true ), inStatus( WorkStatus.DRAFT ),
             WorkStatus.READY ).allowed() );
     }
+
+    @ParameterizedTest
+    @CsvSource( { "OPEN_CHANGE", "REVIEW_CHANGE", "MERGE_CHANGE" } )
+    void changeActionsTakeAMemberAndAreFencedByAnotherAgentsClaim( final Action action ) {
+        final Actor alice = Actor.human( "alice", Set.of(), false );
+        assertFalse( WorkPolicy.may( alice, WorkRole.VIEWER, action, null ).allowed() );
+        assertTrue( WorkPolicy.may( alice, WorkRole.MEMBER, action, claimedBy( 9L ) ).allowed(),
+            "a person is never fenced" );
+        final Actor agent = Actor.agent( 7, "bot" );
+        assertTrue( WorkPolicy.may( agent, WorkRole.MEMBER, action, claimedBy( 7L ) ).allowed() );
+        assertTrue( WorkPolicy.may( agent, WorkRole.MEMBER, action, claimedBy( null ) ).allowed() );
+        assertEquals( "This item is claimed by another agent.",
+            WorkPolicy.may( agent, WorkRole.MEMBER, action, claimedBy( 9L ) ).reason() );
+    }
+
+    @Test
+    void acknowledgingTakesAMember() {
+        final Actor alice = Actor.human( "alice", Set.of(), false );
+        assertFalse( WorkPolicy.may( alice, WorkRole.VIEWER, Action.ACKNOWLEDGE, null ).allowed() );
+        assertTrue( WorkPolicy.may( alice, WorkRole.MEMBER, Action.ACKNOWLEDGE, null ).allowed() );
+    }
 }

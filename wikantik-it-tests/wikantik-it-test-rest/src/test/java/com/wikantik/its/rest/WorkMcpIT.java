@@ -420,42 +420,33 @@ public class WorkMcpIT {
     // ---- per-call identity
 
     @Test
-    void twoKeysOnOneSessionActAsThemselves() throws Exception {
+    void oneSessionServesOneKey() throws Exception {
         final String session = openSession( agentA.token() );
         final Reply asA = rawCall( agentA.token(), session, "get_work_context", Map.of() );
         assertFalse( asA.toolError(), asA.raw() );
-        assertEquals( "mcpa@it", JsonParser.parseString( asA.toolText() ).getAsJsonObject().getAsJsonObject( "agent" ).get( "name" ).getAsString() );
+        assertEquals( "mcpa@it", agentName( asA ) );
 
-        // the second agent's key on the FIRST agent's session id acts as the second agent
+        // the second agent's key on the FIRST agent's session id is refused before any tool runs
         final Reply asB = rawCall( agentB.token(), session, "get_work_context", Map.of() );
-        assertEquals( 200, asB.status(), "B's call on A's session: " + asB.raw() );
-        assertFalse( asB.toolError(), asB.raw() );
-        assertEquals( "mcpb@it", agentName( asB ), "the second key is the second agent, never the first" );
+        assertEquals( 403, asB.status(), "B's call on A's session: " + asB.raw() );
+        assertEquals( "{\"error\":\"This MCP session belongs to another API key\"}", asB.raw() );
         final String key = queuedItem( "mcpreview" );
-        final Reply claim = rawCall( agentB.token(), session, "claim_item", Map.of( "key", key ) );
-        assertEquals( 200, claim.status(), claim.raw() );
-        assertFalse( claim.toolError(), claim.raw() );
-        assertEquals( "mcpb@it", itemClaimant( key ) );
-        // B's context on that session shows B's claim; A's next call on the same session still reports A, without it
-        assertTrue( claimKeys( rawCall( agentB.token(), session, "get_work_context", Map.of() ) ).contains( key ) );
+        assertEquals( 403, rawCall( agentB.token(), session, "claim_item", Map.of( "key", key ) ).status() );
+        assertTrue( itemNow( key ).get( "claimedByAgent" ).isJsonNull(), "nothing was claimed" );
+
+        // A's next call on its own session still acts as A
         final Reply asAAgain = rawCall( agentA.token(), session, "get_work_context", Map.of() );
         assertEquals( "mcpa@it", agentName( asAAgain ) );
-        assertFalse( claimKeys( asAAgain ).contains( key ), "A does not hold B's claim" );
-        // A, same session, cannot take an item from B's queue
-        final String other = queuedItem( "mcpreview" );
-        assertTrue( rawCall( agentA.token(), session, "claim_item", Map.of( "key", other ) ).toolError() );
-        assertTrue( itemNow( other ).get( "claimedByAgent" ).isJsonNull() );
+        // and B, on a session of its own, acts as B and can claim from its queue
+        final String sessionB = openSession( agentB.token() );
+        assertEquals( "mcpb@it", agentName( rawCall( agentB.token(), sessionB, "get_work_context", Map.of() ) ) );
+        final Reply claim = rawCall( agentB.token(), sessionB, "claim_item", Map.of( "key", key ) );
+        assertFalse( claim.toolError(), claim.raw() );
+        assertEquals( "mcpb@it", itemClaimant( key ) );
     }
 
     private static String agentName( final Reply r ) {
         return JsonParser.parseString( r.toolText() ).getAsJsonObject().getAsJsonObject( "agent" ).get( "name" ).getAsString();
-    }
-
-    private static List< String > claimKeys( final Reply r ) {
-        final List< String > keys = new ArrayList<>();
-        JsonParser.parseString( r.toolText() ).getAsJsonObject().getAsJsonArray( "claims" )
-            .forEach( c -> keys.add( c.getAsJsonObject().get( "key" ).getAsString() ) );
-        return keys;
     }
 
     private static String itemClaimant( final String key ) throws Exception {

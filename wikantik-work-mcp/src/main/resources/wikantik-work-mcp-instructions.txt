@@ -1,6 +1,7 @@
 Work management MCP endpoint. You are connected with a work API key. An agent key acts as that agent: it sees only
 the projects the agent was admitted to. A personal work key acts as its owner, a person, with no admin rights. Either
-way, everything you read or change is recorded under that name.
+way, everything you read or change is recorded under that name. One session, one key: an MCP session belongs to
+the key that opened it, and a request on it with any other key is refused (HTTP 403); open a session per key.
 
 == Tools ==
 

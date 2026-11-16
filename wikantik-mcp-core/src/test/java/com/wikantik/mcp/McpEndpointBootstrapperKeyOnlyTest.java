@@ -132,4 +132,11 @@ class McpEndpointBootstrapperKeyOnlyTest {
             }
         }
     }
+
+    @Test
+    void keyOnlyRegistersTheNoPrincipalOneSessionOneKeyFilter() {
+        assertInstanceOf( KeyOnlyMcpAccessFilter.class, registeredFilter( true, OPEN ) );
+        assertEquals( McpAccessFilter.class, registeredFilter( false, OPEN ).getClass(),
+            "the other MCP endpoints keep the plain filter" );
+    }
 }

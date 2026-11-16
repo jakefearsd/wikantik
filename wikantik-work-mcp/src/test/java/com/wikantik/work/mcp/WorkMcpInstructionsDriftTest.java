@@ -104,4 +104,9 @@ class WorkMcpInstructionsDriftTest {
         final String text = instructions().replaceAll( "\\s+", " " );
         assertTrue( text.contains( "To a queue the status must be ready or review" ), "the P27 rule for handoff_item" );
     }
+
+    @Test
+    void instructionsSayOneSessionOneKey() throws IOException {
+        assertTrue( instructions().contains( "One session, one key" ), "the h11 rule" );
+    }
 }

@@ -110,7 +110,8 @@ public final class McpEndpointBootstrapper {
         if ( keyOnly ) {
             // Key-only: mcp.access.allowUnrestricted and mcp.access.allowedCidrs do not apply to this endpoint.
             LOG.info( "{}: key-only access — mcp.access.allowUnrestricted and mcp.access.allowedCidrs are ignored.", logTag );
-            accessFilter = new McpAccessFilter( "", false, rateLimiter, apiKeyService, requiredScope );
+            // Its requests carry no user principal, and one MCP session serves one key (KeyOnlyMcpAccessFilter).
+            accessFilter = new KeyOnlyMcpAccessFilter( rateLimiter, apiKeyService, requiredScope );
         } else {
             accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService, requiredScope );
         }

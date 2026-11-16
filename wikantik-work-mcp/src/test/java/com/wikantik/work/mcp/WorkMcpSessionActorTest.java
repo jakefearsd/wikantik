@@ -20,9 +20,10 @@ package com.wikantik.work.mcp;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.auth.apikeys.ApiKeyService;
+import com.wikantik.http.ratelimit.SlidingWindowRateLimiter;
 import com.wikantik.jdbc.testing.RequiresPostgres;
+import com.wikantik.mcp.KeyOnlyMcpAccessFilter;
 import com.wikantik.mcp.SdkSessionSweepers;
 import com.wikantik.work.Agent;
 import com.wikantik.work.AgentDraft;
@@ -46,21 +47,27 @@ import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The SDK calls the context extractor once per HTTP request, and hands that request's context to that request's tool
- * call. So on one long-lived MCP session two requests carrying different keys act as their own actors, and a key
- * retired or rotated mid-session loses access on its very next call. This drives the real transport, the real
+ * One MCP session, one key: the key-only access filter remembers the key that opened a session (from the
+ * {@code Mcp-Session-Id} header the transport writes) and refuses any other key on that session with 403, while the
+ * first key goes on acting as itself. The actor is still resolved from each request's own key on every call, so a
+ * key retired mid-session loses access on its next call. This drives the real filter, the real transport, the real
  * extractor and the real tool dispatch over a real database.
  */
 @RequiresPostgres
@@ -69,8 +76,14 @@ class WorkMcpSessionActorTest {
     private WorkMcpFixture f;
     private HttpServletStreamableServerTransportProvider transport;
     private McpSyncServer server;
+    private KeyOnlyMcpAccessFilter filter;
+    private final Map< String, ApiKeyService.Record > tokens = new HashMap<>();
     private String sessionId;
     private int rpcId = 10;
+
+    /** What one HTTP request came back with. */
+    private record Reply( int status, String body ) {
+    }
 
     @BeforeEach
     void setUp() throws Exception {
@@ -83,13 +96,23 @@ class WorkMcpSessionActorTest {
             .capabilities( McpSchema.ServerCapabilities.builder().tools( true ).build() );
         WorkMcpInitializer.registerTools( spec, WorkMcpInitializer.assembleTools( f.svc, f.directory() ), f.svc );
         server = spec.build();
-        sessionId = initialize( WorkMcpFixture.record( f.builder.apiKeyId(), "lena", ApiKeyService.Scope.WORK ) );
+        final ApiKeyService keys = mock( ApiKeyService.class );
+        when( keys.verify( anyString() ) ).thenAnswer( inv -> Optional.ofNullable( tokens.get( inv.getArgument( 0 ) ) ) );
+        filter = new KeyOnlyMcpAccessFilter( new SlidingWindowRateLimiter( 0, 0 ), keys, ApiKeyService.Scope.WORK );
+        sessionId = initialize( token( keyOf( f.builder ) ) );
     }
 
     @AfterEach
     void tearDown() {
         server.close();
         SdkSessionSweepers.disposeAll();
+    }
+
+    /** A bearer token the mocked key service verifies to {@code key}. */
+    private String token( final ApiKeyService.Record key ) {
+        final String t = "tok-" + key.id() + "-" + key.scope().wire();
+        tokens.put( t, key );
+        return t;
     }
 
     private static ServletInputStream stream( final String body ) {
@@ -102,24 +125,34 @@ class WorkMcpSessionActorTest {
         };
     }
 
-    /** One POST as the access filter would deliver it: the verified key's record rides on the request. */
-    private String post( final String session, final ApiKeyService.Record key, final String body,
-                         final AtomicReference< String > sessionOut ) throws Exception {
+    /** One POST through the key-only access filter to the transport; {@code token} null sends no key. */
+    private Reply post( final String session, final String token, final String body,
+                        final AtomicReference< String > sessionOut ) throws Exception {
         final HttpServletRequest req = mock( HttpServletRequest.class );
         final HttpServletResponse resp = mock( HttpServletResponse.class );
         final AsyncContext async = mock( AsyncContext.class );
+        final Map< String, Object > attrs = new HashMap<>();
+        doAnswer( inv -> attrs.put( inv.getArgument( 0 ), inv.getArgument( 1 ) ) ).when( req )
+            .setAttribute( anyString(), any() );
+        when( req.getAttribute( anyString() ) ).thenAnswer( inv -> attrs.get( ( String ) inv.getArgument( 0 ) ) );
         when( req.getRequestURI() ).thenReturn( "/work-mcp" );
         when( req.getMethod() ).thenReturn( "POST" );
+        when( req.getRemoteAddr() ).thenReturn( "10.0.0.7" );
         when( req.getContentType() ).thenReturn( "application/json" );
+        when( req.getHeader( "Authorization" ) ).thenReturn( token == null ? null : "Bearer " + token );
         when( req.getHeader( "Accept" ) ).thenReturn( "application/json, text/event-stream" );
         when( req.getHeader( "Mcp-Session-Id" ) ).thenReturn( session );
         when( req.getHeader( "MCP-Protocol-Version" ) ).thenReturn( "2025-06-18" );
         when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
         when( req.getInputStream() ).thenReturn( stream( body ) );
         when( req.startAsync() ).thenReturn( async );
-        when( req.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) ).thenReturn( key );
         final StringWriter out = new StringWriter();
         when( resp.getWriter() ).thenReturn( new PrintWriter( out, true ) );
+        final AtomicInteger status = new AtomicInteger( 200 );
+        doAnswer( inv -> {
+            status.set( inv.getArgument( 0 ) );
+            return null;
+        } ).when( resp ).setStatus( anyInt() );
         doAnswer( inv -> {
             if ( "Mcp-Session-Id".equalsIgnoreCase( inv.getArgument( 0 ) ) && sessionOut != null ) {
                 sessionOut.set( inv.getArgument( 1 ) );
@@ -127,24 +160,28 @@ class WorkMcpSessionActorTest {
             return null;
         } ).when( resp ).setHeader( anyString(), anyString() );
 
-        ( ( jakarta.servlet.Servlet ) transport ).service( req, resp );
-        return out.toString();
+        filter.doFilter( req, resp, ( rq, rs ) -> ( ( jakarta.servlet.Servlet ) transport ).service( rq, rs ) );
+        return new Reply( status.get(), out.toString() );
     }
 
-    private String initialize( final ApiKeyService.Record key ) throws Exception {
+    private String initialize( final String token ) throws Exception {
         final AtomicReference< String > id = new AtomicReference<>();
-        post( null, key, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":"
+        post( null, token, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":"
             + "\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"t\",\"version\":\"1\"}}}", id );
         assertNotNull( id.get(), "the transport opened a session" );
-        post( id.get(), key, "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}", null );
+        post( id.get(), token, "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}", null );
         return id.get();
     }
 
-    /** The text of the tool result for {@code get_work_context} sent on the one session with this request's key. */
-    private String callContext( final ApiKeyService.Record key ) throws Exception {
-        final String body = post( sessionId, key, "{\"jsonrpc\":\"2.0\",\"id\":" + ++rpcId
+    private Reply rawContext( final String token ) throws Exception {
+        return post( sessionId, token, "{\"jsonrpc\":\"2.0\",\"id\":" + ++rpcId
             + ",\"method\":\"tools/call\",\"params\":{\"name\":\"get_work_context\",\"arguments\":{}}}", null );
-        for ( final String line : body.split( "\n" ) ) {
+    }
+
+    /** The text of the tool result for {@code get_work_context} sent on the one session with this token. */
+    private String callContext( final String token ) throws Exception {
+        final Reply r = rawContext( token );
+        for ( final String line : r.body().split( "\n" ) ) {
             if ( line.startsWith( "data:" ) ) {
                 final JsonObject msg = JsonParser.parseString( line.substring( 5 ).trim() ).getAsJsonObject();
                 if ( msg.has( "result" ) ) {
@@ -153,36 +190,40 @@ class WorkMcpSessionActorTest {
                 }
             }
         }
-        throw new AssertionError( "no tool result in: " + body );
+        throw new AssertionError( "no tool result (HTTP " + r.status() + ") in: " + r.body() );
     }
 
     private ApiKeyService.Record keyOf( final Agent a ) {
         return WorkMcpFixture.record( a.apiKeyId(), "lena", ApiKeyService.Scope.WORK );
     }
 
+    private static String agentName( final String contextText ) {
+        return JsonParser.parseString( contextText ).getAsJsonObject().getAsJsonObject( "agent" ).get( "name" )
+            .getAsString();
+    }
+
     @Test
-    void twoRequestsOnOneSessionActAsTheirOwnKeysActors() throws Exception {
+    void aSecondKeyOnTheSessionIsRefusedAndTheFirstGoesOnActingAsItself() throws Exception {
         final Agent other = f.svc.registry().registerAgent( f.admin, new AgentDraft( "reviewer-bot", "", "",
             List.of( "reviewer" ), "lena" ) ).agent();
         f.svc.putMember( f.admin, "SECRET", "reviewer-bot", "agent", WorkRole.MEMBER );
+        final String builder = token( keyOf( f.builder ) );
 
-        final JsonObject asBuilder = JsonParser.parseString( callContext( keyOf( f.builder ) ) ).getAsJsonObject();
-        final JsonObject asOther = JsonParser.parseString( callContext( keyOf( other ) ) ).getAsJsonObject();
-        final JsonObject asBuilderAgain = JsonParser.parseString( callContext( keyOf( f.builder ) ) ).getAsJsonObject();
+        final String asBuilder = callContext( builder );
+        final Reply asOther = rawContext( token( keyOf( other ) ) );
+        final String asBuilderAgain = callContext( builder );
 
-        assertEquals( "builder", asBuilder.getAsJsonObject( "agent" ).get( "name" ).getAsString() );
-        assertEquals( "PLAT", asBuilder.getAsJsonArray( "projects" ).get( 0 ).getAsJsonObject().get( "key" ).getAsString() );
-        assertEquals( "reviewer-bot", asOther.getAsJsonObject( "agent" ).get( "name" ).getAsString(),
-            "the second request is its own key's actor, not the session's first" );
-        assertEquals( "SECRET", asOther.getAsJsonArray( "projects" ).get( 0 ).getAsJsonObject().get( "key" ).getAsString() );
-        assertEquals( asBuilder, asBuilderAgain, "and the first key's identity comes back unchanged" );
+        assertEquals( "builder", agentName( asBuilder ) );
+        assertEquals( 403, asOther.status(), "one session, one key: " + asOther.body() );
+        assertEquals( "{\"error\":\"This MCP session belongs to another API key\"}", asOther.body() );
+        assertEquals( JsonParser.parseString( asBuilder ), JsonParser.parseString( asBuilderAgain ),
+            "and the first key's identity comes back unchanged" );
     }
 
     @Test
     void aKeyRetiredMidSessionLosesAccessOnItsNextCall() throws Exception {
-        final ApiKeyService.Record key = keyOf( f.builder );
-        assertEquals( "builder", JsonParser.parseString( callContext( key ) ).getAsJsonObject()
-            .getAsJsonObject( "agent" ).get( "name" ).getAsString() );
+        final String key = token( keyOf( f.builder ) );
+        assertEquals( "builder", agentName( callContext( key ) ) );
 
         f.svc.registry().retireAgent( f.admin, f.builder.id() );
 
@@ -190,17 +231,16 @@ class WorkMcpSessionActorTest {
     }
 
     @Test
-    void aRequestWithoutAKeyRecordOnTheSameSessionIsRefused() throws Exception {
-        assertEquals( "builder", JsonParser.parseString( callContext( keyOf( f.builder ) ) ).getAsJsonObject()
-            .getAsJsonObject( "agent" ).get( "name" ).getAsString() );
+    void aRequestWithoutAKeyOnTheSameSessionIsRefused() throws Exception {
+        assertEquals( "builder", agentName( callContext( token( keyOf( f.builder ) ) ) ) );
 
-        assertEquals( "This endpoint needs a work API key.", callContext( null ),
+        assertEquals( 403, rawContext( null ).status(),
             "no key on this request: never fall back to the key the session started with" );
     }
 
     @Test
     void aKeyOfAnotherScopeOnTheSameSessionIsRefused() throws Exception {
-        assertEquals( "This endpoint needs a work API key.", callContext(
-            WorkMcpFixture.record( f.builder.apiKeyId(), "lena", ApiKeyService.Scope.MCP_READ ) ) );
+        assertEquals( 403, rawContext( token( WorkMcpFixture.record( f.builder.apiKeyId(), "lena",
+            ApiKeyService.Scope.MCP_READ ) ) ).status() );
     }
 }

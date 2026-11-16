@@ -181,4 +181,24 @@ class OntologyModelManagerTest {
         assertFalse( mgr.namedGraphExists( "urn:test:a" ), "nothing from the failed batch is visible" );
         assertEquals( 0L, mgr.committedWriteTransactions() - before );
     }
+    @Test
+    void replaceAboxHonoursAnExplicitRemovalAndPrunesTheGraphsItDidNotWrite() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final String kept = Iris.page( "00000000-0000-0000-0000-0000000000b1" );
+        final String removed = Iris.page( "00000000-0000-0000-0000-0000000000b2" );
+        final String stale = Iris.page( "00000000-0000-0000-0000-0000000000b3" );
+        mgr.replaceNamedGraph( kept, pageGraph( kept, "Runbook" ) );
+        mgr.replaceNamedGraph( removed, pageGraph( removed, "Runbook" ) );
+        mgr.replaceNamedGraph( stale, pageGraph( stale, "Runbook" ) );
+
+        mgr.replaceAbox( w -> {
+            w.replaceNamedGraph( kept, pageGraph( kept, "Runbook" ) );
+            w.removeNamedGraph( removed );
+        } );
+
+        assertTrue( mgr.namedGraphExists( kept ), "a graph the body wrote stays" );
+        assertFalse( mgr.namedGraphExists( removed ), "a graph the body removed is gone" );
+        assertFalse( mgr.namedGraphExists( stale ), "a graph the body never wrote is pruned" );
+    }
 }

@@ -31,6 +31,7 @@ import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -103,5 +104,54 @@ class WorkMetricsTest {
         metrics.denied( Action.MOVE );
         metrics.denied( Action.MOVE );
         assertEquals( 2.0, registry.find( "wikantik_work_denied_total" ).tag( "action", "move" ).counter().count() );
+    }
+
+    @Test
+    void claimCounterHasOnlyOutcomeTag() {
+        final WorkMetrics metrics = metrics();
+        for ( final ClaimOutcome o : ClaimOutcome.values() ) {
+            metrics.claim( o );
+        }
+        final Set< String > keys = new TreeSet<>();
+        final Set< String > values = new TreeSet<>();
+        for ( final Meter m : registry.find( "wikantik_work_claims_total" ).meters() ) {
+            for ( final Tag t : m.getId().getTags() ) {
+                keys.add( t.getKey() );
+                values.add( t.getValue() );
+            }
+        }
+        assertEquals( Set.of( "outcome" ), keys );
+        assertEquals( Stream.of( ClaimOutcome.values() ).map( ClaimOutcome::wire )
+            .collect( Collectors.toCollection( TreeSet::new ) ), values );
+    }
+
+    @Test
+    void claimCounterCountsEachOutcomeSeparately() {
+        final WorkMetrics metrics = metrics();
+        metrics.claim( ClaimOutcome.CLAIMED );
+        metrics.claim( ClaimOutcome.CLAIMED );
+        metrics.claim( ClaimOutcome.EXPIRED );
+        assertEquals( 2.0, registry.find( "wikantik_work_claims_total" ).tag( "outcome", "claimed" ).counter().count() );
+        assertEquals( 1.0, registry.find( "wikantik_work_claims_total" ).tag( "outcome", "expired" ).counter().count() );
+    }
+
+    @Test
+    void activeClaimsGaugeHasNoTags() throws SQLException {
+        final WorkClaimStore claims = mock( WorkClaimStore.class );
+        when( store.claims() ).thenReturn( claims );
+        when( claims.activeClaimCount() ).thenReturn( 4L );
+        metrics();
+        final Gauge g = registry.find( "wikantik_work_claims_active" ).gauge();
+        assertEquals( 4.0, g.value() );
+        assertEquals( List.of(), g.getId().getTags() );
+    }
+
+    @Test
+    void activeClaimsGaugeReadsZeroWhenTheQueryFails() throws SQLException {
+        final WorkClaimStore claims = mock( WorkClaimStore.class );
+        when( store.claims() ).thenReturn( claims );
+        when( claims.activeClaimCount() ).thenThrow( new SQLException( "down" ) );
+        metrics();
+        assertEquals( 0.0, registry.find( "wikantik_work_claims_active" ).gauge().value() );
     }
 }

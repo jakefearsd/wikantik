@@ -70,7 +70,38 @@ class ApiKeyScopeTest {
         assertTrue( Scope.isLegacyWire( " MCP " ) );
         assertFalse( Scope.isLegacyWire( "mcp_admin" ) );
         assertFalse( Scope.isLegacyWire( null ) );
-        assertEquals( "mcp_read, mcp_admin, tools, all", Scope.validWireNames(),
+        assertEquals( "mcp_read, mcp_admin, tools, work, all", Scope.validWireNames(),
                 "error messages advertise only the current names" );
+    }
+
+    @Test
+    void workMatchesOnlyWorkAndAll() {
+        assertTrue( Scope.WORK.matches( Scope.WORK ) );
+        assertFalse( Scope.WORK.matches( Scope.MCP_READ ) );
+        assertFalse( Scope.MCP_ADMIN.matches( Scope.WORK ) );
+        assertTrue( Scope.ALL.matches( Scope.WORK ) );
+        assertEquals( Scope.WORK, Scope.fromWire( "work" ) );
+        assertEquals( "work", Scope.WORK.wire() );
+    }
+
+    @Test
+    void workIsOrthogonalToEveryOtherScope() {
+        // Enumerates ALL values so a future scope cannot be missed: a work key reaches nothing else, and no other
+        // scope (bar ALL) reaches work.
+        for ( final Scope s : Scope.values() ) {
+            if ( s == Scope.WORK || s == Scope.ALL ) {
+                continue;
+            }
+            assertFalse( s.matches( Scope.WORK ), s + " must not satisfy a work requirement" );
+            assertFalse( Scope.WORK.matches( s ), "a work key must not satisfy " + s );
+        }
+    }
+
+    @Test
+    void addingWorkDoesNotChangeTheLegacyMcpAlias() {
+        assertEquals( Scope.MCP_ADMIN, Scope.fromWire( "mcp" ) );
+        assertTrue( Scope.isLegacyWire( "mcp" ) );
+        assertFalse( Scope.isLegacyWire( "work" ) );
+        assertEquals( Scope.WORK, Scope.fromWire( " WORK " ) );
     }
 }

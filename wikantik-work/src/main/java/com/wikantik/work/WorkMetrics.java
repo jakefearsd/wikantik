@@ -39,11 +39,13 @@ import java.util.function.LongSupplier;
  * <p>The gauges are read on scrape. One scrape reads all of them, so the grouped count is cached briefly and shared;
  * a failing query is logged and every gauge reads zero until the next refresh.</p>
  */
-public final class WorkMetrics {
+public final class WorkMetrics implements WorkListener {
 
     private static final Logger LOG = LogManager.getLogger( WorkMetrics.class );
 
     static final String ITEMS = "wikantik_work_items";
+    static final String CLAIMS = "wikantik_work_claims_total";
+    static final String CLAIMS_ACTIVE = "wikantik_work_claims_active";
     static final String DENIED = "wikantik_work_denied_total";
     private static final long DEFAULT_TTL_NANOS = 5_000_000_000L;
 
@@ -83,15 +85,39 @@ public final class WorkMetrics {
                 }
             }
         }
+        Gauge.builder( CLAIMS_ACTIVE, this, WorkMetrics::activeClaims )
+            .strongReference( true )
+            .description( "Work item claims currently held by agents" )
+            .register( registry );
     }
 
     /** Records that the service refused an action. */
+    @Override
     public void denied( final Action action ) {
         Counter.builder( DENIED )
             .description( "Work management actions refused by policy" )
             .tag( "action", action.name().toLowerCase( Locale.ROOT ) )
             .register( registry )
             .increment();
+    }
+
+    /** Counts a claim attempt or ending, labelled by outcome only. */
+    @Override
+    public void claim( final ClaimOutcome outcome ) {
+        Counter.builder( CLAIMS )
+            .description( "Work claim attempts and endings by outcome" )
+            .tag( "outcome", outcome.wire() )
+            .register( registry )
+            .increment();
+    }
+
+    private double activeClaims() {
+        try {
+            return store.claims().activeClaimCount();
+        } catch ( final SQLException | RuntimeException e ) {
+            LOG.warn( "Could not read the active claim count for metrics; reporting zero: {}", e.getMessage(), e );
+            return 0.0;
+        }
     }
 
     private double countOf( final Key key ) {

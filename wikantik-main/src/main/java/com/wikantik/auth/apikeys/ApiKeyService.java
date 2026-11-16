@@ -113,7 +113,7 @@ public class ApiKeyService {
      * minted earlier keep full admin access, and each use of one is reported by
      * {@link LegacyScopeUseLog}. {@code MCP_READ} is confined to the read-only, ACL-gated
      * {@code /knowledge-mcp} endpoint. {@code TOOLS} (the OpenAPI {@code /tools/*} surface)
-     * is orthogonal and matches only itself; {@code ALL} matches everything.</p>
+     * and {@code WORK} (work management) are orthogonal and match only themselves; {@code ALL} matches everything.</p>
      */
     public enum Scope {
         /** Knowledge consumer: read + search over ACL-gated content ({@code /knowledge-mcp}). */
@@ -121,6 +121,8 @@ public class ApiKeyService {
         /** Full admin MCP surface ({@code /wikantik-admin-mcp}); legacy wire value {@code "mcp"}. */
         MCP_ADMIN( "mcp_admin", 3 ),
         TOOLS( "tools", 0 ),
+        /** Work management agents and people ({@code /api/work/*}, {@code /work-mcp}); matches only itself. */
+        WORK( "work", 0 ),
         ALL( "all", 0 );
 
         /** The name {@link #MCP_ADMIN} had before 2.4.54; still accepted. */

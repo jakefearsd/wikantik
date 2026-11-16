@@ -240,6 +240,23 @@ class McpAccessFilterTest {
     }
 
     @Test
+    void dbKeyWithWorkScopeRejectedForMcpWith403() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( "wkk_work" ) )
+                .thenReturn( Optional.of( dbRecord( 4, "dave", ApiKeyService.Scope.WORK ) ) );
+        final McpAccessFilter filter = createFilterWithDbService( svc, null );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_work" );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+        final StringWriter body = new StringWriter();
+        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    @Test
     void dbKeyWithToolsScopeRejectedForMcpWith403() throws Exception {
         final ApiKeyService svc = mock( ApiKeyService.class );
         when( svc.verify( "wkk_tools" ) )

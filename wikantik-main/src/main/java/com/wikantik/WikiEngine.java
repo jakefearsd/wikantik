@@ -1162,6 +1162,7 @@ public class WikiEngine implements Engine {
                 LOG.error( "work management wiring failed (continuing without work management): {}", e.getMessage(), e );
                 this.setWorkService( null );
             }
+            startWorkClaimSweeper();
 
             // Wire the briefing log (S3 telemetry for session-start context briefings; default on).
             this.setBriefingLogService( com.wikantik.knowledge.querylog.BriefingLogWiring.build( ds, props ) );
@@ -1913,10 +1914,31 @@ public class WikiEngine implements Engine {
         closeQuietly( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class );
         closeQuietly( com.wikantik.search.hybrid.QueryEmbedder.class );
         closeQuietly( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
+        closeQuietly( com.wikantik.work.runtime.WorkClaimSweeper.class );
         if ( auditWriter != null ) {
             auditWriter.shutdownWriter();
         }
         WikiEventManager.unregisterListenersFor( this );
+    }
+
+    /**
+     * Starts the background claim-expiry sweep when work management is wired. A start failure leaves work
+     * management running without it (claims then never lapse), which is logged loudly, and never stops the wiki.
+     */
+    private void startWorkClaimSweeper() {
+        final com.wikantik.work.WorkService service = this.workService;
+        closeQuietly( com.wikantik.work.runtime.WorkClaimSweeper.class );   // never two sweepers per engine
+        if ( service == null ) {
+            return;
+        }
+        try {
+            this.setManager( com.wikantik.work.runtime.WorkClaimSweeper.class,
+                com.wikantik.work.runtime.WorkClaimSweeper.start( service,
+                    com.wikantik.work.runtime.WorkClaimSweeper.INTERVAL ) );
+        } catch ( final RuntimeException e ) {
+            LOG.error( "work claim sweeper failed to start; work management continues but claims will not expire: {}",
+                e.getMessage(), e );
+        }
     }
 
     /**

@@ -163,7 +163,11 @@ public final class WorkRegistryService {
     public WorkService.AgentWithToken rotateAgentKey( final Actor actor, final long agentId ) throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final Agent existing = requireActiveAgent( agentId );
-        final AgentKeys.Minted minted = keys.mint( actor.login(), "work-agent:" + existing.name() );
+        final String label = "work-agent:" + existing.name();
+        // The replacement stays owned by whoever owned the old key, not by the admin rotating it.
+        final AgentKeys.Minted minted = existing.apiKeyId() == null
+            ? keys.mint( actor.login(), label )
+            : keys.remint( existing.apiKeyId(), label );
         try {
             store.rebindAgentKey( agentId, minted.keyId() );
         } catch ( final SQLException | RuntimeException e ) {

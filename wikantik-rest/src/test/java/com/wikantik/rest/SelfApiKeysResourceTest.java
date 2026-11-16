@@ -287,7 +287,7 @@ class SelfApiKeysResourceTest {
         verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
         final String message = com.google.gson.JsonParser.parseString( out.toString() )
                 .getAsJsonObject().get( "message" ).getAsString();
-        assertTrue( message.endsWith( "you may create keys with scope mcp_read, tools" ),
+        assertTrue( message.endsWith( "you may create keys with scope mcp_read, tools, work" ),
                 "403 must name exactly the scopes the caller may mint: " + message );
         verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
     }
@@ -332,6 +332,20 @@ class SelfApiKeysResourceTest {
 
         verify( mockService ).generate( "alice", "x", ApiKeyService.Scope.TOOLS, "alice" );
         verify( mockService ).generate( "alice", "x", ApiKeyService.Scope.MCP_READ, "alice" );
+    }
+
+    @Test
+    void nonAdminMayMintWorkKey() throws Exception {
+        stubGenerate( ApiKeyService.Scope.WORK );
+        final SelfApiKeysResource servlet = newServlet();
+        final StringWriter out = new StringWriter();
+        final HttpServletResponse r = mockResponse( out );
+
+        servlet.doPost( postRequest( null, "{\"label\":\"x\",\"scope\":\"work\"}" ), r );
+
+        verify( r ).setStatus( HttpServletResponse.SC_CREATED );
+        verify( mockService ).generate( "alice", "x", ApiKeyService.Scope.WORK, "alice" );
+        assertTrue( out.toString().contains( "\"work\"" ), out.toString() );
     }
 
     @Test

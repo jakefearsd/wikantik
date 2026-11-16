@@ -167,6 +167,28 @@ class AbstractApiAccessFilterTest {
     }
 
     @Test
+    void workKeyIsDeniedForEverySurfaceExceptWork() {
+        // Every scope a surface can require, bar WORK itself and ALL (which is not a surface), refuses a work key.
+        for ( final ApiKeyService.Scope required : ApiKeyService.Scope.values() ) {
+            if ( required == ApiKeyService.Scope.WORK || required == ApiKeyService.Scope.ALL ) {
+                continue;
+            }
+            final ApiKeyService svc = mock( ApiKeyService.class );
+            when( svc.verify( "wkk_work" ) ).thenReturn( Optional.of( record( 9, "agent-owner", ApiKeyService.Scope.WORK ) ) );
+            final TestAccessFilter filter = new TestAccessFilter( null, false, ALWAYS_ALLOW, svc, required );
+            final HttpServletRequest req = mock( HttpServletRequest.class );
+            when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_work" );
+            when( req.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+
+            final AbstractApiAccessFilter.Outcome outcome = filter.authorize( req );
+
+            assertInstanceOf( AbstractApiAccessFilter.Outcome.Denied.class, outcome, "work key vs " + required );
+            assertEquals( HttpServletResponse.SC_FORBIDDEN,
+                    ( ( AbstractApiAccessFilter.Outcome.Denied ) outcome ).status(), "work key vs " + required );
+        }
+    }
+
+    @Test
     void higherRankKeySatisfiesLowerRankRequiredScope() {
         // mcp (rank 3) satisfies a surface requiring mcp_read (rank 1).
         final ApiKeyService svc = mock( ApiKeyService.class );

@@ -56,6 +56,7 @@ class WorkRegistryServiceTest {
     /** Records what the service asked of the key service. */
     private static final class FakeKeys implements AgentKeys {
         final List< String > minted = new ArrayList<>();
+        final List< String > reminted = new ArrayList<>();
         final List< String > revoked = new ArrayList<>();
         int next = 100;
         RuntimeException revokeFails;
@@ -63,6 +64,12 @@ class WorkRegistryServiceTest {
         @Override
         public Minted mint( final String ownerLogin, final String label ) {
             minted.add( ownerLogin + "|" + label );
+            return new Minted( next++, "token-" + ( next - 1 ) );
+        }
+
+        @Override
+        public Minted remint( final int oldKeyId, final String label ) {
+            reminted.add( oldKeyId + "|" + label );
             return new Minted( next++, "token-" + ( next - 1 ) );
         }
 
@@ -281,6 +288,46 @@ class WorkRegistryServiceTest {
         assertEquals( "token-100", r.token() );
         assertEquals( List.of( "55|admin" ), keys.revoked );
         inOrder( store ).verify( store ).rebindAgentKey( 7L, 100 );
+    }
+
+    @Test
+    void rotateKeepsTheOriginalOwner() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        service.registry().rotateAgentKey( admin, 7 );
+        assertEquals( List.of( "55|work-agent:codex" ), keys.reminted, "the replacement is minted from the old key" );
+        assertTrue( keys.minted.isEmpty(), "rotation never mints a key owned by the rotating admin" );
+    }
+
+    @Test
+    void rotateOfAnAgentWithNoKeyMintsForTheAdmin() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", null, null ) ) );
+        service.registry().rotateAgentKey( admin, 7 );
+        assertEquals( List.of( "admin|work-agent:codex" ), keys.minted );
+        assertTrue( keys.reminted.isEmpty() );
+        assertTrue( keys.revoked.isEmpty() );
+    }
+
+    @Test
+    void rotateWhenTheOldKeyCannotBeRemintedChangesNothing() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        final AgentKeys failing = new AgentKeys() {
+            @Override public Minted mint( final String o, final String l ) {
+                throw new AssertionError( "must not mint" );
+            }
+            @Override public Minted remint( final int id, final String l ) {
+                throw new WorkConflictException( "The agent's key no longer exists." );
+            }
+            @Override public void revoke( final int id, final String by ) {
+                throw new AssertionError( "must not revoke" );
+            }
+        };
+        final WorkService svc = new WorkService( store, md -> md, new WorkDirectory() {
+            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
+            @Override public boolean exists( final String login ) { return true; }
+            @Override public String displayName( final String login ) { return login; }
+        }, failing, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null );
+        assertThrows( WorkConflictException.class, () -> svc.registry().rotateAgentKey( admin, 7 ) );
+        verify( store, never() ).rebindAgentKey( org.mockito.ArgumentMatchers.anyLong(), anyInt() );
     }
 
     @Test

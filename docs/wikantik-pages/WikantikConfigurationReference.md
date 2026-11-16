@@ -888,10 +888,12 @@ Full descriptions (truncated above to keep the table scannable):
 | Key | Type | Default | Override | Description |
 |---|---|---|---|---|
 | `wikantik.work.enabled` | `boolean` | `false` | `wikantik_work_enabled` | Work management: projects, epics/stories/tasks, comments and an activity log, served under /api/work/* and the /work SPA routes. … |
+| `wikantik.work.claim.expiryMinutes` | `int` | `240` | `wikantik_work_claim_expiryMinutes` | Minutes an agent's claim on a work item lasts before the item returns to its queue; renewing the claim restarts it. … |
 
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.work.enabled`** — Work management: projects, epics/stories/tasks, comments and an activity log, served under /api/work/* and the /work SPA routes. Work items never enter the page store, search index or Page Graph. Off by default: when false, /api/work/* returns 404, the services are not started and the navigation entry is hidden (the SPA routes stay registered).
+- **`wikantik.work.claim.expiryMinutes`** — Minutes an agent's claim on a work item lasts before the item returns to its queue; renewing the claim restarts it. Accepts 1 to 10080 (one week); any other value is logged and replaced by 240.
 
 ## Connectors
 

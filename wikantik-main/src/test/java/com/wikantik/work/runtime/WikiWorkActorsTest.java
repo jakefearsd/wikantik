@@ -20,9 +20,12 @@ package com.wikantik.work.runtime;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Session;
+import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.work.Actor;
+import com.wikantik.work.WorkRegistryService;
+import com.wikantik.work.WorkService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +34,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class WikiWorkActorsTest {
 
@@ -91,5 +100,53 @@ class WikiWorkActorsTest {
     void adminFlagFollowsAllPermission() throws Exception {
         assertTrue( WikiWorkActors.actorFor( engine, admin ).admin() );
         assertFalse( WikiWorkActors.actorFor( engine, engine.janneSession() ).admin() );
+    }
+
+    // ---- actorForKey: the registry is a mock here; the real-store semantics (retired agent, rotated-away key)
+    // are pinned in wikantik-work's WorkRegistryServiceTest / WorkAgentIdentityPostgresTest.
+
+    private final WorkService service = mock( WorkService.class );
+    private final WorkRegistryService registry = mock( WorkRegistryService.class );
+
+    private static ApiKeyService.Record key( final int id, final ApiKeyService.Scope scope ) {
+        return new ApiKeyService.Record( id, "hash", "owner", "label", scope, java.time.Instant.now(), "admin",
+            null, null, null, false );
+    }
+
+    @Test
+    void mcpReadKeyIsNoWorkActor() throws Exception {
+        when( service.registry() ).thenReturn( registry );
+        for ( final ApiKeyService.Scope scope : ApiKeyService.Scope.values() ) {
+            if ( scope.matches( ApiKeyService.Scope.WORK ) ) {
+                continue;
+            }
+            assertNull( WikiWorkActors.actorForKey( service, key( 5, scope ) ), scope + " is no work key" );
+        }
+        verify( registry, never() ).actorForApiKey( anyInt(), anyString() );
+    }
+
+    @Test
+    void workKeyDelegatesToService() throws Exception {
+        when( service.registry() ).thenReturn( registry );
+        final Actor bot = Actor.agent( 3, "codex" );
+        when( registry.actorForApiKey( 5, "owner" ) ).thenReturn( bot );
+        assertEquals( bot, WikiWorkActors.actorForKey( service, key( 5, ApiKeyService.Scope.WORK ) ) );
+    }
+
+    @Test
+    void allScopeKeyAlsoReachesWork() throws Exception {
+        when( service.registry() ).thenReturn( registry );
+        final Actor owner = Actor.human( "owner", java.util.Set.of(), false );
+        when( registry.actorForApiKey( 6, "owner" ) ).thenReturn( owner );
+        assertEquals( owner, WikiWorkActors.actorForKey( service, key( 6, ApiKeyService.Scope.ALL ) ) );
+    }
+
+    @Test
+    void aRetiredOrRotatedAwayKeyIsNullWithNoFallbackToItsOwner() throws Exception {
+        when( service.registry() ).thenReturn( registry );
+        when( registry.actorForApiKey( 7, "owner" ) ).thenReturn( null );
+        assertNull( WikiWorkActors.actorForKey( service, key( 7, ApiKeyService.Scope.WORK ) ),
+            "null passes through; the key's owner is never substituted" );
+        verify( registry ).actorForApiKey( 7, "owner" );
     }
 }

@@ -28,6 +28,12 @@ public interface AgentKeys {
     /** Mints a work-scoped key owned by {@code ownerLogin}. */
     Minted mint( String ownerLogin, String label );
 
+    /**
+     * Mints a work-scoped key owned by the same principal as {@code oldKeyId}, so a rotated agent key stays owned
+     * by the same person. Mints nothing and throws {@link WorkConflictException} when the old key cannot be found.
+     */
+    Minted remint( int oldKeyId, String label );
+
     /** Revokes a key. */
     void revoke( int keyId, String revokedBy );
 
@@ -35,6 +41,11 @@ public interface AgentKeys {
     AgentKeys NONE = new AgentKeys() {
         @Override
         public Minted mint( final String ownerLogin, final String label ) {
+            throw new WorkConflictException( "Agent keys are not available." );
+        }
+
+        @Override
+        public Minted remint( final int oldKeyId, final String label ) {
             throw new WorkConflictException( "Agent keys are not available." );
         }
 

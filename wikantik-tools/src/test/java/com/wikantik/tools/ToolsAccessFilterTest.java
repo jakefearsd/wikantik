@@ -194,6 +194,25 @@ class ToolsAccessFilterTest {
     }
 
     @Test
+    void dbKeyWithWorkScopeRejectedForToolsWith403() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( "wkk_work" ) )
+                .thenReturn( Optional.of( dbRecord( 4, "dave", ApiKeyService.Scope.WORK ) ) );
+
+        final ToolsAccessFilter filter = new ToolsAccessFilter(
+                new ToolsConfig( new Properties() ), new ToolsRateLimiter( 0, 0 ), svc );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_work" );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+        final StringWriter body = new StringWriter();
+        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    @Test
     void dbKeyServiceAloneSatisfiesFailClosedGate() throws Exception {
         final ApiKeyService svc = mock( ApiKeyService.class );
         when( svc.verify( anyString() ) ).thenReturn( Optional.empty() );

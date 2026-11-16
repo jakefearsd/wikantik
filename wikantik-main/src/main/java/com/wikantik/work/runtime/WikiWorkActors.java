@@ -20,12 +20,15 @@ package com.wikantik.work.runtime;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
+import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.work.Actor;
+import com.wikantik.work.WorkService;
 
 import java.security.Principal;
+import java.sql.SQLException;
 
 /** Turns a wiki {@link Session} into the work-management {@link Actor}. */
 public final class WikiWorkActors {
@@ -51,5 +54,20 @@ public final class WikiWorkActors {
         final boolean admin = auth.authorization().isPermitted( session,
             new AllPermission( engine.getApplicationName() ) );
         return Actor.human( principal.getName(), WikiWorkGroups.groupsOf( auth.groups(), principal.getName() ), admin );
+    }
+
+    /**
+     * The actor for a verified API key: the agent the key is bound to, or the key owner as a person. Only a key whose
+     * scope covers {@code WORK} is an actor at all.
+     *
+     * @return the actor, or {@code null} when the key is not a work key, or is bound to a retired agent or was once
+     *         bound to an agent and has been rotated away; the key owner is never substituted for those
+     */
+    public static Actor actorForKey( final WorkService service, final ApiKeyService.Record record )
+            throws SQLException {
+        if ( !record.scope().matches( ApiKeyService.Scope.WORK ) ) {
+            return null;
+        }
+        return service.registry().actorForApiKey( record.id(), record.principalLogin() );
     }
 }

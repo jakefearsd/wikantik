@@ -28,6 +28,7 @@ import org.mockito.Mockito;
 import javax.sql.DataSource;
 import java.util.Properties;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -72,5 +73,29 @@ class WorkWiringTest {
     void enabledWithADatasourceBuildsTheService() {
         final WorkService service = WorkWiring.build( Mockito.mock( DataSource.class ), props( "true" ), engine );
         assertNotNull( service );
+    }
+
+    private static Properties expiry( final String minutes ) {
+        final Properties p = new Properties();
+        if ( minutes != null ) {
+            p.setProperty( WorkWiring.PROP_CLAIM_EXPIRY, minutes );
+        }
+        return p;
+    }
+
+    @Test
+    void claimExpiryReadFromProperty() {
+        assertEquals( java.time.Duration.ofMinutes( 30 ), WorkWiring.claimExpiry( expiry( "30" ) ) );
+        assertEquals( java.time.Duration.ofMinutes( 1 ), WorkWiring.claimExpiry( expiry( "1" ) ) );
+        assertEquals( java.time.Duration.ofMinutes( 10080 ), WorkWiring.claimExpiry( expiry( "10080" ) ) );
+        assertEquals( "wikantik.work.claim.expiryMinutes", WorkWiring.PROP_CLAIM_EXPIRY );
+    }
+
+    @Test
+    void outOfRangeExpiryFallsBackTo240() {
+        for ( final String bad : new String[] { "0", "-5", "10081", "99999", "soon", "" } ) {
+            assertEquals( java.time.Duration.ofMinutes( 240 ), WorkWiring.claimExpiry( expiry( bad ) ), bad );
+        }
+        assertEquals( java.time.Duration.ofMinutes( 240 ), WorkWiring.claimExpiry( expiry( null ) ) );
     }
 }

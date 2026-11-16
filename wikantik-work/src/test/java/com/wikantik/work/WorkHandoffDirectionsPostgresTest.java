@@ -71,6 +71,11 @@ class WorkHandoffDirectionsPostgresTest {
             }
 
             @Override
+            public Minted remint( final int oldKeyId, final String label ) {
+                return mint( null, label );
+            }
+
+            @Override
             public void revoke( final int keyId, final String revokedBy ) {
             }
         };

@@ -68,7 +68,8 @@ public class SelfApiKeysResource extends RestServletBase {
      * {@code all} reach the admin MCP surface, so only administrators may self-mint them.
      */
     static final Set< ApiKeyService.Scope > SELF_SERVICE_SCOPES =
-            Collections.unmodifiableSet( EnumSet.of( ApiKeyService.Scope.TOOLS, ApiKeyService.Scope.MCP_READ ) );
+            Collections.unmodifiableSet( EnumSet.of( ApiKeyService.Scope.TOOLS, ApiKeyService.Scope.MCP_READ,
+                    ApiKeyService.Scope.WORK ) );
 
     private static final String SELF_SERVICE_SCOPE_NAMES = SELF_SERVICE_SCOPES.stream()
             .map( ApiKeyService.Scope::wire ).collect( Collectors.joining( ", " ) );

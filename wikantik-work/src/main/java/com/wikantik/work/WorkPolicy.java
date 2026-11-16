@@ -66,9 +66,20 @@ public final class WorkPolicy {
     public static Decision mayChangeStatus( final Actor actor, final Item item, final WorkStatus target ) {
         if ( actor.kind() == Actor.Kind.AGENT && item != null && item.status() == WorkStatus.DRAFT
             && target != WorkStatus.DRAFT ) {
-            return Decision.deny( "A person moves a draft forward." );
+            return Decision.deny( target == WorkStatus.CANCELLED ? "A person cancels or moves a draft."
+                : "A person moves a draft forward." );
         }
         return Decision.allow();
+    }
+
+    /** The status a patch names, or null when it names none or one that does not exist (which counts as a move). */
+    static WorkStatus namedStatus( final Object raw ) {
+        for ( final WorkStatus s : WorkStatus.values() ) {
+            if ( s.wire().equals( raw ) ) {
+                return s;
+            }
+        }
+        return null;
     }
 
     private static boolean claimedByOther( final Actor actor, final Action action, final Item item ) {

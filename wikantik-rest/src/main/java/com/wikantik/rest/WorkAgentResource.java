@@ -90,6 +90,7 @@ public class WorkAgentResource extends WorkResourceBase {
         secret( c, c.svc.registry().rotateAgentKey( c.actor, agentId( c ), owner ), 200 );
     }
 
+    /** A partial update: fields the body leaves out stay as they are. */
     private void update( final Call c ) throws Exception {
         final JsonObject b = c.body();
         if ( b == null ) {
@@ -107,11 +108,14 @@ public class WorkAgentResource extends WorkResourceBase {
             owner );
     }
 
-    /** {@code queues} as a list of queue keys; anything but an array of text is a 400 on the field. */
+    /**
+     * {@code queues} as a list of queue keys, or null when the body does not name them (a register serves none, a
+     * PATCH leaves them as they are); anything but an array of text is a 400 on the field.
+     */
     private static List< String > queues( final JsonObject b ) {
         final JsonElement raw = b.get( "queues" );
         if ( raw == null || raw.isJsonNull() ) {
-            return List.of();
+            return null;
         }
         if ( !raw.isJsonArray() ) {
             throw new WorkValidationException( "queues", "queues must be a list of queue keys." );

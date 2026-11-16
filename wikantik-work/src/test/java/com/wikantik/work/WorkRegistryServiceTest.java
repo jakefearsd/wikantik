@@ -518,4 +518,13 @@ class WorkRegistryServiceTest {
         assertTrue( keys.minted.isEmpty() && keys.reminted.isEmpty() && keys.revoked.isEmpty() );
         verify( store, never() ).rebindAgentKey( org.mockito.ArgumentMatchers.anyLong(), anyInt() );
     }
+
+    @Test
+    void anUpdateLeavesEveryOmittedFieldAsItWas() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( new Agent( 7, "codex", "openai", "cli", 55,
+            List.of( "implementer" ), NOW, null ) ) );
+        when( store.agentByName( "codex" ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        service.registry().updateAgent( admin, 7, new AgentDraft( null, null, "codex-2", null, null ) );
+        verify( store ).updateAgent( 7, "codex", "openai", "codex-2", List.of( "implementer" ) );
+    }
 }

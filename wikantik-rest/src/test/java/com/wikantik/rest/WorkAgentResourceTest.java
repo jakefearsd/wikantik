@@ -277,4 +277,12 @@ class WorkAgentResourceTest {
         assertTrue( warned.stream().anyMatch( m -> m.contains( "not a number" ) ), warned.toString() );
         assertTrue( warned.stream().noneMatch( m -> m.contains( "evil" ) || m.contains( "forged" ) ), warned.toString() );
     }
+
+    @Test
+    void aPatchPassesOnlyTheFieldsItNames() throws Exception {
+        Mockito.when( registry.listAgents( ADMIN ) ).thenReturn( List.of( BUILDER ) );
+        final WorkHttp.Result r = send( "PATCH", "/5", "{\"runtime\":\"codex-2\"}" );
+        assertEquals( 200, r.status() );
+        Mockito.verify( registry ).updateAgent( ADMIN, 5, new AgentDraft( null, null, "codex-2", null, null ) );
+    }
 }

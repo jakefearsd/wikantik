@@ -189,6 +189,9 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     public int putMember( final long projectId, final String principal, final String principalKind,
                            final WorkRole role, final Actor by ) throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
+        if ( "agent".equals( principalKind ) ) {
+            WorkInputs.requireAgentRole( role );
+        }
         return jdbc.inTransaction( conn -> {
             final WorkRole before = jdbc.queryOne( conn, "SELECT role FROM work_member WHERE project_id = ? "
                     + "AND principal_kind = ? AND principal = ? FOR UPDATE",
@@ -258,6 +261,9 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     static void requireAttributed( final Actor.Kind kind, final Long agentId ) {
         if ( kind == Actor.Kind.AGENT && agentId == null ) {
             throw new IllegalArgumentException( "an agent write must carry its work_agent id" );
+        }
+        if ( kind == Actor.Kind.HUMAN && agentId != null ) {
+            throw new IllegalArgumentException( "a person's write carries no work_agent id" );
         }
     }
 

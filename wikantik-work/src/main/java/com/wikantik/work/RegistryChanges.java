@@ -72,6 +72,14 @@ final class RegistryChanges {
         }
     }
 
+    /** {@code patch} over {@code existing}: each null field of the patch keeps the agent's current value. */
+    static AgentDraft merged( final AgentDraft patch, final Agent existing ) {
+        return new AgentDraft( patch.name() == null ? existing.name() : patch.name(),
+            patch.vendor() == null ? existing.vendor() : patch.vendor(),
+            patch.runtime() == null ? existing.runtime() : patch.runtime(),
+            patch.queues() == null ? existing.queues() : patch.queues(), patch.owner() );
+    }
+
     static String orEmpty( final String s ) {
         return s == null ? "" : s.trim();
     }

@@ -315,7 +315,7 @@ public class WorkService {
         }
         s.requireWritable();
         if ( changes.containsKey( "status" ) ) {
-            s.requireStatusChange( is.item(), WorkStatus.DRAFT.wire().equals( changes.get( "status" ) ) ? WorkStatus.DRAFT : null );
+            s.requireStatusChange( is.item(), WorkPolicy.namedStatus( changes.get( "status" ) ) );
         }
         final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );

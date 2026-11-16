@@ -179,4 +179,27 @@ class WorkKeyChainTest {
         assertNotNull( run( req ), "the flagged user's cookie must not block a key request: " + body );
         assertEquals( "", body.toString() );
     }
+
+    @Test
+    void anAgentBoundKeyWithARememberMeCookieNeverBecomesAnOwnerSessionEither() throws Exception {
+        final ApiKeyService.Generated g = keys.generate( "agent-owner", "work-agent:chain", ApiKeyService.Scope.WORK,
+            "admin" );
+        try ( java.sql.Connection c = PostgresTestDb.createDataSource().getConnection();
+              java.sql.PreparedStatement ps = c.prepareStatement(
+                  "INSERT INTO work_agent (name, api_key_id) VALUES (?, ?)" ) ) {
+            ps.setString( 1, "chain-" + java.util.UUID.randomUUID().toString().substring( 0, 8 ) + "@it" );
+            ps.setInt( 2, g.record().id() );
+            ps.executeUpdate();
+        }
+        final HttpServletRequest req = request( g.plaintext(), new Cookie( "WikantikUID", "anything" ),
+            new Cookie( "JSESSIONID", "abc" ) );
+        final ServletRequest reached = run( req );
+        assertNotNull( reached, "the request must reach the servlet: " + body );
+        final HttpServletRequest seen = ( HttpServletRequest ) reached;
+        assertNull( seen.getUserPrincipal(), "an agent's key exposes no user principal, not even its owner's" );
+        assertNull( seen.getRemoteUser() );
+        assertEquals( g.record().id(), ( ( ApiKeyService.Record ) seen.getAttribute(
+            ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) ).id() );
+        assertNoSession( req );
+    }
 }

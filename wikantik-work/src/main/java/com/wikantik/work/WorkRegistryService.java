@@ -163,9 +163,11 @@ public final class WorkRegistryService {
         }
     }
 
-    public void updateAgent( final Actor actor, final long agentId, final AgentDraft draft ) throws SQLException {
+    /** A partial update: a null name, vendor, runtime or queue list leaves that field as it is. */
+    public void updateAgent( final Actor actor, final long agentId, final AgentDraft patch ) throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final Agent existing = requireActiveAgent( agentId );
+        final AgentDraft draft = RegistryChanges.merged( patch, existing );
         final String name = agentName( draft.name() );
         final List< String > queues = servedQueues( draft.queues(), new LinkedHashSet<>( existing.queues() ) );
         final Agent sameName = store.agentByName( name ).orElse( null );
@@ -173,7 +175,8 @@ public final class WorkRegistryService {
             throw RegistryChanges.exists( "Agent " + name + " already exists." );
         }
         try {
-            store.updateAgent( agentId, name, RegistryChanges.orEmpty( draft.vendor() ), RegistryChanges.orEmpty( draft.runtime() ), queues );
+            store.updateAgent( agentId, name, RegistryChanges.orEmpty( draft.vendor() ),
+                RegistryChanges.orEmpty( draft.runtime() ), queues );
         } catch ( final SQLException e ) {
             throw RegistryChanges.duplicateOrRethrow( e, "Agent " + name + " already exists." );
         }

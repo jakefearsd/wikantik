@@ -176,4 +176,22 @@ class WorkDraftRulePostgresTest {
         assertThrows( WorkNotFoundException.class, () -> svc.claims().handoff( agent, hidden.key(),
             new Handoff( 1, WorkStatus.READY, null, "implementer", "n" ) ) );
     }
+
+    @Test
+    void anAgentCancellingADraftIsToldAPersonDoesThat() throws SQLException {
+        final Item d = draftByAgent();
+        final WorkDeniedException e = assertThrows( WorkDeniedException.class, () -> svc.updateItem( agent, d.key(),
+            new ItemPatch( d.version(), Map.of( "status", "cancelled" ), "not needed" ) ) );
+        assertEquals( "A person cancels or moves a draft.", e.reason() );
+    }
+
+    @Test
+    void anAgentMayMoveAnItemIntoDraft() throws SQLException {
+        final Item d = draftByAgent();
+        final Item refining = svc.updateItem( lena, d.key(), new ItemPatch( d.version(), Map.of( "status", "refining" ),
+            null ) ).item();
+        final Item back = svc.updateItem( agent, d.key(), new ItemPatch( refining.version(), Map.of( "status", "draft" ),
+            "needs more thought" ) ).item();
+        assertEquals( WorkStatus.DRAFT, back.status() );
+    }
 }

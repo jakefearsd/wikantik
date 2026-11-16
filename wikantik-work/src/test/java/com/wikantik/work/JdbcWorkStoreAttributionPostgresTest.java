@@ -426,4 +426,26 @@ class JdbcWorkStoreAttributionPostgresTest {
             () -> store.updateProject( plat.id(), plat.name(), plat.description(), plat.defaultAutonomy(), ghost ) );
         assertEquals( events, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" ) );
     }
+
+    @Test
+    void aPersonActorCarryingAnAgentIdIsRefused() throws SQLException {
+        // A person is never attributed to an agent: such an actor is a construction error, so nothing is written.
+        final Actor mixed = new Actor( "lena", Set.of(), false, Actor.Kind.HUMAN, 7L );
+        final long events = WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" );
+        assertThrows( IllegalArgumentException.class, () -> store.updateProject( plat.id(), "Renamed", "",
+            plat.defaultAutonomy(), mixed ) );
+        assertThrows( IllegalArgumentException.class, () -> store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER,
+            mixed ) );
+        assertEquals( events, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" ) );
+        assertEquals( plat.name(), store.project( "PLAT" ).orElseThrow().name() );
+    }
+
+    @Test
+    void theStoreRefusesAnAgentLead() throws SQLException {
+        final long agent = WorkAgentFixtures.agent( ds, "lead-hopeful" );
+        final WorkValidationException e = assertThrows( WorkValidationException.class, () -> store.putMember( plat.id(),
+            String.valueOf( agent ), "agent", WorkRole.LEAD, LENA ) );
+        assertEquals( "role", e.field() );
+        assertTrue( store.members( plat.id() ).stream().noneMatch( m -> "agent".equals( m.principalKind() ) ) );
+    }
 }

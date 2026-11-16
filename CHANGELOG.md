@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.22] - 2026-11-15
+
 ### Fixed
 
 - **A `-Dwikantik.*` system property now overrides the configured value for every setting.** The property loader merged system properties under malformed keys, so an override only worked for settings read through one particular helper and was silently ignored for the rest, including `wikantik.work.enabled`. System properties are now merged under their exact names.

@@ -341,6 +341,7 @@ class JdbcWorkClaimsPostgresTest {
     @Test
     void claimsHeldByAndActiveCount() throws SQLException {
         final Project other = store.createProject( "OTH", "Other", "" );
+        store.putMember( other.id(), String.valueOf( fx.a.id() ), "agent", WorkRole.MEMBER, WorkClaimFixtures.LENA );
         final Item one = claims.claim( fx.ready( "one" ), fx.actorA, HOUR ).orElseThrow();
         final Item two = claims.claim( fx.create( other, "two", WorkStatus.READY, 3, null, null, "implementer" ),
             fx.actorA, HOUR ).orElseThrow();
@@ -394,6 +395,7 @@ class JdbcWorkClaimsPostgresTest {
     @Test
     void retireAgentReleasesAllClaims() throws SQLException {
         final Project other = store.createProject( "OTH", "Other", "" );
+        store.putMember( other.id(), String.valueOf( fx.a.id() ), "agent", WorkRole.MEMBER, WorkClaimFixtures.LENA );
         final Item one = claims.claim( fx.ready( "one" ), fx.actorA, HOUR ).orElseThrow();
         final Item two = claims.claim( fx.create( other, "two", WorkStatus.READY, 3, null, null, "implementer" ),
             fx.actorA, HOUR ).orElseThrow();

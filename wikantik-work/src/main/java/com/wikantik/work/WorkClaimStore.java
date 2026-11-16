@@ -32,10 +32,12 @@ import java.util.Set;
 public interface WorkClaimStore {
 
     /**
-     * Claims the item for the agent in one statement, or renews the agent's own claim. Empty when the item is not
-     * claimable by that agent (not ready or in review, held by another agent, queue not served, assigned to a
-     * person, no queue, or blocked by an open item). Writes {@code claimed} (a ready item moves to in progress,
-     * version +1) or, for the holder, {@code claim_renewed} (nothing else changes).
+     * Claims the item for the agent in one statement, or renews the agent's own claim. Empty when the agent is
+     * retired or is not a {@code member} (not a viewer) of the item's project, or when the item is not claimable.
+     * The holder may always renew its own claim, even if the item became blocked or the agent stopped serving the
+     * queue. A fresh take needs an unheld ready or review item in a queue the agent serves, not blocked by an open
+     * item. Writes {@code claimed} (a ready item moves to in progress, version +1) or, for the holder,
+     * {@code claim_renewed} (nothing else changes). {@code expiry} must be positive.
      */
     Optional< Item > claim( Item item, Actor agent, Duration expiry ) throws SQLException;
 

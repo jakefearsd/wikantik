@@ -63,8 +63,9 @@ class JdbcWorkClaimsRollbackTest {
     void claimRollsBackWhenEventInsertFails() throws SQLException {
         final Item item = fx.ready( "x" );
         final long events = eventCount();
-        // statements: 1 the claim UPDATE, 2 read the item back, 3 insert the claimed event (fails)
-        faulty.failOn( 3, new RuntimeException( "boom: claimed insert" ) );
+        // statements: 1 share-lock the agent row, 2 share-lock the member row, 3 the claim UPDATE, 4 read the item
+        // back, 5 insert the claimed event (fails)
+        faulty.failOn( 5, new RuntimeException( "boom: claimed insert" ) );
         assertThrows( RuntimeException.class, () -> faultyStore.claims().claim( item, fx.actorA, HOUR ) );
         assertEquals( 1, faulty.rollbacks() );
         assertEquals( item, fx.reload( item ) );
@@ -75,8 +76,8 @@ class JdbcWorkClaimsRollbackTest {
     void renewalRollsBackWhenEventInsertFails() throws SQLException {
         final Item held = fx.store.claims().claim( fx.ready( "x" ), fx.actorA, HOUR ).orElseThrow();
         final long events = eventCount();
-        // statements as for a claim: 1 UPDATE, 2 read back, 3 insert the claim_renewed event (fails)
-        faulty.failOn( 3, new RuntimeException( "boom: renewed insert" ) );
+        // statements as for a claim: 1 agent lock, 2 member lock, 3 UPDATE, 4 read back, 5 insert claim_renewed (fails)
+        faulty.failOn( 5, new RuntimeException( "boom: renewed insert" ) );
         assertThrows( RuntimeException.class, () -> faultyStore.claims().claim( held, fx.actorA, Duration.ofDays( 1 ) ) );
         assertEquals( 1, faulty.rollbacks() );
         assertEquals( held, fx.reload( held ) );

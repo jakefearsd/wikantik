@@ -79,4 +79,22 @@ final class WorkClaimFixtures {
         WorkAgentFixtures.exec( ds, "UPDATE work_item SET claim_expires_at = now() - INTERVAL '1 minute' WHERE id = "
             + item.id() );
     }
+
+    /** Makes the agent a member of the project, as the service does before any claim. */
+    void member( final Agent agent ) throws SQLException {
+        store.putMember( plat.id(), String.valueOf( agent.id() ), "agent", WorkRole.MEMBER, LENA );
+    }
+
+    /** Waits (bounded) until some backend is blocked by the backend {@code holderPid}; fails otherwise. */
+    static void awaitBlockedBy( final DataSource ds, final long holderPid ) throws Exception {
+        final long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos( 20 );
+        while ( System.nanoTime() < deadline ) {
+            if ( WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM pg_stat_activity WHERE " + holderPid
+                    + " = ANY( pg_blocking_pids( pid ) )" ) > 0 ) {
+                return;
+            }
+            Thread.sleep( 25 );
+        }
+        throw new AssertionError( "nothing ever waited on backend " + holderPid );
+    }
 }

@@ -99,6 +99,7 @@ class JdbcWorkClaimsConcurrencyPostgresTest {
         final List< Actor > agents = new ArrayList<>( List.of( fx.actorA, fx.actorB ) );
         for ( int i = 0; i < 6; i++ ) {
             final Agent extra = fx.agent( "extra-" + i, List.of( "implementer" ) );
+            fx.member( extra );
             agents.add( Actor.agent( extra.id(), extra.name() ) );
         }
         for ( int round = 0; round < 3; round++ ) {
@@ -175,13 +176,14 @@ class JdbcWorkClaimsConcurrencyPostgresTest {
         final Item held = claims.claim( fx.ready( "x" ), fx.actorA, HOUR ).orElseThrow();
         try ( Connection holder = fx.ds.getConnection() ) {
             holder.setAutoCommit( false );
+            final long holderPid = backendPid( holder );
             try ( Statement s = holder.createStatement() ) {
                 s.execute( "SELECT 1 FROM work_item WHERE id = " + held.id() + " FOR UPDATE" );
             }
             final ExecutorService pool = Executors.newSingleThreadExecutor();
             try {
                 final var waiting = pool.submit( () -> claims.claim( held, fx.actorA, HOUR ) );
-                awaitLockWaiter();
+                WorkClaimFixtures.awaitBlockedBy( fx.ds, holderPid );
                 try ( Statement s = holder.createStatement() ) {
                     s.execute( "UPDATE work_item SET claimed_by_agent = NULL, claimed_at = NULL, "
                         + "claim_expires_at = NULL, status = 'ready', version = version + 1 WHERE id = " + held.id() );
@@ -199,15 +201,10 @@ class JdbcWorkClaimsConcurrencyPostgresTest {
         }
     }
 
-    private void awaitLockWaiter() throws Exception {
-        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos( 20 );
-        while ( System.nanoTime() < deadline ) {
-            if ( WorkAgentFixtures.scalar( fx.ds, "SELECT COUNT(*) FROM pg_stat_activity "
-                    + "WHERE wait_event_type = 'Lock' AND datname = current_database()" ) > 0 ) {
-                return;
-            }
-            Thread.sleep( 25 );
+    private static long backendPid( final Connection c ) throws SQLException {
+        try ( Statement st = c.createStatement(); var rs = st.executeQuery( "SELECT pg_backend_pid()" ) ) {
+            rs.next();
+            return rs.getLong( 1 );
         }
-        throw new AssertionError( "the claim never waited on the row lock" );
     }
 }

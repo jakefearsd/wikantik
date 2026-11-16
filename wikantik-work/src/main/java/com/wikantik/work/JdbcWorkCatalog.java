@@ -77,7 +77,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
         """;
 
     /** The claim half of the store; a member losing access releases its claims inside the member transaction. */
-    final JdbcWorkClaims claims;
+    private final JdbcWorkClaims claims;
 
     JdbcWorkCatalog( final Jdbc jdbc ) {
         super( jdbc );

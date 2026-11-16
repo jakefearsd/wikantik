@@ -21,6 +21,9 @@ package com.wikantik.work;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.SqlBinder;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import static com.wikantik.work.JdbcWorkStore.ITEM_ROW;
 import static com.wikantik.work.JdbcWorkStore.ITEM_SELECT;
@@ -36,7 +40,10 @@ import static com.wikantik.work.JdbcWorkStore.ITEM_SELECT;
 /**
  * Claims behind {@link JdbcWorkStore}. A claim is one {@code UPDATE ... RETURNING}: under READ COMMITTED a second
  * claimer waits on the row lock and then re-checks the {@code WHERE}, so exactly one wins and nothing else is
- * needed. Endings (release, expiry, loss of access, retirement) lock the rows they end in the same statement, name
+ * needed. A claim first takes shared locks on the agent row and the agent's member row, so a retirement, removal
+ * or demotion that is in flight is waited for (and the claim then finds no row) rather than raced. Lock order is
+ * always agent row, member row, item row; retirement locks agent then items, removal and demotion lock the member
+ * row then items, and none takes the others' rows, so they cannot form a cycle. Endings (release, expiry, loss of access, retirement) lock the rows they end in the same statement, name
  * the holder from the locked row and write their event on the same connection.
  */
 final class JdbcWorkClaims implements WorkClaimStore {
@@ -46,6 +53,8 @@ final class JdbcWorkClaims implements WorkClaimStore {
     /** Note on a release caused by retiring the agent. */
     static final String AGENT_RETIRED = "agent retired";
 
+    private static final Logger LOG = LogManager.getLogger( JdbcWorkClaims.class );
+    private static final Pattern AGENT_ID = Pattern.compile( "\\d{1,18}" );
     private static final int DEFAULT_LIMIT = 200;
 
     /** The blocked rule of phase 1 ({@code isBlocked}, {@code itemExtras}) verbatim, with {@code i} the item. */
@@ -58,6 +67,10 @@ final class JdbcWorkClaims implements WorkClaimStore {
                         AND UPPER( TRIM( l.target ) ) = UPPER( bp.key || '-' || b.seq ) )
         """;
 
+    /**
+     * Fresh takes need an unheld ready or review item in a served queue that is not blocked; the holder's renewal
+     * needs only that it is still the holder (access is checked by the row locks taken before this statement).
+     */
     private static final String CLAIM_SQL = """
         UPDATE work_item AS i
            SET claimed_by_agent = ?,
@@ -67,13 +80,22 @@ final class JdbcWorkClaims implements WorkClaimStore {
                version          = i.version + CASE WHEN i.status = 'ready' THEN 1 ELSE 0 END,
                updated_at       = now()
          WHERE i.id = ?
-           AND EXISTS ( SELECT 1 FROM work_agent_queue aq
-                         WHERE aq.agent_id = ? AND aq.queue_key = i.assignee_queue )
-           AND (    ( i.claimed_by_agent IS NULL AND i.status IN ('ready', 'review') )
-                 OR   i.claimed_by_agent = ? )
-           AND\s""" + NOT_BLOCKED + """
-        RETURNING i.id, ( i.claimed_at = now() ) AS taken, i.status
+           AND (   i.claimed_by_agent = ?
+                OR (     i.claimed_by_agent IS NULL AND i.status IN ('ready', 'review')
+                     AND EXISTS ( SELECT 1 FROM work_agent_queue aq
+                                   WHERE aq.agent_id = ? AND aq.queue_key = i.assignee_queue )
+                     AND\s""" + NOT_BLOCKED + """
+                   ) )
+        RETURNING i.id, i.project_id, ( i.claimed_at = now() ) AS taken, i.status
         """;
+
+    /** Shared lock on the agent row: a retirement in flight is waited for, and a retired agent finds no row. */
+    private static final String AGENT_LOCK_SQL =
+        "SELECT 1 FROM work_agent WHERE id = ? AND retired_at IS NULL FOR SHARE";
+
+    /** Shared lock on the agent's member row: a removal or demotion in flight is waited for. */
+    private static final String MEMBER_LOCK_SQL = "SELECT 1 FROM work_member WHERE project_id = ? "
+        + "AND principal_kind = 'agent' AND principal = ? AND role = 'member' FOR SHARE";
 
     /** Locks the rows to end in the CTE ({@code %s} is the condition on {@code w}, {@code %s} the tail of it). */
     private static final String ENDING_SQL = """
@@ -96,7 +118,7 @@ final class JdbcWorkClaims implements WorkClaimStore {
                           String status ) {
     }
 
-    private record Taken( long itemId, boolean taken, String status ) {
+    private record Taken( long itemId, long projectId, boolean taken, String status ) {
     }
 
     private final Jdbc jdbc;
@@ -117,8 +139,19 @@ final class JdbcWorkClaims implements WorkClaimStore {
     @Override
     public Optional< Item > claim( final Item item, final Actor agent, final Duration expiry ) throws SQLException {
         final long agentId = requireAgent( agent );
+        if ( expiry == null || expiry.isZero() || expiry.isNegative() ) {
+            throw new IllegalArgumentException( "a claim expires after a positive duration" );
+        }
         final double seconds = expiry.toMillis() / 1000.0;
         return jdbc.inTransaction( conn -> {
+            // Lock order is always agent row, member row, item row; see the class comment on why.
+            if ( !holdsRow( conn, AGENT_LOCK_SQL, ps -> ps.setLong( 1, agentId ) )
+                    || !holdsRow( conn, MEMBER_LOCK_SQL, ps -> {
+                        ps.setLong( 1, item.projectId() );
+                        ps.setString( 2, String.valueOf( agentId ) );
+                    } ) ) {
+                return Optional.< Item >empty();
+            }
             final Optional< Taken > won = jdbc.queryOne( conn, CLAIM_SQL, ps -> {
                 ps.setLong( 1, agentId );
                 ps.setLong( 2, agentId );
@@ -126,23 +159,30 @@ final class JdbcWorkClaims implements WorkClaimStore {
                 ps.setLong( 4, item.id() );
                 ps.setLong( 5, agentId );
                 ps.setLong( 6, agentId );
-            }, rs -> new Taken( rs.getLong( "id" ), rs.getBoolean( "taken" ), rs.getString( "status" ) ) );
+            }, rs -> new Taken( rs.getLong( "id" ), rs.getLong( "project_id" ), rs.getBoolean( "taken" ),
+                rs.getString( "status" ) ) );
             if ( won.isEmpty() ) {
                 return Optional.< Item >empty();
             }
+            final Taken t = won.get();
             final Item after = itemById( conn, item.id() );
             final String expires = String.valueOf( after.claimExpiresAt() );
-            if ( won.get().taken() ) {
+            if ( t.taken() ) {
                 // A take moves a ready item to in progress and leaves a review item where it is.
-                final String from = "in_progress".equals( won.get().status() ) ? "ready" : won.get().status();
-                catalog.appendEvent( conn, event( item.projectId(), item.id(), agent, WorkEvent.CLAIMED, from,
-                    won.get().status(), expires ) );
+                final String from = "in_progress".equals( t.status() ) ? "ready" : t.status();
+                catalog.appendEvent( conn, event( t.projectId(), item.id(), agent, WorkEvent.CLAIMED, from,
+                    t.status(), expires ) );
             } else {
-                catalog.appendEvent( conn, event( item.projectId(), item.id(), agent, WorkEvent.CLAIM_RENEWED, null,
+                catalog.appendEvent( conn, event( t.projectId(), item.id(), agent, WorkEvent.CLAIM_RENEWED, null,
                     expires, null ) );
             }
             return Optional.of( after );
         } );
+    }
+
+    private boolean holdsRow( final Connection conn, final String lockSql, final SqlBinder binder )
+            throws SQLException {
+        return jdbc.queryOne( conn, lockSql, binder, rs -> 1 ).isPresent();
     }
 
     @Override
@@ -153,7 +193,7 @@ final class JdbcWorkClaims implements WorkClaimStore {
         }
         final String reason = note == null || note.isBlank() ? "released" : note;
         return jdbc.inTransaction( conn -> {
-            final List< Ended > ended = end( conn, "w.id = ? AND w.claimed_by_agent = ?", "FOR UPDATE OF w",
+            final List< Ended > ended = end( conn, "w.id = ? AND w.claimed_by_agent = ?", "FOR NO KEY UPDATE OF w",
                 ps -> { ps.setLong( 1, item.id() ); ps.setLong( 2, item.claimedByAgent() ); } );
             if ( ended.isEmpty() ) {
                 return Optional.< Item >empty();
@@ -169,7 +209,7 @@ final class JdbcWorkClaims implements WorkClaimStore {
             return List.of();
         }
         return jdbc.inTransaction( conn -> {
-            final List< Ended > ended = end( conn, "w.claim_expires_at <= now()", "LIMIT ? FOR UPDATE OF w SKIP LOCKED",
+            final List< Ended > ended = end( conn, "w.claim_expires_at <= now()", "LIMIT ? FOR NO KEY UPDATE OF w SKIP LOCKED",
                 ps -> ps.setInt( 1, max ) );
             for ( final Ended e : ended ) {
                 catalog.appendEvent( conn, event( e.projectId(), e.itemId(), Actor.agent( e.agentId(), e.agentName() ),
@@ -233,7 +273,7 @@ final class JdbcWorkClaims implements WorkClaimStore {
         jdbc.inTransaction( conn -> {
             jdbc.update( conn, "UPDATE work_agent SET retired_at = ? WHERE id = ? AND retired_at IS NULL",
                 ps -> { ps.setTimestamp( 1, SqlValues.timestamp( at ) ); ps.setLong( 2, agentId ); } );
-            recordReleases( conn, end( conn, "w.claimed_by_agent = ?", "FOR UPDATE OF w",
+            recordReleases( conn, end( conn, "w.claimed_by_agent = ?", "FOR NO KEY UPDATE OF w",
                 ps -> ps.setLong( 1, agentId ) ), by, AGENT_RETIRED );
             return null;
         } );
@@ -245,13 +285,13 @@ final class JdbcWorkClaims implements WorkClaimStore {
      */
     void releaseOnAccessLoss( final Connection conn, final long projectId, final String agentPrincipal,
                               final Actor by, final String note ) throws SQLException {
-        final long agentId;
-        try {
-            agentId = Long.parseLong( agentPrincipal );
-        } catch ( final NumberFormatException e ) {
-            return;   // not an agent id, so it cannot hold a claim
+        if ( agentPrincipal == null || !AGENT_ID.matcher( agentPrincipal ).matches() ) {
+            LOG.warn( "Skipped the claim release for an agent member row of project {}: principal '{}' is not an "
+                + "agent id", projectId, agentPrincipal );
+            return;
         }
-        recordReleases( conn, end( conn, "w.claimed_by_agent = ? AND w.project_id = ?", "FOR UPDATE OF w",
+        final long agentId = Long.parseLong( agentPrincipal );
+        recordReleases( conn, end( conn, "w.claimed_by_agent = ? AND w.project_id = ?", "FOR NO KEY UPDATE OF w",
             ps -> { ps.setLong( 1, agentId ); ps.setLong( 2, projectId ); } ), by, note );
     }
 

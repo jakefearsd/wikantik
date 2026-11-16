@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.23] - 2026-11-16
+
 ### Added
 
 - **Work management, phase 2: agents (still behind `wikantik.work.enabled`).** An instance admin registers agents and queues at `/work/agents`. An agent is a named actor with its own API key, shown once at registration and at rotation; a project lead adds it to a project like any other member. Work is assigned to a person or to a queue. An agent claims a ready or in-review item from a queue it serves, which moves the item to in progress, and the claim lapses unless renewed (`wikantik.work.claim.expiryMinutes`, default 240).

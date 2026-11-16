@@ -91,12 +91,13 @@ public class WorkApiIT {
             "level", "story", "title", "Story one", "parentKey", key( epic ) ) ) );
         final JsonObject task = created( member.send( "POST", "/api/work/items", Map.of( "project", "PLAT",
             "level", "task", "title", "Task one", "parentKey", key( story ), "productKey", "wikantik",
-            "assignee", "wapimember" ) ) );
+            "assignee", "Wapi Member Name" ) ) );
         assertEquals( "PLAT", task.get( "projectKey" ).getAsString() );
         assertEquals( key( story ), task.get( "parentKey" ).getAsString() );
         assertEquals( "wikantik", task.get( "productKey" ).getAsString() );
         assertEquals( "Wapi Member Name", task.getAsJsonObject( "item" ).get( "assigneeName" ).getAsString() );
-        assertEquals( "wapimember", task.getAsJsonObject( "item" ).get( "assignee" ).getAsString() );
+        assertEquals( "Wapi Member Name", task.getAsJsonObject( "item" ).get( "assignee" ).getAsString(),
+            "a member names and is shown people by display name" );
 
         // the task moves through every status
         int v = version( task );
@@ -184,6 +185,7 @@ public class WorkApiIT {
         final JsonObject current = json( stale ).getAsJsonObject().getAsJsonObject( "current" );
         assertEquals( v + 1, current.getAsJsonObject( "item" ).get( "version" ).getAsInt() );
         assertEquals( "Racy two", current.getAsJsonObject( "item" ).get( "title" ).getAsString() );
+        assertEquals( "stale", json( stale ).getAsJsonObject().get( "reason" ).getAsString() );
     }
 
     /** One request of the sweep: the real, populated target and the same request against one that does not exist. */
@@ -311,5 +313,140 @@ public class WorkApiIT {
         final JsonObject after = ok( member.get( "/api/work/items/" + key( mine ) ) );
         assertFalse( after.get( "blocked" ).getAsBoolean() );
         assertEquals( 0, after.getAsJsonArray( "links" ).size() );
+    }
+
+    /** Logins that look nothing like the display names, so any occurrence in a response is a leak. */
+    private static final String LEAD_LOGIN = "wlkxlead";
+    private static final String MEM_LOGIN = "wlkxmem";
+    private static final String OTHER_LOGIN = "wlkxother";
+    private static final String LEAD_NAME = "Lena Leadwell Name";
+    private static final String MEM_NAME = "Milo Memberly Name";
+    private static final String OTHER_NAME = "Olga Otherly Name";
+
+    @Test
+    @Order( 6 )
+    void aNonAdminMemberIsShownNoLoginAnywhere() throws Exception {
+        final Caller lead = WorkIt.account( admin, LEAD_LOGIN, LEAD_NAME );
+        final Caller mem = WorkIt.account( admin, MEM_LOGIN, MEM_NAME );
+        WorkIt.account( admin, OTHER_LOGIN, OTHER_NAME );
+        created( admin.send( "POST", "/api/work/projects", Map.of( "key", "WLK", "name", "Login leak" ) ) );
+        // the admin may name people by login; the lead (not an admin) by display name only
+        noContent( admin.send( "PUT", "/api/work/projects/WLK/members", Map.of( "principal", LEAD_LOGIN,
+            "principalKind", "user", "role", "lead" ) ) );
+        noContent( lead.send( "PUT", "/api/work/projects/WLK/members", Map.of( "principal", MEM_NAME,
+            "principalKind", "user", "role", "viewer" ) ) );
+        noContent( lead.send( "PUT", "/api/work/projects/WLK/members", Map.of( "principal", MEM_NAME,
+            "principalKind", "user", "role", "member" ) ) );
+        noContent( lead.send( "PUT", "/api/work/projects/WLK/members", Map.of( "principal", OTHER_NAME,
+            "principalKind", "user", "role", "viewer" ) ) );
+        noContent( lead.send( "DELETE", "/api/work/projects/WLK/members", Map.of( "principal", OTHER_NAME,
+            "principalKind", "user" ) ) );
+
+        // a non-admin cannot confirm a login: a real one and a made-up one get the same answer
+        final HttpResponse< String > realLogin = lead.send( "PUT", "/api/work/projects/WLK/members", Map.of(
+            "principal", OTHER_LOGIN, "principalKind", "user", "role", "viewer" ) );
+        final HttpResponse< String > fakeLogin = lead.send( "PUT", "/api/work/projects/WLK/members", Map.of(
+            "principal", "wlkxnobody", "principalKind", "user", "role", "viewer" ) );
+        assertEquals( 400, realLogin.statusCode(), realLogin.body() );
+        assertEquals( fakeLogin.statusCode(), realLogin.statusCode() );
+        assertEquals( fakeLogin.body().replace( "wlkxnobody", "X" ), realLogin.body().replace( OTHER_LOGIN, "X" ) );
+
+        // an item assigned, handed off, commented with mentions (the lead's token, the admin's bare login)
+        final JsonObject item = created( lead.send( "POST", "/api/work/items", Map.of( "project", "WLK",
+            "level", "story", "title", "Leak check", "assignee", MEM_NAME ) ) );
+        final String k = key( item );
+        ok( lead.send( "PATCH", "/api/work/items/" + k, Map.of( "expectedVersion", version( item ),
+            "changes", Map.of( "status", "ready", "assignee", LEAD_NAME ), "note", "over to me" ) ) );
+        final JsonArray members = json( lead.get( "/api/work/projects/WLK/members" ) ).getAsJsonArray();
+        String memMention = null;
+        for ( final JsonElement m : members ) {
+            if ( MEM_NAME.equals( m.getAsJsonObject().get( "displayName" ).getAsString() )
+                    && m.getAsJsonObject().has( "mentionId" ) ) {
+                memMention = m.getAsJsonObject().get( "mentionId" ).getAsString();
+            }
+        }
+        final String leadComment = memMention == null ? "ping " + MEM_NAME
+            : "ping @[" + MEM_NAME + "](user:" + memMention + ") **please**";
+        created( lead.send( "POST", "/api/work/items/" + k + "/comments", Map.of( "body", leadComment ) ) );
+        final JsonObject adminComment = created( admin.send( "POST", "/api/work/items/" + k + "/comments",
+            Map.of( "body", "cc @" + MEM_LOGIN + " and @" + LEAD_LOGIN ) ) );
+        assertFalse( adminComment.get( "body" ).getAsString().contains( MEM_LOGIN ),
+            "a mention the admin typed as a login is stored as a token: " + adminComment );
+
+        // everything the member reads
+        final List< String > paths = List.of( "/api/work/items/" + k, "/api/work/items/" + k + "/events",
+            "/api/work/items/" + k + "/revisions", "/api/work/projects/WLK/board", "/api/work/items?project=WLK",
+            "/api/work/projects/WLK/members", "/api/work/activity?project=WLK&limit=200", "/api/work/me",
+            "/api/work/projects", "/api/work/projects/WLK" );
+        for ( final String path : paths ) {
+            final HttpResponse< String > r = mem.get( path );
+            assertEquals( 200, r.statusCode(), path + ": " + r.body() );
+            for ( final String login : List.of( LEAD_LOGIN, MEM_LOGIN, OTHER_LOGIN ) ) {
+                assertFalse( r.body().contains( login ), path + " shows the login " + login + ": " + r.body() );
+            }
+        }
+        final JsonObject seen = ok( mem.get( "/api/work/items/" + k ) );
+        assertEquals( LEAD_NAME, seen.getAsJsonObject( "item" ).get( "assignee" ).getAsString() );
+        final JsonArray comments = seen.getAsJsonArray( "comments" );
+        assertTrue( comments.get( 0 ).getAsJsonObject().get( "bodyHtml" ).getAsString().contains( "<strong>please</strong>" )
+            || memMention == null, "comments are rendered Markdown: " + comments );
+        assertTrue( comments.get( 1 ).getAsJsonObject().get( "bodyHtml" ).getAsString().contains( "@" + MEM_NAME ),
+            "a mention shows the display name: " + comments );
+        assertFalse( comments.get( 0 ).getAsJsonObject().get( "mine" ).getAsBoolean() );
+
+        // positive control: the admin is shown the logins
+        final String asAdmin = admin.get( "/api/work/items/" + k ).body();
+        assertTrue( asAdmin.contains( LEAD_LOGIN ), asAdmin );
+        assertTrue( admin.get( "/api/work/projects/WLK/members" ).body().contains( MEM_LOGIN ) );
+
+        // the membership changes are in the project's activity, by display name, with no item
+        final JsonArray activity = json( mem.get( "/api/work/activity?project=WLK&limit=200" ) ).getAsJsonArray();
+        int memberEvents = 0;
+        for ( final JsonElement e : activity ) {
+            final JsonObject ev = e.getAsJsonObject();
+            if ( "member".equals( ev.get( "type" ).getAsString() ) ) {
+                memberEvents++;
+                assertTrue( ev.get( "itemKey" ).isJsonNull(), ev.toString() );
+            }
+        }
+        assertEquals( 5, memberEvents, "lead added; member added, promoted; other added, removed: " + activity );
+        assertTrue( activity.toString().contains( "\"toValueName\":\"" + OTHER_NAME + "\"" ), activity.toString() );
+
+        // the item filter narrows the feed to that item
+        final JsonArray onlyItem = json( mem.get( "/api/work/activity?project=WLK&item=" + k ) ).getAsJsonArray();
+        assertFalse( onlyItem.isEmpty() );
+        for ( final JsonElement e : onlyItem ) {
+            assertEquals( k, e.getAsJsonObject().get( "itemKey" ).getAsString() );
+        }
+    }
+
+    @Test
+    @Order( 7 )
+    void anArchivedProjectIsReadableButRefusesWritesAsArchived() throws Exception {
+        created( admin.send( "POST", "/api/work/projects", Map.of( "key", "ARCH", "name", "To be archived" ) ) );
+        noContent( admin.send( "PUT", "/api/work/projects/ARCH/members", Map.of( "principal", "wapimember",
+            "principalKind", "user", "role", "member" ) ) );
+        final JsonObject item = created( member.send( "POST", "/api/work/items", Map.of( "project", "ARCH",
+            "level", "epic", "title", "Before the archive" ) ) );
+        noContent( admin.send( "POST", "/api/work/projects/ARCH/archive", null ) );
+
+        final JsonObject read = ok( member.get( "/api/work/items/" + key( item ) ) );
+        assertTrue( read.get( "archived" ).getAsBoolean() );
+        assertTrue( ok( member.get( "/api/work/projects/ARCH" ) ).get( "archived" ).getAsBoolean() );
+
+        final HttpResponse< String > patch = member.send( "PATCH", "/api/work/items/" + key( item ), Map.of(
+            "expectedVersion", version( item ), "changes", Map.of( "title", "After" ) ) );
+        assertEquals( 409, patch.statusCode(), patch.body() );
+        assertEquals( "archived", json( patch ).getAsJsonObject().get( "reason" ).getAsString() );
+        assertFalse( json( patch ).getAsJsonObject().has( "current" ), "nothing to merge against: " + patch.body() );
+        final HttpResponse< String > comment = member.send( "POST", "/api/work/items/" + key( item ) + "/comments",
+            Map.of( "body", "late" ) );
+        assertEquals( 409, comment.statusCode(), comment.body() );
+        assertEquals( "archived", json( comment ).getAsJsonObject().get( "reason" ).getAsString() );
+
+        final JsonArray activity = json( member.get( "/api/work/activity?project=ARCH" ) ).getAsJsonArray();
+        assertTrue( activity.toString().contains( "\"note\":\"archived\"" ), "the archive is in the activity: " + activity );
+        assertEquals( "Before the archive", ok( member.get( "/api/work/items/" + key( item ) ) )
+            .getAsJsonObject( "item" ).get( "title" ).getAsString() );
     }
 }

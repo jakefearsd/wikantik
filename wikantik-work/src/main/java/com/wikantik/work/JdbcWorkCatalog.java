@@ -37,13 +37,13 @@ import static com.wikantik.work.SqlValues.timestamp;
 /** The project, membership and product half of the PostgreSQL {@link WorkStore}; {@link JdbcWorkStore} adds the items. */
 abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogStore {
 
-    private static final String PROJECT_COLUMNS =
+    static final String PROJECT_COLUMNS =
         "id, key, name, description, default_autonomy, created_at, archived_at";
 
-    private static final String PRODUCT_COLUMNS =
+    static final String PRODUCT_COLUMNS =
         "id, key, name, repo_url, default_branch, wiki_cluster, autonomy_ceiling, deploy_gate, archived_at";
 
-    private static final RowMapper< Project > PROJECT_ROW = rs -> new Project(
+    static final RowMapper< Project > PROJECT_ROW = rs -> new Project(
         rs.getLong( "id" ), rs.getString( "key" ), rs.getString( "name" ), rs.getString( "description" ),
         Autonomy.fromWire( rs.getString( "default_autonomy" ) ),
         instant( rs, "created_at" ), instant( rs, "archived_at" ) );
@@ -52,7 +52,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
         rs.getLong( "project_id" ), rs.getString( "principal" ), rs.getString( "principal_kind" ),
         WorkRole.fromWire( rs.getString( "role" ) ) );
 
-    private static final RowMapper< Product > PRODUCT_ROW = rs -> new Product(
+    static final RowMapper< Product > PRODUCT_ROW = rs -> new Product(
         rs.getLong( "id" ), rs.getString( "key" ), rs.getString( "name" ), rs.getString( "repo_url" ),
         rs.getString( "default_branch" ), rs.getString( "wiki_cluster" ),
         Autonomy.fromWire( rs.getString( "autonomy_ceiling" ) ),

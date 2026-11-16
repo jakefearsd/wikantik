@@ -185,6 +185,11 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     }
 
     @Override
+    public PolicyChain policyChain( final long itemId ) throws SQLException {
+        return PolicyChains.load( jdbc, itemId );
+    }
+
+    @Override
     public Optional< Item > itemById( final long id ) throws SQLException {
         return jdbc.queryOne( ITEM_SELECT + " WHERE i.id = ?", ps -> ps.setLong( 1, id ), ITEM_ROW );
     }

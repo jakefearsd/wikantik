@@ -18,7 +18,7 @@
  */
 package com.wikantik.work;
 
-/** How much agents may do unattended; inert in phase 1. */
+/** How much agents may do unattended. Declared strictest first: the order is the scale. */
 public enum Autonomy {
     SUPERVISED("supervised"),
     DELEGATED("delegated"),
@@ -33,6 +33,22 @@ public enum Autonomy {
     /** The lowercase value as stored in the database. */
     public String wire() {
         return wire;
+    }
+
+    /** The stricter of the two; a null counts as "no limit" and yields the other. */
+    public static Autonomy strictest( final Autonomy a, final Autonomy b ) {
+        if ( a == null ) {
+            return b;
+        }
+        if ( b == null ) {
+            return a;
+        }
+        return a.ordinal() <= b.ordinal() ? a : b;
+    }
+
+    /** Whether this level lets an agent do more than {@code other}. */
+    public boolean looserThan( final Autonomy other ) {
+        return ordinal() > other.ordinal();
     }
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */

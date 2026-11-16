@@ -50,6 +50,9 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
     /** Looks an item up by its numeric id; empty when unknown. */
     Optional< Item > itemById( long id ) throws SQLException;
 
+    /** The item with its ancestors, project and product: what its effective policy is resolved from. */
+    PolicyChain policyChain( long itemId ) throws SQLException;
+
     /** The highest rank among the project's items in the status, or 0 when there are none. */
     double maxRank( long projectId, WorkStatus status ) throws SQLException;
 

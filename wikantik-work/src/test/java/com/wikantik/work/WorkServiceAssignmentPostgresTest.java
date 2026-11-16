@@ -83,6 +83,7 @@ class WorkServiceAssignmentPostgresTest {
         assertEquals( 1, released.size() );
         assertEquals( "agent:" + agentId, released.get( 0 ).fromValue() );
         assertEquals( "reassigned", released.get( 0 ).note() );
+        assertEquals( after.status().wire(), released.get( 0 ).toValue() );
     }
 
     @Test

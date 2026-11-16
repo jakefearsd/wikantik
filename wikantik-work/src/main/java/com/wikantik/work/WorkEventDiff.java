@@ -84,7 +84,7 @@ final class WorkEventDiff {
     static WorkEvent releasedEvent( final Item cur, final Item nxt, final Actor by, final long holder ) {
         final boolean reassigned = !Objects.equals( cur.assignee(), nxt.assignee() )
             || !Objects.equals( cur.queue(), nxt.queue() );
-        return event( cur, by, WorkEvent.RELEASED, "agent:" + holder, null,
+        return event( cur, by, WorkEvent.RELEASED, "agent:" + holder, nxt.status().wire(),
             reassigned ? "reassigned" : "moved" );
     }
 

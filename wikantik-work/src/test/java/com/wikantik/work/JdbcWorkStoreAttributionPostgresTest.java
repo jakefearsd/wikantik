@@ -242,7 +242,7 @@ class JdbcWorkStoreAttributionPostgresTest {
         final List< WorkEvent > released = released( item );
         assertEquals( 1, released.size() );
         assertEquals( "agent:" + agentId, released.get( 0 ).fromValue() );
-        assertNull( released.get( 0 ).toValue() );
+        assertEquals( "ready", released.get( 0 ).toValue() );
         assertEquals( "moved", released.get( 0 ).note() );
         assertEquals( "lena", released.get( 0 ).actor() );
         assertEquals( Actor.Kind.HUMAN, released.get( 0 ).actorKind() );
@@ -264,6 +264,7 @@ class JdbcWorkStoreAttributionPostgresTest {
         assertEquals( agentId, released.get( 0 ).agentId() );
         assertEquals( "agent:" + agentId, released.get( 0 ).fromValue() );
         assertEquals( "reassigned", released.get( 0 ).note() );
+        assertEquals( "review", released.get( 0 ).toValue() );
         assertEquals( 1, store.itemEvents( item.id() ).stream().filter( e -> WorkEvent.HANDOFF.equals( e.type() ) )
             .count() );
     }

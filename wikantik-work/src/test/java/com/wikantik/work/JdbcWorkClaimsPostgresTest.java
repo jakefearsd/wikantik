@@ -27,6 +27,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -423,5 +424,67 @@ class JdbcWorkClaimsPostgresTest {
         assertThrows( IllegalArgumentException.class, () -> claims.retireAgent( fx.a.id(), Instant.now(), ghost ) );
         assertThrows( IllegalArgumentException.class, () -> claims.release( fx.ready( "x" ), ghost, "n" ) );
         assertTrue( store.agent( fx.a.id() ).orElseThrow().active() );
+    }
+
+    /** Moves the claimed item to a status by a person, which ends the claim. */
+    private void moveByPerson( final Item held, final WorkStatus status, final String queue ) throws SQLException {
+        final Item cur = fx.reload( held );
+        store.updateItem( cur, new Item( cur.id(), cur.projectId(), cur.key(), cur.level(), null, null, cur.kind(),
+            cur.title(), cur.body(), status, cur.priority(), cur.rank(), null, null, cur.reporter(), null, null, null,
+            cur.version(), null, null, null, queue, cur.claimedByAgent(), cur.claimedAt(), cur.claimExpiresAt(),
+            null ), WorkClaimFixtures.LENA, null );
+    }
+
+    @Test
+    void everyReleasedEventHasTheSameShape() throws SQLException {
+        final List< Item > items = new ArrayList<>();
+        final List< Long > holders = new ArrayList<>();
+        final Item a1 = claims.claim( fx.ready( "move" ), fx.actorA, HOUR ).orElseThrow();
+        moveByPerson( a1, WorkStatus.READY, "implementer" );
+        items.add( a1 );
+        holders.add( fx.a.id() );
+        final Item a2 = claims.claim( fx.ready( "reassign" ), fx.actorA, HOUR ).orElseThrow();
+        moveByPerson( a2, WorkStatus.READY, "reviewer" );
+        items.add( a2 );
+        holders.add( fx.a.id() );
+        final Item a3 = claims.claim( fx.ready( "release by person" ), fx.actorA, HOUR ).orElseThrow();
+        claims.release( a3, WorkClaimFixtures.LENA, "n" ).orElseThrow();
+        items.add( a3 );
+        holders.add( fx.a.id() );
+        final Item a4 = claims.claim( fx.ready( "release by holder" ), fx.actorA, HOUR ).orElseThrow();
+        claims.release( a4, fx.actorA, null ).orElseThrow();
+        items.add( a4 );
+        holders.add( fx.a.id() );
+        final Item r = claims.claim( fx.create( fx.plat, "review", WorkStatus.REVIEW, 3, null, null, "implementer" ),
+            fx.actorB, HOUR ).orElseThrow();
+        claims.release( r, fx.actorB, "n" ).orElseThrow();
+        items.add( r );
+        holders.add( fx.b.id() );
+        final Agent c = fx.agent( "agent-c", List.of( "implementer" ) );
+        final Agent d = fx.agent( "agent-d", List.of( "implementer" ) );
+        final Agent e = fx.agent( "agent-e", List.of( "implementer" ) );
+        for ( final Agent x : List.of( c, d, e ) ) {
+            store.putMember( fx.plat.id(), String.valueOf( x.id() ), "agent", WorkRole.MEMBER, WorkClaimFixtures.LENA );
+        }
+        final Item removed = claims.claim( fx.ready( "removed" ), Actor.agent( c.id(), c.name() ), HOUR ).orElseThrow();
+        store.removeMember( fx.plat.id(), String.valueOf( c.id() ), "agent", WorkClaimFixtures.LENA );
+        items.add( removed );
+        holders.add( c.id() );
+        final Item demoted = claims.claim( fx.ready( "demoted" ), Actor.agent( d.id(), d.name() ), HOUR ).orElseThrow();
+        store.putMember( fx.plat.id(), String.valueOf( d.id() ), "agent", WorkRole.VIEWER, WorkClaimFixtures.LENA );
+        items.add( demoted );
+        holders.add( d.id() );
+        final Item retired = claims.claim( fx.ready( "retired" ), Actor.agent( e.id(), e.name() ), HOUR ).orElseThrow();
+        claims.retireAgent( e.id(), Instant.now(), WorkClaimFixtures.LENA );
+        items.add( retired );
+        holders.add( e.id() );
+        assertEquals( 8, items.size() );
+        for ( int i = 0; i < items.size(); i++ ) {
+            final List< WorkEvent > ev = fx.events( items.get( i ), WorkEvent.RELEASED );
+            assertEquals( 1, ev.size(), "released events for item " + i );
+            assertEquals( "agent:" + holders.get( i ), ev.get( 0 ).fromValue(), "from " + i );
+            assertEquals( fx.reload( items.get( i ) ).status().wire(), ev.get( 0 ).toValue(), "to " + i );
+            assertTrue( ev.get( 0 ).note() != null && !ev.get( 0 ).note().isBlank(), "note " + i );
+        }
     }
 }

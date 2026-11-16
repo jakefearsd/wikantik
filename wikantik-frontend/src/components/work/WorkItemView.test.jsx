@@ -57,6 +57,11 @@ beforeEach(() => {
 });
 
 const ready = () => screen.findByRole('heading', { level: 1, name: 'Fix the flux capacitor' });
+// The queue list loads after the heading renders (and later under --coverage): wait for the option before choosing it.
+const chooseTarget = async (label, value) => {
+  await waitFor(() => expect(screen.getByLabelText(label).querySelector(`option[value="${value}"]`)).not.toBeNull());
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+};
 
 describe('WorkItemView', () => {
   it('rendersBodyHtmlFromServer', async () => {
@@ -779,7 +784,7 @@ describe('WorkItemView', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Edit Assignee' }));
       const options = [...screen.getByLabelText('Assignee').querySelectorAll('option')].map((o) => o.textContent);
       expect(options).toEqual(['Unassigned', 'Ana Alvarez', 'Bob Brown', 'Queue · Implementer', 'Queue · Reviewer']);
-      fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'queue:implementer' } });
+      await chooseTarget('Assignee', 'queue:implementer');
       fireEvent.click(screen.getByRole('button', { name: 'Save Assignee' }));
       await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { queue: 'implementer' } }));
     });
@@ -887,7 +892,7 @@ describe('WorkItemView', () => {
       renderView();
       await ready();
       fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
-      fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'queue:reviewer' } });
+      await chooseTarget('Hand off to', 'queue:reviewer');
       fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'my note' } });
       fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
       expect(await screen.findByText(/This item changed while you were editing/)).toBeInTheDocument();
@@ -903,7 +908,7 @@ describe('WorkItemView', () => {
       renderView();
       await ready();
       fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
-      fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'queue:reviewer' } });
+      await chooseTarget('Hand off to', 'queue:reviewer');
       fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'n' } });
       fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
       await waitFor(() => expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('This project is archived')));
@@ -916,7 +921,7 @@ describe('WorkItemView', () => {
       await ready();
       fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
       fireEvent.change(screen.getByLabelText('Status after handoff'), { target: { value: 'review' } });
-      fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'queue:reviewer' } });
+      await chooseTarget('Hand off to', 'queue:reviewer');
       fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'ready for review' } });
       fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
       await waitFor(() => expect(handoffItem).toHaveBeenCalledWith('PLAT-7',

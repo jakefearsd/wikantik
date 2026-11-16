@@ -155,6 +155,11 @@ public abstract class WorkResourceBase extends RestServletBase {
             return RestJson.parseJsonBody( req, resp, MAX_BODY_CHARS );
         }
 
+        /** An optional JSON body: an empty object when there is none (blank, any length), null after a 400 or 413. */
+        JsonObject optionalBody() throws IOException {
+            return RestJson.parseOptionalJsonBody( req, resp, MAX_BODY_CHARS );
+        }
+
         void json( final Object value ) throws IOException {
             WorkJson.write( resp, HttpServletResponse.SC_OK, toTree( value, actor ) );
         }

@@ -296,4 +296,15 @@ class WorkAgentResourceTest {
         assertEquals( "owner", r.json().getAsJsonObject().get( "field" ).getAsString() );
         assertEquals( message, r.json().getAsJsonObject().get( "message" ).getAsString() );
     }
+
+    @Test
+    void aRotatePostWithABlankBodyIsAPlainRotation() throws Exception {
+        // A client that sends no JSON but a non-zero or unknown length (chunked) still means "rotate, same owner".
+        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", 45, List.of( "triage" ), T, null );
+        Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) )
+            .thenReturn( new WorkService.AgentWithToken( rebound, "wkk_blank" ) );
+        final WorkHttp.Result r = send( "POST", "/5/rotate-key", "  \n" );
+        assertEquals( 200, r.status(), r.body() );
+        assertEquals( "wkk_blank", r.json().getAsJsonObject().get( "token" ).getAsString() );
+    }
 }

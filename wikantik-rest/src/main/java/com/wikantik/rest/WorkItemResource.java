@@ -129,15 +129,10 @@ public class WorkItemResource extends WorkResourceBase {
 
     /** The body is optional: a bare POST releases with no note. */
     private void release( final Call c ) throws Exception {
-        String note = null;
-        if ( c.req.getContentLength() != 0 ) {
-            final JsonObject b = c.body();
-            if ( b == null ) {
-                return;
-            }
-            note = optString( b, "note" );
+        final JsonObject b = c.optionalBody();
+        if ( b != null ) {
+            c.json( c.svc.claims().release( c.actor, c.pathParam( 0 ), optString( b, "note" ) ) );
         }
-        c.json( c.svc.claims().release( c.actor, c.pathParam( 0 ), note ) );
     }
 
     private void handoff( final Call c ) throws Exception {

@@ -79,15 +79,10 @@ public class WorkAgentResource extends WorkResourceBase {
 
     /** The body is optional: {@code {owner}} mints the new key under that person, a bare POST keeps the old owner. */
     private void rotate( final Call c ) throws Exception {
-        String owner = null;
-        if ( c.req.getContentLength() != 0 ) {
-            final JsonObject b = c.body();
-            if ( b == null ) {
-                return;
-            }
-            owner = optString( b, "owner" );
+        final JsonObject b = c.optionalBody();
+        if ( b != null ) {
+            secret( c, c.svc.registry().rotateAgentKey( c.actor, agentId( c ), optString( b, "owner" ) ), 200 );
         }
-        secret( c, c.svc.registry().rotateAgentKey( c.actor, agentId( c ), owner ), 200 );
     }
 
     /** A partial update: fields the body leaves out stay as they are. */

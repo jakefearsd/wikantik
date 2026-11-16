@@ -171,8 +171,34 @@ public final class RestJson {
      */
     public static JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response,
                                             final long maxChars ) throws IOException {
+        final String text = readBounded( request, response, maxChars );
+        return text == null ? null : parseObject( text, request, response );
+    }
+
+    /**
+     * {@link #parseJsonBody(HttpServletRequest, HttpServletResponse, long)} for a route whose body is optional: an
+     * absent or blank body (whatever its {@code Content-Length} says, chunked included) is an empty object.
+     *
+     * @return the parsed object, an empty object for no body, or {@code null} once a 413 or 400 has been sent
+     */
+    public static JsonObject parseOptionalJsonBody( final HttpServletRequest request,
+                                                    final HttpServletResponse response, final long maxChars )
+            throws IOException {
+        final String text = readBounded( request, response, maxChars );
+        if ( text == null ) {
+            return null;
+        }
+        return text.isBlank() ? new JsonObject() : parseObject( text, request, response );
+    }
+
+    /** The body as text, at most {@code maxChars}; null once a 413 has been sent. */
+    private static String readBounded( final HttpServletRequest request, final HttpServletResponse response,
+                                       final long maxChars ) throws IOException {
         final StringBuilder sb = new StringBuilder();
         try ( BufferedReader reader = request.getReader() ) {
+            if ( reader == null ) {
+                return "";   // no body stream at all (a container always gives one; a test double may not)
+            }
             final char[] buf = new char[ 8192 ];
             int n;
             while ( ( n = reader.read( buf, 0, ( int ) Math.min( buf.length, maxChars + 1 - sb.length() ) ) ) > 0 ) {
@@ -184,8 +210,13 @@ public final class RestJson {
                 }
             }
         }
+        return sb.toString();
+    }
+
+    private static JsonObject parseObject( final String text, final HttpServletRequest request,
+                                           final HttpServletResponse response ) throws IOException {
         try {
-            return JsonParser.parseString( sb.toString() ).getAsJsonObject();
+            return JsonParser.parseString( text ).getAsJsonObject();
         } catch ( final RuntimeException e ) {
             LOG.warn( "Rejecting malformed JSON body for {}: {}", request.getRequestURI(), e.getMessage() );
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + sanitizeParseError( e.getMessage() ) );

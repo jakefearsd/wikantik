@@ -1,6 +1,6 @@
 # Work Management Phase 3a — Agent Identity and Authority — Design
 
-Status: draft for owner approval, 2026-11-16
+Status: approved by owner 2026-11-16
 Parent design: [2026-11-15-work-management-design.md](2026-11-15-work-management-design.md) (phases 1 and 2 are live in 2.5.23)
 
 ## Intent

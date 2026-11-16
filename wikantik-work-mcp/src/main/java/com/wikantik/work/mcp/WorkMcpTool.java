@@ -23,14 +23,17 @@ import com.wikantik.work.Actor;
 import com.wikantik.work.WorkConflictException;
 import com.wikantik.work.WorkDeniedException;
 import com.wikantik.work.WorkNotFoundException;
+import com.wikantik.work.WorkService;
 import com.wikantik.work.WorkValidationException;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * One tool of the work endpoint. {@link #call} is the only entry: it refuses a call with no actor, and turns the work
@@ -52,6 +55,10 @@ public abstract class WorkMcpTool {
     /** Annotations shared by every tool that only reads. */
     protected static final McpSchema.ToolAnnotations READ_ONLY =
         new McpSchema.ToolAnnotations( null, true, false, true, null, null );
+
+    /** Annotations shared by every tool that changes something (none is destructive: history is append-only). */
+    protected static final McpSchema.ToolAnnotations WRITES =
+        new McpSchema.ToolAnnotations( null, false, false, false, null, null );
 
     /** The tool name in the MCP protocol. */
     public abstract String name();
@@ -83,7 +90,7 @@ public abstract class WorkMcpTool {
             return error( NOT_FOUND );
         } catch ( final WorkDeniedException e ) {
             LOG.debug( "Work tool {}: denied", name() );
-            return error( e.reason() );
+            return error( "denied: " + e.reason() );
         } catch ( final WorkValidationException e ) {
             LOG.debug( "Work tool {}: invalid argument {}", name(), e.field() );
             return error( e.field() + ": " + e.getMessage() );
@@ -135,5 +142,70 @@ public abstract class WorkMcpTool {
             return s;
         }
         throw new WorkValidationException( key, "must be a string." );
+    }
+
+    /** The version the item has now, for a stale refusal; null when it cannot be read (the refusal then omits it). */
+    protected static Integer versionOf( final WorkService svc, final Actor actor, final Map< String, Object > args ) {
+        try {
+            return svc.item( actor, itemKey( args ) ).item().version();
+        } catch ( final SQLException | RuntimeException e ) {
+            LOG.warn( "Could not read the current version for a stale refusal: {}", e.getClass().getSimpleName(), e );
+            return null;
+        }
+    }
+
+    /** The {@code key} argument; a missing or blank one is the same answer as an unknown item. */
+    static String itemKey( final Map< String, Object > args ) {
+        final String raw = stringArg( args, "key" );
+        if ( raw == null || raw.isBlank() ) {
+            throw new WorkNotFoundException( "No item key." );
+        }
+        return raw.trim();
+    }
+
+    /** A required string argument; missing or blank is a validation error by name. */
+    static String requiredString( final Map< String, Object > args, final String key ) {
+        final String v = stringArg( args, key );
+        if ( v == null || v.isBlank() ) {
+            throw new WorkValidationException( key, "is required." );
+        }
+        return v;
+    }
+
+    /** A required integer argument; missing is a validation error by name. */
+    static int requiredInt( final Map< String, Object > args, final String key ) {
+        final Integer v = intArg( args, key );
+        if ( v == null ) {
+            throw new WorkValidationException( key, "is required." );
+        }
+        return v;
+    }
+
+    /**
+     * Refuses, by name and before anything else happens, any argument that is not in {@code allowed}: those in
+     * {@code reasons} with their own text, the rest as unknown. An agent must never believe it changed something it
+     * did not.
+     */
+    static void rejectOthers( final Map< String, Object > args, final Set< String > allowed,
+                              final Map< String, String > reasons ) {
+        for ( final String name : args.keySet() ) {
+            if ( !allowed.contains( name ) ) {
+                throw new WorkValidationException( name, reasons.getOrDefault( name, "Unknown argument." ) );
+            }
+        }
+    }
+
+    /** A property of a tool's input schema. */
+    static Map< String, Object > prop( final String type, final String description, final Object example ) {
+        final Map< String, Object > p = new LinkedHashMap<>();
+        p.put( "type", type );
+        p.put( "description", description );
+        p.put( "examples", List.of( example ) );
+        return p;
+    }
+
+    /** An object input schema. */
+    static McpSchema.JsonSchema schema( final Map< String, Object > props, final List< String > required ) {
+        return new McpSchema.JsonSchema( "object", props, required, null, null, null );
     }
 }

@@ -138,7 +138,13 @@ public class WorkMcpInitializer implements ServletContextListener {
         return List.of(
             new GetWorkContextTool( svc, directory ),
             new ListClaimableTool( svc, directory ),
-            new GetItemTool( svc, directory ) );
+            new GetItemTool( svc, directory ),
+            new ClaimItemTool( svc, directory ),
+            new UpdateItemTool( svc, directory ),
+            new CommentOnItemTool( svc ),
+            new HandoffItemTool( svc, directory ),
+            new ReleaseItemTool( svc ),
+            new CreateItemTool( svc ) );
     }
 
     /** Registers each tool so that every call is dispatched with an actor resolved from that call's own request. */

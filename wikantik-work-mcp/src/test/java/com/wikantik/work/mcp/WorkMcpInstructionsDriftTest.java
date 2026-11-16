@@ -88,7 +88,8 @@ class WorkMcpInstructionsDriftTest {
 
     @Test
     void toolNamesAreTheExpectedSetForThisTask() {
-        assertEquals( Set.of( "get_work_context", "list_claimable", "get_item" ), registered() );
+        assertEquals( Set.of( "get_work_context", "list_claimable", "get_item", "claim_item", "update_item", "comment_on_item",
+            "handoff_item", "release_item", "create_item" ), registered() );
     }
 
     @Test

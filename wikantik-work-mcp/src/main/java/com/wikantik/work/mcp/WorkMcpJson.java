@@ -77,6 +77,12 @@ final class WorkMcpJson {
         return new WorkMcpJson( directory, agents, queues );
     }
 
+    /** An item as {@code get_item} shows it, read fresh (its events included) for the actor. */
+    static Map< String, Object > fullItem( final WorkService svc, final WorkDirectory directory, final Actor actor,
+                                           final ItemView view ) throws SQLException {
+        return forActor( svc, directory, actor ).item( view, svc.events( actor, view.item().key() ) );
+    }
+
     String person( final String login ) {
         return login == null ? null : directory.displayName( login );
     }

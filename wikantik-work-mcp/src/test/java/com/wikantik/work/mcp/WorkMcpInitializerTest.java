@@ -148,12 +148,17 @@ class WorkMcpInitializerTest {
     void assembledToolNames() {
         final List< WorkMcpTool > tools = WorkMcpInitializer.assembleTools( mock( WorkService.class ),
             mock( com.wikantik.work.WorkDirectory.class ) );
-        assertEquals( Set.of( "get_work_context", "list_claimable", "get_item" ),
+        assertEquals( Set.of( "get_work_context", "list_claimable", "get_item", "claim_item", "update_item", "comment_on_item",
+            "handoff_item", "release_item", "create_item" ),
             tools.stream().map( WorkMcpTool::name ).collect( Collectors.toSet() ) );
         tools.forEach( t -> {
             assertEquals( t.name(), t.definition().name() );
             assertNotNull( t.definition().annotations() );
-            assertEquals( Boolean.TRUE, t.definition().annotations().readOnlyHint(), t.name() + " only reads" );
+            final boolean writes = Set.of( "claim_item", "update_item", "comment_on_item", "handoff_item",
+                "release_item", "create_item" ).contains( t.name() );
+            assertEquals( !writes, Boolean.TRUE.equals( t.definition().annotations().readOnlyHint() ),
+                t.name() + ( writes ? " changes things" : " only reads" ) );
+            assertEquals( Boolean.FALSE, t.definition().annotations().destructiveHint(), t.name() );
         } );
     }
 

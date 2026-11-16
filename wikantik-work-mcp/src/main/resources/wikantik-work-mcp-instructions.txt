@@ -11,13 +11,50 @@ list_claimable     Items you could claim now: unclaimed, ready or in review, in 
                    where you are a member. Optional project, queue and limit (default 20, at most 50).
 get_item           One item in full by key: body and comments as Markdown source, status, version, assignee, queue,
                    claim, wikiCluster, links, and the last 20 events. Use its version when you change the item.
+claim_item         key. Take an item for yourself, or renew your own claim by calling it again before expiresAt.
+                   Returns {claim:{expiresAt,renewed}, item} with the item as get_item shows it.
+update_item        key, expectedVersion, and any of title, body, status, priority, dueOn, plus an optional note.
+                   Returns the item. It cannot change who has the item or any policy field; those arguments are
+                   refused by name (use handoff_item to change who has it).
+comment_on_item    key, body (Markdown). Returns {id, at}.
+handoff_item       key, expectedVersion, status, exactly one of assignee (a person's display name, never a login)
+                   or queue (a queue key), and a note. Returns the item. Your claim on it ends.
+release_item       key and an optional note. Gives up your claim; the item goes back where it was waiting.
+                   Returns {key, status}.
+create_item        project, level (epic, story or task), title, and optionally body, parentKey, productKey, kind,
+                   priority, queue. Returns {key, version, status}. A new item is always a draft with no
+                   assignee, for a person to refine; status and assignee are refused by name.
 
 == How to work ==
 
 1. get_work_context to learn what you can see and what you already hold.
 2. list_claimable to find work, then get_item to read it in full before you decide to take it.
-3. Before you start, read the wiki context for the item: ask the knowledge MCP's get_briefing for the item's
+3. claim_item to take it. The claim lasts claimExpiryMinutes (from get_work_context); to keep working past
+   expiresAt, call claim_item on it again before then (renewed: true).
+4. Before you start, read the wiki context for the item: ask the knowledge MCP's get_briefing for the item's
    wikiCluster.
+5. Do the work. Record it as you go with comment_on_item, and move the item with update_item (pass the version
+   you last read).
+6. Finish with handoff_item to a queue (for example review) or to a person, with a note saying what was done and
+   what is expected next. If you cannot finish, release_item with a note saying why.
+   Never just stop: a claim you abandon blocks the item until it expires.
+7. New work you find along the way: create_item. It starts as a draft for a person to refine; hand it on with
+   handoff_item if it should go somewhere.
+
+Every change you make is recorded under your agent name, with your note.
+
+== When a call is refused ==
+
+A refusal starts with a word that says what to do:
+  stale:          the item changed since you read it; the text gives currentVersion. Re-read with get_item and
+                  decide again; do not just resend.
+  not_claimable:  the item cannot be claimed now (often someone else holds it; the text says who and until when).
+                  Pick another item with list_claimable; do not wait on it in a loop.
+  not_claimed:    you hold no claim on that item, so there is nothing to release.
+  denied:         you may not do that (for example another agent holds the item). Do not try to work around it.
+  archived:       the project is read-only now. Stop work on it.
+  exists:         that key is already taken.
+  <field>:        an argument was wrong or not allowed; the text says which and why. Fix it and resend.
 
 An item or project you cannot see answers exactly "Not found." -- the same answer as one that does not exist.
 A call that comes back with "This endpoint needs a work API key." means your key is not (or is no longer) a work

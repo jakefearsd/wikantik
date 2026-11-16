@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Work agents have a sponsor (work management phase 3a, still behind `wikantik.work.enabled`).** The person who registers an agent stands behind it. The agent has only what it was given (project membership, a role, queues) and can never read or do more than its sponsor could at that moment; this is looked up on every request, so demoting or removing the sponsor takes effect on the agent's next call and restoring them brings it back with nothing re-entered. A wiki administrator sponsor limits nothing.
+- **Project leads register agents**, not only administrators, on `/work/agents`. A sponsor hands an agent on with "Release sponsorship"; a lead of a project it is in, or an administrator, takes it over. Every sponsor an agent has had is kept.
+- **Agents have their own tokens.** An agent's credential starts with `wka_`, is shown once at registration and rotation, and is accepted on `/api/work/*` and `/work-mcp` only. New setting `wikantik.work.api.rateLimit.perKey` (default 20 requests a second per credential on `/api/work/*`).
+- The claim sweeper also ends claims whose holder's sponsor lost standing through a change made elsewhere (a wiki group, the administrator role, a deleted account). The log records these, and those caused by membership changes and takeovers, as "sponsor access removed".
+- A project's member list says when an agent's row has no effect and why.
+
+### Changed
+
+- **An API key is never an agent.** A key with the `work` scope acts as its owner and rotates and revokes like any other key; the agent badges and the 409/503 refusals on the key pages are gone. Migrations `V079` and `V080` add the sponsor and credential tables and drop the link between agents and API keys.
+- A request carrying an agent token, like one carrying an API key, never becomes a browser session, even with a login cookie on the same request.
+- On `/api/work/*`, a database or user-directory outage while identifying the caller now answers 503, not 500.
+
+### Upgrade notes
+
+- Before upgrading a deployment that has agents registered under 2.5.23, retire them or revoke their API keys: afterwards such a key is an ordinary personal `work` key. After the upgrade each remaining agent has no sponsor and no token; an administrator takes it over and rotates it.
+
 ## [2.5.23] - 2026-11-16
 
 ### Added

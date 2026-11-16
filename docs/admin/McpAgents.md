@@ -51,7 +51,7 @@ To see what your deployment really exposes, call `tools/list` (see
 
 ### /work-mcp is key-only
 
-`/work-mcp` exists only when `wikantik.work.enabled=true` (otherwise it is a 404). Unlike the other endpoints it **ignores** `mcp.access.allowUnrestricted` and `mcp.access.allowedCidrs`: a request without a valid `work` (or `all`) API key is refused with 403, whatever the network settings. Who is acting is decided on every tool call from the key itself: a key bound to a registered agent acts as that agent, a key of a retired or rotated-away agent acts as nobody, and any other `work` key acts as its owner with no administrator rights. A `work` key is of no use on `/wikantik-admin-mcp`, `/knowledge-mcp` or `/tools/*`. Mint agent keys by registering the agent at `/work/agents`; see [WikantikOperations](WikantikOperations.md) section 1.15.
+`/work-mcp` exists only when `wikantik.work.enabled=true` (otherwise it is a 404). Unlike the other endpoints it **ignores** `mcp.access.allowUnrestricted` and `mcp.access.allowedCidrs`: a request without a valid `work` (or `all`) API key is refused with 403, whatever the network settings. It accepts two kinds of credential. An **agent token** (it starts with `wka_`, issued when the agent is registered at `/work/agents`) acts as that agent: on every tool call the agent is resolved again with its sponsor as they are now, so a retired agent, an agent nobody sponsors, or one whose sponsor's account is gone runs nothing, and an agent never does more than its sponsor could. A personal **`work` API key** acts as its owner with no administrator rights; it is never an agent. Neither is of any use on `/wikantik-admin-mcp`, `/knowledge-mcp` or `/tools/*`. See [WikantikOperations](WikantikOperations.md) section 1.15.
 
 ## Get a key
 
@@ -59,7 +59,7 @@ Both MCP endpoints and `/tools/*` accept a **bearer token** that is a database-m
 API key. Mint one at **Admin → API Keys** (`/admin/apikeys`); the plaintext is shown
 once. [ApiKeys.md](ApiKeys.md) is the full reference for issuing, scoping and revoking
 keys, including the self-service surface. Non-admins can self-mint only `tools`, `mcp_read` and `work`
-keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`. A work agent's key is not managed here: the rotate and revoke endpoints refuse it with 409 ("This key belongs to a work agent. Rotate or retire the agent on the Agents page."), including a key that was the agent's before a rotation; rotate or retire the agent at `/work/agents` instead. Key listings mark such keys (`agentKey`, and `agent` for the agent's name). While work management is not running (`wikantik.work.enabled=false`, or it failed to start) the registry cannot tell agent keys apart, so `/api/self/apikeys` refuses to rotate any key of the `work` scope (503 "Work management is not running, so a key with the work scope cannot be rotated right now."); revoking stays allowed.
+keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`. A work agent does not use an API key at all: it has its own token (it starts with `wka_`), issued when the agent is registered at `/work/agents` and never listed, rotated or revoked on the key pages. A key with the `work` scope is an ordinary personal key that acts as its owner.
 The short version:
 
 | You want an agent that… | Scope |

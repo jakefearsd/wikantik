@@ -146,7 +146,7 @@ narrowest scope that does the job:
 | Reads and searches content over `/knowledge-mcp` only (a read-only knowledge agent) | `mcp_read` | `{"principalLogin": "agent", "scope": "mcp_read"}` |
 | Uses the full admin MCP surface (`/wikantik-admin-mcp`, and `/knowledge-mcp` too) | `mcp_admin` | `{"principalLogin": "curator", "scope": "mcp_admin"}` |
 | Calls only the OpenAPI `/tools/*` endpoints (for example OpenWebUI) | `tools` | `{"principalLogin": "owui", "scope": "tools"}` |
-| Works work-management items over `/api/work/*` and `/work-mcp` (an agent's key, or a person's own) | `work` | `{"principalLogin": "agentowner", "scope": "work"}` (an agent's key is minted by registering the agent at `/work/agents`, not here) |
+| Works work-management items over `/api/work/*` and `/work-mcp` as a person (their own key) | `work` | `{"principalLogin": "lena", "scope": "work"}` (a work agent has its own token, issued by registering it at `/work/agents`, not an API key) |
 | Reaches every key-protected surface | `all` | `{"principalLogin": "ops", "scope": "all"}` |
 
 If `scope` is omitted from an admin `POST`, the key is created with scope `all`. (A
@@ -323,14 +323,7 @@ required — for a personal `search_wiki` or read-only MCP client. A non-admin c
 `tools`, `mcp_read` and `work`; `mcp_admin` and `all` carry full admin privilege and come from an
 administrator at `/admin/apikeys`.
 
-**Agent keys are not managed here.** A key bound to a work agent (or that was the agent's before a rotation) cannot be
-rotated or revoked through `/api/self/apikeys` or `/admin/apikeys`: both answer `409 "This key belongs to a work agent.
-Rotate or retire the agent on the Agents page."` (an admin bulk revoke reports such a key as failed and revokes the rest).
-Listings carry `agentKey: true` and, where the caller can see the agent registry, `agent` (the agent's name); the key
-pages show an "agent key" badge and no Rotate or Revoke. Rotate or retire the agent at `/work/agents` instead
-([WikantikOperations.md](WikantikOperations.md) section 1.15). While work management is not running (flag off, or it
-failed to start) nothing can tell agent keys apart, so `/api/self/apikeys` refuses to rotate any `work` key with
-`503 "Work management is not running, so a key with the work scope cannot be rotated right now."`; revoking stays allowed.
+**Work agents have no API key.** A work agent does not use an API key at all: it has its own token (it starts with `wka_`), issued when the agent is registered at `/work/agents` and never listed, rotated or revoked on the key pages. A key with the `work` scope is an ordinary personal key that acts as its owner. A `work` key rotates and revokes here like any other key. See [WikantikOperations.md](WikantikOperations.md) section 1.15 for agents, their sponsors and their tokens.
 
 ### SPA: API Keys panel in user preferences
 

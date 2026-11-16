@@ -172,6 +172,10 @@ draft ─▶ refining ─▶ ready ─▶ in_progress ─▶ review ─▶ done
 
 ### Assignment, agents and claims (phase 2)
 
+> **Superseded in part by phase 3a** ([agent identity and authority](2026-11-16-work-agent-identity-design.md)):
+> an agent is no longer bound to an API key. It has a sponsor, whose current standing caps what it may read and do,
+> and its own credential. The identity bullets below describe phase 2 as it shipped in 2.5.23.
+
 - An assignee is a login or a **queue** (`implementer`, `reviewer`, `writer`, …).
   People are assigned directly; agent work goes to a queue.
 - `work_agent` registers each agent: name (`codex@docker2`), vendor, runtime, the API

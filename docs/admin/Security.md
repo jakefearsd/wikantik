@@ -447,7 +447,7 @@ separate. Before 2.4.54 the full-admin scope was named `mcp`; that name is still
 alias and keys stored under it remain full-admin (see
 [Legacy `mcp` scope name](ApiKeys.md#legacy-mcp-scope-name)).
 Prefer the narrowest scope. Non-administrators can self-mint only `tools`, `mcp_read` and
-`work` keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`. A work agent's key is not managed here: the rotate and revoke endpoints refuse it with 409 ("This key belongs to a work agent. Rotate or retire the agent on the Agents page."), including a key that was the agent's before a rotation; rotate or retire the agent at `/work/agents` instead. Key listings mark such keys (`agentKey`, and `agent` for the agent's name). While work management is not running (`wikantik.work.enabled=false`, or it failed to start) the registry cannot tell agent keys apart, so `/api/self/apikeys` refuses to rotate any key of the `work` scope (503 "Work management is not running, so a key with the work scope cannot be rotated right now."); revoking stays allowed. The `/api/*` REST surface uses session or Basic
+`work` keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`. A work agent does not use an API key at all: it has its own token (it starts with `wka_`), issued when the agent is registered at `/work/agents` and never listed, rotated or revoked on the key pages. A key with the `work` scope is an ordinary personal key that acts as its owner. The `/api/*` REST surface uses session or Basic
 authentication and does not accept API keys.
 
 `/knowledge-mcp` and the other MCP and tools endpoints also fail closed. If there is no

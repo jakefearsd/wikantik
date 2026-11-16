@@ -149,7 +149,7 @@ draft ─▶ refining ─▶ ready ─▶ in_progress ─▶ review ─▶ done
 - Stories and tasks use the full list. Epics use `draft | in_progress | done |
   cancelled`; an epic's progress is derived from its children.
 - Statuses are a fixed list in code with a `CHECK` constraint.
-- Only `ready` work is claimable. An item with an open `blocked_by` link is not.
+- Only `ready` and `review` work is claimable (the owner approved both; a claim of a `review` item leaves the status at `review`, a claim of a `ready` item moves it to `in_progress`). An item with an open `blocked_by` link is not.
 - `review` is assignable work in its own right, to a person or a queue.
 - A handoff is one event: new status, new assignee, and a required note saying what
   was done and what is needed next.
@@ -176,7 +176,7 @@ draft ─▶ refining ─▶ ready ─▶ in_progress ─▶ review ─▶ done
   People are assigned directly; agent work goes to a queue.
 - `work_agent` registers each agent: name (`codex@docker2`), vendor, runtime, the API
   key it uses, and the queues it serves. Every event and claim records the agent.
-- A claim is one atomic statement: take the item only if it is `ready` and unclaimed.
+- A claim is one atomic statement: take the item only if it is `ready` or `review` and unclaimed.
   The claim names the agent and expires. An expired claim returns the item to its
   queue with any open change still attached, so the next agent resumes the branch.
 - Agent-to-agent handoff is a move to another queue. Agent-to-human handoff assigns a
@@ -195,6 +195,15 @@ draft ─▶ refining ─▶ ready ─▶ in_progress ─▶ review ─▶ done
 - Claiming an item returns the item and its product's `wiki_cluster` name, so the
   agent can ask the knowledge MCP for a briefing itself. Until then `wiki_cluster`
   is a stored label and nothing in this module reads wiki cluster services.
+- Decisions made during the build (owner-approved or reported to the owner):
+  - Agents create items as `draft`; only a person moves a draft forward (or cancels it).
+    An unclaimed item in a queue is never `in_progress`: work in a queue is `ready` or
+    `review` until an agent claims it.
+  - Every ending of a claim is recorded as its own event with its reason: release,
+    hand-off, a move or reassignment by someone else, loss of access, retirement of the
+    agent, archiving of the project, and expiry.
+  - Agent keys are managed only through the agent registry (rotate or retire the agent);
+    the generic key endpoints refuse them, and rotation may name a new owner.
 
 ### Changes (phase 3)
 

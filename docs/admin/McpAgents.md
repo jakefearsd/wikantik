@@ -58,8 +58,8 @@ To see what your deployment really exposes, call `tools/list` (see
 Both MCP endpoints and `/tools/*` accept a **bearer token** that is a database-minted
 API key. Mint one at **Admin → API Keys** (`/admin/apikeys`); the plaintext is shown
 once. [ApiKeys.md](ApiKeys.md) is the full reference for issuing, scoping and revoking
-keys, including the self-service surface. Non-admins can self-mint only `tools` and
-`mcp_read` keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`.
+keys, including the self-service surface. Non-admins can self-mint only `tools`, `mcp_read` and `work`
+keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`. A work agent's key is not managed here: the rotate and revoke endpoints refuse it with 409 ("This key belongs to a work agent. Rotate or retire the agent on the Agents page."), including a key that was the agent's before a rotation; rotate or retire the agent at `/work/agents` instead. Key listings mark such keys (`agentKey`, and `agent` for the agent's name).
 The short version:
 
 | You want an agent that… | Scope |

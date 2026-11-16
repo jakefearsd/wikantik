@@ -320,8 +320,15 @@ curl -s -X POST https://wiki.example.com/tools/search_wiki \
 
 Any logged-in user can manage API keys bound to their **own** principal — no `Admin` role
 required — for a personal `search_wiki` or read-only MCP client. A non-admin can self-mint only
-`tools` and `mcp_read`; `mcp_admin` and `all` carry full admin privilege and come from an
+`tools`, `mcp_read` and `work`; `mcp_admin` and `all` carry full admin privilege and come from an
 administrator at `/admin/apikeys`.
+
+**Agent keys are not managed here.** A key bound to a work agent (or that was the agent's before a rotation) cannot be
+rotated or revoked through `/api/self/apikeys` or `/admin/apikeys`: both answer `409 "This key belongs to a work agent.
+Rotate or retire the agent on the Agents page."` (an admin bulk revoke reports such a key as failed and revokes the rest).
+Listings carry `agentKey: true` and, where the caller can see the agent registry, `agent` (the agent's name); the key
+pages show an "agent key" badge and no Rotate or Revoke. Rotate or retire the agent at `/work/agents` instead
+([WikantikOperations.md](WikantikOperations.md) section 1.15).
 
 ### SPA: API Keys panel in user preferences
 

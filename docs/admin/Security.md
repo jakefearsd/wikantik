@@ -446,8 +446,8 @@ The MCP scopes are a rank hierarchy (`mcp_read` is contained in `mcp_admin`); `t
 separate. Before 2.4.54 the full-admin scope was named `mcp`; that name is still accepted as an
 alias and keys stored under it remain full-admin (see
 [Legacy `mcp` scope name](ApiKeys.md#legacy-mcp-scope-name)).
-Prefer the narrowest scope. Non-administrators can self-mint only `tools` and
-`mcp_read` keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`. The `/api/*` REST surface uses session or Basic
+Prefer the narrowest scope. Non-administrators can self-mint only `tools`, `mcp_read` and
+`work` keys; `mcp_admin` and `all` keys are issued by an administrator at `/admin/apikeys`. A work agent's key is not managed here: the rotate and revoke endpoints refuse it with 409 ("This key belongs to a work agent. Rotate or retire the agent on the Agents page."), including a key that was the agent's before a rotation; rotate or retire the agent at `/work/agents` instead. Key listings mark such keys (`agentKey`, and `agent` for the agent's name). The `/api/*` REST surface uses session or Basic
 authentication and does not accept API keys.
 
 `/knowledge-mcp` and the other MCP and tools endpoints also fail closed. If there is no

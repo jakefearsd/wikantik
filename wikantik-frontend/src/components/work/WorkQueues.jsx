@@ -98,7 +98,7 @@ export default function WorkQueues({ queues, reload }) {
               {!q.retiredAt && editing !== q.key && (retiring === q.key
                 ? (
                   <WorkConfirm yes={`Yes, retire ${q.key}`} disabled={busy} onYes={() => retire(q.key)} onNo={() => setRetiring(null)}>
-                    Retire queue {q.key}? It will no longer be offered to agents.
+                    Retire queue {q.key}? It will no longer be offered when assigning work; items already in it stay claimable by the agents that serve it.
                   </WorkConfirm>
                 )
                 : (

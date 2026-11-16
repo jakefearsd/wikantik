@@ -3,7 +3,7 @@ import Badge from '../ui/Badge';
 import Icon from '../ui/Icon';
 import Select from '../ui/Select';
 import { STATUSES, STATUS_LABELS, isOverdue } from './boardModel';
-import { clockText, fullTime, isPast } from './workTime';
+import { clockText, fullTime, isPast, useExpiryClock } from './workTime';
 
 const CLAIMABLE = new Set(['ready', 'review']);
 
@@ -16,7 +16,8 @@ function formatDue(iso) {
  * One board card. `draggable` and `onMove` are supplied only for viewers who may change the item;
  * the Move to… menu is the keyboard path for what drag does with a mouse.
  */
-export default function WorkCard({ item, productKey, draggable = false, onDragStart, onDragEnd, onMove, now = new Date() }) {
+export default function WorkCard({ item, productKey, draggable = false, onDragStart, onDragEnd, onMove, now: injectedNow }) {
+  const now = useExpiryClock(item.claimedByAgent != null ? item.claimExpiresAt : null, injectedNow);
   const overdue = isOverdue(item);
   const claimed = item.claimedByAgent != null;
   const holder = item.claimedByName || 'an agent';

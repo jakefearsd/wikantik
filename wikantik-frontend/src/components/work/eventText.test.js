@@ -77,21 +77,30 @@ describe('eventText', () => {
     expect(eventSentence(ev('claim_renewed', { at, actorName: 'codex@docker2', actorKind: 'agent', toValue: until })))
       .toBe('codex@docker2 renewed its claim · until 17:40');
   });
-  it('releasedTextWithNote: moved', () => {
+  it('released: moved says the actor moved the item, ending the claim', () => {
     expect(eventSentence(ev('released', { actorName: 'Jane Doe', actorKind: 'human', fromValue: 'agent:2', fromValueName: 'claude@ws', toValue: 'review', note: 'moved' })))
-      .toBe("Jane Doe released claude@ws's claim because the item was moved (now review)");
+      .toBe("Jane Doe moved this item, ending claude@ws's claim (now review)");
   });
   it('released: reassigned', () => {
     expect(eventSentence(ev('released', { actorName: 'Jane Doe', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'reassigned' })))
-      .toBe("Jane Doe released codex@docker2's claim because the item was reassigned (now ready)");
+      .toBe("Jane Doe reassigned this item, ending codex@docker2's claim (now ready)");
   });
-  it('released: access removed', () => {
+  it('released: access removed names what the actor removed', () => {
     expect(eventSentence(ev('released', { actorName: 'Lena Lead', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'access removed' })))
-      .toBe("Lena Lead released codex@docker2's claim because its access was removed (now ready)");
+      .toBe("Lena Lead removed codex@docker2's access to this project, ending its claim (now ready)");
   });
-  it('released: agent retired', () => {
+  it('released: agent retired names what the actor retired', () => {
     expect(eventSentence(ev('released', { actorName: 'Admin A', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'agent retired' })))
-      .toBe("Admin A released codex@docker2's claim because the agent was retired (now ready)");
+      .toBe('Admin A retired codex@docker2, ending its claim (now ready)');
+  });
+  it('released: an agent moving its own item ends its own claim', () => {
+    const own = { actorName: 'codex@docker2', actorKind: 'agent', agentId: 3, fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'review' };
+    expect(eventSentence(ev('released', { ...own, note: 'moved' }))).toBe('codex@docker2 moved this item, ending its own claim (now review)');
+    expect(eventSentence(ev('released', { ...own, note: 'reassigned' }))).toBe('codex@docker2 handed this item on, ending its own claim (now review)');
+  });
+  it('released with neutral fallbacks', () => {
+    expect(eventSentence(ev('released', { actorName: null, fromValue: 'agent:9', toValue: 'ready', note: 'moved' })))
+      .toBe("Someone moved this item, ending an agent's claim (now ready)");
   });
   it('released: an explicit release by a person carries their note', () => {
     const t = eventText(ev('released', { actorName: 'Jane Doe', actorKind: 'human', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'stuck for hours' }));
@@ -102,6 +111,11 @@ describe('eventText', () => {
     const t = eventText(ev('released', { actorName: 'codex@docker2', actorKind: 'agent', agentId: 3, fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'released' }));
     expect(t.text).toBe('released its claim (back to ready)');
     expect(t.note).toBeNull();
+  });
+  it('an unknown type never prints a raw agent or queue value', () => {
+    const t = eventText(ev('future_thing', { fromValue: 'agent:17', toValue: 'queue:q9', toValueName: 'Reviewer' })).text;
+    expect(t).toBe('future thing: an agent → Reviewer');
+    expect(eventText(ev('future_thing', { fromValue: 'queue:q9', toValue: 'agent:4' })).text).toBe('future thing: a queue → an agent');
   });
   it('claimExpiredText is a sentence on its own, without the actor in front', () => {
     const t = eventText(ev('claim_expired', { actorName: 'codex@docker2', actorKind: 'agent', fromValue: 'in_progress', toValue: 'ready' }));

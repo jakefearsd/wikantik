@@ -8,6 +8,13 @@ import { clockText } from './workTime';
 
 const words = (s) => String(s).replace(/_/g, ' ');
 const orNone = (v) => (v == null || v === '' ? 'none' : String(v));
+/** A value for a generic line: a raw `agent:<id>` / `queue:<key>` is never printed, only its name or neutral words. */
+function safeValue(v, name) {
+  const raw = v == null || v === '' ? '' : String(v);
+  if (raw.startsWith('agent:')) return name || 'an agent';
+  if (raw.startsWith('queue:')) return name || 'a queue';
+  return orNone(v);
+}
 
 const QUEUE = 'queue:';
 const AGENT = 'agent:';
@@ -47,23 +54,32 @@ function assignedText(ev) {
   return `reassigned this to ${to} (was ${from})`;
 }
 
-const RELEASE_REASONS = {
-  moved: 'the item was moved',
-  reassigned: 'the item was reassigned',
-  'access removed': 'its access was removed',
-  'agent retired': 'the agent was retired',
-};
-
+/**
+ * `released` carries its reason in `note`. The server sends no field that tells a consequence (the actor moved,
+ * reassigned, removed or retired something and the claim ended with it) from a person's own free-text release note, so
+ * the four reason keywords are read as consequences; any other note is a deliberate release.
+ */
 function releasedText(ev) {
   const holderId = (ev.fromValue || '').startsWith(AGENT) ? ev.fromValue.slice(AGENT.length) : '';
   const holder = ev.fromValueName || 'an agent';
   const own = ev.actorKind === 'agent' && (holderId && ev.agentId != null ? String(ev.agentId) === holderId
     : !!ev.actorName && ev.actorName === ev.fromValueName);
   const claim = own ? 'its claim' : `${holder}'s claim`;
-  const reason = RELEASE_REASONS[ev.note];
-  if (reason) return { text: `released ${claim} because ${reason} (now ${statusWords(ev.toValue)})`, note: null };
-  const back = ev.toValue ? ` (back to ${statusWords(ev.toValue)})` : '';
-  return { text: `released ${claim}${back}`, note: ev.note && ev.note !== 'released' ? ev.note : null };
+  const now = ` (now ${statusWords(ev.toValue)})`;
+  switch (ev.note) {
+    case 'moved':
+      return { text: own ? `moved this item, ending its own claim${now}` : `moved this item, ending ${claim}${now}`, note: null };
+    case 'reassigned':
+      return {
+        text: own ? `handed this item on, ending its own claim${now}` : `reassigned this item, ending ${claim}${now}`, note: null,
+      };
+    case 'access removed': return { text: `removed ${holder}'s access to this project, ending its claim${now}`, note: null };
+    case 'agent retired': return { text: `retired ${holder}, ending its claim${now}`, note: null };
+    default: {
+      const back = ev.toValue ? ` (back to ${statusWords(ev.toValue)})` : '';
+      return { text: `released ${claim}${back}`, note: ev.note && ev.note !== 'released' ? ev.note : null };
+    }
+  }
 }
 
 /** A member event value `kind:principal:role`, split at the first and last colon (a name may hold a colon). */
@@ -148,7 +164,10 @@ export function eventText(e) {
       if (!ev.type) return { text: 'did something', note };
       const label = words(ev.type);
       const hasValues = ev.fromValue != null || ev.toValue != null;
-      return { text: hasValues ? `${label}: ${orNone(ev.fromValue)} → ${orNone(ev.toValue)}` : label, note };
+      return {
+        text: hasValues ? `${label}: ${safeValue(ev.fromValue, ev.fromValueName)} → ${safeValue(ev.toValue, ev.toValueName)}` : label,
+        note,
+      };
     }
   }
 }

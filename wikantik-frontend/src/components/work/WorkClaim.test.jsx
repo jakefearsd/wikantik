@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import WorkClaim from './WorkClaim';
 
 const at = (h, m, day = 16) => new Date(2026, 10, day, h, m).toISOString();
@@ -71,5 +71,30 @@ describe('WorkClaim', () => {
   it('a claim whose holder cannot be named says an agent, never an id', () => {
     renderClaim({ item: { ...CLAIMED, claimedByName: null } });
     expect(screen.getByRole('region', { name: 'Claim' })).toHaveTextContent('Claimed by an agent');
+  });
+
+  describe('when the expiry passes with the page open', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('flips from until to lapsed at the expiry instant, without polling', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 10, 16, 15, 39, 0));
+      render(<WorkClaim item={CLAIMED} canRelease onRelease={vi.fn()} />);
+      const panel = screen.getByRole('region', { name: 'Claim' });
+      expect(panel).toHaveTextContent('until 15:40');
+      expect(panel).not.toHaveClass('claim-expired');
+      act(() => { vi.advanceTimersByTime(61 * 1000); });
+      expect(screen.getByRole('region', { name: 'Claim' })).toHaveTextContent('claim lapsed at 15:40');
+      expect(screen.getByRole('region', { name: 'Claim' })).toHaveClass('claim-expired');
+    });
+
+    it('clears its timer on unmount', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 10, 16, 15, 39, 0));
+      const { unmount } = render(<WorkClaim item={CLAIMED} canRelease onRelease={vi.fn()} />);
+      expect(vi.getTimerCount()).toBe(1);
+      unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 });

@@ -20,6 +20,7 @@ import WorkFieldRow from './WorkFieldRow';
 import WorkHandoff, { handoffShape } from './WorkHandoff';
 import WorkLinks from './WorkLinks';
 import WorkTimeline from './WorkTimeline';
+import { isPast, useExpiryClock } from './workTime';
 
 const EPIC_STATUSES = ['draft', 'in_progress', 'done', 'cancelled'];
 const KIND_OPTIONS = ['software', 'docs', 'admin'].map((k) => ({ value: k, label: k }));
@@ -138,6 +139,8 @@ function ItemPage({ itemKey }) {
   const [activity, setActivity] = useState(0);
   const seq = useRef(0);
   const projectKey = view?.projectKey;
+
+  const clock = useExpiryClock(view?.item.claimedByAgent != null ? view.item.claimExpiresAt : null);
 
   useDocumentTitle(view ? `${view.item.key} ${view.item.title}` : 'Work item');
 
@@ -260,10 +263,22 @@ function ItemPage({ itemKey }) {
   /** Releases an agent's claim for a person; the item is re-read either way so the panel shows what is true now. */
   const release = useCallback((note) => {
     const holder = view?.item.claimedByName || 'an agent';
-    return mutate(() => releaseItem(itemKey, note), 'Could not release the claim.').then((ok) => {
+    const done = (ok) => {
       if (ok) toast.success(`Released ${holder}'s claim`); else load();
       return ok;
-    });
+    };
+    return releaseItem(itemKey, note)
+      .then(() => mutate(() => Promise.resolve(), 'Could not release the claim.'))
+      .then(done)
+      .catch((e) => {
+        if (e?.status === 409 && e.body?.reason === 'not_claimed') {
+          // Someone released it, or it expired, while the panel was open: not an error, just refresh.
+          toast.info('This claim had already ended.');
+          setActivity((a) => a + 1);
+          return load().then(() => true);
+        }
+        return mutate(() => Promise.reject(e), 'Could not release the claim.').then(done);
+      });
   }, [view, itemKey, mutate, toast, load]);
 
   if (notFound) return <EmptyState message="No such item" />;
@@ -277,6 +292,10 @@ function ItemPage({ itemKey }) {
   const isLead = role === 'lead' && !archived;
   const isEpic = item.level === 'epic';
   const holder = item.claimedByAgent != null ? (item.claimedByName || 'An agent') : null;
+  const lapsed = holder != null && isPast(item.claimExpiresAt, clock);
+  const claimWarning = (verb) => (lapsed
+    ? `${holder}'s claim has lapsed and will be cleared; ${verb} this item clears it now.`
+    : `${holder} is working on this; ${verb === 'moving' ? 'moving' : 'reassigning'} it releases its claim.`);
   const statusOptions = (isEpic ? EPIC_STATUSES : STATUSES).map((s) => ({ value: s, label: STATUS_LABELS[s] }));
   const field = (name) => (v) => save({ [name]: v });
   const errEntry = (name) => (fieldErrors[name]?.source === 'handoff' ? undefined : fieldErrors[name]?.message);
@@ -369,10 +388,10 @@ function ItemPage({ itemKey }) {
           <WorkFieldRow label="Title" error={err('title')} {...editor('title')} value={item.title} canEdit={canEdit} onSave={field('title')} />
           <WorkFieldRow label="Status" error={err('status')} {...editor('status')} type="select" value={item.status} display={STATUS_LABELS[item.status] || item.status}
             options={statusOptions} canEdit={canEdit} onSave={field('status')}
-            helper={holder ? `${holder} is working on this; moving it releases its claim.` : undefined} />
+            helper={holder ? claimWarning('moving') : undefined} />
           <WorkFieldRow label="Assignee" error={err('assignee')} {...editor('assignee')} value={targetValue(item)}
             display={item.queue ? queueText(item.queueName) : item.assigneeName || 'Unassigned'}
-            helper={holder ? `${holder} is working on this; reassigning it releases its claim.` : undefined}
+            helper={holder ? claimWarning('reassigning') : undefined}
             renderControl={({ value, onChange, disabled }) => (
               <AssigneePicker ariaLabel="Assignee" members={members} queues={queues} value={targetOf(value)} disabled={disabled}
                 labels={{ assigneeName: item.assigneeName, queueName: item.queueName }}
@@ -395,7 +414,7 @@ function ItemPage({ itemKey }) {
           {canEdit && (
             <WorkHandoff
               status={item.status} assignee={item.assignee} queue={item.queue} assigneeName={item.assigneeName}
-              queueName={item.queueName} statusOptions={statusOptions} members={members} queues={queues} claimHolder={holder}
+              queueName={item.queueName} statusOptions={statusOptions} members={members} queues={queues} claimHolder={holder} claimLapsed={lapsed}
               error={handoffError} {...editor('handoff')}
               onSend={(status, target, note) => handoff(status, target, note).then((r) => r === true)}
             />

@@ -152,7 +152,7 @@ describe('WorkTimeline', () => {
       expect(rows).toHaveLength(6);
       expect(rows[0]).toHaveTextContent('codex@docker2 agent claimed this · until 15:40');
       expect(rows[1]).toHaveTextContent('codex@docker2 agent renewed its claim · until 17:40');
-      expect(rows[3]).toHaveTextContent("Jane Doe released codex@docker2's claim because the item was moved (now review)");
+      expect(rows[3]).toHaveTextContent("Jane Doe moved this item, ending codex@docker2's claim (now review)");
       expect(rows[4]).toHaveTextContent('claim by codex@docker2 expired — back to ready');
       expect(rows[4].textContent.match(/codex@docker2/g)).toHaveLength(1);
       expect(rows[5]).toHaveTextContent('future event: none → x');
@@ -174,6 +174,21 @@ describe('WorkTimeline', () => {
       render(<WorkTimeline itemKey="PLAT-7" />);
       await screen.findAllByRole('listitem');
       expect(document.body.textContent).not.toMatch(/agent:17|queue:q9/);
+    });
+
+    it('times use the shared formatter: no year this year, the year for another', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(2026, 10, 20, 9, 0));
+      try {
+        listEvents.mockResolvedValue([
+          ev(1, 'created', { at: new Date(2026, 10, 16, 13, 0).toISOString() }),
+          ev(2, 'created', { at: new Date(2025, 11, 31, 8, 5).toISOString() }),
+        ]);
+        render(<WorkTimeline itemKey="PLAT-7" />);
+        const rows = await screen.findAllByRole('listitem');
+        expect(rows[0].querySelector('time')).toHaveTextContent('Nov 16 13:00');
+        expect(rows[1].querySelector('time')).toHaveTextContent('Dec 31 2025 08:05');
+      } finally { vi.useRealTimers(); }
     });
   });
 });

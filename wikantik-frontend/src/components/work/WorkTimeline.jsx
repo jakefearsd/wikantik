@@ -4,8 +4,9 @@ import { listEvents, listRevisions } from '../../api/work';
 import EventActor from './EventActor';
 import { eventText } from './eventText';
 import { lineDiff } from './lineDiff';
+import { whenText } from './workTime';
 
-const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
+const when = (iso) => whenText(iso);
 const revisionText = (r) => `${r.title}\n${r.body ?? ''}`;
 
 function RevisionDiff({ before, after }) {

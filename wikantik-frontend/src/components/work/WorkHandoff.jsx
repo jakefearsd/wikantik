@@ -12,7 +12,7 @@ export const handoffShape = (status, assignee, queue, note) => ({ status, assign
  * `{ assignee }` or `{ queue }`. `claimHolder` names an agent whose claim the hand-off would end.
  */
 export default function WorkHandoff({
-  status, assignee, queue, assigneeName, queueName, statusOptions, members, queues, claimHolder, onSend, error,
+  status, assignee, queue, assigneeName, queueName, statusOptions, members, queues, claimHolder, claimLapsed = false, onSend, error,
   locked = false, onOpen, onDraft, onClose,
 }) {
   const uid = useId();
@@ -73,7 +73,12 @@ export default function WorkHandoff({
         labels={{ assigneeName, queueName }} allowNone={false} placeholder="Choose a person or queue"
         onChange={(t) => { const next = t.queue ? { queue: t.queue } : { assignee: t.assignee }; setToTarget(next); draft({ target: next }); }} />
       {!targetChanged && <p className="work-field-helper">Choose a different person or queue. To change only the status, edit Status.</p>}
-      {claimHolder && <p className="work-claim-warning">{claimHolder} is working on this; handing it off releases its claim.</p>}
+      {claimHolder && (
+        <p className="work-claim-warning">
+          {claimLapsed ? `${claimHolder}'s claim has lapsed and will be cleared; handing it off clears it now.`
+            : `${claimHolder} is working on this; handing it off releases its claim.`}
+        </p>
+      )}
       <label className="work-form-field" htmlFor={`${uid}-note`}>Handoff note</label>
       <textarea
         id={`${uid}-note`} className="work-form-body" rows={3} required aria-required="true" value={note}

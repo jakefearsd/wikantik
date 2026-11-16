@@ -1,6 +1,8 @@
 // Time text shared by the work components so a claim reads the same on a card, the item page and the timeline.
 // All local-time and pure: `ref` / `now` are passed in, so nothing here reads the clock.
 
+import { useEffect, useState } from 'react';
+
 const pad = (n) => String(n).padStart(2, '0');
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
@@ -20,3 +22,31 @@ export const fullTime = (iso) => (iso ? new Date(iso).toLocaleString() : '');
 
 /** True when `iso` is at or before `now`. */
 export const isPast = (iso, now = new Date()) => !!iso && new Date(iso).getTime() <= new Date(now).getTime();
+
+/** "Nov 16 13:00", with the year ("Dec 31 2025 08:05") when `iso` is not in `now`'s year. Empty for a bad instant. */
+export function whenText(iso, now = new Date()) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const year = d.getFullYear() === new Date(now).getFullYear() ? '' : ` ${d.getFullYear()}`;
+  return `${date}${year} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const MAX_TIMEOUT = 2 ** 31 - 1;
+
+/**
+ * The clock for deciding "until" versus "lapsed". An injected `now` (tests) is used as is; otherwise the current time
+ * is re-read once the `expiry` instant passes, by a single timeout (no polling) that is cleared on unmount.
+ */
+export function useExpiryClock(expiry, injected) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (injected || !expiry) return undefined;
+    const ms = new Date(expiry).getTime() - Date.now();
+    if (!(ms > 0)) return undefined;
+    const id = setTimeout(() => setNow(new Date()), Math.min(ms + 5, MAX_TIMEOUT));
+    return () => clearTimeout(id);
+  }, [expiry, injected, now]);
+  return injected || now;
+}

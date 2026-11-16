@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import WorkCard from './WorkCard';
 
@@ -112,6 +112,21 @@ describe('WorkCard', () => {
       expect(a.container.textContent).not.toContain('Available to agents');
       const b = renderCard({ item: { ...ITEM, queue: null }, now: NOW });
       expect(b.container.textContent).not.toContain('Available to agents');
+    });
+
+    describe('expiry while the board is open', () => {
+      afterEach(() => vi.useRealTimers());
+      it('the chip turns to lapsed when the expiry passes, and its timer goes on unmount', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(2026, 10, 16, 15, 39, 0));
+        const { container, unmount } = renderCard({ item: claimed });
+        expect(screen.getByText('codex@docker2 · until 15:40')).toBeInTheDocument();
+        act(() => { vi.advanceTimersByTime(61 * 1000); });
+        expect(container.querySelector('.claim-expired')).toBeTruthy();
+        expect(screen.getByText(/claim lapsed 15:40/)).toBeInTheDocument();
+        unmount();
+        expect(vi.getTimerCount()).toBe(0);
+      });
     });
   });
 });

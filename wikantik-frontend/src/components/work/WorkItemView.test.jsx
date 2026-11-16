@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
@@ -746,6 +746,9 @@ describe('WorkItemView', () => {
   });
 
   describe('queues and claims', () => {
+    // The panel formats times against the clock; freeze Date (timers stay real) so 'since 13:05' holds on any day.
+    beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 10, 16, 14, 0)); });
+    afterEach(() => vi.useRealTimers());
     const CLAIM = {
       assignee: null, assigneeName: null, queue: 'implementer', queueName: 'Implementer', status: 'in_progress',
       claimedByAgent: 3, claimedByName: 'codex@docker2', claimedAt: new Date(2026, 10, 16, 13, 5).toISOString(),
@@ -903,6 +906,28 @@ describe('WorkItemView', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
       await waitFor(() => expect(handoffItem).toHaveBeenCalledWith('PLAT-7',
         { expectedVersion: 4, status: 'review', queue: 'reviewer', note: 'ready for review' }));
+    });
+
+    it('a release that finds the claim already ended says so neutrally and refreshes to unclaimed', async () => {
+      releaseItem.mockRejectedValue(Object.assign(new Error('Item is not claimed.'), { status: 409, body: { reason: 'not_claimed' } }));
+      renderView(claimedView());
+      await ready();
+      getItem.mockResolvedValue(queued({}));
+      fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Release it' }));
+      await waitFor(() => expect(toast.info).toHaveBeenCalledWith('This claim had already ended.'));
+      expect(toast.error).not.toHaveBeenCalled();
+      await waitFor(() => expect(screen.getByRole('region', { name: 'Claim' })).toHaveTextContent('Claimable by agents serving Implementer'));
+    });
+
+    it('a lapsed claim is not described as active work', async () => {
+      renderView(makeView({}, { ...CLAIM, claimExpiresAt: new Date(2026, 10, 16, 13, 30).toISOString() }));
+      await ready();
+      expect(screen.queryByText(/is working on this/)).toBeNull();
+      expect(screen.getByText("codex@docker2's claim has lapsed and will be cleared; moving this item clears it now.")).toBeInTheDocument();
+      expect(screen.getByText("codex@docker2's claim has lapsed and will be cleared; reassigning this item clears it now.")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+      expect(screen.getByText("codex@docker2's claim has lapsed and will be cleared; handing it off clears it now.")).toBeInTheDocument();
     });
   });
 });

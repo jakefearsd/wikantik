@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { clockText, fullTime, isPast } from './workTime';
+import { clockText, fullTime, isPast, useExpiryClock } from './workTime';
 
 const CLAIMABLE = new Set(['ready', 'review']);
 
@@ -8,7 +8,8 @@ const CLAIMABLE = new Set(['ready', 'review']);
  * to unstick it: that asks first, takes an optional note and says where the item goes. Unclaimed work in a queue
  * that agents could take says so. `onRelease(note)` resolves true once released. `now` is injectable for tests.
  */
-export default function WorkClaim({ item, canRelease = false, onRelease, now = new Date() }) {
+export default function WorkClaim({ item, canRelease = false, onRelease, now: injectedNow }) {
+  const now = useExpiryClock(item.claimExpiresAt, injectedNow);
   const uid = useId();
   const [confirming, setConfirming] = useState(false);
   const [note, setNote] = useState('');

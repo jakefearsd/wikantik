@@ -129,4 +129,15 @@ class WikiEngineWorkSweeperTest {
             Thread.setDefaultUncaughtExceptionHandler( before );
         }
     }
+
+    @Test
+    void aSweeperThatFailedToStartReadsZeroRatherThanMissing() {
+        engine.setWorkService( Mockito.mock( WorkService.class ) );
+        engine.startWorkClaimSweeper( service -> {
+            throw new IllegalStateException( "test: no threads left" );
+        } );
+        assertNull( engine.getManager( WorkClaimSweeper.class ) );
+        assertNotNull( meters.find( WorkClaimSweeper.ALIVE_GAUGE ).gauge(), "the outage is visible on /metrics" );
+        assertEquals( 0.0, alive() );
+    }
 }

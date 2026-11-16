@@ -52,17 +52,23 @@ class WorkServiceVisibilityPostgresTest {
     /** Methods that change state. A new public method fails the classification test until it is listed here or below. */
     private static final Set< String > WRITES = Set.of( "createProject", "updateProject", "archiveProject",
         "putMember", "removeMember", "createProduct", "updateProduct", "archiveProduct", "createItem", "updateItem",
-        "addComment", "editComment", "removeComment", "addLink", "removeLink" );
+        "addComment", "editComment", "removeComment", "addLink", "removeLink", "createQueue", "updateQueue",
+        "retireQueue", "registerAgent", "updateAgent", "rotateAgentKey", "retireAgent" );
+
+    /** Methods that act for no caller: they derive an actor, so they take none. */
+    private static final Set< String > SYSTEM = Set.of( "actorForApiKey" );
 
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
-        "listProjectsWithRoles" );
+        "listProjectsWithRoles", "listQueues", "listAgents" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1" );
 
     private final Actor mallory = Actor.human( "mallory", Set.of(), false );
     private final Actor lena = Actor.human( "lena", Set.of(), false );
+    private final Actor admin = Actor.human( "admin", Set.of(), true );
+    private Actor rogueAgent;
 
     private WorkService service;
     private long commentId;
@@ -70,9 +76,14 @@ class WorkServiceVisibilityPostgresTest {
 
     @BeforeEach
     void setUp() throws SQLException {
-        PostgresTestDb.truncate( "work_link", "work_mention", "work_comment", "work_event",
-            "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
-        final JdbcWorkStore store = new JdbcWorkStore( PostgresTestDb.createDataSource() );
+        PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
+        final javax.sql.DataSource ds = PostgresTestDb.createDataSource();
+        final JdbcWorkStore store = new JdbcWorkStore( ds );
+        store.createQueue( "implementer", "Implementer", "" );
+        final long codex = WorkAgentFixtures.agent( ds, "codex@docker2" );
+        rogueAgent = Actor.agent( WorkAgentFixtures.agent( ds, "rogue@x" ), "rogue@x" );
+        WorkAgentFixtures.exec( ds, "INSERT INTO work_agent_queue (agent_id, queue_key) VALUES (" + codex
+            + ", 'implementer')" );
         final Project plat = store.createProject( "PLAT", "Platform", "secret roadmap" );
         store.putMember( plat.id(), "lena", "user", WorkRole.LEAD, Actor.human( "admin", java.util.Set.of(), false ) );
         store.createProduct( new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED, DeployGate.HUMAN,
@@ -92,6 +103,10 @@ class WorkServiceVisibilityPostgresTest {
         }, Clock.systemUTC() );
     }
 
+    private List< Actor > strangers() {
+        return List.of( mallory, rogueAgent );
+    }
+
     private static List< Method > publicMethods() {
         return Arrays.stream( WorkService.class.getDeclaredMethods() )
             .filter( m -> Modifier.isPublic( m.getModifiers() ) && !m.isSynthetic() ).toList();
@@ -102,9 +117,11 @@ class WorkServiceVisibilityPostgresTest {
         final Set< String > all = new TreeSet<>();
         publicMethods().forEach( m -> all.add( m.getName() ) );
         assertTrue( Collections.disjoint( READS, WRITES ), "a method cannot be both a read and a write" );
+        assertTrue( Collections.disjoint( SYSTEM, READS ) && Collections.disjoint( SYSTEM, WRITES ) );
         final Set< String > classified = new TreeSet<>( READS );
         classified.addAll( WRITES );
-        assertEquals( classified, all, "classify every public WorkService method as a read or a write" );
+        classified.addAll( SYSTEM );
+        assertEquals( classified, all, "classify every public WorkService method as a read, a write or system" );
     }
 
     /** Argument lists for a read: Actor first, then every combination of the String fixtures. */
@@ -163,17 +180,20 @@ class WorkServiceVisibilityPostgresTest {
                     continue;
                 }
                 provedAgainstRealData++;
-                final Object[] asStranger = asLead.clone();
-                for ( int i = 0; i < asStranger.length; i++ ) {
-                    if ( asStranger[ i ] instanceof Actor ) {
-                        asStranger[ i ] = mallory;
+                for ( final Actor stranger : strangers() ) {
+                    final Object[] asStranger = asLead.clone();
+                    for ( int i = 0; i < asStranger.length; i++ ) {
+                        if ( asStranger[ i ] instanceof Actor ) {
+                            asStranger[ i ] = stranger;
+                        }
                     }
-                }
-                try {
-                    final Object result = invoke( m, service, asStranger );
-                    assertTrue( isEmptyResult( result ), m.getName() + " leaked for a non-member: " + result );
-                } catch ( final WorkNotFoundException expected ) {
-                    // the required outcome
+                    try {
+                        final Object result = invoke( m, service, asStranger );
+                        assertTrue( isEmptyResult( result ), m.getName() + " leaked to " + stranger.login() + ": "
+                            + result );
+                    } catch ( final WorkNotFoundException expected ) {
+                        // the required outcome
+                    }
                 }
             }
             assertTrue( provedAgainstRealData > 0,
@@ -201,6 +221,40 @@ class WorkServiceVisibilityPostgresTest {
         for ( final var attempt : attempts ) {
             assertThrows( WorkNotFoundException.class, attempt );
         }
+    }
+
+    @Test
+    void systemMethodsTakeNoActor() {
+        for ( final Method m : publicMethods() ) {
+            if ( SYSTEM.contains( m.getName() ) ) {
+                assertTrue( Arrays.stream( m.getParameterTypes() ).noneMatch( t -> t == Actor.class ),
+                    m.getName() + " must not accept a caller-supplied actor" );
+            }
+        }
+    }
+
+    @Test
+    void everyInstanceWriteRequiresAdmin() {
+        final AgentDraft agent = new AgentDraft( "new@x", "", "", List.of(), "lena" );
+        final List< org.junit.jupiter.api.function.Executable > attempts = List.of(
+            () -> service.createQueue( mallory, "ops", "Ops", "" ),
+            () -> service.updateQueue( mallory, "implementer", "Impl", "" ),
+            () -> service.retireQueue( mallory, "implementer" ),
+            () -> service.registerAgent( mallory, agent ),
+            () -> service.updateAgent( mallory, 1, agent ),
+            () -> service.rotateAgentKey( mallory, 1 ),
+            () -> service.retireAgent( mallory, 1 ) );
+        for ( final var attempt : attempts ) {
+            assertThrows( WorkDeniedException.class, attempt );
+        }
+    }
+
+    @Test
+    void anAdminSeesKeyIdsAndAProjectMemberDoesNot() throws Exception {
+        assertTrue( service.listAgents( admin ).stream().allMatch( a -> a.apiKeyId() != null ) );
+        assertEquals( 2, service.listAgents( lena ).size() );
+        assertTrue( service.listAgents( lena ).stream().allMatch( a -> a.apiKeyId() == null ) );
+        assertEquals( 1, service.listQueues( lena ).size() );
     }
 
     @Test

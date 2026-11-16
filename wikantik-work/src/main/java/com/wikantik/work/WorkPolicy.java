@@ -41,7 +41,7 @@ public final class WorkPolicy {
         if ( actor.kind() == Actor.Kind.AGENT && claimedByOther( actor, action, itemOrNull ) ) {
             return Decision.deny( "This item is claimed by another agent." );
         }
-        if ( actor.admin() ) {
+        if ( actor.instanceAdmin() ) {
             return Decision.allow();
         }
         if ( action == Action.MANAGE_INSTANCE ) {

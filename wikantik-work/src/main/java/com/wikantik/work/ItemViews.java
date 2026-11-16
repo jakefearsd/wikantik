@@ -43,6 +43,18 @@ final class ItemViews {
         this.people = people;
     }
 
+    /** Matches no stored login (logins never hold a line break): an assignee filter that names nobody. */
+    private static final String NOBODY = "\n";
+
+    /** The filter pinned to the project, its assignee reference resolved to a login (or to nobody). */
+    ItemFilter pinned( final Actor actor, final Scope s, final ItemFilter filter ) {
+        final ItemFilter f = s.pin( filter );
+        if ( f.assignee() == null || f.assignee().isBlank() ) {
+            return f.with( f.projectId(), null );
+        }
+        return f.with( f.projectId(), people.login( actor, f.assignee() ).orElse( NOBODY ) );
+    }
+
     /** A comment as shown: its text rendered like an item's, with mentions as display names. */
     CommentView comment( final Comment c ) {
         if ( c.removedAt() != null || c.body() == null || c.body().isBlank() ) {

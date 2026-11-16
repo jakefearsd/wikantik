@@ -97,7 +97,7 @@ final class WorkScopes {
             throw new WorkNotFoundException( NOT_FOUND );
         }
         final WorkRole role = store.roleFor( project.id(), actor ).orElse( null );
-        if ( role == null && !actor.admin() ) {
+        if ( role == null && !actor.instanceAdmin() ) {
             throw new WorkNotFoundException( NOT_FOUND );
         }
         return new Scope( actor, project, role, this::denied );
@@ -138,6 +138,12 @@ final class WorkScopes {
 
     Comment comment( final long commentId ) throws SQLException {
         return store.comment( commentId ).orElseThrow( () -> new WorkNotFoundException( NOT_FOUND ) );
+    }
+
+    /** The groups the login belongs to; never null. */
+    Set< String > groupsOf( final String login ) {
+        final Set< String > groups = directory.groupsOf( login );
+        return groups == null ? Set.of() : groups;
     }
 
     boolean isMember( final long projectId, final String login ) throws SQLException {

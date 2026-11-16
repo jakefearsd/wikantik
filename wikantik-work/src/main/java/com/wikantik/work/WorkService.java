@@ -46,14 +46,10 @@ import java.util.stream.Collectors;
  * <p>Every public method is classified as a read or a write by {@code WorkServiceVisibilityPostgresTest}; add a
  * method and that test fails until it is classified.
  */
+@SuppressWarnings( "PMD.TooManyMethods" ) // the single facade over work management: one public method per operation
 public class WorkService {
 
-    private static final Pattern ITEM_KEY = Pattern.compile( "^([A-Za-z][A-Za-z0-9]{1,9})-(\\d{1,9})$" );
     private static final String NOT_FOUND = WorkScopes.NOT_FOUND;
-    /** Matches no stored login (logins never hold a line break): an assignee filter that names nobody. */
-    private static final String NOBODY = "\n";
-    private static final String NOT_A_MEMBER = "The assignee is not a member of this project.";
-    private static final String NO_SUCH_USER = "No such user.";
 
     /** An item together with everything a reader needs to show it; {@code archived}: its project is read-only. */
     public record ItemView( Item item, String bodyHtml, String projectKey, String parentKey, String productKey,
@@ -79,6 +75,15 @@ public class WorkService {
     private final WorkPeople people;
     private final Clock clock;
     private final ItemPatchApplier applier;
+    private final WorkRegistry registry;
+
+    /** A newly registered or rotated agent and its API token, which is shown once and never stored or logged. */
+    public record AgentWithToken( Agent agent, String token ) {
+        @Override
+        public String toString() {
+            return "AgentWithToken[agent=" + agent.name() + ", token=***]";
+        }
+    }
 
     public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
                         final Clock clock ) {
@@ -91,9 +96,29 @@ public class WorkService {
      */
     public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
                         final Clock clock, final Consumer< Action > denialListener ) {
+        this( store, renderer, directory, AgentKeys.NONE, clock, WorkSettings.DEFAULTS, new WorkListener() {
+            @Override
+            public void denied( final Action a ) {
+                if ( denialListener != null ) {
+                    denialListener.accept( a );
+                }
+            }
+        } );
+    }
+
+    /**
+     * @param keys     mints and revokes the API keys agents authenticate with
+     * @param settings claim tunables (used by the claim methods)
+     * @param listener observer of denials and claim outcomes; null means none
+     */
+    public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
+                        final AgentKeys keys, final Clock clock, final WorkSettings settings,
+                        final WorkListener listener ) {
+        final WorkListener observer = listener == null ? new WorkListener() { } : listener;
         this.store = store;
-        this.scopes = new WorkScopes( store, directory, denialListener );
+        this.scopes = new WorkScopes( store, directory, observer::denied );
         this.people = new WorkPeople( directory );
+        this.registry = new WorkRegistry( store, scopes, people, keys, clock );
         this.views = new ItemViews( store, renderer, people );
         this.clock = clock;
         this.applier = new ItemPatchApplier( store, scopes::isMember );
@@ -110,7 +135,7 @@ public class WorkService {
         final List< ProjectRole > out = new ArrayList<>();
         for ( final Project p : store.visibleProjects( actor ) ) {
             final WorkRole role = store.roleFor( p.id(), actor ).orElse( null );
-            if ( role != null || actor.admin() ) {
+            if ( role != null || actor.instanceAdmin() ) {
                 out.add( new ProjectRole( p, new Scope( actor, p, role, scopes::denied ).effectiveRole() ) );
             }
         }
@@ -167,20 +192,11 @@ public class WorkService {
         s.require( Action.MANAGE_PROJECT, null );
         s.requireWritable();
         WorkInputs.requireMember( principal, principalKind, role );
-        store.putMember( s.project().id(), memberPrincipal( actor, principal, principalKind ), principalKind, role,
-            actor );
-    }
-
-    /**
-     * The principal as stored: a group name as given; for a user, the login the reference names (a display name, or
-     * from a wiki admin a login). An unknown user is one message whether or not the text happens to be a login.
-     */
-    private String memberPrincipal( final Actor actor, final String principal, final String principalKind ) {
-        if ( !"user".equals( principalKind ) ) {
-            return principal.trim();
+        if ( "agent".equals( principalKind ) ) {
+            WorkInputs.requireAgentRole( role );
         }
-        return people.login( actor, principal )
-            .orElseThrow( () -> new WorkValidationException( "principal", NO_SUCH_USER ) );
+        store.putMember( s.project().id(), registry.memberPrincipal( actor, principal, principalKind, true ), principalKind,
+            role, actor );
     }
 
     public void removeMember( final Actor actor, final String key, final String principal,
@@ -189,8 +205,8 @@ public class WorkService {
         s.require( Action.MANAGE_PROJECT, null );
         s.requireWritable();
         WorkInputs.requireMemberRef( principal, principalKind );
-        store.removeMember( s.project().id(), memberPrincipal( actor, principal, principalKind ), principalKind,
-            actor );
+        store.removeMember( s.project().id(), registry.memberPrincipal( actor, principal, principalKind, false ),
+            principalKind, actor );
     }
 
     public WorkRole roleIn( final Actor actor, final String key ) throws SQLException {
@@ -206,7 +222,7 @@ public class WorkService {
      * and archived state only (and its id, which never leaves the server); everyone else sees nothing.
      */
     public List< Product > listProducts( final Actor actor ) throws SQLException {
-        if ( actor.admin() ) {
+        if ( actor.instanceAdmin() ) {
             return store.products();
         }
         if ( store.visibleProjects( actor ).isEmpty() ) {
@@ -239,6 +255,56 @@ public class WorkService {
         store.archiveProduct( existing.id(), clock.instant() );
     }
 
+    // ---- queues, agents and identity
+
+    /** Admin or anyone with a visible project; everyone else gets an empty list. */
+    public List< Queue > listQueues( final Actor actor ) throws SQLException {
+        return registry.listQueues( actor );
+    }
+
+    public Queue createQueue( final Actor actor, final String key, final String name, final String description )
+            throws SQLException {
+        return registry.createQueue( actor, key, name, description );
+    }
+
+    public void updateQueue( final Actor actor, final String key, final String name, final String description )
+            throws SQLException {
+        registry.updateQueue( actor, key, name, description );
+    }
+
+    public void retireQueue( final Actor actor, final String key ) throws SQLException {
+        registry.retireQueue( actor, key );
+    }
+
+    /** Admin: every agent with its key id; anyone with a visible project: every agent without it; else empty. */
+    public List< Agent > listAgents( final Actor actor ) throws SQLException {
+        return registry.listAgents( actor );
+    }
+
+    public AgentWithToken registerAgent( final Actor actor, final AgentDraft draft ) throws SQLException {
+        return registry.registerAgent( actor, draft );
+    }
+
+    public void updateAgent( final Actor actor, final long agentId, final AgentDraft draft ) throws SQLException {
+        registry.updateAgent( actor, agentId, draft );
+    }
+
+    public AgentWithToken rotateAgentKey( final Actor actor, final long agentId ) throws SQLException {
+        return registry.rotateAgentKey( actor, agentId );
+    }
+
+    public void retireAgent( final Actor actor, final long agentId ) throws SQLException {
+        registry.retireAgent( actor, agentId );
+    }
+
+    /**
+     * Who an API key stands for: the active agent it is bound to; null (no actor) when it is bound to a retired
+     * agent; otherwise its owner as a person, never admin.
+     */
+    public Actor actorForApiKey( final int apiKeyId, final String ownerLogin ) throws SQLException {
+        return registry.actorForApiKey( apiKeyId, ownerLogin );
+    }
+
     // ---- items
 
     public ItemView createItem( final Actor actor, final ItemDraft draft ) throws SQLException {
@@ -248,7 +314,7 @@ public class WorkService {
         final Item next = applier.forCreate( s.project(), draft.assignee() == null || draft.assignee().isBlank()
             ? draft : new ItemDraft( draft.projectKey(), draft.level(), draft.parentKey(), draft.productKey(),
                 draft.kind(), draft.title(), draft.body(), draft.priority(), draft.dueOn(),
-                assigneeLogin( actor, draft.assignee() ), draft.queue() ) );
+                people.assigneeLogin( actor, draft.assignee() ), draft.queue() ) );
         return views.view( s, store.createItem( s.project(), next, actor ) );
     }
 
@@ -271,48 +337,23 @@ public class WorkService {
             s.require( Action.SET_POLICY, is.item() );
         }
         s.requireWritable();
-        final Item next = applier.apply( s.project(), is.item(), withAssigneeLogin( actor, changes ), patch.note() );
+        final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
         return views.view( s, store.updateItem( stamped, next, actor, patch.note() ) );
-    }
-
-    /** The login an assignee reference names; one "not a member" answer when it names nobody. */
-    private String assigneeLogin( final Actor actor, final String reference ) {
-        return people.login( actor, reference )
-            .orElseThrow( () -> new WorkValidationException( "assignee", NOT_A_MEMBER ) );
-    }
-
-    /** The changes with a text {@code assignee} reference replaced by the login it names. */
-    private Map< String, Object > withAssigneeLogin( final Actor actor, final Map< String, Object > changes ) {
-        if ( !( changes.get( "assignee" ) instanceof String ref ) || ref.isBlank() ) {
-            return changes;
-        }
-        final Map< String, Object > out = new LinkedHashMap<>( changes );
-        out.put( "assignee", assigneeLogin( actor, ref ) );
-        return out;
-    }
-
-    /** The filter pinned to the project, its assignee reference resolved to a login (or to nobody). */
-    private ItemFilter pinned( final Actor actor, final Scope s, final ItemFilter filter ) {
-        final ItemFilter f = s.pin( filter );
-        if ( f.assignee() == null || f.assignee().isBlank() ) {
-            return f.with( f.projectId(), null );
-        }
-        return f.with( f.projectId(), people.login( actor, f.assignee() ).orElse( NOBODY ) );
     }
 
     public List< Item > items( final Actor actor, final String projectKey, final ItemFilter filter )
             throws SQLException {
         final Scope s = scopes.scope( actor, projectKey );
         s.require( Action.VIEW, null );
-        return store.items( pinned( actor, s, filter ) );
+        return store.items( views.pinned( actor, s, filter ) );
     }
 
     public List< BoardColumn > board( final Actor actor, final String projectKey, final ItemFilter filter )
             throws SQLException {
         final Scope s = scopes.scope( actor, projectKey );
         s.require( Action.VIEW, null );
-        return store.board( s.project().id(), pinned( actor, s, filter ) );
+        return store.board( s.project().id(), views.pinned( actor, s, filter ) );
     }
 
     /** {@link #items} with card extras, computed for the whole result in one batch. */
@@ -320,7 +361,7 @@ public class WorkService {
             throws SQLException {
         final Scope s = scopes.scope( actor, projectKey );
         s.require( Action.VIEW, null );
-        return views.summarise( s.project().id(), store.items( pinned( actor, s, filter ) ) );
+        return views.summarise( s.project().id(), store.items( views.pinned( actor, s, filter ) ) );
     }
 
     /** {@link #board} with card extras, computed for every column's items in one batch. */
@@ -328,7 +369,7 @@ public class WorkService {
             throws SQLException {
         final Scope s = scopes.scope( actor, projectKey );
         s.require( Action.VIEW, null );
-        return views.summaryColumns( s.project().id(), store.board( s.project().id(), pinned( actor, s, filter ) ) );
+        return views.summaryColumns( s.project().id(), store.board( s.project().id(), views.pinned( actor, s, filter ) ) );
     }
 
     public List< ItemRevision > revisions( final Actor actor, final String key ) throws SQLException {
@@ -414,21 +455,8 @@ public class WorkService {
         is.scope().require( Action.LINK, is.item() );
         is.scope().requireWritable();
         final String stored = WorkInputs.linkTarget( kind, target );
-        return store.addLink( is.item(), kind, "blocked_by".equals( kind ) ? sameProjectBlocker( is, stored ) : stored,
+        return store.addLink( is.item(), kind, "blocked_by".equals( kind ) ? applier.sameProjectBlocker( is, stored ) : stored,
             actor );
-    }
-
-    /**
-     * A blocker must be another item of the same project. Malformed, unknown, foreign-project and self targets
-     * all get the one message, so nothing about other projects can be probed through a link.
-     */
-    private String sameProjectBlocker( final ItemScope is, final String target ) throws SQLException {
-        final String canonical = target.toUpperCase( java.util.Locale.ROOT );
-        final Item blocker = ITEM_KEY.matcher( canonical ).matches() ? store.item( canonical ).orElse( null ) : null;
-        if ( blocker == null || blocker.projectId() != is.item().projectId() || blocker.id() == is.item().id() ) {
-            throw new WorkValidationException( "target", "A blocker must be another item in this project." );
-        }
-        return blocker.key().toUpperCase( java.util.Locale.ROOT );
     }
 
     public void removeLink( final Actor actor, final long linkId ) throws SQLException {

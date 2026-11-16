@@ -315,7 +315,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
 
     @Override
     public List< Project > visibleProjects( final Actor actor ) throws SQLException {
-        if ( actor.admin() ) {
+        if ( actor.instanceAdmin() ) {
             return projects();
         }
         final String[] groups = groupArray( actor );

@@ -98,15 +98,6 @@ class WorkPolicyTest {
         }
     }
 
-    @Test
-    void adminAgentBehavesLikeAdminForOtherActions() {
-        final Actor adminAgent = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 7L );
-        for ( final Action action : new Action[] { Action.VIEW, Action.CREATE_ITEM, Action.EDIT_ITEM, Action.MOVE,
-                Action.COMMENT, Action.LINK } ) {
-            assertTrue( WorkPolicy.may( adminAgent, null, action, null ).allowed(), action.name() );
-        }
-    }
-
     private static Item claimedBy( final Long agent ) {
         return new Item( 1, 1, "PLAT-1", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", WorkStatus.READY, 3,
             1.0, null, null, "alice", null, null, null, 1, null, null, null, null, agent, null, null, null );
@@ -156,5 +147,18 @@ class WorkPolicyTest {
         final Decision d = WorkPolicy.may( Actor.agent( 7, "bot@x" ), WorkRole.MEMBER, Action.EDIT_ITEM, claimedBy( 9L ) );
         assertFalse( d.reason().contains( "bot@x" ) );
         assertFalse( d.reason().contains( "alice" ) );
+    }
+
+    @Test
+    void agentWithAdminFlagGetsNothingBeyondItsRole() {
+        final Actor flagged = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 7L );
+        final Actor plain = Actor.agent( 7L, "bot" );
+        for ( final Action action : Action.values() ) {
+            assertFalse( WorkPolicy.may( flagged, null, action, null ).allowed(), "no role: " + action );
+            assertEquals( WorkPolicy.may( plain, WorkRole.MEMBER, action, null ).allowed(),
+                WorkPolicy.may( flagged, WorkRole.MEMBER, action, null ).allowed(), "member: " + action );
+        }
+        assertTrue( WorkPolicy.may( flagged, WorkRole.MEMBER, Action.CLAIM, null ).allowed() );
+        assertTrue( WorkPolicy.may( flagged, WorkRole.MEMBER, Action.COMMENT, null ).allowed() );
     }
 }

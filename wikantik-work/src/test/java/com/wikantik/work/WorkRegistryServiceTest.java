@@ -1,0 +1,368 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.work;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.sql.SQLException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/** The registry at the service: authorisation first, validation, key lifecycle ordering, identity. */
+class WorkRegistryServiceTest {
+
+    private static final Instant NOW = Instant.parse( "2026-11-16T12:00:00Z" );
+
+    /** Records what the service asked of the key service. */
+    private static final class FakeKeys implements AgentKeys {
+        final List< String > minted = new ArrayList<>();
+        final List< String > revoked = new ArrayList<>();
+        int next = 100;
+        RuntimeException revokeFails;
+
+        @Override
+        public Minted mint( final String ownerLogin, final String label ) {
+            minted.add( ownerLogin + "|" + label );
+            return new Minted( next++, "token-" + ( next - 1 ) );
+        }
+
+        @Override
+        public void revoke( final int keyId, final String revokedBy ) {
+            revoked.add( keyId + "|" + revokedBy );
+            if ( revokeFails != null ) {
+                throw revokeFails;
+            }
+        }
+    }
+
+    private final Actor admin = Actor.human( "admin", Set.of(), true );
+    private final Actor mallory = Actor.human( "mallory", Set.of(), false );
+    private WorkStore store;
+    private WorkClaimStore claims;
+    private FakeKeys keys;
+    private WorkService service;
+
+    private static Agent agent( final long id, final String name, final Integer key, final Instant retired ) {
+        return new Agent( id, name, "", "", key, List.of( "implementer" ), NOW, retired );
+    }
+
+    @BeforeEach
+    void setUp() throws SQLException {
+        store = mock( WorkStore.class );
+        claims = mock( WorkClaimStore.class );
+        when( store.claims() ).thenReturn( claims );
+        keys = new FakeKeys();
+        when( store.queue( "implementer" ) ).thenReturn( Optional.of( new Queue( "implementer", "I", "", null ) ) );
+        when( store.queue( "old" ) ).thenReturn( Optional.of( new Queue( "old", "O", "", NOW ) ) );
+        when( store.queue( "nope" ) ).thenReturn( Optional.empty() );
+        service = new WorkService( store, md -> md, new WorkDirectory() {
+            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
+            @Override public boolean exists( final String login ) { return "lena".equals( login )
+                || "admin".equals( login ); }
+            @Override public String displayName( final String login ) { return login; }
+        }, keys, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null );
+    }
+
+    private AgentDraft draft( final String name, final String owner, final String... queues ) {
+        return new AgentDraft( name, "openai", "codex", List.of( queues ), owner );
+    }
+
+    @Test
+    void nonAdminCannotManageQueuesOrAgents() {
+        final AgentDraft d = draft( "codex@docker2", "lena", "implementer" );
+        assertThrows( WorkDeniedException.class, () -> service.createQueue( mallory, "ops", "Ops", "" ) );
+        assertThrows( WorkDeniedException.class, () -> service.updateQueue( mallory, "ops", "Ops", "" ) );
+        assertThrows( WorkDeniedException.class, () -> service.retireQueue( mallory, "ops" ) );
+        assertThrows( WorkDeniedException.class, () -> service.registerAgent( mallory, d ) );
+        assertThrows( WorkDeniedException.class, () -> service.updateAgent( mallory, 1, d ) );
+        assertThrows( WorkDeniedException.class, () -> service.rotateAgentKey( mallory, 1 ) );
+        assertThrows( WorkDeniedException.class, () -> service.retireAgent( mallory, 1 ) );
+    }
+
+    @Test
+    void nonAdminGetsDenialNotNotFoundForUnknownAgent() throws SQLException {
+        when( store.agent( 999 ) ).thenReturn( Optional.empty() );
+        when( store.queue( "ghost" ) ).thenReturn( Optional.empty() );
+        assertThrows( WorkDeniedException.class, () -> service.updateAgent( mallory, 999,
+            draft( "x", "lena" ) ) );
+        assertThrows( WorkDeniedException.class, () -> service.rotateAgentKey( mallory, 999 ) );
+        assertThrows( WorkDeniedException.class, () -> service.retireAgent( mallory, 999 ) );
+        assertThrows( WorkDeniedException.class, () -> service.retireQueue( mallory, "ghost" ) );
+        assertThrows( WorkDeniedException.class, () -> service.updateQueue( mallory, "ghost", "G", "" ) );
+    }
+
+    @Test
+    void adminGetsNotFoundForUnknownAgentAndQueue() throws SQLException {
+        when( store.agent( 999 ) ).thenReturn( Optional.empty() );
+        assertThrows( WorkNotFoundException.class, () -> service.updateAgent( admin, 999, draft( "x", "lena" ) ) );
+        assertThrows( WorkNotFoundException.class, () -> service.rotateAgentKey( admin, 999 ) );
+        assertThrows( WorkNotFoundException.class, () -> service.retireAgent( admin, 999 ) );
+        assertThrows( WorkNotFoundException.class, () -> service.retireQueue( admin, "nope" ) );
+        assertThrows( WorkNotFoundException.class, () -> service.updateQueue( admin, "nope", "N", "" ) );
+        verify( store, never() ).updateAgent( org.mockito.ArgumentMatchers.anyLong(), anyString(), anyString(),
+            anyString(), anyList() );
+        verify( store, never() ).rebindAgentKey( org.mockito.ArgumentMatchers.anyLong(), anyInt() );
+        assertTrue( keys.minted.isEmpty() );
+    }
+
+    @Test
+    void agentActorCannotManage() {
+        final Actor bot = Actor.agent( 5, "bot" );
+        final Actor flagged = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 5L );
+        for ( final Actor a : List.of( bot, flagged ) ) {
+            assertThrows( WorkDeniedException.class, () -> service.createQueue( a, "ops", "Ops", "" ) );
+            assertThrows( WorkDeniedException.class, () -> service.registerAgent( a, draft( "x", "lena" ) ) );
+            assertThrows( WorkDeniedException.class, () -> service.retireAgent( a, 1 ) );
+        }
+    }
+
+    @Test
+    void registerMintsThenStores() throws SQLException {
+        when( store.registerAgent( eq( "codex@docker2" ), eq( "openai" ), eq( "codex" ), eq( 100 ),
+            eq( List.of( "implementer" ) ) ) ).thenReturn( agent( 7, "codex@docker2", 100, null ) );
+        final WorkService.AgentWithToken r = service.registerAgent( admin,
+            draft( "Codex@Docker2", "lena", "implementer" ) );
+        assertEquals( List.of( "lena|work-agent:codex@docker2" ), keys.minted );
+        assertEquals( "token-100", r.token() );
+        assertEquals( 7, r.agent().id() );
+        assertTrue( keys.revoked.isEmpty() );
+        assertFalse( r.toString().contains( "token-100" ), "the token must not reach a log line via toString" );
+    }
+
+    @Test
+    void registerRevokesKeyWhenStoreFails() throws SQLException {
+        final SQLException boom = new SQLException( "boom", "XX000" );
+        when( store.registerAgent( anyString(), anyString(), anyString(), anyInt(), anyList() ) ).thenThrow( boom );
+        final SQLException thrown = assertThrows( SQLException.class,
+            () -> service.registerAgent( admin, draft( "codex@docker2", "lena", "implementer" ) ) );
+        assertSame( boom, thrown );
+        assertEquals( List.of( "100|admin" ), keys.revoked );
+    }
+
+    @Test
+    void registerRevokesKeyAndReportsConflictOnUniqueViolation() throws SQLException {
+        when( store.registerAgent( anyString(), anyString(), anyString(), anyInt(), anyList() ) )
+            .thenThrow( new SQLException( "dup", "23505" ) );
+        final WorkConflictException e = assertThrows( WorkConflictException.class,
+            () -> service.registerAgent( admin, draft( "codex", "lena", "implementer" ) ) );
+        assertEquals( WorkConflictException.EXISTS, e.reason() );
+        assertEquals( List.of( "100|admin" ), keys.revoked );
+    }
+
+    @Test
+    void registerRejectsDuplicateNameBeforeMinting() throws SQLException {
+        when( store.agentByName( "codex" ) ).thenReturn( Optional.of( agent( 1, "codex", 3, null ) ) );
+        final WorkConflictException e = assertThrows( WorkConflictException.class,
+            () -> service.registerAgent( admin, draft( "CODEX", "lena" ) ) );
+        assertEquals( WorkConflictException.EXISTS, e.reason() );
+        assertTrue( keys.minted.isEmpty() );
+    }
+
+    @Test
+    void registerValidatesBeforeMinting() {
+        assertThrows( WorkValidationException.class, () -> service.registerAgent( admin, draft( "bad name!", "lena" ) ) );
+        assertThrows( WorkValidationException.class, () -> service.registerAgent( admin, draft( null, "lena" ) ) );
+        assertTrue( keys.minted.isEmpty() );
+    }
+
+    @Test
+    void retiredQueueRefusedForAgent() {
+        final WorkValidationException e = assertThrows( WorkValidationException.class,
+            () -> service.registerAgent( admin, draft( "codex", "lena", "old" ) ) );
+        assertEquals( "queues", e.field() );
+        assertThrows( WorkValidationException.class,
+            () -> service.registerAgent( admin, draft( "codex", "lena", "nope" ) ) );
+        assertTrue( keys.minted.isEmpty() );
+    }
+
+    @Test
+    void unknownOwnerRejected() {
+        final WorkValidationException e = assertThrows( WorkValidationException.class,
+            () -> service.registerAgent( admin, draft( "codex", "nobody", "implementer" ) ) );
+        assertEquals( "owner", e.field() );
+        assertTrue( keys.minted.isEmpty() );
+    }
+
+    @Test
+    void ownerDefaultsToTheCaller() throws SQLException {
+        when( store.registerAgent( anyString(), anyString(), anyString(), anyInt(), anyList() ) )
+            .thenReturn( agent( 7, "codex", 100, null ) );
+        service.registerAgent( admin, draft( "codex", null, "implementer" ) );
+        assertEquals( List.of( "admin|work-agent:codex" ), keys.minted );
+    }
+
+    @Test
+    void updateAgentRefusesRenameOntoAnotherAgent() throws SQLException {
+        when( store.agent( 1 ) ).thenReturn( Optional.of( agent( 1, "codex", 3, null ) ) );
+        when( store.agentByName( "other" ) ).thenReturn( Optional.of( agent( 2, "other", 4, null ) ) );
+        assertEquals( WorkConflictException.EXISTS, assertThrows( WorkConflictException.class,
+            () -> service.updateAgent( admin, 1, draft( "Other", "ignored" ) ) ).reason() );
+        verify( store, never() ).updateAgent( org.mockito.ArgumentMatchers.anyLong(), anyString(), anyString(),
+            anyString(), anyList() );
+    }
+
+    @Test
+    void updateAgentTurnsUniqueViolationIntoConflict() throws SQLException {
+        when( store.agent( 1 ) ).thenReturn( Optional.of( agent( 1, "codex", 3, null ) ) );
+        doThrow( new SQLException( "dup", "23505" ) ).when( store ).updateAgent( eq( 1L ), anyString(), anyString(),
+            anyString(), anyList() );
+        assertThrows( WorkConflictException.class, () -> service.updateAgent( admin, 1, draft( "fresh", null ) ) );
+    }
+
+    @Test
+    void updateAgentStoresNormalisedName() throws SQLException {
+        when( store.agent( 1 ) ).thenReturn( Optional.of( agent( 1, "codex", 3, null ) ) );
+        service.updateAgent( admin, 1, draft( " Codex ", "ignored", "implementer" ) );
+        verify( store ).updateAgent( 1L, "codex", "openai", "codex", List.of( "implementer" ) );
+    }
+
+    @Test
+    void createQueueConflictsOnExistingKeyAndOnUniqueViolation() throws SQLException {
+        assertEquals( WorkConflictException.EXISTS, assertThrows( WorkConflictException.class,
+            () -> service.createQueue( admin, "implementer", "Again", "" ) ).reason() );
+        when( store.createQueue( "fresh", "Fresh", "" ) ).thenThrow( new SQLException( "dup", "23505" ) );
+        assertThrows( WorkConflictException.class, () -> service.createQueue( admin, "fresh", "Fresh", null ) );
+        assertThrows( WorkValidationException.class, () -> service.createQueue( admin, "Bad Key", "X", "" ) );
+    }
+
+    @Test
+    void queueWritesGoThrough() throws SQLException {
+        service.updateQueue( admin, "implementer", " Impl ", null );
+        verify( store ).updateQueue( "implementer", "Impl", "" );
+        service.retireQueue( admin, "implementer" );
+        verify( store ).retireQueue( "implementer", NOW );
+    }
+
+    @Test
+    void rotateRevokesOldAfterRebind() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        final WorkService.AgentWithToken r = service.rotateAgentKey( admin, 7 );
+        assertEquals( 100, r.agent().apiKeyId() );
+        assertEquals( "token-100", r.token() );
+        assertEquals( List.of( "55|admin" ), keys.revoked );
+        inOrder( store ).verify( store ).rebindAgentKey( 7L, 100 );
+    }
+
+    @Test
+    void rotateRevokesNewWhenRebindFails() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        final SQLException boom = new SQLException( "boom" );
+        doThrow( boom ).when( store ).rebindAgentKey( 7L, 100 );
+        assertSame( boom, assertThrows( SQLException.class, () -> service.rotateAgentKey( admin, 7 ) ) );
+        assertEquals( List.of( "100|admin" ), keys.revoked, "only the new key is revoked; the old stays bound" );
+    }
+
+    @Test
+    void rotateOfRetiredAgentIsNotFound() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, NOW ) ) );
+        assertThrows( WorkNotFoundException.class, () -> service.rotateAgentKey( admin, 7 ) );
+        assertTrue( keys.minted.isEmpty() );
+    }
+
+    @Test
+    void retireRevokesKey() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        service.retireAgent( admin, 7 );
+        verify( claims ).retireAgent( 7L, NOW, admin );
+        assertEquals( List.of( "55|admin" ), keys.revoked );
+    }
+
+    @Test
+    void retireSurvivesARevokeFailure() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        keys.revokeFails = new IllegalStateException( "key service down" );
+        service.retireAgent( admin, 7 );
+        verify( claims ).retireAgent( 7L, NOW, admin );
+    }
+
+    @Test
+    void retireOfRetiredAgentChangesNothing() throws SQLException {
+        when( store.agent( 7 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, NOW ) ) );
+        service.retireAgent( admin, 7 );
+        verify( claims, never() ).retireAgent( org.mockito.ArgumentMatchers.anyLong(), any(), any() );
+        assertTrue( keys.revoked.isEmpty() );
+    }
+
+    @Test
+    void nonAdminSeesAgentsWithoutKeyIds() throws SQLException {
+        when( store.agents() ).thenReturn( List.of( agent( 7, "codex", 55, null ) ) );
+        when( store.visibleProjects( mallory ) ).thenReturn( List.of() );
+        assertTrue( service.listAgents( mallory ).isEmpty() );
+        assertTrue( service.listQueues( mallory ).isEmpty() );
+        final Actor lena = Actor.human( "lena", Set.of(), false );
+        when( store.visibleProjects( lena ) ).thenReturn( List.of( new Project( 1, "PLAT", "P", "", Autonomy.DELEGATED, NOW, null ) ) );
+        final List< Agent > seen = service.listAgents( lena );
+        assertEquals( 1, seen.size() );
+        assertNull( seen.get( 0 ).apiKeyId() );
+        assertEquals( "codex", seen.get( 0 ).name() );
+        assertEquals( 55, service.listAgents( admin ).get( 0 ).apiKeyId() );
+    }
+
+    @Test
+    void actorForApiKeyDerivesKindFromTheBinding() throws SQLException {
+        when( store.agentByApiKey( 55 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        when( store.agentByApiKey( 56 ) ).thenReturn( Optional.of( agent( 8, "gone", 56, NOW ) ) );
+        when( store.agentByApiKey( 57 ) ).thenReturn( Optional.empty() );
+        assertEquals( Actor.agent( 7, "codex" ), service.actorForApiKey( 55, "lena" ) );
+        assertNull( service.actorForApiKey( 56, "lena" ) );
+        assertEquals( Actor.human( "lena", Set.of(), false ), service.actorForApiKey( 57, "lena" ) );
+    }
+
+    @Test
+    void agentMembersResolveByNameAndRefuseLead() throws SQLException {
+        final Project plat = new Project( 1, "PLAT", "P", "", Autonomy.DELEGATED, NOW, null );
+        when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
+        when( store.agentByName( "codex" ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
+        when( store.agentByName( "gone" ) ).thenReturn( Optional.of( agent( 8, "gone", 56, NOW ) ) );
+        service.putMember( admin, "PLAT", "Codex", "agent", WorkRole.MEMBER );
+        verify( store ).putMember( 1L, "7", "agent", WorkRole.MEMBER, admin );
+        assertEquals( "principal", assertThrows( WorkValidationException.class,
+            () -> service.putMember( admin, "PLAT", "gone", "agent", WorkRole.MEMBER ) ).field() );
+        assertThrows( WorkValidationException.class,
+            () -> service.putMember( admin, "PLAT", "ghost", "agent", WorkRole.MEMBER ) );
+        assertEquals( "role", assertThrows( WorkValidationException.class,
+            () -> service.putMember( admin, "PLAT", "codex", "agent", WorkRole.LEAD ) ).field() );
+        service.removeMember( admin, "PLAT", "gone", "agent" );
+        verify( store ).removeMember( 1L, "8", "agent", admin );
+    }
+}

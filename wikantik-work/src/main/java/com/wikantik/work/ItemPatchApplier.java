@@ -55,6 +55,22 @@ final class ItemPatchApplier {
         this.members = members;
     }
 
+    private static final java.util.regex.Pattern ITEM_KEY =
+        java.util.regex.Pattern.compile( "^([A-Za-z][A-Za-z0-9]{1,9})-(\\d{1,9})$" );
+
+    /**
+     * A blocker must be another item of the same project. Malformed, unknown, foreign-project and self targets
+     * all get the one message, so nothing about other projects can be probed through a link.
+     */
+    String sameProjectBlocker( final WorkScopes.ItemScope is, final String target ) throws SQLException {
+        final String canonical = target.toUpperCase( java.util.Locale.ROOT );
+        final Item blocker = ITEM_KEY.matcher( canonical ).matches() ? store.item( canonical ).orElse( null ) : null;
+        if ( blocker == null || blocker.projectId() != is.item().projectId() || blocker.id() == is.item().id() ) {
+            throw new WorkValidationException( "target", "A blocker must be another item in this project." );
+        }
+        return blocker.key().toUpperCase( java.util.Locale.ROOT );
+    }
+
     /** Builds and validates the item a draft describes; status starts as draft. */
     Item forCreate( final Project project, final ItemDraft d ) throws SQLException {
         if ( d.level() == null ) {

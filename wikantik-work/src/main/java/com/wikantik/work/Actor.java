@@ -31,6 +31,11 @@ public record Actor( String login, Set<String> groups, boolean admin, Kind kind,
         return new Actor( name, Set.of(), false, Kind.AGENT, agentId );
     }
 
+    /** Whether the actor is a person with the wiki-admin flag; an agent is never an instance admin, whatever its flag. */
+    public boolean instanceAdmin() {
+        return admin && kind == Kind.HUMAN;
+    }
+
     /** A human actor. */
     public static Actor human( final String login, final Set<String> groups, final boolean admin ) {
         return new Actor( login, groups, admin, Kind.HUMAN, null );

@@ -41,6 +41,7 @@ import java.util.regex.Pattern;
 final class WorkPeople {
 
     static final int MAX_MENTIONS = 50;
+    private static final String NOT_A_MEMBER = "The assignee is not a member of this project.";
 
     /** Same shape as the page comments' token (wikantik-main {@code MentionExtractor.TOKEN}). */
     private static final Pattern TOKEN = Pattern.compile( "@\\[([^\\]\\n]{1,64})\\]\\(user:([A-Za-z0-9-]{1,64})\\)" );
@@ -64,6 +65,22 @@ final class WorkPeople {
         this.directory = directory;
     }
 
+    /** The login an assignee reference names; one "not a member" answer when it names nobody. */
+    String assigneeLogin( final Actor actor, final String reference ) {
+        return login( actor, reference )
+            .orElseThrow( () -> new WorkValidationException( "assignee", NOT_A_MEMBER ) );
+    }
+
+    /** The changes with a text {@code assignee} reference replaced by the login it names. */
+    Map< String, Object > withAssigneeLogin( final Actor actor, final Map< String, Object > changes ) {
+        if ( !( changes.get( "assignee" ) instanceof String ref ) || ref.isBlank() ) {
+            return changes;
+        }
+        final Map< String, Object > out = new LinkedHashMap<>( changes );
+        out.put( "assignee", assigneeLogin( actor, ref ) );
+        return out;
+    }
+
     /**
      * The login a person reference names: a display name, for anyone; a login, for a wiki admin only (anyone else
      * could otherwise probe which logins exist). Empty when it names nobody.
@@ -77,7 +94,7 @@ final class WorkPeople {
         if ( byName.isPresent() ) {
             return byName;
         }
-        return actor.admin() && directory.exists( ref ) ? Optional.of( ref ) : Optional.empty();
+        return actor.instanceAdmin() && directory.exists( ref ) ? Optional.of( ref ) : Optional.empty();
     }
 
     /** The body as it is to be stored, and who it mentions; see the class comment. */

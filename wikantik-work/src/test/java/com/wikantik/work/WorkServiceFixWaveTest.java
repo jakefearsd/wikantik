@@ -129,13 +129,6 @@ class WorkServiceFixWaveTest {
     }
 
     @Test
-    void anAgentPrincipalKindIsNoLongerRejectedByInputRules() {
-        // R21 lifted: the registry check is the service's job (a later task), not WorkInputs'.
-        org.junit.jupiter.api.Assertions.assertDoesNotThrow( () -> WorkInputs.requireMember( "9", "agent",
-            WorkRole.MEMBER ) );
-    }
-
-    @Test
     void theAssigneeIsADisplayNameAndALoginFromAMemberIsNotAMember() throws SQLException {
         service.updateItem( lead, "PLAT-3", new ItemPatch( 4, Map.of( "assignee", "Ana Lima" ), null ) );
         final ArgumentCaptor< Item > next = ArgumentCaptor.forClass( Item.class );

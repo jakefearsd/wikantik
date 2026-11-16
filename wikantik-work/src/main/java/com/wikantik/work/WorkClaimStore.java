@@ -63,6 +63,9 @@ public interface WorkClaimStore {
     /** Items holding a claim, instance-wide. */
     long activeClaimCount() throws SQLException;
 
-    /** Sets {@code retired_at} and releases every claim the agent holds (note {@code agent retired}), atomically. */
-    void retireAgent( long agentId, Instant at, Actor by ) throws SQLException;
+    /** Sets {@code retired_at} and releases every claim the agent holds (note {@code agent retired}), atomically.
+     *
+     * @return how many claims that released; retiring an already-retired agent releases none
+     */
+    int retireAgent( long agentId, Instant at, Actor by ) throws SQLException;
 }

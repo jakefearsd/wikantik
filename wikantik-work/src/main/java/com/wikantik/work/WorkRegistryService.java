@@ -47,11 +47,13 @@ public final class WorkRegistryService {
     private final WorkScopes scopes;
     private final WorkPeople people;
     private final AgentKeys keys;
+    private final GuardedListener listener;
     private final Clock clock;
 
     WorkRegistryService( final WorkStore store, final WorkScopes scopes, final WorkPeople people, final AgentKeys keys,
-                  final Clock clock ) {
+                  final Clock clock, final GuardedListener listener ) {
         this.store = store;
+        this.listener = listener;
         this.scopes = scopes;
         this.people = people;
         this.keys = keys;
@@ -187,7 +189,7 @@ public final class WorkRegistryService {
         final Agent existing = store.agent( agentId )
             .orElseThrow( () -> new WorkNotFoundException( "No such agent: " + agentId ) );
         if ( existing.active() ) {
-            store.claims().retireAgent( agentId, clock.instant(), actor );
+            listener.released( store.claims().retireAgent( agentId, clock.instant(), actor ) );
         }
         if ( existing.apiKeyId() != null ) {
             revokeQuietly( existing.apiKeyId(), actor );

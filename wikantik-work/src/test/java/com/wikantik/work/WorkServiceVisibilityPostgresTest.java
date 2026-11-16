@@ -229,33 +229,33 @@ class WorkServiceVisibilityPostgresTest {
             }
             int provedAgainstRealData = 0;
             for ( final Actor proving : List.of( lena, codexActor ) ) {
-            for ( final Object[] asLead : argumentSets( m, proving ) ) {
-                final Object seen;
-                try {
-                    seen = invoke( m, op.target(), asLead );
-                } catch ( final WorkNotFoundException e ) {
-                    continue;  // this fixture combination does not address the project; try the next
-                }
-                if ( seen == null || isEmptyResult( seen ) ) {
-                    continue;
-                }
-                provedAgainstRealData++;
-                for ( final Actor stranger : strangers() ) {
-                    final Object[] asStranger = asLead.clone();
-                    for ( int i = 0; i < asStranger.length; i++ ) {
-                        if ( asStranger[ i ] instanceof Actor ) {
-                            asStranger[ i ] = stranger;
+                for ( final Object[] asLead : argumentSets( m, proving ) ) {
+                    final Object seen;
+                    try {
+                        seen = invoke( m, op.target(), asLead );
+                    } catch ( final WorkNotFoundException e ) {
+                        continue;  // this fixture combination does not address the project; try the next
+                    }
+                    if ( seen == null || isEmptyResult( seen ) ) {
+                        continue;
+                    }
+                    provedAgainstRealData++;
+                    for ( final Actor stranger : strangers() ) {
+                        final Object[] asStranger = asLead.clone();
+                        for ( int i = 0; i < asStranger.length; i++ ) {
+                            if ( asStranger[ i ] instanceof Actor ) {
+                                asStranger[ i ] = stranger;
+                            }
+                        }
+                        try {
+                            final Object result = invoke( m, op.target(), asStranger );
+                            assertTrue( isEmptyResult( result ), m.getName() + " leaked to " + stranger.login() + ": "
+                                + result );
+                        } catch ( final WorkNotFoundException expected ) {
+                            // the required outcome
                         }
                     }
-                    try {
-                        final Object result = invoke( m, op.target(), asStranger );
-                        assertTrue( isEmptyResult( result ), m.getName() + " leaked to " + stranger.login() + ": "
-                            + result );
-                    } catch ( final WorkNotFoundException expected ) {
-                        // the required outcome
-                    }
                 }
-            }
             }
             assertTrue( provedAgainstRealData > 0,
                 m.getName() + " never returned real data to the project lead, so it proved nothing" );

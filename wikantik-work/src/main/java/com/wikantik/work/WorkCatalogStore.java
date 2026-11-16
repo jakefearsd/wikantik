@@ -50,11 +50,19 @@ public interface WorkCatalogStore {
     /**
      * Adds the member or changes the role of an existing one, with a {@code member} event whose values are
      * {@code kind:principal:role} (from null on add), in one transaction. The same role again writes nothing.
+     * Demoting an agent to viewer releases its claims in the project in the same transaction.
+     *
+     * @return how many claims that released (0 unless an agent was demoted)
      */
-    void putMember( long projectId, String principal, String principalKind, WorkRole role, Actor by ) throws SQLException;
+    int putMember( long projectId, String principal, String principalKind, WorkRole role, Actor by ) throws SQLException;
 
-    /** Deletes the grant with a {@code member} event (to null), in one transaction; no grant, nothing written. */
-    void removeMember( long projectId, String principal, String principalKind, Actor by )
+    /**
+     * Deletes the grant with a {@code member} event (to null), in one transaction; no grant, nothing written. An
+     * agent's claims in the project are released in the same transaction.
+     *
+     * @return how many claims that released
+     */
+    int removeMember( long projectId, String principal, String principalKind, Actor by )
         throws SQLException;
 
     List< Member > members( long projectId ) throws SQLException;

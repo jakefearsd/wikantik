@@ -79,6 +79,7 @@ public class WorkService {
     private final ItemPatchApplier applier;
     private final WorkRegistryService registry;
     private final WorkClaimsService claims;
+    private final GuardedListener listener;
 
     /** A newly registered or rotated agent and its API token, which is shown once and never stored or logged. */
     public record AgentWithToken( Agent agent, String token ) {
@@ -117,15 +118,16 @@ public class WorkService {
     public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
                         final AgentKeys keys, final Clock clock, final WorkSettings settings,
                         final WorkListener listener ) {
-        final WorkListener observer = listener == null ? new WorkListener() { } : listener;
+        final GuardedListener observer = new GuardedListener( listener );
         this.store = store;
         this.scopes = new WorkScopes( store, directory, observer::denied );
         this.people = new WorkPeople( directory );
         this.applier = new ItemPatchApplier( store, scopes::isMember );
-        this.registry = new WorkRegistryService( store, scopes, people, keys, clock );
+        this.registry = new WorkRegistryService( store, scopes, people, keys, clock, observer );
         this.views = new ItemViews( store, renderer, people );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
+        this.listener = observer;
     }
 
     // ---- projects
@@ -199,8 +201,8 @@ public class WorkService {
         if ( "agent".equals( principalKind ) ) {
             WorkInputs.requireAgentRole( role );
         }
-        store.putMember( s.project().id(), registry.memberPrincipal( actor, principal, principalKind, true ), principalKind,
-            role, actor );
+        listener.released( store.putMember( s.project().id(),
+            registry.memberPrincipal( actor, principal, principalKind, true ), principalKind, role, actor ) );
     }
 
     public void removeMember( final Actor actor, final String key, final String principal,
@@ -209,8 +211,8 @@ public class WorkService {
         s.require( Action.MANAGE_PROJECT, null );
         s.requireWritable();
         WorkInputs.requireMemberRef( principal, principalKind );
-        store.removeMember( s.project().id(), registry.memberPrincipal( actor, principal, principalKind, false ),
-            principalKind, actor );
+        listener.released( store.removeMember( s.project().id(),
+            registry.memberPrincipal( actor, principal, principalKind, false ), principalKind, actor ) );
     }
 
     public WorkRole roleIn( final Actor actor, final String key ) throws SQLException {
@@ -305,7 +307,9 @@ public class WorkService {
         s.requireWritable();
         final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
-        return views.view( s, store.updateItem( stamped, next, actor, patch.note() ) );
+        final Item saved = store.updateItem( stamped, next, actor, patch.note() );
+        claims.reportEnded( is.item(), saved );
+        return views.view( s, saved );
     }
 
     public List< Item > items( final Actor actor, final String projectKey, final ItemFilter filter )

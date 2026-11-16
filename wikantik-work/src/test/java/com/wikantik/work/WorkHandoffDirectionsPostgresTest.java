@@ -196,6 +196,25 @@ class WorkHandoffDirectionsPostgresTest {
     }
 
     @Test
+    void personHandsOffAnItemAnAgentHolds() throws SQLException {
+        final String key = create( null );
+        svc.claims().handoff( lena, key, new Handoff( svc.item( lena, key ).item().version(), WorkStatus.READY, null,
+            "implementer", "go" ) );
+        final Item held = svc.claims().claim( a, key ).view().item();
+        final WorkService.ItemView moved = svc.claims().handoff( lena, key,
+            new Handoff( held.version(), WorkStatus.REVIEW, "Mo Member", null, "take over" ) );
+        assertNull( moved.item().claimedByAgent() );
+        final List< String > log = log( key );
+        assertEquals( "handoff HUMAN in_progress|queue:implementer -> review|mo [take over]", log.get( 3 ) );
+        assertEquals( "released HUMAN agent:" + a.agentId() + " -> review [reassigned]", log.get( 4 ) );
+        assertEquals( 5, log.size() );
+        assertEquals( WorkConflictException.STALE, assertThrows( WorkConflictException.class, () -> svc.updateItem( a,
+            key, new ItemPatch( held.version(), Map.of( "title", "late" ), null ) ) ).reason() );
+        assertEquals( WorkConflictException.NOT_CLAIMED, assertThrows( WorkConflictException.class,
+            () -> svc.claims().release( a, key, "done" ) ).reason() );
+    }
+
+    @Test
     void staleAgentWriteAfterHumanMoveIsRefused() throws SQLException {
         final String key = create( null );
         svc.claims().handoff( lena, key, new Handoff( svc.item( lena, key ).item().version(), WorkStatus.READY, null,

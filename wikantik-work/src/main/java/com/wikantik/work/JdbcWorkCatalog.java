@@ -182,16 +182,16 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
      * one), in one transaction. Putting the role the member already holds changes nothing and writes nothing.
      */
     @Override
-    public void putMember( final long projectId, final String principal, final String principalKind,
+    public int putMember( final long projectId, final String principal, final String principalKind,
                            final WorkRole role, final Actor by ) throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
-        jdbc.inTransaction( conn -> {
+        return jdbc.inTransaction( conn -> {
             final WorkRole before = jdbc.queryOne( conn, "SELECT role FROM work_member WHERE project_id = ? "
                     + "AND principal_kind = ? AND principal = ? FOR UPDATE",
                 ps -> { ps.setLong( 1, projectId ); ps.setString( 2, principalKind ); ps.setString( 3, principal ); },
                 rs -> WorkRole.fromWire( rs.getString( 1 ) ) ).orElse( null );
             if ( before == role ) {
-                return null;
+                return 0;
             }
             jdbc.update( conn, """
                 INSERT INTO work_member (project_id, principal_kind, principal, role) VALUES (?,?,?,?)
@@ -206,10 +206,8 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
             appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
                 before == null ? null : memberValue( principalKind, principal, before ),
                 memberValue( principalKind, principal, role ), null ) );
-            if ( role == WorkRole.VIEWER && "agent".equals( principalKind ) ) {
-                claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED );
-            }
-            return null;
+            return role == WorkRole.VIEWER && "agent".equals( principalKind )
+                ? claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED ) : 0;
         } );
     }
 
@@ -218,10 +216,10 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
      * in one transaction. Removing someone who is not a member writes nothing.
      */
     @Override
-    public void removeMember( final long projectId, final String principal, final String principalKind,
+    public int removeMember( final long projectId, final String principal, final String principalKind,
                               final Actor by ) throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
-        jdbc.inTransaction( conn -> {
+        return jdbc.inTransaction( conn -> {
             final Optional< WorkRole > removed = jdbc.queryOne( conn, "DELETE FROM work_member WHERE project_id = ? "
                     + "AND principal_kind = ? AND principal = ? RETURNING role",
                 ps -> { ps.setLong( 1, projectId ); ps.setString( 2, principalKind ); ps.setString( 3, principal ); },
@@ -230,10 +228,10 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
                 appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
                     memberValue( principalKind, principal, removed.get() ), null, null ) );
                 if ( "agent".equals( principalKind ) ) {
-                    claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED );
+                    return claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED );
                 }
             }
-            return null;
+            return 0;
         } );
     }
 

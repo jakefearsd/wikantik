@@ -65,10 +65,10 @@ public final class WorkClaimsService {
     private final ItemViews views;
     private final ItemPatchApplier applier;
     private final WorkSettings settings;
-    private final WorkListener listener;
+    private final GuardedListener listener;
 
     WorkClaimsService( final WorkStore store, final WorkScopes scopes, final WorkPeople people, final ItemViews views,
-                       final ItemPatchApplier applier, final WorkSettings settings, final WorkListener listener ) {
+                       final ItemPatchApplier applier, final WorkSettings settings, final GuardedListener listener ) {
         this.store = store;
         this.scopes = scopes;
         this.people = people;
@@ -88,6 +88,9 @@ public final class WorkClaimsService {
      */
     public List< ItemSummary > claimable( final Actor a, final String projectKey, final String queue,
                                           final int limit ) throws SQLException {
+        if ( a.kind() == Actor.Kind.AGENT && a.agentId() == null ) {
+            return List.of();
+        }
         final Set< Long > ids = claimableProjects( a, projectKey );
         if ( ids.isEmpty() ) {
             return List.of();
@@ -166,6 +169,9 @@ public final class WorkClaimsService {
     /** Why a claim was refused, from the item as it is now; never names a login. */
     private String refusal( final Actor a, final Item before ) throws SQLException {
         final Item now = store.item( before.key() ).orElse( before );
+        if ( now.claimedByAgent() != null && now.claimedByAgent().equals( a.agentId() ) ) {
+            return CANNOT_CLAIM;
+        }
         if ( now.claimedByAgent() != null && !now.claimedByAgent().equals( a.agentId() ) ) {
             final String holder = store.agent( now.claimedByAgent() ).map( Agent::name ).orElse( "another agent" );
             return "This item is claimed by " + holder + " until " + now.claimExpiresAt() + ".";
@@ -205,7 +211,8 @@ public final class WorkClaimsService {
 
     /**
      * Moves the item to a person or a queue, with a note, in one step: exactly one {@code handoff} event, and any
-     * claim on the item ends (its own {@code released} event). The target must differ from where the item is.
+     * claim on the item ends (its own {@code released} event). The target must differ from where the item is: to
+     * change only the status of an item (same person or queue), use {@code updateItem}, which records a status event.
      */
     public ItemView handoff( final Actor a, final String itemKey, final Handoff h ) throws SQLException {
         final ItemScope is = scopes.itemScope( a, itemKey );
@@ -233,8 +240,16 @@ public final class WorkClaimsService {
             throw new WorkValidationException( queue != null ? "queue" : "assignee",
                 "The item is already assigned there." );
         }
-        return views.view( s, store.handoff( WorkInputs.withVersion( is.item(), h.expectedVersion() ), next, a,
-            h.note() ) );
+        final Item saved = store.handoff( WorkInputs.withVersion( is.item(), h.expectedVersion() ), next, a, h.note() );
+        reportEnded( is.item(), saved );
+        return views.view( s, saved );
+    }
+
+    /** A change that took the claim off an item ends it: tell the listener once, after the store succeeded. */
+    void reportEnded( final Item before, final Item after ) {
+        if ( before.claimedByAgent() != null && after.claimedByAgent() == null ) {
+            listener.claim( ClaimOutcome.RELEASED );
+        }
     }
 
     private static void requireNote( final String note ) {

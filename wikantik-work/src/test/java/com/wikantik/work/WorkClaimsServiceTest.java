@@ -159,6 +159,22 @@ class WorkClaimsServiceTest {
         assertEquals( "This item cannot be claimed right now.", refusal( "PLAT-4" ) );
     }
 
+    @Test
+    void refusalWhenTheCallerIsTheHolderIsGeneric() throws SQLException {
+        when( claims.claim( any(), eq( codex ), any() ) ).thenReturn( Optional.empty() );
+        stored( item( "PLAT-1", WorkStatus.IN_PROGRESS, "implementer", 7L ) );
+        assertEquals( "This item cannot be claimed right now.", refusal( "PLAT-1" ) );
+    }
+
+    @Test
+    void claimableForAnAgentWithoutAnIdIsEmpty() throws SQLException {
+        final Actor nameless = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        roles( 1, "ghost", WorkRole.MEMBER );
+        when( store.visibleProjects( nameless ) ).thenReturn( List.of( plat ) );
+        assertTrue( service.claims().claimable( nameless, null, null, 10 ).isEmpty() );
+        verify( claims, never() ).claimable( any(), any(), any(), anyInt() );
+    }
+
     private String refusal( final String key ) {
         return assertThrows( WorkConflictException.class, () -> service.claims().claim( codex, key ) ).getMessage();
     }

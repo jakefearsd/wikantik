@@ -270,14 +270,13 @@ final class JdbcWorkClaims implements WorkClaimStore {
     }
 
     @Override
-    public void retireAgent( final long agentId, final Instant at, final Actor by ) throws SQLException {
+    public int retireAgent( final long agentId, final Instant at, final Actor by ) throws SQLException {
         JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
-        jdbc.inTransaction( conn -> {
+        return jdbc.inTransaction( conn -> {
             jdbc.update( conn, "UPDATE work_agent SET retired_at = ? WHERE id = ? AND retired_at IS NULL",
                 ps -> { ps.setTimestamp( 1, SqlValues.timestamp( at ) ); ps.setLong( 2, agentId ); } );
-            recordReleases( conn, end( conn, "w.claimed_by_agent = ?", "FOR NO KEY UPDATE OF w",
+            return recordReleases( conn, end( conn, "w.claimed_by_agent = ?", "FOR NO KEY UPDATE OF w",
                 ps -> ps.setLong( 1, agentId ) ), by, AGENT_RETIRED );
-            return null;
         } );
     }
 
@@ -285,15 +284,15 @@ final class JdbcWorkClaims implements WorkClaimStore {
      * Releases the agent's claims in one project on the caller's connection, inside the member transaction that
      * removed or demoted it. {@code agentPrincipal} is the text of an {@code agent} member row (the agent id).
      */
-    void releaseOnAccessLoss( final Connection conn, final long projectId, final String agentPrincipal,
-                              final Actor by, final String note ) throws SQLException {
+    int releaseOnAccessLoss( final Connection conn, final long projectId, final String agentPrincipal,
+                             final Actor by, final String note ) throws SQLException {
         if ( agentPrincipal == null || !AGENT_ID.matcher( agentPrincipal ).matches() ) {
             LOG.warn( "Skipped the claim release for an agent member row of project {}: principal '{}' is not an "
                 + "agent id", projectId, agentPrincipal );
-            return;
+            return 0;
         }
         final long agentId = Long.parseLong( agentPrincipal );
-        recordReleases( conn, end( conn, "w.claimed_by_agent = ? AND w.project_id = ?", "FOR NO KEY UPDATE OF w",
+        return recordReleases( conn, end( conn, "w.claimed_by_agent = ? AND w.project_id = ?", "FOR NO KEY UPDATE OF w",
             ps -> { ps.setLong( 1, agentId ); ps.setLong( 2, projectId ); } ), by, note );
     }
 
@@ -306,12 +305,13 @@ final class JdbcWorkClaims implements WorkClaimStore {
     }
 
     /** One {@code released} event per ended claim: the actor is who caused it, {@code from} names the holder. */
-    private void recordReleases( final Connection conn, final List< Ended > ended, final Actor by,
-                                 final String note ) throws SQLException {
+    private int recordReleases( final Connection conn, final List< Ended > ended, final Actor by,
+                                final String note ) throws SQLException {
         for ( final Ended e : ended ) {
             catalog.appendEvent( conn, event( e.projectId(), e.itemId(), by, WorkEvent.RELEASED,
                 "agent:" + e.agentId(), e.status(), note ) );
         }
+        return ended.size();
     }
 
     private Item itemById( final Connection conn, final long id ) throws SQLException {

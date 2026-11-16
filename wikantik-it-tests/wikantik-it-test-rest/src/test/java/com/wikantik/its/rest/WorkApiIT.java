@@ -236,7 +236,14 @@ public class WorkApiIT {
                 Map.of( "kind", "page", "target", "Main" ), 404 ),
             new Probe( "DELETE", "/api/work/links/" + linkId, "/api/work/links/" + ghostId, null, 404 ),
             new Probe( "GET", "/api/work/activity?project=PLAT", "/api/work/activity?project=GHOST", null, 404 ),
-            new Probe( "GET", "/api/work/log?project=PLAT", "/api/work/log?project=GHOST", null, 404 ) );
+            new Probe( "GET", "/api/work/log?project=PLAT", "/api/work/log?project=GHOST", null, 404 ),
+            // the claim routes, probed by a PERSON who is no member (WorkAgentApiIT probes them as agents)
+            new Probe( "GET", "/api/work/claimable?project=PLAT", "/api/work/claimable?project=GHOST", null, 404 ),
+            new Probe( "POST", "/api/work/items/PLAT-1/claim", "/api/work/items/GHOST-1/claim", null, 404 ),
+            new Probe( "POST", "/api/work/items/PLAT-1/release", "/api/work/items/GHOST-1/release",
+                Map.of( "note", "x" ), 404 ),
+            new Probe( "POST", "/api/work/items/PLAT-1/handoff", "/api/work/items/GHOST-1/handoff",
+                Map.of( "expectedVersion", 1, "status", "ready", "assignee", "Wapi Member", "note", "yours" ), 404 ) );
 
         for ( final Probe p : probes ) {
             final HttpResponse< String > real = outsider.send( p.method, p.real, p.body );

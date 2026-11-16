@@ -247,6 +247,54 @@ class WorkClaimRacePostgresTest {
         assertTrue( fx.events( review, WorkEvent.HANDOFF ).isEmpty() );
     }
 
+    // ---- two sweepers, one database
+
+    @Test
+    void twoServicesSweepingAtOnceExpireEachClaimOnceAndHearItOnce() throws Exception {
+        final List< Item > held = new ArrayList<>();
+        for ( int i = 0; i < 12; i++ ) {
+            final Item it = fx.store.claims().claim( fx.ready( "lapse " + i ), i % 2 == 0 ? fx.actorA : fx.actorB, HOUR )
+                .orElseThrow();
+            fx.expireNow( it );
+            held.add( it );
+        }
+        final java.util.concurrent.atomic.AtomicInteger heardA = new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.concurrent.atomic.AtomicInteger heardB = new java.util.concurrent.atomic.AtomicInteger();
+        final WorkService nodeA = node( heardA );
+        final WorkService nodeB = node( heardB );
+        final java.util.concurrent.CountDownLatch go = new java.util.concurrent.CountDownLatch( 1 );
+        final ExecutorService pool = Executors.newFixedThreadPool( 2 );
+        try {
+            final var a = pool.submit( () -> { go.await(); return nodeA.claims().sweepExpiredClaims(); } );
+            final var b = pool.submit( () -> { go.await(); return nodeB.claims().sweepExpiredClaims(); } );
+            go.countDown();
+            assertEquals( held.size(), a.get( 30, TimeUnit.SECONDS ) + b.get( 30, TimeUnit.SECONDS ) );
+        } finally {
+            pool.shutdownNow();
+        }
+        assertEquals( held.size(), heardA.get() + heardB.get(), "one listener call per expired claim, across nodes" );
+        for ( final Item it : held ) {
+            assertEquals( 1, fx.events( it, WorkEvent.CLAIM_EXPIRED ).size(), it.key() );
+            assertNull( fx.reload( it ).claimedByAgent() );
+        }
+        assertEquals( held.size(), logged( WorkEvent.CLAIM_EXPIRED ) );
+    }
+
+    /** Another node's service on the same database, counting the expiries it reports. */
+    private WorkService node( final java.util.concurrent.atomic.AtomicInteger expired ) {
+        return new WorkService( new JdbcWorkStore( fx.ds ), md -> md, new WorkDirectory() {
+            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
+            @Override public boolean exists( final String login ) { return true; }
+            @Override public String displayName( final String login ) { return login; }
+        }, AgentKeys.NONE, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
+            @Override public void claim( final ClaimOutcome o ) {
+                if ( o == ClaimOutcome.EXPIRED ) {
+                    expired.incrementAndGet();
+                }
+            }
+        } );
+    }
+
     private static Item withTitle( final Item i, final String title ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), title,
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),

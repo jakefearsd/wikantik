@@ -140,4 +140,18 @@ class WorkMcpLoggingTest {
             new GetItemTool( w.svc, w.directory ).call( null, Map.of( "key", "HID-1" ) ) );
         assertTrue( keyless.isEmpty(), keyless.toString() );
     }
+
+    @Test
+    void aToolCallDuringADatabaseOutageFailsSoftAndTheNextOneRecovers() throws Exception {
+        final MockWork w = new MockWork();
+        when( w.svc.item( any(), any() ) ).thenThrow( new SQLException( "connection lost", "08006" ) )
+            .thenReturn( MockWork.view( MockWork.item( "PLAT-1", com.wikantik.work.WorkStatus.READY, 2, null, null ) ) );
+        final GetItemTool tool = new GetItemTool( w.svc, w.directory );
+        final var down = tool.call( w.agent, Map.of( "key", "PLAT-1" ) );
+        assertTrue( Boolean.TRUE.equals( down.isError() ) );
+        assertEquals( WorkMcpTool.UNAVAILABLE, WorkMcpFixture.text( down ) );
+        final var up = tool.call( w.agent, Map.of( "key", "PLAT-1" ) );
+        assertFalse( Boolean.TRUE.equals( up.isError() ), WorkMcpFixture.text( up ) );
+        assertTrue( WorkMcpFixture.text( up ).contains( "PLAT-1" ) );
+    }
 }

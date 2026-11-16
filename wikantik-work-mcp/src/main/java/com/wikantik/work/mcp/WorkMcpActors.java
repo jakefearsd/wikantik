@@ -40,8 +40,11 @@ import java.util.Map;
  */
 public final class WorkMcpActors {
 
-    /** The {@link McpTransportContext} key under which the request's verified {@link ApiKeyService.Record} rides. */
-    public static final String KEY_RECORD = "wikantik.work.apiKeyRecord";
+    /**
+     * The {@link McpTransportContext} key under which the request's verified {@link ApiKeyService.Record} rides: the
+     * same name as the request attribute the shared access filter sets it under.
+     */
+    public static final String KEY_RECORD = ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD;
 
     private WorkMcpActors() {
     }

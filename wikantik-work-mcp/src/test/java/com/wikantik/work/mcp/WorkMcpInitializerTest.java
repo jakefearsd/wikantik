@@ -36,9 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -103,15 +101,24 @@ class WorkMcpInitializerTest {
         when( ctx.addFilter( anyString(), any( Filter.class ) ) ).thenReturn( filterReg );
         when( ctx.addServlet( anyString(), any( Servlet.class ) ) ).thenReturn( servletReg );
         final WikiEngine engine = mock( WikiEngine.class );
-        // Properties that would open the other MCP endpoints to anyone: the work endpoint must ignore them.
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.allowUnrestricted", "true" );
-        props.setProperty( "mcp.access.allowedCidrs", "0.0.0.0/0" );
-        when( engine.getWikiProperties() ).thenReturn( props );
         when( engine.workService() ).thenReturn( mock( WorkService.class ) );
         ApiKeyServiceHolder.setForTesting( mock( ApiKeyService.class ) );
         final WorkMcpInitializer initializer = new WorkMcpInitializer();
+        // An operator's wikantik-mcp.properties that opens the other MCP endpoints to anyone (it reaches
+        // new McpConfig() as a file on the thread-context classpath); the work endpoint must ignore it.
+        final ClassLoader original = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader( new java.net.URLClassLoader( new java.net.URL[ 0 ], original ) {
+            @Override
+            public java.io.InputStream getResourceAsStream( final String name ) {
+                return "wikantik-mcp.properties".equals( name ) ? new java.io.ByteArrayInputStream( (
+                    "mcp.access.allowUnrestricted=true\nmcp.access.allowedCidrs=10.0.0.0/8\n" )
+                    .getBytes( java.nio.charset.StandardCharsets.UTF_8 ) ) : super.getResourceAsStream( name );
+            }
+        } );
         try {
+            final com.wikantik.mcp.McpConfig control = new com.wikantik.mcp.McpConfig();
+            assertEquals( true, control.allowUnrestricted(), "control: the config really is open" );
+            assertEquals( "10.0.0.0/8", control.allowedCidrs() );
             start( initializer, ctx, engine );
 
             final ArgumentCaptor< Filter > filter = ArgumentCaptor.forClass( Filter.class );
@@ -123,12 +130,15 @@ class WorkMcpInitializerTest {
             verify( servletReg ).setLoadOnStartup( 4 );
             verify( ctx ).setAttribute( eq( WorkMcpInitializer.ATTR_WORK_MCP_SERVER ), any() );
 
-            final HttpServletRequest keyless = mock( HttpServletRequest.class );
-            when( keyless.getRemoteAddr() ).thenReturn( "10.1.2.3" );
-            final McpAccessFilter.Outcome outcome = ( ( McpAccessFilter ) filter.getValue() ).authorize( keyless );
-            assertInstanceOf( McpAccessFilter.Outcome.Denied.class, outcome, "a keyless request is refused" );
-            assertEquals( 403, ( ( McpAccessFilter.Outcome.Denied ) outcome ).status() );
+            for ( final String ip : List.of( "10.1.2.3", "1.2.3.4" ) ) {   // allow-listed, and not
+                final HttpServletRequest keyless = mock( HttpServletRequest.class );
+                when( keyless.getRemoteAddr() ).thenReturn( ip );
+                final McpAccessFilter.Outcome outcome = ( ( McpAccessFilter ) filter.getValue() ).authorize( keyless );
+                assertInstanceOf( McpAccessFilter.Outcome.Denied.class, outcome, ip + ": a keyless request is refused" );
+                assertEquals( 403, ( ( McpAccessFilter.Outcome.Denied ) outcome ).status() );
+            }
         } finally {
+            Thread.currentThread().setContextClassLoader( original );
             initializer.contextDestroyed( mock( ServletContextEvent.class ) );
             ApiKeyServiceHolder.setForTesting( null );
         }
@@ -137,7 +147,7 @@ class WorkMcpInitializerTest {
     @Test
     void assembledToolNames() {
         final List< WorkMcpTool > tools = WorkMcpInitializer.assembleTools( mock( WorkService.class ),
-            mock( com.wikantik.work.WorkDirectory.class ), Duration.ofMinutes( 30 ) );
+            mock( com.wikantik.work.WorkDirectory.class ) );
         assertEquals( Set.of( "get_work_context", "list_claimable", "get_item" ),
             tools.stream().map( WorkMcpTool::name ).collect( Collectors.toSet() ) );
         tools.forEach( t -> {

@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -56,7 +55,7 @@ class WorkMcpInstructionsDriftTest {
 
     private static Set< String > registered() {
         final Set< String > names = new LinkedHashSet<>();
-        WorkMcpInitializer.assembleTools( mock( WorkService.class ), mock( WorkDirectory.class ), Duration.ofMinutes( 30 ) )
+        WorkMcpInitializer.assembleTools( mock( WorkService.class ), mock( WorkDirectory.class ) )
             .forEach( t -> names.add( t.name() ) );
         return names;
     }

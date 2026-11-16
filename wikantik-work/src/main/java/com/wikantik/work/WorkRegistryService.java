@@ -119,6 +119,19 @@ public final class WorkRegistryService {
             a.queues(), a.createdAt(), a.retiredAt() ) ).toList();
     }
 
+    /**
+     * The calling agent's own record (its key id never included), whether or not it was admitted to any project:
+     * it needs to know its own name, vendor, runtime and queues. Empty for a person, for an agent actor without an
+     * id, and for a retired agent.
+     */
+    public java.util.Optional< Agent > self( final Actor actor ) throws SQLException {
+        if ( actor.kind() != Actor.Kind.AGENT || actor.agentId() == null ) {
+            return java.util.Optional.empty();
+        }
+        return store.agent( actor.agentId() ).filter( Agent::active ).map( a -> new Agent( a.id(), a.name(),
+            a.vendor(), a.runtime(), null, a.queues(), a.createdAt(), a.retiredAt() ) );
+    }
+
     public WorkService.AgentWithToken registerAgent( final Actor actor, final AgentDraft draft ) throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final String name = agentName( draft.name() );

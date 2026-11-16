@@ -22,7 +22,10 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
+import com.wikantik.work.WorkCatalogStore;
+import com.wikantik.work.WorkClaimStore;
 import com.wikantik.work.WorkClaimsService;
+import com.wikantik.work.WorkRegistryStore;
 import com.wikantik.work.WorkStore;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +39,9 @@ class WorkMcpAccessArchTest {
 
     private static final ArchRule NO_STORE = noClasses().that().resideInAPackage( PKG )
         .should().dependOnClassesThat().areAssignableTo( WorkStore.class )
+        .orShould().dependOnClassesThat().areAssignableTo( WorkClaimStore.class )
+        .orShould().dependOnClassesThat().areAssignableTo( WorkRegistryStore.class )
+        .orShould().dependOnClassesThat().areAssignableTo( WorkCatalogStore.class )
         .orShould().dependOnClassesThat().resideInAPackage( "com.wikantik.jdbc.." )
         .orShould().dependOnClassesThat().resideInAPackage( "javax.sql.." );
 
@@ -60,6 +66,14 @@ class WorkMcpAccessArchTest {
         }
     }
 
+    /** A stand-in that reaches the claim store by name only. */
+    static final class ClaimStoreOffender {
+        @SuppressWarnings( "unused" )
+        void reach( final WorkClaimStore claims ) {
+            claims.hashCode();
+        }
+    }
+
     @Test
     void noWorkMcpClassTouchesTheStore() {
         NO_STORE.check( production() );
@@ -77,5 +91,7 @@ class WorkMcpAccessArchTest {
         assertThrows( AssertionError.class, () -> NO_STORE.check( withOffender ) );
         assertThrows( AssertionError.class, () -> NO_JDBC_STORE_CLASS.check( withOffender ) );
         assertThrows( AssertionError.class, () -> NO_SWEEP.check( withOffender ) );
+        final JavaClasses claimOnly = new ClassFileImporter().importClasses( ClaimStoreOffender.class );
+        assertThrows( AssertionError.class, () -> NO_STORE.check( claimOnly ), "a sub-store is the store too" );
     }
 }

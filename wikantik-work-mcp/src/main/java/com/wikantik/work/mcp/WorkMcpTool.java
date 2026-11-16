@@ -47,7 +47,7 @@ public abstract class WorkMcpTool {
     /** The answer for an item or project that is unknown or hidden from the caller: the two are not told apart. */
     public static final String NOT_FOUND = "Not found.";
 
-    private static final String UNAVAILABLE = "The work service could not complete that request.";
+    static final String UNAVAILABLE = "Work is unavailable right now.";
 
     /** Annotations shared by every tool that only reads. */
     protected static final McpSchema.ToolAnnotations READ_ONLY =
@@ -79,17 +79,25 @@ public abstract class WorkMcpTool {
         try {
             return run( actor, arguments );
         } catch ( final WorkNotFoundException e ) {
+            LOG.debug( "Work tool {}: not found or hidden", name() );   // expected, caller-caused: no item text
             return error( NOT_FOUND );
         } catch ( final WorkDeniedException e ) {
+            LOG.debug( "Work tool {}: denied", name() );
             return error( e.reason() );
         } catch ( final WorkValidationException e ) {
+            LOG.debug( "Work tool {}: invalid argument {}", name(), e.field() );
             return error( e.field() + ": " + e.getMessage() );
         } catch ( final WorkConflictException e ) {
+            LOG.debug( "Work tool {}: conflict {}", name(), e.reason() );
             final String base = e.reason() + ": " + e.getMessage();
             final Integer current = WorkConflictException.STALE.equals( e.reason() ) ? currentVersion( actor, arguments ) : null;
             return error( current == null ? base : base + " (currentVersion: " + current + ")" );
         } catch ( final SQLException e ) {
             LOG.warn( "Work tool {} failed: {}", name(), e.getMessage(), e );
+            return error( UNAVAILABLE );
+        } catch ( final RuntimeException e ) {
+            // A bug or an unexpected state: log it in full, tell the client nothing of it.
+            LOG.warn( "Work tool {} threw {}", name(), e.getClass().getSimpleName(), e );
             return error( UNAVAILABLE );
         }
     }
@@ -105,8 +113,27 @@ public abstract class WorkMcpTool {
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, data );
     }
 
-    /** An optional integer argument; a JSON number may arrive as an integer or a double. Null when absent or not a number. */
+    /** An optional integer argument (a JSON number may arrive as an integer or a double); null when absent. */
     static Integer intArg( final Map< String, Object > args, final String key ) {
-        return args.get( key ) instanceof Number n ? n.intValue() : null;
+        final Object v = args.get( key );
+        if ( v == null ) {
+            return null;
+        }
+        if ( v instanceof Number n ) {
+            return n.intValue();
+        }
+        throw new WorkValidationException( key, "must be a number." );
+    }
+
+    /** An optional string argument; null when absent. A value of any other type is a validation error. */
+    static String stringArg( final Map< String, Object > args, final String key ) {
+        final Object v = args.get( key );
+        if ( v == null ) {
+            return null;
+        }
+        if ( v instanceof String s ) {
+            return s;
+        }
+        throw new WorkValidationException( key, "must be a string." );
     }
 }

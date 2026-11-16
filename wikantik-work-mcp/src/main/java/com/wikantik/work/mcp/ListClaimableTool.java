@@ -67,8 +67,8 @@ public final class ListClaimableTool extends WorkMcpTool {
 
     @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
-        final String project = args.get( "project" ) instanceof String s ? s : null;
-        final String queue = args.get( "queue" ) instanceof String s ? s : null;
+        final String project = stringArg( args, "project" );
+        final String queue = stringArg( args, "queue" );
         final Integer limit = intArg( args, "limit" );
         final WorkMcpJson json = WorkMcpJson.forActor( svc, directory, actor );
         final List< Map< String, Object > > items = svc.claims()

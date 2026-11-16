@@ -26,7 +26,6 @@ import com.wikantik.work.WorkService;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,12 +41,10 @@ public final class GetWorkContextTool extends WorkMcpTool {
 
     private final WorkService svc;
     private final WorkDirectory directory;
-    private final Duration claimExpiry;
 
-    public GetWorkContextTool( final WorkService svc, final WorkDirectory directory, final Duration claimExpiry ) {
+    public GetWorkContextTool( final WorkService svc, final WorkDirectory directory ) {
         this.svc = svc;
         this.directory = directory;
-        this.claimExpiry = claimExpiry;
     }
 
     @Override
@@ -95,18 +92,13 @@ public final class GetWorkContextTool extends WorkMcpTool {
             claims.add( c );
         }
         out.put( "claims", claims );
-        out.put( "claimExpiryMinutes", claimExpiry.toMinutes() );
+        out.put( "claimExpiryMinutes", svc.claims().claimExpiry().toMinutes() );
         return ok( out );
     }
 
     private Map< String, Object > agent( final Actor actor, final WorkMcpJson json ) throws SQLException {
         final Map< String, Object > a = new LinkedHashMap<>();
-        Agent self = null;
-        for ( final Agent candidate : svc.registry().listAgents( actor ) ) {
-            if ( candidate.id() == actor.agentId() ) {
-                self = candidate;
-            }
-        }
+        final Agent self = svc.registry().self( actor ).orElse( null );
         a.put( "name", self != null ? self.name() : actor.login() );
         a.put( "vendor", self == null ? null : self.vendor() );
         a.put( "runtime", self == null ? null : self.runtime() );

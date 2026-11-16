@@ -76,6 +76,26 @@ class GetItemToolTest {
     }
 
     @Test
+    void aKeyOfTheWrongTypeIsRejectedByName() {
+        assertEquals( "key: must be a string.", WorkMcpFixture.text( tool.call( f.builderActor, Map.of( "key", 12 ) ) ) );
+    }
+
+    @Test
+    void anUnexpectedFailureShowsTheClientNothingOfIt() {
+        final WorkMcpTool exploding = new WorkMcpTool() {
+            @Override public String name() { return "explode"; }
+            @Override public McpSchema.Tool definition() { return null; }
+            @Override protected McpSchema.CallToolResult run( final com.wikantik.work.Actor a, final Map< String, Object > args ) {
+                throw new IllegalStateException( "secret detail" );
+            }
+        };
+        final McpSchema.CallToolResult r = exploding.call( f.builderActor, Map.of() );
+        assertEquals( Boolean.TRUE, r.isError() );
+        assertEquals( "Work is unavailable right now.", WorkMcpFixture.text( r ) );
+        assertFalse( WorkMcpFixture.text( r ).contains( "secret detail" ) );
+    }
+
+    @Test
     void bodyIsMarkdownSource() throws SQLException {
         final Item draft = f.svc.createItem( f.lena, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
             "Doc", "# Heading\n\nSome **bold** text", null, null, null, "implementer" ) ).item();

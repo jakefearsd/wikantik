@@ -40,6 +40,7 @@ import java.util.TreeSet;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,7 +58,13 @@ class WorkServiceVisibilityPostgresTest {
         "retireQueue", "registerAgent", "updateAgent", "rotateAgentKey", "retireAgent", "claim", "release", "handoff" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
-    private static final Set< String > SYSTEM = Set.of( "actorForApiKey", "sweepExpiredClaims" );
+    private static final Set< String > SYSTEM = Set.of( "actorForApiKey", "sweepExpiredClaims", "claimExpiry" );
+
+    /**
+     * Methods that return only the caller's own record, never project data: an agent's own agent row. They are not
+     * reads in the hiding sense (an agent with no project still gets its own row), so each has its own test.
+     */
+    private static final Set< String > OWN = Set.of( "self" );
 
     /** Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. */
     private static final Set< String > FACADES = Set.of( "registry", "claims" );
@@ -176,7 +183,10 @@ class WorkServiceVisibilityPostgresTest {
         ops().forEach( op -> all.add( op.name() ) );
         assertTrue( Collections.disjoint( READS, WRITES ), "a method cannot be both a read and a write" );
         assertTrue( Collections.disjoint( SYSTEM, READS ) && Collections.disjoint( SYSTEM, WRITES ) );
+        assertTrue( Collections.disjoint( OWN, READS ) && Collections.disjoint( OWN, WRITES )
+            && Collections.disjoint( OWN, SYSTEM ) );
         final Set< String > classified = new TreeSet<>( READS );
+        classified.addAll( OWN );
         classified.addAll( WRITES );
         classified.addAll( SYSTEM );
         assertEquals( classified, all, "classify every public WorkService method as a read, a write or system" );
@@ -326,6 +336,25 @@ class WorkServiceVisibilityPostgresTest {
         assertEquals( 3, service.registry().listAgents( lena ).size() );
         assertTrue( service.registry().listAgents( lena ).stream().allMatch( a -> a.apiKeyId() == null ) );
         assertEquals( 1, service.registry().listQueues( lena ).size() );
+    }
+
+    @Test
+    void selfIsTheCallingAgentsOwnRecordOnly() throws Exception {
+        final Agent own = service.registry().self( rogueAgent ).orElseThrow();   // admitted to no project at all
+        assertEquals( "rogue@x", own.name() );
+        assertEquals( rogueAgent.agentId(), own.id() );
+        assertNull( own.apiKeyId(), "the key id never leaves the registry" );
+        final Agent codex = service.registry().self( codexActor ).orElseThrow();
+        assertEquals( List.of( "implementer" ), codex.queues(), "positive control: a real record with its queues" );
+        assertTrue( service.registry().self( mallory ).isEmpty(), "a person has no agent record" );
+        assertTrue( service.registry().self( lena ).isEmpty() );
+        assertTrue( service.registry().self( admin ).isEmpty() );
+        assertTrue( service.registry().self( Actor.agent( 999_999, "ghost" ) ).isEmpty() );
+    }
+
+    @Test
+    void claimExpiryIsTheConfiguredSettingAndTakesNoActor() {
+        assertEquals( WorkSettings.DEFAULTS.claimExpiry(), service.claims().claimExpiry() );
     }
 
     @Test

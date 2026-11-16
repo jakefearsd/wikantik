@@ -26,7 +26,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.sql.SQLException;
-import java.time.Duration;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,7 +41,7 @@ class GetWorkContextToolTest {
     @BeforeEach
     void setUp() throws SQLException {
         f = new WorkMcpFixture();
-        tool = new GetWorkContextTool( f.svc, f.directory(), Duration.ofMinutes( 30 ) );
+        tool = new GetWorkContextTool( f.svc, f.directory() );
     }
 
     @Test
@@ -61,6 +60,22 @@ class GetWorkContextToolTest {
         assertTrue( out.get( "person" ).isJsonNull() );
         assertEquals( 30, out.get( "claimExpiryMinutes" ).getAsInt() );
         assertFalse( WorkMcpFixture.text( tool.call( f.builderActor, Map.of() ) ).contains( "SECRET" ) );
+    }
+
+    @Test
+    void anUnadmittedAgentStillGetsItsOwnRecord() throws SQLException {
+        final com.wikantik.work.Agent loner = f.svc.registry().registerAgent( f.admin,
+            new com.wikantik.work.AgentDraft( "loner", "Acme", "cli", java.util.List.of( "reviewer" ), "lena" ) ).agent();
+
+        final JsonObject out = WorkMcpFixture.json( tool.call( com.wikantik.work.Actor.agent( loner.id(), "loner" ),
+            Map.of() ) );
+
+        assertEquals( 0, out.getAsJsonArray( "projects" ).size() );
+        assertEquals( "loner", out.getAsJsonObject( "agent" ).get( "name" ).getAsString() );
+        assertEquals( "Acme", out.getAsJsonObject( "agent" ).get( "vendor" ).getAsString() );
+        // queue names are shown to those who belong to a project; a loner sees its own queues by key
+        assertEquals( "reviewer", out.getAsJsonObject( "agent" ).getAsJsonArray( "queues" ).get( 0 )
+            .getAsJsonObject().get( "key" ).getAsString() );
     }
 
     @Test

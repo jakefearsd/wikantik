@@ -47,7 +47,6 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -82,8 +81,7 @@ class WorkMcpSessionActorTest {
         final McpServer.SyncSpecification< ? > spec = McpServer.sync( transport )
             .serverInfo( new McpSchema.Implementation( "wikantik-work", "Wikantik Work", "t" ) )
             .capabilities( McpSchema.ServerCapabilities.builder().tools( true ).build() );
-        WorkMcpInitializer.registerTools( spec, WorkMcpInitializer.assembleTools( f.svc, f.directory(),
-            Duration.ofMinutes( 30 ) ), f.svc );
+        WorkMcpInitializer.registerTools( spec, WorkMcpInitializer.assembleTools( f.svc, f.directory() ), f.svc );
         server = spec.build();
         sessionId = initialize( WorkMcpFixture.record( f.builder.apiKeyId(), "lena", ApiKeyService.Scope.WORK ) );
     }

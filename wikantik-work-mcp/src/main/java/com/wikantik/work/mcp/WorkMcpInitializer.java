@@ -29,7 +29,6 @@ import com.wikantik.work.Actor;
 import com.wikantik.work.WorkDirectory;
 import com.wikantik.work.WorkService;
 import com.wikantik.work.runtime.WikiWorkDirectory;
-import com.wikantik.work.runtime.WorkWiring;
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -45,10 +44,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 /**
  * Bootstraps the work MCP server at {@code /work-mcp}: the endpoint through which work-scoped API keys, agents above
@@ -117,9 +114,8 @@ public class WorkMcpInitializer implements ServletContextListener {
         }
 
         try {
-            final Properties props = engine.getWikiProperties() == null ? new Properties() : engine.getWikiProperties();
             final WorkDirectory directory = new WikiWorkDirectory( engine );
-            final List< WorkMcpTool > tools = assembleTools( svc, directory, WorkWiring.claimExpiry( props ) );
+            final List< WorkMcpTool > tools = assembleTools( svc, directory );
             final McpServer.SyncSpecification< ? > spec = McpServer.sync( transportProvider )
                     .serverInfo( new McpSchema.Implementation( "wikantik-work", SERVER_DISPLAY_NAME, Release.getVersionString() ) )
                     .instructions( serverInstructions() )
@@ -138,10 +134,9 @@ public class WorkMcpInitializer implements ServletContextListener {
      * The tools this endpoint registers, in the order they are advertised. Pure function of its inputs (no engine, no
      * servlet context) so the tool surface is unit-testable.
      */
-    static List< WorkMcpTool > assembleTools( final WorkService svc, final WorkDirectory directory,
-                                              final Duration claimExpiry ) {
+    static List< WorkMcpTool > assembleTools( final WorkService svc, final WorkDirectory directory ) {
         return List.of(
-            new GetWorkContextTool( svc, directory, claimExpiry ),
+            new GetWorkContextTool( svc, directory ),
             new ListClaimableTool( svc, directory ),
             new GetItemTool( svc, directory ) );
     }
@@ -169,7 +164,7 @@ public class WorkMcpInitializer implements ServletContextListener {
             result = tool.call( actor, args );
         } catch ( final SQLException e ) {
             LOG.warn( "Work MCP could not resolve the caller's key for {}: {}", tool.name(), e.getMessage(), e );
-            result = WorkMcpTool.error( "The work service could not complete that request." );
+            result = WorkMcpTool.error( WorkMcpTool.UNAVAILABLE );
         }
         LOG.info( "Work MCP tools/call name={} caller={} durationMs={} isError={}", tool.name(),
                 actor == null ? "none" : actor.kind() == Actor.Kind.AGENT ? "agent:" + actor.agentId() : "person",

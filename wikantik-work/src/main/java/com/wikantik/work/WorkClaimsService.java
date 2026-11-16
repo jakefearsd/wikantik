@@ -24,6 +24,7 @@ import com.wikantik.work.WorkService.ItemSummary;
 import com.wikantik.work.WorkService.ItemView;
 
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -76,6 +77,11 @@ public final class WorkClaimsService {
         this.applier = applier;
         this.settings = settings;
         this.listener = listener;
+    }
+
+    /** How long a claim lasts before it lapses: configuration, not data, so it takes no actor. */
+    public Duration claimExpiry() {
+        return settings.claimExpiry();
     }
 
     // ---- lists

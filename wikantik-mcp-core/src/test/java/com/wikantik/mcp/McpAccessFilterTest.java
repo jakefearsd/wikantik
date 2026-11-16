@@ -222,7 +222,7 @@ class McpAccessFilterTest {
     }
 
     @Test
-    void configDrivenConstructorsStillHonourUnrestrictedAndCidrs() throws Exception {
+    void configDrivenConstructorsStillHonourUnrestricted() throws Exception {
         final Properties open = new Properties();
         open.setProperty( "mcp.access.allowUnrestricted", "true" );
         final McpAccessFilter unrestricted = new McpAccessFilter( new McpConfig( open ),
@@ -232,5 +232,20 @@ class McpAccessFilterTest {
         unrestricted.doFilter( request, response, chain );
 
         verify( chain ).doFilter( request, response );
+    }
+
+    @Test
+    void configDrivenConstructorsStillHonourTheCidrAllowList() throws Exception {
+        final Properties cidr = new Properties();
+        cidr.setProperty( "mcp.access.allowedCidrs", "10.0.0.0/8" );
+        final McpAccessFilter filter = new McpAccessFilter( new McpConfig( cidr ),
+                new SlidingWindowRateLimiter( 0, 0 ), mock( ApiKeyService.class ), ApiKeyService.Scope.MCP_READ );
+        when( request.getRemoteAddr() ).thenReturn( "10.1.2.3" );
+        filter.doFilter( request, response, chain );
+        verify( chain ).doFilter( request, response );
+
+        final HttpServletRequest outside = mock( HttpServletRequest.class );
+        when( outside.getRemoteAddr() ).thenReturn( "1.2.3.4" );
+        assertInstanceOf( McpAccessFilter.Outcome.Denied.class, filter.authorize( outside ) );
     }
 }

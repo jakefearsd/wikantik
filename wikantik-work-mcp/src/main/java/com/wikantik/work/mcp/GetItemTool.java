@@ -71,7 +71,8 @@ public final class GetItemTool extends WorkMcpTool {
 
     @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
-        final String key = args.get( "key" ) instanceof String s && !s.isBlank() ? s.trim() : null;
+        final String raw = stringArg( args, "key" );
+        final String key = raw == null || raw.isBlank() ? null : raw.trim();
         if ( key == null ) {
             throw new WorkNotFoundException( "No item key." );   // the same answer as an unknown item
         }

@@ -77,7 +77,7 @@ class WorkMcpActorsTest {
     void extractCarriesTheRecordUnderTheDocumentedKey() {
         final ApiKeyService.Record key = WorkMcpFixture.record( 9, "lena", ApiKeyService.Scope.WORK );
         assertSame( key, WorkMcpActors.extract( requestWith( key ) ).get( WorkMcpActors.KEY_RECORD ) );
-        assertEquals( "wikantik.work.apiKeyRecord", WorkMcpActors.KEY_RECORD );
+        assertEquals( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD, WorkMcpActors.KEY_RECORD );
     }
 
     @Test

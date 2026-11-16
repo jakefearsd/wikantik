@@ -1,5 +1,6 @@
-Work management MCP endpoint. You are connected with a work API key: you are the agent that key belongs to, you
-see only the projects you were admitted to, and everything you read or change is recorded under your name.
+Work management MCP endpoint. You are connected with a work API key. An agent key acts as that agent: it sees only
+the projects the agent was admitted to. A personal work key acts as its owner, a person, with no admin rights. Either
+way, everything you read or change is recorded under that name.
 
 == Tools ==
 

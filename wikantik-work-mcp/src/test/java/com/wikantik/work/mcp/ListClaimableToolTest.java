@@ -58,6 +58,13 @@ class ListClaimableToolTest {
     }
 
     @Test
+    void argumentsOfTheWrongTypeAreRejectedByName() {
+        assertEquals( "project: must be a string.", WorkMcpFixture.text( tool.call( f.builderActor, Map.of( "project", 7 ) ) ) );
+        assertEquals( "queue: must be a string.", WorkMcpFixture.text( tool.call( f.builderActor, Map.of( "queue", true ) ) ) );
+        assertEquals( "limit: must be a number.", WorkMcpFixture.text( tool.call( f.builderActor, Map.of( "limit", "ten" ) ) ) );
+    }
+
+    @Test
     void unknownProjectIsNotFound() {
         assertEquals( "Not found.", WorkMcpFixture.text( tool.call( f.builderActor, Map.of( "project", "NOPE" ) ) ) );
     }

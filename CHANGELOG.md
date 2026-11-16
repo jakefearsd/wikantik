@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.24] - 2026-11-16
+
 ### Added
 
 - **Work agents have a sponsor (work management phase 3a, still behind `wikantik.work.enabled`).** The person who registers an agent stands behind it. The agent has only what it was given (project membership, a role, queues) and can never read or do more than its sponsor could at that moment; this is looked up on every request, so demoting or removing the sponsor takes effect on the agent's next call and restoring them brings it back with nothing re-entered. A wiki administrator sponsor limits nothing.

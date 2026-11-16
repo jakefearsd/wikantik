@@ -63,6 +63,8 @@
 
 ## Questions for the owner
 
+**Answered 2026-11-16: both "as recommended".** The owner also called the agent-attribution fix (Task 3) critical, and asked for a very visible log of agent claims and human assignments with the state transitions that follow; Task 15 adds it. Task 16's browser IT and docs must cover that log.
+
 1. **May agents claim `review` work?** The spec says "only `ready` work is claimable", yet routes agent→agent review through a queue ("a move to another queue", `reviewer`). *Recommended: yes — `ready` and `review` are claimable; a review claim keeps the status `review`.* The plan is written this way.
 2. **May an agent create items over MCP (`create_item`)?** Story refinement often means splitting a story into tasks; the role policy already lets a `member` create. *Recommended: yes, with new items landing in `draft`.* The plan includes the tool; dropping it removes one tool class and one test file.
 
@@ -629,7 +631,40 @@ wikantik-frontend/src/
 
 ---
 
-### Task 15: Browser IT, documentation and the gate
+### Task 15: The assignment log — who took what, and what happened next
+
+Owner requirement (2026-11-16): "a very visible log of agent claims and human assignments, along with following state transitions". The events exist after Tasks 3–7; this task makes them one obvious, filterable place, per project and across the caller's projects.
+
+**Files:**
+- Modify: `wikantik-work/.../WorkStore.java`, `JdbcWorkStore.java` (+ `ItemQuery`-style helper if needed), `WorkService.java`, `WorkServiceVisibilityPostgresTest.java`
+- Create: `wikantik-work/src/test/.../JdbcWorkStoreAssignmentLogPostgresTest.java`, `WorkServiceAssignmentLogTest.java`
+- Modify: `wikantik-rest/.../WorkActivityResource.java` (+ its unit test), `WorkApiIT.java`
+- Create: `wikantik-frontend/src/components/work/WorkLog.jsx`, `WorkLog.test.jsx`; modify `main.jsx`, `SpaRoutingFilter`/`web.xml` only if `/work/log` is not already covered by the `/work/*` registration (check; SPA routes need dual registration), `WorkHome.jsx`, `WorkLayout.jsx`, `WorkActivity.jsx`, `api/work.js`, `eventText.js`
+
+**Interfaces:**
+- Consumes: event types `assigned`, `handoff`, `status`, `claimed`, `claim_renewed`, `released`, `claim_expired` (Tasks 2–5); event JSON with `actorName`, agent attribution and `itemKey` (Tasks 6, 9); `WorkService.activity(actor, projectKey, before, beforeId, itemKey, limit)`.
+- Produces:
+  - `WorkEvent.ASSIGNMENT_LOG_TYPES` = the seven types above, in that order (use the phase 1 constant for a status change, whatever it is named — do not add a second name for it).
+  - Store: `List<WorkEvent> projectEvents(long projectId, Instant before, Long beforeId, Long itemId, Set<String> types, int limit)` (null/empty `types` = all) and `List<WorkEvent> eventsAcross(Collection<Long> projectIds, Instant before, Long beforeId, Set<String> types, int limit)` — same `(at, id)` compound cursor as R17, newest first; empty `projectIds` → empty list without a query.
+  - Service: `activity(actor, projectKey, before, beforeId, itemKey, Set<String> types, limit)` and `assignmentLog(Actor actor, Instant before, Long beforeId, Set<String> types, int limit)` — the latter over exactly the projects `listProjectsWithRoles(actor)` returns (so an agent's log covers only projects it was admitted to, and a stranger's is empty); `types` must be a subset of `ASSIGNMENT_LOG_TYPES`, default all seven.
+  - REST: `GET /api/work/activity?project=KEY&types=a,b` (new optional `types`; an unknown type → 400 that does not depend on the project existing); `GET /api/work/log?before=&beforeId=&types=&limit=` → `{ events: [...] }`, each event carrying `projectKey`, `itemKey`, `itemTitle`, `actorName`, `actorKind` (`human|agent`), `type`, `fromValue…/toValue…` names per R19, `at`, `id`.
+  - UI: route `/work/log` ("Assignments and claims") linked prominently from `WorkHome` and from each project's tab row (project tab = the same view preset to that project, i.e. `WorkActivity` with the seven types preselected and a visible "Assignments and claims" toggle); rows read as sentences from `eventText.js` ("codex@docker2 claimed PLAT-15 · until 15:40", "Jane Doe assigned PLAT-9 to Queue · Reviewer", "PLAT-15 ready → in progress", "claim by codex@docker2 on PLAT-15 expired"), agent rows carry an "agent" badge, grouped by day, with filters for kind of event (claims / assignments and handoffs / status), actor kind (people / agents) and project, and "Load more" paging on the compound cursor.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `JdbcWorkStoreAssignmentLogPostgresTest`: `typesFilterReturnsOnlyThoseTypes()`; `eventsAcrossMergesProjectsNewestFirst()` (two projects, interleaved times → strict `(at, id)` descending); `eventsAcrossPagesWithoutLossOnEqualTimestamps()` (three events sharing one `at` across a page boundary of 2 → all three seen exactly once); `emptyProjectListReturnsEmpty()`.
+  - `WorkServiceAssignmentLogTest`: `logCoversOnlyVisibleProjects()` (member of A, not of B → no B event, including when B's events are newer); `strangerGetsEmptyLog()`; `agentLogCoversOnlyAdmittedProjects()` (agent whose key owner leads B but who is admitted only to A); `rejectsTypeOutsideTheLog()` (`comment` → `WorkValidationException`); `aClaimThenStatusThenExpiryReadInOrder()` (claim → item moves to `in_progress` → sweep: the log shows `claimed`, then `claim_expired` with the status back at `ready`, attributed to the agent by name).
+  - `WorkServiceVisibilityPostgresTest`: classify `assignmentLog` as a READ with a positive control.
+  - `WorkActivityResourceTest`: `typesParamNarrows()`; `unknownTypeIs400WhateverTheProject()` (same body for a real and a ghost project); `logReturnsProjectKeyAndNames()`; `nonAdminSeesNoLoginInLog()` (R19).
+  - `WorkApiIT`: `assignmentLogShowsClaimAssignmentAndTransitions()` — over REST: lead assigns an item to a queue, an agent claims it, a person hands it to another person; `GET /api/work/log` as the lead lists those events newest first with the agent's name and `actorKind: "agent"`; as a non-member the same call returns an empty list (200), never a 404 that would differ by membership.
+  - `WorkLog.test.jsx`: `rendersClaimAssignmentAndStatusRowsAsSentences`; `agentRowsCarryBadge`; `filterByAgentsHidesPeople`; `projectFilterSendsNothingExtraButHidesOthers` or sends `project=` (choose one and pin it); `loadMoreUsesCompoundCursor`; `emptyStateSaysNoAssignmentsYet`. `WorkHome.test.jsx`: `linksToTheAssignmentLog`. `WorkActivity.test.jsx`: `assignmentsToggleSendsTheSevenTypes`.
+- [ ] **Step 2: Run** the new store/service tests, the REST unit test and `npx vitest run src/components/work` — expect FAIL.
+- [ ] **Step 3: Implement.** The cross-project query is `WHERE project_id = ANY(?) AND type = ANY(?) AND (at, id) < (?, ?) ORDER BY at DESC, id DESC LIMIT ?`; add an index in V076 only if Task 1 has not shipped yet — otherwise the existing `(project_id, at, id)` index serves it and no new migration is needed (say which in the report).
+- [ ] **Step 4: Run** the same tests, eslint, and `mvn -B -fae pmd:check -Pcomplexity-gate` from the root — expect PASS.
+- [ ] **Step 5: Commit** `feat(work): the assignment log — claims, assignments and transitions in one view`.
+
+---
+
+### Task 16: Browser IT, documentation and the gate
 
 **Files:**
 - Modify: `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/WorkBoardIT.java`

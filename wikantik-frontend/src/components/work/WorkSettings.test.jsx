@@ -15,7 +15,7 @@ import WorkSettings from './WorkSettings';
 
 const PROJECT = { id: 1, key: 'PLAT', name: 'Platform', description: 'The platform', defaultAutonomy: 'supervised' };
 const MEMBERS = [
-  { principal: 'me-login', principalKind: 'user', role: 'lead', displayName: 'Me Myself' },
+  { principal: 'Me Myself', principalKind: 'user', role: 'lead', displayName: 'Me Myself', self: true },
   { principal: 'bob', principalKind: 'user', role: 'member', displayName: 'Bob B' },
   { principal: 'Devs', principalKind: 'group', role: 'viewer', displayName: 'Devs' },
 ];
@@ -23,7 +23,7 @@ const reload = vi.fn();
 
 function renderSettings({ role = 'lead', admin = false, authLoading = false } = {}) {
   useAuth.mockReturnValue(authLoading ? { user: null, loading: true }
-    : { user: { authenticated: true, loginPrincipal: 'me-login', roles: admin ? ['Admin'] : [] }, loading: false });
+    : { user: { authenticated: true, roles: admin ? ['Admin'] : [] }, loading: false });
   render(
     <MemoryRouter initialEntries={['/work/PLAT/settings']}>
       <WorkProjectContext.Provider value={{ project: PROJECT, role, reload }}>
@@ -74,10 +74,10 @@ describe('WorkSettings', () => {
   it('addMemberByUserOrGroup', async () => {
     renderSettings();
     await screen.findByText('Bob B');
-    fireEvent.change(screen.getByLabelText('Login or group name'), { target: { value: 'carol' } });
+    fireEvent.change(screen.getByLabelText('Display name or group name'), { target: { value: 'carol' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
     await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'carol', principalKind: 'user', role: 'member' }));
-    fireEvent.change(screen.getByLabelText('Login or group name'), { target: { value: 'Ops' } });
+    fireEvent.change(screen.getByLabelText('Display name or group name'), { target: { value: 'Ops' } });
     fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'group' } });
     fireEvent.change(screen.getByLabelText('Role for new member'), { target: { value: 'viewer' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
@@ -88,7 +88,7 @@ describe('WorkSettings', () => {
     putMember.mockRejectedValue(Object.assign(new Error('No such user.'), { status: 400 }));
     renderSettings();
     await screen.findByText('Bob B');
-    fireEvent.change(screen.getByLabelText('Login or group name'), { target: { value: 'ghost' } });
+    fireEvent.change(screen.getByLabelText('Display name or group name'), { target: { value: 'ghost' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
     expect(await screen.findByText('No such user.')).toBeInTheDocument();
   });
@@ -112,7 +112,7 @@ describe('WorkSettings', () => {
     expect(putMember).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText('Role of Me Myself'), { target: { value: 'member' } });
     fireEvent.click(screen.getByRole('button', { name: 'Yes, change my role' }));
-    await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'me-login', principalKind: 'user', role: 'member' }));
+    await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'Me Myself', principalKind: 'user', role: 'member' }));
   });
 
   it('asks before removing yourself', async () => {
@@ -122,7 +122,7 @@ describe('WorkSettings', () => {
     expect(removeMember).not.toHaveBeenCalled();
     expect(screen.getByText(/You will lose access to these settings/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Yes, remove me' }));
-    await waitFor(() => expect(removeMember).toHaveBeenCalledWith('PLAT', { principal: 'me-login', principalKind: 'user' }));
+    await waitFor(() => expect(removeMember).toHaveBeenCalledWith('PLAT', { principal: 'Me Myself', principalKind: 'user' }));
   });
 
   it('hides archive from a lead who is not an admin', async () => {
@@ -191,7 +191,7 @@ describe('WorkSettings', () => {
     putMember.mockReturnValue(new Promise((r) => { release = r; }));
     renderSettings();
     await screen.findByText('Bob B');
-    fireEvent.change(screen.getByLabelText('Login or group name'), { target: { value: 'carol' } });
+    fireEvent.change(screen.getByLabelText('Display name or group name'), { target: { value: 'carol' } });
     const add = screen.getByRole('button', { name: 'Add member' });
     fireEvent.click(add);
     fireEvent.click(add);
@@ -213,5 +213,28 @@ describe('WorkSettings', () => {
     expect(archiveProject).toHaveBeenCalledTimes(1);
     release();
     expect(await screen.findByText('HOME')).toBeInTheDocument();
+  });
+
+  it('an archived project is read-only: no saving, no member changes, no archive button, and says so', async () => {
+    useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Admin'] }, loading: false });
+    render(
+      <MemoryRouter initialEntries={['/work/PLAT/settings']}>
+        <WorkProjectContext.Provider value={{ project: { ...PROJECT, archived: true }, role: 'lead', reload }}>
+          <Routes><Route path="/work/PLAT/settings" element={<WorkSettings />} /></Routes>
+        </WorkProjectContext.Provider>
+      </MemoryRouter>,
+    );
+    await screen.findByText('Bob B');
+    expect(screen.queryByRole('button', { name: 'Save details' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add member' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Archive project' })).toBeNull();
+    expect(screen.getByLabelText('Project name')).toHaveAttribute('readonly');
+  });
+
+  it('the archive text says the project stays readable', async () => {
+    renderSettings({ admin: true });
+    await screen.findByText('Bob B');
+    expect(screen.getByText(/becomes read-only and moves to the Archived list/)).toBeInTheDocument();
   });
 });

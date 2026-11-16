@@ -13,8 +13,11 @@ const SOMEONE = 'Someone';
 const actorOf = (e) => e.actorName || SOMEONE;
 const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
 
-/** /work/:project/activity: newest first, loaded 50 at a time. Filters apply to what is loaded only. */
-/** Keyed by project so filters and loaded pages never carry across projects. */
+/**
+ * /work/:project/activity: newest first, loaded 50 at a time. The item filter asks the server for one item's events;
+ * the type and person filters apply to what is loaded. Keyed by project so filters and loaded pages never carry
+ * across projects.
+ */
 export default function WorkActivity() {
   const { project } = useWorkProject();
   return <ActivityFeed key={project.key} />;
@@ -27,11 +30,14 @@ function ActivityFeed() {
   const [moreError, setMoreError] = useState(null);
   const [type, setType] = useState('');
   const [person, setPerson] = useState('');
+  const [itemDraft, setItemDraft] = useState('');
+  const [item, setItem] = useState('');
   const seq = useRef(0);
+  const scope = useCallback((extra) => ({ project: project.key, ...(item ? { item } : {}), ...extra }), [project.key, item]);
 
   const load = useCallback(() => {
     const mine = ++seq.current;
-    return getActivity({ project: project.key, limit: PAGE })
+    return getActivity(scope({ limit: PAGE }))
       .then((page) => {
         if (mine !== seq.current) return;
         setState({ key: project.key, events: page || [], more: (page || []).length >= PAGE, error: null });
@@ -40,7 +46,7 @@ function ActivityFeed() {
         console.warn('WorkActivity: could not load activity', error);
         if (mine === seq.current) setState({ key: project.key, events: null, more: false, error });
       });
-  }, [project.key]);
+  }, [project.key, scope]);
 
   const retry = () => { setState({ key: project.key, events: null, more: false, error: null }); setMoreError(null); load(); };
 
@@ -52,7 +58,7 @@ function ActivityFeed() {
     const mine = seq.current;
     const last = events[events.length - 1];
     setLoadingMore(true); setMoreError(null);
-    getActivity({ project: project.key, before: last.at, beforeId: last.id, limit: PAGE })
+    getActivity(scope({ before: last.at, beforeId: last.id, limit: PAGE }))
       .then((page) => {
         if (mine !== seq.current) return;
         setState((s) => {
@@ -71,9 +77,32 @@ function ActivityFeed() {
     .map((t) => ({ value: t, label: t.replace(/_/g, ' ') })), [events]);
   const personOptions = useMemo(() => [...new Set((events || []).map(actorOf))].sort(), [events]);
 
+  const itemForm = (
+    <form className="work-toggle" onSubmit={(e) => {
+      e.preventDefault();
+      const next = itemDraft.trim().toUpperCase();
+      if (next === item) return;
+      setState({ key: project.key, events: null, more: false, error: null });
+      setItem(next);
+    }}>
+      <label htmlFor="work-activity-item">Item</label>
+      <input id="work-activity-item" className="work-field-input" placeholder={`${project.key}-1`} value={itemDraft}
+        onChange={(e) => setItemDraft(e.target.value)} />
+      <button type="submit" className="btn btn-sm">{itemDraft.trim() ? 'Show' : 'All items'}</button>
+    </form>
+  );
+
   if (state.key !== project.key || (!events && !state.error)) return <Spinner label="Loading…" />;
-  if (state.error) return <WorkLoadError error={state.error} fallback="Could not load the activity." onRetry={retry} />;
-  if (events.length === 0) return <EmptyState message="No activity yet." />;
+  if (state.error) {
+    if (item && state.error.status === 404) {
+      return <div className="work-activity">{itemForm}<p className="work-muted">No such item in this project.</p></div>;
+    }
+    return <WorkLoadError error={state.error} fallback="Could not load the activity." onRetry={retry} />;
+  }
+  if (events.length === 0) {
+    return item ? <div className="work-activity">{itemForm}<EmptyState message="No activity for this item." /></div>
+      : <EmptyState message="No activity yet." />;
+  }
 
   const filtered = events.filter((e) => (!type || e.type === type) && (!person || actorOf(e) === person));
   const filtering = !!(type || person);
@@ -81,6 +110,7 @@ function ActivityFeed() {
   return (
     <div className="work-activity">
       <div className="work-board-toolbar">
+        {itemForm}
         <label className="work-toggle">Event type
           <Select ariaLabel="Event type" value={type} options={typeOptions} placeholder="All events" onChange={setType} />
         </label>
@@ -97,7 +127,9 @@ function ActivityFeed() {
               const t = eventText(e);
               return (
                 <li key={e.id} className="work-event">
-                  <Link to={`/work/item/${e.itemKey}`} className="work-card-key">{e.itemKey}</Link>{' '}
+                  {e.itemKey
+                    ? <><Link to={`/work/item/${e.itemKey}`} className="work-card-key">{e.itemKey}</Link>{' '}</>
+                    : <><span className="work-card-key work-muted">{project.key}</span>{' '}</>}
                   <strong>{actorOf(e)}</strong> {t.text}
                   <time className="work-event-time" dateTime={e.at}>{when(e.at)}</time>
                   {t.note && <p className="work-event-note">{t.note}</p>}

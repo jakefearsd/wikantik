@@ -25,7 +25,7 @@ function Confirm({ children, yes, onYes, onNo, disabled = false }) {
   );
 }
 
-function Details({ project, onSaved }) {
+function Details({ project, onSaved, readOnly }) {
   const toast = useToast();
   const [name, setName] = useState(project.name || '');
   const [description, setDescription] = useState(project.description || '');
@@ -46,19 +46,21 @@ function Details({ project, onSaved }) {
   return (
     <form className="work-form" onSubmit={save}>
       <label className="work-form-field" htmlFor="work-set-name">Project name</label>
-      <input id="work-set-name" className="work-field-input" value={name} onChange={(e) => setName(e.target.value)} />
+      <input id="work-set-name" className="work-field-input" value={name} readOnly={readOnly} onChange={(e) => setName(e.target.value)} />
       <label className="work-form-field" htmlFor="work-set-desc">Description</label>
-      <textarea id="work-set-desc" className="work-field-input work-form-body" rows={3} value={description}
+      <textarea id="work-set-desc" className="work-field-input work-form-body" rows={3} value={description} readOnly={readOnly}
         onChange={(e) => setDescription(e.target.value)} />
       {error && <div className="work-form-error" role="alert">{error}</div>}
-      <div className="work-actions">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={busy || !name.trim()}>Save details</button>
-      </div>
+      {!readOnly && (
+        <div className="work-actions">
+          <button type="submit" className="btn btn-primary btn-sm" disabled={busy || !name.trim()}>Save details</button>
+        </div>
+      )}
     </form>
   );
 }
 
-function Members({ project, login, reloadProject }) {
+function Members({ project, reloadProject, readOnly }) {
   const toast = useToast();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -82,7 +84,8 @@ function Members({ project, login, reloadProject }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const isMe = (m) => m.principalKind === 'user' && !!login && m.principal === login;
+  // The server marks the viewer's own row; the page never needs (or sees) a login.
+  const isMe = (m) => m.self === true;
   const fail = (err, fallback) => toast.error(err?.message || fallback);
 
   // One request at a time: every control is disabled while one is in flight, so a double click cannot submit twice.
@@ -124,7 +127,7 @@ function Members({ project, login, reloadProject }) {
     e.preventDefault();
     if (busy) return;
     const principal = adding.principal.trim();
-    if (!principal) { setAddError('Enter a login or group name.'); return; }
+    if (!principal) { setAddError(adding.kind === 'user' ? 'Enter a display name.' : 'Enter a group name.'); return; }
     setAddError(null);
     setBusy(true);
     putMember(project.key, { principal, principalKind: adding.kind, role: adding.role })
@@ -148,10 +151,14 @@ function Members({ project, login, reloadProject }) {
               <li key={`${m.principalKind}:${m.principal}`} className="work-member-row">
                 <span className="work-member-name">{m.displayName || 'Unnamed member'}</span>
                 <span className="work-chip">{m.principalKind}</span>
-                <Select ariaLabel={`Role of ${m.displayName || 'member'}`} value={m.role} options={ROLES}
-                  disabled={busy} onChange={(r) => changeRole(m, r)} />
-                <button type="button" className="work-link-button" aria-label={`Remove ${m.displayName || 'member'}`}
-                  disabled={busy} onClick={() => askRemove(m)}>Remove</button>
+                {readOnly ? <span className="work-chip">{m.role}</span> : (
+                  <>
+                    <Select ariaLabel={`Role of ${m.displayName || 'member'}`} value={m.role} options={ROLES}
+                      disabled={busy} onChange={(r) => changeRole(m, r)} />
+                    <button type="button" className="work-link-button" aria-label={`Remove ${m.displayName || 'member'}`}
+                      disabled={busy} onClick={() => askRemove(m)}>Remove</button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -168,15 +175,15 @@ function Members({ project, login, reloadProject }) {
             : `You are about to change your own role from lead to ${pending.role}. You will lose access to these settings.`}
         </Confirm>
       )}
-      <form className="work-link-form" onSubmit={add}>
-        <label className="work-visually-hidden" htmlFor="work-add-principal">Login or group name</label>
-        <input id="work-add-principal" className="work-field-input" placeholder="Login or group name" value={adding.principal}
+      {!readOnly && <form className="work-link-form" onSubmit={add}>
+        <label className="work-visually-hidden" htmlFor="work-add-principal">Display name or group name</label>
+        <input id="work-add-principal" className="work-field-input" placeholder={adding.kind === 'user' ? 'Display name' : 'Group name'} value={adding.principal}
           onChange={(e) => setAdding({ ...adding, principal: e.target.value })} aria-invalid={addError ? 'true' : undefined} />
         <Select ariaLabel="Kind" value={adding.kind} options={KINDS} disabled={busy} onChange={(kind) => setAdding({ ...adding, kind })} />
         <Select ariaLabel="Role for new member" value={adding.role} options={ROLES} onChange={(role) => setAdding({ ...adding, role })} />
         <button type="submit" className="btn btn-sm" disabled={busy}>Add member</button>
         {addError && <span className="work-field-error" role="alert">{addError}</span>}
-      </form>
+      </form>}
     </div>
   );
 }
@@ -199,10 +206,10 @@ function ArchiveSection({ project }) {
   return (
     <section className="work-section">
       <h2 className="work-subheading">Archive</h2>
-      <p className="work-muted">An archived project leaves the project list. Its items are kept.</p>
+      <p className="work-muted">An archived project becomes read-only and moves to the Archived list. Its items are kept.</p>
       {confirming
         ? <Confirm yes={`Yes, archive ${project.key}`} disabled={busy} onYes={archive} onNo={() => setConfirming(false)}>
-            Archive {project.key} {project.name}? It will disappear from everyone&apos;s project list.
+            Archive {project.key} {project.name}? Nobody will be able to change it; it stays readable under Archived.
           </Confirm>
         : <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirming(true)}>Archive project</button>}
     </section>
@@ -218,23 +225,24 @@ export default function WorkSettings() {
   // Identity (own-row confirmations, the admin-only archive) is unknown until /api/auth/user resolves.
   if (authLoading) return <Spinner label="Loading…" />;
   if (role !== 'lead') return <Navigate to={`/work/${project.key}`} replace />;
+  const readOnly = !!project.archived;
 
   return (
     <div className="work-settings">
       <section className="work-section">
         <h2 className="work-subheading">Details</h2>
-        <Details key={project.key} project={project} onSaved={reload} />
+        <Details key={project.key} project={project} onSaved={reload} readOnly={readOnly} />
       </section>
       <section className="work-section">
         <h2 className="work-subheading">Members</h2>
-        <Members project={project} login={user?.loginPrincipal} reloadProject={reload} />
+        <Members project={project} reloadProject={reload} readOnly={readOnly} />
       </section>
       <section className="work-section">
         <h2 className="work-subheading">Default autonomy</h2>
         <p><span className="work-chip">{project.defaultAutonomy || 'supervised'}</span></p>
         <p className="work-muted">{LATER}</p>
       </section>
-      {isAdmin && <ArchiveSection project={project} />}
+      {isAdmin && !readOnly && <ArchiveSection project={project} />}
     </div>
   );
 }

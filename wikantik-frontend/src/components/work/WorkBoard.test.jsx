@@ -216,23 +216,54 @@ describe('WorkBoard', () => {
     await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', {}));
   });
 
-  it('filtersBoardByAssignee', async () => {
+  it('filtersBoardByAssignee by display name, offering people only and never a login', async () => {
+    listMembers.mockResolvedValue([
+      { principal: 'carol-login', principalKind: 'user', role: 'member', displayName: 'Carol C' },
+      { principal: 'Devs', principalKind: 'group', role: 'member', displayName: 'Devs' },
+    ]);
     renderBoard();
     await screen.findByText('Item 1');
     const select = screen.getByLabelText('Filter by assignee');
     await waitFor(() => expect(within(select).getByRole('option', { name: 'Carol C' })).toBeInTheDocument());
     expect(within(select).queryByRole('option', { name: 'carol-login' })).not.toBeInTheDocument();
+    expect(within(select).queryByRole('option', { name: 'Devs' })).not.toBeInTheDocument();
     expect(within(select).getByRole('option', { name: 'All assignees' })).toBeInTheDocument();
-    fireEvent.change(select, { target: { value: 'carol-login' } });
-    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { assignee: 'carol-login' }));
+    fireEvent.change(select, { target: { value: 'Carol C' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { assignee: 'Carol C' }));
   });
 
   it('filterSelectionSurvivesReloadViaUrl', async () => {
-    renderBoard({ url: '/work/PLAT?product=wikantik&assignee=dan-login' });
+    renderBoard({ url: '/work/PLAT?product=wikantik&assignee=Dan%20D' });
     await screen.findByText('Item 1');
-    expect(getBoard).toHaveBeenCalledWith('PLAT', { product: 'wikantik', assignee: 'dan-login' });
+    expect(getBoard).toHaveBeenCalledWith('PLAT', { product: 'wikantik', assignee: 'Dan D' });
     await waitFor(() => expect(screen.getByLabelText('Filter by product')).toHaveValue('wikantik'));
-    await waitFor(() => expect(screen.getByLabelText('Filter by assignee')).toHaveValue('dan-login'));
+    await waitFor(() => expect(screen.getByLabelText('Filter by assignee')).toHaveValue('Dan D'));
+  });
+
+  it('an archived project shows its board read-only', async () => {
+    getBoard.mockImplementation(() => Promise.resolve(board));
+    getMe.mockResolvedValue({ waitingOn: [], projects: [] });
+    render(
+      <MemoryRouter initialEntries={['/work/PLAT']}>
+        <WorkProjectContext.Provider value={{ project: { ...PROJECT, archived: true }, role: 'lead', reload: vi.fn() }}>
+          <WorkBoard />
+        </WorkProjectContext.Provider>
+      </MemoryRouter>);
+    await screen.findByText('Item 1');
+    expect(screen.queryByRole('button', { name: 'New item' })).toBeNull();
+    expect(screen.queryByLabelText('Move PLAT-1 to…')).toBeNull();
+  });
+
+  it('a move refused because the project was archived says so, puts the card back and re-reads the project', async () => {
+    board = boardOf({ ready: [item(1, 'ready')] });
+    patchItem.mockRejectedValue(Object.assign(new Error('This project is archived.'), { status: 409, reason: 'archived' }));
+    const { reload } = renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.change(screen.getByLabelText('Move PLAT-1 to…'), { target: { value: 'review' } });
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith('This project is archived; nothing was moved.'));
+    expect(toast.info).not.toHaveBeenCalledWith(expect.stringContaining('changed while you were moving'));
+    expect(reload).toHaveBeenCalled();
+    await waitFor(() => expect(within(column('ready')).getByText('Item 1')).toBeInTheDocument());
   });
 
   const deferred = () => { let resolve; let reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };

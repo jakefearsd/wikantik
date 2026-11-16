@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({ getActivity: vi.fn() }));
@@ -108,5 +108,35 @@ describe('WorkActivity', () => {
     expect(await screen.findByText('boom')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('PLAT-1')).toBeInTheDocument();
+  });
+
+  it('a project event (no item) is shown without an item link', async () => {
+    getActivity.mockResolvedValue([ev(1, { itemKey: null, type: 'member', fromValue: null, toValue: 'user:x:member',
+      toValueName: 'Bo B' })]);
+    renderActivity();
+    expect(await screen.findByText(/added Bo B as member/)).toBeInTheDocument();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('the item filter asks the server for that item only', async () => {
+    getActivity.mockResolvedValue(page(1, 3));
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    fireEvent.change(screen.getByLabelText('Item'), { target: { value: 'plat-2' } });
+    getActivity.mockResolvedValue([ev(2)]);
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    await waitFor(() => expect(getActivity).toHaveBeenLastCalledWith({ project: 'PLAT', item: 'PLAT-2', limit: 50 }));
+    await waitFor(() => expect(screen.queryByText('PLAT-1')).toBeNull());
+  });
+
+  it('an item that is not in the project says so and keeps the filter', async () => {
+    getActivity.mockResolvedValueOnce(page(1, 2));
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    getActivity.mockRejectedValue(Object.assign(new Error('Not found.'), { status: 404 }));
+    fireEvent.change(screen.getByLabelText('Item'), { target: { value: 'OPS-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    expect(await screen.findByText('No such item in this project.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Item')).toHaveValue('OPS-1');
   });
 });

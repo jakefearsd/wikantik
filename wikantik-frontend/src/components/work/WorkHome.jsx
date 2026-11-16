@@ -77,6 +77,16 @@ export default function WorkHome() {
   if (!state.me) return <Spinner label="Loading…" />;
   const { projects = [], waitingOn = [] } = state.me;
   const keyOf = new Map(projects.map((p) => [p.id, p.key]));
+  const active = projects.filter((p) => !p.archived);
+  const archived = projects.filter((p) => p.archived);
+  const projectList = (list) => (
+    <ul className="work-project-list">
+      {list.map((p) => (
+        <li key={p.id}><Link to={`/work/${p.key}`}>{p.key} {p.name}</Link>
+          <span className="work-muted"> · {p.role}</span></li>
+      ))}
+    </ul>
+  );
 
   return (
     <div className="work-home">
@@ -100,16 +110,16 @@ export default function WorkHome() {
         </section>
       )}
       <h2 className="work-subheading">Projects</h2>
-      {projects.length === 0
-        ? <EmptyState message="You are not a member of any project yet." />
-        : (
-          <ul className="work-project-list">
-            {projects.map((p) => (
-              <li key={p.id}><Link to={`/work/${p.key}`}>{p.key} {p.name}</Link>
-                <span className="work-muted"> · {p.role}</span></li>
-            ))}
-          </ul>
-        )}
+      {active.length === 0
+        ? <EmptyState message={archived.length ? 'You have no active projects.' : 'You are not a member of any project yet.'} />
+        : projectList(active)}
+      {archived.length > 0 && (
+        <section aria-label="Archived projects">
+          <h2 className="work-subheading">Archived</h2>
+          <p className="work-muted">Read-only; kept for reference.</p>
+          {projectList(archived)}
+        </section>
+      )}
     </div>
   );
 }

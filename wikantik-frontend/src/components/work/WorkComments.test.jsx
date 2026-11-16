@@ -6,13 +6,15 @@ import { api } from '../../api/client';
 import WorkComments from './WorkComments';
 
 const MEMBERS = [
-  { principal: 'ana-login', principalKind: 'user', role: 'lead', displayName: 'Ana Alvarez' },
-  { principal: 'bob-login', principalKind: 'user', role: 'member', displayName: 'Bob Brown' },
+  { principal: 'Ana Alvarez', principalKind: 'user', role: 'lead', displayName: 'Ana Alvarez', mentionId: 'u-ana' },
+  { principal: 'Bob Brown', principalKind: 'user', role: 'member', displayName: 'Bob Brown', mentionId: 'u-bob' },
+  { principal: 'No Id', principalKind: 'user', role: 'member', displayName: 'No Id' },
   { principal: 'ops', principalKind: 'group', role: 'member', displayName: 'ops' },
-  { principal: 'bot-agent', principalKind: 'agent', role: 'member', displayName: 'bot-agent' },
 ];
-const c = (id, author, body, extra = {}) => ({
-  id, itemId: 7, author, authorName: author === 'ana-login' ? 'Ana Alvarez' : 'Bob Brown', body,
+const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const c = (id, mine, body, extra = {}) => ({
+  id, itemId: 7, author: mine ? 'Ana Alvarez' : 'Bob Brown', authorName: mine ? 'Ana Alvarez' : 'Bob Brown', mine, body,
+  bodyHtml: body ? `<p>${esc(body)}</p>` : '', mentions: [],
   createdAt: '2026-11-01T10:00:00Z', editedAt: null, removedAt: null, ...extra,
 });
 const handlers = () => ({
@@ -20,14 +22,14 @@ const handlers = () => ({
 });
 const setup = (props = {}) => {
   const h = handlers();
-  render(<WorkComments comments={[]} members={MEMBERS} canComment currentLogin="ana-login" isLead={false} {...h} {...props} />);
+  render(<WorkComments comments={[]} members={MEMBERS} canComment isLead={false} {...h} {...props} />);
   return h;
 };
 
 beforeEach(() => vi.clearAllMocks());
 
 describe('WorkComments', () => {
-  it('mentionPickerOffersProjectMembersOnly: users from the project member list, never the wiki directory', async () => {
+  it('mentionPickerOffersProjectMembersOnly: users with a mention id from the project member list, never the wiki directory', async () => {
     setup();
     const box = screen.getByLabelText('Add a comment');
     box.focus();
@@ -39,63 +41,67 @@ describe('WorkComments', () => {
     expect(screen.queryByText(/ops/)).toBeNull();
   });
 
-  it('filters the picker by what was typed and sends the login, never showing it', async () => {
+  it('the picker inserts the wiki mention token and the text is sent as typed', async () => {
     const { onAdd } = setup();
     const box = screen.getByLabelText('Add a comment');
     box.focus();
-    fireEvent.change(box, { target: { value: 'hi @Bo' } });
+    fireEvent.change(box, { target: { value: 'hi @Bo', selectionStart: 6 } });
     fireEvent.mouseDown(await screen.findByRole('option', { name: '@Bob Brown' }));
-    expect(box.value).toBe('hi @Bob Brown ');
-    expect(box.value).not.toContain('login');
-    fireEvent.change(box, { target: { value: 'hi @Bob Brown please look' } });
+    expect(box.value).toBe('hi @[Bob Brown](user:u-bob) ');
+    fireEvent.change(box, { target: { value: 'hi @[Bob Brown](user:u-bob) please look' } });
     fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
-    expect(onAdd).toHaveBeenCalledWith('hi @bob-login please look');
+    expect(onAdd).toHaveBeenCalledWith('hi @[Bob Brown](user:u-bob) please look');
   });
 
-  it('renders a mention of a member by display name', () => {
-    setup({ comments: [c(1, 'bob-login', 'ping @ana-login and @stranger')] });
-    expect(screen.getByText('@Ana Alvarez')).toHaveClass('comment-mention-chip');
-    expect(screen.queryByText(/ana-login/)).toBeNull();
+  it('shows the server-rendered comment and marks its mentions without injecting HTML', () => {
+    setup({ comments: [c(1, false, 'x', {
+      bodyHtml: '<p><strong>bold</strong> ping @Ana Alvarez and @stranger</p><pre><code>@Ana Alvarez</code></pre>',
+      mentions: ['Ana Alvarez', '<img src=x onerror=alert(1)>'],
+    })] });
+    expect(screen.getByText('bold').tagName).toBe('STRONG');
+    const chips = document.querySelectorAll('.comment-mention-chip');
+    expect(chips).toHaveLength(1);
+    expect(chips[0].textContent).toBe('@Ana Alvarez');
+    expect(document.querySelector('img')).toBeNull();
     expect(screen.getByText(/@stranger/)).toBeInTheDocument();
   });
 
   it('removedCommentShowsMarker', () => {
-    setup({ comments: [c(1, 'bob-login', 'secret words', { removedAt: '2026-11-02T10:00:00Z' }), c(2, 'bob-login', 'kept')] });
+    setup({ comments: [c(1, false, '', { removedAt: '2026-11-02T10:00:00Z' }), c(2, false, 'kept')] });
     expect(screen.getByText('Comment removed')).toBeInTheDocument();
-    expect(screen.queryByText('secret words')).toBeNull();
     expect(screen.getByText('kept')).toBeInTheDocument();
   });
 
   it('onlyAuthorSeesEdit', () => {
-    setup({ comments: [c(1, 'ana-login', 'mine'), c(2, 'bob-login', 'theirs')] });
+    setup({ comments: [c(1, true, 'mine'), c(2, false, 'theirs')] });
     const edits = screen.getAllByRole('button', { name: /^Edit comment/ });
     expect(edits).toHaveLength(1);
     expect(edits[0]).toHaveAccessibleName('Edit comment by Ana Alvarez');
   });
 
   it('a lead may remove anyone\'s comment but not edit it', () => {
-    setup({ isLead: true, comments: [c(2, 'bob-login', 'theirs')] });
+    setup({ isLead: true, comments: [c(2, false, 'theirs')] });
     expect(screen.queryByRole('button', { name: /^Edit comment/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Remove comment by Bob Brown' })).toBeInTheDocument();
   });
 
   it('a plain member may remove only their own comment', () => {
-    setup({ comments: [c(1, 'ana-login', 'mine'), c(2, 'bob-login', 'theirs')] });
+    setup({ comments: [c(1, true, 'mine'), c(2, false, 'theirs')] });
     expect(screen.getAllByRole('button', { name: /^Remove comment/ })).toHaveLength(1);
   });
 
-  it('edits a comment with the mention shown as a name and sent as a login', () => {
-    const { onEdit } = setup({ comments: [c(1, 'ana-login', 'hello @bob-login')] });
+  it('edits the comment text as stored, tokens and all', () => {
+    const { onEdit } = setup({ comments: [c(1, true, 'hello @[Bob Brown](user:u-bob)')] });
     fireEvent.click(screen.getByRole('button', { name: 'Edit comment by Ana Alvarez' }));
     const box = screen.getByLabelText('Edit your comment');
-    expect(box.value).toBe('hello @Bob Brown');
-    fireEvent.change(box, { target: { value: 'hello @Bob Brown, updated' } });
+    expect(box.value).toBe('hello @[Bob Brown](user:u-bob)');
+    fireEvent.change(box, { target: { value: 'hello @[Bob Brown](user:u-bob), updated' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save comment' }));
-    expect(onEdit).toHaveBeenCalledWith(1, 'hello @bob-login, updated');
+    expect(onEdit).toHaveBeenCalledWith(1, 'hello @[Bob Brown](user:u-bob), updated');
   });
 
   it('confirms inline before removing', async () => {
-    const { onRemove } = setup({ comments: [c(1, 'ana-login', 'mine')] });
+    const { onRemove } = setup({ comments: [c(1, true, 'mine')] });
     fireEvent.click(screen.getByRole('button', { name: 'Remove comment by Ana Alvarez' }));
     expect(onRemove).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Yes, remove' }));
@@ -103,7 +109,7 @@ describe('WorkComments', () => {
   });
 
   it('can cancel a removal', () => {
-    const { onRemove } = setup({ comments: [c(1, 'ana-login', 'mine')] });
+    const { onRemove } = setup({ comments: [c(1, true, 'mine')] });
     fireEvent.click(screen.getByRole('button', { name: 'Remove comment by Ana Alvarez' }));
     fireEvent.click(screen.getByRole('button', { name: 'Keep' }));
     expect(onRemove).not.toHaveBeenCalled();
@@ -111,14 +117,14 @@ describe('WorkComments', () => {
   });
 
   it('marks an edited comment', () => {
-    setup({ comments: [c(1, 'bob-login', 'x', { editedAt: '2026-11-02T10:00:00Z' })] });
+    setup({ comments: [c(1, false, 'x', { editedAt: '2026-11-02T10:00:00Z' })] });
     expect(screen.getByText('(edited)')).toBeInTheDocument();
   });
 
   it('keeps the typed comment when posting fails and clears it when it works', async () => {
     const h = handlers();
     h.onAdd.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-    render(<WorkComments comments={[]} members={MEMBERS} canComment currentLogin="ana-login" isLead={false} {...h} />);
+    render(<WorkComments comments={[]} members={MEMBERS} canComment isLead={false} {...h} />);
     const box = screen.getByLabelText('Add a comment');
     fireEvent.change(box, { target: { value: 'draft text' } });
     fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
@@ -129,7 +135,7 @@ describe('WorkComments', () => {
   });
 
   it('viewers get no comment box and no controls', () => {
-    setup({ canComment: false, comments: [c(1, 'ana-login', 'mine')] });
+    setup({ canComment: false, comments: [c(1, true, 'mine')] });
     expect(screen.queryByLabelText('Add a comment')).toBeNull();
     expect(screen.queryByRole('button', { name: /comment/i })).toBeNull();
     expect(screen.getByText('mine')).toBeInTheDocument();

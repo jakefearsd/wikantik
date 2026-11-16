@@ -10,8 +10,8 @@ const grow = (el) => {
 
 /**
  * The item text: the rendered body, and for people who may edit it a plain auto-growing Markdown textarea.
- * (The page editor is not embedded: it is built around wiki pages, uploads and page-link completion.) Preview
- * shows the last saved rendering; the unsaved text stays in the textarea.
+ * (The page editor is not embedded: it is built around wiki pages, uploads and page-link completion.) "Saved
+ * version" shows the last saved rendering, not the draft; the unsaved text stays in the textarea.
  *
  * The page allows one versioned editor at a time and owns the version it was opened against: this editor reports
  * `onOpen(orig)`, `onDraft(text)` and `onClose()` and is `locked` while another editor is open. `onSave(body)`
@@ -65,11 +65,11 @@ export default function WorkBodyEditor({ html, body, canEdit, error, onSave, loc
     <section className="work-section" aria-label="Description">
       <div className="work-body-tabs" role="group" aria-label="Text view">
         <button type="button" className="btn btn-ghost btn-sm" aria-pressed={!preview} onClick={() => setPreview(false)}>Write</button>
-        <button type="button" className="btn btn-ghost btn-sm" aria-pressed={preview} onClick={() => setPreview(true)}>Preview</button>
+        <button type="button" className="btn btn-ghost btn-sm" aria-pressed={preview} onClick={() => setPreview(true)}>Saved version</button>
       </div>
       {preview ? (
         <>
-          <p className="work-muted">Showing the last saved version; your unsaved text is kept.</p>
+          <p className="work-muted">This is the last saved version, not your draft; your unsaved text is kept.</p>
           <WorkBody html={html} />
         </>
       ) : (

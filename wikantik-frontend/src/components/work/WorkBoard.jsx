@@ -5,6 +5,7 @@ import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { useToast } from '../../hooks/useToast';
 import { getBoard, getMe, listMembers, listProducts, patchItem } from '../../api/work';
+import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { useWorkProject } from './useWorkProject';
 import WorkCard from './WorkCard';
 import WorkItemForm from './WorkItemForm';
@@ -42,9 +43,9 @@ function Column({ column, canEdit, grouped, allItems, onDragStart, onDragEnd, on
 }
 
 export default function WorkBoard() {
-  const { project, role } = useWorkProject();
+  const { project, role, reload } = useWorkProject();
   const toast = useToast();
-  const canEdit = CHANGERS.has(role);
+  const canEdit = CHANGERS.has(role) && !project.archived;
   const [state, setState] = useState({ projectKey: null, columns: null });
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -119,7 +120,11 @@ export default function WorkBoard() {
         ...c, items: c.items.map((i) => (i.key === item.key ? { ...i, ...view.item } : i)),
       }))))
       .catch((err) => {
-        if (err?.status === 409) {
+        if (isArchivedRefusal(err)) {
+          toast.info(`${ARCHIVED_TEXT}; nothing was moved.`);
+          setColumns((cols) => revertCard(cols || [], original));
+          reload();
+        } else if (err?.status === 409) {
           toast.info(`${item.key} changed while you were moving it; the board was reloaded.`);
           load();
         } else if (err?.status === 404) {
@@ -170,7 +175,8 @@ export default function WorkBoard() {
           options={products.map((p) => ({ value: p.key, label: p.name || p.key }))}
           onChange={(v) => setFilter('product', v)} />
         <Select ariaLabel="Filter by assignee" placeholder="All assignees" value={assigneeFilter}
-          options={members.map((m) => ({ value: m.principal, label: m.displayName || m.principal }))}
+          options={members.filter((m) => m.principalKind === 'user' && m.displayName)
+            .map((m) => ({ value: m.displayName, label: m.displayName }))}
           onChange={(v) => setFilter('assignee', v)} />
         {canEdit && (
           <button type="button" className="btn btn-primary work-new-item" onClick={() => setFormOpen(true)}>New item</button>
@@ -202,7 +208,7 @@ export default function WorkBoard() {
             blocked: !!view?.blocked, commentCount: view?.comments?.length ?? 0,
           };
           const matches = (!productFilter || item.productKey === productFilter)
-            && (!assigneeFilter || item.assignee === assigneeFilter);
+            && (!assigneeFilter || item.assigneeName === assigneeFilter);
           if (matches) setColumns((cols) => addToColumns(cols || [], item));
           toast.success(`Created ${item.key}`);
         }} />

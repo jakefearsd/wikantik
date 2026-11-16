@@ -52,9 +52,32 @@ describe('eventText', () => {
     expect(eventText(ev('linked', { toValue: 'page:Main' })).text).toBe('linked page Main');
     expect(eventText(ev('unlinked', { fromValue: 'url:https://x.test' })).text).toBe('removed link url https://x.test');
   });
-  it('member and settings are generic but readable', () => {
-    expect(eventText(ev('member', { fromValue: null, toValue: 'viewer' })).text).toBe('member: none → viewer');
-    expect(eventText(ev('settings')).text).toBe('settings');
+  it('member events are phrased with display names, never the principal in the value', () => {
+    expect(eventText(ev('member', { toValue: 'user:x-login:member', toValueName: 'Ana A' })).text)
+      .toBe('added Ana A as member');
+    expect(eventText(ev('member', { fromValue: 'user:x:member', toValue: 'user:x:lead', fromValueName: 'Ana A',
+      toValueName: 'Ana A' })).text).toBe("changed Ana A's role member → lead");
+    expect(eventText(ev('member', { fromValue: 'user:x:lead', fromValueName: 'Ana A' })).text).toBe('removed Ana A (lead)');
+    expect(eventText(ev('member', { toValue: 'group:Devs:viewer', toValueName: 'Devs' })).text).toBe('added group Devs as viewer');
+    expect(eventText(ev('member', { toValue: 'user:x-login:member' })).text).toBe('added someone as member');
+    expect(eventText(ev('member', { toValue: 'user:x-login:member' })).text).not.toContain('login');
+    expect(eventText(ev('member')).text).toBe('changed the members');
+  });
+  it('settings events say what changed', () => {
+    expect(eventText(ev('settings', { note: 'archived', toValue: '2026-11-15T10:00:00Z' })).text).toBe('archived the project');
+    expect(eventText(ev('settings', { note: 'name', fromValue: 'Plat', toValue: 'Platform' })).text)
+      .toBe('renamed the project Plat → Platform');
+    expect(eventText(ev('settings', { note: 'description', fromValue: 'a', toValue: 'b' })).text)
+      .toBe('changed the project description');
+    expect(eventText(ev('settings', { note: 'default_autonomy', fromValue: 'delegated', toValue: 'supervised' })).text)
+      .toBe('changed the default autonomy delegated → supervised');
+    expect(eventText(ev('settings')).text).toBe('changed the project settings');
+  });
+  it('parent and product changes show keys', () => {
+    expect(eventText(ev('field', { note: 'parent', fromValue: 'PLAT-3', toValue: 'PLAT-7' })).text)
+      .toBe('changed parent PLAT-3 → PLAT-7');
+    expect(eventText(ev('field', { note: 'product', fromValue: null, toValue: 'web' })).text)
+      .toBe('changed product none → web');
   });
   it('an unknown type renders generically instead of failing', () => {
     expect(eventText(ev('sprint_planned', { fromValue: 'a', toValue: 'b' })).text).toBe('sprint planned: a → b');

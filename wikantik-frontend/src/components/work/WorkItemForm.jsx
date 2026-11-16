@@ -97,7 +97,7 @@ function FormBody({ project, products, onClose, onCreated }) {
           <div>
             <label className="work-form-field" htmlFor={`${uid}-product`}>Product</label>
             <Select id={`${uid}-product`} ariaLabel="Product" placeholder="No product" value={productKey}
-              options={(products || []).map((p) => ({ value: p.key, label: p.name || p.key }))}
+              options={(products || []).filter((p) => !p.archived).map((p) => ({ value: p.key, label: p.name || p.key }))}
               onChange={setProductKey} />
           </div>
         )}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({ getMe: vi.fn(), createProject: vi.fn() }));
@@ -108,5 +108,15 @@ describe('WorkHome', () => {
     await act(async () => { await Promise.resolve(); });
     expect(screen.getByText('Loading…')).toBeInTheDocument();
     expect(screen.queryByText('PLAT Platform')).not.toBeInTheDocument();
+  });
+
+  it('lists archived projects apart, under Archived, still reachable', async () => {
+    renderHome({ me: { waitingOn: [], projects: [
+      { id: 1, key: 'PLAT', name: 'Platform', role: 'member', archived: false },
+      { id: 2, key: 'OLD', name: 'Old one', role: 'lead', archived: true }] } });
+    await screen.findByRole('link', { name: 'PLAT Platform' });
+    const archived = screen.getByRole('region', { name: 'Archived projects' });
+    expect(within(archived).getByRole('link', { name: 'OLD Old one' })).toHaveAttribute('href', '/work/OLD');
+    expect(within(archived).queryByRole('link', { name: 'PLAT Platform' })).toBeNull();
   });
 });

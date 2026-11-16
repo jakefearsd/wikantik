@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('./client', () => ({ collabRequest: vi.fn() }));
 import { collabRequest } from './client';
 import * as work from './work';
+import { isArchivedRefusal } from '../components/work/archived';
 
 beforeEach(() => { collabRequest.mockReset(); collabRequest.mockResolvedValue({}); });
 
@@ -43,6 +44,16 @@ describe('work api client', () => {
     collabRequest.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, body: { current } }));
     await expect(work.patchItem('PLAT-1', { expectedVersion: 1, changes: {} }))
       .rejects.toMatchObject({ status: 409, current });
+  });
+
+  it('patchItem says archived and carries no current item when the project is archived', async () => {
+    collabRequest.mockRejectedValue(Object.assign(new Error('This project is archived.'),
+      { status: 409, body: { reason: 'archived', current: { item: {} } } }));
+    const e = await work.patchItem('PLAT-1', { expectedVersion: 1, changes: {} }).catch((x) => x);
+    expect(e).toMatchObject({ status: 409, reason: 'archived' });
+    expect(e.current).toBeUndefined();
+    expect(isArchivedRefusal(e)).toBe(true);
+    expect(isArchivedRefusal({ status: 409, reason: 'stale' })).toBe(false);
   });
 
   it('patchItem passes other failures through untouched', async () => {

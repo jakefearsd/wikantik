@@ -694,4 +694,47 @@ describe('WorkItemView', () => {
     expect(screen.queryByLabelText('Title')).toBeNull();
     expect(screen.getByRole('button', { name: 'Edit Priority' })).not.toBeDisabled();
   });
+
+  it('an archived project shows the item read-only with a banner', async () => {
+    renderView(makeView({ archived: true, viewerRole: 'lead' }));
+    await ready();
+    expect(screen.getByText('This project is archived. It is read-only.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit text' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit Priority' })).toBeNull();
+    expect(screen.queryByLabelText('Add a comment')).toBeNull();
+  });
+
+  it('a save refused because the project was archived says so and is never an edit conflict', async () => {
+    patchItem.mockRejectedValue(Object.assign(new Error('This project is archived.'), { status: 409, reason: 'archived' }));
+    renderView();
+    await ready();
+    getItem.mockResolvedValue(makeView({ archived: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Priority' }));
+    fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Priority' }));
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith('This project is archived; nothing was changed.'));
+    expect(screen.queryByText('This item changed while you were editing.')).toBeNull();
+    expect(await screen.findByText('This project is archived. It is read-only.')).toBeInTheDocument();
+  });
+
+  it('the product picker leaves out archived products', async () => {
+    listProducts.mockResolvedValue([{ key: 'wikantik', name: 'Wikantik', archived: false },
+      { key: 'old', name: 'Old', archived: true }]);
+    renderView(makeView({ productKey: null }));
+    await ready();
+    await waitFor(() => expect(listProducts).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Product' }));
+    const select = screen.getByLabelText('Product');
+    expect(within(select).getByRole('option', { name: 'wikantik – Wikantik' })).toBeInTheDocument();
+    expect(within(select).queryByRole('option', { name: 'old – Old' })).toBeNull();
+  });
+
+  it('the text editor labels the rendered tab as the saved version, not a preview', async () => {
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit text' }));
+    expect(screen.queryByRole('button', { name: 'Preview' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Saved version' }));
+    expect(screen.getByText(/last saved version, not your draft/)).toBeInTheDocument();
+  });
 });

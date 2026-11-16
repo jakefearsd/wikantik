@@ -137,3 +137,6 @@
 .work-confirm { border: 1px solid var(--danger); background: var(--danger-bg); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); margin: var(--space-sm) 0; font-family: var(--font-ui); }
 .work-product-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm) 0; border-bottom: 1px solid var(--border); font-family: var(--font-ui); }
 .work-settings, .work-products, .work-home, .work-dates, .work-activity { max-width: var(--content-max-width); font-family: var(--font-ui); }
+.work-archived-banner { margin: var(--space-sm) 0 var(--space-md); padding: var(--space-sm) var(--space-md); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); }
+.work-comment-body > :first-child { margin-top: 0; }
+.work-comment-body > :last-child { margin-bottom: 0; }

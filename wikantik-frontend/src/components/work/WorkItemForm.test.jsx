@@ -85,4 +85,11 @@ describe('WorkItemForm', () => {
     expect(onCreated).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('does not offer an archived product', () => {
+    setup({ products: [{ key: 'wikantik', name: 'Wikantik', archived: false }, { key: 'old', name: 'Old', archived: true }] });
+    const select = screen.getByLabelText('Product');
+    expect(within(select).getByRole('option', { name: 'Wikantik' })).toBeInTheDocument();
+    expect(within(select).queryByRole('option', { name: 'Old' })).toBeNull();
+  });
 });

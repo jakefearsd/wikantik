@@ -1,6 +1,7 @@
 // Work-management API client: one function per /api/work endpoint. Goes through client.js's request
 // helper (session, error envelope, build-version detection). Errors carry { status, body }; the server's
-// reason is the Error message. Logins are only ever values sent back; responses carry display names.
+// reason is the Error message. People are named by display name both ways: responses show display names (a login
+// reaches only a wiki admin) and requests may name a person by display name.
 import { collabRequest as request } from './client';
 
 const enc = encodeURIComponent;
@@ -41,13 +42,16 @@ export const getItem = (key) => request(`${base}/items/${enc(key)}`);
 
 /**
  * PATCH an item. body is { expectedVersion, changes, note }. A stale version rejects with
- * { status: 409, current } (current = the server's ItemView); other failures reject with { status, body }.
+ * { status: 409, reason: 'stale', current } (current = the server's ItemView); an archived project rejects with
+ * { status: 409, reason: 'archived' } and no current; other failures reject with { status, body }.
  */
 export function patchItem(key, body) {
   return request(`${base}/items/${enc(key)}`, json('PATCH', body)).catch((e) => {
     if (e && e.status === 409) {
-      throw Object.assign(new Error(e.message || 'Item changed since it was loaded'),
-        { status: 409, current: e.body?.current, body: e.body });
+      const reason = e.body?.reason || 'stale';
+      throw Object.assign(new Error(e.message || (reason === 'archived' ? 'This project is archived.'
+        : 'Item changed since it was loaded')),
+      { status: 409, reason, current: reason === 'stale' ? e.body?.current : undefined, body: e.body });
     }
     throw e;
   });

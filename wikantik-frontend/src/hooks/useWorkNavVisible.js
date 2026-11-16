@@ -5,7 +5,7 @@ import { getMe } from '../api/work';
 
 /**
  * Whether the "Work" navigation entry shows: the feature is on AND the viewer is signed in AND is either
- * an admin or a member of at least one project. Costs no request while the feature is off.
+ * an admin or a member of at least one project that is not archived. Costs no request while the feature is off.
  */
 export function useWorkNavVisible() {
   const { user } = useAuth();
@@ -19,7 +19,8 @@ export function useWorkNavVisible() {
     if (!enabled) return undefined;
     let cancelled = false;
     getMe()
-      .then((me) => { if (!cancelled) setHasProject((me?.projects || []).length > 0); })
+      // Archived projects are read-only and listed apart: they alone do not earn a navigation entry.
+      .then((me) => { if (!cancelled) setHasProject((me?.projects || []).some((p) => !p.archived)); })
       .catch((e) => console.warn('useWorkNavVisible: failed to load /api/work/me', e));
     return () => { cancelled = true; };
   }, [enabled]);

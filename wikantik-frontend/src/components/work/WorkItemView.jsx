@@ -3,12 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
-import { useAuth } from '../../hooks/useAuth';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useToast } from '../../hooks/useToast';
 import {
   addComment, addLink, editComment, getItem, listItems, listMembers, listProducts, patchItem, removeComment, removeLink,
 } from '../../api/work';
+import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS } from './boardModel';
 import WorkBodyEditor from './WorkBodyEditor';
 import WorkComments from './WorkComments';
@@ -116,7 +116,6 @@ function ConflictBanner({ banner, nameOf, onReload, onKeep }) {
 
 function ItemPage({ itemKey }) {
   const toast = useToast();
-  const { user } = useAuth();
   const [view, setView] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -131,7 +130,6 @@ function ItemPage({ itemKey }) {
   const [activity, setActivity] = useState(0);
   const seq = useRef(0);
   const projectKey = view?.projectKey;
-  const currentLogin = user?.authenticated ? (user.loginPrincipal ?? null) : null;
 
   useDocumentTitle(view ? `${view.item.key} ${view.item.title}` : 'Work item');
 
@@ -165,7 +163,7 @@ function ItemPage({ itemKey }) {
 
   const level = view?.item.level;
   const role0 = view?.viewerRole;
-  const editsRelations = (role0 === 'member' || role0 === 'lead') && level && level !== 'epic';
+  const editsRelations = (role0 === 'member' || role0 === 'lead') && !view?.archived && level && level !== 'epic';
   useEffect(() => {
     if (!editsRelations || !projectKey) return undefined;
     let cancelled = false;
@@ -178,10 +176,13 @@ function ItemPage({ itemKey }) {
     return () => { cancelled = true; };
   }, [editsRelations, projectKey, level]);
 
+  // An archived project is read-only: a write refused for that reason says so and re-reads the item (which then
+  // shows read-only); it is never treated as an edit conflict.
   const fail = useCallback((e, fallback) => {
     if (e?.status === 404) setNotFound(true);
+    else if (isArchivedRefusal(e)) { toast.info(`${ARCHIVED_TEXT}; nothing was changed.`); setOpen(null); load(); }
     else toast.error(e?.message || fallback);
-  }, [toast]);
+  }, [toast, load]);
 
   /**
    * PATCH; resolves true when accepted, 'restore' when the value was refused and the editor should close,
@@ -201,7 +202,8 @@ function ItemPage({ itemKey }) {
         return true;
       })
       .catch((e) => {
-        if (e?.status === 409) setConflict({ changes, current: e.current || null });
+        if (isArchivedRefusal(e)) fail(e);
+        else if (e?.status === 409) setConflict({ changes, current: e.current || null });
         else if (e?.status === 400 && e.body?.field) {
           setFieldErrors({ [e.body.field]: { message: e.body.message || e.message, source } });
           return e.body.field === 'parentKey' || e.body.field === 'productKey' ? 'restore' : false;
@@ -237,8 +239,9 @@ function ItemPage({ itemKey }) {
 
   const { item } = view;
   const role = view.viewerRole;
-  const canEdit = role === 'member' || role === 'lead';
-  const isLead = role === 'lead';
+  const archived = !!view.archived;
+  const canEdit = (role === 'member' || role === 'lead') && !archived;
+  const isLead = role === 'lead' && !archived;
   const isEpic = item.level === 'epic';
   const statusOptions = (isEpic ? EPIC_STATUSES : STATUSES).map((s) => ({ value: s, label: STATUS_LABELS[s] }));
   const field = (name) => (v) => save({ [name]: v });
@@ -267,7 +270,8 @@ function ItemPage({ itemKey }) {
   }
   const withCurrent = (opts, value, label) => (value && !opts.some((o) => o.value === value) ? [...opts, { value, label }] : opts);
   const productOptions = withCurrent([{ value: '', label: 'None' },
-    ...products.map((p) => ({ value: p.key, label: p.name ? `${p.key} – ${p.name}` : p.key }))], view.productKey, view.productKey);
+    ...products.filter((p) => !p.archived)
+      .map((p) => ({ value: p.key, label: p.name ? `${p.key} – ${p.name}` : p.key }))], view.productKey, view.productKey);
   const parentOptions = withCurrent([{ value: '', label: 'None' },
     ...parents.filter((p) => p.key !== item.key).map((p) => ({ value: p.key, label: `${p.key} – ${p.title}` }))], view.parentKey, view.parentKey);
 
@@ -283,6 +287,7 @@ function ItemPage({ itemKey }) {
         {view.blocked && <Badge variant="danger" title="Blocked by an open item">Blocked</Badge>}
         <h1 className="work-heading">{item.title}</h1>
       </header>
+      {archived && <p className="work-archived-banner" role="status">{ARCHIVED_TEXT}. It is read-only.</p>}
       {banner && (
         <ConflictBanner
           banner={banner} nameOf={nameOf}
@@ -314,7 +319,7 @@ function ItemPage({ itemKey }) {
             onRemove={(id) => mutate(() => removeLink(id), 'Could not remove the link.')}
           />
           <WorkComments
-            comments={view.comments} members={members} canComment={canEdit} currentLogin={currentLogin} isLead={isLead}
+            comments={view.comments} members={members} canComment={canEdit} isLead={isLead}
             onAdd={(body) => mutate(() => addComment(itemKey, body), 'Could not post the comment.')}
             onEdit={(id, body) => mutate(() => editComment(id, body), 'Could not save the comment.')}
             onRemove={(id) => mutate(() => removeComment(id), 'Could not remove the comment.')}

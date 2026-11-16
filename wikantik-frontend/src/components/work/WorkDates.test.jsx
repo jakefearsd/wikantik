@@ -41,7 +41,7 @@ describe('WorkDates', () => {
     const none = await group('No date');
     expect(none.getByText('Item 4')).toBeInTheDocument();
     expect(none.getByRole('link', { name: 'PLAT-4' })).toHaveAttribute('href', '/work/item/PLAT-4');
-    expect(listItems).toHaveBeenCalledWith(expect.objectContaining({ project: 'PLAT', limit: 200 }));
+    expect(listItems).toHaveBeenCalledWith(expect.objectContaining({ project: 'PLAT', order: 'due', limit: 200 }));
     expect(screen.getAllByText('Ada Lovelace').length).toBe(4);
   });
 

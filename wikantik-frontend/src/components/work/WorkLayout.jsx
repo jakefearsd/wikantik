@@ -5,6 +5,7 @@ import Spinner from '../ui/Spinner';
 import Tabs from '../ui/Tabs';
 import { getProject } from '../../api/work';
 import { WorkProjectContext } from './useWorkProject';
+import { ARCHIVED_TEXT } from './archived';
 
 const TABS = [
   { id: 'board', label: 'Board' },
@@ -50,6 +51,7 @@ export default function WorkLayout() {
           <Link to="/work">Work</Link> <span aria-hidden="true">▸</span> {current.project.key} {current.project.name}
         </h1>
       </header>
+      {current.project.archived && <p className="work-archived-banner" role="status">{ARCHIVED_TEXT}. It is read-only.</p>}
       <Tabs tabs={TABS} active={active}
         onChange={(id) => navigate(id === 'board' ? `/work/${key}` : `/work/${key}/${id}`)}>
         <Outlet />

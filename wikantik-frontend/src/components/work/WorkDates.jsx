@@ -27,7 +27,8 @@ export default function WorkDates() {
 
   const load = useCallback(() => {
     const mine = ++seq.current;
-    return listItems({ project: project.key, status: OPEN, limit: LIMIT })
+    // Soonest due first (no date last), so the cap keeps the nearest dates.
+    return listItems({ project: project.key, status: OPEN, order: 'due', limit: LIMIT })
       .then((items) => { if (mine === seq.current) setState({ key: project.key, items: items || [], error: null }); })
       .catch((error) => {
         console.warn('WorkDates: could not load items', error);

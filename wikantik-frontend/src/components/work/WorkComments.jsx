@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import MentionPicker from '../MentionPicker';
 import { useMentionPicker } from '../../hooks/useMentionPicker';
-import { nameMap, splitBody, toDisplay, toWire } from './mentionText';
+import WorkBody from './WorkBody';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
 const grow = (el) => {
@@ -11,10 +11,9 @@ const grow = (el) => {
 };
 
 /**
- * A textarea with @-mention completion over the project's own members. The text holds display names; the picker
- * inserts `@Display Name`, and conversion to the `@login` the server reads happens on submit (mentionText.js).
- * The page's MentionPicker popover is reused as is; its insertion (a wiki user token) is not, because work
- * comments use plain `@login`.
+ * A textarea with @-mention completion over the project's own members (only those the server gave a mention id).
+ * It reuses the wiki's comment picker and its token: choosing a member inserts `@[Display Name](user:<id>)`, which
+ * the server resolves by id. No login is ever typed, shown or sent.
  */
 function MentionTextarea({ label, value, onChange, users, onSubmit, rows = 3 }) {
   const ref = useRef(null);
@@ -23,25 +22,19 @@ function MentionTextarea({ label, value, onChange, users, onSubmit, rows = 3 }) 
     fetchCandidates: (q) => {
       const needle = q.toLowerCase();
       return Promise.resolve(users
-        .filter((m) => m.displayName.toLowerCase().includes(needle))
-        .map((m) => ({ id: m.principal, displayName: m.displayName })));
+        .filter((m) => m.mentionId && m.displayName && m.displayName.toLowerCase().includes(needle))
+        .map((m) => ({ id: m.mentionId, displayName: m.displayName })));
     },
   });
 
   function accept(candidate) {
-    const ta = ref.current;
-    if (!ta) return;
-    const caret = ta.selectionStart;
-    const start = caret - 1 - picker.query.length;
-    const inserted = `@${candidate.displayName} `;
-    const next = ta.value.slice(0, start) + inserted + ta.value.slice(caret);
-    const pos = start + inserted.length;
-    onChange(next);
-    picker.close();
+    const { replacement, selectionStart } = picker.accept(candidate);
+    onChange(replacement);
     setTimeout(() => {
       const el = ref.current;
       if (!el) return;
-      el.setSelectionRange(pos, pos);
+      el.setSelectionRange(selectionStart, selectionStart);
+      grow(el);
       el.focus();
     }, 0);
   }
@@ -68,17 +61,7 @@ function MentionTextarea({ label, value, onChange, users, onSubmit, rows = 3 }) 
   );
 }
 
-function CommentText({ body, byLogin }) {
-  return (
-    <div className="work-comment-body">
-      {splitBody(body, byLogin).map((p, i) => (typeof p === 'string'
-        ? p
-        : <span key={i} className="comment-mention-chip">@{p.name}</span>))}
-    </div>
-  );
-}
-
-function Comment({ comment, users, byLogin, canEdit, canRemove, onEdit, onRemove }) {
+function Comment({ comment, users, canEdit, canRemove, onEdit, onRemove }) {
   const [draft, setDraft] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -96,7 +79,7 @@ function Comment({ comment, users, byLogin, canEdit, canRemove, onEdit, onRemove
   };
   const save = () => {
     if (busy || !draft.trim()) return;
-    run(onEdit(comment.id, toWire(draft.trim(), users)), () => setDraft(null));
+    run(onEdit(comment.id, draft.trim()), () => setDraft(null));
   };
 
   return (
@@ -106,7 +89,9 @@ function Comment({ comment, users, byLogin, canEdit, canRemove, onEdit, onRemove
         <time dateTime={comment.createdAt}>{when(comment.createdAt)}</time>
         {comment.editedAt && <span className="work-muted">(edited)</span>}
       </div>
-      {draft === null ? <CommentText body={comment.body} byLogin={byLogin} /> : (
+      {draft === null ? (
+        <WorkBody html={comment.bodyHtml} mentions={comment.mentions} className="article-prose work-comment-body" empty={null} />
+      ) : (
         <div className="work-comment-edit">
           <MentionTextarea label="Edit your comment" value={draft} onChange={setDraft} users={users} onSubmit={save} />
           <div className="work-actions">
@@ -126,7 +111,7 @@ function Comment({ comment, users, byLogin, canEdit, canRemove, onEdit, onRemove
           <div className="work-actions">
             {canEdit && (
               <button type="button" className="work-link-button" aria-label={`Edit comment by ${comment.authorName}`}
-                onClick={() => setDraft(toDisplay(comment.body, byLogin))}>Edit</button>
+                onClick={() => setDraft(comment.body || '')}>Edit</button>
             )}
             {canRemove && (
               <button type="button" className="work-link-button" aria-label={`Remove comment by ${comment.authorName}`}
@@ -140,13 +125,13 @@ function Comment({ comment, users, byLogin, canEdit, canRemove, onEdit, onRemove
 }
 
 /**
- * The discussion. `members` are the project's own members (listMembers); only user rows are offered or resolved.
+ * The discussion. `members` are the project's own members (listMembers); only user rows are offered in the picker.
+ * Each comment arrives rendered (`bodyHtml`, with `mentions` to mark) and says whether it is the viewer's (`mine`).
  * Authors edit their own comments; authors and leads remove; viewers (`canComment` false) get no controls.
  * `onAdd(body)`, `onEdit(id, body)` and `onRemove(id)` resolve true on success.
  */
-export default function WorkComments({ comments = [], members = [], canComment, currentLogin, isLead, onAdd, onEdit, onRemove }) {
+export default function WorkComments({ comments = [], members = [], canComment, isLead, onAdd, onEdit, onRemove }) {
   const users = members.filter((m) => m.principalKind === 'user');
-  const byLogin = nameMap(users);
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
 
@@ -154,7 +139,7 @@ export default function WorkComments({ comments = [], members = [], canComment, 
     const body = text.trim();
     if (!body || posting) return;
     setPosting(true);
-    onAdd(toWire(body, users))
+    onAdd(body)
       .then((ok) => { if (ok) setText(''); })
       .catch((e) => console.warn('WorkComments: posting failed', e))
       .finally(() => setPosting(false));
@@ -166,9 +151,9 @@ export default function WorkComments({ comments = [], members = [], canComment, 
       {comments.length === 0 ? <p className="work-muted">No comments yet.</p> : (
         <ul className="work-comment-list">
           {comments.map((c) => {
-            const mine = !!currentLogin && c.author === currentLogin;
+            const mine = c.mine === true;
             return (
-              <Comment key={c.id} comment={c} users={users} byLogin={byLogin}
+              <Comment key={c.id} comment={c} users={users}
                 canEdit={canComment && mine} canRemove={canComment && (mine || !!isLead)}
                 onEdit={onEdit} onRemove={onRemove} />
             );

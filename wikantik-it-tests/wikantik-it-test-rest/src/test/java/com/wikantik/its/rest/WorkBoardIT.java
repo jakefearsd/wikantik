@@ -137,7 +137,7 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         type( $x( "//label[normalize-space()='Description']/following-sibling::textarea[1]" ),
             "First draft of the text " + workToken );
         $( "select[aria-label='Product']" ).selectOptionByValue( "uit-product" );
-        submitItemForm();
+        $( "form.work-form button[type=submit]" ).shouldHave( exactText( "Create item" ) ).click();
         final SelenideElement draftCard = $( "[data-testid=column-draft]" ).$$( "article.work-card" )
             .findBy( text( title ) ).shouldBe( visible, WAIT );
         final String itemKey = draftCard.getAttribute( "data-item-key" );
@@ -284,7 +284,7 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         type( $x( "//label[normalize-space()='Description']/following-sibling::textarea[1]" ), "For the agent " + workToken );
         $( "select[aria-label='Product']" ).selectOptionByValue( productKey );
         $( "select[id$='-assignee']" ).shouldBe( visible, WAIT ).selectOptionByValue( "queue:" + queueKey );
-        submitItemForm();
+        $( "form.work-form button[type=submit]" ).shouldHave( exactText( "Create item" ) ).click();
         final SelenideElement draftCard = $( "[data-testid=column-draft]" ).$$( "article.work-card" )
             .findBy( text( title ) ).shouldBe( visible, WAIT );
         final String itemKey = draftCard.getAttribute( "data-item-key" );
@@ -346,17 +346,6 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         itemRows.get( claim ).$( ".work-agent-badge" ).shouldBe( visible );
         itemRows.get( released ).$( ".work-agent-badge" ).shouldBe( visible );
         assertEquals( 0, itemRows.get( assigned ).$$( ".work-agent-badge" ).size(), "the person's assignment has no agent badge" );
-    }
-
-    /**
-     * Presses "Create item". On a short window the dialog's last row sits just below the fold, where a text search
-     * (Selenium's {@code getText} of a button the window does not show) finds nothing; scrolling it into view first is
-     * what a person does.
-     */
-    private static void submitItemForm() {
-        final SelenideElement submit = $( "form.work-form button[type=submit]" ).shouldBe( exist, WAIT );
-        Selenide.executeJavaScript( "arguments[0].scrollIntoView({ block: 'center' });", submit );
-        submit.shouldHave( exactText( "Create item" ) ).click();
     }
 
     private static int indexOf( final List< String > rows, final String fragment ) {

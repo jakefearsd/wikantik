@@ -552,6 +552,15 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   animation: fadeIn var(--duration) var(--ease);
 }
 
+/* Modal.jsx puts both classes on one element, so admin.css's .modal-overlay (padding-top: 15vh, flex-start) also
+   applies. Override on the combined selector: even breathing room, centred, and the content below is sized to what
+   is left, so the dialog's last row is never pushed below the window (ruling P22). Non-centred overlays are untouched. */
+.modal-overlay.modal-overlay-centered {
+  padding: var(--space-md);
+  align-items: center;
+  box-sizing: border-box;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay-centered {
     animation: none;
@@ -574,7 +583,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: 0 20px 60px var(--shadow-strong);
-  max-height: 90vh;
+  max-height: calc(100vh - 2 * var(--space-md));
+  max-height: calc(100dvh - 2 * var(--space-md));
   overflow-y: auto;
   width: min(560px, 90vw);
   animation: scaleIn var(--duration) var(--ease);

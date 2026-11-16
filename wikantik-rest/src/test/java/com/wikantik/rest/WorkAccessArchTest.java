@@ -34,8 +34,13 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * {@code com.wikantik.work.runtime.WorkWiring} that builds the store may touch {@code WorkStore}, {@code JdbcWorkStore}
  * or the sub-store interfaces ({@code WorkCatalogStore}, {@code WorkRegistryStore}, {@code WorkClaimStore}). Not frozen: there are no
  * violations to baseline and none may be added.
+ *
+ * <p>Classes come from {@link com.wikantik.architecture.ProductionPackageLocations}, not {@code packages =}: the
+ * latter walks the whole {@code target/test-classes} root, where other forks' {@code TestEngine} page repositories
+ * come and go, and failed on one that vanished mid-scan.</p>
  */
-@AnalyzeClasses( packages = "com.wikantik", importOptions = ImportOption.DoNotIncludeTests.class )
+@AnalyzeClasses( locations = com.wikantik.architecture.ProductionPackageLocations.class,
+    importOptions = ImportOption.DoNotIncludeTests.class )
 class WorkAccessArchTest {
 
     /**
@@ -58,4 +63,35 @@ class WorkAccessArchTest {
         .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkRegistryStore" )
         .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkClaimStore" )
         .because( "WorkService is the only door to work data; the store and its sub-stores have no visibility check" );
+
+    /**
+     * The flake's cause, made deterministic: a directory in the {@code target/test-classes} root that cannot be read
+     * stands in for a {@code TestEngine} page repository deleted by another fork mid-scan. Importing must not walk the
+     * classpath root, so it must not trip over it.
+     */
+    @org.junit.jupiter.api.Test
+    void importingNeverWalksTheTestClassesRoot() throws Exception {
+        final java.nio.file.Path root = java.nio.file.Path.of(
+            WorkAccessArchTest.class.getProtectionDomain().getCodeSource().getLocation().toURI() );
+        final java.nio.file.Path probe = root.resolve( "archprobe-" + java.util.UUID.randomUUID() );
+        final java.nio.file.Path repo = java.nio.file.Files.createDirectories( probe.resolve( "testrepository" ) );
+        java.nio.file.Files.writeString( repo.resolve( "Main.md" ), "x" );
+        java.nio.file.Files.setPosixFilePermissions( repo, java.util.Set.of() );
+        try {
+            final com.tngtech.archunit.core.domain.JavaClasses imported = new com.tngtech.archunit.core.importer
+                .ClassFileImporter().withImportOption( new ImportOption.DoNotIncludeTests() )
+                .importLocations( new com.wikantik.architecture.ProductionPackageLocations().get( getClass() ) );
+            org.junit.jupiter.api.Assertions.assertTrue( imported.contain( WorkResourceBase.class )
+                && imported.contain( com.wikantik.work.runtime.WorkWiring.class )
+                && imported.contain( com.wikantik.work.WorkStore.class )
+                && imported.contain( com.wikantik.work.WorkClaimsService.class ),
+                "the rules above see the rest, main and work classes they are about" );
+        } finally {
+            java.nio.file.Files.setPosixFilePermissions( repo, java.nio.file.attribute.PosixFilePermissions.fromString(
+                "rwx------" ) );
+            java.nio.file.Files.delete( repo.resolve( "Main.md" ) );
+            java.nio.file.Files.delete( repo );
+            java.nio.file.Files.delete( probe );
+        }
+    }
 }

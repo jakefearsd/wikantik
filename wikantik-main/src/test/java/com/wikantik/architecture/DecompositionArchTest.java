@@ -53,7 +53,7 @@ import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
  * promotion to a dedicated {@code wikantik-archtest} module.</p>
  */
 @AnalyzeClasses(
-    packages = "com.wikantik",
+    locations = ProductionPackageLocations.class,
     importOptions = { ImportOption.DoNotIncludeTests.class }
 )
 class DecompositionArchTest {

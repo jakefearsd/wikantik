@@ -308,6 +308,9 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         assertEquals( 0, $$( "[data-testid=column-ready] article.work-card[data-item-key='" + itemKey + "']" ).size(),
             "the card left Ready" );
 
+        // The rest cascade's claims last one minute: renew now, so the item-page steps below cannot outlive the claim.
+        renewClaim( token, itemKey );
+
         // The item page's claim panel names the agent and the times; a person may release it.
         claimedCard.$( "a.work-card-key" ).click();
         final SelenideElement panel = $( "section.work-claim" ).shouldBe( visible, WAIT );
@@ -315,12 +318,9 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         panel.shouldHave( text( "until" ), WAIT );
         panel.$$( "button" ).findBy( exactText( "Release claim" ) ).shouldBe( visible, WAIT );
 
-        // The rest cascade's claims last one minute and the browser steps above can take longer: the agent renews
-        // (claims again with the same key) right before it hands off, and hands off against the renewal's version.
-        final HttpResponse< String > renewed = WorkIt.bearer( token, "POST", "/api/work/items/" + itemKey + "/claim", null );
-        assertEquals( 200, renewed.statusCode(), "the agent renews its claim: " + WorkIt.status( renewed ) );
-        final com.google.gson.JsonObject renewedView = WorkIt.json( renewed ).getAsJsonObject();
-        final int version = ( renewedView.has( "item" ) ? renewedView.getAsJsonObject( "item" ) : renewedView ).get( "version" ).getAsInt();
+        // Renew again right before the hand-off and hand off against that renewal's version. A lapse in between shows
+        // here as renewed=false (the claim was taken afresh), not later as a puzzling log mismatch.
+        final int version = renewClaim( token, itemKey );
 
         // The agent hands it to the admin with a note (REST, as the agent).
         final HttpResponse< String > handed = WorkIt.bearer( token, "POST", "/api/work/items/" + itemKey + "/handoff",
@@ -337,7 +337,7 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         lane.$( "blockquote.work-waiting-note" ).shouldHave( text( note ), WAIT );
 
         // The project's "Assignments and claims": assignment to the queue, the person's draft to ready, claim, hand-off,
-        // the renewal (one renewal is a row of its own; only a run of them folds), release; newest first.
+        // the renewals (consecutive renewals fold into one row), release; newest first.
         open( "/work/" + projectKey + "/log" );
         $$( "li.work-log-row" ).filter( text( itemKey ) ).shouldHave( CollectionCondition.size( 6 ), WAIT );
         final List< String > rows = new ArrayList<>( $$( "li.work-log-row" ).filter( text( itemKey ) ).texts() );
@@ -356,6 +356,15 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         itemRows.get( released ).$( ".work-agent-badge" ).shouldBe( visible );
         assertEquals( 0, itemRows.get( ready ).$$( ".work-agent-badge" ).size(), "the person's status change has no agent badge" );
         assertEquals( 0, itemRows.get( assigned ).$$( ".work-agent-badge" ).size(), "the person's assignment has no agent badge" );
+    }
+
+    /** The agent claims again with the same key; the claim must still have been held. Returns the item's new version. */
+    private static int renewClaim( final String token, final String itemKey ) throws Exception {
+        final HttpResponse< String > renewed = WorkIt.bearer( token, "POST", "/api/work/items/" + itemKey + "/claim", null );
+        assertEquals( 200, renewed.statusCode(), "the agent renews its claim: " + WorkIt.status( renewed ) );
+        final com.google.gson.JsonObject view = WorkIt.json( renewed ).getAsJsonObject();
+        assertTrue( view.get( "renewed" ).getAsBoolean(), "the claim was still held when renewed (not taken afresh): " + WorkIt.status( renewed ) );
+        return ( view.has( "item" ) ? view.getAsJsonObject( "item" ) : view ).get( "version" ).getAsInt();
     }
 
     private static int indexOf( final List< String > rows, final String fragment ) {

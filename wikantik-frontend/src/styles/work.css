@@ -147,3 +147,15 @@
 .work-token-value { display: block; word-break: break-all; padding: var(--space-sm); margin: var(--space-sm) 0; background: var(--accent-soft); border-radius: var(--radius-sm); user-select: all; }
 .work-fieldset { border: 0; padding: 0; margin: var(--space-sm) 0; }
 .work-check { display: inline-flex; align-items: center; gap: var(--space-xs); margin-right: var(--space-md); }
+
+/* Queues and claims: stated in words as well as colour, so a claim is never conveyed by colour alone. */
+.work-card-queue { font-size: 0.72rem; }
+.work-card-claim { display: inline-block; border: 1px solid var(--accent); border-left-width: 4px; border-radius: var(--radius-sm); padding: 0 var(--space-sm); background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.work-card-claim.claim-expired, .work-claim.claim-expired { border-color: var(--danger); background: var(--danger-bg); }
+.work-card-available { font-style: italic; color: var(--text-secondary); }
+.work-claim { border: 1px solid var(--accent); border-left-width: 4px; border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); margin: var(--space-sm) 0; background: var(--accent-soft); }
+.work-claim p { margin: 0 0 var(--space-xs); }
+.work-claim-available { border-style: dashed; background: transparent; color: var(--text-secondary); }
+.work-claim-tag, .work-agent-badge { display: inline-block; margin-left: var(--space-xs); padding: 0 var(--space-xs); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary); }
+.work-claim-warning { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+.work-waiting-note { margin: var(--space-xs) 0 0; padding-left: var(--space-sm); border-left: 3px solid var(--accent); font-size: 0.85rem; }

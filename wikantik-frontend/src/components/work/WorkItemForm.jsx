@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import Modal from '../ui/Modal';
 import Select from '../ui/Select';
 import { listItems, createItem } from '../../api/work';
+import AssigneePicker from './AssigneePicker';
 import { PRIORITY_OPTIONS } from './boardModel';
 
 const LEVELS = [
@@ -12,7 +13,7 @@ const LEVELS = [
 const KINDS = ['software', 'docs', 'admin'];
 const OPEN_STATUSES = ['draft', 'refining', 'ready', 'in_progress', 'review'];
 
-function FormBody({ project, products, onClose, onCreated }) {
+function FormBody({ project, products, members, queues, onClose, onCreated }) {
   const uid = useId();
   const [level, setLevel] = useState('task');
   const [title, setTitle] = useState('');
@@ -22,6 +23,7 @@ function FormBody({ project, products, onClose, onCreated }) {
   const [kind, setKind] = useState('software');
   const [priority, setPriority] = useState('3');
   const [dueOn, setDueOn] = useState('');
+  const [target, setTarget] = useState({});
   const [candidates, setCandidates] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -55,6 +57,8 @@ function FormBody({ project, products, onClose, onCreated }) {
     if (parentKey && current.parentLevel) draft.parentKey = parentKey;
     if (productKey && level !== 'epic') draft.productKey = productKey;
     if (dueOn) draft.dueOn = dueOn;
+    if (target.queue) draft.queue = target.queue;
+    else if (target.assignee) draft.assignee = target.assignee;
     createItem(draft)
       .then((view) => {
         onCreated?.(view.item, view);
@@ -102,6 +106,11 @@ function FormBody({ project, products, onClose, onCreated }) {
           </div>
         )}
         <div>
+          <label className="work-form-field" htmlFor={`${uid}-assignee`}>Assignee</label>
+          <AssigneePicker id={`${uid}-assignee`} members={members} queues={queues} value={target}
+            onChange={(t) => setTarget(t.queue ? { queue: t.queue } : t.assignee ? { assignee: t.assignee } : {})} />
+        </div>
+        <div>
           <label className="work-form-field" htmlFor={`${uid}-kind`}>Kind</label>
           <Select id={`${uid}-kind`} ariaLabel="Kind" value={kind} options={KINDS} onChange={setKind} />
         </div>
@@ -126,10 +135,10 @@ function FormBody({ project, products, onClose, onCreated }) {
 }
 
 /** Modal "New item" form. onCreated receives the created Item and the full ItemView; the board adds it without reloading. */
-export default function WorkItemForm({ isOpen, onClose, project, products, onCreated }) {
+export default function WorkItemForm({ isOpen, onClose, project, products, members, queues, onCreated }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} labelledBy="work-item-form-title" className="work-form-modal">
-      {isOpen && <FormBody project={project} products={products} onClose={onClose} onCreated={onCreated} />}
+      {isOpen && <FormBody project={project} products={products} members={members} queues={queues} onClose={onClose} onCreated={onCreated} />}
     </Modal>
   );
 }

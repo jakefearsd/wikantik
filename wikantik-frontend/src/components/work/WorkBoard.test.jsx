@@ -3,12 +3,12 @@ import { render, screen, fireEvent, createEvent, waitFor, within } from '@testin
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
-  getBoard: vi.fn(), getMe: vi.fn(), listProducts: vi.fn(), listMembers: vi.fn(), patchItem: vi.fn(), listItems: vi.fn(), createItem: vi.fn(),
+  getBoard: vi.fn(), getMe: vi.fn(), listProducts: vi.fn(), listMembers: vi.fn(), patchItem: vi.fn(), listItems: vi.fn(), createItem: vi.fn(), listQueues: vi.fn(),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 
-import { getBoard, getMe, listProducts, listMembers, patchItem, listItems, createItem } from '../../api/work';
+import { getBoard, getMe, listProducts, listMembers, patchItem, listItems, createItem, listQueues } from '../../api/work';
 import { WorkProjectContext } from './useWorkProject';
 import WorkBoard from './WorkBoard';
 
@@ -51,6 +51,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   listProducts.mockResolvedValue([{ id: 3, key: 'wikantik', name: 'Wikantik' }]);
   listItems.mockResolvedValue([]);
+  listQueues.mockResolvedValue([
+    { key: 'implementer', name: 'Implementer', retiredAt: null }, { key: 'old', name: 'Old', retiredAt: '2026-10-01T00:00:00Z' },
+  ]);
   listMembers.mockResolvedValue([
     { principal: 'carol-login', principalKind: 'user', role: 'member', displayName: 'Carol C' },
     { principal: 'dan-login', principalKind: 'user', role: 'lead', displayName: 'Dan D' },
@@ -341,5 +344,75 @@ describe('WorkBoard', () => {
     fireEvent.click(screen.getByLabelText('Show draft and cancelled'));
     expect(screen.queryByText('Other product')).not.toBeInTheDocument();
   });
-});
 
+  it('assigneeFilterIncludesQueues: choosing a queue sends queue= and no assignee, and the URL keeps it', async () => {
+    renderBoard();
+    await screen.findByText('Item 1');
+    const select = screen.getByLabelText('Filter by assignee');
+    await waitFor(() => expect(within(select).getByRole('option', { name: 'Queue · Implementer' })).toBeInTheDocument());
+    expect(within(select).queryByRole('option', { name: /Old/ })).toBeNull();
+    fireEvent.change(select, { target: { value: 'queue:implementer' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { queue: 'implementer' }));
+    expect(screen.getByLabelText('Filter by assignee')).toHaveValue('queue:implementer');
+    fireEvent.change(screen.getByLabelText('Filter by assignee'), { target: { value: 'Carol C' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { assignee: 'Carol C' }));
+  });
+
+  it('a queue filter in the URL is sent on load', async () => {
+    renderBoard({ url: '/work/PLAT?queue=implementer' });
+    await screen.findByText('Item 1');
+    expect(getBoard).toHaveBeenCalledWith('PLAT', { queue: 'implementer' });
+  });
+
+  it('waitingLaneShowsHandoffFromAndNote, never a login', async () => {
+    const waiting = [
+      item(2, 'review', { projectId: 1, waiting: { reason: 'assigned', byName: 'codex@docker2', byKind: 'agent', note: 'ready for review', at: '2026-11-16T10:00:00Z' } }),
+      item(3, 'review', { projectId: 1, waiting: { reason: 'mentioned', byName: 'Jane Doe', byKind: 'human', note: null, at: '2026-11-16T10:00:00Z' } }),
+      item(4, 'review', { projectId: 1, waiting: { reason: 'assigned', byName: null, byKind: null, note: null, at: null } }),
+    ];
+    renderBoard({ me: { waitingOn: waiting, projects: [] } });
+    const lane = await screen.findByTestId('waiting-lane');
+    expect(lane).toHaveTextContent('Assigned by codex@docker2 (agent)');
+    expect(within(lane).getByText('ready for review')).toBeInTheDocument();
+    expect(lane).toHaveTextContent('Mentioned by Jane Doe');
+    expect(lane).not.toHaveTextContent('Jane Doe (agent)');
+  });
+
+  it('the create form offers the active queues', async () => {
+    renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.click(screen.getByRole('button', { name: 'New item' }));
+    expect(await screen.findByLabelText('Assignee')).toBeInTheDocument();
+    await waitFor(() => expect(within(screen.getByLabelText('Assignee')).getByRole('option', { name: 'Queue · Implementer' })).toBeInTheDocument());
+  });
+
+  describe('claimed items', () => {
+    const claimedItem = (id, status) => item(id, status, {
+      queue: 'implementer', queueName: 'Implementer', claimedByAgent: 3, claimedByName: 'codex@docker2',
+      claimedAt: '2026-11-16T09:00:00Z', claimExpiresAt: '2099-11-16T15:40:00Z',
+    });
+
+    it('a claimed card shows its holder', async () => {
+      board = boardOf({ ready: [claimedItem(1, 'ready')] });
+      renderBoard();
+      expect(await screen.findByText(/^codex@docker2 · until /)).toBeInTheDocument();
+    });
+
+    it('movingAClaimedItemProceedsAndThenSaysTheClaimWasReleased', async () => {
+      board = boardOf({ ready: [claimedItem(1, 'ready')] });
+      patchItem.mockResolvedValue({ item: item(1, 'review', { version: 2, queue: 'implementer', queueName: 'Implementer', claimedByAgent: null }) });
+      renderBoard();
+      await dragTo('Item 1', 'review');
+      await waitFor(() => expect(patchItem).toHaveBeenCalled());
+      await waitFor(() => expect(toast.info).toHaveBeenCalledWith("codex@docker2's claim on PLAT-1 was released by the move."));
+    });
+
+    it('moving an unclaimed item says nothing about claims', async () => {
+      patchItem.mockResolvedValue({ item: item(1, 'review', { version: 2 }) });
+      renderBoard();
+      await dragTo('Item 1', 'review');
+      await waitFor(() => expect(patchItem).toHaveBeenCalled());
+      expect(toast.info).not.toHaveBeenCalled();
+    });
+  });
+});

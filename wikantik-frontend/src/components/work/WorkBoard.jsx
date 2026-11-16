@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import Select from '../ui/Select';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { useToast } from '../../hooks/useToast';
-import { getBoard, getMe, listMembers, listProducts, patchItem } from '../../api/work';
+import { getBoard, getMe, listMembers, listProducts, listQueues, patchItem } from '../../api/work';
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { useWorkProject } from './useWorkProject';
+import WaitingLane from './WaitingLane';
 import WorkCard from './WorkCard';
 import WorkItemForm from './WorkItemForm';
 import { STATUS_LABELS, addToColumns, groupByEpic, moveInColumns, orderColumns, rankForInsert, revertCard } from './boardModel';
@@ -54,9 +55,11 @@ export default function WorkBoard() {
   const [waiting, setWaiting] = useState([]);
   const [products, setProducts] = useState([]);
   const [members, setMembers] = useState([]);
+  const [queues, setQueues] = useState([]);
   const [params, setParams] = useSearchParams();
   const productFilter = params.get('product') || '';
   const assigneeFilter = params.get('assignee') || '';
+  const queueFilter = params.get('queue') || '';
   const [formOpen, setFormOpen] = useState(false);
   const dragged = useRef(null);
   const loadSeq = useRef(0);
@@ -76,17 +79,31 @@ export default function WorkBoard() {
   const load = useCallback(() => {
     const seq = ++loadSeq.current;
     return getBoard(project.key,
-      { ...(productFilter ? { product: productFilter } : {}), ...(assigneeFilter ? { assignee: assigneeFilter } : {}) })
+      {
+        ...(productFilter ? { product: productFilter } : {}),
+        ...(assigneeFilter ? { assignee: assigneeFilter } : {}),
+        ...(queueFilter ? { queue: queueFilter } : {}),
+      })
       .then((cols) => {
         if (seq !== loadSeq.current) return;
         setNotFound(false); setLoadError(null); setColumns(cols || []);
       })
       .catch((e) => { if (seq === loadSeq.current) fail(e); });
-  }, [project.key, productFilter, assigneeFilter, setColumns, fail]);
+  }, [project.key, productFilter, assigneeFilter, queueFilter, setColumns, fail]);
 
   function setFilter(name, value) {
     const next = new URLSearchParams(params);
     if (value) next.set(name, value); else next.delete(name);
+    setParams(next, { replace: true });
+  }
+
+  // One select filters by a person or a queue; the URL keeps whichever was chosen, never both.
+  function setAssigneeFilter(value) {
+    const next = new URLSearchParams(params);
+    next.delete('assignee');
+    next.delete('queue');
+    if (value.startsWith('queue:')) next.set('queue', value.slice('queue:'.length));
+    else if (value) next.set('assignee', value);
     setParams(next, { replace: true });
   }
 
@@ -102,6 +119,9 @@ export default function WorkBoard() {
     listMembers(project.key)
       .then((list) => setMembers(list || []))
       .catch((e) => console.warn('WorkBoard: failed to load members', e));
+    listQueues()
+      .then((list) => setQueues(list || []))
+      .catch((e) => console.warn('WorkBoard: failed to load queues', e));
   }, [project.id, project.key]);
 
   function move(item, status, index) {
@@ -116,9 +136,15 @@ export default function WorkBoard() {
     const original = columns.flatMap((c) => c.items).find((i) => i.key === item.key);
     setColumns(moveInColumns(columns, item.key, status, at, rank));
     patchItem(item.key, { expectedVersion: item.version, changes })
-      .then((view) => setColumns((cols) => (cols || []).map((c) => ({
-        ...c, items: c.items.map((i) => (i.key === item.key ? { ...i, ...view.item } : i)),
-      }))))
+      .then((view) => {
+        setColumns((cols) => (cols || []).map((c) => ({
+          ...c, items: c.items.map((i) => (i.key === item.key ? { ...i, ...view.item } : i)),
+        })));
+        // A person is never locked out of a claimed item, but the move ends the claim: say so once it has happened.
+        if (original?.claimedByAgent != null && view?.item && view.item.claimedByAgent == null) {
+          toast.info(`${original.claimedByName || 'An agent'}'s claim on ${item.key} was released by the move.`);
+        }
+      })
       .catch((err) => {
         if (isArchivedRefusal(err)) {
           toast.info(`${ARCHIVED_TEXT}; nothing was moved.`);
@@ -174,24 +200,20 @@ export default function WorkBoard() {
         <Select ariaLabel="Filter by product" placeholder="All products" value={productFilter}
           options={products.map((p) => ({ value: p.key, label: p.name || p.key }))}
           onChange={(v) => setFilter('product', v)} />
-        <Select ariaLabel="Filter by assignee" placeholder="All assignees" value={assigneeFilter}
-          options={members.filter((m) => m.principalKind === 'user' && m.displayName)
-            .map((m) => ({ value: m.displayName, label: m.displayName }))}
-          onChange={(v) => setFilter('assignee', v)} />
+        <Select ariaLabel="Filter by assignee" placeholder="All assignees"
+          value={queueFilter ? `queue:${queueFilter}` : assigneeFilter}
+          options={[
+            ...members.filter((m) => m.principalKind === 'user' && m.displayName)
+              .map((m) => ({ value: m.displayName, label: m.displayName })),
+            ...queues.filter((q) => !q.retiredAt || q.key === queueFilter)
+              .map((q) => ({ value: `queue:${q.key}`, label: `Queue · ${q.name || q.key}` })),
+          ]}
+          onChange={setAssigneeFilter} />
         {canEdit && (
           <button type="button" className="btn btn-primary work-new-item" onClick={() => setFormOpen(true)}>New item</button>
         )}
       </div>
-      {waiting.length > 0 && (
-        <div className="work-waiting" data-testid="waiting-lane">
-          <strong>Waiting on you ({waiting.length})</strong>
-          <ul className="work-waiting-list">
-            {waiting.map((i) => (
-              <li key={i.id}><Link to={`/work/item/${i.key}`}>{i.key}</Link> {i.title}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {waiting.length > 0 && <WaitingLane items={waiting} />}
       <div className="work-columns">
         {ordered.map((c) => (
           <Column key={c.status} column={c} canEdit={canEdit} grouped={grouped}
@@ -201,14 +223,15 @@ export default function WorkBoard() {
             onMove={(item, status) => move(item, status)} onDrop={onDrop} />
         ))}
       </div>
-      <WorkItemForm isOpen={formOpen} project={project} products={products} onClose={() => setFormOpen(false)}
+      <WorkItemForm isOpen={formOpen} project={project} products={products} members={members} queues={queues} onClose={() => setFormOpen(false)}
         onCreated={(created, view) => {
           const item = {
             ...created, productKey: view?.productKey ?? null, parentKey: view?.parentKey ?? null,
             blocked: !!view?.blocked, commentCount: view?.comments?.length ?? 0,
           };
           const matches = (!productFilter || item.productKey === productFilter)
-            && (!assigneeFilter || item.assigneeName === assigneeFilter);
+            && (!assigneeFilter || item.assigneeName === assigneeFilter)
+            && (!queueFilter || item.queue === queueFilter);
           if (matches) setColumns((cols) => addToColumns(cols || [], item));
           toast.success(`Created ${item.key}`);
         }} />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import EmptyState from '../ui/EmptyState';
@@ -6,15 +6,18 @@ import Spinner from '../ui/Spinner';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useToast } from '../../hooks/useToast';
 import {
-  addComment, addLink, editComment, getItem, listItems, listMembers, listProducts, patchItem, removeComment, removeLink,
+  addComment, addLink, editComment, getItem, handoffItem, listItems, listMembers, listProducts, listQueues, patchItem,
+  releaseItem, removeComment, removeLink,
 } from '../../api/work';
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS } from './boardModel';
 import WorkBodyEditor from './WorkBodyEditor';
 import WorkComments from './WorkComments';
 import WorkEpicView from './WorkEpicView';
+import AssigneePicker, { targetOf, targetValue } from './AssigneePicker';
+import WorkClaim from './WorkClaim';
 import WorkFieldRow from './WorkFieldRow';
-import WorkHandoff from './WorkHandoff';
+import WorkHandoff, { handoffShape } from './WorkHandoff';
 import WorkLinks from './WorkLinks';
 import WorkTimeline from './WorkTimeline';
 
@@ -37,18 +40,22 @@ const blankToNull = (v) => (v === '' ? null : v);
 const dateText = (iso) => (iso ? new Date(iso).toLocaleDateString() : '');
 
 /** What the server holds for a field, shown beside what the person typed after a 409. */
+const queueText = (name) => `Queue · ${name || 'a queue'}`;
+
 function theirValue(current, field) {
   const item = current?.item;
   if (!item) return '(unavailable)';
-  if (field === 'assignee') return item.assigneeName || '(nobody)';
+  if (field === 'assignee') return item.queue ? queueText(item.queueName) : item.assigneeName || '(nobody)';
+  if (field === 'queue') return item.queue ? queueText(item.queueName) : '(none)';
   if (field === 'parentKey' || field === 'productKey') return current[field] || '(none)';
   const v = item[field];
   return v == null || v === '' ? '(empty)' : String(v);
 }
 
 /** What the person typed, in words: a login is shown as the member's display name. */
-function mineText(field, value, nameOf) {
-  if (value == null || value === '') return field === 'assignee' ? '(nobody)' : '(empty)';
+function mineText(field, value, nameOf, queueNameOf) {
+  if (value == null || value === '') return field === 'assignee' || field === 'queue' ? '(nobody)' : '(empty)';
+  if (field === 'queue') return queueText(queueNameOf(value));
   return field === 'assignee' ? nameOf(value) : String(value);
 }
 
@@ -58,19 +65,19 @@ function valueOf(view, name) {
   switch (name) {
     case 'parentKey': return view.parentKey || '';
     case 'productKey': return view.productKey || '';
-    case 'assignee': return item.assignee || '';
+    case 'assignee': return targetValue(item);
     case 'priority': return String(item.priority);
     case 'dueOn': return item.dueOn || '';
     case 'kind': return item.kind || 'software';
     case 'allowDirect': return item.allowDirect == null ? '' : String(item.allowDirect);
     case 'autonomy': case 'doneMeans': return item[name] || '';
     case 'body': return item.body ?? '';
-    case 'handoff': return JSON.stringify({ status: item.status, assignee: item.assignee || '' });
+    case 'handoff': return JSON.stringify(handoffShape(item.status, item.assignee, item.queue, undefined));
     default: return item[name] ?? '';
   }
 }
 
-function ConflictBanner({ banner, nameOf, onReload, onKeep }) {
+function ConflictBanner({ banner, nameOf, queueNameOf, onReload, onKeep }) {
   const [review, setReview] = useState(false);
   const [seen, setSeen] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -96,7 +103,7 @@ function ConflictBanner({ banner, nameOf, onReload, onKeep }) {
       )}
       {review && (
         <div className="work-conflict-review" data-testid="conflict-review">
-          {Object.keys(changes).map((field) => (
+          {Object.keys(changes).filter((f) => !((f === 'assignee' || f === 'queue') && changes[f] === '')).map((field) => (
             <div key={field} className="work-conflict-pair">
               <div>
                 <h3 className="work-conflict-title">Their version ({field})</h3>
@@ -104,7 +111,7 @@ function ConflictBanner({ banner, nameOf, onReload, onKeep }) {
               </div>
               <div>
                 <h3 className="work-conflict-title">Your unsaved text ({field})</h3>
-                <pre className="work-conflict-text">{mineText(field, changes[field], nameOf)}</pre>
+                <pre className="work-conflict-text">{mineText(field, changes[field], nameOf, queueNameOf)}</pre>
               </div>
             </div>
           ))}
@@ -120,6 +127,7 @@ function ItemPage({ itemKey }) {
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [members, setMembers] = useState([]);
+  const [queues, setQueues] = useState([]);
   const [conflict, setConflict] = useState(null);
   const [products, setProducts] = useState([]);
   const [parents, setParents] = useState([]);
@@ -161,6 +169,16 @@ function ItemPage({ itemKey }) {
     return () => { cancelled = true; };
   }, [projectKey]);
 
+  const assigns = (view?.viewerRole === 'member' || view?.viewerRole === 'lead') && !view?.archived;
+  useEffect(() => {
+    if (!assigns) return undefined;
+    let cancelled = false;
+    listQueues()
+      .then((rows) => { if (!cancelled) setQueues(rows || []); })
+      .catch((e) => console.warn('WorkItemView: could not load the queues', e));
+    return () => { cancelled = true; };
+  }, [assigns]);
+
   const level = view?.item.level;
   const role0 = view?.viewerRole;
   const editsRelations = (role0 === 'member' || role0 === 'lead') && !view?.archived && level && level !== 'epic';
@@ -189,28 +207,38 @@ function ItemPage({ itemKey }) {
    * false to keep the caller's draft. The version sent is the one the open editor was opened against (never a
    * refetched one), so the server, not this page, decides whether a concurrent edit is overwritten.
    */
-  const save = useCallback((changes, note, source = 'field') => {
-    const body = { expectedVersion: open?.base ?? view.item.version, changes };
+  const submit = useCallback((call, fields, note, source) => {
+    const body = { expectedVersion: open?.base ?? view.item.version, ...fields };
     if (note) body.note = note;
+    const was = view.item;
+    const conflictChanges = source === 'handoff' ? fields : fields.changes;
     setFieldErrors({});
-    return patchItem(itemKey, body)
+    return call(itemKey, body)
       .then((next) => {
         seq.current += 1; // a load that started before this save must not replace the newer view
         setView(next);
         setConflict(null);
         setActivity((a) => a + 1);
+        // A person is never locked out of a claimed item, but changing it ends the claim: say so.
+        if (was.claimedByAgent != null && next.item.claimedByAgent == null) {
+          toast.info(`${was.claimedByName || 'An agent'}'s claim was released.`);
+        }
         return true;
       })
       .catch((e) => {
         if (isArchivedRefusal(e)) fail(e);
-        else if (e?.status === 409) setConflict({ changes, current: e.current || null });
+        else if (e?.status === 409) setConflict({ changes: conflictChanges, current: e.current || null });
         else if (e?.status === 400 && e.body?.field) {
           setFieldErrors({ [e.body.field]: { message: e.body.message || e.message, source } });
           return e.body.field === 'parentKey' || e.body.field === 'productKey' ? 'restore' : false;
         } else fail(e, 'Could not save the change.');
         return false;
       });
-  }, [view, open, itemKey, fail]);
+  }, [view, open, itemKey, fail, toast]);
+
+  const save = useCallback((changes, note, source = 'field') => submit(patchItem, { changes }, note, source), [submit]);
+  /** A hand-off: `target` is `{ assignee }` or `{ queue }`, never both. */
+  const handoff = useCallback((status, target, note) => submit(handoffItem, { status, ...target }, note, 'handoff'), [submit]);
 
   const openEditor = useCallback((name, orig) => setOpen({
     name, base: view.item.version, orig, draft: name === 'handoff' ? { ...orig, note: '' } : orig,
@@ -226,12 +254,17 @@ function ItemPage({ itemKey }) {
   const nameOf = useCallback((login) => members.find((m) => m.principal === login)?.displayName
     || (view?.item.assignee === login ? view.item.assigneeName : null) || 'someone', [members, view]);
 
-  const assigneeOptions = useMemo(() => {
-    const opts = [{ value: '', label: 'Unassigned' }, ...members.map((m) => ({ value: m.principal, label: m.displayName }))];
-    const a = view?.item.assignee;
-    if (a && !opts.some((o) => o.value === a)) opts.push({ value: a, label: view.item.assigneeName || 'Former member' });
-    return opts;
-  }, [members, view]);
+  const queueNameOf = useCallback((key) => queues.find((q) => q.key === key)?.name
+    || (view?.item.queue === key ? view.item.queueName : null) || null, [queues, view]);
+
+  /** Releases an agent's claim for a person; the item is re-read either way so the panel shows what is true now. */
+  const release = useCallback((note) => {
+    const holder = view?.item.claimedByName || 'an agent';
+    return mutate(() => releaseItem(itemKey, note), 'Could not release the claim.').then((ok) => {
+      if (ok) toast.success(`Released ${holder}'s claim`); else load();
+      return ok;
+    });
+  }, [view, itemKey, mutate, toast, load]);
 
   if (notFound) return <EmptyState message="No such item" />;
   if (loadError && !view) return <EmptyState message={loadError} />;
@@ -243,6 +276,7 @@ function ItemPage({ itemKey }) {
   const canEdit = (role === 'member' || role === 'lead') && !archived;
   const isLead = role === 'lead' && !archived;
   const isEpic = item.level === 'epic';
+  const holder = item.claimedByAgent != null ? (item.claimedByName || 'An agent') : null;
   const statusOptions = (isEpic ? EPIC_STATUSES : STATUSES).map((s) => ({ value: s, label: STATUS_LABELS[s] }));
   const field = (name) => (v) => save({ [name]: v });
   const errEntry = (name) => (fieldErrors[name]?.source === 'handoff' ? undefined : fieldErrors[name]?.message);
@@ -288,9 +322,10 @@ function ItemPage({ itemKey }) {
         <h1 className="work-heading">{item.title}</h1>
       </header>
       {archived && <p className="work-archived-banner" role="status">{ARCHIVED_TEXT}. It is read-only.</p>}
+      <WorkClaim item={item} canRelease={canEdit} onRelease={release} />
       {banner && (
         <ConflictBanner
-          banner={banner} nameOf={nameOf}
+          banner={banner} nameOf={nameOf} queueNameOf={queueNameOf}
           onReload={() => { setConflict(null); setOpen(null); setEpoch((n) => n + 1); load(); }}
           onKeep={() => {
             setConflict(null);
@@ -333,9 +368,17 @@ function ItemPage({ itemKey }) {
           <h2 className="work-subheading">Details</h2>
           <WorkFieldRow label="Title" error={err('title')} {...editor('title')} value={item.title} canEdit={canEdit} onSave={field('title')} />
           <WorkFieldRow label="Status" error={err('status')} {...editor('status')} type="select" value={item.status} display={STATUS_LABELS[item.status] || item.status}
-            options={statusOptions} canEdit={canEdit} onSave={field('status')} />
-          <WorkFieldRow label="Assignee" error={err('assignee')} {...editor('assignee')} type="select" value={item.assignee || ''} display={item.assigneeName || 'Unassigned'}
-            options={assigneeOptions} parse={blankToNull} canEdit={canEdit} onSave={field('assignee')} />
+            options={statusOptions} canEdit={canEdit} onSave={field('status')}
+            helper={holder ? `${holder} is working on this; moving it releases its claim.` : undefined} />
+          <WorkFieldRow label="Assignee" error={err('assignee')} {...editor('assignee')} value={targetValue(item)}
+            display={item.queue ? queueText(item.queueName) : item.assigneeName || 'Unassigned'}
+            helper={holder ? `${holder} is working on this; reassigning it releases its claim.` : undefined}
+            renderControl={({ value, onChange, disabled }) => (
+              <AssigneePicker ariaLabel="Assignee" members={members} queues={queues} value={targetOf(value)} disabled={disabled}
+                labels={{ assigneeName: item.assigneeName, queueName: item.queueName }}
+                onChange={(t) => onChange(targetValue(t))} />)}
+            parse={targetOf} canEdit={canEdit}
+            onSave={(t) => save(t.queue ? { queue: t.queue } : t.assignee ? { assignee: t.assignee } : item.queue ? { queue: null } : { assignee: null })} />
           <WorkFieldRow label="Priority" error={err('priority')} {...editor('priority')} type="select" value={String(item.priority)} display={`P${item.priority}`}
             options={PRIORITY_OPTIONS} parse={Number} canEdit={canEdit} onSave={field('priority')} />
           <WorkFieldRow label="Due" error={err('dueOn')} {...editor('dueOn')} type="date" value={item.dueOn || ''} display={item.dueOn || 'No due date'}
@@ -351,9 +394,10 @@ function ItemPage({ itemKey }) {
           )}
           {canEdit && (
             <WorkHandoff
-              status={item.status} assignee={item.assignee} statusOptions={statusOptions} assigneeOptions={assigneeOptions}
+              status={item.status} assignee={item.assignee} queue={item.queue} assigneeName={item.assigneeName}
+              queueName={item.queueName} statusOptions={statusOptions} members={members} queues={queues} claimHolder={holder}
               error={handoffError} {...editor('handoff')}
-              onSend={(status, assignee, note) => save({ status, assignee }, note, 'handoff').then((r) => r === true)}
+              onSend={(status, target, note) => handoff(status, target, note).then((r) => r === true)}
             />
           )}
           <dl className="work-facts">

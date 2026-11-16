@@ -139,4 +139,22 @@ describe('WorkActivity', () => {
     expect(await screen.findByText('No such item in this project.')).toBeInTheDocument();
     expect(screen.getByLabelText('Item')).toHaveValue('OPS-1');
   });
+
+  it('reads agent and claim events as plain sentences, each on its own line, with an agent badge', async () => {
+    const t = (h, m) => new Date(2026, 10, 16, h, m).toISOString();
+    getActivity.mockResolvedValue([
+      ev(1, { type: 'claimed', actorName: 'codex@docker2', actorKind: 'agent', agentId: 3, fromValue: 'ready', toValue: 'ready', note: t(15, 40), at: t(13, 0) }),
+      ev(2, { type: 'released', actorName: 'Jane Doe', actorKind: 'human', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'review', note: 'moved' }),
+      ev(3, { type: 'claim_expired', actorName: 'codex@docker2', actorKind: 'agent', fromValue: 'in_progress', toValue: 'ready' }),
+      ev(4, { type: 'handoff', actorName: 'codex@docker2', actorKind: 'agent', fromValue: 'in_progress|', toValue: 'review|queue:reviewer', toValueName: 'Reviewer', note: 'ready for review' }),
+    ]);
+    renderActivity();
+    const rows = await screen.findAllByRole('listitem');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent('PLAT-1 codex@docker2 agent claimed this · until 15:40');
+    expect(rows[1]).toHaveTextContent("Jane Doe released codex@docker2's claim because the item was moved (now review)");
+    expect(rows[2]).toHaveTextContent('claim by codex@docker2 expired — back to ready');
+    expect(rows[3]).toHaveTextContent('codex@docker2 agent handed this to Queue · Reviewer: in progress → review');
+    expect(rows[3]).toHaveTextContent('ready for review');
+  });
 });

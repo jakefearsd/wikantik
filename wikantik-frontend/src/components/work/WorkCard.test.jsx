@@ -68,4 +68,50 @@ describe('WorkCard', () => {
     renderCard();
     expect(screen.queryByLabelText('Move PLAT-7 to…')).not.toBeInTheDocument();
   });
+
+  describe('queues and claims', () => {
+    const NOW = new Date(2026, 10, 16, 14, 0);
+    const until = (h, m, day = 16) => new Date(2026, 10, day, h, m).toISOString();
+    const claimed = { ...ITEM, assignee: null, assigneeName: null, status: 'in_progress', queue: 'implementer', queueName: 'Implementer', claimedByAgent: 3,
+      claimedByName: 'codex@docker2', claimedAt: until(13, 0), claimExpiresAt: until(15, 40) };
+
+    it('showsQueueChip', () => {
+      renderCard({ item: { ...ITEM, queue: 'implementer', queueName: 'Implementer', status: 'draft' }, now: NOW });
+      expect(screen.getByText('Queue · Implementer')).toBeInTheDocument();
+    });
+
+    it('showsClaimedByAndUntil, distinct from a person, with the full timestamp as its name', () => {
+      const { container } = renderCard({ item: claimed, now: NOW });
+      const chip = screen.getByText('codex@docker2 · until 15:40');
+      expect(chip.closest('.work-card-claim')).toBeTruthy();
+      expect(chip.closest('.work-card-claim')).toHaveAttribute('aria-label',
+        expect.stringContaining('Claimed by codex@docker2'));
+      expect(chip.closest('.work-card-claim')).toHaveAttribute('title', expect.stringContaining(new Date(claimed.claimExpiresAt).toLocaleString()));
+      expect(container.querySelector('.work-card-assignee')).toBeNull();
+      expect(screen.queryByText('Available to agents')).toBeNull();
+    });
+
+    it('expiredClaimMarked: a claim in the past is marked lapsed in words and class', () => {
+      const { container } = renderCard({ item: { ...claimed, claimExpiresAt: until(13, 30) }, now: NOW });
+      expect(container.querySelector('.claim-expired')).toBeTruthy();
+      expect(screen.getByText(/claim lapsed 13:30/)).toBeInTheDocument();
+    });
+
+    it('a claim holder with no resolved name reads as an agent, not an id', () => {
+      renderCard({ item: { ...claimed, claimedByName: null }, now: NOW });
+      expect(screen.getByText('an agent · until 15:40')).toBeInTheDocument();
+    });
+
+    it('availableToAgents: queued, ready or review, and unclaimed', () => {
+      renderCard({ item: { ...ITEM, queue: 'implementer', queueName: 'Implementer', claimedByAgent: null }, now: NOW });
+      expect(screen.getByText('Available to agents')).toBeInTheDocument();
+    });
+
+    it('is not available to agents when in progress, unqueued or claimed', () => {
+      const a = renderCard({ item: { ...ITEM, status: 'in_progress', queue: 'q', queueName: 'Q' }, now: NOW });
+      expect(a.container.textContent).not.toContain('Available to agents');
+      const b = renderCard({ item: { ...ITEM, queue: null }, now: NOW });
+      expect(b.container.textContent).not.toContain('Available to agents');
+    });
+  });
 });

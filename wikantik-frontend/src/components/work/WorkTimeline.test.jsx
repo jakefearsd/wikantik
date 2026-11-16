@@ -117,4 +117,63 @@ describe('WorkTimeline', () => {
     await Promise.resolve();
     expect(screen.queryByText('Person 1')).toBeNull();
   });
+
+  describe('agents and claims', () => {
+    const agent = (id, type, extra = {}) => ev(id, type, { actorName: 'codex@docker2', actorKind: 'agent', agentId: 3, ...extra });
+
+    it('agentActorShowsAgentName: an agent actor is named and badged, not an unknown contributor', async () => {
+      listEvents.mockResolvedValue([agent(1, 'status', { fromValue: 'ready', toValue: 'review' })]);
+      render(<WorkTimeline itemKey="PLAT-7" />);
+      const row = (await screen.findAllByRole('listitem'))[0];
+      expect(within(row).getByText('codex@docker2')).toBeInTheDocument();
+      expect(within(row).getByText('agent')).toBeInTheDocument();
+      expect(row).not.toHaveTextContent('Someone');
+    });
+
+    it('a person actor carries no agent badge', async () => {
+      listEvents.mockResolvedValue([ev(1, 'created', { actorKind: 'human' })]);
+      render(<WorkTimeline itemKey="PLAT-7" />);
+      await screen.findByText('created this item');
+      expect(screen.queryByText('agent')).toBeNull();
+    });
+
+    it('every claim event is its own plain-text line and none is dropped', async () => {
+      const t = (h, m) => new Date(2026, 10, 16, h, m).toISOString();
+      listEvents.mockResolvedValue([
+        agent(1, 'claimed', { at: t(13, 0), fromValue: 'ready', toValue: 'ready', note: t(15, 40) }),
+        agent(2, 'claim_renewed', { at: t(14, 0), toValue: t(17, 40) }),
+        ev(3, 'status', { actorName: 'Jane Doe', fromValue: 'ready', toValue: 'review' }),
+        ev(4, 'released', { actorName: 'Jane Doe', actorKind: 'human', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'review', note: 'moved' }),
+        agent(5, 'claim_expired', { fromValue: 'in_progress', toValue: 'ready' }),
+        ev(6, 'future_event', { toValue: 'x' }),
+      ]);
+      render(<WorkTimeline itemKey="PLAT-7" />);
+      const rows = await screen.findAllByRole('listitem');
+      expect(rows).toHaveLength(6);
+      expect(rows[0]).toHaveTextContent('codex@docker2 agent claimed this · until 15:40');
+      expect(rows[1]).toHaveTextContent('codex@docker2 agent renewed its claim · until 17:40');
+      expect(rows[3]).toHaveTextContent("Jane Doe released codex@docker2's claim because the item was moved (now review)");
+      expect(rows[4]).toHaveTextContent('claim by codex@docker2 expired — back to ready');
+      expect(rows[4].textContent.match(/codex@docker2/g)).toHaveLength(1);
+      expect(rows[5]).toHaveTextContent('future event: none → x');
+    });
+
+    it('a handoff to a queue shows the note and the queue name', async () => {
+      listEvents.mockResolvedValue([agent(1, 'handoff', { fromValue: 'in_progress|', toValue: 'review|queue:reviewer', toValueName: 'Reviewer', note: 'ready for review' })]);
+      render(<WorkTimeline itemKey="PLAT-7" />);
+      const row = (await screen.findAllByRole('listitem'))[0];
+      expect(row).toHaveTextContent('handed this to Queue · Reviewer: in progress → review');
+      expect(within(row).getByText('ready for review')).toBeInTheDocument();
+    });
+
+    it('an unresolved agent or queue never shows a raw id', async () => {
+      listEvents.mockResolvedValue([
+        ev(1, 'released', { fromValue: 'agent:17', toValue: 'ready', note: 'agent retired' }),
+        ev(2, 'assigned', { toValue: 'queue:q9' }),
+      ]);
+      render(<WorkTimeline itemKey="PLAT-7" />);
+      await screen.findAllByRole('listitem');
+      expect(document.body.textContent).not.toMatch(/agent:17|queue:q9/);
+    });
+  });
 });

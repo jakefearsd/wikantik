@@ -3,6 +3,9 @@ import Badge from '../ui/Badge';
 import Icon from '../ui/Icon';
 import Select from '../ui/Select';
 import { STATUSES, STATUS_LABELS, isOverdue } from './boardModel';
+import { clockText, fullTime, isPast } from './workTime';
+
+const CLAIMABLE = new Set(['ready', 'review']);
 
 function formatDue(iso) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -13,8 +16,12 @@ function formatDue(iso) {
  * One board card. `draggable` and `onMove` are supplied only for viewers who may change the item;
  * the Move to… menu is the keyboard path for what drag does with a mouse.
  */
-export default function WorkCard({ item, productKey, draggable = false, onDragStart, onDragEnd, onMove }) {
+export default function WorkCard({ item, productKey, draggable = false, onDragStart, onDragEnd, onMove, now = new Date() }) {
   const overdue = isOverdue(item);
+  const claimed = item.claimedByAgent != null;
+  const holder = item.claimedByName || 'an agent';
+  const lapsed = claimed && isPast(item.claimExpiresAt, now);
+  const available = !claimed && !!item.queue && CLAIMABLE.has(item.status);
   const moveOptions = STATUSES
     .filter((s) => s !== item.status && (item.level !== 'epic' || ['draft', 'in_progress', 'done', 'cancelled'].includes(s)))
     .map((s) => ({ value: s, label: STATUS_LABELS[s] }));
@@ -43,6 +50,19 @@ export default function WorkCard({ item, productKey, draggable = false, onDragSt
         <span className="work-card-priority">P{item.priority}</span>
         {item.dueOn && <span className="work-card-due" title={item.dueOn}>due {formatDue(item.dueOn)}</span>}
         {item.assigneeName && <span className="work-card-assignee">{item.assigneeName}</span>}
+        {item.queue && <span className="work-chip work-card-queue">Queue · {item.queueName || 'a queue'}</span>}
+        {claimed && (
+          <span
+            className={`work-card-claim${lapsed ? ' claim-expired' : ''}`}
+            title={`Claimed ${fullTime(item.claimedAt)}; ${lapsed ? 'lapsed' : 'runs out'} ${fullTime(item.claimExpiresAt)}`}
+            aria-label={`Claimed by ${holder}, ${lapsed ? 'claim lapsed' : 'until'} ${fullTime(item.claimExpiresAt)}`}
+          >
+            {lapsed
+              ? `${holder} · claim lapsed ${clockText(item.claimExpiresAt, now)}`
+              : `${holder} · until ${clockText(item.claimExpiresAt, now)}`}
+          </span>
+        )}
+        {available && <span className="work-card-available">Available to agents</span>}
         {item.commentCount > 0 && (
           <span className="work-card-comments" aria-label={`${item.commentCount} comments`}>
             <Icon name="comment" size={12} /> {item.commentCount}

@@ -6,6 +6,7 @@ import { createProject, getMe } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import { useToast } from '../../hooks/useToast';
+import WaitingLane from './WaitingLane';
 import WorkLoadError from './WorkLoadError';
 
 const KEY_PATTERN = /^[A-Z][A-Z0-9]{1,9}$/;
@@ -100,15 +101,8 @@ export default function WorkHome() {
       )}
       {isAdmin && creating && <NewProjectForm onCancel={() => setCreating(false)} />}
       {waitingOn.length > 0 && (
-        <section className="work-waiting" data-testid="waiting-lane">
-          <strong>Waiting on you ({waitingOn.length})</strong>
-          <ul className="work-waiting-list">
-            {waitingOn.map((i) => (
-              <li key={i.id}><Link to={`/work/item/${i.key}`}>{i.key}</Link> {i.title}
-                {keyOf.has(i.projectId) && <span className="work-muted"> · {keyOf.get(i.projectId)}</span>}</li>
-            ))}
-          </ul>
-        </section>
+        <WaitingLane as="section" items={waitingOn}
+          suffix={(i) => keyOf.has(i.projectId) && <span className="work-muted"> · {keyOf.get(i.projectId)}</span>} />
       )}
       <h2 className="work-subheading">Projects</h2>
       {active.length === 0

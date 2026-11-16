@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Spinner from '../ui/Spinner';
 import { listEvents, listRevisions } from '../../api/work';
+import EventActor from './EventActor';
 import { eventText } from './eventText';
 import { lineDiff } from './lineDiff';
 
@@ -79,7 +80,7 @@ export default function WorkTimeline({ itemKey, refreshKey = 0 }) {
         return (
           <li key={e.id} className={`work-event work-event-${e.type}`}>
             <div className="work-event-line">
-              <strong className="work-event-actor">{e.actorName || 'Someone'}</strong>{' '}
+              <EventActor event={e} />
               <span className="work-event-text">{t.text}</span>
               <time className="work-event-time" dateTime={e.at}>{when(e.at)}</time>
               {canDiff && (

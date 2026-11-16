@@ -9,12 +9,13 @@ import Select from '../ui/Select';
  * `onOpen(orig)`, `onDraft(draft)` and `onClose()`, and is `locked` (Edit disabled, with a hint) while another
  * editor is open. `onSave(value)` resolves true when the server accepted the value, 'restore' when it refused
  * it and the previous value should show (the editor closes), and false to keep the draft. `value` is the
- * control's string; `parse` turns the draft into what is sent.
+ * control's string; `parse` turns the draft into what is sent. `renderControl({ value, onChange, disabled })` supplies a
+ * custom control (the assignee picker) in place of the built-in select or input.
  */
 export const LOCKED_HINT = 'Finish or cancel the open edit first';
 
 export default function WorkFieldRow({
-  label, value = '', display, type = 'text', options = [], canEdit = false, helper, error, parse, onSave,
+  label, value = '', display, type = 'text', options = [], canEdit = false, helper, error, parse, onSave, renderControl,
   locked = false, onOpen, onDraft, onClose,
 }) {
   const [edit, setEdit] = useState(null); // { draft, orig } while editing
@@ -57,7 +58,7 @@ export default function WorkFieldRow({
       <span className="work-field-label">{label}</span>
       {editing ? (
         <span className="work-field-edit" ref={editorRef} onKeyDown={onKeyDown}>
-          {type === 'select' ? (
+          {renderControl ? renderControl({ value: edit.draft, onChange: change, disabled: saving }) : type === 'select' ? (
             <Select ariaLabel={label} value={edit.draft} options={options} onChange={change} disabled={saving} />
           ) : (
             <input

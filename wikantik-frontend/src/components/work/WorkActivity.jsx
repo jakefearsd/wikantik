@@ -5,12 +5,12 @@ import Select from '../ui/Select';
 import Spinner from '../ui/Spinner';
 import { getActivity } from '../../api/work';
 import { useWorkProject } from './useWorkProject';
-import { eventText } from './eventText';
+import EventActor from './EventActor';
+import { actorLabel, eventText } from './eventText';
 import WorkLoadError from './WorkLoadError';
 
 const PAGE = 50;
-const SOMEONE = 'Someone';
-const actorOf = (e) => e.actorName || SOMEONE;
+const actorOf = actorLabel;
 const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
 
 /**
@@ -130,7 +130,7 @@ function ActivityFeed() {
                   {e.itemKey
                     ? <><Link to={`/work/item/${e.itemKey}`} className="work-card-key">{e.itemKey}</Link>{' '}</>
                     : <><span className="work-card-key work-muted">{project.key}</span>{' '}</>}
-                  <strong>{actorOf(e)}</strong> {t.text}
+                  <EventActor event={e} /><span className="work-event-text">{t.text}</span>
                   <time className="work-event-time" dateTime={e.at}>{when(e.at)}</time>
                   {t.note && <p className="work-event-note">{t.note}</p>}
                 </li>

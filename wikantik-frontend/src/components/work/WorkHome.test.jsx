@@ -121,4 +121,16 @@ describe('WorkHome', () => {
     expect(within(archived).getByRole('link', { name: 'OLD Old one' })).toHaveAttribute('href', '/work/OLD');
     expect(within(archived).queryByRole('link', { name: 'PLAT Platform' })).toBeNull();
   });
+
+  it('waitingShowsWhoHandedOff: the lane says who handed the item over and their note', async () => {
+    renderHome({ me: { projects: ME.projects, waitingOn: [
+      { id: 5, key: 'PLAT-5', projectId: 1, title: 'Review me',
+        waiting: { reason: 'assigned', byName: 'codex@docker2', byKind: 'agent', note: 'tests pass', at: '2026-11-16T10:00:00Z' } },
+      { id: 6, key: 'PLAT-6', projectId: 1, title: 'Look here', waiting: { reason: 'mentioned', byName: 'Jane Doe', byKind: 'human', note: null, at: null } },
+    ] } });
+    const lane = await screen.findByTestId('waiting-lane');
+    expect(lane).toHaveTextContent('Assigned by codex@docker2 (agent)');
+    expect(lane).toHaveTextContent('tests pass');
+    expect(lane).toHaveTextContent('Mentioned by Jane Doe');
+  });
 });

@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 vi.mock('../../api/work', () => ({
   getItem: vi.fn(), patchItem: vi.fn(), listMembers: vi.fn(), listEvents: vi.fn(), listRevisions: vi.fn(),
   listProducts: vi.fn(), addComment: vi.fn(), editComment: vi.fn(), removeComment: vi.fn(), addLink: vi.fn(), removeLink: vi.fn(), listItems: vi.fn(),
+  listQueues: vi.fn(), handoffItem: vi.fn(), releaseItem: vi.fn(),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
@@ -12,6 +13,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { authenticated:
 
 import {
   getItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
+  listQueues, handoffItem, releaseItem,
 } from '../../api/work';
 import WorkItemView from './WorkItemView';
 
@@ -47,6 +49,10 @@ beforeEach(() => {
   listEvents.mockResolvedValue([]);
   listRevisions.mockResolvedValue([]);
   listItems.mockResolvedValue([]);
+  listQueues.mockResolvedValue([
+    { key: 'implementer', name: 'Implementer', retiredAt: null }, { key: 'reviewer', name: 'Reviewer', retiredAt: null },
+    { key: 'old', name: 'Old queue', retiredAt: '2026-10-01T00:00:00Z' },
+  ]);
   listProducts.mockResolvedValue([{ id: 3, key: 'wikantik', name: 'Wikantik' }, { id: 4, key: 'docs', name: 'Docs' }]);
 });
 
@@ -98,7 +104,7 @@ describe('WorkItemView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit Assignee' }));
     const select = screen.getByLabelText('Assignee');
     const labels = within(select).getAllByRole('option').map((o) => o.textContent);
-    expect(labels).toEqual(['Unassigned', 'Ana Alvarez', 'Bob Brown']);
+    expect(labels).toEqual(['Unassigned', 'Ana Alvarez', 'Bob Brown', 'Queue · Implementer', 'Queue · Reviewer']);
     fireEvent.change(select, { target: { value: 'ana-login' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Assignee' }));
     await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { assignee: 'ana-login' } }));
@@ -190,7 +196,7 @@ describe('WorkItemView', () => {
   });
 
   it('handoffRequiresNote', async () => {
-    patchItem.mockResolvedValue(makeView({}, { status: 'review', assignee: 'ana-login', assigneeName: 'Ana Alvarez', version: 5 }));
+    handoffItem.mockResolvedValue(makeView({}, { status: 'review', assignee: 'ana-login', assigneeName: 'Ana Alvarez', version: 5 }));
     renderView();
     await ready();
     fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
@@ -201,16 +207,17 @@ describe('WorkItemView', () => {
     const send = screen.getByRole('button', { name: 'Send handoff' });
     expect(send).toBeDisabled();
     fireEvent.click(send);
-    expect(patchItem).not.toHaveBeenCalled();
+    expect(handoffItem).not.toHaveBeenCalled();
     fireEvent.change(note, { target: { value: '   ' } });
     expect(send).toBeDisabled();
     fireEvent.change(note, { target: { value: 'Over to you, tests are green' } });
     expect(send).not.toBeDisabled();
     fireEvent.click(send);
-    await waitFor(() => expect(patchItem).toHaveBeenCalledTimes(1));
-    expect(patchItem).toHaveBeenCalledWith('PLAT-7', {
-      expectedVersion: 4, changes: { status: 'review', assignee: 'ana-login' }, note: 'Over to you, tests are green',
+    await waitFor(() => expect(handoffItem).toHaveBeenCalledTimes(1));
+    expect(handoffItem).toHaveBeenCalledWith('PLAT-7', {
+      expectedVersion: 4, status: 'review', assignee: 'ana-login', note: 'Over to you, tests are green',
     });
+    expect(patchItem).not.toHaveBeenCalled();
   });
 
   it('viewerSeesNoEditControls', async () => {
@@ -444,7 +451,7 @@ describe('WorkItemView', () => {
   });
 
   it('a 400 on the note during a handoff is shown in the handoff form and keeps it open', async () => {
-    patchItem.mockRejectedValue(Object.assign(new Error('bad'), { status: 400, body: { field: 'note', message: 'Changing status and assignee together needs a note.' } }));
+    handoffItem.mockRejectedValue(Object.assign(new Error('bad'), { status: 400, body: { field: 'note', message: 'Changing status and assignee together needs a note.' } }));
     renderView();
     await ready();
     fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
@@ -459,7 +466,7 @@ describe('WorkItemView', () => {
 
   it('a 409 from the handoff form keeps the note and the choices', async () => {
     const theirs = makeView({}, { status: 'done', version: 5 });
-    patchItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: theirs }));
+    handoffItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: theirs }));
     renderView();
     await ready();
     fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
@@ -485,7 +492,7 @@ describe('WorkItemView', () => {
 
   it('the conflict review shows display names, never logins, for assignee and handoff', async () => {
     const theirs = makeView({}, { assignee: 'bob-login', assigneeName: 'Bob Brown', version: 5 });
-    patchItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: theirs }));
+    handoffItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: theirs }));
     renderView();
     await ready();
     fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
@@ -736,5 +743,166 @@ describe('WorkItemView', () => {
     expect(screen.queryByRole('button', { name: 'Preview' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Saved version' }));
     expect(screen.getByText(/last saved version, not your draft/)).toBeInTheDocument();
+  });
+
+  describe('queues and claims', () => {
+    const CLAIM = {
+      assignee: null, assigneeName: null, queue: 'implementer', queueName: 'Implementer', status: 'in_progress',
+      claimedByAgent: 3, claimedByName: 'codex@docker2', claimedAt: new Date(2026, 10, 16, 13, 5).toISOString(),
+      claimExpiresAt: new Date(2099, 10, 16, 15, 40).toISOString(),
+    };
+    const claimedView = (over = {}) => makeView(over, CLAIM);
+    const queued = (over = {}) => makeView(over, { assignee: null, assigneeName: null, queue: 'implementer', queueName: 'Implementer', status: 'ready' });
+
+    it('assigneeFieldUsesPicker: queues are offered next to people, and a queue is sent alone', async () => {
+      patchItem.mockResolvedValue(queued({}));
+      renderView();
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Assignee' }));
+      const options = [...screen.getByLabelText('Assignee').querySelectorAll('option')].map((o) => o.textContent);
+      expect(options).toEqual(['Unassigned', 'Ana Alvarez', 'Bob Brown', 'Queue · Implementer', 'Queue · Reviewer']);
+      fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'queue:implementer' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Assignee' }));
+      await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { queue: 'implementer' } }));
+    });
+
+    it('choosing a person for a queued item sends the person alone; unassigning it clears the queue', async () => {
+      patchItem.mockResolvedValue(queued({}));
+      renderView(queued());
+      await ready();
+      expect(screen.getByText('Queue · Implementer')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Assignee' }));
+      fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'ana-login' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Assignee' }));
+      await waitFor(() => expect(patchItem).toHaveBeenLastCalledWith('PLAT-7', { expectedVersion: 4, changes: { assignee: 'ana-login' } }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit Assignee' }));
+      fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: '' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Assignee' }));
+      await waitFor(() => expect(patchItem).toHaveBeenCalledTimes(2));
+      expect(patchItem.mock.calls[1][1].changes).toEqual({ queue: null });
+    });
+
+    it('an item still in a retired queue shows that queue', async () => {
+      renderView(makeView({}, { assignee: null, assigneeName: null, queue: 'old', queueName: 'Old queue' }));
+      await ready();
+      expect(screen.getByText('Queue · Old queue')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Assignee' }));
+      expect(screen.getByLabelText('Assignee').value).toBe('queue:old');
+    });
+
+    it('rendersClaimPanel: holder, since and until, with a Release action for a member', async () => {
+      renderView(claimedView());
+      await ready();
+      const panel = screen.getByRole('region', { name: 'Claim' });
+      expect(panel).toHaveTextContent('Claimed by codex@docker2');
+      expect(panel).toHaveTextContent('since 13:05');
+      expect(screen.getByRole('button', { name: 'Release claim' })).toBeInTheDocument();
+    });
+
+    it('releasing asks first, sends the note, then re-reads the item', async () => {
+      releaseItem.mockResolvedValue({});
+      renderView(claimedView());
+      await ready();
+      getItem.mockResolvedValue(queued({}));
+      fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+      expect(releaseItem).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByLabelText('Release note (optional)'), { target: { value: 'stuck' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Release it' }));
+      await waitFor(() => expect(releaseItem).toHaveBeenCalledWith('PLAT-7', 'stuck'));
+      await waitFor(() => expect(screen.queryByRole('region', { name: 'Claim' })).toHaveTextContent('Claimable by agents serving Implementer'));
+      expect(toast.success).toHaveBeenCalledWith("Released codex@docker2's claim");
+    });
+
+    it('a viewer sees the claim but no release, hand-off or edit', async () => {
+      renderView(claimedView({ viewerRole: 'viewer' }));
+      await ready();
+      expect(screen.getByRole('region', { name: 'Claim' })).toHaveTextContent('Claimed by codex@docker2');
+      expect(screen.queryByRole('button', { name: 'Release claim' })).toBeNull();
+    });
+
+    it('an archived project shows the claim read-only: no release, no hand-off', async () => {
+      renderView(claimedView({ archived: true }));
+      await ready();
+      expect(screen.getByRole('region', { name: 'Claim' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Release claim' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Hand off' })).toBeNull();
+    });
+
+    it('a release refused because the project is archived says so and shows no conflict', async () => {
+      releaseItem.mockRejectedValue(Object.assign(new Error('This project is archived.'), { status: 409, reason: 'archived' }));
+      renderView(claimedView());
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Release it' }));
+      await waitFor(() => expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('This project is archived')));
+      expect(screen.queryByText(/changed while you were editing/)).toBeNull();
+    });
+
+    it('a claimed item warns, beside the controls, that moving or reassigning it releases the claim', async () => {
+      renderView(claimedView());
+      await ready();
+      expect(screen.getByText("codex@docker2 is working on this; moving it releases its claim.")).toBeInTheDocument();
+      expect(screen.getByText("codex@docker2 is working on this; reassigning it releases its claim.")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+      expect(screen.getByText('codex@docker2 is working on this; handing it off releases its claim.')).toBeInTheDocument();
+    });
+
+    it('an unclaimed item shows no claim warning', async () => {
+      renderView(queued());
+      await ready();
+      expect(screen.queryByText(/is working on this/)).toBeNull();
+    });
+
+    it('a person moving a claimed item sees that the claim was released', async () => {
+      patchItem.mockResolvedValue(queued({}));
+      renderView(claimedView());
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Status' }));
+      fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'ready' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Status' }));
+      await waitFor(() => expect(toast.info).toHaveBeenCalledWith("codex@docker2's claim was released."));
+    });
+
+    it('a stale hand-off keeps the note, reloads their version and shows the conflict banner', async () => {
+      const theirs = queued({});
+      handoffItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, reason: 'stale', current: theirs }));
+      renderView();
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+      fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'queue:reviewer' } });
+      fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'my note' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
+      expect(await screen.findByText(/This item changed while you were editing/)).toBeInTheDocument();
+      expect(screen.getByLabelText('Handoff note').value).toBe('my note');
+      fireEvent.click(screen.getByRole('button', { name: 'Review their version' }));
+      const review = screen.getByTestId('conflict-review');
+      expect(review).toHaveTextContent('Queue · Implementer');
+      expect(review).not.toHaveTextContent('queue:');
+    });
+
+    it('a hand-off refused because the project is archived says so, not a conflict', async () => {
+      handoffItem.mockRejectedValue(Object.assign(new Error('archived'), { status: 409, reason: 'archived' }));
+      renderView();
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+      fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'queue:reviewer' } });
+      fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'n' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
+      await waitFor(() => expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('This project is archived')));
+      expect(screen.queryByText(/changed while you were editing/)).toBeNull();
+    });
+
+    it('handing off to a queue sends the queue and no assignee', async () => {
+      handoffItem.mockResolvedValue(queued({}));
+      renderView();
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+      fireEvent.change(screen.getByLabelText('Status after handoff'), { target: { value: 'review' } });
+      fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'queue:reviewer' } });
+      fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'ready for review' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
+      await waitFor(() => expect(handoffItem).toHaveBeenCalledWith('PLAT-7',
+        { expectedVersion: 4, status: 'review', queue: 'reviewer', note: 'ready for review' }));
+    });
   });
 });

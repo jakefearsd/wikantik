@@ -92,4 +92,49 @@ describe('WorkItemForm', () => {
     expect(within(select).getByRole('option', { name: 'Wikantik' })).toBeInTheDocument();
     expect(within(select).queryByRole('option', { name: 'Old' })).toBeNull();
   });
+
+  describe('assignment', () => {
+    const MEMBERS = [{ principal: 'bob-login', principalKind: 'user', role: 'member', displayName: 'Bob Brown' }];
+    const QUEUES = [{ key: 'implementer', name: 'Implementer', retiredAt: null }];
+    const create = async (choose) => {
+      createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9', status: 'draft' } });
+      setup({ members: MEMBERS, queues: QUEUES });
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New thing' } });
+      if (choose) fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: choose } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+      await waitFor(() => expect(createItem).toHaveBeenCalled());
+      return createItem.mock.calls[0][0];
+    };
+
+    it('createWithQueueSendsQueue and no assignee', async () => {
+      const draft = await create('queue:implementer');
+      expect(draft.queue).toBe('implementer');
+      expect(draft).not.toHaveProperty('assignee');
+    });
+
+    it('creating for a person sends the assignee and no queue', async () => {
+      const draft = await create('bob-login');
+      expect(draft.assignee).toBe('bob-login');
+      expect(draft).not.toHaveProperty('queue');
+    });
+
+    it('switching from a queue to a person sends only the person', async () => {
+      createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9', status: 'draft' } });
+      setup({ members: MEMBERS, queues: QUEUES });
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'T' } });
+      fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'queue:implementer' } });
+      fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'bob-login' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+      await waitFor(() => expect(createItem).toHaveBeenCalled());
+      const draft = createItem.mock.calls[0][0];
+      expect(draft).toHaveProperty('assignee', 'bob-login');
+      expect(draft).not.toHaveProperty('queue');
+    });
+
+    it('leaving it unassigned sends neither', async () => {
+      const draft = await create(null);
+      expect(draft).not.toHaveProperty('assignee');
+      expect(draft).not.toHaveProperty('queue');
+    });
+  });
 });

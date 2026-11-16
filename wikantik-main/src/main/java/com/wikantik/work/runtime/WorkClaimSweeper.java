@@ -51,11 +51,32 @@ public final class WorkClaimSweeper implements AutoCloseable {
     private final Thread thread;
     private boolean closed;
 
+    /** The gauge that reads 1 while the sweeper thread runs and 0 once it has stopped, for whatever reason. */
+    public static final String ALIVE_GAUGE = "wikantik_work_sweeper_alive";
+
     private WorkClaimSweeper( final WorkService service, final Duration interval ) {
         this.service = service;
         this.intervalNanos = interval.toNanos();
         this.thread = new Thread( this::run, "work-claim-sweeper" );
         this.thread.setDaemon( true );
+        this.thread.setUncaughtExceptionHandler( WorkClaimSweeper::stopped );
+    }
+
+    /**
+     * Anything that escapes the loop (an {@link Error}; exceptions are caught per pass) ends the thread: say so loudly,
+     * because claims then never lapse, and hand it on to the JVM's default handler as an uncaught throwable would be.
+     */
+    private static void stopped( final Thread t, final Throwable e ) {
+        LOG.error( "work claim sweeper stopped — claims will not expire until restart: {}", e.toString(), e );
+        final Thread.UncaughtExceptionHandler fallback = Thread.getDefaultUncaughtExceptionHandler();
+        if ( fallback != null ) {
+            fallback.uncaughtException( t, e );
+        }
+    }
+
+    /** Whether the sweeper thread is running (false once closed or stopped by an uncaught throwable). */
+    public boolean alive() {
+        return thread.isAlive();
     }
 
     /** Starts the sweeper thread. */
@@ -81,7 +102,12 @@ public final class WorkClaimSweeper implements AutoCloseable {
                     return;
                 }
             } catch ( final SQLException | RuntimeException e ) {
-                LOG.warn( "Work claim sweep failed; the next pass will try again: {}", e.getMessage(), e );
+                if ( isClosed() ) {
+                    // Interrupted by close(): shutting down, not a failure.
+                    LOG.debug( "Work claim sweep interrupted by shutdown: {}", e.getMessage() );
+                } else {
+                    LOG.warn( "Work claim sweep failed; the next pass will try again: {}", e.getMessage(), e );
+                }
                 return;
             }
         }

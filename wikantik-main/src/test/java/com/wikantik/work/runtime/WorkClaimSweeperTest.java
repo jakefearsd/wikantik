@@ -202,4 +202,91 @@ class WorkClaimSweeperTest {
             Thread.setDefaultUncaughtExceptionHandler( previous );
         }
     }
+
+    /** Runs {@code body} with the sweeper's log events at {@code level} and above captured. */
+    private static List< LogEvent > capturing( final org.apache.logging.log4j.Level level, final ThrowingRunnable body )
+            throws Exception {
+        final List< LogEvent > events = new CopyOnWriteArrayList<>();
+        final AbstractAppender appender = new AbstractAppender( "sweeperCapture", null, null, true,
+            Property.EMPTY_ARRAY ) {
+            @Override
+            public void append( final LogEvent e ) {
+                events.add( e.toImmutable() );
+            }
+        };
+        appender.start();
+        final org.apache.logging.log4j.core.Logger log =
+            ( org.apache.logging.log4j.core.Logger ) LogManager.getLogger( WorkClaimSweeper.class );
+        final org.apache.logging.log4j.Level before = log.getLevel();
+        org.apache.logging.log4j.core.config.Configurator.setLevel( WorkClaimSweeper.class.getName(), level );
+        log.addAppender( appender );
+        try {
+            body.run();
+        } finally {
+            log.removeAppender( appender );
+            org.apache.logging.log4j.core.config.Configurator.setLevel( WorkClaimSweeper.class.getName(), before );
+            appender.stop();
+        }
+        return events;
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    @Test
+    void anErrorThatStopsTheThreadIsLoggedLoudlyAndTheSweeperReadsDead() throws Exception {
+        final CountDownLatch thrown = new CountDownLatch( 1 );
+        when( service.claims() ).thenReturn( claims );
+        when( claims.sweepExpiredClaims() ).thenAnswer( inv -> {
+            thrown.countDown();
+            throw new StackOverflowError( "simulated" );
+        } );
+        final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler( ( t, e ) -> { } );
+        try {
+            final List< LogEvent > events = capturing( org.apache.logging.log4j.Level.ERROR, () -> {
+                try ( WorkClaimSweeper sweeper = WorkClaimSweeper.start( service, Duration.ofMillis( 50 ) ) ) {
+                    assertTrue( sweeper.alive() || thrown.getCount() == 0 );
+                    await( thrown );
+                    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos( 5 );
+                    while ( sweeper.alive() && System.nanoTime() < deadline ) {
+                        Thread.sleep( 10 );
+                    }
+                    assertFalse( sweeper.alive(), "the thread is dead and says so" );
+                }
+            } );
+            assertTrue( events.stream().anyMatch( e -> e.getLevel() == org.apache.logging.log4j.Level.ERROR
+                && e.getMessage().getFormattedMessage().startsWith(
+                    "work claim sweeper stopped — claims will not expire until restart" )
+                && e.getThrown() instanceof StackOverflowError ), "ERROR naming the consequence: " + events );
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler( previous );
+        }
+    }
+
+    @Test
+    void aPassInterruptedByCloseIsNotAFailure() throws Exception {
+        final CountDownLatch inPass = new CountDownLatch( 1 );
+        when( service.claims() ).thenReturn( claims );
+        when( claims.sweepExpiredClaims() ).thenAnswer( inv -> {
+            inPass.countDown();
+            try {
+                Thread.sleep( 60_000 );
+            } catch ( final InterruptedException e ) {
+                Thread.currentThread().interrupt();
+                throw new SQLException( "interrupted while waiting for the database", e );
+            }
+            return 0;
+        } );
+        final List< LogEvent > events = capturing( org.apache.logging.log4j.Level.WARN, () -> {
+            final WorkClaimSweeper sweeper = WorkClaimSweeper.start( service, Duration.ofHours( 1 ) );
+            await( inPass );
+            sweeper.close();
+            assertFalse( sweeper.alive() );
+        } );
+        assertTrue( events.stream().noneMatch( e -> e.getLevel().isMoreSpecificThan( org.apache.logging.log4j.Level.WARN )
+            && e.getMessage().getFormattedMessage().contains( "sweep failed" ) ), "no WARN on shutdown: " + events );
+    }
 }

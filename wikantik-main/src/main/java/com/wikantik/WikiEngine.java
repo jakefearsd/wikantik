@@ -1925,7 +1925,7 @@ public class WikiEngine implements Engine {
      * Starts the background claim-expiry sweep when work management is wired. A start failure leaves work
      * management running without it (claims then never lapse), which is logged loudly, and never stops the wiki.
      */
-    private void startWorkClaimSweeper() {
+    void startWorkClaimSweeper() {
         final com.wikantik.work.WorkService service = this.workService;
         closeQuietly( com.wikantik.work.runtime.WorkClaimSweeper.class );   // never two sweepers per engine
         if ( service == null ) {
@@ -1935,6 +1935,19 @@ public class WikiEngine implements Engine {
             this.setManager( com.wikantik.work.runtime.WorkClaimSweeper.class,
                 com.wikantik.work.runtime.WorkClaimSweeper.start( service,
                     com.wikantik.work.runtime.WorkClaimSweeper.INTERVAL ) );
+            // Read at scrape time: 0 once the thread has stopped, so a dead sweeper is visible on /metrics.
+            final io.micrometer.core.instrument.MeterRegistry meters =
+                com.wikantik.api.observability.MeterRegistryHolder.get();
+            if ( meters != null ) {
+                io.micrometer.core.instrument.Gauge.builder( com.wikantik.work.runtime.WorkClaimSweeper.ALIVE_GAUGE,
+                        this, e -> {
+                            final com.wikantik.work.runtime.WorkClaimSweeper s =
+                                e.getManager( com.wikantik.work.runtime.WorkClaimSweeper.class );
+                            return s != null && s.alive() ? 1d : 0d;
+                        } )
+                    .description( "1 while the work claim-expiry sweeper runs, 0 once it has stopped" )
+                    .register( meters );
+            }
         } catch ( final RuntimeException e ) {
             LOG.error( "work claim sweeper failed to start; work management continues but claims will not expire: {}",
                 e.getMessage(), e );

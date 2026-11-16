@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
@@ -42,16 +41,7 @@ const COLUMNS = [
     id: 'label',
     label: 'Label',
     render: (k) => (
-      <>
-        {k.label || '—'}
-        {k.agentKey && (
-          <>
-            {' '}<span className="admin-badge active">agent key</span>
-            {k.agent && <> <strong>{k.agent}</strong></>}
-            {k.active && <div className="form-hint">Managed on the <Link to="/work/agents">Agents page</Link></div>}
-          </>
-        )}
-      </>
+      <>{k.label || '—'}</>
     ),
   },
   {
@@ -92,8 +82,6 @@ const COLUMNS = [
   },
 ];
 
-// An agent's key is rotated or retired on the Agents page; the server refuses it here, so it is never offered for bulk revoke.
-const isManageableKey = (k) => !k.agentKey;
 
 export default function AdminApiKeysPage() {
   const [keys, setKeys] = useState([]);
@@ -148,7 +136,7 @@ export default function AdminApiKeysPage() {
   };
 
   const rowAction = (k) => {
-    if (!k.active || k.agentKey) return [];
+    if (!k.active) return [];
     return [
       {
         id: 'revoke',
@@ -191,7 +179,6 @@ export default function AdminApiKeysPage() {
         getRowKey={(k) => String(k.id)}
         columns={COLUMNS}
         selectable
-        isRowSelectable={isManageableKey}
         bulkActions={BULK_ACTIONS}
         onBulkAction={handleBulkAction}
         emptyMessage="No API keys found"

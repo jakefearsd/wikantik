@@ -89,6 +89,14 @@ describe('eventText', () => {
     expect(eventSentence(ev('released', { actorName: 'Lena Lead', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'access removed' })))
       .toBe("Lena Lead removed codex@docker2's access to this project, ending its claim (now ready)");
   });
+  it('released: sponsor access removed, by a person, names the agent whose sponsor lost access', () => {
+    expect(eventSentence(ev('released', { actorName: 'Pat P', actorKind: 'human', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'sponsor access removed' })))
+      .toBe("Pat P changed the access of codex@docker2's sponsor, ending its claim (now ready)");
+  });
+  it('released: sponsor access removed, by the sweep, reads as the agent losing its claim', () => {
+    expect(eventSentence(ev('released', { actorName: 'codex@docker2', actorKind: 'agent', agentId: 3, fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'sponsor access removed' })))
+      .toBe('codex@docker2 lost its claim because its sponsor lost access (now ready)');
+  });
   it('released: agent retired names what the actor retired', () => {
     expect(eventSentence(ev('released', { actorName: 'Admin A', fromValue: 'agent:3', fromValueName: 'codex@docker2', toValue: 'ready', note: 'agent retired' })))
       .toBe('Admin A retired codex@docker2, ending its claim (now ready)');

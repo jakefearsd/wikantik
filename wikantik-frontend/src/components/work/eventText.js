@@ -57,7 +57,7 @@ function assignedText(ev) {
 /**
  * `released` carries its reason in `note`. The server sends no field that tells a consequence (the actor moved,
  * reassigned, removed or retired something and the claim ended with it) from a person's own free-text release note, so
- * the five reason keywords are read as consequences; any other note is a deliberate release.
+ * the six reason keywords are read as consequences; any other note is a deliberate release.
  */
 function releasedText(ev) {
   const holderId = (ev.fromValue || '').startsWith(AGENT) ? ev.fromValue.slice(AGENT.length) : '';
@@ -76,6 +76,14 @@ function releasedText(ev) {
     case 'access removed': return { text: `removed ${holder}'s access to this project, ending its claim${now}`, note: null };
     case 'project archived': return { text: `archived this project, ending ${claim}${now}`, note: null };
     case 'agent retired': return { text: `retired ${holder}, ending its claim${now}`, note: null };
+    // By a person: a membership change or a change of sponsor took the ground from the agent. By the agent itself:
+    // the sweep found its sponsor without standing (an account, a group or the admin role changed elsewhere).
+    case 'sponsor access removed':
+      return {
+        text: own ? `lost its claim because its sponsor lost access${now}`
+          : `changed the access of ${holder}'s sponsor, ending its claim${now}`,
+        note: null,
+      };
     default: {
       const back = ev.toValue ? ` (back to ${statusWords(ev.toValue)})` : '';
       return { text: `released ${claim}${back}`, note: ev.note && ev.note !== 'released' ? ev.note : null };

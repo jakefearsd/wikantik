@@ -14,6 +14,14 @@ const AGENT_ROLES = ['viewer', 'member'];
 const KINDS = [{ value: 'user', label: 'User' }, { value: 'group', label: 'Group' }, { value: 'agent', label: 'Agent' }];
 const RELEASES = 'Any work this agent has claimed in this project goes back to its queue.';
 const isAgent = (m) => m.principalKind === 'agent';
+// An agent's access is capped by its sponsor's standing here, so its row can be on record and do nothing.
+const NO_EFFECT = {
+  no_sponsor: 'No effect: this agent has no sponsor',
+  sponsor_gone: 'No effect: its sponsor no longer has an account',
+  sponsor_not_member: 'No effect: its sponsor is not a member of this project',
+  sponsor_viewer: 'Read-only: its sponsor is a viewer here',
+};
+const SPONSOR_NOTE = 'Removing a person, or making them a viewer, also ends the claims of the agents they sponsor in this project.';
 const LATER = 'Takes effect in a later release';
 
 /** Inline confirmation strip: no browser dialogs. */
@@ -204,6 +212,8 @@ function Members({ project, reloadProject, readOnly }) {
                 {isAgent(m)
                   ? <Badge variant="default" className="work-agent-badge" title="An agent, not a person">agent</Badge>
                   : <span className="work-chip">{m.principalKind}</span>}
+                {isAgent(m) && m.effective === false && NO_EFFECT[m.reason]
+                  && <span className="work-form-error">{NO_EFFECT[m.reason]}</span>}
                 {readOnly ? <span className="work-chip">{m.role}</span> : (
                   <>
                     <Select ariaLabel={`Role of ${m.displayName || 'member'}`} value={m.role} options={isAgent(m) ? AGENT_ROLES : ROLES}
@@ -216,6 +226,7 @@ function Members({ project, reloadProject, readOnly }) {
             ))}
           </ul>
         )}
+      {state.members.some(isAgent) && <p className="work-muted">{SPONSOR_NOTE}</p>}
       {pending && <PendingConfirm pending={pending} busy={busy} onYes={() => (pending.action === 'remove'
         ? doRemove(pending.member) : doRole(pending.member, pending.role))} onNo={() => { setPending(null); load(); }} />}
       {!readOnly && <form className="work-link-form" onSubmit={add}>

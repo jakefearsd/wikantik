@@ -83,63 +83,13 @@ describe('MyApiKeys', () => {
     expect(await openScopeOptions()).toEqual(['tools', 'mcp_read', 'work', 'mcp_admin', 'all']);
   });
 
-  describe('agent keys', () => {
-    const AGENT_KEYS = [
-      ...KEYS,
-      { id: 7, label: 'work-agent:triage', scope: 'work', agentKey: true, agent: 'Triage',
-        createdAt: '2026-06-03T10:00:00Z', lastUsedAt: null },
-      { id: 8, label: 'work-agent:other', scope: 'work', agentKey: true,
-        createdAt: '2026-06-03T10:00:00Z', lastUsedAt: null },
-    ];
-
-    it('badges an agent key with the agent name and offers no Rotate or Revoke', async () => {
-      api.self.listApiKeys.mockResolvedValue({ keys: AGENT_KEYS });
-      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
-      const row = (await screen.findByText('work-agent:triage')).closest('tr');
-      expect(within(row).getByText('agent key')).toBeInTheDocument();
-      expect(within(row).getByText('Triage')).toBeInTheDocument();
-      expect(within(row).getByText('Managed on the Agents page')).toBeInTheDocument();
-      expect(within(row).queryByRole('button', { name: /rotate|revoke/i })).toBeNull();
-      // an ordinary key keeps both
-      const plain = screen.getByText('laptop').closest('tr');
-      expect(within(plain).getByRole('button', { name: /rotate/i })).toBeInTheDocument();
-      expect(within(plain).getByRole('button', { name: /revoke/i })).toBeInTheDocument();
-    });
-
-    it('shows the badge without a name when the server gave none, and no link for a non-admin', async () => {
-      api.self.listApiKeys.mockResolvedValue({ keys: AGENT_KEYS });
-      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
-      const row = (await screen.findByText('work-agent:other')).closest('tr');
-      expect(within(row).getByText('agent key')).toBeInTheDocument();
-      expect(within(row).queryByRole('link')).toBeNull();
-    });
-
-    it('links an admin to the Agents page', async () => {
-      useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Authenticated', 'Admin'] } });
-      api.self.listApiKeys.mockResolvedValue({ keys: AGENT_KEYS });
-      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
-      const row = (await screen.findByText('work-agent:triage')).closest('tr');
-      expect(within(row).getByRole('link', { name: /agents page/i })).toHaveAttribute('href', '/work/agents');
-    });
-
-    it('a 409 on revoke closes the confirm dialog and shows the server message', async () => {
-      const msg = 'This key belongs to a work agent. Rotate or retire the agent on the Agents page.';
-      api.self.revokeApiKey.mockRejectedValue(Object.assign(new Error(msg), { status: 409 }));
-      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
-      const row = (await screen.findByText('laptop')).closest('tr');
-      fireEvent.click(within(row).getByRole('button', { name: /revoke/i }));
-      fireEvent.click(await screen.findByRole('button', { name: /revoke key/i }));
-      expect(await screen.findByRole('alert')).toHaveTextContent(msg);
-      expect(screen.queryByRole('button', { name: /revoke key/i })).toBeNull();
-    });
-
-    it('shows the server refusal from an older tab as that message', async () => {
-      const msg = 'This key belongs to a work agent. Rotate or retire the agent on the Agents page.';
-      api.self.rotateApiKey.mockRejectedValue(new Error(msg));
-      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
-      const row = (await screen.findByText('laptop')).closest('tr');
-      fireEvent.click(within(row).getByRole('button', { name: /rotate/i }));
-      expect(await screen.findByRole('alert')).toHaveTextContent(msg);
-    });
+  it('a work-scope key is an ordinary key: no badge, and Rotate and Revoke are offered', async () => {
+    api.self.listApiKeys.mockResolvedValue({ keys: [{ id: 7, label: 'my-work-key', scope: 'work', createdAt: '2026-01-01T00:00:00Z' }] });
+    render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
+    const row = (await screen.findByText('my-work-key')).closest('tr');
+    expect(within(row).queryByText('agent key')).toBeNull();
+    expect(within(row).queryByText(/Agents page/)).toBeNull();
+    expect(within(row).getByRole('button', { name: 'Rotate' })).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Revoke' })).toBeInTheDocument();
   });
 });

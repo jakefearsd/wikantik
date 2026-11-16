@@ -287,6 +287,33 @@ describe('WorkSettings', () => {
     expect(within(row).getByText('agent')).toHaveClass('badge');
   });
 
+  it('an agent row with no effect says why, in words', async () => {
+    const rows = [
+      { ...AGENT_MEMBER, principal: 'a1', displayName: 'a1', effective: true },
+      { ...AGENT_MEMBER, principal: 'a2', displayName: 'a2', effective: false, reason: 'no_sponsor' },
+      { ...AGENT_MEMBER, principal: 'a3', displayName: 'a3', effective: false, reason: 'sponsor_gone' },
+      { ...AGENT_MEMBER, principal: 'a4', displayName: 'a4', effective: false, reason: 'sponsor_not_member' },
+      { ...AGENT_MEMBER, principal: 'a5', displayName: 'a5', effective: false, reason: 'sponsor_viewer' },
+      { ...AGENT_MEMBER, principal: 'a6', displayName: 'a6' },
+    ];
+    listMembers.mockResolvedValue(rows);
+    renderSettings();
+    const line = async (name) => (await screen.findByText(name)).closest('li');
+    expect(await line('a2')).toHaveTextContent('No effect: this agent has no sponsor');
+    expect(await line('a3')).toHaveTextContent('No effect: its sponsor no longer has an account');
+    expect(await line('a4')).toHaveTextContent('No effect: its sponsor is not a member of this project');
+    expect(await line('a5')).toHaveTextContent('Read-only: its sponsor is a viewer here');
+    expect(await line('a1')).not.toHaveTextContent(/No effect|Read-only/);
+    expect(await line('a6')).not.toHaveTextContent(/No effect|Read-only/);
+  });
+
+  it('says that changing a person can end the claims of agents they sponsor', async () => {
+    listMembers.mockResolvedValue([AGENT_MEMBER]);
+    renderSettings();
+    await screen.findByText('build-bot');
+    expect(screen.getByText('Removing a person, or making them a viewer, also ends the claims of the agents they sponsor in this project.')).toBeInTheDocument();
+  });
+
   it('removing an agent asks first and says its claims go back to the queue', async () => {
     listMembers.mockResolvedValue([...MEMBERS, AGENT_MEMBER]);
     renderSettings();

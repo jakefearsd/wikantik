@@ -328,69 +328,27 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
     });
 });
 
-describe('AdminApiKeysPage — agent keys', () => {
-    const agentKey = {
-        id: 11, principalLogin: 'dana', label: 'work-agent:triage', scope: 'work', fingerprint: 'a1a1a1a1a1a1',
+describe('AdminApiKeysPage — work-scope keys are ordinary keys', () => {
+    const workKey = {
+        id: 11, principalLogin: 'dana', label: 'my-work-key', scope: 'work', fingerprint: 'a1a1a1a1a1a1',
         createdAt: '2026-04-06T10:00:00Z', createdBy: 'admin', lastUsedAt: null, revokedAt: null, revokedBy: null,
-        active: true, agentKey: true, agent: 'Triage',
+        active: true,
     };
 
     beforeEach(() => {
-        vi.spyOn(api.admin, 'listApiKeys').mockResolvedValue({ keys: [activeKey, agentKey] });
+        vi.spyOn(api.admin, 'listApiKeys').mockResolvedValue({ keys: [workKey] });
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
-    it('badges an agent key with its agent, links to the Agents page, and offers no Revoke', async () => {
-        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
-        const row = (await screen.findByText('dana')).closest('tr');
-        expect(within(row).getByText('agent key')).toBeInTheDocument();
-        expect(within(row).getByText('Triage')).toBeInTheDocument();
-        expect(within(row).getByText(/Managed on the/)).toBeInTheDocument();
-        expect(within(row).getByRole('link', { name: /agents page/i })).toHaveAttribute('href', '/work/agents');
-        expect(within(row).queryByRole('button', { name: /Revoke/i })).toBeNull();
-        expect(within(screen.getByText('alice').closest('tr')).getByRole('button', { name: /Revoke/i })).toBeInTheDocument();
-    });
-
-    it('shows the server refusal in the dialog when an older tab revokes an agent key', async () => {
-        const msg = 'This key belongs to a work agent. Rotate or retire the agent on the Agents page.';
-        vi.spyOn(api.admin, 'revokeApiKey').mockRejectedValue(new Error(msg));
-        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
-        const row = (await screen.findByText('alice')).closest('tr');
-        fireEvent.click(within(row).getByRole('button', { name: /Revoke/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Revoke Key/i }));
-        expect(await screen.findByText(msg)).toBeInTheDocument();
-        // the table is still on screen
-        expect(screen.getByText('dana')).toBeInTheDocument();
-    });
-
-    it('agent-key rows are not selectable and bulk Revoke never includes them', async () => {
-        const bulkRevoke = vi.spyOn(api.admin, 'bulkApiKeyAction').mockResolvedValue({
-            succeeded: ['1'], failed: [], status: 'completed', message: '1 of 1 keys revoked',
-        });
-        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
-        const agentRow = (await screen.findByText('dana')).closest('tr');
-        expect(within(agentRow).queryByRole('checkbox')).toBeNull();
-        // select-all takes only the ordinary key
-        fireEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
-        expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
-        const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
-        fireEvent.click(within(toolbar).getByRole('button', { name: /^Revoke$/i }));
-        fireEvent.click(await screen.findByRole('button', { name: /Revoke Keys/i }));
-        await waitFor(() => expect(bulkRevoke).toHaveBeenCalledWith('revoke', ['1']));
-    });
-
-    it('the Agents-page hint is for live agent keys only, not revoked ones', async () => {
-        const revokedAgent = { ...agentKey, id: 12, principalLogin: 'erin', active: false, revokedAt: '2026-04-07T10:00:00Z' };
-        api.admin.listApiKeys.mockResolvedValue({ keys: [agentKey, revokedAgent] });
-        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
-        fireEvent.click(await screen.findByLabelText(/Show revoked/i));
-        const live = (await screen.findByText('dana')).closest('tr');
-        const gone = screen.getByText('erin').closest('tr');
-        expect(within(live).getByText(/Managed on the/)).toBeInTheDocument();
-        expect(within(gone).getByText('agent key')).toBeInTheDocument();
-        expect(within(gone).queryByText(/Managed on the/)).toBeNull();
+    it('shows no agent badge or Agents-page hint, and offers Revoke and selection like any key', async () => {
+        render(<AdminApiKeysPage />);
+        const row = (await screen.findByText('my-work-key')).closest('tr');
+        expect(within(row).queryByText('agent key')).toBeNull();
+        expect(within(row).queryByText(/Agents page/)).toBeNull();
+        expect(within(row).getByRole('button', { name: /revoke/i })).toBeInTheDocument();
+        expect(within(row).getByRole('checkbox')).toBeInTheDocument();
     });
 });

@@ -69,7 +69,7 @@ describe('work api client', () => {
 
   it('exports the phase 2 queue, agent and claim functions', () => {
     for (const name of ['listQueues', 'createQueue', 'updateQueue', 'retireQueue', 'listAgents', 'registerAgent',
-      'updateAgent', 'rotateAgentKey', 'retireAgent', 'listClaimable', 'claimItem', 'releaseItem', 'handoffItem']) {
+      'updateAgent', 'rotateAgentKey', 'retireAgent', 'takeOverAgent', 'releaseAgentSponsorship', 'listClaimable', 'claimItem', 'releaseItem', 'handoffItem']) {
       expect(typeof work[name], name).toBe('function');
     }
   });
@@ -85,14 +85,16 @@ describe('work api client', () => {
     expect(collabRequest.mock.calls.at(-1)[1].method).toBe('PATCH');
     await work.retireQueue('triage');
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/queues/triage/retire', { method: 'POST' });
-    await work.registerAgent({ name: 'bot', vendor: 'v', runtime: 'r', queues: ['triage'], owner: null });
-    expect(JSON.parse(collabRequest.mock.calls.at(-1)[1].body)).toEqual({ name: 'bot', vendor: 'v', runtime: 'r', queues: ['triage'], owner: null });
+    await work.registerAgent({ name: 'bot', vendor: 'v', runtime: 'r', queues: ['triage'] });
+    expect(JSON.parse(collabRequest.mock.calls.at(-1)[1].body)).toEqual({ name: 'bot', vendor: 'v', runtime: 'r', queues: ['triage'] });
     await work.updateAgent(7, { name: 'bot2' });
     expect(collabRequest.mock.calls.at(-1)[0]).toBe('/api/work/agents/7');
     await work.rotateAgentKey(7);
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/rotate-key', { method: 'POST' });
-    await work.rotateAgentKey(7, 'Alice A');
-    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/rotate-key', { method: 'POST', body: JSON.stringify({ owner: 'Alice A' }) });
+    await work.takeOverAgent(7);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/sponsor', { method: 'PUT' });
+    await work.releaseAgentSponsorship(7);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/sponsor', { method: 'DELETE' });
     await work.retireAgent(7);
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/agents/7/retire', { method: 'POST' });
   });

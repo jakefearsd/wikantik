@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import RevealedTokenModal from './apikeys/RevealedTokenModal';
 import { useAuth } from '../hooks/useAuth';
-import { Link } from 'react-router-dom';
 
 // The server lets only administrators self-mint the admin-surface scopes (mcp_admin, all);
 // everyone else may mint tools, mcp_read and work. Mirror that here so the picker never
@@ -125,27 +124,13 @@ export default function MyApiKeys() {
               <tr key={k.id}>
                 <td>
                   {k.label || <em>—</em>}
-                  {k.agentKey && (
-                    <>
-                      {' '}<span className="admin-badge active">agent key</span>
-                      {k.agent && <> <strong>{k.agent}</strong></>}
-                    </>
-                  )}
                 </td>
                 <td><code>{k.scope}</code>{k.legacyScope && <span className="form-hint" title="Stored under the old name 'mcp'. Mint a replacement and revoke this key."> legacy 'mcp'</span>}</td>
                 <td>{fmt(k.createdAt)}</td>
                 <td>{fmt(k.lastUsedAt)}</td>
                 <td>
-                  {k.agentKey ? (
-                    <span className="form-hint">
-                      {isAdmin ? <>Managed on the <Link to="/work/agents">Agents page</Link></> : 'Managed on the Agents page'}
-                    </span>
-                  ) : (
-                    <>
-                      <button className="btn btn-ghost" onClick={() => rotate(k.id)} disabled={busy}>Rotate</button>
-                      <button className="btn btn-ghost" onClick={() => setConfirmRevoke(k)} disabled={busy}>Revoke</button>
-                    </>
-                  )}
+                  <button className="btn btn-ghost" onClick={() => rotate(k.id)} disabled={busy}>Rotate</button>
+                  <button className="btn btn-ghost" onClick={() => setConfirmRevoke(k)} disabled={busy}>Revoke</button>
                 </td>
               </tr>
             ))}

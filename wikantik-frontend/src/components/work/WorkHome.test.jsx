@@ -55,7 +55,7 @@ describe('WorkHome', () => {
     expect(link).toHaveAttribute('href', '/work/PLAT');
     expect(link.closest('li')).toHaveTextContent('member');
     expect(screen.queryByRole('link', { name: 'Products' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Agents & queues' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Agents & queues' })).toHaveAttribute('href', '/work/agents');
   });
 
   it('showsWaitingOnYou', async () => {

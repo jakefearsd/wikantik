@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 import com.wikantik.work.Autonomy;
 import com.wikantik.work.Member;
 import com.wikantik.work.Project;
+import com.wikantik.work.WorkRegistryService;
 import com.wikantik.work.WorkRole;
 
 import java.util.List;
@@ -64,17 +65,45 @@ public class WorkProjectResource extends WorkResourceBase {
         route( r, "GET", "projects/{}/board", c -> c.tree( boardTree( c.svc.boardSummaries( c.actor, c.pathParam( 0 ), filter( c, false ) ), c.actor ) ) );
     }
 
-    /** The member rows, each user row with the {@code mentionId} the comment picker inserts (never a login). */
+    /**
+     * The member rows, each user row with the {@code mentionId} the comment picker inserts (never a login), and each
+     * agent row with whether it has any effect right now ({@code effective}) and, when it has none, the
+     * {@code reason}: an agent's access is capped by its sponsor's standing in the project.
+     */
     private JsonArray membersTree( final Call c, final List< Member > members ) {
         final JsonArray out = toTree( members, c.actor ).getAsJsonArray();
+        final java.util.Map< Long, WorkRegistryService.MemberStanding > standings = agentStandings( c );
         for ( int i = 0; i < members.size(); i++ ) {
             final Member m = members.get( i );
             final JsonObject o = out.get( i ).getAsJsonObject();
             if ( "user".equals( m.principalKind() ) ) {
                 mentionId( m.principal() ).ifPresent( id -> o.addProperty( "mentionId", id ) );
+            } else if ( "agent".equals( m.principalKind() ) && m.principal().matches( "\\d{1,18}" ) ) {
+                final WorkRegistryService.MemberStanding standing = standings.get( Long.parseLong( m.principal() ) );
+                if ( standing != null ) {
+                    final boolean effective = standing == WorkRegistryService.MemberStanding.EFFECTIVE;
+                    o.addProperty( "effective", effective );
+                    if ( !effective ) {
+                        o.addProperty( "reason", standing.name().toLowerCase( java.util.Locale.ROOT ) );
+                    }
+                }
             }
         }
         return out;
+    }
+
+    /** How each agent member stands; empty (so nothing is claimed) when the lookup fails. */
+    private java.util.Map< Long, WorkRegistryService.MemberStanding > agentStandings( final Call c ) {
+        try {
+            final java.util.Map< Long, WorkRegistryService.MemberStanding > m =
+                c.svc.registry() == null ? null : c.svc.registry().agentStandings( c.actor, c.pathParam( 0 ) );
+            return m == null ? java.util.Map.of() : m;
+        } catch ( final java.sql.SQLException | RuntimeException e ) {
+            org.apache.logging.log4j.LogManager.getLogger( WorkProjectResource.class ).warn(
+                "Could not read how the agent members of a project stand; the list is shown without it: {}",
+                e.getMessage() );
+            return java.util.Map.of();
+        }
     }
 
     private void update( final Call c ) throws Exception {

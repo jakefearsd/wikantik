@@ -358,4 +358,40 @@ class WorkAgentRegistryPostgresTest {
             .filter( v -> v.agent().id() == codex ).findFirst().orElseThrow();
         assertEquals( WorkRegistryService.AgentStatus.SPONSOR_GONE, orphan.status() );
     }
+
+    // ---- what a project's member list says about an agent row
+
+    @Test
+    void anAgentMemberRowSaysWhetherItHasAnyEffectAndWhyNot() throws SQLException {
+        final long codex = codexInPlat().agent().id();
+        final java.util.function.Supplier< WorkRegistryService.MemberStanding > standing = () -> {
+            try {
+                return service.registry().agentStandings( mia, "PLAT" ).get( codex );
+            } catch ( final SQLException e ) {
+                throw new IllegalStateException( e );
+            }
+        };
+        assertEquals( WorkRegistryService.MemberStanding.EFFECTIVE, standing.get() );
+        service.putMember( root, "PLAT", "lena", "user", WorkRole.VIEWER );
+        assertEquals( WorkRegistryService.MemberStanding.SPONSOR_VIEWER, standing.get() );
+        service.removeMember( root, "PLAT", "lena", "user" );
+        assertEquals( WorkRegistryService.MemberStanding.SPONSOR_NOT_MEMBER, standing.get() );
+        gone.add( "lena" );
+        assertEquals( WorkRegistryService.MemberStanding.SPONSOR_GONE, standing.get() );
+        gone.clear();
+        service.registry().releaseSponsorship( root, codex );
+        assertEquals( WorkRegistryService.MemberStanding.NO_SPONSOR, standing.get() );
+        service.registry().takeOver( root, codex );
+        assertEquals( WorkRegistryService.MemberStanding.EFFECTIVE, standing.get(), "an admin sponsor needs no row" );
+        assertThrows( WorkNotFoundException.class, () -> service.registry().agentStandings( zed, "PLAT" ),
+            "a stranger learns nothing, as for the member list itself" );
+    }
+
+    @Test
+    void aDirectoryOutageLeavesAnAgentRowsStandingUnsaid() throws SQLException {
+        final long codex = codexInPlat().agent().id();
+        outage = true;
+        assertTrue( !service.registry().agentStandings( mia, "PLAT" ).containsKey( codex ),
+            "nothing is claimed about an agent whose sponsor could not be looked up" );
+    }
 }

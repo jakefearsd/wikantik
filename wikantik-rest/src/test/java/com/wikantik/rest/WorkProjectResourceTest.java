@@ -167,6 +167,36 @@ class WorkProjectResourceTest {
     }
 
     @Test
+    void anAgentMemberRowSaysWhetherItHasAnyEffectAndWhyNot() throws Exception {
+        final com.wikantik.work.WorkRegistryService registry = Mockito.mock( com.wikantik.work.WorkRegistryService.class );
+        Mockito.when( svc.registry() ).thenReturn( registry );
+        Mockito.when( svc.members( ALICE, "PLAT" ) ).thenReturn( List.of( new Member( 1, "5", "agent", WorkRole.MEMBER ),
+            new Member( 1, "6", "agent", WorkRole.MEMBER ), new Member( 1, "7", "agent", WorkRole.MEMBER ),
+            new Member( 1, "bob", "user", WorkRole.LEAD ) ) );
+        Mockito.when( registry.agentStandings( ALICE, "PLAT" ) ).thenReturn( Map.of(
+            5L, com.wikantik.work.WorkRegistryService.MemberStanding.EFFECTIVE,
+            6L, com.wikantik.work.WorkRegistryService.MemberStanding.SPONSOR_NOT_MEMBER ) );
+        final var rows = call( "GET", "/PLAT/members", Map.of(), null ).json().getAsJsonArray();
+        assertTrue( rows.get( 0 ).getAsJsonObject().get( "effective" ).getAsBoolean() );
+        assertFalse( rows.get( 0 ).getAsJsonObject().has( "reason" ) );
+        assertFalse( rows.get( 1 ).getAsJsonObject().get( "effective" ).getAsBoolean() );
+        assertEquals( "sponsor_not_member", rows.get( 1 ).getAsJsonObject().get( "reason" ).getAsString() );
+        assertFalse( rows.get( 2 ).getAsJsonObject().has( "effective" ), "unknown standing is left unsaid" );
+        assertFalse( rows.get( 3 ).getAsJsonObject().has( "effective" ), "only agent rows carry it" );
+    }
+
+    @Test
+    void aFailedStandingLookupStillListsTheMembers() throws Exception {
+        final com.wikantik.work.WorkRegistryService registry = Mockito.mock( com.wikantik.work.WorkRegistryService.class );
+        Mockito.when( svc.registry() ).thenReturn( registry );
+        Mockito.when( svc.members( ALICE, "PLAT" ) ).thenReturn( List.of( new Member( 1, "5", "agent", WorkRole.MEMBER ) ) );
+        Mockito.when( registry.agentStandings( ALICE, "PLAT" ) ).thenThrow( new java.sql.SQLException( "down" ) );
+        final WorkHttp.Result r = call( "GET", "/PLAT/members", Map.of(), null );
+        assertEquals( 200, r.status() );
+        assertFalse( r.json().getAsJsonArray().get( 0 ).getAsJsonObject().has( "effective" ) );
+    }
+
+    @Test
     void putsAndDeletesAnAgentMemberByName() throws Exception {
         assertEquals( 204, call( "PUT", "/PLAT/members", Map.of(),
             "{\"principal\":\"builder\",\"principalKind\":\"agent\",\"role\":\"member\"}" ).status() );

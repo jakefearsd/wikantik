@@ -147,6 +147,27 @@ final class AgentSponsorship {
         throw denied( TAKEOVER_NOT_LEAD );
     }
 
+    /** How the agent's member row in one project stands: its sponsor's standing there caps it. */
+    WorkRegistryService.MemberStanding standingIn( final long projectId, final Agent agent ) throws SQLException {
+        if ( agent.sponsor() == null ) {
+            return WorkRegistryService.MemberStanding.NO_SPONSOR;
+        }
+        final WorkDirectory.Person p = scopes.person( agent.sponsor() ).orElse( null );
+        if ( p == null ) {
+            return WorkRegistryService.MemberStanding.SPONSOR_GONE;
+        }
+        if ( p.admin() ) {
+            return WorkRegistryService.MemberStanding.EFFECTIVE;
+        }
+        final WorkRole role = scopes.standing().roleIn( projectId, Actor.human( p.login(), p.groups(), false ) )
+            .orElse( null );
+        if ( role == null ) {
+            return WorkRegistryService.MemberStanding.SPONSOR_NOT_MEMBER;
+        }
+        return role == WorkRole.VIEWER ? WorkRegistryService.MemberStanding.SPONSOR_VIEWER
+            : WorkRegistryService.MemberStanding.EFFECTIVE;
+    }
+
     /** How the agent stands right now; computed, never stored. */
     WorkRegistryService.AgentStatus status( final Agent agent ) {
         if ( !agent.active() ) {

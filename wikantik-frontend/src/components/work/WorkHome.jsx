@@ -98,11 +98,12 @@ export default function WorkHome() {
           <span className="work-muted"> Who took what, and what happened next.</span>
         </p>
       )}
-      {isAdmin && (
+      {(isAdmin || projects.length > 0) && (
         <div className="work-actions">
-          <Link to="/work/products">Products</Link>
+          {isAdmin && <Link to="/work/products">Products</Link>}
+          {/* Anyone in a project may see the agents working in it; a lead registers their own there. */}
           <Link to="/work/agents">Agents &amp; queues</Link>
-          {!creating && <button type="button" className="btn btn-sm" onClick={() => setCreating(true)}>New project</button>}
+          {isAdmin && !creating && <button type="button" className="btn btn-sm" onClick={() => setCreating(true)}>New project</button>}
         </div>
       )}
       {isAdmin && creating && <NewProjectForm onCancel={() => setCreating(false)} />}

@@ -120,6 +120,38 @@ public final class WorkRegistryService {
     public record AgentView( Agent agent, String sponsorName, AgentStatus status ) {
     }
 
+    /** Whether an agent's member row in a project has any effect right now, and if not, why. Computed, never stored. */
+    public enum MemberStanding { EFFECTIVE, NO_SPONSOR, SPONSOR_GONE, SPONSOR_NOT_MEMBER, SPONSOR_VIEWER }
+
+    /**
+     * For each agent with a member row in the project, how that row stands: an agent's access there is capped by
+     * its sponsor's, so a row can be on record and have no effect. Visible to whoever may see the project's
+     * members. An agent whose sponsor could not be looked up is left out: nothing is claimed about it.
+     */
+    public java.util.Map< Long, MemberStanding > agentStandings( final Actor actor, final String projectKey )
+            throws SQLException {
+        final WorkScopes.Scope s = scopes.scope( actor, projectKey );
+        s.require( Action.VIEW, null );
+        final java.util.Map< Long, MemberStanding > out = new java.util.LinkedHashMap<>();
+        for ( final Member m : store.members( s.project().id() ) ) {
+            if ( !"agent".equals( m.principalKind() ) || !m.principal().matches( "\\d{1,18}" ) ) {
+                continue;
+            }
+            final long agentId = Long.parseLong( m.principal() );
+            final Agent agent = store.agent( agentId ).orElse( null );
+            if ( agent == null || !agent.active() ) {
+                continue;
+            }
+            try {
+                out.put( agentId, sponsorship.standingIn( s.project().id(), agent ) );
+            } catch ( final WorkUnavailableException e ) {
+                LOG.debug( "A sponsor could not be looked up for the member list; that agent's standing is left out: {}",
+                    e.getMessage() );
+            }
+        }
+        return out;
+    }
+
     /**
      * The agents the caller may know of: every agent for a wiki admin; for anyone else the agents they sponsor and
      * the agents that are members of a project they can see. Never a key id.

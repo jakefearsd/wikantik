@@ -206,9 +206,9 @@ one class and a new column on the agent or its member row; nothing else would ch
 - All rules of the parent design and of `wikantik-work/CLAUDE.md` hold: every caller goes through `WorkService`;
   database access only through `Jdbc`; the event log is append-only; the module depends on neither
   `wikantik-api` nor `wikantik-main`. The sponsor's groups and existence come through the existing
-  `WorkDirectory` port, which gains one method, `isAdmin(login)`, answered by the host the same way it decides
-  the admin flag of a signed-in person. `exists` is now asked for sponsors on agent requests as well as on
-  behalf of an admin; its answer is never shown to the caller.
+  `WorkDirectory` port, which gains one method, `person(login)`: it returns the account's groups and whether it
+  is an instance admin (decided by the host the same way as for a signed-in person), nothing when there is no
+  such account, and fails loudly when the lookup itself fails. Its answer is never shown to the caller.
 - Migrations are DDL-only. No data is carried over: existing agents become sponsorless and their old keys stop
   being agent credentials.
 - Still behind `wikantik.work.enabled`.

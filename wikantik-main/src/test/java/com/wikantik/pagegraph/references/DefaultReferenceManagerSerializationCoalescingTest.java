@@ -141,6 +141,11 @@ class DefaultReferenceManagerSerializationCoalescingTest {
         }
 
         assertEquals( pending + 1, mgr.serializationCount(), "no further update and no shutdown: a timer writes it" );
+        // The count rises as the timer's write starts; serializeToDisk is synchronized on the manager, so taking its
+        // monitor waits for that write to finish before @TempDir deletes the directory under it.
+        synchronized ( mgr ) {
+            mgr.destroy( null );
+        }
     }
 
     private static Page page( final String name, final PageManager pm ) {

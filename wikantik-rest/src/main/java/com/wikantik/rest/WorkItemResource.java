@@ -22,8 +22,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wikantik.work.ItemDraft;
 import com.wikantik.work.ItemPatch;
+import com.wikantik.work.WorkClaimsService;
 import com.wikantik.work.WorkKind;
 import com.wikantik.work.WorkLevel;
+import com.wikantik.work.WorkStatus;
 import com.wikantik.work.WorkValidationException;
 
 import java.time.LocalDate;
@@ -34,14 +36,16 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@code /api/work/items/*}, {@code /api/work/comments/*} and {@code /api/work/links/*}: items and everything
- * hanging off them.
+ * {@code /api/work/items/*}, {@code /api/work/comments/*}, {@code /api/work/links/*} and
+ * {@code /api/work/claimable}: items and everything hanging off them, including claim, release and hand-off.
  */
 public class WorkItemResource extends WorkResourceBase {
 
     private static final long serialVersionUID = 1L;
     private static final Set< String > DRAFT_FIELDS = Set.of( "project", "projectKey", "level", "parentKey",
-        "productKey", "kind", "title", "body", "priority", "dueOn", "assignee" );
+        "productKey", "kind", "title", "body", "priority", "dueOn", "assignee", "queue" );
+    private static final int CLAIMABLE_DEFAULT = 20;
+    private static final int CLAIMABLE_MAX = 50;
 
     @Override
     protected void routes( final List< Object[] > r ) {
@@ -73,6 +77,10 @@ public class WorkItemResource extends WorkResourceBase {
             c.svc.removeComment( c.actor, c.idParam( 0 ) );
             c.noContent();
         } );
+        route( r, "GET", "claimable", this::claimable );
+        route( r, "POST", "items/{}/claim", this::claim );
+        route( r, "POST", "items/{}/release", this::release );
+        route( r, "POST", "items/{}/handoff", this::handoff );
         route( r, "POST", "items/{}/links", c -> {
             final JsonObject b = c.body();
             if ( b != null ) {
@@ -100,7 +108,48 @@ public class WorkItemResource extends WorkResourceBase {
         final String kind = optString( b, "kind" );
         c.created( c.svc.createItem( c.actor, new ItemDraft( project, level == null ? null : WorkLevel.fromWire( level ),
             optString( b, "parentKey" ), optString( b, "productKey" ), kind == null ? null : WorkKind.fromWire( kind ),
-            optString( b, "title" ), optString( b, "body" ), priority( b ), dueOn( b ), optString( b, "assignee" ), null ) ) );
+            optString( b, "title" ), optString( b, "body" ), priority( b ), dueOn( b ), optString( b, "assignee" ),
+            optString( b, "queue" ) ) ) );
+    }
+
+    /** Unclaimed ready or review items the caller could claim (or, for a person, the queues they can see). */
+    private void claimable( final Call c ) throws Exception {
+        final int asked = parseIntParam( c.req, "limit", CLAIMABLE_DEFAULT );
+        final int limit = asked <= 0 ? CLAIMABLE_DEFAULT : Math.min( asked, CLAIMABLE_MAX );
+        c.tree( summariesTree( c.svc.claims().claimable( c.actor, c.query( "project" ), c.query( "queue" ), limit ),
+            c.actor ) );
+    }
+
+    private void claim( final Call c ) throws Exception {
+        final WorkClaimsService.ClaimResult result = c.svc.claims().claim( c.actor, c.pathParam( 0 ) );
+        final JsonObject out = new JsonObject();
+        out.add( "item", toTree( result.view(), c.actor ) );
+        out.addProperty( "renewed", result.renewed() );
+        c.tree( out );
+    }
+
+    /** The body is optional: a bare POST releases with no note. */
+    private void release( final Call c ) throws Exception {
+        String note = null;
+        if ( c.req.getContentLength() != 0 ) {
+            final JsonObject b = c.body();
+            if ( b == null ) {
+                return;
+            }
+            note = optString( b, "note" );
+        }
+        c.json( c.svc.claims().release( c.actor, c.pathParam( 0 ), note ) );
+    }
+
+    private void handoff( final Call c ) throws Exception {
+        final JsonObject b = c.body();
+        if ( b == null ) {
+            return;
+        }
+        final String status = optString( b, "status" );
+        c.json( c.svc.claims().handoff( c.actor, c.pathParam( 0 ), new WorkClaimsService.Handoff( expectedVersion( b ),
+            status == null ? null : WorkStatus.fromWire( status ), optString( b, "assignee" ), optString( b, "queue" ),
+            optString( b, "note" ) ) ) );
     }
 
     private static Integer priority( final JsonObject b ) {

@@ -147,6 +147,24 @@
      <url-pattern>/admin/*</url-pattern>
    </filter-mapping>
 
+   <!-- Work-management bearer keys: turns "Authorization: Bearer <work or all key>" on /api/work/* into a request
+        carrying the verified key record, from which WorkResourceBase derives the actor (the agent the key is bound
+        to, or its owner as a person). No bearer header, or work management off, passes through untouched (session
+        authentication applies; the resource answers 404 when off). An unknown, revoked or malformed key is a 401 and
+        a key whose scope does not cover work a 403: a request that carries a bearer credential is never handled as a
+        session request. Placed straight after BasicAuthFilter (a Basic header and a Bearer header are mutually
+        exclusive, so the two never both act) and before the cookie-based filters, which a key request must not
+        depend on. -->
+   <filter>
+     <filter-name>WorkApiKeyFilter</filter-name>
+     <filter-class>com.wikantik.rest.WorkApiKeyFilter</filter-class>
+     <async-supported>true</async-supported>
+   </filter>
+   <filter-mapping>
+     <filter-name>WorkApiKeyFilter</filter-name>
+     <url-pattern>/api/work/*</url-pattern>
+   </filter-mapping>
+
    <!-- Remember-me re-auth: when cookie authentication is enabled and the request
         carries a remember-me cookie but the server session is gone (restart/timeout),
         re-establish the authenticated session from the cookie. Runs after BasicAuth
@@ -663,6 +681,14 @@
        <servlet-class>com.wikantik.rest.WorkItemResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>WorkQueueResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkQueueResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>WorkAgentResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkAgentResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>WorkActivityResource</servlet-name>
        <servlet-class>com.wikantik.rest.WorkActivityResource</servlet-class>
    </servlet>
@@ -1026,6 +1052,17 @@
        <url-pattern>/api/work/items/*</url-pattern>
        <url-pattern>/api/work/comments/*</url-pattern>
        <url-pattern>/api/work/links/*</url-pattern>
+       <url-pattern>/api/work/claimable</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkQueueResource</servlet-name>
+       <url-pattern>/api/work/queues</url-pattern>
+       <url-pattern>/api/work/queues/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkAgentResource</servlet-name>
+       <url-pattern>/api/work/agents</url-pattern>
+       <url-pattern>/api/work/agents/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>WorkActivityResource</servlet-name>

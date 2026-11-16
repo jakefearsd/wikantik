@@ -153,6 +153,48 @@ class WorkProjectResourceTest {
     }
 
     @Test
+    void anAgentMemberIsShownByNameWithNoIdAndNoMentionId() throws Exception {
+        final com.wikantik.work.WorkRegistryService registry = Mockito.mock( com.wikantik.work.WorkRegistryService.class );
+        Mockito.when( svc.registry() ).thenReturn( registry );
+        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "", null,
+            List.of(), java.time.Instant.EPOCH, null ) ) );
+        Mockito.when( svc.members( ALICE, "PLAT" ) ).thenReturn( List.of( new Member( 1, "5", "agent", WorkRole.MEMBER ) ) );
+        final JsonObject m = call( "GET", "/PLAT/members", Map.of(), null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertEquals( "builder", m.get( "displayName" ).getAsString() );
+        assertEquals( "builder", m.get( "principal" ).getAsString() );
+        assertFalse( m.get( "self" ).getAsBoolean() );
+        assertFalse( m.has( "mentionId" ), "an agent cannot be @-mentioned" );
+    }
+
+    @Test
+    void putsAndDeletesAnAgentMemberByName() throws Exception {
+        assertEquals( 204, call( "PUT", "/PLAT/members", Map.of(),
+            "{\"principal\":\"builder\",\"principalKind\":\"agent\",\"role\":\"member\"}" ).status() );
+        Mockito.verify( svc ).putMember( ALICE, "PLAT", "builder", "agent", WorkRole.MEMBER );
+        assertEquals( 204, call( "DELETE", "/PLAT/members", Map.of(), "{\"principal\":\"builder\",\"principalKind\":\"agent\"}" ).status() );
+        Mockito.verify( svc ).removeMember( ALICE, "PLAT", "builder", "agent" );
+    }
+
+    @Test
+    void anAgentMemberRefusalIsA400OnThePrincipal() throws Exception {
+        Mockito.doThrow( new com.wikantik.work.WorkValidationException( "principal", "No such agent." ) ).when( svc )
+            .putMember( any(), anyString(), anyString(), anyString(), any() );
+        final WorkHttp.Result r = call( "PUT", "/PLAT/members", Map.of(),
+            "{\"principal\":\"ghost\",\"principalKind\":\"agent\",\"role\":\"lead\"}" );
+        assertEquals( 400, r.status() );
+        assertEquals( "principal", r.json().getAsJsonObject().get( "field" ).getAsString() );
+    }
+
+    @Test
+    void theBoardPassesTheQueueFilter() throws Exception {
+        Mockito.when( svc.boardSummaries( any(), anyString(), any() ) ).thenReturn( List.of() );
+        call( "GET", "/PLAT/board", Map.of( "queue", "triage" ), null );
+        final org.mockito.ArgumentCaptor< com.wikantik.work.ItemFilter > f = org.mockito.ArgumentCaptor.forClass( com.wikantik.work.ItemFilter.class );
+        Mockito.verify( svc ).boardSummaries( eq( ALICE ), eq( "PLAT" ), f.capture() );
+        assertEquals( "triage", f.getValue().queue() );
+    }
+
+    @Test
     void anUnknownRoleIs400() throws Exception {
         final WorkHttp.Result r = call( "PUT", "/PLAT/members", Map.of(),
             "{\"principal\":\"bob\",\"principalKind\":\"user\",\"role\":\"boss\"}" );

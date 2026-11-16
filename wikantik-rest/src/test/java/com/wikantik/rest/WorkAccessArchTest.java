@@ -37,6 +37,16 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @AnalyzeClasses( packages = "com.wikantik", importOptions = ImportOption.DoNotIncludeTests.class )
 class WorkAccessArchTest {
 
+    /**
+     * Sweeping lapsed claims is a system task for the internal scheduler. No REST class may call it: a route that
+     * did would let any caller trigger expiry on demand.
+     */
+    @ArchTest
+    static final ArchRule no_rest_route_sweeps_expired_claims = noClasses()
+        .that( resideInAPackage( "com.wikantik.rest.." ) )
+        .should().callMethod( com.wikantik.work.WorkClaimsService.class, "sweepExpiredClaims" )
+        .because( "claim expiry is run by the scheduler, never on a caller's request" );
+
     @ArchTest
     static final ArchRule only_the_work_packages_touch_the_store = noClasses()
         .that( not( resideInAPackage( "com.wikantik.work" ) ) )

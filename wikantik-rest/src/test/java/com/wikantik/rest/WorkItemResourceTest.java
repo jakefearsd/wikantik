@@ -25,12 +25,15 @@ import com.wikantik.work.ItemPatch;
 import com.wikantik.work.ItemRevision;
 import com.wikantik.work.Link;
 import com.wikantik.work.Actor;
+import com.wikantik.work.WorkClaimsService;
 import com.wikantik.work.WorkConflictException;
 import com.wikantik.work.WorkDeniedException;
 import com.wikantik.work.WorkEvent;
 import com.wikantik.work.WorkNotFoundException;
 import com.wikantik.work.WorkRole;
+import com.wikantik.work.WorkRegistryService;
 import com.wikantik.work.WorkService;
+import com.wikantik.work.WorkStatus;
 import com.wikantik.work.WorkValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,11 +56,14 @@ import static org.mockito.ArgumentMatchers.eq;
 class WorkItemResourceTest {
 
     private WorkService svc;
+    private WorkClaimsService claims;
     private WorkItemResource servlet;
 
     @BeforeEach
     void setUp() {
         svc = Mockito.mock( WorkService.class );
+        claims = Mockito.mock( WorkClaimsService.class );
+        Mockito.when( svc.claims() ).thenReturn( claims );
         servlet = WorkHttp.wire( new WorkItemResource(), svc, ALICE );
     }
 
@@ -399,5 +405,284 @@ class WorkItemResourceTest {
         Mockito.doReturn( null ).when( servlet ).actor( any() );
         assertEquals( 404, get( "/PLAT-1", Map.of() ).status() );
         Mockito.verify( servlet, Mockito.never() ).actor( any() );
+    }
+
+    // ---- phase 2: claims, hand-off, queues, bearer keys
+
+    private static final Actor BUILDER = Actor.agent( 5, "builder" );
+
+    @Test
+    void claimReturnsItemAndRenewedFlag() throws Exception {
+        Mockito.when( claims.claim( ALICE, "PLAT-1" ) ).thenReturn(
+            new WorkClaimsService.ClaimResult( WorkHttp.view( "PLAT-1", null, 2 ), true ) );
+        final WorkHttp.Result r = send( "POST", "/api/work/items", "/PLAT-1/claim", null );
+        assertEquals( 200, r.status() );
+        assertEquals( true, r.json().getAsJsonObject().get( "renewed" ).getAsBoolean() );
+        assertEquals( "PLAT-1", r.json().getAsJsonObject().getAsJsonObject( "item" ).getAsJsonObject( "item" )
+            .get( "key" ).getAsString() );
+    }
+
+    @Test
+    void notClaimableIs409WithReason() throws Exception {
+        Mockito.when( claims.claim( any(), anyString() ) ).thenThrow( new WorkConflictException(
+            "This item is claimed by reviewer until 2026-11-15T10:30:00Z.", WorkConflictException.NOT_CLAIMABLE ) );
+        final WorkHttp.Result r = send( "POST", "/api/work/items", "/PLAT-1/claim", null );
+        assertEquals( 409, r.status() );
+        final JsonObject o = r.json().getAsJsonObject();
+        assertEquals( "not_claimable", o.get( "reason" ).getAsString() );
+        assertTrue( o.get( "message" ).getAsString().contains( "reviewer" ) );
+        assertFalse( o.has( "current" ) );
+    }
+
+    @Test
+    void releaseWithoutClaimIs409NotClaimed() throws Exception {
+        Mockito.when( claims.release( any(), anyString(), any() ) ).thenThrow( new WorkConflictException(
+            "This item is not claimed.", WorkConflictException.NOT_CLAIMED ) );
+        final WorkHttp.Result r = send( "POST", "/api/work/items", "/PLAT-1/release", null );
+        assertEquals( 409, r.status() );
+        assertEquals( "not_claimed", r.json().getAsJsonObject().get( "reason" ).getAsString() );
+    }
+
+    @Test
+    void releaseTakesAnOptionalNote() throws Exception {
+        Mockito.when( claims.release( any(), anyString(), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 3 ) );
+        assertEquals( 200, send( "POST", "/api/work/items", "/PLAT-1/release", "{\"note\":\"blocked on infra\"}" ).status() );
+        Mockito.verify( claims ).release( ALICE, "PLAT-1", "blocked on infra" );
+        assertEquals( 200, send( "POST", "/api/work/items", "/PLAT-1/release", null ).status() );
+        Mockito.verify( claims ).release( ALICE, "PLAT-1", null );
+    }
+
+    @Test
+    void handoffPassesStatusTargetNoteAndVersion() throws Exception {
+        Mockito.when( claims.handoff( any(), anyString(), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", "erin", 4 ) );
+        final WorkHttp.Result r = send( "POST", "/api/work/items", "/PLAT-1/handoff",
+            "{\"expectedVersion\":3,\"status\":\"review\",\"assignee\":\"Erin E\",\"note\":\"please review\"}" );
+        assertEquals( 200, r.status() );
+        final ArgumentCaptor< WorkClaimsService.Handoff > h = ArgumentCaptor.forClass( WorkClaimsService.Handoff.class );
+        Mockito.verify( claims ).handoff( eq( ALICE ), eq( "PLAT-1" ), h.capture() );
+        assertEquals( new WorkClaimsService.Handoff( 3, WorkStatus.REVIEW, "Erin E", null, "please review" ), h.getValue() );
+        send( "POST", "/api/work/items", "/PLAT-1/handoff", "{\"expectedVersion\":3,\"queue\":\"triage\",\"note\":\"n\"}" );
+        Mockito.verify( claims ).handoff( ALICE, "PLAT-1", new WorkClaimsService.Handoff( 3, null, null, "triage", "n" ) );
+    }
+
+    @Test
+    void handoffNeedsNote400() throws Exception {
+        Mockito.when( claims.handoff( any(), anyString(), any() ) ).thenThrow(
+            new WorkValidationException( "note", "A hand-off needs a note saying what the next one should do." ) );
+        final WorkHttp.Result r = send( "POST", "/api/work/items", "/PLAT-1/handoff",
+            "{\"expectedVersion\":3,\"assignee\":\"Erin E\"}" );
+        assertEquals( 400, r.status() );
+        assertEquals( "note", r.json().getAsJsonObject().get( "field" ).getAsString() );
+    }
+
+    @Test
+    void handoffBodyShapeIsCheckedBeforeTheServiceIsAsked() throws Exception {
+        for ( final String body : new String[] { "{}", "{\"expectedVersion\":\"x\"}", "{\"expectedVersion\":1.5}",
+            "{\"expectedVersion\":1,\"status\":\"bogus\"}", "{\"expectedVersion\":1,\"queue\":{}}", "[]", "not json" } ) {
+            assertEquals( 400, send( "POST", "/api/work/items", "/PLAT-1/handoff", body ).status(), body );
+        }
+        Mockito.verify( claims, Mockito.never() ).handoff( any(), anyString(), any() );
+    }
+
+    @Test
+    void aStaleHandoffCarriesTheCurrentItem() throws Exception {
+        Mockito.when( claims.handoff( any(), anyString(), any() ) ).thenThrow( new WorkConflictException( "changed" ) );
+        Mockito.when( svc.item( ALICE, "PLAT-1" ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 9 ) );
+        final WorkHttp.Result r = send( "POST", "/api/work/items", "/PLAT-1/handoff",
+            "{\"expectedVersion\":3,\"assignee\":\"x\",\"note\":\"n\"}" );
+        assertEquals( 409, r.status() );
+        assertEquals( "stale", r.json().getAsJsonObject().get( "reason" ).getAsString() );
+        assertEquals( 9, r.json().getAsJsonObject().getAsJsonObject( "current" ).getAsJsonObject( "item" )
+            .get( "version" ).getAsInt() );
+    }
+
+    @Test
+    void claimableLimitClampedTo50() throws Exception {
+        Mockito.when( claims.claimable( any(), any(), any(), Mockito.anyInt() ) ).thenReturn( List.of(
+            WorkHttp.summary( WorkHttp.item( "PLAT-1", null, 1 ), 0, false, null, null ) ) );
+        final WorkHttp.Result r = WorkHttp.call( servlet, "GET", "/api/work/claimable", null,
+            Map.of( "project", "PLAT", "queue", "triage", "limit", "999" ), null );
+        assertEquals( 200, r.status() );
+        assertEquals( "PLAT-1", r.json().getAsJsonArray().get( 0 ).getAsJsonObject().get( "key" ).getAsString() );
+        Mockito.verify( claims ).claimable( ALICE, "PLAT", "triage", 50 );
+        WorkHttp.call( servlet, "GET", "/api/work/claimable", null, Map.of(), null );
+        Mockito.verify( claims ).claimable( ALICE, null, null, 20 );
+    }
+
+    @Test
+    void claimableForAHiddenProjectIsTheSame404AsAMissingOne() throws Exception {
+        Mockito.when( claims.claimable( any(), eq( "HIDDEN" ), any(), Mockito.anyInt() ) )
+            .thenThrow( new WorkNotFoundException( "No such project HIDDEN" ) );
+        Mockito.when( claims.claimable( any(), eq( "MISSING" ), any(), Mockito.anyInt() ) )
+            .thenThrow( new WorkNotFoundException( "Not found." ) );
+        final WorkHttp.Result hidden = WorkHttp.call( servlet, "GET", "/api/work/claimable", null, Map.of( "project", "HIDDEN" ), null );
+        final WorkHttp.Result missing = WorkHttp.call( servlet, "GET", "/api/work/claimable", null, Map.of( "project", "MISSING" ), null );
+        assertEquals( 404, hidden.status() );
+        assertEquals( missing.status(), hidden.status() );
+        assertEquals( missing.body(), hidden.body() );
+    }
+
+    @Test
+    void queueParameterFiltersTheList() throws Exception {
+        Mockito.when( svc.itemSummaries( any(), anyString(), any() ) ).thenReturn( List.of() );
+        get( null, Map.of( "project", "PLAT", "queue", "triage" ) );
+        final ArgumentCaptor< ItemFilter > f = ArgumentCaptor.forClass( ItemFilter.class );
+        Mockito.verify( svc ).itemSummaries( eq( ALICE ), eq( "PLAT" ), f.capture() );
+        assertEquals( "triage", f.getValue().queue() );
+    }
+
+    @Test
+    void createPassesTheQueue() throws Exception {
+        Mockito.when( svc.createItem( eq( ALICE ), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        send( "POST", "/api/work/items", null, "{\"project\":\"PLAT\",\"level\":\"task\",\"title\":\"T\",\"queue\":\"triage\"}" );
+        final ArgumentCaptor< com.wikantik.work.ItemDraft > d = ArgumentCaptor.forClass( com.wikantik.work.ItemDraft.class );
+        Mockito.verify( svc ).createItem( eq( ALICE ), d.capture() );
+        assertEquals( "triage", d.getValue().queue() );
+    }
+
+    @Test
+    void anItemShowsWhoHoldsItAndWhichQueueItIsIn() throws Exception {
+        final WorkRegistryService registry = Mockito.mock( WorkRegistryService.class );
+        Mockito.when( svc.registry() ).thenReturn( registry );
+        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "",
+            null, List.of( "triage" ), Instant.parse( "2026-11-01T10:00:00Z" ), null ) ) );
+        Mockito.when( registry.listQueues( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Queue( "triage", "Triage queue", "", null ) ) );
+        final com.wikantik.work.Item base = WorkHttp.item( "PLAT-1", null, 2 );
+        final com.wikantik.work.Item claimed = new com.wikantik.work.Item( base.id(), base.projectId(), base.key(), base.level(),
+            null, null, base.kind(), base.title(), base.body(), WorkStatus.IN_PROGRESS, 3, 1.0, null, null, "bob", null, null, null,
+            2, base.createdAt(), base.updatedAt(), null, "triage", 5L, Instant.parse( "2026-11-15T10:00:00Z" ),
+            Instant.parse( "2026-11-15T10:30:00Z" ), null );
+        Mockito.when( svc.item( ALICE, "PLAT-1" ) ).thenReturn( new WorkService.ItemView( claimed, "<p>b</p>", "PLAT", null, null,
+            List.of(), List.of(), List.of(), false, WorkRole.MEMBER, false, null ) );
+        final JsonObject item = get( "/PLAT-1", Map.of() ).json().getAsJsonObject().getAsJsonObject( "item" );
+        assertEquals( "builder", item.get( "claimedByName" ).getAsString() );
+        assertEquals( "Triage queue", item.get( "queueName" ).getAsString() );
+        assertEquals( "triage", item.get( "queue" ).getAsString() );
+    }
+
+    private WorkItemResource keyed( final Actor session ) {
+        final WorkRegistryService registry = Mockito.mock( WorkRegistryService.class );
+        Mockito.when( svc.registry() ).thenReturn( registry );
+        return WorkHttp.wireKeyed( new WorkItemResource(), svc, session );
+    }
+
+    private static com.wikantik.auth.apikeys.ApiKeyService.Record key( final com.wikantik.auth.apikeys.ApiKeyService.Scope scope ) {
+        return new com.wikantik.auth.apikeys.ApiKeyService.Record( 42, "h", "owner", "k", scope, Instant.EPOCH, "admin", null,
+            null, null, false );
+    }
+
+    private WorkHttp.Result getWithKey( final WorkItemResource s, final com.wikantik.auth.apikeys.ApiKeyService.Record record,
+                                        final String authorization ) throws Exception {
+        return WorkHttp.call( s, "GET", "/api/work/items", "/PLAT-1", Map.of(), null, req -> {
+            Mockito.doReturn( authorization ).when( req ).getHeader( "Authorization" );
+            Mockito.doReturn( record ).when( req ).getAttribute( com.wikantik.auth.apikeys.ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD );
+        } );
+    }
+
+    @Test
+    void bearerAgentActorUsed() throws Exception {
+        final WorkItemResource s = keyed( ALICE );
+        Mockito.when( svc.registry().actorForApiKey( 42, "owner" ) ).thenReturn( BUILDER );
+        Mockito.when( svc.item( any(), anyString() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        final WorkHttp.Result r = getWithKey( s, key( com.wikantik.auth.apikeys.ApiKeyService.Scope.WORK ), "Bearer wkk_x" );
+        assertEquals( 200, r.status() );
+        final ArgumentCaptor< Actor > seen = ArgumentCaptor.forClass( Actor.class );
+        Mockito.verify( svc ).item( seen.capture(), eq( "PLAT-1" ) );
+        assertEquals( Actor.Kind.AGENT, seen.getValue().kind() );
+        assertEquals( 5L, seen.getValue().agentId() );
+    }
+
+    @Test
+    void bearerKeyWinsOverALoggedInSession() throws Exception {
+        final WorkItemResource s = keyed( ALICE );
+        Mockito.when( svc.registry().actorForApiKey( 42, "owner" ) ).thenReturn( BUILDER );
+        Mockito.when( svc.item( any(), anyString() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        getWithKey( s, key( com.wikantik.auth.apikeys.ApiKeyService.Scope.WORK ), "Bearer wkk_x" );
+        Mockito.verify( s, Mockito.never() ).sessionActor( any() );
+        Mockito.verify( svc, Mockito.never() ).item( eq( ALICE ), anyString() );
+    }
+
+    @Test
+    void aBearerHeaderWithNoVerifiedKeyIsNeverASessionRequest() throws Exception {
+        final WorkItemResource s = keyed( ALICE );
+        final WorkHttp.Result r = getWithKey( s, null, "Bearer wkk_whatever" );
+        assertEquals( 401, r.status() );
+        assertEquals( WorkApiKeyFilter.INVALID_KEY_BODY, r.body() );
+        Mockito.verify( s, Mockito.never() ).sessionActor( any() );
+        Mockito.verify( svc, Mockito.never() ).item( any(), anyString() );
+    }
+
+    @Test
+    void aKeyBoundToNoActorIs401WithTheSameBodyAsAnUnknownKey() throws Exception {
+        final WorkItemResource s = keyed( ALICE );
+        Mockito.when( svc.registry().actorForApiKey( 42, "owner" ) ).thenReturn( null );   // retired or rotated away
+        final WorkHttp.Result retired = getWithKey( s, key( com.wikantik.auth.apikeys.ApiKeyService.Scope.WORK ), "Bearer wkk_x" );
+        final WorkHttp.Result unknown = getWithKey( s, null, "Bearer wkk_y" );
+        assertEquals( 401, retired.status() );
+        assertEquals( unknown.body(), retired.body() );
+        Mockito.verify( s, Mockito.never() ).sessionActor( any() );
+    }
+
+    @Test
+    void aKeyWhoseScopeIsNotWorkIsNoActorEvenIfItReachedTheResource() throws Exception {
+        final WorkItemResource s = keyed( ALICE );
+        final WorkHttp.Result r = getWithKey( s, key( com.wikantik.auth.apikeys.ApiKeyService.Scope.MCP_ADMIN ), "Bearer wkk_x" );
+        assertEquals( 401, r.status() );
+        Mockito.verify( svc.registry(), Mockito.never() ).actorForApiKey( Mockito.anyInt(), anyString() );
+    }
+
+    @Test
+    void anOrdinaryKeyActsAsItsOwnerAPerson() throws Exception {
+        final WorkItemResource s = keyed( null );
+        Mockito.when( svc.registry().actorForApiKey( 42, "owner" ) ).thenReturn( Actor.human( "owner", java.util.Set.of(), false ) );
+        Mockito.when( svc.item( any(), anyString() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        assertEquals( 200, getWithKey( s, key( com.wikantik.auth.apikeys.ApiKeyService.Scope.ALL ), "Bearer wkk_x" ).status() );
+        final ArgumentCaptor< Actor > seen = ArgumentCaptor.forClass( Actor.class );
+        Mockito.verify( svc ).item( seen.capture(), eq( "PLAT-1" ) );
+        assertEquals( Actor.Kind.HUMAN, seen.getValue().kind() );
+        assertFalse( seen.getValue().admin() );
+    }
+
+    @Test
+    void noBearerHeaderIsASessionRequestAsBefore() throws Exception {
+        final WorkItemResource s = keyed( ALICE );
+        Mockito.when( svc.item( any(), anyString() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        assertEquals( 200, getWithKey( s, null, null ).status() );
+        Mockito.verify( svc ).item( eq( ALICE ), eq( "PLAT-1" ) );
+    }
+
+    @Test
+    void aFailedKeyLookupIs500NotA401() throws Exception {
+        final WorkItemResource s = keyed( ALICE );
+        Mockito.when( svc.registry().actorForApiKey( 42, "owner" ) ).thenThrow( new java.sql.SQLException( "db down 10.0.0.9" ) );
+        final WorkHttp.Result r = getWithKey( s, key( com.wikantik.auth.apikeys.ApiKeyService.Scope.WORK ), "Bearer wkk_x" );
+        assertEquals( 500, r.status() );
+        assertFalse( r.body().contains( "10.0.0.9" ) );
+    }
+
+    // ---- not-found identity: hidden = missing, byte for byte
+
+    @Test
+    void everyNewItemRouteAnswersAHiddenItemExactlyLikeAMissingOne() throws Exception {
+        final String[][] routes = {
+            { "POST", "/PLAT-1/claim", null },
+            { "POST", "/PLAT-1/release", "{\"note\":\"x\"}" },
+            { "POST", "/PLAT-1/handoff", "{\"expectedVersion\":1,\"assignee\":\"a\",\"note\":\"n\"}" } };
+        for ( final String[] route : routes ) {
+            Mockito.reset( claims );
+            Mockito.when( claims.claim( any(), anyString() ) ).thenThrow( new WorkNotFoundException( "hidden PLAT-1 of project PLAT" ) );
+            Mockito.when( claims.release( any(), anyString(), any() ) ).thenThrow( new WorkNotFoundException( "hidden PLAT-1 of project PLAT" ) );
+            Mockito.when( claims.handoff( any(), anyString(), any() ) ).thenThrow( new WorkNotFoundException( "hidden PLAT-1 of project PLAT" ) );
+            final WorkHttp.Result hidden = send( route[ 0 ], "/api/work/items", route[ 1 ], route[ 2 ] );
+            Mockito.reset( claims );
+            Mockito.when( claims.claim( any(), anyString() ) ).thenThrow( new WorkNotFoundException( "Not found." ) );
+            Mockito.when( claims.release( any(), anyString(), any() ) ).thenThrow( new WorkNotFoundException( "Not found." ) );
+            Mockito.when( claims.handoff( any(), anyString(), any() ) ).thenThrow( new WorkNotFoundException( "Not found." ) );
+            final WorkHttp.Result missing = send( route[ 0 ], "/api/work/items", route[ 1 ].replace( "PLAT-1", "NOPE-9" ), route[ 2 ] );
+            assertEquals( 404, hidden.status(), route[ 1 ] );
+            assertEquals( missing.status(), hidden.status(), route[ 1 ] );
+            assertEquals( missing.body(), hidden.body(), route[ 1 ] );
+            assertFalse( hidden.body().contains( "PLAT" ), hidden.body() );
+        }
     }
 }

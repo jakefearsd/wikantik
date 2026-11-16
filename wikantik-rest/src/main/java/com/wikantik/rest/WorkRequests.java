@@ -101,7 +101,7 @@ final class WorkRequests {
             }
         }
         return new ItemFilter( null, statuses, c.query( "assignee" ), productId, level, parentId, c.query( "q" ),
-            dueBefore, limit, order( c.query( "order" ) ), null );
+            dueBefore, limit, order( c.query( "order" ) ), c.query( "queue" ) );
     }
 
     /** {@code key} (the default) or {@code due}: soonest due date first, no date last. */

@@ -50,7 +50,11 @@ final class WorkHttp {
     static final Actor ALICE = Actor.human( "alice", Set.of(), false );
 
     /** What a servlet wrote. */
-    record Result( int status, String body ) {
+    record Result( int status, String body, Map< String, String > headers ) {
+        Result( final int status, final String body ) {
+            this( status, body, Map.of() );
+        }
+
         JsonElement json() {
             return JsonParser.parseString( body );
         }
@@ -70,10 +74,31 @@ final class WorkHttp {
         return spy;
     }
 
+    /**
+     * A servlet wired like {@link #wire} except that the caller is worked out by the real {@code actor(request)}:
+     * from the request's key record, or else {@code session} (null = anonymous) when it carries no bearer header.
+     */
+    static < T extends WorkResourceBase > T wireKeyed( final T servlet, final WorkService svc, final Actor session ) {
+        final T spy = Mockito.spy( servlet );
+        Mockito.doReturn( svc ).when( spy ).workService();
+        Mockito.doReturn( session ).when( spy ).sessionActor( Mockito.any() );
+        Mockito.doAnswer( inv -> "Name of " + inv.getArgument( 0 ) ).when( spy ).displayName( Mockito.anyString() );
+        return spy;
+    }
+
     static Result call( final WorkResourceBase servlet, final String method, final String servletPath,
                         final String pathInfo, final Map< String, String > query, final String jsonBody )
             throws Exception {
+        return call( servlet, method, servletPath, pathInfo, query, jsonBody, req -> { } );
+    }
+
+    /** As above; {@code tweak} adjusts the mock request (a header, an attribute) before the call. */
+    static Result call( final WorkResourceBase servlet, final String method, final String servletPath,
+                        final String pathInfo, final Map< String, String > query, final String jsonBody,
+                        final java.util.function.Consumer< HttpServletRequest > tweak )
+            throws Exception {
         final HttpServletRequest req = HttpMockFactory.createHttpRequest( servletPath );
+        tweak.accept( req );
         Mockito.doReturn( method ).when( req ).getMethod();
         Mockito.doReturn( servletPath ).when( req ).getServletPath();
         Mockito.doReturn( pathInfo ).when( req ).getPathInfo();
@@ -92,8 +117,13 @@ final class WorkHttp {
             status.set( inv.getArgument( 0 ) );
             return null;
         } ).when( resp ).setStatus( Mockito.anyInt() );
+        final java.util.Map< String, String > headers = new java.util.HashMap<>();
+        Mockito.doAnswer( inv -> {
+            headers.put( inv.getArgument( 0 ), inv.getArgument( 1 ) );
+            return null;
+        } ).when( resp ).setHeader( Mockito.anyString(), Mockito.anyString() );
         servlet.service( req, resp );
-        return new Result( status.get(), sw.toString() );
+        return new Result( status.get(), sw.toString(), headers );
     }
 
     static Project project( final String key ) {

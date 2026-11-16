@@ -24,6 +24,8 @@ import com.google.gson.JsonObject;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
+import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.work.Actor;
 import com.wikantik.work.ItemFilter;
 import com.wikantik.work.Project;
@@ -41,6 +43,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -77,8 +80,26 @@ public abstract class WorkResourceBase extends RestServletBase {
         return getEngine() instanceof WikiEngine we ? we.workService() : null;
     }
 
-    /** The calling actor, or null for an anonymous session. */
+    /**
+     * The calling actor, or null when there is none. A request that came through {@link WorkApiKeyFilter} with a
+     * verified key is whoever {@link WikiWorkActors#actorForKey} says that key is, and nobody else: no actor for a
+     * key bound to a retired or rotated-away agent, and never the key's owner or a session as a fallback. A request
+     * that carries a bearer credential the filter did not vouch for is no actor either. Only a request with no bearer
+     * credential at all is a session request, so a bearer key always wins over a cookie on the same request.
+     */
     protected Actor actor( final HttpServletRequest request ) {
+        if ( request.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) instanceof ApiKeyService.Record key ) {
+            try {
+                return WikiWorkActors.actorForKey( workService(), key );
+            } catch ( final SQLException e ) {
+                throw new IllegalStateException( "Could not resolve the actor of an API key", e );
+            }
+        }
+        return WorkApiKeyFilter.hasBearer( request ) ? null : sessionActor( request );
+    }
+
+    /** The actor of the request's login session, or null for an anonymous one. */
+    protected Actor sessionActor( final HttpServletRequest request ) {
         final Session session = Wiki.session().find( getEngine(), request );
         return WikiWorkActors.actorFor( getEngine(), session );
     }
@@ -192,9 +213,8 @@ public abstract class WorkResourceBase extends RestServletBase {
             response.setStatus( HttpServletResponse.SC_OK );
             return;
         }
-        final Actor actor = actor( request );
+        final Actor actor = WorkCallers.authenticate( this::actor, request, response );
         if ( actor == null ) {
-            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required." );
             return;
         }
         final String method = request.getMethod() == null ? "" : request.getMethod().toUpperCase( Locale.ROOT );
@@ -233,15 +253,15 @@ public abstract class WorkResourceBase extends RestServletBase {
 
     /**
      * A 409 with its {@code reason}: {@code stale} (and, for an item PATCH, the {@code current} item to merge against),
-     * {@code archived} (the project is read-only; no {@code current}, there is nothing to merge) or {@code exists}.
+     * {@code archived} (the project is read-only; no {@code current}, there is nothing to merge), {@code exists},
+     * {@code not_claimable} or {@code not_claimed}. A stale hand-off carries {@code current} too.
      */
     protected void conflict( final HttpServletRequest request, final HttpServletResponse response,
                              final WorkService svc, final Actor actor, final String[] segs,
                              final WorkConflictException e ) throws IOException {
         final JsonObject body = WorkJson.errorBody( HttpServletResponse.SC_CONFLICT, e.getMessage() );
         body.addProperty( "reason", e.reason() );
-        if ( WorkConflictException.STALE.equals( e.reason() ) && segs.length == 2 && "items".equals( segs[ 0 ] )
-                && "PATCH".equalsIgnoreCase( request.getMethod() ) ) {
+        if ( WorkConflictException.STALE.equals( e.reason() ) && WorkCallers.mergesAgainstCurrent( request, segs ) ) {
             try {
                 body.add( "current", toTree( svc.item( actor, segs[ 1 ] ), actor ) );
             } catch ( final Exception inner ) {
@@ -256,42 +276,33 @@ public abstract class WorkResourceBase extends RestServletBase {
 
     /** The value as a JSON tree, people shown as {@link WorkJson} describes for {@code viewer}. */
     protected JsonElement toTree( final Object value, final Actor viewer ) {
+        return toTree( value, viewer, lookupFor( viewer ) );
+    }
+
+    /** As {@link #toTree(Object, Actor)}, sharing {@code lookup} so a list resolves the registry once. */
+    protected JsonElement toTree( final Object value, final Actor viewer, final WorkLookup lookup ) {
         if ( value instanceof JsonElement built ) {
             return built;   // already a response tree: enriching it twice would rename the names
         }
         final Map< String, String > cache = new HashMap<>();
         final Function< String, String > names = login -> cache.computeIfAbsent( login, this::displayName );
         return WorkJson.enrich( WorkJson.GSON.toJsonTree( value ), names,
-            new WorkJson.Viewer( viewer.login(), viewer.admin() ) );
+            new WorkViewer( viewer.login(), viewer.admin(), viewer.agentId() ), lookup );
+    }
+
+    /** Agent and queue names for {@code viewer}, read from the registry the first time one is needed. */
+    protected WorkLookup lookupFor( final Actor viewer ) {
+        return WorkLookup.forViewer( workService(), viewer );
     }
 
     /** An item list with each item's card extras (commentCount, blocked, productKey, parentKey) beside its fields. */
     protected JsonElement summariesTree( final List< WorkService.ItemSummary > summaries, final Actor viewer ) {
-        final JsonArray out = new JsonArray();
-        summaries.forEach( x -> out.add( summaryTree( x, viewer ) ) );
-        return out;
+        return WorkSummaries.list( summaries, viewer, lookupFor( viewer ), this::toTree );
     }
 
     /** Board columns {status, total, items} whose items carry the card extras. */
     protected JsonElement boardTree( final List< WorkService.SummaryColumn > columns, final Actor viewer ) {
-        final JsonArray out = new JsonArray();
-        for ( final WorkService.SummaryColumn c : columns ) {
-            final JsonObject o = new JsonObject();
-            o.addProperty( "status", c.status().wire() );
-            o.addProperty( "total", c.total() );
-            o.add( "items", summariesTree( c.items(), viewer ) );
-            out.add( o );
-        }
-        return out;
-    }
-
-    private JsonObject summaryTree( final WorkService.ItemSummary x, final Actor viewer ) {
-        final JsonObject o = toTree( x.item(), viewer ).getAsJsonObject();
-        o.addProperty( "commentCount", x.commentCount() );
-        o.addProperty( "blocked", x.blocked() );
-        o.addProperty( "productKey", x.productKey() );
-        o.addProperty( "parentKey", x.parentKey() );
-        return o;
+        return WorkSummaries.board( columns, viewer, lookupFor( viewer ), this::toTree );
     }
 
     /** A project's JSON with the viewer's {@code role} and {@code archived} (read-only) added. */

@@ -66,6 +66,65 @@ class WorkMeResourceTest {
         assertEquals( "Name of alice", item.get( "assignee" ).getAsString(), "not even your own login" );
     }
 
+    private static com.wikantik.work.WorkEvent handoff( final String actor, final com.wikantik.work.Actor.Kind kind,
+                                                        final Long agentId ) {
+        return new com.wikantik.work.WorkEvent( 9, 1, 7L, "PLAT-1", java.time.Instant.parse( "2026-11-15T09:00:00Z" ), actor,
+            kind, agentId, "handoff", "in_progress|", "review|alice", "please review the migration" );
+    }
+
+    @Test
+    void waitingOnCarriesHandoffByNameAndNote() throws Exception {
+        Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem(
+            WorkHttp.item( "PLAT-1", "alice", 1 ), "assigned", handoff( "carol", com.wikantik.work.Actor.Kind.HUMAN, null ) ) ) );
+        final JsonObject w = get().json().getAsJsonObject().getAsJsonArray( "waitingOn" ).get( 0 ).getAsJsonObject()
+            .getAsJsonObject( "waiting" );
+        assertEquals( "assigned", w.get( "reason" ).getAsString() );
+        assertEquals( "Name of carol", w.get( "byName" ).getAsString() );
+        assertEquals( "human", w.get( "byKind" ).getAsString() );
+        assertEquals( "please review the migration", w.get( "note" ).getAsString() );
+        assertEquals( "2026-11-15T09:00:00Z", w.get( "at" ).getAsString() );
+        assertEquals( false, w.has( "by" ), "a login is for admins only" );
+    }
+
+    @Test
+    void anAdminAlsoGetsTheLoginInBy() throws Exception {
+        final com.wikantik.work.Actor admin = com.wikantik.work.Actor.human( "root", java.util.Set.of(), true );
+        servlet = WorkHttp.wire( new WorkMeResource(), svc, admin );
+        Mockito.when( svc.waitingOn( admin ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem(
+            WorkHttp.item( "PLAT-1", "root", 1 ), "assigned", handoff( "carol", com.wikantik.work.Actor.Kind.HUMAN, null ) ) ) );
+        Mockito.when( svc.listProjectsWithRoles( admin ) ).thenReturn( List.of() );
+        final JsonObject w = get().json().getAsJsonObject().getAsJsonArray( "waitingOn" ).get( 0 ).getAsJsonObject()
+            .getAsJsonObject( "waiting" );
+        assertEquals( "carol", w.get( "by" ).getAsString() );
+        assertEquals( "Name of carol", w.get( "byName" ).getAsString() );
+    }
+
+    @Test
+    void anAgentHandoffIsByTheAgentsCurrentName() throws Exception {
+        final com.wikantik.work.WorkRegistryService registry = Mockito.mock( com.wikantik.work.WorkRegistryService.class );
+        Mockito.when( svc.registry() ).thenReturn( registry );
+        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "", null,
+            List.of(), java.time.Instant.EPOCH, null ) ) );
+        Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem(
+            WorkHttp.item( "PLAT-1", "alice", 1 ), "assigned", handoff( "builder-old", com.wikantik.work.Actor.Kind.AGENT, 5L ) ) ) );
+        final JsonObject w = get().json().getAsJsonObject().getAsJsonArray( "waitingOn" ).get( 0 ).getAsJsonObject()
+            .getAsJsonObject( "waiting" );
+        assertEquals( "builder", w.get( "byName" ).getAsString() );
+        assertEquals( "agent", w.get( "byKind" ).getAsString() );
+        assertEquals( false, w.has( "by" ) );
+    }
+
+    @Test
+    void aMentionHasNoHandoffBehindIt() throws Exception {
+        Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem(
+            WorkHttp.item( "PLAT-1", "bob", 1 ), "mentioned", null ) ) );
+        final JsonObject w = get().json().getAsJsonObject().getAsJsonArray( "waitingOn" ).get( 0 ).getAsJsonObject()
+            .getAsJsonObject( "waiting" );
+        assertEquals( "mentioned", w.get( "reason" ).getAsString() );
+        assertEquals( true, w.get( "byName" ).isJsonNull() );
+        assertEquals( true, w.get( "note" ).isJsonNull() );
+    }
+
     @Test
     void disabledFeatureIs404() throws Exception {
         Mockito.doReturn( null ).when( servlet ).workService();

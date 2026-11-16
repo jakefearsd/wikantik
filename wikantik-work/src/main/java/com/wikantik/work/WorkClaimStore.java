@@ -42,7 +42,9 @@ public interface WorkClaimStore {
      * queue. A fresh take needs an unheld ready or review item in a queue the agent serves, not blocked by an open
      * item. Writes {@code claimed} (a ready item moves to in progress, version +1) or, for the holder,
      * {@code claim_renewed} (nothing else changes). {@code expiry} must be positive. Whether it was a renewal comes
-     * from the row the statement changed, so a renewal that lost to the sweep reports a fresh take.
+     * from the row the statement changed, so a renewal that lost to the sweep reports a fresh take. A claim in an
+     * archived project (archived before, or by an archive the claim waited on) throws {@link WorkConflictException}
+     * with reason {@code archived}, writing nothing.
      */
     Optional< Claimed > claimWithOutcome( Item item, Actor agent, Duration expiry ) throws SQLException;
 

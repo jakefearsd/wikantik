@@ -247,6 +247,22 @@ class WorkClaimRacePostgresTest {
         assertTrue( fx.events( review, WorkEvent.HANDOFF ).isEmpty() );
     }
 
+    // ---- I1: an archive between the service's read and the claim statement
+
+    @Test
+    void anArchiveAfterTheServiceReadRefusesTheRenewalAsArchived() throws SQLException {
+        final Item held = svc.claims().claim( fx.actorA, fx.ready( "x" ).key() ).view().item();
+        heard.clear();
+        hook = () -> fx.store.archiveProject( fx.plat.id(), java.time.Instant.now(), WorkClaimFixtures.LENA );
+
+        final WorkConflictException e = assertThrows( WorkConflictException.class,
+            () -> svc.claims().claim( fx.actorA, held.key() ) );
+
+        assertEquals( WorkConflictException.ARCHIVED, e.reason() );
+        assertNull( fx.reload( held ).claimedByAgent(), "the archive's release stands" );
+        assertEquals( List.of( WorkEvent.CLAIMED, WorkEvent.RELEASED ), claimEvents( held ) );
+    }
+
     // ---- two sweepers, one database
 
     @Test

@@ -274,4 +274,75 @@ class JdbcWorkClaimsAccessPostgresTest {
         assertEquals( held, fx.reload( held ) );
         assertTrue( fx.events( held, WorkEvent.RELEASED ).isEmpty() );
     }
+
+    // ---- I1: archiving and claiming are serialised on the project row
+
+    private static final Actor ARCHIVER = Actor.human( "root", java.util.Set.of(), true );
+
+    private static void assertArchived( final Throwable t ) {
+        final Throwable cause = t instanceof java.util.concurrent.ExecutionException ? t.getCause() : t;
+        assertTrue( cause instanceof WorkConflictException, "an archived refusal, got " + cause );
+        assertEquals( WorkConflictException.ARCHIVED, ( ( WorkConflictException ) cause ).reason() );
+    }
+
+    @Test
+    void aClaimInAnArchivedProjectIsRefusedAsArchivedAndWritesNothing() throws Exception {
+        final Item item = fx.ready( "x" );
+        WorkAgentFixtures.exec( fx.ds, "UPDATE work_project SET archived_at = now() WHERE id = " + fx.plat.id() );
+        final long events = WorkAgentFixtures.scalar( fx.ds, "SELECT COUNT(*) FROM work_event" );
+        assertArchived( assertThrows( WorkConflictException.class, () -> claims.claim( item, fx.actorA, HOUR ) ) );
+        assertEquals( item, fx.reload( item ) );
+        assertEquals( events, WorkAgentFixtures.scalar( fx.ds, "SELECT COUNT(*) FROM work_event" ) );
+    }
+
+    @Test
+    void aRenewalBlockedBehindTheArchiveDoesNotRetakeTheItem() throws Exception {
+        final Item held = claims.claim( fx.ready( "x" ), fx.actorA, HOUR ).orElseThrow();
+        final CommitGate gate = new CommitGate( fx.ds );
+        final Future< Integer > archive = pool.submit( () -> new JdbcWorkStore( gate ).archiveProject( fx.plat.id(),
+            Instant.now(), ARCHIVER ) );
+        assertTrue( gate.reached.await( 30, TimeUnit.SECONDS ) );
+        final Future< Optional< Item > > renewal = pool.submit( () -> claims.claim( held, fx.actorA, HOUR ) );
+        WorkClaimFixtures.awaitBlockedBy( fx.ds, gate.pid );
+        gate.open();
+        assertEquals( 1, archive.get( 30, TimeUnit.SECONDS ) );
+        assertArchived( assertThrows( java.util.concurrent.ExecutionException.class,
+            () -> renewal.get( 30, TimeUnit.SECONDS ) ) );
+        assertNull( fx.reload( held ).claimedByAgent(), "the archived project holds no claim" );
+        assertEquals( List.of( WorkEvent.CLAIMED, WorkEvent.RELEASED ), claimTypes( held ) );
+    }
+
+    @Test
+    void aFreshTakeThatLandsBeforeTheArchiveIsReleasedByIt() throws Exception {
+        final Item free = fx.ready( "x" );
+        final CommitGate gate = new CommitGate( fx.ds );
+        final Future< Optional< Item > > take = pool.submit( () -> new JdbcWorkStore( gate ).claims().claim( free,
+            fx.actorA, HOUR ) );
+        assertTrue( gate.reached.await( 30, TimeUnit.SECONDS ) );
+        final Future< Integer > archive = pool.submit( () -> fx.store.archiveProject( fx.plat.id(), Instant.now(),
+            ARCHIVER ) );
+        WorkClaimFixtures.awaitBlockedBy( fx.ds, gate.pid );
+        gate.open();
+        assertTrue( take.get( 30, TimeUnit.SECONDS ).isPresent() );
+        assertEquals( 1, archive.get( 30, TimeUnit.SECONDS ), "the archive waited for the take and released it" );
+        assertNull( fx.reload( free ).claimedByAgent() );
+        assertEquals( List.of( WorkEvent.CLAIMED, WorkEvent.RELEASED ), claimTypes( free ) );
+    }
+
+    @Test
+    void aFreshTakeThatLandsAfterTheArchiveIsRefused() throws Exception {
+        final Item free = fx.ready( "x" );
+        final CommitGate gate = new CommitGate( fx.ds );
+        final Future< Integer > archive = pool.submit( () -> new JdbcWorkStore( gate ).archiveProject( fx.plat.id(),
+            Instant.now(), ARCHIVER ) );
+        assertTrue( gate.reached.await( 30, TimeUnit.SECONDS ) );
+        final Future< Optional< Item > > take = pool.submit( () -> claims.claim( free, fx.actorA, HOUR ) );
+        WorkClaimFixtures.awaitBlockedBy( fx.ds, gate.pid );
+        gate.open();
+        assertEquals( 0, archive.get( 30, TimeUnit.SECONDS ) );
+        assertArchived( assertThrows( java.util.concurrent.ExecutionException.class,
+            () -> take.get( 30, TimeUnit.SECONDS ) ) );
+        assertNull( fx.reload( free ).claimedByAgent() );
+        assertTrue( claimTypes( free ).isEmpty() );
+    }
 }

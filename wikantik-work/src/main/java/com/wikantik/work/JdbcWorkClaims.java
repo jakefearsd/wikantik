@@ -40,10 +40,11 @@ import static com.wikantik.work.JdbcWorkStore.ITEM_SELECT;
 /**
  * Claims behind {@link JdbcWorkStore}. A claim is one {@code UPDATE ... RETURNING}: under READ COMMITTED a second
  * claimer waits on the row lock and then re-checks the {@code WHERE}, so exactly one wins and nothing else is
- * needed. A claim first takes shared locks on the agent row and the agent's member row, so a retirement, removal
- * or demotion that is in flight is waited for (and the claim then finds no row) rather than raced. Lock order is
- * always agent row, member row, item row; retirement locks agent then items, removal and demotion lock the member
- * row then items, and none takes the others' rows, so they cannot form a cycle.
+ * needed. A claim first takes shared locks on the agent row, the agent's member row and the (unarchived) project
+ * row, so a retirement, removal, demotion or archive that is in flight is waited for (and the claim then finds no
+ * row) rather than raced. Lock order is always agent row, member row, project row, item row; retirement locks agent
+ * then items, removal and demotion lock the member row then items, archiving locks the project row then items, and
+ * none takes the others' rows, so they cannot form a cycle.
  * Endings (release, expiry, loss of access, retirement) lock the rows they end in the same statement, name the
  * holder from the locked row and write their event on the same connection.
  */
@@ -100,6 +101,14 @@ final class JdbcWorkClaims implements WorkClaimStore {
     private static final String MEMBER_LOCK_SQL = "SELECT 1 FROM work_member WHERE project_id = ? "
         + "AND principal_kind = 'agent' AND principal = ? AND role = 'member' FOR SHARE";
 
+    /**
+     * Shared lock on the project row while it is not archived: an archive in flight (which updates the project row,
+     * then ends the claims in it) is waited for, and a claim then finds the project archived instead of re-taking an
+     * item the archive just released.
+     */
+    private static final String PROJECT_LOCK_SQL =
+        "SELECT 1 FROM work_project WHERE id = ? AND archived_at IS NULL FOR SHARE";
+
     /** Locks the rows to end in the CTE ({@code %s} is the condition on {@code w}, {@code %s} the tail of it). */
     private static final String ENDING_SQL = """
         WITH ended AS (
@@ -148,13 +157,16 @@ final class JdbcWorkClaims implements WorkClaimStore {
         }
         final double seconds = expiry.toMillis() / 1000.0;
         return jdbc.inTransaction( conn -> {
-            // Lock order is always agent row, member row, item row; see the class comment on why.
+            // Lock order is always agent row, member row, project row, item row; see the class comment on why.
             if ( !holdsRow( conn, AGENT_LOCK_SQL, ps -> ps.setLong( 1, agentId ) )
                     || !holdsRow( conn, MEMBER_LOCK_SQL, ps -> {
                         ps.setLong( 1, item.projectId() );
                         ps.setString( 2, String.valueOf( agentId ) );
                     } ) ) {
                 return Optional.< Claimed >empty();
+            }
+            if ( !holdsRow( conn, PROJECT_LOCK_SQL, ps -> ps.setLong( 1, item.projectId() ) ) ) {
+                throw new WorkConflictException( "This project is archived.", WorkConflictException.ARCHIVED );
             }
             final Optional< Taken > won = jdbc.queryOne( conn, CLAIM_SQL, ps -> {
                 ps.setLong( 1, agentId );

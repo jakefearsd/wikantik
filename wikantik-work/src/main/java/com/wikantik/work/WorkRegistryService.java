@@ -40,7 +40,6 @@ import java.util.Set;
 public final class WorkRegistryService {
 
     private static final Logger LOG = LogManager.getLogger( WorkRegistryService.class );
-    private static final String UNIQUE_VIOLATION = "23505";
     private static final String NO_SUCH_USER = "No such user.";
     private static final String QUEUE = "work_queue";
     private static final String AGENT = "work_agent";
@@ -51,12 +50,12 @@ public final class WorkRegistryService {
     private final AgentKeys keys;
     private final GuardedListener listener;
     private final Clock clock;
-    private final WorkAudit audit;
+    private final RegistryChanges changes;
 
     WorkRegistryService( final WorkStore store, final WorkScopes scopes, final WorkPeople people, final AgentKeys keys,
                   final Clock clock, final GuardedListener listener, final WorkAudit audit ) {
         this.store = store;
-        this.audit = audit;
+        this.changes = new RegistryChanges( keys, audit );
         this.listener = listener;
         this.scopes = scopes;
         this.people = people;
@@ -76,15 +75,15 @@ public final class WorkRegistryService {
         WorkInputs.requireQueueKey( key );
         WorkInputs.requireName( name );
         if ( store.queue( key ).isPresent() ) {
-            throw exists( "Queue " + key + " already exists." );
+            throw RegistryChanges.exists( "Queue " + key + " already exists." );
         }
         try {
             final Queue q = store.createQueue( key, name.trim(), description == null ? "" : description );
             LOG.info( "Work queue '{}' created by {}", key, actor.login() );
-            audit( actor, "work.queue.create", QUEUE, key, null );
+            changes.audit( actor, "work.queue.create", QUEUE, key, null );
             return q;
         } catch ( final SQLException e ) {
-            throw duplicateOrRethrow( e, "Queue " + key + " already exists." );
+            throw RegistryChanges.duplicateOrRethrow( e, "Queue " + key + " already exists." );
         }
     }
 
@@ -96,7 +95,7 @@ public final class WorkRegistryService {
         requireQueue( key );
         store.updateQueue( key, name.trim(), description == null ? "" : description );
         LOG.info( "Work queue '{}' updated by {}", key, actor.login() );
-        audit( actor, "work.queue.update", QUEUE, key, null );
+        changes.audit( actor, "work.queue.update", QUEUE, key, null );
     }
 
     public void retireQueue( final Actor actor, final String key ) throws SQLException {
@@ -105,7 +104,7 @@ public final class WorkRegistryService {
         requireQueue( key );
         store.retireQueue( key, clock.instant() );
         LOG.info( "Work queue '{}' retired by {}", key, actor.login() );
-        audit( actor, "work.queue.retire", QUEUE, key, null );
+        changes.audit( actor, "work.queue.retire", QUEUE, key, null );
     }
 
     private Queue requireQueue( final String key ) throws SQLException {
@@ -144,22 +143,22 @@ public final class WorkRegistryService {
         final String name = agentName( draft.name() );
         final List< String > queues = servedQueues( draft.queues(), Set.of() );
         if ( store.agentByName( name ).isPresent() ) {
-            throw exists( "Agent " + name + " already exists." );
+            throw RegistryChanges.exists( "Agent " + name + " already exists." );
         }
         final String owner = ownerLogin( actor, draft.owner() == null || draft.owner().isBlank()
                 ? actor.login() : draft.owner() );
         final AgentKeys.Minted minted = keys.mint( owner, "work-agent:" + name, actor.login() );
         try {
-            final Agent agent = store.registerAgent( name, orEmpty( draft.vendor() ), orEmpty( draft.runtime() ),
+            final Agent agent = store.registerAgent( name, RegistryChanges.orEmpty( draft.vendor() ), RegistryChanges.orEmpty( draft.runtime() ),
                 minted.keyId(), queues );
             LOG.info( "Work agent '{}' registered by {}", name, actor.login() );
-            audit( actor, "work.agent.register", AGENT, name, null );
+            changes.audit( actor, "work.agent.register", AGENT, name, null );
             return new WorkService.AgentWithToken( agent, minted.token() );
         } catch ( final SQLException e ) {
-            revokeQuietly( minted.keyId(), actor );
-            throw duplicateOrRethrow( e, "Agent " + name + " already exists." );
+            changes.revokeQuietly( minted.keyId(), actor );
+            throw RegistryChanges.duplicateOrRethrow( e, "Agent " + name + " already exists." );
         } catch ( final RuntimeException e ) {
-            revokeQuietly( minted.keyId(), actor );
+            changes.revokeQuietly( minted.keyId(), actor );
             throw e;
         }
     }
@@ -171,16 +170,16 @@ public final class WorkRegistryService {
         final List< String > queues = servedQueues( draft.queues(), new LinkedHashSet<>( existing.queues() ) );
         final Agent sameName = store.agentByName( name ).orElse( null );
         if ( sameName != null && sameName.id() != agentId ) {
-            throw exists( "Agent " + name + " already exists." );
+            throw RegistryChanges.exists( "Agent " + name + " already exists." );
         }
         try {
-            store.updateAgent( agentId, name, orEmpty( draft.vendor() ), orEmpty( draft.runtime() ), queues );
+            store.updateAgent( agentId, name, RegistryChanges.orEmpty( draft.vendor() ), RegistryChanges.orEmpty( draft.runtime() ), queues );
         } catch ( final SQLException e ) {
-            throw duplicateOrRethrow( e, "Agent " + name + " already exists." );
+            throw RegistryChanges.duplicateOrRethrow( e, "Agent " + name + " already exists." );
         }
         LOG.info( "Work agent '{}' updated by {} (name '{}' -> '{}')", existing.name(), actor.login(), existing.name(),
             name );
-        audit( actor, "work.agent.update", AGENT, name, existing.name().equals( name ) ? null
+        changes.audit( actor, "work.agent.update", AGENT, name, existing.name().equals( name ) ? null
             : "renamed from " + existing.name() );
     }
 
@@ -196,26 +195,20 @@ public final class WorkRegistryService {
         final Agent existing = requireActiveAgent( agentId );
         final String label = "work-agent:" + existing.name();
         final String owner = newOwner == null || newOwner.isBlank() ? null : ownerLogin( actor, newOwner );
-        final AgentKeys.Minted minted;
-        if ( owner != null ) {
-            minted = keys.mint( owner, label, actor.login() );
-        } else if ( existing.apiKeyId() == null ) {
-            minted = keys.mint( actor.login(), label, actor.login() );
-        } else {
-            minted = keys.remint( existing.apiKeyId(), label, actor.login() );
-        }
+        final AgentKeys.Minted minted = changes.rotationKey( actor, existing, owner, label );
         try {
             store.rebindAgentKey( agentId, minted.keyId() );
         } catch ( final SQLException | RuntimeException e ) {
-            revokeQuietly( minted.keyId(), actor );
+            changes.revokeQuietly( minted.keyId(), actor );
             throw e;
         }
         if ( existing.apiKeyId() != null ) {
-            revokeQuietly( existing.apiKeyId(), actor );
+            changes.revokeQuietly( existing.apiKeyId(), actor );
         }
         LOG.info( "Work agent '{}' key rotated by {}{}", existing.name(), actor.login(),
             owner == null ? "" : " to a new owner" );
-        audit( actor, "work.agent.rotate_key", AGENT, existing.name(), owner == null ? null : "new owner " + owner );
+        changes.audit( actor, "work.agent.rotate_key", AGENT, existing.name(),
+            owner == null ? null : "new owner " + owner );
         return new WorkService.AgentWithToken( new Agent( existing.id(), existing.name(), existing.vendor(),
             existing.runtime(), minted.keyId(), existing.queues(), existing.createdAt(), null ), minted.token() );
     }
@@ -228,10 +221,10 @@ public final class WorkRegistryService {
             listener.released( store.claims().retireAgent( agentId, clock.instant(), actor ) );
         }
         if ( existing.apiKeyId() != null ) {
-            revokeQuietly( existing.apiKeyId(), actor );
+            changes.revokeQuietly( existing.apiKeyId(), actor );
         }
         LOG.info( "Work agent '{}' retired by {}", existing.name(), actor.login() );
-        audit( actor, "work.agent.retire", AGENT, existing.name(), null );
+        changes.audit( actor, "work.agent.retire", AGENT, existing.name(), null );
     }
 
     /**
@@ -301,16 +294,6 @@ public final class WorkRegistryService {
             .orElseThrow( () -> new WorkValidationException( "owner", NO_SUCH_USER ) );
     }
 
-    /** The admin audit trail entry for a registry change; never a token or key id. */
-    private void audit( final Actor actor, final String action, final String type, final String target,
-                        final String detail ) {
-        try {
-            audit.record( actor.login(), action, type, target, detail );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "Could not audit {} of {} '{}': {}", action, type, target, e.getMessage(), e );
-        }
-    }
-
     private boolean canSeeRegistry( final Actor actor ) throws SQLException {
         return actor.instanceAdmin() || !store.visibleProjects( actor ).isEmpty();
     }
@@ -341,30 +324,5 @@ public final class WorkRegistryService {
             out.add( key );
         }
         return out;
-    }
-
-    /** A failed revoke must not mask the outcome that caused it; the key then lives on, so say so. */
-    private void revokeQuietly( final int keyId, final Actor by ) {
-        try {
-            keys.revoke( keyId, by.login() );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "Could not revoke a work-agent API key (requested by {}); it may still be live: {}", by.login(),
-                e.getMessage(), e );
-        }
-    }
-
-    private static String orEmpty( final String s ) {
-        return s == null ? "" : s.trim();
-    }
-
-    private static WorkConflictException exists( final String message ) {
-        return new WorkConflictException( message, WorkConflictException.EXISTS );
-    }
-
-    private static SQLException duplicateOrRethrow( final SQLException e, final String message ) {
-        if ( UNIQUE_VIOLATION.equals( e.getSQLState() ) ) {
-            throw exists( message );
-        }
-        return e;
     }
 }

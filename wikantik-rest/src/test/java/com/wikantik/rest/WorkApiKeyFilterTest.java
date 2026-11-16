@@ -190,4 +190,24 @@ class WorkApiKeyFilterTest {
         run( request( "Bearer wkk_whatever" ) );
         assertEquals( 401, status.get() );
     }
+
+    @Test
+    void aKeyLookupFailureIs503NotInvalidKeyAndRecovers() throws Exception {
+        final com.wikantik.jdbc.testing.FaultInjectingDataSource faulty =
+            new com.wikantik.jdbc.testing.FaultInjectingDataSource( PostgresTestDb.createDataSource() );
+        keys = new ApiKeyService( faulty );
+        final String token = token( ApiKeyService.Scope.WORK );
+        faulty.reset();
+        faulty.failOn( 1, new IllegalStateException( "test: database blip" ) );
+
+        run( request( "Bearer " + token ) );
+
+        assertEquals( 503, status.get() );
+        assertEquals( "{\"error\":\"Service temporarily unavailable\"}", body.toString() );
+        Mockito.verify( chain, Mockito.never() ).doFilter( Mockito.any(), Mockito.any() );
+
+        final HttpServletRequest again = request( "Bearer " + token );
+        run( again );
+        Mockito.verify( chain ).doFilter( Mockito.any( WorkKeyRequest.class ), Mockito.eq( resp ) );
+    }
 }

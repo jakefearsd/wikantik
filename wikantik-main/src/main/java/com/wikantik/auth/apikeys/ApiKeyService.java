@@ -190,6 +190,18 @@ public class ApiKeyService {
         public boolean isActive() { return revokedAt == null; }
     }
 
+    /**
+     * The key store could not be read, so whether a token is valid is unknown. Never cached: the next call reads the
+     * database again. Access filters answer it with a retryable 503, never with "invalid key".
+     */
+    public static final class LookupFailedException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        public LookupFailedException( final Throwable cause ) {
+            super( "API key lookup failed", cause );
+        }
+    }
+
     /** Result of a successful {@link #generate} call: the plaintext token + its stored record. */
     public record Generated( String plaintext, Record record ) { }
 
@@ -234,6 +246,8 @@ public class ApiKeyService {
      * unknown tokens or revoked keys. Updates {@code last_used_at} asynchronously
      * on a cache miss (approximately once per {@value VERIFY_TTL_SECONDS} seconds
      * per key); cache hits do zero DB work.
+     *
+     * @throws LookupFailedException when the key store cannot be read; that outcome is not cached
      */
     public Optional< Record > verify( final String plaintext ) {
         if ( plaintext == null || plaintext.isEmpty() ) {
@@ -256,9 +270,10 @@ public class ApiKeyService {
             final Optional< Record > found = jdbc.queryOne( sql, ps -> ps.setString( 1, hash ), ApiKeyService::readRow );
             found.ifPresent( record -> idToHash.put( record.id(), hash ) );
             return found;
-        } catch ( final SQLException e ) {
-            LOG.warn( "API key verify failed: {}", e.getMessage() );
-            return Optional.empty();
+        } catch ( final SQLException | RuntimeException e ) {
+            // Thrown out of the cache loader, so Caffeine stores nothing for this hash.
+            LOG.warn( "API key verify failed (not cached; answered as retryable): {}", e.getMessage() );
+            throw new LookupFailedException( e );
         }
     }
 

@@ -191,7 +191,15 @@ public abstract class AbstractApiAccessFilter implements Filter {
             return new Outcome.Allowed( "ip:" + remoteAddr, httpReq );
         }
 
-        final Optional< ApiKeyService.Record > dbKey = checkDbKey( httpReq );
+        final Optional< ApiKeyService.Record > dbKey;
+        try {
+            dbKey = checkDbKey( httpReq );
+        } catch ( final ApiKeyService.LookupFailedException e ) {
+            // Unknown is not invalid: answer the retryable fail-closed 503, never an access denial.
+            SECURITY.warn( "{} request rejected: API key store unreachable, ip={}: {}", surface.name(), remoteAddr,
+                    e.getCause() == null ? e.getMessage() : e.getCause().getClass().getSimpleName() );
+            return surface.failClosedDenied();
+        }
         if ( dbKey.isPresent() ) {
             final ApiKeyService.Record record = dbKey.get();
             legacyScopeUseLog.keyUsed( surface.name(), record, httpReq );

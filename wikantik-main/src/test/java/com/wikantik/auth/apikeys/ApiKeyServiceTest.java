@@ -179,6 +179,21 @@ class ApiKeyServiceTest {
     // -----------------------------------------------------------------------
 
     /** Wraps a DataSource and counts how many times getConnection() is called. */
+    @Test
+    void aLookupFailureIsNotCachedAndTheNextCallAfterRecoveryVerifiesTheKey() {
+        final com.wikantik.jdbc.testing.FaultInjectingDataSource faulty =
+                new com.wikantik.jdbc.testing.FaultInjectingDataSource( dataSource );
+        final ApiKeyService svc = new ApiKeyService( faulty );
+        final ApiKeyService.Generated g = svc.generate( "alice", "agent", ApiKeyService.Scope.WORK, "admin" );
+        faulty.reset();
+        faulty.failOn( 1, new IllegalStateException( "test: connection lost" ) );
+
+        assertThrows( ApiKeyService.LookupFailedException.class, () -> svc.verify( g.plaintext() ) );
+
+        assertEquals( g.record().id(), svc.verify( g.plaintext() ).orElseThrow().id(),
+                "recovered: the failure was not cached as an unknown key" );
+    }
+
     private static class CountingDataSource implements DataSource {
 
         private final DataSource delegate;

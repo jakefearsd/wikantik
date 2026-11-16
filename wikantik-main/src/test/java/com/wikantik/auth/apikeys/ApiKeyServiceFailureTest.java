@@ -56,16 +56,15 @@ class ApiKeyServiceFailureTest {
     }
 
     @Test
-    void verifyReturnsEmptyWhenDataSourceThrows() throws Exception {
-        final ApiKeyService svc = new ApiKeyService( failingDataSource() );
+    void verifyReportsALookupFailureAsRetryableAndNeverCachesIt() throws Exception {
+        final DataSource ds = failingDataSource();
+        final ApiKeyService svc = new ApiKeyService( ds );
 
-        // Access filter will call this on every authenticated request — it must
-        // degrade to "unknown key" rather than crash the request pipeline.
-        final Optional< ApiKeyService.Record > result = svc.verify( "wkk_whatever" );
-        assertTrue( result.isEmpty(),
-                "verify must swallow SQLException and return empty so the filter "
-                        + "falls through to legacy key list (or rejects with 403) "
-                        + "instead of 500ing the whole request" );
+        // A database blip is not an unknown key: answering "invalid" would tell an agent its key is bad, and caching
+        // that answer would keep saying so for the whole verify TTL. The filters turn this into a 503.
+        assertThrows( ApiKeyService.LookupFailedException.class, () -> svc.verify( "wkk_whatever" ) );
+        assertThrows( ApiKeyService.LookupFailedException.class, () -> svc.verify( "wkk_whatever" ) );
+        Mockito.verify( ds, Mockito.times( 2 ) ).getConnection();
     }
 
     @Test

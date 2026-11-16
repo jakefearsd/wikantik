@@ -82,6 +82,23 @@ class AbstractApiAccessFilterTest {
     // --- bearer-token accept / reject -----------------------------------------------
 
     @Test
+    void aKeyLookupFailureIsTheFailClosed503NotAnAccessDenial() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( "wkk_good" ) ).thenThrow( new ApiKeyService.LookupFailedException(
+                new java.sql.SQLException( "test: database blip" ) ) );
+        final TestAccessFilter filter = new TestAccessFilter( null, false, ALWAYS_ALLOW, svc );
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_good" );
+        when( req.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+
+        final AbstractApiAccessFilter.Outcome outcome = filter.authorize( req );
+
+        final var denied = assertInstanceOf( AbstractApiAccessFilter.Outcome.Denied.class, outcome );
+        assertEquals( HttpServletResponse.SC_SERVICE_UNAVAILABLE, denied.status() );
+        assertEquals( "{\"error\":\"test_access_unconfigured\"}", denied.body() );
+    }
+
+    @Test
     void validBearerTokenAllowsAndWrapsPrincipal() throws Exception {
         final ApiKeyService svc = mock( ApiKeyService.class );
         when( svc.verify( "wkk_good" ) ).thenReturn( Optional.of( record( 1, "alice", ApiKeyService.Scope.MCP_ADMIN ) ) );

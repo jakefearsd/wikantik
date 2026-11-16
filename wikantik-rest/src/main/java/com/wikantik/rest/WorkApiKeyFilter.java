@@ -50,6 +50,7 @@ import java.util.function.Supplier;
  *   <li>Work management off: untouched (the resource answers 404).</li>
  *   <li>Unknown, malformed, empty or revoked key: 401 {@code {"error":"Invalid API key"}}.</li>
  *   <li>A valid key whose scope does not cover {@code work}: 403 {@code {"error":"Key not authorized for work"}}.</li>
+ *   <li>The key store unreachable: 503 {@code {"error":"Service temporarily unavailable"}} (retryable; never cached).</li>
  *   <li>A valid {@code work} or {@code all} key: the request, wrapped.</li>
  * </ul>
  *
@@ -67,6 +68,8 @@ public class WorkApiKeyFilter implements Filter {
     /** The one body for a key that is unknown, malformed, empty, revoked or bound to no actor. */
     static final String INVALID_KEY_BODY = "{\"error\":\"Invalid API key\"}";
     static final String SCOPE_BODY = "{\"error\":\"Key not authorized for work\"}";
+    /** A key that could not be checked because the key store is unreachable: retryable. */
+    static final String UNAVAILABLE_BODY = "{\"error\":\"Service temporarily unavailable\"}";
 
     private Supplier< ApiKeyService > keys = () -> null;
     private BooleanSupplier enabled = () -> false;
@@ -114,7 +117,16 @@ public class WorkApiKeyFilter implements Filter {
         final String auth = req.getHeader( "Authorization" );
         final String token = auth.length() > BEARER.length() ? auth.substring( BEARER.length() ).trim() : "";
         final ApiKeyService service = keys.get();
-        final Optional< ApiKeyService.Record > found = service == null ? Optional.empty() : service.verify( token );
+        final Optional< ApiKeyService.Record > found;
+        try {
+            found = service == null ? Optional.empty() : service.verify( token );
+        } catch ( final ApiKeyService.LookupFailedException e ) {
+            // Unknown is not invalid: an agent told "Invalid API key" would believe its key is bad.
+            LOG.warn( "Work API key lookup failed; answered 503: {}", e.getCause() == null ? e.getMessage()
+                : e.getCause().getClass().getSimpleName() );
+            deny( resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE, UNAVAILABLE_BODY );
+            return;
+        }
         if ( found.isEmpty() ) {
             SECURITY.warn( "Work API access denied: invalid key, ip={}", req.getRemoteAddr() );
             deny( resp, HttpServletResponse.SC_UNAUTHORIZED, INVALID_KEY_BODY );

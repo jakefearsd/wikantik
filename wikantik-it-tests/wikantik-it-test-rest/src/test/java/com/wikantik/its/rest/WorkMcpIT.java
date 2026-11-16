@@ -373,6 +373,26 @@ public class WorkMcpIT {
     // ---- losing access
 
     @Test
+    void anAgentNobodyStandsBehindRunsNoTool() throws Exception {
+        final Agent loose = WorkIt.registerAgent( admin, "mcploose@it", "mcpbuild" );
+        assertEquals( 204, admin.send( "PUT", "/api/work/projects/MCP/members", Map.of( "principal", loose.name(),
+            "principalKind", "agent", "role", "member" ) ).statusCode() );
+        final String key = queuedItem( "mcpbuild" );
+        final String session = openSession( loose.token() );
+        assertFalse( rawCall( loose.token(), session, "get_work_context", Map.of() ).toolError(), "control: it works" );
+
+        assertEquals( 204, admin.send( "DELETE", "/api/work/agents/" + loose.id() + "/sponsor", null ).statusCode() );
+        final Reply refused = rawCall( loose.token(), session, "claim_item", Map.of( "key", key ) );
+        assertTrue( refused.toolError(), "released by its sponsor: no actor on the very next call: " + refused.raw() );
+        assertTrue( refused.raw().contains( "This endpoint needs a work API key." ), refused.raw() );
+        assertTrue( itemNow( key ).get( "claimedByAgent" ).isJsonNull(), "no tool body ran" );
+
+        assertEquals( 200, admin.send( "PUT", "/api/work/agents/" + loose.id() + "/sponsor", null ).statusCode() );
+        assertFalse( rawCall( loose.token(), session, "get_work_context", Map.of() ).toolError(),
+            "taken over again: the same token and session work" );
+    }
+
+    @Test
     void rotatedKeyCannotRunToolsAnymore() throws Exception {
         final Agent rot = WorkIt.registerAgent( admin, "mcprot@it", "mcpbuild" );
         assertEquals( 204, admin.send( "PUT", "/api/work/projects/MCP/members", Map.of( "principal", rot.name(),

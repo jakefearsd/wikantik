@@ -466,40 +466,112 @@ public class WorkAgentApiIT {
         assertEquals( 200, WorkIt.bearer( fresh, "GET", "/api/work/me", null ).statusCode(), "the new key works" );
     }
 
-    @Test
-    void anOwnerCannotRotateOrRevokeTheirAgentsKeyThroughTheGenericKeyEndpoints() throws Exception {
-        final HttpResponse< String > reg = admin.send( "POST", "/api/work/agents", Map.of( "name", "owned@it",
-            "vendor", "it", "runtime", "it", "queues", List.of( "implementer" ), "owner", A_NAME ) );
-        assertEquals( 201, reg.statusCode(), WorkIt.status( reg ) );
-        final JsonObject o = json( reg ).getAsJsonObject();
-        final String token = o.get( "token" ).getAsString();
-        final long keyId = o.getAsJsonObject( "agent" ).get( "apiKeyId" ).getAsLong();
-        admit( "AGT", "owned@it", "member" );
+    // ---- sponsors (phase 3a): the person who registers an agent stands behind it, and caps it
 
-        final JsonArray keys = json( personA.get( "/api/self/apikeys" ) ).getAsJsonObject().getAsJsonArray( "keys" );
-        JsonObject listed = null;
-        for ( final JsonElement k : keys ) {
-            if ( k.getAsJsonObject().get( "id" ).getAsLong() == keyId ) {
-                listed = k.getAsJsonObject();
+    /** A project led by person A and person B, with a queue item ready for the implementer queue. */
+    private static void sponsoredProject( final String key ) throws Exception {
+        assertEquals( 201, admin.send( "POST", "/api/work/projects", Map.of( "key", key, "name", "Sponsored " + key ) )
+            .statusCode() );
+        for ( final String login : List.of( A_LOGIN, B_LOGIN ) ) {
+            assertEquals( 204, admin.send( "PUT", "/api/work/projects/" + key + "/members", Map.of( "principal", login,
+                "principalKind", "user", "role", "lead" ) ).statusCode() );
+        }
+    }
+
+    /** An agent registered by a person (not the admin), who becomes its sponsor. */
+    private static Agent registerAs( final Caller sponsor, final String name ) throws Exception {
+        final HttpResponse< String > r = sponsor.send( "POST", "/api/work/agents", Map.of( "name", name,
+            "vendor", "it", "runtime", "it", "queues", List.of( "implementer" ) ) );
+        assertEquals( 201, r.statusCode(), "a lead registers an agent: " + WorkIt.status( r ) );
+        final JsonObject o = json( r ).getAsJsonObject();
+        assertTrue( o.get( "token" ).getAsString().startsWith( "wka_" ), "an agent's own token, not an API key" );
+        assertFalse( o.getAsJsonObject( "agent" ).has( "apiKeyId" ) );
+        assertTrue( o.getAsJsonObject( "agent" ).get( "sponsoredByMe" ).getAsBoolean() );
+        return new Agent( o.getAsJsonObject( "agent" ).get( "id" ).getAsLong(), name, o.get( "token" ).getAsString() );
+    }
+
+    private static void sponsorRole( final String project, final String login, final String role ) throws Exception {
+        assertEquals( 204, admin.send( "PUT", "/api/work/projects/" + project + "/members", Map.of( "principal", login,
+            "principalKind", "user", "role", role ) ).statusCode() );
+    }
+
+    @Test
+    void anAgentFollowsItsSponsorsStandingDownAndBackUp() throws Exception {
+        sponsoredProject( "SPA" );
+        final Agent bot = registerAs( personA, "lead-bot@it" );
+        assertEquals( 204, personA.send( "PUT", "/api/work/projects/SPA/members", Map.of( "principal", bot.name(),
+            "principalKind", "agent", "role", "member" ) ).statusCode(), "the lead admits their own agent" );
+        final Map< String, Object > draft = Map.of( "project", "SPA", "level", "task", "title", "by the agent" );
+        assertEquals( 200, asAgent( bot, "GET", "/api/work/projects/SPA", null ).statusCode() );
+        assertEquals( 201, asAgent( bot, "POST", "/api/work/items", draft ).statusCode(), "a member agent writes" );
+
+        sponsorRole( "SPA", A_LOGIN, "viewer" );
+        assertEquals( 200, asAgent( bot, "GET", "/api/work/projects/SPA", null ).statusCode(), "read-only under a viewer" );
+        assertEquals( 403, asAgent( bot, "POST", "/api/work/items", draft ).statusCode(),
+            "the agent can do no more than its sponsor can" );
+
+        assertEquals( 204, admin.send( "DELETE", "/api/work/projects/SPA/members", Map.of( "principal", A_LOGIN,
+            "principalKind", "user" ) ).statusCode() );
+        final HttpResponse< String > hidden = asAgent( bot, "GET", "/api/work/projects/SPA", null );
+        final HttpResponse< String > missing = asAgent( bot, "GET", "/api/work/projects/NOPE", null );
+        assertEquals( 404, hidden.statusCode(), "its member row is still there, and has no effect" );
+        assertEquals( missing.body().replace( "NOPE", "SPA" ), hidden.body(), "hidden and missing are one answer" );
+        assertFalse( asAgent( bot, "GET", "/api/work/projects", null ).body().contains( "\"SPA\"" ) );
+        final JsonArray members = json( personB.get( "/api/work/projects/SPA/members" ) ).getAsJsonArray();
+        JsonObject row = null;
+        for ( final JsonElement m : members ) {
+            if ( bot.name().equals( m.getAsJsonObject().get( "displayName" ).getAsString() ) ) {
+                row = m.getAsJsonObject();
             }
         }
-        assertNotNull( listed, "the agent's key is listed as the owner's" );
-        assertTrue( listed.get( "agentKey" ).getAsBoolean() );
-        assertEquals( "owned@it", listed.get( "agent" ).getAsString(), "a project member may see the registry" );
+        assertNotNull( row, "the other lead still sees the agent's row" );
+        assertFalse( row.get( "effective" ).getAsBoolean() );
+        assertEquals( "sponsor_not_member", row.get( "reason" ).getAsString() );
 
-        final String refusal = "This key belongs to a work agent. Rotate or retire the agent on the Agents page.";
-        final HttpResponse< String > rotate = personA.send( "POST", "/api/self/apikeys/" + keyId + "/rotate", null );
-        assertEquals( 409, rotate.statusCode(), rotate.body() );
-        assertTrue( rotate.body().contains( refusal ), rotate.body() );
-        final HttpResponse< String > revoke = personA.send( "DELETE", "/api/self/apikeys/" + keyId, null );
-        assertEquals( 409, revoke.statusCode(), revoke.body() );
-        assertTrue( revoke.body().contains( refusal ), revoke.body() );
-        final HttpResponse< String > adminRevoke = admin.send( "DELETE", "/admin/apikeys/" + keyId, null );
-        assertEquals( 409, adminRevoke.statusCode(), adminRevoke.body() );
+        sponsorRole( "SPA", A_LOGIN, "member" );
+        assertEquals( 200, asAgent( bot, "GET", "/api/work/projects/SPA", null ).statusCode(),
+            "nothing was re-entered: the same token and the same row work again" );
+        assertEquals( 201, asAgent( bot, "POST", "/api/work/items", draft ).statusCode() );
+    }
 
-        final HttpResponse< String > me = WorkIt.bearer( token, "GET", "/api/work/me", null );
-        assertEquals( 200, me.statusCode(), "the agent's key still works: " + WorkIt.status( me ) );
-        assertTrue( me.body().contains( "\"AGT\"" ), "and acts as the agent, which was admitted to AGT" );
+    @Test
+    void aLeadReleasesAnAgentAndAnotherLeadTakesItOver() throws Exception {
+        sponsoredProject( "SPB" );
+        final Agent bot = registerAs( personA, "handoff-bot@it" );
+        assertEquals( 204, personA.send( "PUT", "/api/work/projects/SPB/members", Map.of( "principal", bot.name(),
+            "principalKind", "agent", "role", "member" ) ).statusCode() );
+        final String sponsorPath = "/api/work/agents/" + bot.id() + "/sponsor";
+
+        final HttpResponse< String > early = personB.send( "PUT", sponsorPath, null );
+        assertEquals( 403, early.statusCode(), "a lead cannot displace a living sponsor: " + early.body() );
+        assertTrue( early.body().contains( "This agent has a sponsor. Ask them to release it, or ask a wiki "
+            + "administrator." ), early.body() );
+        assertEquals( 403, personB.send( "POST", "/api/work/agents/" + bot.id() + "/rotate-key", null ).statusCode(),
+            "nor rotate its credential" );
+        assertEquals( 200, asAgent( bot, "GET", "/api/work/me", null ).statusCode() );
+
+        assertEquals( 204, personA.send( "DELETE", sponsorPath, null ).statusCode() );
+        final HttpResponse< String > orphan = asAgent( bot, "GET", "/api/work/me", null );
+        assertEquals( 401, orphan.statusCode(), "nobody stands behind it: no actor" );
+        assertEquals( "{\"error\":\"Invalid API key\"}", orphan.body() );
+
+        final HttpResponse< String > taken = personB.send( "PUT", sponsorPath, null );
+        assertEquals( 200, taken.statusCode(), WorkIt.status( taken ) );
+        assertTrue( json( taken ).getAsJsonObject().get( "sponsoredByMe" ).getAsBoolean() );
+        assertEquals( B_NAME, json( taken ).getAsJsonObject().get( "sponsorName" ).getAsString() );
+        assertFalse( taken.body().contains( B_LOGIN ), "a login never reaches a non-admin" );
+        assertEquals( 200, asAgent( bot, "GET", "/api/work/projects/SPB", null ).statusCode(),
+            "the same token works again under the new sponsor" );
+    }
+
+    @Test
+    void anAgentsCredentialIsNotAnApiKey() throws Exception {
+        final Agent bot = registerAs( personA, "nokey-bot@it" );
+        final String keys = personA.get( "/api/self/apikeys" ).body();
+        assertFalse( keys.contains( "nokey-bot" ), "registering an agent mints no API key for anyone: " + keys );
+        assertFalse( keys.contains( "agentKey" ) );
+        assertEquals( 401, WorkIt.bearer( bot.token(), "GET", "/api/self/apikeys", null ).statusCode(),
+            "an agent token is nothing outside /api/work and /work-mcp" );
     }
 
     @Test
@@ -665,8 +737,8 @@ public class WorkAgentApiIT {
         final JsonObject mine = ok( personA.get( "/api/work/items/" + key ) );
         ok( personA.send( "POST", "/api/work/items/" + key + "/handoff", Map.of( "expectedVersion", versionOf( mine ),
             "status", "ready", "assignee", B_NAME, "note", "over" ) ) );
-        final String keyId = admin.get( "/api/work/agents" ).body();
-        assertTrue( keyId.contains( "apiKeyId" ), "positive control: an admin sees key ids" );
+        final String adminList = admin.get( "/api/work/agents" ).body();
+        assertTrue( adminList.contains( "\"sponsor\":" ), "positive control: an admin sees sponsors' logins" );
 
         final List< String > paths = List.of( "/api/work/queues", "/api/work/agents", "/api/work/claimable?project=AGT",
             "/api/work/items/" + key, "/api/work/items/" + key + "/events", "/api/work/activity?project=AGT&limit=500",
@@ -674,7 +746,7 @@ public class WorkAgentApiIT {
         for ( final String path : paths ) {
             final HttpResponse< String > r = personB.get( path );
             assertEquals( 200, r.statusCode(), path + ": " + r.body() );
-            for ( final String secret : List.of( A_LOGIN, B_LOGIN, "janne", "apiKeyId" ) ) {
+            for ( final String secret : List.of( A_LOGIN, B_LOGIN, "janne", "apiKeyId", "\"sponsor\":" ) ) {
                 assertFalse( r.body().contains( secret ), path + " shows " + secret + ": " + r.body() );
             }
         }

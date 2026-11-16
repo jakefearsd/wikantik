@@ -205,4 +205,19 @@ class JdbcWorkRegistryPostgresTest {
         assertFalse( store.wasEverAgentKey( first ) );
         assertEquals( first, store.agent( a.id() ).orElseThrow().apiKeyId() );
     }
+
+    @Test
+    void agentEverBoundToFindsTheCurrentAndARotatedAwayKey() throws SQLException {
+        final int first = newKey();
+        final int second = newKey();
+        final Agent a = store.registerAgent( "codex", "", "", first, List.of() );
+        assertEquals( "codex", store.agentEverBoundTo( first ).orElseThrow().name(), "bound now" );
+        store.rebindAgentKey( a.id(), second );
+        assertEquals( "codex", store.agentEverBoundTo( first ).orElseThrow().name(), "rotated away" );
+        assertEquals( "codex", store.agentEverBoundTo( second ).orElseThrow().name() );
+        store.claims().retireAgent( a.id(), Instant.parse( "2026-11-16T10:00:00Z" ),
+            Actor.human( "admin", java.util.Set.of(), true ) );
+        assertEquals( "codex", store.agentEverBoundTo( second ).orElseThrow().name(), "a retired agent's key" );
+        assertTrue( store.agentEverBoundTo( newKey() ).isEmpty(), "a key never bound to an agent" );
+    }
 }

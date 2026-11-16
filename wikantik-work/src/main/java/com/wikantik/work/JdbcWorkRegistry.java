@@ -140,6 +140,13 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
     }
 
     @Override
+    public Optional< Agent > agentEverBoundTo( final int apiKeyId ) throws SQLException {
+        return jdbc.queryOne( AGENT_SELECT + " WHERE a.api_key_id = ? OR a.id IN ( SELECT h.agent_id "
+                + "FROM work_agent_key_history h WHERE h.api_key_id = ? ) ORDER BY a.id LIMIT 1",
+            ps -> { ps.setInt( 1, apiKeyId ); ps.setInt( 2, apiKeyId ); }, AGENT_ROW );
+    }
+
+    @Override
     public List< Agent > agents() throws SQLException {
         return jdbc.query( AGENT_SELECT + " ORDER BY a.name", ps -> { }, AGENT_ROW );
     }

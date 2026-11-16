@@ -53,6 +53,12 @@ public interface WorkRegistryStore {
     /** The agent bound to the key, retired included. */
     Optional< Agent > agentByApiKey( int apiKeyId ) throws SQLException;
 
+    /**
+     * The agent the key is bound to now or was bound to before a rebind (retired included); empty for a key that was
+     * never an agent's.
+     */
+    Optional< Agent > agentEverBoundTo( int apiKeyId ) throws SQLException;
+
     /** Every agent by name, each with its queue keys (ascending), read in one query. */
     List< Agent > agents() throws SQLException;
 

@@ -453,6 +453,42 @@ public class WorkAgentApiIT {
     }
 
     @Test
+    void anOwnerCannotRotateOrRevokeTheirAgentsKeyThroughTheGenericKeyEndpoints() throws Exception {
+        final HttpResponse< String > reg = admin.send( "POST", "/api/work/agents", Map.of( "name", "owned@it",
+            "vendor", "it", "runtime", "it", "queues", List.of( "implementer" ), "owner", A_NAME ) );
+        assertEquals( 201, reg.statusCode(), WorkIt.status( reg ) );
+        final JsonObject o = json( reg ).getAsJsonObject();
+        final String token = o.get( "token" ).getAsString();
+        final long keyId = o.getAsJsonObject( "agent" ).get( "apiKeyId" ).getAsLong();
+        admit( "AGT", "owned@it", "member" );
+
+        final JsonArray keys = json( personA.get( "/api/self/apikeys" ) ).getAsJsonObject().getAsJsonArray( "keys" );
+        JsonObject listed = null;
+        for ( final JsonElement k : keys ) {
+            if ( k.getAsJsonObject().get( "id" ).getAsLong() == keyId ) {
+                listed = k.getAsJsonObject();
+            }
+        }
+        assertNotNull( listed, "the agent's key is listed as the owner's" );
+        assertTrue( listed.get( "agentKey" ).getAsBoolean() );
+        assertEquals( "owned@it", listed.get( "agent" ).getAsString(), "a project member may see the registry" );
+
+        final String refusal = "This key belongs to a work agent. Rotate or retire the agent on the Agents page.";
+        final HttpResponse< String > rotate = personA.send( "POST", "/api/self/apikeys/" + keyId + "/rotate", null );
+        assertEquals( 409, rotate.statusCode(), rotate.body() );
+        assertTrue( rotate.body().contains( refusal ), rotate.body() );
+        final HttpResponse< String > revoke = personA.send( "DELETE", "/api/self/apikeys/" + keyId, null );
+        assertEquals( 409, revoke.statusCode(), revoke.body() );
+        assertTrue( revoke.body().contains( refusal ), revoke.body() );
+        final HttpResponse< String > adminRevoke = admin.send( "DELETE", "/admin/apikeys/" + keyId, null );
+        assertEquals( 409, adminRevoke.statusCode(), adminRevoke.body() );
+
+        final HttpResponse< String > me = WorkIt.bearer( token, "GET", "/api/work/me", null );
+        assertEquals( 200, me.statusCode(), "the agent's key still works: " + WorkIt.status( me ) );
+        assertTrue( me.body().contains( "\"AGT\"" ), "and acts as the agent, which was admitted to AGT" );
+    }
+
+    @Test
     void retiredAgentKeyIsRefusedAndItsItemReturns() throws Exception {
         final Agent ret = WorkIt.registerAgent( admin, "ret@it", "implementer" );
         admit( "AGT", ret.name(), "member" );

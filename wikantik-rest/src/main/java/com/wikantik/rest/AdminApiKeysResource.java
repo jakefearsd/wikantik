@@ -55,6 +55,9 @@ import java.util.Map;
  *       the plaintext once and never again</li>
  *   <li>{@code DELETE /admin/apikeys/{id}} — revoke a key</li>
  * </ul>
+ *
+ * <p>A key that is or was bound to a work agent is managed only through the agent registry: revoke (single and bulk)
+ * refuses it ({@link AgentKeyGuard}), and the listing marks it {@code agentKey} with the agent's name.</p>
  */
 public class AdminApiKeysResource extends RestServletBase {
 
@@ -81,7 +84,11 @@ public class AdminApiKeysResource extends RestServletBase {
         }
         final List< Map< String, Object > > rows = new ArrayList<>();
         for ( final ApiKeyService.Record r : svc.list() ) {
-            rows.add( toJsonRow( r ) );
+            final Map< String, Object > row = toJsonRow( r );
+            final java.util.Optional< String > agent = AgentKeyGuard.agentForListing( this::agentKeyName, r.id() );
+            row.put( "agentKey", agent.isPresent() );
+            agent.ifPresent( name -> row.put( "agent", name ) );
+            rows.add( row );
         }
         sendJson( response, Map.of( "keys", rows ) );
     }
@@ -179,6 +186,9 @@ public class AdminApiKeysResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Key id must be numeric" );
             return;
         }
+        if ( AgentKeyGuard.refused( this, this::agentKeyName, id, response ) ) {
+            return;
+        }
         final String revokedBy = currentLogin( request );
         final String label = labelOf( svc, id );
         final boolean revoked = svc.revoke( id, revokedBy );
@@ -266,6 +276,10 @@ public class AdminApiKeysResource extends RestServletBase {
             return;
         }
         try {
+            if ( agentKeyName( id ).isPresent() ) {
+                result.fail( idStr, AgentKeyGuard.REFUSAL );
+                return;
+            }
             final String label = labelOf( svc, id );
             final boolean revoked = svc.revoke( id, actor );
             if ( revoked ) {
@@ -279,6 +293,14 @@ public class AdminApiKeysResource extends RestServletBase {
                     id, actor, e.getMessage(), e );
             result.fail( idStr, e.getMessage() != null ? e.getMessage() : "Internal error" );
         }
+    }
+
+    /**
+     * The work agent the key is or was bound to, if any. Package-visible so unit tests can inject the registry's
+     * answer without a work service.
+     */
+    java.util.Optional< String > agentKeyName( final int keyId ) throws java.sql.SQLException {
+        return AgentKeyGuard.agentOf( getEngine(), keyId );
     }
 
     /** The key's label for the audit entry (looked up before the revoke), or {@code null} if it has none. */

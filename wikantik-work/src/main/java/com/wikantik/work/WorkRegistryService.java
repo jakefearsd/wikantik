@@ -227,6 +227,21 @@ public final class WorkRegistryService {
     }
 
     /**
+     * The name of the agent the key is bound to now, or was bound to before a rotation (retired agents included);
+     * empty for any other key. Agent keys are managed only through the registry, so the generic key endpoints use
+     * this to refuse rotating or revoking one. A system lookup: it takes no actor and the caller decides who may see
+     * the name.
+     */
+    public java.util.Optional< String > agentNameForKey( final int apiKeyId ) throws SQLException {
+        return store.agentEverBoundTo( apiKeyId ).map( Agent::name );
+    }
+
+    /** Whether the key is, or ever was, an agent's key ({@link #agentNameForKey} is present). */
+    public boolean isAgentKey( final int apiKeyId ) throws SQLException {
+        return agentNameForKey( apiKeyId ).isPresent();
+    }
+
+    /**
      * The principal as stored: a group name as given; for a user, the login the reference names (a display name, or
      * from a wiki admin a login), with one message for an unknown user whether or not the text happens to be a login;
      * for an agent, its id.

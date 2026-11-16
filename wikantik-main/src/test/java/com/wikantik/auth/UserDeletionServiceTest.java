@@ -397,6 +397,70 @@ class UserDeletionServiceTest {
         verify( users, org.mockito.Mockito.times( 2 ) ).deleteByLoginName( LOGIN );
     }
 
+    // ---- work agents whose key the deleted person owned
+
+    private static ApiKeyService.Record key( final int id, final ApiKeyService.Scope scope ) {
+        return new ApiKeyService.Record( id, "h" + id, LOGIN, "k" + id, scope, Instant.parse( "2026-11-16T10:00:00Z" ),
+                "admin", null, null, null, false );
+    }
+
+    /** A wiki engine with work wired to {@code registry} and audit going to {@code audit}. */
+    private WikiEngine workEngine( final com.wikantik.work.WorkRegistryService registry,
+                                   final com.wikantik.audit.AuditService audit ) {
+        final WikiEngine wikiEngine = mock( WikiEngine.class );
+        when( wikiEngine.getAuthSubsystem() ).thenReturn(
+                new AuthSubsystem.Services( null, null, null, null, null, null, null, null, mock( PublicIdentity.class ) ) );
+        final com.wikantik.work.WorkService work = mock( com.wikantik.work.WorkService.class );
+        when( work.registry() ).thenReturn( registry );
+        when( wikiEngine.workService() ).thenReturn( work );
+        when( wikiEngine.getAuditService() ).thenReturn( audit );
+        return wikiEngine;
+    }
+
+    @Test
+    void deletingTheOwnerOfAnAgentKeyWarnsAndAuditsTheAgentAndReleasesNothing() throws Exception {
+        final com.wikantik.work.WorkRegistryService registry = mock( com.wikantik.work.WorkRegistryService.class );
+        final com.wikantik.audit.AuditService audit = mock( com.wikantik.audit.AuditService.class );
+        when( apiKeys.listByPrincipal( LOGIN ) ).thenReturn( List.of( key( 5, ApiKeyService.Scope.WORK ),
+                key( 6, ApiKeyService.Scope.WORK ), key( 7, ApiKeyService.Scope.TOOLS ) ) );
+        when( registry.actorForApiKey( 5, LOGIN ) ).thenReturn( com.wikantik.work.Actor.agent( 9, "codex@docker2" ) );
+        when( registry.actorForApiKey( 6, LOGIN ) ).thenReturn( com.wikantik.work.Actor.human( LOGIN, java.util.Set.of(), false ) );
+        when( session.getLoginPrincipal() ).thenReturn( new WikiPrincipal( "janne" ) );
+
+        final List< LogEvent > warns = capturingWarnings( () -> new UserDeletionService( workEngine( registry, audit ),
+                users, groups, apiKeys, pageOwners, trusted, e -> null ).delete( session, LOGIN ) );
+
+        verify( apiKeys ).revokeAllForPrincipalOrThrow( LOGIN );
+        verify( users ).deleteByLoginName( LOGIN );
+        final org.mockito.ArgumentCaptor< com.wikantik.audit.AuditEntry > entry =
+                org.mockito.ArgumentCaptor.forClass( com.wikantik.audit.AuditEntry.class );
+        verify( audit ).record( entry.capture() );
+        assertEquals( "agent codex@docker2 key revoked because its owner was deleted — rotate it on the Agents page to restore",
+                entry.getValue().detail() );
+        assertEquals( "janne", entry.getValue().actorPrincipal() );
+        assertEquals( "codex@docker2", entry.getValue().targetId() );
+        assertEquals( 1, warns.stream().filter( w -> w.getMessage().getFormattedMessage().contains( "codex@docker2" ) )
+                .count(), "one WARN naming the agent: " + warns );
+        // The agent is not retired and nothing is released: its claims lapse through the sweep.
+        verify( registry, never() ).retireAgent( any(), org.mockito.ArgumentMatchers.anyLong() );
+    }
+
+    @Test
+    void aFailingAgentLookupNeverAbortsAUserDelete() throws Exception {
+        final com.wikantik.work.WorkRegistryService registry = mock( com.wikantik.work.WorkRegistryService.class );
+        final com.wikantik.audit.AuditService audit = mock( com.wikantik.audit.AuditService.class );
+        when( apiKeys.listByPrincipal( LOGIN ) ).thenReturn( List.of( key( 5, ApiKeyService.Scope.WORK ) ) );
+        when( registry.actorForApiKey( 5, LOGIN ) ).thenThrow( new SQLException( "test: work store down" ) );
+
+        final List< LogEvent > warns = capturingWarnings( () -> new UserDeletionService( workEngine( registry, audit ),
+                users, groups, apiKeys, pageOwners, trusted, e -> null ).delete( session, LOGIN ) );
+
+        verify( apiKeys ).revokeAllForPrincipalOrThrow( LOGIN );
+        verify( users ).deleteByLoginName( LOGIN );
+        verify( audit, never() ).record( any() );
+        assertTrue( warns.stream().anyMatch( w -> w.getMessage().getFormattedMessage().contains( "work agent" ) ), "" + warns );
+    }
+
     @FunctionalInterface
     private interface Action {
         void run() throws Exception;

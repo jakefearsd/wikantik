@@ -57,6 +57,9 @@ import java.util.stream.Collectors;
  *   <li>{@code POST   /api/self/apikeys/{id}/rotate}— revoke + reissue (same label/scope)</li>
  *   <li>{@code DELETE /api/self/apikeys/{id}}       — revoke</li>
  * </ul>
+ *
+ * <p>A key that is or was bound to a work agent is managed only through the agent registry: rotate and revoke refuse
+ * it with 409 ({@link AgentKeyGuard}), and the listing marks it {@code agentKey}.</p>
  */
 public class SelfApiKeysResource extends RestServletBase {
 
@@ -110,6 +113,34 @@ public class SelfApiKeysResource extends RestServletBase {
                 .isPermitted( session, new AllPermission( engine.getApplicationName() ) );
     }
 
+    /**
+     * The work agent the key is or was bound to, if any. Package-visible so unit tests can inject the registry's
+     * answer without a work service.
+     */
+    Optional< String > agentKeyName( final int keyId ) throws java.sql.SQLException {
+        return AgentKeyGuard.agentOf( getEngine(), keyId );
+    }
+
+    /**
+     * Whether the caller may see the agent registry (a wiki admin, or a member of any work project), and so the name
+     * of the agent a key of theirs belongs to. Package-visible so unit tests can inject the decision.
+     */
+    boolean callerSeesAgentRegistry( final HttpServletRequest request ) {
+        final com.wikantik.work.WorkService work = AgentKeyGuard.work( getEngine() );
+        if ( work == null ) {
+            return false;
+        }
+        final com.wikantik.work.Actor actor = com.wikantik.work.runtime.WikiWorkActors.actorFor( getEngine(),
+            Wiki.session().find( getEngine(), request ) );
+        try {
+            return actor != null && !work.registry().listAgents( actor ).isEmpty();
+        } catch ( final java.sql.SQLException e ) {
+            LOG.warn( "Could not read the agent registry for the key listing; agent names omitted: {} ({})",
+                e.getClass().getSimpleName(), e.getSQLState() );
+            return false;
+        }
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -119,8 +150,20 @@ public class SelfApiKeysResource extends RestServletBase {
         if ( svc == null ) { unavailable( response ); return; }
 
         final List< Map< String, Object > > rows = new ArrayList<>();
+        Boolean seesRegistry = null;
         for ( final ApiKeyService.Record r : svc.listByPrincipal( login ) ) {
-            rows.add( selfRow( r ) );
+            final Map< String, Object > row = selfRow( r );
+            final Optional< String > agent = AgentKeyGuard.agentForListing( this::agentKeyName, r.id() );
+            row.put( "agentKey", agent.isPresent() );
+            if ( agent.isPresent() ) {
+                if ( seesRegistry == null ) {
+                    seesRegistry = callerSeesAgentRegistry( request );
+                }
+                if ( seesRegistry ) {
+                    row.put( "agent", agent.get() );
+                }
+            }
+            rows.add( row );
         }
         sendJson( response, Map.of( "keys", rows ) );
     }
@@ -160,6 +203,9 @@ public class SelfApiKeysResource extends RestServletBase {
         final Optional< ApiKeyService.Record > rec = svc.findById( id );
         if ( rec.isEmpty() || !login.equals( rec.get().principalLogin() ) || !rec.get().isActive() ) {
             sendNotFound( response, "Key not found: " + id );
+            return;
+        }
+        if ( AgentKeyGuard.refused( this, this::agentKeyName, id, response ) ) {
             return;
         }
         if ( !svc.revoke( id, login ) ) {
@@ -213,6 +259,9 @@ public class SelfApiKeysResource extends RestServletBase {
         final Optional< ApiKeyService.Record > rec = svc.findById( id );
         if ( rec.isEmpty() || !login.equals( rec.get().principalLogin() ) || !rec.get().isActive() ) {
             sendNotFound( response, "Key not found: " + id );
+            return;
+        }
+        if ( AgentKeyGuard.refused( this, this::agentKeyName, id, response ) ) {
             return;
         }
         final ApiKeyService.Record old = rec.get();

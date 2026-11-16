@@ -73,6 +73,10 @@ class AdminApiKeysResourceTest {
     private static AdminApiKeysResource servlet;
     private ApiKeyService mockService;
     private final Gson gson = new Gson();
+    /** Keys the work registry reports as agent keys (bound now or before a rotation), with the agent's name. */
+    private static final java.util.Map< Integer, String > AGENT_KEYS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final String AGENT_KEY_REFUSAL =
+        "This key belongs to a work agent. Rotate or retire the agent on the Agents page.";
 
     // Per-class engine (see RestTestSupport javadoc): the servlet's principalExists
     // override is stateless ("janne" always resolves, everything else doesn't), so
@@ -88,6 +92,11 @@ class AdminApiKeysResourceTest {
             boolean principalExists( final String login ) {
                 return "janne".equals( login );
             }
+
+            @Override
+            Optional< String > agentKeyName( final int keyId ) {
+                return Optional.ofNullable( AGENT_KEYS.get( keyId ) );
+            }
         }, engine );
     }
 
@@ -102,6 +111,7 @@ class AdminApiKeysResourceTest {
     void setUp() {
         mockService = mock( ApiKeyService.class );
         ApiKeyServiceHolder.setForTesting( mockService );
+        AGENT_KEYS.clear();
     }
 
     @AfterEach
@@ -670,5 +680,58 @@ class AdminApiKeysResourceTest {
             }
         }
         return request;
+    }
+
+    // ----- agent keys are managed only through the work registry -----
+
+    @Test
+    void revokeOfAnAgentKeyIs409AndNothingChanges() throws Exception {
+        AGENT_KEYS.put( 42, "codex" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doDelete( createRequest( "42", null ), response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_CONFLICT );
+        assertTrue( sw.toString().contains( AGENT_KEY_REFUSAL ), sw.toString() );
+        verify( mockService, Mockito.never() ).revoke( anyInt(), any() );
+    }
+
+    @Test
+    void bulkRevokeSkipsAgentKeysAndRevokesTheRest() throws Exception {
+        AGENT_KEYS.put( 11, "codex" );
+        when( mockService.revoke( 10, null ) ).thenReturn( true );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "revoke" );
+        final JsonArray ids = new JsonArray();
+        ids.add( "10" );
+        ids.add( "11" );
+        body.add( "ids", ids );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+
+        assertEquals( 1, obj.getAsJsonArray( "succeeded" ).size() );
+        final JsonObject failed = obj.getAsJsonArray( "failed" ).get( 0 ).getAsJsonObject();
+        assertEquals( "11", failed.get( "id" ).getAsString() );
+        assertEquals( AGENT_KEY_REFUSAL, failed.get( "error" ).getAsString() );
+        verify( mockService, Mockito.never() ).revoke( Mockito.eq( 11 ), any() );
+    }
+
+    @Test
+    void listMarksAgentKeysWithTheAgentName() throws Exception {
+        AGENT_KEYS.put( 1, "codex" );
+        when( mockService.list() ).thenReturn( List.of(
+            new ApiKeyService.Record( 1, "abcdef0123456789aa", "alice", "work-agent:codex", ApiKeyService.Scope.WORK,
+                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null, false ),
+            new ApiKeyService.Record( 2, "ffffffffffffffffff", "bob", null, ApiKeyService.Scope.TOOLS,
+                Instant.parse( "2026-04-01T10:00:00Z" ), "admin", null, null, null, false ) ) );
+
+        final JsonArray keys = gson.fromJson( doGet(), JsonObject.class ).getAsJsonArray( "keys" );
+
+        assertTrue( keys.get( 0 ).getAsJsonObject().get( "agentKey" ).getAsBoolean() );
+        assertEquals( "codex", keys.get( 0 ).getAsJsonObject().get( "agent" ).getAsString() );
+        assertFalse( keys.get( 1 ).getAsJsonObject().get( "agentKey" ).getAsBoolean() );
+        assertFalse( keys.get( 1 ).getAsJsonObject().has( "agent" ) );
     }
 }

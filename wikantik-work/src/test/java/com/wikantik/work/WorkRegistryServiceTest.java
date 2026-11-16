@@ -419,4 +419,14 @@ class WorkRegistryServiceTest {
         service.removeMember( admin, "PLAT", "gone", "agent" );
         verify( store ).removeMember( 1L, "8", "agent", admin );
     }
+
+    @Test
+    void agentNameForKeyNamesTheAgentAKeyIsOrWasBoundTo() throws SQLException {
+        when( store.agentEverBoundTo( 55 ) ).thenReturn( Optional.of( agent( 7, "codex", 56, null ) ) );
+        when( store.agentEverBoundTo( 57 ) ).thenReturn( Optional.empty() );
+        assertEquals( Optional.of( "codex" ), service.registry().agentNameForKey( 55 ) );
+        assertTrue( service.registry().isAgentKey( 55 ) );
+        assertEquals( Optional.empty(), service.registry().agentNameForKey( 57 ) );
+        assertFalse( service.registry().isAgentKey( 57 ) );
+    }
 }

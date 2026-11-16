@@ -63,7 +63,7 @@ class WorkServiceDenialListenerTest {
     void aProjectScopedDenialIsReportedWithItsAction() throws SQLException {
         projectWithViewer();
         assertThrows( WorkDeniedException.class, () -> service.createItem( viewer,
-            new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", null, null, null ) ) );
+            new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", null, null, null, null ) ) );
         assertEquals( List.of( Action.CREATE_ITEM ), seen );
     }
 

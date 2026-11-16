@@ -82,7 +82,7 @@ class WorkServiceVisibilityPostgresTest {
         // lena is also the assignee so that waitingOn is non-empty for her
         final Item assigned = new Item( item.id(), item.projectId(), item.key(), item.level(), null, null,
             item.kind(), item.title(), item.body(), item.status(), item.priority(), item.rank(), null, "lena",
-            item.reporter(), null, null, null, item.version(), item.createdAt(), item.updatedAt(), null );
+            item.reporter(), null, null, null, item.version(), item.createdAt(), item.updatedAt(), null, null, null, null, null, null );
         store.updateItem( item, assigned, "lena", Actor.Kind.HUMAN, null );
         commentId = store.addComment( item, "lena", Actor.Kind.HUMAN, "secret comment", List.of() ).id();
         linkId = store.addLink( item, "url", "https://example.com/secret", "lena", Actor.Kind.HUMAN ).id();
@@ -185,7 +185,7 @@ class WorkServiceVisibilityPostgresTest {
     @Test
     void everyProjectScopedWriteHidesInvisibleProject() {
         final ItemDraft draft = new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", null,
-            null, null );
+            null, null, null );
         final ItemPatch patch = new ItemPatch( 1, java.util.Map.of( "title", "x" ), null );
         final List< org.junit.jupiter.api.function.Executable > attempts = List.of(
             () -> service.updateProject( mallory, "PLAT", "n", "d", null ),

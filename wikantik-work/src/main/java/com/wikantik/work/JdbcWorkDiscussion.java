@@ -18,6 +18,7 @@
  */
 package com.wikantik.work;
 
+import static com.wikantik.work.SqlValues.nullableLong;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.RowMapper;
 
@@ -36,7 +37,7 @@ import java.util.Set;
  */
 final class JdbcWorkDiscussion {
 
-    private static final String COMMENT_COLUMNS = "id, item_id, author, body, created_at, edited_at, removed_at";
+    private static final String COMMENT_COLUMNS = "id, item_id, author, body, created_at, edited_at, removed_at, author_agent_id";
 
     /** A removed comment keeps its stored body but is returned blank. */
     private static final RowMapper< Comment > COMMENT_ROW = rs -> {
@@ -45,7 +46,8 @@ final class JdbcWorkDiscussion {
         final Timestamp removed = rs.getTimestamp( "removed_at" );
         return new Comment( rs.getLong( "id" ), rs.getLong( "item_id" ), rs.getString( "author" ),
             removed == null ? rs.getString( "body" ) : "", created == null ? null : created.toInstant(),
-            edited == null ? null : edited.toInstant(), removed == null ? null : removed.toInstant() );
+            edited == null ? null : edited.toInstant(), removed == null ? null : removed.toInstant(),
+            nullableLong( rs, "author_agent_id" ) );
     };
 
     private static final RowMapper< Link > LINK_ROW = rs -> new Link( rs.getLong( "id" ), rs.getLong( "item_id" ),

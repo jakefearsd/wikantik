@@ -32,10 +32,13 @@ final class WorkInputs {
 
     private static final Pattern PROJECT_KEY = Pattern.compile( "^[A-Z][A-Z0-9]{1,9}$" );
     private static final Pattern PRODUCT_KEY = Pattern.compile( "^[a-z][a-z0-9-]{1,39}$" );
+    private static final Pattern QUEUE_KEY = Pattern.compile( "^[a-z][a-z0-9-]{1,29}$" );
+    private static final Pattern AGENT_NAME =
+        Pattern.compile( "^[a-z0-9][a-z0-9._-]{0,39}(@[a-z0-9][a-z0-9.-]{0,39})?$" );
     private static final Set< String > LINK_KINDS = Set.of( "page", "issue", "url", "blocked_by", "commit" );
     private static final Set< String > PRINCIPAL_KINDS = Set.of( "user", "group", "agent" );
     /** First segments of SPA routes under {@code /work/}: a project with one of these keys could not be opened. */
-    private static final Set< String > RESERVED_KEYS = Set.of( "ITEM", "PRODUCTS" );
+    private static final Set< String > RESERVED_KEYS = Set.of( "ITEM", "PRODUCTS", "AGENTS" );
     private static final int DEFAULT_ACTIVITY = 50;
     private static final int MAX_ACTIVITY = 200;
     private static final int MAX_LINK_TARGET = 2000;
@@ -56,6 +59,26 @@ final class WorkInputs {
         }
     }
 
+    static void requireQueueKey( final String key ) {
+        if ( key == null || !QUEUE_KEY.matcher( key ).matches() ) {
+            throw new WorkValidationException( "key", "A queue key is 2 to 30 lowercase letters, digits and dashes, "
+                + "starting with a letter." );
+        }
+    }
+
+    static void requireAgentName( final String name ) {
+        if ( name == null || !AGENT_NAME.matcher( name ).matches() ) {
+            throw new WorkValidationException( "name", "An agent name is lowercase letters, digits, dots, dashes and "
+                + "underscores, optionally followed by @host." );
+        }
+    }
+
+    static void requireAgentRole( final WorkRole role ) {
+        if ( role == WorkRole.LEAD ) {
+            throw new WorkValidationException( "role", "An agent's role is viewer or member." );
+        }
+    }
+
     /** A key the work pages use for something else ({@code /work/item/…}, {@code /work/products}), any case. */
     static void requireUnreservedKey( final String key ) {
         if ( key != null && RESERVED_KEYS.contains( key.toUpperCase( Locale.ROOT ) ) ) {
@@ -63,12 +86,9 @@ final class WorkInputs {
         }
     }
 
-    /** A member to add or change. Agents cannot be added yet: there is no agent registry in this phase. */
+    /** A member to add or change. An agent member is validated against the registry by the service. */
     static void requireMember( final String principal, final String principalKind, final WorkRole role ) {
         requireMemberRef( principal, principalKind );
-        if ( "agent".equals( principalKind ) ) {
-            throw new WorkValidationException( "principalKind", "Agents cannot be project members yet." );
-        }
         if ( role == null ) {
             throw new WorkValidationException( "role", "A member needs a role." );
         }
@@ -130,7 +150,8 @@ final class WorkInputs {
     static Item withVersion( final Item i, final int version ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
-            i.doneMeans(), i.allowDirect(), version, i.createdAt(), i.updatedAt(), i.closedAt() );
+            i.doneMeans(), i.allowDirect(), version, i.createdAt(), i.updatedAt(), i.closedAt(),
+            i.queue(), i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId() );
     }
 
     /** Keeps only the logins {@code isMember} accepts. */

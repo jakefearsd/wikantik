@@ -104,7 +104,7 @@ final class WorkHttp {
     static Item item( final String key, final String assignee, final int version ) {
         return new Item( 7, 1, key, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "Title", "Body", WorkStatus.DRAFT, 3,
             1.0, null, assignee, "bob", null, null, null, version, Instant.parse( "2026-11-01T10:00:00Z" ),
-            Instant.parse( "2026-11-02T10:00:00Z" ), null );
+            Instant.parse( "2026-11-02T10:00:00Z" ), null, null, null, null, null, null );
     }
 
     static WorkService.ItemSummary summary( final Item item, final int comments, final boolean blocked,

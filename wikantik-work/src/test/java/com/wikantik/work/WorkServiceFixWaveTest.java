@@ -82,7 +82,7 @@ class WorkServiceFixWaveTest {
         }, WorkPeopleTest.DIRECTORY, Clock.fixed( NOW, ZoneOffset.UTC ) );
         plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null );
         task = new Item( 12, 1, "PLAT-3", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", WorkStatus.DRAFT,
-            3, 1024, null, null, "u-7f3a", null, null, null, 4, NOW, NOW, null );
+            3, 1024, null, null, "u-7f3a", null, null, null, 4, NOW, NOW, null, null, null, null, null, null );
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
         when( store.item( "PLAT-3" ) ).thenReturn( Optional.of( task ) );
         when( store.itemById( 12 ) ).thenReturn( Optional.of( task ) );
@@ -129,9 +129,10 @@ class WorkServiceFixWaveTest {
     }
 
     @Test
-    void anAgentCannotBeAddedInPhaseOne() {
-        assertEquals( "principalKind", invalid( () -> service.putMember( admin, "PLAT", "9", "agent",
-            WorkRole.MEMBER ) ).field() );
+    void anAgentPrincipalKindIsNoLongerRejectedByInputRules() {
+        // R21 lifted: the registry check is the service's job (a later task), not WorkInputs'.
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow( () -> WorkInputs.requireMember( "9", "agent",
+            WorkRole.MEMBER ) );
     }
 
     @Test
@@ -149,10 +150,10 @@ class WorkServiceFixWaveTest {
 
     @Test
     void anUnresolvedAssigneeFilterMatchesNobody() throws SQLException {
-        final ItemFilter byName = new ItemFilter( null, null, "Ana Lima", null, null, null, null, null, 0, null );
+        final ItemFilter byName = new ItemFilter( null, null, "Ana Lima", null, null, null, null, null, 0, null, null );
         service.items( lead, "PLAT", byName );
         verify( store ).items( argThat( f -> "u-7f3a".equals( f.assignee() ) && f.projectId() == 1L ) );
-        final ItemFilter byLogin = new ItemFilter( null, null, "u-7f3a", null, null, null, null, null, 0, null );
+        final ItemFilter byLogin = new ItemFilter( null, null, "u-7f3a", null, null, null, null, null, 0, null, null );
         service.board( lead, "PLAT", byLogin );
         verify( store ).board( eq( 1L ), argThat( f -> "\n".equals( f.assignee() ) ) );
     }
@@ -160,7 +161,7 @@ class WorkServiceFixWaveTest {
     @Test
     void theDueOrderSurvivesPinning() throws SQLException {
         service.items( lead, "PLAT", new ItemFilter( 99L, null, null, null, null, null, null, null, 0,
-            ItemFilter.Order.DUE ) );
+            ItemFilter.Order.DUE, null ) );
         verify( store ).items( argThat( f -> f.order() == ItemFilter.Order.DUE && f.projectId() == 1L ) );
     }
 
@@ -225,7 +226,7 @@ class WorkServiceFixWaveTest {
     @Test
     void commentsAreRenderedWithMentionsAsDisplayNames() throws SQLException {
         when( store.addComment( any(), anyString(), any(), anyString(), anyList() ) ).thenAnswer( inv ->
-            new Comment( 1, 12, "u-7f3a", inv.getArgument( 3 ), NOW, null, null ) );
+            new Comment( 1, 12, "u-7f3a", inv.getArgument( 3 ), NOW, null, null, null ) );
         final CommentView v = service.addComment( ana, "PLAT-3", "**done**, @Bo" );
         assertEquals( "**done**, @[Bo](user:id-bo)", v.body() );
         assertEquals( "**done**, @Bo", rendered.get( rendered.size() - 1 ) );
@@ -239,8 +240,8 @@ class WorkServiceFixWaveTest {
     @Test
     void theItemViewRendersItsComments() throws SQLException {
         when( store.comments( 12 ) ).thenReturn( List.of(
-            new Comment( 1, 12, "u-7f3a", "see @[x](user:id-ana)", NOW, null, null ),
-            new Comment( 2, 12, "u-7f3a", "", NOW, null, NOW ) ) );
+            new Comment( 1, 12, "u-7f3a", "see @[x](user:id-ana)", NOW, null, null, null ),
+            new Comment( 2, 12, "u-7f3a", "", NOW, null, NOW, null ) ) );
         final List< CommentView > comments = service.item( ana, "PLAT-3" ).comments();
         assertEquals( "<p>see @Ana Lima</p>", comments.get( 0 ).bodyHtml() );
         assertEquals( "", comments.get( 1 ).bodyHtml() );
@@ -250,9 +251,9 @@ class WorkServiceFixWaveTest {
     @Test
     void editingACommentRecomputesItsMentions() throws SQLException {
         when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "u-7f3a", "hi @Bo", NOW, null,
-            null ) ) );
+            null, null ) ) );
         when( store.editComment( eq( 5L ), anyString(), anyString(), any(), anyList() ) ).thenAnswer( inv ->
-            new Comment( 5, 12, "u-7f3a", inv.getArgument( 1 ), NOW, NOW, null ) );
+            new Comment( 5, 12, "u-7f3a", inv.getArgument( 1 ), NOW, NOW, null, null ) );
         service.editComment( ana, 5, "now @[Ana](user:id-ana) only" );
         verify( store ).editComment( eq( 5L ), eq( "now @[Ana](user:id-ana) only" ), eq( "u-7f3a" ),
             eq( Actor.Kind.HUMAN ), eq( List.of( "u-7f3a" ) ) );
@@ -263,9 +264,9 @@ class WorkServiceFixWaveTest {
     @Test
     void parentAndProductEventsAreShownAsKeys() throws SQLException {
         final Item parent = new Item( 30, 1, "PLAT-7", WorkLevel.STORY, null, null, WorkKind.SOFTWARE, "p", "",
-            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null );
+            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null );
         final Item foreign = new Item( 40, 2, "OPS-1", WorkLevel.STORY, null, null, WorkKind.SOFTWARE, "p", "",
-            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null );
+            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null );
         when( store.itemById( 30 ) ).thenReturn( Optional.of( parent ) );
         when( store.itemById( 40 ) ).thenReturn( Optional.of( foreign ) );
         when( store.products() ).thenReturn( List.of( new Product( 3, "web", "Web", null, null, null,

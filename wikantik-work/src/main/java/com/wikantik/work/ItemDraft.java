@@ -22,5 +22,6 @@ import java.time.LocalDate;
 
 /** The caller-supplied fields of an item about to be created. */
 public record ItemDraft( String projectKey, WorkLevel level, String parentKey, String productKey, WorkKind kind,
-                         String title, String body, Integer priority, LocalDate dueOn, String assignee ) {
+                         String title, String body, Integer priority, LocalDate dueOn, String assignee,
+                         String queue ) {
 }

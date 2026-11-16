@@ -366,14 +366,15 @@ class WikiWorkRendererTest {
             com.wikantik.work.Autonomy.DELEGATED, now, null );
         final com.wikantik.work.Item item = new com.wikantik.work.Item( 12, 1, "PLAT-1", com.wikantik.work.WorkLevel.TASK,
             null, null, com.wikantik.work.WorkKind.SOFTWARE, "t", "", com.wikantik.work.WorkStatus.DRAFT, 3, 1, null,
-            null, "janne", null, null, null, 1, now, now, null );
+            null, "janne", null, null, null, 1, now, now, null,
+            null, null, null, null, null );
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
         when( store.item( "PLAT-1" ) ).thenReturn( Optional.of( item ) );
         when( store.roleFor( org.mockito.ArgumentMatchers.eq( 1L ), org.mockito.ArgumentMatchers.any() ) )
             .thenReturn( Optional.of( com.wikantik.work.WorkRole.MEMBER ) );
         when( store.addComment( org.mockito.ArgumentMatchers.any(), anyString(), org.mockito.ArgumentMatchers.any(),
             anyString(), org.mockito.ArgumentMatchers.anyList() ) ).thenAnswer( inv -> new com.wikantik.work.Comment(
-                1, 12, "janne", inv.getArgument( 3 ), now, null, null ) );
+                1, 12, "janne", inv.getArgument( 3 ), now, null, null, null ) );
         return new com.wikantik.work.WorkService( store, new WikiWorkRenderer( renderWith ),
             new WikiWorkDirectory( engine ), java.time.Clock.systemUTC() );
     }

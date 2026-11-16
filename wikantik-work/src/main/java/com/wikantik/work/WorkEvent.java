@@ -37,4 +37,8 @@ public record WorkEvent( long id, long projectId, Long itemId, String itemKey, I
     public static final String UNLINKED = "unlinked";
     public static final String MEMBER = "member";
     public static final String SETTINGS = "settings";
+    public static final String CLAIMED = "claimed";
+    public static final String CLAIM_RENEWED = "claim_renewed";
+    public static final String RELEASED = "released";
+    public static final String CLAIM_EXPIRED = "claim_expired";
 }

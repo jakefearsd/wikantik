@@ -67,7 +67,7 @@ final class ItemPatchApplier {
         final Item next = new Item( 0, project.id(), null, d.level(), parent == null ? null : parent.id(),
             product == null ? null : product.id(), d.kind() == null ? WorkKind.SOFTWARE : d.kind(), d.title(),
             d.body() == null ? "" : d.body(), WorkStatus.DRAFT, priority, 0, d.dueOn(), assignee, null, null, null,
-            null, 0, null, null, null );
+            null, 0, null, null, null, d.queue(), null, null, null, null );
         validate( next, parent );
         checkAssignee( project, null, assignee );
         return next;
@@ -115,7 +115,9 @@ final class ItemPatchApplier {
             pick( changes, "autonomy", PatchValues::autonomy, current.autonomy() ),
             pick( changes, "doneMeans", PatchValues::doneMeans, current.doneMeans() ),
             pick( changes, "allowDirect", PatchValues::allowDirect, current.allowDirect() ),
-            current.version(), current.createdAt(), current.updatedAt(), current.closedAt() );
+            current.version(), current.createdAt(), current.updatedAt(), current.closedAt(),
+            current.queue(), current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(),
+            current.reporterAgentId() );
     }
 
     private static < T > T pick( final Map< String, Object > changes, final String key,

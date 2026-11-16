@@ -27,5 +27,6 @@ import java.util.List;
  * empty body, HTML and mention list.
  */
 public record CommentView( long id, long itemId, String author, String body, Instant createdAt, Instant editedAt,
-                           Instant removedAt, String bodyHtml, List< String > mentions ) {
+                           Instant removedAt, String bodyHtml, List< String > mentions,
+                           Long authorAgentId ) {
 }

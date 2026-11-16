@@ -25,5 +25,7 @@ import java.time.LocalDate;
 public record Item( long id, long projectId, String key, WorkLevel level, Long parentId, Long productId,
                     WorkKind kind, String title, String body, WorkStatus status, int priority, double rank,
                     LocalDate dueOn, String assignee, String reporter, Autonomy autonomy, DoneMeans doneMeans,
-                    Boolean allowDirect, int version, Instant createdAt, Instant updatedAt, Instant closedAt ) {
+                    Boolean allowDirect, int version, Instant createdAt, Instant updatedAt, Instant closedAt,
+                    String queue, Long claimedByAgent, Instant claimedAt, Instant claimExpiresAt,
+                    Long reporterAgentId ) {
 }

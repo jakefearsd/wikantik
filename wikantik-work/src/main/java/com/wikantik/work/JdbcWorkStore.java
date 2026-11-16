@@ -53,7 +53,8 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     static final String ITEM_SELECT = """
         SELECT i.id, i.project_id, p.key || '-' || i.seq AS item_key, i.level, i.parent_id, i.product_id, i.kind,
                i.title, i.body, i.status, i.priority, i.rank, i.due_on, i.assignee, i.reporter, i.autonomy,
-               i.done_means, i.allow_direct, i.version, i.created_at, i.updated_at, i.closed_at
+               i.done_means, i.allow_direct, i.version, i.created_at, i.updated_at, i.closed_at,
+               i.assignee_queue, i.claimed_by_agent, i.claimed_at, i.claim_expires_at, i.reporter_agent_id
           FROM work_item i JOIN work_project p ON p.id = i.project_id
         """;
 
@@ -66,7 +67,9 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
         rs.getString( "autonomy" ) == null ? null : Autonomy.fromWire( rs.getString( "autonomy" ) ),
         rs.getString( "done_means" ) == null ? null : DoneMeans.fromWire( rs.getString( "done_means" ) ),
         (Boolean) rs.getObject( "allow_direct" ), rs.getInt( "version" ),
-        instant( rs, "created_at" ), instant( rs, "updated_at" ), instant( rs, "closed_at" ) );
+        instant( rs, "created_at" ), instant( rs, "updated_at" ), instant( rs, "closed_at" ),
+        rs.getString( "assignee_queue" ), nullableLong( rs, "claimed_by_agent" ), instant( rs, "claimed_at" ),
+        instant( rs, "claim_expires_at" ), nullableLong( rs, "reporter_agent_id" ) );
 
     private static final String EVENT_SELECT = """
         SELECT e.id, e.project_id, e.item_id,
@@ -258,7 +261,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     @Override
     public List< BoardColumn > board( final long projectId, final ItemFilter f ) throws SQLException {
         final ItemFilter scoped = new ItemFilter( projectId, null, f.assignee(), f.productId(), f.level(),
-            f.parentId(), f.text(), f.dueBefore(), 0, null );
+            f.parentId(), f.text(), f.dueBefore(), 0, null, f.queue() );
         final List< BoardColumn > columns = new ArrayList<>();
         for ( final WorkStatus status : WorkStatus.values() ) {
             final StringBuilder where = new StringBuilder( " WHERE i.status = ?" );
@@ -278,11 +281,11 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
 
     @Override
     public List< ItemRevision > revisions( final long itemId ) throws SQLException {
-        return jdbc.query( "SELECT item_id, version, title, body, edited_by, edited_at FROM work_item_revision "
+        return jdbc.query( "SELECT item_id, version, title, body, edited_by, edited_at, edited_by_agent_id FROM work_item_revision "
                 + "WHERE item_id = ? ORDER BY version",
             ps -> ps.setLong( 1, itemId ), rs -> new ItemRevision( rs.getLong( "item_id" ), rs.getInt( "version" ),
                 rs.getString( "title" ), rs.getString( "body" ), rs.getString( "edited_by" ),
-                instant( rs, "edited_at" ) ) );
+                instant( rs, "edited_at" ), nullableLong( rs, "edited_by_agent_id" ) ) );
     }
 
     @Override

@@ -47,11 +47,11 @@ final class ItemViews {
     CommentView comment( final Comment c ) {
         if ( c.removedAt() != null || c.body() == null || c.body().isBlank() ) {
             return new CommentView( c.id(), c.itemId(), c.author(), c.removedAt() != null ? "" : c.body(),
-                c.createdAt(), c.editedAt(), c.removedAt(), "", List.of() );
+                c.createdAt(), c.editedAt(), c.removedAt(), "", List.of(), c.authorAgentId() );
         }
         final WorkPeople.Display d = people.display( c.body() );
         return new CommentView( c.id(), c.itemId(), c.author(), c.body(), c.createdAt(), c.editedAt(), c.removedAt(),
-            renderer.toHtml( d.markdown() ), d.names() );
+            renderer.toHtml( d.markdown() ), d.names(), c.authorAgentId() );
     }
 
     ItemView view( final Scope s, final Item item ) throws SQLException {

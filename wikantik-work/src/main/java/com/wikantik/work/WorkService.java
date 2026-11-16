@@ -248,7 +248,7 @@ public class WorkService {
         final Item next = applier.forCreate( s.project(), draft.assignee() == null || draft.assignee().isBlank()
             ? draft : new ItemDraft( draft.projectKey(), draft.level(), draft.parentKey(), draft.productKey(),
                 draft.kind(), draft.title(), draft.body(), draft.priority(), draft.dueOn(),
-                assigneeLogin( actor, draft.assignee() ) ) );
+                assigneeLogin( actor, draft.assignee() ), draft.queue() ) );
         return views.view( s, store.createItem( s.project(), next, actor.login(), actor.kind() ) );
     }
 

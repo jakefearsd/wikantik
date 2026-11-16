@@ -26,6 +26,11 @@ public record Actor( String login, Set<String> groups, boolean admin, Kind kind,
     /** Whether the actor is a person or an agent. */
     public enum Kind { HUMAN, AGENT }
 
+    /** An agent actor: never admin, in no groups; identified by its registry id. */
+    public static Actor agent( final long agentId, final String name ) {
+        return new Actor( name, Set.of(), false, Kind.AGENT, agentId );
+    }
+
     /** A human actor. */
     public static Actor human( final String login, final Set<String> groups, final boolean admin ) {
         return new Actor( login, groups, admin, Kind.HUMAN, null );

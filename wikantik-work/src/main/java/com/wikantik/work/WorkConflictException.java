@@ -32,6 +32,11 @@ public class WorkConflictException extends RuntimeException {
     /** A project or product with that key already exists. */
     public static final String EXISTS = "exists";
 
+    /** The item cannot be claimed: it is closed, assigned to someone, or held by another agent. */
+    public static final String NOT_CLAIMABLE = "not_claimable";
+    /** The caller does not hold a claim on the item. */
+    public static final String NOT_CLAIMED = "not_claimed";
+
     private final String reason;
 
     /** A stale-version conflict. */

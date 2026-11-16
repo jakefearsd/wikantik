@@ -63,7 +63,7 @@ class JdbcWorkStoreItemsPostgresTest {
 
     static Item draft( final WorkLevel level, final String title ) {
         return new Item( 0, 0, null, level, null, null, WorkKind.SOFTWARE, title, "body of " + title,
-            WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null );
+            WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null );
     }
 
     private Item create( final String title ) throws SQLException {
@@ -73,31 +73,31 @@ class JdbcWorkStoreItemsPostgresTest {
     private static Item withStatus( final Item i, final WorkStatus s ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), s, i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(), i.doneMeans(),
-            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt() );
+            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null );
     }
 
     private static Item withAssignee( final Item i, final String a ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), a, i.reporter(), i.autonomy(), i.doneMeans(),
-            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt() );
+            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null );
     }
 
     private static Item withPriority( final Item i, final int p ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), i.status(), p, i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(), i.doneMeans(),
-            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt() );
+            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null );
     }
 
     private static Item withTitle( final Item i, final String t ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), t,
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
-            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt() );
+            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null );
     }
 
     private static Item withParentAndProduct( final Item i, final Long parent, final Long product ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), parent, product, i.kind(), i.title(),
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
-            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt() );
+            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null );
     }
 
     @Test
@@ -251,7 +251,7 @@ class JdbcWorkStoreItemsPostgresTest {
     void boardReturnsAllSevenColumnsInOrder() throws SQLException {
         create( "a" );
         final List< BoardColumn > board = store.board( plat.id(), new ItemFilter( null, null, null, null, null, null,
-            null, null, 0, null ) );
+            null, null, 0, null, null ) );
         // Pinned literally: comparing with WorkStatus.values() would follow any reordering of the enum.
         assertEquals( List.of( "draft", "refining", "ready", "in_progress", "review", "done", "cancelled" ),
             board.stream().map( c -> c.status().wire() ).toList() );
@@ -267,10 +267,10 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item c = create( "c" );
         final Item mine = store.updateItem( c, withAssignee( c, "dave" ), "alice", Actor.Kind.HUMAN, null );
         final List< BoardColumn > all = store.board( plat.id(),
-            new ItemFilter( null, null, null, null, null, null, null, null, 0, null ) );
+            new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null ) );
         assertEquals( List.of( a.id(), b.id(), c.id() ), all.get( 0 ).items().stream().map( Item::id ).toList() );
         final List< BoardColumn > filtered = store.board( plat.id(),
-            new ItemFilter( null, null, "dave", null, null, null, null, null, 0, null ) );
+            new ItemFilter( null, null, "dave", null, null, null, null, null, 0, null, null ) );
         assertEquals( 1, filtered.get( 0 ).total() );
         assertEquals( mine.id(), filtered.get( 0 ).items().get( 0 ).id() );
     }
@@ -282,7 +282,7 @@ class JdbcWorkStoreItemsPostgresTest {
             store.updateItem( i, withStatus( i, WorkStatus.DONE ), "alice", Actor.Kind.HUMAN, null );
         }
         final BoardColumn done = store.board( plat.id(),
-            new ItemFilter( null, null, null, null, null, null, null, null, 0, null ) ).get( 5 );
+            new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null ) ).get( 5 );
         assertEquals( WorkStatus.DONE, done.status() );
         assertEquals( 60, done.total() );
         assertEquals( 50, done.items().size() );
@@ -292,13 +292,13 @@ class JdbcWorkStoreItemsPostgresTest {
     @Test
     void textFilterMatchesTitleAndBody() throws SQLException {
         store.createItem( plat, new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.DOCS, "Fix Login",
-            "plain", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null ),
+            "plain", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null ),
             "alice", Actor.Kind.HUMAN );
         store.createItem( plat, new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.DOCS, "Other",
-            "mentions LOGIN flow", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null ),
+            "mentions LOGIN flow", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null ),
             "alice", Actor.Kind.HUMAN );
         create( "unrelated" );
-        assertEquals( 2, store.items( new ItemFilter( plat.id(), null, null, null, null, null, "login", null, 0, null ) ).size() );
+        assertEquals( 2, store.items( new ItemFilter( plat.id(), null, null, null, null, null, "login", null, 0, null, null ) ).size() );
     }
 
     @Test
@@ -308,9 +308,9 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item under = create( "a_b marker" );
         create( "axb marker" );
         assertEquals( List.of( pct.id() ), store.items( new ItemFilter( plat.id(), null, null, null, null, null,
-            "100%", null, 0, null ) ).stream().map( Item::id ).toList() );
+            "100%", null, 0, null, null ) ).stream().map( Item::id ).toList() );
         assertEquals( List.of( under.id() ), store.items( new ItemFilter( plat.id(), null, null, null, null, null,
-            "a_b", null, 0, null ) ).stream().map( Item::id ).toList() );
+            "a_b", null, 0, null, null ) ).stream().map( Item::id ).toList() );
     }
 
     @Test
@@ -319,16 +319,16 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item t = create( "t" );
         final Item due = store.updateItem( t, new Item( t.id(), t.projectId(), t.key(), t.level(), null, null,
             t.kind(), t.title(), t.body(), WorkStatus.READY, 3, t.rank(), LocalDate.of( 2026, 12, 1 ), null,
-            t.reporter(), null, null, null, t.version(), null, null, null ), "alice", Actor.Kind.HUMAN, null );
+            t.reporter(), null, null, null, t.version(), null, null, null, null, null, null, null, null ), "alice", Actor.Kind.HUMAN, null );
         assertEquals( List.of( epic.id() ), store.items( new ItemFilter( plat.id(), null, null, null, WorkLevel.EPIC,
-            null, null, null, 0, null ) ).stream().map( Item::id ).toList() );
+            null, null, null, 0, null, null ) ).stream().map( Item::id ).toList() );
         assertEquals( List.of( due.id() ), store.items( new ItemFilter( plat.id(), Set.of( WorkStatus.READY ), null,
-            null, null, null, null, null, 0, null ) ).stream().map( Item::id ).toList() );
+            null, null, null, null, null, 0, null, null ) ).stream().map( Item::id ).toList() );
         assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null,
-            LocalDate.of( 2027, 1, 1 ), 0, null ) ).size() );
+            LocalDate.of( 2027, 1, 1 ), 0, null, null ) ).size() );
         assertEquals( 0, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null,
-            LocalDate.of( 2026, 11, 1 ), 0, null ) ).size() );
-        assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 1, null ) ).size() );
+            LocalDate.of( 2026, 11, 1 ), 0, null, null ) ).size() );
+        assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 1, null, null ) ).size() );
     }
 
     @Test
@@ -431,10 +431,10 @@ class JdbcWorkStoreItemsPostgresTest {
         due( late, LocalDate.of( 2027, 3, 1 ) );
         due( soon, LocalDate.of( 2026, 12, 1 ) );
         final List< String > keys = store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null,
-            2, ItemFilter.Order.DUE ) ).stream().map( Item::key ).toList();
+            2, ItemFilter.Order.DUE, null ) ).stream().map( Item::key ).toList();
         assertEquals( List.of( soon.key(), late.key() ), keys, "the cap keeps the nearest dates" );
         assertEquals( none.key(), store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null,
-            0, ItemFilter.Order.DUE ) ).get( 2 ).key() );
+            0, ItemFilter.Order.DUE, null ) ).get( 2 ).key() );
     }
 
     private void due( final Item i, final LocalDate on ) throws SQLException {

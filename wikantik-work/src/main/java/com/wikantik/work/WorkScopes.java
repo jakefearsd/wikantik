@@ -66,7 +66,7 @@ final class WorkScopes {
         /** The filter pinned to the project, so a caller-supplied id can never reach another project's rows. */
         ItemFilter pin( final ItemFilter f ) {
             if ( f == null ) {
-                return new ItemFilter( project.id(), null, null, null, null, null, null, null, 0, null );
+                return new ItemFilter( project.id(), null, null, null, null, null, null, null, 0, null, null );
             }
             return f.with( project.id(), f.assignee() );
         }

@@ -57,6 +57,9 @@ class WorkPolicyTest {
     void adminMayDoEverythingWithAnyRole( final String role ) {
         final Actor admin = Actor.human( "root", Set.of(), true );
         for ( final Action action : Action.values() ) {
+            if ( action == Action.CLAIM ) {
+                continue; // claiming is for agents only, even for an admin (see claimDeniedToHumansSaysAssignInstead)
+            }
             assertTrue( WorkPolicy.may( admin, role( role ), action, null ).allowed(), action.name() );
         }
     }
@@ -102,5 +105,56 @@ class WorkPolicyTest {
                 Action.COMMENT, Action.LINK } ) {
             assertTrue( WorkPolicy.may( adminAgent, null, action, null ).allowed(), action.name() );
         }
+    }
+
+    private static Item claimedBy( final Long agent ) {
+        return new Item( 1, 1, "PLAT-1", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", WorkStatus.READY, 3,
+            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, agent, null, null, null );
+    }
+
+    @ParameterizedTest
+    @CsvSource( {
+        "viewer,CLAIM,false", "member,CLAIM,true",
+        "viewer,EDIT_ITEM,false", "member,EDIT_ITEM,true", "member,MOVE,true", "member,LINK,true",
+        "viewer,COMMENT,false", "member,COMMENT,true"
+    } )
+    void agentRowsOnUnclaimedItem( final String role, final Action action, final boolean allowed ) {
+        assertEquals( allowed, WorkPolicy.may( Actor.agent( 7, "bot" ), role( role ), action, claimedBy( null ) ).allowed() );
+    }
+
+    @ParameterizedTest
+    @CsvSource( { "EDIT_ITEM", "MOVE", "LINK" } )
+    void agentCannotWriteItemClaimedByAnotherAgent( final Action action ) {
+        final Decision d = WorkPolicy.may( Actor.agent( 7, "bot" ), WorkRole.MEMBER, action, claimedBy( 9L ) );
+        assertFalse( d.allowed() );
+        assertEquals( "This item is claimed by another agent.", d.reason() );
+        assertTrue( WorkPolicy.may( Actor.agent( 7, "bot" ), WorkRole.MEMBER, action, claimedBy( 7L ) ).allowed() );
+    }
+
+    @Test
+    void commentIsAllowedOnItemClaimedByAnotherAgent() {
+        assertTrue( WorkPolicy.may( Actor.agent( 7, "bot" ), WorkRole.MEMBER, Action.COMMENT, claimedBy( 9L ) ).allowed() );
+    }
+
+    @ParameterizedTest
+    @CsvSource( { "EDIT_ITEM", "MOVE", "LINK", "COMMENT" } )
+    void humansAreNotBlockedByAnAgentClaim( final Action action ) {
+        assertTrue( WorkPolicy.may( Actor.human( "alice", Set.of(), false ), WorkRole.MEMBER, action, claimedBy( 9L ) ).allowed() );
+        assertTrue( WorkPolicy.may( Actor.human( "root", Set.of(), true ), null, action, claimedBy( 9L ) ).allowed() );
+    }
+
+    @Test
+    void claimDeniedToHumansSaysAssignInstead() {
+        final Decision d = WorkPolicy.may( Actor.human( "alice", Set.of(), false ), WorkRole.MEMBER, Action.CLAIM, null );
+        assertFalse( d.allowed() );
+        assertTrue( d.reason().contains( "assign" ) );
+        assertFalse( WorkPolicy.may( Actor.human( "root", Set.of(), true ), null, Action.CLAIM, null ).allowed() );
+    }
+
+    @Test
+    void claimedByOtherDenialNamesNoLogin() {
+        final Decision d = WorkPolicy.may( Actor.agent( 7, "bot@x" ), WorkRole.MEMBER, Action.EDIT_ITEM, claimedBy( 9L ) );
+        assertFalse( d.reason().contains( "bot@x" ) );
+        assertFalse( d.reason().contains( "alice" ) );
     }
 }

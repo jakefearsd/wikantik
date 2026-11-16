@@ -185,7 +185,7 @@ class WorkItemResourceTest {
     @Test
     void listsRevisionsAndEvents() throws Exception {
         Mockito.when( svc.revisions( ALICE, "PLAT-1" ) ).thenReturn( List.of(
-            new ItemRevision( 7, 1, "T", "B", "alice", Instant.parse( "2026-11-01T10:00:00Z" ) ) ) );
+            new ItemRevision( 7, 1, "T", "B", "alice", Instant.parse( "2026-11-01T10:00:00Z" ), null ) ) );
         Mockito.when( svc.events( ALICE, "PLAT-1" ) ).thenReturn( List.of( new WorkEvent( 1, 1L, 7L, "PLAT-1",
             Instant.parse( "2026-11-01T10:00:00Z" ), "alice", com.wikantik.work.Actor.Kind.HUMAN, null, "assigned",
             "alice", "bob", null ) ) );
@@ -199,7 +199,7 @@ class WorkItemResourceTest {
 
     @Test
     void addsEditsAndRemovesComments() throws Exception {
-        final CommentView c = new CommentView( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null, null, "<p>hi</p>", List.of() );
+        final CommentView c = new CommentView( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null, null, "<p>hi</p>", List.of(), null );
         Mockito.when( svc.addComment( ALICE, "PLAT-1", "hi" ) ).thenReturn( c );
         Mockito.when( svc.editComment( ALICE, 5, "yo" ) ).thenReturn( c );
         final WorkHttp.Result added = send( "POST", "/api/work/items", "/PLAT-1/comments", "{\"body\":\"hi\"}" );
@@ -310,9 +310,9 @@ class WorkItemResourceTest {
     @Test
     void aCommentSaysWhetherItIsMineAndShowsNoLogin() throws Exception {
         final CommentView mine = new CommentView( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null,
-            null, "<p>hi</p>", List.of() );
+            null, "<p>hi</p>", List.of(), null );
         final CommentView theirs = new CommentView( 6, 7, "carol", "yo", Instant.parse( "2026-11-01T10:00:00Z" ), null,
-            null, "<p>yo</p>", List.of( "Name of alice" ) );
+            null, "<p>yo</p>", List.of( "Name of alice" ), null );
         final WorkService.ItemView v = WorkHttp.view( "PLAT-1", null, 1 );
         Mockito.when( svc.item( ALICE, "PLAT-1" ) ).thenReturn( new WorkService.ItemView( v.item(), v.bodyHtml(),
             v.projectKey(), null, null, List.of(), List.of( mine, theirs ), List.of(), false, WorkRole.MEMBER, false ) );
@@ -388,7 +388,7 @@ class WorkItemResourceTest {
     @Test
     void aBodyJustUnderTheLimitIsAccepted() throws Exception {
         Mockito.when( svc.addComment( any(), anyString(), any() ) ).thenReturn(
-            new CommentView( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null, null, "<p>hi</p>", List.of() ) );
+            new CommentView( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null, null, "<p>hi</p>", List.of(), null ) );
         final String big = "{\"body\":\"" + "x".repeat( 262_000 ) + "\"}";
         assertEquals( 201, send( "POST", "/api/work/items", "/PLAT-1/comments", big ).status() );
     }

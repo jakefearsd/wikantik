@@ -22,5 +22,6 @@ import java.time.Instant;
 
 /** A comment on an item; removal is a soft delete. */
 public record Comment( long id, long itemId, String author, String body, Instant createdAt, Instant editedAt,
-                       Instant removedAt ) {
+                       Instant removedAt,
+                       Long authorAgentId ) {
 }

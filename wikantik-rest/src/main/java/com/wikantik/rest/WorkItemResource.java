@@ -100,7 +100,7 @@ public class WorkItemResource extends WorkResourceBase {
         final String kind = optString( b, "kind" );
         c.created( c.svc.createItem( c.actor, new ItemDraft( project, level == null ? null : WorkLevel.fromWire( level ),
             optString( b, "parentKey" ), optString( b, "productKey" ), kind == null ? null : WorkKind.fromWire( kind ),
-            optString( b, "title" ), optString( b, "body" ), priority( b ), dueOn( b ), optString( b, "assignee" ) ) ) );
+            optString( b, "title" ), optString( b, "body" ), priority( b ), dueOn( b ), optString( b, "assignee" ), null ) ) );
     }
 
     private static Integer priority( final JsonObject b ) {

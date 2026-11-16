@@ -71,7 +71,7 @@ class WorkServiceTest {
     private static Item item( final long id, final long projectId, final String key, final WorkLevel level,
                               final Long parentId ) {
         return new Item( id, projectId, key, level, parentId, null, WorkKind.SOFTWARE, "title " + key, "body",
-            WorkStatus.DRAFT, 3, 1024, null, null, "alice", null, null, null, 4, NOW, NOW, null );
+            WorkStatus.DRAFT, 3, 1024, null, null, "alice", null, null, null, 4, NOW, NOW, null, null, null, null, null, null );
     }
 
     private void role( final long projectId, final String login, final WorkRole role ) throws SQLException {
@@ -112,7 +112,7 @@ class WorkServiceTest {
             final Item d = inv.getArgument( 1 );
             return new Item( 99, 1, "PLAT-9", d.level(), d.parentId(), d.productId(), d.kind(), d.title(), d.body(),
                 d.status(), d.priority(), 1024, d.dueOn(), d.assignee(), "alice", null, null, null, 1, NOW, NOW,
-                null );
+                null, null, null, null, null, null );
         } );
         role( 1, "vera", WorkRole.VIEWER );
         role( 1, "alice", WorkRole.MEMBER );
@@ -131,7 +131,7 @@ class WorkServiceTest {
     private static ItemDraft draft( final WorkLevel level, final String parentKey, final String productKey,
                                     final String title, final String assignee ) {
         return new ItemDraft( "PLAT", level, parentKey, productKey, WorkKind.SOFTWARE, title, "", null, null,
-            assignee );
+            assignee, null );
     }
 
     @FunctionalInterface
@@ -183,13 +183,13 @@ class WorkServiceTest {
     void blankBodyIsNotRendered() throws SQLException {
         when( store.item( "PLAT-3" ) ).thenReturn( Optional.of( new Item( 12, 1, "PLAT-3", WorkLevel.TASK, 11L,
             null, WorkKind.SOFTWARE, "t", null, WorkStatus.DRAFT, 3, 1, null, null, "a", null, null, null, 1, NOW,
-            NOW, null ) ) );
+            NOW, null, null, null, null, null, null ) ) );
         assertEquals( "", service.item( alice, "PLAT-3" ).bodyHtml() );
     }
 
     @Test
     void commentIdFromInvisibleProjectIsNotFound() throws SQLException {
-        when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 20, "zoe", "secret", NOW, null, null ) ) );
+        when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 20, "zoe", "secret", NOW, null, null, null ) ) );
         assertThrows( WorkNotFoundException.class, () -> service.editComment( outsider, 5, "x" ) );
         assertThrows( WorkNotFoundException.class, () -> service.removeComment( outsider, 5 ) );
         verify( store, never() ).editComment( anyLong(), anyString(), anyString(), any(), anyList() );
@@ -352,7 +352,7 @@ class WorkServiceTest {
     @Test
     void mentionsParsedFromBodyAreLimitedToMembers() throws SQLException {
         when( store.addComment( any(), anyString(), any(), anyString(), anyList() ) )
-            .thenReturn( new Comment( 1, 12, "alice", "x", NOW, null, null ) );
+            .thenReturn( new Comment( 1, 12, "alice", "x", NOW, null, null, null ) );
         role( 1, "carol", WorkRole.VIEWER );
         service.addComment( alice, "PLAT-3", "hi @bob, @outsider and @bob again, mail a@b.com; @carol." );
         final ArgumentCaptor< List< String > > mentioned = ArgumentCaptor.forClass( List.class );
@@ -362,9 +362,9 @@ class WorkServiceTest {
 
     @Test
     void onlyAuthorEditsComment() throws SQLException {
-        when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "alice", "x", NOW, null, null ) ) );
+        when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "alice", "x", NOW, null, null, null ) ) );
         when( store.editComment( eq( 5L ), eq( "y" ), eq( "alice" ), any(), anyList() ) )
-            .thenReturn( new Comment( 5, 12, "alice", "y", NOW, NOW, null ) );
+            .thenReturn( new Comment( 5, 12, "alice", "y", NOW, NOW, null, null ) );
         assertThrows( WorkDeniedException.class, () -> service.editComment( bob, 5, "y" ) );
         assertThrows( WorkDeniedException.class, () -> service.editComment( lead, 5, "y" ) );
         assertEquals( "y", service.editComment( alice, 5, "y" ).body() );
@@ -372,9 +372,9 @@ class WorkServiceTest {
 
     @Test
     void authorOrLeadRemovesComment() throws SQLException {
-        when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "alice", "x", NOW, null, null ) ) );
+        when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "alice", "x", NOW, null, null, null ) ) );
         assertThrows( WorkDeniedException.class, () -> service.removeComment( bob, 5 ) );
-        when( store.comment( 6 ) ).thenReturn( Optional.of( new Comment( 6, 12, "vera", "x", NOW, null, null ) ) );
+        when( store.comment( 6 ) ).thenReturn( Optional.of( new Comment( 6, 12, "vera", "x", NOW, null, null, null ) ) );
         assertThrows( WorkDeniedException.class, () -> service.removeComment( viewer, 6 ),
             "a demoted viewer may not remove even their own comment" );
         service.removeComment( alice, 5 );
@@ -387,9 +387,9 @@ class WorkServiceTest {
     void waitingOnExcludesInvisibleProjects() throws SQLException {
         when( store.visibleProjects( alice ) ).thenReturn( List.of( plat ) );
         final Item older = new Item( 12, 1, "PLAT-3", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "",
-            WorkStatus.DRAFT, 3, 1, null, "alice", "x", null, null, null, 1, NOW, NOW.minusSeconds( 60 ), null );
+            WorkStatus.DRAFT, 3, 1, null, "alice", "x", null, null, null, 1, NOW, NOW.minusSeconds( 60 ), null, null, null, null, null, null );
         final Item newer = new Item( 13, 1, "PLAT-4", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "",
-            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null );
+            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null );
         when( store.assignedOpen( "alice", Set.of( 1L ) ) ).thenReturn( List.of( older ) );
         when( store.mentioning( "alice", Set.of( 1L ) ) ).thenReturn( List.of( newer, older ) );
         assertEquals( List.of( "PLAT-4", "PLAT-3" ),

@@ -21,5 +21,6 @@ package com.wikantik.work;
 import java.time.Instant;
 
 /** A prior title and body of an item. */
-public record ItemRevision( long itemId, int version, String title, String body, String editedBy, Instant editedAt ) {
+public record ItemRevision( long itemId, int version, String title, String body, String editedBy, Instant editedAt,
+                            Long editedByAgentId ) {
 }

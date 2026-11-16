@@ -28,7 +28,8 @@ import java.util.Set;
  * or less means the store default. {@code order} null means {@link Order#KEY}.
  */
 public record ItemFilter( Long projectId, Set< WorkStatus > statuses, String assignee, Long productId,
-                          WorkLevel level, Long parentId, String text, LocalDate dueBefore, int limit, Order order ) {
+                          WorkLevel level, Long parentId, String text, LocalDate dueBefore, int limit, Order order,
+                          String queue ) {
 
     /** The order of a list: by key (project, then number), or by due date soonest first with no date last. */
     public enum Order {
@@ -43,6 +44,12 @@ public record ItemFilter( Long projectId, Set< WorkStatus > statuses, String ass
     /** This filter with another project id and assignee; everything else kept. */
     public ItemFilter with( final Long newProjectId, final String newAssignee ) {
         return new ItemFilter( newProjectId, statuses, newAssignee, productId, level, parentId, text, dueBefore, limit,
-            order );
+            order, queue );
+    }
+
+    /** This filter restricted to a queue (null = any); everything else kept. */
+    public ItemFilter withQueue( final String newQueue ) {
+        return new ItemFilter( projectId, statuses, assignee, productId, level, parentId, text, dueBefore, limit,
+            order, newQueue );
     }
 }

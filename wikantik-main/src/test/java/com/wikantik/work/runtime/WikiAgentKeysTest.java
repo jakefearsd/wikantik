@@ -125,4 +125,16 @@ class WikiAgentKeysTest {
         assertEquals( "This agent's key owner no longer exists. Name a new owner.", e.getMessage() );
         assertEquals( before, service.list().size(), "no key was minted" );
     }
+
+    @Test
+    void anOwnerCheckThatCannotBeAnsweredMintsNothingAndSaysSo() {
+        final AgentKeys.Minted m = keys.mint( owner, "work-agent:codex", "janne" );
+        final WikiAgentKeys outage = new WikiAgentKeys( service, login -> {
+            throw new com.wikantik.work.WorkUnavailableException( "test: user database unreachable" );
+        } );
+        final int before = service.list().size();
+        assertThrows( com.wikantik.work.WorkUnavailableException.class,
+            () -> outage.remint( m.keyId(), "work-agent:codex", "janne" ) );
+        assertEquals( before, service.list().size(), "no key was minted" );
+    }
 }

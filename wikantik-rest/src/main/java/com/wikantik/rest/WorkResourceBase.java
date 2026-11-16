@@ -33,6 +33,7 @@ import com.wikantik.work.WorkConflictException;
 import com.wikantik.work.WorkDeniedException;
 import com.wikantik.work.WorkNotFoundException;
 import com.wikantik.work.WorkService;
+import com.wikantik.work.WorkUnavailableException;
 import com.wikantik.work.WorkValidationException;
 import com.wikantik.work.runtime.WikiWorkActors;
 import com.wikantik.work.runtime.WikiWorkDirectory;
@@ -241,6 +242,10 @@ public abstract class WorkResourceBase extends RestServletBase {
             sendValidation( response, e );
         } catch ( final WorkConflictException e ) {
             conflict( request, response, svc, actor, segs, e );
+        } catch ( final WorkUnavailableException e ) {
+            // Retryable, and never an answer: the cause is logged, the caller is told to try again.
+            LOG.warn( "Work API {} {} unavailable: {}", method, String.join( "/", segs ), e.getMessage(), e );
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Service temporarily unavailable" );
         } catch ( final Exception e ) {
             LOG.warn( "Work API {} {} failed: {}", method, String.join( "/", segs ), e.getMessage(), e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal error." );

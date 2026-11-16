@@ -75,7 +75,7 @@ public final class WorkWiring {
         final WorkListener listener = registry != null ? new WorkMetrics( registry, store ) : new WorkListener() { };
         final ApiKeyService apiKeys = ApiKeyServiceHolder.get( props );
         final WikiWorkDirectory directory = new WikiWorkDirectory( engine );
-        final AgentKeys agentKeys = apiKeys != null ? new WikiAgentKeys( apiKeys, directory::exists ) : AgentKeys.NONE;
+        final AgentKeys agentKeys = apiKeys != null ? new WikiAgentKeys( apiKeys, directory::ownerExists ) : AgentKeys.NONE;
         final WorkService service = new WorkService( store, new WikiWorkRenderer( engine ),
             directory, agentKeys, Clock.systemUTC(),
             new WorkSettings( claimExpiry( props ) ), listener, new WikiWorkAudit( engine ) );

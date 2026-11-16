@@ -307,4 +307,14 @@ class WorkAgentResourceTest {
         assertEquals( 200, r.status(), r.body() );
         assertEquals( "wkk_blank", r.json().getAsJsonObject().get( "token" ).getAsString() );
     }
+
+    @Test
+    void aRotationDuringAUserDatabaseOutageIs503NotAnOwnerRefusal() throws Exception {
+        Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) )
+            .thenThrow( new com.wikantik.work.WorkUnavailableException( "test: user database unreachable" ) );
+        final WorkHttp.Result r = send( "POST", "/5/rotate-key", null );
+        assertEquals( 503, r.status(), r.body() );
+        assertTrue( r.body().contains( "Service temporarily unavailable" ), r.body() );
+        assertFalse( r.body().contains( "unreachable" ), "the cause stays in the log: " + r.body() );
+    }
 }

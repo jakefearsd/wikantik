@@ -36,7 +36,9 @@ public final class WikiAgentKeys implements AgentKeys {
 
     /**
      * @param ownerExists whether a login is still in the user database: a re-mint keeps the old key's owner, so an
-     *                    owner who was deleted must be replaced by name instead
+     *                    owner who was deleted must be replaced by name instead. It throws
+     *                    {@link com.wikantik.work.WorkUnavailableException} when it cannot tell, and that passes
+     *                    through: an outage is never read as "the owner is gone"
      */
     public WikiAgentKeys( final ApiKeyService service, final Predicate< String > ownerExists ) {
         this.service = service;

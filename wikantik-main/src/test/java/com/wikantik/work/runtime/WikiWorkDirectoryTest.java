@@ -110,4 +110,36 @@ class WikiWorkDirectoryTest {
         assertEquals( com.wikantik.api.identity.PublicIdentity.UNKNOWN_CONTRIBUTOR,
             directory.displayName( "nobody-here" ) );
     }
+
+    /** A directory whose user database fails every lookup (an outage), and whose identity knows nobody. */
+    private static WikiWorkDirectory failingDirectory() throws Exception {
+        final com.wikantik.WikiEngine broken = org.mockito.Mockito.mock( com.wikantik.WikiEngine.class );
+        final com.wikantik.auth.UserManager users = org.mockito.Mockito.mock( com.wikantik.auth.UserManager.class );
+        final com.wikantik.auth.user.UserDatabase db = org.mockito.Mockito.mock( com.wikantik.auth.user.UserDatabase.class );
+        org.mockito.Mockito.when( users.getUserDatabase() ).thenReturn( db );
+        org.mockito.Mockito.when( db.findByLoginName( org.mockito.ArgumentMatchers.anyString() ) )
+            .thenThrow( new IllegalStateException( "test: user database unreachable" ) );
+        final com.wikantik.api.identity.PublicIdentity identity =
+            org.mockito.Mockito.mock( com.wikantik.api.identity.PublicIdentity.class );
+        org.mockito.Mockito.when( identity.userIdForLogin( org.mockito.ArgumentMatchers.anyString() ) )
+            .thenReturn( java.util.Optional.empty() );
+        org.mockito.Mockito.when( broken.getAuthSubsystem() ).thenReturn( new com.wikantik.auth.subsystem.AuthSubsystem
+            .Services( null, null, users, null, null, null, null, null, identity ) );
+        return new WikiWorkDirectory( broken );
+    }
+
+    @Test
+    void anOwnerCheckDuringAUserDatabaseOutageIsUnavailableNotGone() throws Exception {
+        final WikiWorkDirectory outage = failingDirectory();
+        org.junit.jupiter.api.Assertions.assertThrows( com.wikantik.work.WorkUnavailableException.class,
+            () -> outage.ownerExists( "lena" ), "a failed lookup must not read as \"no such user\"" );
+        assertFalse( outage.exists( "lena" ), "the admin login check keeps failing closed as unknown" );
+    }
+
+    @Test
+    void theOwnerCheckAnswersPlainlyWhenTheDatabaseAnswers() {
+        assertTrue( directory.ownerExists( "janne" ) );
+        assertFalse( directory.ownerExists( "nobody-here" ) );
+        assertFalse( directory.ownerExists( null ) );
+    }
 }

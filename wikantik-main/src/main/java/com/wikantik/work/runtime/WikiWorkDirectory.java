@@ -24,6 +24,7 @@ import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.work.WorkDirectory;
+import com.wikantik.work.WorkUnavailableException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -69,6 +70,32 @@ public final class WikiWorkDirectory implements WorkDirectory {
             LOG.warn( "User lookup failed while checking that a login exists; treating it as unknown: {}",
                 e.getMessage(), e );
             return false;
+        }
+    }
+
+    /**
+     * Whether the login is a current account, for a decision that must not mistake an outage for an answer: the key
+     * port's "the agent's key owner no longer exists" refusal, whose advice (name a new owner) moves ownership for
+     * good. Unlike {@link #exists}, a failed lookup is not "no": it throws {@link WorkUnavailableException} (logged
+     * at WARN), which the REST layer answers with 503 and nothing is minted.
+     */
+    public boolean ownerExists( final String login ) {
+        if ( login == null || login.isBlank() ) {
+            return false;
+        }
+        if ( identity().userIdForLogin( login ).isPresent() ) {
+            return true;
+        }
+        try {
+            AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase().findByLoginName( login );
+            return true;
+        } catch ( final NoSuchPrincipalException e ) {
+            LOG.debug( "Work management: the key owner {} is no longer an account: {}", login, e.getMessage() );
+            return false;
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "User lookup failed while checking an agent key's owner; the rotation is answered as "
+                + "unavailable: {}", e.getMessage(), e );
+            throw new WorkUnavailableException( "The user database could not be read.", e );
         }
     }
 

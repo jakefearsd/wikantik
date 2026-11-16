@@ -57,29 +57,6 @@ class WorkAgentIdentityPostgresTest {
         ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
         store = new JdbcWorkStore( ds );
-        final AgentKeys keys = new AgentKeys() {
-            @Override
-            public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
-                try {
-                    return new Minted( ( int ) WorkAgentFixtures.ownedKey( ds, ownerLogin ), "tok" );
-                } catch ( final SQLException e ) {
-                    throw new IllegalStateException( e );
-                }
-            }
-
-            @Override
-            public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
-                return mint( WorkAgentFixtures.ownerOf( ds, oldKeyId ), label, createdBy );
-            }
-
-            @Override
-            public void revoke( final int keyId, final String revokedBy ) {
-                revokeAttempts.add( keyId );
-                if ( failingRevokes.contains( keyId ) ) {
-                    throw new IllegalStateException( "key service down" );
-                }
-            }
-        };
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return groups.getOrDefault( login, Set.of() ); }
             @Override public boolean exists( final String login ) { return !gone.contains( login ); }
@@ -91,7 +68,7 @@ class WorkAgentIdentityPostgresTest {
                 return gone.contains( login ) ? java.util.Optional.empty()
                     : java.util.Optional.of( new Person( login, groupsOf( login ), admins.contains( login ) ) );
             }
-        }, keys, Clock.systemUTC(), WorkSettings.DEFAULTS, null );
+        }, Clock.systemUTC(), WorkSettings.DEFAULTS, null );
         service.createProject( admin, "PLAT", "Platform", "" );
         service.createProject( admin, "OPS", "Operations", "" );
         service.putMember( admin, "PLAT", "lena", "user", WorkRole.LEAD );

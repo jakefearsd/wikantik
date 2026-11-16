@@ -53,31 +53,12 @@ class WorkServiceAssignmentLogTest {
     void setUp() throws SQLException {
         ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
-        final AgentKeys keys = new AgentKeys() {
-            @Override
-            public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
-                try {
-                    return new Minted( ( int ) WorkAgentFixtures.ownedKey( ds, ownerLogin ), "tok" );
-                } catch ( final SQLException e ) {
-                    throw new IllegalStateException( e );
-                }
-            }
-
-            @Override
-            public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
-                return mint( WorkAgentFixtures.ownerOf( ds, oldKeyId ), label, createdBy );
-            }
-
-            @Override
-            public void revoke( final int keyId, final String revokedBy ) {
-            }
-        };
         svc = new WorkService( new JdbcWorkStore( ds ), md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
             @Override public String displayName( final String login ) { return login; }
             @Override public Optional< String > loginForDisplayName( final String name ) { return Optional.empty(); }
-        }, keys, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() { } );
+        }, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() { } );
         svc.createProject( admin, "AAA", "Alpha", "" );
         svc.createProject( admin, "BBB", "Beta", "" );
         svc.putMember( admin, "AAA", "lena", "user", WorkRole.LEAD );

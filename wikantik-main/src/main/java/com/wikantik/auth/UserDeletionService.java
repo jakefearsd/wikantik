@@ -30,10 +30,6 @@ import com.wikantik.collab.adapter.CollabEngineAccess;
 import com.wikantik.comments.PageOwnerService;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
 import com.wikantik.WikiEngine;
-import com.wikantik.work.Actor;
-import com.wikantik.work.WorkService;
-import com.wikantik.work.runtime.WikiWorkActors;
-import com.wikantik.work.runtime.WikiWorkAudit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -202,50 +198,11 @@ public class UserDeletionService {
             LOG.warn( "ApiKeyService not available — skipping API key revocation for '{}'", loginName );
             return;
         }
-        final List< String > agents = agentsKeyedBy( loginName );
         try {
             apiKeys.revokeAllForPrincipalOrThrow( loginName );
         } catch ( final Exception e ) {
             LOG.warn( "User delete aborted: failed to revoke API keys for user={}: {}", loginName, e.getMessage(), e );
             throw new WikiSecurityException( "Could not revoke API keys for '" + loginName + "'; account not deleted", e );
-        }
-        announceAgentsWithoutAKey( actorSession, loginName, agents );
-    }
-
-    /**
-     * The active work agents whose current key {@code loginName} owns. Revoking that key disables the agent (it is
-     * not retired and nothing is released: its key resolves to no actor and its claims lapse through the sweep), so
-     * each is announced. Best-effort: a failing lookup is logged and never aborts the delete.
-     */
-    private List< String > agentsKeyedBy( final String loginName ) {
-        final WorkService work = engine instanceof WikiEngine we ? we.workService() : null;
-        if ( work == null ) {
-            return List.of();
-        }
-        final List< String > agents = new ArrayList<>();
-        try {
-            for ( final ApiKeyService.Record key : apiKeys.listByPrincipal( loginName ) ) {
-                final Actor actor = WikiWorkActors.actorForKey( work, key );
-                if ( actor != null && actor.kind() == Actor.Kind.AGENT ) {
-                    agents.add( actor.login() );
-                }
-            }
-        } catch ( final SQLException | RuntimeException e ) {
-            LOG.warn( "User delete: could not tell which work agents user={} owns the key of; none is announced: {}",
-                    loginName, e.getMessage(), e );
-        }
-        return agents;
-    }
-
-    private void announceAgentsWithoutAKey( final Session actorSession, final String loginName,
-                                            final List< String > agents ) {
-        final String by = actorSession != null && actorSession.getLoginPrincipal() != null
-                ? actorSession.getLoginPrincipal().getName() : null;
-        for ( final String agent : agents ) {
-            LOG.warn( "User delete: work agent '{}' lost its API key because its owner user={} was deleted; it acts no"
-                    + " more until its key is rotated on the Agents page", agent, loginName );
-            new WikiWorkAudit( engine ).record( by, "work.agent.key_revoked", "work_agent", agent, "agent " + agent
-                    + " key revoked because its owner was deleted — rotate it on the Agents page to restore" );
         }
     }
 

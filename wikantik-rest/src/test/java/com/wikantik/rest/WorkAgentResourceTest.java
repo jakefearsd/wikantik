@@ -49,7 +49,7 @@ class WorkAgentResourceTest {
     private static final Actor ADMIN = Actor.human( "root", Set.of(), true );
     private static final Actor MEMBER = Actor.human( "dana", Set.of(), false );
     private static final Instant T = Instant.parse( "2026-11-15T10:00:00Z" );
-    private static final Agent BUILDER = new Agent( 5, "builder", "acme", "claude-code", "root", null, List.of( "triage" ), T, null );
+    private static final Agent BUILDER = new Agent( 5, "builder", "acme", "claude-code", "root", List.of( "triage" ), T, null );
     private static final String TOKEN = "wka_secret-token-value";
 
     private WorkService svc;
@@ -253,7 +253,7 @@ class WorkAgentResourceTest {
     @Test
     void aRotatePostWithABlankBodyIsAPlainRotation() throws Exception {
         // A client that sends no JSON but a non-zero or unknown length (chunked) still means "rotate, same owner".
-        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", null, 45, List.of( "triage" ), T, null );
+        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", null, List.of( "triage" ), T, null );
         Mockito.when( registry.rotateCredential( ADMIN, 5 ) )
             .thenReturn( new WorkService.AgentWithToken( rebound, "wkk_blank" ) );
         final WorkHttp.Result r = send( "POST", "/5/rotate-key", "  \n" );
@@ -295,7 +295,7 @@ class WorkAgentResourceTest {
 
     @Test
     void aSponsorlessOrRetiredAgentSaysSoPlainly() throws Exception {
-        final Agent loose = new Agent( 6, "loose", "", "", null, null, List.of(), T, null );
+        final Agent loose = new Agent( 6, "loose", "", "", null, List.of(), T, null );
         Mockito.when( registry.agentViews( ADMIN ) ).thenReturn( List.of(
             new WorkRegistryService.AgentView( loose, null, WorkRegistryService.AgentStatus.NO_SPONSOR ),
             new WorkRegistryService.AgentView( BUILDER, "Root Admin", WorkRegistryService.AgentStatus.SPONSOR_GONE ) ) );

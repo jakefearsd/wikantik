@@ -86,7 +86,7 @@ class WorkClaimsServiceTest {
         roles( 1, "viewer@host", WorkRole.VIEWER );
         when( store.queue( "implementer" ) ).thenReturn( Optional.of( new Queue( "implementer", "I", "", null ) ) );
         when( store.queue( "old" ) ).thenReturn( Optional.of( new Queue( "old", "O", "", NOW ) ) );
-        when( store.agent( 7 ) ).thenReturn( Optional.of( new Agent( 7, "codex@docker2", "", "", null, 1,
+        when( store.agent( 7 ) ).thenReturn( Optional.of( new Agent( 7, "codex@docker2", "", "", null,
             List.of( "implementer" ), NOW, null ) ) );
         service = build( plat );
     }
@@ -100,7 +100,7 @@ class WorkClaimsServiceTest {
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return Optional.of( name.toLowerCase( java.util.Locale.ROOT ) );
             }
-        }, AgentKeys.NONE, Clock.fixed( NOW, ZoneOffset.UTC ), new WorkSettings( Duration.ofMinutes( 240 ) ),
+        }, Clock.fixed( NOW, ZoneOffset.UTC ), new WorkSettings( Duration.ofMinutes( 240 ) ),
             new WorkListener() {
                 @Override public void claim( final ClaimOutcome o ) { outcomes.add( o ); }
                 @Override public void denied( final Action a ) { denials.add( a ); }
@@ -135,7 +135,7 @@ class WorkClaimsServiceTest {
     @Test
     void refusedClaimNamesHolder() throws SQLException {
         stored( item( "PLAT-1", WorkStatus.READY, "implementer", 8L ) );
-        when( store.agent( 8 ) ).thenReturn( Optional.of( new Agent( 8, "other@host", "", "", null, 2, List.of(), NOW,
+        when( store.agent( 8 ) ).thenReturn( Optional.of( new Agent( 8, "other@host", "", "", null, List.of(), NOW,
             null ) ) );
         when( claims.claimWithOutcome( any(), eq( codex ), any() ) ).thenReturn( Optional.empty() );
         final WorkConflictException e = assertThrows( WorkConflictException.class,

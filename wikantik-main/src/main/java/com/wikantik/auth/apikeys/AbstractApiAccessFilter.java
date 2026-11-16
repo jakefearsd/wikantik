@@ -66,7 +66,6 @@ import java.util.function.Predicate;
 public abstract class AbstractApiAccessFilter implements Filter {
 
     private static final Logger SECURITY = LogManager.getLogger( "SecurityLog" );
-    private static final String BEARER_PREFIX = "Bearer ";
     private static final int SC_TOO_MANY_REQUESTS = 429;
 
     /** Per-subclass logger so log categories keep pointing at the concrete filter. */
@@ -193,14 +192,15 @@ public abstract class AbstractApiAccessFilter implements Filter {
             return new Outcome.Allowed( "ip:" + remoteAddr, httpReq );
         }
 
-        final String bearer = bearer( httpReq );
+        final String bearer = AgentTokenAuth.bearer( httpReq );
         final Optional< ApiKeyService.Record > dbKey;
         try {
             if ( AgentTokenAuth.isAgentToken( bearer ) ) {
                 // An agent token is never an API key: it is verified by the work module or not at all.
-                final Optional< Outcome > agent = authorizeAgent( httpReq, bearer );
+                final Optional< AgentTokenAuth.Request > agent = AgentTokenAuth.accept( agentTokens,
+                    surface.requiredScope() == ApiKeyService.Scope.WORK, httpReq, bearer );
                 if ( agent.isPresent() ) {
-                    return agent.get();
+                    return new Outcome.Allowed( agent.get().ref().clientId(), agent.get() );
                 }
                 dbKey = Optional.empty();
             } else {
@@ -248,26 +248,6 @@ public abstract class AbstractApiAccessFilter implements Filter {
     /** Supplies the verifier for work agents' own tokens; without one an agent token is refused like any unknown one. */
     public void agentTokens( final AgentTokenAuth.Verifier verifier ) {
         this.agentTokens = verifier;
-    }
-
-    /**
-     * The outcome for a verified agent token, or empty when the token gives no access here: an agent token means
-     * something only on a surface that requires the {@code work} scope, so anywhere else it is not even verified,
-     * and an unknown or revoked one is nobody. The caller then falls through to the ordinary refusal.
-     */
-    private Optional< Outcome > authorizeAgent( final HttpServletRequest httpReq, final String token ) {
-        final AgentTokenAuth.Verifier verifier = agentTokens;
-        if ( verifier == null || surface.requiredScope() != ApiKeyService.Scope.WORK ) {
-            return Optional.empty();
-        }
-        return verifier.verify( token )
-            .map( ref -> new Outcome.Allowed( ref.clientId(), new AgentTokenAuth.Request( httpReq, ref ) ) );
-    }
-
-    private static String bearer( final HttpServletRequest request ) {
-        final String authHeader = request.getHeader( "Authorization" );
-        return authHeader == null || !authHeader.startsWith( BEARER_PREFIX ) ? null
-            : authHeader.substring( BEARER_PREFIX.length() );
     }
 
     private Optional< ApiKeyService.Record > checkDbKey( final String bearer ) {

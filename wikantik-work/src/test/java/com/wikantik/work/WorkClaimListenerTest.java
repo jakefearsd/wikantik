@@ -64,7 +64,7 @@ class WorkClaimListenerTest {
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return Optional.of( name.toLowerCase( java.util.Locale.ROOT ) );
             }
-        }, AgentKeys.NONE, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, new WorkListener() {
+        }, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, new WorkListener() {
             @Override public void claim( final ClaimOutcome o ) {
                 outcomes.add( o );
                 if ( listenerThrows ) {
@@ -75,7 +75,7 @@ class WorkClaimListenerTest {
     }
 
     private static Agent agent( final Instant retired ) {
-        return new Agent( 7, "codex@docker2", "", "", null, 1, List.of( "implementer" ), NOW, retired );
+        return new Agent( 7, "codex@docker2", "", "", null, List.of( "implementer" ), NOW, retired );
     }
 
     private void stored( final Item i ) throws SQLException {

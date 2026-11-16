@@ -22,8 +22,7 @@ import java.time.Instant;
 import java.util.List;
 
 /** A registered agent: an identity bound to one API key, serving some queues. */
-public record Agent( long id, String name, String vendor, String runtime, String sponsor, Integer apiKeyId,
-                     List< String > queues,
+public record Agent( long id, String name, String vendor, String runtime, String sponsor, List< String > queues,
                      Instant createdAt, Instant retiredAt ) {
 
     /** Whether the agent has not been retired. */

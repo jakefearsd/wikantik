@@ -39,6 +39,27 @@ final class WorkCallers {
     }
 
     /**
+     * Who a request acts as: a verified personal key is its owner as a person, a verified agent token is that agent
+     * (null when it is retired or nobody stands behind it), a bearer credential the filter did not vouch for is
+     * nobody, and only a request with no bearer credential at all is a session request.
+     */
+    static Actor actorOf( final com.wikantik.work.WorkService work, final HttpServletRequest request,
+                          final Function< HttpServletRequest, Actor > sessionActor ) {
+        if ( request.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD )
+                instanceof com.wikantik.auth.apikeys.ApiKeyService.Record key ) {
+            return com.wikantik.work.runtime.WikiWorkActors.actorForKey( work, key );
+        }
+        if ( request.getAttribute( AgentTokenAuth.ATTR_AGENT_REF ) instanceof AgentTokenAuth.AgentRef agent ) {
+            try {
+                return com.wikantik.work.runtime.WikiWorkActors.actorForAgent( work, agent );
+            } catch ( final java.sql.SQLException e ) {
+                throw new IllegalStateException( "Could not resolve the actor of an agent token", e );
+            }
+        }
+        return WorkApiKeyFilter.hasBearer( request ) ? null : sessionActor.apply( request );
+    }
+
+    /**
      * The caller, or null once an error has been written: 401 for no actor ({@code Invalid API key}, the one body of
      * {@link WorkApiKeyFilter}, when the request carried a bearer credential, so an unknown, revoked and retired-agent
      * key look the same; {@code Authentication required.} for an anonymous session), 503 when the store or the user directory did not answer, and 500 for anything else.

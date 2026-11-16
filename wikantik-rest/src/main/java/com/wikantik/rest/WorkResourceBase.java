@@ -84,27 +84,13 @@ public abstract class WorkResourceBase extends RestServletBase {
 
     /**
      * The calling actor, or null when there is none. A request that came through {@link WorkApiKeyFilter} with a
-     * verified key is whoever {@link WikiWorkActors#actorForKey} says that key is, and nobody else: no actor for a
-     * key bound to a retired or rotated-away agent, and never the key's owner or a session as a fallback. A request
+     * verified personal key is its owner as a person (never an admin), and one with a verified agent token is that
+     * agent while it is active and someone stands behind it; neither ever falls back to a session. A request
      * that carries a bearer credential the filter did not vouch for is no actor either. Only a request with no bearer
      * credential at all is a session request, so a bearer key always wins over a cookie on the same request.
      */
     protected Actor actor( final HttpServletRequest request ) {
-        if ( request.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) instanceof ApiKeyService.Record key ) {
-            try {
-                return WikiWorkActors.actorForKey( workService(), key );
-            } catch ( final SQLException e ) {
-                throw new IllegalStateException( "Could not resolve the actor of an API key", e );
-            }
-        }
-        if ( request.getAttribute( AgentTokenAuth.ATTR_AGENT_REF ) instanceof AgentTokenAuth.AgentRef agent ) {
-            try {
-                return WikiWorkActors.actorForAgent( workService(), agent );
-            } catch ( final SQLException e ) {
-                throw new IllegalStateException( "Could not resolve the actor of an agent token", e );
-            }
-        }
-        return WorkApiKeyFilter.hasBearer( request ) ? null : sessionActor( request );
+        return WorkCallers.actorOf( workService(), request, this::sessionActor );
     }
 
     /** The actor of the request's login session, or null for an anonymous one. */

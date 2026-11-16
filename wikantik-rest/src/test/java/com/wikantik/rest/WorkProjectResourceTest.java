@@ -156,7 +156,7 @@ class WorkProjectResourceTest {
     void anAgentMemberIsShownByNameWithNoIdAndNoMentionId() throws Exception {
         final com.wikantik.work.WorkRegistryService registry = Mockito.mock( com.wikantik.work.WorkRegistryService.class );
         Mockito.when( svc.registry() ).thenReturn( registry );
-        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "", "alice", null,
+        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "", "alice",
             List.of(), java.time.Instant.EPOCH, null ) ) );
         Mockito.when( svc.members( ALICE, "PLAT" ) ).thenReturn( List.of( new Member( 1, "5", "agent", WorkRole.MEMBER ) ) );
         final JsonObject m = call( "GET", "/PLAT/members", Map.of(), null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();

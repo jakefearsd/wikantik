@@ -26,7 +26,6 @@ import com.wikantik.jdbc.testing.PostgresTestDb;
 import com.wikantik.work.Actor;
 import com.wikantik.work.Agent;
 import com.wikantik.work.AgentDraft;
-import com.wikantik.work.AgentKeys;
 import com.wikantik.work.Item;
 import com.wikantik.work.ItemDraft;
 import com.wikantik.work.ItemPatch;
@@ -61,7 +60,7 @@ import java.util.UUID;
  */
 final class WorkMcpFixture {
 
-    static final String[] TABLES = { "work_agent_key_history", "work_agent_queue", "work_agent", "work_queue",
+    static final String[] TABLES = { "work_agent_credential", "work_agent_sponsor_history", "work_agent_queue", "work_agent", "work_queue",
         "work_link", "work_mention", "work_comment", "work_event", "work_item_revision", "work_item", "work_member",
         "work_product", "work_project" };
 
@@ -83,26 +82,7 @@ final class WorkMcpFixture {
         PostgresTestDb.truncate( TABLES );
         displayNames.put( "lena", "Lena Lead" );
         displayNames.put( "jdoe", "Jane Doe" );
-        final AgentKeys keys = new AgentKeys() {
-            @Override
-            public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
-                try {
-                    return new Minted( ( int ) apiKey( "work" ), "tok" );
-                } catch ( final SQLException e ) {
-                    throw new IllegalStateException( e );
-                }
-            }
-
-            @Override
-            public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
-                return mint( null, label, createdBy );
-            }
-
-            @Override
-            public void revoke( final int keyId, final String revokedBy ) {
-            }
-        };
-        svc = new WorkService( new JdbcWorkStore( ds ), md -> "<p>" + md + "</p>", directory(), keys,
+        svc = new WorkService( new JdbcWorkStore( ds ), md -> "<p>" + md + "</p>", directory(),
             Clock.systemUTC(), new WorkSettings( Duration.ofMinutes( 30 ) ), null );
         for ( final String project : List.of( "PLAT", "SECRET" ) ) {
             svc.createProject( admin, project, project + " project", "" );

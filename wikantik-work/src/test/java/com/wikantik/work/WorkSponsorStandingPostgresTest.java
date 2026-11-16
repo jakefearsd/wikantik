@@ -81,7 +81,7 @@ class WorkSponsorStandingPostgresTest {
                 return gone.contains( login ) ? Optional.empty()
                     : Optional.of( new Person( login, groupsOf( login ), "root".equals( login ) ) );
             }
-        }, AgentKeys.NONE, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
+        }, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
             @Override public void claim( final ClaimOutcome o ) { outcomes.add( o ); }
         }, ( a, b, c, d, e ) -> { } );
         service.createProject( root, "PLAT", "Platform", "" );

@@ -103,7 +103,7 @@ class WorkMeResourceTest {
     void anAgentHandoffIsByTheAgentsCurrentName() throws Exception {
         final com.wikantik.work.WorkRegistryService registry = Mockito.mock( com.wikantik.work.WorkRegistryService.class );
         Mockito.when( svc.registry() ).thenReturn( registry );
-        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "", "alice", null,
+        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "", "alice",
             List.of(), java.time.Instant.EPOCH, null ) ) );
         Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem(
             WorkHttp.item( "PLAT-1", "alice", 1 ), "assigned", handoff( "builder-old", com.wikantik.work.Actor.Kind.AGENT, 5L ) ) ) );

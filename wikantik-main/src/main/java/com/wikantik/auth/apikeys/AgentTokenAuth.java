@@ -38,6 +38,8 @@ public final class AgentTokenAuth {
     /** Request attribute holding the verified {@link AgentRef}. */
     public static final String ATTR_AGENT_REF = "wikantik.work.agentRef";
 
+    private static final String BEARER = "Bearer ";
+
     private AgentTokenAuth() {
     }
 
@@ -78,6 +80,27 @@ public final class AgentTokenAuth {
         return bearer != null && bearer.startsWith( PREFIX );
     }
 
+    /** The bearer value of the {@code Authorization} header, or null when the request carries none. */
+    public static String bearer( final HttpServletRequest request ) {
+        final String header = request.getHeader( "Authorization" );
+        return header == null || !header.startsWith( BEARER ) ? null : header.substring( BEARER.length() );
+    }
+
+    /**
+     * The request to forward for an agent token, or empty when the token gives no access here: an agent token means
+     * something only on a surface that requires the {@code work} scope and has a verifier, so anywhere else it is
+     * not even verified, and an unknown or revoked one is nobody. The caller then gives its ordinary refusal.
+     *
+     * @throws ApiKeyService.LookupFailedException when the credential store could not answer
+     */
+    public static Optional< Request > accept( final Verifier verifier, final boolean workSurface,
+                                              final HttpServletRequest request, final String token ) {
+        if ( verifier == null || !workSurface ) {
+            return Optional.empty();
+        }
+        return verifier.verify( token ).map( ref -> new Request( request, ref ) );
+    }
+
     /** The request as forwarded for a verified agent: it carries the {@link AgentRef} and no principal. */
     public static final class Request extends HttpServletRequestWrapper {
 
@@ -86,6 +109,11 @@ public final class AgentTokenAuth {
         public Request( final HttpServletRequest request, final AgentRef ref ) {
             super( request );
             this.ref = ref;
+        }
+
+        /** The verified agent this request acts as. */
+        public AgentRef ref() {
+            return ref;
         }
 
         @Override

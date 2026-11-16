@@ -65,8 +65,7 @@ public final class WorkClaimsService {
 
     private final WorkStore store;
     private final WorkScopes scopes;
-    /** Whether the last standing sweep met a directory that did not answer (so the WARN is written once). */
-    private volatile boolean sponsorLookupDown;
+    private final SponsorSweep sponsorSweep;
     private final WorkPeople people;
     private final ItemViews views;
     private final ItemPatchApplier applier;
@@ -82,6 +81,7 @@ public final class WorkClaimsService {
         this.applier = applier;
         this.settings = settings;
         this.listener = listener;
+        this.sponsorSweep = new SponsorSweep( store, scopes, listener );
     }
 
     /** How long a claim lasts before it lapses: configuration, not data, so it takes no actor. */
@@ -295,72 +295,18 @@ public final class WorkClaimsService {
     // ---- expiry
 
     /** Expires lapsed claims (a system task, no caller); returns how many were released. */
-    /**
-     * The sponsors of the agents that hold a claim in the project, each resolved as they are now, for the member
-     * transaction to check again once it has changed a row. A sponsor who cannot be resolved (no account, or the
-     * directory did not answer) is left out: {@link #sweepStanding} ends those claims, and a lookup that did not
-     * answer must end nothing.
-     */
+    /** See {@link SponsorSweep#sponsorsHoldingClaimsIn}. */
     List< Actor > sponsorsHoldingClaimsIn( final long projectId ) throws SQLException {
-        final Map< String, Actor > sponsors = new java.util.LinkedHashMap<>();
-        for ( final WorkClaimStore.Holder h : store.claims().claimHolders( projectId ) ) {
-            if ( h.sponsor() != null && !sponsors.containsKey( h.sponsor() ) ) {
-                try {
-                    scopes.person( h.sponsor() ).ifPresent( p -> sponsors.put( p.login(),
-                        Actor.human( p.login(), p.groups(), p.admin() ) ) );
-                } catch ( final WorkUnavailableException e ) {
-                    LOG.warn( "A sponsor could not be looked up during a membership change; the claim sweep will "
-                        + "re-check their agents: {}", e.getMessage() );
-                }
-            }
-        }
-        return List.copyOf( sponsors.values() );
+        return sponsorSweep.sponsorsHoldingClaimsIn( projectId );
     }
 
     /**
-     * Ends every claim its holder may no longer hold because of a change the work module was not told about: the
-     * sponsor's account is gone, the agent has no sponsor, or the sponsor (through a group, or no longer an admin)
-     * has less than {@code member} standing in the project. Each ending is a {@code released} event with the reason
-     * {@code sponsor access removed}, attributed to the agent as an expiry is, and counted RELEASED. A sponsor whose
-     * lookup fails is skipped, with one WARN per outage: a lookup that did not answer is never lost standing.
-     * Internal scheduler only, like {@link #sweepExpiredClaims}.
+     * Ends every claim its holder may no longer hold because of a change the work module was not told about (a
+     * sponsor's account, group or admin role); see {@link SponsorSweep#sweep}. Internal scheduler only, like
+     * {@link #sweepExpiredClaims}.
      */
     public int sweepStanding() throws SQLException {
-        final Map< String, java.util.Optional< Actor > > resolved = new java.util.HashMap<>();
-        final Set< String > failed = new java.util.HashSet<>();
-        int ended = 0;
-        for ( final WorkClaimStore.Holder h : store.claims().claimHolders( null ) ) {
-            if ( h.sponsor() != null && !resolved.containsKey( h.sponsor() ) && !failed.contains( h.sponsor() ) ) {
-                try {
-                    resolved.put( h.sponsor(), scopes.person( h.sponsor() )
-                        .map( p -> Actor.human( p.login(), p.groups(), p.admin() ) ) );
-                } catch ( final WorkUnavailableException e ) {
-                    failed.add( h.sponsor() );
-                }
-            }
-            if ( h.sponsor() != null && failed.contains( h.sponsor() ) ) {
-                continue;
-            }
-            final Actor sponsor = h.sponsor() == null ? null : resolved.get( h.sponsor() ).orElse( null );
-            if ( sponsor == null || !sponsor.instanceAdmin() && !scopes.standing().roleIn( h.projectId(), sponsor )
-                    .map( r -> r.atLeast( WorkRole.MEMBER ) ).orElse( false ) ) {
-                ended += store.claims().releaseForStanding( h.projectId(), List.of( h.agentId() ),
-                    Actor.agent( h.agentId(), h.agentName() ), JdbcWorkClaims.SPONSOR_ACCESS_REMOVED );
-            }
-        }
-        warnOncePerOutage( !failed.isEmpty() );
-        listener.released( ended );
-        return ended;
-    }
-
-    private void warnOncePerOutage( final boolean failedNow ) {
-        if ( failedNow && !sponsorLookupDown ) {
-            LOG.warn( "The user directory did not answer while re-checking agents' sponsors; their claims are left "
-                + "as they are until it does" );
-        } else if ( !failedNow && sponsorLookupDown ) {
-            LOG.info( "The user directory answers again; agents' sponsors are being re-checked" );
-        }
-        sponsorLookupDown = failedNow;
+        return sponsorSweep.sweep();
     }
 
     public int sweepExpiredClaims() throws SQLException {

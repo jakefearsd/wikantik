@@ -52,10 +52,10 @@ public final class WorkRegistryService {
     private final RegistryChanges changes;
     private final AgentSponsorship sponsorship;
 
-    WorkRegistryService( final WorkStore store, final WorkScopes scopes, final WorkPeople people, final AgentKeys keys,
+    WorkRegistryService( final WorkStore store, final WorkScopes scopes, final WorkPeople people,
                   final Clock clock, final GuardedListener listener, final WorkAudit audit ) {
         this.store = store;
-        this.changes = new RegistryChanges( keys, audit );
+        this.changes = new RegistryChanges( audit );
         this.sponsorship = new AgentSponsorship( store, scopes );
         this.listener = listener;
         this.scopes = scopes;
@@ -125,7 +125,7 @@ public final class WorkRegistryService {
      * the agents that are members of a project they can see. Never a key id.
      */
     public List< Agent > listAgents( final Actor actor ) throws SQLException {
-        return sponsorship.visibleAgents( actor ).stream().map( WorkRegistryService::withoutKey ).toList();
+        return sponsorship.visibleAgents( actor );
     }
 
     /** {@link #listAgents} with each agent's sponsor name and status. */
@@ -142,11 +142,6 @@ public final class WorkRegistryService {
             sponsorship.status( a ) );
     }
 
-    private static Agent withoutKey( final Agent a ) {
-        return new Agent( a.id(), a.name(), a.vendor(), a.runtime(), a.sponsor(), null, a.queues(), a.createdAt(),
-            a.retiredAt() );
-    }
-
     /**
      * The calling agent's own record, whether or not it was admitted to any project: it needs to know its own name,
      * vendor, runtime and queues. Empty for a person, for an agent actor without an id, and for a retired agent.
@@ -155,7 +150,7 @@ public final class WorkRegistryService {
         if ( actor.kind() != Actor.Kind.AGENT || actor.agentId() == null ) {
             return java.util.Optional.empty();
         }
-        return store.agent( actor.agentId() ).filter( Agent::active ).map( WorkRegistryService::withoutKey );
+        return store.agent( actor.agentId() ).filter( Agent::active );
     }
 
     /**
@@ -181,7 +176,7 @@ public final class WorkRegistryService {
         final String token = store.credentials().issue( agent.id(), actor.login() ).token();
         LOG.info( "Work agent '{}' registered by {}", name, actor.login() );
         changes.audit( actor, "work.agent.register", AGENT, name, null );
-        return new WorkService.AgentWithToken( withoutKey( agent ), token );
+        return new WorkService.AgentWithToken( agent, token );
     }
 
     /**
@@ -220,7 +215,7 @@ public final class WorkRegistryService {
         final String token = store.credentials().issue( agentId, actor.login() ).token();
         LOG.info( "Work agent '{}' credential rotated by {}", existing.name(), actor.login() );
         changes.audit( actor, "work.agent.rotate_key", AGENT, existing.name(), null );
-        return new WorkService.AgentWithToken( withoutKey( existing ), token );
+        return new WorkService.AgentWithToken( existing, token );
     }
 
     /** Retires the agent, releases its claims and revokes its credential; repeatable. Sponsor or wiki admin. */
@@ -247,7 +242,7 @@ public final class WorkRegistryService {
         listener.released( store.claims().setSponsorAndRelease( agentId, actor, actor.login(), actor ) );
         LOG.info( "Work agent '{}' taken over by {}", existing.name(), actor.login() );
         changes.audit( actor, "work.agent.takeover", AGENT, existing.name(), null );
-        return withoutKey( store.agent( agentId ).orElse( existing ) );
+        return store.agent( agentId ).orElse( existing );
     }
 
     /** The sponsor (or a wiki admin) gives the agent up: it is no actor until someone takes it over. */
@@ -261,19 +256,12 @@ public final class WorkRegistryService {
     }
 
     /**
-     * The only place an actor's kind is derived: a key bound to an active agent is that agent; a key bound to a
-     * retired agent, or one that was ever bound to an agent and since rotated away, is no actor (null, never its
-     * owner, even if its revocation failed); a key never bound to an agent is its owner as a person, never admin.
+     * The actor for a personal API key with the work scope: its owner as a person, with their groups as they are
+     * now and never as a wiki admin. No API key is, was or can become an agent: agents have their own credential
+     * ({@link #agentForToken}).
      */
-    public Actor actorForApiKey( final int apiKeyId, final String ownerLogin ) throws SQLException {
-        final Agent bound = store.agentByApiKey( apiKeyId ).orElse( null );
-        if ( bound == null ) {
-            if ( store.wasEverAgentKey( apiKeyId ) ) {
-                return null;
-            }
-            return Actor.human( ownerLogin, scopes.groupsOf( ownerLogin ), false );
-        }
-        return agentActor( bound );
+    public Actor actorForApiKey( final int apiKeyId, final String ownerLogin ) {
+        return Actor.human( ownerLogin, scopes.groupsOf( ownerLogin ), false );
     }
 
     /** A verified agent token: the credential it is and the agent it names. */
@@ -322,21 +310,6 @@ public final class WorkRegistryService {
         return scopes.person( agent.sponsor() )
             .map( p -> Actor.agent( agent.id(), agent.name(), Actor.human( p.login(), p.groups(), p.admin() ) ) )
             .orElse( null );
-    }
-
-    /**
-     * The name of the agent the key is bound to now, or was bound to before a rotation (retired agents included);
-     * empty for any other key. Agent keys are managed only through the registry, so the generic key endpoints use
-     * this to refuse rotating or revoking one. A system lookup: it takes no actor and the caller decides who may see
-     * the name.
-     */
-    public java.util.Optional< String > agentNameForKey( final int apiKeyId ) throws SQLException {
-        return store.agentEverBoundTo( apiKeyId ).map( Agent::name );
-    }
-
-    /** Whether the key is, or ever was, an agent's key ({@link #agentNameForKey} is present). */
-    public boolean isAgentKey( final int apiKeyId ) throws SQLException {
-        return agentNameForKey( apiKeyId ).isPresent();
     }
 
     /**

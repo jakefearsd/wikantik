@@ -33,34 +33,10 @@ final class RegistryChanges {
     private static final Logger LOG = LogManager.getLogger( RegistryChanges.class );
     private static final String UNIQUE_VIOLATION = "23505";
 
-    private final AgentKeys keys;
     private final WorkAudit audit;
 
-    RegistryChanges( final AgentKeys keys, final WorkAudit audit ) {
-        this.keys = keys;
+    RegistryChanges( final WorkAudit audit ) {
         this.audit = audit;
-    }
-
-    /**
-     * The key a rotation mints: under {@code owner} when one was named; else from the old key, keeping its owner
-     * (never the rotating admin), even when it was revoked; an agent with no key at all gets one owned by the admin.
-     */
-    AgentKeys.Minted rotationKey( final Actor actor, final Agent existing, final String owner, final String label ) {
-        if ( owner != null ) {
-            return keys.mint( owner, label, actor.login() );
-        }
-        return existing.apiKeyId() == null ? keys.mint( actor.login(), label, actor.login() )
-            : keys.remint( existing.apiKeyId(), label, actor.login() );
-    }
-
-    /** A failed revoke must not mask the outcome that caused it; the key then lives on, so say so. */
-    void revokeQuietly( final int keyId, final Actor by ) {
-        try {
-            keys.revoke( keyId, by.login() );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "Could not revoke a work-agent API key (requested by {}); it may still be live: {}", by.login(),
-                e.getMessage(), e );
-        }
     }
 
     /** The admin audit trail entry for a registry change; never a token or key id, never failing the change. */

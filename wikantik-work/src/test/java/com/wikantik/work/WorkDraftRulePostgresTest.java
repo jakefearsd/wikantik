@@ -56,25 +56,6 @@ class WorkDraftRulePostgresTest {
     void setUp() throws SQLException {
         ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
-        final AgentKeys keys = new AgentKeys() {
-            @Override
-            public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
-                try {
-                    return new Minted( ( int ) WorkAgentFixtures.ownedKey( ds, ownerLogin ), "tok" );
-                } catch ( final SQLException e ) {
-                    throw new IllegalStateException( e );
-                }
-            }
-
-            @Override
-            public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
-                return mint( WorkAgentFixtures.ownerOf( ds, oldKeyId ), label, createdBy );
-            }
-
-            @Override
-            public void revoke( final int keyId, final String revokedBy ) {
-            }
-        };
         svc = new WorkService( new JdbcWorkStore( ds ), md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
@@ -82,7 +63,7 @@ class WorkDraftRulePostgresTest {
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return "Lena Lead".equals( name ) ? Optional.of( "lena" ) : Optional.empty();
             }
-        }, keys, Clock.systemUTC(), WorkSettings.DEFAULTS, null );
+        }, Clock.systemUTC(), WorkSettings.DEFAULTS, null );
         svc.createProject( admin, "PLAT", "Platform", "" );
         svc.putMember( admin, "PLAT", "lena", "user", WorkRole.LEAD );
         svc.registry().createQueue( admin, "implementer", "Implementer", "" );

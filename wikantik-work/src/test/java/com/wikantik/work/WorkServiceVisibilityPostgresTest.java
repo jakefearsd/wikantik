@@ -58,7 +58,7 @@ class WorkServiceVisibilityPostgresTest {
         "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
-    private static final Set< String > SYSTEM = Set.of( "actorForApiKey", "agentNameForKey", "isAgentKey",
+    private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
         "agentForToken", "actorForAgent",
         "sweepExpiredClaims", "sweepStanding", "claimExpiry" );
 
@@ -367,7 +367,6 @@ class WorkServiceVisibilityPostgresTest {
         final Agent own = service.registry().self( rogueAgent ).orElseThrow();   // admitted to no project at all
         assertEquals( "rogue@x", own.name() );
         assertEquals( rogueAgent.agentId(), own.id() );
-        assertNull( own.apiKeyId(), "the key id never leaves the registry" );
         final Agent codex = service.registry().self( codexActor ).orElseThrow();
         assertEquals( List.of( "implementer" ), codex.queues(), "positive control: a real record with its queues" );
         assertTrue( service.registry().self( mallory ).isEmpty(), "a person has no agent record" );

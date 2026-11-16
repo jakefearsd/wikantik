@@ -54,48 +54,17 @@ class WorkRegistryServiceTest {
     private static final Instant NOW = Instant.parse( "2026-11-16T12:00:00Z" );
 
     /** Records what the service asked of the key service. */
-    private static final class FakeKeys implements AgentKeys {
-        final List< String > minted = new ArrayList<>();
-        final List< String > reminted = new ArrayList<>();
-        final List< String > revoked = new ArrayList<>();
-        final List< String > creators = new ArrayList<>();
-        int next = 100;
-        RuntimeException revokeFails;
-
-        @Override
-        public Minted mint( final String ownerLogin, final String label, final String createdBy ) {
-            minted.add( ownerLogin + "|" + label );
-            creators.add( createdBy );
-            return new Minted( next++, "token-" + ( next - 1 ) );
-        }
-
-        @Override
-        public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
-            reminted.add( oldKeyId + "|" + label );
-            creators.add( createdBy );
-            return new Minted( next++, "token-" + ( next - 1 ) );
-        }
-
-        @Override
-        public void revoke( final int keyId, final String revokedBy ) {
-            revoked.add( keyId + "|" + revokedBy );
-            if ( revokeFails != null ) {
-                throw revokeFails;
-            }
-        }
-    }
 
     private final Actor admin = Actor.human( "admin", Set.of(), true );
     private final Actor mallory = Actor.human( "mallory", Set.of(), false );
     private WorkStore store;
     private WorkClaimStore claims;
-    private FakeKeys keys;
     private WorkService service;
     /** What reached the admin audit trail: {@code actor|action|type|target|detail}. */
     private final List< String > audited = new ArrayList<>();
 
     private static Agent agent( final long id, final String name, final Integer key, final Instant retired ) {
-        return new Agent( id, name, "", "", "lena", key, List.of( "implementer" ), NOW, retired );
+        return new Agent( id, name, "", "", "lena", List.of( "implementer" ), NOW, retired );
     }
 
     @BeforeEach
@@ -103,7 +72,6 @@ class WorkRegistryServiceTest {
         store = mock( WorkStore.class );
         claims = mock( WorkClaimStore.class );
         when( store.claims() ).thenReturn( claims );
-        keys = new FakeKeys();
         when( store.queue( "implementer" ) ).thenReturn( Optional.of( new Queue( "implementer", "I", "", null ) ) );
         when( store.queue( "old" ) ).thenReturn( Optional.of( new Queue( "old", "O", "", NOW ) ) );
         when( store.queue( "nope" ) ).thenReturn( Optional.empty() );
@@ -112,7 +80,7 @@ class WorkRegistryServiceTest {
             @Override public boolean exists( final String login ) { return "lena".equals( login )
                 || "admin".equals( login ); }
             @Override public String displayName( final String login ) { return login; }
-        }, keys, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null,
+        }, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null,
             ( actor, action, type, target, detail ) -> audited.add( actor + "|" + action + "|" + type + "|" + target
                 + "|" + detail ) );
     }
@@ -194,7 +162,7 @@ class WorkRegistryServiceTest {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
             @Override public String displayName( final String login ) { return login; }
-        }, keys, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null,
+        }, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null,
             ( actor, action, type, target, detail ) -> { throw new IllegalStateException( "audit down" ); } );
         when( store.queue( "ops" ) ).thenReturn( Optional.of( new Queue( "ops", "Ops", "", null ) ) );
         svc.registry().retireQueue( admin, "ops" );

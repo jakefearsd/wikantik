@@ -77,7 +77,7 @@ class WorkClaimRacePostgresTest {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
             @Override public String displayName( final String login ) { return login; }
-        }, AgentKeys.NONE, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
+        }, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
             @Override public void claim( final ClaimOutcome o ) { heard.add( o ); }
         } );
     }
@@ -302,7 +302,7 @@ class WorkClaimRacePostgresTest {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
             @Override public String displayName( final String login ) { return login; }
-        }, AgentKeys.NONE, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
+        }, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
             @Override public void claim( final ClaimOutcome o ) {
                 if ( o == ClaimOutcome.EXPIRED ) {
                     expired.incrementAndGet();

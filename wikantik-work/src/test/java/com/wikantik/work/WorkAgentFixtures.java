@@ -29,7 +29,7 @@ import java.util.UUID;
 final class WorkAgentFixtures {
 
     /** Tables a test that writes as an agent truncates, in one call. */
-    static final String[] TABLES = { "work_agent_credential", "work_agent_sponsor_history", "work_agent_key_history", "work_agent_queue", "work_agent", "work_queue", "work_link", "work_mention",
+    static final String[] TABLES = { "work_agent_credential", "work_agent_sponsor_history", "work_agent_queue", "work_agent", "work_queue", "work_link", "work_mention",
         "work_comment", "work_event", "work_item_revision", "work_item", "work_member", "work_product",
         "work_project" };
 
@@ -97,8 +97,7 @@ final class WorkAgentFixtures {
     /** An agent row bound to the given key. */
     static long agent( final DataSource ds, final String name, final long keyId ) throws SQLException {
         // Sponsored on its row by the admin that sponsored(...) resolves: the claim lock compares the two.
-        return scalar( ds, "INSERT INTO work_agent (name, api_key_id, sponsor) VALUES ('" + name + "'," + keyId
-            + ", 'sponsor-root') RETURNING id" );
+        return scalar( ds, "INSERT INTO work_agent (name, sponsor) VALUES ('" + name + "', 'sponsor-root') RETURNING id" );
     }
 
     /** An agent row on a fresh work-scope key. */

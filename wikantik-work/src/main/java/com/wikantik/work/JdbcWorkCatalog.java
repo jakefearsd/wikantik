@@ -79,11 +79,13 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     /** The claim half of the store; a member losing access releases its claims inside the member transaction. */
     private final JdbcWorkClaims claims;
     private final JdbcWorkCredentials credentials;
+    private final JdbcWorkMembers members;
 
     JdbcWorkCatalog( final Jdbc jdbc ) {
         super( jdbc );
         this.claims = new JdbcWorkClaims( jdbc, this );
         this.credentials = new JdbcWorkCredentials( jdbc );
+        this.members = new JdbcWorkMembers( jdbc, this, claims );
     }
 
     /** The claim half of the store; declared here so {@link JdbcWorkStore} inherits it as {@code WorkStore.claims()}. */
@@ -191,82 +193,36 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     }
 
     /**
-     * Adds the member or changes its role, with a {@code member} event (from: the old grant or null; to: the new
-     * one), in one transaction. Putting the role the member already holds changes nothing and writes nothing.
+     * Upserts the grant and records the {@code member} event in one transaction; an agent demoted to viewer loses
+     * its claims in the project in the same transaction ({@link JdbcWorkMembers}).
      */
     @Override
     public int putMember( final long projectId, final String principal, final String principalKind,
                            final WorkRole role, final Actor by ) throws SQLException {
-        return putMember( projectId, principal, principalKind, role, by, List.of() );
+        return members.put( projectId, principal, principalKind, role, by, List.of() );
     }
 
     @Override
     public int putMember( final long projectId, final String principal, final String principalKind,
                            final WorkRole role, final Actor by, final java.util.Collection< Actor > sponsorsToRecheck )
             throws SQLException {
-        requireAttributed( by.kind(), by.agentId() );
-        if ( "agent".equals( principalKind ) ) {
-            WorkInputs.requireAgentRole( role );
-        }
-        return jdbc.inTransaction( conn -> {
-            final WorkRole before = jdbc.queryOne( conn, "SELECT role FROM work_member WHERE project_id = ? "
-                    + "AND principal_kind = ? AND principal = ? FOR UPDATE",
-                ps -> { ps.setLong( 1, projectId ); ps.setString( 2, principalKind ); ps.setString( 3, principal ); },
-                rs -> WorkRole.fromWire( rs.getString( 1 ) ) ).orElse( null );
-            if ( before == role ) {
-                return 0;
-            }
-            jdbc.update( conn, """
-                INSERT INTO work_member (project_id, principal_kind, principal, role) VALUES (?,?,?,?)
-                ON CONFLICT (project_id, principal_kind, principal) DO UPDATE SET role = EXCLUDED.role
-                """,
-                ps -> {
-                    ps.setLong( 1, projectId );
-                    ps.setString( 2, principalKind );
-                    ps.setString( 3, principal );
-                    ps.setString( 4, role.wire() );
-                } );
-            appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
-                before == null ? null : memberValue( principalKind, principal, before ),
-                memberValue( principalKind, principal, role ), null ) );
-            final int own = role == WorkRole.VIEWER && "agent".equals( principalKind )
-                ? claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED ) : 0;
-            return own + claims.releaseForSponsors( conn, projectId, sponsorsToRecheck, by );
-        } );
+        return members.put( projectId, principal, principalKind, role, by, sponsorsToRecheck );
     }
 
-    /**
-     * Deletes the grant (membership is state; the {@code member} event, from the old grant to null, is the history),
-     * in one transaction. Removing someone who is not a member writes nothing.
-     */
     @Override
     public int removeMember( final long projectId, final String principal, final String principalKind,
                               final Actor by ) throws SQLException {
-        return removeMember( projectId, principal, principalKind, by, List.of() );
+        return members.remove( projectId, principal, principalKind, by, List.of() );
     }
 
     @Override
     public int removeMember( final long projectId, final String principal, final String principalKind,
                               final Actor by, final java.util.Collection< Actor > sponsorsToRecheck )
             throws SQLException {
-        requireAttributed( by.kind(), by.agentId() );
-        return jdbc.inTransaction( conn -> {
-            final Optional< WorkRole > removed = jdbc.queryOne( conn, "DELETE FROM work_member WHERE project_id = ? "
-                    + "AND principal_kind = ? AND principal = ? RETURNING role",
-                ps -> { ps.setLong( 1, projectId ); ps.setString( 2, principalKind ); ps.setString( 3, principal ); },
-                rs -> WorkRole.fromWire( rs.getString( 1 ) ) );
-            if ( removed.isPresent() ) {
-                appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
-                    memberValue( principalKind, principal, removed.get() ), null, null ) );
-                final int own = "agent".equals( principalKind )
-                    ? claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED ) : 0;
-                return own + claims.releaseForSponsors( conn, projectId, sponsorsToRecheck, by );
-            }
-            return 0;
-        } );
+        return members.remove( projectId, principal, principalKind, by, sponsorsToRecheck );
     }
 
-    private static WorkEvent projectEvent( final long projectId, final Actor by, final String type,
+    static WorkEvent projectEvent( final long projectId, final Actor by, final String type,
                                            final String from, final String to, final String note ) {
         return new WorkEvent( 0, projectId, null, null, null, by.login(), by.kind(), by.agentId(), type, from, to,
             note );
@@ -316,22 +272,6 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
             ps -> ps.setLong( 1, projectId ), MEMBER_ROW );
     }
 
-    /** The agent id as the text stored in an {@code agent} member row, or a never-matching empty string. */
-    private static String agentPrincipal( final Actor actor ) {
-        return actor.kind() == Actor.Kind.AGENT && actor.agentId() != null ? String.valueOf( actor.agentId() ) : "";
-    }
-
-    /** Groups only count for people: an agent never inherits a person's or a group's access. */
-    private static String[] groupArray( final Actor actor ) {
-        return actor.kind() != Actor.Kind.HUMAN || actor.groups() == null
-            ? new String[ 0 ] : actor.groups().toArray( new String[ 0 ] );
-    }
-
-    /** The login as matched against {@code user} rows: people only, a never-matching empty string for agents. */
-    private static String userPrincipal( final Actor actor ) {
-        return actor.kind() == Actor.Kind.HUMAN && actor.login() != null ? actor.login() : "";
-    }
-
     @Override
     public Optional< WorkRole > roleFor( final long projectId, final Actor actor ) throws SQLException {
         return jdbc.withConnection( conn -> roleOn( conn, projectId, actor ) );
@@ -340,11 +280,11 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     /** {@link #roleFor} on the caller's connection: the role as this transaction sees the member rows. */
     Optional< WorkRole > roleOn( final Connection conn, final long projectId, final Actor actor )
             throws SQLException {
-        final String[] groups = groupArray( actor );
-        final String agent = agentPrincipal( actor );
+        final String[] groups = JdbcWorkMembers.groupArray( actor );
+        final String agent = JdbcWorkMembers.agentPrincipal( actor );
         final List< WorkRole > roles = jdbc.query( conn, ROLES_FOR_SQL, ps -> {
             ps.setLong( 1, projectId );
-            ps.setString( 2, userPrincipal( actor ) );
+            ps.setString( 2, JdbcWorkMembers.userPrincipal( actor ) );
             ps.setArray( 3, conn.createArrayOf( "text", groups ) );
             ps.setString( 4, agent );
         }, rs -> WorkRole.fromWire( rs.getString( 1 ) ) );
@@ -356,10 +296,10 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
         if ( actor.instanceAdmin() ) {
             return projects();
         }
-        final String[] groups = groupArray( actor );
-        final String agent = agentPrincipal( actor );
+        final String[] groups = JdbcWorkMembers.groupArray( actor );
+        final String agent = JdbcWorkMembers.agentPrincipal( actor );
         return jdbc.withConnection( conn -> jdbc.query( conn, VISIBLE_PROJECTS_SQL, ps -> {
-            ps.setString( 1, userPrincipal( actor ) );
+            ps.setString( 1, JdbcWorkMembers.userPrincipal( actor ) );
             ps.setArray( 2, conn.createArrayOf( "text", groups ) );
             ps.setString( 3, agent );
         }, PROJECT_ROW ) );

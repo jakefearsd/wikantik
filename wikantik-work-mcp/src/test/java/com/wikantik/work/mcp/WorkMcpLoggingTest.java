@@ -118,9 +118,12 @@ class WorkMcpLoggingTest {
     @Test
     void aKeyLookupFailureIsLoggedWithoutItsMessage() throws Exception {
         final MockWork w = new MockWork();
-        when( w.registry.actorForApiKey( 9, "lena" ) ).thenThrow( new SQLException( "row (lena, secret)", "08006" ) );
+        when( w.registry.actorForAgent( 9 ) ).thenThrow( new SQLException( "row (lena, secret)", "08006" ) );
+        final io.modelcontextprotocol.common.McpTransportContext agentCall =
+            io.modelcontextprotocol.common.McpTransportContext.create( Map.of( WorkMcpActors.AGENT_REF,
+                new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 1, 9 ) ) );
         final List< LogEvent > events = logged( WorkMcpInitializer.class.getName(), () ->
-            WorkMcpInitializer.dispatch( new GetItemTool( w.svc, w.directory ), w.svc, keyed(), Map.of( "key", "P-1" ) ) );
+            WorkMcpInitializer.dispatch( new GetItemTool( w.svc, w.directory ), w.svc, agentCall, Map.of( "key", "P-1" ) ) );
         final LogEvent warn = events.stream().filter( e -> e.getLevel() == Level.WARN ).findFirst().orElseThrow();
         assertTrue( warn.getMessage().getFormattedMessage().contains( "08006" ) );
         assertFalse( warn.getMessage().getFormattedMessage().contains( "secret" ) );

@@ -41,10 +41,6 @@ public interface WorkRegistryStore {
 
     // ---- agents
 
-    /** One transaction: the agent row plus one queue row per queue. The name is stored lowercase. */
-    Agent registerAgent( String name, String vendor, String runtime, int apiKeyId, List< String > queues )
-        throws SQLException;
-
     /**
      * One transaction: the agent row with its sponsor, one queue row per queue, and the first sponsor-history row
      * (the sponsor is also who made the change). The name is stored lowercase.
@@ -73,14 +69,7 @@ public interface WorkRegistryStore {
     /** Case-insensitive. */
     Optional< Agent > agentByName( String name ) throws SQLException;
 
-    /** The agent bound to the key, retired included. */
-    Optional< Agent > agentByApiKey( int apiKeyId ) throws SQLException;
 
-    /**
-     * The agent the key is bound to now or was bound to before a rebind (retired included); empty for a key that was
-     * never an agent's.
-     */
-    Optional< Agent > agentEverBoundTo( int apiKeyId ) throws SQLException;
 
     /** Every agent by name, each with its queue keys (ascending), read in one query. */
     List< Agent > agents() throws SQLException;
@@ -89,12 +78,5 @@ public interface WorkRegistryStore {
     void updateAgent( long id, String name, String vendor, String runtime, List< String > queues )
         throws SQLException;
 
-    /**
-     * One transaction: records the agent's current key in the key history, then binds the new key. A key in the
-     * history never acts as a person again (see {@link #wasEverAgentKey}).
-     */
-    void rebindAgentKey( long id, int apiKeyId ) throws SQLException;
 
-    /** Whether the key was ever unbound from an agent by a rebind (a key still bound is found by agentByApiKey). */
-    boolean wasEverAgentKey( int apiKeyId ) throws SQLException;
 }

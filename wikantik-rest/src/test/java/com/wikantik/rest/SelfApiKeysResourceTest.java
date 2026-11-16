@@ -55,10 +55,6 @@ class SelfApiKeysResourceTest {
     private String stubLogin;            // null => anonymous
     private boolean stubAdmin;           // true => caller holds AllPermission
     /** Keys the work registry says are (or were) agent keys, by id, with the agent's name. */
-    private final java.util.Map< Integer, String > agentKeys = new java.util.HashMap<>();
-    private java.sql.SQLException agentLookupFails;
-    private boolean seesRegistry;
-    private boolean workRunning = true;
 
     private SelfApiKeysResource newServlet() throws Exception {
         final SelfApiKeysResource servlet = new SelfApiKeysResource() {
@@ -69,21 +65,6 @@ class SelfApiKeysResourceTest {
             @Override
             boolean callerIsAdmin( final HttpServletRequest request ) {
                 return stubAdmin;
-            }
-            @Override
-            Optional< String > agentKeyName( final int keyId ) throws java.sql.SQLException {
-                if ( agentLookupFails != null ) {
-                    throw agentLookupFails;
-                }
-                return Optional.ofNullable( agentKeys.get( keyId ) );
-            }
-            @Override
-            boolean callerSeesAgentRegistry( final HttpServletRequest request ) {
-                return seesRegistry;
-            }
-            @Override
-            boolean workRunning() {
-                return workRunning;
             }
         };
         final ServletConfig config = Mockito.mock( ServletConfig.class );
@@ -151,6 +132,8 @@ class SelfApiKeysResourceTest {
         assertTrue( json.contains( "\"label\": \"laptop\"" ) );
         assertTrue( json.contains( "\"scope\": \"tools\"" ) );
         assertFalse( json.contains( "hash" ), "key_hash must never be serialized" );
+        assertFalse( json.contains( "agentKey" ) || json.contains( "\"agent\"" ),
+            "listingsCarryNoAgentFields: an agent's credential is not an API key and is not listed here" );
     }
 
     @Test
@@ -459,52 +442,8 @@ class SelfApiKeysResourceTest {
     private static final String AGENT_KEY_REFUSAL =
         "This key belongs to a work agent. Rotate or retire the agent on the Agents page.";
 
-    @Test
-    void rotateOfAKeyBoundToAnAgentIs409AndNothingChanges() throws Exception {
-        when( mockService.findById( 5 ) ).thenReturn( Optional.of( rec( 5, "alice", "work-agent:codex", ApiKeyService.Scope.WORK ) ) );
-        agentKeys.put( 5, "codex" );
-        final StringWriter out = new StringWriter();
-        final HttpServletResponse response = mockResponse( out );
 
-        newServlet().doPost( postRequest( "/5/rotate", null ), response );
 
-        verify( response ).setStatus( HttpServletResponse.SC_CONFLICT );
-        assertTrue( out.toString().contains( AGENT_KEY_REFUSAL ), out.toString() );
-        verify( mockService, never() ).revoke( anyInt(), anyString() );
-        verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
-    }
-
-    @Test
-    void revokeOfAKeyBoundToAnAgentIs409AndNothingChanges() throws Exception {
-        when( mockService.findById( 5 ) ).thenReturn( Optional.of( rec( 5, "alice", "work-agent:codex", ApiKeyService.Scope.WORK ) ) );
-        agentKeys.put( 5, "codex" );
-        final HttpServletRequest request = mock( HttpServletRequest.class );
-        when( request.getPathInfo() ).thenReturn( "/5" );
-        final StringWriter out = new StringWriter();
-        final HttpServletResponse response = mockResponse( out );
-
-        newServlet().doDelete( request, response );
-
-        verify( response ).setStatus( HttpServletResponse.SC_CONFLICT );
-        assertTrue( out.toString().contains( AGENT_KEY_REFUSAL ), out.toString() );
-        verify( mockService, never() ).revoke( anyInt(), anyString() );
-    }
-
-    @Test
-    void aOnceBoundRotatedAwayKeyIsRefusedToo() throws Exception {
-        // The registry reports keys that were rotated away as agent keys as well (work_agent_key_history).
-        when( mockService.findById( 4 ) ).thenReturn( Optional.of( rec( 4, "alice", "work-agent:codex", ApiKeyService.Scope.WORK ) ) );
-        agentKeys.put( 4, "codex" );
-        final HttpServletResponse rotate = mockResponse( new StringWriter() );
-        newServlet().doPost( postRequest( "/4/rotate", null ), rotate );
-        verify( rotate ).setStatus( HttpServletResponse.SC_CONFLICT );
-        final HttpServletRequest del = mock( HttpServletRequest.class );
-        when( del.getPathInfo() ).thenReturn( "/4" );
-        final HttpServletResponse revoke = mockResponse( new StringWriter() );
-        newServlet().doDelete( del, revoke );
-        verify( revoke ).setStatus( HttpServletResponse.SC_CONFLICT );
-        verify( mockService, never() ).revoke( anyInt(), anyString() );
-    }
 
     @Test
     void anOrdinaryWorkKeyLabelledLikeAnAgentKeyStillRotatesAndRevokes() throws Exception {
@@ -518,99 +457,16 @@ class SelfApiKeysResourceTest {
         verify( mockService ).revoke( 6, "alice" );
     }
 
-    @Test
-    void anAgentKeyCheckThatFailsRefusesWith503AndChangesNothing() throws Exception {
-        when( mockService.findById( 5 ) ).thenReturn( Optional.of( rec( 5, "alice", "work-agent:codex", ApiKeyService.Scope.WORK ) ) );
-        agentLookupFails = new java.sql.SQLException( "down", "08006" );
-        final HttpServletResponse response = mockResponse( new StringWriter() );
 
-        newServlet().doPost( postRequest( "/5/rotate", null ), response );
 
-        verify( response ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
-        verify( mockService, never() ).revoke( anyInt(), anyString() );
-    }
 
-    @Test
-    void anotherUsersAgentKeyIsStill404NotAnAgentKeyOracle() throws Exception {
-        when( mockService.findById( 5 ) ).thenReturn( Optional.of( rec( 5, "bob", "work-agent:codex", ApiKeyService.Scope.WORK ) ) );
-        agentKeys.put( 5, "codex" );
-        final HttpServletResponse response = mockResponse( new StringWriter() );
-        newServlet().doPost( postRequest( "/5/rotate", null ), response );
-        verify( response ).setStatus( HttpServletResponse.SC_NOT_FOUND );
-    }
-
-    @Test
-    void listingMarksAgentKeysAndNamesTheAgentOnlyForARegistryReader() throws Exception {
-        when( mockService.listByPrincipal( "alice" ) ).thenReturn( List.of(
-            rec( 5, "alice", "work-agent:codex", ApiKeyService.Scope.WORK ),
-            rec( 6, "alice", "laptop", ApiKeyService.Scope.WORK ) ) );
-        agentKeys.put( 5, "codex" );
-        final HttpServletRequest request = mock( HttpServletRequest.class );
-
-        final StringWriter hidden = new StringWriter();
-        newServlet().doGet( request, mockResponse( hidden ) );
-        final com.google.gson.JsonArray rows = com.google.gson.JsonParser.parseString( hidden.toString() )
-            .getAsJsonObject().getAsJsonArray( "keys" );
-        assertTrue( rows.get( 0 ).getAsJsonObject().get( "agentKey" ).getAsBoolean() );
-        assertFalse( rows.get( 0 ).getAsJsonObject().has( "agent" ), "no registry access: no agent name" );
-        assertFalse( rows.get( 1 ).getAsJsonObject().get( "agentKey" ).getAsBoolean() );
-
-        seesRegistry = true;
-        final StringWriter shown = new StringWriter();
-        newServlet().doGet( request, mockResponse( shown ) );
-        final com.google.gson.JsonArray named = com.google.gson.JsonParser.parseString( shown.toString() )
-            .getAsJsonObject().getAsJsonArray( "keys" );
-        assertEquals( "codex", named.get( 0 ).getAsJsonObject().get( "agent" ).getAsString() );
-        assertFalse( named.get( 1 ).getAsJsonObject().has( "agent" ) );
-    }
-
-    @Test
-    void withWorkOffNoKeyIsAnAgentKey() throws Exception {
-        // The real lookup: the test engine has work disabled, so the registry is absent and the answer is "no".
-        final SelfApiKeysResource servlet = realServlet();
-        assertEquals( Optional.empty(), servlet.agentKeyName( 5 ) );
-        assertFalse( servlet.callerSeesAgentRegistry( mock( HttpServletRequest.class ) ) );
-    }
 
     // ---- P32: with work management not running, the guard cannot tell, so a work key is not rotated
 
     private static final String WORK_NOT_RUNNING =
         "Work management is not running, so a key with the work scope cannot be rotated right now.";
 
-    @Test
-    void withWorkNotRunningAWorkKeyIsNotRotated() throws Exception {
-        workRunning = false;
-        when( mockService.findById( 5 ) ).thenReturn( Optional.of( rec( 5, "alice", "anything", ApiKeyService.Scope.WORK ) ) );
-        final StringWriter out = new StringWriter();
-        final HttpServletResponse response = mockResponse( out );
 
-        newServlet().doPost( postRequest( "/5/rotate", null ), response );
-
-        verify( response ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
-        assertTrue( out.toString().contains( WORK_NOT_RUNNING ), out.toString() );
-        verify( mockService, never() ).revoke( anyInt(), anyString() );
-        verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
-    }
-
-    @Test
-    void withWorkNotRunningOtherKeysStillRotateAndAWorkKeyStillRevokes() throws Exception {
-        workRunning = false;
-        when( mockService.findById( 6 ) ).thenReturn( Optional.of( rec( 6, "alice", "ci", ApiKeyService.Scope.TOOLS ) ) );
-        when( mockService.revoke( 6, "alice" ) ).thenReturn( true );
-        stubGenerate( ApiKeyService.Scope.TOOLS );
-        final HttpServletResponse rotate = mockResponse( new StringWriter() );
-        newServlet().doPost( postRequest( "/6/rotate", null ), rotate );
-        verify( rotate ).setStatus( HttpServletResponse.SC_CREATED );
-
-        when( mockService.findById( 5 ) ).thenReturn( Optional.of( rec( 5, "alice", "w", ApiKeyService.Scope.WORK ) ) );
-        when( mockService.revoke( 5, "alice" ) ).thenReturn( true );
-        final HttpServletRequest del = mock( HttpServletRequest.class );
-        when( del.getPathInfo() ).thenReturn( "/5" );
-        final StringWriter out = new StringWriter();
-        newServlet().doDelete( del, mockResponse( out ) );
-        verify( mockService ).revoke( 5, "alice" );
-        assertTrue( out.toString().contains( "\"success\": true" ), out.toString() );
-    }
 
     @Test
     void withWorkRunningAnOrdinaryWorkKeyRotatesAsBefore() throws Exception {
@@ -622,8 +478,4 @@ class SelfApiKeysResourceTest {
         verify( response ).setStatus( HttpServletResponse.SC_CREATED );
     }
 
-    @Test
-    void theRealWorkRunningCheckIsFalseWhenTheEngineHasNoWorkService() throws Exception {
-        assertFalse( realServlet().workRunning() );
-    }
 }

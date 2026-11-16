@@ -570,8 +570,7 @@ class WorkItemResourceTest {
     void anItemShowsWhoHoldsItAndWhichQueueItIsIn() throws Exception {
         final WorkRegistryService registry = Mockito.mock( WorkRegistryService.class );
         Mockito.when( svc.registry() ).thenReturn( registry );
-        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "", "alice",
-            null, List.of( "triage" ), Instant.parse( "2026-11-01T10:00:00Z" ), null ) ) );
+        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "", "alice", List.of( "triage" ), Instant.parse( "2026-11-01T10:00:00Z" ), null ) ) );
         Mockito.when( registry.listQueues( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Queue( "triage", "Triage queue", "", null ) ) );
         final com.wikantik.work.Item base = WorkHttp.item( "PLAT-1", null, 2 );
         final com.wikantik.work.Item claimed = new com.wikantik.work.Item( base.id(), base.projectId(), base.key(), base.level(),
@@ -677,13 +676,34 @@ class WorkItemResourceTest {
         Mockito.verify( svc ).item( eq( ALICE ), eq( "PLAT-1" ) );
     }
 
+    /** An agent token whose agent cannot be resolved because the store did not answer: retryable, not "bad token". */
     @Test
-    void aFailedKeyLookupIs503NotA401OrA500() throws Exception {
+    void aFailedAgentLookupIs503NotA401OrA500() throws Exception {
         final WorkItemResource s = keyed( ALICE );
-        Mockito.when( svc.registry().actorForApiKey( 42, "owner" ) ).thenThrow( new java.sql.SQLException( "db down 10.0.0.9" ) );
-        final WorkHttp.Result r = getWithKey( s, key( com.wikantik.auth.apikeys.ApiKeyService.Scope.WORK ), "Bearer wkk_x" );
-        assertEquals( 503, r.status(), "a store that did not answer is retryable; it is neither a bad key nor a bug" );
+        Mockito.when( svc.registry().actorForAgent( 7 ) ).thenThrow( new java.sql.SQLException( "db down 10.0.0.9" ) );
+        final WorkHttp.Result r = WorkHttp.call( s, "GET", "/api/work/items", "/PLAT-1", Map.of(), null, req -> {
+            Mockito.doReturn( "Bearer wka_x" ).when( req ).getHeader( "Authorization" );
+            Mockito.doReturn( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 11, 7 ) ).when( req )
+                .getAttribute( com.wikantik.auth.apikeys.AgentTokenAuth.ATTR_AGENT_REF );
+        } );
+        assertEquals( 503, r.status(), "a store that did not answer is retryable; it is neither a bad token nor a bug" );
         assertFalse( r.body().contains( "10.0.0.9" ) );
+    }
+
+    @Test
+    void anAgentTokenActsAsThatAgentAndARetiredOneIs401() throws Exception {
+        final WorkItemResource s = keyed( ALICE );
+        Mockito.when( svc.registry().actorForAgent( 7 ) ).thenReturn( BUILDER ).thenReturn( null );
+        Mockito.when( svc.item( any(), anyString() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        final java.util.function.Consumer< jakarta.servlet.http.HttpServletRequest > agent = req -> {
+            Mockito.doReturn( "Bearer wka_x" ).when( req ).getHeader( "Authorization" );
+            Mockito.doReturn( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 11, 7 ) ).when( req )
+                .getAttribute( com.wikantik.auth.apikeys.AgentTokenAuth.ATTR_AGENT_REF );
+        };
+        assertEquals( 200, WorkHttp.call( s, "GET", "/api/work/items", "/PLAT-1", Map.of(), null, agent ).status() );
+        Mockito.verify( svc ).item( eq( BUILDER ), eq( "PLAT-1" ) );
+        final WorkHttp.Result gone = WorkHttp.call( s, "GET", "/api/work/items", "/PLAT-1", Map.of(), null, agent );
+        assertEquals( 401, gone.status(), "no actor behind the token: never the session, never an owner" );
     }
 
     // ---- not-found identity: hidden = missing, byte for byte

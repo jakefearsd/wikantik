@@ -26,7 +26,14 @@
 -- Idempotent. DDL only.
 
 ALTER TABLE work_agent ADD COLUMN IF NOT EXISTS sponsor TEXT;
-ALTER TABLE work_agent ALTER COLUMN api_key_id DROP NOT NULL;
+DO $$
+BEGIN
+    -- Guarded so the file still applies cleanly once V080 has dropped the column.
+    IF EXISTS ( SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'work_agent' AND column_name = 'api_key_id' ) THEN
+        ALTER TABLE work_agent ALTER COLUMN api_key_id DROP NOT NULL;
+    END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_work_agent_sponsor ON work_agent (sponsor) WHERE sponsor IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS work_agent_sponsor_history (

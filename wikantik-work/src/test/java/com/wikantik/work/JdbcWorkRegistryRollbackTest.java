@@ -57,7 +57,7 @@ class JdbcWorkRegistryRollbackTest {
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
         faulty.failOn( 2, new RuntimeException( "boom: queue rows" ) ); // 1 insert agent, 2 insert queue rows
         assertThrows( RuntimeException.class,
-            () -> new JdbcWorkStore( faulty ).registerAgent( "a", "", "", newKey(), List.of( "implementer" ) ) );
+            () -> new JdbcWorkStore( faulty ).registerAgent( "a", "", "", List.of( "implementer" ), "sponsor-root" ) );
         assertEquals( 1, faulty.rollbacks() );
         assertTrue( store.agents().isEmpty() );
     }
@@ -65,13 +65,13 @@ class JdbcWorkRegistryRollbackTest {
     @Test
     void registerRollsBackWhenQueueIsUnknown() throws SQLException {
         assertThrows( SQLException.class,
-            () -> store.registerAgent( "a", "", "", newKey(), List.of( "implementer", "ghost" ) ) );
+            () -> store.registerAgent( "a", "", "", List.of( "implementer", "ghost" ), "sponsor-root" ) );
         assertTrue( store.agents().isEmpty() );
     }
 
     @Test
     void updateRollsBackWhenQueueRowFails() throws SQLException {
-        final Agent a = store.registerAgent( "before", "v", "r", newKey(), List.of( "implementer" ) );
+        final Agent a = store.registerAgent( "before", "v", "r", List.of( "implementer" ), "sponsor-root" );
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
         faulty.failOn( 3, new RuntimeException( "boom: queue rows" ) ); // 1 update, 2 delete, 3 insert
         assertThrows( RuntimeException.class,
@@ -82,22 +82,11 @@ class JdbcWorkRegistryRollbackTest {
 
     @Test
     void updateRollsBackWhenQueueIsUnknown() throws SQLException {
-        final Agent a = store.registerAgent( "before", "v", "r", newKey(), List.of( "implementer" ) );
+        final Agent a = store.registerAgent( "before", "v", "r", List.of( "implementer" ), "sponsor-root" );
         assertThrows( SQLException.class, () -> store.updateAgent( a.id(), "after", "v2", "r2", List.of( "ghost" ) ) );
         assertEquals( a, store.agent( a.id() ).orElseThrow() );
     }
 
-    @Test
-    void rebindRollsBackTheHistoryRowWhenTheUpdateFails() throws SQLException {
-        final int first = newKey();
-        final Agent a = store.registerAgent( "before", "v", "r", first, List.of() );
-        final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
-        faulty.failOn( 2, new RuntimeException( "boom: update" ) ); // 1 insert history, 2 update binding
-        assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty ).rebindAgentKey( a.id(), newKey() ) );
-        assertEquals( 1, faulty.rollbacks() );
-        assertFalse( store.wasEverAgentKey( first ) );
-        assertEquals( first, store.agent( a.id() ).orElseThrow().apiKeyId() );
-    }
 
     @Test
     void setSponsorRollsBackWhenTheHistoryInsertFails() throws SQLException {

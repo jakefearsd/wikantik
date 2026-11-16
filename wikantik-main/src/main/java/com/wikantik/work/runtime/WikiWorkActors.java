@@ -58,14 +58,13 @@ public final class WikiWorkActors {
     }
 
     /**
-     * The actor for a verified API key: the agent the key is bound to, or the key owner as a person. Only a key whose
-     * scope covers {@code WORK} is an actor at all.
+     * The actor for a verified personal API key: the key's owner as a person, never a wiki admin. Only a key whose
+     * scope covers {@code WORK} is an actor at all. An API key is never an agent: agents carry their own token
+     * ({@link #actorForAgent}).
      *
-     * @return the actor, or {@code null} when the key is not a work key, or is bound to a retired agent or was once
-     *         bound to an agent and has been rotated away; the key owner is never substituted for those
+     * @return the actor, or {@code null} when the key is not a work key
      */
-    public static Actor actorForKey( final WorkService service, final ApiKeyService.Record record )
-            throws SQLException {
+    public static Actor actorForKey( final WorkService service, final ApiKeyService.Record record ) {
         if ( !record.scope().matches( ApiKeyService.Scope.WORK ) ) {
             return null;
         }

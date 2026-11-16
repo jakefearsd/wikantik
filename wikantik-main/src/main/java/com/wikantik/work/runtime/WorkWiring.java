@@ -20,10 +20,7 @@ package com.wikantik.work.runtime;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.observability.MeterRegistryHolder;
-import com.wikantik.auth.apikeys.ApiKeyService;
-import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.util.TextUtil;
-import com.wikantik.work.AgentKeys;
 import com.wikantik.work.WorkListener;
 import com.wikantik.work.WorkSettings;
 import com.wikantik.work.JdbcWorkStore;
@@ -73,11 +70,8 @@ public final class WorkWiring {
         final JdbcWorkStore store = new JdbcWorkStore( ds );
         final MeterRegistry registry = MeterRegistryHolder.get();
         final WorkListener listener = registry != null ? new WorkMetrics( registry, store ) : new WorkListener() { };
-        final ApiKeyService apiKeys = ApiKeyServiceHolder.get( props );
-        final WikiWorkDirectory directory = new WikiWorkDirectory( engine );
-        final AgentKeys agentKeys = apiKeys != null ? new WikiAgentKeys( apiKeys, directory::ownerExists ) : AgentKeys.NONE;
         final WorkService service = new WorkService( store, new WikiWorkRenderer( engine ),
-            directory, agentKeys, Clock.systemUTC(),
+            new WikiWorkDirectory( engine ), Clock.systemUTC(),
             new WorkSettings( claimExpiry( props ) ), listener, new WikiWorkAudit( engine ) );
         LOG.info( "Work management started ({}=true, metrics {})", PROP_ENABLED, registry != null ? "on" : "off" );
         return service;

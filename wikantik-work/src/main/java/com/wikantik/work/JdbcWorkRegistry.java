@@ -45,12 +45,12 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
         final Array keys = rs.getArray( "queues" );
         final String[] queues = keys == null ? new String[ 0 ] : ( String[] ) keys.getArray();
         return new Agent( rs.getLong( "id" ), rs.getString( "name" ), rs.getString( "vendor" ),
-            rs.getString( "runtime" ), rs.getString( "sponsor" ), rs.getInt( "api_key_id" ), List.of( queues ),
+            rs.getString( "runtime" ), rs.getString( "sponsor" ), List.of( queues ),
             instant( rs, "created_at" ), instant( rs, "retired_at" ) );
     };
 
     private static final String AGENT_SELECT = """
-        SELECT a.id, a.name, a.vendor, a.runtime, a.sponsor, a.api_key_id, a.created_at, a.retired_at,
+        SELECT a.id, a.name, a.vendor, a.runtime, a.sponsor, a.created_at, a.retired_at,
                ARRAY( SELECT q.queue_key FROM work_agent_queue q WHERE q.agent_id = a.id
                       ORDER BY q.queue_key ) AS queues
           FROM work_agent a
@@ -91,25 +91,6 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
     public void retireQueue( final String key, final Instant at ) throws SQLException {
         jdbc.update( "UPDATE work_queue SET retired_at = ? WHERE key = ?",
             ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setString( 2, key ); } );
-    }
-
-    @Override
-    public Agent registerAgent( final String name, final String vendor, final String runtime, final int apiKeyId,
-                                final List< String > queues ) throws SQLException {
-        final long id = jdbc.inTransaction( conn -> {
-            final long created = jdbc.queryOne( conn, "INSERT INTO work_agent (name, vendor, runtime, api_key_id) "
-                    + "VALUES (?,?,?,?) RETURNING id",
-                ps -> {
-                    ps.setString( 1, name.toLowerCase( Locale.ROOT ) );
-                    ps.setString( 2, vendor );
-                    ps.setString( 3, runtime );
-                    ps.setInt( 4, apiKeyId );
-                },
-                rs -> rs.getLong( 1 ) ).orElseThrow( () -> new SQLException( "INSERT work_agent returned no row" ) );
-            insertQueues( conn, created, queues );
-            return created;
-        } );
-        return agent( id ).orElseThrow( () -> new SQLException( "work_agent " + id + " vanished" ) );
     }
 
     @Override
@@ -211,18 +192,6 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
     }
 
     @Override
-    public Optional< Agent > agentByApiKey( final int apiKeyId ) throws SQLException {
-        return jdbc.queryOne( AGENT_SELECT + " WHERE a.api_key_id = ?", ps -> ps.setInt( 1, apiKeyId ), AGENT_ROW );
-    }
-
-    @Override
-    public Optional< Agent > agentEverBoundTo( final int apiKeyId ) throws SQLException {
-        return jdbc.queryOne( AGENT_SELECT + " WHERE a.api_key_id = ? OR a.id IN ( SELECT h.agent_id "
-                + "FROM work_agent_key_history h WHERE h.api_key_id = ? ) ORDER BY a.id LIMIT 1",
-            ps -> { ps.setInt( 1, apiKeyId ); ps.setInt( 2, apiKeyId ); }, AGENT_ROW );
-    }
-
-    @Override
     public List< Agent > agents() throws SQLException {
         return jdbc.query( AGENT_SELECT + " ORDER BY a.name", ps -> { }, AGENT_ROW );
     }
@@ -244,21 +213,4 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
         } );
     }
 
-    @Override
-    public void rebindAgentKey( final long id, final int apiKeyId ) throws SQLException {
-        jdbc.inTransaction( conn -> {
-            jdbc.update( conn, "INSERT INTO work_agent_key_history (api_key_id, agent_id) "
-                    + "SELECT api_key_id, id FROM work_agent WHERE id = ? ON CONFLICT DO NOTHING",
-                ps -> ps.setLong( 1, id ) );
-            jdbc.update( conn, "UPDATE work_agent SET api_key_id = ? WHERE id = ?",
-                ps -> { ps.setInt( 1, apiKeyId ); ps.setLong( 2, id ); } );
-            return null;
-        } );
-    }
-
-    @Override
-    public boolean wasEverAgentKey( final int apiKeyId ) throws SQLException {
-        return jdbc.queryOne( "SELECT 1 FROM work_agent_key_history WHERE api_key_id = ?",
-            ps -> ps.setInt( 1, apiKeyId ), rs -> 1 ).isPresent();
-    }
 }

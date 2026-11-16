@@ -56,7 +56,6 @@ class WorkAgentRegistryPostgresTest {
     private DataSource ds;
     private JdbcWorkStore store;
     private WorkService service;
-    private AgentKeys keys;
     private final Set< String > gone = new HashSet<>();
     private boolean outage;
     private RuntimeException auditFails;
@@ -68,7 +67,6 @@ class WorkAgentRegistryPostgresTest {
         ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
         store = new JdbcWorkStore( ds );
-        keys = Mockito.mock( AgentKeys.class );
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return !gone.contains( login ); }
@@ -80,7 +78,7 @@ class WorkAgentRegistryPostgresTest {
                 return gone.contains( login ) ? Optional.empty()
                     : Optional.of( new Person( login, Set.of(), "root".equals( login ) ) );
             }
-        }, keys, Clock.systemUTC(), WorkSettings.DEFAULTS, null, ( actor, action, type, target, detail ) -> {
+        }, Clock.systemUTC(), WorkSettings.DEFAULTS, null, ( actor, action, type, target, detail ) -> {
             if ( auditFails != null ) {
                 throw auditFails;
             }
@@ -135,15 +133,6 @@ class WorkAgentRegistryPostgresTest {
         assertEquals( List.of( "lena|work.agent.register|codex|null" ), audited );
     }
 
-    @Test
-    void registerIssuesACredentialNotAnApiKey() throws SQLException {
-        final WorkService.AgentWithToken made = service.registry().registerAgent( root, draft( "codex" ) );
-        Mockito.verifyNoInteractions( keys );
-        assertNull( made.agent().apiKeyId() );
-        assertEquals( 0, WorkAgentFixtures.scalar( ds, "SELECT count(*) FROM work_agent WHERE api_key_id IS NOT NULL" ) );
-        assertEquals( 1, WorkAgentFixtures.scalar( ds, "SELECT count(*) FROM work_agent_credential WHERE agent_id = "
-            + made.agent().id() + " AND revoked_at IS NULL AND created_by = 'root'" ) );
-    }
 
     @Test
     void aMemberWhoLeadsNothingCannotRegister() {
@@ -368,6 +357,5 @@ class WorkAgentRegistryPostgresTest {
         final WorkRegistryService.AgentView orphan = service.registry().agentViews( root ).stream()
             .filter( v -> v.agent().id() == codex ).findFirst().orElseThrow();
         assertEquals( WorkRegistryService.AgentStatus.SPONSOR_GONE, orphan.status() );
-        assertTrue( service.registry().agentViews( mia ).stream().allMatch( v -> v.agent().apiKeyId() == null ) );
     }
 }

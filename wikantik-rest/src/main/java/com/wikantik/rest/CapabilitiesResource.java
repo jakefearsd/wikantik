@@ -118,7 +118,9 @@ public class CapabilitiesResource extends RestServletBase {
             result.put( "ontology", TextUtil.getBooleanProperty( props, PROP_ONTOLOGY_ENABLED, true ) );
             result.put( "connectors", TextUtil.getBooleanProperty( props, PROP_CONNECTORS_ENABLED, true ) );
             result.put( "citations", TextUtil.getBooleanProperty( props, PROP_CITATIONS_ENABLED, true ) );
-            result.put( "work", TextUtil.getBooleanProperty( props, PROP_WORK_ENABLED, false ) );
+            // the flag AND a wired service: a wiring failure at startup leaves work off (its endpoints answer 404)
+            result.put( "work", TextUtil.getBooleanProperty( props, PROP_WORK_ENABLED, false )
+                    && getEngine() instanceof com.wikantik.WikiEngine we && we.workService() != null );
             // the live kill switch, not the property: the registry's flag can change at runtime (ruling P8)
             result.put( "collab", Map.of( "enabled", collabRegistry.apply( getEngine() )
                     .map( CollabSessionRegistry::isEnabled ).orElse( false ) ) );

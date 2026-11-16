@@ -18,8 +18,10 @@
  */
 package com.wikantik.rest;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.work.Autonomy;
+import com.wikantik.work.Member;
 import com.wikantik.work.Project;
 import com.wikantik.work.WorkRole;
 
@@ -48,7 +50,7 @@ public class WorkProjectResource extends WorkResourceBase {
             c.svc.archiveProject( c.actor, c.pathParam( 0 ) );
             c.noContent();
         } );
-        route( r, "GET", "projects/{}/members", c -> c.json( c.svc.members( c.actor, c.pathParam( 0 ) ) ) );
+        route( r, "GET", "projects/{}/members", c -> c.tree( membersTree( c, c.svc.members( c.actor, c.pathParam( 0 ) ) ) ) );
         route( r, "PUT", "projects/{}/members", c -> {
             final JsonObject b = c.body();
             if ( b == null ) {
@@ -59,7 +61,20 @@ public class WorkProjectResource extends WorkResourceBase {
             c.noContent();
         } );
         route( r, "DELETE", "projects/{}/members", this::removeMember );
-        route( r, "GET", "projects/{}/board", c -> c.tree( boardTree( c.svc.boardSummaries( c.actor, c.pathParam( 0 ), filter( c, false ) ) ) ) );
+        route( r, "GET", "projects/{}/board", c -> c.tree( boardTree( c.svc.boardSummaries( c.actor, c.pathParam( 0 ), filter( c, false ) ), c.actor ) ) );
+    }
+
+    /** The member rows, each user row with the {@code mentionId} the comment picker inserts (never a login). */
+    private JsonArray membersTree( final Call c, final List< Member > members ) {
+        final JsonArray out = toTree( members, c.actor ).getAsJsonArray();
+        for ( int i = 0; i < members.size(); i++ ) {
+            final Member m = members.get( i );
+            final JsonObject o = out.get( i ).getAsJsonObject();
+            if ( "user".equals( m.principalKind() ) ) {
+                mentionId( m.principal() ).ifPresent( id -> o.addProperty( "mentionId", id ) );
+            }
+        }
+        return out;
     }
 
     private void update( final Call c ) throws Exception {

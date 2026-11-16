@@ -56,7 +56,8 @@ class WorkServiceVisibilityPostgresTest {
 
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
-        "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn" );
+        "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
+        "listProjectsWithRoles" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1" );
 
@@ -73,7 +74,7 @@ class WorkServiceVisibilityPostgresTest {
             "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
         final JdbcWorkStore store = new JdbcWorkStore( PostgresTestDb.createDataSource() );
         final Project plat = store.createProject( "PLAT", "Platform", "secret roadmap" );
-        store.putMember( plat.id(), "lena", "user", WorkRole.LEAD );
+        store.putMember( plat.id(), "lena", "user", WorkRole.LEAD, "admin", Actor.Kind.HUMAN );
         store.createProduct( new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED, DeployGate.HUMAN,
             null ) );
         final Item item = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "secret item" ), "lena",
@@ -84,7 +85,7 @@ class WorkServiceVisibilityPostgresTest {
             item.reporter(), null, null, null, item.version(), item.createdAt(), item.updatedAt(), null );
         store.updateItem( item, assigned, "lena", Actor.Kind.HUMAN, null );
         commentId = store.addComment( item, "lena", Actor.Kind.HUMAN, "secret comment", List.of() ).id();
-        linkId = store.addLink( item, "url", "https://example.com/secret", "lena" ).id();
+        linkId = store.addLink( item, "url", "https://example.com/secret", "lena", Actor.Kind.HUMAN ).id();
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }

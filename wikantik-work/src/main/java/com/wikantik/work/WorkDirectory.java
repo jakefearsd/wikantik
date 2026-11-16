@@ -18,17 +18,36 @@
  */
 package com.wikantik.work;
 
+import java.util.Optional;
 import java.util.Set;
 
-/** The wiki's user database as the work module sees it; implemented by the host application. */
+/**
+ * The wiki's user database as the work module sees it; implemented by the host application. People are shown and
+ * named by their public display name; a login is a storage key that only its owner and wiki admins ever see.
+ */
 public interface WorkDirectory {
 
     /** The groups the login belongs to; empty when none or unknown. */
     Set< String > groupsOf( String login );
 
-    /** Whether a user with this login exists. */
+    /** Whether a user with this login exists. Only ever asked on behalf of a wiki admin. */
     boolean exists( String login );
 
-    /** The public display name for the login. */
+    /** The public display name for the login; a neutral placeholder, never the login, when it has none. */
     String displayName( String login );
+
+    /** The login of the user with this display name (trimmed, case-insensitive); empty when none or ambiguous. */
+    default Optional< String > loginForDisplayName( final String displayName ) {
+        return Optional.empty();
+    }
+
+    /** The login of the user a mention token's opaque id names; empty when unknown. */
+    default Optional< String > loginForMentionId( final String id ) {
+        return Optional.empty();
+    }
+
+    /** The opaque id a mention token carries for the login; empty when the account has none. */
+    default Optional< String > mentionId( final String login ) {
+        return Optional.empty();
+    }
 }

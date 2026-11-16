@@ -69,37 +69,47 @@ final class JdbcWorkDiscussion {
                     + "RETURNING " + COMMENT_COLUMNS,
                 ps -> { ps.setLong( 1, item.id() ); ps.setString( 2, author ); ps.setString( 3, body ); },
                 COMMENT_ROW ).orElseThrow( () -> new SQLException( "INSERT work_comment returned no row" ) );
-            if ( mentioned != null ) {
-                for ( final String login : mentioned ) {
-                    jdbc.update( conn, "INSERT INTO work_mention (item_id, comment_id, mentioned) VALUES (?,?,?)",
-                        ps -> { ps.setLong( 1, item.id() ); ps.setLong( 2, c.id() ); ps.setString( 3, login ); } );
-                }
-            }
+            insertMentions( conn, item.id(), c.id(), mentioned );
             store.appendEvent( conn, event( item.projectId(), item.id(), author, kind, WorkEvent.COMMENTED,
                 null, String.valueOf( c.id() ) ) );
             return c;
         } );
     }
 
-    Comment editComment( final long commentId, final String body, final String actor ) throws SQLException {
+    private void insertMentions( final Connection conn, final long itemId, final long commentId,
+                                 final List< String > mentioned ) throws SQLException {
+        if ( mentioned == null ) {
+            return;
+        }
+        for ( final String login : mentioned ) {
+            jdbc.update( conn, "INSERT INTO work_mention (item_id, comment_id, mentioned) VALUES (?,?,?)",
+                ps -> { ps.setLong( 1, itemId ); ps.setLong( 2, commentId ); ps.setString( 3, login ); } );
+        }
+    }
+
+    Comment editComment( final long commentId, final String body, final String actor, final Actor.Kind kind,
+                         final List< String > mentioned ) throws SQLException {
         return jdbc.inTransaction( conn -> {
             final Comment c = jdbc.queryOne( conn, "UPDATE work_comment SET body = ?, edited_at = NOW() "
                     + "WHERE id = ? AND removed_at IS NULL RETURNING " + COMMENT_COLUMNS,
                 ps -> { ps.setString( 1, body ); ps.setLong( 2, commentId ); }, COMMENT_ROW )
                 .orElseThrow( () -> new WorkNotFoundException( "comment " + commentId ) );
-            store.appendEvent( conn, event( projectOf( conn, c.itemId() ), c.itemId(), actor, Actor.Kind.HUMAN,
+            // The mentions follow the text: a name taken out of the comment stops waiting on it.
+            jdbc.update( conn, "DELETE FROM work_mention WHERE comment_id = ?", ps -> ps.setLong( 1, commentId ) );
+            insertMentions( conn, c.itemId(), commentId, mentioned );
+            store.appendEvent( conn, event( projectOf( conn, c.itemId() ), c.itemId(), actor, kind,
                 WorkEvent.COMMENT_EDITED, null, String.valueOf( commentId ) ) );
             return c;
         } );
     }
 
-    void removeComment( final long commentId, final String actor ) throws SQLException {
+    void removeComment( final long commentId, final String actor, final Actor.Kind kind ) throws SQLException {
         jdbc.inTransaction( conn -> {
             final long itemId = jdbc.queryOne( conn, "UPDATE work_comment SET removed_at = NOW() "
                     + "WHERE id = ? AND removed_at IS NULL RETURNING item_id",
                 ps -> ps.setLong( 1, commentId ), rs -> rs.getLong( 1 ) )
                 .orElseThrow( () -> new WorkNotFoundException( "comment " + commentId ) );
-            store.appendEvent( conn, event( projectOf( conn, itemId ), itemId, actor, Actor.Kind.HUMAN,
+            store.appendEvent( conn, event( projectOf( conn, itemId ), itemId, actor, kind,
                 WorkEvent.COMMENT_REMOVED, null, String.valueOf( commentId ) ) );
             return null;
         } );
@@ -115,26 +125,30 @@ final class JdbcWorkDiscussion {
             + "ORDER BY created_at, id", ps -> ps.setLong( 1, itemId ), COMMENT_ROW );
     }
 
-    Link addLink( final Item item, final String kind, final String target, final String actor ) throws SQLException {
+    Link addLink( final Item item, final String kind, final String target, final String actor,
+                  final Actor.Kind actorKind ) throws SQLException {
         return jdbc.inTransaction( conn -> {
             final Link l = jdbc.queryOne( conn, "INSERT INTO work_link (item_id, kind, target) VALUES (?,?,?) "
                     + "RETURNING id, item_id, kind, target",
                 ps -> { ps.setLong( 1, item.id() ); ps.setString( 2, kind ); ps.setString( 3, target ); }, LINK_ROW )
                 .orElseThrow( () -> new SQLException( "INSERT work_link returned no row" ) );
-            store.appendEvent( conn, event( item.projectId(), item.id(), actor, Actor.Kind.HUMAN, WorkEvent.LINKED,
+            store.appendEvent( conn, event( item.projectId(), item.id(), actor, actorKind, WorkEvent.LINKED,
                 null, kind + ":" + target ) );
             return l;
         } );
     }
 
-    void removeLink( final long linkId, final String actor ) throws SQLException {
+    /** One statement deletes and returns the row, so of two concurrent removals only one writes an event. */
+    void removeLink( final long linkId, final String actor, final Actor.Kind actorKind ) throws SQLException {
         jdbc.inTransaction( conn -> {
-            final Link l = jdbc.queryOne( conn, "SELECT id, item_id, kind, target FROM work_link WHERE id = ?",
-                ps -> ps.setLong( 1, linkId ), LINK_ROW )
-                .orElseThrow( () -> new WorkNotFoundException( "link " + linkId ) );
-            jdbc.update( conn, "DELETE FROM work_link WHERE id = ?", ps -> ps.setLong( 1, linkId ) );
-            store.appendEvent( conn, event( projectOf( conn, l.itemId() ), l.itemId(), actor, Actor.Kind.HUMAN,
-                WorkEvent.UNLINKED, l.kind() + ":" + l.target(), null ) );
+            final Optional< Link > removed = jdbc.queryOne( conn,
+                "DELETE FROM work_link WHERE id = ? RETURNING id, item_id, kind, target",
+                ps -> ps.setLong( 1, linkId ), LINK_ROW );
+            if ( removed.isPresent() ) {
+                final Link l = removed.get();
+                store.appendEvent( conn, event( projectOf( conn, l.itemId() ), l.itemId(), actor, actorKind,
+                    WorkEvent.UNLINKED, l.kind() + ":" + l.target(), null ) );
+            }
             return null;
         } );
     }

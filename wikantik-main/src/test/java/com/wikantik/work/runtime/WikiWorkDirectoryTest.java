@@ -89,4 +89,25 @@ class WikiWorkDirectoryTest {
         assertEquals( "Janne Jalkanen", directory.displayName( "janne" ) );
         assertNotEquals( "janne", directory.displayName( "janne" ) );
     }
+
+    @Test
+    void aDisplayNameResolvesToItsLogin() {
+        assertEquals( java.util.Optional.of( "janne" ), directory.loginForDisplayName( "Janne Jalkanen" ) );
+        assertEquals( java.util.Optional.of( "janne" ), directory.loginForDisplayName( " janne jalkanen " ) );
+        assertTrue( directory.loginForDisplayName( "janne" ).isEmpty(), "a login is not a display name" );
+    }
+
+    @Test
+    void aMentionIdRoundTripsWhenTheAccountHasOne() {
+        directory.mentionId( "janne" ).ifPresent( id ->
+            assertEquals( java.util.Optional.of( "janne" ), directory.loginForMentionId( id ) ) );
+        assertTrue( directory.loginForMentionId( "no-such-id" ).isEmpty() );
+        assertTrue( directory.mentionId( "nobody-here" ).isEmpty() );
+    }
+
+    @Test
+    void aValueThatNamesNoAccountIsNeverEchoed() {
+        assertEquals( com.wikantik.api.identity.PublicIdentity.UNKNOWN_CONTRIBUTOR,
+            directory.displayName( "nobody-here" ) );
+    }
 }

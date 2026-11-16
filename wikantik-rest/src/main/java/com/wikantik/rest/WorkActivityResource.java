@@ -24,7 +24,7 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
-/** {@code /api/work/activity}: a project's event stream, newest first. */
+/** {@code /api/work/activity}: a project's event stream, newest first; {@code item} narrows it to one item. */
 public class WorkActivityResource extends WorkResourceBase {
 
     private static final long serialVersionUID = 1L;
@@ -55,7 +55,7 @@ public class WorkActivityResource extends WorkResourceBase {
                     throw new WorkValidationException( "beforeId", "beforeId needs before." );
                 }
             }
-            c.json( c.svc.activity( c.actor, project, before, beforeId, clampLimit( c ) ) );
+            c.json( c.svc.activity( c.actor, project, before, beforeId, c.query( "item" ), clampLimit( c ) ) );
         } );
     }
 }

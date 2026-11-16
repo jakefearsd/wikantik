@@ -69,7 +69,7 @@ class JdbcWorkStoreItemsRollbackTest {
         assertThrows( RuntimeException.class, () -> faultyStore.createItem( plat,
             JdbcWorkStoreItemsPostgresTest.draft( "x" ), "alice", Actor.Kind.HUMAN ) );
         assertEquals( 1, faulty.rollbacks() );
-        assertTrue( store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0 ) ).isEmpty() );
+        assertTrue( store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null ) ).isEmpty() );
         assertEquals( before, nextSeq() );
     }
 

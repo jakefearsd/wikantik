@@ -38,8 +38,14 @@ final class WorkScopes {
     /** A resolved project and the actor's standing in it; the one thing every method starts from. */
     record Scope( Actor actor, Project project, WorkRole role, Consumer< Action > onDenied ) {
 
-        /** The role to show: a wiki admin without a member row counts as lead. */
+        /**
+         * The role to show: a person who is a wiki admin counts as lead whatever their member row says (they may do
+         * everything a lead may); an agent shows its own row (it is denied management actions regardless).
+         */
         WorkRole effectiveRole() {
+            if ( actor.admin() && actor.kind() == Actor.Kind.HUMAN ) {
+                return WorkRole.LEAD;
+            }
             return role != null ? role : WorkRole.LEAD;
         }
 
@@ -53,17 +59,16 @@ final class WorkScopes {
 
         void requireWritable() {
             if ( project.archivedAt() != null ) {
-                throw new WorkConflictException( "Project " + project.key() + " is archived." );
+                throw new WorkConflictException( "This project is archived.", WorkConflictException.ARCHIVED );
             }
         }
 
         /** The filter pinned to the project, so a caller-supplied id can never reach another project's rows. */
         ItemFilter pin( final ItemFilter f ) {
             if ( f == null ) {
-                return new ItemFilter( project.id(), null, null, null, null, null, null, null, 0 );
+                return new ItemFilter( project.id(), null, null, null, null, null, null, null, 0, null );
             }
-            return new ItemFilter( project.id(), f.statuses(), f.assignee(), f.productId(), f.level(),
-                f.parentId(), f.text(), f.dueBefore(), f.limit() );
+            return f.with( project.id(), f.assignee() );
         }
     }
 

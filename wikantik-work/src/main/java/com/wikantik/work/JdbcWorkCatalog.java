@@ -21,13 +21,17 @@ package com.wikantik.work;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.RowMapper;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
+import static com.wikantik.work.SqlValues.actorKindWire;
 import static com.wikantik.work.SqlValues.instant;
+import static com.wikantik.work.SqlValues.setNullableLong;
 import static com.wikantik.work.SqlValues.timestamp;
 
 /** The project, membership and product half of the PostgreSQL {@link WorkStore}; {@link JdbcWorkStore} adds the items. */
@@ -101,46 +105,142 @@ abstract class JdbcWorkCatalog implements WorkStore {
             ps -> { }, PROJECT_ROW );
     }
 
+    /**
+     * Applies the new name, description and default autonomy and writes one {@code settings} event per changed field
+     * (the field in the note, old and new value in from/to), in one transaction. Nothing changed, nothing written.
+     */
     @Override
     public void updateProject( final long id, final String name, final String description,
-                               final Autonomy defaultAutonomy ) throws SQLException {
-        jdbc.update( "UPDATE work_project SET name = ?, description = ?, default_autonomy = ? WHERE id = ?",
-            ps -> {
-                ps.setString( 1, name );
-                ps.setString( 2, description );
-                ps.setString( 3, defaultAutonomy.wire() );
-                ps.setLong( 4, id );
-            } );
+                               final Autonomy defaultAutonomy, final String actor, final Actor.Kind kind )
+            throws SQLException {
+        jdbc.inTransaction( conn -> {
+            final Project current = jdbc.queryOne( conn, "SELECT " + PROJECT_COLUMNS
+                    + " FROM work_project WHERE id = ? FOR UPDATE", ps -> ps.setLong( 1, id ), PROJECT_ROW )
+                .orElseThrow( () -> new SQLException( "work_project " + id + " not found" ) );
+            final List< String[] > changed = new ArrayList<>();
+            addIfChanged( changed, "name", current.name(), name );
+            addIfChanged( changed, "description", current.description(), description );
+            addIfChanged( changed, "default_autonomy", current.defaultAutonomy().wire(), defaultAutonomy.wire() );
+            if ( changed.isEmpty() ) {
+                return null;
+            }
+            jdbc.update( conn, "UPDATE work_project SET name = ?, description = ?, default_autonomy = ? WHERE id = ?",
+                ps -> {
+                    ps.setString( 1, name );
+                    ps.setString( 2, description );
+                    ps.setString( 3, defaultAutonomy.wire() );
+                    ps.setLong( 4, id );
+                } );
+            for ( final String[] c : changed ) {
+                appendEvent( conn, projectEvent( id, actor, kind, WorkEvent.SETTINGS, c[ 1 ], c[ 2 ], c[ 0 ] ) );
+            }
+            return null;
+        } );
     }
 
+    private static void addIfChanged( final List< String[] > out, final String field, final String from,
+                                      final String to ) {
+        if ( !Objects.equals( from, to ) ) {
+            out.add( new String[] { field, from, to } );
+        }
+    }
+
+    /** Sets {@code archived_at} and writes a {@code settings} event noted {@code archived}, in one transaction. */
     @Override
-    public void archiveProject( final long id, final Instant at ) throws SQLException {
-        jdbc.update( "UPDATE work_project SET archived_at = ? WHERE id = ?",
-            ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, id ); } );
+    public void archiveProject( final long id, final Instant at, final String actor, final Actor.Kind kind )
+            throws SQLException {
+        jdbc.inTransaction( conn -> {
+            final int rows = jdbc.update( conn, "UPDATE work_project SET archived_at = ? WHERE id = ? "
+                    + "AND archived_at IS NULL",
+                ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, id ); } );
+            if ( rows > 0 ) {
+                appendEvent( conn, projectEvent( id, actor, kind, WorkEvent.SETTINGS, null, at.toString(),
+                    "archived" ) );
+            }
+            return null;
+        } );
     }
 
     // ---- membership
 
-    @Override
-    public void putMember( final long projectId, final String principal, final String principalKind,
-                           final WorkRole role ) throws SQLException {
-        jdbc.update( """
-            INSERT INTO work_member (project_id, principal_kind, principal, role) VALUES (?,?,?,?)
-            ON CONFLICT (project_id, principal_kind, principal) DO UPDATE SET role = EXCLUDED.role
-            """,
-            ps -> {
-                ps.setLong( 1, projectId );
-                ps.setString( 2, principalKind );
-                ps.setString( 3, principal );
-                ps.setString( 4, role.wire() );
-            } );
+    /** The value a {@code member} event carries: {@code kind:principal:role}. */
+    static String memberValue( final String principalKind, final String principal, final WorkRole role ) {
+        return principalKind + ":" + principal + ":" + role.wire();
     }
 
+    /**
+     * Adds the member or changes its role, with a {@code member} event (from: the old grant or null; to: the new
+     * one), in one transaction. Putting the role the member already holds changes nothing and writes nothing.
+     */
     @Override
-    public void removeMember( final long projectId, final String principal, final String principalKind )
-            throws SQLException {
-        jdbc.update( "DELETE FROM work_member WHERE project_id = ? AND principal_kind = ? AND principal = ?",
-            ps -> { ps.setLong( 1, projectId ); ps.setString( 2, principalKind ); ps.setString( 3, principal ); } );
+    public void putMember( final long projectId, final String principal, final String principalKind,
+                           final WorkRole role, final String actor, final Actor.Kind kind ) throws SQLException {
+        jdbc.inTransaction( conn -> {
+            final WorkRole before = jdbc.queryOne( conn, "SELECT role FROM work_member WHERE project_id = ? "
+                    + "AND principal_kind = ? AND principal = ? FOR UPDATE",
+                ps -> { ps.setLong( 1, projectId ); ps.setString( 2, principalKind ); ps.setString( 3, principal ); },
+                rs -> WorkRole.fromWire( rs.getString( 1 ) ) ).orElse( null );
+            if ( before == role ) {
+                return null;
+            }
+            jdbc.update( conn, """
+                INSERT INTO work_member (project_id, principal_kind, principal, role) VALUES (?,?,?,?)
+                ON CONFLICT (project_id, principal_kind, principal) DO UPDATE SET role = EXCLUDED.role
+                """,
+                ps -> {
+                    ps.setLong( 1, projectId );
+                    ps.setString( 2, principalKind );
+                    ps.setString( 3, principal );
+                    ps.setString( 4, role.wire() );
+                } );
+            appendEvent( conn, projectEvent( projectId, actor, kind, WorkEvent.MEMBER,
+                before == null ? null : memberValue( principalKind, principal, before ),
+                memberValue( principalKind, principal, role ), null ) );
+            return null;
+        } );
+    }
+
+    /**
+     * Deletes the grant (membership is state; the {@code member} event, from the old grant to null, is the history),
+     * in one transaction. Removing someone who is not a member writes nothing.
+     */
+    @Override
+    public void removeMember( final long projectId, final String principal, final String principalKind,
+                              final String actor, final Actor.Kind kind ) throws SQLException {
+        jdbc.inTransaction( conn -> {
+            final Optional< WorkRole > removed = jdbc.queryOne( conn, "DELETE FROM work_member WHERE project_id = ? "
+                    + "AND principal_kind = ? AND principal = ? RETURNING role",
+                ps -> { ps.setLong( 1, projectId ); ps.setString( 2, principalKind ); ps.setString( 3, principal ); },
+                rs -> WorkRole.fromWire( rs.getString( 1 ) ) );
+            if ( removed.isPresent() ) {
+                appendEvent( conn, projectEvent( projectId, actor, kind, WorkEvent.MEMBER,
+                    memberValue( principalKind, principal, removed.get() ), null, null ) );
+            }
+            return null;
+        } );
+    }
+
+    private static WorkEvent projectEvent( final long projectId, final String actor, final Actor.Kind kind,
+                                           final String type, final String from, final String to,
+                                           final String note ) {
+        return new WorkEvent( 0, projectId, null, null, null, actor, kind, null, type, from, to, note );
+    }
+
+    /** Appends one event on the caller's connection; the event's id, itemKey and timestamp are assigned by the store. */
+    void appendEvent( final Connection conn, final WorkEvent e ) throws SQLException {
+        jdbc.update( conn, "INSERT INTO work_event (project_id, item_id, actor, actor_kind, agent_id, type, "
+                + "from_value, to_value, note) VALUES (?,?,?,?,?,?,?,?,?)",
+            ps -> {
+                ps.setLong( 1, e.projectId() );
+                setNullableLong( ps, 2, e.itemId() );
+                ps.setString( 3, e.actor() );
+                ps.setString( 4, actorKindWire( e.actorKind() ) );
+                setNullableLong( ps, 5, e.agentId() );
+                ps.setString( 6, e.type() );
+                ps.setString( 7, e.fromValue() );
+                ps.setString( 8, e.toValue() );
+                ps.setString( 9, e.note() );
+            } );
     }
 
     @Override

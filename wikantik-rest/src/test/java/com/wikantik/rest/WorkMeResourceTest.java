@@ -51,8 +51,8 @@ class WorkMeResourceTest {
     @Test
     void returnsWaitingOnItemsAndProjectsWithRole() throws Exception {
         Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( WorkHttp.item( "PLAT-1", "alice", 1 ) ) );
-        Mockito.when( svc.listProjects( ALICE ) ).thenReturn( List.of( WorkHttp.project( "PLAT" ) ) );
-        Mockito.when( svc.roleIn( ALICE, "PLAT" ) ).thenReturn( WorkRole.LEAD );
+        Mockito.when( svc.listProjectsWithRoles( ALICE ) ).thenReturn( List.of(
+            new WorkService.ProjectRole( WorkHttp.project( "PLAT" ), WorkRole.LEAD ) ) );
         final JsonObject o = get().json().getAsJsonObject();
         assertEquals( "PLAT-1", o.getAsJsonArray( "waitingOn" ).get( 0 ).getAsJsonObject().get( "key" ).getAsString() );
         assertEquals( "lead", o.getAsJsonArray( "projects" ).get( 0 ).getAsJsonObject().get( "role" ).getAsString() );
@@ -63,6 +63,7 @@ class WorkMeResourceTest {
         Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( WorkHttp.item( "PLAT-1", "alice", 1 ) ) );
         final JsonObject item = get().json().getAsJsonObject().getAsJsonArray( "waitingOn" ).get( 0 ).getAsJsonObject();
         assertEquals( "Name of alice", item.get( "assigneeName" ).getAsString() );
+        assertEquals( "Name of alice", item.get( "assignee" ).getAsString(), "not even your own login" );
     }
 
     @Test
@@ -86,10 +87,16 @@ class WorkMeResourceTest {
     }
 
     @Test
-    void aProjectThatVanishesMidListIsLeftOut() throws Exception {
+    void anArchivedProjectSaysSo() throws Exception {
         Mockito.when( svc.waitingOn( any() ) ).thenReturn( List.of() );
-        Mockito.when( svc.listProjects( ALICE ) ).thenReturn( List.of( WorkHttp.project( "GONE" ) ) );
-        Mockito.when( svc.roleIn( any(), anyString() ) ).thenThrow( new com.wikantik.work.WorkNotFoundException( "x" ) );
-        assertEquals( 0, get().json().getAsJsonObject().getAsJsonArray( "projects" ).size() );
+        final com.wikantik.work.Project p = WorkHttp.project( "OLD" );
+        final com.wikantik.work.Project archived = new com.wikantik.work.Project( p.id(), p.key(), p.name(),
+            p.description(), p.defaultAutonomy(), p.createdAt(), java.time.Instant.parse( "2026-11-10T00:00:00Z" ) );
+        Mockito.when( svc.listProjectsWithRoles( ALICE ) ).thenReturn( List.of(
+            new WorkService.ProjectRole( archived, WorkRole.MEMBER ),
+            new WorkService.ProjectRole( WorkHttp.project( "NEW" ), WorkRole.MEMBER ) ) );
+        final var projects = get().json().getAsJsonObject().getAsJsonArray( "projects" );
+        assertEquals( true, projects.get( 0 ).getAsJsonObject().get( "archived" ).getAsBoolean() );
+        assertEquals( false, projects.get( 1 ).getAsJsonObject().get( "archived" ).getAsBoolean() );
     }
 }

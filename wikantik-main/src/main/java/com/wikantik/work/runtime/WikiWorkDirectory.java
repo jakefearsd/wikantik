@@ -27,6 +27,7 @@ import com.wikantik.work.WorkDirectory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Optional;
 import java.util.Set;
 
 /** The wiki's user and group directory, as work management sees it. Nothing here is cached. */
@@ -45,17 +46,24 @@ public final class WikiWorkDirectory implements WorkDirectory {
         return WikiWorkGroups.groupsOf( AuthSubsystemBridge.fromLegacyEngine( engine ).groups(), login );
     }
 
+    /**
+     * Asked only on behalf of a wiki admin who typed a login. The user database has no non-throwing exact lookup, so
+     * the account snapshot answers first (no exception for any account that has a mention id); only a login it does
+     * not know reaches {@code findByLoginName}, and an unknown login is then logged, at WARN, as a failed lookup.
+     */
     @Override
     public boolean exists( final String login ) {
         if ( login == null || login.isBlank() ) {
             return false;
         }
+        if ( identity().userIdForLogin( login ).isPresent() ) {
+            return true;
+        }
         try {
             AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase().findByLoginName( login );
             return true;
         } catch ( final NoSuchPrincipalException e ) {
-            // Expected: the login does not name an account.
-            LOG.debug( "No account has the login '{}': {}", login, e.getMessage() );
+            LOG.warn( "Work management: an admin named a login that no account has: {}", e.getMessage() );
             return false;
         } catch ( final RuntimeException e ) {
             LOG.warn( "User lookup failed while checking that a login exists; treating it as unknown: {}",
@@ -64,9 +72,36 @@ public final class WikiWorkDirectory implements WorkDirectory {
         }
     }
 
+    /**
+     * The public display name. A value that names no account at all (the wiki's resolver would hand it back as it is)
+     * is shown as {@link PublicIdentity#UNKNOWN_CONTRIBUTOR}: a login never reaches a reader.
+     */
     @Override
     public String displayName( final String login ) {
-        final PublicIdentity identity = PublicIdentities.forEngine( engine );
-        return identity.displayName( login );
+        final PublicIdentity identity = identity();
+        final String name = identity.displayName( login );
+        if ( login != null && name.equals( login.trim() ) && identity.userIdForLogin( login ).isEmpty() ) {
+            return PublicIdentity.UNKNOWN_CONTRIBUTOR;
+        }
+        return name;
+    }
+
+    @Override
+    public Optional< String > loginForDisplayName( final String displayName ) {
+        return identity().loginForDisplayName( displayName );
+    }
+
+    @Override
+    public Optional< String > loginForMentionId( final String id ) {
+        return identity().loginForUserId( id );
+    }
+
+    @Override
+    public Optional< String > mentionId( final String login ) {
+        return identity().userIdForLogin( login );
+    }
+
+    private PublicIdentity identity() {
+        return PublicIdentities.forEngine( engine );
     }
 }

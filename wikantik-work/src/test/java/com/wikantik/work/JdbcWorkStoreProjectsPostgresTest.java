@@ -62,7 +62,7 @@ class JdbcWorkStoreProjectsPostgresTest {
     @Test
     void userRowGrantsRole() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
-        store.putMember( p.id(), "alice", "user", WorkRole.MEMBER );
+        store.putMember( p.id(), "alice", "user", WorkRole.MEMBER, "admin", Actor.Kind.HUMAN );
         assertEquals( Optional.of( WorkRole.MEMBER ), store.roleFor( p.id(), human( "alice" ) ) );
         assertEquals( List.of( p.id() ), store.visibleProjects( human( "alice" ) ).stream().map( Project::id ).toList() );
         assertTrue( store.visibleProjects( human( "bob" ) ).isEmpty() );
@@ -71,7 +71,7 @@ class JdbcWorkStoreProjectsPostgresTest {
     @Test
     void groupRowGrantsRole() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
-        store.putMember( p.id(), "editors", "group", WorkRole.VIEWER );
+        store.putMember( p.id(), "editors", "group", WorkRole.VIEWER, "admin", Actor.Kind.HUMAN );
         assertEquals( Optional.of( WorkRole.VIEWER ), store.roleFor( p.id(), human( "bob", "editors" ) ) );
         assertEquals( 1, store.visibleProjects( human( "bob", "editors" ) ).size() );
         assertEquals( Optional.empty(), store.roleFor( p.id(), human( "bob", "others" ) ) );
@@ -80,7 +80,7 @@ class JdbcWorkStoreProjectsPostgresTest {
     @Test
     void agentRowMatchesAgentIdAsText() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
-        store.putMember( p.id(), "42", "agent", WorkRole.MEMBER );
+        store.putMember( p.id(), "42", "agent", WorkRole.MEMBER, "admin", Actor.Kind.HUMAN );
         final Actor agent = new Actor( "bot", Set.of(), false, Actor.Kind.AGENT, 42L );
         assertEquals( Optional.of( WorkRole.MEMBER ), store.roleFor( p.id(), agent ) );
         assertEquals( 1, store.visibleProjects( agent ).size() );
@@ -93,7 +93,7 @@ class JdbcWorkStoreProjectsPostgresTest {
     @Test
     void agentNeverMatchesUserRowOfSameLogin() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
-        store.putMember( p.id(), "alice", "user", WorkRole.LEAD );
+        store.putMember( p.id(), "alice", "user", WorkRole.LEAD, "admin", Actor.Kind.HUMAN );
         final Actor agent = new Actor( "alice", Set.of(), false, Actor.Kind.AGENT, 7L );
         assertEquals( Optional.empty(), store.roleFor( p.id(), agent ) );
         assertTrue( store.visibleProjects( agent ).isEmpty() );
@@ -102,7 +102,7 @@ class JdbcWorkStoreProjectsPostgresTest {
     @Test
     void agentNeverInheritsGroupRows() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
-        store.putMember( p.id(), "editors", "group", WorkRole.LEAD );
+        store.putMember( p.id(), "editors", "group", WorkRole.LEAD, "admin", Actor.Kind.HUMAN );
         final Actor agent = new Actor( "bot", Set.of( "editors" ), false, Actor.Kind.AGENT, 7L );
         assertEquals( Optional.empty(), store.roleFor( p.id(), agent ) );
         assertTrue( store.visibleProjects( agent ).isEmpty() );
@@ -111,16 +111,16 @@ class JdbcWorkStoreProjectsPostgresTest {
     @Test
     void highestRoleWins() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
-        store.putMember( p.id(), "alice", "user", WorkRole.VIEWER );
-        store.putMember( p.id(), "editors", "group", WorkRole.LEAD );
+        store.putMember( p.id(), "alice", "user", WorkRole.VIEWER, "admin", Actor.Kind.HUMAN );
+        store.putMember( p.id(), "editors", "group", WorkRole.LEAD, "admin", Actor.Kind.HUMAN );
         assertEquals( Optional.of( WorkRole.LEAD ), store.roleFor( p.id(), human( "alice", "editors" ) ) );
     }
 
     @Test
     void putMemberUpdatesExistingRole() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
-        store.putMember( p.id(), "alice", "user", WorkRole.VIEWER );
-        store.putMember( p.id(), "alice", "user", WorkRole.LEAD );
+        store.putMember( p.id(), "alice", "user", WorkRole.VIEWER, "admin", Actor.Kind.HUMAN );
+        store.putMember( p.id(), "alice", "user", WorkRole.LEAD, "admin", Actor.Kind.HUMAN );
         assertEquals( List.of( new Member( p.id(), "alice", "user", WorkRole.LEAD ) ), store.members( p.id() ) );
     }
 
@@ -136,8 +136,8 @@ class JdbcWorkStoreProjectsPostgresTest {
     @Test
     void removingMemberRemovesVisibility() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
-        store.putMember( p.id(), "alice", "user", WorkRole.MEMBER );
-        store.removeMember( p.id(), "alice", "user" );
+        store.putMember( p.id(), "alice", "user", WorkRole.MEMBER, "admin", Actor.Kind.HUMAN );
+        store.removeMember( p.id(), "alice", "user", "admin", Actor.Kind.HUMAN );
         assertTrue( store.visibleProjects( human( "alice" ) ).isEmpty() );
         assertTrue( store.members( p.id() ).isEmpty() );
     }
@@ -158,9 +158,9 @@ class JdbcWorkStoreProjectsPostgresTest {
     @Test
     void archivedProjectStillVisibleToMembers() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
-        store.putMember( p.id(), "alice", "user", WorkRole.MEMBER );
+        store.putMember( p.id(), "alice", "user", WorkRole.MEMBER, "admin", Actor.Kind.HUMAN );
         final Instant at = Instant.parse( "2026-11-15T10:00:00Z" );
-        store.archiveProject( p.id(), at );
+        store.archiveProject( p.id(), at, "admin", Actor.Kind.HUMAN );
         final List< Project > visible = store.visibleProjects( human( "alice" ) );
         assertEquals( 1, visible.size() );
         assertEquals( at, visible.get( 0 ).archivedAt() );
@@ -175,7 +175,7 @@ class JdbcWorkStoreProjectsPostgresTest {
         assertEquals( Autonomy.DELEGATED, p.defaultAutonomy() );
         assertNotNull( p.createdAt() );
         assertNull( p.archivedAt() );
-        store.updateProject( p.id(), "Wiki 2", "d2", Autonomy.SUPERVISED );
+        store.updateProject( p.id(), "Wiki 2", "d2", Autonomy.SUPERVISED, "admin", Actor.Kind.HUMAN );
         final Project u = store.project( "WIKI" ).orElseThrow();
         assertEquals( "Wiki 2", u.name() );
         assertEquals( "d2", u.description() );

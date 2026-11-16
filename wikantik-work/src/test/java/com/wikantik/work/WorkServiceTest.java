@@ -49,6 +49,8 @@ import static org.mockito.Mockito.when;
 class WorkServiceTest {
 
     private static final Instant NOW = Instant.parse( "2026-11-15T12:00:00Z" );
+    /** People whose display name, in this fixture, is their login. */
+    private static final Set< String > KNOWN = Set.of( "alice", "bob", "carol", "vera", "lena", "root", "outsider" );
 
     private WorkStore store;
     private WorkService service;
@@ -84,6 +86,9 @@ class WorkServiceTest {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
             @Override public String displayName( final String login ) { return login; }
+            @Override public Optional< String > loginForDisplayName( final String name ) {
+                return KNOWN.contains( name ) ? Optional.of( name ) : Optional.empty();
+            }
         };
         service = new WorkService( store, markdown -> "<p>" + markdown + "</p>", directory,
             Clock.fixed( NOW, ZoneOffset.UTC ) );
@@ -187,15 +192,15 @@ class WorkServiceTest {
         when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 20, "zoe", "secret", NOW, null, null ) ) );
         assertThrows( WorkNotFoundException.class, () -> service.editComment( outsider, 5, "x" ) );
         assertThrows( WorkNotFoundException.class, () -> service.removeComment( outsider, 5 ) );
-        verify( store, never() ).editComment( anyLong(), anyString(), anyString() );
-        verify( store, never() ).removeComment( anyLong(), anyString() );
+        verify( store, never() ).editComment( anyLong(), anyString(), anyString(), any(), anyList() );
+        verify( store, never() ).removeComment( anyLong(), anyString(), any() );
     }
 
     @Test
     void linkIdFromInvisibleProjectIsNotFound() throws SQLException {
         when( store.link( 7 ) ).thenReturn( Optional.of( new Link( 7, 20, "url", "https://x.example" ) ) );
         assertThrows( WorkNotFoundException.class, () -> service.removeLink( outsider, 7 ) );
-        verify( store, never() ).removeLink( anyLong(), anyString() );
+        verify( store, never() ).removeLink( anyLong(), anyString(), any() );
     }
 
     // ---- validation
@@ -358,7 +363,7 @@ class WorkServiceTest {
     @Test
     void onlyAuthorEditsComment() throws SQLException {
         when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "alice", "x", NOW, null, null ) ) );
-        when( store.editComment( 5, "y", "alice" ) )
+        when( store.editComment( eq( 5L ), eq( "y" ), eq( "alice" ), any(), anyList() ) )
             .thenReturn( new Comment( 5, 12, "alice", "y", NOW, NOW, null ) );
         assertThrows( WorkDeniedException.class, () -> service.editComment( bob, 5, "y" ) );
         assertThrows( WorkDeniedException.class, () -> service.editComment( lead, 5, "y" ) );
@@ -375,7 +380,7 @@ class WorkServiceTest {
         service.removeComment( alice, 5 );
         service.removeComment( lead, 5 );
         service.removeComment( admin, 5 );
-        verify( store, org.mockito.Mockito.times( 3 ) ).removeComment( eq( 5L ), anyString() );
+        verify( store, org.mockito.Mockito.times( 3 ) ).removeComment( eq( 5L ), anyString(), any() );
     }
 
     @Test
@@ -404,7 +409,7 @@ class WorkServiceTest {
         when( store.createProject( "NEW", "New", "" ) )
             .thenReturn( new Project( 3, "NEW", "New", "", Autonomy.SUPERVISED, NOW, null ) );
         assertEquals( "NEW", service.createProject( admin, "NEW", "New", "" ).key() );
-        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any() );
+        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), anyString(), any() );
     }
 
     @Test
@@ -418,7 +423,7 @@ class WorkServiceTest {
         assertThrows( WorkDeniedException.class,
             () -> service.putMember( alice, "PLAT", "bob", "user", WorkRole.LEAD ) );
         service.putMember( lead, "PLAT", "bob", "user", WorkRole.LEAD );
-        verify( store ).putMember( 1, "bob", "user", WorkRole.LEAD );
+        verify( store ).putMember( 1, "bob", "user", WorkRole.LEAD, "lena", Actor.Kind.HUMAN );
         assertThrows( WorkNotFoundException.class,
             () -> service.putMember( outsider, "PLAT", "bob", "user", WorkRole.LEAD ) );
     }
@@ -456,16 +461,16 @@ class WorkServiceTest {
             "OPS-999" ) );
         assertEquals( "target", hidden.field() );
         assertEquals( hidden.getMessage(), unknown.getMessage() );
-        verify( store, never() ).addLink( any(), anyString(), anyString(), anyString() );
+        verify( store, never() ).addLink( any(), anyString(), anyString(), anyString(), any() );
     }
 
     @Test
     void blockedByMustBeSameProjectItemNotSelf() throws SQLException {
         assertEquals( "target", invalid( () -> service.addLink( alice, "PLAT-3", "blocked_by", "plat-3" ) ).field() );
         assertEquals( "target", invalid( () -> service.addLink( alice, "PLAT-3", "blocked_by", "nonsense" ) ).field() );
-        when( store.addLink( any(), anyString(), anyString(), anyString() ) )
+        when( store.addLink( any(), anyString(), anyString(), anyString(), any() ) )
             .thenReturn( new Link( 1, 12, "blocked_by", "PLAT-2" ) );
         service.addLink( alice, "PLAT-3", "blocked_by", "plat-2" );
-        verify( store ).addLink( any(), eq( "blocked_by" ), eq( "PLAT-2" ), eq( "alice" ) );
+        verify( store ).addLink( any(), eq( "blocked_by" ), eq( "PLAT-2" ), eq( "alice" ), eq( Actor.Kind.HUMAN ) );
     }
 }

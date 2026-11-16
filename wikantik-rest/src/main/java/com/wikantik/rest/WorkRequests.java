@@ -101,6 +101,19 @@ final class WorkRequests {
             }
         }
         return new ItemFilter( null, statuses, c.query( "assignee" ), productId, level, parentId, c.query( "q" ),
-            dueBefore, limit );
+            dueBefore, limit, order( c.query( "order" ) ) );
+    }
+
+    /** {@code key} (the default) or {@code due}: soonest due date first, no date last. */
+    private static ItemFilter.Order order( final String wire ) {
+        if ( wire == null ) {
+            return ItemFilter.Order.KEY;
+        }
+        for ( final ItemFilter.Order o : ItemFilter.Order.values() ) {
+            if ( o.wire().equals( wire ) ) {
+                return o;
+            }
+        }
+        throw new WorkValidationException( "order", "order must be key or due." );
     }
 }

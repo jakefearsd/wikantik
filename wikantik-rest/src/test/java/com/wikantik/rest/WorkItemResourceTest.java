@@ -19,15 +19,17 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
-import com.wikantik.work.Comment;
+import com.wikantik.work.CommentView;
 import com.wikantik.work.ItemFilter;
 import com.wikantik.work.ItemPatch;
 import com.wikantik.work.ItemRevision;
 import com.wikantik.work.Link;
+import com.wikantik.work.Actor;
 import com.wikantik.work.WorkConflictException;
 import com.wikantik.work.WorkDeniedException;
 import com.wikantik.work.WorkEvent;
 import com.wikantik.work.WorkNotFoundException;
+import com.wikantik.work.WorkRole;
 import com.wikantik.work.WorkService;
 import com.wikantik.work.WorkValidationException;
 import org.junit.jupiter.api.BeforeEach;
@@ -197,7 +199,7 @@ class WorkItemResourceTest {
 
     @Test
     void addsEditsAndRemovesComments() throws Exception {
-        final Comment c = new Comment( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null, null );
+        final CommentView c = new CommentView( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null, null, "<p>hi</p>", List.of() );
         Mockito.when( svc.addComment( ALICE, "PLAT-1", "hi" ) ).thenReturn( c );
         Mockito.when( svc.editComment( ALICE, 5, "yo" ) ).thenReturn( c );
         final WorkHttp.Result added = send( "POST", "/api/work/items", "/PLAT-1/comments", "{\"body\":\"hi\"}" );
@@ -292,7 +294,67 @@ class WorkItemResourceTest {
         final JsonObject item = get( "/PLAT-1", Map.of() ).json().getAsJsonObject().getAsJsonObject( "item" );
         assertEquals( "Name of carol", item.get( "assigneeName" ).getAsString() );
         assertEquals( "Name of bob", item.get( "reporterName" ).getAsString() );
+        assertEquals( "Name of carol", item.get( "assignee" ).getAsString(), "a member is shown no login" );
+        assertEquals( "Name of bob", item.get( "reporter" ).getAsString() );
+    }
+
+    @Test
+    void anAdminSeesLoginsBesideNames() throws Exception {
+        servlet = WorkHttp.wire( new WorkItemResource(), svc, Actor.human( "root", java.util.Set.of(), true ) );
+        Mockito.when( svc.item( any(), anyString() ) ).thenReturn( WorkHttp.view( "PLAT-1", "carol", 1 ) );
+        final JsonObject item = get( "/PLAT-1", Map.of() ).json().getAsJsonObject().getAsJsonObject( "item" );
         assertEquals( "carol", item.get( "assignee" ).getAsString() );
+        assertEquals( "Name of carol", item.get( "assigneeName" ).getAsString() );
+    }
+
+    @Test
+    void aCommentSaysWhetherItIsMineAndShowsNoLogin() throws Exception {
+        final CommentView mine = new CommentView( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null,
+            null, "<p>hi</p>", List.of() );
+        final CommentView theirs = new CommentView( 6, 7, "carol", "yo", Instant.parse( "2026-11-01T10:00:00Z" ), null,
+            null, "<p>yo</p>", List.of( "Name of alice" ) );
+        final WorkService.ItemView v = WorkHttp.view( "PLAT-1", null, 1 );
+        Mockito.when( svc.item( ALICE, "PLAT-1" ) ).thenReturn( new WorkService.ItemView( v.item(), v.bodyHtml(),
+            v.projectKey(), null, null, List.of(), List.of( mine, theirs ), List.of(), false, WorkRole.MEMBER, false ) );
+        final var comments = get( "/PLAT-1", Map.of() ).json().getAsJsonObject().getAsJsonArray( "comments" );
+        assertTrue( comments.get( 0 ).getAsJsonObject().get( "mine" ).getAsBoolean() );
+        assertFalse( comments.get( 1 ).getAsJsonObject().get( "mine" ).getAsBoolean() );
+        assertEquals( "Name of carol", comments.get( 1 ).getAsJsonObject().get( "author" ).getAsString() );
+        assertEquals( "<p>yo</p>", comments.get( 1 ).getAsJsonObject().get( "bodyHtml" ).getAsString() );
+        assertFalse( comments.toString().contains( "\"carol\"" ), comments.toString() );
+    }
+
+    @Test
+    void aStaleConflictCarriesTheCurrentItemAndSaysStale() throws Exception {
+        Mockito.when( svc.updateItem( any(), anyString(), any() ) ).thenThrow( new WorkConflictException( "changed" ) );
+        Mockito.when( svc.item( any(), anyString() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 5 ) );
+        final JsonObject b = send( "PATCH", "/api/work/items", "/PLAT-1",
+            "{\"expectedVersion\":1,\"changes\":{\"title\":\"x\"}}" ).json().getAsJsonObject();
+        assertEquals( "stale", b.get( "reason" ).getAsString() );
+        assertTrue( b.has( "current" ) );
+    }
+
+    @Test
+    void anArchivedConflictSaysArchivedAndCarriesNoCurrentItem() throws Exception {
+        Mockito.when( svc.updateItem( any(), anyString(), any() ) ).thenThrow(
+            new WorkConflictException( "This project is archived.", WorkConflictException.ARCHIVED ) );
+        final WorkHttp.Result r = send( "PATCH", "/api/work/items", "/PLAT-1",
+            "{\"expectedVersion\":1,\"changes\":{\"title\":\"x\"}}" );
+        assertEquals( 409, r.status() );
+        assertEquals( "archived", r.json().getAsJsonObject().get( "reason" ).getAsString() );
+        assertFalse( r.json().getAsJsonObject().has( "current" ) );
+        Mockito.verify( svc, Mockito.never() ).item( any(), anyString() );
+    }
+
+    @Test
+    void theDueOrderIsPassedThroughAndAnUnknownOrderIs400() throws Exception {
+        Mockito.when( svc.itemSummaries( any(), anyString(), any() ) ).thenReturn( List.of() );
+        get( "", Map.of( "project", "PLAT", "order", "due" ) );
+        Mockito.verify( svc ).itemSummaries( any(), eq( "PLAT" ),
+            Mockito.argThat( f -> f.order() == com.wikantik.work.ItemFilter.Order.DUE ) );
+        final WorkHttp.Result bad = get( "", Map.of( "project", "PLAT", "order", "random" ) );
+        assertEquals( 400, bad.status() );
+        assertEquals( "order", bad.json().getAsJsonObject().get( "field" ).getAsString() );
     }
 
     @Test
@@ -326,7 +388,7 @@ class WorkItemResourceTest {
     @Test
     void aBodyJustUnderTheLimitIsAccepted() throws Exception {
         Mockito.when( svc.addComment( any(), anyString(), any() ) ).thenReturn(
-            new Comment( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null, null ) );
+            new CommentView( 5, 7, "alice", "hi", Instant.parse( "2026-11-01T10:00:00Z" ), null, null, "<p>hi</p>", List.of() ) );
         final String big = "{\"body\":\"" + "x".repeat( 262_000 ) + "\"}";
         assertEquals( 201, send( "POST", "/api/work/items", "/PLAT-1/comments", big ).status() );
     }

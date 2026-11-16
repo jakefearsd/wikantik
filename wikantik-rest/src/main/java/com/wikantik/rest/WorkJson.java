@@ -29,12 +29,11 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import jakarta.servlet.http.HttpServletResponse;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.time.Instant;
+import java.util.Arrays;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -42,15 +41,26 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
-/** The wire form of the work API: one Gson configuration, display names beside logins, and the error body. */
+/**
+ * The wire form of the work API: one Gson configuration, people shown by display name, and the error body.
+ *
+ * <p><b>People on the wire.</b> Every field that holds a user's login ({@code assignee}, {@code reporter},
+ * {@code author}, {@code actor}, {@code editedBy}, a user member's {@code principal}, the people in assigned, handoff
+ * and member events) comes with a {@code …Name} twin holding the display name. For a caller who is not a wiki admin
+ * the field itself holds the display name too (the two are equal), so no login reaches them; a wiki admin sees the
+ * login in the field. Where the UI needs to know "is this me", the server says so: {@code mine} on a comment,
+ * {@code self} on a member row. Group names are not logins and are shown as they are.
+ */
 final class WorkJson {
-
-    private static final Logger LOG = LogManager.getLogger( WorkJson.class );
 
     private WorkJson() {
     }
 
     private static final Set< String > NAME_KEYS = Set.of( "assignee", "reporter", "author", "actor", "editedBy" );
+
+    /** Who the response is for: their login (for {@code mine}/{@code self}) and whether they may see logins. */
+    record Viewer( String login, boolean admin ) {
+    }
 
     /** Serialises enums by their {@code wire()} value (or lower-cased name), dates and instants as ISO strings. */
     private static final class WireEnumFactory implements TypeAdapterFactory {
@@ -62,13 +72,10 @@ final class WorkJson {
                 return null;
             }
             final Class< ? > enumType = raw.isEnum() ? raw : raw.getSuperclass();
-            Method wire = null;
-            try {
-                wire = enumType.getMethod( "wire" );
-            } catch ( final NoSuchMethodException e ) {
-                LOG.debug( "{} has no wire(); using its lower-cased name", enumType.getName() );
-            }
-            final Method wireMethod = wire;
+            // Looked up without an exception: an enum with no wire() is an expected case, not an error.
+            final Method wireMethod = Arrays.stream( enumType.getMethods() )
+                .filter( m -> "wire".equals( m.getName() ) && m.getParameterCount() == 0 )
+                .findFirst().orElse( null );
             return new TypeAdapter< T >() {
                 @Override
                 public void write( final JsonWriter out, final T value ) throws IOException {
@@ -117,56 +124,122 @@ final class WorkJson {
         response.getWriter().write( GSON.toJson( tree ) );
     }
 
-    static JsonElement enrich( final JsonElement e, final Function< String, String > names ) {
+    static JsonElement enrich( final JsonElement e, final Function< String, String > names, final Viewer viewer ) {
         if ( e.isJsonArray() ) {
             for ( final JsonElement child : e.getAsJsonArray() ) {
-                enrich( child, names );
+                enrich( child, names, viewer );
             }
         } else if ( e.isJsonObject() ) {
             final JsonObject o = e.getAsJsonObject();
-            final Map< String, JsonElement > additions = new LinkedHashMap<>();
+            final Map< String, JsonElement > changes = new LinkedHashMap<>();
             for ( final Map.Entry< String, JsonElement > entry : o.entrySet() ) {
                 final JsonElement v = entry.getValue();
                 if ( NAME_KEYS.contains( entry.getKey() ) && v.isJsonPrimitive() ) {
-                    additions.put( entry.getKey() + "Name", new JsonPrimitive( names.apply( v.getAsString() ) ) );
+                    person( changes, entry.getKey(), v.getAsString(), names, viewer );
                 }
-                enrich( v, names );
+                enrich( v, names, viewer );
             }
-            addMemberAndEventNames( o, additions, names );
-            additions.forEach( o::add );
+            memberNames( o, changes, names, viewer );
+            eventNames( o, changes, names, viewer );
+            changes.forEach( o::add );
         }
         return e;
     }
 
-    private static void addMemberAndEventNames( final JsonObject o, final Map< String, JsonElement > add,
-                                                final Function< String, String > names ) {
-        final String principal = str( o, "principal" );
-        if ( principal != null && o.has( "principalKind" ) ) {
-            add.put( "displayName", new JsonPrimitive( "user".equals( str( o, "principalKind" ) )
-                ? names.apply( principal ) : principal ) );
+    /** {@code key} holds a login: add {@code keyName}, and for a non-admin replace the login with the name. */
+    private static void person( final Map< String, JsonElement > changes, final String key, final String login,
+                                final Function< String, String > names, final Viewer viewer ) {
+        final JsonPrimitive name = new JsonPrimitive( names.apply( login ) );
+        changes.put( key + "Name", name );
+        if ( "author".equals( key ) ) {
+            changes.put( "mine", new JsonPrimitive( login.equals( viewer.login() ) ) );
         }
-        final String type = str( o, "type" );
-        if ( "assigned".equals( type ) || "handoff".equals( type ) ) {
-            for ( final String side : new String[] { "fromValue", "toValue" } ) {
-                final String login = eventLogin( str( o, side ), type );
-                if ( login != null && !login.isEmpty() ) {
-                    add.put( side + "Name", new JsonPrimitive( names.apply( login ) ) );
-                }
-            }
+        if ( !viewer.admin() ) {
+            changes.put( key, name );
         }
     }
 
-    /** The login an event value names: the value itself, or for a handoff the part after the {@code |}. */
-    private static String eventLogin( final String value, final String type ) {
-        if ( value == null || !"handoff".equals( type ) ) {
-            return value;
+    private static void memberNames( final JsonObject o, final Map< String, JsonElement > changes,
+                                     final Function< String, String > names, final Viewer viewer ) {
+        final String principal = str( o, "principal" );
+        if ( principal == null || !o.has( "principalKind" ) ) {
+            return;
         }
-        final int bar = value.indexOf( '|' );
-        return bar < 0 ? null : value.substring( bar + 1 );
+        final boolean user = "user".equals( str( o, "principalKind" ) );
+        final String name = user ? names.apply( principal ) : principal;
+        changes.put( "displayName", new JsonPrimitive( name ) );
+        changes.put( "self", new JsonPrimitive( user && principal.equals( viewer.login() ) ) );
+        if ( user && !viewer.admin() ) {
+            changes.put( "principal", new JsonPrimitive( name ) );
+        }
+    }
+
+    /** The people an assigned, handoff or member event names, by display name (and only so, for a non-admin). */
+    private static void eventNames( final JsonObject o, final Map< String, JsonElement > changes,
+                                    final Function< String, String > names, final Viewer viewer ) {
+        final String type = str( o, "type" );
+        if ( !"assigned".equals( type ) && !"handoff".equals( type ) && !"member".equals( type ) ) {
+            return;
+        }
+        for ( final String side : new String[] { "fromValue", "toValue" } ) {
+            final String value = str( o, side );
+            if ( value == null || value.isEmpty() ) {
+                continue;
+            }
+            final String[] parts = EventPeople.split( type, value );
+            if ( parts == null ) {
+                continue;
+            }
+            final boolean login = parts[ 2 ] == null || "user".equals( parts[ 2 ] );   // a group name is shown as is
+            final String name = parts[ 1 ].isEmpty() ? "" : login ? names.apply( parts[ 1 ] ) : parts[ 1 ];
+            if ( !name.isEmpty() ) {
+                changes.put( side + "Name", new JsonPrimitive( name ) );
+            }
+            if ( !viewer.admin() ) {
+                changes.put( side, new JsonPrimitive( EventPeople.join( type, value, name ) ) );
+            }
+        }
     }
 
     private static String str( final JsonObject o, final String key ) {
         final JsonElement v = o.get( key );
         return v != null && v.isJsonPrimitive() ? v.getAsString() : null;
+    }
+
+    /** Where the person sits in an event value: {@code login}, {@code status|login} or {@code kind:principal:role}. */
+    static final class EventPeople {
+
+        private EventPeople() {
+        }
+
+        /** {prefix, person, kind-or-null}; null when the value has no person in it. */
+        static String[] split( final String type, final String value ) {
+            switch ( type ) {
+                case "handoff" -> {
+                    final int bar = value.indexOf( '|' );
+                    return bar < 0 ? null : new String[] { value.substring( 0, bar + 1 ), value.substring( bar + 1 ), null };
+                }
+                case "member" -> {
+                    final int first = value.indexOf( ':' );
+                    final int last = value.lastIndexOf( ':' );
+                    return first < 0 || last <= first ? null
+                        : new String[] { value.substring( 0, first ), value.substring( first + 1, last ),
+                            value.substring( 0, first ) };
+                }
+                default -> {
+                    return new String[] { "", value, null };
+                }
+            }
+        }
+
+        /** The value with its person replaced by {@code name}. */
+        static String join( final String type, final String value, final String name ) {
+            return switch ( type ) {
+                case "handoff" -> value.substring( 0, value.indexOf( '|' ) + 1 ) + name;
+                case "member" -> value.substring( 0, value.indexOf( ':' ) + 1 ) + name
+                    + value.substring( value.lastIndexOf( ':' ) );
+                default -> name;
+            };
+        }
     }
 }

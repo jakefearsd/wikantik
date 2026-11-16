@@ -357,4 +357,57 @@ class WikiWorkRendererTest {
         assertTrue( html.contains( ">Some Page</a>" ), html );
         assertTrue( html.contains( ">t</a>" ), html );
     }
+
+    /** A service whose comments render through {@code renderWith}; the store hands back what it is given. */
+    private com.wikantik.work.WorkService commentService( final com.wikantik.WikiEngine renderWith ) throws Exception {
+        final com.wikantik.work.WorkStore store = mock( com.wikantik.work.WorkStore.class );
+        final java.time.Instant now = java.time.Instant.parse( "2026-11-15T12:00:00Z" );
+        final com.wikantik.work.Project plat = new com.wikantik.work.Project( 1, "PLAT", "Platform", "",
+            com.wikantik.work.Autonomy.DELEGATED, now, null );
+        final com.wikantik.work.Item item = new com.wikantik.work.Item( 12, 1, "PLAT-1", com.wikantik.work.WorkLevel.TASK,
+            null, null, com.wikantik.work.WorkKind.SOFTWARE, "t", "", com.wikantik.work.WorkStatus.DRAFT, 3, 1, null,
+            null, "janne", null, null, null, 1, now, now, null );
+        when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
+        when( store.item( "PLAT-1" ) ).thenReturn( Optional.of( item ) );
+        when( store.roleFor( org.mockito.ArgumentMatchers.eq( 1L ), org.mockito.ArgumentMatchers.any() ) )
+            .thenReturn( Optional.of( com.wikantik.work.WorkRole.MEMBER ) );
+        when( store.addComment( org.mockito.ArgumentMatchers.any(), anyString(), org.mockito.ArgumentMatchers.any(),
+            anyString(), org.mockito.ArgumentMatchers.anyList() ) ).thenAnswer( inv -> new com.wikantik.work.Comment(
+                1, 12, "janne", inv.getArgument( 3 ), now, null, null ) );
+        return new com.wikantik.work.WorkService( store, new WikiWorkRenderer( renderWith ),
+            new WikiWorkDirectory( engine ), java.time.Clock.systemUTC() );
+    }
+
+    private static final com.wikantik.work.Actor JANNE =
+        com.wikantik.work.Actor.human( "janne", Set.of(), false );
+
+    /** Comment text gets the item text's guard: no existence lookup for any link syntax. */
+    @Test
+    void commentTextDoesNoExistenceLookupEither() throws Exception {
+        final com.wikantik.WikiEngine spied = org.mockito.Mockito.spy( engine );
+        final PageManager realPages = engine.getManager( PageManager.class );
+        final PageManager pages = org.mockito.Mockito.spy( realPages );
+        spied.setManager( PageManager.class, pages );
+        try {
+            final String html = commentService( spied ).addComment( JANNE, "PLAT-1", CORPUS ).bodyHtml();
+            assertTrue( html.contains( "alias text" ), "the comment really rendered: " + html );
+            org.mockito.Mockito.verify( spied, org.mockito.Mockito.never() ).getFinalPageName( org.mockito.ArgumentMatchers.any() );
+            org.mockito.Mockito.verifyNoInteractions( index );
+            org.mockito.Mockito.verify( pages, org.mockito.Mockito.never() ).pageExists( anyString() );
+            org.mockito.Mockito.verify( pages, org.mockito.Mockito.never() ).getPage( anyString() );
+        } finally {
+            spied.setManager( PageManager.class, realPages );
+        }
+    }
+
+    @Test
+    void commentTextIsSanitisedAndAMentionNameCannotBecomeMarkup() throws Exception {
+        final com.wikantik.work.CommentView v = commentService( engine ).addComment( JANNE, "PLAT-1",
+            "hello <script>alert(1)</script> [x](javascript:alert(2)) @[<img src=x onerror=alert(3)>](user:gone) **ok**" );
+        final String html = v.bodyHtml().toLowerCase();
+        assertFalse( html.contains( "<script" ), html );
+        assertFalse( html.contains( "javascript:" ), html );
+        assertFalse( html.contains( "<img" ), html );
+        assertTrue( html.contains( "<strong>ok</strong>" ), "comments are Markdown: " + html );
+    }
 }

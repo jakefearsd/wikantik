@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.work.Autonomy;
 import com.wikantik.work.DeployGate;
@@ -34,7 +35,7 @@ public class WorkProductResource extends WorkResourceBase {
 
     @Override
     protected void routes( final List< Object[] > r ) {
-        route( r, "GET", "products", c -> c.json( c.svc.listProducts( c.actor ) ) );
+        route( r, "GET", "products", c -> c.tree( productsTree( c ) ) );
         route( r, "POST", "products", c -> {
             final JsonObject b = c.body();
             if ( b == null ) {
@@ -57,6 +58,27 @@ public class WorkProductResource extends WorkResourceBase {
             c.svc.archiveProduct( c.actor, c.pathParam( 0 ) );
             c.noContent();
         } );
+    }
+
+    /**
+     * The catalogue as the caller may see it: every field for a wiki admin; key, name and {@code archived} only for
+     * anyone else (the rest is instance configuration). Both carry {@code archived} as a boolean.
+     */
+    private JsonArray productsTree( final Call c ) throws Exception {
+        final JsonArray out = new JsonArray();
+        for ( final Product p : c.svc.listProducts( c.actor ) ) {
+            final JsonObject o;
+            if ( c.actor.admin() ) {
+                o = toTree( p, c.actor ).getAsJsonObject();
+            } else {
+                o = new JsonObject();
+                o.addProperty( "key", p.key() );
+                o.addProperty( "name", p.name() );
+            }
+            o.addProperty( "archived", p.archivedAt() != null );
+            out.add( o );
+        }
+        return out;
     }
 
     private static Product find( final Call c, final String key ) throws Exception {

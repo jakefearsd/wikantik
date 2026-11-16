@@ -65,6 +65,8 @@ final class WorkHttp {
         Mockito.doReturn( svc ).when( spy ).workService();
         Mockito.doReturn( actor ).when( spy ).actor( Mockito.any() );
         Mockito.doAnswer( inv -> "Name of " + inv.getArgument( 0 ) ).when( spy ).displayName( Mockito.anyString() );
+        Mockito.doAnswer( inv -> java.util.Optional.of( "id-" + inv.getArgument( 0 ).hashCode() ) ).when( spy )
+            .mentionId( Mockito.anyString() );
         return spy;
     }
 
@@ -112,6 +114,6 @@ final class WorkHttp {
 
     static WorkService.ItemView view( final String key, final String assignee, final int version ) {
         return new WorkService.ItemView( item( key, assignee, version ), "<p>Body</p>", "PLAT", null, null, List.of(),
-            List.of(), List.of(), false, WorkRole.MEMBER );
+            List.of(), List.of(), false, WorkRole.MEMBER, false );
     }
 }

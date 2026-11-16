@@ -37,6 +37,7 @@ import java.util.Map;
 import static com.wikantik.rest.WorkHttp.ALICE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -64,20 +65,59 @@ class WorkActivityResourceTest {
 
     @Test
     void listsActivityNewestFirstWithDisplayNames() throws Exception {
-        Mockito.when( svc.activity( eq( ALICE ), eq( "PLAT" ), any(), any(), anyInt() ) ).thenReturn( List.of( event() ) );
+        Mockito.when( svc.activity( eq( ALICE ), eq( "PLAT" ), any(), any(), any(), anyInt() ) ).thenReturn( List.of( event() ) );
         final JsonObject e = get( Map.of( "project", "PLAT", "before", "2026-11-02T00:00:00Z" ) ).json()
             .getAsJsonArray().get( 0 ).getAsJsonObject();
         assertEquals( "Name of alice", e.get( "actorName" ).getAsString() );
-        assertEquals( "alice", e.get( "actor" ).getAsString() );
+        assertEquals( "Name of alice", e.get( "actor" ).getAsString(), "a member is never shown a login" );
         assertEquals( "2026-11-01T10:00:00Z", e.get( "at" ).getAsString() );
-        Mockito.verify( svc ).activity( ALICE, "PLAT", Instant.parse( "2026-11-02T00:00:00Z" ), null, 0 );
+        Mockito.verify( svc ).activity( ALICE, "PLAT", Instant.parse( "2026-11-02T00:00:00Z" ), null, null, 0 );
     }
 
     @Test
     void beforeIdIsPassedWithBefore() throws Exception {
-        Mockito.when( svc.activity( any(), anyString(), any(), any(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), any(), anyInt() ) ).thenReturn( List.of() );
         get( Map.of( "project", "PLAT", "before", "2026-11-02T00:00:00Z", "beforeId", "42" ) );
-        Mockito.verify( svc ).activity( ALICE, "PLAT", Instant.parse( "2026-11-02T00:00:00Z" ), 42L, 0 );
+        Mockito.verify( svc ).activity( ALICE, "PLAT", Instant.parse( "2026-11-02T00:00:00Z" ), 42L, null, 0 );
+    }
+
+    @Test
+    void itemNarrowsTheFeed() throws Exception {
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), any(), anyInt() ) ).thenReturn( List.of() );
+        get( Map.of( "project", "PLAT", "item", "PLAT-3" ) );
+        Mockito.verify( svc ).activity( ALICE, "PLAT", null, null, "PLAT-3", 0 );
+    }
+
+    @Test
+    void aMemberEventNamesPeopleByDisplayNameOnly() throws Exception {
+        final WorkEvent member = new WorkEvent( 2, 1L, null, null, Instant.parse( "2026-11-01T10:00:00Z" ), "lena",
+            Actor.Kind.HUMAN, null, "member", "user:bob:member", "user:bob:lead", null );
+        final WorkEvent group = new WorkEvent( 3, 1L, null, null, Instant.parse( "2026-11-01T10:00:00Z" ), "lena",
+            Actor.Kind.HUMAN, null, "member", null, "group:editors:viewer", null );
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), any(), anyInt() ) )
+            .thenReturn( List.of( member, group ) );
+        final com.google.gson.JsonArray events = get( Map.of( "project", "PLAT" ) ).json().getAsJsonArray();
+        final JsonObject m = events.get( 0 ).getAsJsonObject();
+        assertEquals( "user:Name of bob:member", m.get( "fromValue" ).getAsString() );
+        assertEquals( "user:Name of bob:lead", m.get( "toValue" ).getAsString() );
+        assertEquals( "Name of bob", m.get( "toValueName" ).getAsString() );
+        assertTrue( m.get( "itemKey" ).isJsonNull() );
+        final JsonObject g = events.get( 1 ).getAsJsonObject();
+        assertEquals( "group:editors:viewer", g.get( "toValue" ).getAsString(), "a group name is not a login" );
+        assertEquals( "editors", g.get( "toValueName" ).getAsString() );
+        assertFalse( events.toString().contains( "\"bob\"" ) || events.toString().contains( ":bob:" ), events.toString() );
+    }
+
+    @Test
+    void anAdminSeesTheLoginsInEvents() throws Exception {
+        servlet = WorkHttp.wire( new WorkActivityResource(), svc, Actor.human( "root", java.util.Set.of(), true ) );
+        final WorkEvent member = new WorkEvent( 2, 1L, null, null, Instant.parse( "2026-11-01T10:00:00Z" ), "lena",
+            Actor.Kind.HUMAN, null, "member", null, "user:bob:lead", null );
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), any(), anyInt() ) ).thenReturn( List.of( member ) );
+        final JsonObject m = get( Map.of( "project", "PLAT" ) ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertEquals( "user:bob:lead", m.get( "toValue" ).getAsString() );
+        assertEquals( "lena", m.get( "actor" ).getAsString() );
+        assertEquals( "Name of lena", m.get( "actorName" ).getAsString() );
     }
 
     @Test
@@ -89,10 +129,10 @@ class WorkActivityResourceTest {
 
     @Test
     void limitIsClampedTo200() throws Exception {
-        Mockito.when( svc.activity( any(), anyString(), any(), any(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), any(), anyInt() ) ).thenReturn( List.of() );
         get( Map.of( "project", "PLAT", "limit", "100000" ) );
         final ArgumentCaptor< Integer > limit = ArgumentCaptor.forClass( Integer.class );
-        Mockito.verify( svc ).activity( any(), anyString(), any(), any(), limit.capture() );
+        Mockito.verify( svc ).activity( any(), anyString(), any(), any(), any(), limit.capture() );
         assertEquals( 200, limit.getValue() );
     }
 
@@ -122,7 +162,7 @@ class WorkActivityResourceTest {
 
     @Test
     void notFoundMapsTo404WithoutEchoingTheKey() throws Exception {
-        Mockito.when( svc.activity( any(), anyString(), any(), any(), anyInt() ) ).thenThrow( new WorkNotFoundException( "x" ) );
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), any(), anyInt() ) ).thenThrow( new WorkNotFoundException( "x" ) );
         final WorkHttp.Result r = get( Map.of( "project", "HIDDEN" ) );
         assertEquals( 404, r.status() );
         assertFalse( r.body().contains( "HIDDEN" ), r.body() );
@@ -130,7 +170,7 @@ class WorkActivityResourceTest {
 
     @Test
     void deniedMapsTo403WithReason() throws Exception {
-        Mockito.when( svc.activity( any(), anyString(), any(), any(), anyInt() ) ).thenThrow( new WorkDeniedException( "nope" ) );
+        Mockito.when( svc.activity( any(), anyString(), any(), any(), any(), anyInt() ) ).thenThrow( new WorkDeniedException( "nope" ) );
         final WorkHttp.Result r = get( Map.of( "project", "PLAT" ) );
         assertEquals( 403, r.status() );
         assertEquals( "nope", r.json().getAsJsonObject().get( "message" ).getAsString() );

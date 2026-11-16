@@ -251,8 +251,10 @@ class JdbcWorkStoreItemsPostgresTest {
     void boardReturnsAllSevenColumnsInOrder() throws SQLException {
         create( "a" );
         final List< BoardColumn > board = store.board( plat.id(), new ItemFilter( null, null, null, null, null, null,
-            null, null, 0 ) );
-        assertEquals( List.of( WorkStatus.values() ), board.stream().map( BoardColumn::status ).toList() );
+            null, null, 0, null ) );
+        // Pinned literally: comparing with WorkStatus.values() would follow any reordering of the enum.
+        assertEquals( List.of( "draft", "refining", "ready", "in_progress", "review", "done", "cancelled" ),
+            board.stream().map( c -> c.status().wire() ).toList() );
         assertEquals( 1, board.get( 0 ).total() );
         assertEquals( 1, board.get( 0 ).items().size() );
         assertEquals( 0, board.get( 6 ).total() );
@@ -265,10 +267,10 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item c = create( "c" );
         final Item mine = store.updateItem( c, withAssignee( c, "dave" ), "alice", Actor.Kind.HUMAN, null );
         final List< BoardColumn > all = store.board( plat.id(),
-            new ItemFilter( null, null, null, null, null, null, null, null, 0 ) );
+            new ItemFilter( null, null, null, null, null, null, null, null, 0, null ) );
         assertEquals( List.of( a.id(), b.id(), c.id() ), all.get( 0 ).items().stream().map( Item::id ).toList() );
         final List< BoardColumn > filtered = store.board( plat.id(),
-            new ItemFilter( null, null, "dave", null, null, null, null, null, 0 ) );
+            new ItemFilter( null, null, "dave", null, null, null, null, null, 0, null ) );
         assertEquals( 1, filtered.get( 0 ).total() );
         assertEquals( mine.id(), filtered.get( 0 ).items().get( 0 ).id() );
     }
@@ -280,7 +282,7 @@ class JdbcWorkStoreItemsPostgresTest {
             store.updateItem( i, withStatus( i, WorkStatus.DONE ), "alice", Actor.Kind.HUMAN, null );
         }
         final BoardColumn done = store.board( plat.id(),
-            new ItemFilter( null, null, null, null, null, null, null, null, 0 ) ).get( 5 );
+            new ItemFilter( null, null, null, null, null, null, null, null, 0, null ) ).get( 5 );
         assertEquals( WorkStatus.DONE, done.status() );
         assertEquals( 60, done.total() );
         assertEquals( 50, done.items().size() );
@@ -296,7 +298,7 @@ class JdbcWorkStoreItemsPostgresTest {
             "mentions LOGIN flow", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null ),
             "alice", Actor.Kind.HUMAN );
         create( "unrelated" );
-        assertEquals( 2, store.items( new ItemFilter( plat.id(), null, null, null, null, null, "login", null, 0 ) ).size() );
+        assertEquals( 2, store.items( new ItemFilter( plat.id(), null, null, null, null, null, "login", null, 0, null ) ).size() );
     }
 
     @Test
@@ -306,9 +308,9 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item under = create( "a_b marker" );
         create( "axb marker" );
         assertEquals( List.of( pct.id() ), store.items( new ItemFilter( plat.id(), null, null, null, null, null,
-            "100%", null, 0 ) ).stream().map( Item::id ).toList() );
+            "100%", null, 0, null ) ).stream().map( Item::id ).toList() );
         assertEquals( List.of( under.id() ), store.items( new ItemFilter( plat.id(), null, null, null, null, null,
-            "a_b", null, 0 ) ).stream().map( Item::id ).toList() );
+            "a_b", null, 0, null ) ).stream().map( Item::id ).toList() );
     }
 
     @Test
@@ -319,14 +321,14 @@ class JdbcWorkStoreItemsPostgresTest {
             t.kind(), t.title(), t.body(), WorkStatus.READY, 3, t.rank(), LocalDate.of( 2026, 12, 1 ), null,
             t.reporter(), null, null, null, t.version(), null, null, null ), "alice", Actor.Kind.HUMAN, null );
         assertEquals( List.of( epic.id() ), store.items( new ItemFilter( plat.id(), null, null, null, WorkLevel.EPIC,
-            null, null, null, 0 ) ).stream().map( Item::id ).toList() );
+            null, null, null, 0, null ) ).stream().map( Item::id ).toList() );
         assertEquals( List.of( due.id() ), store.items( new ItemFilter( plat.id(), Set.of( WorkStatus.READY ), null,
-            null, null, null, null, null, 0 ) ).stream().map( Item::id ).toList() );
+            null, null, null, null, null, 0, null ) ).stream().map( Item::id ).toList() );
         assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null,
-            LocalDate.of( 2027, 1, 1 ), 0 ) ).size() );
+            LocalDate.of( 2027, 1, 1 ), 0, null ) ).size() );
         assertEquals( 0, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null,
-            LocalDate.of( 2026, 11, 1 ), 0 ) ).size() );
-        assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 1 ) ).size() );
+            LocalDate.of( 2026, 11, 1 ), 0, null ) ).size() );
+        assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 1, null ) ).size() );
     }
 
     @Test
@@ -362,8 +364,8 @@ class JdbcWorkStoreItemsPostgresTest {
         WorkEvent last = null;
         for ( int guard = 0; guard < 50; guard++ ) {
             final List< WorkEvent > page = last == null
-                ? store.projectEvents( plat.id(), null, null, pageSize )
-                : store.projectEvents( plat.id(), last.at(), compound ? last.id() : null, pageSize );
+                ? store.projectEvents( plat.id(), null, null, null, pageSize )
+                : store.projectEvents( plat.id(), last.at(), compound ? last.id() : null, null, pageSize );
             if ( page.isEmpty() ) {
                 break;
             }
@@ -419,5 +421,28 @@ class JdbcWorkStoreItemsPostgresTest {
         assertTrue( store.itemById( -1 ).isEmpty() );
         assertEquals( b.rank(), store.maxRank( plat.id(), WorkStatus.DRAFT ) );
         assertEquals( 0.0, store.maxRank( plat.id(), WorkStatus.REVIEW ) );
+    }
+
+    @Test
+    void dueOrderPutsTheNearestDatesFirstAndNoDateLast() throws SQLException {
+        final Item none = store.createItem( plat, draft( "no date" ), "alice", Actor.Kind.HUMAN );
+        final Item late = store.createItem( plat, draft( "late" ), "alice", Actor.Kind.HUMAN );
+        final Item soon = store.createItem( plat, draft( "soon" ), "alice", Actor.Kind.HUMAN );
+        due( late, LocalDate.of( 2027, 3, 1 ) );
+        due( soon, LocalDate.of( 2026, 12, 1 ) );
+        final List< String > keys = store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null,
+            2, ItemFilter.Order.DUE ) ).stream().map( Item::key ).toList();
+        assertEquals( List.of( soon.key(), late.key() ), keys, "the cap keeps the nearest dates" );
+        assertEquals( none.key(), store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null,
+            0, ItemFilter.Order.DUE ) ).get( 2 ).key() );
+    }
+
+    private void due( final Item i, final LocalDate on ) throws SQLException {
+        try ( var c = PostgresTestDb.createDataSource().getConnection();
+              var ps = c.prepareStatement( "UPDATE work_item SET due_on = ? WHERE id = ?" ) ) {
+            ps.setDate( 1, java.sql.Date.valueOf( on ) );
+            ps.setLong( 2, i.id() );
+            ps.executeUpdate();
+        }
     }
 }

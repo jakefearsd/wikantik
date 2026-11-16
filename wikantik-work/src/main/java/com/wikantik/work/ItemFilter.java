@@ -25,8 +25,24 @@ import java.util.Set;
 /**
  * Criteria for {@link WorkStore#items}. Every field is optional: null (or empty for {@code statuses})
  * means "any". {@code text} is a case-insensitive substring match on title and body; {@code limit} of zero
- * or less means the store default.
+ * or less means the store default. {@code order} null means {@link Order#KEY}.
  */
 public record ItemFilter( Long projectId, Set< WorkStatus > statuses, String assignee, Long productId,
-                          WorkLevel level, Long parentId, String text, LocalDate dueBefore, int limit ) {
+                          WorkLevel level, Long parentId, String text, LocalDate dueBefore, int limit, Order order ) {
+
+    /** The order of a list: by key (project, then number), or by due date soonest first with no date last. */
+    public enum Order {
+        KEY, DUE;
+
+        /** {@code key} or {@code due}. */
+        public String wire() {
+            return name().toLowerCase( java.util.Locale.ROOT );
+        }
+    }
+
+    /** This filter with another project id and assignee; everything else kept. */
+    public ItemFilter with( final Long newProjectId, final String newAssignee ) {
+        return new ItemFilter( newProjectId, statuses, newAssignee, productId, level, parentId, text, dueBefore, limit,
+            order );
+    }
 }

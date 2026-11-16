@@ -35,10 +35,23 @@ final class ItemViews {
 
     private final WorkStore store;
     private final WorkRenderer renderer;
+    private final WorkPeople people;
 
-    ItemViews( final WorkStore store, final WorkRenderer renderer ) {
+    ItemViews( final WorkStore store, final WorkRenderer renderer, final WorkPeople people ) {
         this.store = store;
         this.renderer = renderer;
+        this.people = people;
+    }
+
+    /** A comment as shown: its text rendered like an item's, with mentions as display names. */
+    CommentView comment( final Comment c ) {
+        if ( c.removedAt() != null || c.body() == null || c.body().isBlank() ) {
+            return new CommentView( c.id(), c.itemId(), c.author(), c.removedAt() != null ? "" : c.body(),
+                c.createdAt(), c.editedAt(), c.removedAt(), "", List.of() );
+        }
+        final WorkPeople.Display d = people.display( c.body() );
+        return new CommentView( c.id(), c.itemId(), c.author(), c.body(), c.createdAt(), c.editedAt(), c.removedAt(),
+            renderer.toHtml( d.markdown() ), d.names() );
     }
 
     ItemView view( final Scope s, final Item item ) throws SQLException {
@@ -47,8 +60,8 @@ final class ItemViews {
         final Item parent = item.parentId() == null ? null : store.itemById( item.parentId() ).orElse( null );
         final String productKey = item.productId() == null ? null : productKey( products, item.productId() );
         return new ItemView( item, html, s.project().key(), parent == null ? null : parent.key(), productKey,
-            derivedProductKeys( item, products ), store.comments( item.id() ), store.links( item.id() ),
-            store.isBlocked( item.id() ), s.effectiveRole() );
+            derivedProductKeys( item, products ), store.comments( item.id() ).stream().map( this::comment ).toList(),
+            store.links( item.id() ), store.isBlocked( item.id() ), s.effectiveRole(), s.project().archivedAt() != null );
     }
 
     /** The product keys an epic's descendants carry; empty for any other level. */

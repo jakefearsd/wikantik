@@ -1154,7 +1154,14 @@ public class WikiEngine implements Engine {
                 com.wikantik.insights.runtime.InsightsWiring.build( ds, props, structuralIndex ) );
 
             // Wire work management (default off: wikantik.work.enabled). Null when disabled; callers no-op.
-            this.setWorkService( com.wikantik.work.runtime.WorkWiring.build( ds, props, this ) );
+            // Fail-closed like collaboration and connectors: a wiring failure leaves work unavailable (its endpoints
+            // answer 404, the capability reports false) instead of stopping the wiki from starting.
+            try {
+                this.setWorkService( com.wikantik.work.runtime.WorkWiring.build( ds, props, this ) );
+            } catch ( final RuntimeException e ) {
+                LOG.error( "work management wiring failed (continuing without work management): {}", e.getMessage(), e );
+                this.setWorkService( null );
+            }
 
             // Wire the briefing log (S3 telemetry for session-start context briefings; default on).
             this.setBriefingLogService( com.wikantik.knowledge.querylog.BriefingLogWiring.build( ds, props ) );

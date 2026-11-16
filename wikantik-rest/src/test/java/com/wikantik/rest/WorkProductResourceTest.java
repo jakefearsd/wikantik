@@ -62,11 +62,22 @@ class WorkProductResourceTest {
     }
 
     @Test
-    void listsProducts() throws Exception {
+    void aMemberSeesKeyNameAndArchivedOnly() throws Exception {
         final JsonObject p = call( "GET", null, null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
         assertEquals( "wikantik", p.get( "key" ).getAsString() );
+        assertEquals( java.util.Set.of( "key", "name", "archived" ), p.keySet() );
+        assertFalse( p.get( "archived" ).getAsBoolean() );
+    }
+
+    @Test
+    void anAdminSeesTheWholeProduct() throws Exception {
+        final com.wikantik.work.Actor root = com.wikantik.work.Actor.human( "root", java.util.Set.of(), true );
+        servlet = WorkHttp.wire( new WorkProductResource(), svc, root );
+        Mockito.when( svc.listProducts( root ) ).thenReturn( List.of( WIKI ) );
+        final JsonObject p = call( "GET", null, null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
         assertEquals( "delegated", p.get( "autonomyCeiling" ).getAsString() );
         assertEquals( "human", p.get( "deployGate" ).getAsString() );
+        assertFalse( p.get( "archived" ).getAsBoolean() );
     }
 
     @Test

@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.google.gson.JsonObject;
 import com.wikantik.work.ItemFilter;
 import com.wikantik.work.Member;
+import com.wikantik.work.Actor;
 import com.wikantik.work.WorkConflictException;
 import com.wikantik.work.WorkDeniedException;
 import com.wikantik.work.WorkNotFoundException;
@@ -39,6 +40,7 @@ import java.util.Map;
 import static com.wikantik.rest.WorkHttp.ALICE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -63,7 +65,8 @@ class WorkProjectResourceTest {
 
     @Test
     void listsVisibleProjectsWithRole() throws Exception {
-        Mockito.when( svc.listProjects( ALICE ) ).thenReturn( List.of( WorkHttp.project( "PLAT" ) ) );
+        Mockito.when( svc.listProjectsWithRoles( ALICE ) ).thenReturn( List.of(
+            new WorkService.ProjectRole( WorkHttp.project( "PLAT" ), WorkRole.MEMBER ) ) );
         final JsonObject p = call( "GET", null, Map.of(), null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
         assertEquals( "PLAT", p.get( "key" ).getAsString() );
         assertEquals( "member", p.get( "role" ).getAsString() );
@@ -98,9 +101,44 @@ class WorkProjectResourceTest {
             new Member( 1, "bob", "user", WorkRole.LEAD ), new Member( 1, "Editors", "group", WorkRole.MEMBER ) ) );
         final var arr = call( "GET", "/PLAT/members", Map.of(), null ).json().getAsJsonArray();
         assertEquals( "Name of bob", arr.get( 0 ).getAsJsonObject().get( "displayName" ).getAsString() );
-        assertEquals( "bob", arr.get( 0 ).getAsJsonObject().get( "principal" ).getAsString() );
+        assertEquals( "Name of bob", arr.get( 0 ).getAsJsonObject().get( "principal" ).getAsString(),
+            "a member is shown no login, not even as the principal" );
         assertEquals( "lead", arr.get( 0 ).getAsJsonObject().get( "role" ).getAsString() );
         assertEquals( "Editors", arr.get( 1 ).getAsJsonObject().get( "displayName" ).getAsString() );
+        assertEquals( "Editors", arr.get( 1 ).getAsJsonObject().get( "principal" ).getAsString() );
+        assertFalse( arr.get( 0 ).getAsJsonObject().get( "self" ).getAsBoolean() );
+        assertEquals( "id-" + "bob".hashCode(), arr.get( 0 ).getAsJsonObject().get( "mentionId" ).getAsString() );
+        assertFalse( arr.get( 1 ).getAsJsonObject().has( "mentionId" ), "a group cannot be mentioned" );
+    }
+
+    @Test
+    void theCallersOwnRowIsMarkedSelf() throws Exception {
+        Mockito.when( svc.members( ALICE, "PLAT" ) ).thenReturn( List.of( new Member( 1, "alice", "user", WorkRole.LEAD ),
+            new Member( 1, "alice", "group", WorkRole.VIEWER ) ) );
+        final var arr = call( "GET", "/PLAT/members", Map.of(), null ).json().getAsJsonArray();
+        assertTrue( arr.get( 0 ).getAsJsonObject().get( "self" ).getAsBoolean() );
+        assertFalse( arr.get( 1 ).getAsJsonObject().get( "self" ).getAsBoolean(), "a group is never you" );
+    }
+
+    @Test
+    void anAdminSeesMemberLogins() throws Exception {
+        servlet = WorkHttp.wire( new WorkProjectResource(), svc, Actor.human( "root", java.util.Set.of(), true ) );
+        Mockito.when( svc.members( any(), anyString() ) ).thenReturn( List.of( new Member( 1, "bob", "user",
+            WorkRole.LEAD ) ) );
+        final JsonObject m = call( "GET", "/PLAT/members", Map.of(), null ).json().getAsJsonArray().get( 0 )
+            .getAsJsonObject();
+        assertEquals( "bob", m.get( "principal" ).getAsString() );
+        assertEquals( "Name of bob", m.get( "displayName" ).getAsString() );
+    }
+
+    @Test
+    void anArchivedRefusalIs409ReasonArchived() throws Exception {
+        Mockito.doThrow( new WorkConflictException( "This project is archived.", WorkConflictException.ARCHIVED ) )
+            .when( svc ).putMember( any(), anyString(), anyString(), anyString(), any() );
+        final WorkHttp.Result r = call( "PUT", "/PLAT/members", Map.of(),
+            "{\"principal\":\"Name of bob\",\"principalKind\":\"user\",\"role\":\"member\"}" );
+        assertEquals( 409, r.status() );
+        assertEquals( "archived", r.json().getAsJsonObject().get( "reason" ).getAsString() );
     }
 
     @Test

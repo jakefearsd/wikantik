@@ -31,7 +31,7 @@ public class WorkMeResource extends WorkResourceBase {
     protected void routes( final List< Object[] > r ) {
         route( r, "GET", "me", c -> {
             final JsonObject out = new JsonObject();
-            out.add( "waitingOn", toTree( c.svc.waitingOn( c.actor ) ) );
+            out.add( "waitingOn", toTree( c.svc.waitingOn( c.actor ), c.actor ) );
             out.add( "projects", visibleProjects( c ) );
             c.json( out );
         } );

@@ -75,6 +75,15 @@ class WorkSchemaTest {
     }
 
     @Test
+    void v075IsANoOpWhenReapplied() throws Exception {
+        final java.nio.file.Path file = java.nio.file.Path.of( "..", "bin", "db", "migrations",
+            "V075__work_mention_follows_comment.sql" );
+        final String sql = java.nio.file.Files.readString( file ).replace( ":app_user", "CURRENT_USER" );
+        exec( sql );   // already applied by the test database; twice more must not fail
+        exec( sql );
+    }
+
+    @Test
     void allNineTablesExist() throws SQLException {
         final TreeSet< String > found = new TreeSet<>();
         try ( Connection c = ds.getConnection(); Statement s = c.createStatement();

@@ -232,10 +232,24 @@ class CapabilitiesResourceTest {
     }
 
     @Test
-    void testWorkTrueWhenFlagOn() throws Exception {
+    void testWorkTrueWhenFlagOnAndServiceWired() throws Exception {
         engine.getWikiProperties().setProperty( "wikantik.work.enabled", "true" );
+        engine.setWorkService( org.mockito.Mockito.mock( com.wikantik.work.WorkService.class ) );
         try {
             assertTrue( doGetAsJson().get( "work" ).getAsBoolean() );
+        } finally {
+            engine.setWorkService( null );
+            engine.getWikiProperties().remove( "wikantik.work.enabled" );
+        }
+    }
+
+    /** A wiring failure at startup leaves no service: the capability must then say work is off. */
+    @Test
+    void testWorkFalseWhenFlagOnButServiceNotWired() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.work.enabled", "true" );
+        engine.setWorkService( null );
+        try {
+            assertFalse( doGetAsJson().get( "work" ).getAsBoolean() );
         } finally {
             engine.getWikiProperties().remove( "wikantik.work.enabled" );
         }

@@ -165,23 +165,6 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
             } );
     }
 
-    /** Appends one event on the caller's connection; the event's id, itemKey and timestamp are assigned by the store. */
-    void appendEvent( final Connection conn, final WorkEvent e ) throws SQLException {
-        jdbc.update( conn, "INSERT INTO work_event (project_id, item_id, actor, actor_kind, agent_id, type, "
-                + "from_value, to_value, note) VALUES (?,?,?,?,?,?,?,?,?)",
-            ps -> {
-                ps.setLong( 1, e.projectId() );
-                setNullableLong( ps, 2, e.itemId() );
-                ps.setString( 3, e.actor() );
-                ps.setString( 4, actorKindWire( e.actorKind() ) );
-                setNullableLong( ps, 5, e.agentId() );
-                ps.setString( 6, e.type() );
-                ps.setString( 7, e.fromValue() );
-                ps.setString( 8, e.toValue() );
-                ps.setString( 9, e.note() );
-            } );
-    }
-
     @Override
     public Optional< Item > itemById( final long id ) throws SQLException {
         return jdbc.queryOne( ITEM_SELECT + " WHERE i.id = ?", ps -> ps.setLong( 1, id ), ITEM_ROW );
@@ -266,7 +249,8 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
         final StringBuilder sql = new StringBuilder( ITEM_SELECT ).append( " WHERE TRUE" );
         final List< Object > params = new ArrayList<>();
         ItemQuery.conditions( f, true, sql, params );
-        sql.append( " ORDER BY p.key, i.seq LIMIT ?" );
+        sql.append( f.order() == ItemFilter.Order.DUE ? " ORDER BY i.due_on ASC NULLS LAST, p.key, i.seq LIMIT ?"
+            : " ORDER BY p.key, i.seq LIMIT ?" );
         params.add( f.limit() > 0 ? f.limit() : DEFAULT_ITEM_LIMIT );
         return jdbc.query( sql.toString(), SqlBinder.positional( params ), ITEM_ROW );
     }
@@ -274,7 +258,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     @Override
     public List< BoardColumn > board( final long projectId, final ItemFilter f ) throws SQLException {
         final ItemFilter scoped = new ItemFilter( projectId, null, f.assignee(), f.productId(), f.level(),
-            f.parentId(), f.text(), f.dueBefore(), 0 );
+            f.parentId(), f.text(), f.dueBefore(), 0, null );
         final List< BoardColumn > columns = new ArrayList<>();
         for ( final WorkStatus status : WorkStatus.values() ) {
             final StringBuilder where = new StringBuilder( " WHERE i.status = ?" );
@@ -309,20 +293,25 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
 
     @Override
     public List< WorkEvent > projectEvents( final long projectId, final Instant before, final Long beforeId,
-                                            final int limit ) throws SQLException {
-        final Instant cutoff = before == null ? Instant.now().plusSeconds( 1 ) : before;
-        final boolean compound = before != null && beforeId != null;
-        final String cursor = compound ? "(e.at, e.id) < (?, ?)" : "e.at < ?";
-        return jdbc.query( EVENT_SELECT + " WHERE e.project_id = ? AND " + cursor + " ORDER BY e.at DESC, e.id DESC LIMIT ?",
-            ps -> {
-                ps.setLong( 1, projectId );
-                ps.setTimestamp( 2, timestamp( cutoff ) );
-                int next = 3;
-                if ( compound ) {
-                    ps.setLong( next++, beforeId );
-                }
-                ps.setInt( next, limit > 0 ? limit : DEFAULT_ITEM_LIMIT );
-            }, EVENT_ROW );
+                                            final Long itemId, final int limit ) throws SQLException {
+        final StringBuilder sql = new StringBuilder( EVENT_SELECT ).append( " WHERE e.project_id = ?" );
+        final List< Object > params = new ArrayList<>();
+        params.add( projectId );
+        if ( before != null && beforeId != null ) {
+            sql.append( " AND (e.at, e.id) < (?, ?)" );
+            params.add( timestamp( before ) );
+            params.add( beforeId );
+        } else if ( before != null ) {
+            sql.append( " AND e.at < ?" );
+            params.add( timestamp( before ) );
+        }
+        if ( itemId != null ) {
+            sql.append( " AND e.item_id = ?" );
+            params.add( itemId );
+        }
+        sql.append( " ORDER BY e.at DESC, e.id DESC LIMIT ?" );
+        params.add( limit > 0 ? limit : DEFAULT_ITEM_LIMIT );
+        return jdbc.query( sql.toString(), SqlBinder.positional( params ), EVENT_ROW );
     }
 
     @Override
@@ -345,13 +334,14 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     }
 
     @Override
-    public Comment editComment( final long commentId, final String body, final String actor ) throws SQLException {
-        return discussion.editComment( commentId, body, actor );
+    public Comment editComment( final long commentId, final String body, final String actor, final Actor.Kind kind,
+                                final List< String > mentioned ) throws SQLException {
+        return discussion.editComment( commentId, body, actor, kind, mentioned );
     }
 
     @Override
-    public void removeComment( final long commentId, final String actor ) throws SQLException {
-        discussion.removeComment( commentId, actor );
+    public void removeComment( final long commentId, final String actor, final Actor.Kind kind ) throws SQLException {
+        discussion.removeComment( commentId, actor, kind );
     }
 
     @Override
@@ -365,14 +355,14 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     }
 
     @Override
-    public Link addLink( final Item item, final String kind, final String target, final String actor )
-            throws SQLException {
-        return discussion.addLink( item, kind, target, actor );
+    public Link addLink( final Item item, final String kind, final String target, final String actor,
+                         final Actor.Kind actorKind ) throws SQLException {
+        return discussion.addLink( item, kind, target, actor, actorKind );
     }
 
     @Override
-    public void removeLink( final long linkId, final String actor ) throws SQLException {
-        discussion.removeLink( linkId, actor );
+    public void removeLink( final long linkId, final String actor, final Actor.Kind actorKind ) throws SQLException {
+        discussion.removeLink( linkId, actor, actorKind );
     }
 
     @Override

@@ -18,11 +18,34 @@
  */
 package com.wikantik.work;
 
-/** An update carried a stale version; the item changed since the caller read it. */
+/**
+ * A write that cannot be applied as asked. {@link #reason()} says why: {@link #STALE} (the item changed since the
+ * caller read it), {@link #ARCHIVED} (the project is archived and read-only) or {@link #EXISTS} (the key is taken).
+ */
 public class WorkConflictException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
+    /** The item changed since the version the caller sent. */
+    public static final String STALE = "stale";
+    /** The project is archived: everything in it is read-only. */
+    public static final String ARCHIVED = "archived";
+    /** A project or product with that key already exists. */
+    public static final String EXISTS = "exists";
+
+    private final String reason;
+
+    /** A stale-version conflict. */
     public WorkConflictException( final String message ) {
+        this( message, STALE );
+    }
+
+    public WorkConflictException( final String message, final String reason ) {
         super( message );
+        this.reason = reason;
+    }
+
+    /** {@link #STALE}, {@link #ARCHIVED} or {@link #EXISTS}. */
+    public String reason() {
+        return reason;
     }
 }

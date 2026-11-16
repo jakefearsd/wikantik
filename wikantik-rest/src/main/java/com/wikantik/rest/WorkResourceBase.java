@@ -46,6 +46,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -53,9 +54,8 @@ import java.util.function.Function;
  * resolution (401 when anonymous), method-and-path routing from a small table, the one mapping from the
  * {@code com.wikantik.work} exceptions to HTTP, and the one JSON configuration.
  *
- * <p><b>Names on the wire.</b> Responses are only ever produced for project members (everyone else gets the same
- * neutral 404), so they carry the stored login next to a display name: {@code assignee} next to
- * {@code assigneeName}, and so on. The UI needs the login to send assignments back.
+ * <p><b>Names on the wire.</b> People are shown by display name; a login reaches only a wiki admin (see
+ * {@link WorkJson}). Requests name people by display name too (a wiki admin may also send a login).
  *
  * <p><b>No distinguishing.</b> A malformed or unknown path is a 404; a not-found body never repeats the key or id.
  */
@@ -86,6 +86,11 @@ public abstract class WorkResourceBase extends RestServletBase {
     /** The public display name for a stored login. */
     protected String displayName( final String login ) {
         return new WikiWorkDirectory( getEngine() ).displayName( login );
+    }
+
+    /** The opaque id a mention token carries for a login (the comment picker's key); empty when it has none. */
+    protected Optional< String > mentionId( final String login ) {
+        return new WikiWorkDirectory( getEngine() ).mentionId( login );
     }
 
     // ---- routing
@@ -130,7 +135,7 @@ public abstract class WorkResourceBase extends RestServletBase {
         }
 
         void json( final Object value ) throws IOException {
-            WorkJson.write( resp, HttpServletResponse.SC_OK, toTree( value ) );
+            WorkJson.write( resp, HttpServletResponse.SC_OK, toTree( value, actor ) );
         }
 
         void tree( final JsonElement tree ) throws IOException {
@@ -138,7 +143,7 @@ public abstract class WorkResourceBase extends RestServletBase {
         }
 
         void created( final Object value ) throws IOException {
-            WorkJson.write( resp, HttpServletResponse.SC_CREATED, toTree( value ) );
+            WorkJson.write( resp, HttpServletResponse.SC_CREATED, toTree( value, actor ) );
         }
 
         void noContent() {
@@ -226,14 +231,19 @@ public abstract class WorkResourceBase extends RestServletBase {
         WorkJson.write( response, HttpServletResponse.SC_BAD_REQUEST, body );
     }
 
-    /** A stale version: 409 with the current item when the request addressed one. */
+    /**
+     * A 409 with its {@code reason}: {@code stale} (and, for an item PATCH, the {@code current} item to merge against),
+     * {@code archived} (the project is read-only; no {@code current}, there is nothing to merge) or {@code exists}.
+     */
     protected void conflict( final HttpServletRequest request, final HttpServletResponse response,
                              final WorkService svc, final Actor actor, final String[] segs,
                              final WorkConflictException e ) throws IOException {
         final JsonObject body = WorkJson.errorBody( HttpServletResponse.SC_CONFLICT, e.getMessage() );
-        if ( segs.length == 2 && "items".equals( segs[ 0 ] ) && "PATCH".equalsIgnoreCase( request.getMethod() ) ) {
+        body.addProperty( "reason", e.reason() );
+        if ( WorkConflictException.STALE.equals( e.reason() ) && segs.length == 2 && "items".equals( segs[ 0 ] )
+                && "PATCH".equalsIgnoreCase( request.getMethod() ) ) {
             try {
-                body.add( "current", toTree( svc.item( actor, segs[ 1 ] ) ) );
+                body.add( "current", toTree( svc.item( actor, segs[ 1 ] ), actor ) );
             } catch ( final Exception inner ) {
                 LOG.warn( "Could not load the current item after a conflict on {}: {}", segs[ 1 ],
                     inner.getMessage(), inner );
@@ -244,35 +254,39 @@ public abstract class WorkResourceBase extends RestServletBase {
 
     // ---- JSON with display names
 
-    /** The value as a JSON tree with a display name beside every login. */
-    protected JsonElement toTree( final Object value ) {
+    /** The value as a JSON tree, people shown as {@link WorkJson} describes for {@code viewer}. */
+    protected JsonElement toTree( final Object value, final Actor viewer ) {
+        if ( value instanceof JsonElement built ) {
+            return built;   // already a response tree: enriching it twice would rename the names
+        }
         final Map< String, String > cache = new HashMap<>();
         final Function< String, String > names = login -> cache.computeIfAbsent( login, this::displayName );
-        return WorkJson.enrich( WorkJson.GSON.toJsonTree( value ), names );
+        return WorkJson.enrich( WorkJson.GSON.toJsonTree( value ), names,
+            new WorkJson.Viewer( viewer.login(), viewer.admin() ) );
     }
 
     /** An item list with each item's card extras (commentCount, blocked, productKey, parentKey) beside its fields. */
-    protected JsonElement summariesTree( final List< WorkService.ItemSummary > summaries ) {
+    protected JsonElement summariesTree( final List< WorkService.ItemSummary > summaries, final Actor viewer ) {
         final JsonArray out = new JsonArray();
-        summaries.forEach( x -> out.add( summaryTree( x ) ) );
+        summaries.forEach( x -> out.add( summaryTree( x, viewer ) ) );
         return out;
     }
 
     /** Board columns {status, total, items} whose items carry the card extras. */
-    protected JsonElement boardTree( final List< WorkService.SummaryColumn > columns ) {
+    protected JsonElement boardTree( final List< WorkService.SummaryColumn > columns, final Actor viewer ) {
         final JsonArray out = new JsonArray();
         for ( final WorkService.SummaryColumn c : columns ) {
             final JsonObject o = new JsonObject();
             o.addProperty( "status", c.status().wire() );
             o.addProperty( "total", c.total() );
-            o.add( "items", summariesTree( c.items() ) );
+            o.add( "items", summariesTree( c.items(), viewer ) );
             out.add( o );
         }
         return out;
     }
 
-    private JsonObject summaryTree( final WorkService.ItemSummary x ) {
-        final JsonObject o = toTree( x.item() ).getAsJsonObject();
+    private JsonObject summaryTree( final WorkService.ItemSummary x, final Actor viewer ) {
+        final JsonObject o = toTree( x.item(), viewer ).getAsJsonObject();
         o.addProperty( "commentCount", x.commentCount() );
         o.addProperty( "blocked", x.blocked() );
         o.addProperty( "productKey", x.productKey() );
@@ -280,22 +294,19 @@ public abstract class WorkResourceBase extends RestServletBase {
         return o;
     }
 
-    /** A project's JSON with the viewer's {@code role} added. */
+    /** A project's JSON with the viewer's {@code role} and {@code archived} (read-only) added. */
     protected JsonObject projectWithRole( final Project project, final String role ) {
         final JsonObject o = WorkJson.GSON.toJsonTree( project ).getAsJsonObject();
         o.addProperty( "role", role );
+        o.addProperty( "archived", project.archivedAt() != null );
         return o;
     }
 
-    /** Every project the caller can see, each with the caller's role. */
+    /** Every project the caller can see, each with the caller's role (resolved in one pass by the service). */
     protected JsonArray visibleProjects( final Call c ) throws Exception {
         final JsonArray out = new JsonArray();
-        for ( final Project p : c.svc.listProjects( c.actor ) ) {
-            try {
-                out.add( projectWithRole( p, c.svc.roleIn( c.actor, p.key() ).wire() ) );
-            } catch ( final WorkNotFoundException e ) {
-                LOG.debug( "A project became invisible while listing; leaving it out." );
-            }
+        for ( final WorkService.ProjectRole pr : c.svc.listProjectsWithRoles( c.actor ) ) {
+            out.add( projectWithRole( pr.project(), pr.role().wire() ) );
         }
         return out;
     }

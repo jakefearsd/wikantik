@@ -42,16 +42,28 @@ public interface WorkStore {
     /** Every project, archived included. Visibility filtering is {@link #visibleProjects}. */
     List< Project > projects() throws SQLException;
 
-    void updateProject( long id, String name, String description, Autonomy defaultAutonomy ) throws SQLException;
+    /**
+     * Changes the project's settings and writes one {@code settings} event per changed field (field name in the note),
+     * in one transaction; nothing changed writes nothing.
+     */
+    void updateProject( long id, String name, String description, Autonomy defaultAutonomy, String actor,
+                        Actor.Kind kind ) throws SQLException;
 
-    void archiveProject( long id, Instant at ) throws SQLException;
+    /** Archives the project with a {@code settings} event noted {@code archived}, in one transaction. */
+    void archiveProject( long id, Instant at, String actor, Actor.Kind kind ) throws SQLException;
 
     // ---- membership
 
-    /** Adds the member or changes the role of an existing one. */
-    void putMember( long projectId, String principal, String principalKind, WorkRole role ) throws SQLException;
+    /**
+     * Adds the member or changes the role of an existing one, with a {@code member} event whose values are
+     * {@code kind:principal:role} (from null on add), in one transaction. The same role again writes nothing.
+     */
+    void putMember( long projectId, String principal, String principalKind, WorkRole role, String actor,
+                    Actor.Kind kind ) throws SQLException;
 
-    void removeMember( long projectId, String principal, String principalKind ) throws SQLException;
+    /** Deletes the grant with a {@code member} event (to null), in one transaction; no grant, nothing written. */
+    void removeMember( long projectId, String principal, String principalKind, String actor, Actor.Kind kind )
+        throws SQLException;
 
     List< Member > members( long projectId ) throws SQLException;
 
@@ -111,17 +123,19 @@ public interface WorkStore {
 
     List< WorkEvent > itemEvents( long itemId ) throws SQLException;
 
-    /** Newest first; {@code before} null means now. */
+    /** Newest first; {@code before} null means from the newest. */
     default List< WorkEvent > projectEvents( final long projectId, final Instant before, final int limit ) throws SQLException {
-        return projectEvents( projectId, before, null, limit );
+        return projectEvents( projectId, before, null, null, limit );
     }
 
     /**
      * Newest first. With {@code beforeId} the cursor is the compound {@code (at, id)}: events strictly older in
      * {@code (at, id)} order, so a page boundary inside a group of events sharing one timestamp loses nothing.
-     * Without it the cursor is the timestamp alone ({@code at < before}).
+     * Without it the cursor is the timestamp alone ({@code at < before}); {@code before} null means no cursor.
+     * {@code itemId}, when set, keeps only that item's events.
      */
-    List< WorkEvent > projectEvents( long projectId, Instant before, Long beforeId, int limit ) throws SQLException;
+    List< WorkEvent > projectEvents( long projectId, Instant before, Long beforeId, Long itemId, int limit )
+        throws SQLException;
 
     /** Distinct products of all descendants of the epic. */
     Set< Long > productIdsUnder( long epicId ) throws SQLException;
@@ -132,11 +146,15 @@ public interface WorkStore {
     Comment addComment( Item item, String author, Actor.Kind kind, String body, List< String > mentioned )
         throws SQLException;
 
-    /** Replaces the body, sets {@code edited_at} and writes {@code comment_edited}. */
-    Comment editComment( long commentId, String body, String actor ) throws SQLException;
+    /**
+     * Replaces the body, sets {@code edited_at}, replaces the comment's mention rows with {@code mentioned} and
+     * writes {@code comment_edited}, in one transaction.
+     */
+    Comment editComment( long commentId, String body, String actor, Actor.Kind kind, List< String > mentioned )
+        throws SQLException;
 
     /** Sets {@code removed_at} (the stored body is kept) and writes {@code comment_removed}. */
-    void removeComment( long commentId, String actor ) throws SQLException;
+    void removeComment( long commentId, String actor, Actor.Kind kind ) throws SQLException;
 
     Optional< Comment > comment( long id ) throws SQLException;
 
@@ -146,10 +164,10 @@ public interface WorkStore {
     /** Oldest first; a removed comment is returned with an empty body. */
     List< Comment > comments( long itemId ) throws SQLException;
 
-    Link addLink( Item item, String kind, String target, String actor ) throws SQLException;
+    Link addLink( Item item, String kind, String target, String actor, Actor.Kind actorKind ) throws SQLException;
 
-    /** Deletes the row; the {@code unlinked} event is the record. */
-    void removeLink( long linkId, String actor ) throws SQLException;
+    /** Deletes the row; the {@code unlinked} event is the record. A link already gone writes nothing. */
+    void removeLink( long linkId, String actor, Actor.Kind actorKind ) throws SQLException;
 
     List< Link > links( long itemId ) throws SQLException;
 

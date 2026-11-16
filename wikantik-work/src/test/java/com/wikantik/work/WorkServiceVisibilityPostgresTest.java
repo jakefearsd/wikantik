@@ -72,7 +72,7 @@ class WorkServiceVisibilityPostgresTest {
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
-        "listProjectsWithRoles", "listQueues", "listAgents", "claimable", "myClaims" );
+        "listProjectsWithRoles", "listQueues", "listAgents", "claimable", "myClaims", "assignmentLog" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer" );
 
@@ -201,6 +201,7 @@ class WorkServiceVisibilityPostgresTest {
             final List< Object > options = type == Actor.class ? List.of( actor )
                 : type == String.class ? new ArrayList<>( STRING_FIXTURES )
                 : type == int.class ? List.of( 10 )
+                : type == AssignmentLogQuery.class ? List.of( AssignmentLogQuery.all() )
                 : Arrays.asList( new Object[] { null } );
             final List< Object[] > next = new ArrayList<>();
             for ( final Object[] prefix : sets ) {

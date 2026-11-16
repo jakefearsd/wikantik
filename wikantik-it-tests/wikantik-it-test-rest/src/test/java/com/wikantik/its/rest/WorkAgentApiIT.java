@@ -298,6 +298,7 @@ public class WorkAgentApiIT {
             new Pair( "/api/work/items/" + hiddenKey + "/events", "/api/work/items/" + ghostKey + "/events" ),
             new Pair( "/api/work/items/" + hiddenKey + "/revisions", "/api/work/items/" + ghostKey + "/revisions" ),
             new Pair( "/api/work/activity?project=HID", "/api/work/activity?project=GHOST" ),
+            new Pair( "/api/work/log?project=HID", "/api/work/log?project=GHOST" ),
             new Pair( "/api/work/claimable?project=HID", "/api/work/claimable?project=GHOST" ) );
         for ( final Pair p : pairs ) {
             // positive control: the admin session reads the real path
@@ -325,6 +326,52 @@ public class WorkAgentApiIT {
         assertTrue( admin.get( "/api/work/projects" ).body().contains( "\"HID\"" ), "the owner's own session sees it" );
         // and admitted reads work for the agent
         assertEquals( 200, asAgent( codex, "GET", "/api/work/items/" + openKey, null ).statusCode() );
+    }
+
+    @Test
+    void assignmentLogShowsClaimAssignmentAndTransitions() throws Exception {
+        final String hidden = keyOf( newItem( "HID", "Hidden log item", "implementer" ) );
+        final String key = keyOf( newItem( "AGT", "Logged work", "implementer" ) );
+        claim( codex, key );
+        final JsonObject claimedView = itemOf( ok( admin.get( "/api/work/items/" + key ) ) );
+        ok( personA.send( "POST", "/api/work/items/" + key + "/handoff", Map.of( "expectedVersion",
+            claimedView.get( "version" ).getAsInt(), "status", "review", "assignee", B_NAME, "note", "over to B" ) ) );
+
+        final HttpResponse< String > r = personA.get( "/api/work/log?project=AGT&limit=200" );
+        assertEquals( 200, r.statusCode(), r.body() );
+        final JsonArray events = json( r ).getAsJsonObject().getAsJsonArray( "events" );
+        final List< String > ofItem = new java.util.ArrayList<>();
+        JsonObject claimedEvent = null;
+        for ( int i = 0; i < events.size(); i++ ) {
+            final JsonObject e = events.get( i ).getAsJsonObject();
+            if ( key.equals( e.get( "itemKey" ).isJsonNull() ? null : e.get( "itemKey" ).getAsString() ) ) {
+                ofItem.add( e.get( "type" ).getAsString() );
+                if ( "claimed".equals( e.get( "type" ).getAsString() ) ) {
+                    claimedEvent = e;
+                }
+            }
+        }
+        // newest first: the hand-off and the release it caused, then the claim, then the queue assignment
+        assertTrue( ofItem.indexOf( "handoff" ) < ofItem.indexOf( "claimed" ), ofItem.toString() );
+        assertTrue( ofItem.contains( "released" ) && ofItem.contains( "assigned" ), ofItem.toString() );
+        assertEquals( CODEX, claimedEvent.get( "actorName" ).getAsString() );
+        assertEquals( "agent", claimedEvent.get( "actorKind" ).getAsString() );
+        assertEquals( "Logged work", claimedEvent.get( "itemTitle" ).getAsString() );
+        assertEquals( "AGT", claimedEvent.get( "projectKey" ).getAsString() );
+        assertFalse( r.body().contains( hidden ), "no event of a project the agent or person is not in" );
+
+        // the agent sees only what it was admitted to, even though its key's owner is an admin
+        final String asCodex = asAgent( codex, "GET", "/api/work/log?limit=200", null ).body();
+        assertTrue( asCodex.contains( key ), asCodex );
+        assertFalse( asCodex.contains( hidden ), asCodex );
+        // a person who belongs to nothing gets an empty list, the same 200 a member gets, never a 404
+        final Caller stranger = WorkIt.account( admin, "wagstranger", "Wag Stranger" );
+        final HttpResponse< String > none = stranger.get( "/api/work/log" );
+        assertEquals( 200, none.statusCode(), none.body() );
+        assertEquals( 0, json( none ).getAsJsonObject().getAsJsonArray( "events" ).size() );
+        // an unknown type is a 400 whatever the project
+        assertEquals( 400, personA.get( "/api/work/log?types=comment" ).statusCode() );
+        assertEquals( 400, personA.get( "/api/work/activity?project=GHOST&types=nonsense" ).statusCode() );
     }
 
     // ---- (B5) losing access

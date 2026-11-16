@@ -8,11 +8,16 @@ import { isArchivedRefusal } from '../components/work/archived';
 beforeEach(() => { collabRequest.mockReset(); collabRequest.mockResolvedValue({}); });
 
 describe('work api client', () => {
+  it('asks the log for types, filters and the compound cursor', async () => {
+    await work.getAssignmentLog({ types: ['claimed', 'released'], project: 'PLAT', actorKind: 'agent', agent: '7', before: '2026-11-16T10:00:00Z', beforeId: 9, limit: 50 });
+    expect(collabRequest).toHaveBeenCalledWith('/api/work/log?types=claimed%2Creleased&project=PLAT&actorKind=agent&agent=7&before=2026-11-16T10%3A00%3A00Z&beforeId=9&limit=50');
+  });
+
   it('exports one function per endpoint', () => {
     for (const name of ['listProjects', 'getProject', 'createProject', 'updateProject', 'archiveProject',
       'listMembers', 'putMember', 'removeMember', 'getBoard', 'listProducts', 'createProduct', 'updateProduct',
       'listItems', 'createItem', 'getItem', 'patchItem', 'listRevisions', 'listEvents', 'addComment',
-      'editComment', 'removeComment', 'addLink', 'removeLink', 'getActivity', 'getMe']) {
+      'editComment', 'removeComment', 'addLink', 'removeLink', 'getActivity', 'getAssignmentLog', 'getMe']) {
       expect(typeof work[name], name).toBe('function');
     }
   });

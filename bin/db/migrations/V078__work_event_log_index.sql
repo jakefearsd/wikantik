@@ -1,0 +1,20 @@
+-- Licensed to the Apache Software Foundation (ASF) under one
+-- or more contributor license agreements.  See the NOTICE file
+-- distributed with this work for additional information
+-- regarding copyright ownership.  The ASF licenses this file
+-- to you under the Apache License, Version 2.0 (the
+-- "License"); you may not use this file except in compliance
+-- with the License.  You may obtain a copy of the License at
+--
+--    http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing,
+-- software distributed under the License is distributed on an
+-- "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+-- KIND, either express or implied.  See the License for the
+-- V078: the assignment log reads work_event newest first across many projects at once
+-- (project_id = ANY(...) ORDER BY at DESC, id DESC LIMIT n). The V074 index (project_id, at DESC) cannot give that
+-- order across projects, so the planner would read every event of every visible project and sort. This index
+-- lets it walk newest-first and stop at the limit. Requires V074. Idempotent.
+
+CREATE INDEX IF NOT EXISTS idx_work_event_log ON work_event (at DESC, id DESC);

@@ -76,9 +76,11 @@ class WorkServiceAssignmentPostgresTest {
         assertNull( after.claimExpiresAt() );
         final List< WorkEvent > events = store.itemEvents( item.id() );
         final List< WorkEvent > assigned = events.stream().filter( e -> WorkEvent.ASSIGNED.equals( e.type() ) ).toList();
-        assertEquals( 1, assigned.size() );
-        assertEquals( "queue:implementer", assigned.get( 0 ).fromValue() );
-        assertEquals( "lena", assigned.get( 0 ).toValue() );
+        assertEquals( 2, assigned.size(), "the first assignment at creation, then this one" );
+        assertNull( assigned.get( 0 ).fromValue() );
+        assertEquals( "queue:implementer", assigned.get( 0 ).toValue() );
+        assertEquals( "queue:implementer", assigned.get( 1 ).fromValue() );
+        assertEquals( "lena", assigned.get( 1 ).toValue() );
         final List< WorkEvent > released = events.stream().filter( e -> WorkEvent.RELEASED.equals( e.type() ) ).toList();
         assertEquals( 1, released.size() );
         assertEquals( "agent:" + agentId, released.get( 0 ).fromValue() );

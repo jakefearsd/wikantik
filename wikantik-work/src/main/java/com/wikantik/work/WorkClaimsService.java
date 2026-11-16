@@ -204,6 +204,7 @@ public final class WorkClaimsService {
         final Scope s = is.scope();
         s.require( Action.MOVE, is.item() );
         s.requireWritable();
+        WorkInputs.requireReleaseNote( note );
         final Optional< Item > released = is.item().claimedByAgent() == null ? Optional.empty()
             : store.claims().release( is.item(), a, note );
         if ( released.isEmpty() ) {

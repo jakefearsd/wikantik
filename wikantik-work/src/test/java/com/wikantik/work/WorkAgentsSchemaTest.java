@@ -212,6 +212,18 @@ class WorkAgentsSchemaTest {
         assertEquals( before, fingerprint() + scalar( "SELECT count(*) FROM work_agent_key_history" ) );
     }
 
+    @Test
+    void v078AddsTheLogIndexAndIsANoOpWhenReapplied() throws Exception {
+        final java.nio.file.Path file = java.nio.file.Path.of( "..", "bin", "db", "migrations",
+            "V078__work_event_log_index.sql" );
+        final String sql = java.nio.file.Files.readString( file ).replace( ":app_user", "CURRENT_USER" );
+        exec( sql );
+        final String before = fingerprint();
+        exec( sql );
+        assertEquals( before, fingerprint() );
+        assertEquals( 1, scalar( "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_work_event_log'" ) );
+    }
+
     /** Columns, constraints, indexes and row counts, so a re-run that added anything shows up. */
     private String fingerprint() throws SQLException {
         final StringBuilder sb = new StringBuilder();

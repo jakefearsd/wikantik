@@ -38,7 +38,7 @@ final class WorkInputs {
     private static final Set< String > LINK_KINDS = Set.of( "page", "issue", "url", "blocked_by", "commit" );
     private static final Set< String > PRINCIPAL_KINDS = Set.of( "user", "group", "agent" );
     /** First segments of SPA routes under {@code /work/}: a project with one of these keys could not be opened. */
-    private static final Set< String > RESERVED_KEYS = Set.of( "ITEM", "PRODUCTS", "AGENTS" );
+    private static final Set< String > RESERVED_KEYS = Set.of( "ITEM", "PRODUCTS", "AGENTS", "LOG" );
     private static final int DEFAULT_ACTIVITY = 50;
     private static final int MAX_ACTIVITY = 200;
     private static final int MAX_LINK_TARGET = 2000;
@@ -140,6 +140,34 @@ final class WorkInputs {
             throw new WorkValidationException( "target", "target is missing, too long, or not an http(s) address." );
         }
         return target.trim();
+    }
+
+    /**
+     * Checks a {@code types} filter against {@code allowed}; null or empty means no filter. Independent of any project,
+     * so a bad filter is refused identically whether or not the project exists or is visible.
+     */
+    static void requireEventTypes( final Set< String > types, final Set< String > allowed ) {
+        if ( types == null ) {
+            return;
+        }
+        for ( final String type : types ) {
+            if ( !allowed.contains( type ) ) {
+                throw new WorkValidationException( "types", "types must be among " + new TreeSet<>( allowed ) + "." );
+            }
+        }
+    }
+
+    /**
+     * The reasons the system itself records on a {@code released} event. A person's own release note may not be
+     * one of them (after trimming, any case): the stored note has no other discriminator, and a note that read as
+     * a consequence would lose the person's words.
+     */
+    static final Set< String > RELEASE_REASONS = Set.of( "moved", "reassigned", "access removed", "agent retired" );
+
+    static void requireReleaseNote( final String note ) {
+        if ( note != null && RELEASE_REASONS.contains( note.trim().toLowerCase( Locale.ROOT ) ) ) {
+            throw new WorkValidationException( "note", "Choose a different note." );
+        }
     }
 
     static int activityLimit( final int requested ) {

@@ -11,8 +11,15 @@ const TABS = [
   { id: 'board', label: 'Board' },
   { id: 'dates', label: 'Dates' },
   { id: 'activity', label: 'Activity' },
+  { id: 'log', label: 'Assignments and claims' },
   { id: 'settings', label: 'Settings' },
 ];
+
+/** Where a tab goes; the log is the cross-project page preset to this project. */
+const tabPath = (key, id) => {
+  if (id === 'board') return `/work/${key}`;
+  return id === 'log' ? `/work/log?project=${encodeURIComponent(key)}` : `/work/${key}/${id}`;
+};
 
 /**
  * Shell of /work/:project: loads the project, owns the header and tabs, and gives the views below it
@@ -53,7 +60,7 @@ export default function WorkLayout() {
       </header>
       {current.project.archived && <p className="work-archived-banner" role="status">{ARCHIVED_TEXT}. It is read-only.</p>}
       <Tabs tabs={TABS} active={active}
-        onChange={(id) => navigate(id === 'board' ? `/work/${key}` : `/work/${key}/${id}`)}>
+        onChange={(id) => navigate(tabPath(key, id))}>
         <Outlet />
       </Tabs>
     </WorkProjectContext.Provider>

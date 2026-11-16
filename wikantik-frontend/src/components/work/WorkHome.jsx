@@ -92,6 +92,12 @@ export default function WorkHome() {
   return (
     <div className="work-home">
       <h1 className="work-heading">Work</h1>
+      {projects.length > 0 && (
+        <p className="work-log-link">
+          <Link to="/work/log" className="btn btn-sm">Assignments and claims</Link>
+          <span className="work-muted"> Who took what, and what happened next.</span>
+        </p>
+      )}
       {isAdmin && (
         <div className="work-actions">
           <Link to="/work/products">Products</Link>

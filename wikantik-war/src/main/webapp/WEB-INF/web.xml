@@ -1077,6 +1077,10 @@
        <url-pattern>/api/work/activity</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
+       <servlet-name>WorkActivityResource</servlet-name>
+       <url-pattern>/api/work/log</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
        <servlet-name>WorkMeResource</servlet-name>
        <url-pattern>/api/work/me</url-pattern>
    </servlet-mapping>

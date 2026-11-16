@@ -235,7 +235,8 @@ public class WorkApiIT {
             new Probe( "POST", "/api/work/items/PLAT-1/links", "/api/work/items/GHOST-1/links",
                 Map.of( "kind", "page", "target", "Main" ), 404 ),
             new Probe( "DELETE", "/api/work/links/" + linkId, "/api/work/links/" + ghostId, null, 404 ),
-            new Probe( "GET", "/api/work/activity?project=PLAT", "/api/work/activity?project=GHOST", null, 404 ) );
+            new Probe( "GET", "/api/work/activity?project=PLAT", "/api/work/activity?project=GHOST", null, 404 ),
+            new Probe( "GET", "/api/work/log?project=PLAT", "/api/work/log?project=GHOST", null, 404 ) );
 
         for ( final Probe p : probes ) {
             final HttpResponse< String > real = outsider.send( p.method, p.real, p.body );

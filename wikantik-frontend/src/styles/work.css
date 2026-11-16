@@ -159,3 +159,6 @@
 .work-claim-tag, .work-agent-badge { display: inline-block; margin-left: var(--space-xs); padding: 0 var(--space-xs); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary); }
 .work-claim-warning { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
 .work-waiting-note { margin: var(--space-xs) 0 0; padding-left: var(--space-sm); border-left: 3px solid var(--accent); font-size: 0.85rem; }
+.work-log-title { font-weight: 500; }
+.work-log-link { margin: var(--space-sm) 0; }
+.work-log-renewals { margin: var(--space-sm) 0; }

@@ -152,7 +152,7 @@ describe('WorkActivity', () => {
     const rows = await screen.findAllByRole('listitem');
     expect(rows).toHaveLength(4);
     expect(rows[0]).toHaveTextContent('PLAT-1 codex@docker2 agent claimed this · until 15:40');
-    expect(rows[1]).toHaveTextContent("Jane Doe released codex@docker2's claim because the item was moved (now review)");
+    expect(rows[1]).toHaveTextContent("Jane Doe moved this item, ending codex@docker2's claim (now review)");
     expect(rows[2]).toHaveTextContent('claim by codex@docker2 expired — back to ready');
     expect(rows[3]).toHaveTextContent('codex@docker2 agent handed this to Queue · Reviewer: in progress → review');
     expect(rows[3]).toHaveTextContent('ready for review');

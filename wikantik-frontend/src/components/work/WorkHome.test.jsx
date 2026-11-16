@@ -25,6 +25,7 @@ function renderHome({ admin = false, me = ME, work = true } = {}) {
     <MemoryRouter initialEntries={['/work']}>
       <Routes>
         <Route path="/work" element={<WorkHome />} />
+        <Route path="/work/log" element={<div>LOG PAGE</div>} />
         <Route path="/work/:project" element={<div>BOARD</div>} />
       </Routes>
     </MemoryRouter>,
@@ -34,6 +35,20 @@ function renderHome({ admin = false, me = ME, work = true } = {}) {
 beforeEach(() => vi.clearAllMocks());
 
 describe('WorkHome', () => {
+  it('linksToTheAssignmentLog', async () => {
+    renderHome();
+    const link = await screen.findByRole('link', { name: 'Assignments and claims' });
+    expect(link).toHaveAttribute('href', '/work/log');
+    fireEvent.click(link);
+    expect(await screen.findByText('LOG PAGE')).toBeInTheDocument();
+  });
+
+  it('hasNoLogLinkWhenTheViewerSeesNoProject', async () => {
+    renderHome({ me: { projects: [], waitingOn: [] } });
+    await screen.findByText('You are not a member of any project yet.');
+    expect(screen.queryByRole('link', { name: 'Assignments and claims' })).not.toBeInTheDocument();
+  });
+
   it('listsVisibleProjectsWithRole', async () => {
     renderHome();
     const link = await screen.findByRole('link', { name: 'PLAT Platform' });

@@ -58,6 +58,7 @@ class WorkInputsAgentTest {
     @Test
     void agentsProjectKeyIsReserved() {
         assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( "AGENTS" ) ) );
+        assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( "log" ) ), "/work/log is the assignment log" );
     }
 
     @Test

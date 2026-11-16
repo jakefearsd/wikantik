@@ -30,7 +30,7 @@ describe('WorkLayout', () => {
     expect(await screen.findByTestId('probe')).toHaveTextContent('PLAT:lead');
     expect(screen.getByRole('heading', { name: /PLAT Platform/ })).toBeInTheDocument();
     expect(getProject).toHaveBeenCalledWith('PLAT');
-    for (const name of ['Board', 'Dates', 'Activity', 'Settings']) {
+    for (const name of ['Board', 'Dates', 'Activity', 'Assignments and claims', 'Settings']) {
       expect(screen.getByRole('tab', { name })).toBeInTheDocument();
     }
     expect(screen.getByRole('tab', { name: 'Board' })).toHaveAttribute('aria-selected', 'true');

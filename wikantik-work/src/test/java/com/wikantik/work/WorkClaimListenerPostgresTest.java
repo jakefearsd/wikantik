@@ -100,6 +100,20 @@ class WorkClaimListenerPostgresTest {
     }
 
     @Test
+    void aReleaseNoteThatIsASystemReasonIsRefusedSoItCannotBeMistakenForOne() throws SQLException {
+        final String key = ready( "PLAT" );
+        svc.claims().claim( a, key );
+        for ( final String reserved : List.of( "moved", "Reassigned", " access removed ", "agent retired" ) ) {
+            assertThrows( WorkValidationException.class, () -> svc.claims().release( lena, key, reserved ), reserved );
+        }
+        assertEquals( 1, svc.claims().myClaims( a ).size(), "a refused release changes nothing" );
+        svc.claims().release( lena, key, "stuck on review" );
+        assertEquals( "stuck on review", WorkAgentFixtures.scalar( ds,
+            "SELECT count(*) FROM work_event WHERE type = 'released' AND note = 'stuck on review'" ) == 1
+            ? "stuck on review" : "missing" );
+    }
+
+    @Test
     void removingAnAgentMemberReportsOnlyThatProjectsClaims() throws SQLException {
         svc.claims().claim( a, ready( "PLAT" ) );
         svc.claims().claim( a, ready( "PLAT" ) );

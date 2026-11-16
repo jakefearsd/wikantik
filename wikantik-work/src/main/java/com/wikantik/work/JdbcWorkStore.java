@@ -97,10 +97,12 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     private static final double RANK_STEP = 1024.0;
 
     private final JdbcWorkDiscussion discussion;
+    private final JdbcWorkEventLog eventLog;
 
     public JdbcWorkStore( final DataSource dataSource ) {
         super( new Jdbc( dataSource ) );
         this.discussion = new JdbcWorkDiscussion( jdbc, this );
+        this.eventLog = new JdbcWorkEventLog( jdbc );
     }
 
     // ---- items
@@ -153,6 +155,12 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
             insertRevision( conn, id, 1, draft.title(), body, by );
             appendEvent( conn, new WorkEvent( 0, project.id(), id, null, null, by.login(), by.kind(), by.agentId(),
                 WorkEvent.CREATED, null, null, null ) );
+            final String assignedTo = draft.queue() != null ? "queue:" + draft.queue() : draft.assignee();
+            if ( assignedTo != null ) {
+                // An item created with a person or queue is assigned from that moment: the log must say so.
+                appendEvent( conn, new WorkEvent( 0, project.id(), id, null, null, by.login(), by.kind(),
+                    by.agentId(), WorkEvent.ASSIGNED, null, assignedTo, null ) );
+            }
             return itemById( conn, id );
         } );
     }
@@ -342,25 +350,16 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     @Override
     public List< WorkEvent > projectEvents( final long projectId, final Instant before, final Long beforeId,
-                                            final Long itemId, final int limit ) throws SQLException {
-        final StringBuilder sql = new StringBuilder( EVENT_SELECT ).append( " WHERE e.project_id = ?" );
-        final List< Object > params = new ArrayList<>();
-        params.add( projectId );
-        if ( before != null && beforeId != null ) {
-            sql.append( " AND (e.at, e.id) < (?, ?)" );
-            params.add( timestamp( before ) );
-            params.add( beforeId );
-        } else if ( before != null ) {
-            sql.append( " AND e.at < ?" );
-            params.add( timestamp( before ) );
-        }
-        if ( itemId != null ) {
-            sql.append( " AND e.item_id = ?" );
-            params.add( itemId );
-        }
-        sql.append( " ORDER BY e.at DESC, e.id DESC LIMIT ?" );
-        params.add( limit > 0 ? limit : DEFAULT_ITEM_LIMIT );
-        return jdbc.query( sql.toString(), SqlBinder.positional( params ), EVENT_ROW );
+                                            final Long itemId, final Set< String > types, final int limit )
+            throws SQLException {
+        return eventLog.projectEvents( projectId, before, beforeId, itemId, types, limit );
+    }
+
+    @Override
+    public List< LogEntry > eventsAcross( final java.util.Collection< Long > projectIds, final Instant before,
+                                          final Long beforeId, final Set< String > types, final Actor.Kind actorKind,
+                                          final Long agentId, final int limit ) throws SQLException {
+        return eventLog.eventsAcross( projectIds, before, beforeId, types, actorKind, agentId, limit );
     }
 
     @Override

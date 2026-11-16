@@ -19,6 +19,10 @@
 package com.wikantik.work;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 /** One append-only entry in the work event log. */
 public record WorkEvent( long id, long projectId, Long itemId, String itemKey, Instant at, String actor,
@@ -41,4 +45,18 @@ public record WorkEvent( long id, long projectId, Long itemId, String itemKey, I
     public static final String CLAIM_RENEWED = "claim_renewed";
     public static final String RELEASED = "released";
     public static final String CLAIM_EXPIRED = "claim_expired";
+
+    /**
+     * What the assignment log shows, in the order its filters list them: assignments, hand-offs, status changes and
+     * the life of a claim, plus {@code member} events that name an agent (an agent admitted to, re-roled in or removed
+     * from a project; people's membership changes stay in the project feed). The store keeps only the agent ones of
+     * the {@code member} type in the log query.
+     */
+    public static final Set< String > ASSIGNMENT_LOG_TYPES = Collections.unmodifiableSet( new LinkedHashSet<>( List.of(
+        ASSIGNED, HANDOFF, STATUS, CLAIMED, CLAIM_RENEWED, RELEASED, CLAIM_EXPIRED, MEMBER ) ) );
+
+    /** Every type of event this module writes: what a {@code types} filter may name. */
+    public static final Set< String > ALL_TYPES = Collections.unmodifiableSet( new LinkedHashSet<>( List.of(
+        CREATED, EDITED, STATUS, ASSIGNED, HANDOFF, FIELD, COMMENTED, COMMENT_EDITED, COMMENT_REMOVED, LINKED,
+        UNLINKED, MEMBER, SETTINGS, CLAIMED, CLAIM_RENEWED, RELEASED, CLAIM_EXPIRED ) ) );
 }

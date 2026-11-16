@@ -359,16 +359,19 @@ public class WorkService {
 
     public List< WorkEvent > activity( final Actor actor, final String projectKey, final Instant before,
                                        final int limit ) throws SQLException {
-        return activity( actor, projectKey, before, null, null, limit );
+        return activity( actor, projectKey, before, null, null, null, limit );
     }
 
     /**
-     * As above; {@code beforeId} (with {@code before}) makes the cursor the compound {@code (at, id)}, and
-     * {@code itemKey}, when set, keeps only that item's events (an item outside the project is not found).
+     * As above; {@code beforeId} (with {@code before}) makes the cursor the compound {@code (at, id)},
+     * {@code itemKey}, when set, keeps only that item's events (an item outside the project is not found), and
+     * {@code types}, when not null or empty, only events of those types. An unknown type is refused before any
+     * lookup, so the refusal is the same for a project that does not exist or one the caller cannot see.
      */
     public List< WorkEvent > activity( final Actor actor, final String projectKey, final Instant before,
-                                       final Long beforeId, final String itemKey, final int limit )
-            throws SQLException {
+                                       final Long beforeId, final String itemKey, final Set< String > types,
+                                       final int limit ) throws SQLException {
+        WorkInputs.requireEventTypes( types, WorkEvent.ALL_TYPES );
         final Scope s = scopes.scope( actor, projectKey );
         s.require( Action.VIEW, null );
         Long itemId = null;
@@ -379,8 +382,20 @@ public class WorkService {
             }
             itemId = is.item().id();
         }
-        return EventKeys.resolve( store, s.project().id(),
-            store.projectEvents( s.project().id(), before, beforeId, itemId, WorkInputs.activityLimit( limit ) ) );
+        return EventKeys.resolve( store, s.project().id(), store.projectEvents( s.project().id(), before, beforeId,
+            itemId, types, WorkInputs.activityLimit( limit ) ) );
+    }
+
+    /**
+     * The assignment log: assignments, hand-offs, status changes, claims, renewals, releases, expiries and agent
+     * membership, newest first, over exactly the projects {@link #listProjectsWithRoles} returns for the caller
+     * (archived ones included, their rows marked). A caller who can see no project gets an empty list, not an
+     * error. A {@code projectKey} the caller cannot see is as unknown as one that does not exist.
+     */
+    public List< AssignmentLogEvent > assignmentLog( final Actor actor, final AssignmentLogQuery query )
+            throws SQLException {
+        AssignmentLogs.validate( query );
+        return AssignmentLogs.read( store, query, listProjectsWithRoles( actor ).stream().map( ProjectRole::project ).toList() );
     }
 
     // ---- discussion

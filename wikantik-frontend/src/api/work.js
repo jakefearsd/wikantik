@@ -69,6 +69,8 @@ export const removeLink = (id) => request(`${base}/links/${enc(id)}`, { method: 
 
 // Activity and the viewer
 export const getActivity = (params) => request(`${base}/activity${query(params)}`);
+/** The assignment log: { events } newest first over the caller's projects; params as /api/work/log. */
+export const getAssignmentLog = (params) => request(`${base}/log${query(params)}`);
 export const getMe = () => request(`${base}/me`);
 export const archiveProduct = (key) => request(`${base}/products/${enc(key)}/archive`, { method: 'POST' });
 

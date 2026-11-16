@@ -190,8 +190,8 @@ class WorkHandoffDirectionsPostgresTest {
         assertEquals( "assigned", w.reason() );
         assertEquals( "yours now", w.handoff().note() );
         assertEquals( Actor.Kind.HUMAN, w.handoff().actorKind() );
-        assertEquals( List.of( "created HUMAN null -> null [null]", "handoff HUMAN draft|lena -> ready|mo [yours now]" ),
-            log( key ) );
+        assertEquals( List.of( "created HUMAN null -> null [null]", "assigned HUMAN null -> lena [null]",
+            "handoff HUMAN draft|lena -> ready|mo [yours now]" ), log( key ) );
         assertTrue( svc.waitingOn( lena ).stream().noneMatch( x -> key.equals( x.item().key() ) ) );
     }
 

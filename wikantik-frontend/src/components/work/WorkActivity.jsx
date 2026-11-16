@@ -8,10 +8,10 @@ import { useWorkProject } from './useWorkProject';
 import EventActor from './EventActor';
 import { actorLabel, eventText } from './eventText';
 import WorkLoadError from './WorkLoadError';
+import { whenText } from './workTime';
 
 const PAGE = 50;
 const actorOf = actorLabel;
-const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
 
 /**
  * /work/:project/activity: newest first, loaded 50 at a time. The item filter asks the server for one item's events;
@@ -131,7 +131,7 @@ function ActivityFeed() {
                     ? <><Link to={`/work/item/${e.itemKey}`} className="work-card-key">{e.itemKey}</Link>{' '}</>
                     : <><span className="work-card-key work-muted">{project.key}</span>{' '}</>}
                   <EventActor event={e} /><span className="work-event-text">{t.text}</span>
-                  <time className="work-event-time" dateTime={e.at}>{when(e.at)}</time>
+                  <time className="work-event-time" dateTime={e.at}>{whenText(e.at)}</time>
                   {t.note && <p className="work-event-note">{t.note}</p>}
                 </li>
               );

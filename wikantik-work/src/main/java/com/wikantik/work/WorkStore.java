@@ -82,10 +82,21 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
      * Newest first. With {@code beforeId} the cursor is the compound {@code (at, id)}: events strictly older in
      * {@code (at, id)} order, so a page boundary inside a group of events sharing one timestamp loses nothing.
      * Without it the cursor is the timestamp alone ({@code at < before}); {@code before} null means no cursor.
-     * {@code itemId}, when set, keeps only that item's events.
+     * {@code itemId}, when set, keeps only that item's events; {@code types}, when not null or empty, only events of
+     * those types.
      */
-    List< WorkEvent > projectEvents( long projectId, Instant before, Long beforeId, Long itemId, int limit )
-        throws SQLException;
+    List< WorkEvent > projectEvents( long projectId, Instant before, Long beforeId, Long itemId, Set< String > types,
+                                     int limit ) throws SQLException;
+
+    /**
+     * The assignment log over all the given projects in one query, newest first on the compound {@code (at, id)}
+     * cursor (the timestamp alone when {@code beforeId} is null). {@code types} null or empty means
+     * {@link WorkEvent#ASSIGNMENT_LOG_TYPES}; a {@code member} event is kept only when it names an agent.
+     * {@code actorKind} keeps what people or agents did; {@code agentId} keeps what that agent did and the release
+     * of its claims by anyone. Each row carries the item's title. Empty projects: empty, with no query.
+     */
+    List< LogEntry > eventsAcross( Collection< Long > projectIds, Instant before, Long beforeId, Set< String > types,
+                                   Actor.Kind actorKind, Long agentId, int limit ) throws SQLException;
 
     /** Distinct products of all descendants of the epic. */
     Set< Long > productIdsUnder( long epicId ) throws SQLException;

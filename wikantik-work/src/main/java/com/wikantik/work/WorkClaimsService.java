@@ -226,6 +226,9 @@ public final class WorkClaimsService {
         s.require( Action.MOVE, is.item() );
         s.require( Action.EDIT_ITEM, is.item() );
         s.requireWritable();
+        if ( h.status() != null ) {
+            s.requireStatusChange( is.item(), h.status() );
+        }
         final String person = PatchValues.blankToNull( h.assignee() );
         final String queue = PatchValues.blankToNull( h.queue() );
         if ( ( person == null ) == ( queue == null ) ) {

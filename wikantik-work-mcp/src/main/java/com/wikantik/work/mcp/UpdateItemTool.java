@@ -18,7 +18,6 @@
  */
 package com.wikantik.work.mcp;
 
-import com.wikantik.mcp.tools.McpAudit;
 import com.wikantik.work.Actor;
 import com.wikantik.work.ItemPatch;
 import com.wikantik.work.WorkDirectory;
@@ -32,6 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
 /**
  * Changes an item's title, body, status, priority or due date. It deliberately offers less than the service: who has
@@ -66,6 +67,11 @@ public final class UpdateItemTool extends WorkMcpTool {
     @Override
     public String name() {
         return TOOL_NAME;
+    }
+
+    @Override
+    protected boolean writes() {
+        return true;
     }
 
     @Override
@@ -113,7 +119,7 @@ public final class UpdateItemTool extends WorkMcpTool {
             throw new WorkValidationException( "changes", "Nothing to change." );
         }
         final ItemView view = svc.updateItem( actor, key, new ItemPatch( expectedVersion, changes, note ) );
-        McpAudit.logWrite( TOOL_NAME, "updated", key, actor.login() );
+        WorkMcpLog.written( TOOL_NAME, "updated", key, actor );
         return ok( WorkMcpJson.fullItem( svc, directory, actor, view ) );
     }
 

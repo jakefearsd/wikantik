@@ -19,6 +19,10 @@
 package com.wikantik.work.mcp;
 
 import com.wikantik.work.CommentView;
+import com.wikantik.work.WorkConflictException;
+import com.wikantik.work.WorkDeniedException;
+import com.wikantik.work.WorkNotFoundException;
+import com.wikantik.work.WorkValidationException;
 import com.wikantik.work.WorkClaimsService.ClaimResult;
 import com.wikantik.work.WorkStatus;
 import org.apache.logging.log4j.Level;
@@ -37,6 +41,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 /** Every write is audited with the agent's name (never a login or key id), the tool, the action and the item key. */
@@ -52,7 +57,7 @@ class WriteToolsAuditTest {
         @Override
         public void append( final LogEvent event ) {
             final String m = event.getMessage().getFormattedMessage();
-            if ( m.startsWith( "MCP_WRITE" ) ) {
+            if ( m.startsWith( "MCP_" ) ) {
                 lines.add( m );
             }
         }
@@ -103,6 +108,7 @@ class WriteToolsAuditTest {
         } );
 
         assertEquals( 7, lines.size(), lines.toString() );
+        assertTrue( lines.stream().allMatch( l -> l.startsWith( "MCP_WRITE" ) ), "a success is audited, never logged as refused" );
         final String[][] expected = { { "claim_item", "claimed" }, { "claim_item", "renewed" }, { "update_item", "updated" },
             { "comment_on_item", "commented" }, { "handoff_item", "handed-off" }, { "release_item", "released" },
             { "create_item", "created" } };
@@ -121,6 +127,68 @@ class WriteToolsAuditTest {
             new UpdateItemTool( w.svc, w.directory ).call( w.agent, Map.of( "key", "PLAT-1", "expectedVersion", 1, "assignee", "x" ) );
             new CreateItemTool( w.svc ).call( null, Map.of() );
         } );
-        assertEquals( List.of(), lines );
+        assertEquals( 2, lines.size(), lines.toString() );   // one refusal line each, no success audit
+        assertTrue( lines.stream().noneMatch( l -> l.startsWith( "MCP_WRITE" ) ), lines.toString() );
+    }
+
+    private static void assertRefusal( final String line, final String tool, final String item, final String agent,
+                                       final String kind ) {
+        assertEquals( "MCP_WORK_REFUSED tool=" + tool + " item=" + item + " agent=" + agent + " kind=" + kind, line );
+    }
+
+    @Test
+    void everyKindOfRefusedWriteLeavesOneLineWithItsKind() throws Exception {
+        final MockWork w = new MockWork();
+        when( w.svc.addComment( any(), eq( "HID-1" ), any() ) ).thenThrow( new WorkNotFoundException( "secret text" ) );
+        when( w.svc.addComment( any(), eq( "PLAT-2" ), any() ) ).thenThrow( new WorkDeniedException( "claimed by someone" ) );
+        when( w.svc.addComment( any(), eq( "PLAT-3" ), any() ) ).thenThrow( new WorkValidationException( "body", "too long" ) );
+        when( w.svc.addComment( any(), eq( "PLAT-4" ), any() ) )
+            .thenThrow( new WorkConflictException( "changed", WorkConflictException.STALE ) );
+        final CommentOnItemTool tool = new CommentOnItemTool( w.svc );
+
+        final List< String > lines = audited( () -> {
+            tool.call( null, Map.of( "key", "PLAT-1", "body", "x" ) );
+            tool.call( w.agent, Map.of( "key", "HID-1", "body", "secret comment body" ) );
+            tool.call( w.agent, Map.of( "key", "PLAT-2", "body", "x" ) );
+            tool.call( w.agent, Map.of( "key", "PLAT-3", "body", "x" ) );
+            tool.call( w.agent, Map.of( "key", "PLAT-4", "body", "x" ) );
+        } );
+
+        assertEquals( 5, lines.size(), lines.toString() );
+        assertRefusal( lines.get( 0 ), "comment_on_item", "PLAT-1", "-", "needs_key" );
+        assertRefusal( lines.get( 1 ), "comment_on_item", "HID-1", "builder", "not_found" );
+        assertRefusal( lines.get( 2 ), "comment_on_item", "PLAT-2", "builder", "denied" );
+        assertRefusal( lines.get( 3 ), "comment_on_item", "PLAT-3", "builder", "validation" );
+        assertRefusal( lines.get( 4 ), "comment_on_item", "PLAT-4", "builder", "stale" );
+        final String all = String.join( "\n", lines );
+        assertTrue( !all.contains( "secret" ) && !all.contains( "claimed by someone" ) && !all.contains( "too long" ), all );
+    }
+
+    @Test
+    void aHostileKeyCannotSplitOrForgeALine() throws Exception {
+        final MockWork w = new MockWork();
+        final String hostile = "PLAT-1\nMCP_WRITE tool=claim_item action=claimed target=PLAT-9 author=admin\r\u2028" + "x".repeat( 500 );
+        final List< String > lines = audited( () -> new ReleaseItemTool( w.svc ).call( w.agent, Map.of( "key", hostile,
+            "status", "ready" ) ) );
+        assertEquals( 1, lines.size(), lines.toString() );
+        final String line = lines.get( 0 );
+        assertTrue( line.chars().noneMatch( c -> c == '\n' || c == '\r' || c == 0x2028 ), line );
+        assertTrue( line.startsWith( "MCP_WORK_REFUSED tool=release_item item=PLAT-1MCP_WRITE" ), line );
+        assertTrue( line.length() < 200, "the key is capped: " + line.length() );
+    }
+
+    @Test
+    void readToolsAndANullKeyOfAWriteLogNothingAboutAnItem() throws Exception {
+        final MockWork w = new MockWork();
+        final List< String > lines = audited( () -> new CreateItemTool( w.svc ).call( w.agent, Map.of( "assignee", "x" ) ) );
+        assertEquals( 1, lines.size() );
+        assertRefusal( lines.get( 0 ), "create_item", "-", "builder", "validation" );
+    }
+
+    @Test
+    void anAgentNameWithControlCharactersIsCleanedInTheAudit() {
+        assertEquals( "evilname", WorkMcpLog.clean( "evil\nname" ) );
+        assertEquals( "-", WorkMcpLog.clean( "\n\r" ) );
+        assertEquals( "-", WorkMcpLog.clean( null ) );
     }
 }

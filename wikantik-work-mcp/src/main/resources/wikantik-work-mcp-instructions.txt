@@ -23,7 +23,8 @@ release_item       key and an optional note. Gives up your claim; the item goes 
                    Returns {key, status}.
 create_item        project, level (epic, story or task), title, and optionally body, parentKey, productKey, kind,
                    priority, queue. Returns {key, version, status}. A new item is always a draft with no
-                   assignee, for a person to refine; status and assignee are refused by name.
+                   assignee, for a person to refine; status and assignee are refused by name. You cannot
+                   move a draft out of draft: hand it to a person (status draft) with a note.
 
 == How to work ==
 
@@ -38,8 +39,11 @@ create_item        project, level (epic, story or task), title, and optionally b
 6. Finish with handoff_item to a queue (for example review) or to a person, with a note saying what was done and
    what is expected next. If you cannot finish, release_item with a note saying why.
    Never just stop: a claim you abandon blocks the item until it expires.
-7. New work you find along the way: create_item. It starts as a draft for a person to refine; hand it on with
-   handoff_item if it should go somewhere.
+   If an item needs a new status but stays with the same queue or person (a hand-off needs a different target),
+   use update_item with status and a note instead.
+7. New work you find along the way: create_item. It starts as a draft for a person to refine. You cannot move a
+   draft forward yourself (denied: A person moves a draft forward.): hand it to a person with handoff_item,
+   status draft, and a note saying it is ready for review. You may still edit a draft and comment on it.
 
 Every change you make is recorded under your agent name, with your note.
 
@@ -53,7 +57,6 @@ A refusal starts with a word that says what to do:
   not_claimed:    you hold no claim on that item, so there is nothing to release.
   denied:         you may not do that (for example another agent holds the item). Do not try to work around it.
   archived:       the project is read-only now. Stop work on it.
-  exists:         that key is already taken.
   <field>:        an argument was wrong or not allowed; the text says which and why. Fix it and resend.
 
 An item or project you cannot see answers exactly "Not found." -- the same answer as one that does not exist.

@@ -54,6 +54,18 @@ final class WorkScopes {
             }
         }
 
+        /**
+         * Denies, and records the denial, an agent moving a draft forward. Call it after the visibility and
+         * permission checks and before any write; {@code target} is the requested status, null for "not draft".
+         */
+        void requireStatusChange( final Item item, final WorkStatus target ) {
+            final Decision d = WorkPolicy.mayChangeStatus( actor, item, target );
+            if ( !d.allowed() ) {
+                onDenied.accept( Action.MOVE );
+                throw new WorkDeniedException( d.reason() );
+            }
+        }
+
         void requireWritable() {
             if ( project.archivedAt() != null ) {
                 throw new WorkConflictException( "This project is archived.", WorkConflictException.ARCHIVED );

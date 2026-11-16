@@ -305,6 +305,9 @@ public class WorkService {
             s.require( Action.SET_POLICY, is.item() );
         }
         s.requireWritable();
+        if ( changes.containsKey( "status" ) ) {
+            s.requireStatusChange( is.item(), WorkStatus.DRAFT.wire().equals( changes.get( "status" ) ) ? WorkStatus.DRAFT : null );
+        }
         final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
         final Item saved = store.updateItem( stamped, next, actor, patch.note() );

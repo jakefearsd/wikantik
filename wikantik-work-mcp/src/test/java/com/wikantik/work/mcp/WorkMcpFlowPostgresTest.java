@@ -133,7 +133,7 @@ class WorkMcpFlowPostgresTest {
         final Item item = f.ready( "PLAT", "Build the thing" );
         final String key = item.key();
         List< String > log = events( key );
-        assertTrue( log.stream().allMatch( r -> r.split( "\\|" )[ 1 ].equals( "user" ) || r.split( "\\|" )[ 1 ].equals( "human" ) ), log.toString() );
+        assertTrue( log.stream().allMatch( r -> agentFields( r ).equals( "user/null" ) ), log.toString() );
 
         // direction 2: queue -> agent A
         McpSchema.CallToolResult claimed = call( f.builder, "claim_item", "key", key );
@@ -297,4 +297,98 @@ class WorkMcpFlowPostgresTest {
         assertEquals( "Not found.", WorkMcpFixture.text( call( f.builder, "create_item", "project", "SECRET", "level", "task", "title", "x" ) ) );
     }
 
+
+    private int rowCount( final String sql ) throws SQLException {
+        return ( int ) f.scalar( sql );
+    }
+
+    private long itemId( final String key ) throws SQLException {
+        return f.scalar( "SELECT i.id FROM work_item i JOIN work_project p ON p.id = i.project_id WHERE p.key || '-' || i.seq = '"
+            + key + "'" );
+    }
+
+    @Test
+    void updateItemIsRecordedAgainstTheAgentAndRefusalsWriteNothing() throws SQLException {
+        final String key = f.ready( "PLAT", "Update me" ).key();
+        ok( call( f.builder, "claim_item", "key", key ) );
+
+        // a status change with a note: one status event, attributed to the agent, carrying the note
+        final McpSchema.CallToolResult moved = call( f.builder, "update_item", "key", key,
+            "expectedVersion", version( f.builder, key ), "status", "review", "note", "Ready for a look" );
+        ok( moved );
+        final List< String > log = events( key );   // a status change by the holder also ends its claim: status, then released
+        final String status = log.stream().filter( r -> r.startsWith( "status|" ) ).reduce( ( a, b ) -> b ).orElseThrow();
+        assertEquals( "agent/" + f.builder.id(), agentFields( status ), status );
+        assertTrue( status.endsWith( "|in_progress|review|Ready for a look" ), status );
+        assertTrue( log.get( log.size() - 1 ).startsWith( "released|agent|" + f.builder.id() + "|agent:" + f.builder.id() ), log.toString() );
+
+        // title and body: the revision row names the agent and the version moved
+        final int before = version( f.builder, key );
+        final McpSchema.CallToolResult edited = call( f.builder, "update_item", "key", key, "expectedVersion", before,
+            "title", "Updated title", "body", "Updated body" );
+        ok( edited );
+        assertTrue( WorkMcpFixture.json( edited ).get( "version" ).getAsInt() > before );
+        assertEquals( "Updated title", WorkMcpFixture.json( edited ).get( "title" ).getAsString() );
+        assertEquals( f.builder.id(), f.scalar( "SELECT edited_by_agent_id FROM work_item_revision WHERE item_id = "
+            + itemId( key ) + " ORDER BY version DESC LIMIT 1" ) );
+        assertEquals( "Updated body", WorkMcpFixture.json( call( f.builder, "get_item", "key", key ) ).get( "body" ).getAsString() );
+
+        // refusals by name: no event, no version change, no revision
+        final int events = events( key ).size();
+        final int v = version( f.builder, key );
+        final long revisions = f.scalar( "SELECT count(*) FROM work_item_revision WHERE item_id = " + itemId( key ) );
+        assertEquals( "assignee: Use handoff_item to change who has the item.", WorkMcpFixture.text(
+            call( f.builder, "update_item", "key", key, "expectedVersion", v, "assignee", "Lena Lead" ) ) );
+        assertEquals( "queue: Use handoff_item to change who has the item.", WorkMcpFixture.text(
+            call( f.builder, "update_item", "key", key, "expectedVersion", v, "queue", "reviewer" ) ) );
+        assertEquals( events, events( key ).size() );
+        assertEquals( v, version( f.builder, key ) );
+        assertEquals( revisions, f.scalar( "SELECT count(*) FROM work_item_revision WHERE item_id = " + itemId( key ) ) );
+        assertEquals( 0, rowCount( "SELECT count(*) FROM work_event WHERE type = 'assigned' AND item_id = " + itemId( key ) ) );
+    }
+
+    @Test
+    void anAgentCannotPromoteItsOwnDraftButCanPassItToAPerson() throws SQLException {
+        final McpSchema.CallToolResult created = call( f.builder, "create_item", "project", "PLAT", "level", "task",
+            "title", "Idea", "queue", "implementer" );
+        ok( created );
+        final String key = WorkMcpFixture.json( created ).get( "key" ).getAsString();
+        final int eventsBefore = events( key ).size();
+
+        assertEquals( "denied: A person moves a draft forward.", WorkMcpFixture.text( call( f.builder, "update_item",
+            "key", key, "expectedVersion", version( f.builder, key ), "status", "ready" ) ) );
+        assertEquals( "denied: A person moves a draft forward.", WorkMcpFixture.text( call( f.builder, "handoff_item",
+            "key", key, "expectedVersion", version( f.builder, key ), "status", "ready", "assignee", "Lena Lead",
+            "note", "promote it" ) ) );
+        assertEquals( eventsBefore, events( key ).size(), "the refusals wrote nothing" );
+
+        // editing the draft is fine, and so is handing it to a person with the status left as draft
+        ok( call( f.builder, "update_item", "key", key, "expectedVersion", version( f.builder, key ), "body", "Details" ) );
+        // the person's LOGIN is not a name an agent may use; the display name is
+        assertEquals( "assignee: The assignee is not a member of this project.", WorkMcpFixture.text( call( f.builder,
+            "handoff_item", "key", key, "expectedVersion", version( f.builder, key ), "status", "draft",
+            "assignee", "mo", "note", "for you" ) ) );
+        ok( call( f.builder, "handoff_item", "key", key, "expectedVersion", version( f.builder, key ), "status", "draft",
+            "assignee", "Lena Lead", "note", "Ready for review; please refine and promote." ) );
+        final WaitingItem waiting = f.svc.waitingOn( f.lena ).stream().filter( x -> x.item().key().equals( key ) )
+            .findFirst().orElseThrow();
+        assertEquals( "Ready for review; please refine and promote.", waiting.handoff().note() );
+        assertEquals( f.builder.id(), waiting.handoff().agentId() );
+
+        // the person promotes it into the queue; now the agent can take it
+        final Item held = f.svc.item( f.lena, key ).item();
+        f.svc.claims().handoff( f.lena, key, new Handoff( held.version(), WorkStatus.READY, null, "implementer",
+            "Refined; go ahead." ) );
+        ok( call( f.builder, "claim_item", "key", key ) );
+        assertLastEvent( events( key ), "claimed", f.builder );
+    }
+
+    @Test
+    void handingOffToAPersonByDisplayNameWorks() throws SQLException {
+        final String key = f.ready( "PLAT", "To Mo" ).key();
+        ok( call( f.builder, "claim_item", "key", key ) );
+        ok( call( f.builder, "handoff_item", "key", key, "expectedVersion", version( f.builder, key ), "status", "review",
+            "assignee", "Mo Member", "note", "Over to you." ) );
+        assertEquals( "mo", f.svc.item( f.lena, key ).item().assignee() );
+    }
 }

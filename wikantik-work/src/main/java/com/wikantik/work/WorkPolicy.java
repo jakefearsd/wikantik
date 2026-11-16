@@ -57,6 +57,20 @@ public final class WorkPolicy {
         return Decision.deny( "This action needs the " + needed.wire() + " role; you hold " + roleOrNull.wire() + "." );
     }
 
+    /**
+     * Whether {@code actor} may set the status of {@code item} to {@code target}: an agent never moves an item out of
+     * {@code draft} (the owner approved agent-created items on condition that a person refines and promotes them);
+     * it may leave a draft a draft. A null {@code target} stands for any status other than draft (the caller could
+     * not name one), so it counts as a move. People are not restricted here.
+     */
+    public static Decision mayChangeStatus( final Actor actor, final Item item, final WorkStatus target ) {
+        if ( actor.kind() == Actor.Kind.AGENT && item != null && item.status() == WorkStatus.DRAFT
+            && target != WorkStatus.DRAFT ) {
+            return Decision.deny( "A person moves a draft forward." );
+        }
+        return Decision.allow();
+    }
+
     private static boolean claimedByOther( final Actor actor, final Action action, final Item item ) {
         return ( action == Action.EDIT_ITEM || action == Action.MOVE || action == Action.LINK )
             && item != null && item.claimedByAgent() != null && !item.claimedByAgent().equals( actor.agentId() );

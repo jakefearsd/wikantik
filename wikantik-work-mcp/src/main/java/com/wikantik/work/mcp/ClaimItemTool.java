@@ -18,7 +18,6 @@
  */
 package com.wikantik.work.mcp;
 
-import com.wikantik.mcp.tools.McpAudit;
 import com.wikantik.work.Actor;
 import com.wikantik.work.WorkClaimsService.ClaimResult;
 import com.wikantik.work.WorkDirectory;
@@ -30,6 +29,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
 /**
  * Takes an item for the calling agent, or renews the agent's own claim on it. The answer carries the claim's expiry
@@ -55,6 +56,11 @@ public final class ClaimItemTool extends WorkMcpTool {
     }
 
     @Override
+    protected boolean writes() {
+        return true;
+    }
+
+    @Override
     public McpSchema.Tool definition() {
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -72,7 +78,7 @@ public final class ClaimItemTool extends WorkMcpTool {
         rejectOthers( args, ALLOWED, Map.of() );
         final String key = itemKey( args );
         final ClaimResult result = svc.claims().claim( actor, key );
-        McpAudit.logWrite( TOOL_NAME, result.renewed() ? "renewed" : "claimed", key, actor.login() );
+        WorkMcpLog.written( TOOL_NAME, result.renewed() ? "renewed" : "claimed", key, actor );
         final Map< String, Object > claim = new LinkedHashMap<>();
         claim.put( "expiresAt", result.view().item().claimExpiresAt() == null ? null
             : result.view().item().claimExpiresAt().toString() );

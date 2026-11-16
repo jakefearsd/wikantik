@@ -18,7 +18,6 @@
  */
 package com.wikantik.work.mcp;
 
-import com.wikantik.mcp.tools.McpAudit;
 import com.wikantik.work.Actor;
 import com.wikantik.work.WorkClaimsService.Handoff;
 import com.wikantik.work.WorkDirectory;
@@ -33,6 +32,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
 /**
  * Hands an item on to a queue or to a person, with a status and a note, in one recorded step; any claim on it ends.
@@ -56,6 +57,11 @@ public final class HandoffItemTool extends WorkMcpTool {
     @Override
     public String name() {
         return TOOL_NAME;
+    }
+
+    @Override
+    protected boolean writes() {
+        return true;
     }
 
     @Override
@@ -103,7 +109,7 @@ public final class HandoffItemTool extends WorkMcpTool {
         final String note = requiredString( args, "note" );
         final ItemView view = svc.claims().handoff( actor, key, new Handoff( expectedVersion,
             WorkStatus.fromWire( status ), person ? assignee : null, toQueue ? queue : null, note ) );
-        McpAudit.logWrite( TOOL_NAME, "handed-off", key, actor.login() );
+        WorkMcpLog.written( TOOL_NAME, "handed-off", key, actor );
         return ok( WorkMcpJson.fullItem( svc, directory, actor, view ) );
     }
 }

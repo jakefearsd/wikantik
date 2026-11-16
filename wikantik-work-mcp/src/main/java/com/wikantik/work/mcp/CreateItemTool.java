@@ -18,7 +18,6 @@
  */
 package com.wikantik.work.mcp;
 
-import com.wikantik.mcp.tools.McpAudit;
 import com.wikantik.work.Actor;
 import com.wikantik.work.ItemDraft;
 import com.wikantik.work.WorkKind;
@@ -32,6 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
 /**
  * Creates an item. It always lands as a {@code draft}, unassigned, for a person to refine: the owner approved agents
@@ -58,6 +59,11 @@ public final class CreateItemTool extends WorkMcpTool {
     @Override
     public String name() {
         return TOOL_NAME;
+    }
+
+    @Override
+    protected boolean writes() {
+        return true;
     }
 
     @Override
@@ -98,7 +104,7 @@ public final class CreateItemTool extends WorkMcpTool {
             kind == null || kind.isBlank() ? WorkKind.SOFTWARE : WorkKind.fromWire( kind ), title, body, priority, null,
             null, queue );
         final ItemView view = svc.createItem( actor, draft );
-        McpAudit.logWrite( TOOL_NAME, "created", view.item().key(), actor.login() );
+        WorkMcpLog.written( TOOL_NAME, "created", view.item().key(), actor );
         final Map< String, Object > out = new LinkedHashMap<>();
         out.put( "key", view.item().key() );
         out.put( "version", view.item().version() );

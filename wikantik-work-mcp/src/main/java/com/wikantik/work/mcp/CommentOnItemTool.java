@@ -18,7 +18,6 @@
  */
 package com.wikantik.work.mcp;
 
-import com.wikantik.mcp.tools.McpAudit;
 import com.wikantik.work.Actor;
 import com.wikantik.work.CommentView;
 import com.wikantik.work.WorkService;
@@ -29,6 +28,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
 /** Adds a comment, as the calling agent, to an item. Mentions follow whatever the service accepts from a non-admin. */
 public final class CommentOnItemTool extends WorkMcpTool {
@@ -46,6 +47,11 @@ public final class CommentOnItemTool extends WorkMcpTool {
     @Override
     public String name() {
         return TOOL_NAME;
+    }
+
+    @Override
+    protected boolean writes() {
+        return true;
     }
 
     @Override
@@ -69,7 +75,7 @@ public final class CommentOnItemTool extends WorkMcpTool {
         final String key = itemKey( args );
         final String body = requiredString( args, "body" );
         final CommentView comment = svc.addComment( actor, key, body );
-        McpAudit.logWrite( TOOL_NAME, "commented", key, actor.login() );
+        WorkMcpLog.written( TOOL_NAME, "commented", key, actor );
         final Map< String, Object > out = new LinkedHashMap<>();
         out.put( "id", comment.id() );
         out.put( "at", comment.createdAt() == null ? null : comment.createdAt().toString() );

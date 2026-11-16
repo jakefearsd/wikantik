@@ -163,4 +163,28 @@ class WorkPolicyTest {
         assertTrue( WorkPolicy.may( flagged, WorkRole.MEMBER, Action.CLAIM, null ).allowed() );
         assertTrue( WorkPolicy.may( flagged, WorkRole.MEMBER, Action.COMMENT, null ).allowed() );
     }
+
+    private static Item inStatus( final WorkStatus status ) {
+        return new Item( 1, 1, "PLAT-1", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", status, 3,
+            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, null, null, null, null );
+    }
+
+    @Test
+    void anAgentCannotMoveADraftOutOfDraft() {
+        final Actor agent = Actor.agent( 7, "bot" );
+        final Decision d = WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), WorkStatus.READY );
+        assertFalse( d.allowed() );
+        assertEquals( "A person moves a draft forward.", d.reason() );
+        assertFalse( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), null ).allowed(), "unknown target counts as a move" );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), WorkStatus.DRAFT ).allowed() );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.READY ), WorkStatus.REVIEW ).allowed() );
+    }
+
+    @Test
+    void peopleMayMoveADraftForward() {
+        assertTrue( WorkPolicy.mayChangeStatus( Actor.human( "alice", Set.of(), false ), inStatus( WorkStatus.DRAFT ),
+            WorkStatus.READY ).allowed() );
+        assertTrue( WorkPolicy.mayChangeStatus( Actor.human( "root", Set.of(), true ), inStatus( WorkStatus.DRAFT ),
+            WorkStatus.READY ).allowed() );
+    }
 }

@@ -18,7 +18,6 @@
  */
 package com.wikantik.work.mcp;
 
-import com.wikantik.mcp.tools.McpAudit;
 import com.wikantik.work.Actor;
 import com.wikantik.work.WorkService;
 import com.wikantik.work.WorkService.ItemView;
@@ -29,6 +28,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
 /** Gives up the calling agent's claim on an item, returning it to where it was waiting. */
 public final class ReleaseItemTool extends WorkMcpTool {
@@ -46,6 +47,11 @@ public final class ReleaseItemTool extends WorkMcpTool {
     @Override
     public String name() {
         return TOOL_NAME;
+    }
+
+    @Override
+    protected boolean writes() {
+        return true;
     }
 
     @Override
@@ -69,7 +75,7 @@ public final class ReleaseItemTool extends WorkMcpTool {
         final String key = itemKey( args );
         final String note = stringArg( args, "note" );
         final ItemView view = svc.claims().release( actor, key, note );
-        McpAudit.logWrite( TOOL_NAME, "released", key, actor.login() );
+        WorkMcpLog.written( TOOL_NAME, "released", key, actor );
         final Map< String, Object > out = new LinkedHashMap<>();
         out.put( "key", view.item().key() );
         out.put( "status", view.item().status().wire() );

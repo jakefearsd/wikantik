@@ -86,7 +86,8 @@ class WorkServiceFixWaveTest {
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
         when( store.item( "PLAT-3" ) ).thenReturn( Optional.of( task ) );
         when( store.itemById( 12 ) ).thenReturn( Optional.of( task ) );
-        when( store.updateItem( any(), any(), any( Actor.class ), any() ) ).thenAnswer( inv -> inv.getArgument( 1 ) );
+        when( store.writeItem( any(), any(), any( Actor.class ), any(), org.mockito.ArgumentMatchers.anyBoolean() ) )
+            .thenAnswer( inv -> new WorkStore.ItemWrite( inv.getArgument( 1 ), null ) );
         role( "u-c01d", WorkRole.LEAD );
         role( "u-7f3a", WorkRole.MEMBER );
     }
@@ -132,7 +133,7 @@ class WorkServiceFixWaveTest {
     void theAssigneeIsADisplayNameAndALoginFromAMemberIsNotAMember() throws SQLException {
         service.updateItem( lead, "PLAT-3", new ItemPatch( 4, Map.of( "assignee", "Ana Lima" ), null ) );
         final ArgumentCaptor< Item > next = ArgumentCaptor.forClass( Item.class );
-        verify( store ).updateItem( any(), next.capture(), any( Actor.class ), isNull() );
+        verify( store ).writeItem( any(), next.capture(), any( Actor.class ), isNull(), eq( false ) );
         assertEquals( "u-7f3a", next.getValue().assignee() );
 
         final WorkValidationException login = invalid( () -> service.updateItem( lead, "PLAT-3",

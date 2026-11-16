@@ -299,8 +299,9 @@ public class WorkService {
         if ( changes.isEmpty() ) {
             throw new WorkValidationException( "changes", "Nothing to change." );
         }
-        s.require( ItemPatchApplier.MOVE_KEYS.containsAll( changes.keySet() ) ? Action.MOVE : Action.EDIT_ITEM,
-            is.item() );
+        final Action action = ItemPatchApplier.MOVE_KEYS.containsAll( changes.keySet() ) ? Action.MOVE
+            : Action.EDIT_ITEM;
+        s.require( action, is.item() );
         if ( changes.keySet().stream().anyMatch( ItemPatchApplier.POLICY_KEYS::contains ) ) {
             s.require( Action.SET_POLICY, is.item() );
         }
@@ -310,8 +311,7 @@ public class WorkService {
         }
         final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
-        final Item saved = store.updateItem( stamped, next, actor, patch.note() );
-        claims.reportEnded( is.item(), saved );
+        final Item saved = claims.write( stamped, next, actor, patch.note(), false, action );
         return views.view( s, saved );
     }
 

@@ -54,17 +54,33 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
     Optional< Item > item( String key ) throws SQLException;
 
     /**
-     * Applies {@code next} over {@code current} in one transaction, guarded by {@code current.version()}
-     * (stale: {@link WorkConflictException}). Writes a revision when title or body changed and one event per
-     * changed field.
+     * What a write did: the item as written, and the agent whose claim the write ended ({@code null} when it ended
+     * none), named from the row as it was under lock, not from the caller's earlier copy.
      */
-    Item updateItem( Item current, Item next, Actor by, String note ) throws SQLException;
+    record ItemWrite( Item item, Long endedClaimOf ) {
+    }
 
     /**
-     * Like {@link #updateItem} (same guard, same claim clearing) but always writes exactly one {@code handoff}
-     * event, from {@code status|target} to {@code status|target}, where a queue target is {@code queue:<key>}.
+     * Applies {@code next} over {@code current} in one transaction, guarded by {@code current.version()}
+     * (stale: {@link WorkConflictException}). Writes a revision when title or body changed and one event per
+     * changed field, or exactly one {@code handoff} event when {@code asHandoff}, from {@code status|target} to
+     * {@code status|target} (a queue target is {@code queue:<key>}). A change of status, person or queue ends any
+     * claim on the item ({@code released}). An agent writer is refused ({@link ClaimFenceException}, nothing
+     * written) when the row, read under lock, is claimed by another agent.
      */
-    Item handoff( Item current, Item next, Actor by, String note ) throws SQLException;
+    ItemWrite writeItem( Item current, Item next, Actor by, String note, boolean asHandoff ) throws SQLException;
+
+    /** {@link #writeItem} with field events. */
+    default Item updateItem( final Item current, final Item next, final Actor by, final String note )
+            throws SQLException {
+        return writeItem( current, next, by, note, false ).item();
+    }
+
+    /** {@link #writeItem} with one {@code handoff} event. */
+    default Item handoff( final Item current, final Item next, final Actor by, final String note )
+            throws SQLException {
+        return writeItem( current, next, by, note, true ).item();
+    }
 
     /** The newest {@code handoff} event of each given item; items with none are absent. */
     Map< Long, WorkEvent > lastHandoffs( Collection< Long > itemIds ) throws SQLException;

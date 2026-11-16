@@ -140,7 +140,8 @@ final class JdbcWorkClaims implements WorkClaimStore {
     }
 
     @Override
-    public Optional< Item > claim( final Item item, final Actor agent, final Duration expiry ) throws SQLException {
+    public Optional< Claimed > claimWithOutcome( final Item item, final Actor agent, final Duration expiry )
+            throws SQLException {
         final long agentId = requireAgent( agent );
         if ( expiry == null || expiry.isZero() || expiry.isNegative() ) {
             throw new IllegalArgumentException( "a claim expires after a positive duration" );
@@ -153,7 +154,7 @@ final class JdbcWorkClaims implements WorkClaimStore {
                         ps.setLong( 1, item.projectId() );
                         ps.setString( 2, String.valueOf( agentId ) );
                     } ) ) {
-                return Optional.< Item >empty();
+                return Optional.< Claimed >empty();
             }
             final Optional< Taken > won = jdbc.queryOne( conn, CLAIM_SQL, ps -> {
                 ps.setLong( 1, agentId );
@@ -166,7 +167,7 @@ final class JdbcWorkClaims implements WorkClaimStore {
             }, rs -> new Taken( rs.getLong( "id" ), rs.getLong( "project_id" ), rs.getBoolean( "taken" ),
                 rs.getString( "status" ) ) );
             if ( won.isEmpty() ) {
-                return Optional.< Item >empty();
+                return Optional.< Claimed >empty();
             }
             final Taken t = won.get();
             final Item after = itemById( conn, item.id() );
@@ -180,7 +181,7 @@ final class JdbcWorkClaims implements WorkClaimStore {
                 catalog.appendEvent( conn, event( t.projectId(), item.id(), agent, WorkEvent.CLAIM_RENEWED, null,
                     expires, null ) );
             }
-            return Optional.of( after );
+            return Optional.of( new Claimed( after, !t.taken() ) );
         } );
     }
 

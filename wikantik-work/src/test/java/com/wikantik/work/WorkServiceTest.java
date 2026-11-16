@@ -106,8 +106,8 @@ class WorkServiceTest {
         when( store.item( "OPS-1" ) ).thenReturn( Optional.of( opsTask ) );
         when( store.itemById( 20 ) ).thenReturn( Optional.of( opsTask ) );
         when( store.itemById( 12 ) ).thenReturn( Optional.of( task ) );
-        when( store.updateItem( any(), any(), any( Actor.class ), any() ) )
-            .thenAnswer( inv -> inv.getArgument( 1 ) );
+        when( store.writeItem( any(), any(), any( Actor.class ), any(), org.mockito.ArgumentMatchers.anyBoolean() ) )
+            .thenAnswer( inv -> new WorkStore.ItemWrite( inv.getArgument( 1 ), null ) );
         when( store.createItem( any(), any(), any( Actor.class ) ) ).thenAnswer( inv -> {
             final Item d = inv.getArgument( 1 );
             return new Item( 99, 1, "PLAT-9", d.level(), d.parentId(), d.productId(), d.kind(), d.title(), d.body(),
@@ -315,7 +315,7 @@ class WorkServiceTest {
     @Test
     void leadMaySetPolicyFields() throws SQLException {
         service.updateItem( lead, "PLAT-3", new ItemPatch( 4, changes( "autonomy", "delegated" ), null ) );
-        verify( store ).updateItem( any(), any(), any( Actor.class ), any() );
+        verify( store ).writeItem( any(), any(), any( Actor.class ), any(), eq( false ) );
     }
 
     @Test
@@ -337,13 +337,13 @@ class WorkServiceTest {
     void expectedVersionIsPassedToTheStore() throws SQLException {
         service.updateItem( alice, "PLAT-3", new ItemPatch( 2, changes( "title", "x" ), null ) );
         final ArgumentCaptor< Item > current = ArgumentCaptor.forClass( Item.class );
-        verify( store ).updateItem( current.capture(), any(), any( Actor.class ), any() );
+        verify( store ).writeItem( current.capture(), any(), any( Actor.class ), any(), eq( false ) );
         assertEquals( 2, current.getValue().version() );
     }
 
     @Test
     void staleVersionSurfacesAsConflict() throws SQLException {
-        when( store.updateItem( any(), any(), any( Actor.class ), any() ) )
+        when( store.writeItem( any(), any(), any( Actor.class ), any(), org.mockito.ArgumentMatchers.anyBoolean() ) )
             .thenThrow( new WorkConflictException( "stale" ) );
         assertThrows( WorkConflictException.class, () -> service.updateItem( alice, "PLAT-3",
             new ItemPatch( 1, changes( "title", "x" ), null ) ) );

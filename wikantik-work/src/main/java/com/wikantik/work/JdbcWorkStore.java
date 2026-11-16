@@ -211,26 +211,15 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         }, ITEM_ROW );
     }
 
-    @Override
-    public Item updateItem( final Item current, final Item next, final Actor by, final String note )
-            throws SQLException {
-        return writeItem( current, next, by, note, false );
-    }
-
-    @Override
-    public Item handoff( final Item current, final Item next, final Actor by, final String note )
-            throws SQLException {
-        return writeItem( current, next, by, note, true );
-    }
-
     /** True when the change moves or reassigns the item, which ends any claim on it. */
     private static boolean endsClaim( final Item current, final Item next ) {
         return current.status() != next.status() || !Objects.equals( current.assignee(), next.assignee() )
             || !Objects.equals( current.queue(), next.queue() );
     }
 
-    private Item writeItem( final Item current, final Item next, final Actor by, final String note,
-                            final boolean asHandoff ) throws SQLException {
+    @Override
+    public ItemWrite writeItem( final Item current, final Item next, final Actor by, final String note,
+                                final boolean asHandoff ) throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
         requireOneTarget( next );
         final boolean clearClaim = endsClaim( current, next );
@@ -248,6 +237,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
                     final long v = rs.getLong( 1 );
                     return rs.wasNull() ? NO_HOLDER : v;
                 } ).orElse( NO_HOLDER );
+            requireNotFenced( by, holder );
             final int rows = jdbc.update( conn, """
                 UPDATE work_item SET parent_id = ?, product_id = ?, kind = ?, title = ?, body = ?, status = ?,
                     priority = ?, rank = ?, due_on = ?, assignee = ?, autonomy = ?, done_means = ?,
@@ -292,11 +282,23 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
             for ( final WorkEvent e : WorkEventDiff.changeEvents( current, next, by, note, asHandoff ) ) {
                 appendEvent( conn, e );
             }
-            if ( clearClaim && holder != NO_HOLDER ) {
+            final boolean ended = clearClaim && holder != NO_HOLDER;
+            if ( ended ) {
                 appendEvent( conn, WorkEventDiff.releasedEvent( current, next, by, holder ) );
             }
-            return itemById( conn, current.id() );
+            return new ItemWrite( itemById( conn, current.id() ), ended ? holder : null );
         } );
+    }
+
+    /**
+     * An agent may not write an item another agent holds. The service checks its own earlier read, but a claim on a
+     * review item does not move the version, so a claim that landed after that read is caught only here, under lock.
+     * People are never fenced.
+     */
+    private static void requireNotFenced( final Actor by, final long holder ) {
+        if ( by.kind() == Actor.Kind.AGENT && holder != NO_HOLDER && holder != by.agentId() ) {
+            throw new ClaimFenceException();
+        }
     }
 
     // ---- queries

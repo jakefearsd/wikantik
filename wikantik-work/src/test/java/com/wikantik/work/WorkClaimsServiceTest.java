@@ -65,6 +65,7 @@ class WorkClaimsServiceTest {
     private WorkService service;
     private Project plat;
     private final List< ClaimOutcome > outcomes = new ArrayList<>();
+    private final List< Action > denials = new ArrayList<>();
 
     private static Item item( final String key, final WorkStatus status, final String queue, final Long holder ) {
         return new Item( 12, 1, key, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "title", "body", status, 3, 1024,
@@ -102,6 +103,7 @@ class WorkClaimsServiceTest {
         }, AgentKeys.NONE, Clock.fixed( NOW, ZoneOffset.UTC ), new WorkSettings( Duration.ofMinutes( 240 ) ),
             new WorkListener() {
                 @Override public void claim( final ClaimOutcome o ) { outcomes.add( o ); }
+                @Override public void denied( final Action a ) { denials.add( a ); }
             } );
     }
 
@@ -135,7 +137,7 @@ class WorkClaimsServiceTest {
         stored( item( "PLAT-1", WorkStatus.READY, "implementer", 8L ) );
         when( store.agent( 8 ) ).thenReturn( Optional.of( new Agent( 8, "other@host", "", "", 2, List.of(), NOW,
             null ) ) );
-        when( claims.claim( any(), eq( codex ), any() ) ).thenReturn( Optional.empty() );
+        when( claims.claimWithOutcome( any(), eq( codex ), any() ) ).thenReturn( Optional.empty() );
         final WorkConflictException e = assertThrows( WorkConflictException.class,
             () -> service.claims().claim( codex, "PLAT-1" ) );
         assertEquals( WorkConflictException.NOT_CLAIMABLE, e.reason() );
@@ -146,7 +148,7 @@ class WorkClaimsServiceTest {
 
     @Test
     void refusalReasonsAreSpecific() throws SQLException {
-        when( claims.claim( any(), eq( codex ), any() ) ).thenReturn( Optional.empty() );
+        when( claims.claimWithOutcome( any(), eq( codex ), any() ) ).thenReturn( Optional.empty() );
         stored( item( "PLAT-1", WorkStatus.DRAFT, "implementer", null ) );
         assertTrue( refusal( "PLAT-1" ).contains( "ready" ) );
         stored( item( "PLAT-2", WorkStatus.READY, "implementer", null ) );
@@ -161,7 +163,7 @@ class WorkClaimsServiceTest {
 
     @Test
     void refusalWhenTheCallerIsTheHolderIsGeneric() throws SQLException {
-        when( claims.claim( any(), eq( codex ), any() ) ).thenReturn( Optional.empty() );
+        when( claims.claimWithOutcome( any(), eq( codex ), any() ) ).thenReturn( Optional.empty() );
         stored( item( "PLAT-1", WorkStatus.IN_PROGRESS, "implementer", 7L ) );
         assertEquals( "This item cannot be claimed right now.", refusal( "PLAT-1" ) );
     }
@@ -182,7 +184,7 @@ class WorkClaimsServiceTest {
     @Test
     void refusedClaimCountsRefused() throws SQLException {
         stored( item( "PLAT-1", WorkStatus.READY, "implementer", null ) );
-        when( claims.claim( any(), any(), any() ) ).thenReturn( Optional.empty() );
+        when( claims.claimWithOutcome( any(), any(), any() ) ).thenReturn( Optional.empty() );
         assertThrows( WorkConflictException.class, () -> service.claims().claim( codex, "PLAT-1" ) );
         assertEquals( List.of( ClaimOutcome.REFUSED ), outcomes );
     }
@@ -190,19 +192,19 @@ class WorkClaimsServiceTest {
     @Test
     void freshClaimReportedAndUsesConfiguredExpiry() throws SQLException {
         final Item free = stored( item( "PLAT-1", WorkStatus.READY, "implementer", null ) );
-        when( claims.claim( any(), any(), any() ) ).thenReturn( Optional.of( item( "PLAT-1", WorkStatus.IN_PROGRESS,
-            "implementer", 7L ) ) );
+        when( claims.claimWithOutcome( any(), any(), any() ) ).thenReturn( Optional.of( new WorkClaimStore.Claimed(
+            item( "PLAT-1", WorkStatus.IN_PROGRESS, "implementer", 7L ), false ) ) );
         final ClaimResult r = service.claims().claim( codex, "PLAT-1" );
         assertFalse( r.renewed() );
         assertEquals( List.of( ClaimOutcome.CLAIMED ), outcomes );
-        verify( claims ).claim( eq( free ), eq( codex ), eq( Duration.ofMinutes( 240 ) ) );
+        verify( claims ).claimWithOutcome( eq( free ), eq( codex ), eq( Duration.ofMinutes( 240 ) ) );
     }
 
     @Test
     void renewalReported() throws SQLException {
         stored( item( "PLAT-1", WorkStatus.IN_PROGRESS, "implementer", 7L ) );
-        when( claims.claim( any(), any(), any() ) ).thenReturn( Optional.of( item( "PLAT-1", WorkStatus.IN_PROGRESS,
-            "implementer", 7L ) ) );
+        when( claims.claimWithOutcome( any(), any(), any() ) ).thenReturn( Optional.of( new WorkClaimStore.Claimed(
+            item( "PLAT-1", WorkStatus.IN_PROGRESS, "implementer", 7L ), true ) ) );
         assertTrue( service.claims().claim( codex, "PLAT-1" ).renewed() );
         assertEquals( List.of( ClaimOutcome.RENEWED ), outcomes );
     }
@@ -224,7 +226,7 @@ class WorkClaimsServiceTest {
         assertThrows( WorkDeniedException.class, () -> service.claims().handoff( other, "PLAT-1",
             new Handoff( 4, WorkStatus.REVIEW, null, "implementer", "take it" ) ) );
         verify( claims, never() ).release( any(), any(), any() );
-        verify( store, never() ).handoff( any(), any(), any(), any() );
+        verify( store, never() ).writeItem( any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean() );
     }
 
     @Test
@@ -287,16 +289,17 @@ class WorkClaimsServiceTest {
     void handoffToSameTargetRejected() throws SQLException {
         stored( item( "PLAT-1", WorkStatus.READY, "implementer", null ) );
         assertEquals( "queue", rejected( new Handoff( 4, WorkStatus.REVIEW, null, "implementer", "n" ) ).field() );
-        verify( store, never() ).handoff( any(), any(), any(), any() );
+        verify( store, never() ).writeItem( any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean() );
     }
 
     @Test
     void handoffMovesToThePersonAndKeepsTheNote() throws SQLException {
         final Item cur = stored( item( "PLAT-1", WorkStatus.READY, "implementer", null ) );
-        when( store.handoff( any(), any(), any(), any() ) ).thenAnswer( inv -> inv.getArgument( 1 ) );
+        when( store.writeItem( any(), any(), any(), any(), eq( true ) ) )
+            .thenAnswer( inv -> new WorkStore.ItemWrite( inv.getArgument( 1 ), null ) );
         service.claims().handoff( lena, "PLAT-1", new Handoff( 4, WorkStatus.REVIEW, "Lena", null, "review it" ) );
         final ArgumentCaptor< Item > next = ArgumentCaptor.forClass( Item.class );
-        verify( store ).handoff( any(), next.capture(), eq( lena ), eq( "review it" ) );
+        verify( store ).writeItem( any(), next.capture(), eq( lena ), eq( "review it" ), eq( true ) );
         assertEquals( "lena", next.getValue().assignee() );
         assertEquals( null, next.getValue().queue() );
         assertEquals( WorkStatus.REVIEW, next.getValue().status() );
@@ -350,5 +353,18 @@ class WorkClaimsServiceTest {
         assertTrue( service.waitingOn( codex ).isEmpty() );
         verify( store, never() ).assignedOpen( any(), any() );
         verify( store, never() ).mentioning( any(), any() );
+    }
+
+    @Test
+    void aWriteTheStoreFencedIsTheClaimedByAnotherAgentDenial() throws SQLException {
+        stored( item( "PLAT-1", WorkStatus.REVIEW, "implementer", null ) );
+        when( store.queue( "reviewer" ) ).thenReturn( Optional.of( new Queue( "reviewer", "R", "", null ) ) );
+        when( store.writeItem( any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean() ) )
+            .thenThrow( new ClaimFenceException() );
+        final WorkDeniedException e = assertThrows( WorkDeniedException.class, () -> service.claims().handoff( codex,
+            "PLAT-1", new Handoff( 4, WorkStatus.READY, null, "reviewer", "n" ) ) );
+        assertEquals( "This item is claimed by another agent.", e.reason() );
+        assertEquals( List.of( Action.MOVE ), denials );
+        assertTrue( outcomes.isEmpty() );
     }
 }

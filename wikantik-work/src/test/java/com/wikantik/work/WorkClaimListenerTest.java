@@ -84,8 +84,8 @@ class WorkClaimListenerTest {
 
     /** The store's answer to a change: the new item, with the claim cleared the way the real store does. */
     private void storeClearsTheClaim() throws SQLException {
-        when( store.updateItem( any(), any(), any( Actor.class ), any() ) ).thenAnswer( inv -> cleared( inv.getArgument( 1 ) ) );
-        when( store.handoff( any(), any(), any( Actor.class ), any() ) ).thenAnswer( inv -> cleared( inv.getArgument( 1 ) ) );
+        when( store.writeItem( any(), any(), any( Actor.class ), any(), org.mockito.ArgumentMatchers.anyBoolean() ) ).thenAnswer( inv ->
+            new WorkStore.ItemWrite( cleared( inv.getArgument( 1 ) ), ( ( Item ) inv.getArgument( 0 ) ).claimedByAgent() ) );
     }
 
     private static Item cleared( final Item n ) {
@@ -126,7 +126,8 @@ class WorkClaimListenerTest {
     @Test
     void bodyEditOfAClaimedItemReportsNothing() throws SQLException {
         stored( item( WorkStatus.IN_PROGRESS, 7L ) );
-        when( store.updateItem( any(), any(), any( Actor.class ), any() ) ).thenAnswer( inv -> inv.getArgument( 1 ) );
+        when( store.writeItem( any(), any(), any( Actor.class ), any(), org.mockito.ArgumentMatchers.anyBoolean() ) )
+            .thenAnswer( inv -> new WorkStore.ItemWrite( inv.getArgument( 1 ), null ) );
         service.updateItem( lena, "PLAT-1", new ItemPatch( 4, Map.of( "body", "new" ), null ) );
         assertTrue( outcomes.isEmpty() );
     }
@@ -164,8 +165,8 @@ class WorkClaimListenerTest {
     @Test
     void failedStoreCallReportsNothing() throws SQLException {
         stored( item( WorkStatus.IN_PROGRESS, 7L ) );
-        when( store.handoff( any(), any(), any( Actor.class ), any() ) ).thenThrow( new WorkConflictException( "stale" ) );
-        when( store.updateItem( any(), any(), any( Actor.class ), any() ) ).thenThrow( new WorkConflictException( "stale" ) );
+        when( store.writeItem( any(), any(), any( Actor.class ), any(), org.mockito.ArgumentMatchers.anyBoolean() ) )
+            .thenThrow( new WorkConflictException( "stale" ) );
         when( store.removeMember( anyLong(), any(), any(), any( Actor.class ) ) ).thenThrow( new SQLException( "down" ) );
         when( claims.retireAgent( anyLong(), any(), any( Actor.class ) ) ).thenThrow( new SQLException( "down" ) );
         assertThrows( WorkConflictException.class, () -> service.claims().handoff( lena, "PLAT-1", toLena() ) );

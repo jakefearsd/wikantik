@@ -162,14 +162,17 @@ public final class WorkClaimsService {
         s.require( Action.CLAIM, is.item() );
         s.requireWritable();
         final Item before = is.item();
-        final Optional< Item > won = store.claims().claim( before, a, settings.claimExpiry() );
+        final Optional< WorkClaimStore.Claimed > won = store.claims().claimWithOutcome( before, a,
+            settings.claimExpiry() );
         if ( won.isEmpty() ) {
             listener.claim( ClaimOutcome.REFUSED );
             throw new WorkConflictException( refusal( a, before ), WorkConflictException.NOT_CLAIMABLE );
         }
-        final boolean renewed = before.claimedByAgent() != null && before.claimedByAgent().equals( a.agentId() );
+        // Taken or renewed as the statement found the row, not as this method read it: a renewal that lost to the
+        // sweep is a fresh take.
+        final boolean renewed = won.get().renewed();
         listener.claim( renewed ? ClaimOutcome.RENEWED : ClaimOutcome.CLAIMED );
-        return new ClaimResult( views.view( s, won.get() ), renewed );
+        return new ClaimResult( views.view( s, won.get().item() ), renewed );
     }
 
     /** Why a claim was refused, from the item as it is now; never names a login. */
@@ -250,16 +253,29 @@ public final class WorkClaimsService {
             throw new WorkValidationException( queue != null ? "queue" : "assignee",
                 "The item is already assigned there." );
         }
-        final Item saved = store.handoff( WorkInputs.withVersion( is.item(), h.expectedVersion() ), next, a, h.note() );
-        reportEnded( is.item(), saved );
+        final Item saved = write( WorkInputs.withVersion( is.item(), h.expectedVersion() ), next, a, h.note(), true,
+            Action.MOVE );
         return views.view( s, saved );
     }
 
-    /** A change that took the claim off an item ends it: tell the listener once, after the store succeeded. */
-    void reportEnded( final Item before, final Item after ) {
-        if ( before.claimedByAgent() != null && after.claimedByAgent() == null ) {
+    /**
+     * Writes the item through the store and reports a claim the write ended, as the store found the row under lock
+     * (never from this service's earlier read, which may predate a claim). An agent's write that a claim by another
+     * agent fenced off under lock gets the same denial the policy gives.
+     */
+    Item write( final Item stamped, final Item next, final Actor a, final String note, final boolean asHandoff,
+                final Action action ) throws SQLException {
+        final WorkStore.ItemWrite w;
+        try {
+            w = store.writeItem( stamped, next, a, note, asHandoff );
+        } catch ( final ClaimFenceException e ) {
+            listener.denied( action );
+            throw new WorkDeniedException( e.getMessage() );
+        }
+        if ( w.endedClaimOf() != null ) {
             listener.claim( ClaimOutcome.RELEASED );
         }
+        return w.item();
     }
 
     private static void requireNote( final String note ) {

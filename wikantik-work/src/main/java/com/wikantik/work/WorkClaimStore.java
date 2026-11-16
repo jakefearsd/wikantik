@@ -31,15 +31,25 @@ import java.util.Set;
  */
 public interface WorkClaimStore {
 
+    /** A claim that was taken or renewed: the item as it now stands and which of the two the statement did. */
+    record Claimed( Item item, boolean renewed ) {
+    }
+
     /**
      * Claims the item for the agent in one statement, or renews the agent's own claim. Empty when the agent is
      * retired or is not a {@code member} (not a viewer) of the item's project, or when the item is not claimable.
      * The holder may always renew its own claim, even if the item became blocked or the agent stopped serving the
      * queue. A fresh take needs an unheld ready or review item in a queue the agent serves, not blocked by an open
      * item. Writes {@code claimed} (a ready item moves to in progress, version +1) or, for the holder,
-     * {@code claim_renewed} (nothing else changes). {@code expiry} must be positive.
+     * {@code claim_renewed} (nothing else changes). {@code expiry} must be positive. Whether it was a renewal comes
+     * from the row the statement changed, so a renewal that lost to the sweep reports a fresh take.
      */
-    Optional< Item > claim( Item item, Actor agent, Duration expiry ) throws SQLException;
+    Optional< Claimed > claimWithOutcome( Item item, Actor agent, Duration expiry ) throws SQLException;
+
+    /** {@link #claimWithOutcome}, the item only. */
+    default Optional< Item > claim( final Item item, final Actor agent, final Duration expiry ) throws SQLException {
+        return claimWithOutcome( item, agent, expiry ).map( Claimed::item );
+    }
 
     /**
      * Releases the claim the row holds, provided it is still held by {@code item.claimedByAgent()}; empty when

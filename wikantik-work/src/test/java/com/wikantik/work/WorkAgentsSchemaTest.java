@@ -43,7 +43,7 @@ class WorkAgentsSchemaTest {
     @BeforeEach
     void setUp() {
         ds = PostgresTestDb.createDataSource();
-        PostgresTestDb.truncate( "work_agent_key_history", "work_agent_queue", "work_agent", "work_queue",
+        PostgresTestDb.truncate( "work_agent_credential", "work_agent_sponsor_history", "work_agent_key_history", "work_agent_queue", "work_agent", "work_queue",
             "work_link", "work_mention", "work_comment", "work_event",
             "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
     }
@@ -222,6 +222,64 @@ class WorkAgentsSchemaTest {
         exec( sql );
         assertEquals( before, fingerprint() );
         assertEquals( 1, scalar( "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_work_event_log'" ) );
+    }
+
+    private static String v079() throws java.io.IOException {
+        return java.nio.file.Files.readString( java.nio.file.Path.of( "..", "bin", "db", "migrations",
+            "V079__work_agent_sponsor_and_credentials.sql" ) );
+    }
+
+    @Test
+    void sponsorColumnIsNullableText() throws SQLException {
+        assertEquals( 1, scalar( "SELECT count(*) FROM information_schema.columns WHERE table_name = 'work_agent' "
+            + "AND column_name = 'sponsor' AND data_type = 'text' AND is_nullable = 'YES'" ) );
+    }
+
+    @Test
+    void apiKeyIdIsNullable() throws SQLException {
+        final long id = scalar( "INSERT INTO work_agent (name, sponsor) VALUES ('keyless', 'ana') RETURNING id" );
+        assertEquals( 1, scalar( "SELECT count(*) FROM work_agent WHERE id = " + id + " AND api_key_id IS NULL" ) );
+    }
+
+    @Test
+    void aSecondLiveCredentialForOneAgentIsRefused() throws SQLException {
+        final long a = scalar( "INSERT INTO work_agent (name) VALUES ('codex') RETURNING id" );
+        exec( "INSERT INTO work_agent_credential (agent_id, token_hash, created_by) VALUES (" + a + ", 'h1', 'ana')" );
+        assertEquals( "23505", state( assertThrows( SQLException.class, () -> exec(
+            "INSERT INTO work_agent_credential (agent_id, token_hash, created_by) VALUES (" + a + ", 'h2', 'ana')" ) ) ) );
+    }
+
+    @Test
+    void aRevokedCredentialDoesNotBlockANewOne() throws SQLException {
+        final long a = scalar( "INSERT INTO work_agent (name) VALUES ('codex') RETURNING id" );
+        exec( "INSERT INTO work_agent_credential (agent_id, token_hash, created_by, revoked_at) VALUES ("
+            + a + ", 'h1', 'ana', NOW())" );
+        exec( "INSERT INTO work_agent_credential (agent_id, token_hash, created_by) VALUES (" + a + ", 'h2', 'ana')" );
+        assertEquals( "23505", state( assertThrows( SQLException.class, () -> exec(
+            "INSERT INTO work_agent_credential (agent_id, token_hash, created_by, revoked_at) VALUES ("
+                + a + ", 'h2', 'ana', NOW())" ) ) ), "a token hash is unique across live and revoked rows" );
+    }
+
+    /** The test container's role is a superuser, so the append-only grant is pinned on the migration text. */
+    @Test
+    void sponsorHistoryCannotBeUpdatedOrDeletedByTheAppRole() throws Exception {
+        final String grant = java.util.Arrays.stream( v079().replaceAll( "(?m)^--.*$", "" ).split( ";" ) )
+            .filter( st -> st.contains( "GRANT" ) && st.contains( "work_agent_sponsor_history" ) )
+            .findFirst().orElseThrow().replaceAll( "\\s+", " " ).trim();
+        assertEquals( "GRANT SELECT, INSERT ON work_agent_sponsor_history TO :app_user", grant );
+        final long a = scalar( "INSERT INTO work_agent (name) VALUES ('codex') RETURNING id" );
+        exec( "INSERT INTO work_agent_sponsor_history (agent_id, sponsor, changed_by) VALUES (" + a + ", 'ana', 'ana')" );
+        exec( "INSERT INTO work_agent_sponsor_history (agent_id, sponsor, changed_by) VALUES (" + a + ", NULL, 'ana')" );
+        assertEquals( 2, scalar( "SELECT count(*) FROM work_agent_sponsor_history WHERE agent_id = " + a ) );
+    }
+
+    @Test
+    void v079IsANoOpWhenReapplied() throws Exception {
+        final String sql = v079().replace( ":app_user", "CURRENT_USER" );
+        exec( sql );
+        final String before = fingerprint();
+        exec( sql );
+        assertEquals( before, fingerprint() );
     }
 
     /** Columns, constraints, indexes and row counts, so a re-run that added anything shows up. */

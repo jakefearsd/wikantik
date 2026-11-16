@@ -76,6 +76,18 @@ final class WorkEventDiff {
         return out;
     }
 
+    /**
+     * The {@code released} event for a claim a change ends: the previous holder as {@code agent:<id>} in
+     * from, the note {@code reassigned} when the assignee or queue changed (even with a status change), else
+     * {@code moved}. The actor is whoever made the change.
+     */
+    static WorkEvent releasedEvent( final Item cur, final Item nxt, final Actor by ) {
+        final boolean reassigned = !Objects.equals( cur.assignee(), nxt.assignee() )
+            || !Objects.equals( cur.queue(), nxt.queue() );
+        return event( cur, by, WorkEvent.RELEASED, "agent:" + cur.claimedByAgent(), null,
+            reassigned ? "reassigned" : "moved" );
+    }
+
     private static void fieldEvent( final List< WorkEvent > out, final Item cur, final Actor by, final String field,
                                     final String from, final String to ) {
         if ( !Objects.equals( from, to ) ) {

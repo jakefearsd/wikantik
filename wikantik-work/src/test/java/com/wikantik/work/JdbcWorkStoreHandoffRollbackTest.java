@@ -46,7 +46,7 @@ class JdbcWorkStoreHandoffRollbackTest {
     }
 
     @Test
-    void handoffRollsBackWhenEventInsertFails() throws SQLException {
+    void handoffRollsBackWhenReleasedInsertFails() throws SQLException {
         final Actor lena = Actor.human( "lena", Set.of(), false );
         final Project plat = store.createProject( "PLAT", "Platform", "" );
         WorkAgentFixtures.queue( ds, "implementer" );
@@ -64,9 +64,9 @@ class JdbcWorkStoreHandoffRollbackTest {
             current.kind(), current.title(), current.body(), WorkStatus.REVIEW, current.priority(), current.rank(),
             null, null, current.reporter(), null, null, null, current.version(), null, null, null, "reviewer",
             current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(), null );
-        // statements: 1 update item, 2 insert handoff event
+        // statements: 1 update item, 2 insert handoff event, 3 insert released event
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
-        faulty.failOn( 2, new RuntimeException( "boom: event insert" ) );
+        faulty.failOn( 3, new RuntimeException( "boom: released insert" ) );
         final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
         assertThrows( RuntimeException.class, () -> faultyStore.handoff( current, next, lena, "ready" ) );
         assertEquals( 1, faulty.rollbacks() );

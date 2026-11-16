@@ -277,6 +277,9 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
             for ( final WorkEvent e : WorkEventDiff.changeEvents( current, next, by, note, asHandoff ) ) {
                 appendEvent( conn, e );
             }
+            if ( clearClaim && current.claimedByAgent() != null ) {
+                appendEvent( conn, WorkEventDiff.releasedEvent( current, next, by ) );
+            }
             return itemById( conn, current.id() );
         } );
     }

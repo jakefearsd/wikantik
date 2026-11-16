@@ -204,6 +204,7 @@ class JdbcWorkStoreAttributionPostgresTest {
         final int before = store.itemEvents( item.id() ).size();
         final Item next = store.handoff( working, moved( working, WorkStatus.REVIEW, null, "reviewer" ), agent,
             "ready for review" );
+        assertTrue( released( item ).isEmpty(), "no claim, no released event" );
         assertEquals( WorkStatus.REVIEW, next.status() );
         assertEquals( "reviewer", next.queue() );
         final List< WorkEvent > events = store.itemEvents( item.id() );
@@ -238,6 +239,33 @@ class JdbcWorkStoreAttributionPostgresTest {
         assertNull( moved.claimedByAgent() );
         assertNull( moved.claimedAt() );
         assertNull( moved.claimExpiresAt() );
+        final List< WorkEvent > released = released( item );
+        assertEquals( 1, released.size() );
+        assertEquals( "agent:" + agentId, released.get( 0 ).fromValue() );
+        assertNull( released.get( 0 ).toValue() );
+        assertEquals( "moved", released.get( 0 ).note() );
+        assertEquals( "lena", released.get( 0 ).actor() );
+        assertEquals( Actor.Kind.HUMAN, released.get( 0 ).actorKind() );
+        assertEquals( WorkEvent.RELEASED, last( item ).type(), "released follows the change's own event" );
+    }
+
+    private List< WorkEvent > released( final Item i ) throws SQLException {
+        return store.itemEvents( i.id() ).stream().filter( e -> WorkEvent.RELEASED.equals( e.type() ) ).toList();
+    }
+
+    @Test
+    void holderHandingOffItsOwnClaimWritesReleasedAsItself() throws SQLException {
+        final Item item = create( "x" );
+        claim( item );
+        final Item c = reload( item );
+        store.handoff( c, moved( c, WorkStatus.REVIEW, null, "reviewer" ), agent, "done" );
+        final List< WorkEvent > released = released( item );
+        assertEquals( 1, released.size() );
+        assertEquals( agentId, released.get( 0 ).agentId() );
+        assertEquals( "agent:" + agentId, released.get( 0 ).fromValue() );
+        assertEquals( "reassigned", released.get( 0 ).note() );
+        assertEquals( 1, store.itemEvents( item.id() ).stream().filter( e -> WorkEvent.HANDOFF.equals( e.type() ) )
+            .count() );
     }
 
     @Test
@@ -247,6 +275,7 @@ class JdbcWorkStoreAttributionPostgresTest {
         final Item a = store.updateItem( reload( item ), moved( reload( item ), WorkStatus.DRAFT, "bob", null ), LENA,
             null );
         assertNull( a.claimedByAgent() );
+        assertEquals( "reassigned", released( item ).get( 0 ).note() );
         claim( a );
         final Item q = store.handoff( reload( a ), moved( reload( a ), WorkStatus.DRAFT, null, "reviewer" ), agent,
             "to queue" );
@@ -263,6 +292,7 @@ class JdbcWorkStoreAttributionPostgresTest {
             null, null ), LENA, null );
         assertEquals( claimed.claimedByAgent(), edited.claimedByAgent() );
         assertNotNull( edited.claimedAt() );
+        assertTrue( released( item ).isEmpty() );
         assertEquals( claimed.claimExpiresAt(), edited.claimExpiresAt() );
     }
 

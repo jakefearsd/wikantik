@@ -156,9 +156,13 @@ public final class PropertyReader {
             setWorkDir( context, props );
 
             // add system properties beginning with wikantik...
-            final Map< String, String > sysprops = collectPropertiesFrom( System.getProperties().entrySet().stream()
-                                                                                .collect( Collectors.toMap( Object::toString, Object::toString ) ) );
-            props.putAll( sysprops );
+            // (keys taken as written: unlike an environment variable, a system property spells its own dots)
+            final Properties system = System.getProperties();
+            for( final String name : system.stringPropertyNames() ) {
+                if( name.toLowerCase( Locale.ROOT ).startsWith( "wikantik" ) ) {
+                    props.setProperty( name, system.getProperty( name ) );
+                }
+            }
 
             // finally, expand the variables (new in 2.5)
             expandVars( props );

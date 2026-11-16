@@ -498,4 +498,24 @@ class PropertyReaderTest {
         }
     }
 
+    @Test
+    void aSystemPropertyOverridesTheLoadedValueUnderItsExactKey() {
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getInitParameter( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+        when( context.getResourceAsStream( org.mockito.ArgumentMatchers.anyString() ) ).thenReturn( null );
+        System.setProperty( "wikantik.searchProvider", "FromSystemProperty" );
+        System.setProperty( "wikantik.zz_probe.flag", "true" );
+        try {
+            final Properties props = PropertyReader.loadWebAppProps( context );
+
+            Assertions.assertEquals( "FromSystemProperty", props.getProperty( "wikantik.searchProvider" ) );
+            // A system property is a real key, not an env-var spelling: its underscores stay.
+            Assertions.assertEquals( "true", props.getProperty( "wikantik.zz_probe.flag" ) );
+            Assertions.assertTrue( props.stringPropertyNames().stream().noneMatch( k -> k.contains( "=" ) ),
+                "no key may be an 'name=value' entry string" );
+        } finally {
+            System.clearProperty( "wikantik.searchProvider" );
+            System.clearProperty( "wikantik.zz_probe.flag" );
+        }
+    }
 }

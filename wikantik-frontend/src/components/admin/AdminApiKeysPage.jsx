@@ -48,7 +48,7 @@ const COLUMNS = [
           <>
             {' '}<span className="admin-badge active">agent key</span>
             {k.agent && <> <strong>{k.agent}</strong></>}
-            <div className="form-hint">Managed on the <Link to="/work/agents">Agents page</Link></div>
+            {k.active && <div className="form-hint">Managed on the <Link to="/work/agents">Agents page</Link></div>}
           </>
         )}
       </>
@@ -91,6 +91,9 @@ const COLUMNS = [
     ),
   },
 ];
+
+// An agent's key is rotated or retired on the Agents page; the server refuses it here, so it is never offered for bulk revoke.
+const isManageableKey = (k) => !k.agentKey;
 
 export default function AdminApiKeysPage() {
   const [keys, setKeys] = useState([]);
@@ -188,6 +191,7 @@ export default function AdminApiKeysPage() {
         getRowKey={(k) => String(k.id)}
         columns={COLUMNS}
         selectable
+        isRowSelectable={isManageableKey}
         bulkActions={BULK_ACTIONS}
         onBulkAction={handleBulkAction}
         emptyMessage="No API keys found"

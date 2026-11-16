@@ -365,4 +365,32 @@ describe('AdminApiKeysPage — agent keys', () => {
         // the table is still on screen
         expect(screen.getByText('dana')).toBeInTheDocument();
     });
+
+    it('agent-key rows are not selectable and bulk Revoke never includes them', async () => {
+        const bulkRevoke = vi.spyOn(api.admin, 'bulkApiKeyAction').mockResolvedValue({
+            succeeded: ['1'], failed: [], status: 'completed', message: '1 of 1 keys revoked',
+        });
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
+        const agentRow = (await screen.findByText('dana')).closest('tr');
+        expect(within(agentRow).queryByRole('checkbox')).toBeNull();
+        // select-all takes only the ordinary key
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+        expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
+        const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
+        fireEvent.click(within(toolbar).getByRole('button', { name: /^Revoke$/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /Revoke Keys/i }));
+        await waitFor(() => expect(bulkRevoke).toHaveBeenCalledWith('revoke', ['1']));
+    });
+
+    it('the Agents-page hint is for live agent keys only, not revoked ones', async () => {
+        const revokedAgent = { ...agentKey, id: 12, principalLogin: 'erin', active: false, revokedAt: '2026-04-07T10:00:00Z' };
+        api.admin.listApiKeys.mockResolvedValue({ keys: [agentKey, revokedAgent] });
+        render(<MemoryRouter><AdminApiKeysPage /></MemoryRouter>);
+        fireEvent.click(await screen.findByLabelText(/Show revoked/i));
+        const live = (await screen.findByText('dana')).closest('tr');
+        const gone = screen.getByText('erin').closest('tr');
+        expect(within(live).getByText(/Managed on the/)).toBeInTheDocument();
+        expect(within(gone).getByText('agent key')).toBeInTheDocument();
+        expect(within(gone).queryByText(/Managed on the/)).toBeNull();
+    });
 });

@@ -82,6 +82,7 @@ function ToastBanner({ message, variant, onRetry, onDismiss }) {
  *   getRowKey: (row: any) => string,
  *   columns: Array<{id: string, label: string, render?: Function, sortable?: boolean, width?: any, align?: string}>,
  *   selectable?: boolean,
+ *   isRowSelectable?: (row: any) => boolean,   // rows for which it returns false get no checkbox and are skipped by select-all
  *   bulkActions?: import('./index').BulkAction[],
  *   onBulkAction?: (action: import('./index').BulkAction, selectedRows: any[], reason?: string) => Promise<import('./index').BulkResult>,
  *   searchable?: boolean | { placeholder?: string, filterFn?: Function },
@@ -101,6 +102,7 @@ export default function AdminTable({
   getRowKey,
   columns,
   selectable = false,
+  isRowSelectable,
   bulkActions = [],
   onBulkAction,
   searchable = false,
@@ -173,7 +175,10 @@ export default function AdminTable({
   const { selected, toggle, toggleAll, isSelected, isAllSelected, isIndeterminate, clear } =
     useTableSelection();
 
-  const visibleKeys = useMemo(() => sortedRows.map(getRowKey), [sortedRows, getRowKey]);
+  const visibleKeys = useMemo(
+    () => sortedRows.filter((r) => !isRowSelectable || isRowSelectable(r)).map(getRowKey),
+    [sortedRows, getRowKey, isRowSelectable],
+  );
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   const tableRef = useRef(null);
@@ -436,17 +441,19 @@ export default function AdminTable({
                         onClick={(e) => e.stopPropagation()}
                         style={{ width: 40 }}
                       >
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${key}`}
-                          checked={checked}
-                          onChange={(e) =>
-                            toggle(key, {
-                              shift: e.nativeEvent.shiftKey,
-                              allKeys: visibleKeys,
-                            })
-                          }
-                        />
+                        {(!isRowSelectable || isRowSelectable(row)) && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${key}`}
+                            checked={checked}
+                            onChange={(e) =>
+                              toggle(key, {
+                                shift: e.nativeEvent.shiftKey,
+                                allKeys: visibleKeys,
+                              })
+                            }
+                          />
+                        )}
                       </td>
                     )}
                     {columns.map((col) => (

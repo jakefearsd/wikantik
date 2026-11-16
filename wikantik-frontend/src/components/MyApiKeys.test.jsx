@@ -122,6 +122,17 @@ describe('MyApiKeys', () => {
       expect(within(row).getByRole('link', { name: /agents page/i })).toHaveAttribute('href', '/work/agents');
     });
 
+    it('a 409 on revoke closes the confirm dialog and shows the server message', async () => {
+      const msg = 'This key belongs to a work agent. Rotate or retire the agent on the Agents page.';
+      api.self.revokeApiKey.mockRejectedValue(Object.assign(new Error(msg), { status: 409 }));
+      render(<MemoryRouter><MyApiKeys /></MemoryRouter>);
+      const row = (await screen.findByText('laptop')).closest('tr');
+      fireEvent.click(within(row).getByRole('button', { name: /revoke/i }));
+      fireEvent.click(await screen.findByRole('button', { name: /revoke key/i }));
+      expect(await screen.findByRole('alert')).toHaveTextContent(msg);
+      expect(screen.queryByRole('button', { name: /revoke key/i })).toBeNull();
+    });
+
     it('shows the server refusal from an older tab as that message', async () => {
       const msg = 'This key belongs to a work agent. Rotate or retire the agent on the Agents page.';
       api.self.rotateApiKey.mockRejectedValue(new Error(msg));

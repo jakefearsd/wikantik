@@ -90,6 +90,8 @@ export default function MyApiKeys() {
       setConfirmRevoke(null);
       await load();
     } catch (err) {
+      // e.g. a 409 from a stale tab: close the dialog so the message (in the banner above the list) is what is seen.
+      setConfirmRevoke(null);
       setError(err.message || 'Failed to revoke key');
     } finally {
       setBusy(false);

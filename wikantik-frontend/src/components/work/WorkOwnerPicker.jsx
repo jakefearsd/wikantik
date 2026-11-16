@@ -23,7 +23,7 @@ export default function WorkOwnerPicker({
       api.listMentionableUsers(query, 20)
         .then((r) => { if (live) { setNames((r?.users || []).map((u) => u.displayName).filter(Boolean)); setLoadError(null); } })
         .catch((err) => {
-          console.warn('WorkAgentForm: could not search users', err);
+          console.warn('WorkOwnerPicker: could not search users', err);
           if (live) setLoadError('Could not search users.');
         });
     }, query === '' ? 0 : SEARCH_DELAY_MS);

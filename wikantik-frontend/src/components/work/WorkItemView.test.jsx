@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
@@ -56,7 +56,14 @@ beforeEach(() => {
   listProducts.mockResolvedValue([{ id: 3, key: 'wikantik', name: 'Wikantik' }, { id: 4, key: 'docs', name: 'Docs' }]);
 });
 
-const ready = () => screen.findByRole('heading', { level: 1, name: 'Fix the flux capacitor' });
+// The heading renders before the members and queues reads resolve (they are effects of the same commit, and slower
+// under --coverage): settle those too, or a test that opens a picker straight away sees it without them.
+const ready = async () => {
+  const heading = await screen.findByRole('heading', { level: 1, name: 'Fix the flux capacitor' });
+  await waitFor(() => expect(listMembers).toHaveBeenCalled());
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  return heading;
+};
 // The queue list loads after the heading renders (and later under --coverage): wait for the option before choosing it.
 const chooseTarget = async (label, value) => {
   await waitFor(() => expect(screen.getByLabelText(label).querySelector(`option[value="${value}"]`)).not.toBeNull());

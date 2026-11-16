@@ -103,7 +103,8 @@ class WorkClaimListenerPostgresTest {
     void aReleaseNoteThatIsASystemReasonIsRefusedSoItCannotBeMistakenForOne() throws SQLException {
         final String key = ready( "PLAT" );
         svc.claims().claim( a, key );
-        for ( final String reserved : List.of( "moved", "Reassigned", " access removed ", "agent retired" ) ) {
+        for ( final String reserved : List.of( "moved", "Reassigned", " access removed ", "agent retired",
+                "Project Archived" ) ) {
             assertThrows( WorkValidationException.class, () -> svc.claims().release( lena, key, reserved ), reserved );
         }
         assertEquals( 1, svc.claims().myClaims( a ).size(), "a refused release changes nothing" );
@@ -175,5 +176,26 @@ class WorkClaimListenerPostgresTest {
         assertEquals( logged( WorkEvent.CLAIM_EXPIRED ), count( ClaimOutcome.EXPIRED ) );
         assertTrue( count( ClaimOutcome.CLAIMED ) >= 8 && count( ClaimOutcome.RENEWED ) == 1
             && count( ClaimOutcome.RELEASED ) >= 7 && count( ClaimOutcome.EXPIRED ) == 1, heard.toString() );
+    }
+
+    @Test
+    void archivingAProjectReleasesItsClaimsAndTheHolderThenGetsTheArchivedConflict() throws SQLException {
+        final String one = ready( "PLAT" );
+        svc.claims().claim( a, one );
+        svc.claims().claim( b, ready( "PLAT" ) );
+        final String elsewhere = ready( "OPS" );
+        svc.claims().claim( a, elsewhere );
+        heard.clear();
+
+        svc.archiveProject( admin, "PLAT" );
+
+        assertEquals( List.of( ClaimOutcome.RELEASED, ClaimOutcome.RELEASED ), heard );
+        assertEquals( 2, WorkAgentFixtures.scalar( ds, "SELECT count(*) FROM work_event WHERE type = 'released' "
+            + "AND note = 'project archived' AND actor = 'admin'" ) );
+        assertEquals( 1, svc.claims().myClaims( a ).size(), "the OPS claim is untouched" );
+        assertEquals( elsewhere, svc.claims().myClaims( a ).get( 0 ).key() );
+        final WorkConflictException renew = assertThrows( WorkConflictException.class,
+            () -> svc.claims().claim( a, one ) );
+        assertEquals( WorkConflictException.ARCHIVED, renew.reason() );
     }
 }

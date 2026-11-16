@@ -162,7 +162,8 @@ final class WorkInputs {
      * one of them (after trimming, any case): the stored note has no other discriminator, and a note that read as
      * a consequence would lose the person's words.
      */
-    static final Set< String > RELEASE_REASONS = Set.of( "moved", "reassigned", "access removed", "agent retired" );
+    static final Set< String > RELEASE_REASONS = Set.of( "moved", "reassigned", "access removed", "agent retired",
+        "project archived" );
 
     static void requireReleaseNote( final String note ) {
         if ( note != null && RELEASE_REASONS.contains( note.trim().toLowerCase( Locale.ROOT ) ) ) {

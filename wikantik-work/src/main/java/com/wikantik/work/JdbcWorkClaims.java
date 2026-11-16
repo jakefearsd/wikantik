@@ -53,6 +53,8 @@ final class JdbcWorkClaims implements WorkClaimStore {
     static final String ACCESS_REMOVED = "access removed";
     /** Note on a release caused by retiring the agent. */
     static final String AGENT_RETIRED = "agent retired";
+    /** Note on a release caused by archiving the item's project. */
+    static final String PROJECT_ARCHIVED = "project archived";
 
     private static final Logger LOG = LogManager.getLogger( JdbcWorkClaims.class );
     private static final Pattern AGENT_ID = Pattern.compile( "\\d{1,18}" );
@@ -294,6 +296,12 @@ final class JdbcWorkClaims implements WorkClaimStore {
         final long agentId = Long.parseLong( agentPrincipal );
         return recordReleases( conn, end( conn, "w.claimed_by_agent = ? AND w.project_id = ?", "FOR NO KEY UPDATE OF w",
             ps -> { ps.setLong( 1, agentId ); ps.setLong( 2, projectId ); } ), by, note );
+    }
+
+    /** Releases every claim in the project on the caller's connection, inside the archive transaction. */
+    int releaseInProject( final Connection conn, final long projectId, final Actor by ) throws SQLException {
+        return recordReleases( conn, end( conn, "w.project_id = ?", "FOR NO KEY UPDATE OF w",
+            ps -> ps.setLong( 1, projectId ) ), by, PROJECT_ARCHIVED );
     }
 
     // ---- internals

@@ -42,8 +42,14 @@ public interface WorkCatalogStore {
      */
     void updateProject( long id, String name, String description, Autonomy defaultAutonomy, Actor by ) throws SQLException;
 
-    /** Archives the project with a {@code settings} event noted {@code archived}, in one transaction. */
-    void archiveProject( long id, Instant at, Actor by ) throws SQLException;
+    /**
+     * Archives the project with a {@code settings} event noted {@code archived} and releases every claim on its items
+     * ({@code released}, note {@code project archived}, actor {@code by}), in one transaction: nobody could renew or
+     * release a claim in an archived project.
+     *
+     * @return how many claims that released; archiving an archived project releases none
+     */
+    int archiveProject( long id, Instant at, Actor by ) throws SQLException;
 
     // ---- membership
 

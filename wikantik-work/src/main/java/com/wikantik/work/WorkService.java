@@ -183,7 +183,7 @@ public class WorkService {
         final Scope s = scopes.scope( actor, key );
         s.require( Action.MANAGE_INSTANCE, null );
         s.requireWritable();
-        store.archiveProject( s.project().id(), clock.instant(), actor );
+        listener.released( store.archiveProject( s.project().id(), clock.instant(), actor ) );
     }
 
     public List< Member > members( final Actor actor, final String key ) throws SQLException {

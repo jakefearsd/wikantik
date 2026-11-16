@@ -158,4 +158,18 @@ class JdbcWorkClaimsRollbackTest {
         assertEquals( held, fx.reload( held ) );
         assertEquals( events, eventCount() );
     }
+
+    @Test
+    void archiveRollsBackWhenAReleasedEventFails() throws SQLException {
+        final Item held = fx.store.claims().claim( fx.ready( "x" ), fx.actorA, HOUR ).orElseThrow();
+        final long events = eventCount();
+        // statements: 1 archive UPDATE, 2 settings event, 3 lock-and-update CTE, 4 insert the released event (fails)
+        faulty.failOn( 4, new RuntimeException( "boom: released insert" ) );
+        assertThrows( RuntimeException.class, () -> faultyStore.archiveProject( fx.plat.id(), java.time.Instant.now(),
+            Actor.human( "root", java.util.Set.of(), true ) ) );
+        assertEquals( 1, faulty.rollbacks() );
+        assertEquals( null, fx.store.project( "PLAT" ).orElseThrow().archivedAt(), "the project is not archived" );
+        assertEquals( held, fx.reload( held ), "the claim is intact" );
+        assertEquals( events, eventCount() );
+    }
 }

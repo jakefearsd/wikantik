@@ -153,20 +153,24 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
         }
     }
 
-    /** Sets {@code archived_at} and writes a {@code settings} event noted {@code archived}, in one transaction. */
+    /**
+     * Sets {@code archived_at}, writes a {@code settings} event noted {@code archived} and releases every claim in the
+     * project, in one transaction. The project row is locked before the items, and no claim path locks the project
+     * row, so this cannot deadlock with a claim.
+     */
     @Override
-    public void archiveProject( final long id, final Instant at, final Actor by )
+    public int archiveProject( final long id, final Instant at, final Actor by )
             throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
-        jdbc.inTransaction( conn -> {
+        return jdbc.inTransaction( conn -> {
             final int rows = jdbc.update( conn, "UPDATE work_project SET archived_at = ? WHERE id = ? "
                     + "AND archived_at IS NULL",
                 ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, id ); } );
-            if ( rows > 0 ) {
-                appendEvent( conn, projectEvent( id, by, WorkEvent.SETTINGS, null, at.toString(),
-                    "archived" ) );
+            if ( rows == 0 ) {
+                return 0;
             }
-            return null;
+            appendEvent( conn, projectEvent( id, by, WorkEvent.SETTINGS, null, at.toString(), "archived" ) );
+            return claims.releaseInProject( conn, id, by );
         } );
     }
 

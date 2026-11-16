@@ -480,7 +480,14 @@ class JdbcWorkClaimsPostgresTest {
         claims.retireAgent( e.id(), Instant.now(), WorkClaimFixtures.LENA );
         items.add( retired );
         holders.add( e.id() );
-        assertEquals( 8, items.size() );
+        final Project arch = store.createProject( "ARCH", "Archived", "" );
+        store.putMember( arch.id(), String.valueOf( fx.b.id() ), "agent", WorkRole.MEMBER, WorkClaimFixtures.LENA );
+        final Item archived = claims.claim( fx.create( arch, "archived", WorkStatus.READY, 3, null, null,
+            "implementer" ), fx.actorB, HOUR ).orElseThrow();
+        assertEquals( 1, store.archiveProject( arch.id(), Instant.now(), WorkClaimFixtures.LENA ) );
+        items.add( archived );
+        holders.add( fx.b.id() );
+        assertEquals( 9, items.size() );
         for ( int i = 0; i < items.size(); i++ ) {
             final List< WorkEvent > ev = fx.events( items.get( i ), WorkEvent.RELEASED );
             assertEquals( 1, ev.size(), "released events for item " + i );
@@ -488,5 +495,38 @@ class JdbcWorkClaimsPostgresTest {
             assertEquals( fx.reload( items.get( i ) ).status().wire(), ev.get( 0 ).toValue(), "to " + i );
             assertTrue( ev.get( 0 ).note() != null && !ev.get( 0 ).note().isBlank(), "note " + i );
         }
+    }
+
+    @Test
+    void archivingAProjectReleasesEveryClaimInItAndNoOther() throws SQLException {
+        final Project ops = store.createProject( "OPS", "Ops", "" );
+        store.putMember( ops.id(), String.valueOf( fx.a.id() ), "agent", WorkRole.MEMBER, WorkClaimFixtures.LENA );
+        final Item one = claims.claim( fx.ready( "one" ), fx.actorA, HOUR ).orElseThrow();
+        final Item two = claims.claim( fx.create( fx.plat, "two", WorkStatus.REVIEW, 3, null, null, "implementer" ),
+            fx.actorB, HOUR ).orElseThrow();
+        final Item other = claims.claim( fx.create( ops, "other", WorkStatus.READY, 3, null, null, "implementer" ),
+            fx.actorA, HOUR ).orElseThrow();
+        final Actor root = Actor.human( "root", Set.of(), true );
+
+        assertEquals( 2, store.archiveProject( fx.plat.id(), Instant.now(), root ) );
+
+        final Item oneNow = fx.reload( one );
+        assertNull( oneNow.claimedByAgent() );
+        assertEquals( WorkStatus.READY, oneNow.status() );
+        assertEquals( one.version() + 1, oneNow.version() );
+        assertEquals( WorkStatus.REVIEW, fx.reload( two ).status() );
+        assertNull( fx.reload( two ).claimedByAgent() );
+        for ( final Item i : List.of( one, two ) ) {
+            final List< WorkEvent > ev = fx.events( i, WorkEvent.RELEASED );
+            assertEquals( 1, ev.size() );
+            assertEquals( "agent:" + ( i == one ? fx.a.id() : fx.b.id() ), ev.get( 0 ).fromValue() );
+            assertEquals( fx.reload( i ).status().wire(), ev.get( 0 ).toValue() );
+            assertEquals( "project archived", ev.get( 0 ).note() );
+            assertEquals( "root", ev.get( 0 ).actor() );
+            assertEquals( Actor.Kind.HUMAN, ev.get( 0 ).actorKind() );
+        }
+        assertEquals( fx.a.id(), fx.reload( other ).claimedByAgent(), "a claim in another project is untouched" );
+        assertTrue( fx.events( other, WorkEvent.RELEASED ).isEmpty() );
+        assertEquals( 0, store.archiveProject( fx.plat.id(), Instant.now(), root ), "archiving twice releases none" );
     }
 }

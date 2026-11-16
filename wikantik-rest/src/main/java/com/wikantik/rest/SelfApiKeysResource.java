@@ -59,7 +59,9 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>A key that is or was bound to a work agent is managed only through the agent registry: rotate and revoke refuse
- * it with 409 ({@link AgentKeyGuard}), and the listing marks it {@code agentKey}.</p>
+ * it with 409 ({@link AgentKeyGuard}), and the listing marks it {@code agentKey}. While work management is not
+ * running nothing can tell agent keys apart, so rotating any {@code work}-scope key is refused with 503 (revoke stays
+ * allowed; ruling P32).</p>
  */
 public class SelfApiKeysResource extends RestServletBase {
 

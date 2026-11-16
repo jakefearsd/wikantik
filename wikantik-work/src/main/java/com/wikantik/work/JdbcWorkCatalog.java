@@ -155,8 +155,10 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
 
     /**
      * Sets {@code archived_at}, writes a {@code settings} event noted {@code archived} and releases every claim in the
-     * project, in one transaction. The project row is locked before the items, and no claim path locks the project
-     * row, so this cannot deadlock with a claim.
+     * project, in one transaction. Lock order: this takes the project row (its UPDATE) and then the items it ends; a
+     * claim share-locks agent, member, then project, then its item ({@link JdbcWorkClaims}). Both take the project
+     * before any item, so they cannot deadlock: a claim either lands first and is released here, or waits and finds
+     * the project archived. Do not lock a project row after an item row anywhere.
      */
     @Override
     public int archiveProject( final long id, final Instant at, final Actor by )

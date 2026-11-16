@@ -238,6 +238,20 @@ class WorkActivityResourceTest {
     }
 
     @Test
+    void underWhoPeopleAnExpiryRowIsReturnedAsTheSystemEventItIs() throws Exception {
+        Mockito.when( svc.assignmentLog( any(), any() ) ).thenReturn( List.of(
+            logged( "lena", Actor.Kind.HUMAN, null, "assigned", null, "queue:implementer" ),
+            logged( "codex@docker2", Actor.Kind.AGENT, 9L, "claim_expired", "in_progress", "ready" ) ) );
+        final WorkHttp.Result res = log( Map.of( "actorKind", "human" ) );
+        assertEquals( 200, res.status(), res.body() );
+        final com.google.gson.JsonArray events = res.json().getAsJsonObject().getAsJsonArray( "events" );
+        assertEquals( 2, events.size(), "the REST layer drops nothing the service returned" );
+        assertEquals( "claim_expired", events.get( 1 ).getAsJsonObject().get( "type" ).getAsString() );
+        Mockito.verify( svc ).assignmentLog( ALICE, new com.wikantik.work.AssignmentLogQuery( null, null, null, null,
+            Actor.Kind.HUMAN, null, 0 ) );
+    }
+
+    @Test
     void logPassesFiltersAndCursorThrough() throws Exception {
         Mockito.when( svc.assignmentLog( any(), any() ) ).thenReturn( List.of() );
         assertEquals( 200, log( Map.of( "project", "PLAT", "types", "claimed", "actorKind", "agent", "agent", "9",

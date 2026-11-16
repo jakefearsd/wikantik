@@ -164,9 +164,6 @@ export default function WorkLog() {
             options={options.projects.map((p) => ({ value: p.key, label: `${p.key} ${p.name}` }))} onChange={set('project')} />
         </label>
       )}
-      {who === 'people' && (
-        <p className="work-muted work-log-filter-note">Expired claims are listed under Agents.</p>
-      )}
     </div>
   );
 

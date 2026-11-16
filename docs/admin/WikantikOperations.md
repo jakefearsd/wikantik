@@ -538,7 +538,7 @@ An agent is a registered identity (a coding agent, for instance) that takes work
 - *claimed this (ready → in progress) · until 14:05*: an agent took it. *renewed its claim*: the same agent claimed it again; runs of renewals fold into one line unless you choose "Show every renewal".
 - *handed this to name: in progress → review*: a hand-off, with the hand-off note under it.
 - *released name's claim*: a deliberate release, with the person's note. *moved this item, ending name's claim*, *reassigned this item, ending …*, *removed name's access to this project, ending its claim*, *retired name, ending its claim* and *archived this project, ending name's claim* are consequences of someone else's action, not releases.
-- *claim by name expired*: nobody renewed it; the item went back to its queue. An expiry is a system event attributed to the agent whose claim lapsed, so the "Who: People" filter hides it; the filter shows "Expired claims are listed under Agents." and the expiry is under "Who: Agents".
+- *claim by name expired*: nobody renewed it; the item went back to its queue. An expiry is a system event (the row names the agent whose claim lapsed), so it is listed whatever the "Who" filter: under People, Agents and All alike.
 
 Items waiting on a person show on the Work home under "Waiting on you", with who handed them over and the note.
 

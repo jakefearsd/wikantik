@@ -233,4 +233,18 @@ class WorkServiceAssignmentLogTest {
         assertTrue( svc.assignmentLog( lena, new AssignmentLogQuery( null, null, null, null, null, 12345L, 0 ) )
             .isEmpty() );
     }
+
+    @Test
+    void anExpiryIsListedUnderPeopleAndAgentsAlike() throws SQLException {
+        svc.putMember( admin, "AAA", "codex@docker2", "agent", WorkRole.MEMBER );
+        svc.claims().claim( codex, ready( lena, "AAA", "lapses" ) );
+        WorkAgentFixtures.exec( ds, "UPDATE work_item SET claim_expires_at = now() - INTERVAL '1 minute'" );
+        assertEquals( 1, svc.claims().sweepExpiredClaims() );
+        for ( final Actor.Kind who : Actor.Kind.values() ) {
+            assertTrue( svc.assignmentLog( lena, new AssignmentLogQuery( null, null, null, null, who, null, 0 ) )
+                .stream().anyMatch( e -> "claim_expired".equals( e.type() ) ), "who=" + who );
+        }
+        assertTrue( svc.assignmentLog( lena, new AssignmentLogQuery( null, null, null, null, Actor.Kind.HUMAN, null,
+            0 ) ).stream().noneMatch( e -> "claimed".equals( e.type() ) ), "the agent's own claim stays under Agents" );
+    }
 }

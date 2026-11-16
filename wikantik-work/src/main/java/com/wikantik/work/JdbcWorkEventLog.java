@@ -64,7 +64,9 @@ final class JdbcWorkEventLog {
 
     /**
      * The log: {@code types} defaults to {@link WorkEvent#ASSIGNMENT_LOG_TYPES}; a {@code member} event is kept only
-     * when one of its values names an agent. {@code agentId} keeps what the agent did and the release of its claims.
+     * when one of its values names an agent. {@code actorKind} keeps what people (or agents) did, and every
+     * {@code claim_expired} whatever the kind, since an expiry is the system's doing. {@code agentId} keeps what the
+     * agent did and the release of its claims.
      */
     List< LogEntry > eventsAcross( final Collection< Long > projectIds, final Instant before, final Long beforeId,
                                    final Set< String > types, final Actor.Kind actorKind, final Long agentId,
@@ -78,7 +80,9 @@ final class JdbcWorkEventLog {
                 types == null || types.isEmpty() ? WorkEvent.ASSIGNMENT_LOG_TYPES : types ) );
             q.and( " AND ( e.type <> 'member' OR e.from_value LIKE 'agent:%' OR e.to_value LIKE 'agent:%' )" );
             if ( actorKind != null ) {
-                q.and( " AND e.actor_kind = ?", SqlValues.actorKindWire( actorKind ) );
+                // An expiry is a system event (attributed to the agent whose claim lapsed): shown under every "who".
+                q.and( " AND ( e.actor_kind = ? OR e.type = '" + WorkEvent.CLAIM_EXPIRED + "' )",
+                    SqlValues.actorKindWire( actorKind ) );
             }
             if ( agentId != null ) {
                 final String held = AGENT_VALUE + agentId;

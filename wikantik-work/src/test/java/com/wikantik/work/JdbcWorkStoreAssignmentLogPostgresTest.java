@@ -170,4 +170,23 @@ class JdbcWorkStoreAssignmentLogPostgresTest {
             .stream().map( e -> e.event().type() ).toList(),
             "an agent's own events and the release of its claim by someone else" );
     }
+
+    @Test
+    void anExpiryIsASystemEventShownWhateverTheWhoFilter() throws SQLException {
+        final long a = WorkAgentFixtures.agent( ds, "agent-a" );
+        event( plat, null, T0, "assigned", "lena", "user", null, "queue:qq" );
+        WorkAgentFixtures.exec( ds, "INSERT INTO work_event (project_id, at, actor, actor_kind, agent_id, type, "
+            + "from_value, to_value) VALUES (" + plat.id() + ",'" + T0.plusSeconds( 1 ) + "','agent-a','agent'," + a
+            + ",'claimed','ready','in_progress')" );
+        WorkAgentFixtures.exec( ds, "INSERT INTO work_event (project_id, at, actor, actor_kind, agent_id, type, "
+            + "from_value, to_value) VALUES (" + plat.id() + ",'" + T0.plusSeconds( 2 ) + "','agent-a','agent'," + a
+            + ",'claim_expired','in_progress','ready')" );
+
+        final List< Long > all = List.of( plat.id() );
+        assertEquals( List.of( "claim_expired", "assigned" ), store.eventsAcross( all, null, null, null,
+            Actor.Kind.HUMAN, null, 50 ).stream().map( e -> e.event().type() ).toList(), "people see expiries too" );
+        assertEquals( List.of( "claim_expired", "claimed" ), store.eventsAcross( all, null, null, null,
+            Actor.Kind.AGENT, null, 50 ).stream().map( e -> e.event().type() ).toList() );
+        assertEquals( 3, store.eventsAcross( all, null, null, null, null, null, 50 ).size() );
+    }
 }

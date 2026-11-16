@@ -91,15 +91,13 @@ describe('WorkLog', () => {
     expect(screen.getByTestId('where')).toHaveTextContent('/work/log?who=agents');
   });
 
-  it('choosing People says where expired claims went (they are attributed to the agent), and only then', async () => {
+  it('choosing People needs no note about expired claims: the server lists them under every Who', async () => {
     getAssignmentLog.mockResolvedValue({ events: [ev()] });
     renderLog();
     await screen.findAllByRole('listitem');
-    expect(screen.queryByText('Expired claims are listed under Agents.')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Who'), { target: { value: 'people' } });
-    expect(await screen.findByText('Expired claims are listed under Agents.')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Who'), { target: { value: 'agents' } });
-    await waitFor(() => expect(screen.queryByText('Expired claims are listed under Agents.')).not.toBeInTheDocument());
+    await waitFor(() => expect(getAssignmentLog).toHaveBeenLastCalledWith({ actorKind: 'human', limit: 50 }));
+    expect(screen.queryByText(/Expired claims are listed under/)).not.toBeInTheDocument();
   });
 
   it('kindAgentAndProjectFiltersAreServerSideAndLiveInTheUrl', async () => {

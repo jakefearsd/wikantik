@@ -28,9 +28,9 @@ import java.util.Set;
 
 /**
  * Persistence for work management. Every method throws {@link SQLException}; callers translate. This
- * interface carries items, discussion and metrics; projects, membership and products are in {@link WorkCatalogStore}.
+ * interface carries items, discussion and metrics; projects, membership and products are in {@link WorkCatalogStore}, queues and agents in {@link WorkRegistryStore}.
  */
-public interface WorkStore extends WorkCatalogStore {
+public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
 
     // ---- items
 

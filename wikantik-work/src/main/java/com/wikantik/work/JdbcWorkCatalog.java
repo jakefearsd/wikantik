@@ -35,7 +35,7 @@ import static com.wikantik.work.SqlValues.setNullableLong;
 import static com.wikantik.work.SqlValues.timestamp;
 
 /** The project, membership and product half of the PostgreSQL {@link WorkStore}; {@link JdbcWorkStore} adds the items. */
-abstract class JdbcWorkCatalog implements WorkCatalogStore {
+abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogStore {
 
     private static final String PROJECT_COLUMNS =
         "id, key, name, description, default_autonomy, created_at, archived_at";
@@ -76,10 +76,8 @@ abstract class JdbcWorkCatalog implements WorkCatalogStore {
         ORDER BY key
         """;
 
-    protected final Jdbc jdbc;
-
     JdbcWorkCatalog( final Jdbc jdbc ) {
-        this.jdbc = jdbc;
+        super( jdbc );
     }
 
     // ---- projects

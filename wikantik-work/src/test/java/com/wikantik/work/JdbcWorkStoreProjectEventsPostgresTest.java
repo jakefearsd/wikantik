@@ -42,8 +42,7 @@ class JdbcWorkStoreProjectEventsPostgresTest {
     @BeforeEach
     void setUp() throws SQLException {
         store = new JdbcWorkStore( PostgresTestDb.createDataSource() );
-        PostgresTestDb.truncate( "work_link", "work_mention", "work_comment", "work_event",
-            "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
+        PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
         plat = store.createProject( "PLAT", "Platform", "old text" );
     }
 
@@ -54,9 +53,9 @@ class JdbcWorkStoreProjectEventsPostgresTest {
 
     @Test
     void addChangeAndRemoveMemberEachWriteOneMemberEvent() throws SQLException {
-        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, "lena", Actor.Kind.HUMAN );
-        store.putMember( plat.id(), "bob", "user", WorkRole.LEAD, "lena", Actor.Kind.HUMAN );
-        store.removeMember( plat.id(), "bob", "user", "root", Actor.Kind.HUMAN );
+        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, Actor.human( "lena", java.util.Set.of(), false ) );
+        store.putMember( plat.id(), "bob", "user", WorkRole.LEAD, Actor.human( "lena", java.util.Set.of(), false ) );
+        store.removeMember( plat.id(), "bob", "user", Actor.human( "root", java.util.Set.of(), false ) );
 
         final List< WorkEvent > e = events();
         assertEquals( 3, e.size() );
@@ -78,16 +77,16 @@ class JdbcWorkStoreProjectEventsPostgresTest {
 
     @Test
     void puttingTheSameRoleOrRemovingANonMemberWritesNothing() throws SQLException {
-        store.putMember( plat.id(), "editors", "group", WorkRole.VIEWER, "lena", Actor.Kind.HUMAN );
-        store.putMember( plat.id(), "editors", "group", WorkRole.VIEWER, "lena", Actor.Kind.HUMAN );
-        store.removeMember( plat.id(), "nobody", "user", "lena", Actor.Kind.HUMAN );
+        store.putMember( plat.id(), "editors", "group", WorkRole.VIEWER, Actor.human( "lena", java.util.Set.of(), false ) );
+        store.putMember( plat.id(), "editors", "group", WorkRole.VIEWER, Actor.human( "lena", java.util.Set.of(), false ) );
+        store.removeMember( plat.id(), "nobody", "user", Actor.human( "lena", java.util.Set.of(), false ) );
         assertEquals( 1, events().size() );
         assertEquals( "group:editors:viewer", events().get( 0 ).toValue() );
     }
 
     @Test
     void settingsChangesWriteOneEventPerChangedField() throws SQLException {
-        store.updateProject( plat.id(), "Platform Team", "old text", Autonomy.SUPERVISED, "lena", Actor.Kind.HUMAN );
+        store.updateProject( plat.id(), "Platform Team", "old text", Autonomy.SUPERVISED, Actor.human( "lena", java.util.Set.of(), false ) );
         final List< WorkEvent > e = events();
         assertEquals( 2, e.size(), "the unchanged description writes nothing" );
         assertEquals( List.of( "name", "default_autonomy" ), e.stream().map( WorkEvent::note ).toList() );
@@ -98,14 +97,14 @@ class JdbcWorkStoreProjectEventsPostgresTest {
         assertEquals( "supervised", e.get( 1 ).toValue() );
         assertEquals( "Platform Team", store.project( "PLAT" ).orElseThrow().name() );
 
-        store.updateProject( plat.id(), "Platform Team", "old text", Autonomy.SUPERVISED, "lena", Actor.Kind.HUMAN );
+        store.updateProject( plat.id(), "Platform Team", "old text", Autonomy.SUPERVISED, Actor.human( "lena", java.util.Set.of(), false ) );
         assertEquals( 2, events().size(), "no change, no event" );
     }
 
     @Test
     void archiveWritesASettingsEventNotedArchived() throws SQLException {
         final Instant at = Instant.parse( "2026-11-15T10:00:00Z" );
-        store.archiveProject( plat.id(), at, "root", Actor.Kind.HUMAN );
+        store.archiveProject( plat.id(), at, Actor.human( "root", java.util.Set.of(), false ) );
         final List< WorkEvent > e = events();
         assertEquals( 1, e.size() );
         assertEquals( WorkEvent.SETTINGS, e.get( 0 ).type() );
@@ -114,15 +113,15 @@ class JdbcWorkStoreProjectEventsPostgresTest {
         assertEquals( at.toString(), e.get( 0 ).toValue() );
         assertEquals( Optional.of( at ), store.project( "PLAT" ).map( Project::archivedAt ) );
 
-        store.archiveProject( plat.id(), at.plusSeconds( 60 ), "root", Actor.Kind.HUMAN );
+        store.archiveProject( plat.id(), at.plusSeconds( 60 ), Actor.human( "root", java.util.Set.of(), false ) );
         assertEquals( 1, events().size(), "archiving twice changes nothing" );
     }
 
     @Test
     void projectEventsCanBeNarrowedToOneItem() throws SQLException {
-        final Item a = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "a" ), "lena", Actor.Kind.HUMAN );
-        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "b" ), "lena", Actor.Kind.HUMAN );
-        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, "lena", Actor.Kind.HUMAN );
+        final Item a = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "a" ), Actor.human( "lena", java.util.Set.of(), false ) );
+        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "b" ), Actor.human( "lena", java.util.Set.of(), false ) );
+        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, Actor.human( "lena", java.util.Set.of(), false ) );
         assertEquals( 3, store.projectEvents( plat.id(), null, null, null, 50 ).size() );
         final List< WorkEvent > onlyA = store.projectEvents( plat.id(), null, null, a.id(), 50 );
         assertEquals( 1, onlyA.size() );
@@ -131,7 +130,7 @@ class JdbcWorkStoreProjectEventsPostgresTest {
 
     @Test
     void theFirstPageHasNoTimeCutoff() throws SQLException {
-        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, "lena", Actor.Kind.HUMAN );
+        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, Actor.human( "lena", java.util.Set.of(), false ) );
         try ( var c = PostgresTestDb.createDataSource().getConnection();
               var ps = c.prepareStatement( "UPDATE work_event SET at = NOW() + INTERVAL '1 hour'" ) ) {
             ps.executeUpdate();
@@ -142,7 +141,9 @@ class JdbcWorkStoreProjectEventsPostgresTest {
 
     @Test
     void anAgentActorIsRecordedAsAnAgent() throws SQLException {
-        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, "bot", Actor.Kind.AGENT );
+        final long botId = WorkAgentFixtures.agent( PostgresTestDb.createDataSource(), "bot" );
+        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, Actor.agent( botId, "bot" ) );
         assertEquals( Actor.Kind.AGENT, events().get( 0 ).actorKind() );
+        assertEquals( botId, events().get( 0 ).agentId() );
     }
 }

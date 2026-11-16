@@ -47,28 +47,27 @@ class JdbcWorkStoreDiscussionPostgresTest {
     @BeforeEach
     void setUp() throws SQLException {
         ds = PostgresTestDb.createDataSource();
-        PostgresTestDb.truncate( "work_link", "work_mention", "work_comment", "work_event",
-            "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
+        PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
         store = new JdbcWorkStore( ds );
         plat = store.createProject( "PLAT", "Platform", "" );
     }
 
     private Item create( final Project p, final String title ) throws SQLException {
-        return store.createItem( p, JdbcWorkStoreItemsPostgresTest.draft( title ), "alice", Actor.Kind.HUMAN );
+        return store.createItem( p, JdbcWorkStoreItemsPostgresTest.draft( title ), Actor.human( "alice", java.util.Set.of(), false ) );
     }
 
     private Item move( final Item i, final WorkStatus s ) throws SQLException {
         final Item next = new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(),
             i.title(), i.body(), s, i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
             i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null );
-        return store.updateItem( i, next, "alice", Actor.Kind.HUMAN, null );
+        return store.updateItem( i, next, Actor.human( "alice", java.util.Set.of(), false ), null );
     }
 
     private Item assign( final Item i, final String who ) throws SQLException {
         final Item next = new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(),
             i.title(), i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), who, i.reporter(), i.autonomy(),
             i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null );
-        return store.updateItem( i, next, "alice", Actor.Kind.HUMAN, null );
+        return store.updateItem( i, next, Actor.human( "alice", java.util.Set.of(), false ), null );
     }
 
     private int count( final String sql ) throws SQLException {
@@ -81,7 +80,7 @@ class JdbcWorkStoreDiscussionPostgresTest {
     @Test
     void commentWritesMentionsAndEvent() throws SQLException {
         final Item item = create( plat, "x" );
-        final Comment c = store.addComment( item, "alice", Actor.Kind.HUMAN, "hi @bob and @carol",
+        final Comment c = store.addComment( item, Actor.human( "alice", java.util.Set.of(), false ), "hi @bob and @carol",
             List.of( "bob", "carol" ) );
         assertNotNull( c.createdAt() );
         assertEquals( "hi @bob and @carol", store.comment( c.id() ).orElseThrow().body() );
@@ -98,8 +97,8 @@ class JdbcWorkStoreDiscussionPostgresTest {
     @Test
     void removedCommentKeepsRowAndHidesBody() throws SQLException {
         final Item item = create( plat, "x" );
-        final Comment c = store.addComment( item, "alice", Actor.Kind.HUMAN, "secret", List.of() );
-        store.removeComment( c.id(), "alice", Actor.Kind.HUMAN );
+        final Comment c = store.addComment( item, Actor.human( "alice", java.util.Set.of(), false ), "secret", List.of() );
+        store.removeComment( c.id(), Actor.human( "alice", java.util.Set.of(), false ) );
         final Comment after = store.comment( c.id() ).orElseThrow();
         assertEquals( "", after.body() );
         assertNotNull( after.removedAt() );
@@ -113,9 +112,9 @@ class JdbcWorkStoreDiscussionPostgresTest {
     @Test
     void editSetsEditedAt() throws SQLException {
         final Item item = create( plat, "x" );
-        final Comment c = store.addComment( item, "alice", Actor.Kind.HUMAN, "one", List.of() );
+        final Comment c = store.addComment( item, Actor.human( "alice", java.util.Set.of(), false ), "one", List.of() );
         assertNull( c.editedAt() );
-        final Comment edited = store.editComment( c.id(), "two", "alice", Actor.Kind.HUMAN, List.of() );
+        final Comment edited = store.editComment( c.id(), "two", Actor.human( "alice", java.util.Set.of(), false ), List.of() );
         assertEquals( "two", edited.body() );
         assertNotNull( edited.editedAt() );
         assertEquals( "two", store.comment( c.id() ).orElseThrow().body() );
@@ -127,8 +126,8 @@ class JdbcWorkStoreDiscussionPostgresTest {
     @Test
     void editReplacesTheMentions() throws SQLException {
         final Item item = create( plat, "x" );
-        final Comment c = store.addComment( item, "alice", Actor.Kind.HUMAN, "hi bob", List.of( "bob" ) );
-        store.editComment( c.id(), "hi carol", "alice", Actor.Kind.HUMAN, List.of( "carol" ) );
+        final Comment c = store.addComment( item, Actor.human( "alice", java.util.Set.of(), false ), "hi bob", List.of( "bob" ) );
+        store.editComment( c.id(), "hi carol", Actor.human( "alice", java.util.Set.of(), false ), List.of( "carol" ) );
         assertTrue( store.mentioning( "bob", Set.of( plat.id() ) ).isEmpty(), "a name taken out stops waiting" );
         assertEquals( 1, store.mentioning( "carol", Set.of( plat.id() ) ).size(), "an added name waits" );
     }
@@ -136,11 +135,12 @@ class JdbcWorkStoreDiscussionPostgresTest {
     @Test
     void discussionEventsRecordTheRealActorKind() throws SQLException {
         final Item item = create( plat, "x" );
-        final Comment c = store.addComment( item, "bot", Actor.Kind.AGENT, "one", List.of() );
-        store.editComment( c.id(), "two", "bot", Actor.Kind.AGENT, List.of() );
-        final Link l = store.addLink( item, "url", "https://example.com", "bot", Actor.Kind.AGENT );
-        store.removeLink( l.id(), "bot", Actor.Kind.AGENT );
-        store.removeComment( c.id(), "bot", Actor.Kind.AGENT );
+        final Actor bot = Actor.agent( WorkAgentFixtures.agent( ds, "bot" ), "bot" );
+        final Comment c = store.addComment( item, bot, "one", List.of() );
+        store.editComment( c.id(), "two", bot, List.of() );
+        final Link l = store.addLink( item, "url", "https://example.com", bot );
+        store.removeLink( l.id(), bot );
+        store.removeComment( c.id(), bot );
         final List< WorkEvent > discussion = store.itemEvents( item.id() ).stream()
             .filter( ev -> !WorkEvent.CREATED.equals( ev.type() ) ).toList();
         assertEquals( 5, discussion.size() );
@@ -150,25 +150,25 @@ class JdbcWorkStoreDiscussionPostgresTest {
     @Test
     void removingALinkTwiceWritesOneUnlinkedEvent() throws SQLException {
         final Item item = create( plat, "x" );
-        final Link l = store.addLink( item, "url", "https://example.com", "alice", Actor.Kind.HUMAN );
-        store.removeLink( l.id(), "alice", Actor.Kind.HUMAN );
-        store.removeLink( l.id(), "bob", Actor.Kind.HUMAN );
+        final Link l = store.addLink( item, "url", "https://example.com", Actor.human( "alice", java.util.Set.of(), false ) );
+        store.removeLink( l.id(), Actor.human( "alice", java.util.Set.of(), false ) );
+        store.removeLink( l.id(), Actor.human( "bob", java.util.Set.of(), false ) );
         assertEquals( 1, store.itemEvents( item.id() ).stream()
             .filter( ev -> WorkEvent.UNLINKED.equals( ev.type() ) ).count() );
     }
 
     @Test
     void editingUnknownCommentIsNotFound() {
-        assertThrows( WorkNotFoundException.class, () -> store.editComment( 999_999, "x", "alice", Actor.Kind.HUMAN, List.of() ) );
-        assertThrows( WorkNotFoundException.class, () -> store.removeComment( 999_999, "alice", Actor.Kind.HUMAN ) );
+        assertThrows( WorkNotFoundException.class, () -> store.editComment( 999_999, "x", Actor.human( "alice", java.util.Set.of(), false ), List.of() ) );
+        assertThrows( WorkNotFoundException.class, () -> store.removeComment( 999_999, Actor.human( "alice", java.util.Set.of(), false ) ) );
     }
 
     @Test
     void linkAndUnlinkWriteEvents() throws SQLException {
         final Item item = create( plat, "x" );
-        final Link l = store.addLink( item, "url", "https://example.com", "alice", Actor.Kind.HUMAN );
+        final Link l = store.addLink( item, "url", "https://example.com", Actor.human( "alice", java.util.Set.of(), false ) );
         assertEquals( List.of( l ), store.links( item.id() ) );
-        store.removeLink( l.id(), "alice", Actor.Kind.HUMAN );
+        store.removeLink( l.id(), Actor.human( "alice", java.util.Set.of(), false ) );
         assertTrue( store.links( item.id() ).isEmpty() );
         final List< WorkEvent > events = store.itemEvents( item.id() );
         assertTrue( events.stream().anyMatch( ev -> WorkEvent.LINKED.equals( ev.type() )
@@ -182,7 +182,7 @@ class JdbcWorkStoreDiscussionPostgresTest {
         final Item blocker = create( plat, "blocker" );
         final Item item = create( plat, "x" );
         assertFalse( store.isBlocked( item.id() ) );
-        store.addLink( item, "blocked_by", blocker.key().toLowerCase(), "alice", Actor.Kind.HUMAN );
+        store.addLink( item, "blocked_by", blocker.key().toLowerCase(), Actor.human( "alice", java.util.Set.of(), false ) );
         assertTrue( store.isBlocked( item.id() ) );
     }
 
@@ -190,8 +190,8 @@ class JdbcWorkStoreDiscussionPostgresTest {
     void blockedByDoneItemDoesNot() throws SQLException {
         final Item blocker = create( plat, "blocker" );
         final Item item = create( plat, "x" );
-        store.addLink( item, "blocked_by", blocker.key(), "alice", Actor.Kind.HUMAN );
-        store.addLink( item, "blocked_by", "PLAT-999", "alice", Actor.Kind.HUMAN );
+        store.addLink( item, "blocked_by", blocker.key(), Actor.human( "alice", java.util.Set.of(), false ) );
+        store.addLink( item, "blocked_by", "PLAT-999", Actor.human( "alice", java.util.Set.of(), false ) );
         assertTrue( store.isBlocked( item.id() ) );
         move( blocker, WorkStatus.DONE );
         assertFalse( store.isBlocked( item.id() ), "done blocker and unknown key do not block" );
@@ -202,8 +202,8 @@ class JdbcWorkStoreDiscussionPostgresTest {
         final Project ops = store.createProject( "OPS", "Ops", "" );
         final Item a = create( plat, "a" );
         final Item b = create( ops, "b" );
-        store.addComment( a, "alice", Actor.Kind.HUMAN, "@bob", List.of( "bob" ) );
-        store.addComment( b, "alice", Actor.Kind.HUMAN, "@bob", List.of( "bob" ) );
+        store.addComment( a, Actor.human( "alice", java.util.Set.of(), false ), "@bob", List.of( "bob" ) );
+        store.addComment( b, Actor.human( "alice", java.util.Set.of(), false ), "@bob", List.of( "bob" ) );
         assertEquals( List.of( a.id() ), store.mentioning( "bob", Set.of( plat.id() ) ).stream().map( Item::id ).toList() );
         assertEquals( 2, store.mentioning( "bob", Set.of( plat.id(), ops.id() ) ).size() );
         assertTrue( store.mentioning( "bob", Set.of() ).isEmpty() );
@@ -214,9 +214,9 @@ class JdbcWorkStoreDiscussionPostgresTest {
     void mentioningAndAssignedOpenSkipClosedItemsAndListEachItemOnce() throws SQLException {
         final Item open = assign( create( plat, "open" ), "bob" );
         final Item done = assign( create( plat, "done" ), "bob" );
-        store.addComment( open, "alice", Actor.Kind.HUMAN, "1", List.of( "bob" ) );
-        store.addComment( open, "alice", Actor.Kind.HUMAN, "2", List.of( "bob" ) );
-        store.addComment( done, "alice", Actor.Kind.HUMAN, "3", List.of( "bob" ) );
+        store.addComment( open, Actor.human( "alice", java.util.Set.of(), false ), "1", List.of( "bob" ) );
+        store.addComment( open, Actor.human( "alice", java.util.Set.of(), false ), "2", List.of( "bob" ) );
+        store.addComment( done, Actor.human( "alice", java.util.Set.of(), false ), "3", List.of( "bob" ) );
         move( store.item( done.key() ).orElseThrow(), WorkStatus.DONE );
         final Set< Long > scope = Set.of( plat.id() );
         assertEquals( List.of( open.id() ), store.mentioning( "bob", scope ).stream().map( Item::id ).toList() );
@@ -231,7 +231,7 @@ class JdbcWorkStoreDiscussionPostgresTest {
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
         faulty.failOn( 3, new RuntimeException( "boom: event insert" ) );
         final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
-        assertThrows( RuntimeException.class, () -> faultyStore.addComment( item, "alice", Actor.Kind.HUMAN, "hi",
+        assertThrows( RuntimeException.class, () -> faultyStore.addComment( item, Actor.human( "alice", java.util.Set.of(), false ), "hi",
             List.of( "bob" ) ) );
         assertEquals( 1, faulty.rollbacks() );
         assertEquals( 0, count( "SELECT COUNT(*) FROM work_comment" ) );
@@ -241,12 +241,12 @@ class JdbcWorkStoreDiscussionPostgresTest {
     @Test
     void unlinkRollsBackWhenEventInsertFails() throws SQLException {
         final Item item = create( plat, "x" );
-        final Link l = store.addLink( item, "url", "https://example.com", "alice", Actor.Kind.HUMAN );
+        final Link l = store.addLink( item, "url", "https://example.com", Actor.human( "alice", java.util.Set.of(), false ) );
         // statements: 1 delete link returning it, 2 project of the item, 3 insert event
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
         faulty.failOn( 3, new RuntimeException( "boom: event insert" ) );
         final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
-        assertThrows( RuntimeException.class, () -> faultyStore.removeLink( l.id(), "alice", Actor.Kind.HUMAN ) );
+        assertThrows( RuntimeException.class, () -> faultyStore.removeLink( l.id(), Actor.human( "alice", java.util.Set.of(), false ) ) );
         assertEquals( 1, faulty.rollbacks() );
         assertEquals( 1, store.links( item.id() ).size() );
     }
@@ -254,7 +254,7 @@ class JdbcWorkStoreDiscussionPostgresTest {
     @Test
     void linkLookupById() throws SQLException {
         final Item item = create( plat, "x" );
-        final Link l = store.addLink( item, "url", "https://example.com", "alice", Actor.Kind.HUMAN );
+        final Link l = store.addLink( item, "url", "https://example.com", Actor.human( "alice", java.util.Set.of(), false ) );
         assertEquals( l, store.link( l.id() ).orElseThrow() );
         assertTrue( store.link( -1 ).isEmpty() );
     }
@@ -264,14 +264,14 @@ class JdbcWorkStoreDiscussionPostgresTest {
         final Project ops = store.createProject( "OPS", "Ops", "" );
         final Item other = create( ops, "secret" );
         final Item item = create( plat, "x" );
-        store.addLink( item, "blocked_by", other.key(), "alice", Actor.Kind.HUMAN );
+        store.addLink( item, "blocked_by", other.key(), Actor.human( "alice", java.util.Set.of(), false ) );
         assertFalse( store.isBlocked( item.id() ), "an open item in another project must not make this one blocked" );
     }
 
     private Item child( final Item parent, final Long productId, final String title ) throws SQLException {
         return store.createItem( plat, new Item( 0, 0, null, WorkLevel.TASK, parent == null ? null : parent.id(),
             productId, WorkKind.SOFTWARE, title, "", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0,
-            null, null, null, null, null, null, null, null ), "alice", Actor.Kind.HUMAN );
+            null, null, null, null, null, null, null, null ), Actor.human( "alice", java.util.Set.of(), false ) );
     }
 
     @Test
@@ -282,10 +282,10 @@ class JdbcWorkStoreDiscussionPostgresTest {
         final Item blocker = create( plat, "blocker" );
         final Item a = child( story, web.id(), "a" );
         final Item b = child( null, null, "b" );
-        store.addComment( a, "alice", Actor.Kind.HUMAN, "one", List.of() );
-        final Comment gone = store.addComment( a, "alice", Actor.Kind.HUMAN, "two", List.of() );
-        store.removeComment( gone.id(), "alice", Actor.Kind.HUMAN );
-        store.addLink( b, "blocked_by", blocker.key(), "alice", Actor.Kind.HUMAN );
+        store.addComment( a, Actor.human( "alice", java.util.Set.of(), false ), "one", List.of() );
+        final Comment gone = store.addComment( a, Actor.human( "alice", java.util.Set.of(), false ), "two", List.of() );
+        store.removeComment( gone.id(), Actor.human( "alice", java.util.Set.of(), false ) );
+        store.addLink( b, "blocked_by", blocker.key(), Actor.human( "alice", java.util.Set.of(), false ) );
 
         final var extras = store.itemExtras( plat.id(), List.of( a.id(), b.id() ) );
 
@@ -299,13 +299,13 @@ class JdbcWorkStoreDiscussionPostgresTest {
         final Project ops = store.createProject( "OPS", "Ops", "" );
         final Item blocker = create( ops, "ops blocker" );
         final Item item = create( plat, "x" );
-        store.addLink( item, "blocked_by", blocker.key(), "alice", Actor.Kind.HUMAN );
+        store.addLink( item, "blocked_by", blocker.key(), Actor.human( "alice", java.util.Set.of(), false ) );
         assertFalse( store.itemExtras( plat.id(), List.of( item.id() ) ).get( item.id() ).blocked(),
             "a blocker in another project does not block" );
         assertTrue( store.itemExtras( ops.id(), List.of( item.id() ) ).isEmpty(),
             "ids outside the project are not returned" );
         final Item local = create( plat, "local blocker" );
-        store.addLink( item, "blocked_by", local.key(), "alice", Actor.Kind.HUMAN );
+        store.addLink( item, "blocked_by", local.key(), Actor.human( "alice", java.util.Set.of(), false ) );
         assertTrue( store.itemExtras( plat.id(), List.of( item.id() ) ).get( item.id() ).blocked() );
         move( local, WorkStatus.DONE );
         assertFalse( store.itemExtras( plat.id(), List.of( item.id() ) ).get( item.id() ).blocked() );

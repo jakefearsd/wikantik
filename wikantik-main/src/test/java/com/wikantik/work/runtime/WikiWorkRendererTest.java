@@ -372,9 +372,9 @@ class WikiWorkRendererTest {
         when( store.item( "PLAT-1" ) ).thenReturn( Optional.of( item ) );
         when( store.roleFor( org.mockito.ArgumentMatchers.eq( 1L ), org.mockito.ArgumentMatchers.any() ) )
             .thenReturn( Optional.of( com.wikantik.work.WorkRole.MEMBER ) );
-        when( store.addComment( org.mockito.ArgumentMatchers.any(), anyString(), org.mockito.ArgumentMatchers.any(),
-            anyString(), org.mockito.ArgumentMatchers.anyList() ) ).thenAnswer( inv -> new com.wikantik.work.Comment(
-                1, 12, "janne", inv.getArgument( 3 ), now, null, null, null ) );
+        when( store.addComment( org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any( com.wikantik.work.Actor.class ), anyString(), org.mockito.ArgumentMatchers.anyList() ) ).thenAnswer( inv -> new com.wikantik.work.Comment(
+                1, 12, "janne", inv.getArgument( 2 ), now, null, null, null ) );
         return new com.wikantik.work.WorkService( store, new WikiWorkRenderer( renderWith ),
             new WikiWorkDirectory( engine ), java.time.Clock.systemUTC() );
     }

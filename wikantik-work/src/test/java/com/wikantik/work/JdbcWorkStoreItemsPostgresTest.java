@@ -67,7 +67,7 @@ class JdbcWorkStoreItemsPostgresTest {
     }
 
     private Item create( final String title ) throws SQLException {
-        return store.createItem( plat, draft( title ), "alice", Actor.Kind.HUMAN );
+        return store.createItem( plat, draft( title ), Actor.human( "alice", java.util.Set.of(), false ) );
     }
 
     private static Item withStatus( final Item i, final WorkStatus s ) {
@@ -105,7 +105,7 @@ class JdbcWorkStoreItemsPostgresTest {
         assertEquals( "PLAT-1", create( "a" ).key() );
         assertEquals( "PLAT-2", create( "b" ).key() );
         final Project other = store.createProject( "OPS", "Ops", "" );
-        assertEquals( "OPS-1", store.createItem( other, draft( "c" ), "alice", Actor.Kind.HUMAN ).key() );
+        assertEquals( "OPS-1", store.createItem( other, draft( "c" ), Actor.human( "alice", java.util.Set.of(), false ) ).key() );
     }
 
     @Test
@@ -118,8 +118,7 @@ class JdbcWorkStoreItemsPostgresTest {
                 final Callable< List< String > > job = () -> {
                     final List< String > keys = new ArrayList<>();
                     for ( int n = 0; n < 5; n++ ) {
-                        keys.add( store.createItem( plat, draft( "t" + thread + "-" + n ), "alice",
-                            Actor.Kind.HUMAN ).key() );
+                        keys.add( store.createItem( plat, draft( "t" + thread + "-" + n ), Actor.human( "alice", java.util.Set.of(), false ) ).key() );
                     }
                     return keys;
                 };
@@ -170,16 +169,16 @@ class JdbcWorkStoreItemsPostgresTest {
     @Test
     void staleVersionThrowsConflict() throws SQLException {
         final Item i = create( "first" );
-        store.updateItem( i, withPriority( i, 1 ), "alice", Actor.Kind.HUMAN, null );
+        store.updateItem( i, withPriority( i, 1 ), Actor.human( "alice", java.util.Set.of(), false ), null );
         assertThrows( WorkConflictException.class,
-            () -> store.updateItem( i, withPriority( i, 2 ), "bob", Actor.Kind.HUMAN, null ) );
+            () -> store.updateItem( i, withPriority( i, 2 ), Actor.human( "bob", java.util.Set.of(), false ), null ) );
         assertEquals( 1, store.item( "PLAT-1" ).orElseThrow().priority() );
     }
 
     @Test
     void titleChangeWritesRevisionAndEditedEvent() throws SQLException {
         final Item i = create( "first" );
-        final Item u = store.updateItem( i, withTitle( i, "renamed" ), "bob", Actor.Kind.HUMAN, null );
+        final Item u = store.updateItem( i, withTitle( i, "renamed" ), Actor.human( "bob", java.util.Set.of(), false ), null );
         assertEquals( 2, u.version() );
         assertEquals( "renamed", u.title() );
         final List< ItemRevision > revisions = store.revisions( i.id() );
@@ -196,7 +195,7 @@ class JdbcWorkStoreItemsPostgresTest {
     @Test
     void priorityChangeWritesFieldEventOnly() throws SQLException {
         final Item i = create( "first" );
-        final Item u = store.updateItem( i, withPriority( i, 1 ), "bob", Actor.Kind.HUMAN, null );
+        final Item u = store.updateItem( i, withPriority( i, 1 ), Actor.human( "bob", java.util.Set.of(), false ), null );
         assertEquals( 1, u.priority() );
         assertEquals( 1, store.revisions( i.id() ).size() );
         final List< WorkEvent > events = store.itemEvents( i.id() );
@@ -212,7 +211,7 @@ class JdbcWorkStoreItemsPostgresTest {
     void statusAndAssigneeWriteSeparateEventsWithoutNote() throws SQLException {
         final Item i = create( "first" );
         final Item next = withAssignee( withStatus( i, WorkStatus.READY ), "carol" );
-        store.updateItem( i, next, "bob", Actor.Kind.HUMAN, null );
+        store.updateItem( i, next, Actor.human( "bob", java.util.Set.of(), false ), null );
         final List< WorkEvent > events = store.itemEvents( i.id() );
         assertEquals( List.of( WorkEvent.CREATED, WorkEvent.STATUS, WorkEvent.ASSIGNED ),
             events.stream().map( WorkEvent::type ).toList() );
@@ -226,7 +225,7 @@ class JdbcWorkStoreItemsPostgresTest {
     void statusPlusAssigneeWithNoteIsOneHandoffEvent() throws SQLException {
         final Item i = create( "first" );
         final Item next = withAssignee( withStatus( i, WorkStatus.REVIEW ), "carol" );
-        store.updateItem( i, next, "bob", Actor.Kind.HUMAN, "over to you" );
+        store.updateItem( i, next, Actor.human( "bob", java.util.Set.of(), false ), "over to you" );
         final List< WorkEvent > events = store.itemEvents( i.id() );
         assertEquals( List.of( WorkEvent.CREATED, WorkEvent.HANDOFF ), events.stream().map( WorkEvent::type ).toList() );
         assertEquals( "over to you", events.get( 1 ).note() );
@@ -237,13 +236,11 @@ class JdbcWorkStoreItemsPostgresTest {
     @Test
     void closingSetsClosedAtAndReopeningClearsIt() throws SQLException {
         final Item i = create( "first" );
-        final Item closed = store.updateItem( i, withStatus( i, WorkStatus.DONE ), "bob", Actor.Kind.HUMAN, null );
+        final Item closed = store.updateItem( i, withStatus( i, WorkStatus.DONE ), Actor.human( "bob", java.util.Set.of(), false ), null );
         assertNotNull( closed.closedAt() );
-        final Item stillClosed = store.updateItem( closed, withStatus( closed, WorkStatus.CANCELLED ), "bob",
-            Actor.Kind.HUMAN, null );
+        final Item stillClosed = store.updateItem( closed, withStatus( closed, WorkStatus.CANCELLED ), Actor.human( "bob", java.util.Set.of(), false ), null );
         assertEquals( closed.closedAt(), stillClosed.closedAt() );
-        final Item reopened = store.updateItem( stillClosed, withStatus( stillClosed, WorkStatus.IN_PROGRESS ), "bob",
-            Actor.Kind.HUMAN, null );
+        final Item reopened = store.updateItem( stillClosed, withStatus( stillClosed, WorkStatus.IN_PROGRESS ), Actor.human( "bob", java.util.Set.of(), false ), null );
         assertNull( reopened.closedAt() );
     }
 
@@ -265,7 +262,7 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item a = create( "a" );
         final Item b = create( "b" );
         final Item c = create( "c" );
-        final Item mine = store.updateItem( c, withAssignee( c, "dave" ), "alice", Actor.Kind.HUMAN, null );
+        final Item mine = store.updateItem( c, withAssignee( c, "dave" ), Actor.human( "alice", java.util.Set.of(), false ), null );
         final List< BoardColumn > all = store.board( plat.id(),
             new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null ) );
         assertEquals( List.of( a.id(), b.id(), c.id() ), all.get( 0 ).items().stream().map( Item::id ).toList() );
@@ -279,7 +276,7 @@ class JdbcWorkStoreItemsPostgresTest {
     void doneColumnCappedAtFiftyWithTrueTotal() throws SQLException {
         for ( int n = 0; n < 60; n++ ) {
             final Item i = create( "t" + n );
-            store.updateItem( i, withStatus( i, WorkStatus.DONE ), "alice", Actor.Kind.HUMAN, null );
+            store.updateItem( i, withStatus( i, WorkStatus.DONE ), Actor.human( "alice", java.util.Set.of(), false ), null );
         }
         final BoardColumn done = store.board( plat.id(),
             new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null ) ).get( 5 );
@@ -293,10 +290,10 @@ class JdbcWorkStoreItemsPostgresTest {
     void textFilterMatchesTitleAndBody() throws SQLException {
         store.createItem( plat, new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.DOCS, "Fix Login",
             "plain", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null ),
-            "alice", Actor.Kind.HUMAN );
+            Actor.human( "alice", java.util.Set.of(), false ) );
         store.createItem( plat, new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.DOCS, "Other",
             "mentions LOGIN flow", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null ),
-            "alice", Actor.Kind.HUMAN );
+            Actor.human( "alice", java.util.Set.of(), false ) );
         create( "unrelated" );
         assertEquals( 2, store.items( new ItemFilter( plat.id(), null, null, null, null, null, "login", null, 0, null, null ) ).size() );
     }
@@ -315,11 +312,11 @@ class JdbcWorkStoreItemsPostgresTest {
 
     @Test
     void filtersByStatusLevelAndDue() throws SQLException {
-        final Item epic = store.createItem( plat, draft( WorkLevel.EPIC, "e" ), "alice", Actor.Kind.HUMAN );
+        final Item epic = store.createItem( plat, draft( WorkLevel.EPIC, "e" ), Actor.human( "alice", java.util.Set.of(), false ) );
         final Item t = create( "t" );
         final Item due = store.updateItem( t, new Item( t.id(), t.projectId(), t.key(), t.level(), null, null,
             t.kind(), t.title(), t.body(), WorkStatus.READY, 3, t.rank(), LocalDate.of( 2026, 12, 1 ), null,
-            t.reporter(), null, null, null, t.version(), null, null, null, null, null, null, null, null ), "alice", Actor.Kind.HUMAN, null );
+            t.reporter(), null, null, null, t.version(), null, null, null, null, null, null, null, null ), Actor.human( "alice", java.util.Set.of(), false ), null );
         assertEquals( List.of( epic.id() ), store.items( new ItemFilter( plat.id(), null, null, null, WorkLevel.EPIC,
             null, null, null, 0, null, null ) ).stream().map( Item::id ).toList() );
         assertEquals( List.of( due.id() ), store.items( new ItemFilter( plat.id(), Set.of( WorkStatus.READY ), null,
@@ -337,12 +334,12 @@ class JdbcWorkStoreItemsPostgresTest {
             DeployGate.HUMAN, null ) );
         final Product p2 = store.createProduct( new Product( 0, "api", "API", null, "main", null, Autonomy.AUTONOMOUS,
             DeployGate.HUMAN, null ) );
-        final Item epic = store.createItem( plat, draft( WorkLevel.EPIC, "e" ), "alice", Actor.Kind.HUMAN );
+        final Item epic = store.createItem( plat, draft( WorkLevel.EPIC, "e" ), Actor.human( "alice", java.util.Set.of(), false ) );
         final Item story = store.createItem( plat, withParentAndProduct( draft( WorkLevel.STORY, "s" ), epic.id(),
-            p1.id() ), "alice", Actor.Kind.HUMAN );
-        store.createItem( plat, withParentAndProduct( draft( "t1" ), story.id(), p2.id() ), "alice", Actor.Kind.HUMAN );
-        store.createItem( plat, withParentAndProduct( draft( "t2" ), story.id(), p2.id() ), "alice", Actor.Kind.HUMAN );
-        store.createItem( plat, withParentAndProduct( draft( "t3" ), story.id(), null ), "alice", Actor.Kind.HUMAN );
+            p1.id() ), Actor.human( "alice", java.util.Set.of(), false ) );
+        store.createItem( plat, withParentAndProduct( draft( "t1" ), story.id(), p2.id() ), Actor.human( "alice", java.util.Set.of(), false ) );
+        store.createItem( plat, withParentAndProduct( draft( "t2" ), story.id(), p2.id() ), Actor.human( "alice", java.util.Set.of(), false ) );
+        store.createItem( plat, withParentAndProduct( draft( "t3" ), story.id(), null ), Actor.human( "alice", java.util.Set.of(), false ) );
         assertEquals( Set.of( p1.id(), p2.id() ), store.productIdsUnder( epic.id() ) );
         assertTrue( store.productIdsUnder( story.id() ).contains( p2.id() ) );
         assertTrue( store.productIdsUnder( 987654L ).isEmpty() );
@@ -404,13 +401,13 @@ class JdbcWorkStoreItemsPostgresTest {
     void projectEventsPageNewestFirstAndCarryItemKey() throws SQLException {
         create( "a" );
         final Item b = create( "b" );
-        store.updateItem( b, withPriority( b, 1 ), "alice", Actor.Kind.HUMAN, null );
-        final List< WorkEvent > page = store.projectEvents( plat.id(), null, 2 );
+        store.updateItem( b, withPriority( b, 1 ), Actor.human( "alice", java.util.Set.of(), false ), null );
+        final List< WorkEvent > page = store.projectEvents( plat.id(), null, null, null, 2 );
         assertEquals( 2, page.size() );
         assertEquals( WorkEvent.FIELD, page.get( 0 ).type() );
         assertEquals( "PLAT-2", page.get( 0 ).itemKey() );
-        assertEquals( 3, store.projectEvents( plat.id(), java.time.Instant.now().plusSeconds( 60 ), 10 ).size() );
-        assertEquals( 0, store.projectEvents( plat.id(), java.time.Instant.EPOCH, 10 ).size() );
+        assertEquals( 3, store.projectEvents( plat.id(), java.time.Instant.now().plusSeconds( 60 ), null, null, 10 ).size() );
+        assertEquals( 0, store.projectEvents( plat.id(), java.time.Instant.EPOCH, null, null, 10 ).size() );
     }
 
     @Test
@@ -425,9 +422,9 @@ class JdbcWorkStoreItemsPostgresTest {
 
     @Test
     void dueOrderPutsTheNearestDatesFirstAndNoDateLast() throws SQLException {
-        final Item none = store.createItem( plat, draft( "no date" ), "alice", Actor.Kind.HUMAN );
-        final Item late = store.createItem( plat, draft( "late" ), "alice", Actor.Kind.HUMAN );
-        final Item soon = store.createItem( plat, draft( "soon" ), "alice", Actor.Kind.HUMAN );
+        final Item none = store.createItem( plat, draft( "no date" ), Actor.human( "alice", java.util.Set.of(), false ) );
+        final Item late = store.createItem( plat, draft( "late" ), Actor.human( "alice", java.util.Set.of(), false ) );
+        final Item soon = store.createItem( plat, draft( "soon" ), Actor.human( "alice", java.util.Set.of(), false ) );
         due( late, LocalDate.of( 2027, 3, 1 ) );
         due( soon, LocalDate.of( 2026, 12, 1 ) );
         final List< String > keys = store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null,

@@ -32,54 +32,60 @@ final class WorkEventDiff {
     private WorkEventDiff() {
     }
 
+    /** The assignment as event text: a login as is, a queue as {@code queue:<key>}, none as null. */
+    static String assignmentText( final Item item ) {
+        return item.queue() != null ? "queue:" + item.queue() : item.assignee();
+    }
+
     /**
-     * The events for the differences between two states of one item. A status and an assignee change together,
-     * with a non-blank note, collapse into one {@code handoff} event whose values are {@code status|assignee}.
-     * A {@code field} event names the field in its note.
+     * The events for the differences between two states of one item. A status and an assignment change
+     * together ({@code (assignee, queue)} is one assignment), with a non-blank note, collapse into one
+     * {@code handoff} event whose values are {@code status|target}; {@code asHandoff} forces that one event
+     * whatever changed. A {@code field} event names the field in its note.
      */
-    static List< WorkEvent > changeEvents( final Item cur, final Item nxt, final String actor,
-                                                   final Actor.Kind kind, final String note ) {
+    static List< WorkEvent > changeEvents( final Item cur, final Item nxt, final Actor by, final String note,
+                                           final boolean asHandoff ) {
         final List< WorkEvent > out = new ArrayList<>();
         final String blankSafeNote = note == null || note.isBlank() ? null : note;
         if ( !Objects.equals( cur.title(), nxt.title() ) || !Objects.equals( cur.body(), nxt.body() ) ) {
-            out.add( event( cur, actor, kind, WorkEvent.EDITED, null, null, null ) );
+            out.add( event( cur, by, WorkEvent.EDITED, null, null, null ) );
         }
+        final String from = assignmentText( cur );
+        final String to = assignmentText( nxt );
         final boolean statusChanged = cur.status() != nxt.status();
-        final boolean assigneeChanged = !Objects.equals( cur.assignee(), nxt.assignee() );
-        if ( statusChanged && assigneeChanged && blankSafeNote != null ) {
-            out.add( event( cur, actor, kind, WorkEvent.HANDOFF,
-                cur.status().wire() + "|" + Objects.toString( cur.assignee(), "" ),
-                nxt.status().wire() + "|" + Objects.toString( nxt.assignee(), "" ), blankSafeNote ) );
+        final boolean assigneeChanged = !Objects.equals( from, to );
+        if ( asHandoff || statusChanged && assigneeChanged && blankSafeNote != null ) {
+            out.add( event( cur, by, WorkEvent.HANDOFF, cur.status().wire() + "|" + Objects.toString( from, "" ),
+                nxt.status().wire() + "|" + Objects.toString( to, "" ), blankSafeNote ) );
         } else {
             if ( statusChanged ) {
-                out.add( event( cur, actor, kind, WorkEvent.STATUS, cur.status().wire(), nxt.status().wire(),
-                    blankSafeNote ) );
+                out.add( event( cur, by, WorkEvent.STATUS, cur.status().wire(), nxt.status().wire(), blankSafeNote ) );
             }
             if ( assigneeChanged ) {
-                out.add( event( cur, actor, kind, WorkEvent.ASSIGNED, cur.assignee(), nxt.assignee(), blankSafeNote ) );
+                out.add( event( cur, by, WorkEvent.ASSIGNED, from, to, blankSafeNote ) );
             }
         }
-        fieldEvent( out, cur, actor, kind, "priority", String.valueOf( cur.priority() ), String.valueOf( nxt.priority() ) );
-        fieldEvent( out, cur, actor, kind, "due_on", text( cur.dueOn() ), text( nxt.dueOn() ) );
-        fieldEvent( out, cur, actor, kind, "parent_id", text( cur.parentId() ), text( nxt.parentId() ) );
-        fieldEvent( out, cur, actor, kind, "product_id", text( cur.productId() ), text( nxt.productId() ) );
-        fieldEvent( out, cur, actor, kind, "kind", cur.kind().wire(), nxt.kind().wire() );
-        fieldEvent( out, cur, actor, kind, "autonomy", autonomyWire( cur.autonomy() ), autonomyWire( nxt.autonomy() ) );
-        fieldEvent( out, cur, actor, kind, "done_means", doneMeansWire( cur.doneMeans() ),
-            doneMeansWire( nxt.doneMeans() ) );
-        fieldEvent( out, cur, actor, kind, "allow_direct", text( cur.allowDirect() ), text( nxt.allowDirect() ) );
+        fieldEvent( out, cur, by, "priority", String.valueOf( cur.priority() ), String.valueOf( nxt.priority() ) );
+        fieldEvent( out, cur, by, "due_on", text( cur.dueOn() ), text( nxt.dueOn() ) );
+        fieldEvent( out, cur, by, "parent_id", text( cur.parentId() ), text( nxt.parentId() ) );
+        fieldEvent( out, cur, by, "product_id", text( cur.productId() ), text( nxt.productId() ) );
+        fieldEvent( out, cur, by, "kind", cur.kind().wire(), nxt.kind().wire() );
+        fieldEvent( out, cur, by, "autonomy", autonomyWire( cur.autonomy() ), autonomyWire( nxt.autonomy() ) );
+        fieldEvent( out, cur, by, "done_means", doneMeansWire( cur.doneMeans() ), doneMeansWire( nxt.doneMeans() ) );
+        fieldEvent( out, cur, by, "allow_direct", text( cur.allowDirect() ), text( nxt.allowDirect() ) );
         return out;
     }
 
-        private static void fieldEvent( final List< WorkEvent > out, final Item cur, final String actor,
-                                    final Actor.Kind kind, final String field, final String from, final String to ) {
+    private static void fieldEvent( final List< WorkEvent > out, final Item cur, final Actor by, final String field,
+                                    final String from, final String to ) {
         if ( !Objects.equals( from, to ) ) {
-            out.add( event( cur, actor, kind, WorkEvent.FIELD, from, to, field ) );
+            out.add( event( cur, by, WorkEvent.FIELD, from, to, field ) );
         }
     }
 
-    private static WorkEvent event( final Item item, final String actor, final Actor.Kind kind, final String type,
-                                    final String from, final String to, final String note ) {
-        return new WorkEvent( 0, item.projectId(), item.id(), item.key(), null, actor, kind, null, type, from, to, note );
+    private static WorkEvent event( final Item item, final Actor by, final String type, final String from,
+                                    final String to, final String note ) {
+        return new WorkEvent( 0, item.projectId(), item.id(), item.key(), null, by.login(), by.kind(), by.agentId(),
+            type, from, to, note );
     }
 }

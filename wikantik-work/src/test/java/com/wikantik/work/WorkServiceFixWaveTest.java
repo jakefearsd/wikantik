@@ -86,7 +86,7 @@ class WorkServiceFixWaveTest {
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
         when( store.item( "PLAT-3" ) ).thenReturn( Optional.of( task ) );
         when( store.itemById( 12 ) ).thenReturn( Optional.of( task ) );
-        when( store.updateItem( any(), any(), anyString(), any(), any() ) ).thenAnswer( inv -> inv.getArgument( 1 ) );
+        when( store.updateItem( any(), any(), any( Actor.class ), any() ) ).thenAnswer( inv -> inv.getArgument( 1 ) );
         role( "u-c01d", WorkRole.LEAD );
         role( "u-7f3a", WorkRole.MEMBER );
     }
@@ -100,7 +100,7 @@ class WorkServiceFixWaveTest {
     @Test
     void aMemberIsAddedByDisplayNameAndStoredByLogin() throws SQLException {
         service.putMember( lead, "PLAT", "Ana Lima", "user", WorkRole.MEMBER );
-        verify( store ).putMember( 1, "u-7f3a", "user", WorkRole.MEMBER, "u-c01d", Actor.Kind.HUMAN );
+        verify( store ).putMember( 1, "u-7f3a", "user", WorkRole.MEMBER, lead );
     }
 
     @Test
@@ -111,21 +111,21 @@ class WorkServiceFixWaveTest {
             WorkRole.MEMBER ) );
         assertEquals( "principal", real.field() );
         assertEquals( real.getMessage(), unreal.getMessage() );
-        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), anyString(), any() );
+        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), any( Actor.class ) );
     }
 
     @Test
     void anAdminMayAlsoSendALogin() throws SQLException {
         service.putMember( admin, "PLAT", "u-7f3a", "user", WorkRole.VIEWER );
-        verify( store ).putMember( 1, "u-7f3a", "user", WorkRole.VIEWER, "root", Actor.Kind.HUMAN );
+        verify( store ).putMember( 1, "u-7f3a", "user", WorkRole.VIEWER, admin );
         service.removeMember( admin, "PLAT", "Bo", "user" );
-        verify( store ).removeMember( 1, "u-c01d", "user", "root", Actor.Kind.HUMAN );
+        verify( store ).removeMember( 1, "u-c01d", "user", admin );
     }
 
     @Test
     void groupsAreNamedAsTheyAre() throws SQLException {
         service.putMember( lead, "PLAT", "editors", "group", WorkRole.VIEWER );
-        verify( store ).putMember( 1, "editors", "group", WorkRole.VIEWER, "u-c01d", Actor.Kind.HUMAN );
+        verify( store ).putMember( 1, "editors", "group", WorkRole.VIEWER, lead );
     }
 
     @Test
@@ -139,7 +139,7 @@ class WorkServiceFixWaveTest {
     void theAssigneeIsADisplayNameAndALoginFromAMemberIsNotAMember() throws SQLException {
         service.updateItem( lead, "PLAT-3", new ItemPatch( 4, Map.of( "assignee", "Ana Lima" ), null ) );
         final ArgumentCaptor< Item > next = ArgumentCaptor.forClass( Item.class );
-        verify( store ).updateItem( any(), next.capture(), anyString(), any(), isNull() );
+        verify( store ).updateItem( any(), next.capture(), any( Actor.class ), isNull() );
         assertEquals( "u-7f3a", next.getValue().assignee() );
 
         final WorkValidationException login = invalid( () -> service.updateItem( lead, "PLAT-3",
@@ -216,24 +216,24 @@ class WorkServiceFixWaveTest {
     @Test
     void settingsAndArchiveCarryTheActor() throws SQLException {
         service.updateProject( lead, "PLAT", "New", "d", null );
-        verify( store ).updateProject( 1, "New", "d", Autonomy.SUPERVISED, "u-c01d", Actor.Kind.HUMAN );
+        verify( store ).updateProject( 1, "New", "d", Autonomy.SUPERVISED, lead );
         service.archiveProject( admin, "PLAT" );
-        verify( store ).archiveProject( 1, NOW, "root", Actor.Kind.HUMAN );
+        verify( store ).archiveProject( 1, NOW, admin );
     }
 
     // ---- I3 and M2
 
     @Test
     void commentsAreRenderedWithMentionsAsDisplayNames() throws SQLException {
-        when( store.addComment( any(), anyString(), any(), anyString(), anyList() ) ).thenAnswer( inv ->
-            new Comment( 1, 12, "u-7f3a", inv.getArgument( 3 ), NOW, null, null, null ) );
+        when( store.addComment( any(), any( Actor.class ), anyString(), anyList() ) ).thenAnswer( inv ->
+            new Comment( 1, 12, "u-7f3a", inv.getArgument( 2 ), NOW, null, null, null ) );
         final CommentView v = service.addComment( ana, "PLAT-3", "**done**, @Bo" );
         assertEquals( "**done**, @[Bo](user:id-bo)", v.body() );
         assertEquals( "**done**, @Bo", rendered.get( rendered.size() - 1 ) );
         assertEquals( "<p>**done**, @Bo</p>", v.bodyHtml() );
         assertEquals( List.of( "Bo" ), v.mentions() );
         final ArgumentCaptor< List< String > > mentioned = ArgumentCaptor.forClass( List.class );
-        verify( store ).addComment( any(), eq( "u-7f3a" ), any(), anyString(), mentioned.capture() );
+        verify( store ).addComment( any(), any( Actor.class ), anyString(), mentioned.capture() );
         assertEquals( List.of( "u-c01d" ), mentioned.getValue() );
     }
 
@@ -252,11 +252,11 @@ class WorkServiceFixWaveTest {
     void editingACommentRecomputesItsMentions() throws SQLException {
         when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "u-7f3a", "hi @Bo", NOW, null,
             null, null ) ) );
-        when( store.editComment( eq( 5L ), anyString(), anyString(), any(), anyList() ) ).thenAnswer( inv ->
+        when( store.editComment( eq( 5L ), anyString(), any( Actor.class ), anyList() ) ).thenAnswer( inv ->
             new Comment( 5, 12, "u-7f3a", inv.getArgument( 1 ), NOW, NOW, null, null ) );
         service.editComment( ana, 5, "now @[Ana](user:id-ana) only" );
-        verify( store ).editComment( eq( 5L ), eq( "now @[Ana](user:id-ana) only" ), eq( "u-7f3a" ),
-            eq( Actor.Kind.HUMAN ), eq( List.of( "u-7f3a" ) ) );
+        verify( store ).editComment( eq( 5L ), eq( "now @[Ana](user:id-ana) only" ), eq( ana ),
+            eq( List.of( "u-7f3a" ) ) );
     }
 
     // ---- I4 and M11

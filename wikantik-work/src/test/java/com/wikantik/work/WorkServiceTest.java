@@ -106,9 +106,9 @@ class WorkServiceTest {
         when( store.item( "OPS-1" ) ).thenReturn( Optional.of( opsTask ) );
         when( store.itemById( 20 ) ).thenReturn( Optional.of( opsTask ) );
         when( store.itemById( 12 ) ).thenReturn( Optional.of( task ) );
-        when( store.updateItem( any(), any(), anyString(), any(), any() ) )
+        when( store.updateItem( any(), any(), any( Actor.class ), any() ) )
             .thenAnswer( inv -> inv.getArgument( 1 ) );
-        when( store.createItem( any(), any(), anyString(), any() ) ).thenAnswer( inv -> {
+        when( store.createItem( any(), any(), any( Actor.class ) ) ).thenAnswer( inv -> {
             final Item d = inv.getArgument( 1 );
             return new Item( 99, 1, "PLAT-9", d.level(), d.parentId(), d.productId(), d.kind(), d.title(), d.body(),
                 d.status(), d.priority(), 1024, d.dueOn(), d.assignee(), "alice", null, null, null, 1, NOW, NOW,
@@ -192,15 +192,15 @@ class WorkServiceTest {
         when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 20, "zoe", "secret", NOW, null, null, null ) ) );
         assertThrows( WorkNotFoundException.class, () -> service.editComment( outsider, 5, "x" ) );
         assertThrows( WorkNotFoundException.class, () -> service.removeComment( outsider, 5 ) );
-        verify( store, never() ).editComment( anyLong(), anyString(), anyString(), any(), anyList() );
-        verify( store, never() ).removeComment( anyLong(), anyString(), any() );
+        verify( store, never() ).editComment( anyLong(), anyString(), any( Actor.class ), anyList() );
+        verify( store, never() ).removeComment( anyLong(), any( Actor.class ) );
     }
 
     @Test
     void linkIdFromInvisibleProjectIsNotFound() throws SQLException {
         when( store.link( 7 ) ).thenReturn( Optional.of( new Link( 7, 20, "url", "https://x.example" ) ) );
         assertThrows( WorkNotFoundException.class, () -> service.removeLink( outsider, 7 ) );
-        verify( store, never() ).removeLink( anyLong(), anyString(), any() );
+        verify( store, never() ).removeLink( anyLong(), any( Actor.class ) );
     }
 
     // ---- validation
@@ -315,7 +315,7 @@ class WorkServiceTest {
     @Test
     void leadMaySetPolicyFields() throws SQLException {
         service.updateItem( lead, "PLAT-3", new ItemPatch( 4, changes( "autonomy", "delegated" ), null ) );
-        verify( store ).updateItem( any(), any(), eq( "lena" ), any(), any() );
+        verify( store ).updateItem( any(), any(), any( Actor.class ), any() );
     }
 
     @Test
@@ -337,13 +337,13 @@ class WorkServiceTest {
     void expectedVersionIsPassedToTheStore() throws SQLException {
         service.updateItem( alice, "PLAT-3", new ItemPatch( 2, changes( "title", "x" ), null ) );
         final ArgumentCaptor< Item > current = ArgumentCaptor.forClass( Item.class );
-        verify( store ).updateItem( current.capture(), any(), anyString(), any(), any() );
+        verify( store ).updateItem( current.capture(), any(), any( Actor.class ), any() );
         assertEquals( 2, current.getValue().version() );
     }
 
     @Test
     void staleVersionSurfacesAsConflict() throws SQLException {
-        when( store.updateItem( any(), any(), anyString(), any(), any() ) )
+        when( store.updateItem( any(), any(), any( Actor.class ), any() ) )
             .thenThrow( new WorkConflictException( "stale" ) );
         assertThrows( WorkConflictException.class, () -> service.updateItem( alice, "PLAT-3",
             new ItemPatch( 1, changes( "title", "x" ), null ) ) );
@@ -351,19 +351,19 @@ class WorkServiceTest {
 
     @Test
     void mentionsParsedFromBodyAreLimitedToMembers() throws SQLException {
-        when( store.addComment( any(), anyString(), any(), anyString(), anyList() ) )
+        when( store.addComment( any(), any( Actor.class ), anyString(), anyList() ) )
             .thenReturn( new Comment( 1, 12, "alice", "x", NOW, null, null, null ) );
         role( 1, "carol", WorkRole.VIEWER );
         service.addComment( alice, "PLAT-3", "hi @bob, @outsider and @bob again, mail a@b.com; @carol." );
         final ArgumentCaptor< List< String > > mentioned = ArgumentCaptor.forClass( List.class );
-        verify( store ).addComment( any(), eq( "alice" ), any(), anyString(), mentioned.capture() );
+        verify( store ).addComment( any(), any( Actor.class ), anyString(), mentioned.capture() );
         assertEquals( List.of( "bob", "carol" ), mentioned.getValue() );
     }
 
     @Test
     void onlyAuthorEditsComment() throws SQLException {
         when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "alice", "x", NOW, null, null, null ) ) );
-        when( store.editComment( eq( 5L ), eq( "y" ), eq( "alice" ), any(), anyList() ) )
+        when( store.editComment( eq( 5L ), eq( "y" ), eq( alice ), anyList() ) )
             .thenReturn( new Comment( 5, 12, "alice", "y", NOW, NOW, null, null ) );
         assertThrows( WorkDeniedException.class, () -> service.editComment( bob, 5, "y" ) );
         assertThrows( WorkDeniedException.class, () -> service.editComment( lead, 5, "y" ) );
@@ -380,7 +380,7 @@ class WorkServiceTest {
         service.removeComment( alice, 5 );
         service.removeComment( lead, 5 );
         service.removeComment( admin, 5 );
-        verify( store, org.mockito.Mockito.times( 3 ) ).removeComment( eq( 5L ), anyString(), any() );
+        verify( store, org.mockito.Mockito.times( 3 ) ).removeComment( eq( 5L ), any( Actor.class ) );
     }
 
     @Test
@@ -409,7 +409,7 @@ class WorkServiceTest {
         when( store.createProject( "NEW", "New", "" ) )
             .thenReturn( new Project( 3, "NEW", "New", "", Autonomy.SUPERVISED, NOW, null ) );
         assertEquals( "NEW", service.createProject( admin, "NEW", "New", "" ).key() );
-        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), anyString(), any() );
+        verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), any( Actor.class ) );
     }
 
     @Test
@@ -423,7 +423,7 @@ class WorkServiceTest {
         assertThrows( WorkDeniedException.class,
             () -> service.putMember( alice, "PLAT", "bob", "user", WorkRole.LEAD ) );
         service.putMember( lead, "PLAT", "bob", "user", WorkRole.LEAD );
-        verify( store ).putMember( 1, "bob", "user", WorkRole.LEAD, "lena", Actor.Kind.HUMAN );
+        verify( store ).putMember( 1, "bob", "user", WorkRole.LEAD, Actor.human( "lena", java.util.Set.of(), false ) );
         assertThrows( WorkNotFoundException.class,
             () -> service.putMember( outsider, "PLAT", "bob", "user", WorkRole.LEAD ) );
     }
@@ -461,16 +461,16 @@ class WorkServiceTest {
             "OPS-999" ) );
         assertEquals( "target", hidden.field() );
         assertEquals( hidden.getMessage(), unknown.getMessage() );
-        verify( store, never() ).addLink( any(), anyString(), anyString(), anyString(), any() );
+        verify( store, never() ).addLink( any(), anyString(), anyString(), any( Actor.class ) );
     }
 
     @Test
     void blockedByMustBeSameProjectItemNotSelf() throws SQLException {
         assertEquals( "target", invalid( () -> service.addLink( alice, "PLAT-3", "blocked_by", "plat-3" ) ).field() );
         assertEquals( "target", invalid( () -> service.addLink( alice, "PLAT-3", "blocked_by", "nonsense" ) ).field() );
-        when( store.addLink( any(), anyString(), anyString(), anyString(), any() ) )
+        when( store.addLink( any(), anyString(), anyString(), any( Actor.class ) ) )
             .thenReturn( new Link( 1, 12, "blocked_by", "PLAT-2" ) );
         service.addLink( alice, "PLAT-3", "blocked_by", "plat-2" );
-        verify( store ).addLink( any(), eq( "blocked_by" ), eq( "PLAT-2" ), eq( "alice" ), eq( Actor.Kind.HUMAN ) );
+        verify( store ).addLink( any(), eq( "blocked_by" ), eq( "PLAT-2" ), eq( alice ) );
     }
 }

@@ -38,6 +38,7 @@ final class ItemQuery {
             f.statuses().stream().map( WorkStatus::wire ).sorted().forEach( params::add );
         }
         clause( where, params, " AND i.assignee = ?", f.assignee() );
+        clause( where, params, " AND i.assignee_queue = ?", f.queue() );
         clause( where, params, " AND i.product_id = ?", f.productId() );
         clause( where, params, " AND i.level = ?", f.level() == null ? null : f.level().wire() );
         clause( where, params, " AND i.parent_id = ?", f.parentId() );

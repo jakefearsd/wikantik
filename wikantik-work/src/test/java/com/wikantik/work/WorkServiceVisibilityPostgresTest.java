@@ -74,18 +74,17 @@ class WorkServiceVisibilityPostgresTest {
             "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
         final JdbcWorkStore store = new JdbcWorkStore( PostgresTestDb.createDataSource() );
         final Project plat = store.createProject( "PLAT", "Platform", "secret roadmap" );
-        store.putMember( plat.id(), "lena", "user", WorkRole.LEAD, "admin", Actor.Kind.HUMAN );
+        store.putMember( plat.id(), "lena", "user", WorkRole.LEAD, Actor.human( "admin", java.util.Set.of(), false ) );
         store.createProduct( new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED, DeployGate.HUMAN,
             null ) );
-        final Item item = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "secret item" ), "lena",
-            Actor.Kind.HUMAN );
+        final Item item = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "secret item" ), Actor.human( "lena", java.util.Set.of(), false ) );
         // lena is also the assignee so that waitingOn is non-empty for her
         final Item assigned = new Item( item.id(), item.projectId(), item.key(), item.level(), null, null,
             item.kind(), item.title(), item.body(), item.status(), item.priority(), item.rank(), null, "lena",
             item.reporter(), null, null, null, item.version(), item.createdAt(), item.updatedAt(), null, null, null, null, null, null );
-        store.updateItem( item, assigned, "lena", Actor.Kind.HUMAN, null );
-        commentId = store.addComment( item, "lena", Actor.Kind.HUMAN, "secret comment", List.of() ).id();
-        linkId = store.addLink( item, "url", "https://example.com/secret", "lena", Actor.Kind.HUMAN ).id();
+        store.updateItem( item, assigned, Actor.human( "lena", java.util.Set.of(), false ), null );
+        commentId = store.addComment( item, Actor.human( "lena", java.util.Set.of(), false ), "secret comment", List.of() ).id();
+        linkId = store.addLink( item, "url", "https://example.com/secret", Actor.human( "lena", java.util.Set.of(), false ) ).id();
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }

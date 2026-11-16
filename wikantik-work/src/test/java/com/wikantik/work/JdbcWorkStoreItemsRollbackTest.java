@@ -67,7 +67,7 @@ class JdbcWorkStoreItemsRollbackTest {
         faulty.failOn( 5, new RuntimeException( "boom: event insert" ) );
         final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
         assertThrows( RuntimeException.class, () -> faultyStore.createItem( plat,
-            JdbcWorkStoreItemsPostgresTest.draft( "x" ), "alice", Actor.Kind.HUMAN ) );
+            JdbcWorkStoreItemsPostgresTest.draft( "x" ), Actor.human( "alice", java.util.Set.of(), false ) ) );
         assertEquals( 1, faulty.rollbacks() );
         assertTrue( store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null, null ) ).isEmpty() );
         assertEquals( before, nextSeq() );
@@ -75,7 +75,7 @@ class JdbcWorkStoreItemsRollbackTest {
 
     @Test
     void updateRollsBackWhenRevisionInsertFails() throws SQLException {
-        final Item i = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "x" ), "alice", Actor.Kind.HUMAN );
+        final Item i = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "x" ), Actor.human( "alice", java.util.Set.of(), false ) );
         // statements: 1 update item, 2 insert revision
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
         faulty.failOn( 2, new RuntimeException( "boom: revision insert" ) );
@@ -83,7 +83,7 @@ class JdbcWorkStoreItemsRollbackTest {
         final Item next = new Item( i.id(), i.projectId(), i.key(), i.level(), null, null, i.kind(), "changed",
             i.body(), i.status(), i.priority(), i.rank(), null, null, i.reporter(), null, null, null, i.version(),
             null, null, null, null, null, null, null, null );
-        assertThrows( RuntimeException.class, () -> faultyStore.updateItem( i, next, "bob", Actor.Kind.HUMAN, null ) );
+        assertThrows( RuntimeException.class, () -> faultyStore.updateItem( i, next, Actor.human( "bob", java.util.Set.of(), false ), null ) );
         assertEquals( 1, faulty.rollbacks() );
         final Item after = store.item( "PLAT-1" ).orElseThrow();
         assertEquals( "x", after.title() );

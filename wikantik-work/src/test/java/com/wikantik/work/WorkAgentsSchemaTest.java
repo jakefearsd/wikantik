@@ -29,7 +29,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.TreeSet;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -50,27 +49,19 @@ class WorkAgentsSchemaTest {
     }
 
     private void exec( final String sql ) throws SQLException {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
-            s.execute( sql );
-        }
+        WorkAgentFixtures.exec( ds, sql );
     }
 
     private long scalar( final String sql ) throws SQLException {
-        try ( Connection c = ds.getConnection(); Statement s = c.createStatement();
-              ResultSet rs = s.executeQuery( sql ) ) {
-            rs.next();
-            return rs.getLong( 1 );
-        }
+        return WorkAgentFixtures.scalar( ds, sql );
     }
 
     private long apiKey( final String scope ) throws SQLException {
-        return scalar( "INSERT INTO api_keys (key_hash, principal_login, scope) VALUES ('"
-            + UUID.randomUUID().toString().replace( "-", "" ) + "', 'owner', '" + scope + "') RETURNING id" );
+        return WorkAgentFixtures.apiKey( ds, scope );
     }
 
     private long agent( final String name, final long keyId ) throws SQLException {
-        return scalar( "INSERT INTO work_agent (name, api_key_id) VALUES ('" + name + "'," + keyId
-            + ") RETURNING id" );
+        return WorkAgentFixtures.agent( ds, name, keyId );
     }
 
     private long item() throws SQLException {

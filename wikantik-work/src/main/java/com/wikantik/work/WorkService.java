@@ -145,14 +145,14 @@ public class WorkService {
         s.requireWritable();
         WorkInputs.requireName( name );
         store.updateProject( s.project().id(), name.trim(), description == null ? "" : description,
-            defaultAutonomy == null ? s.project().defaultAutonomy() : defaultAutonomy, actor.login(), actor.kind() );
+            defaultAutonomy == null ? s.project().defaultAutonomy() : defaultAutonomy, actor );
     }
 
     public void archiveProject( final Actor actor, final String key ) throws SQLException {
         final Scope s = scopes.scope( actor, key );
         s.require( Action.MANAGE_INSTANCE, null );
         s.requireWritable();
-        store.archiveProject( s.project().id(), clock.instant(), actor.login(), actor.kind() );
+        store.archiveProject( s.project().id(), clock.instant(), actor );
     }
 
     public List< Member > members( final Actor actor, final String key ) throws SQLException {
@@ -168,7 +168,7 @@ public class WorkService {
         s.requireWritable();
         WorkInputs.requireMember( principal, principalKind, role );
         store.putMember( s.project().id(), memberPrincipal( actor, principal, principalKind ), principalKind, role,
-            actor.login(), actor.kind() );
+            actor );
     }
 
     /**
@@ -190,7 +190,7 @@ public class WorkService {
         s.requireWritable();
         WorkInputs.requireMemberRef( principal, principalKind );
         store.removeMember( s.project().id(), memberPrincipal( actor, principal, principalKind ), principalKind,
-            actor.login(), actor.kind() );
+            actor );
     }
 
     public WorkRole roleIn( final Actor actor, final String key ) throws SQLException {
@@ -249,7 +249,7 @@ public class WorkService {
             ? draft : new ItemDraft( draft.projectKey(), draft.level(), draft.parentKey(), draft.productKey(),
                 draft.kind(), draft.title(), draft.body(), draft.priority(), draft.dueOn(),
                 assigneeLogin( actor, draft.assignee() ), draft.queue() ) );
-        return views.view( s, store.createItem( s.project(), next, actor.login(), actor.kind() ) );
+        return views.view( s, store.createItem( s.project(), next, actor ) );
     }
 
     public ItemView item( final Actor actor, final String key ) throws SQLException {
@@ -273,7 +273,7 @@ public class WorkService {
         s.requireWritable();
         final Item next = applier.apply( s.project(), is.item(), withAssigneeLogin( actor, changes ), patch.note() );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
-        return views.view( s, store.updateItem( stamped, next, actor.login(), actor.kind(), patch.note() ) );
+        return views.view( s, store.updateItem( stamped, next, actor, patch.note() ) );
     }
 
     /** The login an assignee reference names; one "not a member" answer when it names nobody. */
@@ -379,7 +379,7 @@ public class WorkService {
         WorkInputs.requireBody( body );
         final WorkPeople.Mentions m = people.mentions( actor, body );
         final long projectId = is.scope().project().id();
-        return views.comment( store.addComment( is.item(), actor.login(), actor.kind(), m.body(),
+        return views.comment( store.addComment( is.item(), actor, m.body(),
             WorkInputs.ofMembers( m.logins(), login -> scopes.isMember( projectId, login ) ) ) );
     }
 
@@ -393,7 +393,7 @@ public class WorkService {
         WorkInputs.requireBody( body );
         final WorkPeople.Mentions m = people.mentions( actor, body );
         final long projectId = is.scope().project().id();
-        return views.comment( store.editComment( commentId, m.body(), actor.login(), actor.kind(),
+        return views.comment( store.editComment( commentId, m.body(), actor,
             WorkInputs.ofMembers( m.logins(), login -> scopes.isMember( projectId, login ) ) ) );
     }
 
@@ -405,7 +405,7 @@ public class WorkService {
             scopes.requireAuthor( actor, c, "Only the author or a project lead may remove a comment." );
         }
         is.scope().requireWritable();
-        store.removeComment( commentId, actor.login(), actor.kind() );
+        store.removeComment( commentId, actor );
     }
 
     public Link addLink( final Actor actor, final String itemKey, final String kind, final String target )
@@ -415,7 +415,7 @@ public class WorkService {
         is.scope().requireWritable();
         final String stored = WorkInputs.linkTarget( kind, target );
         return store.addLink( is.item(), kind, "blocked_by".equals( kind ) ? sameProjectBlocker( is, stored ) : stored,
-            actor.login(), actor.kind() );
+            actor );
     }
 
     /**
@@ -436,7 +436,7 @@ public class WorkService {
         final ItemScope is = scopes.itemScopeById( actor, link.itemId() );
         is.scope().require( Action.LINK, is.item() );
         is.scope().requireWritable();
-        store.removeLink( linkId, actor.login(), actor.kind() );
+        store.removeLink( linkId, actor );
     }
 
     // ---- me

@@ -48,7 +48,7 @@ import static com.wikantik.work.SqlValues.setNullableLong;
 import static com.wikantik.work.SqlValues.timestamp;
 
 /** PostgreSQL implementation of {@link WorkStore}; all access goes through {@link Jdbc}. */
-public class JdbcWorkStore extends JdbcWorkCatalog {
+public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     static final String ITEM_SELECT = """
         SELECT i.id, i.project_id, p.key || '-' || i.seq AS item_key, i.level, i.parent_id, i.product_id, i.kind,
@@ -71,16 +71,21 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
         rs.getString( "assignee_queue" ), nullableLong( rs, "claimed_by_agent" ), instant( rs, "claimed_at" ),
         instant( rs, "claim_expires_at" ), nullableLong( rs, "reporter_agent_id" ) );
 
-    private static final String EVENT_SELECT = """
-        SELECT e.id, e.project_id, e.item_id,
+    static final String EVENT_COLUMNS = """
+        e.id, e.project_id, e.item_id,
                CASE WHEN i.id IS NULL THEN NULL ELSE p.key || '-' || i.seq END AS item_key,
                e.at, e.actor, e.actor_kind, e.agent_id, e.type, e.from_value, e.to_value, e.note
+        """;
+
+    static final String EVENT_FROM = """
           FROM work_event e
           JOIN work_project p ON p.id = e.project_id
           LEFT JOIN work_item i ON i.id = e.item_id
         """;
 
-    private static final RowMapper< WorkEvent > EVENT_ROW = rs -> new WorkEvent(
+    private static final String EVENT_SELECT = "SELECT " + EVENT_COLUMNS + EVENT_FROM;
+
+    static final RowMapper< WorkEvent > EVENT_ROW = rs -> new WorkEvent(
         rs.getLong( "id" ), rs.getLong( "project_id" ), nullableLong( rs, "item_id" ), rs.getString( "item_key" ),
         instant( rs, "at" ), rs.getString( "actor" ), "agent".equals( rs.getString( "actor_kind" ) )
             ? Actor.Kind.AGENT : Actor.Kind.HUMAN,
@@ -103,8 +108,8 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     // ---- items
 
     @Override
-    public Item createItem( final Project project, final Item draft, final String actor, final Actor.Kind kind )
-            throws SQLException {
+    public Item createItem( final Project project, final Item draft, final Actor by ) throws SQLException {
+        requireAttributed( by.kind(), by.agentId() );
         final WorkStatus status = draft.status() == null ? WorkStatus.DRAFT : draft.status();
         final String body = draft.body() == null ? "" : draft.body();
         return jdbc.inTransaction( conn -> {
@@ -118,8 +123,9 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
                 rs -> rs.getDouble( 1 ) ).orElse( 0.0 ) + RANK_STEP;
             final long id = jdbc.queryOne( conn, """
                 INSERT INTO work_item (project_id, seq, level, parent_id, product_id, kind, title, body, status,
-                    priority, rank, due_on, assignee, reporter, autonomy, done_means, allow_direct, closed_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, CASE WHEN ? THEN NOW() END)
+                    priority, rank, due_on, assignee, reporter, autonomy, done_means, allow_direct, closed_at,
+                    assignee_queue, reporter_agent_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, CASE WHEN ? THEN NOW() END, ?, ?)
                 RETURNING id
                 """,
                 ps -> {
@@ -136,15 +142,17 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
                     ps.setDouble( 11, rank );
                     setNullableDate( ps, 12, draft.dueOn() );
                     ps.setString( 13, draft.assignee() );
-                    ps.setString( 14, actor );
+                    ps.setString( 14, by.login() );
                     ps.setString( 15, autonomyWire( draft.autonomy() ) );
                     ps.setString( 16, doneMeansWire( draft.doneMeans() ) );
                     setNullableBoolean( ps, 17, draft.allowDirect() );
                     ps.setBoolean( 18, isClosed( status ) );
+                    ps.setString( 19, draft.queue() );
+                    setNullableLong( ps, 20, by.agentId() );
                 }, rs -> rs.getLong( 1 ) )
                 .orElseThrow( () -> new SQLException( "INSERT work_item returned no row" ) );
-            insertRevision( conn, id, 1, draft.title(), body, actor );
-            appendEvent( conn, new WorkEvent( 0, project.id(), id, null, null, actor, kind, null,
+            insertRevision( conn, id, 1, draft.title(), body, by );
+            appendEvent( conn, new WorkEvent( 0, project.id(), id, null, null, by.login(), by.kind(), by.agentId(),
                 WorkEvent.CREATED, null, null, null ) );
             return itemById( conn, id );
         } );
@@ -156,15 +164,16 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     }
 
     private void insertRevision( final Connection conn, final long itemId, final int version, final String title,
-                                 final String body, final String editedBy ) throws SQLException {
-        jdbc.update( conn, "INSERT INTO work_item_revision (item_id, version, title, body, edited_by) "
-                + "VALUES (?,?,?,?,?)",
+                                 final String body, final Actor by ) throws SQLException {
+        jdbc.update( conn, "INSERT INTO work_item_revision (item_id, version, title, body, edited_by, "
+                + "edited_by_agent_id) VALUES (?,?,?,?,?,?)",
             ps -> {
                 ps.setLong( 1, itemId );
                 ps.setInt( 2, version );
                 ps.setString( 3, title );
                 ps.setString( 4, body );
-                ps.setString( 5, editedBy );
+                ps.setString( 5, by.login() );
+                setNullableLong( ps, 6, by.agentId() );
             } );
     }
 
@@ -196,8 +205,27 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     }
 
     @Override
-    public Item updateItem( final Item current, final Item next, final String actor, final Actor.Kind kind,
-                            final String note ) throws SQLException {
+    public Item updateItem( final Item current, final Item next, final Actor by, final String note )
+            throws SQLException {
+        return writeItem( current, next, by, note, false );
+    }
+
+    @Override
+    public Item handoff( final Item current, final Item next, final Actor by, final String note )
+            throws SQLException {
+        return writeItem( current, next, by, note, true );
+    }
+
+    /** True when the change moves or reassigns the item, which ends any claim on it. */
+    private static boolean endsClaim( final Item current, final Item next ) {
+        return current.status() != next.status() || !Objects.equals( current.assignee(), next.assignee() )
+            || !Objects.equals( current.queue(), next.queue() );
+    }
+
+    private Item writeItem( final Item current, final Item next, final Actor by, final String note,
+                            final boolean asHandoff ) throws SQLException {
+        requireAttributed( by.kind(), by.agentId() );
+        final boolean clearClaim = endsClaim( current, next );
         final boolean textChanged = !Objects.equals( current.title(), next.title() )
             || !Objects.equals( current.body(), next.body() );
         final boolean closing = !isClosed( current.status() ) && isClosed( next.status() );
@@ -208,7 +236,11 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
             final int rows = jdbc.update( conn, """
                 UPDATE work_item SET parent_id = ?, product_id = ?, kind = ?, title = ?, body = ?, status = ?,
                     priority = ?, rank = ?, due_on = ?, assignee = ?, autonomy = ?, done_means = ?,
-                    allow_direct = ?, version = version + 1, updated_at = NOW(),
+                    allow_direct = ?, assignee_queue = ?,
+                    claimed_by_agent = CASE WHEN ? THEN NULL ELSE claimed_by_agent END,
+                    claimed_at = CASE WHEN ? THEN NULL ELSE claimed_at END,
+                    claim_expires_at = CASE WHEN ? THEN NULL ELSE claim_expires_at END,
+                    version = version + 1, updated_at = NOW(),
                     closed_at = CASE WHEN ? THEN NOW() WHEN ? THEN NULL ELSE closed_at END
                  WHERE id = ? AND version = ?
                 """,
@@ -226,19 +258,23 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
                     ps.setString( 11, autonomyWire( next.autonomy() ) );
                     ps.setString( 12, doneMeansWire( next.doneMeans() ) );
                     setNullableBoolean( ps, 13, next.allowDirect() );
-                    ps.setBoolean( 14, closing );
-                    ps.setBoolean( 15, reopening );
-                    ps.setLong( 16, current.id() );
-                    ps.setInt( 17, current.version() );
+                    ps.setString( 14, next.queue() );
+                    ps.setBoolean( 15, clearClaim );
+                    ps.setBoolean( 16, clearClaim );
+                    ps.setBoolean( 17, clearClaim );
+                    ps.setBoolean( 18, closing );
+                    ps.setBoolean( 19, reopening );
+                    ps.setLong( 20, current.id() );
+                    ps.setInt( 21, current.version() );
                 } );
             if ( rows == 0 ) {
                 throw new WorkConflictException( "Item " + current.key() + " changed since version "
                     + current.version() );
             }
             if ( textChanged ) {
-                insertRevision( conn, current.id(), version, next.title(), body, actor );
+                insertRevision( conn, current.id(), version, next.title(), body, by );
             }
-            for ( final WorkEvent e : WorkEventDiff.changeEvents( current, next, actor, kind, note ) ) {
+            for ( final WorkEvent e : WorkEventDiff.changeEvents( current, next, by, note, asHandoff ) ) {
                 appendEvent( conn, e );
             }
             return itemById( conn, current.id() );
@@ -318,6 +354,12 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     }
 
     @Override
+    public java.util.Map< Long, WorkEvent > lastHandoffs( final java.util.Collection< Long > itemIds )
+            throws SQLException {
+        return discussion.lastHandoffs( itemIds );
+    }
+
+    @Override
     public Set< Long > productIdsUnder( final long epicId ) throws SQLException {
         return new LinkedHashSet<>( jdbc.query( """
             WITH RECURSIVE descendants(id, product_id) AS (
@@ -331,20 +373,20 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     // ---- discussion (see JdbcWorkDiscussion)
 
     @Override
-    public Comment addComment( final Item item, final String author, final Actor.Kind kind, final String body,
+    public Comment addComment( final Item item, final Actor by, final String body,
                                final List< String > mentioned ) throws SQLException {
-        return discussion.addComment( item, author, kind, body, mentioned );
+        return discussion.addComment( item, by, body, mentioned );
     }
 
     @Override
-    public Comment editComment( final long commentId, final String body, final String actor, final Actor.Kind kind,
+    public Comment editComment( final long commentId, final String body, final Actor by,
                                 final List< String > mentioned ) throws SQLException {
-        return discussion.editComment( commentId, body, actor, kind, mentioned );
+        return discussion.editComment( commentId, body, by, mentioned );
     }
 
     @Override
-    public void removeComment( final long commentId, final String actor, final Actor.Kind kind ) throws SQLException {
-        discussion.removeComment( commentId, actor, kind );
+    public void removeComment( final long commentId, final Actor by ) throws SQLException {
+        discussion.removeComment( commentId, by );
     }
 
     @Override
@@ -358,14 +400,14 @@ public class JdbcWorkStore extends JdbcWorkCatalog {
     }
 
     @Override
-    public Link addLink( final Item item, final String kind, final String target, final String actor,
-                         final Actor.Kind actorKind ) throws SQLException {
-        return discussion.addLink( item, kind, target, actor, actorKind );
+    public Link addLink( final Item item, final String kind, final String target, final Actor by )
+            throws SQLException {
+        return discussion.addLink( item, kind, target, by );
     }
 
     @Override
-    public void removeLink( final long linkId, final String actor, final Actor.Kind actorKind ) throws SQLException {
-        discussion.removeLink( linkId, actor, actorKind );
+    public void removeLink( final long linkId, final Actor by ) throws SQLException {
+        discussion.removeLink( linkId, by );
     }
 
     @Override

@@ -68,7 +68,7 @@ class JdbcWorkStoreCatalogRollbackTest {
         // statements: 1 select role for update, 2 upsert, 3 insert event
         final FaultInjectingDataSource faulty = failingAt( 3 );
         assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty )
-            .putMember( plat.id(), "bob", "user", WorkRole.MEMBER, "lena", Actor.Kind.HUMAN ) );
+            .putMember( plat.id(), "bob", "user", WorkRole.MEMBER, Actor.human( "lena", java.util.Set.of(), false ) ) );
         assertEquals( 1, faulty.rollbacks() );
         assertTrue( store.members( plat.id() ).isEmpty() );
         assertEquals( 0, events() );
@@ -76,11 +76,11 @@ class JdbcWorkStoreCatalogRollbackTest {
 
     @Test
     void removeMemberRollsBackWhenTheEventFails() throws SQLException {
-        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, "lena", Actor.Kind.HUMAN );
+        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, Actor.human( "lena", java.util.Set.of(), false ) );
         // statements: 1 delete returning, 2 insert event
         final FaultInjectingDataSource faulty = failingAt( 2 );
         assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty )
-            .removeMember( plat.id(), "bob", "user", "lena", Actor.Kind.HUMAN ) );
+            .removeMember( plat.id(), "bob", "user", Actor.human( "lena", java.util.Set.of(), false ) ) );
         assertEquals( 1, faulty.rollbacks() );
         assertEquals( 1, store.members( plat.id() ).size(), "the grant survives" );
         assertEquals( 1, events() );
@@ -91,7 +91,7 @@ class JdbcWorkStoreCatalogRollbackTest {
         // statements: 1 select for update, 2 update, 3 insert the first event
         final FaultInjectingDataSource faulty = failingAt( 3 );
         assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty )
-            .updateProject( plat.id(), "Renamed", "", Autonomy.DELEGATED, "lena", Actor.Kind.HUMAN ) );
+            .updateProject( plat.id(), "Renamed", "", Autonomy.DELEGATED, Actor.human( "lena", java.util.Set.of(), false ) ) );
         assertEquals( 1, faulty.rollbacks() );
         assertEquals( "Platform", store.project( "PLAT" ).orElseThrow().name() );
         assertEquals( 0, events() );
@@ -102,7 +102,7 @@ class JdbcWorkStoreCatalogRollbackTest {
         // statements: 1 update, 2 insert event
         final FaultInjectingDataSource faulty = failingAt( 2 );
         assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty )
-            .archiveProject( plat.id(), Instant.now(), "root", Actor.Kind.HUMAN ) );
+            .archiveProject( plat.id(), Instant.now(), Actor.human( "root", java.util.Set.of(), false ) ) );
         assertEquals( 1, faulty.rollbacks() );
         assertNull( store.project( "PLAT" ).orElseThrow().archivedAt() );
         assertEquals( 0, events() );
@@ -110,15 +110,14 @@ class JdbcWorkStoreCatalogRollbackTest {
 
     @Test
     void editCommentRollsBackItsMentionsWhenTheEventFails() throws SQLException {
-        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, "lena", Actor.Kind.HUMAN );
-        store.putMember( plat.id(), "carol", "user", WorkRole.MEMBER, "lena", Actor.Kind.HUMAN );
-        final Item item = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "x" ), "lena",
-            Actor.Kind.HUMAN );
-        final Comment c = store.addComment( item, "lena", Actor.Kind.HUMAN, "hi bob", List.of( "bob" ) );
+        store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, Actor.human( "lena", java.util.Set.of(), false ) );
+        store.putMember( plat.id(), "carol", "user", WorkRole.MEMBER, Actor.human( "lena", java.util.Set.of(), false ) );
+        final Item item = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "x" ), Actor.human( "lena", java.util.Set.of(), false ) );
+        final Comment c = store.addComment( item, Actor.human( "lena", java.util.Set.of(), false ), "hi bob", List.of( "bob" ) );
         // statements: 1 update comment, 2 delete mentions, 3 insert mention, 4 project of item, 5 insert event
         final FaultInjectingDataSource faulty = failingAt( 5 );
         assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty )
-            .editComment( c.id(), "hi carol", "lena", Actor.Kind.HUMAN, List.of( "carol" ) ) );
+            .editComment( c.id(), "hi carol", Actor.human( "lena", java.util.Set.of(), false ), List.of( "carol" ) ) );
         assertEquals( 1, faulty.rollbacks() );
         assertEquals( "hi bob", store.comment( c.id() ).orElseThrow().body() );
         assertEquals( 1, store.mentioning( "bob", Set.of( plat.id() ) ).size() );

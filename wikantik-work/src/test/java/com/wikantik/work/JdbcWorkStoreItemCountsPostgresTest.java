@@ -51,10 +51,9 @@ class JdbcWorkStoreItemCountsPostgresTest {
 
     @Test
     void countsGroupByStatusLevelAndKind() throws SQLException {
-        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "one" ), "alice", Actor.Kind.HUMAN );
-        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "two" ), "alice", Actor.Kind.HUMAN );
-        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( WorkLevel.EPIC, "big" ), "alice",
-            Actor.Kind.HUMAN );
+        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "one" ), Actor.human( "alice", java.util.Set.of(), false ) );
+        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "two" ), Actor.human( "alice", java.util.Set.of(), false ) );
+        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( WorkLevel.EPIC, "big" ), Actor.human( "alice", java.util.Set.of(), false ) );
 
         final List< WorkStore.ItemCount > counts = store.itemCounts();
 

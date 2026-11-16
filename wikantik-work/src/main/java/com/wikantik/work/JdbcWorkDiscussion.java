@@ -19,6 +19,7 @@
 package com.wikantik.work;
 
 import static com.wikantik.work.SqlValues.nullableLong;
+import static com.wikantik.work.SqlValues.setNullableLong;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.RowMapper;
 
@@ -64,15 +65,21 @@ final class JdbcWorkDiscussion {
         this.store = store;
     }
 
-    Comment addComment( final Item item, final String author, final Actor.Kind kind, final String body,
-                        final List< String > mentioned ) throws SQLException {
+    Comment addComment( final Item item, final Actor by, final String body, final List< String > mentioned )
+            throws SQLException {
+        JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         return jdbc.inTransaction( conn -> {
-            final Comment c = jdbc.queryOne( conn, "INSERT INTO work_comment (item_id, author, body) VALUES (?,?,?) "
-                    + "RETURNING " + COMMENT_COLUMNS,
-                ps -> { ps.setLong( 1, item.id() ); ps.setString( 2, author ); ps.setString( 3, body ); },
+            final Comment c = jdbc.queryOne( conn, "INSERT INTO work_comment (item_id, author, body, "
+                    + "author_agent_id) VALUES (?,?,?,?) RETURNING " + COMMENT_COLUMNS,
+                ps -> {
+                    ps.setLong( 1, item.id() );
+                    ps.setString( 2, by.login() );
+                    ps.setString( 3, body );
+                    setNullableLong( ps, 4, by.agentId() );
+                },
                 COMMENT_ROW ).orElseThrow( () -> new SQLException( "INSERT work_comment returned no row" ) );
             insertMentions( conn, item.id(), c.id(), mentioned );
-            store.appendEvent( conn, event( item.projectId(), item.id(), author, kind, WorkEvent.COMMENTED,
+            store.appendEvent( conn, event( item.projectId(), item.id(), by, WorkEvent.COMMENTED,
                 null, String.valueOf( c.id() ) ) );
             return c;
         } );
@@ -89,7 +96,7 @@ final class JdbcWorkDiscussion {
         }
     }
 
-    Comment editComment( final long commentId, final String body, final String actor, final Actor.Kind kind,
+    Comment editComment( final long commentId, final String body, final Actor by,
                          final List< String > mentioned ) throws SQLException {
         return jdbc.inTransaction( conn -> {
             final Comment c = jdbc.queryOne( conn, "UPDATE work_comment SET body = ?, edited_at = NOW() "
@@ -99,19 +106,19 @@ final class JdbcWorkDiscussion {
             // The mentions follow the text: a name taken out of the comment stops waiting on it.
             jdbc.update( conn, "DELETE FROM work_mention WHERE comment_id = ?", ps -> ps.setLong( 1, commentId ) );
             insertMentions( conn, c.itemId(), commentId, mentioned );
-            store.appendEvent( conn, event( projectOf( conn, c.itemId() ), c.itemId(), actor, kind,
+            store.appendEvent( conn, event( projectOf( conn, c.itemId() ), c.itemId(), by,
                 WorkEvent.COMMENT_EDITED, null, String.valueOf( commentId ) ) );
             return c;
         } );
     }
 
-    void removeComment( final long commentId, final String actor, final Actor.Kind kind ) throws SQLException {
+    void removeComment( final long commentId, final Actor by ) throws SQLException {
         jdbc.inTransaction( conn -> {
             final long itemId = jdbc.queryOne( conn, "UPDATE work_comment SET removed_at = NOW() "
                     + "WHERE id = ? AND removed_at IS NULL RETURNING item_id",
                 ps -> ps.setLong( 1, commentId ), rs -> rs.getLong( 1 ) )
                 .orElseThrow( () -> new WorkNotFoundException( "comment " + commentId ) );
-            store.appendEvent( conn, event( projectOf( conn, itemId ), itemId, actor, kind,
+            store.appendEvent( conn, event( projectOf( conn, itemId ), itemId, by,
                 WorkEvent.COMMENT_REMOVED, null, String.valueOf( commentId ) ) );
             return null;
         } );
@@ -127,28 +134,28 @@ final class JdbcWorkDiscussion {
             + "ORDER BY created_at, id", ps -> ps.setLong( 1, itemId ), COMMENT_ROW );
     }
 
-    Link addLink( final Item item, final String kind, final String target, final String actor,
-                  final Actor.Kind actorKind ) throws SQLException {
+    Link addLink( final Item item, final String kind, final String target, final Actor by )
+            throws SQLException {
         return jdbc.inTransaction( conn -> {
             final Link l = jdbc.queryOne( conn, "INSERT INTO work_link (item_id, kind, target) VALUES (?,?,?) "
                     + "RETURNING id, item_id, kind, target",
                 ps -> { ps.setLong( 1, item.id() ); ps.setString( 2, kind ); ps.setString( 3, target ); }, LINK_ROW )
                 .orElseThrow( () -> new SQLException( "INSERT work_link returned no row" ) );
-            store.appendEvent( conn, event( item.projectId(), item.id(), actor, actorKind, WorkEvent.LINKED,
+            store.appendEvent( conn, event( item.projectId(), item.id(), by, WorkEvent.LINKED,
                 null, kind + ":" + target ) );
             return l;
         } );
     }
 
     /** One statement deletes and returns the row, so of two concurrent removals only one writes an event. */
-    void removeLink( final long linkId, final String actor, final Actor.Kind actorKind ) throws SQLException {
+    void removeLink( final long linkId, final Actor by ) throws SQLException {
         jdbc.inTransaction( conn -> {
             final Optional< Link > removed = jdbc.queryOne( conn,
                 "DELETE FROM work_link WHERE id = ? RETURNING id, item_id, kind, target",
                 ps -> ps.setLong( 1, linkId ), LINK_ROW );
             if ( removed.isPresent() ) {
                 final Link l = removed.get();
-                store.appendEvent( conn, event( projectOf( conn, l.itemId() ), l.itemId(), actor, actorKind,
+                store.appendEvent( conn, event( projectOf( conn, l.itemId() ), l.itemId(), by,
                     WorkEvent.UNLINKED, l.kind() + ":" + l.target(), null ) );
             }
             return null;
@@ -208,6 +215,24 @@ final class JdbcWorkDiscussion {
         return out;
     }
 
+    /** The newest {@code handoff} event of each item: {@code DISTINCT ON (item_id)} over {@code at DESC, id DESC}. */
+    Map< Long, WorkEvent > lastHandoffs( final java.util.Collection< Long > itemIds ) throws SQLException {
+        if ( itemIds == null || itemIds.isEmpty() ) {
+            return Map.of();
+        }
+        final Map< Long, WorkEvent > out = new HashMap<>();
+        jdbc.withConnection( conn -> jdbc.query( conn, "SELECT DISTINCT ON (e.item_id) "
+                + JdbcWorkStore.EVENT_COLUMNS + JdbcWorkStore.EVENT_FROM
+                + " WHERE e.type = 'handoff' AND e.item_id = ANY( ? ) ORDER BY e.item_id, e.at DESC, e.id DESC",
+            ps -> ps.setArray( 1, projectArray( conn, new java.util.HashSet<>( itemIds ) ) ),
+            rs -> {
+                final WorkEvent e = JdbcWorkStore.EVENT_ROW.map( rs );
+                out.put( e.itemId(), e );
+                return null;
+            } ) );
+        return out;
+    }
+
     List< Item > mentioning( final String login, final Set< Long > projectIds ) throws SQLException {
         if ( projectIds == null || projectIds.isEmpty() ) {
             return List.of();
@@ -240,8 +265,9 @@ final class JdbcWorkDiscussion {
             .orElseThrow( () -> new SQLException( "work_item " + itemId + " not found" ) );
     }
 
-    private static WorkEvent event( final long projectId, final long itemId, final String actor,
-                                    final Actor.Kind kind, final String type, final String from, final String to ) {
-        return new WorkEvent( 0, projectId, itemId, null, null, actor, kind, null, type, from, to, null );
+    private static WorkEvent event( final long projectId, final long itemId, final Actor by, final String type,
+                                    final String from, final String to ) {
+        return new WorkEvent( 0, projectId, itemId, null, null, by.login(), by.kind(), by.agentId(), type, from,
+            to, null );
     }
 }

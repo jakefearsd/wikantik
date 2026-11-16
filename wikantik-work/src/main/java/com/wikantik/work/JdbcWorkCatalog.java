@@ -35,7 +35,7 @@ import static com.wikantik.work.SqlValues.setNullableLong;
 import static com.wikantik.work.SqlValues.timestamp;
 
 /** The project, membership and product half of the PostgreSQL {@link WorkStore}; {@link JdbcWorkStore} adds the items. */
-abstract class JdbcWorkCatalog implements WorkStore {
+abstract class JdbcWorkCatalog implements WorkCatalogStore {
 
     private static final String PROJECT_COLUMNS =
         "id, key, name, description, default_autonomy, created_at, archived_at";
@@ -111,7 +111,7 @@ abstract class JdbcWorkCatalog implements WorkStore {
      */
     @Override
     public void updateProject( final long id, final String name, final String description,
-                               final Autonomy defaultAutonomy, final String actor, final Actor.Kind kind )
+                               final Autonomy defaultAutonomy, final Actor by )
             throws SQLException {
         jdbc.inTransaction( conn -> {
             final Project current = jdbc.queryOne( conn, "SELECT " + PROJECT_COLUMNS
@@ -132,7 +132,7 @@ abstract class JdbcWorkCatalog implements WorkStore {
                     ps.setLong( 4, id );
                 } );
             for ( final String[] c : changed ) {
-                appendEvent( conn, projectEvent( id, actor, kind, WorkEvent.SETTINGS, c[ 1 ], c[ 2 ], c[ 0 ] ) );
+                appendEvent( conn, projectEvent( id, by, WorkEvent.SETTINGS, c[ 1 ], c[ 2 ], c[ 0 ] ) );
             }
             return null;
         } );
@@ -147,14 +147,14 @@ abstract class JdbcWorkCatalog implements WorkStore {
 
     /** Sets {@code archived_at} and writes a {@code settings} event noted {@code archived}, in one transaction. */
     @Override
-    public void archiveProject( final long id, final Instant at, final String actor, final Actor.Kind kind )
+    public void archiveProject( final long id, final Instant at, final Actor by )
             throws SQLException {
         jdbc.inTransaction( conn -> {
             final int rows = jdbc.update( conn, "UPDATE work_project SET archived_at = ? WHERE id = ? "
                     + "AND archived_at IS NULL",
                 ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, id ); } );
             if ( rows > 0 ) {
-                appendEvent( conn, projectEvent( id, actor, kind, WorkEvent.SETTINGS, null, at.toString(),
+                appendEvent( conn, projectEvent( id, by, WorkEvent.SETTINGS, null, at.toString(),
                     "archived" ) );
             }
             return null;
@@ -174,7 +174,7 @@ abstract class JdbcWorkCatalog implements WorkStore {
      */
     @Override
     public void putMember( final long projectId, final String principal, final String principalKind,
-                           final WorkRole role, final String actor, final Actor.Kind kind ) throws SQLException {
+                           final WorkRole role, final Actor by ) throws SQLException {
         jdbc.inTransaction( conn -> {
             final WorkRole before = jdbc.queryOne( conn, "SELECT role FROM work_member WHERE project_id = ? "
                     + "AND principal_kind = ? AND principal = ? FOR UPDATE",
@@ -193,7 +193,7 @@ abstract class JdbcWorkCatalog implements WorkStore {
                     ps.setString( 3, principal );
                     ps.setString( 4, role.wire() );
                 } );
-            appendEvent( conn, projectEvent( projectId, actor, kind, WorkEvent.MEMBER,
+            appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
                 before == null ? null : memberValue( principalKind, principal, before ),
                 memberValue( principalKind, principal, role ), null ) );
             return null;
@@ -206,28 +206,36 @@ abstract class JdbcWorkCatalog implements WorkStore {
      */
     @Override
     public void removeMember( final long projectId, final String principal, final String principalKind,
-                              final String actor, final Actor.Kind kind ) throws SQLException {
+                              final Actor by ) throws SQLException {
         jdbc.inTransaction( conn -> {
             final Optional< WorkRole > removed = jdbc.queryOne( conn, "DELETE FROM work_member WHERE project_id = ? "
                     + "AND principal_kind = ? AND principal = ? RETURNING role",
                 ps -> { ps.setLong( 1, projectId ); ps.setString( 2, principalKind ); ps.setString( 3, principal ); },
                 rs -> WorkRole.fromWire( rs.getString( 1 ) ) );
             if ( removed.isPresent() ) {
-                appendEvent( conn, projectEvent( projectId, actor, kind, WorkEvent.MEMBER,
+                appendEvent( conn, projectEvent( projectId, by, WorkEvent.MEMBER,
                     memberValue( principalKind, principal, removed.get() ), null, null ) );
             }
             return null;
         } );
     }
 
-    private static WorkEvent projectEvent( final long projectId, final String actor, final Actor.Kind kind,
-                                           final String type, final String from, final String to,
-                                           final String note ) {
-        return new WorkEvent( 0, projectId, null, null, null, actor, kind, null, type, from, to, note );
+    private static WorkEvent projectEvent( final long projectId, final Actor by, final String type,
+                                           final String from, final String to, final String note ) {
+        return new WorkEvent( 0, projectId, null, null, null, by.login(), by.kind(), by.agentId(), type, from, to,
+            note );
+    }
+
+    /** An agent write without the agent's registry id is a programming error: refuse it, never record it. */
+    static void requireAttributed( final Actor.Kind kind, final Long agentId ) {
+        if ( kind == Actor.Kind.AGENT && agentId == null ) {
+            throw new IllegalArgumentException( "an agent write must carry its work_agent id" );
+        }
     }
 
     /** Appends one event on the caller's connection; the event's id, itemKey and timestamp are assigned by the store. */
     void appendEvent( final Connection conn, final WorkEvent e ) throws SQLException {
+        requireAttributed( e.actorKind(), e.agentId() );
         jdbc.update( conn, "INSERT INTO work_event (project_id, item_id, actor, actor_kind, agent_id, type, "
                 + "from_value, to_value, note) VALUES (?,?,?,?,?,?,?,?,?)",
             ps -> {

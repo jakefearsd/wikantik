@@ -10,10 +10,19 @@ export default function WorkTokenPanel({ agentName, token, onDone }) {
   useEffect(() => { panel.current?.focus(); }, []);
 
   function copy() {
-    // The only place the token leaves the page, and only on an explicit click.
-    Promise.resolve(navigator.clipboard?.writeText(token))
-      .then(() => setCopied(true))
-      .catch(() => setCopied(false));
+    // The only place the token leaves the page, and only on an explicit click. Only a resolved writeText is "Copied."
+    let pending;
+    try {
+      pending = navigator.clipboard?.writeText ? navigator.clipboard.writeText(token) : null;
+    } catch (err) {
+      console.warn('WorkTokenPanel: clipboard write threw', err?.name);
+      pending = null;
+    }
+    if (!pending || typeof pending.then !== 'function') { setCopied(false); return; }
+    pending.then(() => setCopied(true)).catch((err) => {
+      console.warn('WorkTokenPanel: clipboard write failed', err?.name);
+      setCopied(false);
+    });
   }
 
   return (
@@ -23,7 +32,7 @@ export default function WorkTokenPanel({ agentName, token, onDone }) {
       <p role="status" aria-live="polite">
         Copy this key now. It cannot be shown again; if you lose it, rotate the key to get a new one.
         {copied === true && ' Copied.'}
-        {copied === false && ' Copying failed; select the key and copy it by hand.'}
+        {copied === false && ' Copying failed \u2014 select the key and copy it by hand.'}
       </p>
       <code className="work-token-value">{token}</code>
       <div className="work-actions">

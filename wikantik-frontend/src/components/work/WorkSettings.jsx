@@ -171,12 +171,20 @@ function Members({ project, reloadProject, readOnly }) {
       setAddError(adding.kind === 'user' ? 'Enter a display name.' : adding.kind === 'agent' ? 'Choose an agent.' : 'Enter a group name.');
       return;
     }
+    // putMember is an upsert: adding must never silently change an existing member's role.
+    const lower = principal.toLowerCase();
+    const existing = (state.members || []).some((m) => m.principalKind === adding.kind
+      && [m.principal, m.displayName].some((n) => n && n.toLowerCase() === lower));
+    if (existing) { setAddError('Already a member \u2014 change the role in the list below.'); return; }
     setAddError(null);
     setBusy(true);
     putMember(project.key, { principal, principalKind: adding.kind, role: adding.role })
       .then(() => { setAdding((a) => ({ ...a, principal: '' })); return load(); })
       .catch((err) => {
-        if (err?.status === 403) toast.error(err.message); else setAddError(err?.message || 'Could not add the member.');
+        if (err?.status === 403) { toast.error(err.message); return; }
+        setAddError(err?.message || 'Could not add the member.');
+        // The agent may have been retired meanwhile: re-read the registry so the picker stops offering it.
+        if (adding.kind === 'agent') { setAgents(null); setAdding((a) => ({ ...a, principal: '' })); }
       })
       .finally(() => setBusy(false));
   }
@@ -214,7 +222,8 @@ function Members({ project, reloadProject, readOnly }) {
         {adding.kind === 'agent'
           ? (
             <Select ariaLabel="Agent to add" value={adding.principal} placeholder="Choose an agent" disabled={busy || !agents}
-              options={(agents || []).filter((a) => !a.retiredAt).map((a) => a.name)}
+              options={(agents || []).filter((a) => !a.retiredAt
+                && !(state.members || []).some((m) => isAgent(m) && m.principal === a.name)).map((a) => a.name)}
               onChange={(principal) => setAdding({ ...adding, principal })} />
           )
           : (
@@ -225,7 +234,7 @@ function Members({ project, reloadProject, readOnly }) {
             </>
           )}
         <Select ariaLabel="Kind" value={adding.kind} options={KINDS} disabled={busy}
-          onChange={(kind) => setAdding({ principal: (kind === 'agent') !== (adding.kind === 'agent') ? '' : adding.principal, kind, role: kind === 'agent' && adding.role === 'lead' ? 'member' : adding.role })} />
+          onChange={(kind) => { setAddError(null); setAdding({ principal: (kind === 'agent') !== (adding.kind === 'agent') ? '' : adding.principal, kind, role: kind === 'agent' && adding.role === 'lead' ? 'member' : adding.role }); }} />
         <Select ariaLabel="Role for new member" value={adding.role} options={adding.kind === 'agent' ? AGENT_ROLES : ROLES}
           onChange={(role) => setAdding({ ...adding, role })} />
         <button type="submit" className="btn btn-sm" disabled={busy}>Add member</button>

@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -11,7 +12,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 import {
-  listAgents, listQueues, createQueue, registerAgent, rotateAgentKey, retireAgent, retireQueue,
+  listAgents, listQueues, createQueue, registerAgent, rotateAgentKey, retireAgent, retireQueue, updateAgent, updateQueue,
 } from '../../api/work';
 import { api } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -19,18 +20,18 @@ import WorkAgents from './WorkAgents';
 
 const SECRET = 'wk_SECRET_TOKEN_VALUE_123';
 const AGENTS = [
-  { id: 2, name: 'old-bot', vendor: 'acme', runtime: 'x', queues: ['triage'], createdAt: '2026-01-01T00:00:00Z', retiredAt: '2026-02-01T00:00:00Z', apiKeyId: 99 },
-  { id: 1, name: 'triage-bot', vendor: 'acme', runtime: 'claude', queues: ['triage'], createdAt: '2026-01-02T00:00:00Z', retiredAt: null, apiKeyId: 98 },
+  { id: 2, name: 'old-bot', vendor: 'acme', runtime: 'x', queues: ['triage'], createdAt: '2026-01-01T00:00:00Z', retiredAt: '2026-02-01T00:00:00Z', apiKeyId: 7731 },
+  { id: 1, name: 'triage-bot', vendor: 'acme', runtime: 'claude', queues: ['triage'], createdAt: '2026-01-02T00:00:00Z', retiredAt: null, apiKeyId: 8842 },
 ];
 const QUEUES = [
   { key: 'triage', name: 'Triage', description: 'Incoming', retiredAt: null },
   { key: 'old-q', name: 'Old queue', description: '', retiredAt: '2026-01-01T00:00:00Z' },
 ];
 
-function renderPage({ admin = true, authLoading = false } = {}) {
+function renderPage({ admin = true, authLoading = false, strict = false } = {}) {
   useAuth.mockReturnValue(authLoading ? { user: null, loading: true }
     : { user: { authenticated: true, roles: admin ? ['Admin'] : [] }, loading: false });
-  const ui = () => (
+  const inner = () => (
     <MemoryRouter initialEntries={['/work/agents']}>
       <Routes>
         <Route path="/work/agents" element={<WorkAgents />} />
@@ -38,6 +39,7 @@ function renderPage({ admin = true, authLoading = false } = {}) {
       </Routes>
     </MemoryRouter>
   );
+  const ui = () => (strict ? <StrictMode>{inner()}</StrictMode> : inner());
   const r = render(ui());
   return { ...r, again: () => r.rerender(ui()) };
 }
@@ -53,6 +55,8 @@ beforeEach(() => {
   rotateAgentKey.mockResolvedValue({ agent: AGENTS[1], token: SECRET });
   retireAgent.mockResolvedValue(undefined);
   retireQueue.mockResolvedValue(undefined);
+  updateAgent.mockResolvedValue({});
+  updateQueue.mockResolvedValue({});
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
 });
 
@@ -84,7 +88,8 @@ describe('WorkAgents', () => {
     const row = (await screen.findByText('triage-bot')).closest('li');
     expect(within(row).getByText('Triage')).toBeInTheDocument();
     expect(within(row).getByText(/acme/)).toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/98|99/);
+    expect(document.body.textContent).not.toContain('7731');
+    expect(document.body.textContent).not.toContain('8842');
   });
 
   it('retiredRowsShownMutedAndLast', async () => {
@@ -215,5 +220,175 @@ describe('WorkAgents', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Retire queue triage' }));
     fireEvent.click(screen.getByRole('button', { name: /Yes, retire/ }));
     await waitFor(() => expect(retireQueue).toHaveBeenCalledWith('triage'));
+  });
+
+  // ---- review round: key cannot be lost ----
+  async function showPanelViaRegister(opts) {
+    renderPage(opts);
+    await openRegister();
+    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+    return screen.findByRole('dialog', { name: /key/i });
+  }
+
+  it('StrictMode: a rotated key is shown and the confirm strip is cleared', async () => {
+    renderPage({ strict: true });
+    const row = (await screen.findByText('triage-bot')).closest('li');
+    fireEvent.click(within(row).getByRole('button', { name: 'Rotate key of triage-bot' }));
+    fireEvent.click(screen.getByRole('button', { name: /Yes, rotate/ }));
+    expect(await screen.findByText(SECRET)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  });
+
+  it('StrictMode: a registered key is shown', async () => {
+    const panel = await showPanelViaRegister({ strict: true });
+    expect(within(panel).getByText(SECRET)).toBeInTheDocument();
+  });
+
+  describe('copy feedback is truthful', () => {
+    const setClipboard = (value) => Object.defineProperty(navigator, 'clipboard', { configurable: true, value });
+    const FAIL = /Copying failed/;
+    async function copyClick() {
+      const panel = await showPanelViaRegister();
+      fireEvent.click(within(panel).getByRole('button', { name: 'Copy' }));
+      return panel;
+    }
+    it('no clipboard API: failure text, never Copied', async () => {
+      setClipboard(undefined);
+      const panel = await copyClick();
+      expect(await within(panel).findByText(FAIL)).toBeInTheDocument();
+      expect(panel).not.toHaveTextContent('Copied.');
+      expect(within(panel).getByText(SECRET)).toBeInTheDocument();
+    });
+    it('writeText rejects: failure text', async () => {
+      setClipboard({ writeText: vi.fn().mockRejectedValue(new Error('denied')) });
+      const panel = await copyClick();
+      expect(await within(panel).findByText(FAIL)).toBeInTheDocument();
+      expect(panel).not.toHaveTextContent('Copied.');
+    });
+    it('writeText throws synchronously: failure text', async () => {
+      setClipboard({ writeText: vi.fn(() => { throw new Error('sync'); }) });
+      const panel = await copyClick();
+      expect(await within(panel).findByText(FAIL)).toBeInTheDocument();
+      expect(panel).not.toHaveTextContent('Copied.');
+    });
+    it('writeText resolves: Copied.', async () => {
+      setClipboard({ writeText: vi.fn().mockResolvedValue(undefined) });
+      const panel = await copyClick();
+      expect(await within(panel).findByText(/Copied\./)).toBeInTheDocument();
+    });
+  });
+
+  it('a failed reload after register keeps the open token panel and the lists, with an error line', async () => {
+    renderPage();
+    await openRegister();
+    listAgents.mockRejectedValue(new Error('network down'));
+    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+    expect(await screen.findByText(SECRET)).toBeInTheDocument();
+    expect(await screen.findByText(/Could not refresh/)).toBeInTheDocument();
+    expect(screen.getByText(SECRET)).toBeInTheDocument();
+    expect(screen.getByText('triage-bot')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  });
+
+  it('while a key is shown, rotate, retire, register and edit are disabled with a reason', async () => {
+    await showPanelViaRegister();
+    const reason = /Copy or dismiss the key shown above first/;
+    const row = (await screen.findAllByTestId('agent-row'))[0];
+    for (const b of [within(row).getByRole('button', { name: 'Rotate key of triage-bot' }),
+      within(row).getByRole('button', { name: 'Retire triage-bot' }),
+      within(row).getByRole('button', { name: 'Edit triage-bot' }),
+      screen.getByRole('button', { name: 'Register agent' })]) {
+      expect(b).toBeDisabled();
+      expect(b).toHaveAccessibleDescription(reason);
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.getByRole('button', { name: 'Register agent' })).toBeEnabled();
+  });
+
+  // ---- edit UI ----
+  it('edit agent pre-fills, keeps retired served queues checked and labelled, sends all four fields', async () => {
+    listAgents.mockResolvedValue([{ ...AGENTS[1], queues: ['triage', 'old-q'] }]);
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit triage-bot' }));
+    expect(screen.getByLabelText('Agent name')).toHaveValue('triage-bot');
+    expect(screen.getByLabelText('Vendor')).toHaveValue('acme');
+    expect(screen.getByLabelText('Triage')).toBeChecked();
+    const retired = screen.getByLabelText(/Old queue \(retired\)/);
+    expect(retired).toBeChecked();
+    expect(screen.queryByLabelText('Key owner')).not.toBeInTheDocument();
+    expect(screen.getByText(/keeps any work it has already claimed/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Vendor'), { target: { value: 'globex' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save agent' }));
+    await waitFor(() => expect(updateAgent).toHaveBeenCalledWith(
+      1, { name: 'triage-bot', vendor: 'globex', runtime: 'claude', queues: ['triage', 'old-q'] }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(registerAgent).not.toHaveBeenCalled();
+  });
+
+  it('a retired queue the agent does not serve is not offered when editing', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit triage-bot' }));
+    expect(screen.queryByLabelText(/Old queue/)).not.toBeInTheDocument();
+  });
+
+  it('a 409 exists on rename shows on the name field and keeps the typed values', async () => {
+    updateAgent.mockRejectedValue(Object.assign(new Error('Agent build-bot already exists.'), { status: 409, body: { reason: 'exists' } }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit triage-bot' }));
+    fireEvent.change(screen.getByLabelText('Agent name'), { target: { value: 'build-bot' } });
+    fireEvent.change(screen.getByLabelText('Vendor'), { target: { value: 'typed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save agent' }));
+    expect(await screen.findByText('Agent build-bot already exists.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Agent name')).toHaveAccessibleDescription('Agent build-bot already exists.');
+    expect(screen.getByLabelText('Agent name')).toHaveValue('build-bot');
+    expect(screen.getByLabelText('Vendor')).toHaveValue('typed');
+  });
+
+  it('edit form guards against a double submit', async () => {
+    let done;
+    updateAgent.mockReturnValue(new Promise((r) => { done = r; }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit triage-bot' }));
+    const save = screen.getByRole('button', { name: 'Save agent' });
+    fireEvent.click(save);
+    fireEvent.click(save);
+    expect(updateAgent).toHaveBeenCalledTimes(1);
+    done({});
+  });
+
+  it('edit queue sends name and description; the key is read-only', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit queue triage' }));
+    expect(screen.getByLabelText('Queue key')).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Queue name'), { target: { value: 'Triage 2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save queue' }));
+    await waitFor(() => expect(updateQueue).toHaveBeenCalledWith('triage', { name: 'Triage 2', description: 'Incoming' }));
+  });
+
+  it('retired rows have no Edit', async () => {
+    renderPage();
+    await screen.findByText('triage-bot');
+    expect(screen.queryByRole('button', { name: 'Edit old-bot' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit queue old-q' })).not.toBeInTheDocument();
+  });
+
+  it('server field errors attach to the matching control', async () => {
+    registerAgent.mockRejectedValue(Object.assign(new Error('Unknown queue.'), { status: 400, body: { field: 'queues' } }));
+    renderPage();
+    await openRegister();
+    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+    expect(await screen.findByText('Unknown queue.')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Queues' })).toHaveAccessibleDescription('Unknown queue.');
+    expect(screen.getByLabelText('Agent name')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('owner picker searches as you type and shows a load failure', async () => {
+    renderPage();
+    await openRegister();
+    fireEvent.change(await screen.findByLabelText('Find key owner'), { target: { value: 'zed' } });
+    await waitFor(() => expect(api.listMentionableUsers).toHaveBeenCalledWith('zed', expect.any(Number)));
+    api.listMentionableUsers.mockRejectedValue(new Error('nope'));
+    fireEvent.change(screen.getByLabelText('Find key owner'), { target: { value: 'yy' } });
+    expect(await screen.findByText(/Could not search users/)).toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@ import WorkLoadError from './WorkLoadError';
 import WorkQueues from './WorkQueues';
 import WorkTokenPanel from './WorkTokenPanel';
 
+const LOCK_HINT = 'work-agents-lock-hint';
 const day = (iso) => (iso ? String(iso).slice(0, 10) : '');
 
 /** /work/agents: instance admins only. Agents (with the one-time key panel) and queues. */
@@ -19,6 +20,8 @@ export default function WorkAgents() {
   const toast = useToast();
   const isAdmin = !!user?.roles?.includes('Admin');
   const [state, setState] = useState({ agents: null, queues: null, error: null });
+  const [refreshError, setRefreshError] = useState(null); // a failed re-read that kept the previous lists
+  const [editing, setEditing] = useState(null); // agent id being edited
   const [registering, setRegistering] = useState(false);
   const [pending, setPending] = useState(null); // { agent, action: 'rotate' | 'retire' }
   const [busy, setBusy] = useState(false);
@@ -26,15 +29,21 @@ export default function WorkAgents() {
   const [secret, setSecret] = useState(null); // { agentName, token }
   const seq = useRef(0);
   const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; }, []);
+  // Set true in the body too: StrictMode's simulated unmount would otherwise leave it false for good.
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const load = useCallback(() => {
     const mine = ++seq.current;
     return Promise.all([listAgents(), listQueues()])
-      .then(([agents, queues]) => { if (mine === seq.current) setState({ agents: agents || [], queues: queues || [], error: null }); })
+      .then(([agents, queues]) => {
+        if (mine === seq.current) { setState({ agents: agents || [], queues: queues || [], error: null }); setRefreshError(null); }
+      })
       .catch((error) => {
         console.warn('WorkAgents: could not load agents and queues', error);
-        if (mine === seq.current) setState({ agents: null, queues: null, error });
+        if (mine !== seq.current) return;
+        // Keep what is on screen (and any open key panel) when a re-read fails; only a first load blocks the page.
+        setState((prev) => (prev.agents ? prev : { agents: null, queues: null, error }));
+        setRefreshError('Could not refresh the lists. What is shown may be out of date.');
       });
   }, []);
 
@@ -43,13 +52,18 @@ export default function WorkAgents() {
   // Until /api/auth/user resolves the user is null: deciding now would bounce a signed-in admin.
   if (authLoading) return <Spinner label="Loading…" />;
   if (!isAdmin) return <Navigate to="/work" replace />;
-  if (state.error) return <WorkLoadError error={state.error} fallback="Could not load agents and queues." onRetry={load} />;
-  if (!state.agents) return <Spinner label="Loading agents…" />;
+  const locked = !!secret;
+  const lockProps = { disabled: locked, 'aria-describedby': locked ? LOCK_HINT : undefined };
+  const panel = secret && <WorkTokenPanel agentName={secret.agentName} token={secret.token} onDone={() => setSecret(null)} />;
+  // The key panel sits above every load state: a failed or slow list read must never hide an unseen key.
+  if (state.error) return <div className="work-products">{panel}<WorkLoadError error={state.error} fallback="Could not load agents and queues." onRetry={load} /></div>;
+  if (!state.agents) return <div className="work-products">{panel}<Spinner label="Loading agents…" /></div>;
 
   const queueName = (key) => state.queues.find((q) => q.key === key)?.name || key;
   const sorted = [...state.agents].sort((a, b) => (a.retiredAt ? 1 : 0) - (b.retiredAt ? 1 : 0));
 
   function registered(made) {
+    if (!mounted.current) return;
     setRegistering(false);
     setSecret({ agentName: made.agent?.name || 'agent', token: made.token });
     load();
@@ -76,17 +90,21 @@ export default function WorkAgents() {
   return (
     <div className="work-products work-agents">
       <h1 className="work-heading">Agents &amp; queues</h1>
-      {secret && <WorkTokenPanel agentName={secret.agentName} token={secret.token} onDone={() => setSecret(null)} />}
+      {panel}
+      {locked && <p id={LOCK_HINT} className="work-visually-hidden">Copy or dismiss the key shown above first.</p>}
+      {refreshError && <div className="work-form-error" role="alert">{refreshError}</div>}
       <section className="work-section" aria-label="Agents">
         <h2 className="work-subheading">Agents</h2>
         {registering
-          ? <WorkAgentForm queues={state.queues.filter((q) => !q.retiredAt)} onRegistered={registered} onCancel={() => setRegistering(false)} />
-          : <p><button type="button" className="btn btn-sm" onClick={() => setRegistering(true)}>Register agent</button></p>}
+          ? <WorkAgentForm queues={state.queues} onRegistered={registered} onCancel={() => setRegistering(false)} />
+          : <p><button type="button" className="btn btn-sm" {...lockProps} onClick={() => setRegistering(true)}>Register agent</button></p>}
         {sorted.length === 0 ? <EmptyState message="No agents registered yet." /> : (
           <ul className="work-product-rows">
             {sorted.map((a) => (
               <li key={a.id} data-testid="agent-row" className={`work-product-row${a.retiredAt ? ' work-retired' : ''}`}>
-                <div>
+                {editing === a.id
+                  ? <WorkAgentForm agent={a} queues={state.queues} onSaved={() => { setEditing(null); load(); }} onCancel={() => setEditing(null)} />
+                  : <div>
                   <strong>{a.name}</strong> {a.retiredAt && <span className="work-chip">retired</span>}
                   <div className="work-muted">
                     {[a.vendor, a.runtime].filter(Boolean).join(' · ') || 'No vendor or runtime set'}
@@ -97,8 +115,8 @@ export default function WorkAgents() {
                   <div className="work-muted">
                     Created {day(a.createdAt)}{a.retiredAt && `, retired ${day(a.retiredAt)}`}
                   </div>
-                </div>
-                {!a.retiredAt && (pending?.agent.id === a.id
+                </div>}
+                {!a.retiredAt && editing !== a.id && (pending?.agent.id === a.id
                   ? (
                     <WorkConfirm disabled={busy} onYes={confirmed} onNo={() => setPending(null)}
                       yes={pending.action === 'rotate' ? `Yes, rotate ${a.name}` : `Yes, retire ${a.name}`}>
@@ -109,9 +127,11 @@ export default function WorkAgents() {
                   )
                   : (
                     <div className="work-actions">
-                      <button type="button" className="btn btn-sm" aria-label={`Rotate key of ${a.name}`}
+                      <button type="button" className="btn btn-sm" aria-label={`Edit ${a.name}`} {...lockProps}
+                        onClick={() => setEditing(a.id)}>Edit</button>
+                      <button type="button" className="btn btn-sm" aria-label={`Rotate key of ${a.name}`} {...lockProps}
                         onClick={() => setPending({ agent: a, action: 'rotate' })}>Rotate key</button>
-                      <button type="button" className="btn btn-sm btn-ghost" aria-label={`Retire ${a.name}`}
+                      <button type="button" className="btn btn-sm btn-ghost" aria-label={`Retire ${a.name}`} {...lockProps}
                         onClick={() => setPending({ agent: a, action: 'retire' })}>Retire</button>
                     </div>
                   ))}
@@ -120,7 +140,7 @@ export default function WorkAgents() {
           </ul>
         )}
       </section>
-      <WorkQueues queues={state.queues} reload={load} />
+      <WorkQueues queues={state.queues} reload={load}/>
     </div>
   );
 }

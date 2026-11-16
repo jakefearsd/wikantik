@@ -332,4 +332,39 @@ describe('WorkSettings', () => {
     expect(screen.queryByRole('button', { name: 'Remove build-bot' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Kind')).not.toBeInTheDocument();
   });
+
+  it('agents that are already members are not offered', async () => {
+    listMembers.mockResolvedValue([...MEMBERS, AGENT_MEMBER]);
+    renderSettings();
+    await screen.findByText('build-bot');
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'agent' } });
+    const pick = await screen.findByLabelText('Agent to add');
+    const names = within(pick).getAllByRole('option').map((o) => o.textContent);
+    expect(names).toContain('triage-bot');
+    expect(names).not.toContain('build-bot');
+  });
+
+  it('adding someone who is already a member never calls the server', async () => {
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.change(screen.getByLabelText('Display name or group name'), { target: { value: 'Bob B' } });
+    fireEvent.change(screen.getByLabelText('Role for new member'), { target: { value: 'lead' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
+    expect(await screen.findByText('Already a member \u2014 change the role in the list below.')).toBeInTheDocument();
+    expect(putMember).not.toHaveBeenCalled();
+  });
+
+  it('a refused agent add refreshes the agents and shows the message; switching kind clears it', async () => {
+    putMember.mockRejectedValue(Object.assign(new Error('That agent is retired.'), { status: 409 }));
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'agent' } });
+    fireEvent.change(await screen.findByLabelText('Agent to add'), { target: { value: 'triage-bot' } });
+    listAgents.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
+    expect(await screen.findByText('That agent is retired.')).toBeInTheDocument();
+    await waitFor(() => expect(listAgents).toHaveBeenCalled());
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'group' } });
+    expect(screen.queryByText('That agent is retired.')).not.toBeInTheDocument();
+  });
 });

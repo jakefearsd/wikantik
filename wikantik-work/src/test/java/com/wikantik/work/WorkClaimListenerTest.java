@@ -74,7 +74,7 @@ class WorkClaimListenerTest {
     }
 
     private static Agent agent( final Instant retired ) {
-        return new Agent( 7, "codex@docker2", "", "", 1, List.of( "implementer" ), NOW, retired );
+        return new Agent( 7, "codex@docker2", "", "", null, 1, List.of( "implementer" ), NOW, retired );
     }
 
     private void stored( final Item i ) throws SQLException {

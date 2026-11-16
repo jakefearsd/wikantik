@@ -18,9 +18,12 @@
  */
 package com.wikantik.work;
 
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,5 +37,31 @@ class ActorTest {
         assertEquals( Actor.Kind.AGENT, a.kind() );
         assertEquals( 7L, a.agentId() );
         assertEquals( "codex@docker2", a.login() );
+    }
+
+    @Test
+    void anAgentCarriesItsSponsor() {
+        final Actor ana = Actor.human( "ana", Set.of( "Leads" ), true );
+        final Actor a = Actor.agent( 7, "codex", ana );
+        assertEquals( ana, a.sponsor() );
+        assertFalse( a.admin(), "the sponsor's admin flag never becomes the agent's" );
+        assertTrue( a.groups().isEmpty(), "nor do the sponsor's groups" );
+    }
+
+    @Test
+    void anAgentBuiltWithoutASponsorHasNone() {
+        assertNull( Actor.agent( 7, "codex" ).sponsor() );
+    }
+
+    @Test
+    void aPersonNeverHasASponsor() {
+        assertNull( Actor.human( "ana", Set.of(), false ).sponsor() );
+        assertThrows( IllegalArgumentException.class, () -> new Actor( "ana", Set.of(), false, Actor.Kind.HUMAN, null,
+            Actor.human( "bob", Set.of(), false ) ) );
+    }
+
+    @Test
+    void aSponsorMustBeAPerson() {
+        assertThrows( IllegalArgumentException.class, () -> Actor.agent( 7, "codex", Actor.agent( 8, "other" ) ) );
     }
 }

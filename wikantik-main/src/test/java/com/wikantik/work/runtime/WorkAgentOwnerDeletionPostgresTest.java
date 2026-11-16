@@ -84,6 +84,11 @@ class WorkAgentOwnerDeletionPostgresTest {
               java.sql.PreparedStatement agent = c.prepareStatement( "DELETE FROM work_agent WHERE name = ?" ) ) {
             history.setString( 1, name );
             history.executeUpdate();
+            try ( java.sql.PreparedStatement sponsors = c.prepareStatement( "DELETE FROM work_agent_sponsor_history "
+                    + "WHERE agent_id IN ( SELECT id FROM work_agent WHERE name = ? )" ) ) {
+                sponsors.setString( 1, name );
+                sponsors.executeUpdate();
+            }
             agent.setString( 1, name );
             agent.executeUpdate();
         }
@@ -99,7 +104,7 @@ class WorkAgentOwnerDeletionPostgresTest {
     void anAgentWhoseOwnerWasDeletedActsNoMoreUntilRotationRestoresIt() throws Exception {
         final WorkService.AgentWithToken made = svc.registry().registerAgent( admin, new AgentDraft( name, "",
             "", List.of(), owner ) );
-        assertEquals( Actor.agent( made.agent().id(), name ), actorFor( made.token() ) );
+        assertEquals( made.agent().id(), actorFor( made.token() ).agentId() );
 
         apiKeys.revokeAllForPrincipalOrThrow( owner );
 
@@ -108,7 +113,7 @@ class WorkAgentOwnerDeletionPostgresTest {
             .orElseThrow().active(), "the agent is not retired" );
 
         final WorkService.AgentWithToken rotated = svc.registry().rotateAgentKey( admin, made.agent().id(), successor );
-        assertEquals( Actor.agent( made.agent().id(), name ), actorFor( rotated.token() ), "restored" );
+        assertEquals( made.agent().id(), actorFor( rotated.token() ).agentId(), "restored" );
         final ApiKeyService.Record key = apiKeys.findById( rotated.agent().apiKeyId() ).orElseThrow();
         assertEquals( successor, key.principalLogin() );
         assertEquals( "janne", key.createdBy() );
@@ -121,7 +126,7 @@ class WorkAgentOwnerDeletionPostgresTest {
             "", List.of(), owner ) );
         apiKeys.revoke( made.agent().apiKeyId(), "someone" );
         final WorkService.AgentWithToken rotated = svc.registry().rotateAgentKey( admin, made.agent().id(), null );
-        assertEquals( Actor.agent( made.agent().id(), name ), actorFor( rotated.token() ) );
+        assertEquals( made.agent().id(), actorFor( rotated.token() ).agentId() );
         assertEquals( owner, apiKeys.findById( rotated.agent().apiKeyId() ).orElseThrow().principalLogin() );
     }
 
@@ -139,6 +144,6 @@ class WorkAgentOwnerDeletionPostgresTest {
         assertEquals( null, actorFor( made.token() ) );
 
         final WorkService.AgentWithToken rotated = svc.registry().rotateAgentKey( admin, made.agent().id(), successor );
-        assertEquals( Actor.agent( made.agent().id(), name ), actorFor( rotated.token() ), "a named owner restores it" );
+        assertEquals( made.agent().id(), actorFor( rotated.token() ).agentId(), "a named owner restores it" );
     }
 }

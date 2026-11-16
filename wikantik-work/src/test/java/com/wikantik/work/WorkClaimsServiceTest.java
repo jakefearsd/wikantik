@@ -86,7 +86,7 @@ class WorkClaimsServiceTest {
         roles( 1, "viewer@host", WorkRole.VIEWER );
         when( store.queue( "implementer" ) ).thenReturn( Optional.of( new Queue( "implementer", "I", "", null ) ) );
         when( store.queue( "old" ) ).thenReturn( Optional.of( new Queue( "old", "O", "", NOW ) ) );
-        when( store.agent( 7 ) ).thenReturn( Optional.of( new Agent( 7, "codex@docker2", "", "", 1,
+        when( store.agent( 7 ) ).thenReturn( Optional.of( new Agent( 7, "codex@docker2", "", "", null, 1,
             List.of( "implementer" ), NOW, null ) ) );
         service = build( plat );
     }
@@ -135,7 +135,7 @@ class WorkClaimsServiceTest {
     @Test
     void refusedClaimNamesHolder() throws SQLException {
         stored( item( "PLAT-1", WorkStatus.READY, "implementer", 8L ) );
-        when( store.agent( 8 ) ).thenReturn( Optional.of( new Agent( 8, "other@host", "", "", 2, List.of(), NOW,
+        when( store.agent( 8 ) ).thenReturn( Optional.of( new Agent( 8, "other@host", "", "", null, 2, List.of(), NOW,
             null ) ) );
         when( claims.claimWithOutcome( any(), eq( codex ), any() ) ).thenReturn( Optional.empty() );
         final WorkConflictException e = assertThrows( WorkConflictException.class,
@@ -170,7 +170,7 @@ class WorkClaimsServiceTest {
 
     @Test
     void claimableForAnAgentWithoutAnIdIsEmpty() throws SQLException {
-        final Actor nameless = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        final Actor nameless = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null, null );
         roles( 1, "ghost", WorkRole.MEMBER );
         when( store.visibleProjects( nameless ) ).thenReturn( List.of( plat ) );
         assertTrue( service.claims().claimable( nameless, null, null, 10 ).isEmpty() );

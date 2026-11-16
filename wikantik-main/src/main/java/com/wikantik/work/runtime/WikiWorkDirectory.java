@@ -20,7 +20,12 @@ package com.wikantik.work.runtime;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.WikiPrincipal;
+import com.wikantik.auth.authorize.Role;
+import com.wikantik.auth.permissions.AllPermission;
+import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.work.WorkDirectory;
@@ -28,6 +33,10 @@ import com.wikantik.work.WorkUnavailableException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.security.Permission;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -71,6 +80,46 @@ public final class WikiWorkDirectory implements WorkDirectory {
                 e.getMessage(), e );
             return false;
         }
+    }
+
+    /**
+     * The account behind a login, for the sponsor rule: its groups and whether it is a wiki admin, both as they are
+     * right now. {@code admin} is decided from the login alone and must agree with what the same person's signed-in
+     * session gets ({@link WikiWorkActors#actorFor}: {@code AllPermission} under the local policy): the policy is
+     * asked about the principals that session would hold: the built-in roles of any signed-in user, the user's
+     * groups, and the login itself. Any failure to read the user database, the groups or the policy is
+     * {@link WorkUnavailableException}: an agent must neither lose nor gain access on a lookup that did not answer.
+     */
+    @Override
+    public Optional< Person > person( final String login ) {
+        if ( login == null || login.isBlank() ) {
+            return Optional.empty();
+        }
+        try {
+            if ( !ownerExists( login ) ) {
+                return Optional.empty();
+            }
+            final AuthSubsystem.Services auth = AuthSubsystemBridge.fromLegacyEngine( engine );
+            final Set< String > groups = WikiWorkGroups.groupsOf( auth.groups(), login );
+            return Optional.of( new Person( login, groups, isAdmin( auth, login, groups ) ) );
+        } catch ( final WorkUnavailableException e ) {
+            throw e;
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "The user directory could not be read while resolving an agent's sponsor; answering "
+                + "unavailable: {}", e.getMessage(), e );
+            throw new WorkUnavailableException( "The user directory could not be read.", e );
+        }
+    }
+
+    private boolean isAdmin( final AuthSubsystem.Services auth, final String login, final Set< String > groups ) {
+        final List< Principal > roles = new ArrayList<>();
+        roles.add( Role.ALL );
+        roles.add( Role.AUTHENTICATED );
+        groups.forEach( g -> roles.add( new GroupPrincipal( g ) ) );
+        final Permission all = new AllPermission( engine.getApplicationName() );
+        return auth.authorization().allowedByLocalPolicy( roles.toArray( new Principal[ 0 ] ), all )
+            || auth.authorization().allowedByLocalPolicy(
+                new Principal[] { new WikiPrincipal( login, WikiPrincipal.LOGIN_NAME ) }, all );
     }
 
     /**

@@ -95,7 +95,7 @@ class WorkRegistryServiceTest {
     private final List< String > audited = new ArrayList<>();
 
     private static Agent agent( final long id, final String name, final Integer key, final Instant retired ) {
-        return new Agent( id, name, "", "", key, List.of( "implementer" ), NOW, retired );
+        return new Agent( id, name, "", "", "lena", key, List.of( "implementer" ), NOW, retired );
     }
 
     @BeforeEach
@@ -162,7 +162,7 @@ class WorkRegistryServiceTest {
     @Test
     void agentActorCannotManage() {
         final Actor bot = Actor.agent( 5, "bot" );
-        final Actor flagged = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 5L );
+        final Actor flagged = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 5L, null );
         for ( final Actor a : List.of( bot, flagged ) ) {
             assertThrows( WorkDeniedException.class, () -> service.registry().createQueue( a, "ops", "Ops", "" ) );
             assertThrows( WorkDeniedException.class, () -> service.registry().registerAgent( a, draft( "x", "lena" ) ) );
@@ -404,7 +404,8 @@ class WorkRegistryServiceTest {
         when( store.agentByApiKey( 55 ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
         when( store.agentByApiKey( 56 ) ).thenReturn( Optional.of( agent( 8, "gone", 56, NOW ) ) );
         when( store.agentByApiKey( 57 ) ).thenReturn( Optional.empty() );
-        assertEquals( Actor.agent( 7, "codex" ), service.registry().actorForApiKey( 55, "lena" ) );
+        assertEquals( Actor.agent( 7, "codex", Actor.human( "lena", Set.of(), false ) ),
+            service.registry().actorForApiKey( 55, "lena" ), "the agent, with its sponsor resolved" );
         assertNull( service.registry().actorForApiKey( 56, "lena" ) );
         assertEquals( Actor.human( "lena", Set.of(), false ), service.registry().actorForApiKey( 57, "lena" ) );
     }
@@ -521,7 +522,7 @@ class WorkRegistryServiceTest {
 
     @Test
     void anUpdateLeavesEveryOmittedFieldAsItWas() throws SQLException {
-        when( store.agent( 7 ) ).thenReturn( Optional.of( new Agent( 7, "codex", "openai", "cli", 55,
+        when( store.agent( 7 ) ).thenReturn( Optional.of( new Agent( 7, "codex", "openai", "cli", null, 55,
             List.of( "implementer" ), NOW, null ) ) );
         when( store.agentByName( "codex" ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
         service.registry().updateAgent( admin, 7, new AgentDraft( null, null, "codex-2", null, null ) );

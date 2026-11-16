@@ -142,4 +142,67 @@ class WikiWorkDirectoryTest {
         assertFalse( directory.ownerExists( "nobody-here" ) );
         assertFalse( directory.ownerExists( null ) );
     }
+
+    private static String loginOf( final Session session ) {
+        return session.getLoginPrincipal().getName();
+    }
+
+    @Test
+    void personIsEmptyForAnUnknownLogin() {
+        assertTrue( directory.person( "nobody-here" ).isEmpty() );
+        assertTrue( directory.person( null ).isEmpty() );
+        assertTrue( directory.person( " " ).isEmpty() );
+    }
+
+    /**
+     * The contract: a sponsor is an admin exactly when that person's own signed-in session would be. Each session is
+     * read before the next is opened: the test engine's sessions share one mock HTTP session.
+     */
+    @Test
+    void personAdminFlagMatchesTheSessionAdminFlag() throws Exception {
+        final String adminLogin = loginOf( admin );
+        final boolean adminBySession = WikiWorkActors.actorFor( engine, admin ).admin();
+        assertTrue( adminBySession, "the test needs one real admin" );
+        assertEquals( adminBySession, directory.person( adminLogin ).orElseThrow().admin() );
+
+        final Session janne = engine.janneSession();
+        final String janneLogin = loginOf( janne );
+        final boolean janneBySession = WikiWorkActors.actorFor( engine, janne ).admin();
+        assertFalse( janneBySession );
+        assertEquals( janneBySession, directory.person( janneLogin ).orElseThrow().admin() );
+
+        setMembers( janneLogin ); // a group that grants nothing changes neither answer
+        assertFalse( directory.person( janneLogin ).orElseThrow().admin() );
+        assertTrue( directory.person( adminLogin ).orElseThrow().admin() );
+    }
+
+    @Test
+    void personCarriesTheGroupsTheSessionActorHas() throws Exception {
+        final Session janne = engine.janneSession();
+        setMembers( loginOf( janne ) );
+        assertEquals( WikiWorkActors.actorFor( engine, janne ).groups(),
+            directory.person( loginOf( janne ) ).orElseThrow().groups() );
+        assertTrue( directory.person( loginOf( janne ) ).orElseThrow().groups().contains( "DirCrew" ) );
+    }
+
+    @Test
+    void personThrowsUnavailableWhenTheUserDatabaseFails() throws Exception {
+        final WikiWorkDirectory outage = failingDirectory();
+        org.junit.jupiter.api.Assertions.assertThrows( com.wikantik.work.WorkUnavailableException.class,
+            () -> outage.person( "lena" ), "a failed lookup is neither \"no such account\" nor an account" );
+    }
+
+    @Test
+    void personThrowsUnavailableWhenGroupLookupFails() throws Exception {
+        final com.wikantik.WikiEngine broken = org.mockito.Mockito.mock( com.wikantik.WikiEngine.class );
+        final GroupManager failing = org.mockito.Mockito.mock( GroupManager.class );
+        org.mockito.Mockito.when( failing.getRoles() ).thenThrow( new IllegalStateException( "test: groups down" ) );
+        final com.wikantik.api.identity.PublicIdentity identity =
+            org.mockito.Mockito.mock( com.wikantik.api.identity.PublicIdentity.class );
+        org.mockito.Mockito.when( identity.userIdForLogin( "lena" ) ).thenReturn( java.util.Optional.of( "u-1" ) );
+        org.mockito.Mockito.when( broken.getAuthSubsystem() ).thenReturn( new com.wikantik.auth.subsystem.AuthSubsystem
+            .Services( null, null, null, failing, null, null, null, null, identity ) );
+        org.junit.jupiter.api.Assertions.assertThrows( com.wikantik.work.WorkUnavailableException.class,
+            () -> new WikiWorkDirectory( broken ).person( "lena" ) );
+    }
 }

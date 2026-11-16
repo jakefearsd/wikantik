@@ -144,7 +144,7 @@ class JdbcWorkStoreAttributionPostgresTest {
     @Test
     void agentActorWithoutAnIdIsRefusedAndWritesNothing() throws SQLException {
         final Item item = create( "x" );
-        final Actor anonymousAgent = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        final Actor anonymousAgent = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null, null );
         assertThrows( IllegalArgumentException.class, () -> store.addComment( item, anonymousAgent, "hi", List.of() ) );
         assertThrows( IllegalArgumentException.class, () -> store.createItem( plat,
             JdbcWorkStoreItemsPostgresTest.draft( "y" ), anonymousAgent ) );
@@ -384,7 +384,7 @@ class JdbcWorkStoreAttributionPostgresTest {
         final Item item = create( "x" );
         final Comment c = store.addComment( item, LENA, "hi", List.of() );
         final Link l = store.addLink( item, "url", "https://example.com", LENA );
-        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null, null );
         final long events = WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" );
         final Item next = with( item, "z", item.body(), item.status(), null, null );
         for ( final org.junit.jupiter.api.function.Executable w : List.< org.junit.jupiter.api.function.Executable >of(
@@ -410,7 +410,7 @@ class JdbcWorkStoreAttributionPostgresTest {
     void archivingAnAlreadyArchivedProjectIsStillRefusedForAnUnattributedAgent() throws SQLException {
         final java.time.Instant at = java.time.Instant.now();
         store.archiveProject( plat.id(), at, LENA );
-        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null, null );
         final long events = WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" );
         assertThrows( IllegalArgumentException.class, () -> store.archiveProject( plat.id(), at.plusSeconds( 5 ), ghost ) );
         assertEquals( events, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" ) );
@@ -420,7 +420,7 @@ class JdbcWorkStoreAttributionPostgresTest {
 
     @Test
     void updatingAProjectWithNothingChangedIsStillRefusedForAnUnattributedAgent() throws SQLException {
-        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null, null );
         final long events = WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" );
         assertThrows( IllegalArgumentException.class,
             () -> store.updateProject( plat.id(), plat.name(), plat.description(), plat.defaultAutonomy(), ghost ) );
@@ -430,7 +430,7 @@ class JdbcWorkStoreAttributionPostgresTest {
     @Test
     void aPersonActorCarryingAnAgentIdIsRefused() throws SQLException {
         // A person is never attributed to an agent: such an actor is a construction error, so nothing is written.
-        final Actor mixed = new Actor( "lena", Set.of(), false, Actor.Kind.HUMAN, 7L );
+        final Actor mixed = new Actor( "lena", Set.of(), false, Actor.Kind.HUMAN, 7L, null );
         final long events = WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" );
         assertThrows( IllegalArgumentException.class, () -> store.updateProject( plat.id(), "Renamed", "",
             plat.defaultAutonomy(), mixed ) );

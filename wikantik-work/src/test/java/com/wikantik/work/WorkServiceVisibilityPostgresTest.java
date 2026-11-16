@@ -97,7 +97,7 @@ class WorkServiceVisibilityPostgresTest {
         final long codex = WorkAgentFixtures.agent( ds, "codex@docker2" );
         rogueAgent = Actor.agent( WorkAgentFixtures.agent( ds, "rogue@x" ), "rogue@x" );
         flaggedAgent = new Actor( "flagged@x", Set.of(), true, Actor.Kind.AGENT,
-            WorkAgentFixtures.agent( ds, "flagged@x" ) );
+            WorkAgentFixtures.agent( ds, "flagged@x" ), null );
         WorkAgentFixtures.exec( ds, "INSERT INTO work_agent_queue (agent_id, queue_key) VALUES (" + codex
             + ", 'implementer')" );
         final Project plat = store.createProject( "PLAT", "Platform", "secret roadmap" );

@@ -45,6 +45,23 @@ public interface WorkRegistryStore {
     Agent registerAgent( String name, String vendor, String runtime, int apiKeyId, List< String > queues )
         throws SQLException;
 
+    /**
+     * One transaction: the agent row with its sponsor, one queue row per queue, and the first sponsor-history row
+     * (the sponsor is also who made the change). The name is stored lowercase.
+     */
+    Agent registerAgent( String name, String vendor, String runtime, List< String > queues, String sponsor )
+        throws SQLException;
+
+    /** One change of sponsor as the history keeps it; {@code sponsor} is null while the agent had none. */
+    record SponsorChange( String sponsor, java.time.Instant since, String changedBy ) {
+    }
+
+    /** One transaction: the agent's sponsor (null for none) and the history row that records the change. */
+    void setSponsor( long agentId, String sponsorOrNull, String changedBy ) throws SQLException;
+
+    /** Every sponsor the agent has had, newest first. */
+    List< SponsorChange > sponsorHistory( long agentId ) throws SQLException;
+
     Optional< Agent > agent( long id ) throws SQLException;
 
     /** Case-insensitive. */

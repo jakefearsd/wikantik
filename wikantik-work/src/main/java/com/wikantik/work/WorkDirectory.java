@@ -33,6 +33,24 @@ public interface WorkDirectory {
     /** Whether a user with this login exists. Only ever asked on behalf of a wiki admin. */
     boolean exists( String login );
 
+    /** An account as the sponsor rule needs it: its groups and whether it is a wiki admin, as they are now. */
+    record Person( String login, Set< String > groups, boolean admin ) {
+    }
+
+    /**
+     * The account behind a login: empty when there is no such account. A lookup that fails throws
+     * {@link WorkUnavailableException}; it is never answered as "no such account" or as an account with no groups,
+     * because the caller would then take away, or grant, an agent's access on a guess. The default composes
+     * {@link #exists} and {@link #groupsOf} and knows no admins; the host overrides it.
+     */
+    default Optional< Person > person( final String login ) {
+        if ( !exists( login ) ) {
+            return Optional.empty();
+        }
+        final Set< String > groups = groupsOf( login );
+        return Optional.of( new Person( login, groups == null ? Set.of() : groups, false ) );
+    }
+
     /** The public display name for the login; a neutral placeholder, never the login, when it has none. */
     String displayName( String login );
 

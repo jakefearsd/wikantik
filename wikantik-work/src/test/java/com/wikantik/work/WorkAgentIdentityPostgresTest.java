@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -45,6 +47,10 @@ class WorkAgentIdentityPostgresTest {
     private final List< Integer > revokeAttempts = new java.util.ArrayList<>();
     private final Actor admin = Actor.human( "admin", Set.of(), true );
     private final Actor lena = Actor.human( "lena", Set.of(), false );
+    private final java.util.Set< String > gone = new java.util.HashSet<>();
+    private final java.util.Set< String > admins = new java.util.HashSet<>( Set.of( "admin" ) );
+    private final java.util.Map< String, Set< String > > groups = new java.util.HashMap<>();
+    private boolean outage;
 
     @BeforeEach
     void setUp() throws SQLException {
@@ -75,9 +81,16 @@ class WorkAgentIdentityPostgresTest {
             }
         };
         service = new WorkService( store, md -> md, new WorkDirectory() {
-            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public Set< String > groupsOf( final String login ) { return groups.getOrDefault( login, Set.of() ); }
+            @Override public boolean exists( final String login ) { return !gone.contains( login ); }
             @Override public String displayName( final String login ) { return login; }
+            @Override public java.util.Optional< Person > person( final String login ) {
+                if ( outage ) {
+                    throw new WorkUnavailableException( "directory down", null );
+                }
+                return gone.contains( login ) ? java.util.Optional.empty()
+                    : java.util.Optional.of( new Person( login, groupsOf( login ), admins.contains( login ) ) );
+            }
         }, keys, Clock.systemUTC(), WorkSettings.DEFAULTS, null );
         service.createProject( admin, "PLAT", "Platform", "" );
         service.createProject( admin, "OPS", "Operations", "" );
@@ -247,5 +260,38 @@ class WorkAgentIdentityPostgresTest {
         final Actor owner = service.registry().actorForApiKey( ( int ) WorkAgentFixtures.apiKey( ds, "work" ), "lena" );
         assertEquals( Actor.Kind.HUMAN, owner.kind() );
         assertEquals( "lena", owner.login() );
+    }
+
+    @Test
+    void theAgentActorCarriesTheSponsorsGroupsAndAdminFlag() throws SQLException {
+        groups.put( "admin", Set.of( "Leads" ) );
+        final Actor a = actorFor( register( "codex" ) );
+        assertEquals( Actor.human( "admin", Set.of( "Leads" ), true ), a.sponsor(),
+            "the registering person is the sponsor, resolved live" );
+        assertFalse( a.admin() );
+        assertTrue( a.groups().isEmpty() );
+    }
+
+    @Test
+    void anAgentWithNoSponsorIsNoActor() throws SQLException {
+        final WorkService.AgentWithToken r = register( "codex" );
+        store.setSponsor( r.agent().id(), null, "admin" );
+        assertNull( actorFor( r ) );
+    }
+
+    @Test
+    void anAgentWhoseSponsorAccountIsGoneIsNoActor() throws SQLException {
+        final WorkService.AgentWithToken r = register( "codex" );
+        gone.add( "admin" );
+        assertNull( actorFor( r ) );
+        gone.remove( "admin" );
+        assertNotNull( actorFor( r ), "nothing was stored: the agent works again when the account is back" );
+    }
+
+    @Test
+    void aDirectoryOutageIsUnavailableNotNoActor() throws SQLException {
+        final WorkService.AgentWithToken r = register( "codex" );
+        outage = true;
+        assertThrows( WorkUnavailableException.class, () -> actorFor( r ) );
     }
 }

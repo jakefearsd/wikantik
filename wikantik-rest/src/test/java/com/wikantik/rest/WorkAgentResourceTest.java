@@ -49,7 +49,7 @@ class WorkAgentResourceTest {
     private static final Actor ADMIN = Actor.human( "root", Set.of(), true );
     private static final Actor MEMBER = Actor.human( "dana", Set.of(), false );
     private static final Instant T = Instant.parse( "2026-11-15T10:00:00Z" );
-    private static final Agent BUILDER = new Agent( 5, "builder", "acme", "claude-code", 42, List.of( "triage" ), T, null );
+    private static final Agent BUILDER = new Agent( 5, "builder", "acme", "claude-code", null, 42, List.of( "triage" ), T, null );
     private static final String TOKEN = "wkk_secret-token-value";
 
     private WorkService svc;
@@ -105,7 +105,7 @@ class WorkAgentResourceTest {
     void listHidesKeyIdFromNonAdmin() throws Exception {
         servlet = WorkHttp.wire( new WorkAgentResource(), svc, MEMBER );
         Mockito.when( registry.listAgents( MEMBER ) ).thenReturn( List.of(
-            new Agent( 5, "builder", "acme", "claude-code", null, List.of( "triage" ), T, null ) ) );
+            new Agent( 5, "builder", "acme", "claude-code", null, null, List.of( "triage" ), T, null ) ) );
         final JsonObject a = send( "GET", null, null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
         assertFalse( a.has( "apiKeyId" ), "not even as null" );
         assertEquals( "builder", a.get( "name" ).getAsString() );
@@ -142,7 +142,7 @@ class WorkAgentResourceTest {
 
     @Test
     void rotateReturnsNewToken() throws Exception {
-        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", 43, List.of( "triage" ), T, null );
+        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", null, 43, List.of( "triage" ), T, null );
         Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) ).thenReturn( new WorkService.AgentWithToken( rebound, "wkk_new" ) );
         final WorkHttp.Result r = send( "POST", "/5/rotate-key", null );
         assertEquals( 200, r.status() );
@@ -153,7 +153,7 @@ class WorkAgentResourceTest {
 
     @Test
     void rotateMayNameANewOwner() throws Exception {
-        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", 44, List.of( "triage" ), T, null );
+        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", null, 44, List.of( "triage" ), T, null );
         Mockito.when( registry.rotateAgentKey( ADMIN, 5, "Lena Lead" ) )
             .thenReturn( new WorkService.AgentWithToken( rebound, "wkk_newer" ) );
         final WorkHttp.Result r = send( "POST", "/5/rotate-key", "{\"owner\":\"Lena Lead\"}" );
@@ -300,7 +300,7 @@ class WorkAgentResourceTest {
     @Test
     void aRotatePostWithABlankBodyIsAPlainRotation() throws Exception {
         // A client that sends no JSON but a non-zero or unknown length (chunked) still means "rotate, same owner".
-        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", 45, List.of( "triage" ), T, null );
+        final Agent rebound = new Agent( 5, "builder", "acme", "claude-code", null, 45, List.of( "triage" ), T, null );
         Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) )
             .thenReturn( new WorkService.AgentWithToken( rebound, "wkk_blank" ) );
         final WorkHttp.Result r = send( "POST", "/5/rotate-key", "  \n" );

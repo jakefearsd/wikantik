@@ -570,7 +570,7 @@ class WorkItemResourceTest {
     void anItemShowsWhoHoldsItAndWhichQueueItIsIn() throws Exception {
         final WorkRegistryService registry = Mockito.mock( WorkRegistryService.class );
         Mockito.when( svc.registry() ).thenReturn( registry );
-        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "",
+        Mockito.when( registry.listAgents( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Agent( 5, "builder", "", "", "alice",
             null, List.of( "triage" ), Instant.parse( "2026-11-01T10:00:00Z" ), null ) ) );
         Mockito.when( registry.listQueues( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Queue( "triage", "Triage queue", "", null ) ) );
         final com.wikantik.work.Item base = WorkHttp.item( "PLAT-1", null, 2 );

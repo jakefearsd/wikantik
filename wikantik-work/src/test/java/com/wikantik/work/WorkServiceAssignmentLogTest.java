@@ -142,7 +142,7 @@ class WorkServiceAssignmentLogTest {
         assertFalse( seen.isEmpty() );
         assertTrue( seen.stream().allMatch( e -> e.projectKey().equals( "AAA" ) ), seen.toString() );
         assertTrue( seen.stream().noneMatch( e -> beta.equals( e.itemKey() ) ) );
-        final Actor flagged = new Actor( "codex@docker2", Set.of(), true, Actor.Kind.AGENT, codex.agentId() );
+        final Actor flagged = new Actor( "codex@docker2", Set.of(), true, Actor.Kind.AGENT, codex.agentId(), null );
         assertTrue( log( flagged ).stream().allMatch( e -> e.projectKey().equals( "AAA" ) ),
             "an agent that asks for the admin flag still sees only what it was admitted to" );
     }

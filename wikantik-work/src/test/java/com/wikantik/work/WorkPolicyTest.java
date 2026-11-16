@@ -73,14 +73,14 @@ class WorkPolicyTest {
 
     @Test
     void agentCannotSetPolicyOrManage() {
-        final Actor agent = new Actor( "bot", Set.of(), false, Actor.Kind.AGENT, 7L );
+        final Actor agent = new Actor( "bot", Set.of(), false, Actor.Kind.AGENT, 7L, null );
         assertFalse( WorkPolicy.may( agent, WorkRole.MEMBER, Action.SET_POLICY, null ).allowed() );
         assertFalse( WorkPolicy.may( agent, WorkRole.MEMBER, Action.MANAGE_PROJECT, null ).allowed() );
     }
 
     @Test
     void setPolicyAlwaysRequiresHumanEvenForLeadAgent() {
-        final Actor agent = new Actor( "bot", Set.of(), false, Actor.Kind.AGENT, 7L );
+        final Actor agent = new Actor( "bot", Set.of(), false, Actor.Kind.AGENT, 7L, null );
         final Decision d = WorkPolicy.may( agent, WorkRole.LEAD, Action.SET_POLICY, null );
         assertFalse( d.allowed() );
         assertFalse( d.reason().isBlank() );
@@ -90,7 +90,7 @@ class WorkPolicyTest {
     @ParameterizedTest
     @CsvSource( { "SET_POLICY", "MANAGE_PROJECT", "MANAGE_INSTANCE" } )
     void adminAgentIsDeniedAuthorityActions( final Action action ) {
-        final Actor adminAgent = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 7L );
+        final Actor adminAgent = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 7L, null );
         for ( final WorkRole role : new WorkRole[] { null, WorkRole.MEMBER, WorkRole.LEAD } ) {
             final Decision d = WorkPolicy.may( adminAgent, role, action, null );
             assertFalse( d.allowed(), action + " with role " + role );
@@ -151,7 +151,7 @@ class WorkPolicyTest {
 
     @Test
     void agentWithAdminFlagGetsNothingBeyondItsRole() {
-        final Actor flagged = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 7L );
+        final Actor flagged = new Actor( "bot", Set.of(), true, Actor.Kind.AGENT, 7L, null );
         final Actor plain = Actor.agent( 7L, "bot" );
         assertFalse( flagged.admin(), "only a human can be an admin: the flag is dropped at construction" );
         assertFalse( flagged.instanceAdmin() );

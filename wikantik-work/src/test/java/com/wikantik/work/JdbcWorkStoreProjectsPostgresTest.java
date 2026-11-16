@@ -81,10 +81,10 @@ class JdbcWorkStoreProjectsPostgresTest {
     void agentRowMatchesAgentIdAsText() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
         store.putMember( p.id(), "42", "agent", WorkRole.MEMBER, Actor.human( "admin", java.util.Set.of(), false ) );
-        final Actor agent = new Actor( "bot", Set.of(), false, Actor.Kind.AGENT, 42L );
+        final Actor agent = new Actor( "bot", Set.of(), false, Actor.Kind.AGENT, 42L, null );
         assertEquals( Optional.of( WorkRole.MEMBER ), store.roleFor( p.id(), agent ) );
         assertEquals( 1, store.visibleProjects( agent ).size() );
-        final Actor other = new Actor( "bot", Set.of(), false, Actor.Kind.AGENT, 43L );
+        final Actor other = new Actor( "bot", Set.of(), false, Actor.Kind.AGENT, 43L, null );
         assertEquals( Optional.empty(), store.roleFor( p.id(), other ) );
         // a human whose login happens to be "42" must not match the agent row
         assertEquals( Optional.empty(), store.roleFor( p.id(), human( "42" ) ) );
@@ -94,7 +94,7 @@ class JdbcWorkStoreProjectsPostgresTest {
     void agentNeverMatchesUserRowOfSameLogin() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
         store.putMember( p.id(), "alice", "user", WorkRole.LEAD, Actor.human( "admin", java.util.Set.of(), false ) );
-        final Actor agent = new Actor( "alice", Set.of(), false, Actor.Kind.AGENT, 7L );
+        final Actor agent = new Actor( "alice", Set.of(), false, Actor.Kind.AGENT, 7L, null );
         assertEquals( Optional.empty(), store.roleFor( p.id(), agent ) );
         assertTrue( store.visibleProjects( agent ).isEmpty() );
     }
@@ -103,7 +103,7 @@ class JdbcWorkStoreProjectsPostgresTest {
     void agentNeverInheritsGroupRows() throws SQLException {
         final Project p = store.createProject( "WIKI", "Wiki", "" );
         store.putMember( p.id(), "editors", "group", WorkRole.LEAD, Actor.human( "admin", java.util.Set.of(), false ) );
-        final Actor agent = new Actor( "bot", Set.of( "editors" ), false, Actor.Kind.AGENT, 7L );
+        final Actor agent = new Actor( "bot", Set.of( "editors" ), false, Actor.Kind.AGENT, 7L, null );
         assertEquals( Optional.empty(), store.roleFor( p.id(), agent ) );
         assertTrue( store.visibleProjects( agent ).isEmpty() );
     }

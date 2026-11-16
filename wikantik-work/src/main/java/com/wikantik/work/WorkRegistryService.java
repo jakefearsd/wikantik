@@ -121,7 +121,7 @@ public final class WorkRegistryService {
         if ( !canSeeRegistry( actor ) ) {
             return List.of();
         }
-        return store.agents().stream().map( a -> new Agent( a.id(), a.name(), a.vendor(), a.runtime(), null,
+        return store.agents().stream().map( a -> new Agent( a.id(), a.name(), a.vendor(), a.runtime(), a.sponsor(), null,
             a.queues(), a.createdAt(), a.retiredAt() ) ).toList();
     }
 
@@ -135,7 +135,7 @@ public final class WorkRegistryService {
             return java.util.Optional.empty();
         }
         return store.agent( actor.agentId() ).filter( Agent::active ).map( a -> new Agent( a.id(), a.name(),
-            a.vendor(), a.runtime(), null, a.queues(), a.createdAt(), a.retiredAt() ) );
+            a.vendor(), a.runtime(), a.sponsor(), null, a.queues(), a.createdAt(), a.retiredAt() ) );
     }
 
     public WorkService.AgentWithToken registerAgent( final Actor actor, final AgentDraft draft ) throws SQLException {
@@ -149,8 +149,11 @@ public final class WorkRegistryService {
                 ? actor.login() : draft.owner() );
         final AgentKeys.Minted minted = keys.mint( owner, "work-agent:" + name, actor.login() );
         try {
-            final Agent agent = store.registerAgent( name, RegistryChanges.orEmpty( draft.vendor() ), RegistryChanges.orEmpty( draft.runtime() ),
+            final Agent created = store.registerAgent( name, RegistryChanges.orEmpty( draft.vendor() ), RegistryChanges.orEmpty( draft.runtime() ),
                 minted.keyId(), queues );
+            // The registrant stands behind the agent. (Two transactions only until the key binding goes.)
+            store.setSponsor( created.id(), actor.login(), actor.login() );
+            final Agent agent = store.agent( created.id() ).orElse( created );
             LOG.info( "Work agent '{}' registered by {}", name, actor.login() );
             changes.audit( actor, "work.agent.register", AGENT, name, null );
             return new WorkService.AgentWithToken( agent, minted.token() );
@@ -213,7 +216,7 @@ public final class WorkRegistryService {
         changes.audit( actor, "work.agent.rotate_key", AGENT, existing.name(),
             owner == null ? null : "new owner " + owner );
         return new WorkService.AgentWithToken( new Agent( existing.id(), existing.name(), existing.vendor(),
-            existing.runtime(), minted.keyId(), existing.queues(), existing.createdAt(), null ), minted.token() );
+            existing.runtime(), existing.sponsor(), minted.keyId(), existing.queues(), existing.createdAt(), null ), minted.token() );
     }
 
     public void retireAgent( final Actor actor, final long agentId ) throws SQLException {
@@ -243,7 +246,22 @@ public final class WorkRegistryService {
             }
             return Actor.human( ownerLogin, scopes.groupsOf( ownerLogin ), false );
         }
-        return bound.active() ? Actor.agent( bound.id(), bound.name() ) : null;
+        return agentActor( bound );
+    }
+
+    /**
+     * The agent as an actor for this request, with its sponsor resolved from the directory as they are now; null
+     * (no actor at all) when the agent is retired, has no sponsor, or its sponsor's account no longer exists.
+     * Nothing about the sponsor is stored, so the agent works again the moment the account does. A directory
+     * failure is {@link WorkUnavailableException}, never "no actor".
+     */
+    Actor agentActor( final Agent agent ) {
+        if ( !agent.active() || agent.sponsor() == null ) {
+            return null;
+        }
+        return scopes.person( agent.sponsor() )
+            .map( p -> Actor.agent( agent.id(), agent.name(), Actor.human( p.login(), p.groups(), p.admin() ) ) )
+            .orElse( null );
     }
 
     /**

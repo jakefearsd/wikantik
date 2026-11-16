@@ -20,20 +20,36 @@ package com.wikantik.work;
 
 import java.util.Set;
 
-/** Who is acting: a person or an agent, with group memberships and the wiki-admin flag. */
-public record Actor( String login, Set<String> groups, boolean admin, Kind kind, Long agentId ) {
+/**
+ * Who is acting: a person or an agent, with group memberships and the wiki-admin flag. An agent also carries its
+ * {@code sponsor}: the person who stands behind it, resolved from the directory for this request (their groups and
+ * admin flag as they are now). The sponsor only ever limits the agent (see {@code WorkStanding}); none of the
+ * sponsor's groups or flags become the agent's. An agent with no sponsor has no standing anywhere.
+ */
+public record Actor( String login, Set<String> groups, boolean admin, Kind kind, Long agentId, Actor sponsor ) {
 
     /** An agent is never an admin whatever flag it is built with: the flag is a person's, so it is dropped here. */
     public Actor {
         admin = admin && kind == Kind.HUMAN;
+        if ( sponsor != null && ( kind != Kind.AGENT || sponsor.kind() != Kind.HUMAN ) ) {
+            throw new IllegalArgumentException( "Only an agent has a sponsor, and a sponsor is a person." );
+        }
     }
 
     /** Whether the actor is a person or an agent. */
     public enum Kind { HUMAN, AGENT }
 
-    /** An agent actor: never admin, in no groups; identified by its registry id. */
+    /**
+     * An agent actor with no sponsor resolved: enough for the store, which attributes writes by id, and for tests of
+     * it. At the service it has no standing in any project.
+     */
     public static Actor agent( final long agentId, final String name ) {
-        return new Actor( name, Set.of(), false, Kind.AGENT, agentId );
+        return new Actor( name, Set.of(), false, Kind.AGENT, agentId, null );
+    }
+
+    /** An agent actor: never admin, in no groups; identified by its registry id, limited by its sponsor. */
+    public static Actor agent( final long agentId, final String name, final Actor sponsor ) {
+        return new Actor( name, Set.of(), false, Kind.AGENT, agentId, sponsor );
     }
 
     /** Whether the actor is a person with the wiki-admin flag; the same as {@link #admin()}, which only a person can be. */
@@ -43,6 +59,6 @@ public record Actor( String login, Set<String> groups, boolean admin, Kind kind,
 
     /** A human actor. */
     public static Actor human( final String login, final Set<String> groups, final boolean admin ) {
-        return new Actor( login, groups, admin, Kind.HUMAN, null );
+        return new Actor( login, groups, admin, Kind.HUMAN, null, null );
     }
 }

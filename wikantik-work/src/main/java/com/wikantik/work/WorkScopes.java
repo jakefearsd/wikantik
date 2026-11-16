@@ -149,6 +149,11 @@ final class WorkScopes {
         return store.comment( commentId ).orElseThrow( () -> new WorkNotFoundException( NOT_FOUND ) );
     }
 
+    /** The account behind a login as the sponsor rule needs it; see {@link WorkDirectory#person}. */
+    java.util.Optional< WorkDirectory.Person > person( final String login ) {
+        return directory.person( login );
+    }
+
     /** The groups the login belongs to; never null. */
     Set< String > groupsOf( final String login ) {
         final Set< String > groups = directory.groupsOf( login );

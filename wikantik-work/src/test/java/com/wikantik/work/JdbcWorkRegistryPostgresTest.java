@@ -220,4 +220,29 @@ class JdbcWorkRegistryPostgresTest {
         assertEquals( "codex", store.agentEverBoundTo( second ).orElseThrow().name(), "a retired agent's key" );
         assertTrue( store.agentEverBoundTo( newKey() ).isEmpty(), "a key never bound to an agent" );
     }
+
+    @Test
+    void registerRecordsTheSponsorAndTheFirstHistoryRow() throws SQLException {
+        final Agent a = store.registerAgent( "codex", "acme", "cli", List.of( "implementer" ), "ana" );
+        assertEquals( "ana", a.sponsor() );
+        assertEquals( "ana", store.agent( a.id() ).orElseThrow().sponsor(), "agentRowCarriesSponsor" );
+        final List< WorkRegistryStore.SponsorChange > history = store.sponsorHistory( a.id() );
+        assertEquals( 1, history.size() );
+        assertEquals( "ana", history.get( 0 ).sponsor() );
+        assertEquals( "ana", history.get( 0 ).changedBy() );
+    }
+
+    @Test
+    void setSponsorWritesHistoryInOrder() throws SQLException {
+        final Agent a = store.registerAgent( "codex", "", "", List.of(), "ana" );
+        store.setSponsor( a.id(), null, "ana" );
+        assertNull( store.agent( a.id() ).orElseThrow().sponsor() );
+        store.setSponsor( a.id(), "bo", "bo" );
+        assertEquals( "bo", store.agent( a.id() ).orElseThrow().sponsor() );
+        final List< WorkRegistryStore.SponsorChange > history = store.sponsorHistory( a.id() );
+        assertEquals( java.util.Arrays.asList( "bo", null, "ana" ),
+            history.stream().map( WorkRegistryStore.SponsorChange::sponsor ).toList(), "newest first" );
+        assertEquals( List.of( "bo", "ana", "ana" ),
+            history.stream().map( WorkRegistryStore.SponsorChange::changedBy ).toList() );
+    }
 }

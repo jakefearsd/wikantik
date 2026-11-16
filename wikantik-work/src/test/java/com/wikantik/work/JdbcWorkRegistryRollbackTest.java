@@ -98,4 +98,15 @@ class JdbcWorkRegistryRollbackTest {
         assertFalse( store.wasEverAgentKey( first ) );
         assertEquals( first, store.agent( a.id() ).orElseThrow().apiKeyId() );
     }
+
+    @Test
+    void setSponsorRollsBackWhenTheHistoryInsertFails() throws SQLException {
+        final Agent a = store.registerAgent( "before", "v", "r", List.of(), "ana" );
+        final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
+        faulty.failOn( 2, new RuntimeException( "boom: history" ) ); // 1 update sponsor, 2 insert history
+        assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty ).setSponsor( a.id(), "bo", "bo" ) );
+        assertEquals( 1, faulty.rollbacks() );
+        assertEquals( "ana", store.agent( a.id() ).orElseThrow().sponsor() );
+        assertEquals( 1, store.sponsorHistory( a.id() ).size() );
+    }
 }

@@ -109,7 +109,7 @@ class JdbcWorkClaimsPostgresTest {
         final Item item = fx.ready( "x" );
         assertThrows( IllegalArgumentException.class, () -> claims.claim( item, WorkClaimFixtures.LENA, HOUR ) );
         assertThrows( IllegalArgumentException.class, () -> claims.claim( item,
-            new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null ), HOUR ) );
+            new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null, null ), HOUR ) );
     }
 
     @Test
@@ -422,7 +422,7 @@ class JdbcWorkClaimsPostgresTest {
 
     @Test
     void retireRequiresAnAttributedActor() throws SQLException {
-        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null );
+        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null, null );
         assertThrows( IllegalArgumentException.class, () -> claims.retireAgent( fx.a.id(), Instant.now(), ghost ) );
         assertThrows( IllegalArgumentException.class, () -> claims.release( fx.ready( "x" ), ghost, "n" ) );
         assertTrue( store.agent( fx.a.id() ).orElseThrow().active() );

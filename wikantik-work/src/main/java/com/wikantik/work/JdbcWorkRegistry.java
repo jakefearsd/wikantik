@@ -45,12 +45,12 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
         final Array keys = rs.getArray( "queues" );
         final String[] queues = keys == null ? new String[ 0 ] : ( String[] ) keys.getArray();
         return new Agent( rs.getLong( "id" ), rs.getString( "name" ), rs.getString( "vendor" ),
-            rs.getString( "runtime" ), rs.getInt( "api_key_id" ), List.of( queues ),
+            rs.getString( "runtime" ), rs.getString( "sponsor" ), rs.getInt( "api_key_id" ), List.of( queues ),
             instant( rs, "created_at" ), instant( rs, "retired_at" ) );
     };
 
     private static final String AGENT_SELECT = """
-        SELECT a.id, a.name, a.vendor, a.runtime, a.api_key_id, a.created_at, a.retired_at,
+        SELECT a.id, a.name, a.vendor, a.runtime, a.sponsor, a.api_key_id, a.created_at, a.retired_at,
                ARRAY( SELECT q.queue_key FROM work_agent_queue q WHERE q.agent_id = a.id
                       ORDER BY q.queue_key ) AS queues
           FROM work_agent a
@@ -110,6 +110,51 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
             return created;
         } );
         return agent( id ).orElseThrow( () -> new SQLException( "work_agent " + id + " vanished" ) );
+    }
+
+    @Override
+    public Agent registerAgent( final String name, final String vendor, final String runtime,
+                                final List< String > queues, final String sponsor ) throws SQLException {
+        final long id = jdbc.inTransaction( conn -> {
+            final long created = jdbc.queryOne( conn, "INSERT INTO work_agent (name, vendor, runtime, sponsor) "
+                    + "VALUES (?,?,?,?) RETURNING id",
+                ps -> {
+                    ps.setString( 1, name.toLowerCase( Locale.ROOT ) );
+                    ps.setString( 2, vendor );
+                    ps.setString( 3, runtime );
+                    ps.setString( 4, sponsor );
+                },
+                rs -> rs.getLong( 1 ) ).orElseThrow( () -> new SQLException( "INSERT work_agent returned no row" ) );
+            insertQueues( conn, created, queues );
+            insertSponsorChange( conn, created, sponsor, sponsor );
+            return created;
+        } );
+        return agent( id ).orElseThrow( () -> new SQLException( "work_agent " + id + " vanished" ) );
+    }
+
+    @Override
+    public void setSponsor( final long agentId, final String sponsorOrNull, final String changedBy )
+            throws SQLException {
+        jdbc.inTransaction( conn -> {
+            jdbc.update( conn, "UPDATE work_agent SET sponsor = ? WHERE id = ?",
+                ps -> { ps.setString( 1, sponsorOrNull ); ps.setLong( 2, agentId ); } );
+            insertSponsorChange( conn, agentId, sponsorOrNull, changedBy );
+            return null;
+        } );
+    }
+
+    private void insertSponsorChange( final java.sql.Connection conn, final long agentId, final String sponsor,
+                                      final String changedBy ) throws SQLException {
+        jdbc.update( conn, "INSERT INTO work_agent_sponsor_history (agent_id, sponsor, changed_by) VALUES (?,?,?)",
+            ps -> { ps.setLong( 1, agentId ); ps.setString( 2, sponsor ); ps.setString( 3, changedBy ); } );
+    }
+
+    @Override
+    public List< SponsorChange > sponsorHistory( final long agentId ) throws SQLException {
+        return jdbc.query( "SELECT sponsor, since, changed_by FROM work_agent_sponsor_history WHERE agent_id = ? "
+                + "ORDER BY since DESC, id DESC",
+            ps -> ps.setLong( 1, agentId ),
+            rs -> new SponsorChange( rs.getString( "sponsor" ), instant( rs, "since" ), rs.getString( "changed_by" ) ) );
     }
 
     private void insertQueues( final java.sql.Connection conn, final long agentId, final List< String > queues )

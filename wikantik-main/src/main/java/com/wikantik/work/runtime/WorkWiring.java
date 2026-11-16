@@ -74,9 +74,10 @@ public final class WorkWiring {
         final MeterRegistry registry = MeterRegistryHolder.get();
         final WorkListener listener = registry != null ? new WorkMetrics( registry, store ) : new WorkListener() { };
         final ApiKeyService apiKeys = ApiKeyServiceHolder.get( props );
-        final AgentKeys agentKeys = apiKeys != null ? new WikiAgentKeys( apiKeys ) : AgentKeys.NONE;
+        final WikiWorkDirectory directory = new WikiWorkDirectory( engine );
+        final AgentKeys agentKeys = apiKeys != null ? new WikiAgentKeys( apiKeys, directory::exists ) : AgentKeys.NONE;
         final WorkService service = new WorkService( store, new WikiWorkRenderer( engine ),
-            new WikiWorkDirectory( engine ), agentKeys, Clock.systemUTC(),
+            directory, agentKeys, Clock.systemUTC(),
             new WorkSettings( claimExpiry( props ) ), listener, new WikiWorkAudit( engine ) );
         LOG.info( "Work management started ({}=true, metrics {})", PROP_ENABLED, registry != null ? "on" : "off" );
         return service;

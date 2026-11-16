@@ -21,14 +21,26 @@ package com.wikantik.work.runtime;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.work.AgentKeys;
 import com.wikantik.work.WorkConflictException;
+import com.wikantik.work.WorkValidationException;
+
+import java.util.function.Predicate;
 
 /** Mints, re-mints and revokes the {@code work}-scoped API keys agents authenticate with. */
 public final class WikiAgentKeys implements AgentKeys {
 
-    private final ApiKeyService service;
+    /** The refusal to re-mint for an owner the user database no longer has (P31). */
+    static final String OWNER_GONE = "This agent's key owner no longer exists. Name a new owner.";
 
-    public WikiAgentKeys( final ApiKeyService service ) {
+    private final ApiKeyService service;
+    private final Predicate< String > ownerExists;
+
+    /**
+     * @param ownerExists whether a login is still in the user database: a re-mint keeps the old key's owner, so an
+     *                    owner who was deleted must be replaced by name instead
+     */
+    public WikiAgentKeys( final ApiKeyService service, final Predicate< String > ownerExists ) {
         this.service = service;
+        this.ownerExists = ownerExists;
     }
 
     @Override
@@ -36,12 +48,19 @@ public final class WikiAgentKeys implements AgentKeys {
         return generate( ownerLogin, label, createdBy );
     }
 
-    /** Works from a revoked old key too: it still names the owner, and re-minting from it is the recovery path. */
+    /**
+     * Works from a revoked old key too: it still names the owner, and re-minting from it is the recovery path. Refused
+     * ({@link WorkValidationException} on {@code owner}) when that owner is no longer in the user database.
+     */
     @Override
     public Minted remint( final int oldKeyId, final String label, final String createdBy ) {
         final ApiKeyService.Record old = service.findById( oldKeyId )
             .orElseThrow( () -> new WorkConflictException( "The agent's current API key (id " + oldKeyId
                 + ") was not found, so it cannot be rotated." ) );
+        if ( !ownerExists.test( old.principalLogin() ) ) {
+            // No live credential may outlive its user: a deleted owner is never given a fresh key.
+            throw new WorkValidationException( "owner", OWNER_GONE );
+        }
         return generate( old.principalLogin(), label, createdBy );
     }
 

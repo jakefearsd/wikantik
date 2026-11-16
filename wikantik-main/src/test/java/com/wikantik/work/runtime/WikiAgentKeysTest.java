@@ -41,11 +41,13 @@ class WikiAgentKeysTest {
     private ApiKeyService service;
     private WikiAgentKeys keys;
     private String owner;
+    /** Logins the user database no longer has. */
+    private final java.util.Set< String > deleted = new java.util.HashSet<>();
 
     @BeforeEach
     void setUp() {
         service = new ApiKeyService( PostgresTestDb.createDataSource() );
-        keys = new WikiAgentKeys( service );
+        keys = new WikiAgentKeys( service, login -> !deleted.contains( login ) );
         owner = "owner-" + UUID.randomUUID();
     }
 
@@ -110,5 +112,17 @@ class WikiAgentKeysTest {
         final AgentKeys.Minted restored = keys.remint( m.keyId(), "work-agent:codex", "janne" );
         assertTrue( service.verify( restored.token() ).isPresent(), "the re-minted key works" );
         assertEquals( owner, service.findById( restored.keyId() ).orElseThrow().principalLogin() );
+    }
+
+    @Test
+    void aRemintForAnOwnerWhoNoLongerExistsIsRefusedAndMintsNothing() {
+        final AgentKeys.Minted m = keys.mint( owner, "work-agent:codex", "janne" );
+        deleted.add( owner );
+        final int before = service.list().size();
+        final com.wikantik.work.WorkValidationException e = assertThrows( com.wikantik.work.WorkValidationException.class,
+            () -> keys.remint( m.keyId(), "work-agent:codex", "janne" ) );
+        assertEquals( "owner", e.field() );
+        assertEquals( "This agent's key owner no longer exists. Name a new owner.", e.getMessage() );
+        assertEquals( before, service.list().size(), "no key was minted" );
     }
 }

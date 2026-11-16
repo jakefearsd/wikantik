@@ -285,4 +285,15 @@ class WorkAgentResourceTest {
         assertEquals( 200, r.status() );
         Mockito.verify( registry ).updateAgent( ADMIN, 5, new AgentDraft( null, null, "codex-2", null, null ) );
     }
+
+    @Test
+    void aRotationWhoseOwnerIsGoneIsA400OnOwner() throws Exception {
+        final String message = "This agent's key owner no longer exists. Name a new owner.";
+        Mockito.when( registry.rotateAgentKey( ADMIN, 5, null ) )
+            .thenThrow( new com.wikantik.work.WorkValidationException( "owner", message ) );
+        final WorkHttp.Result r = send( "POST", "/5/rotate-key", null );
+        assertEquals( 400, r.status() );
+        assertEquals( "owner", r.json().getAsJsonObject().get( "field" ).getAsString() );
+        assertEquals( message, r.json().getAsJsonObject().get( "message" ).getAsString() );
+    }
 }

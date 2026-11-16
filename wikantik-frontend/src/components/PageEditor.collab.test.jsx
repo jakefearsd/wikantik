@@ -994,7 +994,9 @@ describe('PageEditor collaborative mode', () => {
     await pushMeta(bob, [{ field: 'summary', value: 'Bobs' }]);
     fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
     await until(() => currentView() !== null && currentView() !== view);
-    const panel = await screen.findByTestId('collab-recovery-meta');
+    // The panel appears only after a resync round-trip on real timers (a 2 s long-poll among them); under the
+    // release gate's `vitest --coverage` load that overran even the 3 s budget once, so this wait gets its own.
+    const panel = await screen.findByTestId('collab-recovery-meta', {}, { timeout: 10000 });
     expect(panel).toHaveTextContent('summary: Mine');
     await wait(600);
     expect(server.metadata.summary).toBe('Bobs'); // never auto-sent over the newer value
@@ -1035,7 +1037,7 @@ describe('PageEditor collaborative mode', () => {
     fireEvent.blur(raw);
     await until(() => server.metadata.tags?.includes('fixed'));
     await until(() => !screen.getByTestId('editor-save').disabled);
-  });
+  }, 30000);
   // ── Phase 3 Task 11: draft banner, publish dialog, notices, convert-and-publish ──
 
   const idsOf = ({ j }) => ({ sessionId: j.sessionId, participantId: j.participantId });

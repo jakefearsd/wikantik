@@ -32,7 +32,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * Every read of work data goes through {@code WorkService}, which is where project visibility is applied. This
  * keeps it that way: only the {@code com.wikantik.work} package (the store and the service) and the one wiring class
  * {@code com.wikantik.work.runtime.WorkWiring} that builds the store may touch {@code WorkStore}, {@code JdbcWorkStore}
- * or the sub-store interfaces ({@code WorkCatalogStore}, {@code WorkRegistryStore}, {@code WorkClaimStore}). Not frozen: there are no
+ * or the sub-store interfaces ({@code WorkCatalogStore}, {@code WorkRegistryStore}, {@code WorkClaimStore}, {@code WorkCredentialStore}). Not frozen: there are no
  * violations to baseline and none may be added.
  *
  * <p>Classes come from {@link com.wikantik.architecture.ProductionPackageLocations}, not {@code packages =}: the
@@ -62,6 +62,7 @@ class WorkAccessArchTest {
         .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkCatalogStore" )
         .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkRegistryStore" )
         .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkClaimStore" )
+        .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkCredentialStore" )
         .because( "WorkService is the only door to work data; the store and its sub-stores have no visibility check" );
 
     /**

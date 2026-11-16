@@ -78,15 +78,22 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
 
     /** The claim half of the store; a member losing access releases its claims inside the member transaction. */
     private final JdbcWorkClaims claims;
+    private final JdbcWorkCredentials credentials;
 
     JdbcWorkCatalog( final Jdbc jdbc ) {
         super( jdbc );
         this.claims = new JdbcWorkClaims( jdbc, this );
+        this.credentials = new JdbcWorkCredentials( jdbc );
     }
 
     /** The claim half of the store; declared here so {@link JdbcWorkStore} inherits it as {@code WorkStore.claims()}. */
     public WorkClaimStore claims() {
         return claims;
+    }
+
+    /** Agents' own credentials; declared here so {@link JdbcWorkStore} inherits it. */
+    public WorkCredentialStore credentials() {
+        return credentials;
     }
 
     // ---- projects

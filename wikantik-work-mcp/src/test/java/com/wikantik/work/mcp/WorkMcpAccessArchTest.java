@@ -40,6 +40,7 @@ class WorkMcpAccessArchTest {
     private static final ArchRule NO_STORE = noClasses().that().resideInAPackage( PKG )
         .should().dependOnClassesThat().areAssignableTo( WorkStore.class )
         .orShould().dependOnClassesThat().areAssignableTo( WorkClaimStore.class )
+        .orShould().dependOnClassesThat().areAssignableTo( com.wikantik.work.WorkCredentialStore.class )
         .orShould().dependOnClassesThat().areAssignableTo( WorkRegistryStore.class )
         .orShould().dependOnClassesThat().areAssignableTo( WorkCatalogStore.class )
         .orShould().dependOnClassesThat().resideInAPackage( "com.wikantik.jdbc.." )

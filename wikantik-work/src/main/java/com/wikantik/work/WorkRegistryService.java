@@ -249,6 +249,39 @@ public final class WorkRegistryService {
         return agentActor( bound );
     }
 
+    /** A verified agent token: the credential it is and the agent it names. */
+    public record AgentLogin( long credentialId, long agentId ) {
+    }
+
+    /**
+     * The agent a bearer token names: empty unless it is shaped like an agent token and matches a live credential.
+     * Anything else (a personal API key among them) never reaches the credential table. Nothing is cached, so a
+     * rotation or retirement holds from the next request; the use is recorded at most about once a minute. A system
+     * lookup: it takes no actor, and a store failure is an exception, never "unknown token".
+     */
+    public java.util.Optional< AgentLogin > agentForToken( final String token ) throws SQLException {
+        if ( !AgentTokens.looksLikeAgentToken( token ) ) {
+            return java.util.Optional.empty();
+        }
+        final WorkCredentialStore credentials = store.credentials();
+        final java.util.Optional< WorkCredentialStore.Live > live = credentials.findLive( AgentTokens.hash( token ) );
+        if ( live.isEmpty() ) {
+            return java.util.Optional.empty();
+        }
+        credentials.touch( live.get().credentialId() );
+        return java.util.Optional.of( new AgentLogin( live.get().credentialId(), live.get().agentId() ) );
+    }
+
+    /**
+     * The actor for a verified agent, resolved for this request: null when the agent is unknown, retired, has no
+     * sponsor, or its sponsor's account is gone ({@link #agentActor}). A system lookup, like
+     * {@link #actorForApiKey}.
+     */
+    public Actor actorForAgent( final long agentId ) throws SQLException {
+        final Agent agent = store.agent( agentId ).orElse( null );
+        return agent == null ? null : agentActor( agent );
+    }
+
     /**
      * The agent as an actor for this request, with its sponsor resolved from the directory as they are now; null
      * (no actor at all) when the agent is retired, has no sponsor, or its sponsor's account no longer exists.

@@ -18,6 +18,7 @@
  */
 package com.wikantik.work.mcp;
 
+import com.wikantik.auth.apikeys.AgentTokenAuth;
 import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.work.Actor;
@@ -46,6 +47,9 @@ public final class WorkMcpActors {
      */
     public static final String KEY_RECORD = ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD;
 
+    /** Context key under which a verified agent token's {@link AgentTokenAuth.AgentRef} travels to the tool call. */
+    public static final String AGENT_REF = AgentTokenAuth.ATTR_AGENT_REF;
+
     private WorkMcpActors() {
     }
 
@@ -58,6 +62,10 @@ public final class WorkMcpActors {
         if ( record instanceof ApiKeyService.Record ) {
             return McpTransportContext.create( Map.of( KEY_RECORD, record ) );
         }
+        final Object agent = request.getAttribute( AgentTokenAuth.ATTR_AGENT_REF );
+        if ( agent instanceof AgentTokenAuth.AgentRef ) {
+            return McpTransportContext.create( Map.of( AGENT_REF, agent ) );
+        }
         return McpTransportContext.EMPTY;
     }
 
@@ -69,8 +77,13 @@ public final class WorkMcpActors {
      *         a retired agent, or was once an agent's key and has been rotated away
      */
     public static Actor actorFor( final McpTransportContext context, final WorkService service ) throws SQLException {
-        final Object record = context == null ? null : context.get( KEY_RECORD );
-        if ( !( record instanceof ApiKeyService.Record key ) ) {
+        if ( context == null ) {
+            return null;
+        }
+        if ( context.get( AGENT_REF ) instanceof AgentTokenAuth.AgentRef agent ) {
+            return WikiWorkActors.actorForAgent( service, agent );
+        }
+        if ( !( context.get( KEY_RECORD ) instanceof ApiKeyService.Record key ) ) {
             return null;
         }
         return WikiWorkActors.actorForKey( service, key );

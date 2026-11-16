@@ -24,6 +24,7 @@ import com.google.gson.JsonObject;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.apikeys.AgentTokenAuth;
 import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.work.Actor;
@@ -94,6 +95,13 @@ public abstract class WorkResourceBase extends RestServletBase {
                 return WikiWorkActors.actorForKey( workService(), key );
             } catch ( final SQLException e ) {
                 throw new IllegalStateException( "Could not resolve the actor of an API key", e );
+            }
+        }
+        if ( request.getAttribute( AgentTokenAuth.ATTR_AGENT_REF ) instanceof AgentTokenAuth.AgentRef agent ) {
+            try {
+                return WikiWorkActors.actorForAgent( workService(), agent );
+            } catch ( final SQLException e ) {
+                throw new IllegalStateException( "Could not resolve the actor of an agent token", e );
             }
         }
         return WorkApiKeyFilter.hasBearer( request ) ? null : sessionActor( request );

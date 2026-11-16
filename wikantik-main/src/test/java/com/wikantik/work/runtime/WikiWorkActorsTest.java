@@ -149,4 +149,29 @@ class WikiWorkActorsTest {
             "null passes through; the key's owner is never substituted" );
         verify( registry ).actorForApiKey( 7, "owner" );
     }
+
+    // ---- agent tokens (phase 3a)
+
+    @Test
+    void theAgentVerifierTurnsAStoreFailureIntoALookupFailure() throws Exception {
+        final com.wikantik.work.WorkService svc = org.mockito.Mockito.mock( com.wikantik.work.WorkService.class,
+            org.mockito.Mockito.RETURNS_DEEP_STUBS );
+        org.mockito.Mockito.when( svc.registry().agentForToken( "wka_x" ) )
+            .thenThrow( new java.sql.SQLException( "down" ) );
+        org.junit.jupiter.api.Assertions.assertThrows( ApiKeyService.LookupFailedException.class,
+            () -> WikiWorkActors.agentVerifier( svc ).verify( "wka_x" ),
+            "a failed lookup must reach the filter as retryable, never as an unknown token" );
+    }
+
+    @Test
+    void theAgentVerifierMapsALiveCredentialAndAnUnknownOne() throws Exception {
+        final com.wikantik.work.WorkService svc = org.mockito.Mockito.mock( com.wikantik.work.WorkService.class,
+            org.mockito.Mockito.RETURNS_DEEP_STUBS );
+        org.mockito.Mockito.when( svc.registry().agentForToken( "wka_live" ) ).thenReturn( java.util.Optional.of(
+            new com.wikantik.work.WorkRegistryService.AgentLogin( 11, 7 ) ) );
+        org.mockito.Mockito.when( svc.registry().agentForToken( "wka_none" ) ).thenReturn( java.util.Optional.empty() );
+        assertEquals( java.util.Optional.of( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 11, 7 ) ),
+            WikiWorkActors.agentVerifier( svc ).verify( "wka_live" ) );
+        assertTrue( WikiWorkActors.agentVerifier( svc ).verify( "wka_none" ).isEmpty() );
+    }
 }

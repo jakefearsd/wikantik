@@ -64,6 +64,7 @@ public final class McpEndpointBootstrapper {
     private final Engine engine;
     private final com.wikantik.auth.apikeys.ApiKeyService.Scope requiredScope;
     private final boolean keyOnly;
+    private final com.wikantik.auth.apikeys.AgentTokenAuth.Verifier agentTokens;
 
     private McpEndpointBootstrapper( final Builder b ) {
         this.logTag = b.logTag;
@@ -74,6 +75,7 @@ public final class McpEndpointBootstrapper {
         this.engine = b.engine;
         this.requiredScope = b.requiredScope;
         this.keyOnly = b.keyOnly;
+        this.agentTokens = b.agentTokens;
     }
 
     public static Builder builder() {
@@ -114,6 +116,9 @@ public final class McpEndpointBootstrapper {
             accessFilter = new KeyOnlyMcpAccessFilter( rateLimiter, apiKeyService, requiredScope );
         } else {
             accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService, requiredScope );
+        }
+        if ( agentTokens != null ) {
+            accessFilter.agentTokens( agentTokens );
         }
         final FilterRegistration.Dynamic filterReg =
                 servletContext.addFilter( filterName, accessFilter );
@@ -166,6 +171,7 @@ public final class McpEndpointBootstrapper {
         private int loadOnStartup = 2;
         private Engine engine;
         private boolean keyOnly;
+        private com.wikantik.auth.apikeys.AgentTokenAuth.Verifier agentTokens;
         private com.wikantik.auth.apikeys.ApiKeyService.Scope requiredScope =
                 com.wikantik.auth.apikeys.ApiKeyService.Scope.MCP_ADMIN;
 
@@ -197,6 +203,8 @@ public final class McpEndpointBootstrapper {
          * {@code mcp.access.allowedCidrs}: only a valid API key whose scope covers the required one gets in.
          */
         public Builder keyOnly( final boolean value ) { this.keyOnly = value; return this; }
+        /** Verifies work agents' own tokens on this endpoint; only meaningful where the required scope is {@code WORK}. */
+        public Builder agentTokens( final com.wikantik.auth.apikeys.AgentTokenAuth.Verifier value ) { this.agentTokens = value; return this; }
 
         public McpEndpointBootstrapper build() {
             if ( logTag == null || endpointPath == null || filterName == null

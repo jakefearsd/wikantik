@@ -482,6 +482,27 @@ public class WikiSessionTest {
         Mockito.verify( request, Mockito.never() ).getSession();
     }
 
+    @Test
+    void anAgentTokenRequestWithIdentityCookiesAndASessionStillGetsNoSession() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( Mockito.mock( HttpSession.class ) ).when( request ).getSession( false );
+        Mockito.doReturn( null ).when( request ).getUserPrincipal();
+        Mockito.doReturn( ApiKeyPrincipalRequest.AUTH_TYPE ).when( request ).getAuthType();
+        Mockito.doReturn( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 11, 7 ) ).when( request )
+            .getAttribute( com.wikantik.auth.apikeys.AgentTokenAuth.ATTR_AGENT_REF );
+        Mockito.doReturn( new jakarta.servlet.http.Cookie[] { new jakarta.servlet.http.Cookie( "WikantikUID", "x" ) } )
+            .when( request ).getCookies();
+        Mockito.doReturn( Locale.ROOT ).when( request ).getLocale();
+        final SessionMonitor monitor = SessionMonitor.getInstance( m_engine );
+        final int before = monitor.sessions();
+
+        final Session result = WikiSession.getWikiSession( m_engine, request );
+
+        Assertions.assertFalse( result.isAuthenticated() );
+        Assertions.assertEquals( before, monitor.sessions() );
+        Mockito.verify( request, Mockito.never() ).getSession();
+    }
+
     /**
      * A Basic-auth request must take the session-creating branch: BasicAuthFilter does
      * find()-then-login on the returned session, so it must resolve to a persistent

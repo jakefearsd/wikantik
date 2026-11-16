@@ -71,7 +71,7 @@ public class MustChangePasswordFilter implements Filter {
         final HttpServletResponse resp = ( HttpServletResponse ) response;
 
         if ( "OPTIONS".equalsIgnoreCase( req.getMethod() ) || isExempt( req ) || isSpaNavigation( req )
-                || req.getAttribute( com.wikantik.auth.apikeys.ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) != null ) {
+                || com.wikantik.auth.apikeys.AgentTokenAuth.isCredentialRequest( req ) ) {
             // (an API-key request acts as the key, never as a session a cookie names)
             chain.doFilter( request, response );
             return;

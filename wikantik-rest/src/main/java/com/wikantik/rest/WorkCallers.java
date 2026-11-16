@@ -18,8 +18,10 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.auth.apikeys.AgentTokenAuth;
 import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.work.Actor;
+import com.wikantik.work.WorkUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
@@ -39,7 +41,7 @@ final class WorkCallers {
     /**
      * The caller, or null once an error has been written: 401 for no actor ({@code Invalid API key}, the one body of
      * {@link WorkApiKeyFilter}, when the request carried a bearer credential, so an unknown, revoked and retired-agent
-     * key look the same; {@code Authentication required.} for an anonymous session) and 500 when the key lookup failed.
+     * key look the same; {@code Authentication required.} for an anonymous session), 503 when the store or the user directory did not answer, and 500 for anything else.
      */
     static Actor authenticate( final Function< HttpServletRequest, Actor > resolve, final HttpServletRequest request,
                                final HttpServletResponse response ) throws IOException {
@@ -48,14 +50,21 @@ final class WorkCallers {
             actor = resolve.apply( request );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Work API could not resolve the caller: {}", e.getMessage(), e );
-            RestJson.sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal error." );
+            if ( e instanceof WorkUnavailableException || e.getCause() instanceof java.sql.SQLException ) {
+                // A store or directory that did not answer is retryable; it says nothing about the credential.
+                WorkApiKeyFilter.deny( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    WorkApiKeyFilter.UNAVAILABLE_BODY );
+            } else {
+                RestJson.sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal error." );
+            }
             return null;
         }
         if ( actor != null ) {
             return actor;
         }
         if ( WorkApiKeyFilter.hasBearer( request )
-                || request.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) != null ) {
+                || request.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) != null
+                || request.getAttribute( AgentTokenAuth.ATTR_AGENT_REF ) != null ) {
             WorkApiKeyFilter.deny( response, HttpServletResponse.SC_UNAUTHORIZED, WorkApiKeyFilter.INVALID_KEY_BODY );
         } else {
             RestJson.sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required." );

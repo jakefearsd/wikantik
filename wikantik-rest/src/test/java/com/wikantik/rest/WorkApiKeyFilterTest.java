@@ -26,6 +26,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -209,5 +210,106 @@ class WorkApiKeyFilterTest {
         final HttpServletRequest again = request( "Bearer " + token );
         run( again );
         Mockito.verify( chain ).doFilter( Mockito.any( WorkKeyRequest.class ), Mockito.eq( resp ) );
+    }
+
+    // ---- agent tokens (phase 3a): verified by the work module, never by the API-key store
+
+    private static final com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef CODEX =
+        new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 11, 7 );
+
+    private final java.util.concurrent.atomic.AtomicInteger agentLookups = new java.util.concurrent.atomic.AtomicInteger();
+    private boolean agentStoreDown;
+
+    private WorkApiKeyFilter agentFilter( final ApiKeyService keyService, final int perKeyLimit ) {
+        final com.wikantik.auth.apikeys.AgentTokenAuth.Verifier verifier = token -> {
+            agentLookups.incrementAndGet();
+            if ( agentStoreDown ) {
+                throw new ApiKeyService.LookupFailedException( new IllegalStateException( "down" ) );
+            }
+            return "wka_codex".equals( token ) ? Optional.of( CODEX ) : Optional.empty();
+        };
+        return new WorkApiKeyFilter( () -> keyService, () -> enabled, () -> verifier,
+            new com.wikantik.http.ratelimit.SlidingWindowRateLimiter( 0, perKeyLimit ) );
+    }
+
+    private HttpServletRequest forwarded() throws Exception {
+        final org.mockito.ArgumentCaptor< jakarta.servlet.ServletRequest > seen =
+            org.mockito.ArgumentCaptor.forClass( jakarta.servlet.ServletRequest.class );
+        Mockito.verify( chain, Mockito.atLeastOnce() ).doFilter( seen.capture(), Mockito.any() );
+        return ( HttpServletRequest ) seen.getValue();
+    }
+
+    @Test
+    void anAgentTokenReachesTheChainWithNoPrincipal() throws Exception {
+        final ApiKeyService spy = Mockito.spy( keys );
+        filter = agentFilter( spy, 0 );
+        run( request( "Bearer wka_codex" ) );
+        final HttpServletRequest forwarded = forwarded();
+        assertNoPrincipal( forwarded );
+        org.junit.jupiter.api.Assertions.assertEquals( CODEX,
+            forwarded.getAttribute( com.wikantik.auth.apikeys.AgentTokenAuth.ATTR_AGENT_REF ) );
+        org.junit.jupiter.api.Assertions.assertNull(
+            forwarded.getAttribute( com.wikantik.auth.apikeys.ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) );
+        Mockito.verify( spy, Mockito.never() ).verify( Mockito.anyString() );
+    }
+
+    @Test
+    void anUnknownAgentTokenIs401() throws Exception {
+        filter = agentFilter( keys, 0 );
+        run( request( "Bearer wka_nobody" ) );
+        org.junit.jupiter.api.Assertions.assertEquals( 401, status.get() );
+        org.junit.jupiter.api.Assertions.assertEquals( WorkApiKeyFilter.INVALID_KEY_BODY, body.toString() );
+        Mockito.verifyNoInteractions( chain );
+    }
+
+    @Test
+    void aCredentialStoreFailureIs503NotCached() throws Exception {
+        filter = agentFilter( keys, 0 );
+        agentStoreDown = true;
+        run( request( "Bearer wka_codex" ) );
+        org.junit.jupiter.api.Assertions.assertEquals( 503, status.get() );
+        org.junit.jupiter.api.Assertions.assertEquals( WorkApiKeyFilter.UNAVAILABLE_BODY, body.toString() );
+        Mockito.verifyNoInteractions( chain );
+        agentStoreDown = false;
+        run( request( "Bearer wka_codex" ) );
+        org.junit.jupiter.api.Assertions.assertEquals( CODEX,
+            forwarded().getAttribute( com.wikantik.auth.apikeys.AgentTokenAuth.ATTR_AGENT_REF ), "it recovers at once" );
+    }
+
+    @Test
+    void aPersonalKeyIsNeverLookedUpAsAnAgentToken() throws Exception {
+        filter = agentFilter( keys, 0 );
+        run( request( "Bearer " + token( ApiKeyService.Scope.WORK ) ) );
+        org.junit.jupiter.api.Assertions.assertEquals( 0, agentLookups.get() );
+        org.junit.jupiter.api.Assertions.assertNotNull(
+            forwarded().getAttribute( com.wikantik.auth.apikeys.ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) );
+    }
+
+    @Test
+    void withNoWorkVerifierAnAgentTokenIs401() throws Exception {
+        filter = new WorkApiKeyFilter( () -> keys, () -> enabled );
+        run( request( "Bearer wka_codex" ) );
+        org.junit.jupiter.api.Assertions.assertEquals( 401, status.get() );
+    }
+
+    @Test
+    void theSixthRequestInASecondIs429AndTheLimitIsPerCredential() throws Exception {
+        filter = agentFilter( keys, 5 );
+        final String personal = token( ApiKeyService.Scope.WORK );
+        for ( int i = 0; i < 5; i++ ) {
+            run( request( "Bearer wka_codex" ) );
+        }
+        org.junit.jupiter.api.Assertions.assertEquals( 0, status.get(), "five are let through" );
+        run( request( "Bearer " + personal ) );
+        org.junit.jupiter.api.Assertions.assertEquals( 0, status.get(), "another credential has its own allowance" );
+        final HttpServletResponse limited = Mockito.mock( HttpServletResponse.class );
+        final StringWriter out = new StringWriter();
+        Mockito.doReturn( new PrintWriter( out ) ).when( limited ).getWriter();
+        filter.doFilter( request( "Bearer wka_codex" ), limited, chain );
+        limited.getWriter().flush();
+        Mockito.verify( limited ).setStatus( 429 );
+        Mockito.verify( limited ).setHeader( "Retry-After", "1" );
+        org.junit.jupiter.api.Assertions.assertEquals( "{\"error\":\"Rate limit exceeded\"}", out.toString() );
+        Mockito.verify( chain, Mockito.times( 6 ) ).doFilter( Mockito.any(), Mockito.any() );
     }
 }

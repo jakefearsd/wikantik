@@ -179,4 +179,24 @@ class WorkKeyChainTest {
         assertNotNull( run( req ), "the flagged user's cookie must not block a key request: " + body );
         assertEquals( "", body.toString() );
     }
+
+    /** An agent's own token is a key request too: with a login cookie on the same request it still opens no session. */
+    @Test
+    void anAgentTokenWithARememberMeCookieNeverBecomesASession() throws Exception {
+        final com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef agent =
+            new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 11, 7 );
+        keyFilter = new WorkApiKeyFilter( () -> keys, () -> true,
+            () -> token -> java.util.Optional.of( agent ),
+            new com.wikantik.http.ratelimit.SlidingWindowRateLimiter( 0, 0 ) );
+        final HttpServletRequest req = request( "wka_codex", new Cookie( "WikantikUID", "anything" ),
+            new Cookie( "JSESSIONID", "someone-elses" ) );
+        final ServletRequest reached = run( req );
+        assertNotNull( reached, "the request must reach the servlet: " + body );
+        final HttpServletRequest seen = ( HttpServletRequest ) reached;
+        assertNull( seen.getUserPrincipal() );
+        assertNull( seen.getRemoteUser() );
+        org.junit.jupiter.api.Assertions.assertEquals( agent,
+            seen.getAttribute( com.wikantik.auth.apikeys.AgentTokenAuth.ATTR_AGENT_REF ) );
+        assertNoSession( req );
+    }
 }

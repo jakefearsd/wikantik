@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-11-15'
+date: '2026-11-16'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -889,11 +889,13 @@ Full descriptions (truncated above to keep the table scannable):
 |---|---|---|---|---|
 | `wikantik.work.enabled` | `boolean` | `false` | `wikantik_work_enabled` | Work management: projects, epics/stories/tasks, comments and an activity log, served under /api/work/* and the /work SPA routes. … |
 | `wikantik.work.claim.expiryMinutes` | `int` | `240` | `wikantik_work_claim_expiryMinutes` | Minutes an agent's claim on a work item lasts before the item returns to its queue; renewing the claim restarts it. … |
+| `wikantik.work.api.rateLimit.perKey` | `int` | `20` | `wikantik_work_api_rateLimit_perKey` | Requests per second one credential (an agent's token or a personal API key with the work scope) may make on /api/work/*. … |
 
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.work.enabled`** — Work management: projects, epics/stories/tasks, comments and an activity log, served under /api/work/* and the /work SPA routes. Work items never enter the page store, search index or Page Graph. Off by default: when false, /api/work/* returns 404, the services are not started and the navigation entry is hidden (the SPA routes stay registered).
 - **`wikantik.work.claim.expiryMinutes`** — Minutes an agent's claim on a work item lasts before the item returns to its queue; renewing the claim restarts it. Accepts 1 to 10080 (one week); any other value is logged and replaced by 240.
+- **`wikantik.work.api.rateLimit.perKey`** — Requests per second one credential (an agent's token or a personal API key with the work scope) may make on /api/work/*. Above it the request gets 429 with Retry-After: 1. 0 disables the limit. The agent endpoint /work-mcp has its own per-credential limit (mcp.ratelimit.perClient).
 
 ## Connectors
 

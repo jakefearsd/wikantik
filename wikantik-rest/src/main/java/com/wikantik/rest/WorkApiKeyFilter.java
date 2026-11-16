@@ -21,6 +21,10 @@ package com.wikantik.rest;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.apikeys.AgentTokenAuth;
+import com.wikantik.http.ratelimit.SlidingWindowRateLimiter;
+import com.wikantik.util.TextUtil;
+import com.wikantik.work.runtime.WikiWorkActors;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import jakarta.servlet.Filter;
@@ -70,9 +74,16 @@ public class WorkApiKeyFilter implements Filter {
     static final String SCOPE_BODY = "{\"error\":\"Key not authorized for work\"}";
     /** A key that could not be checked because the key store is unreachable: retryable. */
     static final String UNAVAILABLE_BODY = "{\"error\":\"Service temporarily unavailable\"}";
+    static final String RATE_LIMIT_BODY = "{\"error\":\"Rate limit exceeded\"}";
+    /** Requests per second one credential may make on {@code /api/work/*}; 0 disables the limit. */
+    static final String PROP_RATE_LIMIT = "wikantik.work.api.rateLimit.perKey";
+    static final int DEFAULT_RATE_LIMIT = 20;
+    private static final int SC_TOO_MANY_REQUESTS = 429;
 
     private Supplier< ApiKeyService > keys = () -> null;
     private BooleanSupplier enabled = () -> false;
+    private Supplier< AgentTokenAuth.Verifier > agents = () -> null;
+    private SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter( 0, 0 );
 
     /** The container's constructor; {@link #init} wires the key service and the feature flag from the engine. */
     public WorkApiKeyFilter() {
@@ -83,11 +94,22 @@ public class WorkApiKeyFilter implements Filter {
         this.enabled = enabled;
     }
 
+    WorkApiKeyFilter( final Supplier< ApiKeyService > keys, final BooleanSupplier enabled,
+                      final Supplier< AgentTokenAuth.Verifier > agents, final SlidingWindowRateLimiter limiter ) {
+        this( keys, enabled );
+        this.agents = agents;
+        this.limiter = limiter;
+    }
+
     @Override
     public void init( final FilterConfig filterConfig ) {
         final Engine engine = Wiki.engine().find( filterConfig.getServletContext(), null );
         keys = () -> ApiKeyServiceHolder.get( engine.getWikiProperties() );
         enabled = () -> engine instanceof WikiEngine we && we.workService() != null;
+        agents = () -> engine instanceof WikiEngine we && we.workService() != null
+            ? WikiWorkActors.agentVerifier( we.workService() ) : null;
+        limiter = new SlidingWindowRateLimiter( 0, TextUtil.getIntegerProperty( engine.getWikiProperties(),
+            PROP_RATE_LIMIT, DEFAULT_RATE_LIMIT ) );
         LOG.info( "WorkApiKeyFilter initialized" );
     }
 
@@ -116,29 +138,61 @@ public class WorkApiKeyFilter implements Filter {
         }
         final String auth = req.getHeader( "Authorization" );
         final String token = auth.length() > BEARER.length() ? auth.substring( BEARER.length() ).trim() : "";
-        final ApiKeyService service = keys.get();
-        final Optional< ApiKeyService.Record > found;
+        final WorkKeyRequest forwarded;
         try {
-            found = service == null ? Optional.empty() : service.verify( token );
+            // An agent's own token and a personal API key are told apart by prefix and looked up in one store only.
+            forwarded = AgentTokenAuth.isAgentToken( token ) ? agentRequest( req, resp, token )
+                : keyRequest( req, resp, token );
         } catch ( final ApiKeyService.LookupFailedException e ) {
-            // Unknown is not invalid: an agent told "Invalid API key" would believe its key is bad.
-            LOG.warn( "Work API key lookup failed; answered 503: {}", e.getCause() == null ? e.getMessage()
+            // Unknown is not invalid: an agent told "Invalid API key" would believe its credential is bad.
+            LOG.warn( "Work credential lookup failed; answered 503: {}", e.getCause() == null ? e.getMessage()
                 : e.getCause().getClass().getSimpleName() );
             deny( resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE, UNAVAILABLE_BODY );
             return;
         }
+        if ( forwarded == null ) {
+            return;
+        }
+        if ( !limiter.tryAcquire( forwarded.clientId() ) ) {
+            SECURITY.warn( "Work API rate limit exceeded: client={}, ip={}", forwarded.clientId(),
+                req.getRemoteAddr() );
+            resp.setHeader( "Retry-After", "1" );
+            deny( resp, SC_TOO_MANY_REQUESTS, RATE_LIMIT_BODY );
+            return;
+        }
+        chain.doFilter( forwarded, response );
+    }
+
+    /** The request for a verified agent token, or null once a 401 has been written. */
+    private WorkKeyRequest agentRequest( final HttpServletRequest req, final HttpServletResponse resp,
+                                         final String token ) throws IOException {
+        final AgentTokenAuth.Verifier verifier = agents.get();
+        final Optional< AgentTokenAuth.AgentRef > ref = verifier == null ? Optional.empty() : verifier.verify( token );
+        if ( ref.isEmpty() ) {
+            SECURITY.warn( "Work API access denied: unknown or revoked agent token, ip={}", req.getRemoteAddr() );
+            deny( resp, HttpServletResponse.SC_UNAUTHORIZED, INVALID_KEY_BODY );
+            return null;
+        }
+        return new WorkKeyRequest( req, ref.get() );
+    }
+
+    /** The request for a verified personal API key with the work scope, or null once a refusal has been written. */
+    private WorkKeyRequest keyRequest( final HttpServletRequest req, final HttpServletResponse resp,
+                                       final String token ) throws IOException {
+        final ApiKeyService service = keys.get();
+        final Optional< ApiKeyService.Record > found = service == null ? Optional.empty() : service.verify( token );
         if ( found.isEmpty() ) {
             SECURITY.warn( "Work API access denied: invalid key, ip={}", req.getRemoteAddr() );
             deny( resp, HttpServletResponse.SC_UNAUTHORIZED, INVALID_KEY_BODY );
-            return;
+            return null;
         }
         final ApiKeyService.Record record = found.get();
         if ( !record.scope().matches( ApiKeyService.Scope.WORK ) ) {
             SECURITY.warn( "Work API access denied: key id={} scope={} does not cover work, ip={}", record.id(),
                 record.scope().wire(), req.getRemoteAddr() );
             deny( resp, HttpServletResponse.SC_FORBIDDEN, SCOPE_BODY );
-            return;
+            return null;
         }
-        chain.doFilter( new WorkKeyRequest( req, record ), response );
+        return new WorkKeyRequest( req, record );
     }
 }

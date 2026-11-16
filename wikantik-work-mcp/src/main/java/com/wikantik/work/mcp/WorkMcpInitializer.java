@@ -28,6 +28,7 @@ import com.wikantik.mcp.SdkSessionSweepers;
 import com.wikantik.work.Actor;
 import com.wikantik.work.WorkDirectory;
 import com.wikantik.work.WorkService;
+import com.wikantik.work.runtime.WikiWorkActors;
 import com.wikantik.work.runtime.WikiWorkDirectory;
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.server.McpServer;
@@ -91,6 +92,7 @@ public class WorkMcpInitializer implements ServletContextListener {
                 .filterName( "WorkMcpAccessFilter" )
                 .requiredScope( ApiKeyService.Scope.WORK )
                 .keyOnly( true )
+                .agentTokens( WikiWorkActors.agentVerifier( svc ) )
                 .servletName( "WorkMcpTransportServlet" )
                 .loadOnStartup( 4 )
                 .engine( engine )
@@ -172,6 +174,10 @@ public class WorkMcpInitializer implements ServletContextListener {
         } catch ( final SQLException e ) {
             LOG.warn( "Work MCP could not resolve the caller's key for {}: {} (SQLState {})", tool.name(),
                 e.getClass().getSimpleName(), e.getSQLState() );
+            result = WorkMcpTool.error( WorkMcpTool.UNAVAILABLE );
+        } catch ( final com.wikantik.work.WorkUnavailableException e ) {
+            // The agent's sponsor could not be looked up: retryable, and nothing about the agent has changed.
+            LOG.warn( "Work MCP could not resolve the caller's sponsor for {}: {}", tool.name(), e.getMessage() );
             result = WorkMcpTool.error( WorkMcpTool.UNAVAILABLE );
         }
         // Writes at INFO (they change state); reads at DEBUG, or an agent polling the board floods the log.

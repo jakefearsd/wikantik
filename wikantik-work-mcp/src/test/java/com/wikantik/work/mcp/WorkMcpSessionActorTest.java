@@ -55,6 +55,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -242,5 +243,50 @@ class WorkMcpSessionActorTest {
     void aKeyOfAnotherScopeOnTheSameSessionIsRefused() throws Exception {
         assertEquals( 403, rawContext( token( WorkMcpFixture.record( f.builder.apiKeyId(), "lena",
             ApiKeyService.Scope.MCP_READ ) ) ).status() );
+    }
+
+    // ---- agent tokens (phase 3a): the same session rules, verified by the work module
+
+    /** A live credential for the agent, issued straight from the store (the registry issues them from Task 6). */
+    private String agentToken( final Agent a ) throws Exception {
+        filter.agentTokens( com.wikantik.work.runtime.WikiWorkActors.agentVerifier( f.svc ) );
+        return new com.wikantik.work.JdbcWorkStore( f.ds ).credentials().issue( a.id(), "admin" ).token();
+    }
+
+    @Test
+    void anAgentTokenRunsATool() throws Exception {
+        final String token = agentToken( f.builder );
+        sessionId = initialize( token );
+        assertEquals( "builder", agentName( callContext( token ) ) );
+    }
+
+    @Test
+    void retiringTheAgentStopsTheNextCall() throws Exception {
+        final String token = agentToken( f.builder );
+        sessionId = initialize( token );
+        assertEquals( "builder", agentName( callContext( token ) ) );
+        f.svc.registry().retireAgent( f.admin, f.builder.id() );
+        assertTrue( callContext( token ).contains( "This endpoint needs a work API key." ),
+            "the token still verifies, but a retired agent is no actor" );
+    }
+
+    @Test
+    void aRotatedAwayTokenIsRefusedAtTheDoor() throws Exception {
+        final String token = agentToken( f.builder );
+        sessionId = initialize( token );
+        final String next = new com.wikantik.work.JdbcWorkStore( f.ds ).credentials().issue( f.builder.id(), "admin" )
+            .token();
+        assertEquals( 403, rawContext( token ).status(), "the old token stops on the very next request" );
+        assertEquals( "builder", agentName( callContext( next ) ), "the new one continues the agent's session" );
+    }
+
+    @Test
+    void aDirectoryOutageAnswersUnavailable() throws Exception {
+        final String token = agentToken( f.builder );
+        sessionId = initialize( token );
+        f.directoryDown = true;
+        assertTrue( callContext( token ).contains( "Work is unavailable right now." ) );
+        f.directoryDown = false;
+        assertEquals( "builder", agentName( callContext( token ) ), "and it recovers with nothing changed" );
     }
 }

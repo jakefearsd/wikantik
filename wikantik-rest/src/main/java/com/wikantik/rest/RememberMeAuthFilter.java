@@ -77,7 +77,7 @@ public class RememberMeAuthFilter implements Filter {
     public void doFilter( final ServletRequest request, final ServletResponse response,
                           final FilterChain chain ) throws IOException, ServletException {
         final HttpServletRequest req = ( HttpServletRequest ) request;
-        if ( req.getAttribute( com.wikantik.auth.apikeys.ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) != null ) {
+        if ( com.wikantik.auth.apikeys.AgentTokenAuth.isCredentialRequest( req ) ) {
             // A verified API-key request is stateless: a cookie it happens to carry is not its credential, and
             // logging in from it would turn the key into a session.
             chain.doFilter( request, response );

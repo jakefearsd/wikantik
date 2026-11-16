@@ -18,6 +18,7 @@
  */
 package com.wikantik.mcp;
 
+import com.wikantik.auth.apikeys.AgentTokenAuth;
 import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.http.ratelimit.SlidingWindowRateLimiter;
@@ -66,7 +67,8 @@ public class KeyOnlyMcpAccessFilter extends McpAccessFilter {
 
     private static final Logger SECURITY = LogManager.getLogger( "SecurityLog" );
 
-    private final Cache< String, Integer > bindings;
+    /** MCP session id to the client that opened it: {@code key:<id>} or {@code agent:<id>}, so the two never collide. */
+    private final Cache< String, String > bindings;
 
     public KeyOnlyMcpAccessFilter( final SlidingWindowRateLimiter rateLimiter, final ApiKeyService apiKeyService,
                                    final ApiKeyService.Scope requiredScope ) {
@@ -87,31 +89,54 @@ public class KeyOnlyMcpAccessFilter extends McpAccessFilter {
         if ( !( outcome instanceof Outcome.Allowed allowed ) ) {
             return outcome;
         }
-        if ( !( allowed.effectiveReq().getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD )
-                instanceof ApiKeyService.Record key ) ) {
-            // Unreachable with no CIDRs and no unrestricted mode, but never forward a request without a key.
+        final HttpServletRequest forwarded = forwarded( req, allowed.effectiveReq() );
+        if ( forwarded == null ) {
+            // Unreachable with no CIDRs and no unrestricted mode, but never forward a request without a credential.
             return Outcome.Denied.of( HttpServletResponse.SC_FORBIDDEN, "{\"error\":\"Access denied\"}" );
         }
         final String session = req.getHeader( SESSION_HEADER );
         if ( session != null && !session.isBlank() ) {
-            final Integer bound = bindings.asMap().putIfAbsent( session, key.id() );
-            if ( bound != null && bound != key.id() ) {
-                SECURITY.warn( "MCP access denied: key id={} used an MCP session opened by another key, ip={}", key.id(),
-                    req.getRemoteAddr() );
+            final String bound = bindings.asMap().putIfAbsent( session, allowed.clientId() );
+            if ( bound != null && !bound.equals( allowed.clientId() ) ) {
+                SECURITY.warn( "MCP access denied: client {} used an MCP session opened by another, ip={}",
+                    allowed.clientId(), req.getRemoteAddr() );
                 return Outcome.Denied.of( HttpServletResponse.SC_FORBIDDEN, OTHER_KEY_BODY );
             }
         }
-        return new Outcome.Allowed( allowed.clientId(), new KeyRequest( req, key ) );
+        return new Outcome.Allowed( allowed.clientId(), forwarded );
     }
 
+    /**
+     * The principal-less request to forward: an API key's record travels in a {@link KeyRequest}; a verified agent
+     * token already arrives as one ({@link AgentTokenAuth.Request}). Null when the request carries neither.
+     */
+    private static HttpServletRequest forwarded( final HttpServletRequest original, final HttpServletRequest effective ) {
+        if ( effective.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) instanceof ApiKeyService.Record key ) {
+            return new KeyRequest( original, key );
+        }
+        return effective.getAttribute( AgentTokenAuth.ATTR_AGENT_REF ) instanceof AgentTokenAuth.AgentRef
+            ? effective : null;
+    }
+
+    /** The client a forwarded request belongs to, as {@link #authorize} named it. */
+    private static String clientOf( final HttpServletRequest forwarded ) {
+        if ( forwarded.getAttribute( AgentTokenAuth.ATTR_AGENT_REF ) instanceof AgentTokenAuth.AgentRef ref ) {
+            return ref.clientId();
+        }
+        return "key:" + ( ( ApiKeyService.Record ) forwarded.getAttribute(
+            ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ) ).id();
+    }
+
+    /**
+     * Binds a session id to its client the moment the transport assigns it (the {@code Mcp-Session-Id} response
+     * header of {@code initialize}), and forgets it when the session is deleted.
+     */
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain )
             throws IOException, ServletException {
         super.doFilter( request, response, ( req, resp ) -> {
             final HttpServletRequest httpReq = ( HttpServletRequest ) req;
-            final Object key = httpReq.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD );
-            final int keyId = ( ( ApiKeyService.Record ) key ).id();
-            chain.doFilter( req, new BindingResponse( ( HttpServletResponse ) resp, keyId ) );
+            chain.doFilter( req, new BindingResponse( ( HttpServletResponse ) resp, clientOf( httpReq ) ) );
             final String session = httpReq.getHeader( SESSION_HEADER );
             if ( "DELETE".equalsIgnoreCase( httpReq.getMethod() ) && session != null ) {
                 bindings.invalidate( session );
@@ -119,7 +144,6 @@ public class KeyOnlyMcpAccessFilter extends McpAccessFilter {
         } );
     }
 
-    /** The number of sessions bound right now (tests). */
     long boundSessions() {
         bindings.cleanUp();
         return bindings.estimatedSize();
@@ -127,11 +151,11 @@ public class KeyOnlyMcpAccessFilter extends McpAccessFilter {
 
     /** Records the key against the session id the transport assigns, when it writes the header. */
     private final class BindingResponse extends HttpServletResponseWrapper {
-        private final int keyId;
+        private final String client;
 
-        BindingResponse( final HttpServletResponse response, final int keyId ) {
+        BindingResponse( final HttpServletResponse response, final String client ) {
             super( response );
-            this.keyId = keyId;
+            this.client = client;
         }
 
         @Override
@@ -148,7 +172,7 @@ public class KeyOnlyMcpAccessFilter extends McpAccessFilter {
 
         private void bind( final String name, final String value ) {
             if ( SESSION_HEADER.equalsIgnoreCase( name ) && value != null && !value.isBlank() ) {
-                bindings.put( value, keyId );
+                bindings.put( value, client );
             }
         }
     }

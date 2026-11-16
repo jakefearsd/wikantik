@@ -678,11 +678,11 @@ class WorkItemResourceTest {
     }
 
     @Test
-    void aFailedKeyLookupIs500NotA401() throws Exception {
+    void aFailedKeyLookupIs503NotA401OrA500() throws Exception {
         final WorkItemResource s = keyed( ALICE );
         Mockito.when( svc.registry().actorForApiKey( 42, "owner" ) ).thenThrow( new java.sql.SQLException( "db down 10.0.0.9" ) );
         final WorkHttp.Result r = getWithKey( s, key( com.wikantik.auth.apikeys.ApiKeyService.Scope.WORK ), "Bearer wkk_x" );
-        assertEquals( 500, r.status() );
+        assertEquals( 503, r.status(), "a store that did not answer is retryable; it is neither a bad key nor a bug" );
         assertFalse( r.body().contains( "10.0.0.9" ) );
     }
 

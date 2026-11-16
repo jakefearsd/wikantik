@@ -68,6 +68,8 @@ final class WorkMcpFixture {
     static final Gson GSON = new Gson();
 
     final DataSource ds;
+    /** When true the directory fails every sponsor lookup, as an outage would. */
+    boolean directoryDown;
     final WorkService svc;
     final Map< String, String > displayNames = new HashMap<>();
     final Actor admin = Actor.human( "admin", Set.of(), true );
@@ -119,6 +121,9 @@ final class WorkMcpFixture {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
             @Override public boolean exists( final String login ) { return true; }
             @Override public Optional< Person > person( final String login ) {
+                if ( directoryDown ) {
+                    throw new com.wikantik.work.WorkUnavailableException( "test: directory down" );
+                }
                 return Optional.of( new Person( login, Set.of(), "admin".equals( login ) ) );
             }
             @Override public String displayName( final String login ) {

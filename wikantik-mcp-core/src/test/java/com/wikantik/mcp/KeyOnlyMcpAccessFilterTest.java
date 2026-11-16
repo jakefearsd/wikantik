@@ -188,4 +188,91 @@ class KeyOnlyMcpAccessFilterTest {
         }
         assertTrue( filter.boundSessions() <= 2, "at most the cap: " + filter.boundSessions() );
     }
+
+    // ---- agent tokens (work management phase 3a): verified by the work module, never by the API-key store
+
+    private static final String AGENT_1 = "wka_agent-one";
+    private static final String AGENT_2 = "wka_agent-two";
+
+    /** A verifier that knows two agents; the numeric ids overlap the API keys' on purpose. */
+    private static com.wikantik.auth.apikeys.AgentTokenAuth.Verifier agents() {
+        return token -> switch ( token ) {
+            case AGENT_1 -> Optional.of( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 11, 1 ) );
+            case AGENT_2 -> Optional.of( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 12, 2 ) );
+            case "wka_boom" -> throw new ApiKeyService.LookupFailedException( new IllegalStateException( "down" ) );
+            default -> Optional.empty();
+        };
+    }
+
+    @Test
+    void anAgentTokenIsAllowedWithNoPrincipalAndCarriesItsRef() {
+        filter.agentTokens( agents() );
+        final McpAccessFilter.Outcome.Allowed allowed = assertInstanceOf( McpAccessFilter.Outcome.Allowed.class,
+            filter.authorize( request( "POST", AGENT_1, null ) ) );
+        assertEquals( "agent:1", allowed.clientId(), "rate limiting and session binding are per agent" );
+        final HttpServletRequest forwarded = allowed.effectiveReq();
+        assertNull( forwarded.getUserPrincipal() );
+        assertNull( forwarded.getRemoteUser() );
+        assertTrue( !forwarded.isUserInRole( "Admin" ) );
+        assertEquals( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 11, 1 ),
+            forwarded.getAttribute( com.wikantik.auth.apikeys.AgentTokenAuth.ATTR_AGENT_REF ) );
+        assertNull( forwarded.getAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD ), "it is not an API key" );
+        verify( keys, never() ).verify( anyString() );
+    }
+
+    @Test
+    void anUnknownAgentTokenIsRefusedAndNeverLookedUpAsAnApiKey() {
+        filter.agentTokens( agents() );
+        assertEquals( 403, assertInstanceOf( McpAccessFilter.Outcome.Denied.class,
+            filter.authorize( request( "POST", "wka_nobody", null ) ) ).status() );
+        verify( keys, never() ).verify( anyString() );
+    }
+
+    @Test
+    void withNoVerifierAnAgentTokenIsRefusedNotLookedUpAsAKey() {
+        assertEquals( 403, assertInstanceOf( McpAccessFilter.Outcome.Denied.class,
+            filter.authorize( request( "POST", AGENT_1, null ) ) ).status() );
+        verify( keys, never() ).verify( anyString() );
+    }
+
+    @Test
+    void anAgentStoreFailureIs503NotARefusal() {
+        filter.agentTokens( agents() );
+        assertEquals( 503, assertInstanceOf( McpAccessFilter.Outcome.Denied.class,
+            filter.authorize( request( "POST", "wka_boom", null ) ) ).status() );
+    }
+
+    @Test
+    void anAgentAndAKeyWithTheSameNumericIdDoNotShareASession() throws Exception {
+        filter.agentTokens( agents() );
+        assertEquals( 200, run( "POST", "tok1", null, "s-key" ), "API key id 1 opens a session" );
+        assertEquals( 403, run( "POST", AGENT_1, "s-key", null ), "agent id 1 is someone else" );
+        assertEquals( 200, run( "POST", AGENT_1, null, "s-agent" ) );
+        assertEquals( 403, run( "POST", "tok1", "s-agent", null ) );
+        assertEquals( 200, run( "POST", AGENT_1, "s-agent", null ) );
+    }
+
+    @Test
+    void aSecondAgentOnABoundSessionIsRefused() throws Exception {
+        filter.agentTokens( agents() );
+        assertEquals( 200, run( "POST", AGENT_1, null, "s-1" ) );
+        assertEquals( 403, run( "POST", AGENT_2, "s-1", null ) );
+        assertEquals( 200, run( "DELETE", AGENT_1, "s-1", null ) );
+        assertEquals( 200, run( "POST", AGENT_2, "s-1", null ), "after DELETE the id is free again" );
+    }
+
+    @Test
+    void anAgentTokenIsRefusedWhereTheScopeIsNotWork() {
+        final McpAccessFilter knowledge = new McpAccessFilter( "", false, new SlidingWindowRateLimiter( 0, 0 ), keys,
+            ApiKeyService.Scope.MCP_READ );
+        final boolean[] asked = { false };
+        knowledge.agentTokens( token -> {
+            asked[ 0 ] = true;
+            return Optional.of( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 11, 1 ) );
+        } );
+        assertEquals( 403, assertInstanceOf( McpAccessFilter.Outcome.Denied.class,
+            knowledge.authorize( request( "POST", AGENT_1, null ) ) ).status() );
+        assertTrue( !asked[ 0 ], "an agent token means nothing off the work surface, so it is not even verified" );
+        verify( keys, never() ).verify( anyString() );
+    }
 }

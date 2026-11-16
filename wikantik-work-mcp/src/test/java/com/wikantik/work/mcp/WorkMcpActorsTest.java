@@ -103,4 +103,29 @@ class WorkMcpActorsTest {
         final ApiKeyService.Record key = WorkMcpFixture.record( f.builder.apiKeyId(), "lena", ApiKeyService.Scope.WORK );
         assertNull( WorkMcpActors.actorFor( WorkMcpActors.extract( requestWith( key ) ), f.svc ) );
     }
+
+    // ---- agent tokens (phase 3a)
+
+    private static HttpServletRequest requestWith( final com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef ref ) {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getAttribute( com.wikantik.auth.apikeys.AgentTokenAuth.ATTR_AGENT_REF ) ).thenReturn( ref );
+        return req;
+    }
+
+    @Test
+    void anAgentRefResolvesToThatAgentWithItsSponsor() throws SQLException {
+        final Actor actor = WorkMcpActors.actorFor( WorkMcpActors.extract( requestWith(
+            new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 5, f.builder.id() ) ) ), f.svc );
+        assertNotNull( actor );
+        assertEquals( Actor.Kind.AGENT, actor.kind() );
+        assertEquals( f.builder.id(), actor.agentId() );
+        assertEquals( "admin", actor.sponsor().login(), "the registrant stands behind it" );
+    }
+
+    @Test
+    void anAgentRefForARetiredAgentIsNoActor() throws SQLException {
+        f.svc.registry().retireAgent( f.admin, f.builder.id() );
+        assertNull( WorkMcpActors.actorFor( WorkMcpActors.extract( requestWith(
+            new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 5, f.builder.id() ) ) ), f.svc ) );
+    }
 }

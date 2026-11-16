@@ -78,6 +78,8 @@ public abstract class AbstractApiAccessFilter implements Filter {
     private final boolean failClosed;
     private final Predicate< String > rateLimiter;
     private final ApiKeyService apiKeyService;
+    /** Verifies work agents' own tokens; null where the work module is not running. */
+    private volatile AgentTokenAuth.Verifier agentTokens;
     private final LegacyScopeUseLog legacyScopeUseLog = new LegacyScopeUseLog( Clock.systemUTC() );
 
     /** One parsed CIDR allowlist entry (network bytes + prefix length). */
@@ -191,12 +193,22 @@ public abstract class AbstractApiAccessFilter implements Filter {
             return new Outcome.Allowed( "ip:" + remoteAddr, httpReq );
         }
 
+        final String bearer = bearer( httpReq );
         final Optional< ApiKeyService.Record > dbKey;
         try {
-            dbKey = checkDbKey( httpReq );
+            if ( AgentTokenAuth.isAgentToken( bearer ) ) {
+                // An agent token is never an API key: it is verified by the work module or not at all.
+                final Optional< Outcome > agent = authorizeAgent( httpReq, bearer );
+                if ( agent.isPresent() ) {
+                    return agent.get();
+                }
+                dbKey = Optional.empty();
+            } else {
+                dbKey = checkDbKey( bearer );
+            }
         } catch ( final ApiKeyService.LookupFailedException e ) {
             // Unknown is not invalid: answer the retryable fail-closed 503, never an access denial.
-            SECURITY.warn( "{} request rejected: API key store unreachable, ip={}: {}", surface.name(), remoteAddr,
+            SECURITY.warn( "{} request rejected: key store unreachable, ip={}: {}", surface.name(), remoteAddr,
                     e.getCause() == null ? e.getMessage() : e.getCause().getClass().getSimpleName() );
             return surface.failClosedDenied();
         }
@@ -233,15 +245,36 @@ public abstract class AbstractApiAccessFilter implements Filter {
         resp.getWriter().write( d.body() );
     }
 
-    private Optional< ApiKeyService.Record > checkDbKey( final HttpServletRequest request ) {
-        if ( apiKeyService == null ) {
+    /** Supplies the verifier for work agents' own tokens; without one an agent token is refused like any unknown one. */
+    public void agentTokens( final AgentTokenAuth.Verifier verifier ) {
+        this.agentTokens = verifier;
+    }
+
+    /**
+     * The outcome for a verified agent token, or empty when the token gives no access here: an agent token means
+     * something only on a surface that requires the {@code work} scope, so anywhere else it is not even verified,
+     * and an unknown or revoked one is nobody. The caller then falls through to the ordinary refusal.
+     */
+    private Optional< Outcome > authorizeAgent( final HttpServletRequest httpReq, final String token ) {
+        final AgentTokenAuth.Verifier verifier = agentTokens;
+        if ( verifier == null || surface.requiredScope() != ApiKeyService.Scope.WORK ) {
             return Optional.empty();
         }
+        return verifier.verify( token )
+            .map( ref -> new Outcome.Allowed( ref.clientId(), new AgentTokenAuth.Request( httpReq, ref ) ) );
+    }
+
+    private static String bearer( final HttpServletRequest request ) {
         final String authHeader = request.getHeader( "Authorization" );
-        if ( authHeader == null || !authHeader.startsWith( BEARER_PREFIX ) ) {
+        return authHeader == null || !authHeader.startsWith( BEARER_PREFIX ) ? null
+            : authHeader.substring( BEARER_PREFIX.length() );
+    }
+
+    private Optional< ApiKeyService.Record > checkDbKey( final String bearer ) {
+        if ( apiKeyService == null || bearer == null ) {
             return Optional.empty();
         }
-        return apiKeyService.verify( authHeader.substring( BEARER_PREFIX.length() ) );
+        return apiKeyService.verify( bearer );
     }
 
     private boolean checkIp( final HttpServletRequest request ) {

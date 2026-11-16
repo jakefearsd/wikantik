@@ -20,6 +20,7 @@ package com.wikantik.work.runtime;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
+import com.wikantik.auth.apikeys.AgentTokenAuth;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
@@ -69,5 +70,30 @@ public final class WikiWorkActors {
             return null;
         }
         return service.registry().actorForApiKey( record.id(), record.principalLogin() );
+    }
+
+    /**
+     * The verifier the access filters use for a work agent's own token: the work module's credential store decides.
+     * A store failure becomes {@link ApiKeyService.LookupFailedException}, which the filters answer with 503.
+     */
+    public static AgentTokenAuth.Verifier agentVerifier( final WorkService service ) {
+        return token -> {
+            try {
+                return service.registry().agentForToken( token )
+                    .map( login -> new AgentTokenAuth.AgentRef( login.credentialId(), login.agentId() ) );
+            } catch ( final SQLException e ) {
+                throw new ApiKeyService.LookupFailedException( e );
+            }
+        };
+    }
+
+    /**
+     * The actor for a verified agent token, resolved for this request with its sponsor as they are now.
+     *
+     * @return the actor, or {@code null} when the agent is retired, has no sponsor, or its sponsor's account is gone
+     */
+    public static Actor actorForAgent( final WorkService service, final AgentTokenAuth.AgentRef agent )
+            throws SQLException {
+        return service.registry().actorForAgent( agent.agentId() );
     }
 }

@@ -241,7 +241,8 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         final SelenideElement tokenValue = $( ".work-token-value" ).shouldBe( visible, WAIT );
         final String token = tokenValue.getText();
         assertTrue( token != null && token.length() >= 16, "the key panel shows a key" );
-        $( "section.work-token-panel" ).shouldHave( text( "API key for " + agentName ), WAIT );
+        // The heading, not the panel: a failure dump of the whole panel would print the key.
+        $( "section.work-token-panel h2" ).shouldHave( text( "API key for " + agentName ), WAIT );
         $$( "[data-testid=agent-row]" ).findBy( text( agentName ) ).shouldBe( visible, WAIT );
         assertTrue( WebDriverRunner.source().contains( token ),
             "positive control: the key is on the page while the panel is open" );
@@ -300,8 +301,6 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         // The agent claims it over REST (key from the page); the card moves to In progress and says who and until when.
         final HttpResponse< String > claimed = WorkIt.bearer( token, "POST", "/api/work/items/" + itemKey + "/claim", null );
         assertEquals( 200, claimed.statusCode(), "the agent claims: " + WorkIt.status( claimed ) );
-        final com.google.gson.JsonObject claimedView = WorkIt.json( claimed ).getAsJsonObject();
-        final int version = ( claimedView.has( "item" ) ? claimedView.getAsJsonObject( "item" ) : claimedView ).get( "version" ).getAsInt();
         Selenide.refresh();
         final SelenideElement claimedCard = $( "[data-testid=column-in_progress] article.work-card[data-item-key='" + itemKey + "']" )
             .shouldBe( visible, WAIT );
@@ -315,6 +314,13 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         panel.shouldHave( text( "Claimed by " + agentName ), WAIT );
         panel.shouldHave( text( "until" ), WAIT );
         panel.$$( "button" ).findBy( exactText( "Release claim" ) ).shouldBe( visible, WAIT );
+
+        // The rest cascade's claims last one minute and the browser steps above can take longer: the agent renews
+        // (claims again with the same key) right before it hands off, and hands off against the renewal's version.
+        final HttpResponse< String > renewed = WorkIt.bearer( token, "POST", "/api/work/items/" + itemKey + "/claim", null );
+        assertEquals( 200, renewed.statusCode(), "the agent renews its claim: " + WorkIt.status( renewed ) );
+        final com.google.gson.JsonObject renewedView = WorkIt.json( renewed ).getAsJsonObject();
+        final int version = ( renewedView.has( "item" ) ? renewedView.getAsJsonObject( "item" ) : renewedView ).get( "version" ).getAsInt();
 
         // The agent hands it to the admin with a note (REST, as the agent).
         final HttpResponse< String > handed = WorkIt.bearer( token, "POST", "/api/work/items/" + itemKey + "/handoff",
@@ -330,21 +336,25 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         lane.shouldHave( text( "(agent)" ), WAIT );
         lane.$( "blockquote.work-waiting-note" ).shouldHave( text( note ), WAIT );
 
-        // The project's "Assignments and claims": assignment to the queue, claim, hand-off, release; newest first.
+        // The project's "Assignments and claims": assignment to the queue, the person's draft to ready, claim, hand-off,
+        // the renewal (one renewal is a row of its own; only a run of them folds), release; newest first.
         open( "/work/" + projectKey + "/log" );
-        $$( "li.work-log-row" ).filter( text( itemKey ) ).shouldHave( CollectionCondition.size( 5 ), WAIT );
+        $$( "li.work-log-row" ).filter( text( itemKey ) ).shouldHave( CollectionCondition.size( 6 ), WAIT );
         final List< String > rows = new ArrayList<>( $$( "li.work-log-row" ).filter( text( itemKey ) ).texts() );
         final int assigned = indexOf( rows, "assigned this to Queue · " + queueName );
+        final int ready = indexOf( rows, "status draft → ready" );
         final int claim = indexOf( rows, agentName + " agent claimed this" );
+        final int renewal = indexOf( rows, agentName + " agent renewed its claim" );
         final int handoff = indexOf( rows, agentName + " agent handed this to " + adminName );
         final int released = indexOf( rows, agentName + " agent handed this item on, ending its own claim" );
-        assertTrue( released < handoff && handoff < claim && claim < assigned,
-            "the log runs release, hand-off, claim, assignment from the newest: " + rows );
+        assertTrue( released < handoff && handoff < renewal && renewal < claim && claim < ready && ready < assigned,
+            "the log runs release, hand-off, renewal, claim, draft to ready, assignment from the newest: " + rows );
         assertTrue( rows.get( handoff ).contains( note ), "the hand-off row carries its note: " + rows.get( handoff ) );
         // The agent's rows wear an agent badge; the assignment (made by a person) does not.
         final var itemRows = $$( "li.work-log-row" ).filter( text( itemKey ) );
         itemRows.get( claim ).$( ".work-agent-badge" ).shouldBe( visible );
         itemRows.get( released ).$( ".work-agent-badge" ).shouldBe( visible );
+        assertEquals( 0, itemRows.get( ready ).$$( ".work-agent-badge" ).size(), "the person's status change has no agent badge" );
         assertEquals( 0, itemRows.get( assigned ).$$( ".work-agent-badge" ).size(), "the person's assignment has no agent badge" );
     }
 

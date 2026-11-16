@@ -126,6 +126,16 @@ public class WorkAgentApiIT {
         return ok( asAgent( a, "POST", "/api/work/items/" + itemKey + "/claim", null ) );
     }
 
+    /**
+     * The claim lasts one minute under the IT cascade: the agent renews right before a step that needs it still held,
+     * and takes the version from the renewal's answer. Fails (not later, obscurely) if the claim had already lapsed.
+     */
+    private static JsonObject renew( final Agent a, final String itemKey ) throws Exception {
+        final JsonObject view = claim( a, itemKey );
+        assertTrue( view.get( "renewed" ).getAsBoolean(), "the claim was still held when renewed: " + view );
+        return view;
+    }
+
     private static JsonArray events( final Caller who, final String itemKey ) throws Exception {
         final HttpResponse< String > r = who.get( "/api/work/items/" + itemKey + "/events" );
         assertEquals( 200, r.statusCode(), r.body() );
@@ -205,8 +215,9 @@ public class WorkAgentApiIT {
         assertEquals( "in_progress", columnOf( "AGT", key ) );
 
         // agent -> agent: codex hands to the reviewer queue; claude takes it
+        final JsonObject codexRenewed = renew( codex, key );
         final JsonObject toReview = ok( asAgent( codex, "POST", "/api/work/items/" + key + "/handoff", Map.of(
-            "expectedVersion", versionOf( claimed ), "status", "review", "queue", "reviewer", "note", "built, please review" ) ) );
+            "expectedVersion", versionOf( codexRenewed ), "status", "review", "queue", "reviewer", "note", "built, please review" ) ) );
         assertTrue( itemOf( toReview ).get( "claimedByAgent" ).isJsonNull(), "the claim ended with the hand-off" );
         assertEquals( "review", columnOf( "AGT", key ) );
         final JsonObject taken = claim( claude, key );
@@ -214,8 +225,9 @@ public class WorkAgentApiIT {
         assertEquals( "review", itemOf( taken ).get( "status" ).getAsString(), "a review item is claimed where it is" );
 
         // agent -> person: claude hands to B
+        final JsonObject claudeRenewed = renew( claude, key );
         ok( asAgent( claude, "POST", "/api/work/items/" + key + "/handoff", Map.of(
-            "expectedVersion", versionOf( taken ), "status", "in_progress", "assignee", B_NAME, "note", "needs a human" ) ) );
+            "expectedVersion", versionOf( claudeRenewed ), "status", "in_progress", "assignee", B_NAME, "note", "needs a human" ) ) );
         final JsonObject waiting = waitingFor( personB, key );
         assertEquals( CLAUDE, waiting.get( "byName" ).getAsString() );
         assertEquals( "agent", waiting.get( "byKind" ).getAsString() );
@@ -234,8 +246,8 @@ public class WorkAgentApiIT {
         final JsonArray log = events( admin, key );
         final List< String > sequence = types( log );
         sequence.remove( "created" );
-        assertEquals( List.of( "handoff", "claimed", "handoff", "released", "claimed", "handoff", "released", "handoff" ),
-            sequence, log.toString() );
+        assertEquals( List.of( "handoff", "claimed", "claim_renewed", "handoff", "released", "claimed", "claim_renewed",
+            "handoff", "released", "handoff" ), sequence, log.toString() );
         final List< JsonObject > flow = new ArrayList<>();
         for ( final JsonElement e : log ) {
             if ( !"created".equals( e.getAsJsonObject().get( "type" ).getAsString() ) ) {
@@ -247,25 +259,27 @@ public class WorkAgentApiIT {
         assertEquals( "please build", flow.get( 0 ).get( "note" ).getAsString() );
         assertActor( flow.get( 1 ), "agent", CODEX );
         assertEquals( "in_progress", flow.get( 1 ).get( "toValue" ).getAsString() );
-        assertActor( flow.get( 2 ), "agent", CODEX );
-        assertEquals( "review|queue:reviewer", flow.get( 2 ).get( "toValue" ).getAsString() );
+        assertActor( flow.get( 2 ), "agent", CODEX ); // the renewal
         assertActor( flow.get( 3 ), "agent", CODEX );
-        assertEquals( "agent:" + codex.id(), flow.get( 3 ).get( "fromValue" ).getAsString() );
-        assertEquals( CODEX, flow.get( 3 ).get( "fromValueName" ).getAsString() );
-        assertEquals( "review", flow.get( 3 ).get( "toValue" ).getAsString() );
-        assertEquals( "reassigned", flow.get( 3 ).get( "note" ).getAsString() );
-        assertActor( flow.get( 4 ), "agent", CLAUDE );
+        assertEquals( "review|queue:reviewer", flow.get( 3 ).get( "toValue" ).getAsString() );
+        assertActor( flow.get( 4 ), "agent", CODEX );
+        assertEquals( "agent:" + codex.id(), flow.get( 4 ).get( "fromValue" ).getAsString() );
+        assertEquals( CODEX, flow.get( 4 ).get( "fromValueName" ).getAsString() );
+        assertEquals( "review", flow.get( 4 ).get( "toValue" ).getAsString() );
+        assertEquals( "reassigned", flow.get( 4 ).get( "note" ).getAsString() );
         assertActor( flow.get( 5 ), "agent", CLAUDE );
-        assertEquals( "in_progress|" + B_LOGIN, flow.get( 5 ).get( "toValue" ).getAsString(), "the admin sees the raw assignee" );
-        assertEquals( "in_progress|" + B_NAME, flow.get( 5 ).get( "toValueName" ).getAsString().isEmpty() ? ""
-            : "in_progress|" + flow.get( 5 ).get( "toValueName" ).getAsString() );
-        assertEquals( "review|queue:reviewer", flow.get( 5 ).get( "fromValue" ).getAsString() );
-        assertEquals( "needs a human", flow.get( 5 ).get( "note" ).getAsString() );
-        assertActor( flow.get( 6 ), "agent", CLAUDE );
-        assertEquals( "agent:" + claude.id(), flow.get( 6 ).get( "fromValue" ).getAsString() );
-        assertEquals( "reassigned", flow.get( 6 ).get( "note" ).getAsString() );
-        assertActor( flow.get( 7 ), "human", B_NAME );
-        assertEquals( "over to you", flow.get( 7 ).get( "note" ).getAsString() );
+        assertActor( flow.get( 6 ), "agent", CLAUDE ); // the renewal
+        assertActor( flow.get( 7 ), "agent", CLAUDE );
+        assertEquals( "in_progress|" + B_LOGIN, flow.get( 7 ).get( "toValue" ).getAsString(), "the admin sees the raw assignee" );
+        assertEquals( "in_progress|" + B_NAME, flow.get( 7 ).get( "toValueName" ).getAsString().isEmpty() ? ""
+            : "in_progress|" + flow.get( 7 ).get( "toValueName" ).getAsString() );
+        assertEquals( "review|queue:reviewer", flow.get( 7 ).get( "fromValue" ).getAsString() );
+        assertEquals( "needs a human", flow.get( 7 ).get( "note" ).getAsString() );
+        assertActor( flow.get( 8 ), "agent", CLAUDE );
+        assertEquals( "agent:" + claude.id(), flow.get( 8 ).get( "fromValue" ).getAsString() );
+        assertEquals( "reassigned", flow.get( 8 ).get( "note" ).getAsString() );
+        assertActor( flow.get( 9 ), "human", B_NAME );
+        assertEquals( "over to you", flow.get( 9 ).get( "note" ).getAsString() );
 
         final JsonArray activity = json( personA.get( "/api/work/activity?project=AGT&item=" + key + "&limit=200" ) ).getAsJsonArray();
         final List< String > fromActivity = types( activity );
@@ -276,7 +290,7 @@ public class WorkAgentApiIT {
         for ( final String name : List.of( CODEX, CLAUDE, A_NAME, B_NAME ) ) {
             assertTrue( activity.toString().contains( name ), "activity names " + name );
         }
-        assertEquals( 8, flow.size() );
+        assertEquals( 10, flow.size() );
     }
 
     // ---- (B4) visibility, REST
@@ -511,6 +525,52 @@ public class WorkAgentApiIT {
     }
 
     @Test
+    void archivingAProjectReleasesItsClaimsAndTheHoldersNextWriteIsRefusedAsArchived() throws Exception {
+        assertEquals( 201, admin.send( "POST", "/api/work/projects", Map.of( "key", "ARC", "name", "Archive me" ) ).statusCode() );
+        final Agent holder = WorkIt.registerAgent( admin, "arc@it", "implementer" );
+        admit( "ARC", holder.name(), "member" );
+        final String key = keyOf( newItem( "ARC", "Held at archive time", "implementer" ) );
+        claim( holder, key );
+        assertFalse( itemNow( key ).get( "claimedByAgent" ).isJsonNull(), "the agent holds it before the archive" );
+
+        assertEquals( 204, admin.send( "POST", "/api/work/projects/ARC/archive", null ).statusCode() );
+
+        final JsonObject item = itemNow( key );
+        assertTrue( item.get( "claimedByAgent" ).isJsonNull(), "the archive released the claim: " + item );
+        assertEquals( "ready", item.get( "status" ).getAsString(), "the item went back to where a claim found it" );
+        final JsonObject released = eventOfType( events( admin, key ), "released", 0 );
+        assertEquals( "project archived", released.get( "note" ).getAsString() );
+        assertEquals( "agent:" + holder.id(), released.get( "fromValue" ).getAsString() );
+        // the archiver, not the agent, is the actor of the ending
+        assertEquals( "human", released.get( "actorKind" ).getAsString(), released.toString() );
+
+        // the holder's next write is refused as archived (a read still works)
+        final HttpResponse< String > comment = asAgent( holder, "POST", "/api/work/items/" + key + "/comments", Map.of( "body", "still here?" ) );
+        assertEquals( 409, comment.statusCode(), comment.body() );
+        assertEquals( "archived", json( comment ).getAsJsonObject().get( "reason" ).getAsString(), comment.body() );
+        final HttpResponse< String > renew = asAgent( holder, "POST", "/api/work/items/" + key + "/claim", null );
+        assertEquals( 409, renew.statusCode(), "a claim on an archived project is refused: " + renew.body() );
+        assertEquals( 200, asAgent( holder, "GET", "/api/work/items/" + key, null ).statusCode(), "reads still work" );
+    }
+
+    @Test
+    void anItemCannotBeHandedToAQueueAsInProgress() throws Exception {
+        final String key = keyOf( newItem( "AGT", "Queue rule probe", null ) );
+        final JsonObject now = itemNow( key );
+        final HttpResponse< String > refused = personA.send( "POST", "/api/work/items/" + key + "/handoff", Map.of(
+            "expectedVersion", now.get( "version" ).getAsInt(), "status", "in_progress", "queue", "implementer",
+            "note", "straight to work" ) );
+        assertEquals( 400, refused.statusCode(), refused.body() );
+        assertTrue( refused.body().contains( "Work in a queue is ready or in review until an agent claims it." ), refused.body() );
+        final JsonObject still = itemNow( key );
+        assertEquals( now.get( "version" ).getAsInt(), still.get( "version" ).getAsInt(), "nothing was written" );
+        assertTrue( still.get( "queue" ).isJsonNull(), still.toString() );
+        // the same move to a person is fine, and the same hand-off to the queue as ready is fine
+        ok( personA.send( "POST", "/api/work/items/" + key + "/handoff", Map.of( "expectedVersion", now.get( "version" ).getAsInt(),
+            "status", "ready", "queue", "implementer", "note", "as ready" ) ) );
+    }
+
+    @Test
     void removedAgentLosesTheProjectAndItsClaim() throws Exception {
         final Agent gone = WorkIt.registerAgent( admin, "gone@it", "implementer" );
         admit( "AGT", gone.name(), "member" );
@@ -596,6 +656,7 @@ public class WorkAgentApiIT {
         admit( "AGT", holder.name(), "member" );
         final String key = keyOf( newItem( "AGT", "Leak probe", "implementer" ) );
         claim( holder, key );
+        renew( holder, key ); // the comment below runs as the holder; keep the one-minute claim fresh for it
         assertEquals( 201, asAgent( holder, "POST", "/api/work/items/" + key + "/comments", Map.of( "body", "agent says hi" ) ).statusCode() );
         // a login-bearing event: the admin (login janne) assigns it to person A, who then hands it to B
         final JsonObject now = ok( admin.get( "/api/work/items/" + key ) );

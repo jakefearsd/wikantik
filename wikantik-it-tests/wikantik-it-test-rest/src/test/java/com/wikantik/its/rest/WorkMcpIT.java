@@ -277,9 +277,11 @@ public class WorkMcpIT {
         assertEquals( "in_progress", item.get( "status" ).getAsString() );
         assertEquals( "mcpa@it", item.getAsJsonObject( "claim" ).get( "agent" ).getAsString() );
         assertTrue( refused( clientB, "claim_item", Map.of( "key", key ) ).startsWith( "not_claimable:" ) );
-        assertTrue( ok( clientA, "claim_item", Map.of( "key", key ) ).getAsJsonObject( "claim" ).get( "renewed" ).getAsBoolean() );
 
         assertTrue( ok( clientA, "comment_on_item", Map.of( "key", key, "body", "started" ) ).has( "id" ) );
+        // The IT cascade's claims last one minute: renew right before the step that needs the claim still held, so a
+        // slow run cannot lapse it in between (and a lapse would show here as renewed=false, not as a late failure).
+        assertTrue( ok( clientA, "claim_item", Map.of( "key", key ) ).getAsJsonObject( "claim" ).get( "renewed" ).getAsBoolean() );
         final JsonObject read = ok( clientA, "get_item", Map.of( "key", key ) );
         final int version = read.get( "version" ).getAsInt();
         final JsonObject handed = ok( clientA, "handoff_item", Map.of( "key", key, "expectedVersion", version,
@@ -300,7 +302,7 @@ public class WorkMcpIT {
                 flow.add( e.getAsJsonObject() );
             }
         }
-        assertEquals( List.of( "handoff", "claimed", "claim_renewed", "commented", "handoff", "released", "claimed", "released" ),
+        assertEquals( List.of( "handoff", "claimed", "commented", "claim_renewed", "handoff", "released", "claimed", "released" ),
             flow.stream().map( e -> e.get( "type" ).getAsString() ).toList(), log.toString() );
         assertEquals( "human", flow.get( 0 ).get( "actorKind" ).getAsString() );
         assertEquals( "agent", flow.get( 1 ).get( "actorKind" ).getAsString() );

@@ -75,6 +75,8 @@ class AdminApiKeysResourceTest {
     private final Gson gson = new Gson();
     /** Keys the work registry reports as agent keys (bound now or before a rotation), with the agent's name. */
     private static final java.util.Map< Integer, String > AGENT_KEYS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.atomic.AtomicBoolean LOOKUP_FAILS =
+        new java.util.concurrent.atomic.AtomicBoolean();
     private static final String AGENT_KEY_REFUSAL =
         "This key belongs to a work agent. Rotate or retire the agent on the Agents page.";
 
@@ -94,7 +96,10 @@ class AdminApiKeysResourceTest {
             }
 
             @Override
-            Optional< String > agentKeyName( final int keyId ) {
+            Optional< String > agentKeyName( final int keyId ) throws java.sql.SQLException {
+                if ( LOOKUP_FAILS.get() ) {
+                    throw new java.sql.SQLException( "ERROR: relation \"work_agent\" row (id)=(77) is locked", "55P03" );
+                }
                 return Optional.ofNullable( AGENT_KEYS.get( keyId ) );
             }
         }, engine );
@@ -112,6 +117,7 @@ class AdminApiKeysResourceTest {
         mockService = mock( ApiKeyService.class );
         ApiKeyServiceHolder.setForTesting( mockService );
         AGENT_KEYS.clear();
+        LOOKUP_FAILS.set( false );
     }
 
     @AfterEach
@@ -550,7 +556,25 @@ class AdminApiKeysResourceTest {
         assertEquals( 1, obj.getAsJsonArray( "failed" ).size() );
         final JsonObject failedItem = obj.getAsJsonArray( "failed" ).get( 0 ).getAsJsonObject();
         assertEquals( "99", failedItem.get( "id" ).getAsString() );
-        assertEquals( "db unavailable", failedItem.get( "error" ).getAsString() );
+        assertEquals( "Could not revoke this key; see the server log.", failedItem.get( "error" ).getAsString(),
+            "no exception text reaches the response" );
+    }
+
+    @Test
+    void bulkRevokeNeverEchoesSqlTextFromTheAgentKeyLookup() throws Exception {
+        LOOKUP_FAILS.set( true );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "revoke" );
+        final JsonArray ids = new JsonArray();
+        ids.add( "77" );
+        body.add( "ids", ids );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+
+        final JsonObject failed = obj.getAsJsonArray( "failed" ).get( 0 ).getAsJsonObject();
+        assertEquals( "Could not revoke this key; see the server log.", failed.get( "error" ).getAsString() );
+        assertFalse( obj.toString().contains( "work_agent" ), obj.toString() );
+        verify( mockService, Mockito.never() ).revoke( Mockito.eq( 77 ), any() );
     }
 
     // ----- principalExists() (real, unoverridden method) -----

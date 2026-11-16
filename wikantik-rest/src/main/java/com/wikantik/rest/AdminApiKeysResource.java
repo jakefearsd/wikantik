@@ -64,6 +64,9 @@ public class AdminApiKeysResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AdminApiKeysResource.class );
 
+    /** The fixed text of a bulk-revoke id that failed with an exception; the cause is logged, never returned. */
+    static final String BULK_REVOKE_FAILED = "Could not revoke this key; see the server log.";
+
     @Override
     protected boolean isCrossOriginAllowed() {
         return false;
@@ -289,9 +292,10 @@ public class AdminApiKeysResource extends RestServletBase {
                 result.fail( idStr, "Key not found or already revoked" );
             }
         } catch ( final Exception e ) {
+            // The cause stays in the log: an exception message (SQL text above all) never goes into the response.
             LOG.warn( "bulk-revoke: error revoking key id={} actor={}: {}",
                     id, actor, e.getMessage(), e );
-            result.fail( idStr, e.getMessage() != null ? e.getMessage() : "Internal error" );
+            result.fail( idStr, BULK_REVOKE_FAILED );
         }
     }
 

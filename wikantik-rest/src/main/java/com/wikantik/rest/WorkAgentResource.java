@@ -57,9 +57,7 @@ public class WorkAgentResource extends WorkResourceBase {
         } );
         // The caller takes the agent over (PUT) or gives it up (DELETE): nobody names another person as sponsor.
         route( r, "PUT", "agents/{}/sponsor", c -> {
-            final long id = agentId( c );
-            c.svc.registry().takeOver( c.actor, id );
-            c.tree( agentTree( c, viewOf( c, id ) ) );
+            c.tree( agentTree( c, c.svc.registry().describe( c.svc.registry().takeOver( c.actor, agentId( c ) ) ) ) );
         } );
         route( r, "DELETE", "agents/{}/sponsor", c -> {
             c.svc.registry().releaseSponsorship( c.actor, agentId( c ) );
@@ -104,13 +102,10 @@ public class WorkAgentResource extends WorkResourceBase {
         }
         final long id = agentId( c );
         c.svc.registry().updateAgent( c.actor, id, draft( b ) );
-        c.tree( agentTree( c, viewOf( c, id ) ) );
-    }
-
-    /** The agent as the caller may now see it; hidden and missing are one answer. */
-    private static WorkRegistryService.AgentView viewOf( final Call c, final long id ) throws java.sql.SQLException {
-        return c.svc.registry().agentViews( c.actor ).stream().filter( v -> v.agent().id() == id ).findFirst()
+        // The update has committed: the reply must not fail on a directory lookup for some other agent's sponsor.
+        final Agent updated = c.svc.registry().listAgents( c.actor ).stream().filter( a -> a.id() == id ).findFirst()
             .orElseThrow( () -> new WorkNotFoundException( NOT_FOUND ) );
+        c.tree( agentTree( c, c.svc.registry().describe( updated ) ) );
     }
 
     private static AgentDraft draft( final JsonObject b ) {
@@ -142,7 +137,8 @@ public class WorkAgentResource extends WorkResourceBase {
     /** {@code {agent, token}}, never cached: the one time the token is shown. */
     private void secret( final Call c, final WorkService.AgentWithToken made, final int status ) throws Exception {
         final JsonObject out = new JsonObject();
-        out.add( "agent", agentTree( c, viewOf( c, made.agent().id() ) ) );
+        // Built from the agent the change returned, never from a fresh listing: the token is shown once.
+        out.add( "agent", agentTree( c, c.svc.registry().describe( made.agent() ) ) );
         out.addProperty( "token", made.token() );
         c.resp.setHeader( "Cache-Control", "no-store" );
         c.resp.setHeader( "Pragma", "no-cache" );

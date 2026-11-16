@@ -23,6 +23,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Upgrade notes
 
 - Before upgrading a deployment that has agents registered under 2.5.23, retire them or revoke their API keys: afterwards such a key is an ordinary personal `work` key. After the upgrade each remaining agent has no sponsor and no token; an administrator takes it over and rotates it.
+- Rolling back to 2.5.23 after migration `V080` has run breaks that version's Agents page and agent registration (it reads a column `V080` drops). Projects, boards and items are unaffected; roll forward again to restore agents.
 
 ## [2.5.23] - 2026-11-16
 

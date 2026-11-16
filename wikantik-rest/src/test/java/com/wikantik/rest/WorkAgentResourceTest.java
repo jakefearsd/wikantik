@@ -63,6 +63,7 @@ class WorkAgentResourceTest {
         Mockito.when( svc.registry() ).thenReturn( registry );
         try {
             Mockito.when( registry.agentViews( any() ) ).thenReturn( List.of( view( BUILDER ) ) );
+            Mockito.when( registry.describe( any() ) ).thenAnswer( inv -> view( inv.getArgument( 0 ) ) );
         } catch ( final java.sql.SQLException e ) {
             throw new IllegalStateException( e );
         }
@@ -345,5 +346,24 @@ class WorkAgentResourceTest {
             assertEquals( 404, r.status() );
             assertEquals( missing, r.body(), "hidden and missing are one answer" );
         }
+    }
+
+    /** The one-time token must reach the caller even if the agent list cannot be read just after the commit. */
+    @Test
+    void aCommittedRotationOrRegistrationReturnsItsTokenEvenWhenTheListCannotBeRead() throws Exception {
+        Mockito.when( registry.agentViews( any() ) ).thenThrow(
+            new com.wikantik.work.WorkUnavailableException( "The user directory could not be read." ) );
+        Mockito.when( registry.rotateCredential( ADMIN, 5 ) ).thenReturn( new WorkService.AgentWithToken( BUILDER, "wka_new" ) );
+        Mockito.when( registry.registerAgent( eq( ADMIN ), any() ) ).thenReturn( new WorkService.AgentWithToken( BUILDER, TOKEN ) );
+        Mockito.when( registry.takeOver( ADMIN, 5 ) ).thenReturn( BUILDER );
+        Mockito.when( registry.listAgents( ADMIN ) ).thenReturn( List.of( BUILDER ) );
+        final WorkHttp.Result rotated = send( "POST", "/5/rotate-key", null );
+        assertEquals( 200, rotated.status(), rotated.body() );
+        assertEquals( "wka_new", rotated.json().getAsJsonObject().get( "token" ).getAsString() );
+        final WorkHttp.Result made = send( "POST", null, "{\"name\":\"builder\"}" );
+        assertEquals( 201, made.status(), made.body() );
+        assertEquals( TOKEN, made.json().getAsJsonObject().get( "token" ).getAsString() );
+        assertEquals( 200, send( "PUT", "/5/sponsor", null ).status() );
+        assertEquals( 200, send( "PATCH", "/5", "{\"vendor\":\"x\"}" ).status() );
     }
 }

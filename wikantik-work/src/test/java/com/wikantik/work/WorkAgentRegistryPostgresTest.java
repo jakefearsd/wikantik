@@ -394,4 +394,20 @@ class WorkAgentRegistryPostgresTest {
         assertTrue( !service.registry().agentStandings( mia, "PLAT" ).containsKey( codex ),
             "nothing is claimed about an agent whose sponsor could not be looked up" );
     }
+
+    /**
+     * After a change has committed, describing the changed agent for the response must not depend on the directory:
+     * a rotation whose reply failed would leave the old token dead and the new one never shown.
+     */
+    @Test
+    void describingAChangedAgentNeverFailsOnADirectoryOutage() throws SQLException {
+        final WorkService.AgentWithToken made = codexInPlat();
+        outage = true;
+        final WorkService.AgentWithToken rotated = service.registry().rotateCredential( lena, made.agent().id() );
+        final WorkRegistryService.AgentView view = service.registry().describe( rotated.agent() );
+        assertEquals( "codex", view.agent().name() );
+        assertEquals( WorkRegistryService.AgentStatus.ACTIVE, view.status(), "not looked up: the change just succeeded" );
+        outage = false;
+        assertNotNull( actorOf( rotated.token() ), "and the token that was returned is the live one" );
+    }
 }

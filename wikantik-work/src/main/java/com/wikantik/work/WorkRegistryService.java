@@ -169,6 +169,28 @@ public final class WorkRegistryService {
         return out;
     }
 
+    /**
+     * The agent a change has just produced, as the response to that change shows it. Unlike {@link #agentViews} it
+     * never depends on the user directory: the change has already committed, and a reply that failed now would lose
+     * a one-time token (a rotation's old token is already dead) or make a retry fail on what the first attempt did.
+     * The status is taken from the row alone (retired, no sponsor, else active); the sponsor's name is left out when
+     * it cannot be read. It takes the agent the caller was just given, so it needs no actor.
+     */
+    public AgentView describe( final Agent agent ) {
+        String sponsorName = null;
+        if ( agent.sponsor() != null ) {
+            try {
+                sponsorName = scopes.displayName( agent.sponsor() );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "A sponsor's name could not be read for the reply to a registry change; it is left out: {}",
+                    e.getMessage() );
+            }
+        }
+        final AgentStatus status = !agent.active() ? AgentStatus.RETIRED
+            : agent.sponsor() == null ? AgentStatus.NO_SPONSOR : AgentStatus.ACTIVE;
+        return new AgentView( agent, sponsorName, status );
+    }
+
     private AgentView view( final Agent a ) {
         return new AgentView( a, a.sponsor() == null ? null : scopes.displayName( a.sponsor() ),
             sponsorship.status( a ) );

@@ -390,8 +390,11 @@ public class WorkApiIT {
         final JsonArray comments = seen.getAsJsonArray( "comments" );
         assertTrue( comments.get( 0 ).getAsJsonObject().get( "bodyHtml" ).getAsString().contains( "<strong>please</strong>" )
             || memMention == null, "comments are rendered Markdown: " + comments );
-        assertTrue( comments.get( 1 ).getAsJsonObject().get( "bodyHtml" ).getAsString().contains( "@" + MEM_NAME ),
+        // the page pipeline writes the @ as &#64;; the name is the display name, and the comment lists it to mark
+        assertTrue( comments.get( 1 ).getAsJsonObject().get( "bodyHtml" ).getAsString().contains( MEM_NAME ),
             "a mention shows the display name: " + comments );
+        assertTrue( comments.get( 1 ).getAsJsonObject().get( "mentions" ).toString().contains( MEM_NAME ),
+            comments.toString() );
         assertFalse( comments.get( 0 ).getAsJsonObject().get( "mine" ).getAsBoolean() );
 
         // positive control: the admin is shown the logins

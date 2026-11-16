@@ -64,7 +64,9 @@ describe('WorkItemView', () => {
     await ready();
     expect(screen.getByText('body').tagName).toBe('STRONG');
     expect(getItem).toHaveBeenCalledWith('PLAT-7');
-    expect(listMembers).toHaveBeenCalledWith('PLAT');
+    // The members read is an effect that runs after the commit that shows the heading: wait for it, do not race it
+    // (this failed once under --coverage, where rendering is slower).
+    await waitFor(() => expect(listMembers).toHaveBeenCalledWith('PLAT'));
   });
 
   it('shows the key, level, and breadcrumbs to the board and the parent item', async () => {

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.21] - 2026-11-15
+
 ### Added
 
 - **Work management, phase 1 (off by default).** A new `wikantik-work` module keeps projects, epics, stories and tasks as first-class rows in `work_*` tables, not as wiki pages. Each project has a key, its own members (viewer, member or lead; users or groups) and a board; products are instance-wide. Items carry a kind (software, documentation, admin), status, priority, dates, an assignee, a parent, comments, links and a hand-off action. The UI lives at `/work`: project home, board with drag between columns, item and epic pages with in-place editing and conflict review, a dates view, an activity feed and project settings. The REST API is `/api/work/*`. Switch it on with `wikantik.work.enabled = true`.

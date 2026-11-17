@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.2] - 2026-11-17
+
 ### Changed
 
 - Work settings: a refused role change is shown on that member's row and a refused add next to the form, in the server's words, instead of in a toast.

@@ -571,27 +571,28 @@ Two rules hold at every level and cannot be configured: an agent never reviews o
 
 A deployment is one product version going to an environment (`production` unless named), carrying the items it ships. It lives on `/work/deployments` (linked from the Work home), `/api/work/deployments/*` and three `/work-mcp` tools (`request_deployment`, `get_deployment`, `update_deployment`).
 
-**States.** `requested`, `approved`, `running`, then `verified` or `failed`; a verified or failed one can be marked `rolled_back`. It only moves forward: retry a failed deployment as a new one. Marking it verified needs the health and smoke-test output as evidence, which is stored and shown as plain text.
+**States.** `requested`, `approved`, `running`, then `verified` or `failed`; a verified or failed one can be marked `rolled_back`. One that is not running yet can be `rejected`: whoever requested it withdraws it, or someone who could approve it turns it down, and rejecting an approved one takes the approval back. It only moves forward: retry a failed or rejected deployment as a new one. Marking it verified needs the health and smoke-test output as evidence, which is stored and shown as plain text.
 
 **Who may do what.**
 
 | Step | Who |
 |---|---|
-| Request | A member (person or agent) of every project the deployment carries an item from. Every item must target the product. |
+| Request | A member (person or agent) of every project the deployment carries an item from. Every item must target the product and be `ready` or later (not a draft, not in refining, not cancelled). |
+| Reject or withdraw | Whoever requested it, or anyone who may approve it; only before it is running. |
 | Approve, product gate `human` (the default) | A wiki administrator, or a person who is lead of every carried project. Never an agent. |
 | Approve, product gate `agent` | Also any member of every carried project, including the agent that requested it. |
 | Mark running, verified, failed, rolled back | A member of every carried project, or an administrator. |
 
 The gate is set per product on the Products page (Admin). Autonomy never opens it: under a `human` gate an agent can only request, inside an `autonomous` epic too. Deployments waiting for your approval are listed on the Work home.
 
-**What a viewer sees.** A deployment belongs to a product, not a project, so it is seen through the items it carries. Someone who belongs to one carried project sees the deployment with that project's items only, and no count of the rest; someone who belongs to none gets the same "not found" as for a deployment that does not exist.
+**What a viewer sees.** A deployment belongs to a product, not a project, so it is seen through the items it carries. Someone who belongs to one carried project sees the deployment with that project's items only, and no count of the rest; someone who belongs to none gets the same "not found" as for a deployment that does not exist. A partial viewer can still tell that the deployment carries something they cannot see (they are told they may not approve or run it), and notes and evidence are free text written by the people running it.
 
-**Done means in production.** A lead can set an epic's "Done means" to "In production". Its stories and tasks then cannot be closed, by anyone, until a deployment that carried them is verified (and not rolled back since); the refusal is `awaiting_deployment`. Other epics close at merged, as before. Either way an item page shows "Shipped in" with the verified deployments that carried it, and its history gains "shipped this in …".
+**Done means in production.** A lead can set an epic's "Done means" to "In production". Its stories and tasks then cannot be closed, by anyone, until a deployment to `production` that carried them is verified (and not rolled back since), and was verified after the item's last merged change; the refusal is `awaiting_deployment`. A verified deployment to any other environment ships nothing. Moving such an item out of the epic (to another epic, or to none) takes a project lead, like any other loosening, and an agent can never do it. Other epics close at merged, as before. Either way an item page shows "Shipped in" with the verified deployments that carried it, and its history gains "shipped this in …".
 
-**The deploy-script check.** `bin/work-deploy-gate.sh <deployment-id> <version>` asks `GET /api/work/deployments/{id}/gate?version=` and exits `0` only for a clear yes: the deployment exists, the credential can see it, it is for that version, and it is approved or already running. It exits `1` when the answer is no and `2` when it could not ask (a missing variable, a timeout, a status other than 200, an answer it cannot read). It prints one line and never the token.
+**The deploy-script check.** `bin/work-deploy-gate.sh <deployment-id> <version>` asks `GET /api/work/deployments/{id}/gate?version=` and exits `0` only for a clear yes: the deployment exists, the credential can see it, it is for that version and for the environment being deployed to, and it is approved or already running. It exits `1` when the answer is no and `2` when it could not ask (a missing variable, a timeout, a status other than 200, an answer it cannot read). It prints one line and never the token.
 
-- `WORK_API_URL`: the wiki's base URL. `WORK_API_TOKEN`: a `work` API key or a work agent's token whose owner or agent can see the deployment. `WORK_GATE_TIMEOUT`: seconds to wait, default 10.
-- The check is opt-in. Set `WORK_DEPLOYMENT_ID` and `bin/deploy-release.sh X.Y.Z` asks before it pulls anything and stops on anything but a yes; `bin/remote.sh deploy` does the same when called directly, and then also needs `WORK_DEPLOYMENT_VERSION`. With `WORK_DEPLOYMENT_ID` unset both scripts behave exactly as before, so an outage of work management never blocks a deploy that did not ask for the check.
+- `WORK_API_URL`: the wiki's base URL. `WORK_API_TOKEN`: a `work` API key or a work agent's token whose owner or agent can see the deployment. `WORK_GATE_TIMEOUT`: seconds to wait, default 10. `WORK_DEPLOYMENT_ENVIRONMENT`: where this deploy goes, default `production`; a deployment requested for another environment is refused.
+- The check is opt-in. Set `WORK_DEPLOYMENT_ID` and `bin/deploy-release.sh X.Y.Z` asks before it pulls anything and stops on anything but a yes. `bin/remote.sh deploy` always asks too, about the version it is actually about to ship (`bin/work-deploy-check.sh`): the tag with `--pull`, the image's own version label with `--skip-build`, the version in `pom.xml` for a local build. If it cannot tell the version it refuses, and if you also set `WORK_DEPLOYMENT_VERSION` and it is not the version being shipped it refuses. An image built locally carries no release label, so it cannot pass with `--skip-build`. With `WORK_DEPLOYMENT_ID` unset both scripts behave exactly as before, so an outage of work management never blocks a deploy that did not ask for the check.
 
 **The incident path.** This is the one fully autonomous path, and it exists only where someone sets it up:
 

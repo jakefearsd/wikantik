@@ -58,9 +58,9 @@ class WorkDeploymentAccessPostgresTest {
         f.svc.putMember( f.admin, "OPS", "olga", "user", WorkRole.LEAD );
         f.svc.putMember( f.admin, "OPS", "mia", "user", WorkRole.MEMBER );
         f.svc.putMember( f.admin, "OPS", "author", "agent", WorkRole.MEMBER );
-        plat = f.task();
-        ops = f.svc.createItem( olga, new ItemDraft( "OPS", WorkLevel.TASK, null, "wikantik", WorkKind.SOFTWARE,
-            "An ops item", "", null, null, null, null ) ).item();
+        plat = f.status( f.lena, f.task(), "ready" );
+        ops = f.status( olga, f.svc.createItem( olga, new ItemDraft( "OPS", WorkLevel.TASK, null, "wikantik",
+            WorkKind.SOFTWARE, "An ops item", "", null, null, null, null ) ).item(), "ready" );
     }
 
     private DeploymentView requestedBy( final Actor who ) throws SQLException {
@@ -164,13 +164,68 @@ class WorkDeploymentAccessPostgresTest {
         assertEquals( 1, twice.visibleItems().size(), "a key named twice is carried once" );
     }
 
+    @Test
+    void onlyWorkThatCanShipIsCarried() throws SQLException {
+        final Item draft = f.task();
+        final Item refining = f.status( f.lena, f.task(), "refining" );
+        final Item cancelled = f.status( f.lena, f.task(), "cancelled" );
+        final Item epic = f.draft( WorkLevel.EPIC, null );
+        for ( final Item bad : List.of( draft, refining, cancelled ) ) {
+            final WorkValidationException e = invalid( () -> deployments.request( f.mia,
+                new DeploymentDraft( "wikantik", null, "2.5.26", List.of( bad.key() ) ) ) );
+            assertEquals( "items", e.field() );
+            assertEquals( bad.key() + " is " + bad.status().wire() + "; a deployment carries work that is ready or later.",
+                e.getMessage() );
+        }
+        assertEquals( "items", invalid( () -> deployments.request( f.mia,
+            new DeploymentDraft( "wikantik", null, "2.5.26", List.of( epic.key() ) ) ) ).field(), "an epic ships nothing itself" );
+        final Item done = f.status( f.lena, f.task(), "done" );
+        assertEquals( 1, deployments.request( f.mia, new DeploymentDraft( "wikantik", null, "2.5.26",
+            List.of( done.key() ) ) ).visibleItems().size(), "finished work ships" );
+    }
+
+    // ---- withdrawing and rejecting
+
+    @Test
+    void theRequesterWithdrawsAndAnApproverRejectsAndNeitherIsEverCleared() throws SQLException {
+        final long mine = requestedBy( f.mia ).deployment().id();
+        assertEquals( "Rejecting this deployment takes whoever requested it, or someone who may approve it.",
+            denied( () -> deployments.reject( f.lena, mine, "not yours" ) ), "a lead of one project only" );
+        final DeploymentView withdrawn = deployments.reject( f.mia, mine, "wrong version" );
+        assertEquals( DeploymentState.REJECTED, withdrawn.deployment().state() );
+        assertFalse( deployments.cleared( f.mia, mine, "2.5.26" ) );
+        assertTrue( deployments.awaitingMyApproval( f.admin ).isEmpty() );
+        assertEquals( "bad_transition", assertThrows( WorkConflictException.class,
+            () -> deployments.approve( f.admin, mine, null ) ).reason(), "a rejected deployment stays rejected" );
+        assertEquals( "wrong version", deployments.history( f.mia, mine ).get( 1 ).note() );
+
+        final long theirs = requestedBy( f.author ).deployment().id();
+        assertEquals( DeploymentState.REJECTED, deployments.reject( f.admin, theirs, "not this week" ).deployment().state() );
+
+        final long approved = requestedBy( f.mia ).deployment().id();
+        deployments.approve( f.admin, approved, null );
+        assertTrue( deployments.cleared( f.mia, approved, "2.5.26" ) );
+        deployments.reject( f.admin, approved, "superseded" );
+        assertFalse( deployments.cleared( f.mia, approved, "2.5.26" ), "an approval that will not be used is taken back" );
+        deployments.approve( f.admin, requestedBy( f.mia ).deployment().id(), null );
+    }
+
+    @Test
+    void aRunningDeploymentCannotBeRejected() throws SQLException {
+        final long id = requestedBy( f.mia ).deployment().id();
+        deployments.approve( f.admin, id, null );
+        deployments.start( f.mia, id );
+        assertEquals( "bad_transition", assertThrows( WorkConflictException.class,
+            () -> deployments.reject( f.admin, id, "too late" ) ).reason() );
+    }
+
     // ---- the gate
 
     @Test
     void anAgentCannotApproveUnderAHumanGateEvenInAnAutonomousEpic() throws SQLException {
         final Item epic = f.draft( WorkLevel.EPIC, null );
         f.level( epic, Autonomy.AUTONOMOUS );
-        final Item story = f.draft( WorkLevel.STORY, epic.key() );
+        final Item story = f.status( f.lena, f.draft( WorkLevel.STORY, epic.key() ), "ready" );
         final long id = deployments.request( f.author,
             new DeploymentDraft( "wikantik", null, "2.5.26", List.of( story.key() ) ) ).deployment().id();
         assertEquals( PERSON, denied( () -> deployments.approve( f.author, id, null ) ) );

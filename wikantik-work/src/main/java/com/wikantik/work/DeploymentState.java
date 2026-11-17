@@ -21,14 +21,19 @@ package com.wikantik.work;
 import java.util.EnumSet;
 import java.util.Set;
 
-/** Where a deployment is. It only moves forward: a failed deployment is retried as a new one. */
+/**
+ * Where a deployment is. It only moves forward: a failed or rejected deployment is retried as a new one. One
+ * that has not started running can be rejected, which also takes back an approval that will not be used.
+ */
 public enum DeploymentState {
     REQUESTED("requested"),
     APPROVED("approved"),
     RUNNING("running"),
     VERIFIED("verified"),
     FAILED("failed"),
-    ROLLED_BACK("rolled_back");
+    ROLLED_BACK("rolled_back"),
+    /** Withdrawn by whoever requested it, or turned down by someone who could approve it; it will not run. */
+    REJECTED("rejected");
 
     private final String wire;
 
@@ -44,11 +49,11 @@ public enum DeploymentState {
     /** Whether a deployment in this state may move to {@code target}. */
     public boolean mayBecome( final DeploymentState target ) {
         final Set< DeploymentState > next = switch ( this ) {
-            case REQUESTED -> EnumSet.of( APPROVED );
-            case APPROVED -> EnumSet.of( RUNNING );
+            case REQUESTED -> EnumSet.of( APPROVED, REJECTED );
+            case APPROVED -> EnumSet.of( RUNNING, REJECTED );
             case RUNNING -> EnumSet.of( VERIFIED, FAILED );
             case VERIFIED, FAILED -> EnumSet.of( ROLLED_BACK );
-            case ROLLED_BACK -> EnumSet.noneOf( DeploymentState.class );
+            case ROLLED_BACK, REJECTED -> EnumSet.noneOf( DeploymentState.class );
         };
         return next.contains( target );
     }

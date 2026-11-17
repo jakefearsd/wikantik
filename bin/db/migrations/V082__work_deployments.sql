@@ -18,7 +18,8 @@
 -- V082: deployments (work management phase 4).
 --
 -- A deployment is one product version going to an environment, carrying a set of items. It moves forward only:
--- requested -> approved -> running -> verified | failed, and verified | failed -> rolled_back. Marking it
+-- requested -> approved -> running -> verified | failed, and verified | failed -> rolled_back; one that has not
+-- started running can be rejected. Marking it
 -- verified needs evidence. Its history is append-only, as work_event is; a deployment belongs to a product, not
 -- a project, so its history cannot live in work_event (which needs a project).
 
@@ -28,7 +29,7 @@ CREATE TABLE IF NOT EXISTS work_deployment (
     environment           TEXT NOT NULL DEFAULT 'production',
     version               TEXT NOT NULL,
     state                 TEXT NOT NULL DEFAULT 'requested'
-                          CHECK (state IN ('requested', 'approved', 'running', 'verified', 'failed', 'rolled_back')),
+                          CHECK (state IN ('requested', 'approved', 'running', 'verified', 'failed', 'rolled_back', 'rejected')),
     requested_by          TEXT NOT NULL,
     requested_by_agent_id BIGINT REFERENCES work_agent (id),
     approved_by           TEXT,
@@ -42,6 +43,11 @@ CREATE TABLE IF NOT EXISTS work_deployment (
     CONSTRAINT work_deployment_evidence_chk
         CHECK (state <> 'verified' OR (evidence IS NOT NULL AND btrim(evidence) <> ''))
 );
+-- 'rejected' joined the states after this table first existed on development databases: restate the constraint so
+-- a re-run brings those in line (a fresh database already has it from the CREATE TABLE above).
+ALTER TABLE work_deployment DROP CONSTRAINT IF EXISTS work_deployment_state_check;
+ALTER TABLE work_deployment ADD CONSTRAINT work_deployment_state_check
+    CHECK (state IN ('requested', 'approved', 'running', 'verified', 'failed', 'rolled_back', 'rejected'));
 CREATE INDEX IF NOT EXISTS idx_work_deployment_product ON work_deployment (product_id, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_work_deployment_waiting ON work_deployment (product_id) WHERE state = 'requested';
 

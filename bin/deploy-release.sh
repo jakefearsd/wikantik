@@ -38,8 +38,10 @@
 #   WIKANTIK_IMAGE       registry image (default: ghcr.io/jakefearsd/wikantik)
 #   WORK_DEPLOYMENT_ID   optional: a work-management deployment id. When set, the
 #                        deploy goes ahead only if that deployment is approved for
-#                        this version (bin/work-deploy-gate.sh; needs WORK_API_URL
-#                        and WORK_API_TOKEN). Unset: no check, as before.
+#                        the version being shipped (bin/work-deploy-gate.sh;
+#                        needs WORK_API_URL and WORK_API_TOKEN). With --local the
+#                        version is read from the image's own label. Unset: no
+#                        check, as before.
 #
 # Exit codes: 0 success · 1 deploy/health failure · 2 usage error
 set -euo pipefail
@@ -65,10 +67,6 @@ if [[ "$1" == "--local" ]]; then
         echo "deploy-release.sh: --local given but no wikantik:latest image exists locally." >&2
         exit 2
     fi
-    if [[ -n "${WORK_DEPLOYMENT_ID:-}" && -z "${WORK_DEPLOYMENT_VERSION:-}" ]]; then
-        echo "deploy-release.sh: WORK_DEPLOYMENT_ID is set; with --local also set WORK_DEPLOYMENT_VERSION." >&2
-        exit 2
-    fi
     echo "==> Deploying the existing local wikantik:latest image."
 else
     VERSION="$1"
@@ -78,8 +76,8 @@ else
     fi
     if [[ -n "${WORK_DEPLOYMENT_ID:-}" ]]; then
         # Asked before anything is pulled or shipped; anything but a clear yes stops here.
+        # (remote.sh asks again about the image it actually ships; this one fails fast.)
         bin/work-deploy-gate.sh "${WORK_DEPLOYMENT_ID}" "${VERSION}" || exit 1
-        export WORK_DEPLOY_GATE_CHECKED=1
     fi
     echo "==> Pulling ${WIKANTIK_IMAGE}:${VERSION}"
     docker pull "${WIKANTIK_IMAGE}:${VERSION}"

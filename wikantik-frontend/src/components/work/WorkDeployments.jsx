@@ -8,7 +8,7 @@ import { listDeployments, listProducts, requestDeployment } from '../../api/work
 
 export const STATE_LABEL = {
   requested: 'waiting for approval', approved: 'approved', running: 'running', verified: 'verified',
-  failed: 'failed', rolled_back: 'rolled back',
+  failed: 'failed', rolled_back: 'rolled back', rejected: 'rejected',
 };
 const BLANK = { version: '', environment: '', items: '' };
 const who = (name, kind) => (name ? `${name}${kind === 'agent' ? ' (agent)' : ''}` : 'someone');

@@ -196,10 +196,14 @@ class DeploymentToolsPostgresTest {
         final int id = ok( call( reviewer, "request_deployment", "product", "wikantik", "version", "2.5.26", "items",
             List.of( key ) ) ).get( "id" ).getAsInt();
         assertEquals( "state: is required.", refused( call( reviewer, "update_deployment", "deployment", id ) ) );
-        assertEquals( "state: Use approved, running, verified, failed or rolled_back.",
+        assertEquals( "state: Use approved, rejected, running, verified, failed or rolled_back.",
             refused( call( reviewer, "update_deployment", "deployment", id, "state", "requested" ) ) );
         assertEquals( "evidence: Evidence goes with verified.",
             refused( call( reviewer, "update_deployment", "deployment", id, "state", "approved", "evidence", "x" ) ) );
+        assertEquals( "note: A note goes with approved, rejected, failed or rolled_back.",
+            refused( call( reviewer, "update_deployment", "deployment", id, "state", "running", "note", "starting" ) ) );
+        assertEquals( "rejected", ok( call( reviewer, "update_deployment", "deployment", id, "state", "rejected",
+            "note", "requested by mistake" ) ).get( "state" ).getAsString(), "the requester withdraws it" );
         assertEquals( "deployment: is required.", refused( call( reviewer, "get_deployment" ) ) );
     }
 

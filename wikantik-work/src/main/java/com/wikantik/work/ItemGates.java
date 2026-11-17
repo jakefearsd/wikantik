@@ -112,8 +112,8 @@ final class ItemGates {
     }
 
     /**
-     * A move to another parent or product that lets agents do more (a looser level, or direct commits) is a
-     * loosening like any other: it takes a lead, and an agent never makes it.
+     * A move to another parent or product that lets agents do more (a looser level, or direct commits), or that
+     * takes the item out from under "done means in production", is a loosening like any other: it takes a lead, and an agent never makes it.
      */
     void requireNoLoosening( final WorkScopes.Scope s, final Item current, final Item next ) throws SQLException {
         if ( java.util.Objects.equals( current.parentId(), next.parentId() )
@@ -124,8 +124,11 @@ final class ItemGates {
         final EffectivePolicy was = WorkAutonomy.resolve( before );
         final EffectivePolicy willBe = WorkAutonomy.resolve( new PolicyChain( next, ancestorsOf( next ),
             before.project(), productOf( next ) ) );
+        // Leaving an epic whose work is done only in production is a loosening too: the item could then close
+        // with no deployment behind it.
         final boolean looser = willBe.level().looserThan( was.level() )
-            || ( willBe.directAllowed() && !was.directAllowed() );
+            || ( willBe.directAllowed() && !was.directAllowed() )
+            || ( was.doneWhen() == DoneMeans.IN_PRODUCTION && willBe.doneWhen() != DoneMeans.IN_PRODUCTION );
         if ( !looser || WorkPolicy.may( s.actor(), s.role(), Action.SET_POLICY, current ).allowed() ) {
             return;
         }

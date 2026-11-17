@@ -26,7 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DeploymentStateTest {
 
-    private static final Set< String > ALLOWED = Set.of( "requested>approved", "approved>running",
+    private static final Set< String > ALLOWED = Set.of( "requested>approved", "requested>rejected",
+        "approved>running", "approved>rejected",
         "running>verified", "running>failed", "verified>rolled_back", "failed>rolled_back" );
 
     @Test

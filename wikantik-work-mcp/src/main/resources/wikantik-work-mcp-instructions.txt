@@ -43,8 +43,9 @@ request_deployment product, version, items (a list of item keys), and optionally
                    omitted). Asks for that version to be deployed, carrying the items it ships. Returns the
                    deployment with its id.
 get_deployment     deployment (the id). The deployment's state, the items of it you can see, its evidence.
-update_deployment  deployment, state (approved, running, verified, failed or rolled_back), and evidence with
-                   verified, or a note. A deployment only moves forward.
+update_deployment  deployment, state (approved, rejected, running, verified, failed or rolled_back), evidence with
+                   verified, and a note with approved, rejected, failed or rolled_back. A deployment only moves
+                   forward. rejected withdraws one you requested (or could approve) that is not running yet.
 
 == How to work ==
 
@@ -83,6 +84,10 @@ update_deployment  deployment, state (approved, running, verified, failed or rol
    get_deployment shows approved. Then deploy, update_deployment state running, and when the health and smoke
    checks pass, state verified with their output as evidence (required); if they fail, state failed with a
    note. Never mark a deployment verified without real evidence.
+   A deployment carries work that is ready or later, never a draft. If you requested one by mistake, withdraw
+   it with update_deployment state rejected; do not leave it waiting.
+   Only a verified deployment to production counts as shipping an item, and only one verified after the item's
+   last merged change.
    Under an epic whose work is done only in production, an item cannot be closed (awaiting_deployment:) until a
    deployment that carries it is verified; get_item shows what an item shipped in.
 

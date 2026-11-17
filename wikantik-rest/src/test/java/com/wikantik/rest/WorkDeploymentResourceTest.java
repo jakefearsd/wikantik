@@ -184,24 +184,37 @@ class WorkDeploymentResourceTest {
 
     @Test
     void theGateRouteAnswersTheDeployScript() throws Exception {
-        Mockito.when( deployments.cleared( ALICE, 4L, "2.5.26" ) ).thenReturn( true );
-        Mockito.when( deployments.deployment( ALICE, 4L ) ).thenReturn( view( DeploymentState.APPROVED, null ) );
+        Mockito.when( deployments.gate( ALICE, 4L, "2.5.26" ) ).thenReturn(
+            new WorkDeploymentsService.GateAnswer( true, DeploymentState.APPROVED, "2.5.26", "production" ) );
+        Mockito.when( deployments.gate( ALICE, 4L, "2.5.27" ) ).thenReturn(
+            new WorkDeploymentsService.GateAnswer( false, DeploymentState.APPROVED, "2.5.26", "production" ) );
         final WorkHttp.Result yes = call( "GET", "/4/gate", Map.of( "version", "2.5.26" ), null );
         assertEquals( 200, yes.status() );
-        assertTrue( yes.json().getAsJsonObject().get( "approved" ).getAsBoolean() );
-        assertEquals( "approved", yes.json().getAsJsonObject().get( "state" ).getAsString() );
-        assertEquals( "2.5.26", yes.json().getAsJsonObject().get( "version" ).getAsString() );
+        final JsonObject answer = yes.json().getAsJsonObject();
+        assertTrue( answer.get( "approved" ).getAsBoolean() );
+        assertEquals( "approved", answer.get( "state" ).getAsString() );
+        assertEquals( "2.5.26", answer.get( "version" ).getAsString() );
+        assertEquals( "production", answer.get( "environment" ).getAsString() );
         assertEquals( "no-store", yes.headers().get( "Cache-Control" ) );
         final WorkHttp.Result other = call( "GET", "/4/gate", Map.of( "version", "2.5.27" ), null );
         assertFalse( other.json().getAsJsonObject().get( "approved" ).getAsBoolean(), "another version is not approved" );
         final WorkHttp.Result none = call( "GET", "/4/gate", Map.of(), null );
         assertEquals( 400, none.status(), "the script must say which version it is about to deploy" );
+        Mockito.verify( deployments, Mockito.never() ).deployment( Mockito.any(), Mockito.anyLong() );
+    }
+
+    @Test
+    void rejectsOrWithdrawsADeployment() throws Exception {
+        Mockito.when( deployments.reject( ALICE, 4L, "wrong version" ) ).thenReturn( view( DeploymentState.REJECTED, null ) );
+        final WorkHttp.Result r = call( "POST", "/4/reject", Map.of(), "{\"note\":\"wrong version\"}" );
+        assertEquals( 200, r.status() );
+        assertEquals( "rejected", r.json().getAsJsonObject().get( "state" ).getAsString() );
     }
 
     @Test
     void anUnseenOrMalformedDeploymentIsNotFound() throws Exception {
         Mockito.when( deployments.deployment( ALICE, 4L ) ).thenThrow( new WorkNotFoundException( "x" ) );
-        Mockito.when( deployments.cleared( ALICE, 4L, "2.5.26" ) ).thenThrow( new WorkNotFoundException( "x" ) );
+        Mockito.when( deployments.gate( ALICE, 4L, "2.5.26" ) ).thenThrow( new WorkNotFoundException( "x" ) );
         final WorkHttp.Result hidden = call( "GET", "/4", Map.of(), null );
         final WorkHttp.Result malformed = call( "GET", "/four", Map.of(), null );
         assertEquals( 404, hidden.status() );

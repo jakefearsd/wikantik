@@ -43,6 +43,11 @@ public final class WorkDeploymentsService {
                                   boolean mayApprove, boolean mayRun ) {
     }
 
+    /** Work nobody has approved, or that was dropped, is not something a deployment ships. */
+    private static final java.util.Set< WorkStatus > NOT_SHIPPABLE = java.util.EnumSet.of( WorkStatus.DRAFT,
+        WorkStatus.REFINING, WorkStatus.CANCELLED );
+    static final String REJECT =
+        "Rejecting this deployment takes whoever requested it, or someone who may approve it.";
     static final String RUN = "Running this deployment takes membership of every project it carries.";
     static final int MAX_EVIDENCE = 20_000;
     static final int MAX_NOTE = 2_000;
@@ -76,6 +81,10 @@ public final class WorkDeploymentsService {
             is.scope().requireWritable();
             if ( is.item().productId() == null || is.item().productId() != product.id() ) {
                 throw new WorkValidationException( "items", is.item().key() + " does not target this product." );
+            }
+            if ( NOT_SHIPPABLE.contains( is.item().status() ) ) {
+                throw new WorkValidationException( "items", is.item().key() + " is " + is.item().status().wire()
+                    + "; a deployment carries work that is ready or later." );
             }
             items.put( is.item().id(), is.item() );
         }
@@ -121,6 +130,21 @@ public final class WorkDeploymentsService {
         return view( a, moved( store.deployments().move( id, DeploymentState.APPROVED, null, note( note ), a ) ) );
     }
 
+    /**
+     * Withdraws or turns down a deployment that has not started running: whoever requested it may, and so may
+     * anyone who could approve it. A rejected deployment never runs and is never cleared for the deploy script.
+     */
+    public DeploymentView reject( final Actor a, final long id, final String note ) throws SQLException {
+        final Deployment d = seen( a, id );
+        final boolean requester = a.kind() == Actor.Kind.AGENT ? a.agentId().equals( d.requestedByAgentId() )
+            : d.requestedByAgentId() == null && a.login().equals( d.requestedBy() );
+        if ( !requester && !mayApprove( a, d, access( a, d ) ).allowed() ) {
+            scopes.denied( Action.APPROVE_DEPLOYMENT );
+            throw new WorkDeniedException( REJECT );
+        }
+        return view( a, moved( store.deployments().move( id, DeploymentState.REJECTED, null, note( note ), a ) ) );
+    }
+
     public DeploymentView start( final Actor a, final long id ) throws SQLException {
         return move( a, id, DeploymentState.RUNNING, null, null );
     }
@@ -152,17 +176,27 @@ public final class WorkDeploymentsService {
      * or already running. Anything else is no.
      */
     public boolean cleared( final Actor a, final long id, final String version ) throws SQLException {
-        final Deployment d = seen( a, id );
-        return d.state().clearedToRun() && d.version().equals( version );
+        return gate( a, id, version ).approved();
     }
 
-    /** The verified deployments that carried the item, most recent first: what it shipped in. */
+    /** The answer to a deploy script, from one read: whether to go ahead, and what the deployment is. */
+    public record GateAnswer( boolean approved, DeploymentState state, String version, String environment ) {
+    }
+
+    /** {@link #cleared} with the state, version and environment the answer was taken from. */
+    public GateAnswer gate( final Actor a, final long id, final String version ) throws SQLException {
+        final Deployment d = seen( a, id );
+        return new GateAnswer( d.state().clearedToRun() && d.version().equals( version ), d.state(), d.version(),
+            d.environment() );
+    }
+
+    /** The verified deployments to production that carried the item, most recent first: what it shipped in. */
     public List< DeploymentView > shippedIn( final Actor a, final String itemKey ) throws SQLException {
         final ItemScope is = scopes.itemScope( a, itemKey );
         is.scope().require( Action.VIEW, is.item() );
         final List< DeploymentView > out = new ArrayList<>();
         for ( final Deployment d : store.deployments().carrying( is.item().id() ) ) {
-            if ( d.state() == DeploymentState.VERIFIED ) {
+            if ( d.state() == DeploymentState.VERIFIED && JdbcWorkDeployments.PRODUCTION.equals( d.environment() ) ) {
                 out.add( view( a, d ) );
             }
         }

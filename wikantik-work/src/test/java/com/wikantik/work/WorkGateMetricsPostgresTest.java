@@ -99,6 +99,8 @@ class WorkGateMetricsPostgresTest {
 
     @Test
     void theDeployGateIsReportedForAnAgentOnly() throws SQLException {
+        f.status( f.lena, item, "ready" );
+        gates.clear();
         final long id = f.svc.deployments().request( f.author, new DeploymentDraft( "wikantik", null, "2.5.26",
             java.util.List.of( item.key() ) ) ).deployment().id();
         assertThrows( WorkDeniedException.class, () -> f.svc.deployments().approve( f.author, id, null ) );

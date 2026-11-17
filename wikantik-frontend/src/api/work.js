@@ -126,6 +126,8 @@ export const getDeploymentHistory = (id) => request(`${base}/deployments/${enc(i
 /** body is { product, version, items: [itemKey], environment? }. */
 export const requestDeployment = (body) => request(`${base}/deployments`, json('POST', body));
 export const approveDeployment = (id, body) => request(`${base}/deployments/${enc(id)}/approve`, json('POST', body));
+/** Withdraws a deployment you requested, or turns one down you could approve; not once it is running. */
+export const rejectDeployment = (id, body) => request(`${base}/deployments/${enc(id)}/reject`, json('POST', body));
 export const startDeployment = (id) => request(`${base}/deployments/${enc(id)}/start`, { method: 'POST' });
 /** body is { evidence }: the health and smoke-test output; required. */
 export const verifyDeployment = (id, body) => request(`${base}/deployments/${enc(id)}/verify`, json('POST', body));

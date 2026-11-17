@@ -4,8 +4,8 @@ import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import {
-  approveDeployment, failDeployment, getDeployment, getDeploymentHistory, rollBackDeployment, startDeployment,
-  verifyDeployment,
+  approveDeployment, failDeployment, getDeployment, getDeploymentHistory, rejectDeployment, rollBackDeployment,
+  startDeployment, verifyDeployment,
 } from '../../api/work';
 import { STATE_LABEL } from './WorkDeployments';
 
@@ -23,6 +23,7 @@ export default function WorkDeploymentView() {
   const [missing, setMissing] = useState(false);
   const [evidence, setEvidence] = useState('');
   const [note, setNote] = useState('');
+  const [reason, setReason] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   useDocumentTitle(d ? `${d.product} ${d.version}` : 'Deployment');
@@ -80,6 +81,15 @@ export default function WorkDeploymentView() {
         </div>
       )}
       {d.state === 'requested' && !d.mayApprove && <p className="work-muted">Waiting for someone who may approve deployments of this product.</p>}
+      {(d.state === 'requested' || d.state === 'approved') && (
+        <div className="work-actions">
+          <input className="work-field-input" aria-label="Reason" placeholder="Why it will not go ahead" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
+            onClick={() => act(() => rejectDeployment(id, { note: reason.trim() || null }))}>
+            {d.mayApprove || d.state === 'approved' ? 'Reject' : 'Withdraw'}
+          </button>
+        </div>
+      )}
       {d.state === 'approved' && d.mayRun && (
         <div className="work-actions">
           <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => act(() => startDeployment(id))}>Mark as running</button>

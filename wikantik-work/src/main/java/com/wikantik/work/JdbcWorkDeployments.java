@@ -79,11 +79,23 @@ final class JdbcWorkDeployments implements WorkDeploymentStore {
         return out;
     }
 
-    /** Whether a verified deployment carries the item, on the caller's connection (the item write holds its row). */
+    /** The environment work is "in production" in; a verified deployment anywhere else ships nothing. */
+    static final String PRODUCTION = "production";
+
+    /**
+     * Whether the item has shipped: a deployment to production that carries it is verified, and was verified after
+     * the item's last merged change (a deployment cannot have carried a change merged after it). On the caller's
+     * connection: the item write holds the item's row.
+     */
     static boolean shippedVerified( final Jdbc jdbc, final Connection conn, final long itemId ) throws SQLException {
-        return jdbc.queryOne( conn, "SELECT 1 FROM work_deployment_item di JOIN work_deployment d "
-                + "ON d.id = di.deployment_id WHERE di.item_id = ? AND d.state = 'verified' LIMIT 1",
-            ps -> ps.setLong( 1, itemId ), rs -> Boolean.TRUE ).isPresent();
+        return jdbc.queryOne( conn, """
+            SELECT 1 FROM work_deployment_item di JOIN work_deployment d ON d.id = di.deployment_id
+             WHERE di.item_id = ? AND d.state = 'verified' AND d.environment = 'production'
+               AND d.verified_at >= COALESCE( ( SELECT MAX( c.closed_at ) FROM work_change c
+                                                 WHERE c.item_id = di.item_id AND c.state = 'merged' ),
+                                              '-infinity'::timestamptz )
+             LIMIT 1
+            """, ps -> ps.setLong( 1, itemId ), rs -> Boolean.TRUE ).isPresent();
     }
 
     @Override
@@ -185,7 +197,8 @@ final class JdbcWorkDeployments implements WorkDeploymentStore {
     private void update( final Connection conn, final long id, final DeploymentState target, final String evidence,
                          final Actor by ) throws SQLException {
         final boolean approving = target == DeploymentState.APPROVED;
-        final boolean finished = target == DeploymentState.VERIFIED || target == DeploymentState.FAILED;
+        final boolean finished = target == DeploymentState.VERIFIED || target == DeploymentState.FAILED
+            || target == DeploymentState.REJECTED;
         jdbc.update( conn, """
             UPDATE work_deployment SET state = ?,
                 approved_by = CASE WHEN ? THEN ? ELSE approved_by END,

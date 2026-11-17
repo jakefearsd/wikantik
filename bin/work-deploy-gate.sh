@@ -5,8 +5,8 @@
 # A deploy script calls this before it builds or ships anything. It asks
 #   GET $WORK_API_URL/api/work/deployments/<id>/gate?version=<version>
 # and says yes only when the answer is a clear yes: the deployment exists, is
-# visible to the credential, is for that version, and is approved (or already
-# running). Anything else stops the deploy.
+# visible to the credential, is for that version and that environment, and is
+# approved (or already running). Anything else stops the deploy.
 #
 # Usage:
 #   bin/work-deploy-gate.sh <deployment-id> <version>
@@ -15,11 +15,14 @@
 #   WORK_API_URL       base URL of the wiki, e.g. https://wiki.example.com   (required)
 #   WORK_API_TOKEN     a `work` API key or a work agent's token              (required)
 #   WORK_GATE_TIMEOUT  seconds to wait for the answer (default 10)
+#   WORK_DEPLOYMENT_ENVIRONMENT  where this deploy goes (default production); the
+#                      deployment must have been requested for the same place
 #
 # Prints one line. The token is never printed.
 # Exit codes: 0 approved · 1 not approved · 2 could not ask (usage, network,
 # a non-200 answer, or an answer that is not what was expected)
 set -euo pipefail
+set +x   # never trace: the token passes through this script
 
 say() { printf 'work-deploy-gate: %s\n' "$1"; }
 
@@ -53,7 +56,7 @@ trap 'rm -f "${BODY}"' EXIT
 STATUS="$(curl --silent --show-error --output "${BODY}" --write-out '%{http_code}' \
     --max-time "${WORK_GATE_TIMEOUT:-10}" --header 'Accept: application/json' \
     --header @<(printf 'Authorization: Bearer %s\n' "${WORK_API_TOKEN}") \
-    "${WORK_API_URL%/}/api/work/deployments/${ID}/gate?version=${VERSION}" 2>/dev/null)" || {
+    "${WORK_API_URL%/}/api/work/deployments/${ID}/gate?version=${VERSION//+/%2B}" 2>/dev/null)" || {
     say "no answer from work management about deployment ${ID} (network error or timeout)"
     exit 2
 }
@@ -62,8 +65,9 @@ if [[ "${STATUS}" != "200" ]]; then
     exit 2
 fi
 
-# Yes only for the JSON boolean true and the version that was asked about. -I: no user site, no cwd imports.
-VERDICT="$(python3 -I - "${BODY}" "${VERSION}" <<'PY' 2>/dev/null
+# Yes only for the JSON boolean true, the version that was asked about and the environment being deployed to. -I: no user site, no cwd imports.
+ENVIRONMENT="${WORK_DEPLOYMENT_ENVIRONMENT:-production}"
+VERDICT="$(python3 -I - "${BODY}" "${VERSION}" "${ENVIRONMENT}" <<'PY' 2>/dev/null
 import json, sys
 try:
     answer = json.load(open(sys.argv[1]))
@@ -71,7 +75,8 @@ try:
     if not isinstance(state, str) or "approved" not in answer:
         raise ValueError("unexpected shape")
     safe_state = "".join(c for c in state if c.isalnum() or c == "_")[:20]
-    ok = answer["approved"] is True and answer.get("version") == sys.argv[2]
+    ok = (answer["approved"] is True and answer.get("version") == sys.argv[2]
+          and answer.get("environment") == sys.argv[3])
     print(("yes " if ok else "no ") + safe_state)
 except Exception:
     print("unreadable")
@@ -80,10 +85,10 @@ PY
 
 case "${VERDICT}" in
     "yes "*)
-        say "deployment ${ID} of ${VERSION} is approved (${VERDICT#yes }); going ahead"
+        say "deployment ${ID} of ${VERSION} to ${ENVIRONMENT} is approved (${VERDICT#yes }); going ahead"
         exit 0 ;;
     "no "*)
-        say "deployment ${ID} is not approved for ${VERSION} (state: ${VERDICT#no }); not deploying"
+        say "deployment ${ID} is not approved for ${VERSION} to ${ENVIRONMENT} (state: ${VERDICT#no }); not deploying"
         exit 1 ;;
     *)
         say "could not read work management's answer about deployment ${ID}; not deploying"

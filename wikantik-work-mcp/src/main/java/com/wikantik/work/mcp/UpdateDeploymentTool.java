@@ -62,14 +62,15 @@ public final class UpdateDeploymentTool extends WorkMcpTool {
     public McpSchema.Tool definition() {
         final Map< String, Object > props = new LinkedHashMap<>();
         props.put( "deployment", prop( "integer", "The deployment's id.", 4 ) );
-        props.put( "state", prop( "string", "approved, running, verified, failed or rolled_back.", "running" ) );
+        props.put( "state", prop( "string", "approved, rejected, running, verified, failed or rolled_back.", "running" ) );
         props.put( "evidence", prop( "string", "With verified: the health and smoke-test output. Required.",
             "GET /api/health 200; smoke-wiki.sh: SMOKE OK" ) );
         props.put( "note", prop( "string", "Why, for the deployment's history.", "Smoke test failed on search." ) );
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
             .description( "Move a deployment to its next state. It only moves forward: requested, approved, running, "
-                + "then verified or failed; a verified or failed one can be rolled_back. Approving is refused where "
+                + "then verified or failed; a verified or failed one can be rolled_back. One that is not running yet "
+                + "can be rejected, by whoever requested it or could approve it. Approving is refused where "
                 + "a person approves deployments of the product. Returns the deployment. Refusals: denied:, "
                 + "bad_transition: (not the next state), evidence: (verified needs it)." )
             .inputSchema( schema( props, List.of( "deployment", "state" ) ) )
@@ -84,6 +85,10 @@ public final class UpdateDeploymentTool extends WorkMcpTool {
         final String state = requiredString( args, "state" );
         final String evidence = stringArg( args, "evidence" );
         final String note = stringArg( args, "note" );
+        if ( note != null && ( "running".equals( state ) || VERIFIED.equals( state ) ) ) {
+            // those two moves record no note: say so, or the agent would believe it left one
+            throw new WorkValidationException( "note", "A note goes with approved, rejected, failed or rolled_back." );
+        }
         if ( evidence != null && !VERIFIED.equals( state ) ) {
             throw new WorkValidationException( "evidence", "Evidence goes with verified." );
         }
@@ -93,8 +98,9 @@ public final class UpdateDeploymentTool extends WorkMcpTool {
             case VERIFIED -> svc.deployments().verify( actor, id, evidence );
             case "failed" -> svc.deployments().fail( actor, id, note );
             case "rolled_back" -> svc.deployments().rollBack( actor, id, note );
+            case "rejected" -> svc.deployments().reject( actor, id, note );
             default -> throw new WorkValidationException( "state",
-                "Use approved, running, verified, failed or rolled_back." );
+                "Use approved, rejected, running, verified, failed or rolled_back." );
         };
         WorkMcpLog.written( TOOL_NAME, "deployment-" + state.replace( '_', '-' ), "deployment:" + id, actor );
         return ok( WorkMcpDeployments.deployment( svc, directory, actor, v ) );

@@ -122,6 +122,42 @@ class WorkDoneMeansPostgresTest {
     }
 
     @Test
+    void movingAnItemOutOfItsInProductionEpicTakesALead() throws SQLException {
+        final String move = "Moving this to where agents may do more takes a project lead.";
+        final Item merged = f.draft( WorkLevel.EPIC, null );
+        assertEquals( move, assertThrows( WorkDeniedException.class,
+            () -> f.set( f.mia, story, "parentKey", merged.key() ) ).reason(), "to an epic that is done at merged" );
+        assertEquals( move, assertThrows( WorkDeniedException.class,
+            () -> f.set( f.mia, story, "parentKey", null ) ).reason(), "or out of any epic" );
+        assertThrows( WorkDeniedException.class, () -> f.set( f.author, story, "parentKey", null ), "least of all an agent" );
+        assertEquals( "awaiting_deployment", held( () -> f.status( f.mia, story, "done" ) ), "it is still held" );
+        f.set( f.lena, story, "parentKey", null );
+        assertEquals( WorkStatus.DONE, f.status( f.mia, story, "done" ).status(), "a lead may take it out" );
+    }
+
+    @Test
+    void onlyAProductionDeploymentCounts() throws SQLException {
+        final long staging = deployments.request( f.mia, new DeploymentDraft( "wikantik", "staging", "2.5.26",
+            List.of( story.key() ) ) ).deployment().id();
+        deployments.approve( f.lena, staging, null );
+        deployments.start( f.mia, staging );
+        deployments.verify( f.mia, staging, "health 200 on staging" );
+        assertEquals( "awaiting_deployment", held( () -> f.status( f.mia, story, "done" ) ) );
+        assertTrue( deployments.shippedIn( f.mia, story.key() ).isEmpty(), "staging is not where it ships" );
+    }
+
+    @Test
+    void aDeploymentVerifiedBeforeTheWorkWasMergedDoesNotCount() throws SQLException {
+        verified( "2.5.26", story );
+        final Change c = f.svc.changes().open( f.mia, story.key(), new ChangeDraft( "work/x", null, "aaaaaaa1", null, null ) );
+        f.svc.changes().merge( f.mia, c.id(), "aaaaaaa1" );
+        assertEquals( "awaiting_deployment", held( () -> f.status( f.mia, story, "done" ) ),
+            "that deployment cannot have carried a change merged after it" );
+        verified( "2.5.27", story );
+        assertEquals( WorkStatus.DONE, f.status( f.mia, story, "done" ).status() );
+    }
+
+    @Test
     void theEpicItselfIsNotHeld() throws SQLException {
         assertEquals( WorkStatus.DONE, f.status( f.lena, epic, "done" ).status() );
     }

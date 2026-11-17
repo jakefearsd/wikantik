@@ -49,7 +49,7 @@ class WorkDeploymentRacePostgresTest {
     void setUp() throws SQLException {
         f = new GateFixture();
         id = f.svc.deployments().request( f.mia, new DeploymentDraft( "wikantik", null, "2.5.26",
-            List.of( f.task().key() ) ) ).deployment().id();
+            List.of( f.status( f.lena, f.task(), "ready" ).key() ) ) ).deployment().id();
     }
 
     @AfterEach

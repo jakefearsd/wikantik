@@ -51,7 +51,10 @@ public interface WorkDeploymentStore {
     /** The deployment's history, oldest first. */
     List< DeploymentEvent > history( long id ) throws SQLException;
 
-    /** Whether a deployment that is verified (and not rolled back since) carries the item. */
+    /**
+     * Whether the item has shipped: a deployment to production that carries it is verified (and not rolled back
+     * since), and was verified after the item's last merged change.
+     */
     boolean shippedVerified( long itemId ) throws SQLException;
 
     /** Every deployment still waiting for approval, oldest first. */

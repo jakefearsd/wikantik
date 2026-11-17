@@ -155,6 +155,8 @@ describe('work api client', () => {
       { method: 'POST', body: JSON.stringify({ product: 'wikantik', version: '2.5.26', items: ['PLAT-1'] }) });
     await work.approveDeployment(4, { note: 'go' });
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4/approve', { method: 'POST', body: JSON.stringify({ note: 'go' }) });
+    await work.rejectDeployment(4, { note: 'no' });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4/reject', { method: 'POST', body: JSON.stringify({ note: 'no' }) });
     await work.startDeployment(4);
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4/start', { method: 'POST' });
     await work.verifyDeployment(4, { evidence: 'ok' });

@@ -8,10 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **Deployments (work management phase 4, behind `wikantik.work.enabled`).** A product version going to production is a record that carries the items it ships: requested, approved, running, then verified or failed. It lives on `/work/deployments`, `/api/work/deployments/*` and three new `/work-mcp` tools (`request_deployment`, `get_deployment`, `update_deployment`; 16 tools in all). Marking a deployment verified needs the health and smoke-test output as evidence.
+- **Deployments (work management phase 4, behind `wikantik.work.enabled`).** A product version going to production is a record that carries the items it ships: requested, approved, running, then verified or failed; one not yet running can be rejected or withdrawn. It lives on `/work/deployments`, `/api/work/deployments/*` and three new `/work-mcp` tools (`request_deployment`, `get_deployment`, `update_deployment`; 16 tools in all). Marking a deployment verified needs the health and smoke-test output as evidence.
 - **The deploy gate takes effect.** Each product says whether a person or an agent approves its deployments (Products page; a person by default). Under a person's gate an agent can only request, whatever the autonomy level. Deployments waiting for your approval are listed on the Work home.
-- **"Done means in production" takes effect.** Stories and tasks under an epic set that way cannot be closed until a verified deployment carried them. Every item page shows what it shipped in.
-- **`bin/work-deploy-gate.sh`** asks whether a deployment is approved for a version. `bin/deploy-release.sh` and `bin/remote.sh deploy` call it when `WORK_DEPLOYMENT_ID` is set and refuse to deploy on anything but a yes; with the variable unset they behave as before.
+- **"Done means in production" takes effect.** Stories and tasks under an epic set that way cannot be closed until a verified deployment to production carried them, verified after their last merged change. Moving such an item out of its epic takes a project lead. Every item page shows what it shipped in.
+- **`bin/work-deploy-gate.sh`** asks whether a deployment is approved for a version and environment. `bin/deploy-release.sh` and `bin/remote.sh deploy` call it when `WORK_DEPLOYMENT_ID` is set, about the version they are actually about to ship, and refuse to deploy on anything but a yes; with the variable unset they behave as before.
 - A deployment is visible only through the items it carries: a member of one carried project sees that project's items and nothing of the rest.
 - Metric `wikantik_work_deployments_total{state}`. Migration `V082` adds the deployment tables.
 

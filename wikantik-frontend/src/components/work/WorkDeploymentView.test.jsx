@@ -4,12 +4,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
   getDeployment: vi.fn(), getDeploymentHistory: vi.fn(), approveDeployment: vi.fn(), startDeployment: vi.fn(),
-  verifyDeployment: vi.fn(), failDeployment: vi.fn(), rollBackDeployment: vi.fn(),
+  verifyDeployment: vi.fn(), failDeployment: vi.fn(), rollBackDeployment: vi.fn(), rejectDeployment: vi.fn(),
   listProducts: vi.fn(), listDeployments: vi.fn(), requestDeployment: vi.fn(),
 }));
 import {
   getDeployment, getDeploymentHistory, approveDeployment, startDeployment, verifyDeployment, failDeployment,
-  rollBackDeployment,
+  rollBackDeployment, rejectDeployment,
 } from '../../api/work';
 import WorkDeploymentView from './WorkDeploymentView';
 
@@ -29,7 +29,7 @@ beforeEach(() => {
     { id: 1, actorName: 'codex', actorKind: 'agent', from: null, to: 'requested', at: '2026-11-17T10:00:00Z', note: null },
     { id: 2, actorName: 'Jake Fear', actorKind: 'human', from: 'requested', to: 'approved', at: '2026-11-17T10:05:00Z', note: 'go' },
   ] });
-  for (const fn of [approveDeployment, startDeployment, verifyDeployment, failDeployment, rollBackDeployment]) fn.mockResolvedValue({});
+  for (const fn of [approveDeployment, startDeployment, verifyDeployment, failDeployment, rollBackDeployment, rejectDeployment]) fn.mockResolvedValue({});
 });
 
 describe('WorkDeploymentView', () => {
@@ -51,6 +51,7 @@ describe('WorkDeploymentView', () => {
     const waiting = renderView();
     expect(await screen.findByText('Waiting for someone who may approve deployments of this product.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Withdraw' })).toBeInTheDocument();
     waiting.unmount();
 
     getDeployment.mockResolvedValue(dep('requested', { mayApprove: true }));
@@ -59,6 +60,26 @@ describe('WorkDeploymentView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     await waitFor(() => expect(approveDeployment).toHaveBeenCalledWith('4', { note: 'go ahead' }));
     await waitFor(() => expect(getDeployment).toHaveBeenCalledTimes(3));
+  });
+
+  it('lets a requested or approved deployment be withdrawn or rejected with a reason, and nothing later', async () => {
+    getDeployment.mockResolvedValue(dep('requested'));
+    const requested = renderView();
+    fireEvent.change(await screen.findByLabelText('Reason'), { target: { value: 'wrong version' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    await waitFor(() => expect(rejectDeployment).toHaveBeenCalledWith('4', { note: 'wrong version' }));
+    requested.unmount();
+
+    getDeployment.mockResolvedValue(dep('approved', { mayRun: true }));
+    const approved = renderView();
+    fireEvent.click(await screen.findByRole('button', { name: 'Reject' }));
+    await waitFor(() => expect(rejectDeployment).toHaveBeenLastCalledWith('4', { note: null }));
+    approved.unmount();
+
+    getDeployment.mockResolvedValue(dep('running', { mayRun: true }));
+    renderView();
+    await screen.findByRole('button', { name: 'Mark as verified' });
+    expect(screen.queryByRole('button', { name: /Reject|Withdraw/ })).toBeNull();
   });
 
   it('marks an approved deployment as running', async () => {

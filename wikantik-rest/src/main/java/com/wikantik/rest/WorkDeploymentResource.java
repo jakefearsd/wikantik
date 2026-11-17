@@ -24,6 +24,7 @@ import com.google.gson.JsonObject;
 import com.wikantik.work.DeploymentDraft;
 import com.wikantik.work.DeploymentEvent;
 import com.wikantik.work.Item;
+import com.wikantik.work.WorkDeploymentsService;
 import com.wikantik.work.WorkDeploymentsService.DeploymentView;
 import com.wikantik.work.WorkValidationException;
 
@@ -54,6 +55,12 @@ public class WorkDeploymentResource extends WorkResourceBase {
             final JsonObject b = c.optionalBody();
             if ( b != null ) {
                 c.tree( view( c, c.svc.deployments().approve( c.actor, c.idParam( 0 ), WorkChangeJson.text( b, "note" ) ) ) );
+            }
+        } );
+        route( r, "POST", "deployments/{}/reject", c -> {
+            final JsonObject b = c.optionalBody();
+            if ( b != null ) {
+                c.tree( view( c, c.svc.deployments().reject( c.actor, c.idParam( 0 ), WorkChangeJson.text( b, "note" ) ) ) );
             }
         } );
         route( r, "POST", "deployments/{}/start", c -> c.tree( view( c, c.svc.deployments().start( c.actor, c.idParam( 0 ) ) ) ) );
@@ -142,12 +149,13 @@ public class WorkDeploymentResource extends WorkResourceBase {
         if ( version == null ) {
             throw new WorkValidationException( "version", "version is required." );
         }
-        final boolean approved = c.svc.deployments().cleared( c.actor, c.idParam( 0 ), version );
-        final DeploymentView v = c.svc.deployments().deployment( c.actor, c.idParam( 0 ) );
+        // One read: the verdict and the state it is reported with can never disagree.
+        final WorkDeploymentsService.GateAnswer answer = c.svc.deployments().gate( c.actor, c.idParam( 0 ), version );
         final JsonObject out = new JsonObject();
-        out.addProperty( "approved", approved );
-        out.addProperty( "state", v.deployment().state().wire() );
-        out.addProperty( "version", v.deployment().version() );
+        out.addProperty( "approved", answer.approved() );
+        out.addProperty( "state", answer.state().wire() );
+        out.addProperty( "version", answer.version() );
+        out.addProperty( "environment", answer.environment() );
         c.resp.setHeader( "Cache-Control", "no-store" );
         c.tree( out );
     }

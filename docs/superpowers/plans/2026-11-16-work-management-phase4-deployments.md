@@ -24,6 +24,16 @@ Phase 3b is built; these are its names and rulings as they stand (its ledger and
 - The store facades are split to stay under the PMD limits (`JdbcWorkItemWrites`, `JdbcWorkAcks`, `JdbcWorkChanges`): add `JdbcWorkDeployments` the same way and expect to split the service.
 - The work event log's change events use `from_value` `change:<id>`; use `deployment:<id>` for the per-item deployment events.
 
+## Changes made by the final review (2026-11-17)
+
+The whole-branch review found ordinary sequences of calls that defeated promises of this phase. What was built differs from the text below in these ways; this section wins.
+
+- **A deployment can be rejected.** `requested→rejected` and `approved→rejected` join the allowed moves (state `rejected`): whoever requested it withdraws it, or anyone who may approve it turns it down. Before, the only way to clear a mistaken request was to approve it.
+- **Only production ships.** "Shipped" means a verified deployment to `production`, verified at or after the item's last merged change. The deploy script compares the environment as well as the version.
+- **A deployment carries work that is `ready` or later**, never a draft, refining or cancelled item, and never an epic.
+- **Leaving an `in_production` epic is a loosening**: a lead, never an agent.
+- **The deploy scripts ask about the version actually shipped** (`bin/work-deploy-check.sh`: the pulled tag, the image label, or the pom version), and nothing in the environment can tell them the check already happened.
+
 ## Decisions this plan makes where the spec is silent
 
 Each is the plan's call, listed in the handoff for the owner to overturn before execution.

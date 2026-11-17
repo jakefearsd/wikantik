@@ -95,7 +95,13 @@ public class WorkDeploymentApiIT {
         }
         final HttpResponse< String > r = admin.send( "POST", "/api/work/items", draft );
         assertEquals( 201, r.statusCode(), r.body() );
-        return itemOf( json( r ).getAsJsonObject() ).get( "key" ).getAsString();
+        final String key = itemOf( json( r ).getAsJsonObject() ).get( "key" ).getAsString();
+        if ( !"epic".equals( level ) ) {
+            // a deployment carries work that is ready or later, never a draft
+            ok( admin.send( "PATCH", "/api/work/items/" + key, Map.of( "expectedVersion", version( key ), "changes",
+                Map.of( "status", "ready" ) ) ) );
+        }
+        return key;
     }
 
     private static int version( final String key ) throws Exception {
@@ -164,6 +170,28 @@ public class WorkDeploymentApiIT {
         assertEquals( "depagent@it", history.get( 0 ).getAsJsonObject().get( "actorName" ).getAsString() );
         final JsonArray shipped = ok( admin.get( "/api/work/items/" + a + "/shipped-in" ) ).getAsJsonArray( "shippedIn" );
         assertEquals( "3.1.0", shipped.get( 0 ).getAsJsonObject().get( "version" ).getAsString() );
+    }
+
+    @Test
+    void aRequestCanBeWithdrawnAndIsThenNeverCleared() throws Exception {
+        final String a = newItem( "DPA", "Requested by mistake", null, "task" );
+        final long id = request( asAgent( "POST", "/api/work/deployments", Map.of( "product", "depprod", "version",
+            "3.4.0", "items", List.of( a ) ) ) );
+        final JsonObject withdrawn = ok( asAgent( "POST", "/api/work/deployments/" + id + "/reject",
+            Map.of( "note", "wrong version" ) ) );
+        assertEquals( "rejected", withdrawn.get( "state" ).getAsString() );
+        assertEquals( 1, gateScript( id, "3.4.0" ) );
+        final HttpResponse< String > late = admin.send( "POST", "/api/work/deployments/" + id + "/approve", null );
+        assertEquals( 409, late.statusCode(), late.body() );
+        assertFalse( ok( admin.get( "/api/work/me" ) ).getAsJsonArray( "deploymentsAwaiting" ).toString()
+            .contains( "\"id\":" + id + "," ), "it no longer waits for anyone" );
+
+        final String draft = itemOf( json( admin.send( "POST", "/api/work/items", Map.of( "project", "DPA", "level",
+            "task", "title", "Still a draft", "productKey", "depprod" ) ) ).getAsJsonObject() ).get( "key" ).getAsString();
+        final HttpResponse< String > unready = admin.send( "POST", "/api/work/deployments", Map.of( "product",
+            "depprod", "version", "3.4.1", "items", List.of( draft ) ) );
+        assertEquals( 400, unready.statusCode(), unready.body() );
+        assertEquals( "items", json( unready ).getAsJsonObject().get( "field" ).getAsString() );
     }
 
     @Test

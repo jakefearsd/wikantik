@@ -286,7 +286,7 @@ Registered in `WorkMcpInitializer.assembleTools` and verified against `WorkMcpIT
 | `merge_change` | Report a change merged. Only the agent whose approval stands on the current commit, and only above the supervised level | write |
 | `request_deployment` | Ask for a product version to be deployed, carrying the items it ships | write |
 | `get_deployment` | One deployment: its state, the carried items the caller can see, its evidence | read |
-| `update_deployment` | Move a deployment on: approved (only where the product lets an agent), running, verified (evidence required), failed, rolled back | write |
+| `update_deployment` | Move a deployment on: approved (only where the product lets an agent), rejected (withdraw one not yet running), running, verified (evidence required), failed, rolled back | write |
 
 `get_item` and `claim_item` also show the item's changes and its `effective` autonomy level (`supervised`, `delegated` or `autonomous`), which decides what an agent may do without a person: approve work as ready (autonomous only), merge what it reviewed and close the item (delegated and autonomous). An approval is for one commit, an agent never reviews or merges a change it opened or put a commit on, and an item cannot be done while one of its changes is open or in review.
 

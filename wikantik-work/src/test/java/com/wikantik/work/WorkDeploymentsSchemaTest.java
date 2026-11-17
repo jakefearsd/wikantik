@@ -97,6 +97,11 @@ class WorkDeploymentsSchemaTest {
     }
 
     @Test
+    void aDeploymentMayBeRejected() throws SQLException {
+        exec( "UPDATE work_deployment SET state = 'rejected' WHERE id = " + deployment() );
+    }
+
+    @Test
     void anItemIsCarriedOnceByADeployment() throws SQLException {
         final long d = deployment();
         exec( "INSERT INTO work_deployment_item (deployment_id, item_id) VALUES (" + d + "," + item + ")" );

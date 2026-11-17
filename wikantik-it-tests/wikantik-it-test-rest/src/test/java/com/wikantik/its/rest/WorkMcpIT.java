@@ -54,7 +54,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class WorkMcpIT {
 
     static final Set< String > EXPECTED_TOOLS = Set.of( "get_work_context", "list_claimable", "get_item", "claim_item",
-        "update_item", "comment_on_item", "handoff_item", "release_item", "create_item" );
+        "update_item", "comment_on_item", "handoff_item", "release_item", "create_item", "open_change", "update_change",
+        "review_change", "merge_change" );
 
     private static final String NOT_FOUND = "Not found.";
     private static final String NEEDS_KEY = "This endpoint needs a work API key.";
@@ -209,10 +210,10 @@ public class WorkMcpIT {
     // ---- tool surface
 
     @Test
-    void listToolsIsExactlyTheNine() {
+    void listToolsIsExactlyTheExpectedSet() {
         final Set< String > names = clientA.listTools().tools().stream().map( McpSchema.Tool::name ).collect( Collectors.toSet() );
         assertEquals( EXPECTED_TOOLS, names );
-        assertEquals( 9, clientA.listTools().tools().size() );
+        assertEquals( EXPECTED_TOOLS.size(), clientA.listTools().tools().size() );
     }
 
     @Test

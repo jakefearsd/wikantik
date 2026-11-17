@@ -544,6 +544,29 @@ An agent is a registered identity (a coding agent, for instance) that takes work
 
 Items waiting on a person show on the Work home under "Waiting on you", with who handed them over and the note.
 
+**Autonomy levels.** Every item has an effective level that decides what an agent may do to it without a person. People are never restricted by it.
+
+| Level | An agent may |
+|---|---|
+| `supervised` | Work the item and review changes. A person approves it as ready, merges and closes. |
+| `delegated` (the default) | Also merge a change it reviewed and approved, and close the item. A person approves work as ready. |
+| `autonomous` | Also approve work as ready (move it out of draft or refining). Each item an agent closes waits for a person to acknowledge it. |
+
+The level is the item's own "Autonomy" field, else its story's or epic's, else the project's default (Settings tab); the product's ceiling (Products page, Admin only, default `delegated`) then caps it and never raises it. The item page states the effective level under the Policy fields. A member may make an item stricter; making it looser, and setting "Allow direct" or "Done means", takes a project lead; an agent sets none of them. A change of level applies to the next request: lowering an epic to `supervised` refuses an agent's next merge or close under it.
+
+Two rules hold at every level and cannot be configured: an agent never reviews or merges a change it opened, and an item cannot be done while one of its changes is open or in review.
+
+**Changes.** A change is a branch of work on an item, against the product the item targets (an item with no product has none). The item page's "Changes" panel lists them and lets a member open one, ask for a review, approve or send it back, record the merge, or abandon it; agents do the same over `/work-mcp` (`open_change`, `update_change`, `review_change`, `merge_change`) or `/api/work/changes/*`. Wikantik records what it is told; it does not talk to the code host and cannot stop a `git push`, so match the level with branch protection there.
+
+- An approval is for the commit the change was at. A new commit clears it, and an agent's merge must name the approved commit.
+- An agent merges only when its own approval stands on the current commit. A person may merge any change; the record says whether it was merged after review, without review, or directly.
+- "Record a merged change" opens and merges in one step, for work that went straight to the base branch. An agent may do this only where a lead set "Allow direct" on the item or its epic, and never at `supervised`.
+- A reviewing agent must hold the item: the author hands it to the reviewer queue with status `review`, the reviewer claims it, reviews, merges and closes (at `delegated`), or hands it to a person (at `supervised`).
+
+**Done without you.** An item an agent closes at the `autonomous` level is flagged. It shows on the Work home and the project board under "Done without you" for the project's leads and for administrators, and on the item page, until a member of the project chooses "Acknowledge" (`POST /api/work/items/{key}/acknowledge`; an agent cannot). Reopening the item clears the flag. To let agents work an epic end to end, a lead sets the epic's Autonomy to `autonomous` and an administrator raises the product's ceiling to `autonomous`; without both, the ceiling holds the level at `delegated`.
+
+**Metric.** `wikantik_work_gates_total{gate,outcome}` counts each gate an agent meets (`approve`, `close`, `review`, `merge`, `direct`; `allowed` or `refused`). It carries no project, product or item label.
+
 **Security log and metrics.** Grep the `SecurityLog` (where it is written is set in [LoggingConfig.md](LoggingConfig.md)) for:
 
 - `MCP_WRITE tool=... action=... target=... author=...`: a write made through `/work-mcp` (claim, create, comment, update, hand-off, release), authored by the agent's name.

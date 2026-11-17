@@ -35,6 +35,15 @@ final class GuardedListener implements WorkListener {
         }
     }
 
+    @Override
+    public void gate( final String gate, final boolean allowed ) {
+        try {
+            delegate.gate( gate, allowed );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Work listener failed on gate {}: {}", gate, e.toString(), e );
+        }
+    }
+
     /** Reports {@code n} claims ended by something other than an explicit release or the sweep. */
     void released( final int n ) {
         for ( int i = 0; i < n; i++ ) {

@@ -25,4 +25,8 @@ public interface WorkListener {
 
     default void claim( final ClaimOutcome o ) {
     }
+
+    /** An agent met a gate ({@code approve}, {@code close}, {@code review}, {@code merge}, {@code direct}). */
+    default void gate( final String gate, final boolean allowed ) {
+    }
 }

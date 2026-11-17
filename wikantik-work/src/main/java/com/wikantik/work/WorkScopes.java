@@ -81,15 +81,36 @@ final class WorkScopes {
     private final WorkStore store;
     private final WorkStanding standing;
     private final ItemGates gates;
+    private final java.util.function.BiConsumer< String, Boolean > gateListener;
     private final WorkDirectory directory;
     private final Consumer< Action > denialListener;
 
     WorkScopes( final WorkStore store, final WorkDirectory directory, final Consumer< Action > denialListener ) {
+        this( store, directory, denialListener, null );
+    }
+
+    /** @param gateListener told of every gate an agent meets and how it went; null for none */
+    WorkScopes( final WorkStore store, final WorkDirectory directory, final Consumer< Action > denialListener,
+                final java.util.function.BiConsumer< String, Boolean > gateListener ) {
+        this.gateListener = gateListener == null ? ( gate, allowed ) -> { } : gateListener;
         this.store = store;
         this.standing = new WorkStanding( store );
-        this.gates = new ItemGates( store );
+        this.gates = new ItemGates( store, this );
         this.directory = directory;
         this.denialListener = denialListener == null ? action -> { } : denialListener;
+    }
+
+    /**
+     * Reports how an agent fared at a gate and refuses when it did not pass. A person's passage is not a gate
+     * decision and is not reported.
+     */
+    void decide( final Scope s, final String gate, final Action action, final Decision d ) {
+        if ( s.actor().kind() == Actor.Kind.AGENT ) {
+            gateListener.accept( gate, d.allowed() );
+        }
+        if ( !d.allowed() ) {
+            s.refuse( action, d.reason() );
+        }
     }
 
     /** The autonomy checks on an item write. */

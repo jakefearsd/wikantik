@@ -313,7 +313,8 @@ work_item             + ack_required, acknowledged_by, acknowledged_at
 
 The policy columns (`default_autonomy`, `autonomy_ceiling`, `deploy_gate`,
 `autonomy`, `done_means`, `allow_direct`) exist from phase 1 with their defaults, and are inert until
-the phase that reads them.
+the phase that reads them (the autonomy level, its ceiling and `allow_direct` since phase 3b; `done_means` and
+`deploy_gate` from phase 4).
 
 Item keys come from `work_project.next_seq`, incremented in the transaction that
 creates the item. `work_item.version` is an optimistic lock: an update names the
@@ -392,7 +393,11 @@ gets its own plan.
 2. **Agents.** Queues, agent registry, claims with expiry, the `work` scope, the
    `/work-mcp` endpoint and tools. All four handoff directions work.
 3. **Changes and autonomy.** Change records, the review and merge gates, the three
-   levels and their inheritance.
+   levels and their inheritance. Built in two parts: 3a, agent identity
+   (`2026-11-16-work-agent-identity-design.md`), and 3b, changes and the gates
+   (`docs/superpowers/plans/2026-11-16-work-management-phase3b-changes-autonomy.md`, whose
+   "Decisions" section records what was settled where this document is silent; it also
+   moved acknowledgement and the "done without you" lane forward from phase 4).
 4. **Deployments and incidents.** Deployment records, the product gate, the
    deploy-script check, the "done without you" lane, the jakemon trigger.
 

@@ -31,9 +31,11 @@ final class ItemGates {
     static final String LOOSER = "Making this looser than it inherits takes a project lead.";
 
     private final WorkStore store;
+    private final WorkScopes scopes;
 
-    ItemGates( final WorkStore store ) {
+    ItemGates( final WorkStore store, final WorkScopes scopes ) {
         this.store = store;
+        this.scopes = scopes;
     }
 
     /**
@@ -48,6 +50,13 @@ final class ItemGates {
         }
         final EffectivePolicy policy = WorkAutonomy.resolve( store.policyChain( item.id() ) );
         final Decision d = WorkPolicy.mayChangeStatus( s.actor(), item, target, policy );
+        if ( WorkPolicy.approves( item, target ) ) {
+            // a refusal here is the approve gate's; the close gate is only reached once it is passed
+            scopes.decide( s, "approve", Action.MOVE, WorkGates.mayApprove( s.actor(), policy ).allowed() ? Decision.allow() : d );
+        }
+        if ( target == WorkStatus.DONE ) {
+            scopes.decide( s, "close", Action.MOVE, d );
+        }
         if ( !d.allowed() ) {
             s.refuse( Action.MOVE, d.reason() );
         }

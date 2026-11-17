@@ -111,7 +111,7 @@ public final class WorkChangesService {
         }
         final String merged = ChangeInputs.sha( "mergedSha", d.mergedSha() );
         if ( merged != null ) {
-            gate( is.scope(), Action.OPEN_CHANGE, WorkGates.mayOpenDirect( a, WorkAutonomy.resolve( chain ) ) );
+            scopes.decide( is.scope(), "direct", Action.OPEN_CHANGE, WorkGates.mayOpenDirect( a, WorkAutonomy.resolve( chain ) ) );
         }
         final String base = d.baseBranch() == null || d.baseBranch().isBlank() ? product.defaultBranch()
             : d.baseBranch();
@@ -138,7 +138,7 @@ public final class WorkChangesService {
             throws SQLException {
         final ItemScope is = writable( scopeOf( a, changeId ), Action.REVIEW_CHANGE );
         return store.changes().review( is.item(), changeId, approved, ChangeInputs.note( note ), locked -> {
-            gate( is.scope(), Action.REVIEW_CHANGE, WorkGates.mayReview( a, locked ) );
+            scopes.decide( is.scope(), "review", Action.REVIEW_CHANGE, WorkGates.mayReview( a, locked ) );
             if ( approved && locked.headSha() == null ) {
                 throw new WorkValidationException( "headSha", "This change names no commit to approve." );
             }
@@ -154,7 +154,7 @@ public final class WorkChangesService {
         final String sha = ChangeInputs.requiredSha( "mergedSha", mergedSha );
         final EffectivePolicy policy = WorkAutonomy.resolve( store.policyChain( is.item().id() ) );
         return store.changes().merge( is.item(), changeId, sha, locked -> {
-            gate( is.scope(), Action.MERGE_CHANGE, WorkGates.mayMerge( a, locked, policy ) );
+            scopes.decide( is.scope(), "merge", Action.MERGE_CHANGE, WorkGates.mayMerge( a, locked, policy ) );
             final boolean reviewed = locked.approvedForHead() && sha.equals( locked.headSha() );
             if ( a.kind() == Actor.Kind.AGENT && !reviewed ) {
                 throw new WorkConflictException( "This change has no approval for its current commit.",
@@ -179,11 +179,5 @@ public final class WorkChangesService {
         is.scope().require( action, is.item() );
         is.scope().requireWritable();
         return is;
-    }
-
-    private static void gate( final Scope s, final Action action, final Decision d ) {
-        if ( !d.allowed() ) {
-            s.refuse( action, d.reason() );
-        }
     }
 }

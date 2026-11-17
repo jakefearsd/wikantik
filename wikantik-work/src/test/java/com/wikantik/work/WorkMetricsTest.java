@@ -128,6 +128,28 @@ class WorkMetricsTest {
     }
 
     @Test
+    void gateOutcomesAreCountedWithNoProjectLabel() {
+        final WorkMetrics metrics = metrics();
+        metrics.gate( "merge", true );
+        metrics.gate( "merge", true );
+        metrics.gate( "merge", false );
+        metrics.gate( "close", false );
+        assertEquals( 2.0, registry.find( "wikantik_work_gates_total" ).tag( "gate", "merge" ).tag( "outcome", "allowed" )
+            .counter().count() );
+        assertEquals( 1.0, registry.find( "wikantik_work_gates_total" ).tag( "gate", "merge" ).tag( "outcome", "refused" )
+            .counter().count() );
+        assertEquals( 1.0, registry.find( "wikantik_work_gates_total" ).tag( "gate", "close" ).tag( "outcome", "refused" )
+            .counter().count() );
+        final Set< String > keys = new TreeSet<>();
+        for ( final Meter m : registry.find( "wikantik_work_gates_total" ).meters() ) {
+            for ( final Tag t : m.getId().getTags() ) {
+                keys.add( t.getKey() );
+            }
+        }
+        assertEquals( Set.of( "gate", "outcome" ), keys, "no project, product or item label" );
+    }
+
+    @Test
     void claimCounterCountsEachOutcomeSeparately() {
         final WorkMetrics metrics = metrics();
         metrics.claim( ClaimOutcome.CLAIMED );

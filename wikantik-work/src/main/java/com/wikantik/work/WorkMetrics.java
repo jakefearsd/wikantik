@@ -35,7 +35,7 @@ import java.util.function.LongSupplier;
 
 /**
  * Metrics for work management: {@code wikantik_work_items{status,level,kind}} and
- * {@code wikantik_work_denied_total{action}}. Deliberately no project, product or item label, so cardinality is
+ * {@code wikantik_work_denied_total{action}} and {@code wikantik_work_gates_total{gate,outcome}}. Deliberately no project, product or item label, so cardinality is
  * bounded by the three enums.
  *
  * <p>The gauges are read on scrape. One scrape reads all of them, so the grouped count and the active-claim count are
@@ -50,6 +50,7 @@ public final class WorkMetrics implements WorkListener {
     static final String CLAIMS = "wikantik_work_claims_total";
     static final String CLAIMS_ACTIVE = "wikantik_work_claims_active";
     static final String DENIED = "wikantik_work_denied_total";
+    static final String GATES = "wikantik_work_gates_total";
     private static final long DEFAULT_TTL_NANOS = 5_000_000_000L;
 
     private record Key( WorkStatus status, WorkLevel level, WorkKind kind ) {
@@ -116,6 +117,17 @@ public final class WorkMetrics implements WorkListener {
         Counter.builder( CLAIMS )
             .description( "Work claim attempts and endings by outcome" )
             .tag( "outcome", outcome.wire() )
+            .register( registry )
+            .increment();
+    }
+
+    /** Counts an agent's passage of, or refusal at, a gate; labelled by gate and outcome only. */
+    @Override
+    public void gate( final String gate, final boolean allowed ) {
+        Counter.builder( GATES )
+            .description( "Autonomy gates agents met, by gate and outcome" )
+            .tag( "gate", gate )
+            .tag( "outcome", allowed ? "allowed" : "refused" )
             .register( registry )
             .increment();
     }

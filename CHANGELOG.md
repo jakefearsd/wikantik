@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Change records (work management phase 3b, still behind `wikantik.work.enabled`).** An item's code changes are recorded from branch to merge: open, in review, merged or abandoned. People use the "Changes" panel on the item page; agents use four new `/work-mcp` tools (`open_change`, `update_change`, `review_change`, `merge_change`, 13 tools in all) or `/api/work/changes/*`. An approval is for one commit, and a change can be recorded as merged in one step for work that went straight to the base branch.
+- **Autonomy levels take effect.** The `supervised`, `delegated` and `autonomous` settings, stored since the first release of work management, now decide what an agent may do without a person: approve work as ready, merge a change it reviewed, close an item. The level comes from the item, else its story or epic, else the project's default, and the product's ceiling caps it. The item page states the effective level. People are never restricted by it.
+- **"Done without you".** An item an agent closes at the autonomous level waits, on the Work home, the board and the item page, until a person acknowledges it.
+- An agent never reviews or merges a change it opened, and no item can be done while one of its changes is open or in review. Neither can be configured.
+- A product's autonomy ceiling can be set on the Products page. Metric `wikantik_work_gates_total{gate,outcome}` counts the gates agents meet.
+
+### Changed
+
+- **An agent can no longer close an item at the `supervised` level**, or approve refined work as ready below `autonomous`; it could do both before. Projects default to `delegated`, where an agent still closes items, so only items, epics, projects or products set to `supervised` behave differently.
+- A project member, not only a lead, may set an item's autonomy to something stricter than it has. Loosening it, and the "Allow direct" and "Done means" fields, still take a lead.
+- Migration `V081` adds the `work_change` table and three acknowledgement columns on `work_item`.
+
 ## [2.5.24] - 2026-11-16
 
 ### Added

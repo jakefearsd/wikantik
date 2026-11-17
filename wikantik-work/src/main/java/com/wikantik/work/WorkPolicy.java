@@ -98,6 +98,12 @@ public final class WorkPolicy {
         return target == WorkStatus.DONE ? WorkGates.mayClose( actor, policy ) : Decision.allow();
     }
 
+    /** Whether moving {@code item} to {@code target} takes it out of draft or refining: an approval as ready. */
+    static boolean approves( final Item item, final WorkStatus target ) {
+        return ( item.status() == WorkStatus.DRAFT && target != WorkStatus.DRAFT )
+            || ( item.status() == WorkStatus.REFINING && !BEFORE_READY.contains( target ) );
+    }
+
     /** The status a patch names, or null when it names none or one that does not exist (which counts as a move). */
     static WorkStatus namedStatus( final Object raw ) {
         for ( final WorkStatus s : WorkStatus.values() ) {

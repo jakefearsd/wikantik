@@ -21,11 +21,19 @@ package com.wikantik.work;
 /** Role policy: who may do what. Pure; knows nothing of storage. */
 public final class WorkPolicy {
 
+    private static final String AGENT_ACKNOWLEDGE = "A person acknowledges work closed without one.";
     private static final String HUMAN_CLAIM = "People are assigned work; assign it to yourself instead.";
 
     /** What an agent may not do to an item another agent holds the claim on. */
     private static final java.util.Set< Action > FENCED = java.util.EnumSet.of( Action.EDIT_ITEM, Action.MOVE,
         Action.LINK, Action.OPEN_CHANGE, Action.REVIEW_CHANGE, Action.MERGE_CHANGE );
+
+    /** Leaving refining for one of these approves nothing. */
+    private static final java.util.Set< WorkStatus > BEFORE_READY = java.util.EnumSet.of( WorkStatus.DRAFT,
+        WorkStatus.REFINING, WorkStatus.CANCELLED );
+
+    private static final java.util.Set< Action > LEAD_ACTIONS = java.util.EnumSet.of( Action.MANAGE_PROJECT,
+        Action.SET_POLICY, Action.MANAGE_AGENT );
 
     private WorkPolicy() {
     }
@@ -38,6 +46,9 @@ public final class WorkPolicy {
     public static Decision may( final Actor actor, final WorkRole roleOrNull, final Action action, final Item itemOrNull ) {
         if ( action == Action.CLAIM && actor.kind() == Actor.Kind.HUMAN ) {
             return Decision.deny( HUMAN_CLAIM );
+        }
+        if ( action == Action.ACKNOWLEDGE && actor.kind() == Actor.Kind.AGENT ) {
+            return Decision.deny( AGENT_ACKNOWLEDGE );
         }
         if ( actor.kind() == Actor.Kind.AGENT && isManagement( action ) ) {
             return Decision.deny( "An agent may not change policy, manage a project or manage the work instance." );
@@ -62,18 +73,29 @@ public final class WorkPolicy {
     }
 
     /**
-     * Whether {@code actor} may set the status of {@code item} to {@code target}: an agent never moves an item out of
-     * {@code draft} (the owner approved agent-created items on condition that a person refines and promotes them);
-     * it may leave a draft a draft. A null {@code target} stands for any status other than draft (the caller could
-     * not name one), so it counts as a move. People are not restricted here.
+     * Whether {@code actor} may set the status of {@code item} to {@code target} under {@code policy}, the item's
+     * effective policy. People are not restricted. An agent moves an item out of {@code draft} only at the
+     * autonomous level (the owner approved agent-created items on condition that a person refines and promotes
+     * them); it approves refined work as ready only there too; and it closes work only above the supervised level.
+     * A null {@code target} stands for some status the caller could not name, so it counts as a move forward.
      */
-    public static Decision mayChangeStatus( final Actor actor, final Item item, final WorkStatus target ) {
-        if ( actor.kind() == Actor.Kind.AGENT && item != null && item.status() == WorkStatus.DRAFT
-            && target != WorkStatus.DRAFT ) {
+    public static Decision mayChangeStatus( final Actor actor, final Item item, final WorkStatus target,
+                                            final EffectivePolicy policy ) {
+        if ( actor.kind() != Actor.Kind.AGENT || item == null ) {
+            return Decision.allow();
+        }
+        if ( item.status() == WorkStatus.DRAFT && target != WorkStatus.DRAFT
+            && !WorkGates.mayApprove( actor, policy ).allowed() ) {
             return Decision.deny( target == WorkStatus.CANCELLED ? "A person cancels or moves a draft."
                 : "A person moves a draft forward." );
         }
-        return Decision.allow();
+        if ( item.status() == WorkStatus.REFINING && !BEFORE_READY.contains( target ) ) {
+            final Decision approve = WorkGates.mayApprove( actor, policy );
+            if ( !approve.allowed() ) {
+                return approve;
+            }
+        }
+        return target == WorkStatus.DONE ? WorkGates.mayClose( actor, policy ) : Decision.allow();
     }
 
     /** The status a patch names, or null when it names none or one that does not exist (which counts as a move). */
@@ -97,14 +119,14 @@ public final class WorkPolicy {
     }
 
     private static WorkRole roleNeeded( final Action action ) {
-        return switch ( action ) {
-            case VIEW -> WorkRole.VIEWER;
-            case CREATE_ITEM, EDIT_ITEM, MOVE, COMMENT, LINK, CLAIM, OPEN_CHANGE, REVIEW_CHANGE, MERGE_CHANGE,
-                 ACKNOWLEDGE -> WorkRole.MEMBER;
-            // Managing an agent is decided by sponsorship (AgentSponsorship), not by a role in one project; asked
-            // here it takes a lead, the least that may ever register one.
-            case MANAGE_PROJECT, SET_POLICY, MANAGE_AGENT -> WorkRole.LEAD;
-            case MANAGE_INSTANCE -> throw new IllegalStateException( "handled above" );
-        };
+        if ( action == Action.MANAGE_INSTANCE ) {
+            throw new IllegalStateException( "handled above" );
+        }
+        if ( action == Action.VIEW ) {
+            return WorkRole.VIEWER;
+        }
+        // Managing an agent is decided by sponsorship (AgentSponsorship), not by a role in one project; asked
+        // here it takes a lead, the least that may ever register one.
+        return LEAD_ACTIONS.contains( action ) ? WorkRole.LEAD : WorkRole.MEMBER;
     }
 }

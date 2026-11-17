@@ -76,6 +76,9 @@ class WorkClaimsServiceTest {
     @BeforeEach
     void setUp() throws SQLException {
         store = mock( WorkStore.class );
+        org.mockito.Mockito.lenient().when( store.acks() ).thenReturn( mock( WorkAckStore.class ) );
+        org.mockito.Mockito.lenient().when( store.policyChain( org.mockito.ArgumentMatchers.anyLong() ) )
+            .thenReturn( PolicyItems.chain( PolicyItems.task( null ), List.of(), Autonomy.DELEGATED, null ) );
         claims = mock( WorkClaimStore.class );
         when( store.claims() ).thenReturn( claims );
         plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null );

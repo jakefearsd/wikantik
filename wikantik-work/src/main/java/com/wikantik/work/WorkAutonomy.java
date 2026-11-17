@@ -32,11 +32,16 @@ public final class WorkAutonomy {
     }
 
     public static EffectivePolicy resolve( final PolicyChain chain ) {
-        final Autonomy own = chain.item().autonomy();
-        final Autonomy uncapped = own != null ? own : inherited( chain );
+        final Autonomy uncapped = uncapped( chain );
         final Product product = chain.productOrNull();
         final Autonomy level = product == null ? uncapped : Autonomy.strictest( uncapped, product.autonomyCeiling() );
         return new EffectivePolicy( level, allowDirect( chain ), doneMeans( chain ) );
+    }
+
+    /** The item's own level, else what it inherits, before the product's ceiling. */
+    public static Autonomy uncapped( final PolicyChain chain ) {
+        final Autonomy own = chain.item().autonomy();
+        return own != null ? own : inherited( chain );
     }
 
     /** The level the item would have with no value of its own, before the product's ceiling. */

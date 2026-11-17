@@ -82,6 +82,9 @@ class WorkServiceTest {
     @BeforeEach
     void setUp() throws SQLException {
         store = mock( WorkStore.class );
+        org.mockito.Mockito.lenient().when( store.acks() ).thenReturn( mock( WorkAckStore.class ) );
+        org.mockito.Mockito.lenient().when( store.policyChain( org.mockito.ArgumentMatchers.anyLong() ) )
+            .thenReturn( PolicyItems.chain( PolicyItems.task( null ), List.of(), Autonomy.DELEGATED, null ) );
         org.mockito.Mockito.when( store.claims() ).thenReturn( org.mockito.Mockito.mock( WorkClaimStore.class ) );
         final WorkDirectory directory = new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
@@ -308,9 +311,16 @@ class WorkServiceTest {
     }
 
     @Test
-    void setPolicyFieldsRequiresLead() {
+    void aMemberCannotLoosenALevelOrSetTheLeadOnlyFields() throws SQLException {
+        when( store.policyChain( org.mockito.ArgumentMatchers.anyLong() ) )
+            .thenReturn( PolicyItems.chain( PolicyItems.task( null ), List.of(), Autonomy.SUPERVISED, null ) );
+        assertEquals( "Making this looser than it inherits takes a project lead.",
+            assertThrows( WorkDeniedException.class, () -> service.updateItem( alice, "PLAT-3",
+                new ItemPatch( 4, changes( "autonomy", "delegated" ), null ) ) ).reason() );
         assertThrows( WorkDeniedException.class, () -> service.updateItem( alice, "PLAT-3",
-            new ItemPatch( 4, changes( "autonomy", "delegated" ), null ) ) );
+            new ItemPatch( 4, changes( "allowDirect", true ), null ) ) );
+        assertThrows( WorkDeniedException.class, () -> service.updateItem( alice, "PLAT-3",
+            new ItemPatch( 4, changes( "doneMeans", "in_production" ), null ) ) );
     }
 
     @Test

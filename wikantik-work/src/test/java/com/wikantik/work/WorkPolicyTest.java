@@ -169,23 +169,52 @@ class WorkPolicyTest {
             1.0, null, null, "alice", null, null, null, 1, null, null, null, null, null, null, null, null );
     }
 
+    private static final EffectivePolicy DELEGATED = PolicyItems.policy( Autonomy.DELEGATED, false );
+
     @Test
     void anAgentCannotMoveADraftOutOfDraft() {
         final Actor agent = Actor.agent( 7, "bot" );
-        final Decision d = WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), WorkStatus.READY );
+        final Decision d = WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), WorkStatus.READY, DELEGATED );
         assertFalse( d.allowed() );
         assertEquals( "A person moves a draft forward.", d.reason() );
-        assertFalse( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), null ).allowed(), "unknown target counts as a move" );
-        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), WorkStatus.DRAFT ).allowed() );
-        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.READY ), WorkStatus.REVIEW ).allowed() );
+        assertFalse( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), null, DELEGATED ).allowed(),
+            "unknown target counts as a move" );
+        assertEquals( "A person cancels or moves a draft.",
+            WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), WorkStatus.CANCELLED, DELEGATED ).reason() );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), WorkStatus.DRAFT, DELEGATED ).allowed() );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.READY ), WorkStatus.REVIEW, DELEGATED ).allowed() );
+    }
+
+    @Test
+    void anAutonomousAgentMovesADraftAndApprovesRefinedWork() {
+        final Actor agent = Actor.agent( 7, "bot" );
+        final EffectivePolicy autonomous = PolicyItems.policy( Autonomy.AUTONOMOUS, false );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), WorkStatus.READY, autonomous ).allowed() );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.DRAFT ), WorkStatus.CANCELLED, autonomous ).allowed() );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.REFINING ), WorkStatus.READY, autonomous ).allowed() );
+        assertEquals( "A person approves work as ready at this autonomy level.",
+            WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.REFINING ), WorkStatus.READY, DELEGATED ).reason() );
+        assertEquals( "A person approves work as ready at this autonomy level.",
+            WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.REFINING ), null, DELEGATED ).reason() );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.REFINING ), WorkStatus.CANCELLED, DELEGATED ).allowed() );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.REFINING ), WorkStatus.DRAFT, DELEGATED ).allowed() );
+    }
+
+    @Test
+    void anAgentClosesOnlyAboveSupervised() {
+        final Actor agent = Actor.agent( 7, "bot" );
+        assertEquals( "A person closes work at the supervised level.", WorkPolicy.mayChangeStatus( agent,
+            inStatus( WorkStatus.REVIEW ), WorkStatus.DONE, PolicyItems.policy( Autonomy.SUPERVISED, false ) ).reason() );
+        assertTrue( WorkPolicy.mayChangeStatus( agent, inStatus( WorkStatus.REVIEW ), WorkStatus.DONE, DELEGATED ).allowed() );
     }
 
     @Test
     void peopleMayMoveADraftForward() {
+        final EffectivePolicy supervised = PolicyItems.policy( Autonomy.SUPERVISED, false );
         assertTrue( WorkPolicy.mayChangeStatus( Actor.human( "alice", Set.of(), false ), inStatus( WorkStatus.DRAFT ),
-            WorkStatus.READY ).allowed() );
-        assertTrue( WorkPolicy.mayChangeStatus( Actor.human( "root", Set.of(), true ), inStatus( WorkStatus.DRAFT ),
-            WorkStatus.READY ).allowed() );
+            WorkStatus.READY, supervised ).allowed() );
+        assertTrue( WorkPolicy.mayChangeStatus( Actor.human( "root", Set.of(), true ), inStatus( WorkStatus.REVIEW ),
+            WorkStatus.DONE, supervised ).allowed() );
     }
 
     @ParameterizedTest

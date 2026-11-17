@@ -93,16 +93,24 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     private static final int DEFAULT_ITEM_LIMIT = 200;
     private static final int CLOSED_COLUMN_CAP = 50;
-    private static final long NO_HOLDER = -1L;
     private static final double RANK_STEP = 1024.0;
 
     private final JdbcWorkDiscussion discussion;
     private final JdbcWorkEventLog eventLog;
+    private final JdbcWorkAcks acks;
+    private final JdbcWorkItemWrites writes;
 
     public JdbcWorkStore( final DataSource dataSource ) {
         super( new Jdbc( dataSource ) );
         this.discussion = new JdbcWorkDiscussion( jdbc, this );
         this.eventLog = new JdbcWorkEventLog( jdbc );
+        this.acks = new JdbcWorkAcks( jdbc, this );
+        this.writes = new JdbcWorkItemWrites( jdbc, this );
+    }
+
+    @Override
+    public WorkAckStore acks() {
+        return acks;
     }
 
     // ---- items
@@ -170,7 +178,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
             .orElseThrow( () -> new SQLException( "work_item " + id + " not found" ) );
     }
 
-    private void insertRevision( final Connection conn, final long itemId, final int version, final String title,
+    void insertRevision( final Connection conn, final long itemId, final int version, final String title,
                                  final String body, final Actor by ) throws SQLException {
         jdbc.update( conn, "INSERT INTO work_item_revision (item_id, version, title, body, edited_by, "
                 + "edited_by_agent_id) VALUES (?,?,?,?,?,?)",
@@ -216,94 +224,16 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         }, ITEM_ROW );
     }
 
-    /** True when the change moves or reassigns the item, which ends any claim on it. */
-    private static boolean endsClaim( final Item current, final Item next ) {
-        return current.status() != next.status() || !Objects.equals( current.assignee(), next.assignee() )
-            || !Objects.equals( current.queue(), next.queue() );
+    @Override
+    public ItemWrite writeItem( final Item current, final Item next, final Actor by, final String note,
+                                final boolean asHandoff ) throws SQLException {
+        return writes.writeItem( current, next, by, note, asHandoff, false );
     }
 
     @Override
     public ItemWrite writeItem( final Item current, final Item next, final Actor by, final String note,
-                                final boolean asHandoff ) throws SQLException {
-        requireAttributed( by.kind(), by.agentId() );
-        requireOneTarget( next );
-        final boolean clearClaim = endsClaim( current, next );
-        final boolean textChanged = !Objects.equals( current.title(), next.title() )
-            || !Objects.equals( current.body(), next.body() );
-        final boolean closing = !isClosed( current.status() ) && isClosed( next.status() );
-        final boolean reopening = isClosed( current.status() ) && !isClosed( next.status() );
-        final int version = current.version() + 1;
-        final String body = next.body() == null ? "" : next.body();
-        return jdbc.inTransaction( conn -> {
-            // The holder as the row is now, under lock: the caller's copy may predate a claim (claims need not
-            // bump the version), so the release is decided and named from here.
-            final long holder = jdbc.queryOne( conn, "SELECT claimed_by_agent FROM work_item WHERE id = ? FOR UPDATE",
-                ps -> ps.setLong( 1, current.id() ), rs -> {
-                    final long v = rs.getLong( 1 );
-                    return rs.wasNull() ? NO_HOLDER : v;
-                } ).orElse( NO_HOLDER );
-            requireNotFenced( by, holder );
-            final int rows = jdbc.update( conn, """
-                UPDATE work_item SET parent_id = ?, product_id = ?, kind = ?, title = ?, body = ?, status = ?,
-                    priority = ?, rank = ?, due_on = ?, assignee = ?, autonomy = ?, done_means = ?,
-                    allow_direct = ?, assignee_queue = ?,
-                    claimed_by_agent = CASE WHEN ? THEN NULL ELSE claimed_by_agent END,
-                    claimed_at = CASE WHEN ? THEN NULL ELSE claimed_at END,
-                    claim_expires_at = CASE WHEN ? THEN NULL ELSE claim_expires_at END,
-                    version = version + 1, updated_at = NOW(),
-                    closed_at = CASE WHEN ? THEN NOW() WHEN ? THEN NULL ELSE closed_at END
-                 WHERE id = ? AND version = ?
-                """,
-                ps -> {
-                    setNullableLong( ps, 1, next.parentId() );
-                    setNullableLong( ps, 2, next.productId() );
-                    ps.setString( 3, next.kind().wire() );
-                    ps.setString( 4, next.title() );
-                    ps.setString( 5, body );
-                    ps.setString( 6, next.status().wire() );
-                    ps.setInt( 7, next.priority() );
-                    ps.setDouble( 8, next.rank() );
-                    setNullableDate( ps, 9, next.dueOn() );
-                    ps.setString( 10, next.assignee() );
-                    ps.setString( 11, autonomyWire( next.autonomy() ) );
-                    ps.setString( 12, doneMeansWire( next.doneMeans() ) );
-                    setNullableBoolean( ps, 13, next.allowDirect() );
-                    ps.setString( 14, next.queue() );
-                    ps.setBoolean( 15, clearClaim );
-                    ps.setBoolean( 16, clearClaim );
-                    ps.setBoolean( 17, clearClaim );
-                    ps.setBoolean( 18, closing );
-                    ps.setBoolean( 19, reopening );
-                    ps.setLong( 20, current.id() );
-                    ps.setInt( 21, current.version() );
-                } );
-            if ( rows == 0 ) {
-                throw new WorkConflictException( "Item " + current.key() + " changed since version "
-                    + current.version() );
-            }
-            if ( textChanged ) {
-                insertRevision( conn, current.id(), version, next.title(), body, by );
-            }
-            for ( final WorkEvent e : WorkEventDiff.changeEvents( current, next, by, note, asHandoff ) ) {
-                appendEvent( conn, e );
-            }
-            final boolean ended = clearClaim && holder != NO_HOLDER;
-            if ( ended ) {
-                appendEvent( conn, WorkEventDiff.releasedEvent( current, next, by, holder ) );
-            }
-            return new ItemWrite( itemById( conn, current.id() ), ended ? holder : null );
-        } );
-    }
-
-    /**
-     * An agent may not write an item another agent holds. The service checks its own earlier read, but a claim on a
-     * review item does not move the version, so a claim that landed after that read is caught only here, under lock.
-     * People are never fenced.
-     */
-    private static void requireNotFenced( final Actor by, final long holder ) {
-        if ( by.kind() == Actor.Kind.AGENT && holder != NO_HOLDER && holder != by.agentId() ) {
-            throw new ClaimFenceException();
-        }
+                                final boolean asHandoff, final boolean ackRequired ) throws SQLException {
+        return writes.writeItem( current, next, by, note, asHandoff, ackRequired );
     }
 
     // ---- queries

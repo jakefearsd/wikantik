@@ -22,4 +22,6 @@ package com.wikantik.work;
 public record WaitingItem( Item item, String reason, WorkEvent handoff ) {
     public static final String ASSIGNED = "assigned";
     public static final String MENTIONED = "mentioned";
+    /** Closed by an agent with no person in its path: a lead acknowledges it. */
+    public static final String ACKNOWLEDGE = "acknowledge";
 }

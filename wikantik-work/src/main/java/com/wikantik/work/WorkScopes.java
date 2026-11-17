@@ -54,16 +54,10 @@ final class WorkScopes {
             }
         }
 
-        /**
-         * Denies, and records the denial, an agent moving a draft forward. Call it after the visibility and
-         * permission checks and before any write; {@code target} is the requested status, null for "not draft".
-         */
-        void requireStatusChange( final Item item, final WorkStatus target ) {
-            final Decision d = WorkPolicy.mayChangeStatus( actor, item, target );
-            if ( !d.allowed() ) {
-                onDenied.accept( Action.MOVE );
-                throw new WorkDeniedException( d.reason() );
-            }
+        /** Records a refusal and throws it. */
+        void refuse( final Action action, final String reason ) {
+            onDenied.accept( action );
+            throw new WorkDeniedException( reason );
         }
 
         void requireWritable() {
@@ -86,14 +80,21 @@ final class WorkScopes {
 
     private final WorkStore store;
     private final WorkStanding standing;
+    private final ItemGates gates;
     private final WorkDirectory directory;
     private final Consumer< Action > denialListener;
 
     WorkScopes( final WorkStore store, final WorkDirectory directory, final Consumer< Action > denialListener ) {
         this.store = store;
         this.standing = new WorkStanding( store );
+        this.gates = new ItemGates( store );
         this.directory = directory;
         this.denialListener = denialListener == null ? action -> { } : denialListener;
+    }
+
+    /** The autonomy checks on an item write. */
+    ItemGates gates() {
+        return gates;
     }
 
     /** The one resolver of roles and visible projects; it applies an agent's sponsor ceiling. */

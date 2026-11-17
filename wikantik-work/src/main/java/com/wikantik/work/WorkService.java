@@ -80,6 +80,7 @@ public class WorkService {
     private final WorkRegistryService registry;
     private final WorkClaimsService claims;
     private final GuardedListener listener;
+    private final Acknowledgements acknowledgements;
 
     /** A newly registered or rotated agent and its API token, which is shown once and never stored or logged. */
     public record AgentWithToken( Agent agent, String token ) {
@@ -131,6 +132,7 @@ public class WorkService {
         this.registry = new WorkRegistryService( store, scopes, people, clock, observer,
             audit == null ? WorkAudit.NONE : audit );
         this.views = new ItemViews( store, renderer, people );
+        this.acknowledgements = new Acknowledgements( store, scopes, views );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
         this.listener = observer;
@@ -311,16 +313,25 @@ public class WorkService {
             : Action.EDIT_ITEM;
         s.require( action, is.item() );
         if ( changes.keySet().stream().anyMatch( ItemPatchApplier.POLICY_KEYS::contains ) ) {
-            s.require( Action.SET_POLICY, is.item() );
+            scopes.gates().requirePolicyChange( s, is.item(), changes );
         }
         s.requireWritable();
-        if ( changes.containsKey( "status" ) ) {
-            s.requireStatusChange( is.item(), WorkPolicy.namedStatus( changes.get( "status" ) ) );
-        }
+        final boolean unattended = changes.containsKey( "status" )
+            && scopes.gates().requireStatusChange( s, is.item(), WorkPolicy.namedStatus( changes.get( "status" ) ) );
         final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
-        final Item saved = claims.write( stamped, next, actor, patch.note(), false, action );
+        final Item saved = claims.write( stamped, next, actor, patch.note(), false, action, unattended );
         return views.view( s, saved );
+    }
+
+    /** The item's effective autonomy policy and whether it waits for a person's acknowledgement. */
+    public ItemPolicyView policyOf( final Actor actor, final String key ) throws SQLException {
+        return acknowledgements.policyOf( actor, key );
+    }
+
+    /** A person acknowledges an item an agent closed with no person in its path; a no-op when none is owed. */
+    public ItemView acknowledge( final Actor actor, final String key ) throws SQLException {
+        return acknowledgements.acknowledge( actor, key );
     }
 
     public List< Item > items( final Actor actor, final String projectKey, final ItemFilter filter )
@@ -474,7 +485,8 @@ public class WorkService {
         if ( actor.kind() == Actor.Kind.AGENT ) {
             return List.of();
         }
-        final Set< Long > ids = scopes.standing().visibleProjects( actor ).stream().map( Project::id )
+        final List< Project > visible = scopes.standing().visibleProjects( actor );
+        final Set< Long > ids = visible.stream().map( Project::id )
             .collect( Collectors.toCollection( LinkedHashSet::new ) );
         if ( ids.isEmpty() ) {
             return List.of();
@@ -490,8 +502,10 @@ public class WorkService {
         final List< Item > ordered = new ArrayList<>( byId.values() );
         ordered.sort( Comparator.comparing( Item::updatedAt, Comparator.nullsLast( Comparator.reverseOrder() ) ) );
         final Map< Long, WorkEvent > handoffs = store.lastHandoffs( assigned );
-        return ordered.stream().map( i -> assigned.contains( i.id() )
+        final List< WaitingItem > waiting = new ArrayList<>( ordered.stream().map( i -> assigned.contains( i.id() )
             ? new WaitingItem( i, WaitingItem.ASSIGNED, handoffs.get( i.id() ) )
-            : new WaitingItem( i, WaitingItem.MENTIONED, null ) ).toList();
+            : new WaitingItem( i, WaitingItem.MENTIONED, null ) ).toList() );
+        waiting.addAll( acknowledgements.awaiting( actor, visible ) );
+        return waiting;
     }
 }

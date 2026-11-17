@@ -38,6 +38,9 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
     /** Agents' own credentials. */
     WorkCredentialStore credentials();
 
+    /** Acknowledgement of items closed with no person in their path. */
+    WorkAckStore acks();
+
     // ---- items
 
     /**
@@ -75,6 +78,19 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
      * written) when the row, read under lock, is claimed by another agent.
      */
     ItemWrite writeItem( Item current, Item next, Actor by, String note, boolean asHandoff ) throws SQLException;
+
+    /**
+     * {@link #writeItem} that also says whether a move to {@code done} leaves no person in the item's path
+     * ({@code ackRequired}): the item is then flagged until a person acknowledges it. Any move to {@code done}
+     * sets the flag to this value and any move out of {@code done} clears it, in the same transaction.
+     */
+    default ItemWrite writeItem( final Item current, final Item next, final Actor by, final String note,
+                                 final boolean asHandoff, final boolean ackRequired ) throws SQLException {
+        if ( ackRequired ) {
+            throw new UnsupportedOperationException( "this store cannot flag an unattended close" );
+        }
+        return writeItem( current, next, by, note, asHandoff );
+    }
 
     /** {@link #writeItem} with field events. */
     default Item updateItem( final Item current, final Item next, final Actor by, final String note )

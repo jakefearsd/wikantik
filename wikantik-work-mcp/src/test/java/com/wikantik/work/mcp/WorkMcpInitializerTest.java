@@ -150,13 +150,14 @@ class WorkMcpInitializerTest {
             mock( com.wikantik.work.WorkDirectory.class ) );
         assertEquals( Set.of( "get_work_context", "list_claimable", "get_item", "claim_item", "update_item", "comment_on_item",
             "handoff_item", "release_item", "create_item", "open_change", "update_change", "review_change",
-            "merge_change" ),
+            "merge_change", "request_deployment", "get_deployment", "update_deployment" ),
             tools.stream().map( WorkMcpTool::name ).collect( Collectors.toSet() ) );
         tools.forEach( t -> {
             assertEquals( t.name(), t.definition().name() );
             assertNotNull( t.definition().annotations() );
             final boolean writes = Set.of( "claim_item", "update_item", "comment_on_item", "handoff_item",
-                "release_item", "create_item", "open_change", "update_change", "review_change", "merge_change" )
+                "release_item", "create_item", "open_change", "update_change", "review_change", "merge_change",
+                "request_deployment", "update_deployment" )
                 .contains( t.name() );
             assertEquals( !writes, Boolean.TRUE.equals( t.definition().annotations().readOnlyHint() ),
                 t.name() + ( writes ? " changes things" : " only reads" ) );

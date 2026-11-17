@@ -44,6 +44,7 @@ final class MockWork {
     final WorkService svc = mock( WorkService.class );
     final WorkClaimsService claims = mock( WorkClaimsService.class );
     final WorkRegistryService registry = mock( WorkRegistryService.class );
+    final com.wikantik.work.WorkDeploymentsService deployments = mock( com.wikantik.work.WorkDeploymentsService.class );
     final com.wikantik.work.WorkChangesService changes = mock( com.wikantik.work.WorkChangesService.class );
     final WorkDirectory directory = mock( WorkDirectory.class );
     final Actor agent = Actor.agent( 7, "builder", com.wikantik.work.Actor.human( "admin", java.util.Set.of(), true ) );
@@ -55,6 +56,7 @@ final class MockWork {
         when( registry.listQueues( any() ) ).thenReturn( List.of() );
         when( svc.events( any(), any() ) ).thenReturn( List.of() );
         when( svc.changes() ).thenReturn( changes );
+        when( svc.deployments() ).thenReturn( deployments );
         when( svc.policyOf( any(), any() ) ).thenReturn( new com.wikantik.work.ItemPolicyView(
             new com.wikantik.work.EffectivePolicy( Autonomy.DELEGATED, false, DoneMeans.MERGED ),
             com.wikantik.work.Ack.NONE ) );

@@ -49,7 +49,7 @@ class WorkMcpInstructionsDriftTest {
     private static final Set< String > ARGUMENTS = Set.of( "review_url", "open_changes" );
 
     private static final Pattern TOOL_LIKE =
-        Pattern.compile( "\\b(?:get|list|claim|update|comment|handoff|release|create|open|review|merge)_[a-z][a-z_]*[a-z]\\b" );
+        Pattern.compile( "\\b(?:get|list|claim|update|comment|handoff|release|create|open|review|merge|request)_[a-z][a-z_]*[a-z]\\b" );
 
     private static String instructions() throws IOException {
         try ( InputStream in = WorkMcpInitializer.class.getResourceAsStream( "/wikantik-work-mcp-instructions.txt" ) ) {
@@ -95,7 +95,7 @@ class WorkMcpInstructionsDriftTest {
     void toolNamesAreTheExpectedSetForThisTask() {
         assertEquals( Set.of( "get_work_context", "list_claimable", "get_item", "claim_item", "update_item", "comment_on_item",
             "handoff_item", "release_item", "create_item", "open_change", "update_change", "review_change",
-            "merge_change" ), registered() );
+            "merge_change", "request_deployment", "get_deployment", "update_deployment" ), registered() );
     }
 
     @Test
@@ -123,7 +123,8 @@ class WorkMcpInstructionsDriftTest {
         assertTrue( text.contains( "You never review or merge a change you opened" ), "the author rule" );
         assertTrue( text.contains( "An approval is for one commit" ), "an approval is bound to a commit" );
         assertTrue( text.contains( "work/<ITEM-KEY>-<slug>" ), "the branch naming hint" );
-        for ( final String prefix : List.of( "open_changes:", "not_approved:", "not_in_review:", "change_closed:" ) ) {
+        for ( final String prefix : List.of( "open_changes:", "not_approved:", "not_in_review:", "change_closed:",
+            "awaiting_deployment:", "bad_transition:" ) ) {
             assertTrue( text.contains( prefix ), "the refusal prefix " + prefix );
         }
     }

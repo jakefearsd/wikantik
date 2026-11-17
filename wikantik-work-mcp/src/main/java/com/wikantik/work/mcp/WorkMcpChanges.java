@@ -43,14 +43,7 @@ final class WorkMcpChanges {
 
     /** The {@code change} argument: the change's number. */
     static long id( final Map< String, Object > args ) {
-        final Object v = args.get( "change" );
-        if ( v == null ) {
-            throw new WorkValidationException( "change", "is required." );
-        }
-        if ( v instanceof Number n && n.doubleValue() == Math.rint( n.doubleValue() ) ) {
-            return n.longValue();
-        }
-        throw new WorkValidationException( "change", "must be the change's number." );
+        return WorkMcpArgs.idArg( args, "change" );
     }
 
     /** A required true-or-false argument. */

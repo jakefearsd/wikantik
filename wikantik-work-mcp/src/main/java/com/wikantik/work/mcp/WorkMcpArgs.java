@@ -66,6 +66,18 @@ final class WorkMcpArgs {
         return raw.trim();
     }
 
+    /** A required numeric id argument (a change, a deployment): missing or not a whole number is an error by name. */
+    static long idArg( final Map< String, Object > args, final String key ) {
+        final Object v = args.get( key );
+        if ( v == null ) {
+            throw new WorkValidationException( key, "is required." );
+        }
+        if ( v instanceof Number n && n.doubleValue() == Math.rint( n.doubleValue() ) ) {
+            return n.longValue();
+        }
+        throw new WorkValidationException( key, "must be a whole number." );
+    }
+
     /** A required string argument; missing or blank is a validation error by name. */
     static String requiredString( final Map< String, Object > args, final String key ) {
         final String v = stringArg( args, key );

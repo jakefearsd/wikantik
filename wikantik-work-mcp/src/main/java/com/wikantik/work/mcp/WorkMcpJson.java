@@ -84,6 +84,7 @@ final class WorkMcpJson {
         final Map< String, Object > o = names.item( view, svc.events( actor, view.item().key() ) );
         o.put( "effective", WorkMcpChanges.effective( svc.policyOf( actor, view.item().key() ).effective() ) );
         o.put( "changes", WorkMcpChanges.list( names, svc.changes().views( actor, view.item().key() ) ) );
+        o.put( "shipped_in", WorkMcpDeployments.briefs( svc.deployments().shippedIn( actor, view.item().key() ) ) );
         return o;
     }
 

@@ -154,6 +154,41 @@ class WriteToolsAuditTest {
     }
 
     @Test
+    void everyDeploymentWriteIsAuditedAndAReadIsNot() throws Exception {
+        final MockWork w = new MockWork();
+        final com.wikantik.work.WorkDeploymentsService.DeploymentView view =
+            new com.wikantik.work.WorkDeploymentsService.DeploymentView( new com.wikantik.work.Deployment( 4, 1,
+                "production", "2.5.26", com.wikantik.work.DeploymentState.REQUESTED, "builder", 7L, null, null,
+                Instant.EPOCH, null, null, null, null, null, List.of() ), "wikantik", List.of(), false, true );
+        when( w.deployments.request( any(), any() ) ).thenReturn( view );
+        when( w.deployments.deployment( any(), org.mockito.ArgumentMatchers.anyLong() ) ).thenReturn( view );
+        when( w.deployments.start( any(), org.mockito.ArgumentMatchers.anyLong() ) ).thenReturn( view );
+        when( w.deployments.verify( any(), org.mockito.ArgumentMatchers.anyLong(), any() ) ).thenReturn( view );
+        when( w.deployments.rollBack( any(), org.mockito.ArgumentMatchers.anyLong(), any() ) ).thenReturn( view );
+
+        final List< String > lines = audited( () -> {
+            new RequestDeploymentTool( w.svc, w.directory ).call( w.agent, Map.of( "product", "wikantik", "version",
+                "2.5.26", "items", List.of( "PLAT-1" ) ) );
+            new GetDeploymentTool( w.svc, w.directory ).call( w.agent, Map.of( "deployment", 4 ) );
+            new UpdateDeploymentTool( w.svc, w.directory ).call( w.agent, Map.of( "deployment", 4, "state", "running" ) );
+            new UpdateDeploymentTool( w.svc, w.directory ).call( w.agent, Map.of( "deployment", 4, "state", "verified",
+                "evidence", "ok" ) );
+            new UpdateDeploymentTool( w.svc, w.directory ).call( w.agent, Map.of( "deployment", 4, "state", "rolled_back" ) );
+        } );
+
+        final String[][] expected = { { "request_deployment", "deployment-requested" },
+            { "update_deployment", "deployment-running" }, { "update_deployment", "deployment-verified" },
+            { "update_deployment", "deployment-rolled-back" } };
+        assertEquals( expected.length, lines.size(), lines.toString() );
+        for ( int i = 0; i < expected.length; i++ ) {
+            final String line = lines.get( i );
+            assertTrue( line.startsWith( "MCP_WRITE" ) && line.contains( "tool=" + expected[ i ][ 0 ] )
+                && line.contains( "action=" + expected[ i ][ 1 ] ) && line.contains( "target=deployment:4" )
+                && line.contains( "author=builder" ), line );
+        }
+    }
+
+    @Test
     void aRefusedChangeWriteLeavesARefusalLine() throws Exception {
         final MockWork w = new MockWork();
         when( w.changes.merge( any(), org.mockito.ArgumentMatchers.anyLong(), any() ) )

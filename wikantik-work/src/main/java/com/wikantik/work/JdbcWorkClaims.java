@@ -411,9 +411,33 @@ final class JdbcWorkClaims implements WorkClaimStore {
     }
 
     @Override
-    public int setSponsorAndRelease( final long agentId, final Actor newSponsorOrNull, final String changedBy,
-                                     final Actor by ) throws SQLException {
+    public int releaseForStanding( final long projectId, final long agentId, final String judgedSponsor, final Actor by,
+                                   final String note ) throws SQLException {
         return jdbc.inTransaction( conn -> {
+            // Share-lock the agent row first, as a claim does: a takeover either finished before this (and the
+            // sponsor no longer matches) or waits until the release is done.
+            final boolean asJudged = jdbc.queryOne( conn, "SELECT 1 FROM work_agent WHERE id = ? "
+                    + "AND sponsor IS NOT DISTINCT FROM ? FOR SHARE",
+                ps -> { ps.setLong( 1, agentId ); ps.setString( 2, judgedSponsor ); }, rs -> Boolean.TRUE ).isPresent();
+            if ( !asJudged ) {
+                return 0;
+            }
+            return recordReleases( conn, end( conn, "w.project_id = ? AND w.claimed_by_agent = ?",
+                "FOR NO KEY UPDATE OF w", ps -> { ps.setLong( 1, projectId ); ps.setLong( 2, agentId ); } ), by, note );
+        } );
+    }
+
+    @Override
+    public int setSponsorAndRelease( final long agentId, final String expectedSponsor, final Actor newSponsorOrNull,
+                                     final String changedBy, final Actor by ) throws SQLException {
+        return jdbc.inTransaction( conn -> {
+            // The caller decided on the sponsor it read; the row lock makes that the sponsor it replaces.
+            final boolean asRead = jdbc.queryOne( conn, "SELECT 1 FROM work_agent WHERE id = ? "
+                    + "AND sponsor IS NOT DISTINCT FROM ? FOR UPDATE",
+                ps -> { ps.setLong( 1, agentId ); ps.setString( 2, expectedSponsor ); }, rs -> Boolean.TRUE ).isPresent();
+            if ( !asRead ) {
+                throw new WorkConflictException( "This agent's sponsor has just changed; read it again." );
+            }
             catalog.setSponsor( conn, agentId, newSponsorOrNull == null ? null : newSponsorOrNull.login(), changedBy );
             if ( newSponsorOrNull != null && newSponsorOrNull.instanceAdmin() ) {
                 return 0;

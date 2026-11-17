@@ -173,4 +173,14 @@ class WorkAcknowledgePostgresTest {
         assertTrue( lane( f.mia ).isEmpty() );
         assertTrue( lane( f.author ).isEmpty() );
     }
+
+    @Test
+    void anArchivedProjectsClosesDoNotStayInTheLane() throws SQLException {
+        final Item closed = closedByAgent( Autonomy.AUTONOMOUS );
+        assertEquals( List.of( closed.key() ), lane( f.lena ) );
+        f.svc.archiveProject( f.admin, "PLAT" );
+        assertEquals( List.of(), lane( f.lena ), "it cannot be acknowledged there, so it is not asked for" );
+        assertEquals( List.of(), lane( f.admin ) );
+        assertTrue( ack( closed ).required(), "the record of how it was closed is kept" );
+    }
 }

@@ -302,4 +302,52 @@ class WorkDeploymentAccessPostgresTest {
         deployments.fail( f.mia, id, "red" );
         assertFalse( deployments.cleared( f.mia, id, "2.5.26" ), "failed" );
     }
+
+    // ---- findings deferred from the phase 4 review
+
+    @Test
+    void aLeadOfEveryCarriedProjectSeesItWaitingAndAnAdminIsNotNeeded() throws SQLException {
+        f.svc.putMember( f.admin, "PLAT", "olga", "user", WorkRole.LEAD );
+        final long id = requestedBy( f.mia ).deployment().id();
+        final List< DeploymentView > waiting = deployments.awaitingMyApproval( olga );
+        assertEquals( List.of( id ), waiting.stream().map( d -> d.deployment().id() ).toList() );
+        assertTrue( waiting.get( 0 ).mayApprove() );
+        assertEquals( 2, waiting.get( 0 ).visibleItems().size() );
+        assertTrue( deployments.awaitingMyApproval( f.lena ).isEmpty(), "a lead of one of two is not enough" );
+        assertEquals( DeploymentState.APPROVED, deployments.approve( olga, id, null ).deployment().state() );
+    }
+
+    @Test
+    void aProductsListIsFilledWithWhatTheCallerSeesNotCutShortByWhatTheyDoNot() throws SQLException {
+        final List< Long > mine = new java.util.ArrayList<>();
+        for ( int i = 0; i < 3; i++ ) {
+            mine.add( deployments.request( f.lena, new DeploymentDraft( "wikantik", null, "1.0." + i,
+                List.of( plat.key() ) ) ).deployment().id() );
+        }
+        for ( int i = 0; i < 4; i++ ) {
+            deployments.request( olga, new DeploymentDraft( "wikantik", null, "2.0." + i, List.of( ops.key() ) ) );
+        }
+        java.util.Collections.reverse( mine );
+        assertEquals( mine.subList( 0, 2 ), deployments.forProduct( f.lena, "wikantik", 2 ).stream()
+            .map( d -> d.deployment().id() ).toList(), "the four newer ones are hidden from lena; she still gets two" );
+        assertEquals( mine, deployments.forProduct( f.lena, "wikantik", 50 ).stream()
+            .map( d -> d.deployment().id() ).toList() );
+        assertEquals( 7, deployments.forProduct( f.admin, "wikantik", 50 ).size() );
+    }
+
+    @Test
+    void rollingBackRecordsWhenItEnded() throws SQLException {
+        final long id = requestedBy( f.mia ).deployment().id();
+        deployments.approve( f.admin, id, null );
+        deployments.start( f.mia, id );
+        deployments.verify( f.mia, id, "health 200" );
+        f.count( "SELECT count(*) FROM work_deployment WHERE id = " + id );
+        try ( java.sql.Connection c = f.ds.getConnection(); java.sql.Statement st = c.createStatement() ) {
+            st.executeUpdate( "UPDATE work_deployment SET closed_at = NOW() - INTERVAL '1 day' WHERE id = " + id );
+        }
+        final Deployment rolled = deployments.rollBack( f.mia, id, "regression" ).deployment();
+        assertTrue( rolled.closedAt().isAfter( java.time.Instant.now().minusSeconds( 3600 ) ),
+            "closed_at is when it last ended, not when it was verified" );
+        assertTrue( rolled.verifiedAt() != null, "when it was verified is kept" );
+    }
 }

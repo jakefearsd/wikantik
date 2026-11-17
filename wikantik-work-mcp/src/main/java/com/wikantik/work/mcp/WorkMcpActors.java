@@ -70,11 +70,11 @@ public final class WorkMcpActors {
     }
 
     /**
-     * The actor the context's key stands for: the agent it is bound to, or its owner as a person for a key never bound
-     * to an agent.
+     * The actor the context's credential stands for: the agent an agent token names, or the owner, as a person, of a
+     * personal work key. A key is never an agent.
      *
-     * @return the actor, or {@code null} when the context carries no key, or the key is not a work key, or is bound to
-     *         a retired agent, or was once an agent's key and has been rotated away
+     * @return the actor, or {@code null} when the context carries no credential, the key is not a work key, or the
+     *         agent is retired, has no sponsor, or its sponsor's account is gone
      */
     public static Actor actorFor( final McpTransportContext context, final WorkService service ) throws SQLException {
         if ( context == null ) {

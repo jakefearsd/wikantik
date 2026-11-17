@@ -24,7 +24,6 @@ import com.wikantik.jdbc.SqlBinder;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -91,7 +90,7 @@ final class JdbcWorkChanges implements WorkChangeStore {
         JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         try {
             return jdbc.inTransaction( conn -> {
-                requireOpenItem( conn, item );
+                requireOpenItem( conn, item, productId, by );
                 final long id = insert( conn, item, productId, d, by );
                 if ( d.mergedSha() == null ) {
                     event( conn, item, id, by, WorkEvent.CHANGE_OPENED, d.branch(), d.headSha() );
@@ -108,13 +107,35 @@ final class JdbcWorkChanges implements WorkChangeStore {
         }
     }
 
-    /** Locks the item row: closing the item locks it too, so a new change and a close cannot cross. */
-    private void requireOpenItem( final Connection conn, final Item item ) throws SQLException {
-        final String status = jdbc.queryOne( conn, "SELECT status FROM work_item WHERE id = ? FOR SHARE",
-            ps -> ps.setLong( 1, item.id() ), rs -> rs.getString( 1 ) )
+    /** The item as its row is under a share lock: what a change write must not decide from an earlier read. */
+    private record LockedItem( WorkStatus status, Long productId, Long holder ) {
+    }
+
+    /**
+     * Locks the item row (closing or claiming the item locks it too, so neither can cross a change write) and
+     * fences an agent: it may not write a change on an item another agent holds, as it may not write the item.
+     */
+    private LockedItem lockItem( final Connection conn, final Item item, final Actor by ) throws SQLException {
+        final LockedItem locked = jdbc.queryOne( conn,
+            "SELECT status, product_id, claimed_by_agent FROM work_item WHERE id = ? FOR SHARE",
+            ps -> ps.setLong( 1, item.id() ), rs -> new LockedItem( WorkStatus.fromWire( rs.getString( 1 ) ),
+                SqlValues.nullableLong( rs, "product_id" ), SqlValues.nullableLong( rs, "claimed_by_agent" ) ) )
             .orElseThrow( () -> new SQLException( "work_item " + item.id() + " not found" ) );
-        if ( SqlValues.isClosed( WorkStatus.fromWire( status ) ) ) {
+        if ( by.kind() == Actor.Kind.AGENT && locked.holder() != null && !locked.holder().equals( by.agentId() ) ) {
+            throw new ClaimFenceException();
+        }
+        return locked;
+    }
+
+    /** A change is opened on an open item, against the product the item targets now. */
+    private void requireOpenItem( final Connection conn, final Item item, final long productId, final Actor by )
+            throws SQLException {
+        final LockedItem locked = lockItem( conn, item, by );
+        if ( SqlValues.isClosed( locked.status() ) ) {
             throw new WorkValidationException( "status", "This item is closed; reopen it to add a change." );
+        }
+        if ( locked.productId() == null || locked.productId() != productId ) {
+            throw new WorkConflictException( "This item's product changed; read it again." );
         }
     }
 
@@ -170,8 +191,12 @@ final class JdbcWorkChanges implements WorkChangeStore {
             check.on( locked );
             final String head = headSha == null ? locked.headSha() : headSha;
             final boolean moved = !Objects.equals( head, locked.headSha() );
+            final String url = reviewUrl == null ? locked.reviewUrl() : reviewUrl.isEmpty() ? null : reviewUrl;
+            if ( !moved && Objects.equals( url, locked.reviewUrl() ) ) {
+                return;
+            }
             jdbc.update( conn, """
-                UPDATE work_change SET head_sha = ?, review_url = COALESCE( ?, review_url ),
+                UPDATE work_change SET head_sha = ?, review_url = ?,
                     reviewed_by = CASE WHEN ? THEN NULL ELSE reviewed_by END,
                     reviewed_by_agent_id = CASE WHEN ? THEN NULL ELSE reviewed_by_agent_id END,
                     reviewed_head_sha = CASE WHEN ? THEN NULL ELSE reviewed_head_sha END,
@@ -181,7 +206,7 @@ final class JdbcWorkChanges implements WorkChangeStore {
                  WHERE id = ?
                 """, ps -> {
                     ps.setString( 1, head );
-                    ps.setString( 2, reviewUrl );
+                    ps.setString( 2, url );
                     ps.setBoolean( 3, moved );
                     ps.setBoolean( 4, moved );
                     ps.setBoolean( 5, moved );
@@ -265,15 +290,16 @@ final class JdbcWorkChanges implements WorkChangeStore {
     }
 
     @Override
-    public Map< Long, Counts > counts( final long projectId ) throws SQLException {
-        final Map< Long, Counts > out = new HashMap<>();
+    public Map< String, Counts > counts( final long projectId ) throws SQLException {
+        final Map< String, Counts > out = new java.util.LinkedHashMap<>();
         jdbc.query( """
-            SELECT c.item_id, COUNT(*) AS live, COUNT(*) FILTER ( WHERE c.state = 'in_review' ) AS in_review
-              FROM work_change c JOIN work_item i ON i.id = c.item_id
+            SELECT p.key || '-' || i.seq AS item_key, COUNT(*) AS live,
+                   COUNT(*) FILTER ( WHERE c.state = 'in_review' ) AS in_review
+              FROM work_change c JOIN work_item i ON i.id = c.item_id JOIN work_project p ON p.id = i.project_id
              WHERE i.project_id = ? AND c.state IN ('open','in_review')
-             GROUP BY c.item_id
+             GROUP BY p.key, i.seq ORDER BY i.seq
             """, ps -> ps.setLong( 1, projectId ), rs -> {
-                out.put( rs.getLong( "item_id" ), new Counts( rs.getInt( "live" ), rs.getInt( "in_review" ) ) );
+                out.put( rs.getString( "item_key" ), new Counts( rs.getInt( "live" ), rs.getInt( "in_review" ) ) );
                 return null;
             } );
         return out;
@@ -295,6 +321,7 @@ final class JdbcWorkChanges implements WorkChangeStore {
                 throw new WorkConflictException( "This change is already merged or abandoned.",
                     WorkConflictException.CHANGE_CLOSED );
             }
+            lockItem( conn, item, by );
             body.run( conn, locked );
             return byId( conn, id );
         } );

@@ -145,7 +145,7 @@ public final class WorkRegistryService {
             try {
                 out.put( agentId, sponsorship.standingIn( s.project().id(), agent ) );
             } catch ( final WorkUnavailableException e ) {
-                LOG.debug( "A sponsor could not be looked up for the member list; that agent's standing is left out: {}",
+                LOG.warn( "A sponsor could not be looked up for the member list; that agent's standing is left out: {}",
                     e.getMessage() );
             }
         }
@@ -293,7 +293,7 @@ public final class WorkRegistryService {
         final Agent existing = sponsorship.requireVisible( actor, agentId, false );
         sponsorship.requireMayTakeOver( actor, existing );
         // One transaction: the new sponsor, the history row, and the end of every claim outside their reach.
-        listener.released( store.claims().setSponsorAndRelease( agentId, actor, actor.login(), actor ) );
+        listener.released( store.claims().setSponsorAndRelease( agentId, existing.sponsor(), actor, actor.login(), actor ) );
         LOG.info( "Work agent '{}' taken over by {}", existing.name(), actor.login() );
         changes.audit( actor, "work.agent.takeover", AGENT, existing.name(), null );
         return store.agent( agentId ).orElse( existing );
@@ -304,7 +304,7 @@ public final class WorkRegistryService {
         final Agent existing = sponsorship.requireVisible( actor, agentId, false );
         sponsorship.requireSponsorOrAdmin( actor, existing );
         // With nobody behind it the agent may hold nothing: every claim ends in the same transaction.
-        listener.released( store.claims().setSponsorAndRelease( agentId, null, actor.login(), actor ) );
+        listener.released( store.claims().setSponsorAndRelease( agentId, existing.sponsor(), null, actor.login(), actor ) );
         LOG.info( "Work agent '{}' released by its sponsor ({})", existing.name(), actor.login() );
         changes.audit( actor, "work.agent.sponsor_released", AGENT, existing.name(), null );
     }
@@ -337,7 +337,13 @@ public final class WorkRegistryService {
         if ( live.isEmpty() ) {
             return java.util.Optional.empty();
         }
-        credentials.touch( live.get().credentialId() );
+        try {
+            credentials.touch( live.get().credentialId() );
+        } catch ( final SQLException e ) {
+            // Bookkeeping only: the token was verified, and refusing it would turn a failed timestamp into an outage.
+            LOG.warn( "Could not record the last use of work agent credential {}: {}", live.get().credentialId(),
+                e.getMessage() );
+        }
         return java.util.Optional.of( new AgentLogin( live.get().credentialId(), live.get().agentId() ) );
     }
 

@@ -54,6 +54,13 @@ public final class WorkDeploymentsService {
     private static final Pattern VERSION = Pattern.compile( "[A-Za-z0-9._+-]{1,60}" );
     private static final Pattern ENVIRONMENT = Pattern.compile( "[a-z0-9-]{1,40}" );
     private static final String PRODUCTION = "production";
+    /** How many of a product's deployments one listing reads at a time, and at most, looking for visible ones. */
+    private static final int PAGE = 100;
+    private static final int MAX_SCANNED = 1_000;
+
+    /** A deployment the caller can see some of, with what they can see and do of it: one read of its items. */
+    private record Seen( Deployment deployment, DeploymentAccess access ) {
+    }
 
     private final WorkStore store;
     private final WorkScopes scopes;
@@ -101,27 +108,40 @@ public final class WorkDeploymentsService {
         return view( a, seen( a, id ) );
     }
 
+    private DeploymentView view( final Actor a, final Seen seen ) throws SQLException {
+        return view( a, seen.deployment(), seen.access() );
+    }
+
     /** The product's deployments the caller can see any part of, most recently requested first. */
     public List< DeploymentView > forProduct( final Actor a, final String productKey, final int limit )
             throws SQLException {
         final Product product = visibleProduct( a, productKey );
+        final int wanted = Math.max( 1, Math.min( limit, 100 ) );
         final List< DeploymentView > out = new ArrayList<>();
-        for ( final Deployment d : store.deployments().forProduct( product.id(), Math.max( 1, Math.min( limit, 100 ) ) ) ) {
-            if ( access( a, d ).seesAny() ) {
-                out.add( view( a, d ) );
+        // The limit counts what this caller sees: hidden deployments are passed over, a page at a time.
+        for ( int offset = 0; out.size() < wanted && offset < MAX_SCANNED; offset += PAGE ) {
+            final List< Deployment > page = store.deployments().forProduct( product.id(), PAGE, offset );
+            for ( final Deployment d : page ) {
+                final DeploymentAccess access = access( a, d );
+                if ( access.seesAny() && out.size() < wanted ) {
+                    out.add( view( a, d, access ) );
+                }
+            }
+            if ( page.size() < PAGE ) {
+                break;
             }
         }
         return out;
     }
 
     public List< DeploymentEvent > history( final Actor a, final long id ) throws SQLException {
-        return store.deployments().history( seen( a, id ).id() );
+        return store.deployments().history( seen( a, id ).deployment().id() );
     }
 
     /** Approves the deployment, if the product's gate lets this caller. */
     public DeploymentView approve( final Actor a, final long id, final String note ) throws SQLException {
-        final Deployment d = seen( a, id );
-        final Decision decision = mayApprove( a, d, access( a, d ) );
+        final Seen seen = seen( a, id );
+        final Decision decision = mayApprove( a, seen.deployment(), seen.access() );
         scopes.gateDecided( a, "deploy", decision.allowed() );
         if ( !decision.allowed() ) {
             scopes.denied( Action.APPROVE_DEPLOYMENT );
@@ -135,10 +155,11 @@ public final class WorkDeploymentsService {
      * anyone who could approve it. A rejected deployment never runs and is never cleared for the deploy script.
      */
     public DeploymentView reject( final Actor a, final long id, final String note ) throws SQLException {
-        final Deployment d = seen( a, id );
+        final Seen seen = seen( a, id );
+        final Deployment d = seen.deployment();
         final boolean requester = a.kind() == Actor.Kind.AGENT ? a.agentId().equals( d.requestedByAgentId() )
             : d.requestedByAgentId() == null && a.login().equals( d.requestedBy() );
-        if ( !requester && !mayApprove( a, d, access( a, d ) ).allowed() ) {
+        if ( !requester && !mayApprove( a, d, seen.access() ).allowed() ) {
             scopes.denied( Action.APPROVE_DEPLOYMENT );
             throw new WorkDeniedException( REJECT );
         }
@@ -185,7 +206,7 @@ public final class WorkDeploymentsService {
 
     /** {@link #cleared} with the state, version and environment the answer was taken from. */
     public GateAnswer gate( final Actor a, final long id, final String version ) throws SQLException {
-        final Deployment d = seen( a, id );
+        final Deployment d = seen( a, id ).deployment();
         return new GateAnswer( d.state().clearedToRun() && d.version().equals( version ), d.state(), d.version(),
             d.environment() );
     }
@@ -196,8 +217,9 @@ public final class WorkDeploymentsService {
         is.scope().require( Action.VIEW, is.item() );
         final List< DeploymentView > out = new ArrayList<>();
         for ( final Deployment d : store.deployments().carrying( is.item().id() ) ) {
-            if ( d.state() == DeploymentState.VERIFIED && JdbcWorkDeployments.PRODUCTION.equals( d.environment() ) ) {
-                out.add( view( a, d ) );
+            if ( d.state() == DeploymentState.VERIFIED && JdbcWorkDeployments.PRODUCTION.equals( d.environment() )
+                    && is.item().productId() != null && is.item().productId() == d.productId() ) {
+                out.add( view( a, d, access( a, d ) ) );
             }
         }
         return out;
@@ -209,7 +231,7 @@ public final class WorkDeploymentsService {
         for ( final Deployment d : store.deployments().awaitingApproval() ) {
             final DeploymentAccess access = access( a, d );
             if ( access.seesAny() && mayApprove( a, d, access ).allowed() ) {
-                out.add( view( a, d ) );
+                out.add( view( a, d, access ) );
             }
         }
         return out;
@@ -217,8 +239,7 @@ public final class WorkDeploymentsService {
 
     private DeploymentView move( final Actor a, final long id, final DeploymentState target, final String evidence,
                                  final String note ) throws SQLException {
-        final Deployment d = seen( a, id );
-        if ( !access( a, d ).memberOfEvery() && !a.instanceAdmin() ) {
+        if ( !seen( a, id ).access().memberOfEvery() && !a.instanceAdmin() ) {
             scopes.denied( Action.RUN_DEPLOYMENT );
             throw new WorkDeniedException( RUN );
         }
@@ -237,21 +258,27 @@ public final class WorkDeploymentsService {
     }
 
     /** The deployment, or "not found" when it does not exist or the caller can see none of what it carries. */
-    private Deployment seen( final Actor a, final long id ) throws SQLException {
+    private Seen seen( final Actor a, final long id ) throws SQLException {
         final Deployment d = store.deployments().deployment( id )
             .orElseThrow( () -> new WorkNotFoundException( WorkScopes.NOT_FOUND ) );
-        if ( !access( a, d ).seesAny() ) {
+        final DeploymentAccess access = access( a, d );
+        if ( !access.seesAny() ) {
             throw new WorkNotFoundException( WorkScopes.NOT_FOUND );
         }
-        return d;
+        return new Seen( d, access );
     }
 
     private DeploymentAccess access( final Actor a, final Deployment d ) throws SQLException {
         return DeploymentAccess.of( store, scopes.standing(), a, d.itemIds() );
     }
 
+    /** A deployment that was just written, as the caller sees it now. */
     private DeploymentView view( final Actor a, final Deployment d ) throws SQLException {
-        final DeploymentAccess access = access( a, d );
+        return view( a, d, access( a, d ) );
+    }
+
+    private DeploymentView view( final Actor a, final Deployment d, final DeploymentAccess access )
+            throws SQLException {
         final List< Item > visible = access.visibleItems();
         final Deployment shown = new Deployment( d.id(), d.productId(), d.environment(), d.version(), d.state(),
             d.requestedBy(), d.requestedByAgentId(), d.approvedBy(), d.approvedByAgentId(), d.requestedAt(),

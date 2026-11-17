@@ -95,7 +95,7 @@ final class SponsorSweep {
             final Actor sponsor = h.sponsor() == null ? null : resolved.get( h.sponsor() ).orElse( null );
             if ( sponsor == null || !sponsor.instanceAdmin() && !scopes.standing().roleIn( h.projectId(), sponsor )
                     .map( r -> r.atLeast( WorkRole.MEMBER ) ).orElse( false ) ) {
-                ended += store.claims().releaseForStanding( h.projectId(), List.of( h.agentId() ),
+                ended += store.claims().releaseForStanding( h.projectId(), h.agentId(), h.sponsor(),
                     Actor.agent( h.agentId(), h.agentName() ), JdbcWorkClaims.SPONSOR_ACCESS_REMOVED );
             }
         }

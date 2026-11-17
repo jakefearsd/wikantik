@@ -28,7 +28,7 @@ import org.apache.logging.log4j.Logger;
  * line for a refused write. Text that came from the caller or an admin is stripped of control characters and capped,
  * so it can never split or forge a line, and the caller's item key also loses whitespace and {@code =}, so it can never
  * forge a {@code key=value} field. No exception message, item text, comment body or token goes in. The author is the
- * actor's name: an agent's name, or for a work key bound to no agent its owner's login (that key acts as its owner).
+ * actor's name: an agent's name, or for a personal work key its owner's login (that key acts as its owner).
  */
 final class WorkMcpLog {
 
@@ -52,8 +52,8 @@ final class WorkMcpLog {
     }
 
     /**
-     * The success audit of a write, authored by the actor's name: the agent's name, or the owner's login for a work key
-     * bound to no agent.
+     * The success audit of a write, authored by the actor's name: the agent's name, or the owner's login for a
+     * personal work key.
      */
     static void written( final String tool, final String action, final String itemKey, final Actor actor ) {
         McpAudit.logWrite( tool, action, itemKey, clean( actor.login() ) );

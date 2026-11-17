@@ -157,4 +157,21 @@ class WorkChangeRacePostgresTest {
         assertEquals( 0, count( "change_reviewed" ) );
         assertEquals( 0, f.count( "SELECT count(*) FROM work_change WHERE reviewed_head_sha IS NOT NULL" ) );
     }
+
+    @Test
+    void aChangeWriteWaitingOnAnotherAgentsClaimIsDenied() throws Exception {
+        final CommitGate gate = new CommitGate( f.ds );
+        final Future< ? > claiming = pool.submit( () -> new JdbcWorkStore( gate ).claims().claim( f.fresh( item ),
+            f.reviewer, java.time.Duration.ofMinutes( 30 ) ) );
+        assertTrue( gate.reached.await( 30, TimeUnit.SECONDS ) );
+        final Future< Change > push = pool.submit( () -> f.svc.changes().update( f.author, change.id(), B, null ) );
+        WorkClaimFixtures.awaitBlockedBy( f.ds, gate.pid );
+        gate.open();
+        claiming.get( 30, TimeUnit.SECONDS );
+        final ExecutionException e = assertThrows( ExecutionException.class, () -> push.get( 30, TimeUnit.SECONDS ) );
+        assertEquals( "This item is claimed by another agent.",
+            assertInstanceOf( WorkDeniedException.class, e.getCause() ).reason(),
+            "the claim landed after the service read the item: caught on the locked row" );
+        assertEquals( A, f.svc.changes().list( f.lena, item.key() ).get( 0 ).headSha() );
+    }
 }

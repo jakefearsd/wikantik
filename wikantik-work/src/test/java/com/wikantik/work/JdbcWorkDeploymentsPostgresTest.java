@@ -59,6 +59,10 @@ class JdbcWorkDeploymentsPostgresTest {
             DeployGate.HUMAN, null ) );
         one = store.createItem( store.createProject( "PLAT", "Platform", "" ), JdbcWorkStoreItemsPostgresTest.draft( "one" ), alice );
         two = store.createItem( store.createProject( "OPS", "Operations", "" ), JdbcWorkStoreItemsPostgresTest.draft( "two" ), alice );
+        // the items target the product the deployments are of: only then does a deployment ship them
+        try ( java.sql.Connection c = ds.getConnection(); java.sql.Statement st = c.createStatement() ) {
+            st.executeUpdate( "UPDATE work_item SET product_id = " + product.id() );
+        }
     }
 
     private long count( final String sql ) throws SQLException {
@@ -147,8 +151,9 @@ class JdbcWorkDeploymentsPostgresTest {
         assertFalse( deployments.shippedVerified( two.id() ) );
         assertEquals( List.of( "2.5.27", "2.5.26" ),
             deployments.carrying( one.id() ).stream().map( Deployment::version ).toList() );
-        assertEquals( 2, deployments.forProduct( product.id(), 10 ).size() );
-        assertEquals( 1, deployments.forProduct( product.id(), 1 ).size() );
+        assertEquals( 2, deployments.forProduct( product.id(), 10, 0 ).size() );
+        assertEquals( 1, deployments.forProduct( product.id(), 1, 0 ).size() );
+        assertEquals( 1, deployments.forProduct( product.id(), 10, 1 ).size() );
     }
 
     @Test

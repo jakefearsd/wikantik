@@ -406,4 +406,67 @@ class WorkChangeGatesPostgresTest {
         assertEquals( 1, counts.inReview() );
         assertEquals( 1, changes.counts( f.mia, "PLAT" ).size() );
     }
+
+    // ---- findings deferred from the phase 3b review
+
+    @Test
+    void anUpdateThatChangesNothingWritesNoEvent() throws SQLException {
+        final Change c = changes.open( f.author, item.key(), branch( "work/PLAT-1-x", A ) );
+        changes.update( f.author, c.id(), A, null );
+        changes.update( f.author, c.id(), null, null );
+        assertEquals( List.of( "change_opened" ), events(), "the same commit and no link is not an update" );
+        changes.update( f.author, c.id(), null, "https://example.com/pull/7" );
+        changes.update( f.author, c.id(), null, "https://example.com/pull/7" );
+        assertEquals( List.of( "change_opened", "change_updated" ), events(), "a new link is one update" );
+    }
+
+    @Test
+    void anEmptyReviewLinkClearsItAndNoLinkKeepsIt() throws SQLException {
+        final Change c = changes.open( f.mia, item.key(), new ChangeDraft( "work/PLAT-1-x", null, A,
+            "https://example.com/pull/7", null ) );
+        assertEquals( "https://example.com/pull/7", changes.update( f.mia, c.id(), B, null ).reviewUrl() );
+        assertEquals( null, changes.update( f.mia, c.id(), null, "" ).reviewUrl() );
+        assertEquals( null, changes.update( f.mia, c.id(), null, "  " ).reviewUrl(), "already clear: nothing to do" );
+    }
+
+    @Test
+    void aBranchNameHasNoInvisibleOrDirectionChangingCharacters() {
+        for ( final String spoof : List.of( "work/PLAT-1-\u202Exif", "work/PLAT-1\u200B-x", "work/\uFEFFPLAT-1",
+            "work/PLAT-1\u2066x" ) ) {
+            assertEquals( "branch", invalid( () -> changes.open( f.mia, item.key(), branch( spoof, A ) ) ), spoof );
+        }
+        assertEquals( "baseBranch", invalid( () -> changes.open( f.mia, item.key(),
+            new ChangeDraft( "work/PLAT-1-x", "ma\u200Din", A, null, null ) ) ) );
+    }
+
+    @Test
+    void theStoreFencesAnAgentsChangeWriteOnTheLockedItem() throws SQLException {
+        final Change c = inReview();
+        final Item stale = f.fresh( item );
+        f.claimedBy( f.reviewer, item );
+        final WorkChangeStore store = new JdbcWorkStore( f.ds ).changes();
+        assertThrows( ClaimFenceException.class, () -> store.update( stale, c.id(), B, null, locked -> { }, f.author ),
+            "the service's read was before the claim; the store reads the holder under lock" );
+        assertThrows( ClaimFenceException.class, () -> store.abandon( stale, c.id(), null, locked -> { }, f.author ) );
+        assertThrows( ClaimFenceException.class, () -> store.open( stale, c.productId(),
+            new ChangeDraft( "work/PLAT-1-y", "main", A, null, null ), f.author ) );
+        assertEquals( A, store.change( c.id() ).orElseThrow().headSha(), "nothing was written" );
+        assertEquals( B, store.update( stale, c.id(), B, null, locked -> { }, f.reviewer ).headSha(), "the holder may" );
+        assertEquals( ChangeState.ABANDONED, store.abandon( stale, c.id(), null, locked -> { }, f.mia ).state(),
+            "and a person is never fenced" );
+    }
+
+    @Test
+    void aChangeIsOpenedOnTheProductTheItemHasWhenItIsLocked() throws SQLException {
+        f.svc.createProduct( f.admin, new Product( 0, "jakemon", "jakemon", null, "main", null, null,
+            DeployGate.HUMAN, null ) );
+        final Item stale = f.fresh( item );
+        final long oldProduct = stale.productId();
+        f.set( f.lena, item, "productKey", "jakemon" );
+        final WorkChangeStore store = new JdbcWorkStore( f.ds ).changes();
+        assertEquals( WorkConflictException.STALE, assertThrows( WorkConflictException.class, () -> store.open( stale,
+            oldProduct, new ChangeDraft( "work/PLAT-1-y", "main", A, null, null ), f.mia ) ).reason(),
+            "the product moved between the service's read and the lock" );
+        assertEquals( 0, f.count( "SELECT count(*) FROM work_change" ) );
+    }
 }

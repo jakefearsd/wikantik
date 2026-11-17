@@ -198,11 +198,11 @@ class JdbcWorkClaimsSponsorPostgresTest {
         final Item held = claims.claim( fx.ready( "x" ), agentA( ana() ), HOUR ).orElseThrow();
         fx.store.putMember( fx.plat.id(), "pat", "user", WorkRole.LEAD, ROOT );
         final Actor pat = Actor.human( "pat", Set.of(), false );
-        assertEquals( 0, claims.setSponsorAndRelease( fx.a.id(), pat, "pat", pat ) );
+        assertEquals( 0, claims.setSponsorAndRelease( fx.a.id(), "ana", pat, "pat", pat ) );
         assertEquals( "pat", fx.store.agent( fx.a.id() ).orElseThrow().sponsor() );
         assertNotNull( fx.reload( held ).claimedByAgent(), "the new sponsor is a lead here" );
         final Actor bo = Actor.human( "bo", Set.of(), false );
-        assertEquals( 1, claims.setSponsorAndRelease( fx.a.id(), bo, "root", ROOT ) );
+        assertEquals( 1, claims.setSponsorAndRelease( fx.a.id(), "pat", bo, "root", ROOT ) );
         assertNull( fx.reload( held ).claimedByAgent() );
         final WorkEvent e = released( held ).get( 0 );
         assertEquals( "sponsor access removed", e.note() );
@@ -212,11 +212,26 @@ class JdbcWorkClaimsSponsorPostgresTest {
     }
 
     @Test
+    void theSweepEndsAClaimOnlyUnderTheSponsorItJudged() throws SQLException {
+        sponsorIs( WorkRole.LEAD );
+        final Item held = claims.claim( fx.ready( "x" ), agentA( ana() ), HOUR ).orElseThrow();
+        // the sweep read the agent under ana and found her without standing; pat took it over before the release
+        fx.store.putMember( fx.plat.id(), "pat", "user", WorkRole.LEAD, ROOT );
+        final Actor pat = Actor.human( "pat", Set.of(), false );
+        claims.setSponsorAndRelease( fx.a.id(), "ana", pat, "pat", pat );
+        final Actor self = Actor.agent( fx.a.id(), fx.a.name() );
+        assertEquals( 0, claims.releaseForStanding( fx.plat.id(), fx.a.id(), "ana", self, "sponsor access removed" ) );
+        assertNotNull( fx.reload( held ).claimedByAgent(), "pat stands behind it now: the claim is his agent's" );
+        assertEquals( 1, claims.releaseForStanding( fx.plat.id(), fx.a.id(), "pat", self, "sponsor access removed" ) );
+        assertNull( fx.reload( held ).claimedByAgent() );
+    }
+
+    @Test
     void givingUpSponsorshipReleasesEveryClaim() throws SQLException {
         sponsorIs( WorkRole.LEAD );
         final Item one = claims.claim( fx.ready( "x" ), agentA( ana() ), HOUR ).orElseThrow();
         final Item two = claims.claim( fx.ready( "y" ), agentA( ana() ), HOUR ).orElseThrow();
-        assertEquals( 2, claims.setSponsorAndRelease( fx.a.id(), null, "ana", ana() ) );
+        assertEquals( 2, claims.setSponsorAndRelease( fx.a.id(), "ana", null, "ana", ana() ) );
         assertNull( fx.store.agent( fx.a.id() ).orElseThrow().sponsor() );
         assertNull( fx.reload( one ).claimedByAgent() );
         assertNull( fx.reload( two ).claimedByAgent() );
@@ -268,7 +283,7 @@ class JdbcWorkClaimsSponsorPostgresTest {
         final CommitGate gate = new CommitGate( fx.ds );
         final Actor bo = Actor.human( "bo", Set.of(), false );
         final Future< Integer > takeover = pool.submit(
-            () -> new JdbcWorkStore( gate ).claims().setSponsorAndRelease( fx.a.id(), bo, "root", ROOT ) );
+            () -> new JdbcWorkStore( gate ).claims().setSponsorAndRelease( fx.a.id(), "ana", bo, "root", ROOT ) );
         assertTrue( gate.reached.await( 30, TimeUnit.SECONDS ) );
         final Future< Optional< Item > > waiting = pool.submit( () -> claims.claim( item, agentA( ana() ), HOUR ) );
         WorkClaimFixtures.awaitBlockedBy( fx.ds, gate.pid );

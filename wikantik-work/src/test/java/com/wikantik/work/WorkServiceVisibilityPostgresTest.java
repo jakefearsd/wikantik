@@ -123,7 +123,7 @@ class WorkServiceVisibilityPostgresTest {
             DeployGate.HUMAN, null ) );
         final Item item = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "secret item" ), Actor.human( "lena", java.util.Set.of(), false ) );
         // lena is also the assignee so that waitingOn is non-empty for her
-        final Item assigned = new Item( item.id(), item.projectId(), item.key(), item.level(), null, null,
+        final Item assigned = new Item( item.id(), item.projectId(), item.key(), item.level(), null, web.id(),
             item.kind(), item.title(), item.body(), item.status(), item.priority(), item.rank(), null, "lena",
             item.reporter(), null, null, null, item.version(), item.createdAt(), item.updatedAt(), null, null, null, null, null, null );
         store.updateItem( item, assigned, Actor.human( "lena", java.util.Set.of(), false ), null );

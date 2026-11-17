@@ -74,8 +74,9 @@ public final class RequestDeploymentTool extends WorkMcpTool {
             .name( TOOL_NAME )
             .description( "Request a deployment of a product version carrying the items it ships. Returns the "
                 + "deployment with its id; may_approve says whether you could approve it (the product decides: "
-                + "where a person approves deployments, an agent can only request). Refusals: items: (none, or one "
-                + "that targets another product), denied:, Not found. (the product or an item you cannot see)." )
+                + "where a person approves deployments, an agent can only request). Refusals: items: (none, one "
+                + "that targets another product, or one not yet ready), denied:, archived: (an item's project is "
+                + "read-only), Not found. (the product or an item you cannot see)." )
             .inputSchema( schema( props, List.of( "product", "version", "items" ) ) )
             .annotations( WRITES )
             .build();

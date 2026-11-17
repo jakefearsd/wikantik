@@ -178,4 +178,51 @@ class WorkDoneMeansPostgresTest {
             () -> deployments.shippedIn( Actor.human( "sam", Set.of(), false ), story.key() ) );
         assertEquals( 2, f.count( "SELECT count(*) FROM work_event WHERE type = 'shipped' AND item_id = " + story.id() ) );
     }
+
+    // ---- findings deferred from the phase 4 review
+
+    @Test
+    void aDeploymentOfAnotherProductDoesNotShipTheItem() throws SQLException {
+        verified( "2.5.26", story );
+        f.svc.createProduct( f.admin, new Product( 0, "jakemon", "jakemon", null, "main", null, null,
+            DeployGate.HUMAN, null ) );
+        f.set( f.lena, story, "productKey", "jakemon" );
+        assertEquals( "awaiting_deployment", held( () -> f.status( f.mia, story, "done" ) ),
+            "what shipped was the wikantik product; the item now targets another" );
+        assertTrue( deployments.shippedIn( f.mia, story.key() ).isEmpty() );
+        f.set( f.lena, story, "productKey", "wikantik" );
+        assertEquals( WorkStatus.DONE, f.status( f.mia, story, "done" ).status() );
+    }
+
+    @Test
+    void aCloseAndARollBackAtTheSameMomentLeaveAConsistentRecord() throws Exception {
+        final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool( 2 );
+        try {
+            for ( int round = 0; round < 5; round++ ) {
+                final Item s = f.status( f.lena, f.draft( WorkLevel.STORY, epic.key() ), "ready" );
+                final long id = verified( "3.0." + round, s );
+                final java.util.concurrent.CountDownLatch go = new java.util.concurrent.CountDownLatch( 1 );
+                final java.util.concurrent.Future< Object > close = pool.submit( () -> {
+                    go.await();
+                    try {
+                        return f.status( f.mia, s, "done" ).status();
+                    } catch ( final WorkConflictException e ) {
+                        return e.reason();
+                    }
+                } );
+                final java.util.concurrent.Future< Object > roll = pool.submit( () -> {
+                    go.await();
+                    return deployments.rollBack( f.mia, id, "regression" ).deployment().state();
+                } );
+                go.countDown();
+                final Object closed = close.get( 30, java.util.concurrent.TimeUnit.SECONDS );
+                assertEquals( DeploymentState.ROLLED_BACK, roll.get( 30, java.util.concurrent.TimeUnit.SECONDS ) );
+                assertTrue( closed == WorkStatus.DONE || "awaiting_deployment".equals( closed ), "closed: " + closed );
+                assertEquals( closed == WorkStatus.DONE ? WorkStatus.DONE : WorkStatus.READY, f.fresh( s ).status(),
+                    "the item is where the answer said, whichever went first" );
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
 }

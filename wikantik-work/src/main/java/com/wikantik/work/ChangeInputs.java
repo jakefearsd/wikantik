@@ -30,7 +30,7 @@ final class ChangeInputs {
     static final int MAX_URL = 500;
     static final int MAX_NOTE = 2000;
 
-    private static final Pattern BRANCH = Pattern.compile( "[^\\s\\p{Cntrl}]{1," + MAX_BRANCH + "}" );
+    private static final Pattern BRANCH = Pattern.compile( "[^\\s\\p{C}]{1," + MAX_BRANCH + "}" );
     private static final Pattern SHA = Pattern.compile( "[0-9a-f]{7,64}" );
 
     private ChangeInputs() {
@@ -39,7 +39,7 @@ final class ChangeInputs {
     static String branch( final String field, final String value ) {
         if ( value == null || !BRANCH.matcher( value ).matches() ) {
             throw new WorkValidationException( field,
-                "A branch name is 1 to " + MAX_BRANCH + " characters with no spaces." );
+                "A branch name is 1 to " + MAX_BRANCH + " visible characters with no spaces." );
         }
         return value;
     }

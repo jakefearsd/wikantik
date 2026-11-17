@@ -176,7 +176,11 @@ public class WorkService {
         if ( store.project( key ).isPresent() ) {
             throw new WorkConflictException( "Project " + key + " already exists.", WorkConflictException.EXISTS );
         }
-        return store.createProject( key, name.trim(), description == null ? "" : description );
+        try {
+            return store.createProject( key, name.trim(), description == null ? "" : description );
+        } catch ( final SQLException e ) {
+            throw existsOr( e, "Project " + key + " already exists." );
+        }
     }
 
     public void updateProject( final Actor actor, final String key, final String name, final String description,
@@ -259,7 +263,19 @@ public class WorkService {
         if ( store.product( draft.key() ).isPresent() ) {
             throw new WorkConflictException( "Product " + draft.key() + " already exists.", WorkConflictException.EXISTS );
         }
-        return store.createProduct( product );
+        try {
+            return store.createProduct( product );
+        } catch ( final SQLException e ) {
+            throw existsOr( e, "Product " + draft.key() + " already exists." );
+        }
+    }
+
+    /** Two creations of one key at once: the second meets the unique key, which is the same conflict. */
+    private static SQLException existsOr( final SQLException e, final String message ) {
+        if ( "23505".equals( e.getSQLState() ) ) {
+            throw new WorkConflictException( message, WorkConflictException.EXISTS );
+        }
+        return e;
     }
 
     public void updateProduct( final Actor actor, final Product product ) throws SQLException {

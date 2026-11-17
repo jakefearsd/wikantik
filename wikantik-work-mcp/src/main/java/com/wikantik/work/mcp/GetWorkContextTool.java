@@ -34,7 +34,7 @@ import java.util.Map;
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
 /**
- * Who the caller is and what it can see: the agent (or the person behind a key not bound to one), the projects it was
+ * Who the caller is and what it can see: the agent (or the person whose work key it is), the projects it was
  * admitted to with its role in each, the items it holds a claim on, and how long a claim lasts.
  */
 public final class GetWorkContextTool extends WorkMcpTool {

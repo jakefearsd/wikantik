@@ -96,11 +96,22 @@ public interface WorkClaimStore {
         throws SQLException;
 
     /**
+     * {@link #releaseForStanding(long, java.util.Collection, Actor, String)} for one agent, only while its sponsor is
+     * still {@code judgedSponsor} (null for none): the sweep judged that sponsor's standing, and a takeover since
+     * then puts the agent under someone it did not judge. Returns how many ended.
+     */
+    int releaseForStanding( long projectId, long agentId, String judgedSponsor, Actor by, String note )
+            throws SQLException;
+
+    /**
      * One transaction: sets the agent's sponsor ({@code newSponsorOrNull}: the new sponsor as resolved now, null to
      * leave the agent with none), records the change in the sponsor history, and releases the agent's claims in
      * every project where nobody, or the new sponsor, lacks {@code member} standing (a wiki admin sponsor lacks
      * none). The reason is {@code sponsor access removed}; {@code by} is the person acting. A claim in flight
-     * under the old sponsor waits on the agent row and then finds that sponsor gone.
+     * under the old sponsor waits on the agent row and then finds that sponsor gone. The caller decided on
+     * {@code expectedSponsor} (null for none): if the row names someone else by now, nothing is written and the
+     * refusal is a {@link WorkConflictException} (stale).
      */
-    int setSponsorAndRelease( long agentId, Actor newSponsorOrNull, String changedBy, Actor by ) throws SQLException;
+    int setSponsorAndRelease( long agentId, String expectedSponsor, Actor newSponsorOrNull, String changedBy,
+                              Actor by ) throws SQLException;
 }

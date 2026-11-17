@@ -70,8 +70,8 @@ public final class UpdateChangeTool extends WorkMcpTool {
         props.put( "note", prop( "string", "With abandoned: why.", "Superseded by a smaller change." ) );
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
-            .description( "Update a change you are working on: its newest commit, its review link, or its state "
-                + "(in_review, abandoned). Returns the change. Refusals: change_closed: (already merged or "
+            .description( "Update a change you are working on: its newest commit, its review link (an empty "
+                + "review_url removes it), or its state (in_review, abandoned). Returns the change. Refusals: change_closed: (already merged or "
                 + "abandoned), denied: (another agent holds the item)." )
             .inputSchema( schema( props, List.of( "change" ) ) )
             .annotations( WRITES )
@@ -90,6 +90,10 @@ public final class UpdateChangeTool extends WorkMcpTool {
         }
         if ( state != null && !IN_REVIEW.equals( state ) && !ABANDONED.equals( state ) ) {
             throw new WorkValidationException( "state", "Use review_change or merge_change." );
+        }
+        if ( stringArg( args, "note" ) != null && !ABANDONED.equals( state ) ) {
+            // refused by name, so an agent never believes it left a note that was dropped
+            throw new WorkValidationException( "note", "A note goes with state abandoned." );
         }
         String action = "change-updated";
         if ( head != null || url != null ) {

@@ -54,7 +54,10 @@ public interface WorkChangeStore {
     /** The item's changes, oldest first. */
     List< Change > forItem( long itemId ) throws SQLException;
 
-    /** Sets the head commit and/or the review URL (a null leaves the field alone). A new head clears the approval. */
+    /**
+     * Sets the head commit and/or the review URL: a null leaves the field alone, an empty URL clears it. A new head
+     * clears the approval. A call that changes neither writes nothing, not even an event.
+     */
     Change update( Item item, long id, String headSha, String reviewUrl, Check check, Actor by ) throws SQLException;
 
     /** Open to in review; a change already in review is returned as it is. */
@@ -73,5 +76,5 @@ public interface WorkChangeStore {
     boolean hasLive( long itemId ) throws SQLException;
 
     /** Live-change counts by item id, for the items of one project that have any. */
-    Map< Long, Counts > counts( long projectId ) throws SQLException;
+    Map< String, Counts > counts( long projectId ) throws SQLException;
 }

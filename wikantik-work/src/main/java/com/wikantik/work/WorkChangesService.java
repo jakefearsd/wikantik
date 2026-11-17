@@ -86,14 +86,9 @@ public final class WorkChangesService {
     public Map< String, ChangeCounts > counts( final Actor a, final String projectKey ) throws SQLException {
         final Scope s = scopes.scope( a, projectKey );
         s.require( Action.VIEW, null );
-        final Map< Long, WorkChangeStore.Counts > byId = store.changes().counts( s.project().id() );
         final Map< String, ChangeCounts > out = new LinkedHashMap<>();
-        for ( final Map.Entry< Long, WorkChangeStore.Counts > e : byId.entrySet() ) {
-            final Item item = store.itemById( e.getKey() ).orElse( null );
-            if ( item != null ) {
-                out.put( item.key(), new ChangeCounts( e.getValue().live(), e.getValue().inReview() ) );
-            }
-        }
+        store.changes().counts( s.project().id() ).forEach( ( key, c ) ->
+            out.put( key, new ChangeCounts( c.live(), c.inReview() ) ) );
         return out;
     }
 
@@ -118,31 +113,33 @@ public final class WorkChangesService {
         final ChangeDraft clean = new ChangeDraft( ChangeInputs.branch( "branch", d.branch() ),
             ChangeInputs.branch( "baseBranch", base ), ChangeInputs.sha( "headSha", d.headSha() ),
             ChangeInputs.url( d.reviewUrl() ), merged );
-        return store.changes().open( is.item(), product.id(), clean, a );
+        return fenced( () -> store.changes().open( is.item(), product.id(), clean, a ) );
     }
 
     public Change update( final Actor a, final long changeId, final String headSha, final String reviewUrl )
             throws SQLException {
         final ItemScope is = writable( scopeOf( a, changeId ), Action.OPEN_CHANGE );
-        return store.changes().update( is.item(), changeId, ChangeInputs.sha( "headSha", headSha ),
-            ChangeInputs.url( reviewUrl ), locked -> { }, a );
+        final String url = reviewUrl != null && reviewUrl.isBlank() ? "" : ChangeInputs.url( reviewUrl );
+        return fenced( () -> store.changes().update( is.item(), changeId, ChangeInputs.sha( "headSha", headSha ),
+            url, locked -> { }, a ) );
     }
 
     public Change requestReview( final Actor a, final long changeId ) throws SQLException {
         final ItemScope is = writable( scopeOf( a, changeId ), Action.OPEN_CHANGE );
-        return store.changes().requestReview( is.item(), changeId, locked -> { }, a );
+        return fenced( () -> store.changes().requestReview( is.item(), changeId, locked -> { }, a ) );
     }
 
     /** Approves the change at its current commit, or sends it back with a note. */
     public Change review( final Actor a, final long changeId, final boolean approved, final String note )
             throws SQLException {
         final ItemScope is = writable( scopeOf( a, changeId ), Action.REVIEW_CHANGE );
-        return store.changes().review( is.item(), changeId, approved, ChangeInputs.note( note ), locked -> {
+        final String clean = ChangeInputs.note( note );
+        return fenced( () -> store.changes().review( is.item(), changeId, approved, clean, locked -> {
             scopes.decide( is.scope(), "review", Action.REVIEW_CHANGE, WorkGates.mayReview( a, locked ) );
             if ( approved && locked.headSha() == null ) {
                 throw new WorkValidationException( "headSha", "This change names no commit to approve." );
             }
-        }, a );
+        }, a ) );
     }
 
     /**
@@ -153,7 +150,7 @@ public final class WorkChangesService {
         final ItemScope is = writable( scopeOf( a, changeId ), Action.MERGE_CHANGE );
         final String sha = ChangeInputs.requiredSha( "mergedSha", mergedSha );
         final EffectivePolicy policy = WorkAutonomy.resolve( store.policyChain( is.item().id() ) );
-        return store.changes().merge( is.item(), changeId, sha, locked -> {
+        return fenced( () -> store.changes().merge( is.item(), changeId, sha, locked -> {
             final Decision who = WorkGates.mayMerge( a, locked, policy );
             final boolean reviewed = locked.approvedForHead() && sha.equals( locked.headSha() );
             if ( who.allowed() && a.kind() == Actor.Kind.AGENT && !reviewed ) {
@@ -163,18 +160,38 @@ public final class WorkChangesService {
             }
             scopes.decide( is.scope(), "merge", Action.MERGE_CHANGE, who );
             return reviewed ? MergeKind.REVIEWED : MergeKind.UNREVIEWED;
-        }, a );
+        }, a ) );
     }
 
     public Change abandon( final Actor a, final long changeId, final String note ) throws SQLException {
         final ItemScope is = writable( scopeOf( a, changeId ), Action.OPEN_CHANGE );
-        return store.changes().abandon( is.item(), changeId, ChangeInputs.note( note ), locked -> { }, a );
+        final String clean = ChangeInputs.note( note );
+        return fenced( () -> store.changes().abandon( is.item(), changeId, clean, locked -> { }, a ) );
     }
 
     /** The scope of a change's item; an unknown change and one on an unseen item are the same "not found". */
     private ItemScope scopeOf( final Actor a, final long changeId ) throws SQLException {
         final Change c = store.changes().change( changeId ).orElseThrow( () -> new WorkNotFoundException( WorkScopes.NOT_FOUND ) );
         return scopes.itemScopeById( a, c.itemId() );
+    }
+
+    /** A store write of a change. */
+    @FunctionalInterface
+    private interface Write {
+        Change run() throws SQLException;
+    }
+
+    /**
+     * Runs the write; a claim by another agent that landed after this service read the item, and was found on the
+     * locked row, is the same refusal as one seen on the read.
+     */
+    private Change fenced( final Write write ) throws SQLException {
+        try {
+            return write.run();
+        } catch ( final ClaimFenceException e ) {
+            scopes.denied( Action.OPEN_CHANGE );
+            throw new WorkDeniedException( e.getMessage() );
+        }
     }
 
     private static ItemScope writable( final ItemScope is, final Action action ) {

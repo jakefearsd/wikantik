@@ -84,12 +84,14 @@ final class JdbcWorkDeployments implements WorkDeploymentStore {
 
     /**
      * Whether the item has shipped: a deployment to production that carries it is verified, and was verified after
-     * the item's last merged change (a deployment cannot have carried a change merged after it). On the caller's
+     * the item's last merged change (a deployment cannot have carried a change merged after it), and it deployed
+     * the product the item targets now (an item moved to another product has not shipped there). On the caller's
      * connection: the item write holds the item's row.
      */
     static boolean shippedVerified( final Jdbc jdbc, final Connection conn, final long itemId ) throws SQLException {
         return jdbc.queryOne( conn, """
             SELECT 1 FROM work_deployment_item di JOIN work_deployment d ON d.id = di.deployment_id
+              JOIN work_item i ON i.id = di.item_id AND i.product_id = d.product_id
              WHERE di.item_id = ? AND d.state = 'verified' AND d.environment = 'production'
                AND d.verified_at >= COALESCE( ( SELECT MAX( c.closed_at ) FROM work_change c
                                                  WHERE c.item_id = di.item_id AND c.state = 'merged' ),
@@ -139,10 +141,12 @@ final class JdbcWorkDeployments implements WorkDeploymentStore {
     }
 
     @Override
-    public List< Deployment > forProduct( final long productId, final int limit ) throws SQLException {
-        return jdbc.query( SELECT + " WHERE d.product_id = ?" + NEWEST_FIRST + " LIMIT ?", ps -> {
+    public List< Deployment > forProduct( final long productId, final int limit, final int offset )
+            throws SQLException {
+        return jdbc.query( SELECT + " WHERE d.product_id = ?" + NEWEST_FIRST + " LIMIT ? OFFSET ?", ps -> {
             ps.setLong( 1, productId );
             ps.setInt( 2, limit );
+            ps.setInt( 3, offset );
         }, ROW );
     }
 
@@ -197,8 +201,7 @@ final class JdbcWorkDeployments implements WorkDeploymentStore {
     private void update( final Connection conn, final long id, final DeploymentState target, final String evidence,
                          final Actor by ) throws SQLException {
         final boolean approving = target == DeploymentState.APPROVED;
-        final boolean finished = target == DeploymentState.VERIFIED || target == DeploymentState.FAILED
-            || target == DeploymentState.REJECTED;
+        final boolean finished = target.ended();
         jdbc.update( conn, """
             UPDATE work_deployment SET state = ?,
                 approved_by = CASE WHEN ? THEN ? ELSE approved_by END,

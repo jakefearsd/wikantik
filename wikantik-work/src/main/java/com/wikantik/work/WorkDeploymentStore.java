@@ -36,7 +36,7 @@ public interface WorkDeploymentStore {
     Optional< Deployment > deployment( long id ) throws SQLException;
 
     /** The product's deployments, most recently requested first. */
-    List< Deployment > forProduct( long productId, int limit ) throws SQLException;
+    List< Deployment > forProduct( long productId, int limit, int offset ) throws SQLException;
 
     /** Every deployment that carries the item, most recently requested first. */
     List< Deployment > carrying( long itemId ) throws SQLException;

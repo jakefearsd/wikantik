@@ -59,8 +59,9 @@ final class Acknowledgements {
     List< WaitingItem > awaiting( final Actor actor, final List< Project > visible ) throws SQLException {
         final Set< Long > led = new LinkedHashSet<>();
         for ( final Project p : visible ) {
-            if ( actor.instanceAdmin()
-                || scopes.standing().roleIn( p.id(), actor ).filter( r -> r == WorkRole.LEAD ).isPresent() ) {
+            // an archived project is read-only: nothing in it can be acknowledged, so nothing is asked for
+            if ( p.archivedAt() == null && ( actor.instanceAdmin()
+                || scopes.standing().roleIn( p.id(), actor ).filter( r -> r == WorkRole.LEAD ).isPresent() ) ) {
                 led.add( p.id() );
             }
         }

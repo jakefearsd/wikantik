@@ -410,4 +410,59 @@ class WorkAgentRegistryPostgresTest {
         outage = false;
         assertNotNull( actorOf( rotated.token() ), "and the token that was returned is the live one" );
     }
+
+    // ---- findings deferred from the phase 3a review
+
+    @Test
+    void aTakeoverThatLostTheRaceIsRefusedAndChangesNothing() throws SQLException {
+        final long id = codexInPlat().agent().id();
+        service.registry().releaseSponsorship( lena, id );
+        // pat read the agent with no sponsor; root took it over before pat's write
+        service.registry().takeOver( root, id );
+        final WorkConflictException lost = assertThrows( WorkConflictException.class,
+            () -> store.claims().setSponsorAndRelease( id, null, pat, "pat", pat ) );
+        assertEquals( WorkConflictException.STALE, lost.reason() );
+        assertEquals( "root", sponsorOf( id ) );
+        assertEquals( 0, store.claims().setSponsorAndRelease( id, "root", pat, "pat", pat ), "the sponsor it read" );
+        assertEquals( "pat", sponsorOf( id ) );
+    }
+
+    @Test
+    void aTokenStillVerifiesWhenItsLastUseCannotBeRecorded() throws SQLException {
+        final WorkService.AgentWithToken made = codexInPlat();
+        final WorkCredentialStore real = store.credentials();
+        final WorkCredentialStore failing = org.mockito.Mockito.mock( WorkCredentialStore.class );
+        org.mockito.Mockito.when( failing.findLive( org.mockito.ArgumentMatchers.anyString() ) )
+            .thenAnswer( call -> real.findLive( call.getArgument( 0 ) ) );
+        org.mockito.Mockito.doThrow( new SQLException( "boom: last_used_at" ) ).when( failing )
+            .touch( org.mockito.ArgumentMatchers.anyLong() );
+        final JdbcWorkStore spied = org.mockito.Mockito.spy( store );
+        org.mockito.Mockito.doReturn( failing ).when( spied ).credentials();
+        final WorkService flaky = new WorkService( spied, md -> md, new WorkDirectory() {
+            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
+            @Override public boolean exists( final String login ) { return true; }
+            @Override public String displayName( final String login ) { return login; }
+        }, Clock.systemUTC() );
+        assertEquals( made.agent().id(), flaky.registry().agentForToken( made.token() ).orElseThrow().agentId(),
+            "a bookkeeping write that failed is not a reason to refuse a valid token" );
+    }
+
+    @Test
+    void aProjectOrProductCreatedTwiceAtOnceIsAConflictNotAnError() throws SQLException {
+        // both callers passed the "does it exist" read; the second insert meets the unique key
+        final JdbcWorkStore racing = org.mockito.Mockito.spy( store );
+        org.mockito.Mockito.doReturn( Optional.empty() ).when( racing ).project( "PLAT" );
+        org.mockito.Mockito.doReturn( Optional.empty() ).when( racing ).product( "wikantik" );
+        final WorkService second = new WorkService( racing, md -> md, new WorkDirectory() {
+            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
+            @Override public boolean exists( final String login ) { return true; }
+            @Override public String displayName( final String login ) { return login; }
+        }, Clock.systemUTC() );
+        assertEquals( WorkConflictException.EXISTS, assertThrows( WorkConflictException.class,
+            () -> second.createProject( root, "PLAT", "Platform again", "" ) ).reason() );
+        final Product wikantik = new Product( 0, "wikantik", "Wikantik", null, "main", null, null, DeployGate.HUMAN, null );
+        service.createProduct( root, wikantik );
+        assertEquals( WorkConflictException.EXISTS, assertThrows( WorkConflictException.class,
+            () -> second.createProduct( root, wikantik ) ).reason() );
+    }
 }

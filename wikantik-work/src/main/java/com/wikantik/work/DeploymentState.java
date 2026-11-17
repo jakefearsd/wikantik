@@ -72,4 +72,9 @@ public enum DeploymentState {
         }
         throw new WorkValidationException( "state", "Unknown state: " + value );
     }
+
+    /** Whether a deployment reaching this state has stopped: its {@code closed_at} is the moment it did. */
+    public boolean ended() {
+        return this == VERIFIED || this == FAILED || this == REJECTED || this == ROLLED_BACK;
+    }
 }

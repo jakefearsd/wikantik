@@ -217,7 +217,7 @@ class ChangeToolsPostgresTest {
     }
 
     @Test
-    void argumentsAreCheckedByName() {
+    void argumentsAreCheckedByName() throws SQLException {
         final int id = changeInReview();
         assertEquals( "state: Use review_change or merge_change.",
             refused( call( f.builder, "update_change", "change", id, "state", "merged" ) ) );
@@ -234,6 +234,11 @@ class ChangeToolsPostgresTest {
             refused( call( f.builder, "update_change", "change", id, "head_sha", "nope" ) ) );
         assertEquals( "change: Say what to change: head_sha, review_url or state.",
             refused( call( f.builder, "update_change", "change", id ) ) );
+        assertEquals( "note: A note goes with state abandoned.",
+            refused( call( f.builder, "update_change", "change", id, "head_sha", B, "note", "rebased" ) ) );
+        assertEquals( "note: A note goes with state abandoned.",
+            refused( call( f.builder, "update_change", "change", id, "state", "in_review", "note", "please look" ) ) );
+        assertEquals( A, f.svc.changes().list( f.lena, key ).get( 0 ).headSha(), "a refused call changed nothing" );
     }
 
     @Test

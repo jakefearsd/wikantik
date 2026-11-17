@@ -128,7 +128,6 @@ function PendingConfirm({ pending, project, busy, error, onYes, onNo }) {
 }
 
 function Members({ project, reloadProject, readOnly }) {
-  const toast = useToast();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState({ members: null, error: null });
@@ -136,6 +135,7 @@ function Members({ project, reloadProject, readOnly }) {
   const [pendingError, setPendingError] = useState(null); // the server's refusal of a removal, shown in the strip
   const [adding, setAdding] = useState({ principal: '', kind: 'user', role: 'member' });
   const [addError, setAddError] = useState(null);
+  const [rowError, setRowError] = useState(null); // { id, message }: the server's refusal of a role change, on that row
   const [agents, setAgents] = useState(null); // registered agents, read once an agent is being added
   const seq = useRef(0);
 
@@ -168,15 +168,20 @@ function Members({ project, reloadProject, readOnly }) {
 
   // The server marks the viewer's own row; the page never needs (or sees) a login.
   const isMe = (m) => m.self === true;
-  const fail = (err, fallback) => toast.error(err?.message || fallback);
+  const rowId = (m) => `${m.principalKind}:${m.principal}`;
 
   // One request at a time: every control is disabled while one is in flight, so a double click cannot submit twice.
-  function run(request, { self, afterSelf }) {
+  // A refusal is shown on the member's own row and stays until the next change; the list is re-read so the
+  // role shown is the one the server still holds.
+  function run(request, { member, self, afterSelf }) {
     if (busy) return Promise.resolve();
-    setBusy(true);
+    setBusy(true); setRowError(null);
     return request()
       .then(() => (self ? afterSelf() : load()))
-      .catch((err) => { fail(err, 'Could not change the member.'); load({ quiet: !!self }); })
+      .catch((err) => {
+        setRowError({ id: rowId(member), message: err?.message || 'Could not change the member.' });
+        load({ quiet: !!self });
+      })
       .finally(() => setBusy(false));
   }
 
@@ -194,7 +199,7 @@ function Members({ project, reloadProject, readOnly }) {
   function doRole(m, role) {
     setPending(null);
     return run(() => putMember(project.key, { principal: m.principal, principalKind: m.principalKind, role }),
-      { self: isMe(m), afterSelf: afterOwnRoleChange });
+      { member: m, self: isMe(m), afterSelf: afterOwnRoleChange });
   }
   function askRemove(m) {
     setPendingError(null);
@@ -228,8 +233,8 @@ function Members({ project, reloadProject, readOnly }) {
     putMember(project.key, { principal, principalKind: adding.kind, role: adding.role })
       .then(() => { setAdding((a) => ({ ...a, principal: '' })); return load(); })
       .catch((err) => {
-        if (err?.status === 403) { toast.error(err.message); return; }
         setAddError(err?.message || 'Could not add the member.');
+        if (err?.status === 403) return;
         // The agent may have been retired meanwhile: re-read the registry so the picker stops offering it.
         if (adding.kind === 'agent') { setAgents(null); setAdding((a) => ({ ...a, principal: '' })); }
       })
@@ -246,7 +251,7 @@ function Members({ project, reloadProject, readOnly }) {
         : (
           <ul className="work-member-list">
             {state.members.map((m) => (
-              <li key={`${m.principalKind}:${m.principal}`} className="work-member-row">
+              <li key={rowId(m)} className="work-member-row">
                 <span className="work-member-name">{m.displayName || 'Unnamed member'}</span>
                 {isAgent(m)
                   ? <Badge variant="default" className="work-agent-badge" title="An agent, not a person">agent</Badge>
@@ -259,6 +264,7 @@ function Members({ project, reloadProject, readOnly }) {
                       disabled={busy} onChange={(r) => changeRole(m, r)} />
                     <button type="button" className="work-link-button" aria-label={`Remove ${m.displayName || 'member'}`}
                       disabled={busy} onClick={() => askRemove(m)}>Remove</button>
+                    {rowError?.id === rowId(m) && <span className="work-field-error" role="alert">{rowError.message}</span>}
                   </>
                 )}
               </li>

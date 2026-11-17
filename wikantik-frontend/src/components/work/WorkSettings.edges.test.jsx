@@ -130,14 +130,14 @@ describe('WorkSettings edges', () => {
     await waitFor(() => expect(screen.getByLabelText('Display name or group name')).toHaveValue(''));
   });
 
-  it('a refused add by a user without the right shows a toast, not a field error', async () => {
+  it('a refused add by a user without the right shows the server words by the form, not in a toast', async () => {
     putMember.mockRejectedValue(refusal('Leads only.', 403));
     renderSettings();
     await screen.findByText('Bob B');
     fireEvent.change(screen.getByLabelText('Display name or group name'), { target: { value: 'carol' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Leads only.'));
-    expect(screen.queryByRole('alert')).toBeNull();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Leads only.');
+    expect(toast.error).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Display name or group name')).toHaveValue('carol');
   });
 
@@ -169,14 +169,29 @@ describe('WorkSettings edges', () => {
     expect(within(screen.getByLabelText('Agent to add')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Choose an agent']);
   });
 
-  it('a failed role change shows the server words in a toast and re-reads the list', async () => {
+  it('a failed role change shows the server words on that member\'s row and re-reads the list', async () => {
     putMember.mockRejectedValue(refusal('Last lead cannot be demoted.', 409));
     renderSettings();
     await screen.findByText('Bob B');
     listMembers.mockClear();
     fireEvent.change(screen.getByLabelText('Role of Bob B'), { target: { value: 'lead' } });
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Last lead cannot be demoted.'));
+    const row = screen.getByText('Bob B').closest('li');
+    expect(await within(row).findByRole('alert')).toHaveTextContent('Last lead cannot be demoted.');
+    expect(toast.error).not.toHaveBeenCalled();
     await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(1));
+    // The message stays after the list is re-read, and goes when the next change works.
+    expect(within(screen.getByText('Bob B').closest('li')).getByRole('alert')).toBeInTheDocument();
+    putMember.mockResolvedValue({});
+    fireEvent.change(screen.getByLabelText('Role of Bob B'), { target: { value: 'viewer' } });
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  });
+
+  it('a failed role change with no server words uses the plain default', async () => {
+    putMember.mockRejectedValue(new Error(''));
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.change(screen.getByLabelText('Role of Bob B'), { target: { value: 'lead' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not change the member.');
   });
 
   it('a failed removal with no server words uses the plain default', async () => {
@@ -195,7 +210,7 @@ describe('WorkSettings edges', () => {
     await screen.findByText('Bob B');
     fireEvent.change(screen.getByLabelText('Role of Me Myself'), { target: { value: 'member' } });
     fireEvent.click(screen.getByRole('button', { name: 'Yes, change my role' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Not allowed.'));
+    expect(await within(screen.getByText('Me Myself').closest('li')).findByRole('alert')).toHaveTextContent('Not allowed.');
     await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(2));
     expect(screen.getByText('Bob B')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();

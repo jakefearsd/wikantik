@@ -28,6 +28,7 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
@@ -80,8 +81,7 @@ public final class ClaimItemTool extends WorkMcpTool {
         final ClaimResult result = svc.claims().claim( actor, key );
         WorkMcpLog.written( TOOL_NAME, result.renewed() ? "renewed" : "claimed", key, actor );
         final Map< String, Object > claim = new LinkedHashMap<>();
-        claim.put( "expiresAt", result.view().item().claimExpiresAt() == null ? null
-            : result.view().item().claimExpiresAt().toString() );
+        claim.put( "expiresAt", Objects.toString( result.view().item().claimExpiresAt(), null ) );
         claim.put( "renewed", result.renewed() );
         final Map< String, Object > out = new LinkedHashMap<>();
         out.put( "claim", claim );

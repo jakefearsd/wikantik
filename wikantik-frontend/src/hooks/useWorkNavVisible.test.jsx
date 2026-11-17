@@ -90,4 +90,12 @@ describe('useWorkNavVisible when the signed-in user changes', () => {
     expect(result.current).toBe(false);
     expect(getMe).toHaveBeenCalledTimes(2);
   });
+
+  it('copes with a user record that has no name and an answer that has no project list', async () => {
+    getMe.mockResolvedValue(undefined);
+    as({ authenticated: true, roles: [] }, true);
+    const { result } = renderHook(() => useWorkNavVisible());
+    await waitFor(() => expect(getMe).toHaveBeenCalled());
+    expect(result.current).toBe(false);
+  });
 });

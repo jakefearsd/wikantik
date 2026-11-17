@@ -98,4 +98,24 @@ class WorkWiringTest {
         }
         assertEquals( java.time.Duration.ofMinutes( 240 ), WorkWiring.claimExpiry( expiry( null ) ) );
     }
+
+    @Test
+    void theServiceIsBuiltWithOrWithoutAMetricsRegistry() {
+        final io.micrometer.core.instrument.MeterRegistry before = com.wikantik.api.observability.MeterRegistryHolder.get();
+        try {
+            com.wikantik.api.observability.MeterRegistryHolder.clear();
+            assertNotNull( WorkWiring.build( Mockito.mock( DataSource.class ), props( "true" ), engine ),
+                "no registry: work management still starts, unmeasured" );
+            com.wikantik.api.observability.MeterRegistryHolder.set(
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry() );
+            assertNotNull( WorkWiring.build( Mockito.mock( DataSource.class ), props( " true " ), engine ),
+                "a padded flag still reads as on" );
+        } finally {
+            if ( before == null ) {
+                com.wikantik.api.observability.MeterRegistryHolder.clear();
+            } else {
+                com.wikantik.api.observability.MeterRegistryHolder.set( before );
+            }
+        }
+    }
 }

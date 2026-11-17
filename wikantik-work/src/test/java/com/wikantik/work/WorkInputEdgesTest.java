@@ -371,4 +371,26 @@ class WorkInputEdgesTest {
         guarded.released( 2 );
         guarded.released( 0 );
     }
+
+    // ---- deployments
+
+    @Test
+    void aDeploymentsVersionEnvironmentNoteAndEvidenceAreChecked() {
+        assertEquals( "2.6.0+build.7", DeploymentInputs.version( " 2.6.0+build.7 " ) );
+        assertEquals( "version", field( () -> DeploymentInputs.version( null ) ) );
+        assertEquals( "version", field( () -> DeploymentInputs.version( "two point six" ) ) );
+        assertEquals( "version", field( () -> DeploymentInputs.version( "1".repeat( 61 ) ) ) );
+        assertEquals( "production", DeploymentInputs.environment( null ), "where a deployment goes unless told otherwise" );
+        assertEquals( "production", DeploymentInputs.environment( "  " ) );
+        assertEquals( "staging", DeploymentInputs.environment( " staging " ) );
+        assertEquals( "environment", field( () -> DeploymentInputs.environment( "Staging EU" ) ) );
+        assertNull( DeploymentInputs.note( null ) );
+        assertNull( DeploymentInputs.note( " " ) );
+        assertEquals( "why", DeploymentInputs.note( "why" ) );
+        assertEquals( "note", field( () -> DeploymentInputs.note( "x".repeat( DeploymentInputs.MAX_NOTE + 1 ) ) ) );
+        assertEquals( "health 200", DeploymentInputs.evidence( "health 200" ) );
+        assertEquals( "evidence", field( () -> DeploymentInputs.evidence( null ) ) );
+        assertEquals( "evidence", field( () -> DeploymentInputs.evidence( " \n " ) ) );
+        assertEquals( "evidence", field( () -> DeploymentInputs.evidence( "x".repeat( DeploymentInputs.MAX_EVIDENCE + 1 ) ) ) );
+    }
 }

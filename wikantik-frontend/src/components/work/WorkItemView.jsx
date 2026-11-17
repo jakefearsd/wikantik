@@ -18,7 +18,9 @@ import AssigneePicker, { targetOf, targetValue } from './AssigneePicker';
 import WorkClaim from './WorkClaim';
 import WorkFieldRow from './WorkFieldRow';
 import WorkHandoff, { handoffShape } from './WorkHandoff';
+import WorkChanges from './WorkChanges';
 import WorkLinks from './WorkLinks';
+import WorkPolicyNote from './WorkPolicyNote';
 import WorkTimeline from './WorkTimeline';
 import { isPast, useExpiryClock } from './workTime';
 
@@ -26,16 +28,15 @@ const EPIC_STATUSES = ['draft', 'in_progress', 'done', 'cancelled'];
 const KIND_OPTIONS = ['software', 'docs', 'admin'].map((k) => ({ value: k, label: k }));
 const PARENT_LEVEL = { story: 'epic', task: 'story' };
 const AUTONOMY_OPTIONS = [
-  { value: '', label: 'Project default' }, { value: 'supervised', label: 'Supervised' },
+  { value: '', label: 'Inherited' }, { value: 'supervised', label: 'Supervised' },
   { value: 'delegated', label: 'Delegated' }, { value: 'autonomous', label: 'Autonomous' },
 ];
 const DONE_MEANS_OPTIONS = [
-  { value: '', label: 'Project default' }, { value: 'merged', label: 'Merged' }, { value: 'in_production', label: 'In production' },
+  { value: '', label: 'Inherited' }, { value: 'merged', label: 'Merged' }, { value: 'in_production', label: 'In production' },
 ];
 const ALLOW_DIRECT_OPTIONS = [
-  { value: '', label: 'Project default' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' },
+  { value: '', label: 'Inherited' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' },
 ];
-const LATER = 'Takes effect in a later release';
 const labelOf = (options, value) => options.find((o) => o.value === value)?.label ?? value;
 const blankToNull = (v) => (v === '' ? null : v);
 const dateText = (iso) => (iso ? new Date(iso).toLocaleDateString() : '');
@@ -372,6 +373,10 @@ function ItemPage({ itemKey }) {
             onAdd={(kind, target) => mutate(() => addLink(itemKey, { kind, target }), 'Could not add the link.')}
             onRemove={(id) => mutate(() => removeLink(id), 'Could not remove the link.')}
           />
+          {!isEpic && (
+            <WorkChanges itemKey={itemKey} canEdit={canEdit} refreshKey={activity}
+              onChanged={() => setActivity((n) => n + 1)} />
+          )}
           <WorkComments
             comments={view.comments} members={members} canComment={canEdit} isLead={isLead}
             onAdd={(body) => mutate(() => addComment(itemKey, body), 'Could not post the comment.')}
@@ -427,12 +432,14 @@ function ItemPage({ itemKey }) {
           </dl>
           <h2 className="work-subheading">Policy</h2>
           <WorkFieldRow label="Autonomy" error={err('autonomy')} {...editor('autonomy')} type="select" value={item.autonomy || ''} display={labelOf(AUTONOMY_OPTIONS, item.autonomy || '')}
-            options={AUTONOMY_OPTIONS} parse={blankToNull} canEdit={isLead} helper={LATER} onSave={field('autonomy')} />
+            options={AUTONOMY_OPTIONS} parse={blankToNull} canEdit={canEdit} onSave={field('autonomy')} />
           <WorkFieldRow label="Done means" error={err('doneMeans')} {...editor('doneMeans')} type="select" value={item.doneMeans || ''} display={labelOf(DONE_MEANS_OPTIONS, item.doneMeans || '')}
-            options={DONE_MEANS_OPTIONS} parse={blankToNull} canEdit={isLead} helper={LATER} onSave={field('doneMeans')} />
+            options={DONE_MEANS_OPTIONS} parse={blankToNull} canEdit={isLead} onSave={field('doneMeans')} />
           <WorkFieldRow label="Allow direct" error={err('allowDirect')} {...editor('allowDirect')} type="select" value={item.allowDirect == null ? '' : String(item.allowDirect)}
             display={labelOf(ALLOW_DIRECT_OPTIONS, item.allowDirect == null ? '' : String(item.allowDirect))}
-            options={ALLOW_DIRECT_OPTIONS} parse={(v) => (v === '' ? null : v === 'true')} canEdit={isLead} helper={LATER} onSave={field('allowDirect')} />
+            options={ALLOW_DIRECT_OPTIONS} parse={(v) => (v === '' ? null : v === 'true')} canEdit={isLead} onSave={field('allowDirect')} />
+          <WorkPolicyNote itemKey={itemKey} ownAutonomy={item.autonomy || null} canAcknowledge={canEdit}
+            refreshKey={activity} onChanged={() => setActivity((n) => n + 1)} />
         </aside>
       </div>
     </article>

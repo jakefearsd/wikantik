@@ -9,15 +9,16 @@ import WorkLoadError from './WorkLoadError';
 
 const KEY_PATTERN = /^[a-z][a-z0-9-]{1,39}$/;
 const KEY_MESSAGE = 'Key must start with a lowercase letter and use only lowercase letters, digits and hyphens (2 to 40 characters).';
-const LATER = 'Takes effect in a later release';
-const BLANK = { key: '', name: '', repoUrl: '', defaultBranch: '', wikiCluster: '' };
+const DEPLOY_LATER = 'The deploy gate takes effect in a later release.';
+const CEILINGS = ['supervised', 'delegated', 'autonomous'];
+const BLANK = { key: '', name: '', repoUrl: '', defaultBranch: '', wikiCluster: '', autonomyCeiling: 'delegated' };
 
 function ProductForm({ product, onDone, onCancel }) {
   const toast = useToast();
   const editing = !!product;
   const [f, setF] = useState(editing
     ? { key: product.key, name: product.name || '', repoUrl: product.repoUrl || '', defaultBranch: product.defaultBranch || '',
-      wikiCluster: product.wikiCluster || '' }
+      wikiCluster: product.wikiCluster || '', autonomyCeiling: product.autonomyCeiling || 'delegated' }
     : BLANK);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -29,7 +30,7 @@ function ProductForm({ product, onDone, onCancel }) {
     if (!f.name.trim()) { setError('Enter a name.'); return; }
     setError(null); setBusy(true);
     const fields = { name: f.name.trim(), repoUrl: f.repoUrl.trim() || null, defaultBranch: f.defaultBranch.trim() || null,
-      wikiCluster: f.wikiCluster.trim() || null };
+      wikiCluster: f.wikiCluster.trim() || null, autonomyCeiling: f.autonomyCeiling };
     const request = editing ? updateProduct(product.key, fields) : createProduct({ key: f.key, ...fields });
     request
       .then(() => { toast.success(editing ? 'Product saved' : `Created ${f.key}`); onDone(); })
@@ -51,9 +52,13 @@ function ProductForm({ product, onDone, onCancel }) {
       <input id="work-prod-branch" className="work-field-input" value={f.defaultBranch} onChange={set('defaultBranch')} />
       <label className="work-form-field" htmlFor="work-prod-cluster">Wiki cluster</label>
       <input id="work-prod-cluster" className="work-field-input" value={f.wikiCluster} onChange={set('wikiCluster')} />
+      <label className="work-form-field" htmlFor="work-prod-ceiling">Autonomy ceiling</label>
+      <select id="work-prod-ceiling" className="work-field-input" value={f.autonomyCeiling} onChange={set('autonomyCeiling')}>
+        {CEILINGS.map((c) => <option key={c} value={c}>{c}</option>)}
+      </select>
       <p className="work-muted">
-        Autonomy ceiling: {editing ? product.autonomyCeiling || 'delegated' : 'delegated'}; deploy gate:{' '}
-        {editing ? product.deployGate || 'human' : 'human'}. {LATER}
+        The most agents may do unattended on work for this product, whatever an epic says.
+        Deploy gate: {editing ? product.deployGate || 'human' : 'human'}. {DEPLOY_LATER}
       </p>
       {error && <div className="work-form-error" role="alert">{error}</div>}
       <div className="work-actions">
@@ -127,7 +132,7 @@ export default function WorkProducts() {
                             .filter(Boolean).join(' · ') || 'No repository or cluster set'}
                         </div>
                         <div className="work-muted">
-                          Autonomy ceiling {p.autonomyCeiling || 'delegated'}, deploy gate {p.deployGate || 'human'}. {LATER}
+                          Autonomy ceiling {p.autonomyCeiling || 'delegated'}, deploy gate {p.deployGate || 'human'}. {DEPLOY_LATER}
                         </div>
                       </div>
                       {archiving === p.key

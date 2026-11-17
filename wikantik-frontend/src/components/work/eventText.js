@@ -43,6 +43,10 @@ export function actorLabel(e) {
   return ev.actorKind === 'agent' ? 'An agent' : 'Someone';
 }
 
+const commit = (sha) => (sha ? ` at ${String(sha).slice(0, 8)}` : '');
+const MERGED = {
+  reviewed: 'merged a reviewed change', unreviewed: 'merged a change without review', direct: 'merged directly',
+};
 const until = (iso, at) => (clockText(iso, at) ? ` · until ${clockText(iso, at)}` : '');
 const statusWords = (v) => words(orNone(v));
 
@@ -167,6 +171,15 @@ export function eventText(e) {
     case 'comment_removed': return { text: 'removed a comment', note };
     case 'linked': return { text: `linked ${splitLink(ev.toValue)}`, note };
     case 'unlinked': return { text: `removed link ${splitLink(ev.fromValue)}`, note };
+    case 'change_opened': return { text: `opened a change on ${orNone(ev.toValue)}${commit(ev.note)}`, note: null };
+    case 'change_updated': return { text: `updated a change${commit(ev.toValue)}`, note: null };
+    case 'review_requested': return { text: `asked for a review of ${orNone(ev.toValue)}${commit(ev.note)}`, note: null };
+    case 'change_reviewed': return {
+      text: ev.toValue === 'approved' ? 'approved a change' : 'sent a change back for more work', note, prominentNote: !!note,
+    };
+    case 'change_merged': return { text: `${MERGED[ev.toValue] || 'merged a change'}${commit(ev.note)}`, note: null };
+    case 'change_abandoned': return { text: `abandoned the change on ${orNone(ev.toValue)}`, note };
+    case 'acknowledged': return { text: 'acknowledged that an agent closed this with no person in the path', note: null };
     case 'member': return { text: memberText(ev), note: null };
     case 'settings': return { text: settingsText(ev), note: null };
     default: {

@@ -129,4 +129,18 @@ describe('WorkCard', () => {
       });
     });
   });
+
+  it('says how many changes are open, or that one is in review', () => {
+    const one = renderCard({ changes: { openChanges: 1, inReview: 0 } });
+    expect(screen.getByText('1 open change')).toBeInTheDocument();
+    one.unmount();
+    const two = renderCard({ changes: { openChanges: 2, inReview: 0 } });
+    expect(screen.getByText('2 open changes')).toBeInTheDocument();
+    two.unmount();
+    const review = renderCard({ changes: { openChanges: 2, inReview: 1 } });
+    expect(screen.getByText('in review')).toBeInTheDocument();
+    review.unmount();
+    renderCard();
+    expect(screen.queryByText(/open change|in review/)).toBeNull();
+  });
 });

@@ -6,6 +6,10 @@ vi.mock('../../api/work', () => ({
   getItem: vi.fn(), patchItem: vi.fn(), listMembers: vi.fn(), listEvents: vi.fn(), listRevisions: vi.fn(),
   listProducts: vi.fn(), addComment: vi.fn(), editComment: vi.fn(), removeComment: vi.fn(), addLink: vi.fn(), removeLink: vi.fn(), listItems: vi.fn(),
   listQueues: vi.fn(), handoffItem: vi.fn(), releaseItem: vi.fn(),
+  // the changes panel and the policy note load their own data; these tests leave both empty unless they say otherwise
+  listChanges: vi.fn(() => Promise.resolve({ changes: [] })), getItemPolicy: vi.fn(() => Promise.resolve(null)),
+  openChange: vi.fn(), requestReview: vi.fn(), reviewChange: vi.fn(), mergeChange: vi.fn(), abandonChange: vi.fn(),
+  acknowledgeItem: vi.fn(),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
@@ -13,7 +17,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { authenticated:
 
 import {
   getItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
-  listQueues, handoffItem, releaseItem,
+  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy,
 } from '../../api/work';
 import WorkItemView from './WorkItemView';
 
@@ -54,6 +58,8 @@ beforeEach(() => {
     { key: 'old', name: 'Old queue', retiredAt: '2026-10-01T00:00:00Z' },
   ]);
   listProducts.mockResolvedValue([{ id: 3, key: 'wikantik', name: 'Wikantik' }, { id: 4, key: 'docs', name: 'Docs' }]);
+  listChanges.mockResolvedValue({ changes: [] });
+  getItemPolicy.mockResolvedValue(null);
 });
 
 // The heading renders before the members and queues reads resolve (they are effects of the same commit, and slower
@@ -248,10 +254,11 @@ describe('WorkItemView', () => {
     expect(screen.getByText('Bob Brown')).toBeInTheDocument();
   });
 
-  it('policyFieldsEditableOnlyByLead', async () => {
-    const lead = renderView(makeView({ viewerRole: 'lead' }, { autonomy: 'delegated', doneMeans: 'merged', allowDirect: true }));
+  it('policyFieldsFollowWhoMaySetThem: a lead all three, a member only the level, a viewer none', async () => {
+    const policy = { autonomy: 'delegated', doneMeans: 'merged', allowDirect: true };
+    const lead = renderView(makeView({ viewerRole: 'lead' }, policy));
     await ready();
-    expect(screen.getAllByText('Takes effect in a later release')).toHaveLength(3);
+    expect(screen.queryByText('Takes effect in a later release')).toBeNull();
     expect(screen.getByText('Delegated')).toBeInTheDocument();
     expect(screen.getByText('Merged')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit Autonomy' })).toBeInTheDocument();
@@ -259,14 +266,41 @@ describe('WorkItemView', () => {
     expect(screen.getByRole('button', { name: 'Edit Allow direct' })).toBeInTheDocument();
     lead.unmount();
 
-    renderView(makeView({ viewerRole: 'member' }, { autonomy: 'delegated', doneMeans: 'merged', allowDirect: true }));
+    // a member may make an item stricter; the server refuses a loosening, so the control is offered
+    const member = renderView(makeView({ viewerRole: 'member' }, policy));
     await ready();
-    expect(screen.getAllByText('Takes effect in a later release')).toHaveLength(3);
-    expect(screen.getByText('Delegated')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit Autonomy' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Autonomy' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit Done means' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Edit Allow direct' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Edit Priority' })).toBeInTheDocument();
+    member.unmount();
+
+    renderView(makeView({ viewerRole: 'viewer' }, policy));
+    await ready();
+    expect(screen.queryByRole('button', { name: 'Edit Autonomy' })).toBeNull();
+  });
+
+  it('showsTheEffectivePolicyAndTheChangesOfAStoryOrTask', async () => {
+    getItemPolicy.mockResolvedValue({
+      effective: { autonomy: 'supervised', allowDirect: false, doneMeans: 'merged' }, ackRequired: false, ackWaiting: false,
+    });
+    listChanges.mockResolvedValue({ changes: [{
+      id: 5, itemKey: 'PLAT-7', branch: 'work/PLAT-7-x', baseBranch: 'main', headSha: 'aaaaaaa1', state: 'open',
+      openedByName: 'codex', openedByKind: 'agent', approvedForHead: false,
+    }] });
+    renderView(makeView({ viewerRole: 'member' }, { autonomy: 'delegated' }));
+    await ready();
+    expect(await screen.findByText('work/PLAT-7-x')).toBeInTheDocument();
+    const note = await screen.findByTestId('policy-note');
+    expect(note).toHaveTextContent('Effective level: Supervised');
+    expect(note).toHaveTextContent("this item says Delegated; the product's ceiling caps it");
+    expect(listChanges).toHaveBeenCalledWith('PLAT-7');
+  });
+
+  it('anEpicHasNoChangesPanel', async () => {
+    renderView(makeView({ viewerRole: 'lead' }, { level: 'epic' }));
+    await ready();
+    expect(screen.queryByRole('region', { name: 'Changes' })).toBeNull();
+    expect(listChanges).not.toHaveBeenCalled();
   });
 
   it('a lead edits a policy field, sending one field', async () => {

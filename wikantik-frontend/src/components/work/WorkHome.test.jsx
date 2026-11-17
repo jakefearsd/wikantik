@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-vi.mock('../../api/work', () => ({ getMe: vi.fn(), createProject: vi.fn() }));
+vi.mock('../../api/work', () => ({ getMe: vi.fn(), createProject: vi.fn(), acknowledgeItem: vi.fn(() => Promise.resolve({})) }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { getMe, createProject } from '../../api/work';
+import { getMe, createProject, acknowledgeItem } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import WorkHome from './WorkHome';
@@ -135,6 +135,14 @@ describe('WorkHome', () => {
     const archived = screen.getByRole('region', { name: 'Archived projects' });
     expect(within(archived).getByRole('link', { name: 'OLD Old one' })).toHaveAttribute('href', '/work/OLD');
     expect(within(archived).queryByRole('link', { name: 'PLAT Platform' })).toBeNull();
+  });
+
+  it('acknowledges work done without the viewer from the home page and reloads', async () => {
+    renderHome({ me: { projects: ME.projects, waitingOn: [
+      { id: 9, key: 'PLAT-9', projectId: 1, title: 'Restarted the indexer', waiting: { reason: 'acknowledge' } }] } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Acknowledge PLAT-9' }));
+    await waitFor(() => expect(acknowledgeItem).toHaveBeenCalledWith('PLAT-9'));
+    await waitFor(() => expect(getMe).toHaveBeenCalledTimes(2));
   });
 
   it('waitingShowsWhoHandedOff: the lane says who handed the item over and their note', async () => {

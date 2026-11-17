@@ -4,11 +4,15 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
   getBoard: vi.fn(), getMe: vi.fn(), listProducts: vi.fn(), listMembers: vi.fn(), patchItem: vi.fn(), listItems: vi.fn(), createItem: vi.fn(), listQueues: vi.fn(),
+  getChangeCounts: vi.fn(() => Promise.resolve({})), acknowledgeItem: vi.fn(() => Promise.resolve({})),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 
-import { getBoard, getMe, listProducts, listMembers, patchItem, listItems, createItem, listQueues } from '../../api/work';
+import {
+  getBoard, getMe, listProducts, listMembers, patchItem, listItems, createItem, listQueues, getChangeCounts,
+  acknowledgeItem,
+} from '../../api/work';
 import { WorkProjectContext } from './useWorkProject';
 import WorkBoard from './WorkBoard';
 
@@ -59,6 +63,8 @@ beforeEach(() => {
     { principal: 'dan-login', principalKind: 'user', role: 'lead', displayName: 'Dan D' },
   ]);
   board = boardOf({ ready: [item(1, 'ready'), item(2, 'ready')], review: [item(3, 'review')] });
+  getChangeCounts.mockResolvedValue({});
+  acknowledgeItem.mockResolvedValue({});
 });
 
 describe('WorkBoard', () => {
@@ -86,6 +92,47 @@ describe('WorkBoard', () => {
     expect(within(lane).getByText(/Waiting on you \(1\)/)).toBeInTheDocument();
     expect(within(lane).queryByText(/Elsewhere/)).not.toBeInTheDocument();
     expect(within(lane).getByRole('link', { name: /PLAT-2/ })).toHaveAttribute('href', '/work/item/PLAT-2');
+  });
+
+  it('shows what was done without the viewer and acknowledges it, then reloads the lane', async () => {
+    const done = item(9, 'done', { projectId: 1, title: 'Restarted the indexer', waiting: { reason: 'acknowledge' } });
+    getMe.mockResolvedValueOnce({ waitingOn: [done], projects: [] }).mockResolvedValue({ waitingOn: [], projects: [] });
+    getBoard.mockImplementation(() => Promise.resolve(board));
+    render(
+      <MemoryRouter initialEntries={['/work/PLAT']}>
+        <WorkProjectContext.Provider value={{ project: PROJECT, role: 'lead', reload: vi.fn() }}>
+          <WorkBoard />
+        </WorkProjectContext.Provider>
+      </MemoryRouter>);
+    const lane = await screen.findByTestId('done-without-you');
+    expect(within(lane).getByText('Done without you (1)')).toBeInTheDocument();
+    fireEvent.click(within(lane).getByRole('button', { name: 'Acknowledge PLAT-9' }));
+    await waitFor(() => expect(acknowledgeItem).toHaveBeenCalledWith('PLAT-9'));
+    await waitFor(() => expect(screen.queryByTestId('done-without-you')).toBeNull());
+  });
+
+  it('a viewer sees the lane without the button', async () => {
+    const done = item(9, 'done', { projectId: 1, waiting: { reason: 'acknowledge' } });
+    renderBoard({ role: 'viewer', me: { waitingOn: [done], projects: [] } });
+    await screen.findByTestId('done-without-you');
+    expect(screen.queryByRole('button', { name: /Acknowledge/ })).toBeNull();
+  });
+
+  it('badges the cards that have a live change', async () => {
+    getChangeCounts.mockResolvedValue({ 'PLAT-1': { openChanges: 1, inReview: 0 }, 'PLAT-3': { openChanges: 1, inReview: 1 } });
+    renderBoard();
+    await screen.findByText('Item 1');
+    expect(await screen.findByText('1 open change')).toBeInTheDocument();
+    expect(screen.getByText('in review')).toBeInTheDocument();
+    expect(getChangeCounts).toHaveBeenCalledWith('PLAT');
+  });
+
+  it('the board still shows when the change counts cannot be read', async () => {
+    getChangeCounts.mockRejectedValue(new Error('boom'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderBoard();
+    expect(await screen.findByText('Item 1')).toBeInTheDocument();
+    warn.mockRestore();
   });
 
   it('hides the waiting lane when nothing waits on the viewer in this project', async () => {

@@ -199,4 +199,28 @@ describe('eventText', () => {
     expect(eventText(ev('future_thing')).text).toBe('future thing');
     expect(eventText({}).text).toBe('did something');
   });
+
+  it('change events say what happened to the branch, never a raw change id', () => {
+    const by = { actorName: 'codex@docker2', actorKind: 'agent', fromValue: 'change:7' };
+    expect(eventSentence(ev('change_opened', { ...by, toValue: 'work/PLAT-7-x', note: 'aaaaaaa1bbbbcccc' })))
+      .toBe('codex@docker2 opened a change on work/PLAT-7-x at aaaaaaa1');
+    expect(eventSentence(ev('change_updated', { ...by, toValue: 'bbbbbbb2cccc' }))).toBe('codex@docker2 updated a change at bbbbbbb2');
+    expect(eventSentence(ev('review_requested', { ...by, toValue: 'work/PLAT-7-x', note: null })))
+      .toBe('codex@docker2 asked for a review of work/PLAT-7-x');
+    expect(eventSentence(ev('change_reviewed', { ...by, toValue: 'approved', note: null }))).toBe('codex@docker2 approved a change');
+    expect(eventSentence(ev('change_reviewed', { ...by, toValue: 'changes_requested', note: 'needs a test' })))
+      .toBe("codex@docker2 sent a change back for more work — 'needs a test'");
+    expect(eventSentence(ev('change_merged', { ...by, toValue: 'reviewed', note: 'aaaaaaa1' })))
+      .toBe('codex@docker2 merged a reviewed change at aaaaaaa1');
+    expect(eventSentence(ev('change_merged', { ...by, toValue: 'unreviewed', note: 'aaaaaaa1' })))
+      .toBe('codex@docker2 merged a change without review at aaaaaaa1');
+    expect(eventSentence(ev('change_merged', { ...by, toValue: 'direct', note: '9b01c77' }))).toBe('codex@docker2 merged directly at 9b01c77');
+    expect(eventSentence(ev('change_abandoned', { ...by, toValue: 'work/PLAT-7-x', note: null })))
+      .toBe('codex@docker2 abandoned the change on work/PLAT-7-x');
+    expect(eventSentence(ev('acknowledged', { actorName: 'Mia Member', actorKind: 'human' })))
+      .toBe('Mia Member acknowledged that an agent closed this with no person in the path');
+    for (const type of ['change_opened', 'change_updated', 'review_requested', 'change_reviewed', 'change_merged', 'change_abandoned']) {
+      expect(eventSentence(ev(type, { ...by, toValue: 'x' }))).not.toContain('change:7');
+    }
+  });
 });

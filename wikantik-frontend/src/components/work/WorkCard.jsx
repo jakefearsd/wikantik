@@ -16,7 +16,7 @@ function formatDue(iso) {
  * One board card. `draggable` and `onMove` are supplied only for viewers who may change the item;
  * the Move to… menu is the keyboard path for what drag does with a mouse.
  */
-export default function WorkCard({ item, productKey, draggable = false, onDragStart, onDragEnd, onMove, now: injectedNow }) {
+export default function WorkCard({ item, productKey, changes = null, draggable = false, onDragStart, onDragEnd, onMove, now: injectedNow }) {
   const now = useExpiryClock(item.claimedByAgent != null ? item.claimExpiresAt : null, injectedNow);
   const overdue = isOverdue(item);
   const claimed = item.claimedByAgent != null;
@@ -64,6 +64,11 @@ export default function WorkCard({ item, productKey, draggable = false, onDragSt
           </span>
         )}
         {available && <span className="work-card-available">Available to agents</span>}
+        {changes?.openChanges > 0 && (
+          <span className="work-card-changes">
+            {changes.inReview > 0 ? 'in review' : `${changes.openChanges} open ${changes.openChanges === 1 ? 'change' : 'changes'}`}
+          </span>
+        )}
         {item.commentCount > 0 && (
           <span className="work-card-comments" aria-label={`${item.commentCount} comments`}>
             <Icon name="comment" size={12} /> {item.commentCount}

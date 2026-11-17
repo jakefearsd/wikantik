@@ -162,3 +162,15 @@
 .work-log-title { font-weight: 500; }
 .work-log-link { margin: var(--space-sm) 0; }
 .work-log-renewals { margin: var(--space-sm) 0; }
+
+/* Changes, the effective policy and work done without a person */
+.work-change-list { list-style: none; margin: 0; padding: 0; }
+.work-change { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); }
+.work-change-head code { font-size: 0.85rem; }
+.work-change-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); margin-top: var(--space-sm); }
+.work-change-actions .work-field-input { flex: 1 1 10rem; }
+.work-change-form { margin-top: var(--space-sm); }
+.work-card-changes { color: var(--text-secondary); }
+.work-policy-note { margin-top: var(--space-sm); font-size: 0.85rem; }
+.work-ack { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); border: 1px solid var(--accent); border-left-width: 4px; border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); background: var(--accent-soft); }
+.work-waiting-ack { margin-left: var(--space-sm); }

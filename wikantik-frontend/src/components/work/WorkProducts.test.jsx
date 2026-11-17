@@ -45,10 +45,12 @@ describe('WorkProducts', () => {
     expect(listProducts).not.toHaveBeenCalled();
   });
 
-  it('lists products with the later-release note', async () => {
+  it('lists products with their ceiling, and says only the deploy gate is still to come', async () => {
     renderProducts();
     expect(await screen.findByText('Wikantik')).toBeInTheDocument();
-    expect(screen.getAllByText(/Takes effect in a later release/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Autonomy ceiling delegated/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/The deploy gate takes effect in a later release/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^Takes effect in a later release/)).toBeNull();
   });
 
   it('createValidatesKeyPattern', async () => {

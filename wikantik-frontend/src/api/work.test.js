@@ -118,4 +118,28 @@ describe('work api client', () => {
     await expect(work.handoffItem('PLAT-1', { expectedVersion: 1 }))
       .rejects.toMatchObject({ status: 409, reason: 'stale', current });
   });
+
+  it('changes, the item policy and acknowledge', async () => {
+    await work.listChanges('PLAT-7');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-7/changes');
+    await work.openChange('PLAT-7', { branch: 'work/PLAT-7-x' });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-7/changes',
+      { method: 'POST', body: JSON.stringify({ branch: 'work/PLAT-7-x' }) });
+    await work.updateChange(5, { headSha: 'abc1234' });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/changes/5', { method: 'PATCH', body: JSON.stringify({ headSha: 'abc1234' }) });
+    await work.requestReview(5);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/changes/5/request-review', { method: 'POST' });
+    await work.reviewChange(5, { approved: true });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/changes/5/review', { method: 'POST', body: JSON.stringify({ approved: true }) });
+    await work.mergeChange(5, { mergedSha: 'abc1234' });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/changes/5/merge', { method: 'POST', body: JSON.stringify({ mergedSha: 'abc1234' }) });
+    await work.abandonChange(5, {});
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/changes/5/abandon', { method: 'POST', body: '{}' });
+    await work.getChangeCounts('PLAT');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/projects/PLAT/change-counts');
+    await work.getItemPolicy('PLAT-7');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-7/policy');
+    await work.acknowledgeItem('PLAT-7');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-7/acknowledge', { method: 'POST' });
+  });
 });

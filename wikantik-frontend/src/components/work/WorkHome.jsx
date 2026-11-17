@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
-import { createProject, getMe } from '../../api/work';
+import { acknowledgeItem, createProject, getMe } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import { useToast } from '../../hooks/useToast';
@@ -109,6 +109,8 @@ export default function WorkHome() {
       {isAdmin && creating && <NewProjectForm onCancel={() => setCreating(false)} />}
       {waitingOn.length > 0 && (
         <WaitingLane as="section" items={waitingOn}
+          onAcknowledge={(i) => acknowledgeItem(i.key).then(load)
+            .catch((e) => console.warn('WorkHome: could not acknowledge', i.key, e))}
           suffix={(i) => keyOf.has(i.projectId) && <span className="work-muted"> · {keyOf.get(i.projectId)}</span>} />
       )}
       <h2 className="work-subheading">Projects</h2>

@@ -99,3 +99,21 @@ export const releaseItem = (key, note) =>
 /** POST a handoff; body is { expectedVersion, status, assignee, queue, note }. Rejects like patchItem on 409. */
 export const handoffItem = (key, body) =>
   request(`${base}/items/${enc(key)}/handoff`, json('POST', body)).catch(staleOrArchived);
+
+// Changes: a branch of work on an item, from open to merged. A refusal's reason is the Error message; a 409
+// carries body.reason (open_changes, not_approved, not_in_review, change_closed).
+export const listChanges = (key) => request(`${base}/items/${enc(key)}/changes`);
+/** body is { branch, baseBranch?, headSha?, reviewUrl?, mergedSha? }; mergedSha records a change merged directly. */
+export const openChange = (key, body) => request(`${base}/items/${enc(key)}/changes`, json('POST', body));
+export const updateChange = (id, body) => request(`${base}/changes/${enc(id)}`, json('PATCH', body));
+export const requestReview = (id) => request(`${base}/changes/${enc(id)}/request-review`, { method: 'POST' });
+export const reviewChange = (id, body) => request(`${base}/changes/${enc(id)}/review`, json('POST', body));
+export const mergeChange = (id, body) => request(`${base}/changes/${enc(id)}/merge`, json('POST', body));
+export const abandonChange = (id, body) => request(`${base}/changes/${enc(id)}/abandon`, json('POST', body));
+/** { itemKey: { openChanges, inReview } } for the items of a project that have a live change. */
+export const getChangeCounts = (projectKey) => request(`${base}/projects/${enc(projectKey)}/change-counts`);
+
+// What governs an item: { effective: { autonomy, allowDirect, doneMeans }, ackRequired, ackWaiting,
+// acknowledgedBy, acknowledgedAt }. Acknowledging is a person's act.
+export const getItemPolicy = (key) => request(`${base}/items/${enc(key)}/policy`);
+export const acknowledgeItem = (key) => request(`${base}/items/${enc(key)}/acknowledge`, { method: 'POST' });

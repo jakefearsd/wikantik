@@ -4,7 +4,9 @@ import Select from '../ui/Select';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { useToast } from '../../hooks/useToast';
-import { getBoard, getMe, listMembers, listProducts, listQueues, patchItem } from '../../api/work';
+import {
+  acknowledgeItem, getBoard, getChangeCounts, getMe, listMembers, listProducts, listQueues, patchItem,
+} from '../../api/work';
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { useWorkProject } from './useWorkProject';
 import WaitingLane from './WaitingLane';
@@ -14,11 +16,11 @@ import { STATUS_LABELS, addToColumns, groupByEpic, moveInColumns, orderColumns, 
 
 const CHANGERS = new Set(['member', 'lead']);
 
-function Column({ column, canEdit, grouped, allItems, onDragStart, onDragEnd, onMove, onDrop }) {
+function Column({ column, canEdit, grouped, allItems, changeCounts, onDragStart, onDragEnd, onMove, onDrop }) {
   const { status, total, items } = column;
   const count = total > items.length ? `${items.length} of ${total}` : String(total);
   const card = (item) => (
-    <WorkCard key={item.id} item={item} productKey={item.productKey} draggable={canEdit}
+    <WorkCard key={item.id} item={item} productKey={item.productKey} changes={changeCounts?.[item.key]} draggable={canEdit}
       onDragStart={onDragStart} onDragEnd={onDragEnd} onMove={canEdit ? onMove : undefined} />
   );
   return (
@@ -53,6 +55,7 @@ export default function WorkBoard() {
   const [showAll, setShowAll] = useState(false);
   const [grouped, setGrouped] = useState(false);
   const [waiting, setWaiting] = useState([]);
+  const [changeCounts, setChangeCounts] = useState({});
   const [products, setProducts] = useState([]);
   const [members, setMembers] = useState([]);
   const [queues, setQueues] = useState([]);
@@ -87,6 +90,10 @@ export default function WorkBoard() {
       .then((cols) => {
         if (seq !== loadSeq.current) return;
         setNotFound(false); setLoadError(null); setColumns(cols || []);
+        // card badges: which items have a live change; the board works without them
+        getChangeCounts(project.key)
+          .then((counts) => { if (seq === loadSeq.current) setChangeCounts(counts || {}); })
+          .catch((e) => console.warn('WorkBoard: failed to load the change counts', e));
       })
       .catch((e) => { if (seq === loadSeq.current) fail(e); });
   }, [project.key, productFilter, assigneeFilter, queueFilter, setColumns, fail]);
@@ -109,10 +116,16 @@ export default function WorkBoard() {
 
   useEffect(() => { load(); }, [load]);
 
+  const loadWaiting = useCallback(() => getMe()
+    .then((me) => setWaiting((me?.waitingOn || []).filter((i) => i.projectId === project.id)))
+    .catch((e) => console.warn('WorkBoard: failed to load the waiting-on list', e)), [project.id]);
+
+  const acknowledge = useCallback((item) => acknowledgeItem(item.key)
+    .then(loadWaiting)
+    .catch((e) => toast.error(e?.message || `Could not acknowledge ${item.key}.`)), [loadWaiting, toast]);
+
   useEffect(() => {
-    getMe()
-      .then((me) => setWaiting((me?.waitingOn || []).filter((i) => i.projectId === project.id)))
-      .catch((e) => console.warn('WorkBoard: failed to load the waiting-on list', e));
+    loadWaiting();
     listProducts()
       .then((list) => setProducts(list || []))
       .catch((e) => console.warn('WorkBoard: failed to load products', e));
@@ -122,7 +135,7 @@ export default function WorkBoard() {
     listQueues()
       .then((list) => setQueues(list || []))
       .catch((e) => console.warn('WorkBoard: failed to load queues', e));
-  }, [project.id, project.key]);
+  }, [project.id, project.key, loadWaiting]);
 
   function move(item, status, index) {
     const current = columns.find((c) => c.status === item.status);
@@ -213,11 +226,11 @@ export default function WorkBoard() {
           <button type="button" className="btn btn-primary work-new-item" onClick={() => setFormOpen(true)}>New item</button>
         )}
       </div>
-      {waiting.length > 0 && <WaitingLane items={waiting} />}
+      {waiting.length > 0 && <WaitingLane items={waiting} onAcknowledge={canEdit ? acknowledge : undefined} />}
       <div className="work-columns">
         {ordered.map((c) => (
           <Column key={c.status} column={c} canEdit={canEdit} grouped={grouped}
-            allItems={allItems}
+            allItems={allItems} changeCounts={changeCounts}
             onDragStart={(item) => { dragged.current = item.key; }}
             onDragEnd={() => { dragged.current = null; }}
             onMove={(item, status) => move(item, status)} onDrop={onDrop} />

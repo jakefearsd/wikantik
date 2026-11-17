@@ -10,6 +10,20 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-15-work-management-design.md`, section "Deployments and the autonomous path (phase 4)". Builds on `docs/superpowers/plans/2026-11-16-work-management-phase3b-changes-autonomy.md`, which must be complete first.
 
+## What phase 3b left this plan to build on
+
+Phase 3b is built; these are its names and rulings as they stand (its ledger and `wikantik-work/CLAUDE.md`, "Changes and autonomy", are the record). Where a task below says otherwise, this section wins.
+
+- The resolved policy is `EffectivePolicy( level, directAllowed, doneWhen )` from `WorkAutonomy.resolve( store.policyChain( itemId ) )`. `doneWhen` is what this plan calls done-means; it is already resolved (epic only) and nothing acts on it yet.
+- Status gates live in `ItemGates.requireStatusChange( Scope, Item, WorkStatus )`, reached through `WorkScopes.gates()`; it returns early for a person. The `in_production` rule binds everyone, so it goes before that early return, or better under the item-row lock in `JdbcWorkItemWrites` beside `requireNoLiveChange` (the same reason: a verify and a close must not cross).
+- `Item`, `ItemView` and `ItemSummary` are deliberately unchanged: add new reads beside them (as `WorkService.policyOf`, `changes().views` and `changes().counts` did) and new REST routes beside the item routes (`items/{key}/policy`, `items/{key}/changes`, `projects/{key}/change-counts`). So "shipped in" is its own read and route, not a field of the item view.
+- `WaitingItem( item, reason, handoff )` already has reason `acknowledge` and the "Done without you" lane exists (`Acknowledgements`, `WaitingLane.jsx`). A deployment awaiting approval has no item: give it its own list on `GET /api/work/me` (`deploymentsAwaiting`) rather than widening `WaitingItem`.
+- A gate decision for an agent is reported through `WorkScopes.decide( scope, gate, action, decision )` (`wikantik_work_gates_total`); the deploy gate reports as gate `deploy`. A deployment has no single project scope, so `DeploymentAccess` needs its own small equivalent that calls the same listener.
+- Event `actor_kind` values on the wire and in the database are `user` and `agent`.
+- MCP conventions: an item argument is `key`, numeric ids are named for the thing (`change`; here `deployment`); audit actions are single hyphenated tokens; a name that looks like a tool in the instructions file must be added to the drift test's exclusion set. The endpoint has thirteen tools before this phase.
+- The store facades are split to stay under the PMD limits (`JdbcWorkItemWrites`, `JdbcWorkAcks`, `JdbcWorkChanges`): add `JdbcWorkDeployments` the same way and expect to split the service.
+- The work event log's change events use `from_value` `change:<id>`; use `deployment:<id>` for the per-item deployment events.
+
 ## Decisions this plan makes where the spec is silent
 
 Each is the plan's call, listed in the handoff for the owner to overturn before execution.
@@ -72,7 +86,7 @@ Each is the plan's call, listed in the handoff for the owner to overturn before 
   - `work_deployment (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, product_id BIGINT NOT NULL REFERENCES work_product (id), environment TEXT NOT NULL DEFAULT 'production', version TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'requested' CHECK (state IN ('requested','approved','running','verified','failed','rolled_back')), requested_by TEXT NOT NULL, requested_by_agent_id BIGINT REFERENCES work_agent (id), approved_by TEXT, approved_by_agent_id BIGINT REFERENCES work_agent (id), requested_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), approved_at TIMESTAMP WITH TIME ZONE, started_at TIMESTAMP WITH TIME ZONE, verified_at TIMESTAMP WITH TIME ZONE, closed_at TIMESTAMP WITH TIME ZONE, evidence TEXT)`.
   - `CHECK (state <> 'verified' OR (evidence IS NOT NULL AND btrim(evidence) <> ''))`.
   - `work_deployment_item (deployment_id BIGINT NOT NULL REFERENCES work_deployment (id), item_id BIGINT NOT NULL REFERENCES work_item (id), PRIMARY KEY (deployment_id, item_id))`; index on `(item_id)`.
-  - `work_deployment_event (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, deployment_id BIGINT NOT NULL REFERENCES work_deployment (id), at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), actor TEXT NOT NULL, actor_kind TEXT NOT NULL CHECK (actor_kind IN ('human','agent')), agent_id BIGINT REFERENCES work_agent (id), from_state TEXT, to_state TEXT NOT NULL, note TEXT)`; index `(deployment_id, at, id)`.
+  - `work_deployment_event (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, deployment_id BIGINT NOT NULL REFERENCES work_deployment (id), at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), actor TEXT NOT NULL, actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user','agent')), agent_id BIGINT REFERENCES work_agent (id), from_state TEXT, to_state TEXT NOT NULL, note TEXT)`; index `(deployment_id, at, id)`.
   - Index `idx_work_deployment_product ON work_deployment (product_id, requested_at DESC)`; partial index `idx_work_deployment_waiting ON work_deployment (product_id) WHERE state = 'requested'`.
   - Grants: `SELECT, INSERT, UPDATE ON work_deployment`; `SELECT, INSERT ON work_deployment_item, work_deployment_event`.
 
@@ -140,15 +154,15 @@ Each is the plan's call, listed in the handoff for the owner to overturn before 
 ### Task 4: `done_means`, shipped-in and the waiting lane
 
 **Files:**
-- Modify: `ItemGates.java` (from phase 3b), `WorkService.java` (`ItemView` gains `List< Deployment > shippedIn`; `waitingOn` adds deployments awaiting the actor's approval), `WaitingItem.java` (a deployment entry: add `Deployment deployment`, nullable, with `item` nullable for that entry), `WorkClaimsService.java` (`handoff` to `done` asks the same gate)
+- Modify: `JdbcWorkItemWrites.java` (the `in_production` rule under the item-row lock, beside `requireNoLiveChange`), `WorkService.java` (a `shippedIn( actor, itemKey )` read; the item view is not changed), `WorkDeploymentsService.java` (`awaitingMyApproval`, surfaced by `GET /api/work/me` as `deploymentsAwaiting`)
 - Test: `WorkDoneMeansPostgresTest.java`, `WorkWaitingDeploymentsPostgresTest.java`
 
 **Interfaces:**
 - Consumes: `EffectivePolicy.doneMeans()`, `WorkDeploymentStore.shippedVerified`/`carrying`, `WorkDeploymentsService.awaitingMyApproval`.
 - Produces:
-  - `ItemGates.requireStatusChange` refuses a move to `done` for **everyone** when the effective `doneMeans` is `IN_PRODUCTION` and `shippedVerified(item)` is false: `WorkConflictException` reason `awaiting_deployment`. Epics themselves are not gated.
-  - `ItemView.shippedIn`: verified deployments carrying the item that the caller can see, newest first.
-  - `WaitingItem` reason `approve_deployment`.
+  - The item write refuses a move to `done` for **everyone** when the effective `doneWhen` is `IN_PRODUCTION` and no verified deployment carries the item: `WorkConflictException` reason `awaiting_deployment`. The service resolves `doneWhen` and passes it to the write; the store checks the deployments under the item-row lock. Epics themselves are not gated.
+  - `List< Deployment > WorkService.shippedIn( Actor, String itemKey )`: verified deployments carrying the item, newest first (a read; classify it in the visibility test).
+  - `GET /api/work/me` gains `deploymentsAwaiting`: the `requested` deployments the caller may approve.
 
 - [ ] **Step 1: Failing tests** `WorkDoneMeansPostgresTest`: `anItemUnderAnInProductionEpicCannotCloseAtMerged`, `itClosesOnceACarryingDeploymentIsVerified`, `aFailedOrRolledBackDeploymentDoesNotCount`, `oneVerifiedAmongSeveralIsEnough` (Review Focus 4), `anItemUnderAMergedEpicClosesAsBefore`, `changingTheEpicBackToMergedLetsItClose` (Review Focus 5), `aPersonIsHeldToo`, `shippedInListsVerifiedDeploymentsOnly`, `aReopenedShippedItemKeepsItsShippedInHistory`.
 - [ ] **Step 2:** Run `mvn test -pl wikantik-work -Dtest=WorkDoneMeansPostgresTest`. Expected: FAIL (the item closes today).
@@ -171,7 +185,7 @@ Each is the plan's call, listed in the handoff for the owner to overturn before 
   - `POST deployments/{id}/approve` body `{note?}`; `…/start`; `…/verify` body `{evidence}`; `…/fail` body `{note?}`; `…/roll-back` body `{note?}`.
   - `GET deployments/{id}/gate?version=<v>` → 200 `{"approved":true|false,"state":"…","version":"…"}`, `Cache-Control: no-store`. A deployment the caller cannot see is 404.
   - Deployment JSON: `id, product, environment, version, state, requestedBy, approvedBy, requestedAt, approvedAt, startedAt, verifiedAt, closedAt, evidence, items:[{key,title,status}], mayApprove, mayRun`. Names through `WorkNames`; never a login for a non-admin.
-  - Item JSON gains `shippedIn:[{id, version, environment, verifiedAt}]`.
+  - `GET items/{key}/shipped-in` → `{shippedIn:[{id, version, environment, verifiedAt}]}` (the item response itself is unchanged).
 
 - [ ] **Step 1: Failing tests** `WorkDeploymentResourceTest`: every route's happy path; 400 (`evidence`, `items`, a bad `version`), 403 (both gate refusals), 404 (unseen, non-numeric id), 409 (`bad_transition`, `awaiting_deployment` through the item route); `theGateRouteSaysFalseForEveryStateButApprovedAndRunning`; `theGateRouteSaysFalseForAnotherVersion`; `anAgentTokenRequestsAndCannotApproveUnderAHumanGate`; `evidenceIsReturnedAsTextNeverAsHtml`.
 - [ ] **Step 2:** Run `mvn test -pl wikantik-rest -Dtest=WorkDeploymentResourceTest`. Expected: FAIL (404).
@@ -192,7 +206,7 @@ Each is the plan's call, listed in the handoff for the owner to overturn before 
   - `request_deployment { product, version, items, environment? }` (write)
   - `get_deployment { deployment }` (read; `READ_ONLY`)
   - `update_deployment { deployment, state, evidence?, note? }` (write) where `state` is `approved`, `running`, `verified`, `failed` or `rolled_back`.
-  - Tool count goes from thirteen to sixteen; derive it from `assembleTools`.
+  - Tool count goes from thirteen to sixteen; derive it from `assembleTools`. The item argument of `request_deployment` is `items` (a list of keys); the deployment argument of the other two is `deployment` (its number).
 
 - [ ] **Step 1: Failing tests** `DeploymentToolsTest`: happy paths, undeclared arguments refused by name, each refusal's prefix, `Not found.` for an unseen deployment, evidence returned as plain text. `WorkMcpFlowPostgresTest.theIncidentPathEndToEnd`: under a standing epic with `autonomy: autonomous`, `done_means: in_production` and a product whose ceiling is `autonomous` and gate `agent`, an agent creates an item under the epic, approves it as ready, claims it, a second agent reviews and merges the change, the deployment is requested, approved, run and verified with evidence, the item closes and is flagged for acknowledgement. `theSamePathStopsAtApprovalUnderAHumanGate`.
 - [ ] **Step 2:** Run `mvn test -pl wikantik-work-mcp`. Expected: FAIL.

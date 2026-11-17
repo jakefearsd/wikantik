@@ -9,7 +9,7 @@ vi.mock('../../api/work', () => ({
   // the changes panel and the policy note load their own data; these tests leave both empty unless they say otherwise
   listChanges: vi.fn(() => Promise.resolve({ changes: [] })), getItemPolicy: vi.fn(() => Promise.resolve(null)),
   openChange: vi.fn(), requestReview: vi.fn(), reviewChange: vi.fn(), mergeChange: vi.fn(), abandonChange: vi.fn(),
-  acknowledgeItem: vi.fn(),
+  acknowledgeItem: vi.fn(), getShippedIn: vi.fn(() => Promise.resolve({ shippedIn: [] })),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
@@ -17,7 +17,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { authenticated:
 
 import {
   getItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
-  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy,
+  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn,
 } from '../../api/work';
 import WorkItemView from './WorkItemView';
 
@@ -60,6 +60,7 @@ beforeEach(() => {
   listProducts.mockResolvedValue([{ id: 3, key: 'wikantik', name: 'Wikantik' }, { id: 4, key: 'docs', name: 'Docs' }]);
   listChanges.mockResolvedValue({ changes: [] });
   getItemPolicy.mockResolvedValue(null);
+  getShippedIn.mockResolvedValue({ shippedIn: [] });
 });
 
 // The heading renders before the members and queues reads resolve (they are effects of the same commit, and slower
@@ -294,6 +295,15 @@ describe('WorkItemView', () => {
     expect(note).toHaveTextContent('Effective level: Supervised');
     expect(note).toHaveTextContent("this item says Delegated; the product's ceiling caps it");
     expect(listChanges).toHaveBeenCalledWith('PLAT-7');
+  });
+
+  it('saysWhatTheItemShippedIn', async () => {
+    getShippedIn.mockResolvedValue({ shippedIn: [{ id: 4, product: 'wikantik', version: '2.5.26', environment: 'production' }] });
+    renderView(makeView({ viewerRole: 'member' }));
+    await ready();
+    const shipped = await screen.findByTestId('shipped-in');
+    expect(shipped).toHaveTextContent('Shipped in wikantik 2.5.26 (production)');
+    expect(within(shipped).getByRole('link', { name: 'wikantik 2.5.26' })).toHaveAttribute('href', '/work/deployments/4');
   });
 
   it('anEpicHasNoChangesPanel', async () => {

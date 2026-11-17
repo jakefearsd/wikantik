@@ -43,6 +43,7 @@ export function actorLabel(e) {
   return ev.actorKind === 'agent' ? 'An agent' : 'Someone';
 }
 
+const env = (name) => (name ? ` (${name})` : '');
 const commit = (sha) => (sha ? ` at ${String(sha).slice(0, 8)}` : '');
 const MERGED = {
   reviewed: 'merged a reviewed change', unreviewed: 'merged a change without review', direct: 'merged directly',
@@ -179,6 +180,9 @@ export function eventText(e) {
     };
     case 'change_merged': return { text: `${MERGED[ev.toValue] || 'merged a change'}${commit(ev.note)}`, note: null };
     case 'change_abandoned': return { text: `abandoned the change on ${orNone(ev.toValue)}`, note };
+    case 'deployment_requested': return { text: `asked for this to be deployed in ${orNone(ev.toValue)}${env(ev.note)}`, note: null };
+    case 'shipped': return { text: `shipped this in ${orNone(ev.toValue)}${env(ev.note)}`, note: null };
+    case 'rolled_back': return { text: `rolled back ${orNone(ev.toValue)}${env(ev.note)}, which carried this`, note: null };
     case 'acknowledged': return { text: 'acknowledged that an agent closed this with no person in the path', note: null };
     case 'member': return { text: memberText(ev), note: null };
     case 'settings': return { text: settingsText(ev), note: null };

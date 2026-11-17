@@ -145,6 +145,22 @@ describe('WorkHome', () => {
     await waitFor(() => expect(getMe).toHaveBeenCalledTimes(2));
   });
 
+  it('lists the deployments waiting for the viewer\'s approval and links to Deployments', async () => {
+    renderHome({ me: { projects: ME.projects, waitingOn: [], deploymentsAwaiting: [
+      { id: 4, product: 'wikantik', version: '2.5.26', environment: 'production', state: 'requested', itemCount: 3 }] } });
+    const lane = await screen.findByTestId('deployments-awaiting');
+    expect(within(lane).getByText('Deployments waiting for your approval (1)')).toBeInTheDocument();
+    expect(within(lane).getByRole('link', { name: 'wikantik 2.5.26' })).toHaveAttribute('href', '/work/deployments/4');
+    expect(lane).toHaveTextContent('production · 3 items');
+    expect(screen.getByRole('link', { name: 'Deployments' })).toHaveAttribute('href', '/work/deployments');
+  });
+
+  it('shows no approvals lane when nothing waits', async () => {
+    renderHome();
+    await screen.findByText(/Review me/);
+    expect(screen.queryByTestId('deployments-awaiting')).toBeNull();
+  });
+
   it('waitingShowsWhoHandedOff: the lane says who handed the item over and their note', async () => {
     renderHome({ me: { projects: ME.projects, waitingOn: [
       { id: 5, key: 'PLAT-5', projectId: 1, title: 'Review me',

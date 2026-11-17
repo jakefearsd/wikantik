@@ -174,3 +174,9 @@
 .work-policy-note { margin-top: var(--space-sm); font-size: 0.85rem; }
 .work-ack { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); border: 1px solid var(--accent); border-left-width: 4px; border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); background: var(--accent-soft); }
 .work-waiting-ack { margin-left: var(--space-sm); }
+
+/* Deployments */
+.work-deployment-list { list-style: none; margin: var(--space-md) 0 0; padding: 0; }
+.work-deployment { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); }
+.work-evidence { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-sidebar); padding: var(--space-sm) var(--space-md); overflow-x: auto; white-space: pre-wrap; font-size: 0.85rem; }
+.work-shipped-in { margin: var(--space-sm) 0; font-size: 0.9rem; }

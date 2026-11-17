@@ -9,16 +9,17 @@ import WorkLoadError from './WorkLoadError';
 
 const KEY_PATTERN = /^[a-z][a-z0-9-]{1,39}$/;
 const KEY_MESSAGE = 'Key must start with a lowercase letter and use only lowercase letters, digits and hyphens (2 to 40 characters).';
-const DEPLOY_LATER = 'The deploy gate takes effect in a later release.';
+const GATES = [{ value: 'human', label: 'A person approves deployments' }, { value: 'agent', label: 'An agent may approve deployments' }];
 const CEILINGS = ['supervised', 'delegated', 'autonomous'];
-const BLANK = { key: '', name: '', repoUrl: '', defaultBranch: '', wikiCluster: '', autonomyCeiling: 'delegated' };
+const BLANK = { key: '', name: '', repoUrl: '', defaultBranch: '', wikiCluster: '', autonomyCeiling: 'delegated', deployGate: 'human' };
 
 function ProductForm({ product, onDone, onCancel }) {
   const toast = useToast();
   const editing = !!product;
   const [f, setF] = useState(editing
     ? { key: product.key, name: product.name || '', repoUrl: product.repoUrl || '', defaultBranch: product.defaultBranch || '',
-      wikiCluster: product.wikiCluster || '', autonomyCeiling: product.autonomyCeiling || 'delegated' }
+      wikiCluster: product.wikiCluster || '', autonomyCeiling: product.autonomyCeiling || 'delegated',
+      deployGate: product.deployGate || 'human' }
     : BLANK);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -30,7 +31,8 @@ function ProductForm({ product, onDone, onCancel }) {
     if (!f.name.trim()) { setError('Enter a name.'); return; }
     setError(null); setBusy(true);
     const fields = { name: f.name.trim(), repoUrl: f.repoUrl.trim() || null, defaultBranch: f.defaultBranch.trim() || null,
-      wikiCluster: f.wikiCluster.trim() || null, autonomyCeiling: f.autonomyCeiling };
+      wikiCluster: f.wikiCluster.trim() || null, autonomyCeiling: f.autonomyCeiling,
+      deployGate: f.deployGate };
     const request = editing ? updateProduct(product.key, fields) : createProduct({ key: f.key, ...fields });
     request
       .then(() => { toast.success(editing ? 'Product saved' : `Created ${f.key}`); onDone(); })
@@ -56,10 +58,12 @@ function ProductForm({ product, onDone, onCancel }) {
       <select id="work-prod-ceiling" className="work-field-input" value={f.autonomyCeiling} onChange={set('autonomyCeiling')}>
         {CEILINGS.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
-      <p className="work-muted">
-        The most agents may do unattended on work for this product, whatever an epic says.
-        Deploy gate: {editing ? product.deployGate || 'human' : 'human'}. {DEPLOY_LATER}
-      </p>
+      <p className="work-muted">The most agents may do unattended on work for this product, whatever an epic says.</p>
+      <label className="work-form-field" htmlFor="work-prod-gate">Deploy gate</label>
+      <select id="work-prod-gate" className="work-field-input" value={f.deployGate} onChange={set('deployGate')}>
+        {GATES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+      </select>
+      <p className="work-muted">Who may approve a deployment of this product. Autonomy never opens this gate.</p>
       {error && <div className="work-form-error" role="alert">{error}</div>}
       <div className="work-actions">
         <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{editing ? 'Save product' : 'Create product'}</button>
@@ -132,7 +136,7 @@ export default function WorkProducts() {
                             .filter(Boolean).join(' · ') || 'No repository or cluster set'}
                         </div>
                         <div className="work-muted">
-                          Autonomy ceiling {p.autonomyCeiling || 'delegated'}, deploy gate {p.deployGate || 'human'}. {DEPLOY_LATER}
+                          Autonomy ceiling {p.autonomyCeiling || 'delegated'}, deploy gate {p.deployGate || 'human'}.
                         </div>
                       </div>
                       {archiving === p.key

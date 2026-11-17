@@ -223,4 +223,14 @@ describe('eventText', () => {
       expect(eventSentence(ev(type, { ...by, toValue: 'x' }))).not.toContain('change:7');
     }
   });
+
+  it('deployment events name the version and environment, never a raw deployment id', () => {
+    const by = { actorName: 'codex@docker2', actorKind: 'agent', fromValue: 'deployment:4', toValue: '2.5.26', note: 'production' };
+    expect(eventSentence(ev('deployment_requested', by))).toBe('codex@docker2 asked for this to be deployed in 2.5.26 (production)');
+    expect(eventSentence(ev('shipped', by))).toBe('codex@docker2 shipped this in 2.5.26 (production)');
+    expect(eventSentence(ev('rolled_back', by))).toBe('codex@docker2 rolled back 2.5.26 (production), which carried this');
+    for (const type of ['deployment_requested', 'shipped', 'rolled_back']) {
+      expect(eventSentence(ev(type, by))).not.toContain('deployment:4');
+    }
+  });
 });

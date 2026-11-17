@@ -142,4 +142,28 @@ describe('work api client', () => {
     await work.acknowledgeItem('PLAT-7');
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-7/acknowledge', { method: 'POST' });
   });
+
+  it('deployments and what an item shipped in', async () => {
+    await work.listDeployments('wikantik');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments?product=wikantik');
+    await work.getDeployment(4);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4');
+    await work.getDeploymentHistory(4);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4/history');
+    await work.requestDeployment({ product: 'wikantik', version: '2.5.26', items: ['PLAT-1'] });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments',
+      { method: 'POST', body: JSON.stringify({ product: 'wikantik', version: '2.5.26', items: ['PLAT-1'] }) });
+    await work.approveDeployment(4, { note: 'go' });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4/approve', { method: 'POST', body: JSON.stringify({ note: 'go' }) });
+    await work.startDeployment(4);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4/start', { method: 'POST' });
+    await work.verifyDeployment(4, { evidence: 'ok' });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4/verify', { method: 'POST', body: JSON.stringify({ evidence: 'ok' }) });
+    await work.failDeployment(4, {});
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4/fail', { method: 'POST', body: '{}' });
+    await work.rollBackDeployment(4, {});
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/deployments/4/roll-back', { method: 'POST', body: '{}' });
+    await work.getShippedIn('PLAT-1');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-1/shipped-in');
+  });
 });

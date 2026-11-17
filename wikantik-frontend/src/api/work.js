@@ -117,3 +117,19 @@ export const getChangeCounts = (projectKey) => request(`${base}/projects/${enc(p
 // acknowledgedBy, acknowledgedAt }. Acknowledging is a person's act.
 export const getItemPolicy = (key) => request(`${base}/items/${enc(key)}/policy`);
 export const acknowledgeItem = (key) => request(`${base}/items/${enc(key)}/acknowledge`, { method: 'POST' });
+
+// Deployments: a product version going to an environment, carrying items. The caller is shown only the carried
+// items it can see. A 409 carries body.reason (bad_transition); a refusal's reason is the Error message.
+export const listDeployments = (productKey, limit) => request(`${base}/deployments${query({ product: productKey, limit })}`);
+export const getDeployment = (id) => request(`${base}/deployments/${enc(id)}`);
+export const getDeploymentHistory = (id) => request(`${base}/deployments/${enc(id)}/history`);
+/** body is { product, version, items: [itemKey], environment? }. */
+export const requestDeployment = (body) => request(`${base}/deployments`, json('POST', body));
+export const approveDeployment = (id, body) => request(`${base}/deployments/${enc(id)}/approve`, json('POST', body));
+export const startDeployment = (id) => request(`${base}/deployments/${enc(id)}/start`, { method: 'POST' });
+/** body is { evidence }: the health and smoke-test output; required. */
+export const verifyDeployment = (id, body) => request(`${base}/deployments/${enc(id)}/verify`, json('POST', body));
+export const failDeployment = (id, body) => request(`${base}/deployments/${enc(id)}/fail`, json('POST', body));
+export const rollBackDeployment = (id, body) => request(`${base}/deployments/${enc(id)}/roll-back`, json('POST', body));
+/** { shippedIn: [{ id, product, version, environment, verifiedAt }] }: the verified deployments that carried an item. */
+export const getShippedIn = (key) => request(`${base}/items/${enc(key)}/shipped-in`);

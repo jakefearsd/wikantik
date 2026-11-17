@@ -76,7 +76,7 @@ export default function WorkHome() {
   if (!capabilities?.work) return <EmptyState message="Work management is not enabled" />;
   if (state.error) return <WorkLoadError error={state.error} fallback="Could not load your projects." onRetry={load} />;
   if (!state.me) return <Spinner label="Loading…" />;
-  const { projects = [], waitingOn = [] } = state.me;
+  const { projects = [], waitingOn = [], deploymentsAwaiting = [] } = state.me;
   const keyOf = new Map(projects.map((p) => [p.id, p.key]));
   const active = projects.filter((p) => !p.archived);
   const archived = projects.filter((p) => p.archived);
@@ -103,6 +103,7 @@ export default function WorkHome() {
           {isAdmin && <Link to="/work/products">Products</Link>}
           {/* Anyone in a project may see the agents working in it; a lead registers their own there. */}
           <Link to="/work/agents">Agents &amp; queues</Link>
+          <Link to="/work/deployments">Deployments</Link>
           {isAdmin && !creating && <button type="button" className="btn btn-sm" onClick={() => setCreating(true)}>New project</button>}
         </div>
       )}
@@ -112,6 +113,19 @@ export default function WorkHome() {
           onAcknowledge={(i) => acknowledgeItem(i.key).then(load)
             .catch((e) => console.warn('WorkHome: could not acknowledge', i.key, e))}
           suffix={(i) => keyOf.has(i.projectId) && <span className="work-muted"> · {keyOf.get(i.projectId)}</span>} />
+      )}
+      {deploymentsAwaiting.length > 0 && (
+        <section className="work-waiting" data-testid="deployments-awaiting">
+          <strong>Deployments waiting for your approval ({deploymentsAwaiting.length})</strong>
+          <ul className="work-waiting-list">
+            {deploymentsAwaiting.map((d) => (
+              <li key={d.id}>
+                <Link to={`/work/deployments/${d.id}`}>{d.product} {d.version}</Link>
+                <span className="work-muted"> · {d.environment} · {d.itemCount} {d.itemCount === 1 ? 'item' : 'items'}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       <h2 className="work-subheading">Projects</h2>
       {active.length === 0

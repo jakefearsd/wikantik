@@ -21,6 +21,7 @@ import WorkHandoff, { handoffShape } from './WorkHandoff';
 import WorkChanges from './WorkChanges';
 import WorkLinks from './WorkLinks';
 import WorkPolicyNote from './WorkPolicyNote';
+import WorkShippedIn from './WorkShippedIn';
 import WorkTimeline from './WorkTimeline';
 import { isPast, useExpiryClock } from './workTime';
 
@@ -373,6 +374,7 @@ function ItemPage({ itemKey }) {
             onAdd={(kind, target) => mutate(() => addLink(itemKey, { kind, target }), 'Could not add the link.')}
             onRemove={(id) => mutate(() => removeLink(id), 'Could not remove the link.')}
           />
+          {!isEpic && <WorkShippedIn itemKey={itemKey} refreshKey={activity} />}
           {!isEpic && (
             <WorkChanges itemKey={itemKey} canEdit={canEdit} refreshKey={activity}
               onChanged={() => setActivity((n) => n + 1)} />

@@ -58,7 +58,7 @@ final class MockWork {
         when( svc.changes() ).thenReturn( changes );
         when( svc.deployments() ).thenReturn( deployments );
         when( svc.policyOf( any(), any() ) ).thenReturn( new com.wikantik.work.ItemPolicyView(
-            new com.wikantik.work.EffectivePolicy( Autonomy.DELEGATED, false, DoneMeans.MERGED ),
+            new com.wikantik.work.EffectivePolicy( Autonomy.DELEGATED, false, DoneMeans.MERGED ), Autonomy.DELEGATED,
             com.wikantik.work.Ack.NONE ) );
         when( directory.displayName( any() ) ).thenReturn( "Someone" );
     }

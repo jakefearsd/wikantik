@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -275,6 +276,35 @@ class WorkAgentRegistryPostgresTest {
         final long id = codexInPlat().agent().id();
         gone.add( "lena" );
         assertEquals( "pat", service.registry().takeOver( pat, id ).sponsor() );
+    }
+
+    private boolean offered( final Actor viewer, final long agentId ) throws SQLException {
+        return service.registry().agentViews( viewer ).stream().filter( v -> v.agent().id() == agentId )
+            .findFirst().orElseThrow().mayTakeOver();
+    }
+
+    @Test
+    void theListSaysWhoMayTakeAnAgentOverExactlyAsTakingOverDecides() throws SQLException {
+        final long id = codexInPlat().agent().id();
+        assertTrue( offered( root, id ), "an admin may at any time" );
+        assertFalse( offered( lena, id ), "its own sponsor has nothing to take over" );
+        assertFalse( offered( pat, id ), "a lead cannot displace a living sponsor" );
+        service.registry().releaseSponsorship( lena, id );
+        assertTrue( offered( pat, id ), "a lead of a project the agent is in, once nobody stands behind it" );
+        assertFalse( offered( mia, id ), "a member who leads nothing there" );
+        assertTrue( offered( root, id ) );
+        service.registry().takeOver( pat, id );
+        assertFalse( offered( pat, id ), "it is theirs now" );
+        gone.add( "pat" );
+        assertTrue( offered( lena, id ), "a lead again, once the sponsor's account is gone" );
+        service.registry().retireAgent( root, id );
+        assertFalse( service.registry().agentViews( root ).stream().filter( v -> v.agent().id() == id )
+            .findFirst().orElseThrow().mayTakeOver(), "a retired agent is never offered" );
+    }
+
+    @Test
+    void theReplyToARegistryChangeNeverOffersATakeover() throws SQLException {
+        assertFalse( service.registry().describe( codexInPlat().agent() ).mayTakeOver() );
     }
 
     @Test

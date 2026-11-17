@@ -505,8 +505,8 @@ describe('WorkAgents', () => {
 
   const MINE = { id: 11, name: 'mine-bot', vendor: '', runtime: '', queues: ['triage'], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, sponsorName: 'Lena Lead', status: 'active', sponsoredByMe: true };
   const THEIRS = { id: 12, name: 'their-bot', vendor: '', runtime: '', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, sponsorName: 'Pat P', status: 'active', sponsoredByMe: false };
-  const LOOSE = { id: 13, name: 'loose-bot', vendor: '', runtime: '', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, status: 'no_sponsor', sponsoredByMe: false };
-  const ORPHAN = { id: 14, name: 'orphan-bot', vendor: '', runtime: '', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, sponsorName: 'Gone G', status: 'sponsor_gone', sponsoredByMe: false };
+  const LOOSE = { id: 13, name: 'loose-bot', vendor: '', runtime: '', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, status: 'no_sponsor', sponsoredByMe: false, mayTakeOver: true };
+  const ORPHAN = { id: 14, name: 'orphan-bot', vendor: '', runtime: '', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, sponsorName: 'Gone G', status: 'sponsor_gone', sponsoredByMe: false, mayTakeOver: true };
   const row = (name) => screen.getByText(name).closest('[data-testid="agent-row"]');
 
   it('a lead who is not an admin opens the page and sees the agents the server returns', async () => {
@@ -541,7 +541,7 @@ describe('WorkAgents', () => {
   });
 
   it('an admin may manage and take over any agent', async () => {
-    listAgents.mockResolvedValue([THEIRS]);
+    listAgents.mockResolvedValue([{ ...THEIRS, mayTakeOver: true }]);
     renderPage({ admin: true });
     await screen.findByText('their-bot');
     expect(screen.getByRole('button', { name: 'Rotate key of their-bot' })).toBeInTheDocument();

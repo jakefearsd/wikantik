@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Work settings: a refused role change is shown on that member's row and a refused add next to the form, in the server's words, instead of in a toast.
+- Work agents page: "Take over" is offered only where the server would allow it (the agents list carries `mayTakeOver`), so a lead of an unrelated project no longer sees a button that always fails.
+- An item's policy note says when an inherited autonomy level is capped by the product (the policy carries `uncappedAutonomy`).
 
 ## [2.6.1] - 2026-11-17
 

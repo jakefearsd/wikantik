@@ -116,8 +116,11 @@ public final class WorkRegistryService {
     /** How an agent stands right now: computed from its row and the directory, never stored. */
     public enum AgentStatus { ACTIVE, RETIRED, NO_SPONSOR, SPONSOR_GONE }
 
-    /** An agent as the registry shows it: with its sponsor's public name (null when it has none) and status. */
-    public record AgentView( Agent agent, String sponsorName, AgentStatus status ) {
+    /**
+     * An agent as the registry shows it: with its sponsor's public name (null when it has none), its status, and
+     * whether the caller it was listed for may take it over (decided as {@link #takeOver} decides it).
+     */
+    public record AgentView( Agent agent, String sponsorName, AgentStatus status, boolean mayTakeOver ) {
     }
 
     /** Whether an agent's member row in a project has any effect right now, and if not, why. Computed, never stored. */
@@ -164,7 +167,7 @@ public final class WorkRegistryService {
     public List< AgentView > agentViews( final Actor actor ) throws SQLException {
         final List< AgentView > out = new ArrayList<>();
         for ( final Agent a : listAgents( actor ) ) {
-            out.add( view( a ) );
+            out.add( view( actor, a ) );
         }
         return out;
     }
@@ -188,12 +191,12 @@ public final class WorkRegistryService {
         }
         final AgentStatus status = !agent.active() ? AgentStatus.RETIRED
             : agent.sponsor() == null ? AgentStatus.NO_SPONSOR : AgentStatus.ACTIVE;
-        return new AgentView( agent, sponsorName, status );
+        return new AgentView( agent, sponsorName, status, false );
     }
 
-    private AgentView view( final Agent a ) {
+    private AgentView view( final Actor actor, final Agent a ) throws SQLException {
         return new AgentView( a, a.sponsor() == null ? null : scopes.displayName( a.sponsor() ),
-            sponsorship.status( a ) );
+            sponsorship.status( a ), sponsorship.mayTakeOver( actor, a ) );
     }
 
     /**

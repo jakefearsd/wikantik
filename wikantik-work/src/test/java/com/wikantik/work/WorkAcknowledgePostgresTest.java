@@ -62,6 +62,18 @@ class WorkAcknowledgePostgresTest {
     }
 
     @Test
+    void thePolicySaysWhatTheLevelWasBeforeTheProductsCeiling() throws SQLException {
+        final Item d = f.task();
+        f.level( d, Autonomy.AUTONOMOUS );
+        assertEquals( Autonomy.AUTONOMOUS, f.svc.policyOf( f.lena, d.key() ).uncapped() );
+        assertEquals( f.svc.policyOf( f.lena, d.key() ).effective().level(), f.svc.policyOf( f.lena, d.key() ).uncapped(),
+            "no ceiling below it: both are the same" );
+        f.ceiling( Autonomy.SUPERVISED );
+        assertEquals( Autonomy.SUPERVISED, f.svc.policyOf( f.lena, d.key() ).effective().level() );
+        assertEquals( Autonomy.AUTONOMOUS, f.svc.policyOf( f.lena, d.key() ).uncapped(), "what it would be without the product" );
+    }
+
+    @Test
     void anAutonomousAgentCloseIsFlagged() throws SQLException {
         final Item d = closedByAgent( Autonomy.AUTONOMOUS );
         assertTrue( ack( d ).required() );

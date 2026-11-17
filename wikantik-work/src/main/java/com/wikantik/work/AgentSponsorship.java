@@ -130,21 +130,37 @@ final class AgentSponsorship {
      * {@link WorkUnavailableException}: "gone" is never guessed.
      */
     void requireMayTakeOver( final Actor actor, final Agent agent ) throws SQLException {
+        final String refusal = takeOverRefusal( actor, agent );
+        if ( refusal != null ) {
+            throw denied( refusal );
+        }
+    }
+
+    /**
+     * Whether a list should offer the caller this agent to take over: it is active, it is not already theirs, and
+     * {@link #requireMayTakeOver} would let them.
+     */
+    boolean mayTakeOver( final Actor actor, final Agent agent ) throws SQLException {
+        return agent.active() && !sponsors( actor, agent ) && takeOverRefusal( actor, agent ) == null;
+    }
+
+    /** Why the actor may not take the agent over, or null when they may. */
+    private String takeOverRefusal( final Actor actor, final Agent agent ) throws SQLException {
         if ( !isPerson( actor ) ) {
-            throw denied( MANAGE_REFUSED );
+            return MANAGE_REFUSED;
         }
         if ( actor.instanceAdmin() ) {
-            return;
+            return null;
         }
         if ( agent.sponsor() != null && scopes.person( agent.sponsor() ).isPresent() ) {
-            throw denied( TAKEOVER_REFUSED );
+            return TAKEOVER_REFUSED;
         }
         for ( final long projectId : store.projectsWithAgentMember( agent.id() ) ) {
             if ( scopes.standing().roleIn( projectId, actor ).orElse( null ) == WorkRole.LEAD ) {
-                return;
+                return null;
             }
         }
-        throw denied( TAKEOVER_NOT_LEAD );
+        return TAKEOVER_NOT_LEAD;
     }
 
     /** How the agent's member row in one project stands: its sponsor's standing there caps it. */

@@ -169,6 +169,7 @@ public class WorkAgentResource extends WorkResourceBase {
         o.addProperty( "status", view.status().name().toLowerCase( java.util.Locale.ROOT ) );
         o.addProperty( "sponsoredByMe", c.actor.kind() == com.wikantik.work.Actor.Kind.HUMAN
             && c.actor.login().equals( agent.sponsor() ) );
+        o.addProperty( "mayTakeOver", view.mayTakeOver() );
         return o;
     }
 }

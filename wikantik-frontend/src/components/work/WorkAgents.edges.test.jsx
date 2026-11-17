@@ -21,7 +21,7 @@ const MINE = {
   id: 11, name: 'mine-bot', vendor: 'acme', runtime: 'claude', queues: ['triage', 'ghost-q'], createdAt: '2026-03-01T00:00:00Z',
   retiredAt: null, sponsorName: 'Lena Lead', status: 'active', sponsoredByMe: true,
 };
-const LOOSE = { id: 13, name: 'loose-bot', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, status: 'no_sponsor', sponsoredByMe: false };
+const LOOSE = { id: 13, name: 'loose-bot', queues: [], createdAt: '2026-03-01T00:00:00Z', retiredAt: null, status: 'no_sponsor', sponsoredByMe: false, mayTakeOver: true };
 const QUEUES = [{ key: 'triage', name: 'Triage', description: '', retiredAt: null }];
 const refusal = (message, status) => Object.assign(new Error(message), { status });
 
@@ -292,7 +292,7 @@ describe('WorkAgents edges', () => {
 
     it('a sponsor who leads nothing may still rotate, retire and release but not edit or take over', async () => {
       listProjects.mockResolvedValue([{ key: 'PLAT', role: 'member', archived: false }]);
-      listAgents.mockResolvedValue([MINE, LOOSE]);
+      listAgents.mockResolvedValue([MINE, { ...LOOSE, mayTakeOver: false }]);
       renderPage({ admin: false });
       await screen.findByText('mine-bot');
       expect(screen.queryByRole('button', { name: 'Edit mine-bot' })).toBeNull();
@@ -300,6 +300,22 @@ describe('WorkAgents edges', () => {
         expect(screen.getByRole('button', { name: l })).toBeInTheDocument();
       }
       expect(screen.queryByRole('button', { name: 'Take over loose-bot' })).toBeNull();
+    });
+
+    it('a lead of some other project is not offered a takeover the server would refuse', async () => {
+      listProjects.mockResolvedValue(lead);
+      listAgents.mockResolvedValue([MINE, { ...LOOSE, mayTakeOver: false }]);
+      renderPage({ admin: false });
+      await screen.findByText('loose-bot');
+      expect(screen.queryByRole('button', { name: 'Take over loose-bot' })).toBeNull();
+    });
+
+    it('an admin is offered only the takeovers the server says they may make', async () => {
+      listProjects.mockResolvedValue([]);
+      listAgents.mockResolvedValue([{ ...LOOSE, mayTakeOver: true }, { ...THEIRS, mayTakeOver: false }]);
+      renderPage({ admin: true });
+      expect(await screen.findByRole('button', { name: 'Take over loose-bot' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Take over their-bot' })).toBeNull();
     });
 
     it('a lead may take over an agent with no sponsor but sees nothing on another sponsor\'s agent', async () => {

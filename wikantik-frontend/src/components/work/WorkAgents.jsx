@@ -148,7 +148,8 @@ export default function WorkAgents() {
   const mayRegister = isAdmin || leads;
   const manages = (a) => !a.retiredAt && (isAdmin || a.sponsoredByMe);
   const mayEdit = (a) => manages(a) && (isAdmin || leads);
-  const mayTakeOver = (a) => !a.retiredAt && !a.sponsoredByMe && (isAdmin || (leads && !!SUSPENDED[a.status]));
+  // The server decides who may take an agent over (it knows which projects the agent is in); the page only asks.
+  const mayTakeOver = (a) => !a.retiredAt && !a.sponsoredByMe && a.mayTakeOver === true;
 
   return (
     <div className="work-products work-agents">

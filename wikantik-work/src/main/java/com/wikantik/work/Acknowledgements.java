@@ -43,7 +43,8 @@ final class Acknowledgements {
     ItemPolicyView policyOf( final Actor actor, final String key ) throws SQLException {
         final WorkScopes.ItemScope is = scopes.itemScope( actor, key );
         is.scope().require( Action.VIEW, is.item() );
-        return new ItemPolicyView( WorkAutonomy.resolve( store.policyChain( is.item().id() ) ),
+        final PolicyChain chain = store.policyChain( is.item().id() );
+        return new ItemPolicyView( WorkAutonomy.resolve( chain ), WorkAutonomy.uncapped( chain ),
             store.acks().state( is.item().id() ) );
     }
 

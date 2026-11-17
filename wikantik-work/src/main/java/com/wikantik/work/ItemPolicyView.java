@@ -18,6 +18,9 @@
  */
 package com.wikantik.work;
 
-/** What governs one item right now: its effective policy and its acknowledgement state. */
-public record ItemPolicyView( EffectivePolicy effective, Ack ack ) {
+/**
+ * What governs one item right now: its effective policy, the autonomy level it would have without its product's
+ * ceiling (equal to the effective level unless the product limits it), and its acknowledgement state.
+ */
+public record ItemPolicyView( EffectivePolicy effective, Autonomy uncapped, Ack ack ) {
 }

@@ -72,7 +72,7 @@ class WorkAgentResourceTest {
 
     private static WorkRegistryService.AgentView view( final Agent a ) {
         return new WorkRegistryService.AgentView( a, a.sponsor() == null ? null : "Root Admin",
-            a.active() ? WorkRegistryService.AgentStatus.ACTIVE : WorkRegistryService.AgentStatus.RETIRED );
+            a.active() ? WorkRegistryService.AgentStatus.ACTIVE : WorkRegistryService.AgentStatus.RETIRED, false );
     }
 
     private WorkHttp.Result send( final String method, final String path, final String body ) throws Exception {
@@ -298,12 +298,14 @@ class WorkAgentResourceTest {
     void aSponsorlessOrRetiredAgentSaysSoPlainly() throws Exception {
         final Agent loose = new Agent( 6, "loose", "", "", null, List.of(), T, null );
         Mockito.when( registry.agentViews( ADMIN ) ).thenReturn( List.of(
-            new WorkRegistryService.AgentView( loose, null, WorkRegistryService.AgentStatus.NO_SPONSOR ),
-            new WorkRegistryService.AgentView( BUILDER, "Root Admin", WorkRegistryService.AgentStatus.SPONSOR_GONE ) ) );
+            new WorkRegistryService.AgentView( loose, null, WorkRegistryService.AgentStatus.NO_SPONSOR, true ),
+            new WorkRegistryService.AgentView( BUILDER, "Root Admin", WorkRegistryService.AgentStatus.SPONSOR_GONE, false ) ) );
         final var list = send( "GET", null, null ).json().getAsJsonArray();
         assertEquals( "no_sponsor", list.get( 0 ).getAsJsonObject().get( "status" ).getAsString() );
         assertFalse( list.get( 0 ).getAsJsonObject().has( "sponsorName" ) );
         assertEquals( "sponsor_gone", list.get( 1 ).getAsJsonObject().get( "status" ).getAsString() );
+        assertTrue( list.get( 0 ).getAsJsonObject().get( "mayTakeOver" ).getAsBoolean() );
+        assertFalse( list.get( 1 ).getAsJsonObject().get( "mayTakeOver" ).getAsBoolean() );
     }
 
     @Test

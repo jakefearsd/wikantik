@@ -37,6 +37,23 @@ describe('WorkPolicyNote', () => {
     expect(note).toHaveTextContent('Done means running in production.');
   });
 
+  it("says an inherited level is limited by the product when the ceiling caps it", async () => {
+    getItemPolicy.mockResolvedValue(policy({ autonomy: 'supervised', uncappedAutonomy: 'delegated' }));
+    render(<WorkPolicyNote itemKey="PLAT-7" />);
+    expect(await screen.findByTestId('policy-note'))
+      .toHaveTextContent("Effective level: Supervised (inherited Delegated; the product's ceiling caps it)");
+  });
+
+  it('keeps the plain wording when the level before the ceiling is the effective one', async () => {
+    getItemPolicy.mockResolvedValue(policy({ autonomy: 'delegated', uncappedAutonomy: 'delegated' }));
+    const first = render(<WorkPolicyNote itemKey="PLAT-7" />);
+    expect(await screen.findByTestId('policy-note')).toHaveTextContent('Effective level: Delegated (inherited)');
+    first.unmount();
+    getItemPolicy.mockResolvedValue(policy({ autonomy: 'supervised', uncappedAutonomy: 'supervised' }));
+    render(<WorkPolicyNote itemKey="PLAT-8" ownAutonomy="supervised" />);
+    expect(await screen.findByTestId('policy-note')).toHaveTextContent('Effective level: Supervised (set on this item)');
+  });
+
   it('offers Acknowledge on an item an agent closed alone, and reloads after', async () => {
     getItemPolicy.mockResolvedValueOnce(policy({ autonomy: 'autonomous' }, { ackRequired: true, ackWaiting: true }))
       .mockResolvedValue(policy({ autonomy: 'autonomous' },

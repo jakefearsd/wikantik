@@ -8,11 +8,16 @@ const LEVEL_MEANS = {
   autonomous: 'agents may approve, review, merge and close; a person acknowledges each close',
 };
 
-/** Where the effective level comes from, as far as the item's own setting tells. */
-function source(own, effective) {
-  if (!own) return 'inherited';
-  if (own === effective) return 'set on this item';
-  return `this item says ${LEVEL[own] || own}; the product's ceiling caps it`;
+/**
+ * Where the effective level comes from. `uncapped` is the level before the product's ceiling (absent from an
+ * older server, where only the item's own setting can show a cap).
+ */
+function source(own, uncapped, effective) {
+  const before = own || uncapped;
+  if (before && before !== effective) {
+    return `${own ? 'this item says' : 'inherited'} ${LEVEL[before] || before}; the product's ceiling caps it`;
+  }
+  return own ? 'set on this item' : 'inherited';
 }
 
 /**
@@ -44,7 +49,7 @@ export default function WorkPolicyNote({ itemKey, ownAutonomy = null, canAcknowl
     );
   }
   if (!policy?.effective) return null;
-  const { autonomy, allowDirect, doneMeans } = policy.effective;
+  const { autonomy, uncappedAutonomy, allowDirect, doneMeans } = policy.effective;
 
   function acknowledge() {
     setBusy(true); setError(null);
@@ -57,7 +62,7 @@ export default function WorkPolicyNote({ itemKey, ownAutonomy = null, canAcknowl
   return (
     <div className="work-policy-note" data-testid="policy-note">
       <p className="work-muted">
-        Effective level: <strong>{LEVEL[autonomy] || autonomy}</strong> ({source(ownAutonomy, autonomy)}):{' '}
+        Effective level: <strong>{LEVEL[autonomy] || autonomy}</strong> ({source(ownAutonomy, uncappedAutonomy, autonomy)}):{' '}
         {LEVEL_MEANS[autonomy]}. Direct commits by agents are {allowDirect ? 'allowed' : 'not allowed'}.{' '}
         Done means {doneMeans === 'in_production' ? 'running in production' : 'merged'}.
       </p>

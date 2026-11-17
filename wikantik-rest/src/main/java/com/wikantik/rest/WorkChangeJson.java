@@ -76,13 +76,17 @@ final class WorkChangeJson {
             text( b, "reviewUrl" ), text( b, "mergedSha" ) );
     }
 
-    /** {@code effective} (autonomy, allowDirect, doneMeans) and the acknowledgement state of one item. */
+    /**
+     * {@code effective} (autonomy, the level before the product's ceiling as {@code uncappedAutonomy}, allowDirect,
+     * doneMeans) and the acknowledgement state of one item.
+     */
     static JsonObject policy( final ItemPolicyView p, final Function< Object, JsonElement > tree ) {
         final JsonObject out = tree.apply( p.ack() ).getAsJsonObject();
         out.add( "ackRequired", out.remove( "required" ) );
         out.addProperty( "ackWaiting", p.ack().waiting() );
         final JsonObject effective = new JsonObject();
         effective.addProperty( "autonomy", p.effective().level().wire() );
+        effective.addProperty( "uncappedAutonomy", p.uncapped().wire() );
         effective.addProperty( "allowDirect", p.effective().directAllowed() );
         effective.addProperty( "doneMeans", p.effective().doneWhen().wire() );
         out.add( "effective", effective );

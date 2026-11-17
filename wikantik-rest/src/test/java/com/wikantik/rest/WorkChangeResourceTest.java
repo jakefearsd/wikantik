@@ -159,10 +159,12 @@ class WorkChangeResourceTest {
     @Test
     void saysWhatGovernsAnItem() throws Exception {
         Mockito.when( svc.policyOf( ALICE, "PLAT-1" ) ).thenReturn( new ItemPolicyView(
-            new EffectivePolicy( Autonomy.AUTONOMOUS, true, DoneMeans.IN_PRODUCTION ), new Ack( true, "bob", T0 ) ) );
+            new EffectivePolicy( Autonomy.DELEGATED, true, DoneMeans.IN_PRODUCTION ), Autonomy.AUTONOMOUS,
+            new Ack( true, "bob", T0 ) ) );
         final JsonObject o = item( "GET", "/PLAT-1/policy", null ).json().getAsJsonObject();
         final JsonObject effective = o.getAsJsonObject( "effective" );
-        assertEquals( "autonomous", effective.get( "autonomy" ).getAsString() );
+        assertEquals( "delegated", effective.get( "autonomy" ).getAsString() );
+        assertEquals( "autonomous", effective.get( "uncappedAutonomy" ).getAsString(), "before the product's ceiling" );
         assertTrue( effective.get( "allowDirect" ).getAsBoolean() );
         assertEquals( "in_production", effective.get( "doneMeans" ).getAsString() );
         assertTrue( o.get( "ackRequired" ).getAsBoolean() );

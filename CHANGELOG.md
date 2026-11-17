@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-16
+
 ### Added
 
 - **Deployments (work management phase 4, behind `wikantik.work.enabled`).** A product version going to production is a record that carries the items it ships: requested, approved, running, then verified or failed; one not yet running can be rejected or withdrawn. It lives on `/work/deployments`, `/api/work/deployments/*` and three new `/work-mcp` tools (`request_deployment`, `get_deployment`, `update_deployment`; 16 tools in all). Marking a deployment verified needs the health and smoke-test output as evidence.

@@ -92,4 +92,14 @@ class WorkGateMetricsPostgresTest {
         f.status( f.mia, item, "done" );
         assertEquals( List.of(), gates );
     }
+
+    @Test
+    void theDeployGateIsReportedForAnAgentOnly() throws SQLException {
+        final long id = f.svc.deployments().request( f.author, new DeploymentDraft( "wikantik", null, "2.5.26",
+            java.util.List.of( item.key() ) ) ).deployment().id();
+        assertThrows( WorkDeniedException.class, () -> f.svc.deployments().approve( f.author, id, null ) );
+        assertThrows( WorkDeniedException.class, () -> f.svc.deployments().approve( f.mia, id, null ) );
+        f.svc.deployments().approve( f.lena, id, null );
+        assertEquals( List.of( "deploy:refused" ), gates, "a person's approval or refusal is not a gate decision" );
+    }
 }

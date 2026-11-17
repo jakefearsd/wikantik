@@ -111,6 +111,13 @@ final class WorkScopes {
         }
     }
 
+    /** Reports how an agent fared at a gate that has no single project scope (a deployment spans several). */
+    void gateDecided( final Actor actor, final String gate, final boolean allowed ) {
+        if ( actor.kind() == Actor.Kind.AGENT ) {
+            gateListener.accept( gate, allowed );
+        }
+    }
+
     /** Reports how an agent fared at a gate, for a caller that answers the refusal itself. */
     void decide( final Scope s, final String gate, final Decision d ) {
         if ( s.actor().kind() == Actor.Kind.AGENT ) {

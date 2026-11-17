@@ -82,6 +82,7 @@ public class WorkService {
     private final GuardedListener listener;
     private final Acknowledgements acknowledgements;
     private final WorkChangesService changes;
+    private final WorkDeploymentsService deployments;
 
     /** A newly registered or rotated agent and its API token, which is shown once and never stored or logged. */
     public record AgentWithToken( Agent agent, String token ) {
@@ -135,6 +136,7 @@ public class WorkService {
         this.views = new ItemViews( store, renderer, people );
         this.acknowledgements = new Acknowledgements( store, scopes, views );
         this.changes = new WorkChangesService( store, scopes );
+        this.deployments = new WorkDeploymentsService( store, scopes );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
         this.listener = observer;
@@ -283,6 +285,11 @@ public class WorkService {
     /** Claims, release, hand-off and the claimable lists. */
     public WorkClaimsService claims() {
         return claims;
+    }
+
+    /** Deployments: a product version going to an environment, carrying items. */
+    public WorkDeploymentsService deployments() {
+        return deployments;
     }
 
     /** Change records: branches of work from open to merged. */

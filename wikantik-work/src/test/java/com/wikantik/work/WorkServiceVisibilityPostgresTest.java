@@ -56,7 +56,7 @@ class WorkServiceVisibilityPostgresTest {
         "putMember", "removeMember", "createProduct", "updateProduct", "archiveProduct", "createItem", "updateItem",
         "addComment", "editComment", "removeComment", "addLink", "removeLink", "createQueue", "updateQueue",
         "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge", "open", "update",
-        "requestReview", "review", "merge", "abandon" );
+        "requestReview", "review", "merge", "abandon", "request", "approve", "start", "verify", "fail", "rollBack" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
@@ -69,15 +69,22 @@ class WorkServiceVisibilityPostgresTest {
      */
     private static final Set< String > OWN = Set.of( "self" );
 
+    /**
+     * Reads that answer yes or no, so "returned real data" has no meaning for them: each is driven as a stranger
+     * by its own test ({@code WorkDeploymentAccessPostgresTest.aNonMemberGetsNotFound} for {@code cleared}).
+     */
+    private static final Set< String > YES_OR_NO = Set.of( "cleared" );
+
     /** Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. */
-    private static final Set< String > FACADES = Set.of( "registry", "claims", "changes" );
+    private static final Set< String > FACADES = Set.of( "registry", "claims", "changes", "deployments" );
 
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
-        "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view" );
+        "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
+        "forProduct", "history", "awaitingMyApproval" );
 
-    private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer" );
+    private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
 
     private final Actor mallory = Actor.human( "mallory", Set.of(), false );
     private final Actor lena = Actor.human( "lena", Set.of(), false );
@@ -127,6 +134,8 @@ class WorkServiceVisibilityPostgresTest {
         // a live change on PLAT-1, so the change reads return real data to prove against
         store.changes().open( item, web.id(), new ChangeDraft( "work/PLAT-1-secret", "main", "abc1234", null, null ),
             lena );
+        // a deployment of "web" carrying PLAT-1, so the deployment reads return real data to prove against
+        store.deployments().request( web, "production", "1.0", List.of( item ), lena );
         commentId = store.addComment( item, Actor.human( "lena", java.util.Set.of(), false ), "secret comment", List.of() ).id();
         linkId = store.addLink( item, "url", "https://example.com/secret", Actor.human( "lena", java.util.Set.of(), false ) ).id();
         service = new WorkService( store, md -> md, new WorkDirectory() {
@@ -198,6 +207,7 @@ class WorkServiceVisibilityPostgresTest {
             && Collections.disjoint( OWN, SYSTEM ) );
         final Set< String > classified = new TreeSet<>( READS );
         classified.addAll( OWN );
+        classified.addAll( YES_OR_NO );
         classified.addAll( WRITES );
         classified.addAll( SYSTEM );
         assertEquals( classified, all, "classify every public WorkService method as a read, a write or system" );

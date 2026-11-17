@@ -41,6 +41,7 @@ class WorkMeResourceTest {
     @BeforeEach
     void setUp() {
         svc = Mockito.mock( WorkService.class );
+        Mockito.when( svc.deployments() ).thenReturn( Mockito.mock( com.wikantik.work.WorkDeploymentsService.class ) );
         servlet = WorkHttp.wire( new WorkMeResource(), svc, ALICE );
     }
 

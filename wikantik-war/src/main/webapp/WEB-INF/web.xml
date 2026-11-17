@@ -689,6 +689,10 @@
        <servlet-class>com.wikantik.rest.WorkItemResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>WorkDeploymentResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkDeploymentResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>WorkChangeResource</servlet-name>
        <servlet-class>com.wikantik.rest.WorkChangeResource</servlet-class>
    </servlet>
@@ -1065,6 +1069,11 @@
        <url-pattern>/api/work/comments/*</url-pattern>
        <url-pattern>/api/work/links/*</url-pattern>
        <url-pattern>/api/work/claimable</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkDeploymentResource</servlet-name>
+       <url-pattern>/api/work/deployments</url-pattern>
+       <url-pattern>/api/work/deployments/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>WorkChangeResource</servlet-name>

@@ -42,6 +42,7 @@ public class WorkMeResource extends WorkResourceBase {
             final JsonObject out = new JsonObject();
             out.add( "waitingOn", waitingOn( c ) );
             out.add( "projects", visibleProjects( c ) );
+            out.add( "deploymentsAwaiting", WorkDeploymentJson.brief( c.svc.deployments().awaitingMyApproval( c.actor ) ) );
             c.json( out );
         } );
     }

@@ -43,6 +43,8 @@ final class WorkNames {
             case "openedBy" -> "openedByAgentId";
             case "reviewedBy" -> "reviewedByAgentId";
             case "mergedBy" -> "mergedByAgentId";
+            case "requestedBy" -> "requestedByAgentId";
+            case "approvedBy" -> "approvedByAgentId";
             case "actor" -> "agent".equals( WorkJson.str( o, "actorKind" ) ) ? "agentId" : null;
             default -> null;
         };

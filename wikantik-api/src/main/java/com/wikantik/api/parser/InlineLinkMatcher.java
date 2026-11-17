@@ -30,6 +30,8 @@ public final class InlineLinkMatcher {
 
     private final String s;
     private final String opener;
+    /** Offsets inside code, where an opener starts no link; null when code is not set apart. */
+    private final boolean[] code;
     private int cursor;
     private int start = -1;
     private int textEnd;
@@ -43,8 +45,22 @@ public final class InlineLinkMatcher {
     }
 
     private InlineLinkMatcher( final String s, final String opener ) {
+        this( s, opener, null );
+    }
+
+    private InlineLinkMatcher( final String s, final String opener, final boolean[] code ) {
         this.s = s;
         this.opener = opener;
+        this.code = code;
+    }
+
+    /**
+     * Matches {@code [text](target)} only where the opening bracket is outside fenced, indented and inline code
+     * ({@link CodeMask}): link syntax shown as an example is not a link. For consumers that read or rewrite links
+     * (the reference scanner, rename); the plain constructor still sees every run.
+     */
+    public static InlineLinkMatcher outsideCode( final String s ) {
+        return new InlineLinkMatcher( s, "[", CodeMask.of( s ) );
     }
 
     /** Matches {@code ![text](target)} only; {@link #start()} is the {@code !}. */
@@ -64,6 +80,10 @@ public final class InlineLinkMatcher {
             final int open = s.indexOf( opener, pos );
             if ( open < 0 ) {
                 break;
+            }
+            if ( code != null && code[ open ] ) {
+                pos = open + 1; // an opener inside code starts nothing, and must not pair with a later ](
+                continue;
             }
             final int close = s.indexOf( ']', open + opener.length() );
             if ( close < 0 || close + 1 >= s.length() ) {

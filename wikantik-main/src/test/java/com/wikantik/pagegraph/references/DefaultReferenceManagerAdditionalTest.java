@@ -218,6 +218,14 @@ class DefaultReferenceManagerAdditionalTest {
     }
 
     @Test
+    void scanWikiLinksIgnoresLinkSyntaxShownAsCode() {
+        final Page page = mockPage( "SyntaxGuide" );
+        final String content = "* `[Page Name]()` (legacy self-labeling link)\n* `[Guide](GuidePage)`\n\nSee [RealPage]().";
+
+        assertEquals( java.util.List.of( "RealPage" ), java.util.List.copyOf( mgr.scanWikiLinks( page, content ) ) );
+    }
+
+    @Test
     void scanWikiLinksPicksUpMarkdownLinks() {
         final Page page = mockPage( "BodyPage" );
         final String content = "See [PageOne]() and [PageTwo]() for details.";

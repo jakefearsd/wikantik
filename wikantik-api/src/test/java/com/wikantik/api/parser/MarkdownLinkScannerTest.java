@@ -66,6 +66,28 @@ class MarkdownLinkScannerTest {
     }
 
     @Test
+    void linksInsideInlineCodeAreExamplesNotLinks() {
+        // A page documenting link syntax shows it in backticks: neither form is a link (it was reported broken).
+        assertTrue( MarkdownLinkScanner.findMarkdownLinks( "* `[Page Name]()` (legacy self-labeling link)" ).isEmpty() );
+        assertTrue( MarkdownLinkScanner.findMarkdownLinks( "* `[Architecture Guide](ArchitectureCritique)`" ).isEmpty() );
+        assertTrue( MarkdownLinkScanner.findLocalLinks( "`[a](Target)` and `[Other]()`" ).isEmpty() );
+        assertTrue( MarkdownLinkScanner.scanAll( "`[a](Target)`" ).isEmpty() );
+    }
+
+    @Test
+    void linksInsideFencedCodeAreExamplesNotLinks() {
+        final String body = "Intro\n\n```\n[a](Target)\n[Other]()\n```\n\nAfter [Real](RealPage).\n";
+        assertEquals( Set.of( "RealPage" ), MarkdownLinkScanner.findMarkdownLinks( body ) );
+    }
+
+    @Test
+    void aBracketInsideCodeDoesNotSwallowTheLinkAfterIt() {
+        // The `[` in the code span must not pair with the real link's `](`.
+        assertEquals( Set.of( "RealPage" ), MarkdownLinkScanner.findMarkdownLinks( "Type `[` then see [Real](RealPage)." ) );
+        assertEquals( Set.of( "RealPage" ), MarkdownLinkScanner.findMarkdownLinks( "`[x]()` [RealPage]()" ) );
+    }
+
+    @Test
     void findLocalLinksExcludesExternalAndAnchorTargets() {
         final String body = "[a](https://example.com) [b](http://x) [c](ftp://f) "
                 + "[d](mailto:x@y) [e](#section)";

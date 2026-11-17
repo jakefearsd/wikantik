@@ -45,7 +45,8 @@ public final class MarkdownLinkScanner {
 
     /**
      * Finds all local wiki page targets in the given body text.
-     * External URLs (http/https/ftp/mailto) and anchor links (#fragment) are excluded.
+     * External URLs (http/https/ftp/mailto) and anchor links (#fragment) are excluded, and so is link syntax
+     * inside fenced, indented or inline code: an example of a link is not a link.
      * Anchor suffixes ({@code PageName#section}) are stripped — only the page name is returned.
      *
      * <p>Handles both link formats used in this wiki:
@@ -62,7 +63,7 @@ public final class MarkdownLinkScanner {
             return Set.of();
         }
         final Set< String > locals = new LinkedHashSet<>();
-        final InlineLinkMatcher matcher = new InlineLinkMatcher( bodyText );
+        final InlineLinkMatcher matcher = InlineLinkMatcher.outsideCode( bodyText );
         while ( matcher.find() ) {
             final String linkText = matcher.text();
             String target = matcher.target();
@@ -117,7 +118,7 @@ public final class MarkdownLinkScanner {
     }
 
     /**
-     * Scans the given text and returns all links with their classification.
+     * Scans the given text and returns all links outside code with their classification.
      *
      * @param text the Markdown text to scan
      * @return list of link entries, each with keys: target, text, type
@@ -127,7 +128,7 @@ public final class MarkdownLinkScanner {
         if ( text == null || text.isEmpty() ) {
             return links;
         }
-        final InlineLinkMatcher matcher = new InlineLinkMatcher( text );
+        final InlineLinkMatcher matcher = InlineLinkMatcher.outsideCode( text );
         while ( matcher.find() ) {
             final String linkText = matcher.text();
             final String target = matcher.target();

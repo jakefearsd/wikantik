@@ -4,7 +4,6 @@ summary: Authoritative reference for Wikantik page authoring—Markdown syntax, 
 date: 2026-05-02T00:00:00Z
 cluster: wikantik-development
 related:
-- FrontmatterAndKnowledgeGraphs
 - StructuralSpineDesign
 - WikantikDevelopmentHub
 auto-generated: false

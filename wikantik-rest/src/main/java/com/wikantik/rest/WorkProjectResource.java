@@ -62,6 +62,8 @@ public class WorkProjectResource extends WorkResourceBase {
             c.noContent();
         } );
         route( r, "DELETE", "projects/{}/members", this::removeMember );
+        route( r, "GET", "projects/{}/change-counts", c -> c.tree(
+            WorkChangeJson.counts( c.svc.changes().counts( c.actor, c.pathParam( 0 ) ) ) ) );
         route( r, "GET", "projects/{}/board", c -> c.tree( boardTree( c.svc.boardSummaries( c.actor, c.pathParam( 0 ), filter( c, false ) ), c.actor ) ) );
     }
 

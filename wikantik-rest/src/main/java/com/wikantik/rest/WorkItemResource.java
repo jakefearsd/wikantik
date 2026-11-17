@@ -77,6 +77,12 @@ public class WorkItemResource extends WorkResourceBase {
             c.svc.removeComment( c.actor, c.idParam( 0 ) );
             c.noContent();
         } );
+        route( r, "GET", "items/{}/changes", c -> c.tree( WorkChangeJson.changes(
+            c.svc.changes().views( c.actor, c.pathParam( 0 ) ), v -> toTree( v, c.actor ) ) ) );
+        route( r, "POST", "items/{}/changes", this::openChange );
+        route( r, "GET", "items/{}/policy", c -> c.tree( WorkChangeJson.policy(
+            c.svc.policyOf( c.actor, c.pathParam( 0 ) ), v -> toTree( v, c.actor ) ) ) );
+        route( r, "POST", "items/{}/acknowledge", c -> c.json( c.svc.acknowledge( c.actor, c.pathParam( 0 ) ) ) );
         route( r, "GET", "claimable", this::claimable );
         route( r, "POST", "items/{}/claim", this::claim );
         route( r, "POST", "items/{}/release", this::release );
@@ -110,6 +116,16 @@ public class WorkItemResource extends WorkResourceBase {
             optString( b, "parentKey" ), optString( b, "productKey" ), kind == null ? null : WorkKind.fromWire( kind ),
             optString( b, "title" ), optString( b, "body" ), priority( b ), dueOn( b ), optString( b, "assignee" ),
             optString( b, "queue" ) ) ) );
+    }
+
+    private void openChange( final Call c ) throws Exception {
+        final JsonObject b = c.body();
+        if ( b == null ) {
+            return;
+        }
+        final long id = c.svc.changes().open( c.actor, c.pathParam( 0 ), WorkChangeJson.draft( b ) ).id();
+        WorkJson.write( c.resp, jakarta.servlet.http.HttpServletResponse.SC_CREATED,
+            WorkChangeJson.change( c.svc.changes().view( c.actor, id ), v -> toTree( v, c.actor ) ) );
     }
 
     /** Unclaimed ready or review items the caller could claim (or, for a person, the queues they can see). */

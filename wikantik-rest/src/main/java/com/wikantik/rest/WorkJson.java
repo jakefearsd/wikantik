@@ -65,7 +65,8 @@ final class WorkJson {
     private WorkJson() {
     }
 
-    private static final Set< String > NAME_KEYS = Set.of( "assignee", "reporter", "author", "actor", "editedBy" );
+    private static final Set< String > NAME_KEYS = Set.of( "assignee", "reporter", "author", "actor", "editedBy",
+        "openedBy", "reviewedBy", "mergedBy", "acknowledgedBy" );
 
     static final String UNKNOWN_AGENT = "Unknown agent";
 

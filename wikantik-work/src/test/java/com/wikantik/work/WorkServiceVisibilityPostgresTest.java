@@ -75,7 +75,7 @@ class WorkServiceVisibilityPostgresTest {
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
-        "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts" );
+        "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer" );
 
@@ -212,6 +212,8 @@ class WorkServiceVisibilityPostgresTest {
             final List< Object > options = type == Actor.class ? List.of( actor )
                 : type == String.class ? new ArrayList<>( STRING_FIXTURES )
                 : type == int.class ? List.of( 10 )
+                // a numeric id: the one change of the fixture (ids restart with each truncate) and one that is not there
+                : type == long.class ? List.of( 1L, 999_999L )
                 : type == AssignmentLogQuery.class ? List.of( AssignmentLogQuery.all() )
                 : Arrays.asList( new Object[] { null } );
             final List< Object[] > next = new ArrayList<>();

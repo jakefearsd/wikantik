@@ -38,6 +38,10 @@ public final class WorkChangesService {
     public record ChangeCounts( int live, int inReview ) {
     }
 
+    /** A change with the keys a reader needs: its item's and its product's. */
+    public record ChangeView( Change change, String itemKey, String productKey ) {
+    }
+
     private final WorkStore store;
     private final WorkScopes scopes;
 
@@ -50,6 +54,32 @@ public final class WorkChangesService {
         final ItemScope is = scopes.itemScope( a, itemKey );
         is.scope().require( Action.VIEW, is.item() );
         return store.changes().forItem( is.item().id() );
+    }
+
+    /** The item's changes, oldest first, each with its item and product key. */
+    public List< ChangeView > views( final Actor a, final String itemKey ) throws SQLException {
+        final ItemScope is = scopes.itemScope( a, itemKey );
+        is.scope().require( Action.VIEW, is.item() );
+        final Map< Long, String > products = productKeys();
+        return store.changes().forItem( is.item().id() ).stream()
+            .map( c -> new ChangeView( c, is.item().key(), products.get( c.productId() ) ) ).toList();
+    }
+
+    /** One change with its keys; unknown and unseen are the same "not found". */
+    public ChangeView view( final Actor a, final long changeId ) throws SQLException {
+        final ItemScope is = scopeOf( a, changeId );
+        is.scope().require( Action.VIEW, is.item() );
+        final Change c = store.changes().change( changeId )
+            .orElseThrow( () -> new WorkNotFoundException( WorkScopes.NOT_FOUND ) );
+        return new ChangeView( c, is.item().key(), productKeys().get( c.productId() ) );
+    }
+
+    private Map< Long, String > productKeys() throws SQLException {
+        final Map< Long, String > keys = new LinkedHashMap<>();
+        for ( final Product p : store.products() ) {
+            keys.put( p.id(), p.key() );
+        }
+        return keys;
     }
 
     /** Live-change counts by item key for the items of a project that have any. */

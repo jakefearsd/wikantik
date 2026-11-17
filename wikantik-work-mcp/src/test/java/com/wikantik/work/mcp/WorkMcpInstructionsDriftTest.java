@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,8 +45,11 @@ class WorkMcpInstructionsDriftTest {
     /** Tools of the other endpoints the instructions send an agent to; never registered here. */
     private static final Set< String > OTHER_ENDPOINTS = Set.of( "get_briefing" );
 
+    /** An argument name and a refusal word that look like a tool name. */
+    private static final Set< String > ARGUMENTS = Set.of( "review_url", "open_changes" );
+
     private static final Pattern TOOL_LIKE =
-        Pattern.compile( "\\b(?:get|list|claim|update|comment|handoff|release|create)_[a-z][a-z_]*[a-z]\\b" );
+        Pattern.compile( "\\b(?:get|list|claim|update|comment|handoff|release|create|open|review|merge)_[a-z][a-z_]*[a-z]\\b" );
 
     private static String instructions() throws IOException {
         try ( InputStream in = WorkMcpInitializer.class.getResourceAsStream( "/wikantik-work-mcp-instructions.txt" ) ) {
@@ -67,6 +71,7 @@ class WorkMcpInstructionsDriftTest {
             found.add( m.group() );
         }
         found.removeAll( OTHER_ENDPOINTS );
+        found.removeAll( ARGUMENTS );
         return found;
     }
 
@@ -89,7 +94,8 @@ class WorkMcpInstructionsDriftTest {
     @Test
     void toolNamesAreTheExpectedSetForThisTask() {
         assertEquals( Set.of( "get_work_context", "list_claimable", "get_item", "claim_item", "update_item", "comment_on_item",
-            "handoff_item", "release_item", "create_item" ), registered() );
+            "handoff_item", "release_item", "create_item", "open_change", "update_change", "review_change",
+            "merge_change" ), registered() );
     }
 
     @Test
@@ -109,5 +115,16 @@ class WorkMcpInstructionsDriftTest {
     void instructionsSayOneSessionOneKey() throws IOException {
         assertTrue( instructions().contains( "One session, one credential" ),
             "the h11 rule: a session belongs to the agent token or key that opened it" );
+    }
+
+    @Test
+    void instructionsStateTheChangeRules() throws IOException {
+        final String text = instructions().replaceAll( "\\s+", " " );
+        assertTrue( text.contains( "You never review or merge a change you opened" ), "the author rule" );
+        assertTrue( text.contains( "An approval is for one commit" ), "an approval is bound to a commit" );
+        assertTrue( text.contains( "work/<ITEM-KEY>-<slug>" ), "the branch naming hint" );
+        for ( final String prefix : List.of( "open_changes:", "not_approved:", "not_in_review:", "change_closed:" ) ) {
+            assertTrue( text.contains( prefix ), "the refusal prefix " + prefix );
+        }
     }
 }

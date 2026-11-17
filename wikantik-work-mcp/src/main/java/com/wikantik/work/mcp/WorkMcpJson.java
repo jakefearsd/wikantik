@@ -80,7 +80,11 @@ final class WorkMcpJson {
     /** An item as {@code get_item} shows it, read fresh (its events included) for the actor. */
     static Map< String, Object > fullItem( final WorkService svc, final WorkDirectory directory, final Actor actor,
                                            final ItemView view ) throws SQLException {
-        return forActor( svc, directory, actor ).item( view, svc.events( actor, view.item().key() ) );
+        final WorkMcpJson names = forActor( svc, directory, actor );
+        final Map< String, Object > o = names.item( view, svc.events( actor, view.item().key() ) );
+        o.put( "effective", WorkMcpChanges.effective( svc.policyOf( actor, view.item().key() ).effective() ) );
+        o.put( "changes", WorkMcpChanges.list( names, svc.changes().views( actor, view.item().key() ) ) );
+        return o;
     }
 
     String person( final String login ) {

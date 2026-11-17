@@ -121,6 +121,51 @@ class WriteToolsAuditTest {
     }
 
     @Test
+    void everyChangeWriteIsAuditedWithTheAgentName() throws Exception {
+        final MockWork w = new MockWork();
+        final com.wikantik.work.Change open = new com.wikantik.work.Change( 5, 1, 1, "work/PLAT-1-x", "main",
+            "aaaaaaa1", null, com.wikantik.work.ChangeState.OPEN, null, null, "builder", 7L, null, null, null, null,
+            null, null, Instant.EPOCH, null );
+        when( w.changes.open( any(), any(), any() ) ).thenReturn( open );
+        when( w.changes.view( any(), org.mockito.ArgumentMatchers.anyLong() ) )
+            .thenReturn( new com.wikantik.work.WorkChangesService.ChangeView( open, "PLAT-1", "wikantik" ) );
+
+        final List< String > lines = audited( () -> {
+            new OpenChangeTool( w.svc, w.directory ).call( w.agent, Map.of( "key", "PLAT-1", "branch", "work/PLAT-1-x" ) );
+            new UpdateChangeTool( w.svc, w.directory ).call( w.agent, Map.of( "change", 5, "head_sha", "bbbbbbb2" ) );
+            new UpdateChangeTool( w.svc, w.directory ).call( w.agent, Map.of( "change", 5, "state", "in_review" ) );
+            new UpdateChangeTool( w.svc, w.directory ).call( w.agent, Map.of( "change", 5, "state", "abandoned" ) );
+            new ReviewChangeTool( w.svc, w.directory ).call( w.agent, Map.of( "change", 5, "approved", true ) );
+            new ReviewChangeTool( w.svc, w.directory ).call( w.agent, Map.of( "change", 5, "approved", false ) );
+            new MergeChangeTool( w.svc, w.directory ).call( w.agent, Map.of( "change", 5, "merged_sha", "aaaaaaa1" ) );
+        } );
+
+        final String[][] expected = { { "open_change", "change-opened", "PLAT-1" },
+            { "update_change", "change-updated", "change:5" }, { "update_change", "review-requested", "change:5" },
+            { "update_change", "change-abandoned", "change:5" }, { "review_change", "change-approved", "change:5" },
+            { "review_change", "changes-requested", "change:5" }, { "merge_change", "change-merged", "change:5" } };
+        assertEquals( expected.length, lines.size(), lines.toString() );
+        for ( int i = 0; i < expected.length; i++ ) {
+            final String line = lines.get( i );
+            assertTrue( line.startsWith( "MCP_WRITE" ) && line.contains( "tool=" + expected[ i ][ 0 ] )
+                && line.contains( "action=" + expected[ i ][ 1 ] ) && line.contains( "target=" + expected[ i ][ 2 ] )
+                && line.contains( "author=builder" ), line );
+        }
+    }
+
+    @Test
+    void aRefusedChangeWriteLeavesARefusalLine() throws Exception {
+        final MockWork w = new MockWork();
+        when( w.changes.merge( any(), org.mockito.ArgumentMatchers.anyLong(), any() ) )
+            .thenThrow( new com.wikantik.work.WorkDeniedException( "An agent may not merge its own change." ) );
+        final List< String > lines = audited( () -> new MergeChangeTool( w.svc, w.directory ).call( w.agent,
+            Map.of( "change", 5, "merged_sha", "aaaaaaa1" ) ) );
+        assertEquals( 1, lines.size(), lines.toString() );
+        assertTrue( lines.get( 0 ).startsWith( "MCP_WORK_REFUSED" ) && lines.get( 0 ).contains( "tool=merge_change" )
+            && lines.get( 0 ).contains( "kind=denied" ), lines.get( 0 ) );
+    }
+
+    @Test
     void aRefusedWriteIsNotAudited() throws Exception {
         final MockWork w = new MockWork();
         final List< String > lines = audited( () -> {

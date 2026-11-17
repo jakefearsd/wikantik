@@ -16,7 +16,7 @@ const needsAck = (i) => i.waiting?.reason === 'acknowledge';
  * Items an agent closed with no person in the path form their own group, "Done without you", each with an
  * Acknowledge button when `onAcknowledge(item)` is given.
  */
-export default function WaitingLane({ items, suffix, as: Tag = 'div', onAcknowledge }) {
+export default function WaitingLane({ items, suffix, as: Tag = 'div', onAcknowledge, error = null }) {
   const waiting = items.filter((i) => !needsAck(i));
   const unattended = items.filter(needsAck);
   return (
@@ -43,6 +43,7 @@ export default function WaitingLane({ items, suffix, as: Tag = 'div', onAcknowle
         <div data-testid="done-without-you">
           <strong>Done without you ({unattended.length})</strong>
           <span className="work-muted"> · closed by an agent with no person in the path</span>
+          {error && <div className="work-form-error" role="alert">{error}</div>}
           <ul className="work-waiting-list">
             {unattended.map((i) => (
               <li key={`ack-${i.id}`}>

@@ -1,7 +1,8 @@
+import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
-import { listAgents, listQueues, releaseAgentSponsorship, retireAgent, rotateAgentKey, takeOverAgent } from '../../api/work';
+import { listAgents, listProjects, listQueues, releaseAgentSponsorship, retireAgent, rotateAgentKey, takeOverAgent } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import WorkAgentForm from './WorkAgentForm';
@@ -35,7 +36,7 @@ export default function WorkAgents() {
   const { user, loading: authLoading } = useAuth();
   const toast = useToast();
   const isAdmin = !!user?.roles?.includes('Admin');
-  const [state, setState] = useState({ agents: null, queues: null, error: null });
+  const [state, setState] = useState({ agents: null, queues: null, projects: null, error: null });
   const [refreshError, setRefreshError] = useState(null); // a failed re-read that kept the previous lists
   const [editing, setEditing] = useState(null); // agent id being edited
   const [registering, setRegistering] = useState(false);
@@ -65,15 +66,18 @@ export default function WorkAgents() {
 
   const load = useCallback(() => {
     const mine = ++seq.current;
-    return Promise.all([listAgents(), listQueues()])
-      .then(([agents, queues]) => {
-        if (mine === seq.current) { setState({ agents: agents || [], queues: queues || [], error: null }); setRefreshError(null); }
+    // The viewer's role per project says whether they lead anywhere; if that cannot be read it is simply unknown
+    // (null) and every button stays, because the server is the authority.
+    const projects = listProjects().catch((err) => { console.warn('WorkAgents: could not read the projects', err); return null; });
+    return Promise.all([listAgents(), listQueues(), projects])
+      .then(([agents, queues, projs]) => {
+        if (mine === seq.current) { setState({ agents: agents || [], queues: queues || [], projects: projs, error: null }); setRefreshError(null); }
       })
       .catch((error) => {
         console.warn('WorkAgents: could not load agents and queues', error);
         if (mine !== seq.current) return;
         // Keep what is on screen (and any open key panel) when a re-read fails; only a first load blocks the page.
-        setState((prev) => (prev.agents ? prev : { agents: null, queues: null, error }));
+        setState((prev) => (prev.agents ? prev : { agents: null, queues: null, projects: null, error }));
         setRefreshError('Could not refresh the lists. What is shown may be out of date.');
       });
   }, []);
@@ -124,9 +128,8 @@ export default function WorkAgents() {
         .catch(refused);
     } else if (action === 'retire') {
       retireAgent(agent.id)
-        .then(() => { toast.success(`Retired ${agent.name}`); return load(); })
-        .catch((err) => toast.error(err?.message || ACTIONS.retire.failed))
-        .finally(done);
+        .then(() => { toast.success(`Retired ${agent.name}`); done(); return load(); })
+        .catch(refused);
     } else {
       (action === 'takeover' ? takeOverAgent(agent.id) : releaseAgentSponsorship(agent.id))
         .then(() => {
@@ -139,12 +142,17 @@ export default function WorkAgents() {
   }
 
   // The server is the authority; these only decide which buttons are worth offering.
+  // Leading an unarchived project is what registering, editing and taking over need (besides being a wiki admin).
+  // Unknown (the projects could not be read) offers the button and lets the server answer.
+  const leads = state.projects ? state.projects.some((p) => p.role === 'lead' && !p.archived) : true;
+  const mayRegister = isAdmin || leads;
   const manages = (a) => !a.retiredAt && (isAdmin || a.sponsoredByMe);
-  const mayTakeOver = (a) => !a.retiredAt && !a.sponsoredByMe && (isAdmin || !!SUSPENDED[a.status]);
+  const mayEdit = (a) => manages(a) && (isAdmin || leads);
+  const mayTakeOver = (a) => !a.retiredAt && !a.sponsoredByMe && (isAdmin || (leads && !!SUSPENDED[a.status]));
 
   return (
     <div className="work-products work-agents">
-      <h1 className="work-heading">Agents &amp; queues</h1>
+      <h1 className="work-heading"><Link to="/work">Work</Link> <span aria-hidden="true">▸</span> Agents &amp; queues</h1>
       {panel}
       <p role="status" aria-live="polite" className="work-visually-hidden" data-testid="work-agents-announce">{announce}</p>
       {locked && <p id={LOCK_HINT} className="work-visually-hidden">Copy or dismiss the key shown above first.</p>}
@@ -153,7 +161,7 @@ export default function WorkAgents() {
         <h2 className="work-subheading">Agents</h2>
         {registering
           ? <WorkAgentForm queues={state.queues} locked={locked} lockedHint={LOCK_HINT} onRegistered={registered} onCancel={() => setRegistering(false)} />
-          : <p><button type="button" className="btn btn-sm" {...lockProps} onClick={() => setRegistering(true)}>Register agent</button></p>}
+          : mayRegister && <p><button type="button" className="btn btn-sm" {...lockProps} onClick={() => setRegistering(true)}>Register agent</button></p>}
         {sorted.length === 0 ? <EmptyState message="No agents registered yet." /> : (
           <ul className="work-product-rows">
             {sorted.map((a) => (
@@ -172,9 +180,11 @@ export default function WorkAgents() {
                     {a.sponsorName ? `Sponsor: ${a.sponsorName}` : 'No sponsor'}
                   </div>
                   {!a.retiredAt && SUSPENDED[a.status] && <div className="work-form-error">{SUSPENDED[a.status]}</div>}
-                  <div className="work-muted">
-                    Created {day(a.createdAt)}{a.retiredAt && `, retired ${day(a.retiredAt)}`}
-                  </div>
+                  {(a.createdAt || a.retiredAt) && (
+                    <div className="work-muted">
+                      {a.createdAt ? `Created ${day(a.createdAt)}` : ''}{a.retiredAt && `${a.createdAt ? ', retired' : 'Retired'} ${day(a.retiredAt)}`}
+                    </div>
+                  )}
                 </div>}
                 {editing !== a.id && (manages(a) || mayTakeOver(a)) && (pending?.agent.id === a.id
                   ? (
@@ -188,8 +198,10 @@ export default function WorkAgents() {
                     <div className="work-actions">
                       {manages(a) && (
                         <>
-                          <button type="button" className="btn btn-sm" aria-label={`Edit ${a.name}`} {...lockProps}
-                            onClick={() => setEditing(a.id)}>Edit</button>
+                          {mayEdit(a) && (
+                            <button type="button" className="btn btn-sm" aria-label={`Edit ${a.name}`} {...lockProps}
+                              onClick={() => setEditing(a.id)}>Edit</button>
+                          )}
                           <button type="button" className="btn btn-sm" aria-label={`Rotate key of ${a.name}`} {...lockProps}
                             onClick={() => ask(a, 'rotate')}>Rotate key</button>
                           <button type="button" className="btn btn-sm btn-ghost" aria-label={`Retire ${a.name}`} {...lockProps}

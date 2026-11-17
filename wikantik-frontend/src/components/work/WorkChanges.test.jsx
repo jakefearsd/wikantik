@@ -126,7 +126,26 @@ describe('WorkChanges', () => {
     await waitFor(() => expect(within(rowOf('work/PLAT-7-1')).getByRole('button', { name: 'Abandon' })).not.toBeDisabled());
 
     fireEvent.click(within(rowOf('work/PLAT-7-1')).getByRole('button', { name: 'Abandon' }));
-    await waitFor(() => expect(abandonChange).toHaveBeenCalledWith(1, {}));
+    expect(abandonChange).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Abandon' }));
+    await waitFor(() => expect(abandonChange).toHaveBeenCalledWith(1, { note: null }));
+  });
+
+  it('asks before abandoning, sends the reason, shows a refusal in the strip and cancels without a call', async () => {
+    listChanges.mockResolvedValue({ changes: [change(1, 'open')] });
+    abandonChange.mockRejectedValueOnce(new Error('Already merged.'));
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('work/PLAT-7-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Abandon' }));
+    const strip = screen.getByRole('alertdialog');
+    expect(strip).toHaveTextContent('Abandon this change? It cannot be reopened.');
+    fireEvent.change(within(strip).getByLabelText('Why (optional)'), { target: { value: ' superseded ' } });
+    fireEvent.click(within(strip).getByRole('button', { name: 'Abandon' }));
+    await waitFor(() => expect(abandonChange).toHaveBeenCalledWith(1, { note: 'superseded' }));
+    expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent('Already merged.');
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(abandonChange).toHaveBeenCalledTimes(1);
   });
 
   it('a 409 on a merge shows the server message', async () => {
@@ -224,6 +243,7 @@ describe('WorkChanges', () => {
     render(<WorkChanges itemKey="PLAT-7" canEdit />);
     await screen.findByText('work/PLAT-7-1');
     fireEvent.click(screen.getByRole('button', { name: 'Abandon' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Abandon' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('That did not work.');
   });
 

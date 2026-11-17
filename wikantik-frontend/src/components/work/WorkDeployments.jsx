@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import WorkLoadError from './WorkLoadError';
 import { Link } from 'react-router-dom';
 import EmptyState from '../ui/EmptyState';
 import Select from '../ui/Select';
@@ -10,6 +11,7 @@ export const STATE_LABEL = {
   requested: 'waiting for approval', approved: 'approved', running: 'running', verified: 'verified',
   failed: 'failed', rolled_back: 'rolled back', rejected: 'rejected',
 };
+export const stateLabel = (s) => STATE_LABEL[s] || String(s).replace(/_/g, ' ');
 const BLANK = { version: '', environment: '', items: '' };
 const who = (name, kind) => (name ? `${name}${kind === 'agent' ? ' (agent)' : ''}` : 'someone');
 
@@ -54,6 +56,7 @@ export default function WorkDeployments() {
   const [products, setProducts] = useState(null);
   const [product, setProduct] = useState('');
   const [deployments, setDeployments] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
@@ -69,8 +72,8 @@ export default function WorkDeployments() {
   const load = useCallback(() => {
     if (!product) return undefined;
     return listDeployments(product)
-      .then((r) => setDeployments(r?.deployments || []))
-      .catch((e) => { console.warn('WorkDeployments: could not load the deployments', e); setDeployments([]); });
+      .then((r) => { setLoadError(null); setDeployments(r?.deployments || []); })
+      .catch((e) => { console.warn('WorkDeployments: could not load the deployments', e); setLoadError(e || {}); setDeployments([]); });
   }, [product]);
 
   useEffect(() => { load(); }, [load]);
@@ -80,24 +83,26 @@ export default function WorkDeployments() {
 
   return (
     <div className="work-deployments">
-      <h1 className="work-heading">Deployments</h1>
+      <h1 className="work-heading"><Link to="/work">Work</Link> <span aria-hidden="true">▸</span> Deployments</h1>
       <div className="work-actions">
+        <span className="work-muted">Product</span>
         <Select ariaLabel="Product" value={product} options={products.map((p) => ({ value: p.key, label: p.name || p.key }))}
           onChange={(v) => { if (v && v !== product) { setDeployments(null); setProduct(v); } }} />
-        {!requesting && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRequesting(true)}>Request</button>}
+        {!requesting && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRequesting(true)}>Request a deployment</button>}
       </div>
       {requesting && (
         <RequestForm product={product} onCancel={() => setRequesting(false)}
           onDone={() => { setRequesting(false); load(); }} />
       )}
       {deployments === null ? <Spinner label="Loading…" />
+        : loadError ? <WorkLoadError error={loadError} fallback="Could not load the deployments." onRetry={load} />
         : deployments.length === 0 ? <p className="work-muted">No deployments of this product that you can see.</p> : (
           <ul className="work-deployment-list">
             {deployments.map((d) => (
               <li key={d.id} className="work-deployment">
                 <Link to={`/work/deployments/${d.id}`}>{d.product} {d.version}</Link>
                 <span className="work-muted"> · {d.environment}</span>{' '}
-                <span className="work-chip">{STATE_LABEL[d.state] || d.state}</span>
+                <span className="work-chip">{stateLabel(d.state)}</span>
                 <div className="work-muted">
                   requested by {who(d.requestedByName, d.requestedByKind)} · {d.items.length} {d.items.length === 1 ? 'item' : 'items'}
                 </div>

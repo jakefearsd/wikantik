@@ -89,7 +89,7 @@ describe('WorkClaim', () => {
   it('says back to its queue when the queue has no name', () => {
     renderClaim({ item: { ...CLAIMED, queueName: null } });
     fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('The item goes back to the its queue.');
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('The item goes back to its queue.');
   });
 
   it('closes the confirmation, clears the note and returns focus once the release succeeds', async () => {

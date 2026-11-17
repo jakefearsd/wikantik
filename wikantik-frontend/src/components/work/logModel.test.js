@@ -56,6 +56,12 @@ describe('groupByDay', () => {
     expect(groups[0].label).toBe('Unknown date');
     expect(groups[0].rows).toHaveLength(2);
   });
+  it('puts a row with no time and a row with an unreadable time under one Unknown date group', () => {
+    const groups = groupByDay([row(1, null), row(2, 'garbage'), row(3, undefined)], NOW);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBe('Unknown date');
+    expect(groups[0].rows).toHaveLength(3);
+  });
   it('keeps two different days that share a label apart', () => {
     // 2025-12-25 and 2024-12-25 both read "Thu, Dec 25"-like labels only by year; their labels differ, but dayKey guards the same-label case anyway
     const groups = groupByDay([row(1, at(2025, 11, 25)), row(2, at(2024, 11, 25))], NOW);

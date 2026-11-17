@@ -90,9 +90,9 @@ describe('WorkItemView edges', () => {
       ['priority', 'Edit Priority', {}, {}, { priority: 1 }, {}, 'lead'],
       ['due date', 'Edit Due', { dueOn: null }, {}, { dueOn: '2026-12-01' }, {}, 'lead'],
       ['kind', 'Edit Kind', { kind: null }, {}, { kind: 'docs' }, {}, 'lead'],
-      ['allow direct', 'Edit Allow direct', { allowDirect: null }, {}, { allowDirect: true }, {}, 'lead'],
+      ['allow direct', 'Edit Direct commits by agents', { allowDirect: null }, {}, { allowDirect: true }, {}, 'lead'],
       ['autonomy', 'Edit Autonomy', { autonomy: null }, {}, { autonomy: 'delegated' }, {}, 'lead'],
-      ['done means', 'Edit Done means', { doneMeans: null }, {}, { doneMeans: 'merged' }, {}, 'lead'],
+      ['done means', 'Edit Done means', { doneMeans: null, level: 'epic', productKey: null }, {}, { doneMeans: 'merged' }, {}, 'lead'],
       ['status', 'Edit Status', {}, {}, { status: 'review' }, {}, 'lead'],
       ['text', 'Edit text', { body: null }, {}, { body: 'Brand new text' }, {}, 'lead'],
       ['hand-off', 'Hand off', {}, {}, { status: 'review' }, {}, 'member'],
@@ -111,6 +111,49 @@ describe('WorkItemView edges', () => {
       getItem.mockResolvedValue(makeView({ viewerRole: role, ...viewBefore, ...viewAfter }, { ...itemBefore, ...itemAfter, version: 6 }));
       await comment('two');
       await waitFor(() => expect(screen.getByRole('button', { name: 'Keep editing on top of theirs' })).toBeDisabled());
+    });
+  });
+
+  describe('the stale banner for a queue picked in the assignee editor', () => {
+    const staleWithQueuePicked = async () => {
+      addComment.mockResolvedValue({ id: 9 });
+      renderView(makeView({ viewerRole: 'lead' }));
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Assignee' }));
+      await waitFor(() => expect(screen.getByLabelText('Assignee').querySelector('option[value="queue:implementer"]')).not.toBeNull());
+      fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'queue:implementer' } });
+      getItem.mockResolvedValue(makeView({ viewerRole: 'lead' }, { version: 5, reporterName: 'Someone Else' }));
+      await comment('one');
+      await screen.findByRole('button', { name: 'Review their version' });
+      return review();
+    };
+
+    it('shows the queue by name, not "someone" and not the raw control string', async () => {
+      const panel = await staleWithQueuePicked();
+      expect(panel).toHaveTextContent('Queue · Implementer');
+      expect(panel).not.toHaveTextContent('someone');
+      expect(panel).not.toHaveTextContent('queue:');
+    });
+
+    it('falls back to the queue key when its name is unknown', async () => {
+      listQueues.mockResolvedValue([{ key: 'implementer', name: '', retiredAt: null }]);
+      const panel = await staleWithQueuePicked();
+      expect(panel).toHaveTextContent('Queue · implementer');
+    });
+  });
+
+  describe('a refused save whose body has no usable current item', () => {
+    it.each([['an empty current', {}], ['a current with no item', { item: null }]])('does not throw with %s and says their value is unavailable', async (_n, current) => {
+      patchItem.mockRejectedValue(rejection(409, { current }));
+      renderView();
+      await ready();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Priority' }));
+      fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '1' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Priority' }));
+      expect(await screen.findByText('This item changed while you were editing.')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Review their version' }));
+      expect(screen.getByTestId('conflict-review')).toHaveTextContent('(unavailable)');
+      expect(screen.getByLabelText('Priority')).toBeInTheDocument();
     });
   });
 
@@ -390,21 +433,11 @@ describe('WorkItemView edges', () => {
       await screen.findByText('This project is archived. It is read-only.');
     };
 
-    it('keeps the typed value and lets the person cancel the leftover editor', async () => {
+    it('closes the editor that was open, leaving no Save button that can only be refused again', async () => {
       await refuse();
-      fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '2' } });
-      expect(screen.getByLabelText('Priority').value).toBe('2');
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel editing Priority' }));
       expect(screen.queryByLabelText('Priority')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Save Priority' })).toBeNull();
       expect(screen.getByText('P3')).toBeInTheDocument();
-    });
-
-    it('sends the version the page now holds if the leftover editor is saved anyway', async () => {
-      await refuse();
-      patchItem.mockRejectedValueOnce(archivedRefusal);
-      fireEvent.click(screen.getByRole('button', { name: 'Save Priority' }));
-      await waitFor(() => expect(patchItem).toHaveBeenCalledTimes(2));
-      expect(patchItem.mock.calls[1][1]).toEqual({ expectedVersion: 9, changes: { priority: 1 } });
     });
   });
 
@@ -442,7 +475,7 @@ describe('WorkItemView edges', () => {
 
   describe('displaying values the page does not know', () => {
     it('shows an unknown status, autonomy and done-means as they are, and a missing reporter as Unknown', async () => {
-      renderView(makeView({}, { status: 'weird', autonomy: 'odd', doneMeans: 'strange', reporterName: null, createdAt: null, updatedAt: null }));
+      renderView(makeView({}, { status: 'weird', autonomy: 'odd', doneMeans: 'strange', level: 'epic', reporterName: null, createdAt: null, updatedAt: null }));
       await ready();
       expect(screen.getByText('weird')).toBeInTheDocument();
       expect(screen.getByText('odd')).toBeInTheDocument();
@@ -492,9 +525,9 @@ describe('WorkItemView edges', () => {
       patchItem.mockResolvedValue(makeView({ viewerRole: 'lead' }, { allowDirect: sent, version: 5 }));
       renderView(makeView({ viewerRole: 'lead' }, { allowDirect: before }));
       await ready();
-      fireEvent.click(screen.getByRole('button', { name: 'Edit Allow direct' }));
-      fireEvent.change(screen.getByLabelText('Allow direct'), { target: { value: choice } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save Allow direct' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Direct commits by agents' }));
+      fireEvent.change(screen.getByLabelText('Direct commits by agents'), { target: { value: choice } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Direct commits by agents' }));
       await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { allowDirect: sent } }));
     });
   });

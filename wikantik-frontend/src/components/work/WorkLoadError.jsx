@@ -3,6 +3,10 @@ import EmptyState from '../ui/EmptyState';
 /** A failed load: the reason and a Retry button, never a blank area. A 404 is the neutral not-found state. */
 export default function WorkLoadError({ error, fallback = 'Could not load this.', onRetry }) {
   if (error?.status === 404) return <EmptyState message="Not found" />;
+  // Signed out (or the session ended): retrying cannot help, signing in does.
+  if (error?.status === 401) {
+    return <EmptyState message="Sign in to see your work." action={<a className="btn btn-sm" href="/login">Sign in</a>} />;
+  }
   return (
     <EmptyState
       message={error?.message || fallback}

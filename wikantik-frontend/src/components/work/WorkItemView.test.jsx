@@ -255,8 +255,19 @@ describe('WorkItemView', () => {
     expect(screen.getByText('Bob Brown')).toBeInTheDocument();
   });
 
+  it('offers Done means on an epic only: a story or task takes it from its epic', async () => {
+    const story = renderView(makeView({ viewerRole: 'lead' }, { level: 'story' }));
+    await ready();
+    expect(screen.queryByText('Done means')).toBeNull();
+    expect(screen.getByText('Direct commits by agents')).toBeInTheDocument();
+    story.unmount();
+    renderView(makeView({ viewerRole: 'lead' }, { level: 'epic' }));
+    await ready();
+    expect(screen.getByRole('button', { name: 'Edit Done means' })).toBeInTheDocument();
+  });
+
   it('policyFieldsFollowWhoMaySetThem: a lead all three, a member only the level, a viewer none', async () => {
-    const policy = { autonomy: 'delegated', doneMeans: 'merged', allowDirect: true };
+    const policy = { autonomy: 'delegated', doneMeans: 'merged', allowDirect: true, level: 'epic' };
     const lead = renderView(makeView({ viewerRole: 'lead' }, policy));
     await ready();
     expect(screen.queryByText('Takes effect in a later release')).toBeNull();
@@ -264,7 +275,7 @@ describe('WorkItemView', () => {
     expect(screen.getByText('Merged')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit Autonomy' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit Done means' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Edit Allow direct' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Direct commits by agents' })).toBeInTheDocument();
     lead.unmount();
 
     // a member may make an item stricter; the server refuses a loosening, so the control is offered
@@ -272,7 +283,7 @@ describe('WorkItemView', () => {
     await ready();
     expect(screen.getByRole('button', { name: 'Edit Autonomy' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit Done means' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Edit Allow direct' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit Direct commits by agents' })).toBeNull();
     member.unmount();
 
     renderView(makeView({ viewerRole: 'viewer' }, policy));
@@ -317,9 +328,9 @@ describe('WorkItemView', () => {
     patchItem.mockResolvedValue(makeView({ viewerRole: 'lead' }, { allowDirect: false, version: 5 }));
     renderView(makeView({ viewerRole: 'lead' }));
     await ready();
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Allow direct' }));
-    fireEvent.change(screen.getByLabelText('Allow direct'), { target: { value: 'false' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Allow direct' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Direct commits by agents' }));
+    fireEvent.change(screen.getByLabelText('Direct commits by agents'), { target: { value: 'false' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Direct commits by agents' }));
     await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { allowDirect: false } }));
   });
 
@@ -560,7 +571,7 @@ describe('WorkItemView', () => {
     await ready();
     fireEvent.change(screen.getByLabelText('Add a comment'), { target: { value: 'my comment' } });
     fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(await screen.findByRole('alert')).toHaveTextContent('Conflict');
     expect(screen.getByLabelText('Add a comment').value).toBe('my comment');
   });
 

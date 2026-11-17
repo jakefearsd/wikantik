@@ -44,7 +44,7 @@ describe('WorkDeployments', () => {
     requestDeployment.mockResolvedValue(dep(27, 'requested'));
     renderPage();
     await screen.findByRole('link', { name: 'wikantik 2.5.26' });
-    fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Request a deployment' }));
     fireEvent.click(screen.getByRole('button', { name: 'Request deployment' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Enter the version.');
     fireEvent.change(screen.getByLabelText('Version'), { target: { value: '2.5.27' } });
@@ -62,7 +62,7 @@ describe('WorkDeployments', () => {
     requestDeployment.mockRejectedValue(Object.assign(new Error('PLAT-12 does not target this product.'), { status: 400 }));
     renderPage();
     await screen.findByRole('link', { name: 'wikantik 2.5.26' });
-    fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Request a deployment' }));
     fireEvent.change(screen.getByLabelText('Version'), { target: { value: '2.5.27' } });
     fireEvent.change(screen.getByLabelText('Items it ships'), { target: { value: 'PLAT-12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Request deployment' }));
@@ -80,11 +80,11 @@ describe('WorkDeployments', () => {
     requestDeployment.mockResolvedValue(dep(27, 'requested'));
     renderPage();
     await screen.findByRole('link', { name: 'wikantik 2.5.26' });
-    fireEvent.click(screen.getByRole('button', { name: 'Request' }));
-    expect(screen.queryByRole('button', { name: 'Request' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Request a deployment' }));
+    expect(screen.queryByRole('button', { name: 'Request a deployment' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByLabelText('Version')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Request a deployment' }));
     fireEvent.change(screen.getByLabelText('Version'), { target: { value: ' 2.5.27 ' } });
     fireEvent.change(screen.getByLabelText('Environment'), { target: { value: ' staging ' } });
     fireEvent.change(screen.getByLabelText('Items it ships'), { target: { value: 'PLAT-12' } });
@@ -97,7 +97,7 @@ describe('WorkDeployments', () => {
     requestDeployment.mockRejectedValue({});
     renderPage();
     await screen.findByRole('link', { name: 'wikantik 2.5.26' });
-    fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Request a deployment' }));
     fireEvent.change(screen.getByLabelText('Version'), { target: { value: '2.5.27' } });
     fireEvent.change(screen.getByLabelText('Items it ships'), { target: { value: 'PLAT-12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Request deployment' }));
@@ -113,12 +113,22 @@ describe('WorkDeployments', () => {
     warn.mockRestore();
   });
 
-  it('treats a failed deployment load as an empty list', async () => {
+  it('says so when the deployments cannot be loaded, and loads them on Retry', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    listDeployments.mockRejectedValue(new Error('boom'));
+    listDeployments.mockRejectedValueOnce(new Error('boom'));
     renderPage();
+    expect(await screen.findByText('boom')).toBeInTheDocument();
+    expect(screen.queryByText('No deployments of this product that you can see.')).toBeNull();
+    listDeployments.mockResolvedValue({ deployments: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('No deployments of this product that you can see.')).toBeInTheDocument();
     warn.mockRestore();
+  });
+
+  it('leads back to the Work home and names what the picker picks', async () => {
+    renderPage();
+    expect(await screen.findByRole('link', { name: 'Work' })).toHaveAttribute('href', '/work');
+    expect(screen.getByText('Product')).toBeInTheDocument();
   });
 
   it('copes with a missing product list and a missing deployment list', async () => {
@@ -141,5 +151,13 @@ describe('WorkDeployments', () => {
     const row = (await screen.findByRole('link', { name: 'wikantik 2.5.30' })).closest('li');
     expect(within(row).getByText('mystery')).toBeInTheDocument();
     expect(row).toHaveTextContent('requested by someone · 2 items');
+  });
+
+  it('shows an unknown state without underscores', async () => {
+    listProducts.mockResolvedValue([{ key: 'wikantik', name: 'Wikantik', archived: false }]);
+    listDeployments.mockResolvedValue({ deployments: [{ id: 1, product: 'wikantik', version: '1', environment: 'prod',
+      state: 'half_done', requestedByName: 'Ana', items: [] }] });
+    render(<MemoryRouter><WorkDeployments /></MemoryRouter>);
+    expect(await screen.findByText('half done')).toBeInTheDocument();
   });
 });

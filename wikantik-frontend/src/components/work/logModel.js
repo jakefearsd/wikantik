@@ -41,7 +41,7 @@ export function groupByDay(rows, now = new Date()) {
 
 function dayKey(iso) {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? 'x' : `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  return !iso || Number.isNaN(d.getTime()) ? 'x' : `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
 /**

@@ -24,12 +24,25 @@ export default function WorkPolicyNote({ itemKey, ownAutonomy = null, canAcknowl
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  const [failed, setFailed] = useState(false);
+
   const load = useCallback(() => getItemPolicy(itemKey)
-    .then(setPolicy)
-    .catch((e) => console.warn('WorkPolicyNote: could not load the policy', e)), [itemKey]);
+    .then((p) => { setPolicy(p); setFailed(false); })
+    .catch((e) => {
+      console.warn('WorkPolicyNote: could not load the policy', e);
+      setFailed(true);
+    }), [itemKey]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
+  if (failed && !policy?.effective) {
+    return (
+      <p className="work-muted">
+        Could not load the autonomy policy.{' '}
+        <button type="button" className="btn btn-ghost btn-sm" onClick={load}>Retry</button>
+      </p>
+    );
+  }
   if (!policy?.effective) return null;
   const { autonomy, allowDirect, doneMeans } = policy.effective;
 
@@ -58,7 +71,7 @@ export default function WorkPolicyNote({ itemKey, ownAutonomy = null, canAcknowl
       )}
       {policy.ackRequired && !policy.ackWaiting && (
         <p className="work-muted">
-          Closed by an agent with no person in the path; acknowledged by {policy.acknowledgedByName || policy.acknowledgedBy || 'someone'}
+          Closed by an agent with no person in the path; acknowledged by {policy.acknowledgedByName || 'someone'}
           {policy.acknowledgedAt ? ` on ${new Date(policy.acknowledgedAt).toLocaleDateString()}` : ''}.
         </p>
       )}

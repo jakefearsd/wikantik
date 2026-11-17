@@ -38,7 +38,7 @@ export default function WorkClaim({ item, canRelease = false, onRelease, now: in
   const holder = item.claimedByName || 'an agent';
   const lapsed = isPast(item.claimExpiresAt, now);
   const close = () => { refocus.current = true; setConfirming(false); };
-  const where = item.queue ? `back to the ${item.queueName || 'its'} queue` : 'unclaimed';
+  const where = item.queue ? (item.queueName ? `back to the ${item.queueName} queue` : 'back to its queue') : 'unclaimed';
 
   function release() {
     if (busy) return;

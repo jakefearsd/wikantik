@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import WorkConfirm from './WorkConfirm';
 import {
   abandonChange, listChanges, mergeChange, openChange, requestReview, reviewChange,
 } from '../../api/work';
@@ -26,6 +27,9 @@ function who(name, kind) {
 function ChangeRow({ change: c, canEdit, busy, act }) {
   const [sha, setSha] = useState(c.headSha || '');
   const [note, setNote] = useState('');
+  const [abandoning, setAbandoning] = useState(false);
+  const [why, setWhy] = useState('');
+  const [abandonError, setAbandonError] = useState(null);
   const live = c.state === 'open' || c.state === 'in_review';
   const href = c.reviewUrl ? httpHref(c.reviewUrl) : null;
   const stateText = c.state === 'merged' ? KIND_LABEL[c.mergeKind] || 'merged' : STATE_LABEL[c.state] || c.state;
@@ -59,13 +63,31 @@ function ChangeRow({ change: c, canEdit, busy, act }) {
                 onClick={() => act(() => reviewChange(c.id, { approved: false, note: note || null }))}>Send back</button>
             </>
           )}
-          <input className="work-field-input" aria-label={`Merged commit for ${c.branch}`} placeholder="Merged commit"
-            value={sha} onChange={(e) => setSha(e.target.value)} />
+          <label className="work-inline-label">
+            <span className="work-muted">Merged commit</span>{' '}
+            <input className="work-field-input" aria-label={`Merged commit for ${c.branch}`} placeholder="Merged commit"
+              value={sha} onChange={(e) => setSha(e.target.value)} />
+          </label>
           <button type="button" className="btn btn-sm" disabled={busy || !sha.trim()}
             onClick={() => act(() => mergeChange(c.id, { mergedSha: sha.trim() }))}>Record merge</button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
-            onClick={() => act(() => abandonChange(c.id, {}))}>Abandon</button>
+          {!abandoning && (
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
+              onClick={() => { setAbandoning(true); setAbandonError(null); }}>Abandon</button>
+          )}
         </div>
+      )}
+      {canEdit && live && abandoning && (
+        <WorkConfirm yes="Abandon" error={abandonError}
+          onYes={() => act(() => abandonChange(c.id, { note: why.trim() || null }), null,
+            (e) => setAbandonError(e?.message || 'That did not work.'))}
+          onNo={() => { setAbandoning(false); setWhy(''); setAbandonError(null); }}
+          fields={(
+            <label className="work-form-field">Why (optional)
+              <input className="work-field-input" value={why} onChange={(e) => setWhy(e.target.value)} />
+            </label>
+          )}>
+          Abandon this change? It cannot be reopened.
+        </WorkConfirm>
       )}
     </li>
   );
@@ -89,12 +111,12 @@ export default function WorkChanges({ itemKey, canEdit = false, refreshKey = 0, 
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
-  function act(call, after) {
+  function act(call, after, onError) {
     if (busy) return;
     setBusy(true); setError(null);
     call()
       .then(() => { after?.(); onChanged?.(); return load(); })
-      .catch((e) => setError(e?.message || 'That did not work.'))
+      .catch((e) => (onError ? onError(e) : setError(e?.message || 'That did not work.')))
       .finally(() => setBusy(false));
   }
 

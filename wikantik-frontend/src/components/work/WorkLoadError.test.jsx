@@ -28,4 +28,11 @@ describe('WorkLoadError', () => {
     expect(screen.getByText('Could not load this.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
+
+  it('asks a signed-out person to sign in, with a link, instead of offering a retry that cannot help', () => {
+    render(<WorkLoadError error={{ status: 401, message: 'Authentication required' }} onRetry={() => {}} />);
+    expect(screen.getByText('Sign in to see your work.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
 });

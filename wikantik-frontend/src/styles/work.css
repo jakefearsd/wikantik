@@ -180,3 +180,6 @@
 .work-deployment { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); }
 .work-evidence { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-sidebar); padding: var(--space-sm) var(--space-md); overflow-x: auto; white-space: pre-wrap; font-size: 0.85rem; }
 .work-shipped-in { margin: var(--space-sm) 0; font-size: 0.9rem; }
+
+/* A column a card is being dragged over */
+.work-column-over { border-color: var(--accent); background: var(--accent-soft); }

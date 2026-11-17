@@ -16,7 +16,7 @@ import { STATUS_LABELS, addToColumns, groupByEpic, moveInColumns, orderColumns, 
 
 const CHANGERS = new Set(['member', 'lead']);
 
-function Column({ column, canEdit, grouped, allItems, changeCounts, onDragStart, onDragEnd, onMove, onDrop }) {
+function Column({ column, canEdit, grouped, allItems, changeCounts, over, onDragStart, onDragEnd, onMove, onDrop, onOver, onLeave }) {
   const { status, total, items } = column;
   const count = total > items.length ? `${items.length} of ${total}` : String(total);
   const card = (item) => (
@@ -25,10 +25,11 @@ function Column({ column, canEdit, grouped, allItems, changeCounts, onDragStart,
   );
   return (
     <section
-      className="work-column"
+      className={`work-column${over ? ' work-column-over' : ''}`}
       data-testid={`column-${status}`}
       aria-label={STATUS_LABELS[status]}
-      onDragOver={canEdit ? (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; } : undefined}
+      onDragOver={canEdit ? (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; onOver(status); } : undefined}
+      onDragLeave={canEdit ? (e) => { if (!e.currentTarget.contains(e.relatedTarget)) onLeave(status); } : undefined}
       onDrop={canEdit ? (e) => onDrop(status, e) : undefined}
     >
       <h3 className="work-column-title">{STATUS_LABELS[status]} <span className="work-column-count">{count}</span></h3>
@@ -66,12 +67,20 @@ export default function WorkBoard() {
   const [formOpen, setFormOpen] = useState(false);
   const dragged = useRef(null);
   const loadSeq = useRef(0);
+  const [overStatus, setOverStatus] = useState(null);
+  const [announcement, setAnnouncement] = useState('');
+  // The project on screen right now: an answer for any other project must change nothing.
+  const shownProject = useRef(project.key);
+  useEffect(() => { shownProject.current = project.key; }, [project.key]);
   const columns = state.projectKey === project.key ? state.columns : null;
 
-  const setColumns = useCallback((next) => setState((s) => ({
+  const setColumns = useCallback((next) => {
+    if (shownProject.current !== project.key) return;
+    setState((s) => ({
     projectKey: project.key,
     columns: typeof next === 'function' ? next(s.projectKey === project.key ? s.columns : null) : next,
-  })), [project.key]);
+    }));
+  }, [project.key]);
 
   const fail = useCallback((e) => {
     if (e?.status === 404) setNotFound(true);
@@ -146,19 +155,29 @@ export default function WorkBoard() {
     const rank = rankForInsert(others, at, { append: status === item.status });
     const changes = status === item.status ? { rank } : { status };
     if (status !== item.status && rank !== undefined) changes.rank = rank;
+    const movedIn = project.key;
+    const stale = () => shownProject.current !== movedIn;
     const original = columns.flatMap((c) => c.items).find((i) => i.key === item.key);
     setColumns(moveInColumns(columns, item.key, status, at, rank));
     patchItem(item.key, { expectedVersion: item.version, changes })
       .then((view) => {
+        if (stale()) return;
+        if (!view?.item) {
+          // Saved, but the answer says nothing about the card: show what the server has.
+          load();
+          return;
+        }
         setColumns((cols) => (cols || []).map((c) => ({
           ...c, items: c.items.map((i) => (i.key === item.key ? { ...i, ...view.item } : i)),
         })));
+        setAnnouncement(`Moved ${item.key} to ${STATUS_LABELS[status] || status}.`);
         // A person is never locked out of a claimed item, but the move ends the claim: say so once it has happened.
-        if (original?.claimedByAgent != null && view?.item && view.item.claimedByAgent == null) {
+        if (original?.claimedByAgent != null && view.item.claimedByAgent == null) {
           toast.info(`${original.claimedByName || 'An agent'}'s claim on ${item.key} was released by the move.`);
         }
       })
       .catch((err) => {
+        if (stale()) return;
         if (isArchivedRefusal(err)) {
           toast.info(`${ARCHIVED_TEXT}; nothing was moved.`);
           setColumns((cols) => revertCard(cols || [], original));
@@ -179,6 +198,7 @@ export default function WorkBoard() {
     e.preventDefault();
     const key = dragged.current;
     dragged.current = null;
+    setOverStatus(null);
     const item = key && columns.flatMap((c) => c.items).find((i) => i.key === key);
     if (!item || !canEdit) return;
     const others = (columns.find((c) => c.status === status)?.items || []).filter((i) => i.key !== key);
@@ -200,6 +220,9 @@ export default function WorkBoard() {
 
   const ordered = orderColumns(columns, showAll);
   const allItems = columns.flatMap((c) => c.items);
+  // A new item starts as a draft: say so when drafts are hidden, or it looks as if it was never created.
+  const hidden = showAll ? 0 : columns.filter((c) => c.status === 'draft' || c.status === 'cancelled')
+    .reduce((n, c) => n + (c.total ?? c.items.length), 0);
 
   return (
     <div className="work-board">
@@ -210,6 +233,11 @@ export default function WorkBoard() {
         <label className="work-toggle">
           <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> Show draft and cancelled
         </label>
+        {hidden > 0 && (
+          <button type="button" className="btn btn-ghost btn-sm work-hidden-hint" onClick={() => setShowAll(true)}>
+            {hidden} draft or cancelled {hidden === 1 ? 'item is' : 'items are'} hidden. Show
+          </button>
+        )}
         <Select ariaLabel="Filter by product" placeholder="All products" value={productFilter}
           options={products.map((p) => ({ value: p.key, label: p.name || p.key }))}
           onChange={(v) => setFilter('product', v)} />
@@ -232,10 +260,13 @@ export default function WorkBoard() {
           <Column key={c.status} column={c} canEdit={canEdit} grouped={grouped}
             allItems={allItems} changeCounts={changeCounts}
             onDragStart={(item) => { dragged.current = item.key; }}
-            onDragEnd={() => { dragged.current = null; }}
+            over={overStatus === c.status}
+            onOver={setOverStatus} onLeave={(st) => setOverStatus((o) => (o === st ? null : o))}
+            onDragEnd={() => { dragged.current = null; setOverStatus(null); }}
             onMove={(item, status) => move(item, status)} onDrop={onDrop} />
         ))}
       </div>
+      <div className="work-visually-hidden" role="status" aria-live="polite">{announcement}</div>
       <WorkItemForm isOpen={formOpen} project={project} products={products} members={members} queues={queues} onClose={() => setFormOpen(false)}
         onCreated={(created, view) => {
           const item = {

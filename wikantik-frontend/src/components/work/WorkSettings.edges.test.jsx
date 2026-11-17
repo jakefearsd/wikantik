@@ -55,7 +55,7 @@ describe('WorkSettings edges', () => {
     renderSettings({ project: { id: 1, key: 'PLAT' } });
     expect(await screen.findByLabelText('Project name')).toHaveValue('');
     expect(screen.getByLabelText('Description')).toHaveValue('');
-    expect(screen.getByText('supervised')).toBeInTheDocument();
+    expect(screen.getByLabelText('Default autonomy')).toHaveValue('supervised');
     expect(screen.getByRole('button', { name: 'Save details' })).toBeDisabled();
   });
 
@@ -184,7 +184,8 @@ describe('WorkSettings edges', () => {
     renderSettings();
     await screen.findByText('Bob B');
     fireEvent.click(screen.getByRole('button', { name: 'Remove Bob B' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Could not change the member.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove Bob B' }));
+    expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent('Could not change the member.');
   });
 
   it('a failed change of your own role keeps the member list on screen', async () => {
@@ -205,7 +206,7 @@ describe('WorkSettings edges', () => {
     listMembers.mockResolvedValue([ME, agent]);
     renderSettings();
     fireEvent.click(await screen.findByRole('button', { name: 'Remove member' }));
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('Remove member from this project?');
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Remove member from Platform?');
     fireEvent.click(screen.getByRole('button', { name: 'Yes, remove member' }));
     await waitFor(() => expect(removeMember).toHaveBeenCalledWith('PLAT', { principal: 'build-bot', principalKind: 'agent' }));
   });

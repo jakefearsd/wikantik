@@ -48,7 +48,7 @@ describe('WorkProducts', () => {
   it('lists products with their ceiling and deploy gate, both live', async () => {
     renderProducts();
     expect(await screen.findByText('Wikantik')).toBeInTheDocument();
-    expect(screen.getAllByText(/Autonomy ceiling delegated, deploy gate human\./).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Agents may do at most: Delegated\. Deployments are approved by a person\./).length).toBeGreaterThan(0);
     expect(screen.queryByText(/later release/)).toBeNull();
   });
 
@@ -102,7 +102,7 @@ describe('WorkProducts', () => {
     expect(await screen.findByText('Wikantik')).toBeInTheDocument();
   });
 
-  it('shows the server reason in a toast on 403', async () => {
+  it('shows the server reason inline on the form on 403, not as a toast', async () => {
     createProduct.mockRejectedValue(Object.assign(new Error('Admins only.'), { status: 403 }));
     renderProducts();
     await screen.findByText('Wikantik');
@@ -110,7 +110,15 @@ describe('WorkProducts', () => {
     fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'okay' } });
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'N' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create product' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Admins only.'));
+    expect(await screen.findByText('Admins only.')).toHaveAttribute('role', 'alert');
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('says what a product key may be and that it cannot be changed later', async () => {
+    renderProducts();
+    await screen.findByText('Wikantik');
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
+    expect(screen.getByText('2 to 40 lowercase letters, digits and hyphens, starting with a letter. It cannot be changed later.')).toBeInTheDocument();
   });
 
   it('does not redirect an admin while the signed-in user is still loading', async () => {
@@ -132,5 +140,10 @@ describe('WorkProducts', () => {
     expect(archiveProduct).toHaveBeenCalledTimes(1);
     release();
     await waitFor(() => expect(listProducts).toHaveBeenCalledTimes(2));
+  });
+
+  it('leads back to the Work home', async () => {
+    renderProducts();
+    expect(await screen.findByRole('link', { name: 'Work' })).toHaveAttribute('href', '/work');
   });
 });

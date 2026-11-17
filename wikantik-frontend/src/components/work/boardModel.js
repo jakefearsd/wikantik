@@ -39,14 +39,27 @@ export function revertCard(columns, original) {
   return moveInColumns(columns, original.key, original.status, hit < 0 ? others.length : hit, original.rank);
 }
 
+/** columns with an empty column for `status` added, in the fixed status order, when it has none. */
+function withColumn(columns, status) {
+  if (columns.some((c) => c.status === status)) return columns;
+  const rank = (s) => STATUSES.indexOf(s);
+  const at = columns.findIndex((c) => rank(c.status) > rank(status));
+  const next = columns.slice();
+  next.splice(at < 0 ? next.length : at, 0, { status, total: 0, items: [] });
+  return next;
+}
+
 /** A copy of columns with a newly created item appended to the column of its status. */
-export function addToColumns(columns, item) {
+export function addToColumns(base, item) {
+  const columns = withColumn(base, item.status);
   return columns.map((c) => (c.status === item.status
     ? { ...c, items: [...c.items, item], total: c.total + 1 } : c));
 }
 
 /** A copy of columns with the card moved to `status` at `index` (optionally re-ranked). */
-export function moveInColumns(columns, key, status, index, rank) {
+export function moveInColumns(base, key, status, index, rank) {
+  if (!base.some((c) => c.items.some((i) => i.key === key))) return base;
+  const columns = withColumn(base, status);
   let moved = null;
   let from = null;
   const stripped = columns.map((c) => {
@@ -56,7 +69,6 @@ export function moveInColumns(columns, key, status, index, rank) {
     from = c.status;
     return { ...c, items: c.items.filter((i) => i.key !== key) };
   });
-  if (!moved) return columns;
   const updated = { ...moved, status, ...(rank !== undefined ? { rank } : {}) };
   return stripped.map((c) => {
     let col = c;

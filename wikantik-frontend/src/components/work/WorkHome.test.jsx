@@ -255,4 +255,21 @@ describe('WorkHome', () => {
     expect(getMe).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
+
+  it('tells the person when an acknowledge fails, keeps the item, and clears it on success', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderHome({ me: { projects: ME.projects, waitingOn: [
+      { id: 9, key: 'ZZ-9', projectId: 1, title: 'Elsewhere', waiting: { reason: 'acknowledge' } }] } });
+    await screen.findByRole('link', { name: 'ZZ-9' });
+    acknowledgeItem.mockRejectedValueOnce(new Error('You may not acknowledge this.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge ZZ-9' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('You may not acknowledge this.');
+    expect(screen.getByRole('link', { name: 'ZZ-9' })).toBeInTheDocument();
+    acknowledgeItem.mockRejectedValueOnce({});
+    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge ZZ-9' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Could not acknowledge that. Try again.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge ZZ-9' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    warn.mockRestore();
+  });
 });

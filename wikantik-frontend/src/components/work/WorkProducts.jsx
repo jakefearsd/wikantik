@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { archiveProduct, createProduct, listProducts, updateProduct } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
+import WorkConfirm from './WorkConfirm';
 import WorkLoadError from './WorkLoadError';
 
 const KEY_PATTERN = /^[a-z][a-z0-9-]{1,39}$/;
 const KEY_MESSAGE = 'Key must start with a lowercase letter and use only lowercase letters, digits and hyphens (2 to 40 characters).';
 const GATES = [{ value: 'human', label: 'A person approves deployments' }, { value: 'agent', label: 'An agent may approve deployments' }];
 const CEILINGS = ['supervised', 'delegated', 'autonomous'];
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const BLANK = { key: '', name: '', repoUrl: '', defaultBranch: '', wikiCluster: '', autonomyCeiling: 'delegated', deployGate: 'human' };
 
 function ProductForm({ product, onDone, onCancel }) {
@@ -36,9 +38,7 @@ function ProductForm({ product, onDone, onCancel }) {
     const request = editing ? updateProduct(product.key, fields) : createProduct({ key: f.key, ...fields });
     request
       .then(() => { toast.success(editing ? 'Product saved' : `Created ${f.key}`); onDone(); })
-      .catch((err) => {
-        if (err?.status === 403) toast.error(err.message); else setError(err?.message || 'Could not save the product.');
-      })
+      .catch((err) => setError(err?.message || 'Could not save the product.'))
       .finally(() => setBusy(false));
   }
 
@@ -46,6 +46,7 @@ function ProductForm({ product, onDone, onCancel }) {
     <form className="work-form work-product-form" onSubmit={submit} noValidate>
       <label className="work-form-field" htmlFor="work-prod-key">Key</label>
       <input id="work-prod-key" className="work-field-input" value={f.key} disabled={editing} onChange={set('key')} />
+      {!editing && <p className="work-muted">2 to 40 lowercase letters, digits and hyphens, starting with a letter. It cannot be changed later.</p>}
       <label className="work-form-field" htmlFor="work-prod-name">Name</label>
       <input id="work-prod-name" className="work-field-input" value={f.name} onChange={set('name')} />
       <label className="work-form-field" htmlFor="work-prod-repo">Repository URL</label>
@@ -54,12 +55,12 @@ function ProductForm({ product, onDone, onCancel }) {
       <input id="work-prod-branch" className="work-field-input" value={f.defaultBranch} onChange={set('defaultBranch')} />
       <label className="work-form-field" htmlFor="work-prod-cluster">Wiki cluster</label>
       <input id="work-prod-cluster" className="work-field-input" value={f.wikiCluster} onChange={set('wikiCluster')} />
-      <label className="work-form-field" htmlFor="work-prod-ceiling">Autonomy ceiling</label>
+      <label className="work-form-field" htmlFor="work-prod-ceiling">Agents may do at most</label>
       <select id="work-prod-ceiling" className="work-field-input" value={f.autonomyCeiling} onChange={set('autonomyCeiling')}>
-        {CEILINGS.map((c) => <option key={c} value={c}>{c}</option>)}
+        {CEILINGS.map((c) => <option key={c} value={c}>{cap(c)}</option>)}
       </select>
       <p className="work-muted">The most agents may do unattended on work for this product, whatever an epic says.</p>
-      <label className="work-form-field" htmlFor="work-prod-gate">Deploy gate</label>
+      <label className="work-form-field" htmlFor="work-prod-gate">Deployments are approved by</label>
       <select id="work-prod-gate" className="work-field-input" value={f.deployGate} onChange={set('deployGate')}>
         {GATES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
       </select>
@@ -82,6 +83,7 @@ export default function WorkProducts() {
   const [mode, setMode] = useState(null); // null | 'new' | product key being edited
   const [archiving, setArchiving] = useState(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveError, setArchiveError] = useState(null);
   const seq = useRef(0);
 
   const load = useCallback(() => {
@@ -105,17 +107,17 @@ export default function WorkProducts() {
   const done = () => { setMode(null); load(); };
   function archive(key) {
     if (archiveBusy) return;
-    setArchiveBusy(true);
+    setArchiveBusy(true); setArchiveError(null);
     archiveProduct(key)
       .then(() => { setArchiving(null); toast.success(`Archived ${key}`); load(); })
-      .catch((err) => { setArchiving(null); toast.error(err?.message || 'Could not archive the product.'); })
+      .catch((err) => setArchiveError(err?.message || 'Could not archive the product.'))
       .finally(() => setArchiveBusy(false));
   }
   const active = state.products.filter((p) => !p.archivedAt);
 
   return (
     <div className="work-products">
-      <h1 className="work-heading">Products</h1>
+      <h1 className="work-heading"><Link to="/work">Work</Link> <span aria-hidden="true">▸</span> Products</h1>
       {mode === 'new'
         ? <ProductForm onDone={done} onCancel={() => setMode(null)} />
         : <p><button type="button" className="btn btn-sm" onClick={() => setMode('new')}>New product</button></p>}
@@ -136,23 +138,20 @@ export default function WorkProducts() {
                             .filter(Boolean).join(' · ') || 'No repository or cluster set'}
                         </div>
                         <div className="work-muted">
-                          Autonomy ceiling {p.autonomyCeiling || 'delegated'}, deploy gate {p.deployGate || 'human'}.
+                          Agents may do at most: {cap(p.autonomyCeiling || 'delegated')}. Deployments are approved by {p.deployGate === 'agent' ? 'an agent or a person' : 'a person'}.
                         </div>
                       </div>
                       {archiving === p.key
                         ? (
-                          <div className="work-confirm" role="alertdialog" aria-label="Confirm">
-                            <p>Archive {p.key}? It will no longer be offered on items.</p>
-                            <div className="work-actions">
-                              <button type="button" className="btn btn-sm btn-danger" disabled={archiveBusy} onClick={() => archive(p.key)}>Yes, archive {p.key}</button>
-                              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setArchiving(null)}>Cancel</button>
-                            </div>
-                          </div>
+                          <WorkConfirm yes={`Yes, archive ${p.key}`} disabled={archiveBusy} error={archiveError}
+                            onYes={() => archive(p.key)} onNo={() => { setArchiving(null); setArchiveError(null); }}>
+                            Archive {p.key}? It will no longer be offered on items.
+                          </WorkConfirm>
                         )
                         : (
                           <div className="work-actions">
                             <button type="button" className="btn btn-sm" aria-label={`Edit ${p.key}`} onClick={() => setMode(p.key)}>Edit</button>
-                            <button type="button" className="btn btn-sm btn-ghost" aria-label={`Archive ${p.key}`} onClick={() => setArchiving(p.key)}>Archive</button>
+                            <button type="button" className="btn btn-sm btn-ghost" aria-label={`Archive ${p.key}`} onClick={() => { setArchiveError(null); setArchiving(p.key); }}>Archive</button>
                           </div>
                         )}
                     </>

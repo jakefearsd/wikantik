@@ -7,6 +7,7 @@ import { archiveProject, listAgents, listMembers, putMember, removeMember, updat
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useWorkProject } from './useWorkProject';
+import WorkConfirm from './WorkConfirm';
 import WorkLoadError from './WorkLoadError';
 
 const ROLES = ['viewer', 'member', 'lead'];
@@ -22,20 +23,17 @@ const NO_EFFECT = {
   sponsor_viewer: 'Read-only: its sponsor is a viewer here',
 };
 const SPONSOR_NOTE = 'Removing a person, or making them a viewer, also ends the claims of the agents they sponsor in this project.';
-const LATER = 'Takes effect in a later release';
-
-/** Inline confirmation strip: no browser dialogs. */
-function Confirm({ children, yes, onYes, onNo, disabled = false }) {
-  return (
-    <div className="work-confirm" role="alertdialog" aria-label="Confirm">
-      <p>{children}</p>
-      <div className="work-actions">
-        <button type="button" className="btn btn-sm btn-danger" disabled={disabled} onClick={onYes}>{yes}</button>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={onNo}>Cancel</button>
-      </div>
-    </div>
-  );
-}
+const LEVELS = [{ value: 'supervised', label: 'Supervised' }, { value: 'delegated', label: 'Delegated' }, { value: 'autonomous', label: 'Autonomous' }];
+const LEVEL_TEXT = {
+  supervised: 'A person approves work as ready, merges and closes it.',
+  delegated: 'A person approves work as ready; agents review, merge and close.',
+  autonomous: 'Agents may also approve work as ready; each item an agent closes waits for a person to acknowledge it.',
+};
+const NAME_HELP = {
+  user: "Type the person's display name as it appears on the wiki.",
+  group: "Type the group's name.",
+  agent: 'Choose from the agents registered on the Agents page.',
+};
 
 function Details({ project, onSaved, readOnly }) {
   const toast = useToast();
@@ -72,24 +70,60 @@ function Details({ project, onSaved, readOnly }) {
   );
 }
 
-function PendingConfirm({ pending, busy, onYes, onNo }) {
+function Autonomy({ project, onSaved, readOnly }) {
+  const saved = project.defaultAutonomy || 'supervised';
+  const [value, setValue] = useState(saved);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  function change(next) {
+    if (busy || next === saved) { setValue(next); return; }
+    setValue(next); setError(null); setBusy(true);
+    updateProject(project.key, { defaultAutonomy: next })
+      .then(() => onSaved())
+      .catch((err) => { setValue(saved); setError(err?.message || 'Could not change the default autonomy.'); })
+      .finally(() => setBusy(false));
+  }
+
+  return (
+    <>
+      {readOnly
+        ? <p><span className="work-chip">{saved}</span></p>
+        : <Select ariaLabel="Default autonomy" value={value} options={LEVELS} disabled={busy} onChange={change} />}
+      <p className="work-muted">{LEVEL_TEXT[readOnly ? saved : value]}</p>
+      <p className="work-muted">Applies to items with no epic. An epic or an item can set its own level.</p>
+      {error && <div className="work-form-error" role="alert">{error}</div>}
+    </>
+  );
+}
+
+function PendingConfirm({ pending, project, busy, error, onYes, onNo }) {
   const { member, action, role } = pending;
   const name = member.displayName || 'member';
+  if (action === 'remove' && !member.self) {
+    const agent = isAgent(member);
+    return (
+      <WorkConfirm disabled={busy} error={error} onYes={onYes} onNo={onNo} yes={`Yes, remove ${name}`}
+        fields={agent ? <p className="work-muted">{RELEASES}</p>
+          : member.principalKind === 'user' ? <p className="work-muted">Agents they sponsor lose their claims in this project.</p> : null}>
+        Remove {name} from {project.name}?
+      </WorkConfirm>
+    );
+  }
   if (isAgent(member)) {
     return (
-      <Confirm disabled={busy} onYes={onYes} onNo={onNo}
-        yes={action === 'remove' ? `Yes, remove ${name}` : `Yes, make ${name} a viewer`}>
-        {action === 'remove' ? `Remove ${name} from this project?` : `Make ${name} a viewer in this project?`} {RELEASES}
-      </Confirm>
+      <WorkConfirm disabled={busy} error={error} onYes={onYes} onNo={onNo} yes={`Yes, make ${name} a viewer`}>
+        {`Make ${name} a viewer in this project?`} {RELEASES}
+      </WorkConfirm>
     );
   }
   return (
-    <Confirm disabled={busy} onYes={onYes} onNo={onNo}
+    <WorkConfirm disabled={busy} error={error} onYes={onYes} onNo={onNo}
       yes={action === 'remove' ? 'Yes, remove me' : 'Yes, change my role'}>
       {action === 'remove'
         ? 'You are about to remove yourself as lead. You will lose access to these settings.'
         : `You are about to change your own role from lead to ${role}. You will lose access to these settings.`}
-    </Confirm>
+    </WorkConfirm>
   );
 }
 
@@ -99,6 +133,7 @@ function Members({ project, reloadProject, readOnly }) {
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState({ members: null, error: null });
   const [pending, setPending] = useState(null); // { member, action: 'role' | 'remove', role? }
+  const [pendingError, setPendingError] = useState(null); // the server's refusal of a removal, shown in the strip
   const [adding, setAdding] = useState({ principal: '', kind: 'user', role: 'member' });
   const [addError, setAddError] = useState(null);
   const [agents, setAgents] = useState(null); // registered agents, read once an agent is being added
@@ -162,13 +197,17 @@ function Members({ project, reloadProject, readOnly }) {
       { self: isMe(m), afterSelf: afterOwnRoleChange });
   }
   function askRemove(m) {
-    if (isMe(m) || isAgent(m)) { setPending({ member: m, action: 'remove' }); return; }
-    doRemove(m);
+    setPendingError(null);
+    setPending({ member: m, action: 'remove' });
   }
+  // A refusal stays in the open strip so the person sees why; nothing is reloaded unless the removal worked.
   function doRemove(m) {
-    setPending(null);
-    return run(() => removeMember(project.key, { principal: m.principal, principalKind: m.principalKind }),
-      { self: isMe(m), afterSelf: afterOwnRemoval });
+    if (busy) return Promise.resolve();
+    setBusy(true); setPendingError(null);
+    return removeMember(project.key, { principal: m.principal, principalKind: m.principalKind })
+      .then(() => { setPending(null); return isMe(m) ? afterOwnRemoval() : load(); })
+      .catch((err) => setPendingError(err?.message || 'Could not change the member.'))
+      .finally(() => setBusy(false));
   }
 
   function add(e) {
@@ -227,8 +266,9 @@ function Members({ project, reloadProject, readOnly }) {
           </ul>
         )}
       {state.members.some(isAgent) && <p className="work-muted">{SPONSOR_NOTE}</p>}
-      {pending && <PendingConfirm pending={pending} busy={busy} onYes={() => (pending.action === 'remove'
-        ? doRemove(pending.member) : doRole(pending.member, pending.role))} onNo={() => { setPending(null); load(); }} />}
+      {pending && <PendingConfirm pending={pending} project={project} busy={busy} error={pendingError}
+        onYes={() => (pending.action === 'remove' ? doRemove(pending.member) : doRole(pending.member, pending.role))}
+        onNo={() => { const wasRole = pending.action === 'role'; setPending(null); setPendingError(null); if (wasRole) load(); }} />}
       {!readOnly && <form className="work-link-form" onSubmit={add}>
         {adding.kind === 'agent'
           ? (
@@ -244,6 +284,7 @@ function Members({ project, reloadProject, readOnly }) {
                 onChange={(e) => setAdding({ ...adding, principal: e.target.value })} aria-invalid={addError ? 'true' : undefined} />
             </>
           )}
+        <p className="work-muted work-add-help">{NAME_HELP[adding.kind]}</p>
         <Select ariaLabel="Kind" value={adding.kind} options={KINDS} disabled={busy}
           onChange={(kind) => { setAddError(null); setAdding({ principal: (kind === 'agent') !== (adding.kind === 'agent') ? '' : adding.principal, kind, role: kind === 'agent' && adding.role === 'lead' ? 'member' : adding.role }); }} />
         <Select ariaLabel="Role for new member" value={adding.role} options={adding.kind === 'agent' ? AGENT_ROLES : ROLES}
@@ -275,9 +316,9 @@ function ArchiveSection({ project }) {
       <h2 className="work-subheading">Archive</h2>
       <p className="work-muted">An archived project becomes read-only and moves to the Archived list. Its items are kept.</p>
       {confirming
-        ? <Confirm yes={`Yes, archive ${project.key}`} disabled={busy} onYes={archive} onNo={() => setConfirming(false)}>
+        ? <WorkConfirm yes={`Yes, archive ${project.key}`} disabled={busy} onYes={archive} onNo={() => setConfirming(false)}>
             Archive {project.key} {project.name}? Nobody will be able to change it; it stays readable under Archived. Any claim an agent holds on an item in this project is released.
-          </Confirm>
+          </WorkConfirm>
         : <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirming(true)}>Archive project</button>}
     </section>
   );
@@ -306,8 +347,7 @@ export default function WorkSettings() {
       </section>
       <section className="work-section">
         <h2 className="work-subheading">Default autonomy</h2>
-        <p><span className="work-chip">{project.defaultAutonomy || 'supervised'}</span></p>
-        <p className="work-muted">{LATER}</p>
+        <Autonomy key={project.defaultAutonomy || 'supervised'} project={project} onSaved={reload} readOnly={readOnly} />
       </section>
       {isAdmin && !readOnly && <ArchiveSection project={project} />}
     </div>

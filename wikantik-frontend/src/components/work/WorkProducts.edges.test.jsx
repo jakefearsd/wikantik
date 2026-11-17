@@ -43,14 +43,14 @@ describe('WorkProducts edges', () => {
   it('describes a product with a repository, branch and cluster on one line, with its own ceiling and gate', async () => {
     renderProducts();
     expect(await screen.findByText('https://example.com/r.git · branch main · cluster Wikantik')).toBeInTheDocument();
-    expect(screen.getByText('Autonomy ceiling supervised, deploy gate agent.')).toBeInTheDocument();
+    expect(screen.getByText('Agents may do at most: Supervised. Deployments are approved by an agent or a person.')).toBeInTheDocument();
   });
 
   it('says plainly that a bare product has no repository or cluster, and shows the default ceiling and gate', async () => {
     listProducts.mockResolvedValue([BARE]);
     renderProducts();
     expect(await screen.findByText('No repository or cluster set')).toBeInTheDocument();
-    expect(screen.getByText('Autonomy ceiling delegated, deploy gate human.')).toBeInTheDocument();
+    expect(screen.getByText('Agents may do at most: Delegated. Deployments are approved by a person.')).toBeInTheDocument();
   });
 
   it('treats a missing product list as empty', async () => {
@@ -91,8 +91,8 @@ describe('WorkProducts edges', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: ' New ' } });
     fireEvent.change(screen.getByLabelText('Repository URL'), { target: { value: '  ' } });
     fireEvent.change(screen.getByLabelText('Wiki cluster'), { target: { value: ' Cl ' } });
-    fireEvent.change(screen.getByLabelText('Autonomy ceiling'), { target: { value: 'autonomous' } });
-    fireEvent.change(screen.getByLabelText('Deploy gate'), { target: { value: 'agent' } });
+    fireEvent.change(screen.getByLabelText('Agents may do at most'), { target: { value: 'autonomous' } });
+    fireEvent.change(screen.getByLabelText('Deployments are approved by'), { target: { value: 'agent' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create product' }));
     await waitFor(() => expect(createProduct).toHaveBeenCalledWith({
       key: 'new-prod', name: 'New', repoUrl: null, defaultBranch: null, wikiCluster: 'Cl',
@@ -142,8 +142,8 @@ describe('WorkProducts edges', () => {
     expect(screen.getByLabelText('Repository URL')).toHaveValue('https://example.com/r.git');
     expect(screen.getByLabelText('Default branch')).toHaveValue('main');
     expect(screen.getByLabelText('Wiki cluster')).toHaveValue('Wikantik');
-    expect(screen.getByLabelText('Autonomy ceiling')).toHaveValue('supervised');
-    expect(screen.getByLabelText('Deploy gate')).toHaveValue('agent');
+    expect(screen.getByLabelText('Agents may do at most')).toHaveValue('supervised');
+    expect(screen.getByLabelText('Deployments are approved by')).toHaveValue('agent');
     fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
     await waitFor(() => expect(updateProduct).toHaveBeenCalledWith('wikantik', {
       name: 'Wikantik', repoUrl: 'https://example.com/r.git', defaultBranch: 'main', wikiCluster: 'Wikantik',
@@ -159,8 +159,8 @@ describe('WorkProducts edges', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit bare' }));
     expect(screen.getByLabelText('Name')).toHaveValue('');
     expect(screen.getByLabelText('Repository URL')).toHaveValue('');
-    expect(screen.getByLabelText('Autonomy ceiling')).toHaveValue('delegated');
-    expect(screen.getByLabelText('Deploy gate')).toHaveValue('human');
+    expect(screen.getByLabelText('Agents may do at most')).toHaveValue('delegated');
+    expect(screen.getByLabelText('Deployments are approved by')).toHaveValue('human');
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Bare' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
     await waitFor(() => expect(updateProduct).toHaveBeenCalledWith('bare', {
@@ -188,14 +188,14 @@ describe('WorkProducts edges', () => {
     expect(screen.getByRole('button', { name: 'Archive wikantik' })).toBeInTheDocument();
   });
 
-  it('shows the refusal in a toast when archiving fails, and closes the confirmation', async () => {
+  it('shows the refusal in the confirmation when archiving fails, and keeps it open', async () => {
     archiveProduct.mockRejectedValue(refusal('Product still has open items.', 409));
     renderProducts();
     await screen.findByText('Wikantik');
     fireEvent.click(screen.getByRole('button', { name: 'Archive wikantik' }));
     fireEvent.click(screen.getByRole('button', { name: 'Yes, archive wikantik' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Product still has open items.'));
-    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent('Product still has open items.');
+    expect(toast.error).not.toHaveBeenCalled();
     expect(listProducts).toHaveBeenCalledTimes(1);
   });
 
@@ -205,6 +205,6 @@ describe('WorkProducts edges', () => {
     await screen.findByText('Wikantik');
     fireEvent.click(screen.getByRole('button', { name: 'Archive wikantik' }));
     fireEvent.click(screen.getByRole('button', { name: 'Yes, archive wikantik' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Could not archive the product.'));
+    expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent('Could not archive the product.');
   });
 });

@@ -273,4 +273,72 @@ describe('WorkComments', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Comment' })).not.toBeDisabled());
     warn.mockRestore();
   });
+
+  describe('a failed post, edit or remove', () => {
+    beforeEach(() => vi.spyOn(console, 'warn').mockImplementation(() => {}));
+
+    it('post: shows the server message beside the box, keeps the text, clears when they type', async () => {
+      const { onAdd } = setup();
+      onAdd.mockRejectedValue(new Error('That comment is too long.'));
+      const box = screen.getByLabelText('Add a comment');
+      fireEvent.change(box, { target: { value: 'my words' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('That comment is too long.');
+      expect(box.value).toBe('my words');
+      fireEvent.change(box, { target: { value: 'my words, shorter' } });
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('post: says a plain default when the error has no message, and clears on the next success', async () => {
+      const { onAdd } = setup();
+      onAdd.mockRejectedValueOnce({});
+      const box = screen.getByLabelText('Add a comment');
+      fireEvent.change(box, { target: { value: 'hello' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not save the comment. Try again.');
+      fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+      await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+      expect(box.value).toBe('');
+    });
+
+    it('edit: shows the message in the editor and keeps the edited text', async () => {
+      const { onEdit } = setup({ comments: [c(1, true, 'first words')] });
+      onEdit.mockRejectedValue(new Error('Comments on a closed item are locked.'));
+      fireEvent.click(screen.getByRole('button', { name: 'Edit comment by Ana Alvarez' }));
+      const box = screen.getByLabelText('Edit your comment');
+      fireEvent.change(box, { target: { value: 'better words' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save comment' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Comments on a closed item are locked.');
+      expect(screen.getByLabelText('Edit your comment').value).toBe('better words');
+      fireEvent.change(screen.getByLabelText('Edit your comment'), { target: { value: 'better words!' } });
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('edit: falls back to a plain default', async () => {
+      const { onEdit } = setup({ comments: [c(1, true, 'first words')] });
+      onEdit.mockRejectedValue({});
+      fireEvent.click(screen.getByRole('button', { name: 'Edit comment by Ana Alvarez' }));
+      fireEvent.change(screen.getByLabelText('Edit your comment'), { target: { value: 'x' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save comment' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not save the comment. Try again.');
+    });
+
+    it('remove: says so next to the confirmation, and the message goes when they keep the comment', async () => {
+      const { onRemove } = setup({ comments: [c(1, true, 'first words')] });
+      onRemove.mockRejectedValue({});
+      fireEvent.click(screen.getByRole('button', { name: 'Remove comment by Ana Alvarez' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, remove' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not remove the comment. Try again.');
+      fireEvent.click(screen.getByRole('button', { name: 'Keep' }));
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('remove: shows the server message when there is one', async () => {
+      const { onRemove } = setup({ comments: [c(1, true, 'first words')] });
+      onRemove.mockRejectedValue(new Error('Only a lead may remove this.'));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove comment by Ana Alvarez' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, remove' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Only a lead may remove this.');
+    });
+  });
 });

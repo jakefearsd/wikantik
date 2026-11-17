@@ -4,6 +4,7 @@ import { useMentionPicker } from '../../hooks/useMentionPicker';
 import WorkBody from './WorkBody';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
+const messageOf = (e, fallback) => e?.message || e?.body?.message || fallback;
 const grow = (el) => {
   if (!el) return;
   el.style.height = 'auto';
@@ -65,21 +66,26 @@ function Comment({ comment, users, canEdit, canRemove, onEdit, onRemove }) {
   const [draft, setDraft] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
 
   if (comment.removedAt) {
     return <li className="work-comment work-comment-removed"><em>Comment removed</em></li>;
   }
 
-  const run = (promise, onOk) => {
+  const run = (promise, onOk, fallback) => {
     setBusy(true);
+    setError(null);
     promise
       .then((ok) => { if (ok) onOk(); })
-      .catch((e) => console.warn('WorkComments: comment action failed', e))
+      .catch((e) => {
+        console.warn('WorkComments: comment action failed', e);
+        setError(messageOf(e, fallback));
+      })
       .finally(() => setBusy(false));
   };
   const save = () => {
     if (busy || !draft.trim()) return;
-    run(onEdit(comment.id, draft.trim()), () => setDraft(null));
+    run(onEdit(comment.id, draft.trim()), () => setDraft(null), 'Could not save the comment. Try again.');
   };
 
   return (
@@ -93,10 +99,11 @@ function Comment({ comment, users, canEdit, canRemove, onEdit, onRemove }) {
         <WorkBody html={comment.bodyHtml} mentions={comment.mentions} className="article-prose work-comment-body" empty={null} />
       ) : (
         <div className="work-comment-edit">
-          <MentionTextarea label="Edit your comment" value={draft} onChange={setDraft} users={users} onSubmit={save} />
+          <MentionTextarea label="Edit your comment" value={draft} onChange={(v) => { setError(null); setDraft(v); }} users={users} onSubmit={save} />
+          {error && <div className="work-form-error" role="alert">{error}</div>}
           <div className="work-actions">
             <button type="button" className="btn btn-primary btn-sm" aria-label="Save comment" disabled={busy} onClick={save}>Save</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDraft(null)}>Cancel</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setError(null); setDraft(null); }}>Cancel</button>
           </div>
         </div>
       )}
@@ -104,8 +111,9 @@ function Comment({ comment, users, canEdit, canRemove, onEdit, onRemove }) {
         confirming ? (
           <div className="work-actions" role="group" aria-label="Confirm removal">
             <span>Remove this comment?</span>
-            <button type="button" className="btn btn-danger btn-sm" disabled={busy} onClick={() => run(onRemove(comment.id), () => setConfirming(false))}>Yes, remove</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)}>Keep</button>
+            <button type="button" className="btn btn-danger btn-sm" disabled={busy} onClick={() => run(onRemove(comment.id), () => setConfirming(false), 'Could not remove the comment. Try again.')}>Yes, remove</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setError(null); setConfirming(false); }}>Keep</button>
+            {error && <div className="work-form-error" role="alert">{error}</div>}
           </div>
         ) : (
           <div className="work-actions">
@@ -134,14 +142,19 @@ export default function WorkComments({ comments = [], members = [], canComment, 
   const users = members.filter((m) => m.principalKind === 'user');
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState(null);
 
   function post() {
     const body = text.trim();
     if (!body || posting) return;
     setPosting(true);
+    setPostError(null);
     onAdd(body)
       .then((ok) => { if (ok) setText(''); })
-      .catch((e) => console.warn('WorkComments: posting failed', e))
+      .catch((e) => {
+        console.warn('WorkComments: posting failed', e);
+        setPostError(messageOf(e, 'Could not save the comment. Try again.'));
+      })
       .finally(() => setPosting(false));
   }
 
@@ -162,7 +175,8 @@ export default function WorkComments({ comments = [], members = [], canComment, 
       )}
       {canComment && (
         <div className="work-comment-new">
-          <MentionTextarea label="Add a comment" value={text} onChange={setText} users={users} onSubmit={post} />
+          <MentionTextarea label="Add a comment" value={text} onChange={(v) => { setPostError(null); setText(v); }} users={users} onSubmit={post} />
+          {postError && <div className="work-form-error" role="alert">{postError}</div>}
           <div className="work-actions">
             <button type="button" className="btn btn-primary btn-sm" disabled={posting} onClick={post}>Comment</button>
           </div>

@@ -13,17 +13,20 @@ export function useWorkNavVisible() {
   const authed = !!user?.authenticated;
   const isAdmin = authed && !!user?.roles?.includes('Admin');
   const enabled = !!capabilities?.work && authed;
-  const [hasProject, setHasProject] = useState(false);
+  // The answer is remembered with the user it was asked for; another user's answer is never reused.
+  const who = authed ? `auth:${user?.username ?? ''}` : null;
+  const [answer, setAnswer] = useState({ who: null, hasProject: false });
+  const hasProject = answer.who === who && answer.hasProject;
 
   useEffect(() => {
     if (!enabled) return undefined;
     let cancelled = false;
     getMe()
       // Archived projects are read-only and listed apart: they alone do not earn a navigation entry.
-      .then((me) => { if (!cancelled) setHasProject((me?.projects || []).some((p) => !p.archived)); })
+      .then((me) => { if (!cancelled) setAnswer({ who, hasProject: (me?.projects || []).some((p) => !p.archived) }); })
       .catch((e) => console.warn('useWorkNavVisible: failed to load /api/work/me', e));
     return () => { cancelled = true; };
-  }, [enabled]);
+  }, [enabled, who]);
 
   return enabled && (isAdmin || hasProject);
 }

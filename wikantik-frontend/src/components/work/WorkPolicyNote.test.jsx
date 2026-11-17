@@ -67,15 +67,6 @@ describe('WorkPolicyNote', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('A person acknowledges work closed without one.');
   });
 
-  it('renders nothing when the policy cannot be read', async () => {
-    getItemPolicy.mockRejectedValue(new Error('boom'));
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { container } = render(<WorkPolicyNote itemKey="PLAT-7" />);
-    await waitFor(() => expect(getItemPolicy).toHaveBeenCalled());
-    expect(container).toBeEmptyDOMElement();
-    warn.mockRestore();
-  });
-
   it('shows an unrecognised ceiling-capped level as the server named it', async () => {
     getItemPolicy.mockResolvedValue(policy({ autonomy: 'supervised' }));
     render(<WorkPolicyNote itemKey="PLAT-7" ownAutonomy="experimental" />);
@@ -89,10 +80,10 @@ describe('WorkPolicyNote', () => {
     expect(await screen.findByTestId('policy-note')).toHaveTextContent('Effective level: bespoke (inherited)');
   });
 
-  it('names who acknowledged, falling back to the login and then to someone, and dates it when known', async () => {
+  it('names who acknowledged, falling back to someone (never a login), and dates it when known', async () => {
     getItemPolicy.mockResolvedValue(policy({}, { ackRequired: true, acknowledgedBy: 'mia-login', acknowledgedAt: '2026-11-17T12:00:00Z' }));
     const first = render(<WorkPolicyNote itemKey="PLAT-7" />);
-    const text = await screen.findByText(/acknowledged by mia-login on /);
+    const text = await screen.findByText(/acknowledged by someone on /);
     expect(text).toHaveTextContent(new Date('2026-11-17T12:00:00Z').toLocaleDateString());
     first.unmount();
     getItemPolicy.mockResolvedValue(policy({}, { ackRequired: true }));
@@ -107,5 +98,25 @@ describe('WorkPolicyNote', () => {
     render(<WorkPolicyNote itemKey="PLAT-7" canAcknowledge />);
     fireEvent.click(await screen.findByRole('button', { name: 'Acknowledge' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not acknowledge this.');
+  });
+
+  it('never shows a login when no display name came back for who acknowledged', async () => {
+    getItemPolicy.mockResolvedValue(policy({}, { ackRequired: true, acknowledgedBy: 'mia-login', acknowledgedByName: null, acknowledgedAt: '2026-11-17T12:00:00Z' }));
+    render(<WorkPolicyNote itemKey="PLAT-7" />);
+    const note = await screen.findByTestId('policy-note');
+    expect(note).toHaveTextContent('acknowledged by someone');
+    expect(note).not.toHaveTextContent('mia-login');
+  });
+
+  it('says it could not load the policy, and Retry loads it again', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    getItemPolicy.mockRejectedValueOnce(new Error('boom'));
+    render(<WorkPolicyNote itemKey="PLAT-7" />);
+    expect(await screen.findByText('Could not load the autonomy policy.')).toBeInTheDocument();
+    getItemPolicy.mockResolvedValue(policy());
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByTestId('policy-note')).toHaveTextContent('Effective level: Delegated');
+    expect(screen.queryByText('Could not load the autonomy policy.')).toBeNull();
+    warn.mockRestore();
   });
 });

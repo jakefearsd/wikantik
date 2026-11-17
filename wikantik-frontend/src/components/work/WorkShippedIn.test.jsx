@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({ getShippedIn: vi.fn() }));
@@ -35,12 +35,16 @@ describe('WorkShippedIn', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows nothing and logs when the lookup fails', async () => {
+  it('says it could not load, logs, and offers Retry when the lookup fails', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    getShippedIn.mockRejectedValue(new Error('boom'));
-    const { container } = renderIt();
-    await waitFor(() => expect(warn).toHaveBeenCalledWith(expect.stringContaining('WorkShippedIn'), expect.any(Error)));
-    expect(container).toBeEmptyDOMElement();
+    getShippedIn.mockRejectedValueOnce(new Error('boom'));
+    renderIt();
+    expect(await screen.findByText('Could not load what this shipped in.')).toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('WorkShippedIn'), expect.any(Error));
+    getShippedIn.mockResolvedValue({ shippedIn: [{ id: 4, product: 'wikantik', version: '2.5.26', environment: 'production' }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByTestId('shipped-in')).toHaveTextContent('Shipped in wikantik 2.5.26 (production)');
+    expect(screen.queryByText('Could not load what this shipped in.')).toBeNull();
     warn.mockRestore();
   });
 

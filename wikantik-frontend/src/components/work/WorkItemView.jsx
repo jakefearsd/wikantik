@@ -59,7 +59,11 @@ function theirValue(current, field) {
 function mineText(field, value, nameOf, queueNameOf) {
   if (value == null || value === '') return field === 'assignee' || field === 'queue' ? '(nobody)' : '(empty)';
   if (field === 'queue') return queueText(queueNameOf(value));
-  return field === 'assignee' ? nameOf(value) : String(value);
+  if (field === 'assignee') {
+    const t = targetOf(value);
+    return t.queue ? queueText(queueNameOf(t.queue) || t.queue) : nameOf(value);
+  }
+  return String(value);
 }
 
 /** The control-string value the field editors use for a field of `view`; compared with what an editor opened with. */
@@ -203,7 +207,7 @@ function ItemPage({ itemKey }) {
   // shows read-only); it is never treated as an edit conflict.
   const fail = useCallback((e, fallback) => {
     if (e?.status === 404) setNotFound(true);
-    else if (isArchivedRefusal(e)) { toast.info(`${ARCHIVED_TEXT}; nothing was changed.`); setOpen(null); load(); }
+    else if (isArchivedRefusal(e)) { toast.info(`${ARCHIVED_TEXT}; nothing was changed.`); setOpen(null); setEpoch((n) => n + 1); load(); }
     else toast.error(e?.message || fallback);
   }, [toast, load]);
 
@@ -232,7 +236,9 @@ function ItemPage({ itemKey }) {
       })
       .catch((e) => {
         if (isArchivedRefusal(e)) fail(e);
-        else if (e?.status === 409) setConflict({ changes: conflictChanges, current: e.current || null });
+        else if (e?.status === 409) setConflict({
+          changes: conflictChanges, current: e.current?.item ? e.current : null, unavailable: !!e.current && !e.current.item,
+        });
         else if (e?.status === 400 && e.body?.field) {
           setFieldErrors({ [e.body.field]: { message: e.body.message || e.message, source } });
           return e.body.field === 'parentKey' || e.body.field === 'productKey' ? 'restore' : false;
@@ -255,6 +261,14 @@ function ItemPage({ itemKey }) {
   const mutate = useCallback((call, failure) => call()
     .then(() => { setActivity((a) => a + 1); return load().then(() => true); })
     .catch((e) => { fail(e, failure); return false; }), [load, fail]);
+
+  /** A discussion write: archived and missing-item refusals are the page's to report; any other failure goes to the comment box. */
+  const mutateComment = useCallback((call) => call()
+    .then(() => { setActivity((a) => a + 1); return load().then(() => true); })
+    .catch((e) => {
+      if (e?.status === 404 || isArchivedRefusal(e)) { fail(e); return false; }
+      throw e;
+    }), [load, fail]);
 
   const nameOf = useCallback((login) => members.find((m) => m.principal === login)?.displayName
     || (view?.item.assignee === login ? view.item.assigneeName : null) || 'someone', [members, view]);
@@ -318,9 +332,9 @@ function ItemPage({ itemKey }) {
       : open.name === 'handoff' ? open.draft : { [open.name]: open.draft };
     banner = {
       changes,
-      current: source,
+      current: conflict?.unavailable ? {} : source,
       hasDraft: !!open && JSON.stringify(open.draft) !== JSON.stringify(open.name === 'handoff' ? { ...open.orig, note: '' } : open.orig),
-      sameFieldChanged: !!open && valueOf(source, open.name) !== (typeof open.orig === 'string' ? open.orig : JSON.stringify(open.orig)),
+      sameFieldChanged: !!open && (!!conflict?.unavailable || valueOf(source, open.name) !== (typeof open.orig === 'string' ? open.orig : JSON.stringify(open.orig))),
     };
   }
   const withCurrent = (opts, value, label) => (value && !opts.some((o) => o.value === value) ? [...opts, { value, label }] : opts);
@@ -381,9 +395,9 @@ function ItemPage({ itemKey }) {
           )}
           <WorkComments
             comments={view.comments} members={members} canComment={canEdit} isLead={isLead}
-            onAdd={(body) => mutate(() => addComment(itemKey, body), 'Could not post the comment.')}
-            onEdit={(id, body) => mutate(() => editComment(id, body), 'Could not save the comment.')}
-            onRemove={(id) => mutate(() => removeComment(id), 'Could not remove the comment.')}
+            onAdd={(body) => mutateComment(() => addComment(itemKey, body))}
+            onEdit={(id, body) => mutateComment(() => editComment(id, body))}
+            onRemove={(id) => mutateComment(() => removeComment(id))}
           />
           <section className="work-section" aria-label="History">
             <h2 className="work-subheading">History</h2>
@@ -435,9 +449,10 @@ function ItemPage({ itemKey }) {
           <h2 className="work-subheading">Policy</h2>
           <WorkFieldRow label="Autonomy" error={err('autonomy')} {...editor('autonomy')} type="select" value={item.autonomy || ''} display={labelOf(AUTONOMY_OPTIONS, item.autonomy || '')}
             options={AUTONOMY_OPTIONS} parse={blankToNull} canEdit={canEdit} onSave={field('autonomy')} />
-          <WorkFieldRow label="Done means" error={err('doneMeans')} {...editor('doneMeans')} type="select" value={item.doneMeans || ''} display={labelOf(DONE_MEANS_OPTIONS, item.doneMeans || '')}
-            options={DONE_MEANS_OPTIONS} parse={blankToNull} canEdit={isLead} onSave={field('doneMeans')} />
-          <WorkFieldRow label="Allow direct" error={err('allowDirect')} {...editor('allowDirect')} type="select" value={item.allowDirect == null ? '' : String(item.allowDirect)}
+          {/* Only an epic says when its work is done; a story or task takes it from its epic. */}
+          {isEpic && <WorkFieldRow label="Done means" error={err('doneMeans')} {...editor('doneMeans')} type="select" value={item.doneMeans || ''} display={labelOf(DONE_MEANS_OPTIONS, item.doneMeans || '')}
+            options={DONE_MEANS_OPTIONS} parse={blankToNull} canEdit={isLead} onSave={field('doneMeans')} />}
+          <WorkFieldRow label="Direct commits by agents" error={err('allowDirect')} {...editor('allowDirect')} type="select" value={item.allowDirect == null ? '' : String(item.allowDirect)}
             display={labelOf(ALLOW_DIRECT_OPTIONS, item.allowDirect == null ? '' : String(item.allowDirect))}
             options={ALLOW_DIRECT_OPTIONS} parse={(v) => (v === '' ? null : v === 'true')} canEdit={isLead} onSave={field('allowDirect')} />
           <WorkPolicyNote itemKey={itemKey} ownAutonomy={item.autonomy || null} canAcknowledge={canEdit}

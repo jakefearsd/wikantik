@@ -5,14 +5,14 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 vi.mock('../../api/work', () => ({
   listAgents: vi.fn(), listQueues: vi.fn(), createQueue: vi.fn(), updateQueue: vi.fn(), retireQueue: vi.fn(),
   registerAgent: vi.fn(), updateAgent: vi.fn(), rotateAgentKey: vi.fn(), retireAgent: vi.fn(),
-  takeOverAgent: vi.fn(), releaseAgentSponsorship: vi.fn(),
+  takeOverAgent: vi.fn(), releaseAgentSponsorship: vi.fn(), listProjects: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 import {
   listAgents, listQueues, createQueue, registerAgent, rotateAgentKey, retireAgent, retireQueue,
-  takeOverAgent, releaseAgentSponsorship,
+  takeOverAgent, releaseAgentSponsorship, listProjects,
 } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import WorkAgents from './WorkAgents';
@@ -42,6 +42,7 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   listAgents.mockResolvedValue([MINE]);
   listQueues.mockResolvedValue(QUEUES);
+  listProjects.mockResolvedValue([{ key: 'PLAT', role: 'lead', archived: false }]);
   createQueue.mockResolvedValue({});
   retireQueue.mockResolvedValue(undefined);
   registerAgent.mockResolvedValue({ agent: { name: 'new-bot' }, token: 'wk_TOKEN' });
@@ -85,13 +86,13 @@ describe('WorkAgents edges', () => {
     expect(within(screen.getByText('loose-bot').closest('li')).getByText(/Queues:\s*none/)).toBeInTheDocument();
   });
 
-  it('shows no vendor line text and no creation day for an agent missing both', async () => {
+  it('shows no vendor line text and no dangling Created label for an agent missing both', async () => {
     listAgents.mockResolvedValue([{ ...LOOSE, createdAt: null }]);
     renderPage();
     const row = (await screen.findByText('loose-bot')).closest('li');
     expect(within(row).getByText('No vendor or runtime set')).toBeInTheDocument();
     expect(within(row).getByText('No sponsor')).toBeInTheDocument();
-    expect(within(row).getByText(/^Created\s*$/)).toBeInTheDocument();
+    expect(within(row).queryByText(/Created/)).toBeNull();
   });
 
   it('keeps retired agents together after the active ones', async () => {
@@ -159,13 +160,14 @@ describe('WorkAgents edges', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
-  it('a refused retirement is shown in a toast in the server words, and the confirmation closes', async () => {
+  it('a refused retirement keeps the confirmation open with the server reason', async () => {
     retireAgent.mockRejectedValue(refusal('Not your agent.', 403));
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Retire mine-bot' }));
     fireEvent.click(screen.getByRole('button', { name: 'Yes, retire mine-bot' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Not your agent.'));
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent('Not your agent.');
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Yes, retire mine-bot' })).toBeEnabled();
     expect(listAgents).toHaveBeenCalledTimes(1);
   });
 
@@ -174,7 +176,7 @@ describe('WorkAgents edges', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Retire mine-bot' }));
     fireEvent.click(screen.getByRole('button', { name: 'Yes, retire mine-bot' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Could not retire the agent.'));
+    expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent('Could not retire the agent.');
   });
 
   it.each([
@@ -269,5 +271,50 @@ describe('WorkAgents edges', () => {
     await slow.promise;
     expect(screen.getByText('newest-bot')).toBeInTheDocument();
     expect(screen.queryByText('stale-bot')).toBeNull();
+  });
+
+  describe('buttons follow what the viewer may do', () => {
+    const THEIRS = { ...MINE, id: 12, name: 'their-bot', sponsoredByMe: false };
+    const lead = [{ key: 'PLAT', role: 'lead', archived: false }];
+
+    it('offers Register an agent to a lead and to an admin, not to someone who leads nothing', async () => {
+      listProjects.mockResolvedValue([{ key: 'PLAT', role: 'member', archived: false }, { key: 'OLD', role: 'lead', archived: true }]);
+      renderPage({ admin: false });
+      await screen.findByText('mine-bot');
+      expect(screen.queryByRole('button', { name: 'Register agent' })).toBeNull();
+    });
+
+    it('offers Register to an admin who leads no project', async () => {
+      listProjects.mockResolvedValue([]);
+      renderPage({ admin: true });
+      expect(await screen.findByRole('button', { name: 'Register agent' })).toBeInTheDocument();
+    });
+
+    it('a sponsor who leads nothing may still rotate, retire and release but not edit or take over', async () => {
+      listProjects.mockResolvedValue([{ key: 'PLAT', role: 'member', archived: false }]);
+      listAgents.mockResolvedValue([MINE, LOOSE]);
+      renderPage({ admin: false });
+      await screen.findByText('mine-bot');
+      expect(screen.queryByRole('button', { name: 'Edit mine-bot' })).toBeNull();
+      for (const l of ['Rotate key of mine-bot', 'Retire mine-bot', 'Release sponsorship of mine-bot']) {
+        expect(screen.getByRole('button', { name: l })).toBeInTheDocument();
+      }
+      expect(screen.queryByRole('button', { name: 'Take over loose-bot' })).toBeNull();
+    });
+
+    it('a lead may take over an agent with no sponsor but sees nothing on another sponsor\'s agent', async () => {
+      listProjects.mockResolvedValue(lead);
+      listAgents.mockResolvedValue([THEIRS, LOOSE]);
+      renderPage({ admin: false });
+      expect(await screen.findByRole('button', { name: 'Take over loose-bot' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Edit their-bot' })).toBeNull();
+    });
+
+    it('if the viewer\'s projects cannot be read the buttons stay and the server decides', async () => {
+      listProjects.mockRejectedValue(new Error('down'));
+      renderPage({ admin: false });
+      expect(await screen.findByRole('button', { name: 'Register agent' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Edit mine-bot' })).toBeInTheDocument();
+    });
   });
 });

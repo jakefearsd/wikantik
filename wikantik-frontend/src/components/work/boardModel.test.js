@@ -114,7 +114,7 @@ describe('orderColumns with no data', () => {
 });
 
 describe('rankForInsert edges', () => {
-  it('gives the top slot a rank below the first card even when that rank is already 0', () => {
+  it('gives a card dropped at the top, above a first card of rank 0, a negative rank (-1024)', () => {
     expect(rankForInsert([item(1, 0), item(2, 5)], 0)).toBe(-1024);
   });
   it('treats a negative index as the top', () => {
@@ -124,9 +124,25 @@ describe('rankForInsert edges', () => {
     expect(rankForInsert([item(1, 1024)], 9)).toBeUndefined();
     expect(rankForInsert([item(1, 1024)], 9, { append: true })).toBe(2048);
   });
-  it('gives a card dropped between two cards of equal rank that same rank, so the order stays a tie', () => {
+  it('gives a card dropped between two cards of equal rank that same rank; the server then orders the tie by rank then id, not by where it was dropped', () => {
     const rank = rankForInsert([item(1, 1000), item(2, 1000)], 1);
     expect(rank).toBe(1000);
+  });
+});
+
+describe('a card moved to a status the board has no column for', () => {
+  const cols = [{ status: 'ready', total: 1, items: [item(1, 1)] }, { status: 'done', total: 0, items: [] }];
+  it('gets a new column, placed in the fixed status order', () => {
+    const next = moveInColumns(cols, 'P-1', 'review', 0);
+    expect(next.map((c) => c.status)).toEqual(['ready', 'review', 'done']);
+    expect(next[1]).toMatchObject({ status: 'review', total: 1 });
+    expect(next[1].items[0]).toMatchObject({ id: 1, status: 'review' });
+    expect(next[0].total).toBe(0);
+  });
+  it('is also what a newly created item gets when its status has no column', () => {
+    const next = addToColumns(cols, item(9, 9, { status: 'refining' }));
+    expect(next.map((c) => c.status)).toEqual(['refining', 'ready', 'done']);
+    expect(next[0].items.map((i) => i.id)).toEqual([9]);
   });
 });
 

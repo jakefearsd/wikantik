@@ -57,8 +57,10 @@ function QueueForm({ queue, onDone, onCancel }) {
   );
 }
 
-/** The queue half of /work/agents. `queues` is the loaded list; `reload` re-reads it. */
-/** `canManage`: queues are instance-wide, so only a wiki admin creates, edits or retires one. */
+/**
+ * The queue half of /work/agents. `queues` is the loaded list; `reload` re-reads it. `canManage`: queues are
+ * instance-wide, so only a wiki admin creates, edits or retires one.
+ */
 export default function WorkQueues({ queues, reload, canManage = true }) {
   const toast = useToast();
   const [creating, setCreating] = useState(false);

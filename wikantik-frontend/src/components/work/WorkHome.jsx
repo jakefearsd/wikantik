@@ -58,6 +58,7 @@ export default function WorkHome() {
   const isAdmin = !!user?.roles?.includes('Admin');
   const [state, setState] = useState({ me: null, error: null });
   const [creating, setCreating] = useState(false);
+  const [ackError, setAckError] = useState(null);
   const seq = useRef(0);
 
   const load = useCallback(() => {
@@ -110,8 +111,12 @@ export default function WorkHome() {
       {isAdmin && creating && <NewProjectForm onCancel={() => setCreating(false)} />}
       {waitingOn.length > 0 && (
         <WaitingLane as="section" items={waitingOn}
-          onAcknowledge={(i) => acknowledgeItem(i.key).then(load)
-            .catch((e) => console.warn('WorkHome: could not acknowledge', i.key, e))}
+          error={ackError}
+          onAcknowledge={(i) => acknowledgeItem(i.key).then(() => { setAckError(null); return load(); })
+            .catch((e) => {
+              console.warn('WorkHome: could not acknowledge', i.key, e);
+              setAckError(e?.message || 'Could not acknowledge that. Try again.');
+            })}
           suffix={(i) => keyOf.has(i.projectId) && <span className="work-muted"> · {keyOf.get(i.projectId)}</span>} />
       )}
       {deploymentsAwaiting.length > 0 && (

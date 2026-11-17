@@ -170,8 +170,8 @@ export function eventText(e) {
     case 'commented': return { text: 'commented', note };
     case 'comment_edited': return { text: 'edited a comment', note };
     case 'comment_removed': return { text: 'removed a comment', note };
-    case 'linked': return { text: `linked ${splitLink(ev.toValue)}`, note };
-    case 'unlinked': return { text: `removed link ${splitLink(ev.fromValue)}`, note };
+    case 'linked': return { text: ev.toValue ? `linked ${splitLink(ev.toValue)}` : 'added a link', note };
+    case 'unlinked': return { text: ev.fromValue ? `removed link ${splitLink(ev.fromValue)}` : 'removed a link', note };
     case 'change_opened': return { text: `opened a change on ${orNone(ev.toValue)}${commit(ev.note)}`, note: null };
     case 'change_updated': return { text: `updated a change${commit(ev.toValue)}`, note: null };
     case 'review_requested': return { text: `asked for a review of ${orNone(ev.toValue)}${commit(ev.note)}`, note: null };

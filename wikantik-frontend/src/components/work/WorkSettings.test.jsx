@@ -68,7 +68,7 @@ describe('WorkSettings', () => {
     expect(within(row).getByText('user')).toBeInTheDocument();
     expect(screen.getByText('group')).toBeInTheDocument();
     expect(screen.queryByText('bob')).not.toBeInTheDocument();
-    expect(screen.getByText('Takes effect in a later release')).toBeInTheDocument();
+    expect(screen.queryByText('Takes effect in a later release')).toBeNull();
   });
 
   it('saves the project name and description', async () => {
@@ -107,6 +107,7 @@ describe('WorkSettings', () => {
     fireEvent.change(screen.getByLabelText('Role of Bob B'), { target: { value: 'viewer' } });
     await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'bob', principalKind: 'user', role: 'viewer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove Bob B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove Bob B' }));
     await waitFor(() => expect(removeMember).toHaveBeenCalledWith('PLAT', { principal: 'bob', principalKind: 'user' }));
   });
 
@@ -394,5 +395,90 @@ describe('WorkSettings', () => {
     await waitFor(() => expect(listAgents).toHaveBeenCalled());
     fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'group' } });
     expect(screen.queryByText('That agent is retired.')).not.toBeInTheDocument();
+  });
+});
+
+describe('WorkSettings usability', () => {
+  it('default autonomy is a live select preselected from the project and saved through updateProject', async () => {
+    renderSettings();
+    const select = await screen.findByLabelText('Default autonomy');
+    expect(select).toHaveValue('supervised');
+    expect(screen.getByText('A person approves work as ready, merges and closes it.')).toBeInTheDocument();
+    expect(screen.getByText('Applies to items with no epic. An epic or an item can set its own level.')).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: 'autonomous' } });
+    await waitFor(() => expect(updateProject).toHaveBeenCalledWith('PLAT', { defaultAutonomy: 'autonomous' }));
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+  });
+
+  it('explains the selected autonomy level in plain words', async () => {
+    renderSettings();
+    fireEvent.change(await screen.findByLabelText('Default autonomy'), { target: { value: 'delegated' } });
+    expect(screen.getByText('A person approves work as ready; agents review, merge and close.')).toBeInTheDocument();
+  });
+
+  it('a refused autonomy change shows the server message and returns the select to the saved level', async () => {
+    updateProject.mockRejectedValue(Object.assign(new Error('Not allowed to change autonomy.'), { status: 403 }));
+    renderSettings();
+    const select = await screen.findByLabelText('Default autonomy');
+    fireEvent.change(select, { target: { value: 'autonomous' } });
+    expect(await screen.findByText('Not allowed to change autonomy.')).toHaveAttribute('role', 'alert');
+    expect(screen.getByLabelText('Default autonomy')).toHaveValue('supervised');
+  });
+
+  it('an archived project shows the autonomy level as text only', async () => {
+    useAuth.mockReturnValue({ user: { authenticated: true, roles: [] }, loading: false });
+    render(
+      <MemoryRouter initialEntries={['/work/PLAT/settings']}>
+        <WorkProjectContext.Provider value={{ project: { ...PROJECT, archived: true, defaultAutonomy: 'delegated' }, role: 'lead', reload }}>
+          <Routes><Route path="/work/PLAT/settings" element={<WorkSettings />} /></Routes>
+        </WorkProjectContext.Provider>
+      </MemoryRouter>,
+    );
+    await screen.findByText('Bob B');
+    expect(screen.queryByLabelText('Default autonomy')).toBeNull();
+    expect(screen.getByText('delegated')).toBeInTheDocument();
+  });
+
+  it('removing a person asks by name, mentions sponsored agents, and cancelling neither removes nor reloads', async () => {
+    renderSettings();
+    await screen.findByText('Bob B');
+    listMembers.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Bob B' }));
+    const strip = screen.getByRole('alertdialog');
+    expect(strip).toHaveTextContent('Remove Bob B from Platform?');
+    expect(strip).toHaveTextContent('Agents they sponsor lose their claims in this project.');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(removeMember).not.toHaveBeenCalled();
+    expect(listMembers).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('removing a group asks first without the sponsored-agents line', async () => {
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Devs' }));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Remove Devs from Platform?');
+    expect(screen.getByRole('alertdialog')).not.toHaveTextContent('Agents they sponsor');
+  });
+
+  it('a refused removal stays open in the strip with the server message', async () => {
+    removeMember.mockRejectedValue(Object.assign(new Error('A project needs at least one lead.'), { status: 409 }));
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Bob B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove Bob B' }));
+    const alert = await within(screen.getByRole('alertdialog')).findByRole('alert');
+    expect(alert).toHaveTextContent('A project needs at least one lead.');
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  });
+
+  it('helper text under the name follows the kind being added', async () => {
+    renderSettings();
+    await screen.findByText('Bob B');
+    expect(screen.getByText("Type the person's display name as it appears on the wiki.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'group' } });
+    expect(screen.getByText("Type the group's name.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'agent' } });
+    expect(screen.getByText('Choose from the agents registered on the Agents page.')).toBeInTheDocument();
   });
 });

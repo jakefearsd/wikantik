@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
@@ -65,14 +65,19 @@ describe('WorkDeploymentView', () => {
   it('lets a requested or approved deployment be withdrawn or rejected with a reason, and nothing later', async () => {
     getDeployment.mockResolvedValue(dep('requested'));
     const requested = renderView();
-    fireEvent.change(await screen.findByLabelText('Reason'), { target: { value: 'wrong version' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Withdraw' }));
+    expect(rejectDeployment).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Withdraw this request? It will not run.');
+    fireEvent.change(screen.getByLabelText('Why (optional)'), { target: { value: 'wrong version' } });
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Withdraw' }));
     await waitFor(() => expect(rejectDeployment).toHaveBeenCalledWith('4', { note: 'wrong version' }));
     requested.unmount();
 
     getDeployment.mockResolvedValue(dep('approved', { mayRun: true }));
     const approved = renderView();
     fireEvent.click(await screen.findByRole('button', { name: 'Reject' }));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Reject this deployment? It will not run.');
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Reject' }));
     await waitFor(() => expect(rejectDeployment).toHaveBeenLastCalledWith('4', { note: null }));
     approved.unmount();
 
@@ -104,10 +109,16 @@ describe('WorkDeploymentView', () => {
     getDeployment.mockResolvedValue(dep('running', { mayRun: true }));
     failDeployment.mockRejectedValue(Object.assign(new Error('A deployment that is verified cannot become failed.'), { status: 409 }));
     renderView();
-    fireEvent.change(await screen.findByLabelText('Note'), { target: { value: 'smoke red' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Mark as failed' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark as failed' }));
+    expect(failDeployment).not.toHaveBeenCalled();
+    const strip = screen.getByRole('alertdialog');
+    expect(strip).toHaveTextContent('Mark this deployment as failed?');
+    fireEvent.change(within(strip).getByLabelText('Why (optional)'), { target: { value: 'smoke red' } });
+    fireEvent.click(within(strip).getByRole('button', { name: 'Mark as failed' }));
     await waitFor(() => expect(failDeployment).toHaveBeenCalledWith('4', { note: 'smoke red' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('cannot become failed');
+    expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent('cannot become failed');
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
   it('shows evidence as plain text, never as markup, and lets a verified deployment be rolled back', async () => {
@@ -117,6 +128,9 @@ describe('WorkDeploymentView', () => {
     expect(pre).toHaveTextContent('<img src=x onerror=alert(1)> health 200');
     expect(container.querySelector('img')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Mark as rolled back' }));
+    expect(rollBackDeployment).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Items it shipped will no longer count as shipped.');
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Mark as rolled back' }));
     await waitFor(() => expect(rollBackDeployment).toHaveBeenCalledWith('4', { note: null }));
   });
 
@@ -161,8 +175,10 @@ describe('WorkDeploymentView', () => {
   it('lets a failed deployment be rolled back with a note', async () => {
     getDeployment.mockResolvedValue(dep('failed', { mayRun: true }));
     renderView();
-    fireEvent.change(await screen.findByLabelText('Note'), { target: { value: ' bad migration ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Mark as rolled back' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark as rolled back' }));
+    const strip = screen.getByRole('alertdialog');
+    fireEvent.change(within(strip).getByLabelText('Why (optional)'), { target: { value: ' bad migration ' } });
+    fireEvent.click(within(strip).getByRole('button', { name: 'Mark as rolled back' }));
     await waitFor(() => expect(rollBackDeployment).toHaveBeenCalledWith('4', { note: 'bad migration' }));
   });
 
@@ -175,6 +191,19 @@ describe('WorkDeploymentView', () => {
     expect(await screen.findByRole('heading', { name: /wikantik 2\.5\.26/ })).toBeInTheDocument();
     expect(screen.getByText(/requested by someone/)).toBeInTheDocument();
     expect(await screen.findByText(/someone moved it to mystery/)).toBeInTheDocument();
+  });
+
+  it('words a history row from its to state, with spaces for underscores', async () => {
+    getDeployment.mockResolvedValue(dep('rolled_back'));
+    getDeploymentHistory.mockResolvedValue({ history: [
+      { id: 1, actorName: 'Ana', actorKind: 'human', from: null, to: 'rolled_back', at: null, note: null },
+      { id: 2, actorName: 'Bo', actorKind: 'human', from: null, to: 'requested', at: null, note: null },
+      { id: 3, actorName: 'Cy', actorKind: 'human', from: 'verified', to: 'odd_state', at: null, note: null },
+    ] });
+    renderView();
+    expect(await screen.findByText(/Ana set it to rolled back/)).toBeInTheDocument();
+    expect(screen.getByText(/Bo requested it/)).toBeInTheDocument();
+    expect(screen.getByText(/Cy moved it to odd state/)).toBeInTheDocument();
   });
 
   it('shows an empty history when the server sends none', async () => {

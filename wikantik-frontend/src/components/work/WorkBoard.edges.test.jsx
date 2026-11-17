@@ -130,9 +130,7 @@ describe('WorkBoard loading problems', () => {
     expect(screen.getByText('Item 1')).toBeInTheDocument();
   });
 
-  // KNOWN BUG (see report): the late answer calls the old project's setColumns, which re-tags the state with the old
-  // project key, so the new project's board shows "Loading board…" for good. it.fails flips red when that is fixed.
-  it.fails('does not let a late move from the old project blank the new project board', async () => {
+  it('does not let a late move from the old project blank the new project board', async () => {
     const late = deferred();
     patchItem.mockReturnValueOnce(late.promise);
     getMe.mockResolvedValue({ waitingOn: [] });
@@ -146,6 +144,84 @@ describe('WorkBoard loading problems', () => {
     late.resolve({ item: item(1, 'review', { version: 2 }) });
     await new Promise((r) => setTimeout(r, 30));
     expect(screen.getByText('Ops card')).toBeInTheDocument();
+  });
+  it('ignores a late failure of a move made in the old project', async () => {
+    const late = deferred();
+    patchItem.mockReturnValueOnce(late.promise);
+    getMe.mockResolvedValue({ waitingOn: [] });
+    getBoard.mockImplementation((key) => Promise.resolve(key === 'PLAT' ? board
+      : boardOf({ ready: [item(50, 'ready', { title: 'Ops card', key: 'OPS-50' })] })));
+    const reload = vi.fn();
+    const { rerender } = render(tree({ reload }));
+    await screen.findByText('Item 1');
+    fireEvent.change(screen.getByLabelText('Move PLAT-1 to…'), { target: { value: 'review' } });
+    rerender(tree({ project: { id: 2, key: 'OPS', name: 'Ops' }, reload }));
+    expect(await screen.findByText('Ops card')).toBeInTheDocument();
+    late.reject(Object.assign(new Error('Old project failure'), { status: 500 }));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(screen.getByText('Ops card')).toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it.each([['an empty answer', undefined], ['an answer with no item', {}]])(
+    'reloads the board instead of crashing when a move is saved with %s', async (_n, answer) => {
+      patchItem.mockResolvedValue(answer);
+      renderBoard();
+      await screen.findByText('Item 1');
+      fireEvent.change(screen.getByLabelText('Move PLAT-1 to…'), { target: { value: 'review' } });
+      await waitFor(() => expect(getBoard).toHaveBeenCalledTimes(2));
+      expect(await screen.findByText('Item 1')).toBeInTheDocument();
+    });
+
+  it('keeps a moved card visible when the server sent no column for its target status', async () => {
+    board = board.filter((c) => c.status !== 'review');
+    patchItem.mockReturnValue(new Promise(() => {}));
+    renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.change(screen.getByLabelText('Move PLAT-1 to…'), { target: { value: 'review' } });
+    expect(within(column('review')).getByText('Item 1')).toBeInTheDocument();
+  });
+
+  it('keeps a dropped card visible when the server sent no column for its target status', async () => {
+    board = board.filter((c) => c.status !== 'done');
+    patchItem.mockReturnValue(new Promise(() => {}));
+    renderBoard();
+    await dragTo('Item 1', 'done');
+    expect(within(column('done')).getByText('Item 1')).toBeInTheDocument();
+  });
+
+  it('marks the column a card is dragged over, and unmarks it on leave and on drop', async () => {
+    patchItem.mockReturnValue(new Promise(() => {}));
+    renderBoard();
+    const card = (await screen.findByText('Item 1')).closest('.work-card');
+    const dataTransfer = dt();
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.dragOver(column('review'), { dataTransfer });
+    expect(column('review')).toHaveClass('work-column-over');
+    expect(column('ready')).not.toHaveClass('work-column-over');
+    fireEvent.dragLeave(column('review'), { dataTransfer });
+    expect(column('review')).not.toHaveClass('work-column-over');
+    fireEvent.dragOver(column('review'), { dataTransfer });
+    fireEvent(column('review'), createEvent.drop(column('review'), { dataTransfer }));
+    expect(column('review')).not.toHaveClass('work-column-over');
+  });
+
+  it('unmarks the column when the drag ends without a drop', async () => {
+    renderBoard();
+    const card = (await screen.findByText('Item 1')).closest('.work-card');
+    const dataTransfer = dt();
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.dragOver(column('review'), { dataTransfer });
+    fireEvent.dragEnd(card, { dataTransfer });
+    expect(column('review')).not.toHaveClass('work-column-over');
+  });
+
+  it('announces a successful move to assistive technology in a polite live region', async () => {
+    patchItem.mockResolvedValue({ item: item(1, 'review', { version: 2 }) });
+    renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.change(screen.getByLabelText('Move PLAT-1 to…'), { target: { value: 'review' } });
+    expect((await screen.findByText('Moved PLAT-1 to Review.')).closest('[aria-live="polite"]')).not.toBeNull();
   });
 });
 
@@ -403,5 +479,22 @@ describe('WorkBoard filters', () => {
     await screen.findByText('Item 1');
     fireEvent.change(screen.getByLabelText('Filter by assignee'), { target: { value: '' } });
     await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', {}));
+  });
+
+  it('says how many drafts and cancelled items are hidden, and shows them on a click', async () => {
+    board = boardOf({ draft: [item(7, 'draft'), item(8, 'draft')], cancelled: [item(9, 'cancelled')], ready: [item(1, 'ready')] });
+    renderBoard();
+    const hint = await screen.findByRole('button', { name: '3 draft or cancelled items are hidden. Show' });
+    expect(screen.queryByText('PLAT-7')).toBeNull();
+    fireEvent.click(hint);
+    expect(await screen.findByText('PLAT-7')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /hidden\. Show/ })).toBeNull();
+  });
+
+  it('gives no hint when nothing is hidden', async () => {
+    board = boardOf({ ready: [item(1, 'ready')] });
+    renderBoard();
+    await screen.findByText('PLAT-1');
+    expect(screen.queryByRole('button', { name: /hidden\. Show/ })).toBeNull();
   });
 });

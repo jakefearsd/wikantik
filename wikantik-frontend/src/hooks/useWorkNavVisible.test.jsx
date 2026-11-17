@@ -58,3 +58,36 @@ describe('useWorkNavVisible', () => {
     expect(result.current).toBe(false);
   });
 });
+
+describe('useWorkNavVisible when the signed-in user changes', () => {
+  it('does not reuse the previous user\'s answer: false until asked again for the new user', async () => {
+    getMe.mockResolvedValueOnce({ projects: [{ key: 'PLAT' }] });
+    as({ authenticated: true, username: 'alice', roles: [] }, true);
+    const { result, rerender } = renderHook(() => useWorkNavVisible());
+    await waitFor(() => expect(result.current).toBe(true));
+    let answer;
+    getMe.mockReturnValueOnce(new Promise((r) => { answer = r; }));
+    as({ authenticated: true, username: 'bob', roles: [] }, true);
+    rerender();
+    expect(result.current).toBe(false);
+    await waitFor(() => expect(getMe).toHaveBeenCalledTimes(2));
+    answer({ projects: [] });
+    await waitFor(() => expect(getMe).toHaveBeenCalledTimes(2));
+    expect(result.current).toBe(false);
+  });
+
+  it('asks again after a logout and a new login', async () => {
+    getMe.mockResolvedValue({ projects: [{ key: 'PLAT' }] });
+    as({ authenticated: true, username: 'alice', roles: [] }, true);
+    const { result, rerender } = renderHook(() => useWorkNavVisible());
+    await waitFor(() => expect(result.current).toBe(true));
+    as({ authenticated: false, username: 'anonymous', roles: [] }, true);
+    rerender();
+    expect(result.current).toBe(false);
+    getMe.mockReturnValueOnce(new Promise(() => {}));
+    as({ authenticated: true, username: 'carol', roles: [] }, true);
+    rerender();
+    expect(result.current).toBe(false);
+    expect(getMe).toHaveBeenCalledTimes(2);
+  });
+});

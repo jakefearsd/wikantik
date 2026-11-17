@@ -6,7 +6,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 vi.mock('../../api/work', () => ({
   listAgents: vi.fn(), listQueues: vi.fn(), createQueue: vi.fn(), updateQueue: vi.fn(), retireQueue: vi.fn(),
   registerAgent: vi.fn(), updateAgent: vi.fn(), rotateAgentKey: vi.fn(), retireAgent: vi.fn(),
-  takeOverAgent: vi.fn(), releaseAgentSponsorship: vi.fn(),
+  takeOverAgent: vi.fn(), releaseAgentSponsorship: vi.fn(), listProjects: vi.fn(),
 }));
 vi.mock('../../api/client', () => ({ api: { listMentionableUsers: vi.fn() } }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
@@ -14,7 +14,7 @@ const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 import {
   listAgents, listQueues, createQueue, registerAgent, rotateAgentKey, retireAgent, retireQueue, updateAgent, updateQueue,
-  takeOverAgent, releaseAgentSponsorship,
+  takeOverAgent, releaseAgentSponsorship, listProjects,
 } from '../../api/work';
 import { api } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -51,6 +51,7 @@ beforeEach(() => {
   localStorage.clear(); sessionStorage.clear();
   listAgents.mockResolvedValue(AGENTS);
   listQueues.mockResolvedValue(QUEUES);
+  listProjects.mockResolvedValue([{ key: 'PLAT', role: 'lead', archived: false }]);
   api.listMentionableUsers.mockResolvedValue({ users: [{ id: 'u1', displayName: 'Alice A' }, { id: 'u2', displayName: 'Bob B' }] });
   createQueue.mockResolvedValue({});
   registerAgent.mockResolvedValue({ agent: AGENTS[1], token: SECRET });

@@ -276,7 +276,8 @@ describe('eventText', () => {
   it('a link with no kind separator shows the value as it is', () => {
     expect(eventText(ev('linked', { toValue: 'PLAT-3' })).text).toBe('linked PLAT-3');
     expect(eventText(ev('unlinked', { fromValue: 'blocks:PLAT-3' })).text).toBe('removed link blocks PLAT-3');
-    expect(eventText(ev('linked', {})).text).toBe('linked ');
+    expect(eventText(ev('linked', {})).text).toBe('added a link');
+    expect(eventText(ev('unlinked', {})).text).toBe('removed a link');
   });
   it('a claim that expired with no state to go back to says only that it expired', () => {
     expect(eventSentence(ev('claim_expired', { actorName: 'codex' }))).toBe('claim by codex expired');
@@ -284,5 +285,26 @@ describe('eventText', () => {
   });
   it('a field change with no field name says "a field"', () => {
     expect(eventText(ev('field', { fromValue: 'a', toValue: 'b' })).text).toBe('changed a field a → b');
+  });
+});
+
+describe('eventText with empty values', () => {
+  const TYPES = ['created', 'edited', 'status', 'assigned', 'handoff', 'claimed', 'claim_renewed', 'released', 'claim_expired',
+    'field', 'commented', 'comment_edited', 'comment_removed', 'linked', 'unlinked', 'change_opened', 'change_updated',
+    'review_requested', 'change_reviewed', 'change_merged', 'change_abandoned', 'deployment_requested', 'shipped',
+    'rolled_back', 'acknowledged', 'member', 'settings', 'some_future_type'];
+  it('never ends a sentence in a space or holds a doubled space', () => {
+    for (const type of TYPES) {
+      for (const empty of [null, '', undefined]) {
+        const e = { id: 1, type, fromValue: empty, toValue: empty, note: empty, actorName: 'Ana A' };
+        const { text } = eventText(e);
+        expect(text, type).toBe(text.trim());
+        expect(text, type).not.toMatch(/ {2}/);
+        expect(text.length, type).toBeGreaterThan(0);
+        const s = eventSentence(e);
+        expect(s, type).toBe(s.trim());
+        expect(s, type).not.toMatch(/ {2}/);
+      }
+    }
   });
 });

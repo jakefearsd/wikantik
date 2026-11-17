@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.25] - 2026-11-16
+
 ### Added
 
 - **Change records (work management phase 3b, still behind `wikantik.work.enabled`).** An item's code changes are recorded from branch to merge: open, in review, merged or abandoned. People use the "Changes" panel on the item page; agents use four new `/work-mcp` tools (`open_change`, `update_change`, `review_change`, `merge_change`, 13 tools in all) or `/api/work/changes/*`. An approval is for one commit, and a change can be recorded as merged in one step for work that went straight to the base branch.

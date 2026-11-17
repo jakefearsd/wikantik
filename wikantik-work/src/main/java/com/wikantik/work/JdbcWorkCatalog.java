@@ -103,10 +103,12 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     @Override
     public Project createProject( final String key, final String name, final String description )
             throws SQLException {
-        return jdbc.queryOne( "INSERT INTO work_project (key, name, description) VALUES (?,?,?) RETURNING "
-                + PROJECT_COLUMNS,
+        // Two creations of one key at once: the second inserts nothing, which is the "already exists" conflict.
+        return jdbc.queryOne( "INSERT INTO work_project (key, name, description) VALUES (?,?,?) "
+                + "ON CONFLICT DO NOTHING RETURNING " + PROJECT_COLUMNS,
             ps -> { ps.setString( 1, key ); ps.setString( 2, name ); ps.setString( 3, description ); },
-            PROJECT_ROW ).orElseThrow( () -> new SQLException( "INSERT work_project returned no row" ) );
+            PROJECT_ROW ).orElseThrow( () -> new WorkConflictException( "Project " + key + " already exists.",
+                WorkConflictException.EXISTS ) );
     }
 
     @Override
@@ -310,7 +312,8 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     @Override
     public Product createProduct( final Product d ) throws SQLException {
         return jdbc.queryOne( "INSERT INTO work_product (key, name, repo_url, default_branch, wiki_cluster, "
-                + "autonomy_ceiling, deploy_gate) VALUES (?,?,?,?,?,?,?) RETURNING " + PRODUCT_COLUMNS,
+                + "autonomy_ceiling, deploy_gate) VALUES (?,?,?,?,?,?,?) ON CONFLICT DO NOTHING RETURNING "
+                + PRODUCT_COLUMNS,
             ps -> {
                 ps.setString( 1, d.key() );
                 ps.setString( 2, d.name() );
@@ -319,7 +322,8 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
                 ps.setString( 5, d.wikiCluster() );
                 ps.setString( 6, d.autonomyCeiling().wire() );
                 ps.setString( 7, d.deployGate().wire() );
-            }, PRODUCT_ROW ).orElseThrow( () -> new SQLException( "INSERT work_product returned no row" ) );
+            }, PRODUCT_ROW ).orElseThrow( () -> new WorkConflictException( "Product " + d.key() + " already exists.",
+                WorkConflictException.EXISTS ) );
     }
 
     @Override

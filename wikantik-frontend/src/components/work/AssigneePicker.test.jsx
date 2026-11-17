@@ -58,4 +58,29 @@ describe('AssigneePicker', () => {
     rerender(<AssigneePicker members={MEMBERS} queues={QUEUES} value={{}} allowNone={false} onChange={onChange} ariaLabel="Assignee" />);
     expect(optionTexts()).not.toContain('Unassigned');
   });
+
+  it('names a queue by its key when it has no name, and falls back to neutral words for a vanished target', () => {
+    const { rerender } = render(<AssigneePicker members={[]} queues={[{ key: 'triage' }]} value={{ queue: 'gone' }} onChange={() => {}} />);
+    expect(optionTexts()).toContain('Queue · triage');
+    expect(screen.getByRole('option', { name: 'Queue · a queue' })).toBeInTheDocument();
+    rerender(<AssigneePicker members={[]} queues={[]} value={{ assignee: 'gone' }} onChange={() => {}} />);
+    expect(screen.getByRole('option', { name: 'Former member' })).toBeInTheDocument();
+  });
+
+  it('reports nothing when the empty choice is picked and unassigning is not allowed', () => {
+    const onChange = vi.fn();
+    render(<AssigneePicker members={MEMBERS} queues={QUEUES} value={{}} allowNone={false} placeholder="Pick someone" onChange={onChange} />);
+    expect(optionTexts()[0]).toBe('Pick someone');
+    fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'ana-login' } });
+    fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: '' } });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith({ assignee: 'ana-login' });
+  });
+
+  it('unassigning a person clears the assignee', () => {
+    const onChange = vi.fn();
+    render(<AssigneePicker members={MEMBERS} queues={QUEUES} value={{ assignee: 'bob-login' }} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: '' } });
+    expect(onChange).toHaveBeenCalledWith({ assignee: null });
+  });
 });

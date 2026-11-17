@@ -73,6 +73,83 @@ describe('WorkClaim', () => {
     expect(screen.getByRole('region', { name: 'Claim' })).toHaveTextContent('Claimed by an agent');
   });
 
+  it('names a generic queue when the claimable item\'s queue has no name', () => {
+    render(<WorkClaim item={{ ...UNCLAIMED, queueName: null }} now={NOW} onRelease={vi.fn()} />);
+    expect(screen.getByText('Claimable by agents serving this queue')).toBeInTheDocument();
+  });
+
+  it('says the item goes unclaimed when it is in no queue, and "its" queue when the queue has no name', () => {
+    renderClaim({ item: { ...CLAIMED, queue: null, queueName: null } });
+    fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+    expect(screen.getByRole('alertdialog', { name: 'Release claim' })).toHaveTextContent('The item goes unclaimed.');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('says back to its queue when the queue has no name', () => {
+    renderClaim({ item: { ...CLAIMED, queueName: null } });
+    fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('The item goes back to the its queue.');
+  });
+
+  it('closes the confirmation, clears the note and returns focus once the release succeeds', async () => {
+    renderClaim();
+    fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+    fireEvent.change(screen.getByLabelText('Release note (optional)'), { target: { value: '  stuck  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Release it' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    const reopen = screen.getByRole('button', { name: 'Release claim' });
+    await waitFor(() => expect(reopen).toHaveFocus());
+    fireEvent.click(reopen);
+    expect(screen.getByLabelText('Release note (optional)')).toHaveValue('');
+  });
+
+  it('keeps the confirmation and the note open when the release is not accepted', async () => {
+    const onRelease = vi.fn(() => Promise.resolve(false));
+    renderClaim({ onRelease });
+    fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+    fireEvent.change(screen.getByLabelText('Release note (optional)'), { target: { value: 'stuck' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Release it' }));
+    await waitFor(() => expect(onRelease).toHaveBeenCalledWith('stuck'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Release it' })).toBeEnabled());
+    expect(screen.getByLabelText('Release note (optional)')).toHaveValue('stuck');
+  });
+
+  it('logs and re-enables the buttons when the release call throws', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onRelease = vi.fn(() => Promise.reject(new Error('boom')));
+    renderClaim({ onRelease });
+    fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Release it' }));
+    await waitFor(() => expect(warn).toHaveBeenCalledWith('WorkClaim: release failed', expect.any(Error)));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Release it' })).toBeEnabled());
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+
+  it('sends only one release while the first is still pending and disables the form', async () => {
+    let finish;
+    const onRelease = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+    renderClaim({ onRelease });
+    fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+    const go = screen.getByRole('button', { name: 'Release it' });
+    fireEvent.click(go);
+    await waitFor(() => expect(go).toBeDisabled());
+    expect(screen.getByLabelText('Release note (optional)')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    fireEvent.click(go);
+    expect(onRelease).toHaveBeenCalledTimes(1);
+    finish(false);
+    await waitFor(() => expect(go).toBeEnabled());
+  });
+
+  it('ignores keys other than Escape inside the confirmation', () => {
+    renderClaim();
+    fireEvent.click(screen.getByRole('button', { name: 'Release claim' }));
+    fireEvent.keyDown(screen.getByLabelText('Release note (optional)'), { key: 'a' });
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  });
+
   describe('when the expiry passes with the page open', () => {
     afterEach(() => vi.useRealTimers());
 

@@ -151,4 +151,126 @@ describe('WorkComments', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
     expect(onAdd).not.toHaveBeenCalled();
   });
+
+  const openPicker = async (box, value = '@') => {
+    box.focus();
+    fireEvent.change(box, { target: { value, selectionStart: value.length } });
+    await screen.findByRole('option', { name: '@Ana Alvarez' });
+  };
+
+  it('Enter in the open picker inserts the highlighted member instead of submitting', async () => {
+    const { onAdd } = setup();
+    const box = screen.getByLabelText('Add a comment');
+    await openPicker(box);
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(box.value).toBe('@[Ana Alvarez](user:u-ana) ');
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it('arrow keys move the highlight and Tab inserts the chosen member', async () => {
+    setup();
+    const box = screen.getByLabelText('Add a comment');
+    await openPicker(box);
+    fireEvent.keyDown(box, { key: 'ArrowDown' });
+    fireEvent.keyDown(box, { key: 'Tab' });
+    expect(box.value).toBe('@[Bob Brown](user:u-bob) ');
+  });
+
+  it('Escape closes the picker without inserting anything', async () => {
+    setup();
+    const box = screen.getByLabelText('Add a comment');
+    await openPicker(box);
+    fireEvent.keyDown(box, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+    expect(box.value).toBe('@');
+  });
+
+  it('Enter with no matching member inserts nothing', async () => {
+    setup();
+    const box = screen.getByLabelText('Add a comment');
+    box.focus();
+    fireEvent.change(box, { target: { value: '@zzz', selectionStart: 4 } });
+    await new Promise((r) => setTimeout(r, 250));
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(box.value).toBe('@zzz');
+  });
+
+  it('Ctrl+Enter posts the new comment and Cmd+Enter saves an edit', async () => {
+    const { onAdd, onEdit } = setup({ comments: [c(1, true, 'old')] });
+    const box = screen.getByLabelText('Add a comment');
+    fireEvent.change(box, { target: { value: 'quick one' } });
+    fireEvent.keyDown(box, { key: 'Enter', ctrlKey: true });
+    await waitFor(() => expect(onAdd).toHaveBeenCalledWith('quick one'));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit comment by Ana Alvarez' }));
+    const edit = screen.getByLabelText('Edit your comment');
+    fireEvent.change(edit, { target: { value: '  new text  ' } });
+    fireEvent.keyDown(edit, { key: 'Enter', metaKey: true });
+    await waitFor(() => expect(onEdit).toHaveBeenCalledWith(1, 'new text'));
+    await waitFor(() => expect(screen.queryByLabelText('Edit your comment')).toBeNull());
+  });
+
+  it('a plain Enter in the comment box does not post', () => {
+    const { onAdd } = setup();
+    const box = screen.getByLabelText('Add a comment');
+    fireEvent.change(box, { target: { value: 'text' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it('does not save a blank edit and Cancel leaves the comment unchanged', () => {
+    const { onEdit } = setup({ comments: [c(1, true, 'old')] });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit comment by Ana Alvarez' }));
+    fireEvent.change(screen.getByLabelText('Edit your comment'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save comment' }));
+    expect(onEdit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText('Edit your comment')).toBeNull();
+    expect(screen.getByText('old')).toBeInTheDocument();
+  });
+
+  it('starts an edit with an empty box when the comment carries no source text', () => {
+    setup({ comments: [c(1, true, undefined, { bodyHtml: '<p>rendered</p>', createdAt: null })] });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit comment by Ana Alvarez' }));
+    expect(screen.getByLabelText('Edit your comment').value).toBe('');
+  });
+
+  it('keeps the edit open and logs when saving an edit fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const h = handlers();
+    h.onEdit.mockRejectedValue(new Error('boom'));
+    render(<WorkComments comments={[c(1, true, 'old')]} members={MEMBERS} canComment isLead={false} {...h} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit comment by Ana Alvarez' }));
+    fireEvent.change(screen.getByLabelText('Edit your comment'), { target: { value: 'changed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save comment' }));
+    await waitFor(() => expect(warn).toHaveBeenCalledWith('WorkComments: comment action failed', expect.any(Error)));
+    expect(screen.getByLabelText('Edit your comment').value).toBe('changed');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save comment' })).not.toBeDisabled());
+    warn.mockRestore();
+  });
+
+  it('keeps the removal prompt and logs when removing fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const h = handlers();
+    h.onRemove.mockRejectedValue(new Error('boom'));
+    render(<WorkComments comments={[c(1, true, 'mine')]} members={MEMBERS} canComment isLead={false} {...h} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove comment by Ana Alvarez' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove' }));
+    await waitFor(() => expect(warn).toHaveBeenCalled());
+    expect(screen.getByText('Remove this comment?')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+
+  it('keeps the typed text and logs when posting throws', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const h = handlers();
+    h.onAdd.mockRejectedValue(new Error('boom'));
+    render(<WorkComments comments={[]} members={MEMBERS} canComment isLead={false} {...h} />);
+    const box = screen.getByLabelText('Add a comment');
+    fireEvent.change(box, { target: { value: 'keep me' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    await waitFor(() => expect(warn).toHaveBeenCalledWith('WorkComments: posting failed', expect.any(Error)));
+    expect(box.value).toBe('keep me');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Comment' })).not.toBeDisabled());
+    warn.mockRestore();
+  });
 });

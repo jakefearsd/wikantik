@@ -132,4 +132,56 @@ describe('WorkDeploymentView', () => {
     renderView();
     expect(await screen.findByText('No such deployment.')).toBeInTheDocument();
   });
+
+  it('shows the server reason when the deployment cannot be loaded, or a plain default', async () => {
+    getDeployment.mockRejectedValue(Object.assign(new Error('The server is unwell.'), { status: 500 }));
+    const first = renderView();
+    expect(await screen.findByText('The server is unwell.')).toBeInTheDocument();
+    first.unmount();
+    getDeployment.mockRejectedValue({});
+    renderView();
+    expect(await screen.findByText('Could not load the deployment.')).toBeInTheDocument();
+  });
+
+  it('shows a generic message when a step is refused with no reason', async () => {
+    getDeployment.mockResolvedValue(dep('approved', { mayRun: true }));
+    startDeployment.mockRejectedValue({});
+    renderView();
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark as running' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('That did not work.');
+  });
+
+  it('says Reject, not Withdraw, to an approver of a requested deployment', async () => {
+    getDeployment.mockResolvedValue(dep('requested', { mayApprove: true }));
+    renderView();
+    expect(await screen.findByRole('button', { name: 'Reject' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Withdraw' })).toBeNull();
+  });
+
+  it('lets a failed deployment be rolled back with a note', async () => {
+    getDeployment.mockResolvedValue(dep('failed', { mayRun: true }));
+    renderView();
+    fireEvent.change(await screen.findByLabelText('Note'), { target: { value: ' bad migration ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as rolled back' }));
+    await waitFor(() => expect(rollBackDeployment).toHaveBeenCalledWith('4', { note: 'bad migration' }));
+  });
+
+  it('names an unknown requester as someone, shows an unknown state as it is, and copes with odd history', async () => {
+    getDeployment.mockResolvedValue(dep('rolled_back', { requestedByName: null, requestedAt: null }));
+    getDeploymentHistory.mockResolvedValue({ history: [
+      { id: 7, actorName: null, actorKind: 'human', from: 'verified', to: 'mystery', at: null, note: null },
+    ] });
+    renderView();
+    expect(await screen.findByRole('heading', { name: /wikantik 2\.5\.26/ })).toBeInTheDocument();
+    expect(screen.getByText(/requested by someone/)).toBeInTheDocument();
+    expect(await screen.findByText(/someone moved it to mystery/)).toBeInTheDocument();
+  });
+
+  it('shows an empty history when the server sends none', async () => {
+    getDeployment.mockResolvedValue(dep('requested'));
+    getDeploymentHistory.mockResolvedValue(undefined);
+    renderView();
+    expect(await screen.findByRole('heading', { name: 'History' })).toBeInTheDocument();
+    expect(screen.queryByText(/moved it to|requested it/)).toBeNull();
+  });
 });

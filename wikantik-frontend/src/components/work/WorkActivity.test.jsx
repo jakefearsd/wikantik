@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({ getActivity: vi.fn() }));
@@ -156,5 +156,142 @@ describe('WorkActivity', () => {
     expect(rows[2]).toHaveTextContent('claim by codex@docker2 expired — back to ready');
     expect(rows[3]).toHaveTextContent('codex@docker2 agent handed this to Queue · Reviewer: in progress → review');
     expect(rows[3]).toHaveTextContent('ready for review');
+  });
+});
+
+describe('WorkActivity edges', () => {
+  const deferred = () => { let resolve; let reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
+  const quiet = () => vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+  it('says there is no activity when the server answers with nothing at all', async () => {
+    getActivity.mockResolvedValue(null);
+    renderActivity();
+    expect(await screen.findByText('No activity yet.')).toBeInTheDocument();
+  });
+
+  it('shows the reason and keeps the button when Load more fails, and a second try can succeed', async () => {
+    quiet();
+    getActivity.mockResolvedValueOnce(page(1, 50))
+      .mockRejectedValueOnce(new Error('Server hiccup'))
+      .mockResolvedValueOnce([ev(60)]);
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server hiccup');
+    expect(screen.getByRole('button', { name: 'Load more' })).toBeEnabled();
+    expect(screen.getByText('PLAT-1')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByText('PLAT-60')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('uses plain words when Load more fails without a message', async () => {
+    quiet();
+    getActivity.mockResolvedValueOnce(page(1, 50)).mockRejectedValueOnce({});
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load more activity.');
+  });
+
+  it('disables the button and says Loading while more is on its way, and treats an empty answer as the end', async () => {
+    const more = deferred();
+    getActivity.mockResolvedValueOnce(page(1, 50)).mockReturnValueOnce(more.promise);
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByRole('button', { name: 'Loading…' })).toBeDisabled();
+    more.resolve(null);
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Load more|Loading/ })).not.toBeInTheDocument());
+    expect(screen.getByText('PLAT-1')).toBeInTheDocument();
+  });
+
+  it('drops a Load more answer that arrives after the item filter changed', async () => {
+    const more = deferred();
+    getActivity.mockResolvedValueOnce(page(1, 50)).mockReturnValueOnce(more.promise).mockResolvedValueOnce([ev(2)]);
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    fireEvent.change(screen.getByLabelText('Item'), { target: { value: 'plat-2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    await waitFor(() => expect(getActivity).toHaveBeenLastCalledWith({ project: 'PLAT', item: 'PLAT-2', limit: 50 }));
+    await waitFor(() => expect(screen.queryByText('PLAT-1')).not.toBeInTheDocument());
+    more.resolve([ev(99)]);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText('PLAT-99')).not.toBeInTheDocument();
+    expect(screen.getByText('PLAT-2')).toBeInTheDocument();
+  });
+
+  it('ignores a Load more failure that arrives after the item filter changed', async () => {
+    quiet();
+    const more = deferred();
+    getActivity.mockResolvedValueOnce(page(1, 50)).mockReturnValueOnce(more.promise).mockResolvedValueOnce([ev(2)]);
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    fireEvent.change(screen.getByLabelText('Item'), { target: { value: 'plat-2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    await screen.findByText('PLAT-2');
+    more.reject(new Error('late failure'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('late failure')).not.toBeInTheDocument();
+  });
+
+  it('says there is no activity for an item that exists but has none', async () => {
+    getActivity.mockResolvedValueOnce(page(1, 2)).mockResolvedValueOnce([]);
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    fireEvent.change(screen.getByLabelText('Item'), { target: { value: 'PLAT-7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    expect(await screen.findByText('No activity for this item.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Item')).toHaveValue('PLAT-7');
+  });
+
+  it('does not ask again when the same item is submitted twice', async () => {
+    getActivity.mockResolvedValueOnce(page(1, 2)).mockResolvedValueOnce([ev(2)]);
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    fireEvent.change(screen.getByLabelText('Item'), { target: { value: 'plat-2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    await screen.findByText('PLAT-2');
+    fireEvent.change(screen.getByLabelText('Item'), { target: { value: ' PLAT-2 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(getActivity).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('PLAT-2')).toBeInTheDocument();
+  });
+
+  it('offers All items when the box is blank and goes back to the whole project', async () => {
+    getActivity.mockResolvedValueOnce(page(1, 2)).mockResolvedValueOnce([ev(2)]).mockResolvedValueOnce(page(1, 2));
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    expect(screen.getByRole('button', { name: 'All items' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Item'), { target: { value: 'plat-2' } });
+    expect(screen.getByRole('button', { name: 'Show' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    await waitFor(() => expect(screen.queryByText('PLAT-1')).not.toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Item'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'All items' }));
+    expect(await screen.findByText('PLAT-1')).toBeInTheDocument();
+    expect(getActivity).toHaveBeenLastCalledWith({ project: 'PLAT', limit: 50 });
+  });
+
+  it('says nothing loaded matches when the filters rule out every loaded event', async () => {
+    getActivity.mockResolvedValue([ev(1), ev(2, { type: 'commented', actorName: 'Grace Hopper' })]);
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    fireEvent.change(screen.getByLabelText('Event type'), { target: { value: 'commented' } });
+    fireEvent.change(screen.getByLabelText('Person'), { target: { value: 'Ada Lovelace' } });
+    expect(screen.getByText('No loaded activity matches these filters.')).toBeInTheDocument();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('writes event types with spaces in the filter and skips events with no type', async () => {
+    getActivity.mockResolvedValue([ev(1, { type: 'claim_renewed' }), ev(2, { type: undefined })]);
+    renderActivity();
+    await screen.findByText('PLAT-1');
+    const options = within(screen.getByLabelText('Event type')).getAllByRole('option').map((o) => o.textContent);
+    expect(options).toEqual(['All events', 'claim renewed']);
   });
 });

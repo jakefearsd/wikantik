@@ -43,8 +43,6 @@ import java.util.Set;
  */
 public final class WorkClaimsService {
 
-    private static final org.apache.logging.log4j.Logger LOG =
-        org.apache.logging.log4j.LogManager.getLogger( WorkClaimsService.class );
 
     /** The outcome of a claim: the item as it now stands and whether the agent's own claim was renewed. */
     public record ClaimResult( ItemView view, boolean renewed ) {

@@ -75,4 +75,71 @@ describe('WorkDeployments', () => {
     renderPage();
     expect(await screen.findByText('There are no products to deploy.')).toBeInTheDocument();
   });
+
+  it('sends the environment when one is typed and Cancel closes the form', async () => {
+    requestDeployment.mockResolvedValue(dep(27, 'requested'));
+    renderPage();
+    await screen.findByRole('link', { name: 'wikantik 2.5.26' });
+    fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+    expect(screen.queryByRole('button', { name: 'Request' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText('Version')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+    fireEvent.change(screen.getByLabelText('Version'), { target: { value: ' 2.5.27 ' } });
+    fireEvent.change(screen.getByLabelText('Environment'), { target: { value: ' staging ' } });
+    fireEvent.change(screen.getByLabelText('Items it ships'), { target: { value: 'PLAT-12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Request deployment' }));
+    await waitFor(() => expect(requestDeployment).toHaveBeenCalledWith(
+      { product: 'wikantik', version: '2.5.27', environment: 'staging', items: ['PLAT-12'] }));
+  });
+
+  it('gives a plain default when a request is refused with no reason', async () => {
+    requestDeployment.mockRejectedValue({});
+    renderPage();
+    await screen.findByRole('link', { name: 'wikantik 2.5.26' });
+    fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+    fireEvent.change(screen.getByLabelText('Version'), { target: { value: '2.5.27' } });
+    fireEvent.change(screen.getByLabelText('Items it ships'), { target: { value: 'PLAT-12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Request deployment' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not request the deployment.');
+  });
+
+  it('treats a failed product load as having no products', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    listProducts.mockRejectedValue(new Error('boom'));
+    renderPage();
+    expect(await screen.findByText('There are no products to deploy.')).toBeInTheDocument();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('treats a failed deployment load as an empty list', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    listDeployments.mockRejectedValue(new Error('boom'));
+    renderPage();
+    expect(await screen.findByText('No deployments of this product that you can see.')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+
+  it('copes with a missing product list and a missing deployment list', async () => {
+    listProducts.mockResolvedValue(undefined);
+    const first = renderPage();
+    expect(await screen.findByText('There are no products to deploy.')).toBeInTheDocument();
+    first.unmount();
+    listProducts.mockResolvedValue([{ key: 'wikantik' }]);
+    listDeployments.mockResolvedValue(undefined);
+    renderPage();
+    expect(await screen.findByText('No deployments of this product that you can see.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Product')).toHaveTextContent('wikantik');
+  });
+
+  it('shows an unknown state as it is, an unnamed requester as someone, and the plural of items', async () => {
+    listDeployments.mockResolvedValue({ deployments: [
+      dep(30, 'mystery', { requestedByName: null, items: [{ key: 'A-1' }, { key: 'A-2' }] }),
+    ] });
+    renderPage();
+    const row = (await screen.findByRole('link', { name: 'wikantik 2.5.30' })).closest('li');
+    expect(within(row).getByText('mystery')).toBeInTheDocument();
+    expect(row).toHaveTextContent('requested by someone · 2 items');
+  });
 });

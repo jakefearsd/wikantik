@@ -233,4 +233,56 @@ describe('eventText', () => {
       expect(eventSentence(ev(type, by))).not.toContain('deployment:4');
     }
   });
+
+  it('an agent target is named by its name, or neutrally when the name is missing', () => {
+    expect(eventText(ev('assigned', { toValue: 'agent:5', toValueName: 'codex@docker2' })).text).toBe('assigned this to codex@docker2');
+    expect(eventText(ev('assigned', { toValue: 'agent:5' })).text).toBe('assigned this to an agent');
+  });
+  it('a handoff with a missing side or no assignee still reads as a sentence', () => {
+    expect(eventText(ev('handoff', { fromValue: null, toValue: 'review' })).text).toBe('handed this to nobody: none → review');
+    expect(eventText(ev('handoff', { fromValue: 'draft', toValue: 'review|c', toValueName: 'Carol C' })).text)
+      .toBe('handed this to Carol C: draft → review');
+  });
+  it('the actor is Someone, or An agent, when the server could not name them', () => {
+    expect(actorLabel(undefined)).toBe('Someone');
+    expect(actorLabel({ actorKind: 'agent' })).toBe('An agent');
+    expect(actorLabel({ actorKind: 'agent', actorName: 'codex@docker2' })).toBe('codex@docker2');
+    expect(eventSentence({ type: 'created', actorKind: 'agent' })).toBe('An agent created this item');
+  });
+  it('an absent event is described as something done', () => {
+    expect(eventText(undefined)).toEqual({ text: 'did something', note: null });
+    expect(eventSentence(null)).toBe('Someone did something');
+  });
+  it('a deployment event with no environment omits the brackets', () => {
+    expect(eventText(ev('shipped', { toValue: 'v2.6.0' })).text).toBe('shipped this in v2.6.0');
+    expect(eventText(ev('shipped', { toValue: 'v2.6.0', note: 'prod' })).text).toBe('shipped this in v2.6.0 (prod)');
+  });
+  it('a release with no holder, no destination and no note is still readable', () => {
+    expect(eventText(ev('released', { actorKind: 'agent' }))).toEqual({ text: "released an agent's claim", note: null });
+    expect(eventText(ev('released', { actorKind: 'agent', actorName: 'codex', fromValue: 'agent:3', fromValueName: 'codex', toValue: 'ready' })).text)
+      .toBe('released its claim (back to ready)');
+    expect(eventText(ev('released', { actorKind: 'agent', agentId: 3, fromValue: 'agent:3', fromValueName: 'codex', toValue: 'ready', note: 'moved' })).text)
+      .toBe('moved this item, ending its own claim (now ready)');
+    expect(eventText(ev('released', { actorKind: 'agent', agentId: 4, fromValue: 'agent:3', fromValueName: 'codex', toValue: 'ready', note: 'moved' })).text)
+      .toBe("moved this item, ending codex's claim (now ready)");
+  });
+  it('a member event falls back to neutral words when no name was resolved', () => {
+    expect(eventText(ev('member', { toValue: 'user:x:editor' })).text).toBe('added someone as editor');
+    expect(eventText(ev('member', { toValue: 'agent:7:editor' })).text).toBe('added agent an agent as editor');
+    expect(eventText(ev('member', { fromValue: 'user:x:editor' })).text).toBe('removed someone (editor)');
+    expect(eventText(ev('member', { fromValue: 'nonsense' })).text).toBe('changed the members');
+    expect(eventText(ev('member', {})).text).toBe('changed the members');
+  });
+  it('a link with no kind separator shows the value as it is', () => {
+    expect(eventText(ev('linked', { toValue: 'PLAT-3' })).text).toBe('linked PLAT-3');
+    expect(eventText(ev('unlinked', { fromValue: 'blocks:PLAT-3' })).text).toBe('removed link blocks PLAT-3');
+    expect(eventText(ev('linked', {})).text).toBe('linked ');
+  });
+  it('a claim that expired with no state to go back to says only that it expired', () => {
+    expect(eventSentence(ev('claim_expired', { actorName: 'codex' }))).toBe('claim by codex expired');
+    expect(eventSentence(ev('claim_expired', { toValue: 'ready' }))).toBe('claim by Ana A expired — back to ready');
+  });
+  it('a field change with no field name says "a field"', () => {
+    expect(eventText(ev('field', { fromValue: 'a', toValue: 'b' })).text).toBe('changed a field a → b');
+  });
 });

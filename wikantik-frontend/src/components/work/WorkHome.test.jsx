@@ -172,4 +172,87 @@ describe('WorkHome', () => {
     expect(lane).toHaveTextContent('tests pass');
     expect(lane).toHaveTextContent('Mentioned by Jane Doe');
   });
+
+  const openForm = async () => {
+    renderHome({ admin: true });
+    fireEvent.click(await screen.findByRole('button', { name: 'New project' }));
+  };
+
+  it('asks for a name before creating a project', async () => {
+    await openForm();
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'NEW' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter a name.');
+    expect(createProject).not.toHaveBeenCalled();
+  });
+
+  it('Cancel closes the new-project form and offers New project again', async () => {
+    await openForm();
+    expect(screen.queryByRole('button', { name: 'New project' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText('Key')).toBeNull();
+    expect(screen.getByRole('button', { name: 'New project' })).toBeInTheDocument();
+  });
+
+  it('goes to the typed key when the server reply names no project, and toasts success', async () => {
+    await openForm();
+    createProject.mockResolvedValue(undefined);
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'NEW' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: ' Fresh ' } });
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: ' about it ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith({ key: 'NEW', name: 'Fresh', description: 'about it' }));
+    expect(await screen.findByText('BOARD')).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith('Created NEW');
+  });
+
+  it('toasts a permission refusal and shows other failures in the form, re-enabling the button', async () => {
+    await openForm();
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'NEW' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Fresh' } });
+    createProject.mockRejectedValueOnce(Object.assign(new Error('Only admins may do that.'), { status: 403 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Only admins may do that.'));
+    expect(screen.queryByRole('alert')).toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Create project' })).not.toBeDisabled());
+    createProject.mockRejectedValueOnce(Object.assign(new Error('Key PLAT is taken.'), { status: 409 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Key PLAT is taken.');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Create project' })).not.toBeDisabled());
+    createProject.mockRejectedValueOnce({});
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Could not create the project.'));
+  });
+
+  it('says "item" for a single item in a deployment awaiting approval', async () => {
+    renderHome({ me: { projects: ME.projects, deploymentsAwaiting: [
+      { id: 4, product: 'wikantik', version: '2.5.26', environment: 'staging', itemCount: 1 }] } });
+    const lane = await screen.findByTestId('deployments-awaiting');
+    expect(lane).toHaveTextContent('staging · 1 item');
+    expect(lane).not.toHaveTextContent('1 items');
+  });
+
+  it('copes with a reply that lists nothing at all', async () => {
+    renderHome({ me: {} });
+    expect(await screen.findByText('You are not a member of any project yet.')).toBeInTheDocument();
+  });
+
+  it('says there are no active projects when only archived ones remain', async () => {
+    renderHome({ me: { projects: [{ id: 2, key: 'OLD', name: 'Old one', role: 'lead', archived: true }] } });
+    expect(await screen.findByText('You have no active projects.')).toBeInTheDocument();
+  });
+
+  it('omits the project suffix for a waiting item from a project the viewer cannot list, and logs a failed acknowledge', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    acknowledgeItem.mockRejectedValueOnce(new Error('nope'));
+    renderHome({ me: { projects: ME.projects, waitingOn: [
+      { id: 9, key: 'ZZ-9', projectId: 99, title: 'Elsewhere', waiting: { reason: 'acknowledge' } }] } });
+    const row = (await screen.findByRole('link', { name: 'ZZ-9' })).closest('li');
+    expect(row).not.toHaveTextContent('PLAT');
+    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge ZZ-9' }));
+    await waitFor(() => expect(warn).toHaveBeenCalledWith('WorkHome: could not acknowledge', 'ZZ-9', expect.any(Error)));
+    expect(getMe).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
 });

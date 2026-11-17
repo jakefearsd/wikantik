@@ -145,8 +145,10 @@ class JdbcWorkStoreProjectsPostgresTest {
     @Test
     void duplicateProjectKeyRejected() throws SQLException {
         store.createProject( "WIKI", "Wiki", "" );
-        final SQLException e = assertThrows( SQLException.class, () -> store.createProject( "WIKI", "Again", "" ) );
-        assertEquals( "23505", e.getSQLState() );
+        final WorkConflictException e = assertThrows( WorkConflictException.class,
+            () -> store.createProject( "WIKI", "Again", "" ) );
+        assertEquals( WorkConflictException.EXISTS, e.reason(), "the second of two creations is a conflict, not an error" );
+        assertEquals( "Wiki", store.project( "WIKI" ).orElseThrow().name(), "and the first is untouched" );
     }
 
     @Test

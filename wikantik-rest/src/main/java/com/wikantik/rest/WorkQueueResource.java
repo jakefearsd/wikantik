@@ -19,7 +19,6 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
-import com.wikantik.work.Queue;
 import com.wikantik.work.WorkNotFoundException;
 
 import java.util.List;

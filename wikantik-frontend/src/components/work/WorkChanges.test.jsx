@@ -147,4 +147,99 @@ describe('WorkChanges', () => {
     expect(await screen.findByText('No changes.')).toBeInTheDocument();
     warn.mockRestore();
   });
+
+  it('never turns a non-web review link such as ftp into an anchor, but does link https', async () => {
+    listChanges.mockResolvedValue({ changes: [
+      change(1, 'open', { reviewUrl: 'ftp://example.test/pr/1' }), change(2, 'open', { reviewUrl: 'not a url' }),
+    ] });
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('work/PLAT-7-1');
+    expect(screen.queryByRole('link', { name: 'review' })).toBeNull();
+  });
+
+  it('says someone when a change has no named opener, approver or merger, and shows odd states as they are', async () => {
+    listChanges.mockResolvedValue({ changes: [
+      change(1, 'open', { openedByName: null, headSha: null }),
+      change(2, 'in_review', { approvedForHead: true, reviewedByName: null }),
+      change(3, 'merged', { mergedByName: null, mergedSha: 'abcdef123456' }),
+      change(4, 'superseded'),
+    ] });
+    render(<WorkChanges itemKey="PLAT-7" />);
+    await screen.findByText('work/PLAT-7-1');
+    expect(rowOf('work/PLAT-7-1')).toHaveTextContent('opened by someone');
+    expect(rowOf('work/PLAT-7-1')).not.toHaveTextContent('head');
+    expect(rowOf('work/PLAT-7-2')).toHaveTextContent('approved by someone');
+    expect(within(rowOf('work/PLAT-7-3')).getByText('merged')).toBeInTheDocument();
+    expect(rowOf('work/PLAT-7-3')).toHaveTextContent('merged by someone · abcdef12');
+    expect(within(rowOf('work/PLAT-7-4')).getByText('superseded')).toBeInTheDocument();
+  });
+
+  it('approves and sends back with no note when none was typed, and will not record a merge with a blank commit', async () => {
+    listChanges.mockResolvedValue({ changes: [change(2, 'in_review', { headSha: null })] });
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('work/PLAT-7-2');
+    expect(screen.getByRole('button', { name: 'Record merge' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(reviewChange).toHaveBeenCalledWith(2, { approved: true, note: null }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send back' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Send back' }));
+    await waitFor(() => expect(reviewChange).toHaveBeenCalledWith(2, { approved: false, note: null }));
+  });
+
+  it('treats a missing list as no changes', async () => {
+    listChanges.mockResolvedValue(undefined);
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    expect(await screen.findByText('No changes.')).toBeInTheDocument();
+  });
+
+  it('asks for a branch name before opening a change, and Cancel closes the form and clears the message', async () => {
+    listChanges.mockResolvedValue({ changes: [] });
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('No changes.');
+    fireEvent.click(screen.getByRole('button', { name: 'Open a change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open change' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Name the branch.');
+    expect(openChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByLabelText('Branch')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open a change' })).toBeInTheDocument();
+  });
+
+  it('sends the review link when one is given and trims the branch', async () => {
+    listChanges.mockResolvedValue({ changes: [] });
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('No changes.');
+    fireEvent.click(screen.getByRole('button', { name: 'Open a change' }));
+    fireEvent.change(screen.getByLabelText('Branch'), { target: { value: '  work/x  ' } });
+    fireEvent.change(screen.getByLabelText('Review link'), { target: { value: ' https://example.test/pr/9 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open change' }));
+    await waitFor(() => expect(openChange).toHaveBeenCalledWith('PLAT-7',
+      { branch: 'work/x', headSha: null, reviewUrl: 'https://example.test/pr/9' }));
+  });
+
+  it('gives a generic message when a refusal carries none', async () => {
+    listChanges.mockResolvedValue({ changes: [change(1, 'open')] });
+    abandonChange.mockRejectedValue({});
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('work/PLAT-7-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Abandon' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('That did not work.');
+  });
+
+  it('ignores a second submit while the first is still in flight', async () => {
+    listChanges.mockResolvedValue({ changes: [] });
+    let release;
+    openChange.mockReturnValue(new Promise((r) => { release = r; }));
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('No changes.');
+    fireEvent.click(screen.getByRole('button', { name: 'Open a change' }));
+    fireEvent.change(screen.getByLabelText('Branch'), { target: { value: 'work/once' } });
+    const form = screen.getByLabelText('Branch').closest('form');
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(openChange).toHaveBeenCalledTimes(1);
+    release({});
+    await waitFor(() => expect(screen.queryByLabelText('Branch')).toBeNull());
+  });
 });

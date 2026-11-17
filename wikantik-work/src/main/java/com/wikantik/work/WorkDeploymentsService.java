@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Deployments: a product version going to an environment, carrying items, from requested to verified. Reached
@@ -49,11 +48,8 @@ public final class WorkDeploymentsService {
     static final String REJECT =
         "Rejecting this deployment takes whoever requested it, or someone who may approve it.";
     static final String RUN = "Running this deployment takes membership of every project it carries.";
-    static final int MAX_EVIDENCE = 20_000;
-    static final int MAX_NOTE = 2_000;
-    private static final Pattern VERSION = Pattern.compile( "[A-Za-z0-9._+-]{1,60}" );
-    private static final Pattern ENVIRONMENT = Pattern.compile( "[a-z0-9-]{1,40}" );
-    private static final String PRODUCTION = "production";
+    static final int MAX_EVIDENCE = DeploymentInputs.MAX_EVIDENCE;
+    static final int MAX_NOTE = DeploymentInputs.MAX_NOTE;
     /** How many of a product's deployments one listing reads at a time, and at most, looking for visible ones. */
     private static final int PAGE = 100;
     private static final int MAX_SCANNED = 1_000;
@@ -76,11 +72,8 @@ public final class WorkDeploymentsService {
      */
     public DeploymentView request( final Actor a, final DeploymentDraft d ) throws SQLException {
         final Product product = visibleProduct( a, d.productKey() );
-        final String version = text( "version", d.version(), VERSION,
-            "A version is 1 to 60 letters, digits, dots, plus signs, hyphens or underscores." );
-        final String environment = d.environment() == null || d.environment().isBlank() ? PRODUCTION
-            : text( "environment", d.environment(), ENVIRONMENT,
-                "An environment is 1 to 40 lower-case letters, digits or hyphens." );
+        final String version = DeploymentInputs.version( d.version() );
+        final String environment = DeploymentInputs.environment( d.environment() );
         final Map< Long, Item > items = new LinkedHashMap<>();
         for ( final String key : d.itemKeys() == null ? List.< String >of() : d.itemKeys() ) {
             final ItemScope is = scopes.itemScope( a, key );
@@ -147,7 +140,7 @@ public final class WorkDeploymentsService {
             scopes.denied( Action.APPROVE_DEPLOYMENT );
             throw new WorkDeniedException( decision.reason() );
         }
-        return view( a, moved( store.deployments().move( id, DeploymentState.APPROVED, null, note( note ), a ) ) );
+        return view( a, moved( store.deployments().move( id, DeploymentState.APPROVED, null, DeploymentInputs.note( note ), a ) ) );
     }
 
     /**
@@ -163,7 +156,7 @@ public final class WorkDeploymentsService {
             scopes.denied( Action.APPROVE_DEPLOYMENT );
             throw new WorkDeniedException( REJECT );
         }
-        return view( a, moved( store.deployments().move( id, DeploymentState.REJECTED, null, note( note ), a ) ) );
+        return view( a, moved( store.deployments().move( id, DeploymentState.REJECTED, null, DeploymentInputs.note( note ), a ) ) );
     }
 
     public DeploymentView start( final Actor a, final long id ) throws SQLException {
@@ -173,15 +166,7 @@ public final class WorkDeploymentsService {
     /** Marks the deployment verified; the health and smoke-test output must be attached. */
     public DeploymentView verify( final Actor a, final long id, final String evidence ) throws SQLException {
         seen( a, id );
-        if ( evidence == null || evidence.isBlank() ) {
-            throw new WorkValidationException( "evidence",
-                "Attach the health and smoke-test output before marking this verified." );
-        }
-        if ( evidence.length() > MAX_EVIDENCE ) {
-            throw new WorkValidationException( "evidence",
-                "Evidence may be at most " + MAX_EVIDENCE + " characters." );
-        }
-        return move( a, id, DeploymentState.VERIFIED, evidence, null );
+        return move( a, id, DeploymentState.VERIFIED, DeploymentInputs.evidence( evidence ), null );
     }
 
     public DeploymentView fail( final Actor a, final long id, final String note ) throws SQLException {
@@ -243,7 +228,7 @@ public final class WorkDeploymentsService {
             scopes.denied( Action.RUN_DEPLOYMENT );
             throw new WorkDeniedException( RUN );
         }
-        return view( a, moved( store.deployments().move( id, target, evidence, note( note ), a ) ) );
+        return view( a, moved( store.deployments().move( id, target, evidence, DeploymentInputs.note( note ), a ) ) );
     }
 
     /** Reports the state a deployment has just reached, once the move is committed. */
@@ -305,23 +290,5 @@ public final class WorkDeploymentsService {
         }
         return store.product( key == null ? "" : key.trim() ).filter( p -> p.archivedAt() == null )
             .orElseThrow( () -> new WorkNotFoundException( WorkScopes.NOT_FOUND ) );
-    }
-
-    private static String text( final String field, final String value, final Pattern pattern, final String rule ) {
-        final String trimmed = value == null ? "" : value.trim();
-        if ( !pattern.matcher( trimmed ).matches() ) {
-            throw new WorkValidationException( field, rule );
-        }
-        return trimmed;
-    }
-
-    private static String note( final String note ) {
-        if ( note == null || note.isBlank() ) {
-            return null;
-        }
-        if ( note.length() > MAX_NOTE ) {
-            throw new WorkValidationException( "note", "A note may be at most " + MAX_NOTE + " characters." );
-        }
-        return note;
     }
 }

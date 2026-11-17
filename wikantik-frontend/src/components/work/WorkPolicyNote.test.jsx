@@ -75,4 +75,37 @@ describe('WorkPolicyNote', () => {
     expect(container).toBeEmptyDOMElement();
     warn.mockRestore();
   });
+
+  it('shows an unrecognised ceiling-capped level as the server named it', async () => {
+    getItemPolicy.mockResolvedValue(policy({ autonomy: 'supervised' }));
+    render(<WorkPolicyNote itemKey="PLAT-7" ownAutonomy="experimental" />);
+    expect(await screen.findByTestId('policy-note'))
+      .toHaveTextContent("(this item says experimental; the product's ceiling caps it)");
+  });
+
+  it('shows an unrecognised effective level as it is', async () => {
+    getItemPolicy.mockResolvedValue(policy({ autonomy: 'bespoke' }));
+    render(<WorkPolicyNote itemKey="PLAT-7" />);
+    expect(await screen.findByTestId('policy-note')).toHaveTextContent('Effective level: bespoke (inherited)');
+  });
+
+  it('names who acknowledged, falling back to the login and then to someone, and dates it when known', async () => {
+    getItemPolicy.mockResolvedValue(policy({}, { ackRequired: true, acknowledgedBy: 'mia-login', acknowledgedAt: '2026-11-17T12:00:00Z' }));
+    const first = render(<WorkPolicyNote itemKey="PLAT-7" />);
+    const text = await screen.findByText(/acknowledged by mia-login on /);
+    expect(text).toHaveTextContent(new Date('2026-11-17T12:00:00Z').toLocaleDateString());
+    first.unmount();
+    getItemPolicy.mockResolvedValue(policy({}, { ackRequired: true }));
+    render(<WorkPolicyNote itemKey="PLAT-7" />);
+    const bare = await screen.findByText(/acknowledged by someone/);
+    expect(bare.textContent).toMatch(/someone\.$/);
+  });
+
+  it('gives a plain default when acknowledging fails with no reason', async () => {
+    getItemPolicy.mockResolvedValue(policy({}, { ackRequired: true, ackWaiting: true }));
+    acknowledgeItem.mockRejectedValue({});
+    render(<WorkPolicyNote itemKey="PLAT-7" canAcknowledge />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Acknowledge' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not acknowledge this.');
+  });
 });

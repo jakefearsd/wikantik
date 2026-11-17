@@ -24,9 +24,6 @@ import com.google.gson.JsonObject;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.auth.apikeys.AgentTokenAuth;
-import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
-import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.work.Actor;
 import com.wikantik.work.ItemFilter;
 import com.wikantik.work.Project;
@@ -45,7 +42,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

@@ -137,4 +137,175 @@ describe('WorkItemForm', () => {
       expect(draft).not.toHaveProperty('queue');
     });
   });
+
+  describe('edges', () => {
+    const MEMBERS = [{ principal: 'bob-login', principalKind: 'user', role: 'member', displayName: 'Bob Brown' }];
+    const QUEUES = [{ key: 'implementer', name: 'Implementer', retiredAt: null }];
+    const submitWith = async (extra) => {
+      createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9', status: 'draft' } });
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New thing' } });
+      if (extra) extra();
+      fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+      await waitFor(() => expect(createItem).toHaveBeenCalled());
+      return createItem.mock.calls[0][0];
+    };
+
+    it('still lets the person create an item when the parent candidates cannot be loaded', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      listItems.mockRejectedValue(new Error('down'));
+      setup();
+      await waitFor(() => expect(warn).toHaveBeenCalledWith('WorkItemForm: failed to load parent candidates', expect.any(Error)));
+      expect(parentOptions()).toEqual(['No parent']);
+      const draft = await submitWith();
+      expect(draft).toMatchObject({ title: 'New thing', level: 'task' });
+      expect(draft).not.toHaveProperty('parentKey');
+      warn.mockRestore();
+    });
+
+    it('treats an empty candidate answer as no candidates', async () => {
+      listItems.mockResolvedValue(null);
+      setup();
+      await waitFor(() => expect(listItems).toHaveBeenCalled());
+      expect(parentOptions()).toEqual(['No parent']);
+    });
+
+    it('does not touch the form when the candidates arrive after it was closed', async () => {
+      let resolve;
+      listItems.mockReturnValue(new Promise((r) => { resolve = r; }));
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { unmount } = render(<WorkItemForm isOpen project={PROJECT} onClose={vi.fn()} />);
+      unmount();
+      resolve(ITEMS);
+      await Promise.resolve();
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it('asks only for open statuses of this project when loading parent candidates', async () => {
+      setup();
+      await waitFor(() => expect(listItems).toHaveBeenCalledWith({
+        project: 'PLAT', status: ['draft', 'refining', 'ready', 'in_progress', 'review'], limit: 200,
+      }));
+    });
+
+    it('sends nothing when the form is submitted with a blank title', async () => {
+      setup();
+      await waitFor(() => expect(listItems).toHaveBeenCalled());
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: '  ' } });
+      fireEvent.submit(screen.getByRole('button', { name: 'Create item' }).closest('form'));
+      expect(createItem).not.toHaveBeenCalled();
+    });
+
+    it('sends the due date, kind, priority and description that were chosen', async () => {
+      setup();
+      await waitFor(() => expect(listItems).toHaveBeenCalled());
+      const draft = await submitWith(() => {
+        fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2026-12-01' } });
+        fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'docs' } });
+        fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '1' } });
+        fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Some **text**' } });
+      });
+      expect(draft).toMatchObject({ dueOn: '2026-12-01', kind: 'docs', priority: 1, body: 'Some **text**' });
+    });
+
+    it('leaves out the due date, parent, product and assignee when none were chosen', async () => {
+      setup();
+      await waitFor(() => expect(listItems).toHaveBeenCalled());
+      const draft = await submitWith();
+      for (const k of ['dueOn', 'parentKey', 'productKey', 'queue', 'assignee']) expect(draft).not.toHaveProperty(k);
+      expect(draft).toMatchObject({ kind: 'software', priority: 3, body: '' });
+    });
+
+    it('drops a chosen product and parent when the level is switched to epic', async () => {
+      setup({ products: PRODUCTS });
+      await waitFor(() => expect(parentOptions().join()).toContain('PLAT-2'));
+      fireEvent.change(screen.getByLabelText('Product'), { target: { value: 'wikantik' } });
+      fireEvent.click(screen.getByLabelText('Epic'));
+      const draft = await submitWith();
+      expect(draft).toMatchObject({ level: 'epic' });
+      expect(draft).not.toHaveProperty('productKey');
+      expect(draft).not.toHaveProperty('parentKey');
+    });
+
+    it('forgets the chosen parent when the level changes', async () => {
+      setup();
+      await waitFor(() => expect(parentOptions().join()).toContain('PLAT-2'));
+      fireEvent.change(screen.getByLabelText('Parent'), { target: { value: 'PLAT-2' } });
+      fireEvent.click(screen.getByLabelText('Story'));
+      const draft = await submitWith();
+      expect(draft).toMatchObject({ level: 'story' });
+      expect(draft).not.toHaveProperty('parentKey');
+    });
+
+    it('shows a product without a name by its key', () => {
+      setup({ products: [{ key: 'bare' }] });
+      expect(within(screen.getByLabelText('Product')).getByRole('option', { name: 'bare' })).toBeInTheDocument();
+    });
+
+    it('sends no assignee once Unassigned is chosen again after a person', async () => {
+      setup({ members: MEMBERS, queues: QUEUES });
+      await waitFor(() => expect(listItems).toHaveBeenCalled());
+      const draft = await submitWith(() => {
+        fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'bob-login' } });
+        fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: '' } });
+      });
+      expect(draft).not.toHaveProperty('assignee');
+      expect(draft).not.toHaveProperty('queue');
+    });
+
+    it('sends no queue once Unassigned is chosen again after a queue', async () => {
+      setup({ members: MEMBERS, queues: QUEUES });
+      await waitFor(() => expect(listItems).toHaveBeenCalled());
+      const draft = await submitWith(() => {
+        fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: 'queue:implementer' } });
+        fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: '' } });
+      });
+      expect(draft).not.toHaveProperty('queue');
+    });
+
+    it('falls back to a generic message when the failure carries none', async () => {
+      createItem.mockRejectedValue({});
+      setup();
+      await waitFor(() => expect(listItems).toHaveBeenCalled());
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'x' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not create the item.');
+      expect(screen.getByRole('button', { name: 'Create item' })).toBeEnabled();
+    });
+
+    it('disables the button and sends once while the creation is in flight', async () => {
+      createItem.mockReturnValue(new Promise(() => {}));
+      setup();
+      await waitFor(() => expect(listItems).toHaveBeenCalled());
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'x' } });
+      const form = screen.getByRole('button', { name: 'Create item' }).closest('form');
+      fireEvent.submit(form);
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Create item' })).toBeDisabled());
+      fireEvent.submit(form);
+      expect(createItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes without creating anything on Cancel', async () => {
+      const { onClose } = setup();
+      await waitFor(() => expect(listItems).toHaveBeenCalled());
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(onClose).toHaveBeenCalled();
+      expect(createItem).not.toHaveBeenCalled();
+    });
+
+    it('closes without needing an onCreated handler', async () => {
+      createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } });
+      const onClose = vi.fn();
+      render(<WorkItemForm isOpen project={PROJECT} onClose={onClose} />);
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'x' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+    });
+
+    it('renders no form while closed and does not load candidates', () => {
+      render(<WorkItemForm isOpen={false} project={PROJECT} onClose={vi.fn()} />);
+      expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+      expect(listItems).not.toHaveBeenCalled();
+    });
+  });
 });

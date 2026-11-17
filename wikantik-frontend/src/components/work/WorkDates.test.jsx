@@ -83,3 +83,100 @@ describe('WorkDates', () => {
     expect(await screen.findByText('Item 1')).toBeInTheDocument();
   });
 });
+
+describe('WorkDates edges', () => {
+  const deferred = () => { let resolve; let reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
+  const mount = (projectKey) => (
+    <MemoryRouter>
+      <WorkProjectContext.Provider value={{ project: { id: 1, key: projectKey }, role: 'member', reload: vi.fn() }}>
+        <WorkDates />
+      </WorkProjectContext.Provider>
+    </MemoryRouter>);
+
+  it('shows the due date, the priority label, and Unassigned for an item nobody holds', async () => {
+    listItems.mockResolvedValue([item(1, '2026-11-14', { assigneeName: null, priority: 1 })]);
+    renderDates();
+    const row = (await screen.findByText('Item 1')).closest('li');
+    expect(row).toHaveTextContent('Nov 14, 2026');
+    expect(row).toHaveTextContent('P1 – highest');
+    expect(row).toHaveTextContent('Unassigned');
+    expect(row).not.toHaveClass('overdue');
+  });
+
+  it('marks only overdue rows, and says No date for an item without one', async () => {
+    listItems.mockResolvedValue([item(1, '2026-11-01'), item(2, null)]);
+    renderDates();
+    expect((await screen.findByText('Item 1')).closest('li')).toHaveClass('overdue');
+    expect(screen.getByText('Item 1').closest('li')).toHaveTextContent('Nov 1, 2026');
+    const none = screen.getByText('Item 2').closest('li');
+    expect(none).not.toHaveClass('overdue');
+    expect(within(none).getByText('No date', { selector: '.work-date-due' })).toBeInTheDocument();
+  });
+
+  it('falls back to P-number for a priority outside 1 to 4', async () => {
+    listItems.mockResolvedValue([item(1, null, { priority: 9 })]);
+    renderDates();
+    expect((await screen.findByText('Item 1')).closest('li')).toHaveTextContent('P9');
+  });
+
+  it('treats an empty answer from the server as nothing open', async () => {
+    listItems.mockResolvedValue(null);
+    renderDates();
+    expect(await screen.findByText('Nothing open in this project.')).toBeInTheDocument();
+  });
+
+  it('shows nothing open when everything the server returned is closed', async () => {
+    listItems.mockResolvedValue([item(1, null, { status: 'done' })]);
+    renderDates();
+    expect(await screen.findByText('Nothing open in this project.')).toBeInTheDocument();
+  });
+
+  it('does not show the partial-list note below the limit', async () => {
+    listItems.mockResolvedValue([item(1, null)]);
+    renderDates();
+    await screen.findByText('Item 1');
+    expect(screen.queryByText(/Showing the first/)).not.toBeInTheDocument();
+  });
+
+  it('asks the server only for open statuses', async () => {
+    listItems.mockResolvedValue([]);
+    renderDates();
+    await screen.findByText(/Nothing open/);
+    expect(listItems).toHaveBeenCalledWith({ project: 'PLAT', status: 'draft,refining,ready,in_progress,review', order: 'due', limit: 200 });
+  });
+
+  it('shows the new project, not the old one, when an answer for the old project arrives late', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const oldAnswer = deferred();
+    listItems.mockReturnValueOnce(oldAnswer.promise).mockResolvedValueOnce([item(2, null, { title: 'Ops item', key: 'OPS-2' })]);
+    const { rerender } = render(mount('PLAT'));
+    rerender(mount('OPS'));
+    expect(await screen.findByText('Ops item')).toBeInTheDocument();
+    oldAnswer.resolve([item(1, null, { title: 'Plat item' })]);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText('Plat item')).not.toBeInTheDocument();
+    expect(screen.getByText('Ops item')).toBeInTheDocument();
+  });
+
+  it('ignores a failure for the old project that arrives after the new project loaded', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const oldAnswer = deferred();
+    listItems.mockReturnValueOnce(oldAnswer.promise).mockResolvedValueOnce([item(2, null, { title: 'Ops item' })]);
+    const { rerender } = render(mount('PLAT'));
+    rerender(mount('OPS'));
+    await screen.findByText('Ops item');
+    oldAnswer.reject(new Error('stale boom'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText('stale boom')).not.toBeInTheDocument();
+    expect(screen.getByText('Ops item')).toBeInTheDocument();
+  });
+
+  it('shows a spinner rather than the old project while the next one loads', async () => {
+    listItems.mockResolvedValueOnce([item(1, null, { title: 'Plat item' })]).mockReturnValueOnce(new Promise(() => {}));
+    const { rerender } = render(mount('PLAT'));
+    await screen.findByText('Plat item');
+    rerender(mount('OPS'));
+    expect(await screen.findByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('Plat item')).not.toBeInTheDocument();
+  });
+});

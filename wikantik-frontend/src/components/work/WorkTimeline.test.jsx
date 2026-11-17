@@ -191,4 +191,55 @@ describe('WorkTimeline', () => {
       } finally { vi.useRealTimers(); }
     });
   });
+
+  it('treats a missing event list as no history, and a failure with no message gets a plain default', async () => {
+    listEvents.mockResolvedValue(undefined);
+    const first = render(<WorkTimeline itemKey="PLAT-7" />);
+    expect(await screen.findByText('No history yet.')).toBeInTheDocument();
+    first.unmount();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    listEvents.mockRejectedValue({});
+    render(<WorkTimeline itemKey="PLAT-7" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the history.');
+    warn.mockRestore();
+  });
+
+  it('shows an edit with no diff link when the server sends no revisions', async () => {
+    listEvents.mockResolvedValue([ev(2, 'edited')]);
+    listRevisions.mockResolvedValue(undefined);
+    render(<WorkTimeline itemKey="PLAT-7" />);
+    await screen.findByText('edited the title or text');
+    await waitFor(() => expect(listRevisions).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Show changes' })).toBeNull();
+    expect(screen.queryByText(/Changes could not be shown/)).toBeNull();
+  });
+
+  it('gives a plain default when the revisions fail with no message', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    listEvents.mockResolvedValue([ev(2, 'edited')]);
+    listRevisions.mockRejectedValue({});
+    render(<WorkTimeline itemKey="PLAT-7" />);
+    expect(await screen.findByText('Changes could not be shown: Could not load the versions.')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+
+  it('diffs a revision whose text body is missing as an empty body', async () => {
+    listEvents.mockResolvedValue([ev(1, 'created'), ev(2, 'edited')]);
+    listRevisions.mockResolvedValue([rev(1, 'T', null), rev(2, 'T', 'added line')]);
+    render(<WorkTimeline itemKey="PLAT-7" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Show changes' }));
+    const diff = await screen.findByTestId('revision-diff');
+    expect(diff.querySelector('.work-diff-add')).toHaveTextContent('added line');
+    expect(diff.querySelector('.work-diff-del').textContent.trim()).toBe('-');
+  });
+
+  it('sets a hand-off note apart from an ordinary note', async () => {
+    listEvents.mockResolvedValue([
+      ev(1, 'handoff', { fromValue: 'ready|', toValue: 'review|c', toValueName: 'Carol C', note: 'over to you' }),
+      ev(2, 'status', { fromValue: 'a', toValue: 'b', note: 'because' }),
+    ]);
+    render(<WorkTimeline itemKey="PLAT-7" />);
+    expect((await screen.findByText('over to you')).className).toBe('work-handoff-note');
+    expect(screen.getByText('because').className).toBe('work-event-note');
+  });
 });

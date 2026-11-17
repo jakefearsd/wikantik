@@ -89,4 +89,35 @@ describe('WorkEpicView', () => {
     await screen.findByText('Story 2');
     await waitFor(() => expect(screen.getByTestId('story-PLAT-2')).toHaveTextContent('tasks unavailable'));
   });
+
+  it('caps a very large task count at 200+', async () => {
+    tasksByStory['PLAT-2'] = Array.from({ length: 200 }, (_, i) => ({ id: i }));
+    renderEpic();
+    await waitFor(() => expect(screen.getByTestId('story-PLAT-2')).toHaveTextContent('200+ tasks'));
+  });
+
+  it('counts zero tasks when the server sends no rows for a story, and no stories when it sends none for the epic', async () => {
+    listItems.mockImplementation(({ parent }) => Promise.resolve(parent === 'PLAT-1' ? [child(2, 'ready')] : undefined));
+    const first = renderEpic();
+    await waitFor(() => expect(screen.getByTestId('story-PLAT-2')).toHaveTextContent('0 tasks'));
+    first.unmount();
+    listItems.mockResolvedValue(undefined);
+    renderEpic();
+    expect(await screen.findByText('No stories yet.')).toBeInTheDocument();
+  });
+
+  it('gives a plain default when the stories fail to load with no message', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    listItems.mockRejectedValue({});
+    renderEpic();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the stories.');
+    warn.mockRestore();
+  });
+
+  it('shows no products when the view lists none at all, and an unknown status as it is', async () => {
+    children = [child(2, 'exotic')];
+    renderEpic({ item: VIEW.item, projectKey: 'PLAT' });
+    expect(await screen.findByText('No products yet.')).toBeInTheDocument();
+    expect(screen.getByTestId('story-PLAT-2')).toHaveTextContent('exotic');
+  });
 });

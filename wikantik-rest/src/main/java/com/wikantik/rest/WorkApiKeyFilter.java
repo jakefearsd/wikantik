@@ -117,7 +117,7 @@ public class WorkApiKeyFilter implements Filter {
     static boolean hasBearer( final HttpServletRequest request ) {
         final String auth = request.getHeader( "Authorization" );
         return auth != null && auth.regionMatches( true, 0, BEARER, 0, BEARER.length() )
-            || auth != null && auth.trim().equalsIgnoreCase( "Bearer" );
+            || auth != null && "Bearer".equalsIgnoreCase( auth.trim() );
     }
 
     /** Writes a fixed JSON denial; shared with {@link WorkResourceBase} for a key that resolves to no actor. */

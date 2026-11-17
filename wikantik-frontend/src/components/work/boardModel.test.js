@@ -104,3 +104,107 @@ describe('isOverdue', () => {
     expect(isOverdue({ dueOn: null, status: 'ready' }, now)).toBe(false);
   });
 });
+
+describe('orderColumns with no data', () => {
+  it('still gives every default column, empty, when the server sent nothing', () => {
+    const cols = orderColumns(undefined, false);
+    expect(cols.map((c) => c.status)).toEqual(DEFAULT_STATUSES);
+    expect(cols.every((c) => c.total === 0 && c.items.length === 0)).toBe(true);
+  });
+});
+
+describe('rankForInsert edges', () => {
+  it('gives the top slot a rank below the first card even when that rank is already 0', () => {
+    expect(rankForInsert([item(1, 0), item(2, 5)], 0)).toBe(-1024);
+  });
+  it('treats a negative index as the top', () => {
+    expect(rankForInsert([item(1, 1024)], -3)).toBe(0);
+  });
+  it('treats an index past the end as the bottom', () => {
+    expect(rankForInsert([item(1, 1024)], 9)).toBeUndefined();
+    expect(rankForInsert([item(1, 1024)], 9, { append: true })).toBe(2048);
+  });
+  it('gives a card dropped between two cards of equal rank that same rank, so the order stays a tie', () => {
+    const rank = rankForInsert([item(1, 1000), item(2, 1000)], 1);
+    expect(rank).toBe(1000);
+  });
+});
+
+describe('moveInColumns edges', () => {
+  const cols = [
+    { status: 'ready', total: 2, items: [item(1, 1), item(2, 2)] },
+    { status: 'review', total: 1, items: [item(3, 3, { status: 'review' })] },
+  ];
+  it('returns the very same columns when the card is not on the board', () => {
+    expect(moveInColumns(cols, 'P-99', 'review', 0)).toBe(cols);
+  });
+  it('keeps the card rank when none is given', () => {
+    const next = moveInColumns(cols, 'P-1', 'review', 0);
+    expect(next[1].items[0]).toMatchObject({ id: 1, status: 'review', rank: 1 });
+  });
+  it('clamps a negative index to the top and a large one to the bottom', () => {
+    expect(moveInColumns(cols, 'P-1', 'review', -4)[1].items.map((i) => i.id)).toEqual([1, 3]);
+    expect(moveInColumns(cols, 'P-1', 'review', 40)[1].items.map((i) => i.id)).toEqual([3, 1]);
+  });
+  it('never takes a total below zero when the source column total is stale', () => {
+    const stale = [{ status: 'ready', total: 0, items: [item(1, 1)] }, { status: 'review', total: 0, items: [] }];
+    expect(moveInColumns(stale, 'P-1', 'review', 0)[0].total).toBe(0);
+  });
+});
+
+describe('revertCard edges', () => {
+  it('puts the card back at the top when its old rank is below every card now in the column', () => {
+    const a = item(1, 10); const b = item(2, 20); const c = item(3, 30);
+    const cols = [{ status: 'ready', total: 2, items: [b, c] }, { status: 'review', total: 1, items: [{ ...a, status: 'review' }] }];
+    const reverted = revertCard(cols, a);
+    expect(reverted[0].items.map((i) => i.id)).toEqual([1, 2, 3]);
+    expect(reverted[1].items).toEqual([]);
+  });
+  it('puts the card back at the bottom when its old rank is above every other card', () => {
+    const z = item(9, 99);
+    const cols = [{ status: 'ready', total: 1, items: [item(1, 1)] }, { status: 'review', total: 1, items: [{ ...z, status: 'review' }] }];
+    expect(revertCard(cols, z)[0].items.map((i) => i.id)).toEqual([1, 9]);
+  });
+});
+
+describe('groupByEpic edges', () => {
+  const epic = item(10, 1, { level: 'epic', title: 'Big' });
+  it('puts items whose parent is not on the board under "Other epic", before "No epic"', () => {
+    const a = item(20, 2, { level: 'story', parentId: 777 });
+    const b = item(21, 3, { level: 'task', parentId: 777 });
+    const loose = item(22, 4);
+    const groups = groupByEpic([loose, a, b], [loose, a, b]);
+    expect(groups.map((g) => [g.id, g.title, g.items.map((i) => i.id)])).toEqual([
+      ['other', 'Other epic', [20, 21]], ['none', 'No epic', [22]],
+    ]);
+  });
+  it('treats a task under a story that has no epic as having no epic', () => {
+    const story = item(11, 2, { level: 'story', parentId: null });
+    const task = item(12, 3, { level: 'task', parentId: 11 });
+    const groups = groupByEpic([task, story], [task, story]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ id: 'none', title: 'No epic' });
+    expect(groups[0].items.map((i) => i.id)).toEqual([12, 11]);
+  });
+  it('treats a task whose grandparent is not an epic as having no epic', () => {
+    const top = item(30, 1, { level: 'story' });
+    const mid = item(31, 2, { level: 'story', parentId: 30 });
+    const task = item(32, 3, { level: 'task', parentId: 31 });
+    expect(groupByEpic([task], [top, mid, task])[0].id).toBe('none');
+  });
+  it('keeps several stories of one epic together in the order given', () => {
+    const s1 = item(41, 2, { level: 'story', parentId: 10 });
+    const s2 = item(42, 3, { level: 'story', parentId: 10 });
+    const groups = groupByEpic([s1, s2], [epic, s1, s2]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ id: 10, title: 'Big' });
+    expect(groups[0].items.map((i) => i.id)).toEqual([41, 42]);
+  });
+});
+
+describe('isOverdue with the real clock', () => {
+  it('is true for a date long past and false for a date far ahead', () => {
+    expect(isOverdue({ dueOn: '2000-01-01', status: 'ready' })).toBe(true);
+    expect(isOverdue({ dueOn: '2999-01-01', status: 'ready' })).toBe(false);
+  });
+});

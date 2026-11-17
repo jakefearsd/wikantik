@@ -58,8 +58,8 @@ final class DeploymentAccess {
             if ( actor.instanceAdmin() || role.isPresent() ) {
                 access.visibleItems.add( item );
             }
-            access.memberOfEvery &= role.filter( r -> r.atLeast( WorkRole.MEMBER ) ).isPresent();
-            access.leadOfEvery &= role.filter( r -> r == WorkRole.LEAD ).isPresent();
+            access.memberOfEvery = access.memberOfEvery && role.filter( r -> r.atLeast( WorkRole.MEMBER ) ).isPresent();
+            access.leadOfEvery = access.leadOfEvery && role.filter( r -> r == WorkRole.LEAD ).isPresent();
         }
         return access;
     }

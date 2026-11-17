@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -176,11 +175,7 @@ public class WorkService {
         if ( store.project( key ).isPresent() ) {
             throw new WorkConflictException( "Project " + key + " already exists.", WorkConflictException.EXISTS );
         }
-        try {
-            return store.createProject( key, name.trim(), description == null ? "" : description );
-        } catch ( final SQLException e ) {
-            throw existsOr( e, "Project " + key + " already exists." );
-        }
+        return store.createProject( key, name.trim(), description == null ? "" : description );
     }
 
     public void updateProject( final Actor actor, final String key, final String name, final String description,
@@ -263,19 +258,7 @@ public class WorkService {
         if ( store.product( draft.key() ).isPresent() ) {
             throw new WorkConflictException( "Product " + draft.key() + " already exists.", WorkConflictException.EXISTS );
         }
-        try {
-            return store.createProduct( product );
-        } catch ( final SQLException e ) {
-            throw existsOr( e, "Product " + draft.key() + " already exists." );
-        }
-    }
-
-    /** Two creations of one key at once: the second meets the unique key, which is the same conflict. */
-    private static SQLException existsOr( final SQLException e, final String message ) {
-        if ( "23505".equals( e.getSQLState() ) ) {
-            throw new WorkConflictException( message, WorkConflictException.EXISTS );
-        }
-        return e;
+        return store.createProduct( product );
     }
 
     public void updateProduct( final Actor actor, final Product product ) throws SQLException {

@@ -85,16 +85,7 @@ public final class UpdateChangeTool extends WorkMcpTool {
         final String head = stringArg( args, "head_sha" );
         final String url = stringArg( args, "review_url" );
         final String state = stringArg( args, "state" );
-        if ( head == null && url == null && state == null ) {
-            throw new WorkValidationException( "change", "Say what to change: head_sha, review_url or state." );
-        }
-        if ( state != null && !IN_REVIEW.equals( state ) && !ABANDONED.equals( state ) ) {
-            throw new WorkValidationException( "state", "Use review_change or merge_change." );
-        }
-        if ( stringArg( args, "note" ) != null && !ABANDONED.equals( state ) ) {
-            // refused by name, so an agent never believes it left a note that was dropped
-            throw new WorkValidationException( "note", "A note goes with state abandoned." );
-        }
+        requireFitting( head, url, state, stringArg( args, "note" ) );
         String action = "change-updated";
         if ( head != null || url != null ) {
             svc.changes().update( actor, id, head, url );
@@ -108,5 +99,19 @@ public final class UpdateChangeTool extends WorkMcpTool {
         }
         WorkMcpLog.written( TOOL_NAME, action, "change:" + id, actor );
         return ok( WorkMcpChanges.one( svc, directory, actor, id ) );
+    }
+
+    /** What the call names must make sense together, said by name before anything is written. */
+    private static void requireFitting( final String head, final String url, final String state, final String note ) {
+        if ( head == null && url == null && state == null ) {
+            throw new WorkValidationException( "change", "Say what to change: head_sha, review_url or state." );
+        }
+        if ( state != null && !IN_REVIEW.equals( state ) && !ABANDONED.equals( state ) ) {
+            throw new WorkValidationException( "state", "Use review_change or merge_change." );
+        }
+        if ( note != null && !ABANDONED.equals( state ) ) {
+            // refused by name, so an agent never believes it left a note that was dropped
+            throw new WorkValidationException( "note", "A note goes with state abandoned." );
+        }
     }
 }

@@ -28,13 +28,11 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.wikantik.work.SqlValues.actorKindWire;
 import static com.wikantik.work.SqlValues.autonomyWire;
 import static com.wikantik.work.SqlValues.doneMeansWire;
 import static com.wikantik.work.SqlValues.instant;
@@ -44,7 +42,6 @@ import static com.wikantik.work.SqlValues.nullableLong;
 import static com.wikantik.work.SqlValues.setNullableBoolean;
 import static com.wikantik.work.SqlValues.setNullableDate;
 import static com.wikantik.work.SqlValues.setNullableLong;
-import static com.wikantik.work.SqlValues.timestamp;
 
 /** PostgreSQL implementation of {@link WorkStore}; all access goes through {@link Jdbc}. */
 public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {

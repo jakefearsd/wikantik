@@ -168,4 +168,24 @@ describe('work api client', () => {
     await work.getShippedIn('PLAT-1');
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-1/shipped-in');
   });
+
+  it('sends an empty JSON object when a write has no body and no query string when there are no filters', async () => {
+    await work.createProject(undefined);
+    expect(collabRequest.mock.calls[0][1]).toEqual({ method: 'POST', body: '{}' });
+    await work.getBoard('PLAT');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/projects/PLAT/board');
+    await work.listItems();
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items');
+  });
+
+  it('patchItem gives a plain-English default when a 409 arrives with no message', async () => {
+    collabRequest.mockRejectedValue({ status: 409, body: { reason: 'archived' } });
+    await expect(work.patchItem('PLAT-1', {})).rejects.toMatchObject({ message: 'This project is archived.', reason: 'archived' });
+    collabRequest.mockRejectedValue({ status: 409, body: { current: { item: { key: 'PLAT-1' } } } });
+    await expect(work.patchItem('PLAT-1', {})).rejects.toMatchObject({
+      message: 'Item changed since it was loaded', reason: 'stale', current: { item: { key: 'PLAT-1' } },
+    });
+    collabRequest.mockRejectedValue({ status: 409 });
+    await expect(work.patchItem('PLAT-1', {})).rejects.toMatchObject({ reason: 'stale', current: undefined });
+  });
 });

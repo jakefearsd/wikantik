@@ -41,6 +41,9 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
     /** Acknowledgement of items closed with no person in their path. */
     WorkAckStore acks();
 
+    /** Change records: branches of work against a product, attached to items. */
+    WorkChangeStore changes();
+
     // ---- items
 
     /**

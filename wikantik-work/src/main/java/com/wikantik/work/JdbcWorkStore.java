@@ -99,6 +99,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     private final JdbcWorkEventLog eventLog;
     private final JdbcWorkAcks acks;
     private final JdbcWorkItemWrites writes;
+    private final JdbcWorkChanges changes;
 
     public JdbcWorkStore( final DataSource dataSource ) {
         super( new Jdbc( dataSource ) );
@@ -106,6 +107,12 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         this.eventLog = new JdbcWorkEventLog( jdbc );
         this.acks = new JdbcWorkAcks( jdbc, this );
         this.writes = new JdbcWorkItemWrites( jdbc, this );
+        this.changes = new JdbcWorkChanges( jdbc, this );
+    }
+
+    @Override
+    public WorkChangeStore changes() {
+        return changes;
     }
 
     @Override

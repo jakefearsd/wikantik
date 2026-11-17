@@ -37,6 +37,15 @@ public class WorkConflictException extends RuntimeException {
     /** The caller does not hold a claim on the item. */
     public static final String NOT_CLAIMED = "not_claimed";
 
+    /** The item has a change that is open or in review. */
+    public static final String OPEN_CHANGES = "open_changes";
+    /** The change has no approval for the commit being merged. */
+    public static final String NOT_APPROVED = "not_approved";
+    /** The change is already merged or abandoned. */
+    public static final String CHANGE_CLOSED = "change_closed";
+    /** The change has not been put up for review. */
+    public static final String NOT_IN_REVIEW = "not_in_review";
+
     private final String reason;
 
     /** A stale-version conflict. */

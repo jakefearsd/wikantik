@@ -68,6 +68,7 @@ final class JdbcWorkItemWrites {
         return jdbc.inTransaction( conn -> {
             final long holder = lockHolder( conn, current.id() );
             requireNotFenced( by, holder );
+            requireNoLiveChange( conn, current, next );
             final int rows = update( conn, current, next, body, new Flags( clearClaim, closing, reopening, ackRequired ) );
             if ( rows == 0 ) {
                 throw new WorkConflictException( "Item " + current.key() + " changed since version "
@@ -157,6 +158,20 @@ final class JdbcWorkItemWrites {
     private static void requireNotFenced( final Actor by, final long holder ) {
         if ( by.kind() == Actor.Kind.AGENT && holder != NO_HOLDER && holder != by.agentId() ) {
             throw new ClaimFenceException();
+        }
+    }
+
+    /**
+     * An item with a change that is open or in review cannot be done, and cannot move to another product: checked
+     * here, with the item row locked, because opening a change locks the same row.
+     */
+    private void requireNoLiveChange( final Connection conn, final Item current, final Item next )
+            throws SQLException {
+        final boolean closes = next.status() == WorkStatus.DONE && current.status() != WorkStatus.DONE;
+        final boolean retargets = !Objects.equals( current.productId(), next.productId() );
+        if ( ( closes || retargets ) && JdbcWorkChanges.hasLive( jdbc, conn, current.id() ) ) {
+            throw new WorkConflictException( "Close or merge this item's open changes first.",
+                WorkConflictException.OPEN_CHANGES );
         }
     }
 }

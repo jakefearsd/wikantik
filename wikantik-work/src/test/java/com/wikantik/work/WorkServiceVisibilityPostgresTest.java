@@ -55,7 +55,8 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > WRITES = Set.of( "createProject", "updateProject", "archiveProject",
         "putMember", "removeMember", "createProduct", "updateProduct", "archiveProduct", "createItem", "updateItem",
         "addComment", "editComment", "removeComment", "addLink", "removeLink", "createQueue", "updateQueue",
-        "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge" );
+        "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge", "open", "update",
+        "requestReview", "review", "merge", "abandon" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
@@ -69,12 +70,12 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > OWN = Set.of( "self" );
 
     /** Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. */
-    private static final Set< String > FACADES = Set.of( "registry", "claims" );
+    private static final Set< String > FACADES = Set.of( "registry", "claims", "changes" );
 
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
-        "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf" );
+        "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer" );
 
@@ -111,8 +112,8 @@ class WorkServiceVisibilityPostgresTest {
         store.putMember( plat.id(), String.valueOf( codex ), "agent", WorkRole.MEMBER,
             Actor.human( "admin", java.util.Set.of(), false ) );
         store.putMember( plat.id(), "lena", "user", WorkRole.LEAD, Actor.human( "admin", java.util.Set.of(), false ) );
-        store.createProduct( new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED, DeployGate.HUMAN,
-            null ) );
+        final Product web = store.createProduct( new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED,
+            DeployGate.HUMAN, null ) );
         final Item item = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "secret item" ), Actor.human( "lena", java.util.Set.of(), false ) );
         // lena is also the assignee so that waitingOn is non-empty for her
         final Item assigned = new Item( item.id(), item.projectId(), item.key(), item.level(), null, null,
@@ -123,6 +124,9 @@ class WorkServiceVisibilityPostgresTest {
         store.createItem( plat, queued( "claimable item" ), lena );
         final Item held = store.createItem( plat, queued( "held item" ), lena );
         store.claims().claim( held, codexActor, java.time.Duration.ofHours( 1 ) );
+        // a live change on PLAT-1, so the change reads return real data to prove against
+        store.changes().open( item, web.id(), new ChangeDraft( "work/PLAT-1-secret", "main", "abc1234", null, null ),
+            lena );
         commentId = store.addComment( item, Actor.human( "lena", java.util.Set.of(), false ), "secret comment", List.of() ).id();
         linkId = store.addLink( item, "url", "https://example.com/secret", Actor.human( "lena", java.util.Set.of(), false ) ).id();
         service = new WorkService( store, md -> md, new WorkDirectory() {

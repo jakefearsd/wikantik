@@ -44,6 +44,9 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
     /** Change records: branches of work against a product, attached to items. */
     WorkChangeStore changes();
 
+    /** Deployments: product versions going to an environment, carrying items. */
+    WorkDeploymentStore deployments();
+
     // ---- items
 
     /**

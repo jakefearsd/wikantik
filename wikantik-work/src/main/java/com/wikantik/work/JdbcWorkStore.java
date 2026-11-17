@@ -100,6 +100,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     private final JdbcWorkAcks acks;
     private final JdbcWorkItemWrites writes;
     private final JdbcWorkChanges changes;
+    private final JdbcWorkDeployments deployments;
 
     public JdbcWorkStore( final DataSource dataSource ) {
         super( new Jdbc( dataSource ) );
@@ -108,6 +109,12 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         this.acks = new JdbcWorkAcks( jdbc, this );
         this.writes = new JdbcWorkItemWrites( jdbc, this );
         this.changes = new JdbcWorkChanges( jdbc, this );
+        this.deployments = new JdbcWorkDeployments( jdbc, this );
+    }
+
+    @Override
+    public WorkDeploymentStore deployments() {
+        return deployments;
     }
 
     @Override

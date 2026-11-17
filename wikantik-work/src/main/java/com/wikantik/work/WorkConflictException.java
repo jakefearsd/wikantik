@@ -46,6 +46,11 @@ public class WorkConflictException extends RuntimeException {
     /** The change has not been put up for review. */
     public static final String NOT_IN_REVIEW = "not_in_review";
 
+    /** The deployment cannot move from the state it is in to the one asked for. */
+    public static final String BAD_TRANSITION = "bad_transition";
+    /** The item closes only when a deployment that carries it is verified. */
+    public static final String AWAITING_DEPLOYMENT = "awaiting_deployment";
+
     private final String reason;
 
     /** A stale-version conflict. */

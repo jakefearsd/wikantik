@@ -52,6 +52,9 @@ public record WorkEvent( long id, long projectId, Long itemId, String itemKey, I
     public static final String CHANGE_REVIEWED = "change_reviewed";
     public static final String CHANGE_MERGED = "change_merged";
     public static final String CHANGE_ABANDONED = "change_abandoned";
+    public static final String DEPLOYMENT_REQUESTED = "deployment_requested";
+    public static final String SHIPPED = "shipped";
+    public static final String ROLLED_BACK = "rolled_back";
 
     /**
      * What the assignment log shows, in the order its filters list them: assignments, hand-offs, status changes and

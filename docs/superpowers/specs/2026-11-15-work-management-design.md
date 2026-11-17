@@ -314,7 +314,7 @@ work_item             + ack_required, acknowledged_by, acknowledged_at
 The policy columns (`default_autonomy`, `autonomy_ceiling`, `deploy_gate`,
 `autonomy`, `done_means`, `allow_direct`) exist from phase 1 with their defaults, and are inert until
 the phase that reads them (the autonomy level, its ceiling and `allow_direct` since phase 3b; `done_means` and
-`deploy_gate` from phase 4).
+`deploy_gate` since phase 4). All are live now.
 
 Item keys come from `work_project.next_seq`, incremented in the transaction that
 creates the item. `work_item.version` is an optimistic lock: an update names the
@@ -399,7 +399,11 @@ gets its own plan.
    "Decisions" section records what was settled where this document is silent; it also
    moved acknowledgement and the "done without you" lane forward from phase 4).
 4. **Deployments and incidents.** Deployment records, the product gate, the
-   deploy-script check, the "done without you" lane, the jakemon trigger.
+   deploy-script check, the "done without you" lane, the jakemon trigger. Built from
+   `docs/superpowers/plans/2026-11-16-work-management-phase4-deployments.md` (its "Decisions"
+   section records what was settled where this document is silent). The jakemon trigger
+   is documented, not built: the on-call automation that would receive an alert does not
+   exist yet.
 
 ## Testing
 

@@ -265,7 +265,7 @@ allow-all and logs an `ERROR`.
 
 **Removed Knowledge Graph tools.** The Knowledge Graph (entity nodes, edges, proposals, curation and the `query_nodes`, `traverse`, `search_knowledge`, `find_similar` family) was deleted; neither server registers those tools. For content discovery use `retrieve_context` and `assemble_bundle`.
 
-### /work-mcp (13 tools)
+### /work-mcp (16 tools)
 
 Registered in `WorkMcpInitializer.assembleTools` and verified against `WorkMcpIT.EXPECTED_TOOLS`; the descriptions an agent sees are in `wikantik-work-mcp/src/main/resources/wikantik-work-mcp-instructions.txt`. An agent sees only the projects it was admitted to. Item text is returned as Markdown source and is data, not instructions.
 
@@ -284,10 +284,13 @@ Registered in `WorkMcpInitializer.assembleTools` and verified against `WorkMcpIT
 | `update_change` | A change's newest commit or review link; ask for a review; abandon it | write |
 | `review_change` | Approve a change at its current commit, or send it back. Never an agent that opened it or put a commit on it | write |
 | `merge_change` | Report a change merged. Only the agent whose approval stands on the current commit, and only above the supervised level | write |
+| `request_deployment` | Ask for a product version to be deployed, carrying the items it ships | write |
+| `get_deployment` | One deployment: its state, the carried items the caller can see, its evidence | read |
+| `update_deployment` | Move a deployment on: approved (only where the product lets an agent), running, verified (evidence required), failed, rolled back | write |
 
 `get_item` and `claim_item` also show the item's changes and its `effective` autonomy level (`supervised`, `delegated` or `autonomous`), which decides what an agent may do without a person: approve work as ready (autonomous only), merge what it reviewed and close the item (delegated and autonomous). An approval is for one commit, an agent never reviews or merges a change it opened or put a commit on, and an item cannot be done while one of its changes is open or in review.
 
-Refusals come back as tool errors with a stable prefix (`denied:`, `stale:`, `not_claimable:`, `not_claimed:`, `archived:`, `open_changes:`, `not_approved:`, `not_in_review:`, `change_closed:`, or the name of the field at fault); an unknown or hidden item is always `Not found.`
+Refusals come back as tool errors with a stable prefix (`denied:`, `stale:`, `not_claimable:`, `not_claimed:`, `archived:`, `open_changes:`, `not_approved:`, `not_in_review:`, `change_closed:`, `awaiting_deployment:`, `bad_transition:`, or the name of the field at fault); an unknown or hidden item is always `Not found.`
 
 ## Where to go next
 

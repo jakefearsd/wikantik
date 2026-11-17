@@ -565,7 +565,44 @@ Two rules hold at every level and cannot be configured: an agent never reviews o
 
 **Done without you.** An item an agent closes at the `autonomous` level is flagged. It shows on the Work home and the project board under "Done without you" for the project's leads and for administrators, and on the item page, until a member of the project chooses "Acknowledge" (`POST /api/work/items/{key}/acknowledge`; an agent cannot). Reopening the item clears the flag. To let agents work an epic end to end, a lead sets the epic's Autonomy to `autonomous` and an administrator raises the product's ceiling to `autonomous`; without both, the ceiling holds the level at `delegated`.
 
-**Metric.** `wikantik_work_gates_total{gate,outcome}` counts each gate an agent meets (`approve`, `close`, `review`, `merge`, `direct`; `allowed` or `refused`). It carries no project, product or item label.
+**Metric.** `wikantik_work_gates_total{gate,outcome}` counts each gate an agent meets (`approve`, `close`, `review`, `merge`, `direct`, `deploy`; `allowed` or `refused`). It carries no project, product or item label.
+
+### 1.16 Deployments, the deploy gate and the incident path
+
+A deployment is one product version going to an environment (`production` unless named), carrying the items it ships. It lives on `/work/deployments` (linked from the Work home), `/api/work/deployments/*` and three `/work-mcp` tools (`request_deployment`, `get_deployment`, `update_deployment`).
+
+**States.** `requested`, `approved`, `running`, then `verified` or `failed`; a verified or failed one can be marked `rolled_back`. It only moves forward: retry a failed deployment as a new one. Marking it verified needs the health and smoke-test output as evidence, which is stored and shown as plain text.
+
+**Who may do what.**
+
+| Step | Who |
+|---|---|
+| Request | A member (person or agent) of every project the deployment carries an item from. Every item must target the product. |
+| Approve, product gate `human` (the default) | A wiki administrator, or a person who is lead of every carried project. Never an agent. |
+| Approve, product gate `agent` | Also any member of every carried project, including the agent that requested it. |
+| Mark running, verified, failed, rolled back | A member of every carried project, or an administrator. |
+
+The gate is set per product on the Products page (Admin). Autonomy never opens it: under a `human` gate an agent can only request, inside an `autonomous` epic too. Deployments waiting for your approval are listed on the Work home.
+
+**What a viewer sees.** A deployment belongs to a product, not a project, so it is seen through the items it carries. Someone who belongs to one carried project sees the deployment with that project's items only, and no count of the rest; someone who belongs to none gets the same "not found" as for a deployment that does not exist.
+
+**Done means in production.** A lead can set an epic's "Done means" to "In production". Its stories and tasks then cannot be closed, by anyone, until a deployment that carried them is verified (and not rolled back since); the refusal is `awaiting_deployment`. Other epics close at merged, as before. Either way an item page shows "Shipped in" with the verified deployments that carried it, and its history gains "shipped this in …".
+
+**The deploy-script check.** `bin/work-deploy-gate.sh <deployment-id> <version>` asks `GET /api/work/deployments/{id}/gate?version=` and exits `0` only for a clear yes: the deployment exists, the credential can see it, it is for that version, and it is approved or already running. It exits `1` when the answer is no and `2` when it could not ask (a missing variable, a timeout, a status other than 200, an answer it cannot read). It prints one line and never the token.
+
+- `WORK_API_URL`: the wiki's base URL. `WORK_API_TOKEN`: a `work` API key or a work agent's token whose owner or agent can see the deployment. `WORK_GATE_TIMEOUT`: seconds to wait, default 10.
+- The check is opt-in. Set `WORK_DEPLOYMENT_ID` and `bin/deploy-release.sh X.Y.Z` asks before it pulls anything and stops on anything but a yes; `bin/remote.sh deploy` does the same when called directly, and then also needs `WORK_DEPLOYMENT_VERSION`. With `WORK_DEPLOYMENT_ID` unset both scripts behave exactly as before, so an outage of work management never blocks a deploy that did not ask for the check.
+
+**The incident path.** This is the one fully autonomous path, and it exists only where someone sets it up:
+
+1. An administrator sets the product's autonomy ceiling to `autonomous` and, if agents are to release without a person, its deploy gate to `agent`.
+2. A lead creates a standing epic (for example "Production incidents") with Autonomy `autonomous` and Done means "In production".
+3. An on-call agent, admitted to the project, files a story under that epic (`create_item` with `parentKey`), approves it as ready, claims it, opens a change and hands it to a reviewer agent; the reviewer approves and merges; either requests a deployment carrying the story; it is approved (by the agent where the gate allows, else by a person), run and verified with evidence; the story is then closed.
+4. Every story closed this way waits under "Done without you" until a person acknowledges it.
+
+Nothing in Wikantik receives an alert: wiring a jakemon alert to an on-call agent belongs to the agent runtime, which is not built. This path is what that agent will use.
+
+**Metric.** `wikantik_work_deployments_total{state}` counts deployments by the state they reached. No product label.
 
 **Security log and metrics.** Grep the `SecurityLog` (where it is written is set in [LoggingConfig.md](LoggingConfig.md)) for:
 

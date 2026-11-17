@@ -128,6 +128,23 @@ class WorkMetricsTest {
     }
 
     @Test
+    void deploymentTransitionsAreCountedWithNoProductLabel() {
+        final WorkMetrics metrics = metrics();
+        metrics.deployment( "requested" );
+        metrics.deployment( "verified" );
+        metrics.deployment( "verified" );
+        assertEquals( 2.0, registry.find( "wikantik_work_deployments_total" ).tag( "state", "verified" ).counter().count() );
+        assertEquals( 1.0, registry.find( "wikantik_work_deployments_total" ).tag( "state", "requested" ).counter().count() );
+        final Set< String > keys = new TreeSet<>();
+        for ( final Meter m : registry.find( "wikantik_work_deployments_total" ).meters() ) {
+            for ( final Tag t : m.getId().getTags() ) {
+                keys.add( t.getKey() );
+            }
+        }
+        assertEquals( Set.of( "state" ), keys, "no product, project or item label" );
+    }
+
+    @Test
     void gateOutcomesAreCountedWithNoProjectLabel() {
         final WorkMetrics metrics = metrics();
         metrics.gate( "merge", true );

@@ -34,12 +34,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class WorkGateMetricsPostgresTest {
 
     private final List< String > gates = new ArrayList<>();
+    private final List< String > states = new ArrayList<>();
     private GateFixture f;
     private Item item;
 
     @BeforeEach
     void setUp() throws SQLException {
         f = new GateFixture( new WorkListener() {
+            @Override public void deployment( final String state ) {
+                states.add( state );
+            }
             @Override public void gate( final String gate, final boolean allowed ) {
                 gates.add( gate + ( allowed ? ":allowed" : ":refused" ) );
             }
@@ -101,5 +105,9 @@ class WorkGateMetricsPostgresTest {
         assertThrows( WorkDeniedException.class, () -> f.svc.deployments().approve( f.mia, id, null ) );
         f.svc.deployments().approve( f.lena, id, null );
         assertEquals( List.of( "deploy:refused" ), gates, "a person's approval or refusal is not a gate decision" );
+        f.svc.deployments().start( f.mia, id );
+        f.svc.deployments().verify( f.mia, id, "health 200" );
+        assertEquals( List.of( "requested", "approved", "running", "verified" ), states,
+            "each state reached is reported once; a refused move reports none" );
     }
 }

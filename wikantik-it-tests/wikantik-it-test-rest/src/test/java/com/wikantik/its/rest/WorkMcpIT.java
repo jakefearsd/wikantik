@@ -55,7 +55,7 @@ public class WorkMcpIT {
 
     static final Set< String > EXPECTED_TOOLS = Set.of( "get_work_context", "list_claimable", "get_item", "claim_item",
         "update_item", "comment_on_item", "handoff_item", "release_item", "create_item", "open_change", "update_change",
-        "review_change", "merge_change" );
+        "review_change", "merge_change", "request_deployment", "get_deployment", "update_deployment" );
 
     private static final String NOT_FOUND = "Not found.";
     private static final String NEEDS_KEY = "This endpoint needs a work API key.";

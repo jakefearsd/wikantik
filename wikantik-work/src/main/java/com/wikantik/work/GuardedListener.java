@@ -36,6 +36,15 @@ final class GuardedListener implements WorkListener {
     }
 
     @Override
+    public void deployment( final String state ) {
+        try {
+            delegate.deployment( state );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Work listener failed on deployment state {}: {}", state, e.toString(), e );
+        }
+    }
+
+    @Override
     public void gate( final String gate, final boolean allowed ) {
         try {
             delegate.gate( gate, allowed );

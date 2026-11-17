@@ -458,6 +458,9 @@ the wrong scope, or no valid key, gets 403) or a source address inside the allow
 has its own per-client limiter (`mcp.ratelimit.*`, `tools.ratelimit.*`). Details:
 [ApiKeys.md](ApiKeys.md), [McpAgents.md](McpAgents.md).
 
+
+**Deployments and the deploy gate.** Who may approve a deployment is the product's deploy gate, not an item's autonomy level: under the default `human` gate only a wiki administrator, or a person who leads every project the deployment carries an item from, may approve, and an agent can only request. A deployment is visible only through the items it carries, so a member of one carried project sees that project's items and no count of the rest. `bin/work-deploy-gate.sh` needs a credential that can see the deployment: use a dedicated work agent's token (or a `work` API key) held by the deploy host, pass it in `WORK_API_TOKEN`, and never put it on a command line; the script sends it as a header and never prints it. The check is opt-in (`WORK_DEPLOYMENT_ID`), and it treats every answer but an explicit approval for the exact version as a refusal. Evidence attached to a deployment is stored and shown as plain text.
+
 ### Rate limiting
 
 `RateLimitFilter` limits requests per client IP on a sliding window. It runs on

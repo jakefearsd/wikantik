@@ -82,6 +82,7 @@ final class WorkScopes {
     private final WorkStanding standing;
     private final ItemGates gates;
     private final java.util.function.BiConsumer< String, Boolean > gateListener;
+    private Consumer< String > deploymentListener = state -> { };
     private final WorkDirectory directory;
     private final Consumer< Action > denialListener;
 
@@ -111,6 +112,11 @@ final class WorkScopes {
         }
     }
 
+    /** Reports that a deployment reached a state. */
+    void deploymentReached( final DeploymentState state ) {
+        deploymentListener.accept( state.wire() );
+    }
+
     /** Reports how an agent fared at a gate that has no single project scope (a deployment spans several). */
     void gateDecided( final Actor actor, final String gate, final boolean allowed ) {
         if ( actor.kind() == Actor.Kind.AGENT ) {
@@ -123,6 +129,11 @@ final class WorkScopes {
         if ( s.actor().kind() == Actor.Kind.AGENT ) {
             gateListener.accept( gate, d.allowed() );
         }
+    }
+
+    /** Sets who is told of deployment states reached; the service wires its guarded listener here. */
+    void onDeployment( final Consumer< String > listener ) {
+        this.deploymentListener = listener;
     }
 
     /** The autonomy checks on an item write. */

@@ -82,8 +82,10 @@ public final class WorkDeploymentsService {
         if ( items.isEmpty() ) {
             throw new WorkValidationException( "items", "A deployment carries at least one item." );
         }
-        return view( a, store.deployments().request( product, environment, version,
-            new ArrayList<>( items.values() ), a ) );
+        final Deployment requested = store.deployments().request( product, environment, version,
+            new ArrayList<>( items.values() ), a );
+        scopes.deploymentReached( DeploymentState.REQUESTED );
+        return view( a, requested );
     }
 
     public DeploymentView deployment( final Actor a, final long id ) throws SQLException {
@@ -116,7 +118,7 @@ public final class WorkDeploymentsService {
             scopes.denied( Action.APPROVE_DEPLOYMENT );
             throw new WorkDeniedException( decision.reason() );
         }
-        return view( a, store.deployments().move( id, DeploymentState.APPROVED, null, note( note ), a ) );
+        return view( a, moved( store.deployments().move( id, DeploymentState.APPROVED, null, note( note ), a ) ) );
     }
 
     public DeploymentView start( final Actor a, final long id ) throws SQLException {
@@ -186,7 +188,13 @@ public final class WorkDeploymentsService {
             scopes.denied( Action.RUN_DEPLOYMENT );
             throw new WorkDeniedException( RUN );
         }
-        return view( a, store.deployments().move( id, target, evidence, note( note ), a ) );
+        return view( a, moved( store.deployments().move( id, target, evidence, note( note ), a ) ) );
+    }
+
+    /** Reports the state a deployment has just reached, once the move is committed. */
+    private Deployment moved( final Deployment d ) {
+        scopes.deploymentReached( d.state() );
+        return d;
     }
 
     private Decision mayApprove( final Actor a, final Deployment d, final DeploymentAccess access )

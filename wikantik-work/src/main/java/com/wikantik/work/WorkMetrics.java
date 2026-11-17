@@ -51,6 +51,7 @@ public final class WorkMetrics implements WorkListener {
     static final String CLAIMS_ACTIVE = "wikantik_work_claims_active";
     static final String DENIED = "wikantik_work_denied_total";
     static final String GATES = "wikantik_work_gates_total";
+    static final String DEPLOYMENTS = "wikantik_work_deployments_total";
     private static final long DEFAULT_TTL_NANOS = 5_000_000_000L;
 
     private record Key( WorkStatus status, WorkLevel level, WorkKind kind ) {
@@ -117,6 +118,16 @@ public final class WorkMetrics implements WorkListener {
         Counter.builder( CLAIMS )
             .description( "Work claim attempts and endings by outcome" )
             .tag( "outcome", outcome.wire() )
+            .register( registry )
+            .increment();
+    }
+
+    /** Counts a deployment reaching a state; labelled by state only, never by product. */
+    @Override
+    public void deployment( final String state ) {
+        Counter.builder( DEPLOYMENTS )
+            .description( "Deployments by the state they reached" )
+            .tag( "state", state )
             .register( registry )
             .increment();
     }

@@ -26,6 +26,10 @@ public interface WorkListener {
     default void claim( final ClaimOutcome o ) {
     }
 
+    /** A deployment reached {@code state} (its wire value), a request included. */
+    default void deployment( final String state ) {
+    }
+
     /** An agent met a gate ({@code approve}, {@code close}, {@code review}, {@code merge}, {@code direct}). */
     default void gate( final String gate, final boolean allowed ) {
     }

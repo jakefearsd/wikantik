@@ -129,6 +129,7 @@ public class WorkService {
         final GuardedListener observer = new GuardedListener( listener );
         this.store = store;
         this.scopes = new WorkScopes( store, directory, observer::denied, observer::gate );
+        this.scopes.onDeployment( observer::deployment );
         this.people = new WorkPeople( directory );
         this.applier = new ItemPatchApplier( store, scopes::isMember );
         this.registry = new WorkRegistryService( store, scopes, people, clock, observer,

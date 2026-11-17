@@ -377,6 +377,16 @@ to roll back *from*. IDs are compared remote-side because docker save|load
 recomputes the image ID across differing storage backends.
 EOF
 
+    # Opt-in: with WORK_DEPLOYMENT_ID set, deploy only if work management says that deployment is approved for
+    # WORK_DEPLOYMENT_VERSION. Asked before anything is built or shipped. deploy-release.sh asks for itself.
+    if [[ -n "${WORK_DEPLOYMENT_ID:-}" && -z "${WORK_DEPLOY_GATE_CHECKED:-}" && "${DRY_RUN:-0}" != "1" ]]; then
+        if [[ -z "${WORK_DEPLOYMENT_VERSION:-}" ]]; then
+            echo "deploy: WORK_DEPLOYMENT_ID is set; also set WORK_DEPLOYMENT_VERSION to the version being deployed." >&2
+            exit 2
+        fi
+        "${REPO_ROOT}/bin/work-deploy-gate.sh" "${WORK_DEPLOYMENT_ID}" "${WORK_DEPLOYMENT_VERSION}" || exit 1
+    fi
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --skip-build) skip_build=1; shift ;;

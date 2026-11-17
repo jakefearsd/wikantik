@@ -241,4 +241,24 @@ class WorkRequestEdgesTest {
         assertEquals( 3, ( ( Number ) WorkRequests.plainValue( "n", b.get( "n" ) ) ).intValue() );
         assertEquals( "x", WorkRequests.plainValue( "a", b.get( "a" ) ) );
     }
+
+    @Test
+    void aChangeBodysTextAndFlagAreTyped() {
+        final com.google.gson.JsonObject b = com.google.gson.JsonParser.parseString(
+            "{\"headSha\":\"abc1234\",\"nil\":null,\"n\":7,\"obj\":{},\"approved\":true,\"word\":\"yes\"}" ).getAsJsonObject();
+        assertEquals( "abc1234", WorkChangeJson.text( b, "headSha" ) );
+        assertNull( WorkChangeJson.text( b, "nil" ) );
+        assertNull( WorkChangeJson.text( b, "absent" ) );
+        for ( final String wrong : List.of( "n", "obj", "approved" ) ) {
+            assertEquals( wrong, org.junit.jupiter.api.Assertions.assertThrows(
+                com.wikantik.work.WorkValidationException.class, () -> WorkChangeJson.text( b, wrong ) ).field() );
+        }
+        assertEquals( true, WorkChangeJson.approved( b ) );
+        for ( final String body : List.of( "{}", "{\"approved\":null}", "{\"approved\":\"yes\"}", "{\"approved\":1}",
+            "{\"approved\":[true]}" ) ) {
+            assertEquals( "approved", org.junit.jupiter.api.Assertions.assertThrows(
+                com.wikantik.work.WorkValidationException.class,
+                () -> WorkChangeJson.approved( com.google.gson.JsonParser.parseString( body ).getAsJsonObject() ) ).field(), body );
+        }
+    }
 }

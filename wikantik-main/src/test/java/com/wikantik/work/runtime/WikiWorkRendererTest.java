@@ -411,4 +411,9 @@ class WikiWorkRendererTest {
         assertFalse( html.contains( "<img" ), html );
         assertTrue( html.contains( "<strong>ok</strong>" ), "comments are Markdown: " + html );
     }
+
+    @Test
+    void textThatIsAbsentRendersAsNothing() {
+        assertEquals( "", renderer.toHtml( null ).trim() );
+    }
 }

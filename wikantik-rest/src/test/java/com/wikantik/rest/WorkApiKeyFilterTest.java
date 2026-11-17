@@ -312,4 +312,37 @@ class WorkApiKeyFilterTest {
         org.junit.jupiter.api.Assertions.assertEquals( "{\"error\":\"Rate limit exceeded\"}", out.toString() );
         Mockito.verify( chain, Mockito.times( 6 ) ).doFilter( Mockito.any(), Mockito.any() );
     }
+
+    // ---- how the container builds it
+
+    @Test
+    void theContainerBuiltFilterReadsTheEngineAndPassesThroughWhenWorkIsOff() throws Exception {
+        final com.wikantik.WikiEngine engine = Mockito.mock( com.wikantik.WikiEngine.class );
+        Mockito.when( engine.getWikiProperties() ).thenReturn( new java.util.Properties() );
+        Mockito.when( engine.workService() ).thenReturn( null );
+        final com.wikantik.api.spi.EngineSPI spi = Mockito.mock( com.wikantik.api.spi.EngineSPI.class );
+        Mockito.when( spi.find( Mockito.any( jakarta.servlet.ServletContext.class ), Mockito.isNull() ) ).thenReturn( engine );
+        final jakarta.servlet.FilterConfig config = Mockito.mock( jakarta.servlet.FilterConfig.class );
+        Mockito.when( config.getServletContext() ).thenReturn( Mockito.mock( jakarta.servlet.ServletContext.class ) );
+        final WorkApiKeyFilter built = new WorkApiKeyFilter();
+        try ( org.mockito.MockedStatic< com.wikantik.api.spi.Wiki > wiki = Mockito.mockStatic( com.wikantik.api.spi.Wiki.class ) ) {
+            wiki.when( com.wikantik.api.spi.Wiki::engine ).thenReturn( spi );
+            built.init( config );
+        }
+        final HttpServletRequest req = request( "Bearer wkt_anything" );
+        built.doFilter( req, resp, chain );
+        Mockito.verify( chain ).doFilter( req, resp );
+    }
+
+    @Test
+    void aLookupThatFailedIs503WhetherOrNotItHasACause() throws Exception {
+        for ( final Throwable cause : new Throwable[] { null, new java.sql.SQLException( "down" ) } ) {
+            final ApiKeyService failing = Mockito.mock( ApiKeyService.class );
+            Mockito.when( failing.verify( Mockito.anyString() ) ).thenThrow( new ApiKeyService.LookupFailedException( cause ) );
+            status.set( 200 );
+            new WorkApiKeyFilter( () -> failing, () -> true ).doFilter( request( "Bearer wkt_abc" ), resp, chain );
+            assertEquals( 503, status.get() );
+        }
+        Mockito.verifyNoInteractions( chain );
+    }
 }

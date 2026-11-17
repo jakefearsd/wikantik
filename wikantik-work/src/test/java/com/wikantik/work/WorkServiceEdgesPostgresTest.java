@@ -272,4 +272,17 @@ class WorkServiceEdgesPostgresTest {
         final String issued = new WorkCredentialStore.Issued( 7, "wka_secret" ).toString();
         assertTrue( issued.contains( "7" ) && !issued.contains( "wka_secret" ), "the token is never printed" );
     }
+
+    @Test
+    void aParentLoopInDamagedDataCannotHangTheResolver() throws SQLException {
+        final JdbcWorkStore store = new JdbcWorkStore( f.ds );
+        final Item epic = f.draft( WorkLevel.EPIC, null );
+        final Item story = f.draft( WorkLevel.STORY, epic.key() );
+        final Item task = f.draft( WorkLevel.TASK, story.key() );
+        // no service call can write this; a restore or a hand-run statement could
+        try ( java.sql.Connection c = f.ds.getConnection(); java.sql.Statement st = c.createStatement() ) {
+            st.executeUpdate( "UPDATE work_item SET parent_id = " + task.id() + " WHERE id = " + epic.id() );
+        }
+        assertEquals( 2, store.policyChain( task.id() ).ancestors().size(), "it stops at the depth the hierarchy has" );
+    }
 }

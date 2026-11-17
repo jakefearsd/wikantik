@@ -16,14 +16,14 @@
 
 # The front page's <title>, its <h1> and its search-result description (keep the summary at 50-160 characters).
 title: 'Wikantik: Agent-Grade Technical Knowledge Wiki'
-summary: 'A technical knowledge wiki for human reading and AI agent retrieval: 1,300+ articles on software, AI, math and engineering, with MCP tools.'
+summary: 'A technical knowledge wiki for human reading and AI agent retrieval: 1,100+ articles on software, AI, math and engineering, with MCP tools.'
 
 intro: |-
   **Wikantik is an agent-grade technical knowledge platform — engineered simultaneously for human deep reading and native AI agent retrieval, graph traversal, and software engineering coordination.** Every page is stored as structured Markdown with validated YAML frontmatter, rename-safe ULIDs (`canonical_id`), and explicit cluster declarations.
 
   ### Core Platform Capabilities
 
-  - **Page Graph & Linked-Data Ontology:** Browse **91 topic clusters and sub-clusters** anchored by curated Hub pages ([Cluster Declaration Architecture](ClusterDeclarationDesign)). Explore structural relationships through the [Page Graph](PageGraphVsKnowledgeGraph) of bidirectional wikilinks and cluster membership, section-pinned citations between pages, and a public read-only RDF/SKOS ontology of pages and concepts you can query with SPARQL. Similar pages come from page embeddings.
+  - **Page Graph & Linked-Data Ontology:** Browse **60+ topic clusters and sub-clusters** anchored by curated Hub pages ([Cluster Declaration Architecture](ClusterDeclarationDesign)). Explore structural relationships through the [Page Graph](PageGraphVsKnowledgeGraph) of bidirectional wikilinks and cluster membership, section-pinned citations between pages, and a public read-only RDF/SKOS ontology of pages and concepts you can query with SPARQL. Similar pages come from page embeddings.
   - **Hybrid Contextual Retrieval (`/knowledge-mcp` — 16 read-only tools):** Queries execute across BM25 lexical and dense vector indices fused via Reciprocal Rank Fusion ([Hybrid Retrieval](HybridRetrieval)), with contextual chunk headers (`Cluster + Title + Summary + Heading Path`). Agents assemble version-pinned, citation-bearing bundles via `assemble_bundle` and inspect provenance-scored projections (`AUTHORITATIVE` / `PROVISIONAL` / `STALE`) via `get_page_for_agent`.
   - **Closed-Loop Content Intelligence (`/wikantik-admin-mcp` — 22 read/write tools):** Curators and agents author pages with optimistic locking (`update_page`), run structural/SEO/retrieval verification (`verify_pages`), rename clusters in bulk (`rename_cluster`), and act on search-telemetry demand signals (`list_content_opportunities` via [Content Intelligence](ContentIntelligenceDesign)).
 

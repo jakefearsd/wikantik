@@ -1,13 +1,4 @@
 ---
-type: reference
-summary: 'The Wikantik manifesto and system blueprint: the Page Graph and RDF ontology,
-  MCP retrieval/authoring, SA-13 briefings, and closed-loop workflows.'
-status: active
-date: '2026-10-26'
-canonical_id: 01KQ0P44GFKMNEM5TV6M4VBXQJ
-audience:
-- humans
-- agents
 tags:
 - wikantik
 - manifesto
@@ -16,8 +7,8 @@ tags:
 - hybrid-retrieval
 - content-intelligence
 - agentic-ai
-cluster: wikantik-development
-title: 'About Wikantik: Manifesto and Architecture of the Agent-Grade Knowledge Platform'
+summary: 'The Wikantik manifesto and system blueprint: the Page Graph and RDF ontology,
+  MCP retrieval/authoring, SA-13 briefings, and closed-loop workflows.'
 related:
 - Main
 - WikantikPlatformHub
@@ -33,13 +24,22 @@ related:
 - ContentIntelligenceDesign
 - SimpleAgilityFeedbackLoopPattern
 - SimpleAgilityAttributionRFC
-- RollerHub
+- PressroomHub
+audience:
+- humans
+- agents
+canonical_id: 01KQ0P44GFKMNEM5TV6M4VBXQJ
+type: reference
+status: active
+date: '2026-10-26'
+cluster: wikantik-development
+title: 'About Wikantik: Manifesto and Architecture of the Agent-Grade Knowledge Platform'
 ---
 # About Wikantik: Manifesto & Architecture of the Agent-Grade Knowledge Platform
 
 **Wikantik is an agent-grade semantic knowledge engine — built from the ground up so human engineers and autonomous AI agents can read, reason over, verify, and evolve a single source of truth.**
 
-Most wikis were built for a world where only humans read and only humans write. Most "AI knowledge bases" bolt a naive vector database onto unstructured prose, losing document hierarchy, link topology, provenance, and editorial trust. **Wikantik bridges both worlds:** a rigorous, human-readable Markdown wiki backed by a machine-queryable **Structural Spine**, a **Page Graph** of real wikilinks plus an RDF/SPARQL ontology, **36 Model Context Protocol (MCP) tools**, and a **closed-loop Content Intelligence engine** that measures whether knowledge changes actually work.
+Most wikis were built for a world where only humans read and only humans write. Most "AI knowledge bases" bolt a naive vector database onto unstructured prose, losing document hierarchy, link topology, provenance, and editorial trust. **Wikantik bridges both worlds:** a rigorous, human-readable Markdown wiki backed by a machine-queryable **Structural Spine**, a **Page Graph** of real wikilinks plus an RDF/SPARQL ontology, **38 Model Context Protocol (MCP) tools**, and a **closed-loop Content Intelligence engine** that measures whether knowledge changes actually work.
 
 ---
 
@@ -71,7 +71,7 @@ flowchart TB
     subgraph Clients["Human & Agent Consumers"]
         Human["Human Engineers & Readers<br/>(React SPA, Live Preview, Page Graph Visualizer)"]
         ReadAgent["Coding & Research Agents<br/>(/knowledge-mcp — 16 Read Tools)"]
-        AdminAgent["Curator & Publishing Agents<br/>(/wikantik-admin-mcp — 20 Write/Admin Tools)"]
+        AdminAgent["Curator & Publishing Agents<br/>(/wikantik-admin-mcp — 22 Write/Admin Tools)"]
     end
 
     subgraph Core["Wikantik Core Engine (Java 25 / Tomcat 11)"]
@@ -157,7 +157,7 @@ Below are four concrete workflows—**three for software engineering** and **one
 
 ### Workflow 1 (Software Engineering): Zero-Drift Cross-Repository Architecture & Session Briefings (`SA-13`)
 
-**The Problem:** In a multi-repository architecture (like the [[SimpleAgilityStackHub|Simple Agility Stack]]: `wikantik`, `jakemon`, `roller`, `stockroom`, `wealthview`), keeping per-repo `AGENTS.md` files synchronized with evolving cross-cutting contracts (logging formats, OpenTelemetry attributes, attribution parameters, port allocations) is impossible by hand. Worse, if a repo's cluster also contains 40 operational `Incident*` runbooks, naive cluster retrieval floods coding agents with alert triage steps when they are trying to write application code.
+**The Problem:** In a multi-repository architecture (like the [[SimpleAgilityStackHub|Simple Agility Stack]]: `wikantik`, `jakemon`, `pressroom`, `stockroom`, `wealthview`), keeping per-repo `AGENTS.md` files synchronized with evolving cross-cutting contracts (logging formats, OpenTelemetry attributes, attribution parameters, port allocations) is impossible by hand. Worse, if a repo's cluster also contains 40 operational `Incident*` runbooks, naive cluster retrieval floods coding agents with alert triage steps when they are trying to write application code.
 
 **How Wikantik Solves It ([[ProjectContextSeparationDesign]]):**
 
@@ -165,16 +165,16 @@ Below are four concrete workflows—**three for software engineering** and **one
 sequenceDiagram
     participant Architect as Human / Architect Agent
     participant Wiki as Wikantik (/wikantik-admin-mcp & /knowledge-mcp)
-    participant CodingAgent as Repo Coding Agent (e.g., Stockroom / Roller)
+    participant CodingAgent as Repo Coding Agent (e.g., Stockroom / Pressroom)
 
     Architect->>Wiki: 1. Update shared contract (e.g., SimpleAgilityTelemetryContract)
-    Note over Wiki: Project Hubs (StockroomHub, RollerHub) link to the contracts they obey
+    Note over Wiki: Project Hubs (StockroomHub, PressroomHub) link to the contracts they obey
     CodingAgent->>Wiki: 2. Session start: get_briefing(clusters=["stockroom"], prompt="Add eBay webhook metrics")
     Note over Wiki: ItemAssembler builds 3-tier token-budgeted briefing:<br/>• Tier 1: Stockroom pages ranked by intra-cluster in-degree<br/>• Tier 2: Cross-cluster contracts cited by Stockroom<br/>• Tier 3: Hybrid retrieval sections for prompt<br/>(Incident* pages with 0 intra-cluster in-degree are excluded!)
     Wiki-->>CodingAgent: 3. Returns version-pinned Markdown briefing with live contract rules
 ```
 
-1. **Contract Binding via Wikilinks:** A project's Hub page (`StockroomHub`, `JakemonHub`, `RollerHub`) simply includes a standard wikilink to each normative contract in `cluster: simple-agility` that binds it (e.g., [[SimpleAgilityTelemetryContract]], [[SimpleAgilityAttributionRFC]], [[SimpleAgilityAgentCoordination]]).
+1. **Contract Binding via Wikilinks:** A project's Hub page (`StockroomHub`, `JakemonHub`, `PressroomHub`) simply includes a standard wikilink to each normative contract in `cluster: simple-agility` that binds it (e.g., [[SimpleAgilityTelemetryContract]], [[SimpleAgilityAttributionRFC]], [[SimpleAgilityAgentCoordination]]).
 2. **Dynamic 3-Tier Assembly (`get_briefing`):** When a coding agent starts a session in any repository, its single bootstrap instruction is `get_briefing(clusters=["<project-cluster>"], prompt="<task>")`. `ItemAssembler` automatically populates:
    - **Tier 1 (`## Standing project context`):** The project's own design and architecture pages ranked by **intra-cluster `in-degree`**. Because operational `Incident*` runbooks are linked from `home-lab-infrastructure` host pages rather than intra-cluster `jakemon` pages, their intra-cluster `in-degree` is `0`—so they never pollute coding briefings!
    - **Tier 2 (`## Contracts this project cites`):** Every cross-cluster specification linked by Tier 1 pages. The moment an architect updates a contract once on the wiki, every citing repository inherits the change on its very next session start.
@@ -195,15 +195,15 @@ sequenceDiagram
 
 ---
 
-### Workflow 3 (Automated Publishing): Ontology-Driven Cross-Cluster Synthesis & Commercial Attribution Flywheel
+### Workflow 3 (Automated Publishing): Cross-Cluster Synthesis & Commercial Attribution Flywheel
 
-> **Why this workflow is a hidden superpower:** Most automated blogging pipelines take a single topic or product SKU and ask an LLM to write 800 words—producing generic, repetitive articles. Because Wikantik combines a **multi-domain corpus with page-embedding similarity (`get_page_for_agent`)**, **SPARQL 1.1 (`sparql_query`)**, **SERP striking-distance telemetry (`list_content_opportunities`)**, and a companion publishing platform (**[[RollerHub|Roller]]** with its own MCP server), you can run an **automated cross-domain synthesis & attribution pipeline** that no standalone CMS can match.
+> **Why this workflow is a hidden superpower:** Most automated blogging pipelines take a single topic or product SKU and ask an LLM to write 800 words—producing generic, repetitive articles. Because Wikantik combines a **multi-domain corpus with page-embedding similarity (`get_page_for_agent`)**, **SPARQL 1.1 (`sparql_query`)**, **SERP striking-distance telemetry (`list_content_opportunities`)**, and a companion publishing platform (**[[PressroomHub|Pressroom]]** with its own MCP server), you can run an **automated cross-domain synthesis & attribution pipeline** that no standalone CMS can match.
 
 ```mermaid
 flowchart LR
     Trigger["1. Trigger: Stockroom 'Feature on Blog'<br/>or Wikantik 'striking_distance' Query"] --> Discover["2. Cross-Cluster Bridge Discovery<br/>(retrieve_context + get_page_for_agent related pages + sparql_query)"]
     Discover --> Bundle["3. Fact Grounding<br/>(assemble_bundle from AUTHORITATIVE pages)"]
-    Bundle --> Publish["4. Multi-Surface Publishing<br/>(Roller MCP Entry + SA-12 Attribution + IndexNow)"]
+    Bundle --> Publish["4. Multi-Surface Publishing<br/>(Pressroom MCP Entry + SA-12 Attribution + IndexNow)"]
     Publish --> Measure["5. 28-Day DiD Effect Measurement<br/>(Jakemon GSC/Bing + Umami + EffectEvaluator)"]
     Measure -->|"Calibrates Priority Weights"| Trigger
 ```
@@ -214,17 +214,17 @@ Here is how the 5-stage publishing pipeline works end-to-end across the stack:
    - **Commercial Trigger:** During inventory intake in [[StockroomHub|Stockroom]], an operator flags a notable item—for example, an *1890s Carson City Morgan Silver Dollar* or a *vintage Japanese mortise chisel*—with `Feature on Blog`.
    - **Search-Demand Trigger:** Alternatively, the publishing agent calls `list_content_opportunities` on `/wikantik-admin-mcp` and spots a `striking_distance` query on Bing (where `wiki.wikantik.com` converts at **$1.85\%$ CTR / avg position $4.7$**—roughly **$6\times$ higher conversion per impression than Google**, and the primary index feeding downstream AI search engines!).
 2. **Stage 2 — Non-Obvious Cross-Cluster Bridge Discovery (`retrieve_context` + `get_page_for_agent` + `sparql_query`):**
-   - Instead of writing a generic coin or tool description, the agent queries `/knowledge-mcp` using `retrieve_context`, the embedding-derived related pages of `get_page_for_agent`, and `sparql_query` across Wikantik's 91 clusters.
+   - Instead of writing a generic coin or tool description, the agent queries `/knowledge-mcp` using `retrieve_context`, the embedding-derived related pages of `get_page_for_agent`, and `sparql_query` across Wikantik's 60+ clusters.
    - For the silver dollar, retrieval and related-page similarity immediately bridge four distinct clusters that a single-prompt writer would never connect:
-     - `numismatics/american-coinage` ([[AmericanCoinHistory]], [[CoinGradingAndAuthentication]])
+     - `numismatics/american-coinage` (`AmericanCoinHistory`, `CoinGradingAndAuthentication`)
      - `physics-engineering` ([[CounterfeitDetectionPhysics]]: acoustic eigenfrequency & XRF assaying)
      - `materials-science` ([[Metallurgy]]: 90% Ag / 10% Cu work-hardening and lustre flow lines)
-     - `geopolitics-and-finance` ([[EconomicHistoryOfMetallurgicalCycles]], [[SovereignGoldVolatility]])
+     - `geopolitics-and-finance` (archived on blog: `EconomicHistoryOfMetallurgicalCycles`, `SovereignGoldVolatility`)
 3. **Stage 3 — Hallucination-Free Evidence Assembly (`assemble_bundle`):**
    - The agent calls `assemble_bundle` across those bridged clusters to pull version-pinned, verified excerpts, LaTeX equations, and historical tables—ensuring every technical claim in the narrative is grounded in vetted wiki pages.
-4. **Stage 4 — Sovereign Publishing, Deep-Linking & `IndexNow` Push (`Roller MCP` + `ping_search_engines`):**
-   - The agent publishes a rich, narrative spotlight article to [[RollerHub|Roller]] via Roller's MCP `entries` tool, complete with:
-     - **SA-12 Attribution Links ([[SimpleAgilityAttributionRFC]]):** Tracked eBay Partner Network (EPN) / Stockroom campaign parameters (`utm_source=roller&utm_campaign=<item_slug>`) so Umami and Stockroom attribute downstream sales directly back to the article.
+4. **Stage 4 — Sovereign Publishing, Deep-Linking & `IndexNow` Push (`Pressroom MCP` + `ping_search_engines`):**
+   - The agent publishes a rich, narrative spotlight article to [[PressroomHub|Pressroom]] via Pressroom's MCP `entries` tool, complete with:
+     - **SA-12 Attribution Links ([[SimpleAgilityAttributionRFC]]):** Tracked eBay Partner Network (EPN) / Stockroom campaign parameters (`utm_source=pressroom&utm_campaign=<item_slug>`) so Umami and Stockroom attribute downstream sales directly back to the article.
      - **Bidirectional Knowledge Deep-Links:** Inline links from the blog post to the canonical Wikantik reference articles (and, if the research uncovered a new historical or metallurgical fact, an `update_page` call back into Wikantik!).
      - **Instant Search Notification:** Calling `ping_search_engines` on `/wikantik-admin-mcp` pushes updated URLs immediately via **IndexNow** to Bing and Yandex.
 5. **Stage 5 — Closed-Loop Difference-in-Differences Verification (`EffectEvaluator`):**
@@ -311,7 +311,7 @@ stop
 
 ---
 
-## 5. Complete MCP Tool Surface Reference (36 Tools)
+## 5. Complete MCP Tool Surface Reference (38 Tools)
 
 Wikantik exposes two purpose-built Model Context Protocol endpoints:
 
@@ -320,11 +320,11 @@ Wikantik exposes two purpose-built Model Context Protocol endpoints:
 | Category | Tools | Primary Agent Use Case |
 | :--- | :--- | :--- |
 | **Bundle & Briefing Assembly** | `assemble_bundle`, `get_briefing`, `retrieve_context` | Token-budgeted, de-duplicated context bundles with citations and SA-13 3-tier project briefings. |
-| **Page & Structural Inspection** | `get_page`, `get_page_for_agent`, `get_page_by_id`, `read_pages`, `get_page_neighbors`, `list_stale_citations` | Provenance-scored agent projections (`AUTHORITATIVE` / `PROVISIONAL` / `STALE`), batched reads, and 1-hop Page Graph neighborhoods. |
-| **Taxonomy & Facet Discovery** | `list_clusters`, `list_pages`, `list_pages_by_filter`, `list_tags`, `list_metadata_values` | Zero-search discovery of all 91 clusters, hubs, tag distributions, and frontmatter facets. |
+| **Page & Structural Inspection** | `get_page`, `get_page_for_agent`, `get_page_by_id`, `read_pages`, `get_page_neighbors`, `list_stale_citations` | Provenance-scored agent projections (`AUTHORITATIVE` / `PROVISIONAL` / `STALE`) with embedding-derived related pages, batched reads, and 1-hop Page Graph neighborhoods. |
+| **Taxonomy & Facet Discovery** | `list_clusters`, `list_pages`, `list_pages_by_filter`, `list_tags`, `list_metadata_values` | Zero-search discovery of all 60+ clusters, hubs, tag distributions, and frontmatter facets. |
 | **SPARQL Ontology** | `get_ontology`, `sparql_query` | Formal OWL/SKOS T-Box inspection and read-only SPARQL 1.1 queries. |
 
-### 5.2 `/wikantik-admin-mcp` — Authoring, Verification & Insights Surface (20 Tools)
+### 5.2 `/wikantik-admin-mcp` — Authoring, Verification & Insights Surface (22 Tools)
 
 | Category | Tools | Primary Curator / Agent Use Case |
 | :--- | :--- | :--- |
@@ -332,6 +332,7 @@ Wikantik exposes two purpose-built Model Context Protocol endpoints:
 | **Verification & Web of Trust** | `verify_pages`, `mark_page_verified`, `preview_structured_data`, `ping_search_engines` | 7-dimension lint (links, metadata, SEO, retrieval), human/agent verification stamps, JSON-LD/OpenGraph preview, and IndexNow pings. |
 | **Page Graph & Revision Diagnostics** | `get_backlinks`, `get_outbound_links`, `get_broken_links`, `get_orphaned_pages`, `get_wiki_stats`, `get_page_history`, `diff_page` | Corpus-wide graph hygiene, orphan/broken-link sweeps, and version diff inspection. |
 | **Content Intelligence & Demand Loops** | `list_content_opportunities`, `snooze_opportunity`, `list_retrieval_queries` | Querying the ranked, traffic-gated opportunity backlog (`striking_distance`, `decay`, `agent_gap`) and recording act-time predictions. |
+| **Reader Feedback Loop** | `list_comment_threads`, `respond_to_comment_thread` | Reading the comment threads readers left open to agents, then replying, resolving (only when a trusted comment asks) or dismissing with a written reason. |
 
 ---
 
@@ -347,10 +348,11 @@ While Wikantik is an agent-first knowledge platform, it honors its engineering l
 
 ## Where to Go Next
 
-- **[[Main|Wiki Front Page]]** — Browse the 91 topic clusters across Platform Architecture, Agentic AI, Distributed Systems, Cloud/SRE, Mathematics, and Finance.
+- **[[Main|Wiki Front Page]]** — Browse the 60+ topic clusters across Platform Architecture, Agentic AI, Distributed Systems, Cloud/SRE, and Mathematics.
 - **[[WikantikPlatformHub|Wikantik Platform Hub]]** & **[[WikantikArchitecture|Wikantik System Architecture]]** — Deep dive into the module reactor, storage providers, and retrieval pipelines.
 - **[[WikantikDevelopmentHub|Wikantik Development Hub]]** & **[[AgentCookbook|Agent Cookbook]]** — Active RFCs, design specifications, and scenario-keyed runbooks for coding and content agents.
-- **[[SimpleAgilityStackHub|Simple Agility Stack Hub]]** — How Wikantik coordinates with JakeMon observability, Roller publishing, and Stockroom operations.
+- **[[SimpleAgilityStackHub|Simple Agility Stack Hub]]** — How Wikantik coordinates with JakeMon observability, Pressroom publishing, and Stockroom operations.
+- **[The Wikantik Reader's Field Guide (Engineering Blog)](https://blog.wikantik.com/wikantik/entry/wikantik-readers-field-guide-storage-hybrid-search-dual-mcp)** — Guided tour through the engineering postmortems, storage invariants, and retrieval benchmarks behind this platform.
 
 ---
 

@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Front page and About: counts corrected to the live corpus (1,100+ articles, 60+ clusters) and the last finance mention removed; `About.md` re-synced from production (22/38 MCP tools, Pressroom).
+
 ## [2.6.3] - 2026-11-17
 
 ### Changed

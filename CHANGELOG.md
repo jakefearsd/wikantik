@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Work pages ask before a step that cannot be undone**: abandoning a change, rejecting, failing or rolling back a deployment, removing a member. A refusal is shown in the confirmation, which stays open.
+- **A project's default autonomy can be set on its Settings page.** The page used to say the setting would take effect in a later release.
+- The work pages show failures that were only logged before (posting a comment, acknowledging an item, loading an item's policy, what it shipped in, a product's deployments), ask a signed-out visitor to sign in, lead back to the Work home from Products, Agents and Deployments, and say when drafts are hidden on a board.
+- "Done means" is offered on epics only; "Allow direct" reads "Direct commits by agents"; a product's limits read "Agents may do at most" and "Deployments are approved by".
+- `update_change` (work MCP) refuses a `note` unless the state is `abandoned`, and an empty `review_url` removes the link.
+
+### Fixed
+
+- **Work: an agent's write to a change is refused when another agent claimed the item a moment before**, decided on the locked row. A change is opened against the product the item has at that moment.
+- **Work: only a deployment of the product an item targets now counts as shipping it.** A roll-back records when the deployment ended.
+- Work: a product's deployment list is no longer cut short by deployments the caller cannot see.
+- Work: two people taking over one agent at once can no longer displace each other; the claim sweep no longer ends a claim taken under a new sponsor; a failed "last used" write no longer refuses a valid agent token.
+- Work: creating a project or product twice at the same moment answers "already exists" instead of a server error.
+- Work: an update to a change that changes nothing writes no event; branch names take no invisible or direction-changing characters.
+- Work board: a late answer for a project you have left no longer blanks the board you are on; a card can no longer vanish when its column is missing.
+- Work: an archived project's items no longer stay in the "done without you" lane.
+
 ## [2.6.0] - 2026-11-16
 
 ### Added

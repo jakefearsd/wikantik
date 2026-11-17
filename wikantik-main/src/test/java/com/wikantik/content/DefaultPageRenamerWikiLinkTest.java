@@ -44,6 +44,20 @@ class DefaultPageRenamerWikiLinkTest {
     }
 
     @Test
+    void rewritesMarkdownLinksOutsideCode() {
+        assertEquals( "[NewPage]() [see](NewPage#H) [f](NewPage/a.png) [o](Other)",
+                DefaultPageRenamer.rewriteMarkdownLinks( "[OldPage]() [see](OldPage#H) [f](OldPage/a.png) [o](Other)", "OldPage", "NewPage" ) );
+    }
+
+    @Test
+    void leavesMarkdownLinkExamplesInCodeAlone() {
+        final String in = "`[OldPage]()` `[see](OldPage)`\n\n```\n[see](OldPage)\n```\n";
+        assertEquals( in, DefaultPageRenamer.rewriteMarkdownLinks( in, "OldPage", "NewPage" ) );
+        assertEquals( "`[see](OldPage)` and [see](NewPage)",
+                DefaultPageRenamer.rewriteMarkdownLinks( "`[see](OldPage)` and [see](OldPage)", "OldPage", "NewPage" ) );
+    }
+
+    @Test
     void leavesSamePageLinksAlone() {
         final String in = "[[#OldPage]]";
         assertEquals( in, DefaultPageRenamer.rewriteWikiLinks( in, "OldPage", "NewPage" ) );

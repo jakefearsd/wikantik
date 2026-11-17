@@ -171,7 +171,7 @@ public class DefaultPageRenamer implements PageRenamer {
         //  An unreadable referrer yields "" here, which no rewrite changes, so it is never written.
         final String sourceText = RenameTextReader.referrerText( engine, pageName );
         final Page referrerPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
-        String newText = replaceReferrerString(sourceText, fromPage.getName(), toPage.getName() );
+        String newText = rewriteMarkdownLinks( sourceText, fromPage.getName(), toPage.getName() );
         newText = rewriteWikiLinks( newText, fromPage.getName(), toPage.getName() );
 
         camelCase = TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), MarkupParser.PROP_CAMELCASELINKS, camelCase );
@@ -237,10 +237,11 @@ public class DefaultPageRenamer implements PageRenamer {
         return WikiLinkRenamer.rewrite( text, from, to );
     }
 
-    private String replaceReferrerString( final String sourceText, final String from, final String to ) {
+    /** Rewrites {@code [text](Page)} and {@code [Page]()} links naming {@code from}; link syntax shown as code is left alone. */
+    static String rewriteMarkdownLinks( final String sourceText, final String from, final String to ) {
         final StringBuilder sb = new StringBuilder( sourceText.length() + 32 );
 
-        final InlineLinkMatcher matcher = new InlineLinkMatcher( sourceText );
+        final InlineLinkMatcher matcher = InlineLinkMatcher.outsideCode( sourceText );
         int start = 0;
 
         while( matcher.find( start ) ) {
@@ -266,7 +267,7 @@ public class DefaultPageRenamer implements PageRenamer {
     /**
      *  This method does a correct replacement of a single link, taking into account anchors and attachments.
      */
-    private String replaceSingleLink(final String original, final String from, final String newlink ) {
+    private static String replaceSingleLink(final String original, final String from, final String newlink ) {
         final int hash = original.indexOf( '#' );
         final int slash = original.indexOf( '/' );
         String realLink = original;

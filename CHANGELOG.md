@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-11-17
+
 ### Changed
 
 - **Work pages ask before a step that cannot be undone**: abandoning a change, rejecting, failing or rolling back a deployment, removing a member. A refusal is shown in the confirmation, which stays open.

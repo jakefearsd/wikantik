@@ -85,14 +85,28 @@ public final class UpdateDeploymentTool extends WorkMcpTool {
         final String state = requiredString( args, "state" );
         final String evidence = stringArg( args, "evidence" );
         final String note = stringArg( args, "note" );
-        if ( note != null && ( "running".equals( state ) || VERIFIED.equals( state ) ) ) {
-            // those two moves record no note: say so, or the agent would believe it left one
-            throw new WorkValidationException( "note", "A note goes with approved, rejected, failed or rolled_back." );
-        }
+        requireFitting( state, evidence, note );
+        final DeploymentView v = move( actor, id, state, evidence, note );
+        WorkMcpLog.written( TOOL_NAME, "deployment-" + state.replace( '_', '-' ), "deployment:" + id, actor );
+        return ok( WorkMcpDeployments.deployment( svc, directory, actor, v ) );
+    }
+
+    /**
+     * Evidence goes only with verified, and the two moves that record no note take none: said by name, or the
+     * agent would believe it attached something it did not.
+     */
+    private static void requireFitting( final String state, final String evidence, final String note ) {
         if ( evidence != null && !VERIFIED.equals( state ) ) {
             throw new WorkValidationException( "evidence", "Evidence goes with verified." );
         }
-        final DeploymentView v = switch ( state ) {
+        if ( note != null && ( "running".equals( state ) || VERIFIED.equals( state ) ) ) {
+            throw new WorkValidationException( "note", "A note goes with approved, rejected, failed or rolled_back." );
+        }
+    }
+
+    private DeploymentView move( final Actor actor, final long id, final String state, final String evidence,
+                                 final String note ) throws SQLException {
+        return switch ( state ) {
             case "approved" -> svc.deployments().approve( actor, id, note );
             case "running" -> svc.deployments().start( actor, id );
             case VERIFIED -> svc.deployments().verify( actor, id, evidence );
@@ -102,7 +116,5 @@ public final class UpdateDeploymentTool extends WorkMcpTool {
             default -> throw new WorkValidationException( "state",
                 "Use approved, rejected, running, verified, failed or rolled_back." );
         };
-        WorkMcpLog.written( TOOL_NAME, "deployment-" + state.replace( '_', '-' ), "deployment:" + id, actor );
-        return ok( WorkMcpDeployments.deployment( svc, directory, actor, v ) );
     }
 }

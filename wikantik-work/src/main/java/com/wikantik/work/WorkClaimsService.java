@@ -235,7 +235,8 @@ public final class WorkClaimsService {
         s.require( Action.MOVE, is.item() );
         s.require( Action.EDIT_ITEM, is.item() );
         s.requireWritable();
-        final boolean unattended = h.status() != null && scopes.gates().requireStatusChange( s, is.item(), h.status() );
+        final CloseRules rules = h.status() != null ? scopes.gates().requireStatusChange( s, is.item(), h.status() )
+            : CloseRules.NONE;
         final String person = PatchValues.blankToNull( h.assignee() );
         final String queue = PatchValues.blankToNull( h.queue() );
         if ( ( person == null ) == ( queue == null ) ) {
@@ -257,7 +258,7 @@ public final class WorkClaimsService {
                 "The item is already assigned there." );
         }
         final Item saved = write( WorkInputs.withVersion( is.item(), h.expectedVersion() ), next, a, h.note(), true,
-            Action.MOVE, unattended );
+            Action.MOVE, rules );
         return views.view( s, saved );
     }
 
@@ -267,10 +268,10 @@ public final class WorkClaimsService {
      * agent fenced off under lock gets the same denial the policy gives.
      */
     Item write( final Item stamped, final Item next, final Actor a, final String note, final boolean asHandoff,
-                final Action action, final boolean unattended ) throws SQLException {
+                final Action action, final CloseRules rules ) throws SQLException {
         final WorkStore.ItemWrite w;
         try {
-            w = unattended ? store.writeItem( stamped, next, a, note, asHandoff, true )
+            w = rules.any() ? store.writeItem( stamped, next, a, note, asHandoff, rules )
                 : store.writeItem( stamped, next, a, note, asHandoff );
         } catch ( final ClaimFenceException e ) {
             listener.denied( action );

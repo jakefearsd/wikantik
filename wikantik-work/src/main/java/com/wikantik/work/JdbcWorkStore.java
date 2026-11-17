@@ -241,13 +241,19 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     @Override
     public ItemWrite writeItem( final Item current, final Item next, final Actor by, final String note,
                                 final boolean asHandoff ) throws SQLException {
-        return writes.writeItem( current, next, by, note, asHandoff, false );
+        return writes.writeItem( current, next, by, note, asHandoff, CloseRules.NONE );
+    }
+
+    @Override
+    public ItemWrite writeItem( final Item current, final Item next, final Actor by, final String note,
+                                final boolean asHandoff, final CloseRules rules ) throws SQLException {
+        return writes.writeItem( current, next, by, note, asHandoff, rules );
     }
 
     @Override
     public ItemWrite writeItem( final Item current, final Item next, final Actor by, final String note,
                                 final boolean asHandoff, final boolean ackRequired ) throws SQLException {
-        return writes.writeItem( current, next, by, note, asHandoff, ackRequired );
+        return writes.writeItem( current, next, by, note, asHandoff, new CloseRules( ackRequired, false ) );
     }
 
     // ---- queries

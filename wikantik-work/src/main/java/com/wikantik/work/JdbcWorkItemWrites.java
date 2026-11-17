@@ -55,7 +55,8 @@ final class JdbcWorkItemWrites {
     }
 
     WorkStore.ItemWrite writeItem( final Item current, final Item next, final Actor by, final String note,
-                                final boolean asHandoff, final boolean ackRequired ) throws SQLException {
+                                final boolean asHandoff, final CloseRules rules ) throws SQLException {
+        final boolean ackRequired = rules.ackRequired();
         JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         JdbcWorkCatalog.requireOneTarget( next );
         final boolean clearClaim = endsClaim( current, next );
@@ -69,6 +70,7 @@ final class JdbcWorkItemWrites {
             final long holder = lockHolder( conn, current.id() );
             requireNotFenced( by, holder );
             requireNoLiveChange( conn, current, next );
+            requireShipped( conn, current, next, rules );
             final int rows = update( conn, current, next, body, new Flags( clearClaim, closing, reopening, ackRequired,
                 next.status() == WorkStatus.DONE && current.status() != WorkStatus.DONE,
                 current.status() == WorkStatus.DONE && next.status() != WorkStatus.DONE ) );
@@ -161,6 +163,20 @@ final class JdbcWorkItemWrites {
     private static void requireNotFenced( final Actor by, final long holder ) {
         if ( by.kind() == Actor.Kind.AGENT && holder != NO_HOLDER && holder != by.agentId() ) {
             throw new ClaimFenceException();
+        }
+    }
+
+    /**
+     * Under an epic whose done-means is "in production", work is done only once a verified deployment carried it.
+     * Checked with the item row locked, like the live-change rule; a deployment not yet committed as verified
+     * does not count.
+     */
+    private void requireShipped( final Connection conn, final Item current, final Item next, final CloseRules rules )
+            throws SQLException {
+        final boolean closes = next.status() == WorkStatus.DONE && current.status() != WorkStatus.DONE;
+        if ( closes && rules.needsDeployment() && !JdbcWorkDeployments.shippedVerified( jdbc, conn, current.id() ) ) {
+            throw new WorkConflictException( "This closes when a deployment that carries it is verified.",
+                WorkConflictException.AWAITING_DEPLOYMENT );
         }
     }
 

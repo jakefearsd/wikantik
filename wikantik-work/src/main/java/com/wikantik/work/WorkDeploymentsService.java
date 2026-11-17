@@ -154,6 +154,19 @@ public final class WorkDeploymentsService {
         return d.state().clearedToRun() && d.version().equals( version );
     }
 
+    /** The verified deployments that carried the item, most recent first: what it shipped in. */
+    public List< DeploymentView > shippedIn( final Actor a, final String itemKey ) throws SQLException {
+        final ItemScope is = scopes.itemScope( a, itemKey );
+        is.scope().require( Action.VIEW, is.item() );
+        final List< DeploymentView > out = new ArrayList<>();
+        for ( final Deployment d : store.deployments().carrying( is.item().id() ) ) {
+            if ( d.state() == DeploymentState.VERIFIED ) {
+                out.add( view( a, d ) );
+            }
+        }
+        return out;
+    }
+
     /** The deployments waiting for an approval this caller could give, oldest first. */
     public List< DeploymentView > awaitingMyApproval( final Actor a ) throws SQLException {
         final List< DeploymentView > out = new ArrayList<>();

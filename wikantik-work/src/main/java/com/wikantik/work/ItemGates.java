@@ -41,16 +41,32 @@ final class ItemGates {
     }
 
     /**
-     * Refuses, and records the refusal, a status change the item's level does not let this actor make. Returns
-     * whether the change closes the item with no person in its path, so that a person must acknowledge it.
-     * {@code target} is the requested status, null for one the caller could not name.
+     * Refuses, and records the refusal, a status change the item's level does not let this actor make, and says
+     * what a move to done must meet: whether it leaves no person in the item's path (so that one must acknowledge
+     * it) and whether the item's epic counts it done only in production. {@code target} is the requested status,
+     * null for one the caller could not name. A person passes every gate here, but the production rule is about
+     * the work, not about who asks, so it is reported for a person too.
      */
-    boolean requireStatusChange( final WorkScopes.Scope s, final Item item, final WorkStatus target )
+    CloseRules requireStatusChange( final WorkScopes.Scope s, final Item item, final WorkStatus target )
             throws SQLException {
-        if ( s.actor().kind() != Actor.Kind.AGENT ) {
-            return false;
+        final boolean agent = s.actor().kind() == Actor.Kind.AGENT;
+        final boolean closes = target == WorkStatus.DONE && item.status() != WorkStatus.DONE;
+        if ( !agent && !closes ) {
+            return CloseRules.NONE;
         }
         final EffectivePolicy policy = WorkAutonomy.resolve( store.policyChain( item.id() ) );
+        if ( agent ) {
+            gate( s, item, target, policy );
+        }
+        if ( !closes ) {
+            return CloseRules.NONE;
+        }
+        return new CloseRules( WorkGates.closesWithoutAPerson( s.actor(), policy ),
+            policy.doneWhen() == DoneMeans.IN_PRODUCTION && item.level() != WorkLevel.EPIC );
+    }
+
+    private void gate( final WorkScopes.Scope s, final Item item, final WorkStatus target,
+                       final EffectivePolicy policy ) {
         final Decision d = WorkPolicy.mayChangeStatus( s.actor(), item, target, policy );
         if ( WorkPolicy.approves( item, target ) ) {
             // a refusal here is the approve gate's; the close gate is only reached once it is passed
@@ -62,8 +78,6 @@ final class ItemGates {
         if ( !d.allowed() ) {
             s.refuse( Action.MOVE, d.reason() );
         }
-        return target == WorkStatus.DONE && item.status() != WorkStatus.DONE
-            && WorkGates.closesWithoutAPerson( s.actor(), policy );
     }
 
     /**

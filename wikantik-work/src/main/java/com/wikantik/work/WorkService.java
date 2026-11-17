@@ -330,12 +330,13 @@ public class WorkService {
             scopes.gates().requirePolicyChange( s, is.item(), changes );
         }
         s.requireWritable();
-        final boolean unattended = changes.containsKey( "status" )
-            && scopes.gates().requireStatusChange( s, is.item(), WorkPolicy.namedStatus( changes.get( "status" ) ) );
+        final CloseRules rules = changes.containsKey( "status" )
+            ? scopes.gates().requireStatusChange( s, is.item(), WorkPolicy.namedStatus( changes.get( "status" ) ) )
+            : CloseRules.NONE;
         final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
         scopes.gates().requireNoLoosening( s, is.item(), next );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
-        final Item saved = claims.write( stamped, next, actor, patch.note(), false, action, unattended );
+        final Item saved = claims.write( stamped, next, actor, patch.note(), false, action, rules );
         return views.view( s, saved );
     }
 

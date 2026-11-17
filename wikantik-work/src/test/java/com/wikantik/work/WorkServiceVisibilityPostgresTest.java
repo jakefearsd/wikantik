@@ -82,7 +82,7 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
 
@@ -136,6 +136,10 @@ class WorkServiceVisibilityPostgresTest {
             lena );
         // a deployment of "web" carrying PLAT-1, so the deployment reads return real data to prove against
         store.deployments().request( web, "production", "1.0", List.of( item ), lena );
+        final long shipped = store.deployments().request( web, "production", "0.9", List.of( item ), lena ).id();
+        store.deployments().move( shipped, DeploymentState.APPROVED, null, null, lena );
+        store.deployments().move( shipped, DeploymentState.RUNNING, null, null, lena );
+        store.deployments().move( shipped, DeploymentState.VERIFIED, "ok", null, lena );
         commentId = store.addComment( item, Actor.human( "lena", java.util.Set.of(), false ), "secret comment", List.of() ).id();
         linkId = store.addLink( item, "url", "https://example.com/secret", Actor.human( "lena", java.util.Set.of(), false ) ).id();
         service = new WorkService( store, md -> md, new WorkDirectory() {

@@ -98,6 +98,19 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
         return writeItem( current, next, by, note, asHandoff );
     }
 
+    /**
+     * {@link #writeItem} under the rules a move to {@code done} must meet: see {@link CloseRules}. A close that
+     * needs a verified deployment and has none is refused with
+     * {@link WorkConflictException#AWAITING_DEPLOYMENT}, decided with the item row locked.
+     */
+    default ItemWrite writeItem( final Item current, final Item next, final Actor by, final String note,
+                                 final boolean asHandoff, final CloseRules rules ) throws SQLException {
+        if ( rules.needsDeployment() ) {
+            throw new UnsupportedOperationException( "this store cannot check a close against deployments" );
+        }
+        return writeItem( current, next, by, note, asHandoff, rules.ackRequired() );
+    }
+
     /** {@link #writeItem} with field events. */
     default Item updateItem( final Item current, final Item next, final Actor by, final String note )
             throws SQLException {

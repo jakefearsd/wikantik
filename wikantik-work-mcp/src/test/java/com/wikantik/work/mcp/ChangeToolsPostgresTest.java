@@ -178,7 +178,7 @@ class ChangeToolsPostgresTest {
         ok( call( reviewer, "review_change", "change", id, "approved", true ) );
         // a person pushes another commit (the author agent is fenced off while the reviewer holds the item)
         assertFalse( f.svc.changes().update( f.lena, id, B, null ).approvedForHead() );
-        assertEquals( "denied: The agent that approved this change merges it.",
+        assertEquals( "not_approved: This change has no approval for its current commit.",
             refused( call( reviewer, "merge_change", "change", id, "merged_sha", B ) ) );
         ok( call( reviewer, "review_change", "change", id, "approved", true ) );
         assertEquals( "not_approved: This change has no approval for its current commit.",

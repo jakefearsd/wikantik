@@ -50,6 +50,7 @@ final class WorkChangeJson {
         final JsonObject o = tree.apply( v.change() ).getAsJsonObject();
         o.remove( "itemId" );
         o.remove( "productId" );
+        o.remove( "headAgentIds" );
         o.addProperty( "itemKey", v.itemKey() );
         o.addProperty( "productKey", v.productKey() );
         o.addProperty( "approvedForHead", v.change().approvedForHead() );

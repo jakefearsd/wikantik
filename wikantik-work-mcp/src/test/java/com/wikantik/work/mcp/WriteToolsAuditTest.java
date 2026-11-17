@@ -125,7 +125,7 @@ class WriteToolsAuditTest {
         final MockWork w = new MockWork();
         final com.wikantik.work.Change open = new com.wikantik.work.Change( 5, 1, 1, "work/PLAT-1-x", "main",
             "aaaaaaa1", null, com.wikantik.work.ChangeState.OPEN, null, null, "builder", 7L, null, null, null, null,
-            null, null, Instant.EPOCH, null );
+            null, null, Instant.EPOCH, null, null );
         when( w.changes.open( any(), any(), any() ) ).thenReturn( open );
         when( w.changes.view( any(), org.mockito.ArgumentMatchers.anyLong() ) )
             .thenReturn( new com.wikantik.work.WorkChangesService.ChangeView( open, "PLAT-1", "wikantik" ) );

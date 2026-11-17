@@ -21,7 +21,7 @@ package com.wikantik.work;
 /**
  * Who may pass each gate of an item's path: approving it as ready, reviewing a change, merging it, closing the
  * item. The gates restrict agents only: a person is never refused here, whatever the level. Two rules hold at
- * every level and are not configurable: an agent never reviews or merges a change it opened.
+ * every level and are not configurable: an agent never reviews or merges a change it opened or put a commit on.
  */
 public final class WorkGates {
 
@@ -48,23 +48,27 @@ public final class WorkGates {
 
     /** Recording a review of {@code c}. */
     public static Decision mayReview( final Actor a, final Change c ) {
-        return person( a ) || !opened( a, c ) ? Decision.allow() : Decision.deny( REVIEW_OWN );
+        return person( a ) || !authored( a, c ) ? Decision.allow() : Decision.deny( REVIEW_OWN );
     }
 
-    /** Reporting {@code c} merged. An agent must be the one whose approval stands on the current commit. */
+    /**
+     * Reporting {@code c} merged. An agent may not when it is one of the change's authors, at the supervised
+     * level, or when the approval standing on the current commit is another reviewer's. A change with no approval
+     * for its current commit passes here: that is not about who is asking, and the caller answers it as
+     * {@code not_approved}.
+     */
     public static Decision mayMerge( final Actor a, final Change c, final EffectivePolicy p ) {
         if ( person( a ) ) {
             return Decision.allow();
         }
-        if ( opened( a, c ) ) {
+        if ( authored( a, c ) ) {
             return Decision.deny( MERGE_OWN );
         }
         if ( p.level() == Autonomy.SUPERVISED ) {
             return Decision.deny( MERGE_SUPERVISED );
         }
-        final boolean approver = c.approvedForHead() && a.agentId() != null
-            && a.agentId().equals( c.reviewedByAgentId() );
-        return approver ? Decision.allow() : Decision.deny( MERGE_NOT_REVIEWER );
+        final boolean anothers = c.approvedForHead() && !a.agentId().equals( c.reviewedByAgentId() );
+        return anothers ? Decision.deny( MERGE_NOT_REVIEWER ) : Decision.allow();
     }
 
     /** Opening and merging a change in one step: a commit straight to the product's branch. */
@@ -82,7 +86,9 @@ public final class WorkGates {
         return a.kind() == Actor.Kind.HUMAN;
     }
 
-    private static boolean opened( final Actor a, final Change c ) {
-        return a.agentId() != null && a.agentId().equals( c.openedByAgentId() );
+    /** Whether the agent opened the change or set one of its commits: it is then its own work, not another's. */
+    private static boolean authored( final Actor a, final Change c ) {
+        return a.agentId() != null
+            && ( a.agentId().equals( c.openedByAgentId() ) || c.headAgentIds().contains( a.agentId() ) );
     }
 }

@@ -66,7 +66,8 @@ public final class ReviewChangeTool extends WorkMcpTool {
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
             .description( "Review a change that is in review. An approval is for the commit the change is at now: a "
-                + "later commit needs a new review. You may not review a change you opened. Returns the change. "
+                + "later commit needs a new review. You may not review a change you opened or put a commit on. Returns the "
+                + "change. "
                 + "Refusals: denied: (your own change, or another agent holds the item), not_in_review:, "
                 + "change_closed:." )
             .inputSchema( schema( props, List.of( "change", "approved" ) ) )

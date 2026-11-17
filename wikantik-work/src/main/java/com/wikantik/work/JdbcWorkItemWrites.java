@@ -69,7 +69,9 @@ final class JdbcWorkItemWrites {
             final long holder = lockHolder( conn, current.id() );
             requireNotFenced( by, holder );
             requireNoLiveChange( conn, current, next );
-            final int rows = update( conn, current, next, body, new Flags( clearClaim, closing, reopening, ackRequired ) );
+            final int rows = update( conn, current, next, body, new Flags( clearClaim, closing, reopening, ackRequired,
+                next.status() == WorkStatus.DONE && current.status() != WorkStatus.DONE,
+                current.status() == WorkStatus.DONE && next.status() != WorkStatus.DONE ) );
             if ( rows == 0 ) {
                 throw new WorkConflictException( "Item " + current.key() + " changed since version "
                     + current.version() );
@@ -101,7 +103,8 @@ final class JdbcWorkItemWrites {
     }
 
     /** What the write does besides copying fields. */
-    private record Flags( boolean clearClaim, boolean closing, boolean reopening, boolean ackRequired ) {
+    private record Flags( boolean clearClaim, boolean closing, boolean reopening, boolean ackRequired,
+                          boolean finishing, boolean leavingDone ) {
     }
 
     private int update( final Connection conn, final Item current, final Item next, final String body, final Flags f )
@@ -140,11 +143,11 @@ final class JdbcWorkItemWrites {
                 ps.setBoolean( 17, f.clearClaim() );
                 ps.setBoolean( 18, f.closing() );
                 ps.setBoolean( 19, f.reopening() );
-                ps.setBoolean( 20, f.closing() );
+                ps.setBoolean( 20, f.finishing() );
                 ps.setBoolean( 21, f.ackRequired() );
-                ps.setBoolean( 22, f.reopening() );
-                ps.setBoolean( 23, f.closing() || f.reopening() );
-                ps.setBoolean( 24, f.closing() || f.reopening() );
+                ps.setBoolean( 22, f.leavingDone() );
+                ps.setBoolean( 23, f.finishing() || f.leavingDone() );
+                ps.setBoolean( 24, f.finishing() || f.leavingDone() );
                 ps.setLong( 25, current.id() );
                 ps.setInt( 26, current.version() );
             } );

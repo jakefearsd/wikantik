@@ -33,6 +33,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class WorkPolicyFieldsPostgresTest {
 
     private static final String LOOSER = "Making this looser than it inherits takes a project lead.";
+    private static final String PIN = "Setting the level an item already inherits takes a project lead.";
+    private static final String MOVE = "Moving this to where agents may do more takes a project lead.";
 
     private GateFixture f;
     private Item epic;
@@ -56,15 +58,52 @@ class WorkPolicyFieldsPostgresTest {
 
     @Test
     void aMemberCannotMakeItLooser() throws SQLException {
-        assertEquals( LOOSER, denied( () -> f.set( f.mia, story, "autonomy", "autonomous" ) ) );
         f.level( epic, Autonomy.SUPERVISED );
         assertEquals( LOOSER, denied( () -> f.set( f.mia, story, "autonomy", "delegated" ) ) );
         assertNull( f.fresh( story ).autonomy() );
     }
 
     @Test
-    void aMemberMaySayWhatItAlreadyInherits() throws SQLException {
-        assertEquals( Autonomy.DELEGATED, f.set( f.mia, story, "autonomy", "delegated" ).autonomy() );
+    void aMemberCannotPinTheLevelAnItemAlreadyInherits() throws SQLException {
+        assertEquals( PIN, denied( () -> f.set( f.mia, story, "autonomy", "delegated" ) ),
+            "an own value would outlive a lead tightening the epic" );
+        assertNull( f.fresh( story ).autonomy() );
+    }
+
+    @Test
+    void onlyALeadSetsAutonomous() throws SQLException {
+        f.level( epic, Autonomy.AUTONOMOUS );
+        assertEquals( "This action needs the lead role; you hold member.",
+            denied( () -> f.set( f.mia, story, "autonomy", "autonomous" ) ), "even where the epic already is" );
+        assertEquals( Autonomy.AUTONOMOUS, f.set( f.lena, story, "autonomy", "autonomous" ).autonomy() );
+    }
+
+    @Test
+    void aMemberClearsALevelALeadLoosened() throws SQLException {
+        f.set( f.lena, story, "autonomy", "autonomous" );
+        assertNull( f.set( f.mia, story, "autonomy", null ).autonomy(), "back to the stricter level it inherits" );
+    }
+
+    @Test
+    void movingAnItemWhereAgentsMayDoMoreTakesALead() throws SQLException {
+        f.level( epic, Autonomy.SUPERVISED );
+        final Item loose = f.draft( WorkLevel.EPIC, null );
+        f.level( loose, Autonomy.AUTONOMOUS );
+        assertEquals( MOVE, denied( () -> f.set( f.mia, story, "parentKey", loose.key() ) ) );
+        assertEquals( "An agent may not change policy, manage a project or manage the work instance.",
+            denied( () -> f.set( f.author, story, "parentKey", loose.key() ) ) );
+        assertEquals( loose.id(), f.set( f.lena, story, "parentKey", loose.key() ).parentId() );
+        assertEquals( epic.id(), f.set( f.mia, story, "parentKey", epic.key() ).parentId(), "to a stricter epic is free" );
+    }
+
+    @Test
+    void retargetingToAProductWithAHigherCeilingTakesALead() throws SQLException {
+        f.svc.createProduct( f.admin, new Product( 0, "strict", "Strict", null, "main", null, Autonomy.SUPERVISED,
+            DeployGate.HUMAN, null ) );
+        assertEquals( "strict", f.svc.item( f.lena, f.set( f.mia, story, "productKey", "strict" ).key() ).productKey() );
+        assertEquals( MOVE, denied( () -> f.set( f.mia, story, "productKey", "wikantik" ) ) );
+        assertEquals( MOVE, denied( () -> f.set( f.mia, story, "productKey", null ) ), "no product, no ceiling" );
+        assertEquals( "wikantik", f.svc.item( f.lena, f.set( f.lena, story, "productKey", "wikantik" ).key() ).productKey() );
     }
 
     @Test

@@ -63,7 +63,8 @@ public final class MergeChangeTool extends WorkMcpTool {
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
             .description( "Report a change merged, after you merged it on the code host. Only the agent whose "
-                + "approval stands on the change's current commit may, and never the agent that opened it. Returns "
+                + "approval stands on the change's current commit may, and never an agent that opened it or put a commit "
+                + "on it. Returns "
                 + "the change. Refusals: denied: (not the approving reviewer, your own change, or a level where a "
                 + "person merges), not_approved: (the commit is not the approved one), change_closed:." )
             .inputSchema( schema( props, List.of( "change", "merged_sha" ) ) )

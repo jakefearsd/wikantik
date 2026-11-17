@@ -29,6 +29,8 @@ import java.util.Map;
 final class ItemGates {
 
     static final String LOOSER = "Making this looser than it inherits takes a project lead.";
+    static final String PIN = "Setting the level an item already inherits takes a project lead.";
+    static final String MOVED_LOOSER = "Moving this to where agents may do more takes a project lead.";
 
     private final WorkStore store;
     private final WorkScopes scopes;
@@ -65,24 +67,80 @@ final class ItemGates {
     }
 
     /**
-     * Who may set the policy fields: an agent none of them; done-means and direct commits a lead; a level that is
-     * looser than the item has now, a lead; a stricter one, any member who may edit the item.
+     * Who may set the policy fields: an agent none of them; done-means, direct commits and the autonomous level a
+     * lead. Anyone else who may edit the item may make it stricter: name a level stricter than the item inherits,
+     * tighten or clear a level a lead loosened. They may not loosen it, and may not pin the level it already
+     * inherits (an own value outlives a lead tightening the epic).
      */
     void requirePolicyChange( final WorkScopes.Scope s, final Item item, final Map< String, Object > changes )
             throws SQLException {
-        final boolean lead = WorkPolicy.may( s.actor(), s.role(), Action.SET_POLICY, item ).allowed();
-        if ( lead ) {
+        if ( WorkPolicy.may( s.actor(), s.role(), Action.SET_POLICY, item ).allowed() ) {
             return;
         }
+        final Autonomy named = PatchValues.autonomy( changes.get( "autonomy" ) );
         if ( s.actor().kind() == Actor.Kind.AGENT || changes.containsKey( "doneMeans" )
-            || changes.containsKey( "allowDirect" ) ) {
+            || changes.containsKey( "allowDirect" ) || named == Autonomy.AUTONOMOUS ) {
             s.require( Action.SET_POLICY, item );
         }
         final PolicyChain chain = store.policyChain( item.id() );
-        final Autonomy named = PatchValues.autonomy( changes.get( "autonomy" ) );
-        final Autonomy next = named != null ? named : WorkAutonomy.inherited( chain );
-        if ( next.looserThan( WorkAutonomy.uncapped( chain ) ) ) {
-            s.refuse( Action.SET_POLICY, LOOSER );
+        final Autonomy own = WorkAutonomy.own( chain );
+        final Autonomy inherited = WorkAutonomy.inherited( chain );
+        if ( named == null ) {
+            if ( own != null && inherited.looserThan( own ) ) {
+                s.refuse( Action.SET_POLICY, LOOSER );
+            }
+            return;
         }
+        final boolean tightens = inherited.looserThan( named ) || ( own != null && !named.looserThan( own ) );
+        if ( !tightens ) {
+            s.refuse( Action.SET_POLICY, named == inherited && own == null ? PIN : LOOSER );
+        }
+    }
+
+    /**
+     * A move to another parent or product that lets agents do more (a looser level, or direct commits) is a
+     * loosening like any other: it takes a lead, and an agent never makes it.
+     */
+    void requireNoLoosening( final WorkScopes.Scope s, final Item current, final Item next ) throws SQLException {
+        if ( java.util.Objects.equals( current.parentId(), next.parentId() )
+            && java.util.Objects.equals( current.productId(), next.productId() ) ) {
+            return;
+        }
+        final PolicyChain before = store.policyChain( current.id() );
+        final EffectivePolicy was = WorkAutonomy.resolve( before );
+        final EffectivePolicy willBe = WorkAutonomy.resolve( new PolicyChain( next, ancestorsOf( next ),
+            before.project(), productOf( next ) ) );
+        final boolean looser = willBe.level().looserThan( was.level() )
+            || ( willBe.directAllowed() && !was.directAllowed() );
+        if ( !looser || WorkPolicy.may( s.actor(), s.role(), Action.SET_POLICY, current ).allowed() ) {
+            return;
+        }
+        if ( s.actor().kind() == Actor.Kind.AGENT ) {
+            s.require( Action.SET_POLICY, current );
+        }
+        s.refuse( Action.SET_POLICY, MOVED_LOOSER );
+    }
+
+    private java.util.List< Item > ancestorsOf( final Item item ) throws SQLException {
+        if ( item.parentId() == null ) {
+            return java.util.List.of();
+        }
+        final PolicyChain parent = store.policyChain( item.parentId() );
+        final java.util.List< Item > ancestors = new java.util.ArrayList<>();
+        ancestors.add( parent.item() );
+        ancestors.addAll( parent.ancestors() );
+        return ancestors;
+    }
+
+    private Product productOf( final Item item ) throws SQLException {
+        if ( item.productId() == null ) {
+            return null;
+        }
+        for ( final Product p : store.products() ) {
+            if ( p.id() == item.productId() ) {
+                return p;
+            }
+        }
+        return null;
     }
 }

@@ -68,6 +68,20 @@ class WorkItemGatesPostgresTest {
     }
 
     @Test
+    void cancellingDoesNotGetAroundTheApproval() throws SQLException {
+        final Item d = f.task();
+        f.status( f.lena, d, "refining" );
+        assertEquals( WorkStatus.CANCELLED, f.status( f.author, d, "cancelled" ).status(), "an agent may cancel" );
+        assertEquals( APPROVE, denied( () -> f.status( f.author, d, "ready" ) ), "and may not revive it as ready" );
+        assertEquals( APPROVE, denied( () -> f.status( f.author, d, "done" ) ) );
+        assertEquals( APPROVE, denied( () -> f.handoff( f.author, d, WorkStatus.READY, "lena", null ) ) );
+        assertEquals( WorkStatus.REFINING, f.status( f.author, d, "refining" ).status(), "back to refining approves nothing" );
+        f.status( f.lena, d, "cancelled" );
+        f.level( d, Autonomy.AUTONOMOUS );
+        assertEquals( WorkStatus.READY, f.status( f.author, d, "ready" ).status() );
+    }
+
+    @Test
     void aHolderHandingAClaimedItemToAnotherQueueAsReadyIsNotAnApproval() throws SQLException {
         final Item d = f.task();
         f.claimedBy( f.author, d );

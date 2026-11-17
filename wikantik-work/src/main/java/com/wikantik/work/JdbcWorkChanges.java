@@ -39,7 +39,7 @@ final class JdbcWorkChanges implements WorkChangeStore {
 
     private static final String COLUMNS = "id, item_id, product_id, branch, base_branch, head_sha, review_url, state, "
         + "merged_sha, merge_kind, opened_by, opened_by_agent_id, reviewed_by, reviewed_by_agent_id, "
-        + "reviewed_head_sha, reviewed_at, merged_by, merged_by_agent_id, opened_at, closed_at";
+        + "reviewed_head_sha, reviewed_at, merged_by, merged_by_agent_id, opened_at, closed_at, head_agent_ids";
 
     private static final String SELECT = "SELECT " + COLUMNS + " FROM work_change";
 
@@ -53,7 +53,19 @@ final class JdbcWorkChanges implements WorkChangeStore {
         rs.getString( "opened_by" ), SqlValues.nullableLong( rs, "opened_by_agent_id" ),
         rs.getString( "reviewed_by" ), SqlValues.nullableLong( rs, "reviewed_by_agent_id" ),
         rs.getString( "reviewed_head_sha" ), instant( rs, "reviewed_at" ), rs.getString( "merged_by" ),
-        SqlValues.nullableLong( rs, "merged_by_agent_id" ), instant( rs, "opened_at" ), instant( rs, "closed_at" ) );
+        SqlValues.nullableLong( rs, "merged_by_agent_id" ), instant( rs, "opened_at" ), instant( rs, "closed_at" ),
+        agentIds( rs.getArray( "head_agent_ids" ) ) );
+
+    private static List< Long > agentIds( final java.sql.Array array ) throws SQLException {
+        if ( array == null ) {
+            return List.of();
+        }
+        final List< Long > ids = new java.util.ArrayList<>();
+        for ( final Object id : ( Object[] ) array.getArray() ) {
+            ids.add( ( ( Number ) id ).longValue() );
+        }
+        return ids;
+    }
 
     private final Jdbc jdbc;
     private final JdbcWorkCatalog catalog;
@@ -114,8 +126,10 @@ final class JdbcWorkChanges implements WorkChangeStore {
         final Long mergedByAgent = direct ? by.agentId() : null;
         return jdbc.queryOne( conn, """
             INSERT INTO work_change (item_id, product_id, branch, base_branch, head_sha, review_url, state,
-                merged_sha, merge_kind, opened_by, opened_by_agent_id, merged_by, merged_by_agent_id, closed_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, CASE WHEN ? THEN NOW() ELSE NULL END) RETURNING id
+                merged_sha, merge_kind, opened_by, opened_by_agent_id, merged_by, merged_by_agent_id, closed_at,
+                head_agent_ids)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, CASE WHEN ? THEN NOW() ELSE NULL END,
+                CASE WHEN ?::bigint IS NULL THEN '{}'::bigint[] ELSE ARRAY[ ?::bigint ] END) RETURNING id
             """, ps -> {
                 ps.setLong( 1, item.id() );
                 ps.setLong( 2, productId );
@@ -131,6 +145,10 @@ final class JdbcWorkChanges implements WorkChangeStore {
                 ps.setString( 12, mergedBy );
                 setNullableLong( ps, 13, mergedByAgent );
                 ps.setBoolean( 14, direct );
+                // an agent that names a commit when opening is that commit's author
+                final Long author = direct || d.headSha() != null ? by.agentId() : null;
+                setNullableLong( ps, 15, author );
+                setNullableLong( ps, 16, author );
             }, rs -> rs.getLong( 1 ) )
             .orElseThrow( () -> new SQLException( "INSERT work_change returned no row" ) );
     }
@@ -157,7 +175,9 @@ final class JdbcWorkChanges implements WorkChangeStore {
                     reviewed_by = CASE WHEN ? THEN NULL ELSE reviewed_by END,
                     reviewed_by_agent_id = CASE WHEN ? THEN NULL ELSE reviewed_by_agent_id END,
                     reviewed_head_sha = CASE WHEN ? THEN NULL ELSE reviewed_head_sha END,
-                    reviewed_at = CASE WHEN ? THEN NULL ELSE reviewed_at END
+                    reviewed_at = CASE WHEN ? THEN NULL ELSE reviewed_at END,
+                    head_agent_ids = CASE WHEN ?::bigint IS NULL OR ?::bigint = ANY( head_agent_ids )
+                        THEN head_agent_ids ELSE array_append( head_agent_ids, ?::bigint ) END
                  WHERE id = ?
                 """, ps -> {
                     ps.setString( 1, head );
@@ -166,7 +186,12 @@ final class JdbcWorkChanges implements WorkChangeStore {
                     ps.setBoolean( 4, moved );
                     ps.setBoolean( 5, moved );
                     ps.setBoolean( 6, moved );
-                    ps.setLong( 7, id );
+                    // an agent that sets a new commit becomes one of the change's authors, for good
+                    final Long author = moved ? by.agentId() : null;
+                    setNullableLong( ps, 7, author );
+                    setNullableLong( ps, 8, author );
+                    setNullableLong( ps, 9, author );
+                    ps.setLong( 10, id );
                 } );
             event( conn, item, id, by, WorkEvent.CHANGE_UPDATED, head, null );
         } );

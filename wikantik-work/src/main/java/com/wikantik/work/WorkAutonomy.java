@@ -38,6 +38,11 @@ public final class WorkAutonomy {
         return new EffectivePolicy( level, allowDirect( chain ), doneMeans( chain ) );
     }
 
+    /** The level set on the item itself, or null when it sets none. */
+    public static Autonomy own( final PolicyChain chain ) {
+        return chain.item().autonomy();
+    }
+
     /** The item's own level, else what it inherits, before the product's ceiling. */
     public static Autonomy uncapped( final PolicyChain chain ) {
         final Autonomy own = chain.item().autonomy();

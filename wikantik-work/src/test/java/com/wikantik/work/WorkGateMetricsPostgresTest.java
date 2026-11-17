@@ -73,12 +73,14 @@ class WorkGateMetricsPostgresTest {
             new ChangeDraft( "work/PLAT-1-x", null, "aaaaaaa1", null, null ) );
         f.svc.changes().requestReview( f.author, c.id() );
         assertThrows( WorkDeniedException.class, () -> f.svc.changes().review( f.author, c.id(), true, null ) );
+        assertThrows( WorkConflictException.class, () -> f.svc.changes().merge( f.reviewer, c.id(), "aaaaaaa1" ) );
         f.svc.changes().review( f.reviewer, c.id(), true, null );
         assertThrows( WorkDeniedException.class, () -> f.svc.changes().merge( f.author, c.id(), "aaaaaaa1" ) );
         f.svc.changes().merge( f.reviewer, c.id(), "aaaaaaa1" );
         assertThrows( WorkDeniedException.class, () -> f.svc.changes().open( f.author, item.key(),
             new ChangeDraft( "main", null, null, null, "bbbbbbb2" ) ) );
-        assertEquals( List.of( "review:refused", "review:allowed", "merge:refused", "merge:allowed", "direct:refused" ),
+        assertEquals( List.of( "review:refused", "merge:refused", "review:allowed", "merge:refused", "merge:allowed",
+            "direct:refused" ),
             gates );
     }
 

@@ -282,10 +282,10 @@ Registered in `WorkMcpInitializer.assembleTools` and verified against `WorkMcpIT
 | `create_item` | Create a draft item for a person to refine | write |
 | `open_change` | Record a branch of work on an item; with a merged commit, record a change merged directly (needs a lead to have allowed direct commits) | write |
 | `update_change` | A change's newest commit or review link; ask for a review; abandon it | write |
-| `review_change` | Approve a change at its current commit, or send it back. Never the agent that opened it | write |
+| `review_change` | Approve a change at its current commit, or send it back. Never an agent that opened it or put a commit on it | write |
 | `merge_change` | Report a change merged. Only the agent whose approval stands on the current commit, and only above the supervised level | write |
 
-`get_item` and `claim_item` also show the item's changes and its `effective` autonomy level (`supervised`, `delegated` or `autonomous`), which decides what an agent may do without a person: approve work as ready (autonomous only), merge what it reviewed and close the item (delegated and autonomous). An approval is for one commit, an agent never reviews or merges a change it opened, and an item cannot be done while one of its changes is open or in review.
+`get_item` and `claim_item` also show the item's changes and its `effective` autonomy level (`supervised`, `delegated` or `autonomous`), which decides what an agent may do without a person: approve work as ready (autonomous only), merge what it reviewed and close the item (delegated and autonomous). An approval is for one commit, an agent never reviews or merges a change it opened or put a commit on, and an item cannot be done while one of its changes is open or in review.
 
 Refusals come back as tool errors with a stable prefix (`denied:`, `stale:`, `not_claimable:`, `not_claimed:`, `archived:`, `open_changes:`, `not_approved:`, `not_in_review:`, `change_closed:`, or the name of the field at fault); an unknown or hidden item is always `Not found.`
 

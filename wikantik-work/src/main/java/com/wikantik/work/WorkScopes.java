@@ -105,11 +105,16 @@ final class WorkScopes {
      * decision and is not reported.
      */
     void decide( final Scope s, final String gate, final Action action, final Decision d ) {
-        if ( s.actor().kind() == Actor.Kind.AGENT ) {
-            gateListener.accept( gate, d.allowed() );
-        }
+        decide( s, gate, d );
         if ( !d.allowed() ) {
             s.refuse( action, d.reason() );
+        }
+    }
+
+    /** Reports how an agent fared at a gate, for a caller that answers the refusal itself. */
+    void decide( final Scope s, final String gate, final Decision d ) {
+        if ( s.actor().kind() == Actor.Kind.AGENT ) {
+            gateListener.accept( gate, d.allowed() );
         }
     }
 

@@ -35,6 +35,13 @@ public final class WorkPolicy {
     private static final java.util.Set< Action > LEAD_ACTIONS = java.util.EnumSet.of( Action.MANAGE_PROJECT,
         Action.SET_POLICY, Action.MANAGE_AGENT );
 
+    /**
+     * Besides draft, the statuses a move forward from is an approval: refining, and cancelled too, or an agent
+     * could cancel refined work and bring it back as ready.
+     */
+    private static final java.util.Set< WorkStatus > REVIVABLE = java.util.EnumSet.of( WorkStatus.REFINING,
+        WorkStatus.CANCELLED );
+
     private WorkPolicy() {
     }
 
@@ -76,7 +83,8 @@ public final class WorkPolicy {
      * Whether {@code actor} may set the status of {@code item} to {@code target} under {@code policy}, the item's
      * effective policy. People are not restricted. An agent moves an item out of {@code draft} only at the
      * autonomous level (the owner approved agent-created items on condition that a person refines and promotes
-     * them); it approves refined work as ready only there too; and it closes work only above the supervised level.
+     * them); it approves refined work as ready only there too (and likewise brings cancelled work back); and it
+     * closes work only above the supervised level.
      * A null {@code target} stands for some status the caller could not name, so it counts as a move forward.
      */
     public static Decision mayChangeStatus( final Actor actor, final Item item, final WorkStatus target,
@@ -89,7 +97,7 @@ public final class WorkPolicy {
             return Decision.deny( target == WorkStatus.CANCELLED ? "A person cancels or moves a draft."
                 : "A person moves a draft forward." );
         }
-        if ( item.status() == WorkStatus.REFINING && !BEFORE_READY.contains( target ) ) {
+        if ( REVIVABLE.contains( item.status() ) && !BEFORE_READY.contains( target ) ) {
             final Decision approve = WorkGates.mayApprove( actor, policy );
             if ( !approve.allowed() ) {
                 return approve;
@@ -101,7 +109,7 @@ public final class WorkPolicy {
     /** Whether moving {@code item} to {@code target} takes it out of draft or refining: an approval as ready. */
     static boolean approves( final Item item, final WorkStatus target ) {
         return ( item.status() == WorkStatus.DRAFT && target != WorkStatus.DRAFT )
-            || ( item.status() == WorkStatus.REFINING && !BEFORE_READY.contains( target ) );
+            || ( REVIVABLE.contains( item.status() ) && !BEFORE_READY.contains( target ) );
     }
 
     /** The status a patch names, or null when it names none or one that does not exist (which counts as a move). */

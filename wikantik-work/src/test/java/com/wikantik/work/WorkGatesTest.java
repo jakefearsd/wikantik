@@ -53,7 +53,7 @@ class WorkGatesTest {
     private static Change change( final String head, final String approvedHead ) {
         return new Change( 1, 1, 1, "work/PLAT-1-x", "main", head, null, ChangeState.IN_REVIEW, null, null,
             "author-bot", OPENER, approvedHead == null ? null : "review-bot", approvedHead == null ? null : REVIEWER,
-            approvedHead, approvedHead == null ? null : Instant.EPOCH, null, null, Instant.EPOCH, null );
+            approvedHead, approvedHead == null ? null : Instant.EPOCH, null, null, Instant.EPOCH, null, null );
     }
 
     private static String outcome( final Decision d ) {
@@ -121,26 +121,37 @@ class WorkGatesTest {
     }
 
     @Test
-    void anApprovalForAnOlderCommitDoesNotLetTheReviewerMerge() {
+    void aChangeWithNoApprovalForItsCommitIsNotAQuestionOfWhoAsks() {
         final Change moved = change( "bbb2222", "aaa1111" );
         assertFalse( moved.approvedForHead() );
-        assertEquals( "The agent that approved this change merges it.",
-            WorkGates.mayMerge( who( "reviewer" ), moved, policy( Autonomy.DELEGATED, false ) ).reason() );
+        assertTrue( WorkGates.mayMerge( who( "reviewer" ), moved, policy( Autonomy.DELEGATED, false ) ).allowed(),
+            "the gate passes; the service answers not_approved" );
         assertFalse( change( "aaa1111", null ).approvedForHead() );
         assertFalse( change( null, null ).approvedForHead(), "no commit, nothing approved" );
     }
 
     @Test
+    void anAgentThatPutACommitOnAChangeIsOneOfItsAuthors() {
+        final Change c = new Change( 1, 1, 1, "b", "main", "aaa1111", null, ChangeState.IN_REVIEW, null, null,
+            "author-bot", OPENER, "other-bot", THIRD, "aaa1111", Instant.EPOCH, null, null, Instant.EPOCH, null,
+            java.util.List.of( REVIEWER ) );
+        assertEquals( "An agent may not review its own change.", WorkGates.mayReview( who( "reviewer" ), c ).reason() );
+        assertEquals( "An agent may not merge its own change.",
+            WorkGates.mayMerge( who( "reviewer" ), c, policy( Autonomy.DELEGATED, false ) ).reason() );
+        assertTrue( WorkGates.mayMerge( who( "third" ), c, policy( Autonomy.DELEGATED, false ) ).allowed() );
+    }
+
+    @Test
     void aChangeAPersonOpenedMayBeReviewedByAnyAgent() {
         final Change byPerson = new Change( 1, 1, 1, "b", "main", "aaa1111", null, ChangeState.IN_REVIEW, null, null,
-            "alice", null, null, null, null, null, null, null, Instant.EPOCH, null );
+            "alice", null, null, null, null, null, null, null, Instant.EPOCH, null, null );
         assertTrue( WorkGates.mayReview( who( "opener" ), byPerson ).allowed() );
     }
 
     @Test
     void aPersonIsNeverRefused() {
         final Change own = new Change( 1, 1, 1, "b", "main", "aaa1111", null, ChangeState.OPEN, null, null,
-            "alice", null, null, null, null, null, null, null, Instant.EPOCH, null );
+            "alice", null, null, null, null, null, null, null, Instant.EPOCH, null, null );
         for ( final Autonomy level : Autonomy.values() ) {
             final EffectivePolicy p = policy( level, false );
             assertTrue( WorkGates.mayApprove( PERSON, p ).allowed() );

@@ -79,6 +79,18 @@ class WorkAcknowledgePostgresTest {
     }
 
     @Test
+    void anAutonomousCloseByWayOfCancelledIsFlaggedToo() throws SQLException {
+        final Item d = f.task();
+        f.level( d, Autonomy.AUTONOMOUS );
+        f.claimedBy( f.author, d );
+        f.status( f.author, d, "cancelled" );
+        f.status( f.author, d, "done" );
+        assertTrue( ack( d ).required(), "cancelled then done is still a close with no person in the path" );
+        f.status( f.lena, d, "cancelled" );
+        assertFalse( ack( d ).required(), "leaving done clears it" );
+    }
+
+    @Test
     void aDelegatedAgentCloseIsNot() throws SQLException {
         assertFalse( ack( closedByAgent( Autonomy.DELEGATED ) ).required() );
     }

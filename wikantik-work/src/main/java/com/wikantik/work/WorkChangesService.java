@@ -154,12 +154,14 @@ public final class WorkChangesService {
         final String sha = ChangeInputs.requiredSha( "mergedSha", mergedSha );
         final EffectivePolicy policy = WorkAutonomy.resolve( store.policyChain( is.item().id() ) );
         return store.changes().merge( is.item(), changeId, sha, locked -> {
-            scopes.decide( is.scope(), "merge", Action.MERGE_CHANGE, WorkGates.mayMerge( a, locked, policy ) );
+            final Decision who = WorkGates.mayMerge( a, locked, policy );
             final boolean reviewed = locked.approvedForHead() && sha.equals( locked.headSha() );
-            if ( a.kind() == Actor.Kind.AGENT && !reviewed ) {
+            if ( who.allowed() && a.kind() == Actor.Kind.AGENT && !reviewed ) {
+                scopes.decide( is.scope(), "merge", Decision.deny( "not approved" ) );
                 throw new WorkConflictException( "This change has no approval for its current commit.",
                     WorkConflictException.NOT_APPROVED );
             }
+            scopes.decide( is.scope(), "merge", Action.MERGE_CHANGE, who );
             return reviewed ? MergeKind.REVIEWED : MergeKind.UNREVIEWED;
         }, a );
     }

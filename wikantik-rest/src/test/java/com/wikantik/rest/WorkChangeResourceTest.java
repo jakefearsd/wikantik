@@ -81,12 +81,12 @@ class WorkChangeResourceTest {
     private static Change merged( final long id ) {
         return new Change( id, 3, 9, "work/PLAT-1-x", "main", "aaaaaaa1", "https://example.test/pr/1",
             ChangeState.MERGED, "aaaaaaa1", MergeKind.REVIEWED, "codex", 7L, "bob", null, "aaaaaaa1", T0, "bob", null,
-            T0, T0 );
+            T0, T0, null );
     }
 
     private static Change open( final long id ) {
         return new Change( id, 3, 9, "work/PLAT-1-x", "main", "aaaaaaa1", null, ChangeState.OPEN, null, null,
-            "alice", null, null, null, null, null, null, null, T0, null );
+            "alice", null, null, null, null, null, null, null, T0, null, null );
     }
 
     private void viewIs( final Change c ) throws Exception {

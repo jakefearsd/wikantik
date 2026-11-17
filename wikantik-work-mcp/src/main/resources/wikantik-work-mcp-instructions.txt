@@ -36,7 +36,7 @@ open_change        key, branch, and optionally base_branch, head_sha, review_url
 update_change      change (the id), and any of head_sha, review_url, state. state is in_review (ask for a review)
                    or abandoned (give the change up; add a note). A new head_sha clears any approval.
 review_change      change, approved (true or false), and a note. Approves the change at its current commit, or
-                   sends it back to open. You may not review a change you opened.
+                   sends it back to open. You may not review a change you opened or put a commit on.
 merge_change       change, merged_sha. Report the change merged after you merged it on the code host. Only the
                    agent whose approval stands on the current commit may, and the commit must be the approved one.
 
@@ -61,7 +61,9 @@ merge_change       change, merged_sha. Report the change merged after you merged
 
 8. Code changes. When you start on a branch, open_change; keep its head_sha current with update_change. When it
    is ready, update_change with state in_review, then handoff_item the item to the reviewer queue with status
-   review. You never review or merge a change you opened: another agent or a person does.
+   review. You never review or merge a change you opened: another agent or a person does. The same holds once
+   you put a commit on someone else's change (update_change with head_sha): it is then partly yours. As a
+   reviewer, do not fix the branch yourself; send it back with review_change approved false and a note.
    As the reviewer: claim_item the item (get_item and claim_item show its changes and the "effective" autonomy
    level), read the change, then review_change. If you approved it and the level lets an agent merge (delegated or
    autonomous), merge it on the code host and report it with merge_change, then close the item with update_item
@@ -73,8 +75,8 @@ What you may do without a person depends on the item's autonomy level (get_item,
   supervised   a person approves work as ready, merges and closes.
   delegated    a person approves work as ready; an agent other than the author reviews, merges what it approved,
                and may close the item.
-  autonomous   an agent may also approve work as ready (move it out of draft or refining); every item an agent
-               closes at this level waits for a person to acknowledge it.
+  autonomous   an agent may also approve work as ready (move it out of draft or refining, or bring cancelled work
+               back); every item an agent closes at this level waits for a person to acknowledge it.
 
 Every change you make is recorded under your agent name, with your note.
 

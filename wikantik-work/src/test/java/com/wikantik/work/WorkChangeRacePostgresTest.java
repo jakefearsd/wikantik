@@ -94,8 +94,8 @@ class WorkChangeRacePostgresTest {
         gate.open();
         push.get( 30, TimeUnit.SECONDS );
         final ExecutionException e = assertThrows( ExecutionException.class, () -> merge.get( 30, TimeUnit.SECONDS ) );
-        assertEquals( "The agent that approved this change merges it.",
-            assertInstanceOf( WorkDeniedException.class, e.getCause() ).reason(),
+        assertEquals( WorkConflictException.NOT_APPROVED,
+            assertInstanceOf( WorkConflictException.class, e.getCause() ).reason(),
             "the approval was for the older commit: decided on the row under lock, not on the earlier read" );
         assertEquals( 0, count( "change_merged" ) );
     }

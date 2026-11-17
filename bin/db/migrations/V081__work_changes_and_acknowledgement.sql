@@ -44,8 +44,11 @@ CREATE TABLE IF NOT EXISTS work_change (
     merged_by_agent_id   BIGINT REFERENCES work_agent (id),
     opened_at            TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     closed_at            TIMESTAMP WITH TIME ZONE,
+    head_agent_ids       BIGINT[] NOT NULL DEFAULT '{}',
     CONSTRAINT work_change_merge_kind_chk CHECK ((state = 'merged') = (merge_kind IS NOT NULL))
 );
+-- The agents that have set a commit of the change: its authors, which may neither review nor merge it.
+ALTER TABLE work_change ADD COLUMN IF NOT EXISTS head_agent_ids BIGINT[] NOT NULL DEFAULT '{}';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_work_change_live_branch ON work_change (item_id, branch)
     WHERE state IN ('open', 'in_review');
 CREATE INDEX IF NOT EXISTS idx_work_change_item ON work_change (item_id);

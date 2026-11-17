@@ -326,6 +326,7 @@ public class WorkService {
         final boolean unattended = changes.containsKey( "status" )
             && scopes.gates().requireStatusChange( s, is.item(), WorkPolicy.namedStatus( changes.get( "status" ) ) );
         final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
+        scopes.gates().requireNoLoosening( s, is.item(), next );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
         final Item saved = claims.write( stamped, next, actor, patch.note(), false, action, unattended );
         return views.view( s, saved );

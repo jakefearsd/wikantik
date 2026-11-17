@@ -186,8 +186,7 @@ class WorkChangeGatesPostgresTest {
     @Test
     void theApprovingAgentMergesAtDelegatedAndAThirdAgentCannot() throws SQLException {
         final Change c = inReview();
-        assertEquals( "The agent that approved this change merges it.",
-            denied( () -> changes.merge( f.reviewer, c.id(), A ) ), "no approval yet" );
+        assertEquals( "not_approved", conflict( () -> changes.merge( f.reviewer, c.id(), A ) ), "no approval yet" );
         changes.review( f.reviewer, c.id(), true, null );
         final Agent third = f.svc.registry().registerAgent( f.admin,
             new AgentDraft( "third", "", "", List.of( "reviewer" ) ) ).agent();
@@ -202,6 +201,40 @@ class WorkChangeGatesPostgresTest {
         assertNotNull( merged.closedAt() );
         assertEquals( 1, f.count( "SELECT count(*) FROM work_event WHERE type = 'change_merged' "
             + "AND to_value = 'reviewed' AND note = '" + A + "'" ) );
+    }
+
+    private Actor thirdAgent() throws SQLException {
+        final Agent third = f.svc.registry().registerAgent( f.admin,
+            new AgentDraft( "third-bot", "", "", List.of( "reviewer" ) ) ).agent();
+        f.svc.putMember( f.admin, "PLAT", "third-bot", "agent", WorkRole.MEMBER );
+        return Actor.agent( third.id(), "third-bot", f.admin );
+    }
+
+    @Test
+    void aReviewerThatPushedACommitCannotReviewOrMergeIt() throws SQLException {
+        final Change c = inReview();
+        changes.update( f.reviewer, c.id(), B, null );
+        assertEquals( "An agent may not review its own change.",
+            denied( () -> changes.review( f.reviewer, c.id(), true, null ) ),
+            "the commit under review is the reviewer's own" );
+        final Actor third = thirdAgent();
+        changes.review( third, c.id(), true, null );
+        assertEquals( "An agent may not merge its own change.", denied( () -> changes.merge( f.reviewer, c.id(), B ) ) );
+        assertEquals( MergeKind.REVIEWED, changes.merge( third, c.id(), B ).mergeKind() );
+    }
+
+    @Test
+    void anAgentThatEverPushedToAChangeStaysAnAuthorOfIt() throws SQLException {
+        final Change c = inReview();
+        changes.update( f.reviewer, c.id(), B, null );
+        changes.update( f.mia, c.id(), "ccccccc3", null );
+        assertEquals( "An agent may not review its own change.",
+            denied( () -> changes.review( f.reviewer, c.id(), true, null ) ),
+            "a later commit by someone else does not make its earlier commits someone else's" );
+        changes.update( f.reviewer, c.id(), null, "https://example.test/pr/9" );
+        assertEquals( List.of( f.author.agentId(), f.reviewer.agentId() ),
+            changes.list( f.lena, item.key() ).get( 0 ).headAgentIds(),
+            "the agent that opened it with a commit and the one that pushed; a person and a review link add nobody" );
     }
 
     @Test
@@ -219,8 +252,8 @@ class WorkChangeGatesPostgresTest {
         final Change c = inReview();
         changes.review( f.reviewer, c.id(), true, null );
         changes.update( f.author, c.id(), B, null );
-        assertEquals( "The agent that approved this change merges it.",
-            denied( () -> changes.merge( f.reviewer, c.id(), B ) ) );
+        assertEquals( "not_approved", conflict( () -> changes.merge( f.reviewer, c.id(), B ) ),
+            "the approval was for the older commit: ask for a review of this one" );
         changes.review( f.reviewer, c.id(), true, null );
         assertEquals( "not_approved", conflict( () -> changes.merge( f.reviewer, c.id(), A ) ),
             "the merged commit must be the approved one" );

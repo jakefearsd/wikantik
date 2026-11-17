@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Front page: the Personal Finance, Investing & Geopolitics section is gone and the description no longer mentions finance (`Main.pins.yaml`, `Main.md` regenerated).
+
 ## [2.6.2] - 2026-11-17
 
 ### Changed

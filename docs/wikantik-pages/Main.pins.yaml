@@ -16,7 +16,7 @@
 
 # The front page's <title>, its <h1> and its search-result description (keep the summary at 50-160 characters).
 title: 'Wikantik: Agent-Grade Technical Knowledge Wiki'
-summary: 'A technical knowledge wiki for human reading and AI agent retrieval: 1,300+ articles on software, math, finance and engineering, with MCP tools.'
+summary: 'A technical knowledge wiki for human reading and AI agent retrieval: 1,300+ articles on software, AI, math and engineering, with MCP tools.'
 
 intro: |-
   **Wikantik is an agent-grade technical knowledge platform — engineered simultaneously for human deep reading and native AI agent retrieval, graph traversal, and software engineering coordination.** Every page is stored as structured Markdown with validated YAML frontmatter, rename-safe ULIDs (`canonical_id`), and explicit cluster declarations.
@@ -173,27 +173,3 @@ sections:
   - id: 01KQ0P44SAH60A7F88VHYD18BP
     title: Mathematical Foundations of Machine Learning
     summary: Matrix factorizations, automatic differentiation, information-theoretic divergence, and non-convex optimization landscapes
-- label: Personal Finance, Investing & Geopolitics
-  cluster: personal-finance
-  pages:
-  - id: 01KZHC6PVN4SBQM9R0F3T7K8Y2
-    title: Personal Finance & Tax Strategy Hub
-    summary: Household balance-sheet optimization, marginal tax planning, debt amortization math, estate structures, and risk management
-  - id: 01KQ0P44S4Y86MVCMAK9KJ3P9Y
-    title: Low-Cost Index Fund Investing Hub
-    summary: Modern Portfolio Theory, factor exposure, tax-efficient asset location, tolerance-band rebalancing, and early retirement accumulation
-  - id: 01KQ0P44VPKV01K0CMG0RNZ71A
-    title: Retirement Decumulation & Income Guide
-    summary: Safe withdrawal rates, sequence-of-returns mitigation, Roth conversion ladders, Social Security bend-point math, and ACA/Medicare thresholds
-  - id: 01KQ0P44Q77D4ZERJ5ZN2N571W
-    title: European Retirement & Cross-Border Investing Guide
-    summary: Three-pillar EU pension architecture, UCITS ETF taxation, and country-specific regulatory frameworks across Europe
-  - id: 01J7KQTCD38PBFSD7TD6ACJFD6
-    title: Geopolitics & Global Financial Markets Hub
-    summary: Econometric analysis of sovereign debt cycles, commodity supply shocks, trade corridors, and equity drawdown recovery coefficients
-  - id: 01KQ0P44NWKXBXJ0KB3SMAE0QY
-    title: International Conflicts and Equity Markets
-    summary: Historical market drawdowns, volatility regimes, and sector rotation patterns from WWI through modern geopolitical crises
-  - id: 01KQ0P44VZN6EV310SWYP621WF
-    title: 'The Russia-Ukraine War: Strategic & Economic Analysis'
-    summary: Attrition dynamics, autonomous drone warfare, energy infrastructure targeting, sanctions routing, and defense-industrial scaling

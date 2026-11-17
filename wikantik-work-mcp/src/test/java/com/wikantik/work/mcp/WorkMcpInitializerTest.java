@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -169,5 +170,52 @@ class WorkMcpInitializerTest {
     void serverInstructionsAreTheClasspathResource() {
         assertNotNull( WorkMcpInitializer.serverInstructions() );
         org.junit.jupiter.api.Assertions.assertFalse( WorkMcpInitializer.serverInstructions().isBlank() );
+    }
+
+    @Test
+    void aFailedFilterRegistrationStopsBeforeTheServlet() {
+        final ServletContext ctx = mock( ServletContext.class );
+        when( ctx.addFilter( anyString(), any( Filter.class ) ) ).thenThrow( new IllegalStateException( "context started" ) );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.workService() ).thenReturn( mock( WorkService.class ) );
+        ApiKeyServiceHolder.setForTesting( mock( ApiKeyService.class ) );
+        final WorkMcpInitializer initializer = new WorkMcpInitializer();
+        start( initializer, ctx, engine );
+        verify( ctx, never() ).addServlet( anyString(), any( Servlet.class ) );
+        verify( ctx, never() ).setAttribute( eq( WorkMcpInitializer.ATTR_WORK_MCP_SERVER ), any() );
+        initializer.contextDestroyed( mock( ServletContextEvent.class ) );
+    }
+
+    @Test
+    void aFailedServletRegistrationLeavesNoServer() {
+        final ServletContext ctx = mock( ServletContext.class );
+        when( ctx.addFilter( anyString(), any( Filter.class ) ) ).thenReturn( mock( FilterRegistration.Dynamic.class ) );
+        when( ctx.addServlet( anyString(), any( Servlet.class ) ) ).thenThrow( new IllegalStateException( "context started" ) );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.workService() ).thenReturn( mock( WorkService.class ) );
+        ApiKeyServiceHolder.setForTesting( mock( ApiKeyService.class ) );
+        final WorkMcpInitializer initializer = new WorkMcpInitializer();
+        start( initializer, ctx, engine );
+        verify( ctx, never() ).setAttribute( eq( WorkMcpInitializer.ATTR_WORK_MCP_SERVER ), any() );
+        initializer.contextDestroyed( mock( ServletContextEvent.class ) );
+    }
+
+    @Test
+    void anEngineThatIsNotTheWikisRegistersNothing() {
+        final ServletContext ctx = mock( ServletContext.class );
+        final ServletContextEvent sce = mock( ServletContextEvent.class );
+        when( sce.getServletContext() ).thenReturn( ctx );
+        final EngineSPI spi = mock( EngineSPI.class );
+        when( spi.find( any( ServletContext.class ), isNull() ) ).thenReturn( mock( com.wikantik.api.core.Engine.class ) );
+        try ( final MockedStatic< Wiki > mocked = mockStatic( Wiki.class ) ) {
+            mocked.when( Wiki::engine ).thenReturn( spi );
+            new WorkMcpInitializer().contextInitialized( sce );
+        }
+        verify( ctx, never() ).addFilter( anyString(), any( Filter.class ) );
+    }
+
+    @Test
+    void theInstructionsAreTheBundledText() {
+        assertTrue( WorkMcpInitializer.serverInstructions().contains( "get_work_context" ) );
     }
 }

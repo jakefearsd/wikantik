@@ -275,4 +275,31 @@ class KeyOnlyMcpAccessFilterTest {
         assertTrue( !asked[ 0 ], "an agent token means nothing off the work surface, so it is not even verified" );
         verify( keys, never() ).verify( anyString() );
     }
+
+    // ---- the edges of the session binding
+
+    @Test
+    void aBlankOrMissingSessionIdBindsNothing() throws Exception {
+        assertEquals( 200, run( "POST", "tok1", null, null ) );
+        assertEquals( 200, run( "POST", "tok1", "  ", "  " ) );
+        assertEquals( 200, run( "DELETE", "tok1", null, null ), "a DELETE that names no session drops nothing" );
+        assertEquals( 0, filter.boundSessions() );
+        // a second key on a blank session id is not "another key's session": there is no session
+        assertEquals( 200, run( "POST", "tok2", "  ", null ) );
+    }
+
+    @Test
+    void aSessionIdWrittenWithAddHeaderIsBoundToo() throws Exception {
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+        final FilterChain transport = ( rq, rs ) -> {
+            ( ( HttpServletResponse ) rs ).addHeader( "X-Other", "v" );
+            ( ( HttpServletResponse ) rs ).addHeader( KeyOnlyMcpAccessFilter.SESSION_HEADER, null );
+            ( ( HttpServletResponse ) rs ).addHeader( "mcp-session-id", "s-added" );
+        };
+        filter.doFilter( request( "POST", "tok1", null ), resp, transport );
+        assertEquals( 1, filter.boundSessions(), "the header name is matched without case; a null value binds nothing" );
+        assertEquals( 403, run( "POST", "tok2", "s-added", null ), "and the session belongs to the key that opened it" );
+        assertEquals( 200, run( "POST", "tok1", "s-added", null ) );
+    }
 }

@@ -23,7 +23,6 @@ import com.wikantik.work.AgentTokens;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The work module mints agent tokens and the wiki's filters recognise them by prefix. The two modules cannot share
@@ -35,7 +34,5 @@ class AgentTokenPrefixTest {
     @Test
     void theFiltersRecogniseWhatTheWorkModuleMints() {
         assertEquals( AgentTokens.PREFIX, AgentTokenAuth.PREFIX );
-        assertTrue( AgentTokens.looksLikeAgentToken( AgentTokens.PREFIX + "0".repeat( 43 ) )
-            || AgentTokens.PREFIX.startsWith( "wka_" ) );
     }
 }

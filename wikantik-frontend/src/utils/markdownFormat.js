@@ -242,3 +242,44 @@ export function insertMathBlock(state) {
 export function insertRule(state) {
   return insertBlockAt(state, '---\n', 4, { blankAfter: true });
 }
+
+/** Inserts a fenced block of `language` holding `body`, a blank line before it; the caret lands at the body's start. */
+export function insertFence(state, language, body) {
+  const opener = '```' + language + '\n';
+  return insertBlockAt(state, opener + body + '\n```\n', opener.length, { blankAfter: true });
+}
+
+/**
+ * Inserts `[^N]` after the selection (the caret when empty) and appends `\n\n[^N]: ` at the document end, N being
+ * the smallest positive integer no `[^N]` in the text uses; the caret lands after the definition's `: `.
+ */
+export function insertFootnote(state) {
+  const { text, selEnd } = state;
+  const used = new Set();
+  for (const m of text.matchAll(/\[\^(\d+)\]/g)) used.add(Number(m[1]));
+  let n = 1;
+  while (used.has(n)) n++;
+  const marker = `[^${n}]`;
+  const newText = text.slice(0, selEnd) + marker + text.slice(selEnd) + `\n\n${marker}: `;
+  return { text: newText, selStart: newText.length, selEnd: newText.length };
+}
+
+/** Inserts an empty `![[]]` embed with the caret between the inner brackets, where wikilink completion opens. */
+export function insertEmbed(state) {
+  const { text, selStart, selEnd } = state;
+  const cursor = selStart + 3;
+  return { text: text.slice(0, selStart) + '![[]]' + text.slice(selEnd), selStart: cursor, selEnd: cursor };
+}
+
+/**
+ * Inserts an access rule on its own line above the caret's line, in the spelling the server calls canonical
+ * (`DirectiveSpelling.canonical`: `ALLOW`, the permission lower-case, principals joined by `, `). The caret lands
+ * on the line that was pushed down.
+ */
+export function insertAccessRule(state, { permission, principals }) {
+  const { text, selStart } = state;
+  const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
+  const rule = `[{ALLOW ${permission} ${principals.join(', ')}}]\n`;
+  const cursor = lineStart + rule.length;
+  return { text: text.slice(0, lineStart) + rule + text.slice(lineStart), selStart: cursor, selEnd: cursor };
+}

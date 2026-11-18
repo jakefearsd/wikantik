@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock, setHeading, insertCallout, insertMathBlock, insertRule } from './markdownFormat';
+import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock, setHeading, insertCallout, insertMathBlock, insertRule, insertFence, insertFootnote, insertEmbed, insertAccessRule } from './markdownFormat';
 
 describe('toggleWrap', () => {
   it('wraps selection with marker', () => {
@@ -188,5 +188,164 @@ describe('block inserts for slash commands', () => {
     const r = insertMathBlock({ text: 'x\n\nnext', selStart: 3, selEnd: 3 });
     expect(r.text).toBe('x\n\n$$\n\n$$\n\nnext');
     expect(r.selStart).toBe(6);
+  });
+});
+
+/** Minimal-change check: what precedes selStart and follows selEnd survives; only the span between is rewritten. */
+function expectMinimalChange(before, after, state, tailAddition = '') {
+  expect(after.text.startsWith(before.text.slice(0, before.selStart))).toBe(true);
+  expect(after.text.endsWith(before.text.slice(before.selEnd) + tailAddition)).toBe(true);
+}
+
+describe('insertFence', () => {
+  const body = 'graph TD\n  A --> B';
+  it('adds a blank line before the fence and puts the caret at the body', () => {
+    const state = { text: 'intro', selStart: 5, selEnd: 5 };
+    const r = insertFence(state, 'mermaid', body);
+    expect(r.text).toBe('intro\n\n```mermaid\ngraph TD\n  A --> B\n```\n');
+    expect(r.selStart).toBe(r.selEnd);
+    expect(r.selStart).toBe('intro\n\n```mermaid\n'.length);
+    expectMinimalChange(state, r, state);
+  });
+  it('works in an empty document', () => {
+    const r = insertFence({ text: '', selStart: 0, selEnd: 0 }, 'plantuml', 'a -> b');
+    expect(r.text).toBe('```plantuml\na -> b\n```\n');
+    expect(r.selStart).toBe(r.selEnd);
+    expect(r.selStart).toBe('```plantuml\n'.length);
+  });
+  it('mid-paragraph leaves a blank line before the following text', () => {
+    const state = { text: 'ab cd', selStart: 2, selEnd: 2 };
+    const r = insertFence(state, 'mermaid', 'x');
+    expect(r.text).toBe('ab\n\n```mermaid\nx\n```\n\n cd');
+    expect(r.selStart).toBe('ab\n\n```mermaid\n'.length);
+    expectMinimalChange(state, r, state);
+  });
+  it('replaces a selection', () => {
+    const state = { text: 'one\n\nTWO\n\nthree', selStart: 5, selEnd: 8 };
+    const r = insertFence(state, 'mermaid', 'x');
+    expect(r.text).toBe('one\n\n```mermaid\nx\n```\n\n\nthree');
+    expect(r.selStart).toBe(r.selEnd);
+    expectMinimalChange(state, r, state);
+  });
+});
+
+describe('insertFootnote', () => {
+  it('inserts [^1] at the caret and appends the definition', () => {
+    const state = { text: 'hello world', selStart: 5, selEnd: 5 };
+    const r = insertFootnote(state);
+    expect(r.text).toBe('hello[^1] world\n\n[^1]: ');
+    expect(r.selStart).toBe(r.text.length);
+    expect(r.selEnd).toBe(r.text.length);
+  });
+  it('works in an empty document', () => {
+    const r = insertFootnote({ text: '', selStart: 0, selEnd: 0 });
+    expect(r.text).toBe('[^1]\n\n[^1]: ');
+    expect(r.selStart).toBe(r.selEnd);
+    expect(r.selStart).toBe(r.text.length);
+  });
+  it('picks the smallest unused number', () => {
+    const text = 'a[^1] b[^3]\n\n[^1]: x\n[^3]: y';
+    const r = insertFootnote({ text, selStart: 1, selEnd: 1 });
+    expect(r.text.startsWith('a[^2][^1] b[^3]')).toBe(true);
+    expect(r.text.endsWith('\n\n[^2]: ')).toBe(true);
+  });
+  it('inserts after a selection without touching it', () => {
+    const state = { text: 'say hello now', selStart: 4, selEnd: 9 };
+    const r = insertFootnote(state);
+    expect(r.text).toBe('say hello[^1] now\n\n[^1]: ');
+    expect(r.selStart).toBe(r.text.length);
+  });
+  it('keeps text before and after the caret, appending only the definition', () => {
+    const state = { text: 'one two three', selStart: 4, selEnd: 4 };
+    const r = insertFootnote(state);
+    expectMinimalChange(state, r, state, '\n\n[^1]: ');
+  });
+});
+
+describe('insertEmbed', () => {
+  it('inserts ![[]] with the caret between the inner brackets', () => {
+    const state = { text: 'see  here', selStart: 4, selEnd: 4 };
+    const r = insertEmbed(state);
+    expect(r.text).toBe('see ![[]] here');
+    expect(r.selStart).toBe(7);
+    expect(r.selEnd).toBe(7);
+    expectMinimalChange(state, r, state);
+  });
+  it('works in an empty document', () => {
+    const r = insertEmbed({ text: '', selStart: 0, selEnd: 0 });
+    expect(r.text).toBe('![[]]');
+    expect(r.selStart).toBe(3);
+    expect(r.selEnd).toBe(3);
+  });
+  it('replaces a selection', () => {
+    const state = { text: 'a XX b', selStart: 2, selEnd: 4 };
+    const r = insertEmbed(state);
+    expect(r.text).toBe('a ![[]] b');
+    expect(r.selStart).toBe(5);
+    expectMinimalChange(state, r, state);
+  });
+});
+
+describe('insertAccessRule', () => {
+  it('puts the rule on its own line before the caret line', () => {
+    const state = { text: 'hello world', selStart: 5, selEnd: 5 };
+    const r = insertAccessRule(state, { permission: 'view', principals: ['Admin'] });
+    expect(r.text).toBe('[{ALLOW view Admin}]\nhello world');
+    expect(r.selStart).toBe('[{ALLOW view Admin}]\n'.length);
+    expect(r.selEnd).toBe(r.selStart);
+  });
+  it('works in an empty document', () => {
+    const r = insertAccessRule({ text: '', selStart: 0, selEnd: 0 }, { permission: 'edit', principals: ['Editors'] });
+    expect(r.text).toBe('[{ALLOW edit Editors}]\n');
+    expect(r.selStart).toBe(r.text.length);
+  });
+  it('joins several principals in the canonical spelling', () => {
+    const r = insertAccessRule({ text: 'x', selStart: 0, selEnd: 0 }, { permission: 'modify', principals: ['Jane', 'Bob'] });
+    expect(r.text).toBe('[{ALLOW modify Jane, Bob}]\nx');
+  });
+  it('uses the line of a selection start and leaves the selection text alone', () => {
+    const state = { text: 'one\ntwo three\nfour', selStart: 8, selEnd: 13 };
+    const r = insertAccessRule(state, { permission: 'view', principals: ['All'] });
+    expect(r.text).toBe('one\n[{ALLOW view All}]\ntwo three\nfour');
+    expect(r.selStart).toBe('one\n[{ALLOW view All}]\n'.length);
+    expect(r.text.slice(r.selStart)).toBe('two three\nfour');
+  });
+  it('changes nothing but the inserted line', () => {
+    const state = { text: 'one\ntwo', selStart: 5, selEnd: 5 };
+    const r = insertAccessRule(state, { permission: 'delete', principals: ['Admin'] });
+    expect(r.text.startsWith('one\n')).toBe(true);
+    expect(r.text.endsWith('two')).toBe(true);
+    expect(r.text.length).toBe(state.text.length + '[{ALLOW delete Admin}]\n'.length);
+  });
+});
+
+describe('setHeading level 4', () => {
+  it('makes an H4 and toggles it back', () => {
+    const on = setHeading({ text: 'Title', selStart: 2, selEnd: 2 }, 4);
+    expect(on.text).toBe('#### Title');
+    expect(on.selStart).toBe(on.text.length);
+    const off = setHeading({ text: on.text, selStart: 3, selEnd: 3 }, 4);
+    expect(off.text).toBe('Title');
+  });
+  it('replaces a different level', () => {
+    expect(setHeading({ text: '## Title', selStart: 0, selEnd: 0 }, 4).text).toBe('#### Title');
+  });
+});
+
+describe('toggleLinePrefix with list and quote prefixes', () => {
+  it('numbers every selected line with "1. "', () => {
+    const state = { text: 'a\nb\nc', selStart: 0, selEnd: 5 };
+    const r = toggleLinePrefix(state, '1. ');
+    expect(r.text).toBe('1. a\n1. b\n1. c');
+    expect(toggleLinePrefix({ text: r.text, selStart: 0, selEnd: r.text.length }, '1. ').text).toBe('a\nb\nc');
+  });
+  it('adds a task prefix on the caret line only', () => {
+    const r = toggleLinePrefix({ text: 'x\ny', selStart: 3, selEnd: 3 }, '- [ ] ');
+    expect(r.text).toBe('x\n- [ ] y');
+  });
+  it('quotes a selection and unquotes it again', () => {
+    const r = toggleLinePrefix({ text: 'a\nb', selStart: 0, selEnd: 3 }, '> ');
+    expect(r.text).toBe('> a\n> b');
+    expect(toggleLinePrefix({ text: r.text, selStart: 0, selEnd: r.text.length }, '> ').text).toBe('a\nb');
   });
 });

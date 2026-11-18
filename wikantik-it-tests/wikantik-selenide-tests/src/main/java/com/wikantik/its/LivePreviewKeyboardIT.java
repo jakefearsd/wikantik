@@ -180,7 +180,7 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
     void tickingATaskThenUndoRestoresTheExactText() {
         final String doc = openLive( PAGE, BODY );
         final int taskFrom = lineStart( doc, TASK_LINE );
-        setCaret( 0 ); // focus the editor on another line, so the task line is drawn with its checkbox
+        setCaret( 2 ); // focus the editor on another line: the heading's text start (its "# " is hidden; a caret cannot rest in it)
 
         $( "input.cm-lp-task" ).shouldBe( visible, WAIT ).shouldNotBe( checked ).click();
         final String ticked = doc.substring( 0, taskFrom ) + "- [x] open task" + doc.substring( taskFrom + TASK_LINE.length() );
@@ -240,10 +240,11 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
         assertEquals( to + 1, tableFrom, "the table's first line must directly follow the wrapped line" );
 
         $( ".cm-lp-table-block table.cm-lp-table" ).shouldBe( visible, WAIT );
-        final int firstRowCaret = from + 3; // just after the revealed "## ", on the first visual row
+        // Rich mode keeps a heading's "## " hidden with the caret on its line, and the caret rests where the text starts.
+        final int firstRowCaret = from + 3;
         setCaret( firstRowCaret );
-        awaitRenderedLine( from, WRAPPED_LINE ); // the caret's line shows its source, so its rows are final
-        final Map< ?, ? > rows = visualRows( from, to );
+        awaitRenderedLine( firstRowCaret, WRAPPED_LINE.substring( 3 ) );
+        final Map< ?, ? > rows = visualRows( firstRowCaret, to );
         assertTrue( ( ( Number ) rows.get( "rows" ) ).intValue() >= 3, "the heading above the table must wrap onto at "
             + "least three visual rows, or there is no first/last row to tell apart: " + rows );
         assertEquals( 0, rowOf( rows, firstRowCaret ), "the first caret must sit on the first visual row: " + rows );

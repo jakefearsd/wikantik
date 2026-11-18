@@ -209,7 +209,9 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-callout-title-widget`]: { display: 'inline-flex', alignItems: 'center', gap: '0.35em', fontWeight: '600', color: 'var(--cm-callout-tint)', marginRight: '0.35em' },
   [`${ROOT} .cm-lp-callout-icon`]: { display: 'inline-block', width: '1em', height: '1em', backgroundColor: 'currentColor',
     WebkitMask: `${svgMask(MASK_ICONS['slash-callout'])} center / contain no-repeat`, mask: `${svgMask(MASK_ICONS['slash-callout'])} center / contain no-repeat` },
-  [`${ROOT} .cm-lp-bullet`]: { color: 'var(--text-secondary)', fontWeight: '700' },
+  // A list marker's range takes in its one trailing space (hidden with it), so the gap is drawn as a margin.
+  [`${ROOT} .cm-lp-bullet`]: { color: 'var(--text-secondary)', fontWeight: '700', marginRight: '0.4em' },
+  [`${ROOT} .cm-lp-olmark`]: { color: 'var(--text-secondary)' },
   [`${ROOT} .cm-lp-task`]: { margin: '0 0.4em 0 0', verticalAlign: 'middle', accentColor: 'var(--accent)', cursor: 'pointer' },
   [`${ROOT} .cm-lp-rule`]: { display: 'inline-block', width: '100%', verticalAlign: 'middle', borderTop: '1px solid var(--border)' },
   [`${ROOT} .cm-lp-image-wrap`]: { display: 'inline-block', maxWidth: '100%', verticalAlign: 'middle' },

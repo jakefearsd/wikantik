@@ -59,9 +59,9 @@ describe('livePreviewSpecs — inline formatting', () => {
     expect(visible(state, specs, 1)).toBe('Title');
     expect(visible(state, specs, 3)).toBe('Some bold and it and del and code');
   });
-  it('keeps styling but hides nothing on an active line', () => {
+  it('keeps styling but hides no inline marker on an active line (the heading marker stays hidden)', () => {
     const { state, specs } = specsOf(DOC, [1, 3]);
-    expect(replacing(specs)).toEqual([]);
+    expect(replacing(specs).map((s) => state.sliceDoc(s.from, s.to))).toEqual(['# ']);
     expect(show(state, specs)).toEqual(expect.arrayContaining(['line cm-lp-h1 @1', 'mark cm-lp-strong "**bold**"']));
   });
   it('handles nested emphasis', () => {
@@ -115,10 +115,10 @@ describe('livePreviewSpecs — blocks', () => {
     const doc = 'a\n\n***\n\n- one\n  - nested\n\n1. first\n\n- [ ] todo\n- [x] done\n\nend';
     const { state, specs } = specsOf(doc, [13]);
     expect(visible(state, specs, 3)).toBe('[rule]');
-    expect(visible(state, specs, 5)).toBe('[bullet] one');
-    expect(visible(state, specs, 6)).toBe('  [bullet] nested');
+    expect(visible(state, specs, 5)).toBe('[bullet]one'); // the marker's one space is part of the widget's range
+    expect(visible(state, specs, 6)).toBe('  [bullet]nested');
     expect(visible(state, specs, 8)).toBe('1. first');
-    expect(visible(state, specs, 10)).toBe('[checkbox] todo');
+    expect(visible(state, specs, 10)).toBe('[checkbox]todo');
     expect(specs.filter((s) => s.widget?.type === 'checkbox').map((s) => s.widget.checked)).toEqual([false, true]);
   });
   it('fenced code: fence and body line classes, nothing inside decorated', () => {
@@ -758,5 +758,81 @@ describe('overlap regressions (bare URL, escaped wikilink)', () => {
   it('\\[[A]] hides only the backslash', () => {
     const { state, specs } = specsOf('\\[[A]]\n\nz\n', [3]);
     expect(show(state, specs)).toEqual(['hide "\\\\"']);
+  });
+});
+describe('block markers stay hidden on the caret line (sticky)', () => {
+  /** The sticky specs of line `n` with the caret on it, as `kind[ widget] "text"`. */
+  const stickyOn = (doc, n = 1) => {
+    const { state, specs } = specsOf(doc, [n]);
+    const line = state.doc.line(n);
+    return specs.filter((s) => s.sticky && s.from >= line.from && s.to <= line.to)
+      .map((s) => `${s.kind}${s.widget ? ` ${s.widget.type}` : ''} ${JSON.stringify(state.sliceDoc(s.from, s.to))}`);
+  };
+  it.each([
+    ['## Title', ['hide "## "']],
+    ['#', ['hide "#"']],
+    [' ## Indented', ['hide "## "']],
+    ['- item', ['widget bullet "- "']],
+    ['-', ['widget bullet "-"']],
+    ['* star', ['widget bullet "* "']],
+    ['1. item', ['mark "1. "']],
+    ['12) item', ['mark "12) "']],
+    ['- [ ] task', ['widget checkbox "- [ ] "']],
+    ['1. [x] task', ['widget checkbox "1. [x] "']],
+    ['> quote', ['hide "> "']],
+    ['>bare', ['hide ">"']],
+    ['> > deep', ['hide "> "', 'hide "> "']],
+    ['> - [ ] x', ['hide "> "', 'widget checkbox "- [ ] "']],
+    ['> ## t', ['hide "> "', 'hide "## "']],
+    ['- > x', ['widget bullet "- "', 'hide "> "']],
+    ['- ## t', ['widget bullet "- "', 'hide "## "']],
+  ])('%j', (doc, expected) => {
+    expect(stickyOn(doc)).toEqual(expected);
+  });
+  it('a nested item: only the marker and its space are sticky, never the indentation', () => {
+    const doc = '- one\n  - nested\n    1. deep';
+    expect(stickyOn(doc, 2)).toEqual(['widget bullet "- "']);
+    expect(stickyOn(doc, 3)).toEqual(['mark "1. "']);
+    const { state, specs } = specsOf(doc, [2]);
+    expect(visible(state, specs, 2)).toBe('  [bullet]nested');
+  });
+  it('only one space after the marker belongs to it', () => {
+    expect(stickyOn('-   wide')).toEqual(['widget bullet "- "']);
+    expect(stickyOn('##   wide')).toEqual(['hide "## "']);
+  });
+  it('the caret line reads the same as any other line', () => {
+    const doc = '## Title\n- item\n1. first\n- [x] done\n> quote\n\nend';
+    const { state, specs } = specsOf(doc, [1, 2, 3, 4, 5]);
+    expect([1, 2, 3, 4, 5].map((n) => visible(state, specs, n))).toEqual(['Title', '[bullet]item', '1. first', '[checkbox]done', 'quote']);
+    const off = specsOf(doc, [7]);
+    expect(replacing(off.specs)).toEqual(replacing(specs));
+  });
+  it('an ordered number is shown as text: a sticky mark, nothing hidden', () => {
+    const { state, specs } = specsOf('1. first', [1]);
+    expect(show(state, specs)).toEqual(['mark cm-lp-olmark "1. "']);
+  });
+  it('every quote line of a multi-line quote keeps its mark hidden; a lazy line has none', () => {
+    const doc = '> a\n> b\nlazy';
+    expect(stickyOn(doc, 2)).toEqual(['hide "> "']);
+    expect(stickyOn(doc, 3)).toEqual([]);
+  });
+  it('a setext underline keeps reveal-at-caret (nothing sticky, nothing hidden)', () => {
+    const { specs } = specsOf('Title\n=====\n\nend', [1, 2]);
+    expect(specs.filter((s) => s.sticky)).toEqual([]);
+    expect(replacing(specs)).toEqual([]);
+  });
+  it.each([
+    ['a footnote definition in a list', '- [^n]: text'],
+    ['a footnote definition in a quote', '> [^n]: text'],
+    ['a footnote definition in a numbered list', '1. [^n]: text'],
+    ['a table in a quote', '> | a | b |\n> |---|---|\n> | 1 | 2 |'],
+    ['a table in a list', '- | a | b |\n  |---|---|\n  | 1 | 2 |'],
+    ['a table in a list in a quote', '> - | a | b |\n>   |---|---|\n>   | 1 | 2 |'],
+  ])('%s keeps reveal-at-caret: no sticky marker, and source on the caret line', (_name, doc) => {
+    const { state, specs } = specsOf(`${doc}\n\nend`, [1]);
+    expect(specs.filter((s) => s.sticky)).toEqual([]);
+    expect(visible(state, specs, 1)).toBe(doc.split('\n')[0]);
+    const off = specsOf(`${doc}\n\nend`, [doc.split('\n').length + 2]);
+    expect(off.specs.filter((s) => s.sticky)).toEqual([]);
   });
 });

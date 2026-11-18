@@ -14,6 +14,8 @@ const HEADING = /^ATXHeading([1-6])$/;
 const SETEXT = /^SetextHeading([12])$/;
 const FOOTNOTE_DEF = /^((?:> ?)* {0,3}(?:(?:[-*+]|\d+[.)])[ \t]+)?)\[\^([^\]\s]+)\]:/;
 const FOOTNOTE_REF = /\[\^([^\]\s]+)\]/g;
+const MARKER_NODE = new Set(['QuoteMark', 'ListMark']);
+const CONTAINER_NODE = new Set(['Blockquote', 'BulletList', 'OrderedList', 'ListItem']);
 const LINKED_URL_PARENT = new Set(['Link', 'Image', 'Autolink']);
 const CLOSING_FENCE = /^(?:[ \t]*>)*[ \t]*(`{3,}|~{3,})[ \t]*$/;
 const PLUGIN = /\[\{[^\n]*?\}\](?:\(\))?/g;
@@ -490,12 +492,26 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const hide = (a, b, group, { sticky = false } = {}) => {
     if (b > a && (sticky || inactive(a))) specs.push({ kind: 'hide', from: a, to: b, group, ...(sticky && { sticky: true }) });
   };
-  const mark = (a, b, cls, group) => { if (b > a) specs.push({ kind: 'mark', from: a, to: b, cls, group }); };
+  const mark = (a, b, cls, group, { sticky = false } = {}) => {
+    if (b > a) specs.push({ kind: 'mark', from: a, to: b, cls, group, ...(sticky && { sticky: true }) });
+  };
   const widget = (a, b, w, { sticky = false } = {}) => {
     if (b > a && (sticky || inactive(a))) specs.push({ kind: 'widget', from: a, to: b, widget: w, ...(sticky && { sticky: true }) });
   };
-  // Test seam, unset in production: construct kinds to treat as sticky until their own paths pass { sticky: true }.
-  const stickyKinds = context.stickyKinds || [];
+  // Whether a quote or list marker stays hidden under the caret. Not where the block it opens on its line is in the
+  // "expensive" set, which is edited as source: a footnote definition, or a table inside the container.
+  const stickyMarker = (m) => {
+    const line = doc.lineAt(m.from);
+    if (line.text.includes('[^') && FOOTNOTE_DEF.test(line.text)) return false;
+    let next = m.nextSibling;
+    while (next && next.from <= line.to) {
+      if (next.name === 'Table') return false;
+      if (MARKER_NODE.has(next.name)) next = next.nextSibling;
+      else if (CONTAINER_NODE.has(next.name)) next = next.firstChild;
+      else break;
+    }
+    return true;
+  };
   const addLine = (lineStart, cls) => {
     if (!lineClasses.has(lineStart)) lineClasses.set(lineStart, new Set());
     lineClasses.get(lineStart).add(cls);
@@ -512,7 +528,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const heading = (node, level) => {
     addLine(doc.lineAt(node.from).from, `cm-lp-h${level}`);
     const m = node.node.firstChild;
-    if (m && m.name === 'HeaderMark') hide(m.from, m.to + spaceAfter(m.to), undefined, { sticky: stickyKinds.includes('heading') });
+    if (m && m.name === 'HeaderMark') hide(m.from, m.to + spaceAfter(m.to), undefined, { sticky: true });
   };
   const setextHeading = (node, level) => {
     const mk = node.node.getChild('HeaderMark');
@@ -576,11 +592,17 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     const listMark = n.getChild('ListMark');
     if (!listMark) return;
     const marker = n.getChild('Task')?.getChild('TaskMarker');
+    // The marker's one trailing space belongs to it: the range then ends where the item's text starts, which is where
+    // the caret rests and where Backspace removes the marker as a whole (sticky.js).
+    const sticky = stickyMarker(listMark);
     if (marker) {
       const ch = doc.sliceString(marker.from + 1, marker.from + 2);
-      widget(listMark.from, marker.to, { type: 'checkbox', checked: ch === 'x' || ch === 'X', markerFrom: marker.from, text: doc.sliceString(marker.to, doc.lineAt(marker.to).to).trim().slice(0, 40) });
+      widget(listMark.from, marker.to + spaceAfter(marker.to), { type: 'checkbox', checked: ch === 'x' || ch === 'X', markerFrom: marker.from, text: doc.sliceString(marker.to, doc.lineAt(marker.to).to).trim().slice(0, 40) }, { sticky });
     } else if (n.parent?.name === 'BulletList') {
-      widget(listMark.from, listMark.to, { type: 'bullet' });
+      widget(listMark.from, listMark.to + spaceAfter(listMark.to), { type: 'bullet' }, { sticky });
+    } else if (sticky) {
+      // A number is shown as it is written (it carries the item's value); the mark only makes it one atomic unit.
+      mark(listMark.from, listMark.to + spaceAfter(listMark.to), 'cm-lp-olmark', undefined, { sticky: true });
     }
   };
   const fenced = (node) => {
@@ -633,7 +655,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         case 'Strikethrough': markedInline(node, 'cm-lp-del', 'StrikethroughMark'); break;
         case 'Link': link(node); break;
         case 'Blockquote': blockquote(node); break;
-        case 'QuoteMark': hide(node.from, node.to + spaceAfter(node.to), undefined, { sticky: stickyKinds.includes('quote') }); break;
+        case 'QuoteMark': hide(node.from, node.to + spaceAfter(node.to), undefined, { sticky: stickyMarker(node.node) }); break;
         case 'HorizontalRule': widget(node.from, node.to, { type: 'rule' }); break;
         case 'ListItem': listItem(node); break;
         default: break;

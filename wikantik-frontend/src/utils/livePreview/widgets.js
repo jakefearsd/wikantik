@@ -19,7 +19,7 @@ const el = (tag, cls, text) => {
 export class BulletWidget extends WidgetType {
   eq(other) { return other instanceof BulletWidget; }
   toDOM() { const s = el('span', 'cm-lp-bullet', '•'); s.setAttribute('aria-hidden', 'true'); return s; }
-  ignoreEvent() { return false; } // a click lets CodeMirror place the caret, which reveals the line
+  ignoreEvent() { return false; } // a click lets CodeMirror place the caret (it comes to rest where the item's text starts)
 }
 
 export class RuleWidget extends WidgetType {

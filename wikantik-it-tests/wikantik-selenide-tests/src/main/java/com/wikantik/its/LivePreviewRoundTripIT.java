@@ -107,7 +107,8 @@ public class LivePreviewRoundTripIT extends WithIntegrationTestSetup {
         }
 
         // Mod+E twice with the editor focused: source, then live again.
-        EditWikiPage.setCaret( 0 );
+        // Offset 2, where the first heading's text starts: Rich mode never lets a caret rest in the hidden "# " before it.
+        EditWikiPage.setCaret( body.indexOf( "Kitchen sink" ) );
         EditWikiPage.pressMod( "e" );
         new EditWikiPage().assertMode( EditorMode.SOURCE );
         EditWikiPage.pressMod( "e" );

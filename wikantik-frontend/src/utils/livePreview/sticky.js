@@ -6,11 +6,11 @@ import { activeLinesOf, livePreviewSpecs } from './ranges';
 /**
  * Sticky ranges: live-preview decorations that stay hidden while the caret is on their line (a heading's `## `, a
  * list marker). Hidden text under the caret needs three rules to be usable: the range is atomic (motion and clicks
- * skip it), the caret never rests before or inside one that starts its line, and Backspace right after such a line
- * marker removes the marker as a whole. All of it is inert outside live mode, and while nothing is sticky.
+ * skip it), the caret never rests inside one nor before the markers that start its line, and Backspace right after
+ * such a line marker removes the marker as a whole. All of it is inert outside live mode, and while nothing is sticky.
  *
  * Two sources, on purpose: the atomic ranges (stickyRangesOf) are the decorations actually drawn, while the caret
- * rule and the key commands read the state (stickySpansAt: one line's specs plus the block field), because a
+ * rule and the key commands read the state (stickySpansOn: one line's specs plus the block field), because a
  * transaction filter has no view and the drawn decorations describe the state before the transaction. The two can
  * differ while the parse is incomplete or outside the drawn viewport; the caret is then simply not corrected.
  *
@@ -61,40 +61,61 @@ function atomicStickyRanges(view) {
 export const stickyAtomic = EditorView.atomicRanges.of(atomicStickyRanges);
 
 /**
- * The sticky ranges `[from, to]` touching `pos`, read from the state alone (a transaction filter has no view, and
- * the view's decorations describe the state before the transaction): the inline specs of pos's line plus the block
+ * The sticky ranges `[from, to]` lying on `line`, ascending, read from the state alone (a transaction filter has no
+ * view, and the view's decorations describe the state before the transaction): the line's inline specs plus the block
  * field. One line's specs — a caret move does not walk the document.
  */
-function stickySpansAt(state, pos) {
+function stickySpansOn(state, line) {
   const spans = [];
+  const add = (from, to) => { if (from >= line.from && to <= line.to && to > from) spans.push([from, to]); };
   try {
-    const line = state.doc.lineAt(pos);
     const specs = livePreviewSpecs(state, activeLinesOf(state), { from: line.from, to: line.to, context: getContext(state) });
-    for (const s of specs) if (s.sticky && s.from <= pos && pos <= s.to) spans.push([s.from, s.to]);
-    state.field(blockField, false)?.decos.between(pos, pos, (from, to, value) => {
-      if (value.spec.lpSticky) spans.push([from, to]);
+    for (const s of specs) if (s.sticky) add(s.from, s.to);
+    state.field(blockField, false)?.decos.between(line.from, line.to, (from, to, value) => {
+      if (value.spec.lpSticky) add(from, to);
     });
   } catch (err) {
     console.warn('[rich] could not read the sticky ranges; the caret is left where it is', err?.message || err);
   }
-  return spans;
+  return spans.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
 }
 
-/** The sticky range that starts pos's line and ends exactly at pos (the caret sits right after a line marker). */
-function lineMarkerBefore(state, pos) {
-  const lineStart = state.doc.lineAt(pos).from;
-  return stickySpansAt(state, pos).find(([from, to]) => from === lineStart && to === pos && to > from) || null;
-}
-
-/** Where a caret placed at `head` rests: out of a sticky range (nearer end), and never before one that starts its line. */
-function restingPlace(state, head) {
-  for (const [from, to] of stickySpansAt(state, head)) {
-    let pos = head;
-    if (pos > from && pos < to) pos = pos - from < to - pos ? from : to;
-    if (pos === from && to > from && from === state.doc.lineAt(from).from) pos = to;
-    if (pos !== head) return pos;
+/**
+ * The line markers among a line's sticky ranges: the leading run with nothing but whitespace before and between them
+ * (`> - [ ] x` has two, the quote mark and the checkbox; an indented `  - x` has one, after its indentation).
+ */
+function lineMarkersOf(state, line, spans) {
+  const markers = [];
+  let at = line.from;
+  for (const [from, to] of spans) {
+    if (from < at || /\S/.test(state.doc.sliceString(at, from))) break;
+    markers.push([from, to]);
+    at = to;
   }
-  return head;
+  return markers;
+}
+
+/** The line marker that ends exactly at pos — the innermost one when the caret is where the line's text starts. */
+function lineMarkerBefore(state, pos) {
+  const line = state.doc.lineAt(pos);
+  return lineMarkersOf(state, line, stickySpansOn(state, line)).find(([, to]) => to === pos) || null;
+}
+
+/**
+ * Where a caret placed at `head` rests: out of a sticky range (nearer end), and never before the end of its line's
+ * last marker — not before a marker, not between two, not in the indentation in front of one. Text typed there would
+ * land outside the block the line shows.
+ */
+function restingPlace(state, head) {
+  const line = state.doc.lineAt(head);
+  const spans = stickySpansOn(state, line);
+  if (!spans.length) return head;
+  let pos = head;
+  const inside = spans.find(([from, to]) => pos > from && pos < to);
+  if (inside) pos = pos - inside[0] < inside[1] - pos ? inside[0] : inside[1];
+  const markers = lineMarkersOf(state, line, spans);
+  if (markers.length) pos = Math.max(pos, markers[markers.length - 1][1]);
+  return pos;
 }
 
 /**
@@ -139,7 +160,8 @@ const soleCaret = (state) => (state.selection.ranges.length === 1 && state.selec
 
 /**
  * Backspace with the caret right after a line marker: delete exactly the marker's text (the marker and its one
- * trailing space) and nothing else. Declines (false) everywhere else, so the default Backspace runs.
+ * trailing space) and nothing else — on a line with several (`> - x`), the innermost one; indentation stays.
+ * Declines (false) everywhere else, so the default Backspace runs.
  */
 export function removeLineMarker(view) {
   const { state } = view;
@@ -152,17 +174,19 @@ export function removeLineMarker(view) {
 }
 
 /**
- * ArrowLeft (or word-left) with the caret right after a line marker: go to the end of the previous line. CodeMirror's own motion
- * stops at the marker's start (atomic), where the caret rule sends it straight back — the caret could never leave
- * the line leftwards. Declines on the first line (there is nowhere to go; the default motion then stays put).
+ * ArrowLeft (or word-left) with the caret right after a line's last marker: go to the end of the previous line.
+ * CodeMirror's own motion stops at the marker's start (atomic), where the caret rule sends it straight back — the
+ * caret could never leave the line leftwards. Declines on the first line (there is nowhere to go; the default motion
+ * then stays put).
  */
 export function leaveLineMarker(view) {
   const { state } = view;
   if (!live(state)) return false;
   const head = soleCaret(state);
   const marker = head < 0 ? null : lineMarkerBefore(state, head);
-  if (!marker || marker[0] === 0) return false;
-  view.dispatch({ selection: EditorSelection.cursor(marker[0] - 1), userEvent: 'select', scrollIntoView: true });
+  const lineStart = state.doc.lineAt(head).from;
+  if (!marker || lineStart === 0) return false;
+  view.dispatch({ selection: EditorSelection.cursor(lineStart - 1), userEvent: 'select', scrollIntoView: true });
   return true;
 }
 

@@ -4,33 +4,17 @@
  * for them). A failure here names the page and the invariant; fix the product, never exclude the page.
  */
 import { describe, it, expect, vi, afterAll } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { editorMarkdownConfig } from '../editorMarkdown';
-import { stripFrontmatter } from '../frontmatterUtils';
 import { blockCandidates, updateBlockCandidates, livePreviewSpecs } from './ranges';
 import { livePreview, setLivePreview, liveModeField } from './index';
 import { fullyParsed, parseFully } from '../../test/fullParse';
+import { all, pages, legacy, isLikelyWikiSyntax } from '../../test/corpusPages';
 
-const PAGES_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../docs/wikantik-pages');
 const MAX_SPECS_MS = 250;
 const VIEW_SAMPLE = 100;
-
-// Port of WikiToMarkdownConverter.isLikelyWikiSyntax(String) in
-// wikantik-main/src/main/java/com/wikantik/content/WikiToMarkdownConverter.java (the server sets markupSyntax
-// 'likely-wiki' from it; the editor then forces source mode). Keep in step with the Java patterns and
-// HEURISTIC_THRESHOLD = 3; the 'drift guard' test below mirrors cases from WikiToMarkdownConverterTest.
-const WIKI_SIGNALS = [
-  [/^!{1,3}\s/m, 2], [/''[^']+?''/, 2], [/(?<!\[)\[(?!\[)([^\]|]+)\|([^\]]+)\](?!\])/, 2], [/\[\{[^}]+\}\](?!\()/, 2], [/\{\{\{/, 1], [/__[^_]+?__/, 1],
-];
-function isLikelyWikiSyntax(body) {
-  if (!body || !body.trim()) return false;
-  return WIKI_SIGNALS.reduce((score, [re, pts]) => score + (re.test(body) ? pts : 0), 0) >= 3;
-}
 
 /** FNV-1a, so the edits for a page are a pure function of its name. */
 function seedOf(name) {
@@ -41,14 +25,6 @@ function seedOf(name) {
 
 const context = { pageName: 'CorpusPage', attachments: [], loadEmbed: () => Promise.resolve({ state: 'ok', html: '' }) };
 const extensions = [markdown(editorMarkdownConfig)];
-
-const all = readdirSync(PAGES_DIR).filter((f) => f.endsWith('.md')).sort();
-const pages = [];
-let legacy = 0;
-for (const file of all) {
-  const body = stripFrontmatter(readFileSync(path.join(PAGES_DIR, file), 'utf8'));
-  if (isLikelyWikiSyntax(body)) legacy += 1; else pages.push({ name: file.replace(/\.md$/, ''), body });
-}
 
 /** Three edits: a char mid-document, a line deleted, a blank line at the top. Each is applied to the previous result. */
 function editsFor(name) {

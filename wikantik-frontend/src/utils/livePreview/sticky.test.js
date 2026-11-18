@@ -1,12 +1,12 @@
 /**
  * Sticky ranges on a real EditorView: a sticky decoration stays hidden while the caret is on its line, the caret
- * cannot rest before or inside it, and Backspace right after a line-start one removes exactly its text. Nothing is
- * sticky in production yet, so these tests turn ATX heading markers sticky through the `stickyKinds` context seam.
+ * cannot rest before or inside it, and Backspace right after a line marker removes exactly its text. Block markers
+ * (heading, bullet, number, task box, quote mark) are the sticky ranges here; a line can carry several.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { EditorState, EditorSelection, Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { defaultKeymap } from '@codemirror/commands';
+import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { editorMarkdownConfig } from '../editorMarkdown';
@@ -16,16 +16,14 @@ import { livePreviewSpecs, activeLinesOf } from './ranges';
 import { stickyRangesOf, removeLineMarker, leaveLineMarker } from './sticky';
 import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 
-const stickyQuotes = { pageName: 'Sticky', attachments: [], stickyKinds: ['quote'] };
-const plain = { pageName: 'Sticky', attachments: [] };
-const stickyHeadings = { pageName: 'Sticky', attachments: [], stickyKinds: ['heading'] };
+const context = { pageName: 'Sticky', attachments: [] };
 const DOC = 'Para one\n## Title\nAfter';
 const H = DOC.indexOf('## '); // heading line start (9); its marker `## ` is [H, H + 3)
 
 const views = [];
 afterEach(() => { while (views.length) { const v = views.pop(); v.destroy(); v.dom.parentNode?.remove(); } });
 
-function mount(doc = DOC, { live = true, context = stickyHeadings, extra = [] } = {}) {
+function mount(doc = DOC, { live = true, extra = [] } = {}) {
   const parent = document.createElement('div');
   document.body.appendChild(parent);
   const view = new EditorView({
@@ -68,22 +66,30 @@ const hiddenRanges = (view) => {
 
 describe('sticky specs', () => {
   it('a sticky spec is emitted on an active line and carries sticky: true; a non-sticky one is not emitted there', () => {
-    const view = mount();
-    caretAt(view, H + 5);
-    const active = activeLinesOf(view.state);
-    const at = (context) => livePreviewSpecs(view.state, active, { context }).filter((s) => s.kind === 'hide' && s.from === H);
+    const view = mount('Para one\n## *Ti*tle\nAfter');
+    const hides = () => livePreviewSpecs(view.state, activeLinesOf(view.state), { context }).filter((s) => s.kind === 'hide');
 
-    expect(at(stickyHeadings)).toEqual([expect.objectContaining({ from: H, to: H + 3, sticky: true })]);
-    expect(at({ pageName: 'Sticky', attachments: [] })).toEqual([]);
+    caretAt(view, 0);
+    expect(hides().map((s) => [s.from, s.to, s.sticky === true])).toEqual([[H, H + 3, true], [H + 3, H + 4, false], [H + 6, H + 7, false]]);
+    caretAt(view, H + 9);
+    expect(hides()).toEqual([expect.objectContaining({ from: H, to: H + 3, sticky: true })]);
   });
 
-  it('without the seam no spec carries a sticky flag at all (production emits none)', () => {
-    const view = mount(DOC, { context: { pageName: 'Sticky', attachments: [] } });
+  it('a page with no block marker has no sticky spec and no sticky range', () => {
+    const view = mount('Para *one*\n\nAfter `code`');
     caretAt(view, 0);
-    const specs = livePreviewSpecs(view.state, activeLinesOf(view.state), { context: { pageName: 'Sticky', attachments: [] } });
-    expect(specs.some((s) => s.kind === 'hide' && s.from === H)).toBe(true);
+    const specs = livePreviewSpecs(view.state, activeLinesOf(view.state), { context });
+    expect(specs.some((s) => s.kind === 'hide')).toBe(true);
     expect(specs.filter((s) => 'sticky' in s)).toEqual([]);
     expect(rangesOf(stickyRangesOf(view))).toEqual([]);
+  });
+
+  it('an ordered number stays visible and is still a sticky (atomic) range', () => {
+    const view = mount('1. first\n\nend');
+    caretAt(view, 5);
+    expect(rangesOf(stickyRangesOf(view))).toEqual([[0, 3]]);
+    expect(hiddenRanges(view)).toEqual([]);
+    expect(view.contentDOM.querySelector('.cm-line').textContent).toBe('1. first');
   });
 
   it('the marker stays hidden with the caret on its line, and stickyRangesOf reports it', () => {
@@ -248,22 +254,22 @@ describe('a change that puts a marker in front of the caret', () => {
 describe('Backspace wins over the Markdown keymap, in CodeEditor\'s extension order', () => {
   // CodeEditor.jsx lists markdown() — whose keymap binds Backspace to deleteMarkupBackward at Prec.high — before the
   // live-preview extension. deleteMarkupBackward dispatches userEvent "delete"; removeLineMarker "delete.backward".
-  function mountLikeCodeEditor(doc, context) {
+  function mountLikeCodeEditor(doc, live) {
     const seen = [];
-    const view = mount(doc, { context, extra: EditorView.updateListener.of((u) => seen.push(...u.transactions)) });
+    const view = mount(doc, { live, extra: EditorView.updateListener.of((u) => seen.push(...u.transactions)) });
     return { view, seen };
   }
 
-  it('control: with nothing sticky, Backspace after `> ` is the Markdown keymap\'s', () => {
-    const { view, seen } = mountLikeCodeEditor('Para\n\n> Quote', plain);
+  it('control: outside live mode, Backspace after `> ` is the Markdown keymap\'s', () => {
+    const { view, seen } = mountLikeCodeEditor('Para\n\n> Quote', false);
     caretAt(view, 8);
     seen.length = 0;
     expect(press(view, 'Backspace')).toBe(true);
     expect(seen.map((tr) => tr.annotation(Transaction.userEvent))).toEqual(['delete']);
   });
 
-  it('with a sticky quote marker, removeLineMarker runs instead and removes exactly `> `', () => {
-    const { view, seen } = mountLikeCodeEditor('Para\n\n> Quote', stickyQuotes);
+  it('in live mode removeLineMarker runs instead and removes exactly `> `', () => {
+    const { view, seen } = mountLikeCodeEditor('Para\n\n> Quote', true);
     caretAt(view, 8);
     seen.length = 0;
     expect(press(view, 'Backspace')).toBe(true);
@@ -303,6 +309,188 @@ describe('Backspace after a line marker', () => {
     caretAt(view, H + 5);
     press(view, 'Backspace');
     expect(text(view)).toBe('Para one\n## Ttle\nAfter');
+  });
+});
+
+describe('every block marker: the caret rests where the text starts, and Backspace there removes the marker', () => {
+  // [line, where its text starts, the line after one Backspace there]
+  const CASES = [
+    ['## Title', 3, 'Title'],
+    ['- item', 2, 'item'],
+    ['* item', 2, 'item'],
+    ['1. item', 3, 'item'],
+    ['10) item', 4, 'item'],
+    ['- [ ] task', 6, 'task'],
+    ['- [x] task', 6, 'task'],
+    ['> quote', 2, 'quote'],
+    ['- ', 2, ''],
+    ['> > deep', 4, '> deep'],
+    ['> - item', 4, '> item'],
+    ['> - [ ] x', 8, '> x'],
+    ['> ## t', 5, '> t'],
+    ['- > x', 4, '- x'],
+    ['- ## t', 5, '- t'],
+    ['> 1. x', 5, '> x'],
+  ];
+
+  it.each(CASES)('%j: a caret anywhere up to offset %i rests there', (line, start) => {
+    const view = mount(`Para\n\n${line}\n\nAfter`);
+    for (let at = 0; at <= start; at += 1) {
+      caretAt(view, 0);
+      caretAt(view, 6 + at);
+      expect(head(view), `placed at offset ${at}`).toBe(6 + start);
+    }
+    caretAt(view, 5);
+    press(view, 'ArrowRight');
+    expect(head(view)).toBe(6 + start);
+    press(view, 'ArrowLeft');
+    expect(head(view)).toBe(5);
+  });
+
+  it.each(CASES)('%j: Backspace at offset %i leaves %j and changes nothing else', (line, start, after) => {
+    const view = mount(`Para\n\n${line}\n\nAfter`);
+    caretAt(view, 6 + start);
+    expect(press(view, 'Backspace')).toBe(true);
+    expect(text(view)).toBe(`Para\n\n${after}\n\nAfter`);
+    expect(head(view)).toBe(6 + after.length - (line.length - start));
+  });
+
+  it('typing at the resting place goes into the text, behind every marker', () => {
+    const view = mount('> - [ ] x');
+    caretAt(view, 0);
+    type(view, 'y');
+    expect(text(view)).toBe('> - [ ] yx');
+  });
+
+  it('Backspace peels one marker at a time, innermost first', () => {
+    const view = mount('> - [ ] x');
+    caretAt(view, 8);
+    press(view, 'Backspace');
+    expect(text(view)).toBe('> x');
+    expect(head(view)).toBe(2);
+    press(view, 'Backspace');
+    expect(text(view)).toBe('x');
+    expect(head(view)).toBe(0);
+  });
+
+  it('with several spaces after the marker only the first belongs to it', () => {
+    const view = mount('-   wide');
+    caretAt(view, 0);
+    expect(head(view)).toBe(2);
+    press(view, 'Backspace');
+    expect(text(view)).toBe('  wide');
+  });
+
+  it('a continuation line of a quote has its own mark; a lazy line and a list continuation have none', () => {
+    const view = mount('> a\n> b\nlazy\n\n- item\n  more');
+    caretAt(view, 4);
+    expect(head(view)).toBe(6);
+    caretAt(view, 8);
+    expect(head(view)).toBe(8);
+    caretAt(view, 21);
+    expect(head(view)).toBe(21);
+  });
+
+  it('a clicked checkbox still toggles with the caret on its line', () => {
+    const view = mount('- [ ] task');
+    caretAt(view, 8);
+    const box = view.contentDOM.querySelector('input.cm-lp-task');
+    expect(box).not.toBeNull();
+    box.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    expect(text(view)).toBe('- [x] task');
+    expect(view.contentDOM.querySelector('input.cm-lp-task').checked).toBe(true);
+  });
+});
+
+describe('nested list items: the marker is sticky, the indentation is plain text', () => {
+  const NESTED = '- one\n  - nested\nAfter';
+  const L = NESTED.indexOf('  - '); // the nested line starts at 6; its text at L + 4
+
+  it('only the marker and its space are the sticky range', () => {
+    const view = mount(NESTED);
+    caretAt(view, L + 6);
+    expect(rangesOf(stickyRangesOf(view))).toEqual([[0, 2], [L + 2, L + 4]]);
+  });
+
+  it.each([0, 1, 2, 3, 4])('a caret placed at offset %i rests where the text starts', (at) => {
+    const view = mount(NESTED);
+    caretAt(view, L + at);
+    expect(head(view)).toBe(L + 4);
+  });
+
+  it('ArrowLeft from the start of the text goes to the end of the previous line, and ArrowRight comes back', () => {
+    const view = mount(NESTED);
+    caretAt(view, L + 4);
+    press(view, 'ArrowLeft');
+    expect(head(view)).toBe(L - 1);
+    press(view, 'ArrowRight');
+    expect(head(view)).toBe(L + 4);
+  });
+
+  it('Backspace at the start of the text removes the marker and keeps the indentation', () => {
+    const view = mount(NESTED);
+    caretAt(view, L + 4);
+    press(view, 'Backspace');
+    expect(text(view)).toBe('- one\n  nested\nAfter');
+    expect(head(view)).toBe(L + 2);
+  });
+
+  it.each([['Tab', {}], ['Tab', { shiftKey: true }]])('%s %j changes the text exactly as it does in Source mode, the caret staying with the text', (key, init) => {
+    const run = (live) => {
+      const view = mount(NESTED, { live, extra: keymap.of([indentWithTab]) });
+      view.dispatch({ selection: { anchor: L + 4 } });
+      press(view, key, init);
+      return { doc: text(view), textStart: text(view).indexOf('nested'), caret: head(view) };
+    };
+    const rich = run(true);
+    expect(rich.doc).toBe(run(false).doc);
+    expect(rich.doc).not.toBe(NESTED);
+    expect(rich.caret).toBe(rich.textStart);
+  });
+});
+
+describe('Enter keeps continuing and ending lists (the Markdown keymap\'s, untouched)', () => {
+  it.each([['- a', '- a\n- '], ['1. a', '1. a\n2. '], ['- [ ] a', '- [ ] a\n- [ ] '], ['> a', '> a\n> ']])('Enter at the end of %j gives %j', (line, after) => {
+    const view = mount(line);
+    caretAt(view, line.length);
+    press(view, 'Enter');
+    expect(text(view)).toBe(after);
+    expect(head(view)).toBe(after.length);
+  });
+
+  // The Markdown keymap first loosens a tight list (a blank line before the empty item), then removes the empty marker.
+  it('Enter on the empty item ends the list, step for step as in Source mode', () => {
+    const run = (live) => {
+      const view = mount('- a\n- ', { live });
+      view.dispatch({ selection: { anchor: 6 } });
+      const steps = [];
+      for (let i = 0; i < 2; i += 1) { press(view, 'Enter'); steps.push(text(view)); }
+      return steps;
+    };
+    expect(run(true)).toEqual(run(false));
+    expect(run(true)).toEqual(['- a\n\n- ', '- a\n\n']);
+  });
+});
+
+describe('a selection that runs into a marker line (Review Focus 3)', () => {
+  const TEXT = 'Para one\n## Title\n- item\n> - [ ] x';
+  const LINES = { heading: TEXT.indexOf('## '), item: TEXT.indexOf('- item'), stacked: TEXT.indexOf('> - [ ]') };
+  const cases = [];
+  for (const [name, start] of Object.entries(LINES)) {
+    const lineEnd = TEXT.indexOf('\n', start) < 0 ? TEXT.length : TEXT.indexOf('\n', start);
+    for (let to = start; to <= lineEnd; to += 1) cases.push([name, to]);
+  }
+
+  it.each(cases)('from mid-paragraph into the %s line, up to offset %i: Delete and Backspace remove exactly the selected text', (_name, to) => {
+    for (const key of ['Delete', 'Backspace']) {
+      for (const [anchor, hd] of [[5, to], [to, 5]]) {
+        const view = mount(TEXT);
+        view.dispatch({ selection: { anchor, head: hd } });
+        expect([view.state.selection.main.from, view.state.selection.main.to]).toEqual([5, to]);
+        press(view, key);
+        expect(text(view), `${key}, anchor ${anchor}`).toBe(TEXT.slice(0, 5) + TEXT.slice(to));
+      }
+    }
   });
 });
 
@@ -377,7 +565,7 @@ describe('composition input is never lost', () => {
   }
 
   it.each([['in live mode', true], ['with live mode off', false]])('text composed %s reaches the document', async (_name, live) => {
-    const view = mount('Para one\nTitle', { live, context: plain });
+    const view = mount('Para one\nTitle', { live });
     caretAt(view, 4);
     const { duringStart, duringEvents } = await compose(view);
     expect(text(view)).toBe('ParaXY one\nTitle');

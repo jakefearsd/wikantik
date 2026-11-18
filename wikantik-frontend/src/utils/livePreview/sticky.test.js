@@ -494,6 +494,64 @@ describe('a selection that runs into a marker line (Review Focus 3)', () => {
   });
 });
 
+describe('ArrowLeft with a range selection or several cursors is CodeMirror\'s own', () => {
+  const selections = {
+    'a range selection': () => EditorSelection.single(H + 4, H + 7),
+    'a range selection ending right after the marker': () => EditorSelection.single(H + 6, H + 3),
+    'two cursors': () => EditorSelection.create([EditorSelection.cursor(3), EditorSelection.cursor(H + 5)], 1),
+    'two cursors, one right after the marker': () => EditorSelection.create([EditorSelection.cursor(3), EditorSelection.cursor(H + 3)], 1),
+  };
+  const cases = Object.keys(selections).flatMap((name) => [[name, 'ArrowLeft', {}], [name, 'ArrowLeft', { ctrlKey: true }]]);
+
+  it.each(cases)('%s, %s %j: no throw', (name, key, init) => {
+    const view = mount(DOC, { extra: EditorState.allowMultipleSelections.of(true) });
+    view.dispatch({ selection: selections[name]() });
+    expect(leaveLineMarker(view)).toBe(false); // the command declines; the key is then CodeMirror's
+    expect(() => press(view, key, init)).not.toThrow();
+    expect(text(view)).toBe(DOC);
+  });
+
+  it.each(cases.filter(([name]) => !name.includes('right after the marker')))('%s, %s %j: the same selection as in Source mode', (name, key, init) => {
+    const run = (live) => {
+      const view = mount(DOC, { live, extra: EditorState.allowMultipleSelections.of(true) });
+      view.dispatch({ selection: selections[name]() });
+      press(view, key, init);
+      return view.state.selection.ranges.map((r) => [r.anchor, r.head]);
+    };
+    expect(run(true)).toEqual(run(false));
+  });
+
+  it('Backspace with a range selection or two cursors declines the marker command too', () => {
+    for (const make of Object.values(selections)) {
+      const view = mount(DOC, { extra: EditorState.allowMultipleSelections.of(true) });
+      view.dispatch({ selection: make() });
+      expect(removeLineMarker(view)).toBe(false);
+    }
+  });
+});
+
+describe('fenced code inside a quote', () => {
+  const QUOTED = 'Para\n\n> ```\n> code\n> ```\n\nend';
+  const C = QUOTED.indexOf('> code');
+
+  it('pinned as it is: only the opening line\'s quote mark is a sticky range; code lines keep their `> ` as source', () => {
+    const view = mount(QUOTED);
+    caretAt(view, C + 4);
+    expect(rangesOf(stickyRangesOf(view))).toEqual([[6, 8]]);
+    expect(view.contentDOM.querySelectorAll('.cm-line')[3].textContent).toBe('> code');
+    caretAt(view, C);
+    expect(head(view)).toBe(C); // nothing sticky on a code line: the caret may rest before its `> `
+  });
+
+  it('Backspace after the opening line\'s `> ` removes that mark only', () => {
+    const view = mount(QUOTED);
+    caretAt(view, 6);
+    expect(head(view)).toBe(8);
+    press(view, 'Backspace');
+    expect(text(view)).toBe('Para\n\n```\n> code\n> ```\n\nend');
+  });
+});
+
 describe('live mode off: none of it applies', () => {
   it('Home goes to offset 0, the caret can rest inside the marker, Backspace deletes one character', () => {
     const view = mount('## Title', { live: false });

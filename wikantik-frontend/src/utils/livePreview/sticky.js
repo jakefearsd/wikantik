@@ -61,18 +61,18 @@ function atomicStickyRanges(view) {
 export const stickyAtomic = EditorView.atomicRanges.of(atomicStickyRanges);
 
 /**
- * The sticky ranges `[from, to]` lying on `line`, ascending, read from the state alone (a transaction filter has no
+ * The sticky ranges `[from, to, lineMarker]` lying on `line`, ascending, read from the state alone (a transaction filter has no
  * view, and the view's decorations describe the state before the transaction): the line's inline specs plus the block
  * field. One line's specs — a caret move does not walk the document.
  */
 function stickySpansOn(state, line) {
   const spans = [];
-  const add = (from, to) => { if (from >= line.from && to <= line.to && to > from) spans.push([from, to]); };
+  const add = (from, to, lineMarker) => { if (from >= line.from && to <= line.to && to > from) spans.push([from, to, lineMarker === true]); };
   try {
     const specs = livePreviewSpecs(state, activeLinesOf(state), { from: line.from, to: line.to, context: getContext(state) });
-    for (const s of specs) if (s.sticky) add(s.from, s.to);
+    for (const s of specs) if (s.sticky) add(s.from, s.to, s.lineMarker);
     state.field(blockField, false)?.decos.between(line.from, line.to, (from, to, value) => {
-      if (value.spec.lpSticky) add(from, to);
+      if (value.spec.lpSticky) add(from, to, false);
     });
   } catch (err) {
     console.warn('[rich] could not read the sticky ranges; the caret is left where it is', err?.message || err);
@@ -81,14 +81,16 @@ function stickySpansOn(state, line) {
 }
 
 /**
- * The line markers among a line's sticky ranges: the leading run with nothing but whitespace before and between them
- * (`> - [ ] x` has two, the quote mark and the checkbox; an indented `  - x` has one, after its indentation).
+ * The line markers among a line's sticky ranges: those whose spec says so (`lineMarker: true`, set for block markers
+ * in ranges.js), in the leading run with nothing but whitespace before and between them (`> - [ ] x` has two, the
+ * quote mark and the checkbox; an indented `  - x` has one, after its indentation). A sticky range of any other kind
+ * ends the run, also at the line start.
  */
 function lineMarkersOf(state, line, spans) {
   const markers = [];
   let at = line.from;
-  for (const [from, to] of spans) {
-    if (from < at || /\S/.test(state.doc.sliceString(at, from))) break;
+  for (const [from, to, lineMarker] of spans) {
+    if (!lineMarker || from < at || /\S/.test(state.doc.sliceString(at, from))) break;
     markers.push([from, to]);
     at = to;
   }
@@ -184,8 +186,9 @@ export function leaveLineMarker(view) {
   if (!live(state)) return false;
   const head = soleCaret(state);
   const marker = head < 0 ? null : lineMarkerBefore(state, head);
+  if (!marker) return false;
   const lineStart = state.doc.lineAt(head).from;
-  if (!marker || lineStart === 0) return false;
+  if (lineStart === 0) return false;
   view.dispatch({ selection: EditorSelection.cursor(lineStart - 1), userEvent: 'select', scrollIntoView: true });
   return true;
 }

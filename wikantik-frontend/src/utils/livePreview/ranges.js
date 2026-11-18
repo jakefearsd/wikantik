@@ -489,14 +489,16 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   // drop a construct as a whole when it cuts through a wikilink/math range.
   // `{ sticky: true }`: emitted whether or not the line is active and flagged, so it stays hidden under the caret
   // (the caret rules that make that usable are in sticky.js). Non-sticky specs carry no flag.
-  const hide = (a, b, group, { sticky = false } = {}) => {
-    if (b > a && (sticky || inactive(a))) specs.push({ kind: 'hide', from: a, to: b, group, ...(sticky && { sticky: true }) });
+  // `{ lineMarker: true }` (with sticky): a block marker — the caret rests after it and Backspace there removes it.
+  const flags = ({ sticky = false, lineMarker = false } = {}) => (sticky ? { sticky: true, ...(lineMarker && { lineMarker: true }) } : null);
+  const hide = (a, b, group, opts) => {
+    if (b > a && (opts?.sticky || inactive(a))) specs.push({ kind: 'hide', from: a, to: b, group, ...flags(opts) });
   };
-  const mark = (a, b, cls, group, { sticky = false } = {}) => {
-    if (b > a) specs.push({ kind: 'mark', from: a, to: b, cls, group, ...(sticky && { sticky: true }) });
+  const mark = (a, b, cls, group, opts) => {
+    if (b > a) specs.push({ kind: 'mark', from: a, to: b, cls, group, ...flags(opts) });
   };
-  const widget = (a, b, w, { sticky = false } = {}) => {
-    if (b > a && (sticky || inactive(a))) specs.push({ kind: 'widget', from: a, to: b, widget: w, ...(sticky && { sticky: true }) });
+  const widget = (a, b, w, opts) => {
+    if (b > a && (opts?.sticky || inactive(a))) specs.push({ kind: 'widget', from: a, to: b, widget: w, ...flags(opts) });
   };
   // Whether a quote or list marker stays hidden under the caret. Not where the block it opens on its line is in the
   // "expensive" set, which is edited as source: a footnote definition, or a table inside the container.
@@ -528,7 +530,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const heading = (node, level) => {
     addLine(doc.lineAt(node.from).from, `cm-lp-h${level}`);
     const m = node.node.firstChild;
-    if (m && m.name === 'HeaderMark') hide(m.from, m.to + spaceAfter(m.to), undefined, { sticky: true });
+    if (m && m.name === 'HeaderMark') hide(m.from, m.to + spaceAfter(m.to), undefined, { sticky: true, lineMarker: true });
   };
   const setextHeading = (node, level) => {
     const mk = node.node.getChild('HeaderMark');
@@ -595,14 +597,15 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     // The marker's one trailing space belongs to it: the range then ends where the item's text starts, which is where
     // the caret rests and where Backspace removes the marker as a whole (sticky.js).
     const sticky = stickyMarker(listMark);
+    const opts = { sticky, lineMarker: true };
     if (marker) {
       const ch = doc.sliceString(marker.from + 1, marker.from + 2);
-      widget(listMark.from, marker.to + spaceAfter(marker.to), { type: 'checkbox', checked: ch === 'x' || ch === 'X', markerFrom: marker.from, text: doc.sliceString(marker.to, doc.lineAt(marker.to).to).trim().slice(0, 40) }, { sticky });
+      widget(listMark.from, marker.to + spaceAfter(marker.to), { type: 'checkbox', checked: ch === 'x' || ch === 'X', markerFrom: marker.from, text: doc.sliceString(marker.to, doc.lineAt(marker.to).to).trim().slice(0, 40) }, opts);
     } else if (n.parent?.name === 'BulletList') {
-      widget(listMark.from, listMark.to + spaceAfter(listMark.to), { type: 'bullet' }, { sticky });
+      widget(listMark.from, listMark.to + spaceAfter(listMark.to), { type: 'bullet' }, opts);
     } else if (sticky) {
       // A number is shown as it is written (it carries the item's value); the mark only makes it one atomic unit.
-      mark(listMark.from, listMark.to + spaceAfter(listMark.to), 'cm-lp-olmark', undefined, { sticky: true });
+      mark(listMark.from, listMark.to + spaceAfter(listMark.to), 'cm-lp-olmark', undefined, opts);
     }
   };
   const fenced = (node) => {
@@ -655,7 +658,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         case 'Strikethrough': markedInline(node, 'cm-lp-del', 'StrikethroughMark'); break;
         case 'Link': link(node); break;
         case 'Blockquote': blockquote(node); break;
-        case 'QuoteMark': hide(node.from, node.to + spaceAfter(node.to), undefined, { sticky: stickyMarker(node.node) }); break;
+        case 'QuoteMark': hide(node.from, node.to + spaceAfter(node.to), undefined, { sticky: stickyMarker(node.node), lineMarker: true }); break;
         case 'HorizontalRule': widget(node.from, node.to, { type: 'rule' }); break;
         case 'ListItem': listItem(node); break;
         default: break;

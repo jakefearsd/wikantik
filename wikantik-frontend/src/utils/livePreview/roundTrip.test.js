@@ -201,7 +201,6 @@ describe('no-op invariant: placing the caret never changes the document', () => 
     expect(pages.length).toBeGreaterThan(1000);
     const bad = [];
     let moved = 0;
-    const t0 = performance.now();
     const warnings = ownWarnings(() => {
       for (const subject of subjects) {
         try {
@@ -213,7 +212,6 @@ describe('no-op invariant: placing the caret never changes the document', () => 
         }
       }
     });
-    console.info(`no-op invariant: state pass over ${subjects.length} pages in ${((performance.now() - t0) / 1000).toFixed(1)} s; the caret rule moved ${moved} carets`);
     expect(bad, `placing the caret changed the document: ${bad.slice(0, 20).join('; ')}`).toEqual([]);
     expect(warnings.slice(0, 5)).toEqual([]);
     expect(moved).toBeGreaterThan(10_000); // the sweep did meet the caret rule: the corpus is full of headings and lists
@@ -224,9 +222,7 @@ describe('no-op invariant: placing the caret never changes the document', () => 
     const sample = [subjects[0], ...subjects.slice(1).filter((_, i) => i % step === 0).slice(0, VIEW_SAMPLE)];
     expect(sample.length).toBeGreaterThan(VIEW_SAMPLE / 2);
     const bad = [];
-    const t0 = performance.now();
     const warnings = ownWarnings(() => { for (const subject of sample) bad.push(...sweepView(subject)); });
-    console.info(`no-op invariant: mounted pass over ${sample.length} pages in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
     expect(bad, `placing the caret changed the document: ${bad.slice(0, 20).join('; ')}`).toEqual([]);
     expect(warnings.slice(0, 5)).toEqual([]);
   }, SWEEP_TIMEOUT_MS);

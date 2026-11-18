@@ -58,11 +58,15 @@ public class EditorInsertHelpersIT extends WithIntegrationTestSetup {
 
     @ParameterizedTest
     @EnumSource( EditorMode.class )
-    void codeBlockButtonInsertsAFencedBlock( final EditorMode mode ) {
+    void codeBlockMenuItemInsertsAFencedBlock( final EditorMode mode ) {
         EditWikiPage.openInMode( "EditorCodeBlock" + mode.name() + System.currentTimeMillis(), mode );
 
         focusReadyEditor();
-        $( "[aria-label='Code block']" ).click();
+        // Code block lives in the toolbar's Insert menu: open it, then choose the item.
+        $( "[role=toolbar] button[aria-label='Insert']" ).click();
+        $( "[role=menu][aria-label='Insert'] [data-label='Code block']" )
+            .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) )
+            .click();
 
         // The fenced block's language placeholder appears in the editor document.
         EditWikiPage.awaitDocumentContaining( "language", Duration.ofSeconds( 5 ) );

@@ -633,7 +633,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
         case 'Strikethrough': markedInline(node, 'cm-lp-del', 'StrikethroughMark'); break;
         case 'Link': link(node); break;
         case 'Blockquote': blockquote(node); break;
-        case 'QuoteMark': hide(node.from, node.to + spaceAfter(node.to)); break;
+        case 'QuoteMark': hide(node.from, node.to + spaceAfter(node.to), undefined, { sticky: stickyKinds.includes('quote') }); break;
         case 'HorizontalRule': widget(node.from, node.to, { type: 'rule' }); break;
         case 'ListItem': listItem(node); break;
         default: break;

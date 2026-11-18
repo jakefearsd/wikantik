@@ -4,7 +4,7 @@
  * sticky in production yet, so these tests turn ATX heading markers sticky through the `stickyKinds` context seam.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { EditorState, EditorSelection } from '@codemirror/state';
+import { EditorState, EditorSelection, Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
@@ -16,6 +16,8 @@ import { livePreviewSpecs, activeLinesOf } from './ranges';
 import { stickyRangesOf, removeLineMarker, leaveLineMarker } from './sticky';
 import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 
+const stickyQuotes = { pageName: 'Sticky', attachments: [], stickyKinds: ['quote'] };
+const plain = { pageName: 'Sticky', attachments: [] };
 const stickyHeadings = { pageName: 'Sticky', attachments: [], stickyKinds: ['heading'] };
 const DOC = 'Para one\n## Title\nAfter';
 const H = DOC.indexOf('## '); // heading line start (9); its marker `## ` is [H, H + 3)
@@ -180,21 +182,100 @@ describe('sticky caret', () => {
     expect(head(view)).toBe(H);
   });
 
-  it('during composition the caret is not moved: the view is composing', () => {
+  it('between compositionstart and compositionend a selection is not moved; compositionend itself corrects the caret', () => {
     const view = mount();
     caretAt(view, H + 5);
-    Object.defineProperty(view, 'composing', { get: () => true, configurable: true });
+    view.contentDOM.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
     view.dispatch({ selection: { anchor: H } });
     expect(head(view)).toBe(H);
-    delete view.composing;
-    view.dispatch({ selection: { anchor: H } });
+    view.dispatch({ changes: { from: H + 3, insert: 'k' } }); // a change mid-composition does not move it either
+    expect(head(view)).toBe(H);
+    view.contentDOM.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
     expect(head(view)).toBe(H + 3);
+    expect(text(view)).toBe('Para one\n## kTitle\nAfter');
+  });
+
+  it('a composition that never touched a marker changes nothing when it ends', () => {
+    const view = mount();
+    caretAt(view, 2);
+    view.contentDOM.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    view.contentDOM.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+    expect(head(view)).toBe(2);
+    expect(text(view)).toBe(DOC);
   });
 
   it('every range of a multi-range selection obeys the rule', () => {
     const view = mount('## One\n## Two', { extra: EditorState.allowMultipleSelections.of(true) });
     view.dispatch({ selection: EditorSelection.create([EditorSelection.cursor(0), EditorSelection.cursor(8)], 1) });
     expect(view.state.selection.ranges.map((r) => r.head)).toEqual([3, 10]);
+  });
+});
+
+describe('a change that puts a marker in front of the caret', () => {
+  const PLAIN = 'Para one\nTitle\nAfter'; // line 2 starts at H
+
+  it.each([['a local change with no selection', []], ['a shared-editing peer', [Transaction.remote.of(true)]]])(
+    '%s turns the caret line into a heading: the caret ends after the marker and the change arrives intact',
+    (_name, annotations) => {
+      const seen = [];
+      const view = mount(PLAIN, { extra: EditorView.updateListener.of((u) => seen.push(...u.transactions)) });
+      caretAt(view, H);
+      seen.length = 0;
+      view.dispatch({ changes: { from: H, insert: '## ' }, annotations });
+
+      expect(text(view)).toBe(DOC);
+      expect(head(view)).toBe(H + 3);
+      expect(seen).toHaveLength(1);
+      expect(!!seen[0].annotation(Transaction.remote)).toBe(annotations.length === 1);
+      const changes = [];
+      seen[0].changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => changes.push([fromA, toA, inserted.toString()]));
+      expect(changes).toEqual([[H, H, '## ']]);
+
+      type(view, 'x');
+      expect(text(view)).toBe('Para one\n## xTitle\nAfter');
+    },
+  );
+
+  it('a change elsewhere leaves a caret that is already fine where it maps', () => {
+    const view = mount();
+    caretAt(view, H + 5);
+    view.dispatch({ changes: { from: 0, insert: 'Zz ' } });
+    expect(head(view)).toBe(H + 8);
+  });
+
+  it('outside live mode a change-only transaction leaves the caret before the marker', () => {
+    const view = mount(PLAIN, { live: false });
+    caretAt(view, H);
+    view.dispatch({ changes: { from: H, insert: '## ' } });
+    expect(head(view)).toBe(H);
+  });
+});
+
+describe('Backspace wins over the Markdown keymap, in CodeEditor\'s extension order', () => {
+  // CodeEditor.jsx lists markdown() — whose keymap binds Backspace to deleteMarkupBackward at Prec.high — before the
+  // live-preview extension. deleteMarkupBackward dispatches userEvent "delete"; removeLineMarker "delete.backward".
+  function mountLikeCodeEditor(doc, context) {
+    const seen = [];
+    const view = mount(doc, { context, extra: EditorView.updateListener.of((u) => seen.push(...u.transactions)) });
+    return { view, seen };
+  }
+
+  it('control: with nothing sticky, Backspace after `> ` is the Markdown keymap\'s', () => {
+    const { view, seen } = mountLikeCodeEditor('Para\n\n> Quote', plain);
+    caretAt(view, 8);
+    seen.length = 0;
+    expect(press(view, 'Backspace')).toBe(true);
+    expect(seen.map((tr) => tr.annotation(Transaction.userEvent))).toEqual(['delete']);
+  });
+
+  it('with a sticky quote marker, removeLineMarker runs instead and removes exactly `> `', () => {
+    const { view, seen } = mountLikeCodeEditor('Para\n\n> Quote', stickyQuotes);
+    caretAt(view, 8);
+    seen.length = 0;
+    expect(press(view, 'Backspace')).toBe(true);
+    expect(seen.map((tr) => tr.annotation(Transaction.userEvent))).toEqual(['delete.backward']);
+    expect(text(view)).toBe('Para\n\nQuote');
+    expect(head(view)).toBe(6);
   });
 });
 

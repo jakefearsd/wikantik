@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.4] - 2026-11-17
+
 ### Fixed
 
 - Link syntax shown as code (`` `[Page Name]()` ``, `` `[text](Page)` `` or the same inside a code fence) is no longer read as a link: it is not reported as a broken link, gives the named page no backlink, and is left alone when that page is renamed. `[[Page]]` examples already behaved this way. Existing entries clear when the page is next saved or the reference index is rebuilt.

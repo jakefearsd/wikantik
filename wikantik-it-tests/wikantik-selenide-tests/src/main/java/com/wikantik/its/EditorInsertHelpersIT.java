@@ -68,8 +68,9 @@ public class EditorInsertHelpersIT extends WithIntegrationTestSetup {
             .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) )
             .click();
 
-        // The fenced block's language placeholder appears in the editor document.
-        EditWikiPage.awaitDocumentContaining( "language", Duration.ofSeconds( 5 ) );
+        // Source: the fenced block arrives with its language placeholder. Rich: with no language (the header's
+        // picker sets one) and an empty body line for the caret.
+        EditWikiPage.awaitDocumentContaining( mode == EditorMode.LIVE ? "```\n\n```" : "```language", Duration.ofSeconds( 5 ) );
     }
 
     /**

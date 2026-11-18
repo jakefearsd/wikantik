@@ -63,12 +63,19 @@ export function moveIntoBlock(view, forward, extend) {
   return true;
 }
 
+/** A range's answer in moveOverHiddenLine: it needs a line added at the document's edge. */
+const ADD_LINE = Symbol('add line');
+
 /**
  * ArrowDown/ArrowUp (Shift: extend) in live mode with a hidden line next in the way (a fence's header or its hidden
  * closing line, sticky.js): the head goes to the nearest line beyond that shows text, at the same character column
  * (or that line's end). CodeMirror's own motion would land on the hidden line, where the caret rule can only send it
- * to a line end. At the document's edge — nothing shown beyond — the key is taken and the caret stays. Returns false
- * when no range has a hidden line in the way, or outside live mode.
+ * to a line end. Returns false when no range has a hidden line in the way, or outside live mode.
+ *
+ * At the document's edge — a fence on its last line, or its first — there is no line beyond, and the block could not
+ * be left: the plain arrow key adds one empty line there and goes to it (one transaction, whatever the number of
+ * cursors; an edit, `userEvent: 'input'`). Not when extending and not on a read-only document: the key is then taken
+ * and the caret stays. This is the only caret key that edits; nothing else that reaches the dead end adds a line.
  */
 export function moveOverHiddenLine(view, forward, extend) {
   const { state } = view;
@@ -83,17 +90,32 @@ export function moveOverHiddenLine(view, forward, extend) {
     const rowEdge = view.moveToLineBoundary(EditorSelection.cursor(range.head, range.assoc), forward).head;
     if (rowEdge !== (forward ? line.to : line.from) || !isHiddenLine(state, doc.line(beside))) return null;
     redirected = true;
-    const target = lineBeyondHidden(state, line, forward ? 1 : -1);
-    if (!target) return range;
-    const head = Math.min(target.from + (range.head - line.from), target.to);
+    const beyond = lineBeyondHidden(state, line, forward ? 1 : -1);
+    if (beyond?.edge && !extend && !state.readOnly) return ADD_LINE;
+    if (!beyond?.line) return range;
+    const head = Math.min(beyond.line.from + (range.head - line.from), beyond.line.to);
     return extend ? EditorSelection.range(range.anchor, head) : EditorSelection.cursor(head);
   });
   if (!redirected) return false;
   const moved = ranges.map((r, i) => r || defaultMove(view, state.selection.ranges[i], forward, extend));
+  if (!moved.includes(ADD_LINE)) {
+    view.dispatch({
+      selection: EditorSelection.create(moved, state.selection.mainIndex),
+      scrollIntoView: true,
+      userEvent: 'select',
+    });
+    return true;
+  }
+  // One line break at the document's edge, however many cursors asked for it; they all go to the new empty line and
+  // the others keep their place in the changed document.
+  const changes = state.changes({ from: forward ? doc.length : 0, insert: '\n' });
+  const added = forward ? changes.newLength : 0;
+  const placed = moved.map((r) => (r === ADD_LINE ? EditorSelection.cursor(added) : r.map(changes, 1)));
   view.dispatch({
-    selection: EditorSelection.create(moved, state.selection.mainIndex),
+    changes,
+    selection: EditorSelection.create(placed, state.selection.mainIndex),
     scrollIntoView: true,
-    userEvent: 'select',
+    userEvent: 'input',
   });
   return true;
 }

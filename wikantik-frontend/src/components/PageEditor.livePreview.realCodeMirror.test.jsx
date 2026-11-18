@@ -56,6 +56,9 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  // A toolbar command focuses the editor, which leaves a DOM selection inside it; happy-dom keeps that selection after
+  // the editor is gone and then fires `selectionchange` synchronously into the next test's editor, mid-update.
+  document.getSelection()?.removeAllRanges();
   cleanup();
   await act(async () => { await Promise.resolve(); });
 });
@@ -238,6 +241,43 @@ describe('rich mode: block markers stay hidden under the caret', () => {
       expect(docOf(view)).toBe(text.slice(0, 5) + text.slice(to));
     },
   );
+
+  const insertCodeBlock = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Insert' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^Code block/ }));
+  };
+
+  it('Rich: "Code block" inserts a fence with no language and puts the caret on its body line', async () => {
+    const view = await mountRich('Para\n\nend');
+    placeCaret(view, 5);
+    await insertCodeBlock();
+    await until(() => docOf(view).includes('```'));
+    expect(docOf(view)).toBe('Para\n\n```\n\n```\n\nend');
+    expect(caretOf(view)).toBe(10);
+    expect(view.state.selection.main.empty).toBe(true);
+    await until(() => view.contentDOM.querySelector('.cm-lp-fence-header select') !== null);
+    expect(view.contentDOM.querySelector('.cm-lp-fence-header select').selectedOptions[0].textContent).toBe('Code');
+    typeAtCaret(view, 'x');
+    expect(docOf(view)).toBe('Para\n\n```\nx\n```\n\nend');
+  });
+
+  it('Rich: "Code block" over a selection makes it the body', async () => {
+    const view = await mountRich('Para\n\nend');
+    act(() => { view.dispatch({ selection: { anchor: 6, head: 9 } }); });
+    await insertCodeBlock();
+    await until(() => docOf(view).includes('```'));
+    expect(docOf(view)).toBe('Para\n\n```\nend\n```\n');
+  });
+
+  it('Source: "Code block" keeps the `language` placeholder, selected', async () => {
+    const view = await mountSource('Para\n\nend');
+    placeCaret(view, 5);
+    await insertCodeBlock();
+    await until(() => docOf(view).includes('```'));
+    expect(docOf(view)).toContain('```language\n');
+    const { from, to } = view.state.selection.main;
+    expect(docOf(view).slice(from, to)).toBe('language');
+  });
 
   it('moving the caret through every line start and end of a page of markers changes nothing', async () => {
     const text = '# Title\n\n- one\n  - nested\n1. first\n- [ ] task\n> quote\n> - [x] deep\n\nend';

@@ -5,7 +5,7 @@
  * on a header or a hidden closing line: every way of getting there lands on the nearest line that shows text.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { EditorState } from '@codemirror/state';
+import { EditorState, EditorSelection, Compartment } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, history, undo } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
@@ -16,6 +16,7 @@ import { blockField } from './plugin';
 import { livePreviewSpecs, activeLinesOf } from './ranges';
 import { stickyRangesOf } from './sticky';
 import { widgetFor } from './widgets';
+import { MARKER } from '../remarkCallouts';
 import {
   FenceHeaderWidget, fenceLanguageOptions, fenceLanguageChange, calloutTypeOptions, calloutTypeChange,
 } from './headers';
@@ -26,7 +27,7 @@ const context = { pageName: 'Headers', attachments: [] };
 const views = [];
 afterEach(() => { while (views.length) { const v = views.pop(); v.destroy(); v.dom.parentNode?.remove(); } });
 
-function mount(doc, { live = true } = {}) {
+function mount(doc, { live = true, extra = [] } = {}) {
   const parent = document.createElement('div');
   document.body.appendChild(parent);
   const transactions = [];
@@ -34,7 +35,7 @@ function mount(doc, { live = true } = {}) {
     parent,
     state: EditorState.create({
       doc,
-      extensions: [markdown(editorMarkdownConfig), history(), livePreview({ getContext: () => context }), keymap.of(defaultKeymap),
+      extensions: [markdown(editorMarkdownConfig), history(), livePreview({ getContext: () => context }), keymap.of(defaultKeymap), extra,
         EditorView.updateListener.of((u) => { for (const tr of u.transactions) if (tr.docChanged) transactions.push(tr); })],
     }),
   });
@@ -131,13 +132,14 @@ describe('fence header: the opening fence line', () => {
   });
 
   it('options: the rendered kinds, the common languages, then the current value when it is none of those', () => {
-    expect(fenceLanguageOptions('js')).toEqual([
+    expect(fenceLanguageOptions('js', 'code').map(({ value, label }) => ({ value, label }))).toEqual([
       { value: 'mermaid', label: 'Mermaid diagram' }, { value: 'plantuml', label: 'PlantUML diagram' },
       ...['text', 'bash', 'java', 'javascript', 'typescript', 'json', 'yaml', 'sql', 'python', 'xml', 'html', 'css', 'diff'].map((l) => ({ value: l, label: l })),
       { value: 'js', label: 'js' },
     ]);
-    expect(fenceLanguageOptions('java')).toHaveLength(15);
-    expect(fenceLanguageOptions('').at(-1)).toEqual({ value: '', label: 'Code' });
+    expect(fenceLanguageOptions('java', 'code')).toHaveLength(15);
+    expect(fenceLanguageOptions('', 'code').at(-1)).toEqual({ value: '', label: 'Code', selected: true });
+    expect(fenceLanguageOptions('java', 'code').filter((o) => o.selected).map((o) => o.value)).toEqual(['java']);
     const dom = new FenceHeaderWidget({ language: 'mermaid', kind: 'diagram' }).toDOM();
     expect(dom.querySelector('select').selectedOptions[0].textContent).toBe('Mermaid diagram');
     expect(dom.querySelector('select').getAttribute('aria-label')).toBe('Diagram kind');
@@ -280,14 +282,6 @@ describe('the caret never rests on a header or a hidden closing line', () => {
     expect([view.state.selection.main.anchor, head(view)]).toEqual([Y, CLOSE + 4]);
   });
 
-  it('at the document edge the arrow key stays put: a fence on the first or the last line', () => {
-    const view = mount('```js\nx\n```');
-    caretAt(view, 6);
-    expect(press(view, 'ArrowUp')).toBe(true);
-    expect(head(view)).toBe(6);
-    expect(press(view, 'ArrowDown')).toBe(true);
-    expect(head(view)).toBe(6);
-  });
 
   it('two fences back to back: the arrow skips the closing line and the next header together', () => {
     const doc = '```js\nx\n```\n```ts\ny\n```';
@@ -459,7 +453,7 @@ describe('callout title: the type picker', () => {
 
   it('options: note tip info warning danger, plus the current type when it is none of those', () => {
     expect(calloutTypeOptions('tip').map((o) => o.value)).toEqual(['note', 'tip', 'info', 'warning', 'danger']);
-    expect(calloutTypeOptions('faq')).toEqual([
+    expect(calloutTypeOptions('faq').map(({ value, label }) => ({ value, label }))).toEqual([
       { value: 'note', label: 'Note' }, { value: 'tip', label: 'Tip' }, { value: 'info', label: 'Info' },
       { value: 'warning', label: 'Warning' }, { value: 'danger', label: 'Danger' }, { value: 'faq', label: 'Faq' },
     ]);
@@ -508,5 +502,194 @@ describe('callout title: the type picker', () => {
     }
     expect(view.changesSeen).toEqual([]);
     expect(text(view)).toBe(CALLOUT);
+  });
+});
+
+describe('a fence at a document edge can be left with the arrow keys', () => {
+  const ONLY = '```js\nx\n```';
+
+  it('ArrowDown from the last body line of a fence that ends the document adds one empty line below and goes there', () => {
+    const view = mount(ONLY);
+    caretAt(view, 7);
+    expect(press(view, 'ArrowDown')).toBe(true);
+    expect(text(view)).toBe('```js\nx\n```\n');
+    expect(head(view)).toBe(12);
+    expect(soleChange(view)).toEqual([{ from: 11, to: 11, insert: '\n' }]);
+    expect(view.changesSeen[0].isUserEvent('input')).toBe(true);
+    press(view, 'Backspace'); // the added line is an empty line like any other: Backspace takes it away again
+    expect(text(view)).toBe(ONLY);
+    expect(head(view)).toBe(7);
+  });
+
+  it('ArrowUp from the first body line of a fence that starts the document adds one empty line above and goes there', () => {
+    const view = mount(ONLY);
+    caretAt(view, 6);
+    expect(press(view, 'ArrowUp')).toBe(true);
+    expect(text(view)).toBe('\n```js\nx\n```');
+    expect(head(view)).toBe(0);
+    expect(soleChange(view)).toEqual([{ from: 0, to: 0, insert: '\n' }]);
+    press(view, 'Delete');
+    expect(text(view)).toBe(ONLY);
+    expect(head(view)).toBe(6);
+  });
+
+  it('a second press does not add a second line', () => {
+    const view = mount(ONLY);
+    caretAt(view, 7);
+    press(view, 'ArrowDown');
+    press(view, 'ArrowDown');
+    expect(text(view)).toBe('```js\nx\n```\n');
+  });
+
+  it('Shift+arrow adds nothing and stays', () => {
+    const view = mount(ONLY);
+    caretAt(view, 7);
+    expect(press(view, 'ArrowDown', { shiftKey: true })).toBe(true);
+    expect(press(view, 'ArrowUp', { shiftKey: true })).toBe(true);
+    expect(text(view)).toBe(ONLY);
+    expect(head(view)).toBe(7);
+    expect(view.changesSeen).toEqual([]);
+  });
+
+  it('several cursors: one transaction, one line', () => {
+    const view = mount(ONLY, { extra: EditorState.allowMultipleSelections.of(true) });
+    view.dispatch({ selection: EditorSelection.create([EditorSelection.cursor(6), EditorSelection.cursor(7)]) });
+    press(view, 'ArrowDown');
+    expect(text(view)).toBe('```js\nx\n```\n');
+    expect(view.changesSeen).toHaveLength(1);
+    expect(view.state.selection.ranges.map((r) => r.head)).toEqual([12]);
+  });
+
+  it('a read-only document gets no line: the key is taken and the caret stays', () => {
+    const view = mount(ONLY, { extra: EditorState.readOnly.of(true) });
+    caretAt(view, 7);
+    expect(press(view, 'ArrowDown')).toBe(true);
+    expect(press(view, 'ArrowUp')).toBe(true);
+    expect(text(view)).toBe(ONLY);
+    expect(head(view)).toBe(7);
+  });
+
+  it('a fence that is not at the edge adds nothing', () => {
+    const view = mount(CODE);
+    caretAt(view, Y);
+    press(view, 'ArrowDown');
+    caretAt(view, X);
+    press(view, 'ArrowUp');
+    expect(view.changesSeen).toEqual([]);
+  });
+});
+
+describe('a read-only document: the pickers change nothing', () => {
+  const frozen = () => { const c = new Compartment(); return { c, ext: c.of(EditorState.readOnly.of(false)) }; };
+
+  it.each([
+    ['fence language', '```js\nx\n```', '.cm-lp-fence-header select', 'python', 'js'],
+    ['callout type', '> [!note] Heads up\n> body', '.cm-lp-callout-title-widget select', 'warning', 'note'],
+  ])('%s: the picker is drawn disabled, and a choice forced through it is undone', (_n, doc, sel, pick, shown) => {
+    const view = mount(doc, { extra: EditorState.readOnly.of(true) });
+    const select = view.contentDOM.querySelector(sel);
+    expect(select.disabled).toBe(true);
+    choose(select, pick);
+    expect(text(view)).toBe(doc);
+    expect(select.value).toBe(shown);
+    expect(view.changesSeen).toEqual([]);
+  });
+
+  it.each([
+    ['fence language', '```js\nx\n```', '.cm-lp-fence-header select', 'python', 'js'],
+    ['callout type', '> [!note] Heads up\n> body', '.cm-lp-callout-title-widget select', 'warning', 'note'],
+  ])('%s: a document frozen after the picker was drawn refuses the choice and does not open the picker', (_n, doc, sel, pick, shown) => {
+    const { c, ext } = frozen();
+    const view = mount(doc, { extra: ext });
+    const select = view.contentDOM.querySelector(sel);
+    view.dispatch({ effects: c.reconfigure(EditorState.readOnly.of(true)) });
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    select.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    choose(select, pick);
+    expect(text(view)).toBe(doc);
+    expect(select.value).toBe(shown);
+  });
+});
+
+describe('the picker gives the keyboard back', () => {
+  const picker = (view) => view.contentDOM.querySelector('.cm-lp-fence-header select');
+  const key = (select, k) => {
+    const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
+    select.dispatchEvent(e);
+    return e.defaultPrevented;
+  };
+
+  it('Escape returns the focus to the editor', () => {
+    const view = mount('```js\nx\n```');
+    const focus = vi.spyOn(view, 'focus');
+    key(picker(view), 'Escape');
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('a typed letter is not select type-ahead: it is swallowed, changes nothing and returns the focus', () => {
+    const view = mount('```js\nx\n```');
+    const focus = vi.spyOn(view, 'focus');
+    expect(key(picker(view), 'p')).toBe(true);
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(text(view)).toBe('```js\nx\n```');
+  });
+
+  it('the keys that work a select are left to it', () => {
+    const view = mount('```js\nx\n```');
+    const focus = vi.spyOn(view, 'focus');
+    for (const k of ['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Tab', 'Home', 'End', 'PageDown', 'PageUp']) expect(key(picker(view), k)).toBe(false);
+    expect(focus).not.toHaveBeenCalled();
+  });
+
+  it('browser autocomplete is off', () => {
+    const view = mount('```js\nx\n```');
+    expect(picker(view).getAttribute('autocomplete')).toBe('off');
+  });
+});
+
+describe('the header says "diagram" only for a fence a renderer draws', () => {
+  it('`mermaid example` is code: its header shows the word, not "Mermaid diagram"', () => {
+    const view = mount('```mermaid example\ngraph TD; A-->B;\n```');
+    caretAt(view, 20);
+    const select = view.contentDOM.querySelector('.cm-lp-fence-header select');
+    expect(select.selectedOptions[0].textContent).toBe('mermaid');
+    expect(select.getAttribute('aria-label')).toBe('Code language');
+    expect(labels(select).filter((l) => l === 'Mermaid diagram')).toHaveLength(1); // still offered
+  });
+
+  it('a drawn mermaid fence shows "Mermaid diagram" once, selected', () => {
+    const dom = new FenceHeaderWidget({ language: 'mermaid', kind: 'diagram' }).toDOM();
+    expect(labels(dom.querySelector('select')).filter((l) => /mermaid/i.test(l))).toEqual(['Mermaid diagram']);
+    expect(dom.querySelector('select').selectedOptions[0].textContent).toBe('Mermaid diagram');
+  });
+});
+
+describe('pinned', () => {
+  it('a title typed right after an untitled callout marker is stored without a space, which the reader takes as the title', () => {
+    const view = mount('> [!note]\n> body');
+    caretAt(view, 12);
+    caretAt(view, 0);
+    expect(head(view)).toBe(9);
+    view.dispatch({ changes: { from: 9, insert: 'T' }, selection: { anchor: 10 }, userEvent: 'input.type' });
+    expect(text(view)).toBe('> [!note]T\n> body');
+    // The reader's rule (remarkCallouts MARKER, the same pattern as the server's CalloutPostProcessor.MARKER): blanks
+    // after the marker are optional, so `[!note]T` is a note callout titled "T".
+    const m = MARKER.exec('[!note]T');
+    expect([m[1], '[!note]T'.slice(m[0].length)]).toEqual(['note', 'T']);
+    expect(view.contentDOM.querySelector('.cm-lp-callout-title-widget select').value).toBe('note');
+    expect(lineClass(view, 1)).toContain('cm-lp-callout-title');
+  });
+
+  it('Backspace on the only, empty body line joins it onto the opening fence: the block is source text again, nothing lost', () => {
+    const view = mount('Above\n\n```\n\n```\n\nBelow');
+    caretAt(view, 11);
+    expect(view.contentDOM.querySelector('.cm-lp-fence-header')).not.toBeNull();
+    press(view, 'Backspace');
+    expect(text(view)).toBe('Above\n\n```\n```\n\nBelow');
+    expect(head(view)).toBe(10);
+    expect(view.contentDOM.querySelector('.cm-lp-fence-header')).toBeNull();
+    expect(lineText(view, 3)).toBe('```');
+    expect(lineText(view, 4)).toBe('```');
   });
 });

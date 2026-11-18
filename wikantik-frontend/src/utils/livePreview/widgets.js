@@ -58,13 +58,10 @@ export class CalloutTitleWidget extends WidgetType {
     const wrap = el('span', 'cm-lp-callout-title-widget');
     const icon = el('span', 'cm-lp-callout-icon');
     icon.setAttribute('aria-hidden', 'true');
-    const options = calloutTypeOptions(this.rawType);
-    const lower = this.rawType.toLowerCase();
     wrap.append(icon, picker(view, {
       cls: 'cm-lp-callout-type',
       label: 'Callout type',
-      options,
-      value: options.some((o) => o.value === lower) ? lower : this.rawType,
+      options: calloutTypeOptions(this.rawType),
       userEvent: 'input.callout-type',
       root: () => wrap,
       changeFor: calloutTypeChange,
@@ -105,8 +102,12 @@ export class ImageWidget extends WidgetType {
 
 const TASK_AT = /^(?:[-*+]|\d+[.)])[ \t]+\[([ xX])\]/;
 
-/** Flip the task box whose `[ ]`/`[x]` starts at markerFrom, as one isolated undo step. */
+/**
+ * Flip the task box whose `[ ]`/`[x]` starts at markerFrom, as one isolated undo step. Never on a read-only document
+ * (`view.dispatch` does not check `readOnly` itself).
+ */
 export function toggleTaskBox(view, markerFrom) {
+  if (view.state.readOnly) return false;
   const at = markerFrom + 1;
   const ch = view.state.sliceDoc(at, at + 1);
   if (view.state.sliceDoc(markerFrom, markerFrom + 1) !== '[' || view.state.sliceDoc(at + 1, at + 2) !== ']') return false;
@@ -121,6 +122,7 @@ export function toggleTaskBox(view, markerFrom) {
 
 /** Flip the task box of the list item whose marker starts at pos, as one isolated undo step. */
 export function toggleTaskAt(view, pos) {
+  if (view.state.readOnly) return false;
   const m = TASK_AT.exec(view.state.sliceDoc(pos, view.state.doc.lineAt(pos).to));
   if (!m) return false;
   const at = pos + m[0].length - 2;
@@ -148,6 +150,7 @@ export class CheckboxWidget extends WidgetType {
     const box = el('input', 'cm-lp-task');
     box.type = 'checkbox';
     box.checked = this.checked;
+    box.disabled = view?.state.readOnly === true;
     box.setAttribute('aria-label', taskLabel(this.checked, this.text));
     const toggle = () => {
       try {

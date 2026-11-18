@@ -973,7 +973,8 @@ export default function PageEditor({ collabTransport } = {}) {
       case 'highlight': next = toggleWrap(state, '=='); break; // Mod-Shift-H in the editor keymap does the same
       case 'strike':  next = toggleWrap(state, '~~'); break;   // Mod-Shift-X in the editor keymap does the same
       case 'comment': next = toggleWrap(state, '%%'); break;   // Mod-/ in the editor keymap does the same
-      case 'codeblock': next = insertCodeBlock(state); break;
+      // Rich: the fences are hidden and the header's picker sets the language, so no placeholder; the caret goes to the body.
+      case 'codeblock': next = liveActive ? insertFence(state, '', state.text.slice(selStart, selEnd)) : insertCodeBlock(state); break;
       case 'heading': next = toggleLinePrefix(state, '## '); break;
       case 'list':    next = toggleLinePrefix(state, '- ');  break;
       case 'olist':   next = toggleLinePrefix(state, '1. '); break;
@@ -999,7 +1000,7 @@ export default function PageEditor({ collabTransport } = {}) {
     requestAnimationFrame(() => {
       editorRef.current?.setSelection(next.selStart, next.selEnd);
     });
-  }, [fallbackSetBody]);
+  }, [fallbackSetBody, liveActive]);
 
   // #4 — Cmd/Ctrl+S save. The handler is registered once but calls the LATEST save via a ref, so it
   // always saves the current body/metadata (not a stale first-render closure).

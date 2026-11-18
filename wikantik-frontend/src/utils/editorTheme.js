@@ -228,6 +228,7 @@ export const editorChromeSpec = {
   // The one choice a header offers (code language, diagram kind, callout type): a select that reads as a label until hovered.
   [`${ROOT} .cm-lp-picker`]: { font: 'inherit', color: 'inherit', backgroundColor: 'transparent', border: '1px solid transparent', borderRadius: 'var(--radius-sm)', padding: '0 0.2em', margin: '0', cursor: 'pointer', maxWidth: '100%' },
   [`${ROOT} .cm-lp-picker:hover, ${ROOT} .cm-lp-picker:focus-visible`]: { borderColor: 'var(--border-strong)' },
+  [`${ROOT} .cm-lp-picker:disabled`]: { cursor: 'default', opacity: '1' }, // a read-only document: a label
   [`${ROOT} .cm-lp-picker option`]: { color: 'var(--text)', backgroundColor: 'var(--bg-elevated)', fontWeight: '400' },
   [`${ROOT} .cm-lp-fence-lang`]: { color: 'var(--text-secondary)' },
   [`${ROOT} .cm-lp-callout-type`]: { fontWeight: '600' },

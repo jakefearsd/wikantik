@@ -312,6 +312,16 @@ describe('Backspace after a line marker', () => {
   });
 });
 
+describe('a read-only document', () => {
+  it('Backspace after a line marker removes nothing', () => {
+    const view = mount(DOC, { extra: EditorState.readOnly.of(true) });
+    caretAt(view, H + 3);
+    expect(removeLineMarker(view)).toBe(false);
+    press(view, 'Backspace');
+    expect(text(view)).toBe(DOC);
+  });
+});
+
 describe('every block marker: the caret rests where the text starts, and Backspace there removes the marker', () => {
   // [line, where its text starts, the line after one Backspace there]
   const CASES = [

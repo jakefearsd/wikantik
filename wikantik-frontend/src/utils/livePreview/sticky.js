@@ -122,23 +122,22 @@ export const isHiddenLine = (state, line) => live(state) && hidesLine(stickySpan
 const MAX_HIDDEN_RUN = 4;
 
 /**
- * The nearest line past `line` in direction `dir` (1 down, -1 up) that is not hidden, with its sticky spans; null at
- * the document's edge.
+ * Past `line` in direction `dir` (1 down, -1 up), over hidden lines — where an arrow key gets to: `{ line, spans }`
+ * for the nearest line that is not hidden, `{ edge: true }` when the hidden lines run to the document's edge (a fence
+ * on its last or first line), null when the run is too long.
  */
-function shownLineBeyond(state, line, dir) {
+export function lineBeyondHidden(state, line, dir) {
   let at = line;
   for (let hops = 0; hops < MAX_HIDDEN_RUN; hops += 1) {
     const n = at.number + dir;
-    if (n < 1 || n > state.doc.lines) return null;
+    if (n < 1 || n > state.doc.lines) return { edge: true };
     at = state.doc.line(n);
     const spans = stickySpansOn(state, at);
     if (!hidesLine(spans)) return { line: at, spans };
   }
   return null;
 }
-
-/** The line an arrow key lands on when it leaves `line` in direction `dir` over hidden lines; null at the edge. */
-export const lineBeyondHidden = (state, line, dir) => shownLineBeyond(state, line, dir)?.line || null;
+const shownLineBeyond = (state, line, dir) => { const found = lineBeyondHidden(state, line, dir); return found?.line ? found : null; };
 
 /**
  * Where a caret placed at `head` rests: out of a sticky range (nearer end), and never before the end of its line's
@@ -184,6 +183,18 @@ const trackView = ViewPlugin.define((view) => {
 });
 const composing = (tr) => tr.isUserEvent('input.type.compose') || tr.startState.field(viewRef, false)?.view?.composing === true;
 
+/** Whether the caret stayed on its line through a change that made that line hidden (it was not, before). */
+function justHidden(tr, origin, head) {
+  const line = tr.state.doc.lineAt(head);
+  if (origin < line.from || origin > line.to || !isHiddenLine(tr.state, line)) return false;
+  // Neither end of the line was on a hidden line before: a line joined onto a fence line (a deleted break) is not "just hidden".
+  const before = tr.startState;
+  const back = tr.changes.invertedDesc;
+  const first = before.doc.lineAt(back.mapPos(line.from));
+  const last = before.doc.lineAt(back.mapPos(line.to));
+  return !isHiddenLine(before, first) && (last.number === first.number || !isHiddenLine(before, last));
+}
+
 /**
  * Caret rule: every empty range is moved to its resting place, on any transaction that can leave a caret somewhere
  * else — one that sets the selection, or one that changes the document (a change with no selection maps the caret,
@@ -196,14 +207,6 @@ const composing = (tr) => tr.isUserEvent('input.type.compose') || tr.startState.
  * One caret is left on a hidden line: the one whose own typing just made the line hidden (the third backtick of a
  * closing fence). Enter then continues below the block; moved, the caret could not get there on a last line.
  */
-/** Whether the caret stayed on its line through a change that made that line hidden (it was not, before). */
-function justHidden(tr, origin, head) {
-  const line = tr.state.doc.lineAt(head);
-  if (origin < line.from || origin > line.to || !isHiddenLine(tr.state, line)) return false;
-  const lineBefore = tr.startState.doc.lineAt(tr.changes.invertedDesc.mapPos(line.from));
-  return !isHiddenLine(tr.startState, lineBefore);
-}
-
 export const stickyCaret = EditorState.transactionFilter.of((tr) => {
   if (!(tr.selection || tr.docChanged) || !live(tr.startState) || composing(tr)) return tr;
   const { state } = tr;
@@ -234,7 +237,7 @@ const soleCaret = (state) => (state.selection.ranges.length === 1 && state.selec
  */
 export function removeLineMarker(view) {
   const { state } = view;
-  if (!live(state)) return false;
+  if (!live(state) || state.readOnly) return false;
   const head = soleCaret(state);
   const marker = head < 0 ? null : lineMarkerBefore(state, head);
   if (!marker) return false;

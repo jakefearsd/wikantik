@@ -200,6 +200,20 @@ describe('widget DOM', () => {
     expect(box.checked).toBe(true);
     expect(box.getAttribute('aria-label')).toBe('Mark task not done: write the report');
   });
+  it('a read-only document: a checkbox is drawn disabled and no toggle path changes it', () => {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const view = new EditorView({ parent, state: EditorState.create({ doc: '- [ ] a', extensions: [EditorState.readOnly.of(true)] }) });
+    views.push(view);
+    const box = new CheckboxWidget(false, 2).toDOM(view);
+    expect(box.disabled).toBe(true);
+    vi.spyOn(view, 'posAtDOM').mockReturnValue(0);
+    box.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+    expect(toggleTaskAt(view, 0)).toBe(false);
+    expect(toggleTaskBox(view, 2)).toBe(false);
+    expect(view.state.doc.toString()).toBe('- [ ] a');
+  });
   it('checkbox toggles at the position at event time, not the stale build-time offset', () => {
     const view = viewOf('- [ ] a');
     const box = new CheckboxWidget(false, 999).toDOM(view);

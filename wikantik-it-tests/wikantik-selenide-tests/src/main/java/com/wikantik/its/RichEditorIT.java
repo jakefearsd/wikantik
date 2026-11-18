@@ -28,12 +28,14 @@ import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
 import java.util.List;
 
 import static com.codeborne.selenide.Condition.cssClass;
+import static com.codeborne.selenide.Condition.focused;
 import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Condition.value;
 import static com.codeborne.selenide.Condition.visible;
@@ -63,6 +65,11 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         + "- " + ITEM + "\n- second item\n\n"
         + "```java\n" + CODE + "\n```\n\n"
         + "Closing words.\n";
+    /** {@link #BODY} plus a titled callout, for the header pickers. */
+    private static final String PICKER_BODY = BODY + "\n> [!note] Heads up\n> Callout body.\n";
+    private static final String EDITOR = "[data-testid=page-editor] .cm-editor";
+    private static final String FENCE_PICKER = CONTENT + " .cm-lp-fence-header select";
+    private static final String CALLOUT_PICKER = CONTENT + " .cm-lp-callout-title-widget select";
 
     @BeforeEach
     void login() throws Exception {
@@ -120,6 +127,70 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         assertEquals( seeded.get( "content" ).getAsString(), saved.get( "content" ).getAsString(),
             "an unedited save must leave the stored text byte-identical" );
         assertEquals( seeded.get( "contentHash" ).getAsString(), saved.get( "contentHash" ).getAsString() );
+    }
+
+    // ---- header pickers: the write guard rests on the browser's real event order, so it is driven with real input ----
+    // Selenide's selectOption sets the value by script and would be (rightly) refused as a change nobody opened the
+    // picker for; these tests open the picker with a real click or key press and choose with real key presses.
+
+    @Test
+    void aLanguagePickedAfterOpeningThePickerWithThePointerChangesOnlyTheInfoString() throws Exception {
+        openPickerPage();
+        EditWikiPage.setCaret( PICKER_BODY.indexOf( CODE ) + 3 );
+        $( FENCE_PICKER ).shouldBe( visible, WAIT ).shouldHave( value( "java" ) ).click();
+        // The list is open on "java"; the next option is "javascript".
+        Selenide.actions().sendKeys( Keys.ARROW_DOWN, Keys.ENTER ).perform();
+        EditWikiPage.awaitDocumentEquals( PICKER_BODY.replace( "```java\n", "```javascript\n" ), WAIT );
+        $( FENCE_PICKER ).shouldHave( value( "javascript" ), WAIT );
+    }
+
+    @Test
+    void aLanguagePickedWithTheKeyboardAloneChangesOnlyTheInfoString() throws Exception {
+        openPickerPage();
+        EditWikiPage.setCaret( PICKER_BODY.indexOf( CODE ) + 3 );
+        $( FENCE_PICKER ).shouldBe( visible, WAIT ).shouldHave( value( "java" ) );
+        Selenide.executeJavaScript( "document.querySelector(arguments[0]).focus();", FENCE_PICKER );
+        $( FENCE_PICKER ).shouldBe( focused, WAIT );
+        Selenide.actions().sendKeys( Keys.ENTER ).perform();          // opens the list
+        Selenide.actions().sendKeys( Keys.ARROW_DOWN, Keys.ENTER ).perform(); // "javascript", taken
+        EditWikiPage.awaitDocumentEquals( PICKER_BODY.replace( "```java\n", "```javascript\n" ), WAIT );
+        $( FENCE_PICKER ).shouldHave( value( "javascript" ), WAIT );
+    }
+
+    @Test
+    void aDismissedPickerDoesNotTakeTheKeysMeantForTheEditor() throws Exception {
+        openPickerPage();
+        EditWikiPage.setCaret( PICKER_BODY.indexOf( CODE ) + 3 );
+        $( FENCE_PICKER ).shouldBe( visible, WAIT ).shouldHave( value( "java" ) ).click();
+        Selenide.actions().sendKeys( Keys.ESCAPE ).perform();
+        // Meant for the editor: move the caret, type a letter. Neither may reach the picker as a choice.
+        Selenide.actions().sendKeys( Keys.ARROW_DOWN ).perform();
+        Selenide.actions().sendKeys( "Z" ).perform();
+        final String doc = EditWikiPage.awaitDocument( d -> d.contains( "Z" ), "the typed Z in the editor's text", WAIT );
+        assertTrue( doc.contains( "```java\n" ), "the fence's info string must be unchanged; document:\n" + doc );
+        assertEquals( PICKER_BODY, doc.replaceFirst( "Z", "" ), "exactly one character, the typed Z, may have been "
+            + "added to the document" );
+        $( FENCE_PICKER ).shouldHave( value( "java" ) );
+        $( EDITOR ).shouldHave( cssClass( "cm-focused" ), WAIT );
+    }
+
+    @Test
+    void aCalloutTypePickedWithThePointerChangesOnlyTheWordInTheMarker() throws Exception {
+        openPickerPage();
+        EditWikiPage.setCaret( PICKER_BODY.indexOf( "Heads up" ) + 3 );
+        $( CALLOUT_PICKER ).shouldBe( visible, WAIT ).shouldHave( value( "note" ) ).click();
+        // The list is open on "Note"; the next option is "Tip".
+        Selenide.actions().sendKeys( Keys.ARROW_DOWN, Keys.ENTER ).perform();
+        EditWikiPage.awaitDocumentEquals( PICKER_BODY.replace( "[!note]", "[!tip]" ), WAIT );
+        $( CALLOUT_PICKER ).shouldHave( value( "tip" ), WAIT );
+    }
+
+    /** Seeds the page with a code block and a callout and opens it in Rich mode, fully loaded. */
+    private static void openPickerPage() throws Exception {
+        RestSeedHelper.writePage( PAGE, PICKER_BODY );
+        EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
+        $( EDITOR ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
+        EditWikiPage.awaitDocumentEquals( PICKER_BODY, WAIT );
     }
 
     /** No drawn editor line shows a {@code #}, a backtick or a leading list dash (the page has none outside its markers). */

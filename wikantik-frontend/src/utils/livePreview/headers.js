@@ -1,4 +1,4 @@
-import { WidgetType } from '@codemirror/view';
+import { WidgetType, ViewPlugin } from '@codemirror/view';
 import { isolateHistory } from '@codemirror/commands';
 import { FENCE_RENDERERS } from '../fences/registry';
 import { MARKER, defaultTitle } from '../remarkCallouts';
@@ -61,19 +61,39 @@ export function calloutTypeChange(doc, pos, type) {
   return { from: pos + 2, to: pos + 2 + m[1].length, insert: type };
 }
 
-/** The keys that work a `<select>`; every other key pressed in a picker goes back to the editor. */
-const SELECT_KEYS = new Set(['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'Tab', 'Home', 'End', 'PageDown', 'PageUp']);
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
+const MOVES_VALUE = new Set(['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageDown', 'PageUp']);
+const chord = (e) => e.ctrlKey || e.metaKey || e.altKey;
 
 /**
- * A `<select>` over `options`, showing the one that carries `selected`. Choosing dispatches
+ * Whether a key pressed on the focused picker opens its list: Enter, Space, Alt-ArrowDown/Up — and, where a closed
+ * select's arrow keys open the list instead of changing the value (`mac`), the bare vertical arrows too.
+ */
+export function opensPicker(e, mac = MAC) {
+  if (e.key === 'Enter' || e.key === ' ') return !e.ctrlKey && !e.metaKey;
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return false;
+  return e.altKey || (mac && !chord(e));
+}
+
+/**
+ * A `<select>` over `options`, showing the one that carries `selected`. A choice dispatches
  * `changeFor(doc, pos, chosen)` — `pos` being where the widget `root()` stands — as one isolated undo step, and hands
- * the focus back to the editor either way.
+ * the focus back to the editor.
+ *
+ * Only a deliberate choice writes. A closed, focused select changes its value on a bare arrow, Home, End or Page key
+ * (Chrome and Firefox on Linux and Windows) and fires `change` at once — and the picker can keep the focus after its
+ * list was dismissed, where the author's next ArrowDown is meant for the caret. So a `change` counts only after the
+ * list was opened on purpose (`armed`: a press on the picker, or an opening key, see opensPicker), once; any other
+ * `change` is put back and the focus goes to the editor. A value-moving key ends the opening (in an open list Enter,
+ * which takes the option, opens it again in this sense); so do Escape and blur.
+ *
+ * The focus is also returned when the list closes without a change, as far as the DOM shows it: Escape, a second press
+ * on the open picker, and a click that follows no press (an option taken in the list — the one already shown).
+ * A letter typed on the picker would be type-ahead: it is dropped and the focus returned. Other keys are untouched.
  *
  * A read-only document (a frozen shared draft, no edit permission) is never changed: `view.dispatch` does not check
- * `readOnly` itself, so the picker is drawn disabled, does not open, and a choice that still arrives is put back.
- *
- * The focus must not stay in the picker: a letter typed there is the select's type-ahead, which would pick a language.
- * So Escape, and any key that does not work a select, return the focus to the editor (the key is dropped).
+ * `readOnly` itself, so the picker is disabled (kept in step by followReadOnly), does not open, and a choice that
+ * still arrives is put back.
  */
 export function picker(view, { cls, label, options, userEvent, root, changeFor }) {
   const select = document.createElement('select');
@@ -91,27 +111,60 @@ export function picker(view, { cls, label, options, userEvent, root, changeFor }
   select.selectedIndex = shown;
   const readOnly = () => view?.state.readOnly === true;
   select.disabled = readOnly();
-  select.addEventListener('mousedown', (e) => { if (readOnly()) e.preventDefault(); });
+  let armed = false; // the list was opened on purpose and no choice has been made since
+  let open = false; // the list is open, as far as presses on the picker tell
+  let pressed = false; // the next click belongs to a press on the picker itself
+  const close = () => { armed = false; open = false; };
+  const backToEditor = () => { close(); select.selectedIndex = shown; view.focus(); };
+
+  select.addEventListener('mousedown', (e) => {
+    if (readOnly()) { e.preventDefault(); return; }
+    pressed = true;
+    open = !open;
+    armed = open;
+  });
+  select.addEventListener('click', () => {
+    if (pressed) {
+      pressed = false;
+      if (!open) backToEditor(); // the press closed the open list
+    } else if (open) {
+      backToEditor(); // an option was taken in the list and no `change` came before this click: the one shown
+    }
+  });
+  select.addEventListener('blur', close);
   select.addEventListener('keydown', (e) => {
-    if (SELECT_KEYS.has(e.key) && !readOnly()) return;
-    e.preventDefault();
-    view.focus();
+    if (readOnly()) return;
+    if (e.key === 'Escape') backToEditor();
+    else if (opensPicker(e)) armed = true;
+    else if (MOVES_VALUE.has(e.key) && !chord(e)) armed = false;
+    else if (e.key.length === 1 && !chord(e)) { e.preventDefault(); backToEditor(); } // type-ahead
   });
   select.addEventListener('change', () => {
-    if (readOnly()) {
-      select.selectedIndex = shown;
-      return;
-    }
+    const deliberate = armed && !readOnly();
+    const chosen = select.value;
+    backToEditor();
+    if (!deliberate) return;
     try {
-      const change = changeFor(view.state.doc, view.posAtDOM(root()), select.value);
+      const change = changeFor(view.state.doc, view.posAtDOM(root()), chosen);
       if (change) view.dispatch({ changes: change, annotations: isolateHistory.of('full'), userEvent });
     } catch (err) {
       console.warn('[rich] a header choice could not be applied', err?.message || err);
     }
-    view.focus();
   });
   return select;
 }
+
+/**
+ * Keeps the controls drawn inside the editor — the pickers and the task checkboxes — disabled exactly while the
+ * document is read-only. Read-only comes and goes in a live session (a shared draft resyncing), and a widget that
+ * compares equal keeps its DOM, so what toDOM set would stay. Touches the DOM only when `readOnly` changes.
+ */
+export const followReadOnly = ViewPlugin.define(() => ({
+  update(u) {
+    if (u.startState.readOnly === u.state.readOnly) return;
+    for (const control of u.view.contentDOM.querySelectorAll('select.cm-lp-picker, input.cm-lp-task')) control.disabled = u.state.readOnly;
+  },
+}));
 
 /** Whether an event came from a header picker: CodeMirror leaves those to the `<select>`. */
 export const fromPicker = (event) => !!event.target?.closest?.('select.cm-lp-picker');

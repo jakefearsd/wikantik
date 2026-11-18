@@ -18,7 +18,7 @@ import { stickyRangesOf } from './sticky';
 import { widgetFor } from './widgets';
 import { MARKER } from '../remarkCallouts';
 import {
-  FenceHeaderWidget, fenceLanguageOptions, fenceLanguageChange, calloutTypeOptions, calloutTypeChange,
+  FenceHeaderWidget, fenceLanguageOptions, fenceLanguageChange, calloutTypeOptions, calloutTypeChange, opensPicker,
 } from './headers';
 
 vi.mock('../fences/drawFence', () => ({ drawFence: vi.fn(() => Promise.resolve('drawn')) }));
@@ -63,9 +63,21 @@ function soleChange(view) {
   view.changesSeen[0].changes.iterChanges((from, to, _fb, _tb, inserted) => out.push({ from, to, insert: inserted.toString() }));
   return out;
 }
+/** A deliberate choice: the picker is opened with the pointer, then an option is taken. */
 function choose(select, value) {
+  select.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
   select.value = value;
   select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+/** A `change` with no opening before it: what arrow keys do to a closed, focused select. */
+function strayChange(select, value) {
+  select.value = value;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function keyOn(select, k, init = {}) {
+  const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init });
+  select.dispatchEvent(e);
+  return e.defaultPrevented;
 }
 const labels = (select) => [...select.options].map((o) => o.textContent);
 const values = (select) => [...select.options].map((o) => o.value);
@@ -612,39 +624,165 @@ describe('a read-only document: the pickers change nothing', () => {
   });
 });
 
-describe('the picker gives the keyboard back', () => {
+describe('the picker gives the keyboard back, and only a deliberate choice writes', () => {
+  const DOC = '```js\nx\n```';
   const picker = (view) => view.contentDOM.querySelector('.cm-lp-fence-header select');
-  const key = (select, k) => {
-    const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
-    select.dispatchEvent(e);
-    return e.defaultPrevented;
-  };
 
-  it('Escape returns the focus to the editor', () => {
-    const view = mount('```js\nx\n```');
+  it.each([['ArrowDown'], ['ArrowUp'], ['Home'], ['End'], ['PageDown'], ['PageUp'], ['ArrowLeft'], ['ArrowRight']])(
+    'a change made by a bare %s on the closed picker is put back, and the focus returns to the editor', (k) => {
+      const view = mount(DOC);
+      const focus = vi.spyOn(view, 'focus');
+      const select = picker(view);
+      keyOn(select, k);
+      strayChange(select, 'python');
+      expect(text(view)).toBe(DOC);
+      expect(select.value).toBe('js');
+      expect(view.changesSeen).toEqual([]);
+      expect(focus).toHaveBeenCalled();
+    },
+  );
+
+  it('a change with nothing before it at all is put back too', () => {
+    const view = mount(DOC);
+    strayChange(picker(view), 'python');
+    expect(text(view)).toBe(DOC);
+    expect(picker(view).value).toBe('js');
+  });
+
+  it('opened with the pointer and then dismissed: a later arrow key cannot write', () => {
+    const view = mount(DOC);
+    const select = picker(view);
+    select.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); // opens
+    keyOn(select, 'ArrowDown'); // the picker was dismissed without the page being told; the author moves "the caret"
+    strayChange(select, 'python');
+    expect(text(view)).toBe(DOC);
+    expect(select.value).toBe('js');
+  });
+
+  it.each([['Enter', {}], [' ', {}], ['ArrowDown', { altKey: true }]])('opened with %j, a choice writes', (k, init) => {
+    const view = mount(DOC);
+    const select = picker(view);
+    expect(keyOn(select, k, init)).toBe(false);
+    strayChange(select, 'python');
+    expect(text(view)).toBe('```python\nx\n```');
+  });
+
+  it('opened with Enter, moved with the arrows and taken with Enter: it writes', () => {
+    const view = mount(DOC);
+    const select = picker(view);
+    keyOn(select, 'Enter');
+    keyOn(select, 'ArrowDown');
+    keyOn(select, 'Enter');
+    strayChange(select, 'python');
+    expect(text(view)).toBe('```python\nx\n```');
+  });
+
+  it('where arrow keys open the picker instead of changing it (macOS) they count as opening it', () => {
+    expect(opensPicker({ key: 'ArrowDown' }, true)).toBe(true);
+    expect(opensPicker({ key: 'ArrowDown' }, false)).toBe(false);
+    expect(opensPicker({ key: 'ArrowDown', altKey: true }, false)).toBe(true);
+    expect(opensPicker({ key: 'Home' }, true)).toBe(false);
+  });
+
+  it('one deliberate opening allows one choice', () => {
+    const view = mount('> [!note] Heads up\n> body');
+    const select = view.contentDOM.querySelector('.cm-lp-callout-title-widget select');
+    choose(select, 'note'); // the same value: no change to make
+    strayChange(select, 'tip');
+    expect(text(view)).toBe('> [!note] Heads up\n> body');
+    expect(select.value).toBe('note');
+  });
+
+  it('Escape returns the focus to the editor and ends the opening', () => {
+    const view = mount(DOC);
     const focus = vi.spyOn(view, 'focus');
-    key(picker(view), 'Escape');
+    const select = picker(view);
+    keyOn(select, 'Enter');
+    keyOn(select, 'Escape');
     expect(focus).toHaveBeenCalledTimes(1);
+    strayChange(select, 'python');
+    expect(text(view)).toBe(DOC);
+  });
+
+  it('blur ends the opening', () => {
+    const view = mount(DOC);
+    const select = picker(view);
+    keyOn(select, 'Enter');
+    select.dispatchEvent(new FocusEvent('blur'));
+    strayChange(select, 'python');
+    expect(text(view)).toBe(DOC);
+  });
+
+  it('the picker closed by a second press on it, or by taking the option it already shows, returns the focus', async () => {
+    const view = mount(DOC);
+    const focus = vi.spyOn(view, 'focus');
+    const select = picker(view);
+    const down = () => select.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    const click = () => select.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    down(); click(); // opens
+    expect(focus).not.toHaveBeenCalled();
+    click(); // a click with no press on the select before it: an option was taken in the list — the same one, no change
+    expect(focus).toHaveBeenCalledTimes(1);
+    down(); click(); // opens again
+    down(); click(); // pressed while open: closes
+    expect(focus).toHaveBeenCalledTimes(2);
+    strayChange(select, 'python');
+    expect(text(view)).toBe(DOC);
   });
 
   it('a typed letter is not select type-ahead: it is swallowed, changes nothing and returns the focus', () => {
-    const view = mount('```js\nx\n```');
+    const view = mount(DOC);
     const focus = vi.spyOn(view, 'focus');
-    expect(key(picker(view), 'p')).toBe(true);
+    expect(keyOn(picker(view), 'p')).toBe(true);
     expect(focus).toHaveBeenCalledTimes(1);
-    expect(text(view)).toBe('```js\nx\n```');
+    expect(text(view)).toBe(DOC);
   });
 
-  it('the keys that work a select are left to it', () => {
-    const view = mount('```js\nx\n```');
+  it('modifiers, function keys, chords and Tab are the browser\'s', () => {
+    const view = mount(DOC);
     const focus = vi.spyOn(view, 'focus');
-    for (const k of ['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Tab', 'Home', 'End', 'PageDown', 'PageUp']) expect(key(picker(view), k)).toBe(false);
+    const select = picker(view);
+    for (const [k, init] of [['Shift', {}], ['Control', {}], ['F5', {}], ['r', { ctrlKey: true }], ['r', { metaKey: true }], ['Tab', {}], ['ArrowDown', {}], ['Enter', {}]]) {
+      expect(keyOn(select, k, init), k).toBe(false);
+    }
     expect(focus).not.toHaveBeenCalled();
   });
 
   it('browser autocomplete is off', () => {
-    const view = mount('```js\nx\n```');
+    const view = mount(DOC);
     expect(picker(view).getAttribute('autocomplete')).toBe('off');
+  });
+
+  it('a choice that changes nothing leaves the picker showing what the fence is', () => {
+    const view = mount('```mermaid example\ngraph TD; A-->B;\n```');
+    caretAt(view, 20);
+    const select = picker(view);
+    select.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    select.selectedIndex = 0; // "Mermaid diagram": the word is `mermaid` already
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(view.changesSeen).toEqual([]);
+    expect(select.selectedOptions[0].textContent).toBe('mermaid');
+  });
+});
+
+describe('read-only comes and goes: the controls follow', () => {
+  it('fence picker, callout picker and checkbox are disabled exactly while the document is read-only', () => {
+    const gate = new Compartment();
+    const view = mount('```js\nx\n```\n\n> [!note] Heads up\n> body\n\n- [ ] task\n\nend', { extra: gate.of(EditorState.readOnly.of(true)) });
+    caretAt(view, view.state.doc.length);
+    const controls = () => ['.cm-lp-fence-header select', '.cm-lp-callout-title-widget select', 'input.cm-lp-task']
+      .map((sel) => view.contentDOM.querySelector(sel));
+    const before = controls();
+    expect(before.map((c) => c.disabled)).toEqual([true, true, true]);
+    view.dispatch({ effects: gate.reconfigure(EditorState.readOnly.of(false)) });
+    expect(controls()).toEqual(before); // the same elements: nothing was rebuilt
+    expect(controls().map((c) => c.disabled)).toEqual([false, false, false]);
+    choose(controls()[0], 'python');
+    expect(text(view)).toContain('```python');
+    view.dispatch({ effects: gate.reconfigure(EditorState.readOnly.of(true)) });
+    expect(controls().map((c) => c.disabled)).toEqual([true, true, true]);
+    view.dispatch({ selection: { anchor: 0 } }); // an update that does not touch read-only leaves them be
+    expect(controls().map((c) => c.disabled)).toEqual([true, true, true]);
   });
 });
 
@@ -656,6 +794,15 @@ describe('the header says "diagram" only for a fence a renderer draws', () => {
     expect(select.selectedOptions[0].textContent).toBe('mermaid');
     expect(select.getAttribute('aria-label')).toBe('Code language');
     expect(labels(select).filter((l) => l === 'Mermaid diagram')).toHaveLength(1); // still offered
+  });
+
+  it('the language word is matched as the renderer matches it: without case', () => {
+    const doc = '```Mermaid\ngraph TD; A-->B;\n```';
+    const view = mount(doc);
+    caretAt(view, 12);
+    const select = view.contentDOM.querySelector('.cm-lp-fence-header select');
+    expect(select.selectedOptions[0].textContent).toBe('Mermaid diagram');
+    expect(labels(select).filter((l) => /mermaid/i.test(l))).toEqual(['Mermaid diagram']);
   });
 
   it('a drawn mermaid fence shows "Mermaid diagram" once, selected', () => {

@@ -70,7 +70,7 @@ export function toggleLinePrefix(state, prefix) {
   const { text, selStart, selEnd } = state;
 
   // Find the start of the first selected line
-  const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
+  const lineStart = startOfLine(text, selStart);
   // Find the end of the last selected line
   let lineEnd = text.indexOf('\n', selEnd);
   if (lineEnd === -1) lineEnd = text.length;
@@ -194,7 +194,7 @@ export function insertLink(state) {
  */
 export function setHeading(state, level) {
   const { text, selStart } = state;
-  const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
+  const lineStart = startOfLine(text, selStart);
   const lineEndRaw = text.indexOf('\n', selStart);
   const lineEnd = lineEndRaw === -1 ? text.length : lineEndRaw;
   const raw = text.slice(lineStart, lineEnd);
@@ -278,8 +278,13 @@ export function insertEmbed(state) {
  */
 export function insertAccessRule(state, { permission, principals }) {
   const { text, selStart } = state;
-  const lineStart = text.lastIndexOf('\n', selStart - 1) + 1;
+  const lineStart = startOfLine(text, selStart);
   const rule = `[{ALLOW ${permission} ${principals.join(', ')}}]\n`;
   const cursor = lineStart + rule.length;
   return { text: text.slice(0, lineStart) + rule + text.slice(lineStart), selStart: cursor, selEnd: cursor };
+}
+
+/** Index where the line holding `pos` starts. (`lastIndexOf` with a fromIndex of -1 clamps to 0, so pos 0 needs its own case.) */
+function startOfLine(text, pos) {
+  return pos === 0 ? 0 : text.lastIndexOf('\n', pos - 1) + 1;
 }

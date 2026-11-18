@@ -349,3 +349,18 @@ describe('toggleLinePrefix with list and quote prefixes', () => {
     expect(toggleLinePrefix({ text: r.text, selStart: 0, selEnd: r.text.length }, '> ').text).toBe('a\nb');
   });
 });
+
+describe('caret at 0 on a document that starts with a newline', () => {
+  const state = { text: '\nfoo', selStart: 0, selEnd: 0 };
+  it('insertAccessRule puts the rule before the (empty) first line', () => {
+    const r = insertAccessRule(state, { permission: 'view', principals: ['All'] });
+    expect(r.text).toBe('[{ALLOW view All}]\n\nfoo');
+    expect(r.selStart).toBe('[{ALLOW view All}]\n'.length);
+  });
+  it('setHeading acts on the empty first line, not the next one', () => {
+    expect(setHeading(state, 2).text).toBe('## \nfoo');
+  });
+  it('toggleLinePrefix acts on the empty first line, not the next one', () => {
+    expect(toggleLinePrefix(state, '> ').text).toBe('> \nfoo');
+  });
+});

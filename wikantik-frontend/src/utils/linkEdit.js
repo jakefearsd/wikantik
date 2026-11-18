@@ -11,6 +11,8 @@ const BLANK_LINE = /\n[ \t]*\n/;
 
 const isWiki = (model) => model.kind === 'wiki' || model.kind === 'embed';
 const blankToNull = (s) => (s == null || s === '' ? null : s);
+/** The field holding a Markdown link's text: an image calls it `alt`. */
+const textKey = (model) => (model.kind === 'image' ? 'alt' : 'text');
 const trimmed = (s) => blankToNull(s == null ? null : String(s).trim());
 
 /**
@@ -97,7 +99,8 @@ function readMarkdown(source, node) {
   const fields = {
     ...(node.name === 'Image' ? { alt: text } : { text }),
     url: /^<[^]*>$/.test(parts.dest) ? parts.dest.slice(1, -1) : parts.dest,
-    title: title ? unquoted(parts.title) : null,
+    // An empty title (`""`) is no title, as `fieldsOf` has it: read any other way it would count as changed.
+    title: title ? blankToNull(unquoted(parts.title)) : null,
   };
   return { fields, parts };
 }
@@ -119,7 +122,8 @@ function fieldsOf(model) {
       size: trimmed(model.size),
     };
   }
-  return { text: String((model.kind === 'image' ? model.alt : model.text) ?? ''), url: String(model.url ?? ''), title: blankToNull(model.title) };
+  // The same keys `readMarkdown` snapshots, or the comparison in `writeLink` would always see a change.
+  return { [textKey(model)]: String(model[textKey(model)] ?? ''), url: String(model.url ?? ''), title: blankToNull(model.title) };
 }
 
 /** `text` with each character `chars` matches escaped, and a backslash that would escape what follows it doubled. */
@@ -175,8 +179,8 @@ function writeMarkdown(model, now, changed) {
 
 /** The link text (an image's alt text) as source: what was written when unchanged, else with its brackets escaped. */
 function markdownText(model, now, parts) {
-  const unchanged = model.original && now.text === model.original.fields[model.kind === 'image' ? 'alt' : 'text'];
-  return unchanged ? parts.text : escaped(now.text, BRACKET);
+  const text = now[textKey(model)];
+  return model.original && text === model.original.fields[textKey(model)] ? parts.text : escaped(text, BRACKET);
 }
 
 /**
@@ -240,7 +244,7 @@ function checkWiki(model, now, changed) {
 
 function checkMarkdown(model, now, changed) {
   const textLabel = model.kind === 'image' ? 'The alt text' : 'The text';
-  if (changed('text') && BLANK_LINE.test(now.text)) refuse(`${textLabel} cannot contain a blank line.`);
+  if (changed(textKey(model)) && BLANK_LINE.test(now[textKey(model)])) refuse(`${textLabel} cannot contain a blank line.`);
   if (changed('title') && now.title != null && BLANK_LINE.test(now.title)) refuse('The title cannot contain a blank line.');
   if (!changed('url')) return;
   if (now.url.includes('\n')) refuse('The address cannot contain a line break.');

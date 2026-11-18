@@ -80,10 +80,27 @@ describe('writeLink', () => {
     '[[P]]', '[[P#H]]', '[[P|a]]', '[[P#H|a]]', '![[P]]', '![[img.png|300]]', '[t](u)', '[t](<u v>)', '![a](u "t")',
     '[[P |a ]]', '[[P# H | a]]', '[[P|]]', '![[img.png|300x200]]', '[[#^abc]]',
     '[t]( u  \'t\' )', '[a \\[b\\]](u)', '[n *b* m](<u>)', '[t]()', '![](u)', '[t](u (paren))', '[t\nu](v)',
+    '[t](u "")', '[t](u \'\')', '![a](u "")', '![a](u \'\')', '[t](u ())', '![a b](<u v> \'t\')',
   ])('writes an unread-then-unchanged %s back as it was', (token) => {
     const model = read(token);
     expect(writeLink(model)).toBe(token);
     expect(linkChange(model, {})).toEqual({ from: 4, to: 4 + token.length, insert: token });
+    // The same values patched in again are no change either, whatever the kind.
+    const { kind: _kind, from: _from, to: _to, source: _source, original: _original, ...fields } = model;
+    expect(linkChange(model, fields).insert).toBe(token);
+    expect(linkChange(model, Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v ?? '']))).insert).toBe(token);
+  });
+
+  it.each(['[[P|a]]', '![[img.png|300]]', '[t](u "t")', '![a](u "t")', '![a](u "")'])(
+    'takes an unchanged %s from its source, not from its parts', (token) => {
+      // `source` is what an unchanged model returns: a stand-in there shows the comparison found no change.
+      expect(writeLink({ ...read(token), source: 'AS READ' })).toBe('AS READ');
+    });
+
+  it('reads an empty title as no title, and writes one over it', () => {
+    expect(read('[t](u "")')).toMatchObject({ title: null });
+    expect(patched('[t](u "")', { title: 'x' })).toBe('[t](u "x")');
+    expect(patched('[t](u "")', { url: 'v' })).toBe('[t](v "")');
   });
 
   it('writes every wikilink of the shared reader fixture back byte for byte', () => {

@@ -48,10 +48,11 @@ export function slashAllowed(state, slashPos) {
   return mathFences % 2 === 0;                                                      // inside $$ … $$
 }
 
-/** The slash menu's logical order (headings, callouts, blocks, media) — used as-is for short queries. */
-const SLASH_ORDER = ['heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-info',
-  'callout-warning', 'callout-danger', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image',
-  'insert-link'];
+/** The slash menu's logical order (headings, lists, quote, callouts, blocks, media, inline marks, access) — used as-is for short queries. */
+const SLASH_ORDER = ['heading-1', 'heading-2', 'heading-3', 'heading-4', 'format-list', 'format-ordered-list',
+  'format-task-list', 'format-quote', 'callout-note', 'callout-tip', 'callout-info', 'callout-warning', 'callout-danger',
+  'insert-table', 'code-block', 'insert-mermaid', 'insert-plantuml', 'math-block', 'horizontal-rule', 'insert-image',
+  'insert-link', 'insert-embed', 'insert-footnote', 'format-highlight', 'toggle-comment', 'insert-access-rule'];
 const orderOf = (id) => { const i = SLASH_ORDER.indexOf(id); return i < 0 ? SLASH_ORDER.length : i; };
 const labelOf = (c) => c.slashLabel || c.title;
 const byFixedOrder = (a, b) => orderOf(a.id) - orderOf(b.id) || labelOf(a).localeCompare(labelOf(b));

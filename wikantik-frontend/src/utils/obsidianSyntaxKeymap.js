@@ -5,6 +5,7 @@ import { toggleWrap } from './markdownFormat';
 /**
  * Obsidian-syntax editing keys, bound in the editor extension itself (not through the command registry's `format`):
  *  - `Mod-Shift-H` wraps or unwraps the selection in `==…==` (Highlight);
+ *  - `Mod-Shift-X` wraps or unwraps it in `~~…~~` (Strikethrough);
  *  - `Mod-/` wraps or unwraps it in `%%…%%` (Toggle comment). `@codemirror/commands`' default `Mod-/` is
  *    `toggleComment`, which would write an HTML `<!-- -->` into Markdown; this keymap is Prec.highest, so it wins.
  */
@@ -29,9 +30,11 @@ function toggleMarker(view, marker) {
 }
 
 export const toggleHighlight = (view) => toggleMarker(view, '==');
+export const toggleStrike = (view) => toggleMarker(view, '~~');
 export const toggleComment = (view) => toggleMarker(view, '%%');
 
 export const obsidianSyntaxKeymap = Prec.highest(keymap.of([
   { key: 'Mod-Shift-h', preventDefault: true, run: toggleHighlight },
+  { key: 'Mod-Shift-x', preventDefault: true, run: toggleStrike },
   { key: 'Mod-/', preventDefault: true, run: toggleComment },
 ]));

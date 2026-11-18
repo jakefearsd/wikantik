@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- flush async state between tests
-import { render, waitFor, act, cleanup } from '@testing-library/react';
+import { render, waitFor, act, cleanup, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { EditorView } from '@codemirror/view';
+import { undo } from '@codemirror/commands';
+import fenceFixture from '../utils/__fixtures__/renderedFences.json';
 
 vi.mock('../api/client', () => ({
   api: {
@@ -56,6 +58,9 @@ async function editorView(content = 'hello world') {
 }
 
 const select = (view, from, to) => act(() => { view.dispatch({ selection: { anchor: from, head: to } }); });
+// applyEdit focuses the editor, and happy-dom fires selectionchange synchronously when a focused editor writes its DOM
+// selection inside the next update ("update in progress"). Unfocused, the editor leaves the DOM selection alone.
+const blur = (view) => act(() => { view.contentDOM.blur(); });
 const run = (id) => act(async () => { await getCommand(id).run(); });
 
 beforeEach(() => {
@@ -105,5 +110,82 @@ describe('PageEditor palette: Highlight and Toggle comment', () => {
     select(view, 2, 7);
     await run('toggle-comment');
     expect(view.state.doc.toString()).toBe('hello world');
+  });
+});
+
+/**
+ * The rich-mode commands: each one writes the text markdownFormat defines for it, as ONE transaction — a single
+ * undo gives back the document exactly.
+ */
+describe('PageEditor commands: lists, quote, heading 4, diagrams, footnote, embed, strikethrough', () => {
+  // The Mermaid starter is the shared reader fixture's first source its policy allows; a fence's source carries the
+  // last line's newline, which the fence writer adds itself.
+  const mermaidBody = fenceFixture.mermaidPolicy.find((row) => row.allowed).source.replace(/\n$/, '');
+  // The fixture holds no PlantUML source (the server is that policy): the starter is the smallest whole diagram.
+  const plantumlBody = '@startuml\nA -> B\n@enduml';
+
+  it.each([
+    ['format-strike', [0, 5], '~~alpha~~', [2, 7]],
+    ['format-ordered-list', [5, 5], '1. alpha', [8, 8]],
+    ['format-task-list', [5, 5], '- [ ] alpha', [11, 11]],
+    ['format-quote', [5, 5], '> alpha', [7, 7]],
+    ['heading-4', [5, 5], '#### alpha', [10, 10]],
+    ['insert-mermaid', [5, 5], 'alpha\n\n```mermaid\n' + mermaidBody + '\n```\n', [18, 18]],
+    ['insert-plantuml', [5, 5], 'alpha\n\n```plantuml\n' + plantumlBody + '\n```\n', [19, 19]],
+    ['insert-footnote', [5, 5], 'alpha[^1]\n\n[^1]: ', [17, 17]],
+    ['insert-embed', [5, 5], 'alpha![[]]', [8, 8]],
+  ])('%s writes its text, and one undo restores the document', async (id, [from, to], text, [selFrom, selTo]) => {
+    const view = await editorView('alpha');
+    select(view, from, to);
+    await run(id);
+    expect(view.state.doc.toString()).toBe(text);
+    expect([view.state.selection.main.from, view.state.selection.main.to]).toEqual([selFrom, selTo]);
+    await blur(view);
+    act(() => { undo(view); });
+    expect(view.state.doc.toString()).toBe('alpha');
+  });
+
+  it('the Mermaid starter is the fixture source the reader draws', () => {
+    expect(mermaidBody).toBe('flowchart TD\n  A-->B');
+    expect(fenceFixture.documents[0].markdown).toBe('```mermaid\n' + mermaidBody + '\n```\n');
+  });
+});
+
+describe('PageEditor command: Access rule', () => {
+  const fillAndInsert = () => {
+    fireEvent.change(screen.getByLabelText('Permission'), { target: { value: 'edit' } });
+    const field = screen.getByLabelText('Add a group, role or user…');
+    for (const name of ['Editors', 'Admin']) {
+      fireEvent.change(field, { target: { value: name } });
+      fireEvent.keyDown(field, { key: 'Enter' });
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Insert' }));
+  };
+
+  it('opens the form without touching the document; Insert writes the rule above the caret line, one undo removes it', async () => {
+    const view = await editorView('alpha');
+    select(view, 5, 5);
+    // Opened from a button, as the toolbar does: closing the dialog hands focus back to that button first.
+    const opener = document.body.appendChild(document.createElement('button'));
+    opener.focus();
+    await run('insert-access-rule');
+    expect(screen.getByRole('dialog', { name: 'Access rule' })).toBeTruthy();
+    expect(view.state.doc.toString()).toBe('alpha');
+    fillAndInsert();
+    expect(view.state.doc.toString()).toBe('[{ALLOW edit Editors, Admin}]\nalpha');
+    expect(view.state.selection.main.head).toBe(30);
+    expect(screen.queryByRole('dialog', { name: 'Access rule' })).toBeNull();
+    await waitFor(() => expect(view.hasFocus).toBe(true));
+    act(() => { undo(view); });
+    expect(view.state.doc.toString()).toBe('alpha');
+    opener.remove();
+  });
+
+  it('Cancel closes the form and leaves the document alone', async () => {
+    const view = await editorView('alpha');
+    await run('insert-access-rule');
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Access rule' })).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Access rule' })).toBeNull();
+    expect(view.state.doc.toString()).toBe('alpha');
   });
 });

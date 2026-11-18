@@ -58,3 +58,17 @@ describe('Mod-/ — toggle comment', () => {
     expect(text()).toBe('a note here');
   });
 });
+
+describe('Mod-Shift-X — strikethrough', () => {
+  it('wraps the selection in ~~ and keeps it selected', () => {
+    const v = editor('say hello now', 4, 9);
+    expect(press(v, { key: 'X', keyCode: 88, shiftKey: true, ctrlKey: true })).toBe(true);
+    expect(text()).toBe('say ~~hello~~ now');
+    expect(sel()).toEqual([6, 11]);
+  });
+  it('unwraps on a second press', () => {
+    const v = editor('say ~~hello~~ now', 6, 11);
+    press(v, { key: 'X', keyCode: 88, shiftKey: true, ctrlKey: true });
+    expect(text()).toBe('say hello now');
+  });
+});

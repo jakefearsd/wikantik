@@ -49,7 +49,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { formatRelative } from '../utils/datetime';
 import { formatKeys } from '../utils/keyHints';
-import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock, setHeading, insertCallout, insertMathBlock, insertRule } from '../utils/markdownFormat';
+import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock, setHeading, insertCallout, insertMathBlock, insertRule, insertFence, insertFootnote, insertEmbed, insertAccessRule } from '../utils/markdownFormat';
 import { useDarkMode } from '../hooks/useDarkMode';
 import EditorToolbar from './EditorToolbar';
 import CodeEditor, { minimalChange } from './CodeEditor';
@@ -65,7 +65,7 @@ import { useEditorMode } from '../hooks/useEditorMode';
 import { loadEmbedState } from '../utils/livePreview/embedSource';
 import { useRunCommand } from '../commands/useCommands';
 import { getCommands, registerCommands } from '../commands/registry';
-import { buildEditorCommands } from '../utils/editorCommands';
+import { buildEditorCommands, FENCE_STARTERS } from '../utils/editorCommands';
 import { createSlashSource } from '../utils/slashComplete';
 import { createTagSource } from '../utils/tagComplete';
 import AttachmentPanel from './AttachmentPanel';
@@ -82,6 +82,7 @@ import PresenceBar from '../collab/PresenceBar';
 import DraftBanner from '../collab/DraftBanner';
 import PublishDialog from '../collab/PublishDialog';
 import Modal from './ui/Modal';
+import AccessRuleForm from './editor/AccessRuleForm';
 import { DiffHtml } from './DiffViewer';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -934,7 +935,8 @@ export default function PageEditor({ collabTransport } = {}) {
     }
   }, [guardActive]);
 
-  const applyFormat = useCallback((command) => {
+  // `arg` carries what a command's form collected (the access rule's permission and names).
+  const applyFormat = useCallback((command, arg) => {
     const editor = editorRef.current;
     if (!editor) return;
 
@@ -949,22 +951,33 @@ export default function PageEditor({ collabTransport } = {}) {
     let next;
     if (command.startsWith('callout:')) {
       next = insertCallout(state, command.slice('callout:'.length));
+    } else if (command.startsWith('fence:')) {
+      const language = command.slice('fence:'.length);
+      next = insertFence(state, language, FENCE_STARTERS[language] ?? '');
     } else switch (command) {
       case 'bold':    next = toggleWrap(state, '**'); break;
       case 'italic':  next = toggleWrap(state, '*');  break;
       case 'code':    next = toggleWrap(state, '`');  break;
       case 'highlight': next = toggleWrap(state, '=='); break; // Mod-Shift-H in the editor keymap does the same
+      case 'strike':  next = toggleWrap(state, '~~'); break;   // Mod-Shift-X in the editor keymap does the same
       case 'comment': next = toggleWrap(state, '%%'); break;   // Mod-/ in the editor keymap does the same
       case 'codeblock': next = insertCodeBlock(state); break;
       case 'heading': next = toggleLinePrefix(state, '## '); break;
       case 'list':    next = toggleLinePrefix(state, '- ');  break;
+      case 'olist':   next = toggleLinePrefix(state, '1. '); break;
+      case 'tasklist': next = toggleLinePrefix(state, '- [ ] '); break;
+      case 'quote':   next = toggleLinePrefix(state, '> ');  break;
       case 'table':   next = insertTable(state); break;
       case 'link':    next = insertLink(state); break;
       case 'h1':      next = setHeading(state, 1); break;
       case 'h2':      next = setHeading(state, 2); break;
       case 'h3':      next = setHeading(state, 3); break;
+      case 'h4':      next = setHeading(state, 4); break;
       case 'mathblock': next = insertMathBlock(state); break;
       case 'rule':    next = insertRule(state); break;
+      case 'footnote': next = insertFootnote(state); break;
+      case 'embed':   next = insertEmbed(state); break;
+      case 'accessrule': next = insertAccessRule(state, arg); break; // AccessRuleForm validates what it hands over
       default: return;
     }
 
@@ -1051,6 +1064,16 @@ export default function PageEditor({ collabTransport } = {}) {
   const runCommand = useRunCommand();
   const saveNow = useCallback(() => { if (!savingRef.current) latestSaveRef.current?.(); }, []);
   const pickImage = useCallback(() => imageInputRef.current?.click(), []);
+  // The access-rule form: the command opens it, Insert writes the rule at the caret the editor kept meanwhile.
+  const [accessRuleOpen, setAccessRuleOpen] = useState(false);
+  const pickAccessRule = useCallback(() => setAccessRuleOpen(true), []);
+  const closeAccessRule = useCallback(() => setAccessRuleOpen(false), []);
+  const insertAccessRuleFromForm = useCallback((rule) => {
+    setAccessRuleOpen(false);
+    applyFormat('accessrule', rule);
+    // After the dialog's focus trap has handed focus back to whatever opened it (a toolbar button, the palette).
+    requestAnimationFrame(() => editorRef.current?.focus());
+  }, [applyFormat]);
   const togglePreview = useCallback(() => setPreviewOpen((v) => !v), []);
   const foldAll = useCallback(() => editorRef.current?.foldAll?.(), []);
   const unfoldAll = useCallback(() => editorRef.current?.unfoldAll?.(), []);
@@ -1111,8 +1134,8 @@ export default function PageEditor({ collabTransport } = {}) {
   // Built inside the effect (not during render): several actions read refs, which render must not touch.
   useEffect(() => registerCommands(buildEditorCommands({
     format: applyFormat, save: saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview: toggleEditorMode,
-    pastePlain, copyBlockLink,
-  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode, pastePlain, copyBlockLink]);
+    pastePlain, copyBlockLink, pickAccessRule,
+  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode, pastePlain, copyBlockLink, pickAccessRule]);
   // A paste converted to Markdown: the first one of the session says how to get plain text instead. Embedded raster
   // images upload in place (handlePasteImages); the ones that cannot (svg, blob:/file:/cid:, unreadable, oversize, past the
   // per-paste cap) are reported every time rather than dropped silently.
@@ -2148,6 +2171,7 @@ export default function PageEditor({ collabTransport } = {}) {
           <button type="button" className="btn btn-secondary" onClick={() => setDiffFor(null)}>Close</button>
         </div>
       </Modal>
+      <AccessRuleForm open={accessRuleOpen} onClose={closeAccessRule} onInsert={insertAccessRuleFromForm} />
       {loginOpen && <LoginForm onClose={() => { setLoginOpen(false); collab.resume(); }} />}
 
       <AttachmentPanel

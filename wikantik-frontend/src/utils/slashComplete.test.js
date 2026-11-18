@@ -4,6 +4,7 @@ import { CompletionContext } from '@codemirror/autocomplete';
 import { markdown } from '@codemirror/lang-markdown';
 import { fullyParsed } from '../test/fullParse';
 import { createSlashSource, slashIconType } from './slashComplete';
+import { buildEditorCommands } from './editorCommands';
 
 const COMMANDS = [
   { id: 'heading-2', title: 'Heading 2', slash: true, run: vi.fn() },
@@ -85,12 +86,12 @@ describe('slashIconType', () => {
 });
 
 describe('slash menu order', () => {
-  const ALL = [
-    'insert-link', 'heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-warning',
-    'callout-danger', 'callout-info', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image',
-  ].map((id) => ({ id, title: id, slashLabel: id.replace(/-/g, ' '), slash: true, run: vi.fn() }));
-  const FIXED = ['heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-info', 'callout-warning',
-    'callout-danger', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image', 'insert-link'];
+  const FIXED = ['heading-1', 'heading-2', 'heading-3', 'heading-4', 'format-list', 'format-ordered-list',
+    'format-task-list', 'format-quote', 'callout-note', 'callout-tip', 'callout-info', 'callout-warning', 'callout-danger',
+    'insert-table', 'code-block', 'insert-mermaid', 'insert-plantuml', 'math-block', 'horizontal-rule', 'insert-image',
+    'insert-link', 'insert-embed', 'insert-footnote', 'format-highlight', 'toggle-comment', 'insert-access-rule'];
+  // Registered in reverse, so only SLASH_ORDER can produce the fixed order.
+  const ALL = [...FIXED].reverse().map((id) => ({ id, title: id, slashLabel: id.replace(/-/g, ' '), slash: true, run: vi.fn() }));
   const ids = (doc, cmds = ALL) => {
     const state = EditorState.create({ doc, extensions: [markdown()] });
     const r = createSlashSource(() => cmds, vi.fn())(new CompletionContext(state, doc.length, false));
@@ -99,6 +100,19 @@ describe('slash menu order', () => {
 
   it('lists every command in the fixed logical order for an empty query', () => {
     expect(ids('/')).toEqual(FIXED);
+  });
+
+  it('lists the real registry in that order, under its menu labels', () => {
+    const noop = () => {};
+    const real = buildEditorCommands({ format: noop, save: noop, pickImage: noop, togglePreview: noop, toggleRail: noop,
+      foldAll: noop, unfoldAll: noop, toggleLivePreview: noop, pastePlain: noop, copyBlockLink: noop, pickAccessRule: noop });
+    const state = EditorState.create({ doc: '/', extensions: [markdown()] });
+    const r = createSlashSource(() => real, vi.fn())(new CompletionContext(state, 1, false));
+    expect(r.options.map((o) => o.label)).toEqual(['Heading 1', 'Heading 2', 'Heading 3', 'Heading 4', 'Bulleted list',
+      'Numbered list', 'Task list', 'Quote', 'Callout: Note', 'Callout: Tip', 'Callout: Info', 'Callout: Warning',
+      'Callout: Danger', 'Insert table', 'Code block', 'Mermaid diagram', 'PlantUML diagram', 'Math block',
+      'Horizontal rule', 'Insert image', 'Insert link', 'Embed a page', 'Footnote', 'Highlight', 'Toggle comment',
+      'Access rule']);
   });
 
   it('keeps the fixed order (filtered) for a one-character query', () => {

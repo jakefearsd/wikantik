@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildEditorCommands } from './editorCommands';
+import { buildEditorCommands, FENCE_STARTERS } from './editorCommands';
 
 const deps = () => ({ format: vi.fn(), save: vi.fn(), pickImage: vi.fn(), togglePreview: vi.fn(),
                       toggleRail: vi.fn(), foldAll: vi.fn(), unfoldAll: vi.fn(), toggleLivePreview: vi.fn(),
-                      pastePlain: vi.fn(), copyBlockLink: vi.fn() });
+                      pastePlain: vi.fn(), copyBlockLink: vi.fn(), pickAccessRule: vi.fn() });
 
 describe('buildEditorCommands', () => {
   it('declares the editor command set with stable ids', () => {
@@ -15,11 +15,51 @@ describe('buildEditorCommands', () => {
       'fold-all', 'unfold-all', 'toggle-preview', 'toggle-rail', 'toggle-live-preview', 'paste-plain', 'copy-block-link']));
   });
 
-  it('marks only insert commands as slash commands', () => {
+  it('marks the insert and block commands as slash commands', () => {
     const slash = buildEditorCommands(deps()).filter((c) => c.slash).map((c) => c.id).sort();
     expect(slash).toEqual(['callout-danger', 'callout-info', 'callout-note', 'callout-tip', 'callout-warning',
-      'code-block', 'heading-1', 'heading-2', 'heading-3', 'horizontal-rule', 'insert-image', 'insert-link',
-      'insert-table', 'math-block'].sort());
+      'code-block', 'heading-1', 'heading-2', 'heading-3', 'heading-4', 'horizontal-rule', 'insert-image', 'insert-link',
+      'insert-table', 'math-block', 'format-list', 'format-ordered-list', 'format-task-list', 'format-quote',
+      'insert-mermaid', 'insert-plantuml', 'insert-footnote', 'insert-embed', 'insert-access-rule', 'format-highlight',
+      'toggle-comment'].sort());
+  });
+
+  it.each([
+    ['format-strike', 'Strikethrough', 'strike', false],
+    ['format-ordered-list', 'Numbered list', 'olist', true],
+    ['format-task-list', 'Task list', 'tasklist', true],
+    ['format-quote', 'Quote', 'quote', true],
+    ['heading-4', 'Heading 4', 'h4', true],
+    ['insert-mermaid', 'Mermaid diagram', 'fence:mermaid', true],
+    ['insert-plantuml', 'PlantUML diagram', 'fence:plantuml', true],
+    ['insert-footnote', 'Footnote', 'footnote', true],
+    ['insert-embed', 'Embed a page', 'embed', true],
+  ])('declares %s as "%s", routed through format(%s)', (id, title, arg, slash) => {
+    const d = deps();
+    const c = buildEditorCommands(d).find((x) => x.id === id);
+    expect(c).toMatchObject({ id, title });
+    expect(!!c.slash).toBe(slash);
+    c.run();
+    expect(d.format).toHaveBeenCalledTimes(1);
+    expect(d.format).toHaveBeenCalledWith(arg);
+  });
+
+  it('declares Strikethrough with its Mod-Shift-X hint', () => {
+    expect(buildEditorCommands(deps()).find((c) => c.id === 'format-strike').keys).toBe('Mod-Shift-X');
+  });
+
+  it('"Access rule" is a slash command that opens the form instead of formatting', () => {
+    const d = deps();
+    const c = buildEditorCommands(d).find((x) => x.id === 'insert-access-rule');
+    expect(c).toMatchObject({ title: 'Access rule', slash: true });
+    c.run();
+    expect(d.pickAccessRule).toHaveBeenCalled();
+    expect(d.format).not.toHaveBeenCalled();
+  });
+
+  it('holds a starter body for each diagram kind', () => {
+    expect(FENCE_STARTERS.mermaid).toBe('flowchart TD\n  A-->B');
+    expect(FENCE_STARTERS.plantuml).toBe('@startuml\nA -> B\n@enduml');
   });
 
   it('routes to the right dependency', () => {
@@ -68,13 +108,13 @@ describe('buildEditorCommands', () => {
     expect(d.copyBlockLink).toHaveBeenCalled();
   });
 
-  it('offers Highlight (Mod-Shift-H) and Toggle comment (Mod-/) in the palette, routed through format', () => {
+  it('offers Highlight (Mod-Shift-H) and Toggle comment (Mod-/) in the palette and the slash menu, routed through format', () => {
     const d = deps();
     const byId = Object.fromEntries(buildEditorCommands(d).map((c) => [c.id, c]));
     expect(byId['format-highlight']).toMatchObject({ title: 'Highlight', section: 'Editor', keys: 'Mod-Shift-H' });
     expect(byId['toggle-comment']).toMatchObject({ title: 'Toggle comment', section: 'Editor', keys: 'Mod-/' });
-    expect(byId['format-highlight'].slash).toBeFalsy();
-    expect(byId['toggle-comment'].slash).toBeFalsy();
+    expect(byId['format-highlight'].slash).toBe(true);
+    expect(byId['toggle-comment'].slash).toBe(true);
     byId['format-highlight'].run();
     byId['toggle-comment'].run();
     expect(d.format).toHaveBeenCalledWith('highlight');

@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- see the afterEach rationale below
-import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, cleanup, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 // ── #19 CodeMirror stub ──────────────────────────────────────────────────────
@@ -110,6 +110,7 @@ import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
 import { useToast } from '../hooks/useToast';
 import { markLeaving, resetLeaving } from '../navigation/navigationGuard';
+import { runCommand } from '../commands/registry';
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -1550,5 +1551,111 @@ describe('editor side rail and status bar', () => {
     const before = toggle.getAttribute('aria-pressed');
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-pressed')).not.toBe(before);
+  });
+});
+
+// The side pane shows the rendered preview or, in Rich mode only, the page's Markdown source (read-only).
+describe('side pane: Preview | Source', () => {
+  const paneOption = (name) => within(screen.getByRole('group', { name: 'Side pane' })).getByRole('button', { name });
+  const mirror = () => document.querySelector('.editor-source-mirror');
+  const preview = () => document.querySelector('.editor-preview');
+  const modeOf = () => (screen.getByRole('radio', { name: 'Rich' }).getAttribute('aria-checked') === 'true' ? 'live' : 'source');
+  const setMode = async (label) => {
+    fireEvent.click(screen.getByRole('radio', { name: label }));
+    await waitFor(() => expect(screen.getByRole('radio', { name: label })).toHaveAttribute('aria-checked', 'true'));
+  };
+  async function renderRich() {
+    const utils = renderEditor();
+    await waitForEditor();
+    await setMode('Rich');
+    return utils;
+  }
+
+  it('starts on Preview, with Source offered in Rich', async () => {
+    await renderRich();
+    expect(preview()).not.toBeNull();
+    expect(mirror()).toBeNull();
+    expect(paneOption('Preview')).toHaveAttribute('aria-pressed', 'true');
+    expect(paneOption('Source')).toBeEnabled();
+    expect(paneOption('Source')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('in Rich, choosing Source shows the mirror and hides the preview; Preview brings it back', async () => {
+    await renderRich();
+    fireEvent.click(paneOption('Source'));
+    expect(mirror()).not.toBeNull();
+    expect(preview()).toBeNull();
+    expect(mirror().textContent).toContain('# Test Page');
+    expect(paneOption('Source')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(paneOption('Preview'));
+    expect(mirror()).toBeNull();
+    expect(preview()).not.toBeNull();
+  });
+
+  it('switching the editor to Source mode shows the preview; Rich brings the mirror back', async () => {
+    await renderRich();
+    fireEvent.click(paneOption('Source'));
+    await setMode('Source');
+    expect(mirror()).toBeNull();
+    expect(preview()).not.toBeNull();
+    expect(paneOption('Source')).toBeDisabled();
+    expect(paneOption('Source')).toHaveAttribute('title', 'Shown in Rich mode');
+    expect(paneOption('Preview')).toHaveAttribute('aria-pressed', 'true');
+    await setMode('Rich');
+    expect(mirror()).not.toBeNull();
+    expect(preview()).toBeNull();
+  });
+
+  it('"Toggle preview" hides the pane and restores the one it last showed', async () => {
+    const { container } = await renderRich();
+    fireEvent.click(paneOption('Source'));
+    await act(async () => { await runCommand('toggle-preview'); });
+    expect(mirror()).toBeNull();
+    expect(preview()).toBeNull();
+    expect(container.querySelector('.editor-container')).toHaveClass('preview-hidden');
+    await act(async () => { await runCommand('toggle-preview'); });
+    expect(mirror()).not.toBeNull();
+    expect(container.querySelector('.editor-container')).not.toHaveClass('preview-hidden');
+
+    fireEvent.click(paneOption('Preview'));
+    await act(async () => { await runCommand('toggle-preview'); });
+    expect(preview()).toBeNull();
+    await act(async () => { await runCommand('toggle-preview'); });
+    expect(preview()).not.toBeNull();
+    expect(mirror()).toBeNull();
+  });
+
+  it('the "pane-source" command shows the mirror, also from a hidden pane', async () => {
+    await renderRich();
+    await act(async () => { await runCommand('toggle-preview'); });
+    await act(async () => { await runCommand('pane-source'); });
+    expect(mirror()).not.toBeNull();
+  });
+
+  it('clicking inside the mirror changes neither the mode nor the editor selection', async () => {
+    await renderRich();
+    fireEvent.click(paneOption('Source'));
+    const ta = getEditable();
+    ta.setSelectionRange(3, 7);
+    const line = mirror().querySelector('.cm-line');
+    fireEvent.mouseDown(line);
+    fireEvent.mouseUp(line);
+    fireEvent.click(line);
+    expect(modeOf()).toBe('live');
+    expect(localStorage.getItem('wikantik.editor.mode')).toBe('live');
+    expect([ta.selectionStart, ta.selectionEnd]).toEqual([3, 7]);
+    expect(ta.value).toBe(PAGE_CONTENT);
+    expect(mirror()).not.toBeNull();
+  });
+
+  it('a legacy page offers no Source pane', async () => {
+    api.getPage.mockResolvedValue({ content: '!!Heading', metadata: {}, version: 1, markupSyntax: 'wiki' });
+    renderEditor();
+    await waitForEditor();
+    expect(paneOption('Source')).toBeDisabled();
+    expect(paneOption('Source')).toHaveAttribute('title', 'Shown in Rich mode');
+    await act(async () => { await runCommand('pane-source'); });
+    expect(mirror()).toBeNull();
+    expect(preview()).not.toBeNull();
   });
 });

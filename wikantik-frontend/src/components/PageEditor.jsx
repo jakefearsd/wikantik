@@ -26,6 +26,7 @@ import { remarkWikiLinks } from '../utils/remarkWikiLinks';
 import { useWikiLinkResolution } from '../hooks/useWikiLinkResolution';
 import { usePreviewSource } from '../hooks/usePreviewSource';
 import EditorPreviewMarkdown from './editor/EditorPreviewMarkdown';
+import { CaretSourceMirror } from './editor/SourceMirror';
 import { WikiEmbedElement } from './WikiEmbed';
 import { useEmbedCacheLifecycle } from '../hooks/useEmbedCacheLifecycle';
 import { useTagSuggestions } from '../hooks/useTagSuggestions';
@@ -827,6 +828,8 @@ export default function PageEditor({ collabTransport } = {}) {
   const previewComponents = useMemo(() => ({ 'wiki-embed': WikiEmbedElement, 'wiki-fence': WikiFence }), []);
   const lowlight = useLowlight(/(^|\n)(```|~~~)/.test(previewContent));
   const [previewSource, previewCost] = usePreviewSource(previewContent, name);
+  // The preview and the source mirror show the body without its frontmatter; the caret's line is counted with it.
+  const mirrorLineOffset = useMemo(() => frontmatterOffsetLines(body), [body]);
 
   const handleRename = useCallback(async (oldName, newName) => {
     const result = await attachments.renameAttachment(oldName, newName);
@@ -1027,12 +1030,20 @@ export default function PageEditor({ collabTransport } = {}) {
     return () => window.removeEventListener('keydown', handler);
   }, [toggleEditorMode]);
 
-  const [previewOpen, setPreviewOpen] = useState(true);
+  // The side pane: hidden, the rendered preview, or the page's Markdown source (read-only; a learning aid offered in
+  // Rich mode only, never a way to change the editing mode). `last` is what "Toggle preview" restores. Not persisted.
+  const [paneState, setPaneState] = useState({ pane: 'preview', last: 'preview' });
+  const choosePane = useCallback((pane) => setPaneState({ pane, last: pane }), []);
+  const showPreviewPane = useCallback(() => choosePane('preview'), [choosePane]);
+  const showSourcePane = useCallback(() => choosePane('source'), [choosePane]);
+  // Outside Rich a Source choice is kept but shown as the preview, until Rich is back.
+  const shownPane = paneState.pane === 'source' && !liveActive ? 'preview' : paneState.pane;
+  const previewShown = shownPane === 'preview';
   // Re-fetch embeds whenever the preview is re-opened so edits to embedded pages show up.
-  useEmbedCacheLifecycle(previewOpen);
+  useEmbedCacheLifecycle(previewShown);
 
   const previewArticleRef = useRef(null);
-  const { card: previewCard } = useLinkPreview(previewArticleRef, previewOpen);
+  const { card: previewCard } = useLinkPreview(previewArticleRef, previewShown);
 
   // Ctrl/Cmd-hover over a link in the source editor.
   const [sourceHover, setSourceHover] = useState(null); // { url, rect }
@@ -1089,7 +1100,8 @@ export default function PageEditor({ collabTransport } = {}) {
     // After the dialog's focus trap has handed focus back to whatever opened it (a toolbar button, the palette).
     requestAnimationFrame(() => editorRef.current?.focus());
   }, [applyFormat]);
-  const togglePreview = useCallback(() => setPreviewOpen((v) => !v), []);
+  const togglePreview = useCallback(() => setPaneState(({ pane, last }) => (
+    pane === 'hidden' ? { pane: last, last } : { pane: 'hidden', last: pane })), []);
   const foldAll = useCallback(() => editorRef.current?.foldAll?.(), []);
   const unfoldAll = useCallback(() => editorRef.current?.unfoldAll?.(), []);
   // "Paste as plain text" from the palette: the browser may refuse a programmatic clipboard read (permission prompt
@@ -1149,8 +1161,8 @@ export default function PageEditor({ collabTransport } = {}) {
   // Built inside the effect (not during render): several actions read refs, which render must not touch.
   useEffect(() => registerCommands(buildEditorCommands({
     format: applyFormat, save: saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview: toggleEditorMode,
-    pastePlain, copyBlockLink, pickAccessRule,
-  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode, pastePlain, copyBlockLink, pickAccessRule]);
+    pastePlain, copyBlockLink, pickAccessRule, showSourcePane,
+  })), [applyFormat, saveNow, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleEditorMode, pastePlain, copyBlockLink, pickAccessRule, showSourcePane]);
   // A paste converted to Markdown: the first one of the session says how to get plain text instead. Embedded raster
   // images upload in place (handlePasteImages); the ones that cannot (svg, blob:/file:/cid:, unreadable, oversize, past the
   // per-paste cap) are reported every time rather than dropped silently.
@@ -2015,7 +2027,7 @@ export default function PageEditor({ collabTransport } = {}) {
       <EditorToolbar onRun={runToolbarCommand} liveMode={liveActive} liveDisabled={isLegacyWiki} formatState={formatState} />
 
       <div className={`editor-layout${railOpen ? ' rail-open' : ''}`}>
-      <div className={`editor-container${previewOpen ? '' : ' preview-hidden'}`}>
+      <div className={`editor-container${shownPane === 'hidden' ? ' preview-hidden' : ''}`}>
         <div
           ref={dropContainerRef}
           className="editor-pane"
@@ -2065,14 +2077,29 @@ export default function PageEditor({ collabTransport } = {}) {
           />
           )}
         </div>
-        {previewOpen && (
-        <div className="editor-pane editor-preview" ref={previewRef} onScroll={syncEditor}>
-          <FrontmatterPreview content={fullText} />
-          <article className="article-prose" ref={previewArticleRef} onClick={handlePreviewClick}>
-            <EditorPreviewMarkdown content={previewSource} components={previewComponents} costMeter={previewCost}
-              remarkPlugins={previewRemarkPlugins} rehypePlugins={previewRehypePlugins} />
-          </article>
-          {previewCard}
+        {shownPane !== 'hidden' && (
+        <div className="editor-pane editor-side-pane">
+          <div className="editor-pane-header" role="group" aria-label="Side pane" data-testid="editor-pane-content">
+            <button type="button" className="editor-pane-option" aria-pressed={previewShown} onClick={showPreviewPane}>
+              Preview
+            </button>
+            <button type="button" className="editor-pane-option" aria-pressed={shownPane === 'source'} onClick={showSourcePane}
+              disabled={!liveActive} title={liveActive ? 'The Markdown source of this page (read-only)' : 'Shown in Rich mode'}>
+              Source
+            </button>
+          </div>
+          {previewShown ? (
+          <div className="editor-preview" ref={previewRef} onScroll={syncEditor}>
+            <FrontmatterPreview content={fullText} />
+            <article className="article-prose" ref={previewArticleRef} onClick={handlePreviewClick}>
+              <EditorPreviewMarkdown content={previewSource} components={previewComponents} costMeter={previewCost}
+                remarkPlugins={previewRemarkPlugins} rehypePlugins={previewRehypePlugins} />
+            </article>
+            {previewCard}
+          </div>
+          ) : (
+          <CaretSourceMirror text={previewSource} cursorStore={cursorStore} lineOffset={mirrorLineOffset} />
+          )}
         </div>
         )}
         {sourceCard}

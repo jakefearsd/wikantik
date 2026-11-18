@@ -255,3 +255,33 @@ describe('rich mode: block markers stay hidden under the caret', () => {
     expect(saveAndExpectVisibleText(api, view).content).toBe(text);
   });
 });
+
+describe('Markdown source pane (Rich mode)', () => {
+  const mirrorLines = () => [...document.querySelectorAll('.editor-source-mirror .cm-line')];
+  const markedLine = () => mirrorLines().findIndex((el) => el.classList.contains('cm-mirror-caret-line')) + 1;
+
+  it('shows the source beside the Rich editor, follows the caret line and the typed text, and changes nothing', async () => {
+    localStorage.setItem('wikantik.editor.mode', 'live');
+    const view = await mountRealEditor(PageEditor, NavigationGuardProvider, INITIAL);
+    await until(isLive);
+    placeCaret(view, INITIAL.indexOf('task'));
+    fireEvent.click(screen.getByRole('button', { name: 'Source' }));
+    await until(() => mirrorLines().length === 5);
+    expect(mirrorLines().map((el) => el.textContent)).toEqual(INITIAL.split('\n'));
+    expect(markedLine()).toBe(3);
+
+    placeCaret(view, INITIAL.length);
+    await until(() => markedLine() === 5);
+    typeAtCaret(view, '!');
+    await until(() => mirrorLines()[4]?.textContent === 'end!');
+    expect(markedLine()).toBe(5);
+
+    // Selecting in the mirror is not an edit, a mode change or a caret move in the editor.
+    const caret = caretOf(view);
+    fireEvent.mouseDown(mirrorLines()[0]);
+    fireEvent.mouseUp(mirrorLines()[0]);
+    expect(isLive()).toBe(true);
+    expect(caretOf(view)).toEqual(caret);
+    expect(docOf(view)).toBe(`${INITIAL}!`);
+  });
+});

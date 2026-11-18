@@ -3,7 +3,7 @@ import { buildEditorCommands, FENCE_STARTERS } from './editorCommands';
 
 const deps = () => ({ format: vi.fn(), save: vi.fn(), pickImage: vi.fn(), togglePreview: vi.fn(),
                       toggleRail: vi.fn(), foldAll: vi.fn(), unfoldAll: vi.fn(), toggleLivePreview: vi.fn(),
-                      pastePlain: vi.fn(), copyBlockLink: vi.fn(), pickAccessRule: vi.fn() });
+                      pastePlain: vi.fn(), copyBlockLink: vi.fn(), pickAccessRule: vi.fn(), showSourcePane: vi.fn() });
 
 describe('buildEditorCommands', () => {
   it('declares the editor command set with stable ids', () => {
@@ -13,6 +13,15 @@ describe('buildEditorCommands', () => {
       'heading-1', 'heading-2', 'heading-3', 'callout-note', 'callout-tip', 'callout-warning', 'callout-danger',
       'callout-info', 'insert-table', 'code-block', 'math-block', 'horizontal-rule', 'insert-image',
       'fold-all', 'unfold-all', 'toggle-preview', 'toggle-rail', 'toggle-live-preview', 'paste-plain', 'copy-block-link']));
+  });
+
+  it('offers the Markdown source pane as a View command', () => {
+    const d = deps();
+    const cmd = buildEditorCommands(d).find((c) => c.id === 'pane-source');
+    expect(cmd).toMatchObject({ title: 'Show Markdown source beside the editor', section: 'View' });
+    expect(cmd.slash).toBeUndefined();
+    cmd.run();
+    expect(d.showSourcePane).toHaveBeenCalledTimes(1);
   });
 
   it('marks the insert and block commands as slash commands', () => {

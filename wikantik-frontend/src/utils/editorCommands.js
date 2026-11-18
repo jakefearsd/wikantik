@@ -11,7 +11,7 @@ export const FENCE_STARTERS = {
 };
 
 /** The editor's command-registry entries; every action is injected so the list stays pure. */
-export function buildEditorCommands({ format, save, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview, pastePlain, copyBlockLink, pickAccessRule }) {
+export function buildEditorCommands({ format, save, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview, pastePlain, copyBlockLink, pickAccessRule, showSourcePane }) {
   const cmd = (id, title, section, run, extra = {}) => ({ id, title, section, run, ...extra });
   return [
     cmd('editor-save', 'Save', 'Editor', save, { keys: 'Mod-S' }),
@@ -45,6 +45,7 @@ export function buildEditorCommands({ format, save, pickImage, togglePreview, to
     cmd('fold-all', 'Fold all headings', 'View', foldAll, { keys: 'Ctrl-Alt-[' }),
     cmd('unfold-all', 'Unfold all headings', 'View', unfoldAll, { keys: 'Ctrl-Alt-]' }),
     cmd('toggle-preview', 'Toggle preview', 'View', togglePreview),
+    cmd('pane-source', 'Show Markdown source beside the editor', 'View', showSourcePane, { keywords: ['markdown', 'mirror', 'pane'] }),
     cmd('toggle-rail', 'Toggle rail', 'View', toggleRail),
     cmd('toggle-live-preview', 'Switch between Rich and Source', 'View', toggleLivePreview, { keys: 'Mod-E' }),
   ];

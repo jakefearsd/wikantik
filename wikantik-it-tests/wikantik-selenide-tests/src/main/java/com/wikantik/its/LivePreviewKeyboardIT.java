@@ -195,7 +195,7 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
     @Test
     void selectAllThenTypingReplacesTheWholeDocumentAndUndoRestoresIt() {
         final String doc = openLive( PAGE, BODY );
-        setCaret( 0 );
+        setCaret( 2 ); // only to focus the editor; offset 2 is the heading's text start (a caret cannot rest in its hidden "# ")
 
         pressMod( "a" );
         pressKeys( "x" );

@@ -1,5 +1,5 @@
-import { EditorState, EditorSelection, Prec, RangeSet, StateEffect, StateField } from '@codemirror/state';
-import { EditorView, keymap } from '@codemirror/view';
+import { EditorState, EditorSelection, Prec, RangeSet, StateField } from '@codemirror/state';
+import { EditorView, ViewPlugin, keymap } from '@codemirror/view';
 import { liveModeField, blockField, livePreviewPlugin, getContext } from './plugin';
 import { activeLinesOf, livePreviewSpecs } from './ranges';
 
@@ -13,6 +13,10 @@ import { activeLinesOf, livePreviewSpecs } from './ranges';
  * rule and the key commands read the state (stickySpansAt: one line's specs plus the block field), because a
  * transaction filter has no view and the drawn decorations describe the state before the transaction. The two can
  * differ while the parse is incomplete or outside the drawn viewport; the caret is then simply not corrected.
+ *
+ * Nothing here may dispatch from a composition event (or any DOM input event): every view.dispatch makes CodeMirror
+ * discard the DOM mutations it has not read yet, and at compositionend it has only just scheduled the read of the
+ * IME's final text — a dispatch there silently loses what the user typed, in Source mode too.
  */
 
 const live = (state) => state.field(liveModeField, false) === true;
@@ -94,33 +98,29 @@ function restingPlace(state, head) {
 }
 
 /**
- * Whether an IME composition is running, kept inside the transaction model (a filter cannot see the view): set by
- * effects dispatched from the compositionstart/compositionend DOM events.
+ * Whether an IME composition is running is view state, which a transaction filter cannot see. The field holds one
+ * mutable reference per state lineage, pointed by the plugin at the view showing it — read-only plumbing: neither
+ * dispatches anything. Only `view.composing` is consulted (`compositionStarted` is true far too broadly on Android).
  */
-const setComposing = StateEffect.define();
-const composingField = StateField.define({
-  create: () => false,
-  update: (value, tr) => tr.effects.reduce((v, e) => (e.is(setComposing) ? e.value : v), value),
+const viewRef = StateField.define({ create: () => ({ view: null }), update: (ref) => ref });
+const trackView = ViewPlugin.define((view) => {
+  const ref = view.state.field(viewRef, false);
+  if (ref) ref.view = view;
+  return { destroy() { if (ref && ref.view === view) ref.view = null; } };
 });
-const trackComposition = EditorView.domEventHandlers({
-  compositionstart(_event, view) { view.dispatch({ effects: setComposing.of(true) }); },
-  compositionend(_event, view) { view.dispatch({ effects: setComposing.of(false) }); },
-});
-const endsComposition = (tr) => tr.effects.some((e) => e.is(setComposing) && !e.value);
+const composing = (tr) => tr.isUserEvent('input.type.compose') || tr.startState.field(viewRef, false)?.view?.composing === true;
 
 /**
  * Caret rule: every empty range is moved to its resting place, on any transaction that can leave a caret somewhere
- * else — one that sets the selection, one that changes the document (a change with no selection maps the caret, and
- * a marker inserted at the caret's line start, by a command or a shared-editing peer, lands after it), and the end
- * of a composition. Non-empty ranges are left alone (a selection may cut into a marker, so deleting it behaves as in
- * Source). Nothing moves during a composition — moving the caret under an IME aborts it; the transaction that ends
- * the composition corrects whatever it left behind. The rule only ever adds a selection: the transaction's changes,
- * effects and annotations pass through untouched.
+ * else — one that sets the selection, or one that changes the document (a change with no selection maps the caret,
+ * and a marker inserted at the caret's line start, by a command or a shared-editing peer, lands after it). Non-empty
+ * ranges are left alone (a selection may cut into a marker, so deleting it behaves as in Source). Nothing moves
+ * during a composition — moving the caret under an IME aborts it; a caret the composition leaves before a marker is
+ * corrected by the next selection or change. The rule only ever adds a selection: the transaction's changes, effects
+ * and annotations pass through untouched.
  */
 export const stickyCaret = EditorState.transactionFilter.of((tr) => {
-  const ending = endsComposition(tr);
-  if (!(tr.selection || tr.docChanged || ending) || !live(tr.startState)) return tr;
-  if (!ending && (tr.isUserEvent('input.type.compose') || tr.startState.field(composingField, false))) return tr;
+  if (!(tr.selection || tr.docChanged) || !live(tr.startState) || composing(tr)) return tr;
   const { state } = tr;
   if (!live(state)) return tr;
   let moved = false;
@@ -167,8 +167,8 @@ export function leaveLineMarker(view) {
 }
 
 export const stickyExtension = [
-  composingField,
-  trackComposition,
+  viewRef,
+  trackView,
   stickyAtomic,
   stickyCaret,
   // Highest: lang-markdown's own keymap binds Backspace (deleteMarkupBackward) at Prec.high and precedes this

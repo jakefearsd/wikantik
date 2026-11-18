@@ -182,26 +182,20 @@ describe('sticky caret', () => {
     expect(head(view)).toBe(H);
   });
 
-  it('between compositionstart and compositionend a selection is not moved; compositionend itself corrects the caret', () => {
-    const view = mount();
-    caretAt(view, H + 5);
-    view.contentDOM.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-    view.dispatch({ selection: { anchor: H } });
-    expect(head(view)).toBe(H);
-    view.dispatch({ changes: { from: H + 3, insert: 'k' } }); // a change mid-composition does not move it either
-    expect(head(view)).toBe(H);
-    view.contentDOM.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
-    expect(head(view)).toBe(H + 3);
-    expect(text(view)).toBe('Para one\n## kTitle\nAfter');
-  });
-
-  it('a composition that never touched a marker changes nothing when it ends', () => {
-    const view = mount();
-    caretAt(view, 2);
-    view.contentDOM.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-    view.contentDOM.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
-    expect(head(view)).toBe(2);
-    expect(text(view)).toBe(DOC);
+  it('while the view is composing nothing moves; afterwards the next selection or change corrects the caret', () => {
+    for (const next of [(view) => caretAt(view, H), (view) => view.dispatch({ changes: { from: H + 3, insert: 'k' } })]) {
+      const view = mount();
+      caretAt(view, H + 5);
+      Object.defineProperty(view, 'composing', { get: () => true, configurable: true });
+      view.dispatch({ selection: { anchor: H } });
+      expect(head(view)).toBe(H);
+      view.dispatch({ changes: { from: H + 3, insert: 'k' } }); // a change mid-composition does not move it either
+      expect(head(view)).toBe(H);
+      delete view.composing; // the composition ended with the caret before the marker: nothing is dispatched for that
+      expect(head(view)).toBe(H);
+      next(view);
+      expect(head(view)).toBe(H + 3);
+    }
   });
 
   it('every range of a multi-range selection obeys the rule', () => {
@@ -360,4 +354,34 @@ describe('cost', () => {
     const { ratio, bound } = linearCost(make, moves, { small: 2000 });
     expect(ratio).toBeLessThan(bound);
   }, LINEAR_COST_TIMEOUT_MS);
+});
+
+describe('composition input is never lost', () => {
+  // Any view.dispatch makes CodeMirror drop DOM mutations it has not read yet. At compositionend it has just scheduled
+  // the read of the IME's final text, so an extension that dispatches from a composition event loses that text.
+  async function compose(view) {
+    const seen = [];
+    const original = view.dispatch.bind(view);
+    view.dispatch = (...specs) => { seen.push(specs); return original(...specs); };
+    view.focus();
+    view.contentDOM.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    const duringStart = seen.length;
+    // The IME writes its final text into the DOM; compositionend fires before the mutation records are delivered.
+    const node = document.createTreeWalker(view.contentDOM.querySelector('.cm-line'), NodeFilter.SHOW_TEXT).nextNode();
+    expect(node.nodeValue).toBe('Para one');
+    node.nodeValue = 'ParaXY one';
+    view.contentDOM.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+    const duringEvents = seen.length;
+    await new Promise((r) => { setTimeout(r, 120); });
+    return { duringStart, duringEvents };
+  }
+
+  it.each([['in live mode', true], ['with live mode off', false]])('text composed %s reaches the document', async (_name, live) => {
+    const view = mount('Para one\nTitle', { live, context: plain });
+    caretAt(view, 4);
+    const { duringStart, duringEvents } = await compose(view);
+    expect(text(view)).toBe('ParaXY one\nTitle');
+    expect(duringStart).toBe(0); // nothing dispatches from compositionstart …
+    expect(duringEvents).toBe(0); // … nor from compositionend
+  });
 });

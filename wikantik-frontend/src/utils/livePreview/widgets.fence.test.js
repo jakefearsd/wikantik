@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 
 vi.mock('../fences/drawFence', () => ({ drawFence: vi.fn() }));
 import { drawFence } from '../fences/drawFence';
+import { EditorState } from '@codemirror/state';
 import { FenceWidget, widgetFor } from './widgets';
 
 afterEach(() => { document.body.innerHTML = ''; vi.restoreAllMocks(); drawFence.mockReset(); });
@@ -67,12 +68,24 @@ describe('FenceWidget (server-kind and failure paths)', () => {
 
   it('mouseDownRevealsTheSourceThroughTheView', () => {
     drawFence.mockResolvedValue('drawn');
-    const view = { requestMeasure: vi.fn(), dispatch: vi.fn(), posAtDOM: vi.fn(() => 17), focus: vi.fn() };
-    const dom = new FenceWidget('plantuml', 'A -> B').toDOM(view);
+    // The fence opens at 17; revealed, its opening line is a header, so the caret goes to the first body line (29).
+    const state = EditorState.create({ doc: 'Above text here\n\n```plantuml\nA -> B\n```' });
+    const view = { state, requestMeasure: vi.fn(), dispatch: vi.fn(), posAtDOM: vi.fn(() => 17), focus: vi.fn() };
+    const dom = new FenceWidget('plantuml', 'A -> B\n').toDOM(view);
     document.body.append(dom);
     dom.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-    expect(view.dispatch).toHaveBeenCalledWith({ selection: { anchor: 17 } });
+    expect(view.dispatch).toHaveBeenCalledWith({ selection: { anchor: 29 } });
     expect(view.focus).toHaveBeenCalled();
+  });
+
+  it('aFenceWithNoBodyLineIsRevealedAtItsOpeningLine', () => {
+    drawFence.mockResolvedValue('drawn');
+    const state = EditorState.create({ doc: '```plantuml\n```' });
+    const view = { state, requestMeasure: vi.fn(), dispatch: vi.fn(), posAtDOM: vi.fn(() => 0), focus: vi.fn() };
+    const dom = new FenceWidget('plantuml', '').toDOM(view);
+    document.body.append(dom);
+    dom.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    expect(view.dispatch).toHaveBeenCalledWith({ selection: { anchor: 0 } });
   });
 
   it('widgetForBuildsAPlantumlFenceWidgetAndIgnoresEditorEvents', () => {

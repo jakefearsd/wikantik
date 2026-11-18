@@ -109,7 +109,10 @@ describe('livePreviewSpecs — blocks', () => {
     ]));
     expect(visible(state, specs, 1)).toBe('[callout-title]Careful');
     const titles = specs.filter((s) => s.widget?.type === 'callout-title').map((s) => s.widget);
-    expect(titles).toEqual([{ type: 'callout-title', style: 'warning', title: '' }, { type: 'callout-title', style: 'question', title: 'Faq' }]);
+    expect(titles).toEqual([{ type: 'callout-title', style: 'warning', rawType: 'caution' }, { type: 'callout-title', style: 'question', rawType: 'faq' }]);
+    // The marker is a line marker that stays under the caret, like the `> ` before it.
+    const onTitle = livePreviewSpecs(state, new Set([1])).filter((s) => s.from < 20 && (s.kind === 'hide' || s.kind === 'widget'));
+    expect(onTitle.map((s) => [s.from, s.to, s.sticky, s.lineMarker])).toEqual([[0, 2, true, true], [2, 13, true, true]]);
   });
   it('rules, bullets and tasks become widgets; ordered markers stay', () => {
     const doc = 'a\n\n***\n\n- one\n  - nested\n\n1. first\n\n- [ ] todo\n- [x] done\n\nend';
@@ -121,9 +124,31 @@ describe('livePreviewSpecs — blocks', () => {
     expect(visible(state, specs, 10)).toBe('[checkbox]todo');
     expect(specs.filter((s) => s.widget?.type === 'checkbox').map((s) => s.widget.checked)).toEqual([false, true]);
   });
-  it('fenced code: fence and body line classes, nothing inside decorated', () => {
-    const { state, specs } = specsOf('```js\nconst a = **1**;\n```\n\nend', [5]);
-    expect(show(state, specs)).toEqual(['line cm-lp-fence @1', 'line cm-lp-codeblock @2', 'line cm-lp-fence @3']);
+  it('fenced code: a header for the opening line, the closing line hidden, nothing inside decorated', () => {
+    for (const active of [[5], [2]]) { // the header and the hidden closing line do not depend on the caret
+      const { state, specs } = specsOf('```js\nconst a = **1**;\n```\n\nend', active);
+      expect(show(state, specs)).toEqual(['line cm-lp-fence @1', 'widget fence-header "```js"', 'line cm-lp-codeblock @2',
+        'line cm-lp-fence-close @3', 'hide "```"']);
+      expect(replacing(specs).map((s) => [s.sticky, s.hiddenLine, s.lineMarker])).toEqual([[true, 'open', undefined], [true, 'close', undefined]]);
+      expect(specs[1].widget).toEqual({ type: 'fence-header', language: 'js', kind: 'code' });
+    }
+  });
+  it('fenced code: an unclosed fence and one with no body line stay source', () => {
+    for (const doc of ['```js\nconst a = 1;', '```js\n```\n\nend']) {
+      const { state, specs } = specsOf(doc, []);
+      expect(replacing(specs)).toEqual([]);
+      expect(show(state, specs)[0]).toBe('line cm-lp-fence @1');
+    }
+  });
+  it('fenced code: a drawable fence gets a diagram header once one of its lines is active; `example` is plain code', () => {
+    const doc = '```mermaid\ngraph TD; A-->B;\n```\n\nend';
+    expect(replacing(specsOf(doc, [5]).specs)).toEqual([]); // drawn as a block widget (blockSpecs)
+    expect(replacing(specsOf(doc, [2]).specs)[0].widget).toEqual({ type: 'fence-header', language: 'mermaid', kind: 'diagram' });
+    expect(replacing(specsOf('```mermaid example\ngraph TD; A-->B;\n```\n\nend', [5]).specs)[0].widget)
+      .toEqual({ type: 'fence-header', language: 'mermaid', kind: 'code' });
+    // Nested in a list it is never a block widget, so it always has its header.
+    expect(replacing(specsOf('- item\n\n  ```mermaid\n  graph TD; A-->B;\n  ```\n\nend', [7]).specs).map((s) => s.widget?.type ?? s.kind))
+      .toEqual(['bullet', 'fence-header', 'hide']);
   });
   it('fenced code: only lines inside the viewport range are decorated (huge fence, small range)', () => {
     const body = Array.from({ length: 2000 }, (_, i) => `line ${i}`).join('\n');
@@ -689,7 +714,7 @@ describe('reference-style links and footnotes', () => {
   });
   it('nothing in inline code or fences', () => {
     const { specs } = specsOf('`a[^1]` x\n\n```\n[^2]\n[^3]: z\n```\n', [2]);
-    expect(specs.filter((s) => s.kind === 'widget')).toEqual([]);
+    expect(specs.filter((s) => s.kind === 'widget' && s.widget.type !== 'fence-header')).toEqual([]);
   });
   it('an escaped footnote reference stays literal text, as the reader shows it', () => {
     const { state, specs } = specsOf('word\\[^1] more\n\n[^1]: note\n', [2]);

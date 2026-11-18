@@ -1,6 +1,7 @@
 import { EditorSelection, Prec } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
 import { liveModeField, blockField } from './plugin';
+import { isHiddenLine, lineBeyondHidden } from './sticky';
 
 /**
  * The shown (not revealed) block widget a vertical move from `line` would jump over: one starting on the next line
@@ -62,8 +63,45 @@ export function moveIntoBlock(view, forward, extend) {
   return true;
 }
 
+/**
+ * ArrowDown/ArrowUp (Shift: extend) in live mode with a hidden line next in the way (a fence's header or its hidden
+ * closing line, sticky.js): the head goes to the nearest line beyond that shows text, at the same character column
+ * (or that line's end). CodeMirror's own motion would land on the hidden line, where the caret rule can only send it
+ * to a line end. At the document's edge — nothing shown beyond — the key is taken and the caret stays. Returns false
+ * when no range has a hidden line in the way, or outside live mode.
+ */
+export function moveOverHiddenLine(view, forward, extend) {
+  const { state } = view;
+  if (!state.field(liveModeField, false)) return false;
+  const { doc } = state;
+  let redirected = false;
+  const ranges = state.selection.ranges.map((range) => {
+    if (!range.empty && !extend) return null;
+    const line = doc.lineAt(range.head);
+    const beside = line.number + (forward ? 1 : -1);
+    if (beside < 1 || beside > doc.lines) return null;
+    const rowEdge = view.moveToLineBoundary(EditorSelection.cursor(range.head, range.assoc), forward).head;
+    if (rowEdge !== (forward ? line.to : line.from) || !isHiddenLine(state, doc.line(beside))) return null;
+    redirected = true;
+    const target = lineBeyondHidden(state, line, forward ? 1 : -1);
+    if (!target) return range;
+    const head = Math.min(target.from + (range.head - line.from), target.to);
+    return extend ? EditorSelection.range(range.anchor, head) : EditorSelection.cursor(head);
+  });
+  if (!redirected) return false;
+  const moved = ranges.map((r, i) => r || defaultMove(view, state.selection.ranges[i], forward, extend));
+  view.dispatch({
+    selection: EditorSelection.create(moved, state.selection.mainIndex),
+    scrollIntoView: true,
+    userEvent: 'select',
+  });
+  return true;
+}
+
+const move = (forward, extend) => (view) => moveOverHiddenLine(view, forward, extend) || moveIntoBlock(view, forward, extend);
+
 /** Above the default keymap, so the redirect runs before CodeMirror's cursorLineDown/Up; declines everywhere else. */
 export const verticalMotionKeymap = Prec.high(keymap.of([
-  { key: 'ArrowDown', run: (v) => moveIntoBlock(v, true, false), shift: (v) => moveIntoBlock(v, true, true) },
-  { key: 'ArrowUp', run: (v) => moveIntoBlock(v, false, false), shift: (v) => moveIntoBlock(v, false, true) },
+  { key: 'ArrowDown', run: move(true, false), shift: move(true, true) },
+  { key: 'ArrowUp', run: move(false, false), shift: move(false, true) },
 ]));

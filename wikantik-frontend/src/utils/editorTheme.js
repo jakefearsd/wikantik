@@ -222,6 +222,15 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-math-block`]: { display: 'block', textAlign: 'center', padding: '0.4em 0' },
   [`${ROOT} .cm-lp-math-error`]: { color: 'var(--callout-danger)', fontFamily: 'var(--font-mono)' },
   [`${ROOT} .cm-lp-fence`]: { color: 'var(--text-secondary)', backgroundColor: 'var(--code-bg)' },
+  // A fence with a header (Rich mode): the opening line is the header widget, the closing line a thin end of the block.
+  [`${ROOT} .cm-lp-fence-header`]: { fontFamily: 'var(--font-ui)', fontSize: '0.8em' },
+  [`${ROOT} .cm-lp-fence-close`]: { fontSize: '0.4em', lineHeight: '1', backgroundColor: 'var(--code-bg)', borderBottom: '1px solid var(--border)' },
+  // The one choice a header offers (code language, diagram kind, callout type): a select that reads as a label until hovered.
+  [`${ROOT} .cm-lp-picker`]: { font: 'inherit', color: 'inherit', backgroundColor: 'transparent', border: '1px solid transparent', borderRadius: 'var(--radius-sm)', padding: '0 0.2em', margin: '0', cursor: 'pointer', maxWidth: '100%' },
+  [`${ROOT} .cm-lp-picker:hover, ${ROOT} .cm-lp-picker:focus-visible`]: { borderColor: 'var(--border-strong)' },
+  [`${ROOT} .cm-lp-picker option`]: { color: 'var(--text)', backgroundColor: 'var(--bg-elevated)', fontWeight: '400' },
+  [`${ROOT} .cm-lp-fence-lang`]: { color: 'var(--text-secondary)' },
+  [`${ROOT} .cm-lp-callout-type`]: { fontWeight: '600' },
   [`${ROOT} .cm-lp-fence-block`]: { display: 'block', margin: '0.4em 0', overflow: 'auto', cursor: 'text' },
   // Tables mirror the reader's (.article-prose table in styles/article.css); cell alignment is set inline per column.
   [`${ROOT} .cm-lp-table-block`]: { display: 'block', margin: '0.4em 0', overflowX: 'auto', cursor: 'text' },

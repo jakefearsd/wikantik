@@ -74,20 +74,21 @@ describe('live preview: arrow keys move into block widgets', () => {
     expect(shownBlocks(view)).toHaveLength(BLOCKS.length);
   });
 
-  it.each(BLOCKS)('ArrowDown from the line above a %s lands at the start of its first line, revealing it', (_k, block, above) => {
+  it.each(BLOCKS)('ArrowDown from the line above a %s lands at the start of its first line (a fence: first body line), revealing it', (_k, block, above) => {
     const view = mount();
     const first = lineOf(view, block.split('\n')[0]);
     caretAt(view, lineOf(view, above).to + 1); // the empty line directly above the block
     const shown = shownBlocks(view).length;
 
     expect(press(view, 'ArrowDown')).toBe(true);
-    expect(view.state.selection.main.head).toBe(first.from);
+    // A revealed fence's opening line is a header the caret cannot rest on: it goes on to the first body line.
+    expect(view.state.selection.main.head).toBe(block === FENCE ? first.to + 1 : first.from);
     expect(view.state.selection.main.empty).toBe(true);
     expect(shownBlocks(view)).toHaveLength(shown - 1); // revealed: its source is on screen
     expect(view.state.doc.toString()).toBe(DOC);
   });
 
-  it.each(BLOCKS)('ArrowUp from the line below a %s lands at the start of its last line, revealing it', (_k, block, _a, below) => {
+  it.each(BLOCKS)('ArrowUp from the line below a %s lands at the start of its last line (a fence: end of its last body line), revealing it', (_k, block, _a, below) => {
     const view = mount();
     const lines = block.split('\n');
     const below0 = lineOf(view, below).from - 1; // the empty line directly below the block
@@ -97,7 +98,8 @@ describe('live preview: arrow keys move into block widgets', () => {
     const shown = shownBlocks(view).length;
 
     expect(press(view, 'ArrowUp')).toBe(true);
-    expect(view.state.selection.main.head).toBe(last.from);
+    // A revealed fence's closing line is hidden: the caret goes on to the end of the last body line.
+    expect(view.state.selection.main.head).toBe(block === FENCE ? last.from - 1 : last.from);
     expect(shownBlocks(view)).toHaveLength(shown - 1);
     expect(view.state.doc.toString()).toBe(DOC);
   });

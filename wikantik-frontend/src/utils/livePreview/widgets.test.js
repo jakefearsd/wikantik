@@ -44,7 +44,9 @@ describe('widget DOM', () => {
     expect([t.textContent, t.className]).toEqual([' > ', 'cm-lp-link']);
     const c = new CalloutTitleWidget('warning', 'Caution').toDOM();
     expect(c.querySelector('.cm-lp-callout-icon')).not.toBeNull();
-    expect(c.textContent).toBe('Caution');
+    expect(c.querySelector('select').selectedOptions[0].textContent).toBe('Caution'); // the type as written, when it is not a listed one
+    expect(new CalloutTitleWidget('note', 'NOTE').toDOM().querySelector('select').value).toBe('note');
+    expect(new CalloutTitleWidget('note', 'note').eq(new CalloutTitleWidget('note', 'NOTE'))).toBe(false);
   });
   it('renders KaTeX, and shows the source in cm-lp-math-error for invalid TeX', () => {
     expect(new MathWidget('x^2', false).toDOM().querySelector('.katex')).not.toBeNull();
@@ -212,7 +214,7 @@ describe('widget DOM', () => {
   });
   it('widgetFor maps every data type and rejects unknown ones', () => {
     for (const w of [{ type: 'bullet' }, { type: 'checkbox', checked: false }, { type: 'rule' },
-      { type: 'callout-title', style: 'note', title: '' }, { type: 'image', src: 'a', alt: '' },
+      { type: 'callout-title', style: 'note', rawType: 'note' }, { type: 'fence-header', language: 'js', kind: 'code' }, { type: 'image', src: 'a', alt: '' },
       { type: 'math', tex: 'x', display: true }, { type: 'text', text: '>', cls: 'c' }, { type: 'embed', target: 'A', section: null }]) {
       expect(widgetFor(w, {})).toBeTruthy();
     }

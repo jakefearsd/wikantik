@@ -534,21 +534,22 @@ describe('fenced code inside a quote', () => {
   const QUOTED = 'Para\n\n> ```\n> code\n> ```\n\nend';
   const C = QUOTED.indexOf('> code');
 
-  it('pinned as it is: only the opening line\'s quote mark is a sticky range; code lines keep their `> ` as source', () => {
+  it('pinned as it is: the opening line is its quote mark and the fence header, the closing line is hidden whole; code lines keep their `> ` as source', () => {
     const view = mount(QUOTED);
     caretAt(view, C + 4);
-    expect(rangesOf(stickyRangesOf(view))).toEqual([[6, 8]]);
+    expect(rangesOf(stickyRangesOf(view))).toEqual([[6, 8], [8, 11], [19, 24]]);
     expect(view.contentDOM.querySelectorAll('.cm-line')[3].textContent).toBe('> code');
     caretAt(view, C);
     expect(head(view)).toBe(C); // nothing sticky on a code line: the caret may rest before its `> `
   });
 
-  it('Backspace after the opening line\'s `> ` removes that mark only', () => {
+  it('the opening line cannot hold the caret, so its `> ` is not removable here (Source mode is)', () => {
     const view = mount(QUOTED);
+    caretAt(view, 0);
     caretAt(view, 6);
-    expect(head(view)).toBe(8);
+    expect(head(view)).toBe(C); // on to the first code line
     press(view, 'Backspace');
-    expect(text(view)).toBe('Para\n\n```\n> code\n> ```\n\nend');
+    expect(text(view)).toBe(QUOTED); // Backspace there would join the code line onto the hidden fence
   });
 });
 

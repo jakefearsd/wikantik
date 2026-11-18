@@ -8,6 +8,7 @@ import { renderMath } from '../math';
 import { renderFences } from '../fences/renderFences';
 import { fillFenceEnvelope } from '../fences/envelope';
 import { TableWidget } from './tableWidget';
+import { FenceHeaderWidget, picker, fromPicker, calloutTypeOptions, calloutTypeChange } from './headers';
 
 const el = (tag, cls, text) => {
   const node = document.createElement(tag);
@@ -46,17 +47,31 @@ export class ChipWidget extends WidgetType {
   ignoreEvent() { return false; } // a mousedown places the caret, which reveals the source
 }
 
+/**
+ * A callout's `[!type]` marker in Rich mode: the icon and a type picker. It stays drawn with the caret on its line;
+ * the title after it is ordinary text. `rawType` is the word as written (`NOTE`, `faq`).
+ */
 export class CalloutTitleWidget extends WidgetType {
-  constructor(style, title) { super(); this.style = style; this.title = title; }
-  eq(other) { return other instanceof CalloutTitleWidget && other.style === this.style && other.title === this.title; }
-  toDOM() {
+  constructor(style, rawType) { super(); this.style = style; this.rawType = rawType; }
+  eq(other) { return other instanceof CalloutTitleWidget && other.style === this.style && other.rawType === this.rawType; }
+  toDOM(view) {
     const wrap = el('span', 'cm-lp-callout-title-widget');
     const icon = el('span', 'cm-lp-callout-icon');
     icon.setAttribute('aria-hidden', 'true');
-    wrap.append(icon, document.createTextNode(this.title || ''));
+    const options = calloutTypeOptions(this.rawType);
+    const lower = this.rawType.toLowerCase();
+    wrap.append(icon, picker(view, {
+      cls: 'cm-lp-callout-type',
+      label: 'Callout type',
+      options,
+      value: options.some((o) => o.value === lower) ? lower : this.rawType,
+      userEvent: 'input.callout-type',
+      root: () => wrap,
+      changeFor: calloutTypeChange,
+    }));
     return wrap;
   }
-  ignoreEvent() { return false; }
+  ignoreEvent(event) { return fromPicker(event); } // elsewhere a click lets CodeMirror place the caret (it rests after the picker)
 }
 
 export class ImageWidget extends WidgetType {
@@ -156,8 +171,11 @@ export class CheckboxWidget extends WidgetType {
   ignoreEvent() { return true; } // handled above
 }
 
-/** Block widgets: a mousedown (not on a link) puts the caret at the widget, which reveals its source. */
-export function revealOnMouseDown(view, dom) {
+/**
+ * Block widgets: a mousedown (not on a link) puts the caret at the widget, which reveals its source — or at
+ * `placeOf(state, widget start)` for a widget whose first line cannot hold the caret.
+ */
+export function revealOnMouseDown(view, dom, placeOf = (_state, pos) => pos) {
   dom.addEventListener('mousedown', (e) => {
     e.preventDefault();
     const a = e.target.closest?.('a');
@@ -166,7 +184,7 @@ export function revealOnMouseDown(view, dom) {
       return;
     }
     try {
-      view.dispatch({ selection: { anchor: view.posAtDOM(dom) } });
+      view.dispatch({ selection: { anchor: placeOf(view.state, view.posAtDOM(dom)) } });
       view.focus();
     } catch (err) {
       console.warn('[live-preview] could not place the caret at a block widget', err?.message || err);
@@ -254,7 +272,8 @@ export class FenceWidget extends WidgetType {
     // drawFence (policy, registry, toolbar) is loaded on first use so a page without diagrams never fetches it.
     import('../fences/drawFence').then(({ drawFence }) => drawFence(figure, () => !figure.isConnected)).then(() => view?.requestMeasure?.())
       .catch((err) => console.warn('[live-preview] fence draw failed', this.language, err?.message || err));
-    if (view) revealOnMouseDown(view, wrap);
+    // Revealed, the opening line is a header the caret cannot rest on: go to the first body line (when there is one).
+    if (view) revealOnMouseDown(view, wrap, (state, pos) => (this.source ? Math.min(state.doc.lineAt(pos).to + 1, state.doc.length) : pos));
     return wrap;
   }
   ignoreEvent() { return true; }
@@ -265,7 +284,8 @@ export function widgetFor(w, context = {}) {
     case 'bullet': return new BulletWidget();
     case 'checkbox': return new CheckboxWidget(w.checked, w.markerFrom, w.text);
     case 'rule': return new RuleWidget();
-    case 'callout-title': return new CalloutTitleWidget(w.style, w.title);
+    case 'callout-title': return new CalloutTitleWidget(w.style, w.rawType);
+    case 'fence-header': return new FenceHeaderWidget(w);
     case 'image': return new ImageWidget(w);
     case 'math': return new MathWidget(w.tex, !!w.display);
     case 'text': return new TextWidget(w.text, w.cls);

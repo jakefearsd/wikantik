@@ -1,6 +1,6 @@
 import { StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
-import { MARKER, styleOf, defaultTitle } from '../remarkCallouts';
+import { MARKER, styleOf } from '../remarkCallouts';
 import { commentRangesInTree } from '../obsidianComments';
 import { inlineTagRanges, normalizeLabel, bracketless, definitionLabel } from '../dialect/inlineTags';
 import { parseFenceInfo } from '../fences/fenceInfo';
@@ -490,7 +490,11 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   // `{ sticky: true }`: emitted whether or not the line is active and flagged, so it stays hidden under the caret
   // (the caret rules that make that usable are in sticky.js). Non-sticky specs carry no flag.
   // `{ lineMarker: true }` (with sticky): a block marker — the caret rests after it and Backspace there removes it.
-  const flags = ({ sticky = false, lineMarker = false } = {}) => (sticky ? { sticky: true, ...(lineMarker && { lineMarker: true }) } : null);
+  // `{ hiddenLine: 'open' | 'close' }` (with sticky): the range is all its line shows (a fence's opening or closing
+  // line), so the caret never rests on that line at all; the block's body is below an 'open' line and above a 'close'
+  // one. Never together with lineMarker: Backspace must not remove a fence.
+  const flags = ({ sticky = false, lineMarker = false, hiddenLine = null } = {}) => (sticky
+    ? { sticky: true, ...(lineMarker && { lineMarker: true }), ...(hiddenLine && { hiddenLine }) } : null);
   const hide = (a, b, group, opts) => {
     if (b > a && (opts?.sticky || inactive(a))) specs.push({ kind: 'hide', from: a, to: b, group, ...flags(opts) });
   };
@@ -583,11 +587,9 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       addLine(line.from, `cm-lp-callout-${styleOf(m[1])}`);
       if (line.number === firstLine) addLine(line.from, 'cm-lp-callout-title');
     });
-    if (m) {
-      const markerTo = child.from + m[0].length;
-      const rest = doc.sliceString(markerTo, doc.lineAt(child.from).to).trim();
-      widget(child.from, markerTo, { type: 'callout-title', style: styleOf(m[1]), title: rest ? '' : defaultTitle(m[1]) });
-    }
+    // The marker (with its fold sign and the blanks after it) is a line marker like the `> ` before it: drawn as the
+    // type picker also under the caret, which rests after it, where the title text starts.
+    if (m) widget(child.from, child.from + m[0].length, { type: 'callout-title', style: styleOf(m[1]), rawType: m[1] }, { sticky: true, lineMarker: true });
   };
   const listItem = (node) => {
     const n = node.node;
@@ -608,17 +610,48 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       mark(listMark.from, listMark.to + spaceAfter(listMark.to), 'cm-lp-olmark', undefined, opts);
     }
   };
+  /**
+   * A fence that gets a header: closed, with at least one body line between its fences (the caret needs a line to
+   * rest on — an unclosed or empty fence stays source, so it can be typed). `{ openLine, closeLine, language, kind }`,
+   * or null. Reads the node's first and last children only: a fence in a quote has one QuoteMark child per line.
+   */
+  const headedFence = (node) => {
+    const open = node.node.firstChild;
+    const close = node.node.lastChild;
+    if (!open || open.name !== 'CodeMark' || !close || close.name !== 'CodeMark' || close.from === open.from) return null;
+    const openLine = doc.lineAt(open.from);
+    const closeLine = doc.lineAt(close.from);
+    if (closeLine.number - openLine.number < 2) return null;
+    const info = open.nextSibling?.name === 'CodeInfo' ? doc.sliceString(open.nextSibling.from, open.nextSibling.to) : '';
+    const fenceInfo = parseFenceInfo(info);
+    const drawable = !!rendererFor(fenceInfo);
+    // A top-level fence a renderer draws is a block widget (blockSpecs) while none of its lines is active.
+    if (drawable && node.node.parent?.name === 'Document') {
+      let active = false;
+      for (const n of activeLines) if (n >= openLine.number && n <= closeLine.number) { active = true; break; }
+      if (!active) return null;
+    }
+    return { openLine, closeLine, closeFrom: close.from, language: fenceInfo.language, kind: drawable ? 'diagram' : 'code' };
+  };
   const fenced = (node) => {
     const first = doc.lineAt(node.from).number;
     const last = doc.lineAt(node.to).number;
     const closed = last > first && CLOSING_FENCE.test(doc.line(last).text);
+    const headed = headedFence(node);
     const lo = Math.max(first, doc.lineAt(Math.max(from, node.from)).number);
     const hi = Math.min(last, doc.lineAt(Math.min(to, node.to)).number);
     for (let n = lo; n <= hi; n += 1) {
       const line = doc.line(n);
       if (line.to < from || line.from > to) continue;
-      addLine(line.from, n === first || (closed && n === last) ? 'cm-lp-fence' : 'cm-lp-codeblock');
+      if (headed && n === last) addLine(line.from, 'cm-lp-fence-close');
+      else addLine(line.from, n === first || (closed && n === last) ? 'cm-lp-fence' : 'cm-lp-codeblock');
     }
+    if (!headed) return;
+    const { openLine, closeLine } = headed;
+    // The header stands for the opening line's text from the fence on (a quote or list marker before it keeps its own
+    // spec); the closing line is hidden whole, with the `> ` and indentation before its fence.
+    if (openLine.to >= from && openLine.from <= to) widget(node.from, openLine.to, { type: 'fence-header', language: headed.language, kind: headed.kind }, { sticky: true, hiddenLine: 'open' });
+    if (closeLine.to >= from && closeLine.from <= to) hide(CLOSING_FENCE.test(closeLine.text) ? closeLine.from : headed.closeFrom, closeLine.to, undefined, { sticky: true, hiddenLine: 'close' });
   };
   const inlineMath = []; // `$…$` nodes in document order; typeset in the line pass, after wikilinks and plugins claim theirs
   const wikis = []; // `[[…]]` / `![[…]]` nodes in document order; the line pass claims their ranges before plugins do

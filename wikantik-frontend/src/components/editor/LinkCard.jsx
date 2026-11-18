@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Combobox from '../ui/Combobox';
 import { placeCard } from '../../utils/placeCard';
 import { linkChange } from '../../utils/linkEdit';
@@ -37,8 +37,12 @@ const FOCUS_LEFT = Object.freeze({ focusLeft: true });
  * It takes the focus when it opens and keeps Tab inside itself. Giving the focus back is the host's: `onCommit` and
  * `onClose` get `{ focusLeft: true }` as their last argument when the card ended because the focus went elsewhere
  * (a click in the text, another field of the page) — it then stays where the user put it.
+ *
+ * A `pending` model is text that is not a link yet (Insert link on a selection): the card writes it as one only when
+ * it is committed with an address, and otherwise just closes. `flushRef`, when given, receives a function that ends
+ * the card as the focus leaving it would (the host calls it when another card is about to take its place).
  */
-export default function LinkCard({ model, anchorRect, suggestPages, onCommit, onRemove, onOpen, onClose }) {
+export default function LinkCard({ model, anchorRect, suggestPages, onCommit, onRemove, onOpen, onClose, flushRef }) {
   const cardRef = useRef(null);
   const [draft, setDraft] = useState(() => ({}));
   // What the handlers read: a field's own Enter or blur updates it in the same event that then commits the card.
@@ -87,7 +91,9 @@ export default function LinkCard({ model, anchorRect, suggestPages, onCommit, on
   const commit = (...how) => {
     if (doneRef.current) return true;
     const patch = patchOf();
-    if (Object.keys(patch).length === 0) { finish(() => onClose(...how)); return true; }
+    // Text that is not a link yet becomes one only with an address.
+    const nothing = Object.keys(patch).length === 0 || (model.pending && valueOf('url').trim() === '');
+    if (nothing) { finish(() => onClose(...how)); return true; }
     try {
       linkChange(model, patch);
     } catch (err) {
@@ -98,6 +104,14 @@ export default function LinkCard({ model, anchorRect, suggestPages, onCommit, on
     finish(() => onCommit(patch, ...how));
     return true;
   };
+
+  // Every render, so the host always reaches this render's handlers.
+  useEffect(() => {
+    if (!flushRef) return undefined;
+    const mine = () => commit(FOCUS_LEFT);
+    flushRef.current = mine;
+    return () => { if (flushRef.current === mine) flushRef.current = null; };
+  });
 
   const onKeyDown = (e) => {
     if (e.key === 'Escape') {
@@ -136,7 +150,7 @@ export default function LinkCard({ model, anchorRect, suggestPages, onCommit, on
               : (
                 <input id={id} className="ui-combobox-field" type="text" value={value} autoComplete="off" spellCheck={name === 'text' || name === 'alias' || name === 'alt'}
                        readOnly={name === 'text' && model.textLocked === true}
-                       title={name === 'text' && model.textLocked ? 'This text holds formatting or an image: edit it in the page' : undefined}
+                       title={name === 'text' && model.textLocked ? 'This text holds formatting or an image: it can be edited in Source mode' : undefined}
                        placeholder={name === 'size' ? '300 or 300x200' : undefined}
                        onChange={(e) => set(name, e.target.value)} />
               )}
@@ -146,7 +160,7 @@ export default function LinkCard({ model, anchorRect, suggestPages, onCommit, on
       {error && <p className="link-card-error" role="alert">{error}</p>}
       <div className="link-card-actions">
         <button type="button" className="btn btn-ghost" disabled={!onOpen} onClick={() => onOpen?.()}>Open</button>
-        <button type="button" className="btn btn-ghost" onClick={() => finish(() => onRemove())}>Remove</button>
+        <button type="button" className="btn btn-ghost" disabled={model.pending === true} onClick={() => finish(() => onRemove())}>Remove</button>
       </div>
     </div>
   );

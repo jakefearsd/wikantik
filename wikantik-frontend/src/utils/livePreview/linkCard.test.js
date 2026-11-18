@@ -9,9 +9,10 @@ import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
+import { search, setSearchQuery, SearchQuery, findNext } from '@codemirror/search';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreview, setLivePreview } from './index';
-import { linkCardField, closeLinkCard, requestLinkCard, cardModelAt } from './linkCard';
+import { linkCardField, closeLinkCard, requestLinkCard, requestLinkWrap, cardModelAt, cardModelOf } from './linkCard';
 
 const context = { pageName: 'Here', attachments: ['pic.png'], loadEmbed: () => Promise.resolve({ state: 'missing' }) };
 const views = [];
@@ -48,6 +49,9 @@ function mouseDown(el, init = {}) {
 }
 const chipOf = (view) => view.contentDOM.querySelector('.cm-lp-linkchip');
 const card = (view) => view.state.field(linkCardField);
+const sel = (view) => [view.state.selection.main.from, view.state.selection.main.to];
+/** The card without its id (each opening has its own). */
+const on = (c) => { if (!c) return c; const { id, ...rest } = c; expect(typeof id).toBe('number'); return rest; };
 
 describe('a chip under the caret', () => {
   const DOC = 'x [[Page|a]] y';
@@ -70,10 +74,58 @@ describe('a chip under the caret', () => {
     expect(head(view)).toBe(4);
     expect(shown(view)).toContain('x [[Page|a]] y');
   });
-  it('Backspace right after it removes the whole link', () => {
+  it('Backspace right after it selects the whole link first; a second press deletes it', () => {
     const view = mount(DOC, { caret: 12 });
     press(view, 'Backspace');
+    expect(view.state.doc.toString()).toBe(DOC);
+    expect(sel(view)).toEqual([2, 12]);
+    expect(shown(view)).toBe('x a y'); // still a chip, now selected
+    press(view, 'Backspace');
     expect(view.state.doc.toString()).toBe('x  y');
+  });
+  it('Delete right before it selects the whole link first; a second press deletes it', () => {
+    const view = mount(DOC, { caret: 2 });
+    press(view, 'Delete');
+    expect(view.state.doc.toString()).toBe(DOC);
+    expect(sel(view)).toEqual([2, 12]);
+    press(view, 'Delete');
+    expect(view.state.doc.toString()).toBe('x  y');
+  });
+  it('typing after the first press replaces the selected link', () => {
+    const view = mount(DOC, { caret: 12 });
+    press(view, 'Backspace');
+    const { from, to } = view.state.selection.main;
+    view.dispatch({ changes: { from, to, insert: 'z' }, selection: { anchor: from + 1 }, userEvent: 'input.type' });
+    expect(view.state.doc.toString()).toBe('x z y');
+  });
+  it('Backspace and Delete elsewhere, and on the far side of a chip, are the ordinary keys', () => {
+    const view = mount(DOC, { caret: 2 });
+    press(view, 'Backspace');
+    expect(view.state.doc.toString()).toBe('x[[Page|a]] y');
+    view.dispatch({ selection: { anchor: 11 } });
+    press(view, 'Delete');
+    expect(view.state.doc.toString()).toBe('x[[Page|a]]y');
+  });
+  it('a drawn image is selected first too', () => {
+    const view = mount('x ![alt](pic.png) y', { caret: 17 });
+    press(view, 'Backspace');
+    expect(sel(view)).toEqual([2, 17]);
+    expect(view.state.doc.toString()).toBe('x ![alt](pic.png) y');
+  });
+  it('on a read-only document neither key selects or deletes anything', () => {
+    const view = mount(DOC, { caret: 12, readOnly: true });
+    press(view, 'Backspace');
+    expect(sel(view)).toEqual([12, 12]);
+    expect(view.state.doc.toString()).toBe(DOC);
+  });
+  it('a find match inside the hidden page name shows the link\'s source', () => {
+    const view = mount(`${DOC}\n\nend`, { caret: 17, extra: search() });
+    view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: 'Page' })) });
+    findNext(view);
+    expect(sel(view)).toEqual([4, 8]);
+    expect(shown(view)).toContain('x [[Page|a]] y');
+    view.dispatch({ selection: { anchor: 17 } });
+    expect(shown(view)).toContain('x a y');
   });
 });
 
@@ -101,7 +153,7 @@ describe('a click on a chip', () => {
     const event = mouseDown(chipOf(view));
     expect(event.defaultPrevented).toBe(true);
     expect(onLinkCard).toHaveBeenCalledTimes(1);
-    expect(onLinkCard.mock.calls[0][0]).toEqual({ from: 2, to: 12, source: '[[Page|a]]', openedAt: 2 });
+    expect(on(onLinkCard.mock.calls[0][0])).toEqual({ from: 2, to: 12, source: '[[Page|a]]' });
     expect(onLinkCard.mock.calls[0][1]).toBe(view);
     expect(head(view)).toBe(DOC.length);
   });
@@ -132,14 +184,14 @@ describe('a click on a chip', () => {
     const doc = 'x [![alt](pic.png)](https://e.org) y\n\nend';
     const view = mount(doc, { onLinkCard, caret: doc.length });
     mouseDown(view.contentDOM.querySelector('.cm-lp-image-wrap'));
-    expect(onLinkCard.mock.calls[0][0]).toEqual({ from: 3, to: 18, source: '![alt](pic.png)', openedAt: 3 });
+    expect(on(onLinkCard.mock.calls[0][0])).toEqual({ from: 3, to: 18, source: '![alt](pic.png)' });
   });
   it('on a whole-line page embed opens the embed\'s card instead of revealing its source', () => {
     const onLinkCard = vi.fn();
     const doc = 'top\n\n  ![[Other]]\n\nend';
     const view = mount(doc, { onLinkCard, caret: 0 });
     mouseDown(view.contentDOM.querySelector('.cm-lp-embed'));
-    expect(onLinkCard.mock.calls[0][0]).toEqual({ from: 7, to: 17, source: '![[Other]]', openedAt: 7 });
+    expect(on(onLinkCard.mock.calls[0][0])).toEqual({ from: 7, to: 17, source: '![[Other]]' });
     expect(head(view)).toBe(0);
   });
   it('on a whole-line page embed still reveals its source when nothing shows cards', () => {
@@ -156,20 +208,28 @@ describe('the open card follows its link', () => {
     const onLinkCard = vi.fn();
     const view = mount(DOC, { onLinkCard, caret: 0 });
     expect(requestLinkCard(view, 7)).toBe(true);
-    expect(card(view)).toEqual({ from: 7, to: 17, source: '[[Page|a]]', openedAt: 7 });
+    expect(on(card(view))).toEqual({ from: 7, to: 17, source: '[[Page|a]]' });
     onLinkCard.mockClear();
     return { view, onLinkCard };
   };
   it('through a change above it', () => {
     const { view, onLinkCard } = open();
     view.dispatch({ changes: { from: 0, insert: 'remote ' } });
-    expect(card(view)).toEqual({ from: 14, to: 24, source: '[[Page|a]]', openedAt: 7 });
-    expect(onLinkCard).toHaveBeenLastCalledWith({ from: 14, to: 24, source: '[[Page|a]]', openedAt: 7 }, view);
+    expect(on(card(view))).toEqual({ from: 14, to: 24, source: '[[Page|a]]' });
+    expect(onLinkCard).toHaveBeenLastCalledWith(card(view), view);
+  });
+  it('and says nothing about a change that does not move it', () => {
+    const { view, onLinkCard } = open();
+    const before = card(view);
+    view.dispatch({ changes: { from: DOC.length, insert: ' more' } });
+    view.dispatch({ selection: { anchor: 0 } });
+    expect(card(view)).toBe(before);
+    expect(onLinkCard).not.toHaveBeenCalled();
   });
   it('through text typed right at its edges', () => {
     const { view } = open();
     view.dispatch({ changes: [{ from: 7, insert: 'A' }, { from: 17, insert: 'B' }] });
-    expect(card(view)).toEqual({ from: 8, to: 18, source: '[[Page|a]]', openedAt: 7 });
+    expect(on(card(view))).toEqual({ from: 8, to: 18, source: '[[Page|a]]' });
   });
   it.each([
     ['its text changes', { from: 9, to: 13, insert: 'Other' }],
@@ -214,5 +274,87 @@ describe('cardModelAt', () => {
     expect(cardModelAt(stateOf('[**bold**](u)'), 1)).toMatchObject({ textLocked: true });
     expect(cardModelAt(stateOf('[[Page]]'), 1)).toMatchObject({ kind: 'wiki', target: 'Page' });
     expect(cardModelAt(stateOf('plain'), 1)).toBe(null);
+  });
+});
+
+describe('one card at a time', () => {
+  const DOC = '[[A]] and [[B]] end';
+  it('every opening has its own id, also of the same link at the same place', () => {
+    const view = mount(DOC, { onLinkCard: vi.fn() });
+    requestLinkCard(view, 1);
+    const first = card(view).id;
+    view.dispatch({ effects: closeLinkCard.of(null) });
+    requestLinkCard(view, 1);
+    expect(card(view).id).not.toBe(first);
+  });
+  it('asking again for the link the card is on changes nothing', () => {
+    const onLinkCard = vi.fn();
+    const view = mount(DOC, { onLinkCard });
+    requestLinkCard(view, 1);
+    const before = card(view);
+    expect(requestLinkCard(view, 3)).toBe(true);
+    expect(card(view)).toBe(before);
+    expect(onLinkCard).toHaveBeenCalledTimes(1);
+  });
+  it('the open card is told it is being left before another opens, and what it writes then moves the new one', () => {
+    const calls = [];
+    const onLinkCard = (c, view, leaving) => {
+      calls.push([c && c.source, !!leaving]);
+      // As the host does: the card being left writes its change, over its own range.
+      if (leaving) view.dispatch({ changes: { from: c.from, to: c.to, insert: '[[Longer]]' } });
+    };
+    const view = mount(DOC, { onLinkCard });
+    requestLinkCard(view, 1);
+    expect(requestLinkCard(view, 11)).toBe(true); // [[B]], where it is before the first card writes
+    expect(view.state.doc.toString()).toBe('[[Longer]] and [[B]] end');
+    expect(on(card(view))).toEqual({ from: 15, to: 20, source: '[[B]]' });
+    expect(calls).toEqual([['[[A]]', false], ['[[A]]', true], [null, false], ['[[B]]', false]]);
+  });
+});
+
+describe('a card on text that is not a link yet', () => {
+  const DOC = 'top\n\nalpha beta gamma and [[Page]] tail\nnext'; // the link is [26, 34)
+  const open = (from = 11, to = 15) => {
+    const onLinkCard = vi.fn();
+    const view = mount(DOC, { onLinkCard });
+    const ok = requestLinkWrap(view, from, to);
+    return { view, onLinkCard, ok };
+  };
+  it('opens on the range without writing, and its model is a link to be: the text, no address', () => {
+    const { view, ok } = open();
+    expect(ok).toBe(true);
+    expect(view.state.doc.toString()).toBe(DOC);
+    expect(on(card(view))).toEqual({ from: 11, to: 15, source: 'beta', wrap: true });
+    expect(cardModelOf(view.state, card(view))).toMatchObject({ kind: 'link', from: 11, to: 15, text: 'beta', url: '', pending: true });
+    expect(cardModelOf(view.state, card(view)).original).toBe(undefined);
+  });
+  it('follows a change above it and closes when its text is changed or deleted', () => {
+    const { view } = open();
+    view.dispatch({ changes: { from: 0, insert: 'XX' } });
+    expect(on(card(view))).toEqual({ from: 13, to: 17, source: 'beta', wrap: true });
+    view.dispatch({ changes: { from: 14, to: 15, insert: 'E' } });
+    expect(card(view)).toBe(null);
+  });
+  it.each([
+    ['an empty range', 11, 11],
+    ['a range across a line break', 11, DOC.length],
+    ['a range that starts inside a link and ends past it', 28, 37],
+    ['a range inside a link', 28, 30],
+    ['a range that ends inside a link', 20, 30],
+  ])('is refused for %s: no card, no change', (_name, from, to) => {
+    const { view, ok, onLinkCard } = open(from, to);
+    expect(ok).toBe(false);
+    expect(card(view)).toBe(null);
+    expect(onLinkCard).not.toHaveBeenCalled();
+    expect(view.state.doc.toString()).toBe(DOC);
+  });
+  it('is allowed around a whole link, and from a link\'s edge', () => {
+    expect(open(22, 34).ok).toBe(true);
+    expect(open(26, 37).ok).toBe(true);
+    expect(open(21, 26).ok).toBe(true);
+  });
+  it('is refused on a read-only document', () => {
+    const view = mount(DOC, { onLinkCard: vi.fn(), readOnly: true });
+    expect(requestLinkWrap(view, 11, 15)).toBe(false);
   });
 });

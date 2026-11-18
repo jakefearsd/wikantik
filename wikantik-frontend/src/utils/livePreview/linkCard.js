@@ -7,15 +7,22 @@ import { EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { readLinkAt } from '../linkEdit';
 
-/** `{ pos }`: open the card on the link at `pos`. Does nothing when there is no link there. */
+/**
+ * `{ pos }`: open the card on the link at `pos` (nothing happens when there is no link there). `{ wrap: { from, to } }`:
+ * open it on that text, which the card will turn into a link when it is committed — until then nothing is written.
+ */
 export const openLinkCard = StateEffect.define();
 export const closeLinkCard = StateEffect.define();
 
 /**
- * Callbacks `(card | null, view)`: the card opened or its link moved (`{ from, to, source, openedAt }`), or it closed
- * (null). `openedAt` is where the link was when the card opened: it tells one opening from the next, never moves.
+ * Callbacks `(card | null, view, leaving)`. `(card, view)`: the card opened or its range moved — `{ id, from, to,
+ * source }`, plus `wrap: true` for text about to become a link; `id` tells one opening from every other. `(null, view)`:
+ * it closed. `(card, view, true)`: another card is about to open in its place — the last moment to write what this one
+ * holds, while the field still has its range.
  */
 export const onOpenLinkCard = Facet.define();
+
+let openings = 0;
 
 const TEXT_PARTS = new Set(['LinkMark', 'URL', 'LinkTitle', 'Escape']);
 
@@ -35,9 +42,23 @@ export function cardModelAt(state, pos) {
   return { ...model, textLocked };
 }
 
+/** The card's model for what the field holds: the link read from the document as it is now, or the text to wrap. */
+export function cardModelOf(state, card) {
+  if (!card) return null;
+  if (card.wrap) return { kind: 'link', from: card.from, to: card.to, source: card.source, text: card.source, url: '', title: null, pending: true };
+  const model = cardModelAt(state, card.from);
+  return model && model.from === card.from && model.to === card.to ? model : null;
+}
+
+function opened(state, { pos, wrap }) {
+  if (wrap) return { id: ++openings, from: wrap.from, to: wrap.to, source: state.sliceDoc(wrap.from, wrap.to), wrap: true };
+  const model = cardModelAt(state, pos);
+  return model ? { id: ++openings, from: model.from, to: model.to, source: model.source } : null;
+}
+
 /**
- * The link the card is open on, or null. Its range follows every change (a collaborator typing above it); a change to
- * the link's own text, its deletion or a document turned read-only closes the card.
+ * What the card is open on, or null: a link, or (`wrap`) text that will become one. Its range follows every change (a
+ * collaborator typing above it); a change to its own text, its deletion or a document turned read-only closes the card.
  */
 export const linkCardField = StateField.define({
   create: () => null,
@@ -46,14 +67,12 @@ export const linkCardField = StateField.define({
     if (next && tr.docChanged) {
       const from = tr.changes.mapPos(next.from, 1);
       const to = tr.changes.mapPos(next.to, -1);
-      next = to - from === next.source.length && tr.state.sliceDoc(from, to) === next.source ? { ...next, from, to } : null;
+      if (to - from !== next.source.length || tr.state.sliceDoc(from, to) !== next.source) next = null;
+      else if (from !== next.from || to !== next.to) next = { ...next, from, to };
     }
     for (const e of tr.effects) {
       if (e.is(closeLinkCard)) next = null;
-      else if (e.is(openLinkCard)) {
-        const model = cardModelAt(tr.state, e.value.pos);
-        next = model ? { from: model.from, to: model.to, source: model.source, openedAt: model.from } : null;
-      }
+      else if (e.is(openLinkCard)) next = opened(tr.state, e.value);
     }
     if (next && tr.state.readOnly) next = null;
     return next;
@@ -66,15 +85,51 @@ const tellHosts = EditorView.updateListener.of((u) => {
   for (const tell of u.state.facet(onOpenLinkCard)) tell(card, u.view);
 });
 
+const canShow = (state) => !state.readOnly && state.field(linkCardField, false) !== undefined && state.facet(onOpenLinkCard).length > 0;
+
+/**
+ * Before another card opens: the hosts get to write what the open one holds. `positions` (in the document before
+ * that write) come back as they are after it — the write is the open card's range alone, so everything past its
+ * start moves by the change in length.
+ */
+function leaveOpenCard(view, positions) {
+  const open = view.state.field(linkCardField);
+  if (!open) return positions;
+  const before = view.state.doc.length;
+  for (const tell of view.state.facet(onOpenLinkCard)) tell(open, view, true);
+  const grown = view.state.doc.length - before;
+  return positions.map((pos) => (pos > open.from ? Math.max(open.from, pos + grown) : pos));
+}
+
 /**
  * Opens the card on the link at `pos`. False (and nothing happens) when there is no link there, on a read-only
- * document, or when nothing shows cards: the caller then does what it did before there were cards.
+ * document, or when nothing shows cards: the caller then does what it did before there were cards. A card open on
+ * another link is first given the chance to write its changes; one open on this link stays as it is.
  */
 export function requestLinkCard(view, pos) {
-  const { state } = view;
-  if (state.readOnly || state.field(linkCardField, false) === undefined || !state.facet(onOpenLinkCard).length) return false;
-  if (!cardModelAt(state, pos)) return false;
-  view.dispatch({ effects: openLinkCard.of({ pos }) });
+  if (!canShow(view.state)) return false;
+  const model = cardModelAt(view.state, pos);
+  if (!model) return false;
+  const open = view.state.field(linkCardField);
+  if (open && !open.wrap && open.from === model.from && open.to === model.to) return true;
+  const [at] = leaveOpenCard(view, [pos]);
+  if (!canShow(view.state) || !cardModelAt(view.state, at)) return false;
+  view.dispatch({ effects: openLinkCard.of({ pos: at }) });
+  return true;
+}
+
+/**
+ * Opens the card on the text [from, to], to make a link of it: nothing is written until the card is committed. False
+ * (and nothing happens) for an empty range, one that crosses a line break or cuts into a link, a read-only document,
+ * or when nothing shows cards.
+ */
+export function requestLinkWrap(view, from, to) {
+  if (!canShow(view.state) || to <= from || view.state.sliceDoc(from, to).includes('\n')) return false;
+  const inLink = (pos) => { const link = readLinkAt(view.state, pos); return !!link && pos > link.from && pos < link.to; };
+  if (inLink(from) || inLink(to)) return false;
+  const [a, b] = leaveOpenCard(view, [from, to]);
+  if (!canShow(view.state) || b <= a) return false;
+  view.dispatch({ effects: openLinkCard.of({ wrap: { from: a, to: b } }) });
   return true;
 }
 

@@ -57,10 +57,11 @@ import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview
  *   pasteAsMarkdown boolean       convert rich pastes to Markdown (default true; off for legacy wiki-markup pages)
  *   livePreview boolean           render markdown inline (decorations only; the document text is never changed)
  *   livePreviewContext { pageName, attachments, loadEmbed }  context for live-preview widgets (read through a ref)
- *   onOpenLinkCard (open|null, view) => void   Rich mode's link card: the link it is open on (`{ from, to, source,
- *                                 openedAt }`, again whenever an edit moves it) or null once it is closed. Whether
- *                                 cards are shown at all is fixed at mount: without this prop a click on a chip
- *                                 places the caret.
+ *   onOpenLinkCard (open|null, view, leaving) => void   Rich mode's link card: what it is open on (`{ id, from, to,
+ *                                 source, wrap? }`, again whenever an edit moves it), null once it is closed (also
+ *                                 when this editor unmounts; `view` is then null), or — `leaving` true — that
+ *                                 another card is about to replace it (livePreview/linkCard.js). Whether cards are
+ *                                 shown at all is fixed at mount: without this prop a click on a chip places the caret.
  *   readOnly    boolean           the document cannot be edited (a frozen collab draft, no edit permission)
  *   collabExtensions Extension    collaborative mode (docs/MultiEdit.MD §0 A4): the `collab()` + `collabPeer()` pair.
  *                                 The editor is then UNCONTROLLED: it starts from `collabDoc` and a changed `value`
@@ -221,10 +222,15 @@ const CodeEditor = forwardRef(function CodeEditor(
   const liveExtension = useMemo(
     () => livePreviewExtension({
       getContext: () => livePreviewContextRef.current || {},
-      onLinkCard: showsLinkCards ? (open, view) => onOpenLinkCardRef.current?.(open, view) : undefined,
+      onLinkCard: showsLinkCards ? (open, view, leaving) => onOpenLinkCardRef.current?.(open, view, leaving) : undefined,
     }),
     [showsLinkCards],
   );
+  // An editor that goes away (a shared draft resyncing remounts it) takes its card with it: the host's card would
+  // otherwise stay on screen over a view that no longer exists.
+  useEffect(() => () => {
+    if (showsLinkCards) onOpenLinkCardRef.current?.(null, null);
+  }, [showsLinkCards]);
   const onEditorReadyRef = useRef(onEditorReady);
   onEditorReadyRef.current = onEditorReady;
   const handleCreateEditor = useCallback((view) => {

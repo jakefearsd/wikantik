@@ -79,6 +79,8 @@ public class RichEditorIT extends WithIntegrationTestSetup {
     private static final String LINK_CHIP = CONTENT + " .cm-lp-linkchip";
     private static final String LINK_CARD = "[data-testid=link-card]";
     private static final String CARD_PAGE_FIELD = LINK_CARD + " #link-card-target";
+    private static final String CARD_URL_FIELD = LINK_CARD + " #link-card-url";
+    private static final String CARD_TEXT_FIELD = LINK_CARD + " #link-card-text";
     private static final String FENCE_PICKER = CONTENT + " .cm-lp-fence-header select";
     private static final String CALLOUT_PICKER = CONTENT + " .cm-lp-callout-title-widget select";
 
@@ -244,6 +246,69 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
         assertEquals( seeded.replace( OLD_LINK, NEW_LINK ), fetchPage().get( "content" ).getAsString(),
             "the saved source differs from the seeded one in the link's page name only" );
+    }
+
+    @Test
+    void insertLinkOnASelectionWritesNothingUntilItsCardIsCommitted() throws Exception {
+        final String seeded = fetchPage().get( "content" ).getAsString();
+        EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
+        $( EDITOR ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
+        EditWikiPage.awaitDocumentEquals( BODY, WAIT );
+        final int from = BODY.indexOf( "Closing words" );
+        final int to = from + "Closing".length();
+        final String address = "https://example.org/plan";
+
+        // Mod-K on the selection: the card, on the address, with the selected text; the page is not touched.
+        select( from, to );
+        EditWikiPage.pressMod( "k" );
+        $( LINK_CARD ).shouldBe( visible, WAIT );
+        $( CARD_URL_FIELD ).shouldBe( focused, WAIT ).shouldHave( value( "" ) );
+        $( CARD_TEXT_FIELD ).shouldHave( value( "Closing" ) );
+        Selenide.actions().sendKeys( "https://example.org/never" ).perform();
+        $( CARD_URL_FIELD ).shouldHave( value( "https://example.org/never" ), WAIT );
+        assertEquals( BODY, EditWikiPage.documentText(), "typing in the card must not change the document" );
+
+        // Escape: nothing was written, and the focus is back in the text.
+        Selenide.actions().sendKeys( Keys.ESCAPE ).perform();
+        $( LINK_CARD ).shouldNot( exist, WAIT );
+        $( EDITOR ).shouldHave( cssClass( "cm-focused" ), WAIT );
+        assertEquals( BODY, EditWikiPage.documentText(), "Escape must leave the document as it was" );
+
+        // Again, committed with Enter: the selection becomes a link, in one change.
+        select( from, to );
+        EditWikiPage.pressMod( "k" );
+        $( CARD_URL_FIELD ).shouldBe( focused, WAIT );
+        Selenide.actions().sendKeys( address ).perform();
+        $( CARD_URL_FIELD ).shouldHave( value( address ), WAIT );
+        Selenide.actions().sendKeys( Keys.ENTER ).perform();
+        final String linked = BODY.replace( "Closing words", "[Closing](" + address + ") words" );
+        EditWikiPage.awaitDocumentEquals( linked, WAIT );
+        $( LINK_CARD ).shouldNot( exist, WAIT );
+        $( EDITOR ).shouldHave( cssClass( "cm-focused" ), WAIT );
+        $( LINK_CHIP ).shouldBe( visible, WAIT ).shouldHave( text( "Closing" ) );
+
+        // One undo step: nothing but the link was put in the history.
+        EditWikiPage.pressMod( "z" );
+        EditWikiPage.awaitDocumentEquals( BODY, WAIT );
+        Selenide.actions().keyDown( PlatformKeys.mod() ).keyDown( Keys.SHIFT ).sendKeys( "z" ).keyUp( Keys.SHIFT )
+            .keyUp( PlatformKeys.mod() ).perform();
+        EditWikiPage.awaitDocumentEquals( linked, WAIT );
+
+        EditWikiPage.publish();
+        new WebDriverWait( WebDriverRunner.getWebDriver(), WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
+        $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
+        assertEquals( seeded.replace( "Closing words", "[Closing](" + address + ") words" ),
+            fetchPage().get( "content" ).getAsString(), "the saved source is the seeded one with the selection made a link" );
+    }
+
+    /** Selects the document range {@code [from, to)} with the editor focused (both ends in content, on one line). */
+    private static void select( final int from, final int to ) {
+        EditWikiPage.evaluateOnView( """
+            view.focus();
+            view.dispatch({ selection: { anchor: arguments[0], head: arguments[1] }, scrollIntoView: true });
+            return null;
+            """, from, to );
+        $( EDITOR ).shouldHave( cssClass( "cm-focused" ), WAIT );
     }
 
     /** Seeds the page with a code block and a callout and opens it in Rich mode, fully loaded. */

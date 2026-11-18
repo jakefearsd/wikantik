@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { startCompletion } from '@codemirror/autocomplete';
-import { linkChange, unwrapLink, writeLink } from '../utils/linkEdit';
-import { cardModelAt, closeLinkCard, linkCardField, requestLinkCard } from '../utils/livePreview/linkCard';
+import { linkChange, unwrapLink } from '../utils/linkEdit';
+import { cardModelAt, cardModelOf, closeLinkCard, linkCardField, requestLinkCard, requestLinkWrap } from '../utils/livePreview/linkCard';
 import { getContext } from '../utils/livePreview/plugin';
 import { attachmentUrl, resolveImageSrc } from '../utils/livePreview/ranges';
 import { hrefFor } from '../utils/linkInteraction';
@@ -42,38 +42,38 @@ function rectOf(view, { from, to }) {
 
 const focusInCard = () => !!document.activeElement?.closest?.('.link-card');
 
-/** The model of the link the card is open on, read from the document as it is now; null when it is no longer that link. */
-function modelOf(view, open) {
-  const model = open ? cardModelAt(view.state, open.from) : null;
-  return model && model.from === open.from && model.to === open.to ? model : null;
-}
-
 /**
- * The link card of the page editor (Rich mode): which link it is open on and what its actions write.
+ * The link card of the page editor (Rich mode): what it is open on and what its actions write.
  *
- * - `onOpenLinkCard(open, view)` goes to CodeEditor: the editor reports the card's link (opened, moved by an edit
- *   above it) or null (closed; the link changed under the card or was deleted — what was typed in it is dropped).
- * - `runLinkCommand()` is "Insert link" / Mod-K in Rich: on a link it opens the card; a selection on one line becomes
- *   `[selection]()` with the card open on its address; with nothing selected it writes `[[]]` and opens the page
- *   completion. False when it did nothing and the caller's Source behaviour applies (a selection across lines).
+ * - `onOpenLinkCard(open, view, leaving)` goes to CodeEditor: the editor reports what the card is open on (opened,
+ *   moved by an edit above it), null (closed; the link changed under the card or was deleted — what was typed in it
+ *   is dropped), or, with `leaving`, that another card is about to take its place: the open card then commits what
+ *   was changed in it, as it does when the focus leaves it.
+ * - `runLinkCommand()` is "Insert link" / Mod-K in Rich: on a link it opens the card; a selection on one line opens
+ *   the card on that text, which becomes `[text](url)` only when the card is committed with an address; with nothing
+ *   selected it writes `[[]]` and opens the page completion. False outside Rich: the caller's Source behaviour applies.
  * - `cardProps` are LinkCard's props while the card is open, else null.
  *
- * Every write is one change through the editor's `applyChanges` (one undo step), over the link's range as it is now.
+ * Every write is one change through the editor's `applyChanges` (one undo step), over the card's range as it is now,
+ * and only by the card that is open: each opening has an id, and a callback of an earlier card writes nothing.
  * A card that ended by key or button returns the focus to the editor, the caret after the link; one that ended
  * because the focus went elsewhere leaves focus and caret alone.
  */
 export function useLinkCard({ editorRef, live, suggestPages }) {
   const [card, setCard] = useState(null);
+  // The open card's "commit what you hold" (LinkCard sets it): asked when another card is about to open.
+  const flushRef = useRef(null);
 
-  const onOpenLinkCard = useCallback((open, view) => {
-    const model = modelOf(view, open);
+  const onOpenLinkCard = useCallback((open, view, leaving) => {
+    if (leaving) { flushRef.current?.(); return; }
+    const model = open ? cardModelOf(view.state, open) : null;
     if (!model) {
       // Closed from the editor's side while the card held the focus: it would otherwise be left on nothing.
-      if (focusInCard()) view.focus();
+      if (focusInCard() && view?.dom?.isConnected) view.focus();
       setCard(null);
       return;
     }
-    setCard({ key: open.openedAt, model, anchorRect: rectOf(view, open), href: linkCardHref(model, getContext(view.state)) });
+    setCard({ id: open.id, model, anchorRect: rectOf(view, open), href: linkCardHref(model, getContext(view.state)) });
   }, []);
 
   const viewOf = useCallback(() => {
@@ -81,12 +81,31 @@ export function useLinkCard({ editorRef, live, suggestPages }) {
     return view && typeof view.state?.field === 'function' ? view : null;
   }, [editorRef]);
 
-  /** Ends the card: `insert` (when given) replaces the link, as one change; the caret goes after it unless the focus left. */
-  const end = useCallback((insert, userEvent, how) => {
+  /**
+   * Ends card `id`: `insertFor(model)` (when given) says what replaces its range, as one change; the caret goes after
+   * it unless the focus left. Nothing is written by a card that is no longer the open one, or on a read-only document.
+   */
+  const end = useCallback((id, insertFor, userEvent, how) => {
     const view = viewOf();
     const open = view?.state.field(linkCardField, false);
-    if (!open) { setCard(null); return; }
+    if (!open || open.id !== id) {
+      // Not this card's any more (it closed, or another opened): only its own leftover state is cleared.
+      setCard((shown) => (shown?.id === id ? null : shown));
+      return;
+    }
+    if (view.state.readOnly) { view.dispatch({ effects: closeLinkCard.of(null) }); return; }
     let caret = open.to;
+    let insert = null;
+    if (insertFor) {
+      const model = cardModelOf(view.state, open);
+      try {
+        if (model) insert = insertFor(model);
+        else console.warn('[rich] the link under the card can no longer be read; its change is dropped');
+      } catch (err) {
+        // The card checks before it commits; this is a link that changed shape since.
+        console.warn('[rich] the link card could not write its change', err?.message || err);
+      }
+    }
     if (insert != null && insert !== open.source) {
       editorRef.current.applyChanges([{ from: open.from, to: open.to, insert }], { userEvent });
       caret = open.from + insert.length;
@@ -94,29 +113,6 @@ export function useLinkCard({ editorRef, live, suggestPages }) {
     if (view.state.field(linkCardField, false)) view.dispatch({ effects: closeLinkCard.of(null) });
     if (!how?.focusLeft) editorRef.current.setSelection(caret, caret);
   }, [editorRef, viewOf]);
-
-  const commit = useCallback((patch, how) => {
-    const view = viewOf();
-    const open = view?.state.field(linkCardField, false);
-    const model = view ? modelOf(view, open) : null;
-    let insert = null;
-    try {
-      if (model) insert = linkChange(model, patch).insert;
-    } catch (err) {
-      // The card checks before it commits; this is a link that changed shape since.
-      console.warn('[rich] the link card could not write its change', err?.message || err);
-    }
-    end(insert, 'input.link-card', how);
-  }, [end, viewOf]);
-
-  const remove = useCallback(() => {
-    const view = viewOf();
-    const open = view?.state.field(linkCardField, false);
-    const model = view ? modelOf(view, open) : null;
-    end(model ? unwrapLink(model) : null, 'delete.link-card');
-  }, [end, viewOf]);
-
-  const close = useCallback((how) => end(null, null, how), [end]);
 
   // The card is Rich mode's: switching to Source closes it, and nothing of it is written.
   useEffect(() => {
@@ -131,26 +127,30 @@ export function useLinkCard({ editorRef, live, suggestPages }) {
     if (view.state.readOnly) return true; // nothing to insert into, and no card to edit with
     const { from, to, empty } = view.state.selection.main;
     const on = cardModelAt(view.state, from);
-    if (on && to <= on.to) return requestLinkCard(view, from);
-    if (empty) {
+    if (on && to <= on.to) {
+      requestLinkCard(view, from);
+    } else if (empty) {
       editorRef.current.applyChanges([{ from, to, insert: '[[]]' }], { userEvent: 'input.link' });
       editorRef.current.setSelection(from + 2, from + 2);
       startCompletion(view);
-      return true;
+    } else {
+      requestLinkWrap(view, from, to); // refused (no card, no change) across a line break or cutting into a link
     }
-    const text = view.state.sliceDoc(from, to);
-    if (text.includes('\n')) return false;
-    editorRef.current.applyChanges([{ from, to, insert: writeLink({ kind: 'link', text, url: '' }) }], { userEvent: 'input.link' });
-    requestLinkCard(view, from + 1);
     return true;
   }, [editorRef, live, viewOf]);
 
   const href = card?.href;
-  const open = useCallback(() => { if (href) window.open(href, '_blank', 'noopener'); }, [href]);
+  const id = card?.id;
+  const cardProps = useMemo(() => (id == null ? null : {
+    onCommit: (patch, how) => end(id, (model) => linkChange(model, patch).insert, 'input.link-card', how),
+    onRemove: () => end(id, unwrapLink, 'delete.link-card'),
+    onClose: (how) => end(id, null, null, how),
+    onOpen: href ? () => window.open(href, '_blank', 'noopener') : null,
+  }), [id, href, end]);
 
-  const cardProps = card && live ? {
-    key: card.key, model: card.model, anchorRect: card.anchorRect, suggestPages,
-    onCommit: commit, onRemove: remove, onClose: close, onOpen: href ? open : null,
-  } : null;
-  return { onOpenLinkCard, runLinkCommand, cardProps };
+  return {
+    onOpenLinkCard,
+    runLinkCommand,
+    cardProps: card && live ? { key: card.id, model: card.model, anchorRect: card.anchorRect, suggestPages, flushRef, ...cardProps } : null,
+  };
 }

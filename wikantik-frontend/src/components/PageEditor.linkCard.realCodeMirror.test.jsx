@@ -40,7 +40,7 @@ import { useToast } from '../hooks/useToast';
 import { undo } from '@codemirror/commands';
 import '../test/asyncSelectionChange'; // a command's selection + focus: happy-dom would fire selectionchange into the update
 import { EditorView } from '@codemirror/view';
-import { StateEffect } from '@codemirror/state';
+import { StateEffect, EditorState } from '@codemirror/state';
 import { mountRealEditor, placeCaret, typeAtCaret, docOf, caretOf, until } from '../test/realEditorHarness';
 
 const INITIAL = 'top\n\nsee [[P|a]] here\n\nend';
@@ -225,7 +225,7 @@ describe('committing the card', () => {
     expect(card()).toBe(null);
   });
 
-  it('switching to Source closes the card without writing', async () => {
+  it('the mode switched to Source from outside the card (the toolbar, Mod-E) closes it without writing', async () => {
     const view = await mountRich();
     clickChip(view);
     edit('Text', 'b');
@@ -246,21 +246,101 @@ describe('Insert link (Mod-K) in Rich mode', () => {
     expect(docOf(view)).toBe(INITIAL);
   });
 
-  it('with a selection wraps it as [selection]() and opens the card on the address; the commit fills it in', async () => {
+  const select = (view, anchor, head) => act(() => { view.dispatch({ selection: { anchor, head } }); });
+
+  it('with a selection opens the card on that text and writes nothing until it is committed: then one change', async () => {
     const view = await mountRich('alpha beta gamma');
-    act(() => { view.dispatch({ selection: { anchor: 6, head: 10 } }); });
+    const changes = recordChanges(view);
+    select(view, 6, 10);
     modK(view);
-    expect(docOf(view)).toBe('alpha [beta]() gamma');
+    expect(docOf(view)).toBe('alpha beta gamma');
     expect(card()).not.toBe(null);
     expect(document.activeElement).toBe(field('URL'));
     expect(field('Text').value).toBe('beta');
     edit('URL', 'https://e.org');
+    expect(changes).toEqual([]);
     enter('URL');
     expect(docOf(view)).toBe('alpha [beta](https://e.org) gamma');
+    expect(changes).toEqual([[[6, 10, '[beta](https://e.org)']]]);
+    expect(card()).toBe(null);
+    expect(caretOf(view)).toBe(27);
+    expect(view.hasFocus).toBe(true);
     act(() => { undo(view); });
-    expect(docOf(view)).toBe('alpha [beta]() gamma');
-    act(() => { undo(view); });
+    expect(docOf(view)).toBe('alpha beta gamma'); // one step: nothing else was put in the history
+  });
+
+  it('with a selection: the edited text is written by the link\'s rules (brackets escaped)', async () => {
+    const view = await mountRich('alpha beta gamma');
+    select(view, 6, 10);
+    modK(view);
+    edit('Text', 'be[t]a');
+    edit('URL', 'a b');
+    enter('Text');
+    expect(docOf(view)).toBe('alpha [be\\[t\\]a](<a b>) gamma');
+  });
+
+  it.each([
+    ['Escape', () => fireEvent.keyDown(field('URL'), { key: 'Escape' })],
+    ['Enter with no address', () => { edit('Text', 'other'); enter('Text'); }],
+    ['the focus leaving with no address', () => fireEvent.blur(field('URL'), { relatedTarget: document.body })],
+  ])('with a selection: %s closes the card and the document is untouched', async (_name, end) => {
+    const view = await mountRich('alpha beta gamma');
+    const changes = recordChanges(view);
+    select(view, 6, 10);
+    modK(view);
+    end();
+    expect(card()).toBe(null);
     expect(docOf(view)).toBe('alpha beta gamma');
+    expect(changes).toEqual([]);
+  });
+
+  it('with a selection: the selected text changed by someone else closes the card, and nothing of it is written', async () => {
+    const view = await mountRich('alpha beta gamma');
+    select(view, 6, 10);
+    modK(view);
+    edit('URL', 'https://e.org');
+    act(() => { view.dispatch({ changes: { from: 0, insert: '> ' } }); }); // above it: the card stays
+    expect(card()).not.toBe(null);
+    act(() => { view.dispatch({ changes: { from: 9, to: 10, insert: 'E' } }); });
+    expect(card()).toBe(null);
+    expect(docOf(view)).toBe('> alpha bEta gamma');
+  });
+
+  it('with a selection: switching to Source closes the card and writes nothing', async () => {
+    const view = await mountRich('alpha beta gamma');
+    select(view, 6, 10);
+    modK(view);
+    edit('URL', 'https://e.org');
+    fireEvent.click(screen.getByRole('radio', { name: 'Source' }));
+    await until(() => !isLive());
+    expect(card()).toBe(null);
+    expect(docOf(view)).toBe('alpha beta gamma');
+  });
+
+  it.each([
+    ['across a line break', 'alpha\nbeta', 0, 10],
+    ['from inside a link to past it', 'see [[Page|a]] here', 7, 17],
+    ['ending inside a link', 'see [[Page|a]] here', 0, 7],
+  ])('with a selection %s does nothing: no card, no change', async (_name, text, anchor, head) => {
+    const view = await mountRich(text);
+    const changes = recordChanges(view);
+    select(view, anchor, head);
+    modK(view);
+    expect(card()).toBe(null);
+    expect(docOf(view)).toBe(text);
+    expect(changes).toEqual([]);
+  });
+
+  it.each([['a caret', 6, 6], ['a selection', 0, 5], ['the caret on a link', 10, 10]])('on a read-only document, with %s, does nothing', async (_name, anchor, head) => {
+    const text = 'alpha [[P]] end';
+    const view = await mountRich(text);
+    act(() => { view.dispatch({ effects: StateEffect.appendConfig.of(EditorState.readOnly.of(true)) }); }); // as a frozen shared draft
+    const changes = recordChanges(view);
+    select(view, anchor, head);
+    modK(view);
+    expect(card()).toBe(null);
+    expect(docOf(view)).toBe(text);
+    expect(changes).toEqual([]);
   });
 
   it('with nothing selected writes [[]] with the caret between the brackets, for the page completion', async () => {
@@ -274,13 +354,48 @@ describe('Insert link (Mod-K) in Rich mode', () => {
     expect(docOf(view)).toBe('alpha [[P]]');
     expect(caretOf(view)).toBe(9); // the link being typed keeps the caret
   });
+});
 
-  it('with a selection across lines keeps the Source behaviour', async () => {
-    const view = await mountRich('alpha\nbeta');
-    act(() => { view.dispatch({ selection: { anchor: 0, head: 10 } }); });
-    modK(view);
-    expect(docOf(view)).toBe('[alpha\nbeta](url)');
-    expect(card()).toBe(null);
+describe('two links, one card at a time', () => {
+  const TWO = 'see [[A|x]] and [[B|y]] here';
+  const chips = (view) => [...view.contentDOM.querySelectorAll('.cm-lp-linkchip')];
+  const clickNth = (view, n) => act(() => { chips(view)[n].dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 })); });
+
+  it('clicking another chip commits the open card\'s edit to its own link, once, and opens the other with its values', async () => {
+    const view = await mountRich(TWO);
+    clickNth(view, 0);
+    const changes = recordChanges(view);
+    edit('Text', 'longer text');
+    clickNth(view, 1);
+    expect(docOf(view)).toBe('see [[A|longer text]] and [[B|y]] here');
+    expect(changes).toEqual([[[4, 11, '[[A|longer text]]']]]);
+    expect(field('Page').value).toBe('B');
+    expect(field('Text').value).toBe('y');
+    // The second card is on the second link, where it is now.
+    edit('Page', 'C');
+    enter('Page');
+    expect(docOf(view)).toBe('see [[A|longer text]] and [[C|y]] here');
+    expect(changes).toHaveLength(2);
+  });
+
+  it('clicking another chip with a refused value in the open card discards it', async () => {
+    const view = await mountRich(TWO);
+    clickNth(view, 1);
+    edit('Text', 'a]b');
+    clickNth(view, 0);
+    expect(docOf(view)).toBe(TWO);
+    expect(field('Page').value).toBe('A');
+    expect(screen.queryByRole('alert')).toBe(null);
+  });
+
+  it('clicking another chip with nothing edited just moves the card', async () => {
+    const view = await mountRich(TWO);
+    const changes = recordChanges(view);
+    clickNth(view, 0);
+    clickNth(view, 1);
+    expect(field('Page').value).toBe('B');
+    expect(changes).toEqual([]);
+    expect(screen.getAllByRole('dialog', { name: 'Edit link' })).toHaveLength(1);
   });
 });
 

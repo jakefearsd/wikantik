@@ -16,9 +16,12 @@ function modelOf(source) {
 /** A list that never arrives: the page field asks as it takes the focus, and a late answer would update outside act(). */
 const NO_ANSWER = () => new Promise(() => {});
 
+/** The model of text that is not a link yet (Insert link on a selection), as the editor hands it over. */
+const PENDING = { kind: 'link', from: 6, to: 10, source: 'beta', text: 'beta', url: '', title: null, pending: true };
+
 function show(source, props = {}) {
   const handlers = { onCommit: vi.fn(), onRemove: vi.fn(), onOpen: vi.fn(), onClose: vi.fn() };
-  render(<LinkCard model={modelOf(source)} anchorRect={null} suggestPages={NO_ANSWER} {...handlers} {...props} />);
+  render(<LinkCard model={typeof source === 'string' ? modelOf(source) : source} anchorRect={null} suggestPages={NO_ANSWER} {...handlers} {...props} />);
   return handlers;
 }
 const labels = () => [...screen.getByRole('dialog').querySelectorAll('label')].map((l) => l.textContent);
@@ -58,6 +61,7 @@ describe('LinkCard fields', () => {
   it('a link text holding markup of its own is shown but cannot be edited', () => {
     show('[**bold** x](https://e.org)');
     expect(field('Text').readOnly).toBe(true);
+    expect(field('Text').title).toMatch(/Source mode/); // a caret cannot enter a chip in Rich
     expect(field('Text').value).toBe('**bold** x');
     expect(field('URL').readOnly).toBe(false);
   });
@@ -219,5 +223,74 @@ describe('LinkCard actions', () => {
     const h = show('[[P|a]]');
     fireEvent.keyDown(field('Page'), { key: 'Escape' });
     expect(h.onClose).toHaveBeenCalledWith();
+  });
+});
+
+describe('LinkCard on text that is not a link yet', () => {
+  it('shows the address first and the selected text, and has nothing to remove', () => {
+    show(PENDING, { onOpen: null });
+    expect(labels()).toEqual(['URL', 'Text']);
+    expect(field('URL').value).toBe('');
+    expect(field('Text').value).toBe('beta');
+    expect(document.activeElement).toBe(field('URL'));
+    expect(screen.getByRole('button', { name: 'Remove' }).disabled).toBe(true);
+  });
+  it('commits once an address is given, with the text when that was edited too', () => {
+    const h = show(PENDING);
+    edit('URL', 'https://e.org');
+    edit('Text', 'beta!');
+    enter('URL');
+    expect(h.onCommit).toHaveBeenCalledWith({ url: 'https://e.org', text: 'beta!' });
+  });
+  it.each(['', '   '])('with the address %j it only closes, whatever else was edited', (url) => {
+    const h = show(PENDING);
+    edit('URL', url);
+    edit('Text', 'edited');
+    enter('Text');
+    expect(h.onCommit).not.toHaveBeenCalled();
+    expect(h.onClose).toHaveBeenCalledTimes(1);
+  });
+  it('focus leaving with no address closes without a commit', () => {
+    const h = show(PENDING);
+    fireEvent.blur(field('URL'), { relatedTarget: document.body });
+    expect(h.onCommit).not.toHaveBeenCalled();
+    expect(h.onClose).toHaveBeenCalledWith({ focusLeft: true });
+  });
+  it('an address the syntax cannot carry is refused', () => {
+    const h = show(PENDING);
+    edit('URL', 'a <b> (c)');
+    enter('URL');
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(h.onCommit).not.toHaveBeenCalled();
+  });
+});
+
+describe('LinkCard asked to end by its host (another card is opening)', () => {
+  it('commits what was changed, as the focus leaving does', () => {
+    const flushRef = { current: null };
+    const h = show('[[P|a]]', { flushRef });
+    edit('Text', 'b');
+    flushRef.current();
+    expect(h.onCommit).toHaveBeenCalledTimes(1);
+    expect(h.onCommit).toHaveBeenCalledWith({ alias: 'b' }, { focusLeft: true });
+  });
+  it('closes when nothing was changed, and writes nothing of a refused value', () => {
+    const flushRef = { current: null };
+    const unchanged = show('[[P|a]]', { flushRef });
+    flushRef.current();
+    expect(unchanged.onClose).toHaveBeenCalledWith({ focusLeft: true });
+    const refusedRef = { current: null };
+    const refused = show('[t](u)', { flushRef: refusedRef });
+    fireEvent.change(screen.getAllByLabelText('URL')[0], { target: { value: 'a <b> (c)' } });
+    refusedRef.current();
+    expect(refused.onCommit).not.toHaveBeenCalled();
+  });
+  it('takes its function back when it goes', () => {
+    const flushRef = { current: null };
+    const { unmount } = render(<LinkCard model={modelOf('[[P]]')} anchorRect={null} suggestPages={NO_ANSWER} flushRef={flushRef}
+      onCommit={vi.fn()} onRemove={vi.fn()} onOpen={vi.fn()} onClose={vi.fn()} />);
+    expect(typeof flushRef.current).toBe('function');
+    unmount();
+    expect(flushRef.current).toBe(null);
   });
 });

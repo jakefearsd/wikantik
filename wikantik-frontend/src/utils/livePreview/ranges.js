@@ -23,17 +23,22 @@ const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 /** The nodes Rich mode draws as a chip (or an image) also under the caret, and edits through the link card. */
 const CHIP_NODE = new Set(['Link', 'Image', 'WikiLink', 'WikiEmbed']);
 /**
- * The starts of the link nodes a caret is strictly inside, as a key. Such a link is being typed (the only way a caret
- * gets inside one: motion and clicks step over a chip), so it shows its source until the caret leaves it. Costs the
- * nesting depth at each caret, never the document.
+ * The starts of the link nodes that a caret, or an end of a selection, is strictly inside, as a key. Such a link shows
+ * its source: it is being typed (motion and clicks step over a chip, so a caret gets inside one by typing), or a
+ * selection made for the user ends in its hidden text (a find match in a page name). Costs the nesting depth at each
+ * selection end, never the document.
  */
 export function caretsInLinks(state) {
   let key = '';
-  for (const r of state.selection.ranges) {
-    if (!r.empty) continue;
-    for (let n = syntaxTree(state).resolveInner(r.head, 0); n; n = n.parent) {
-      if (CHIP_NODE.has(n.name) && n.from < r.head && n.to > r.head) { key += `${n.from},`; break; }
+  const tree = syntaxTree(state);
+  const at = (pos) => {
+    for (let n = tree.resolveInner(pos, 0); n; n = n.parent) {
+      if (CHIP_NODE.has(n.name) && n.from < pos && n.to > pos) { key += `${n.from},`; return; }
     }
+  };
+  for (const r of state.selection.ranges) {
+    at(r.from);
+    if (!r.empty) at(r.to);
   }
   return key;
 }
@@ -510,8 +515,8 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   // `{ hiddenLine: 'open' | 'close' }` (with sticky): the range is all its line shows (a fence's opening or closing
   // line), so the caret never rests on that line at all; the block's body is below an 'open' line and above a 'close'
   // one. Never together with lineMarker: Backspace must not remove a fence.
-  const flags = ({ sticky = false, lineMarker = false, hiddenLine = null } = {}) => (sticky
-    ? { sticky: true, ...(lineMarker && { lineMarker: true }), ...(hiddenLine && { hiddenLine }) } : null);
+  const flags = ({ sticky = false, lineMarker = false, hiddenLine = null, chip: isAChip = false } = {}) => (sticky
+    ? { sticky: true, ...(lineMarker && { lineMarker: true }), ...(hiddenLine && { hiddenLine }), ...(isAChip && { chip: true }) } : null);
   // `{ drawn: true }`: emitted on an active line too, but not flagged: a part of a chip, whose one sticky range is the
   // mark over the whole link (so the caret rule and the arrow keys see one unit, not its parts).
   const hide = (a, b, group, opts) => {
@@ -524,13 +529,16 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     if (b > a && (opts?.sticky || opts?.drawn || inactive(a))) specs.push({ kind: 'widget', from: a, to: b, widget: w, ...flags(opts) });
   };
   const DRAWN = { drawn: true };
-  const STICKY = { sticky: true };
+  // `chip`: the range is a link's one unit — Backspace after it (Delete before it) selects it first (sticky.js).
+  const STICKY = { sticky: true, chip: true };
   /**
    * Whether the link, wikilink, embed or image at [a, b] is a chip: drawn also with the caret on its line, one atomic
-   * unit that its card edits. Not while a caret is strictly inside it — it is then being typed, and shows its source
-   * as before — and not across a line break, which a chip cannot hide.
+   * unit that its card edits. Not while a caret or an end of a selection is strictly inside it — it is then being
+   * typed, or a find match ends in its hidden text, and it shows its source as before (a selection that covers it
+   * leaves it a chip) — and not across a line break, which a chip cannot hide.
    */
-  const isChip = (a, b) => b <= doc.lineAt(a).to && !state.selection.ranges.some((r) => r.empty && r.head > a && r.head < b);
+  const within = (pos, a, b) => pos > a && pos < b;
+  const isChip = (a, b) => b <= doc.lineAt(a).to && !state.selection.ranges.some((r) => within(r.from, a, b) || within(r.to, a, b));
   /** The one sticky range of a chip. Its parts (hidden brackets, the shown text) are `drawn`, not sticky. */
   const chip = (a, b, group) => mark(a, b, 'cm-lp-linkchip', group, STICKY);
   // Whether a quote or list marker stays hidden under the caret. Not where the block it opens on its line is in the

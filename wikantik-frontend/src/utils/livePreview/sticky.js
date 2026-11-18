@@ -68,18 +68,18 @@ function atomicStickyRanges(view) {
 export const stickyAtomic = EditorView.atomicRanges.of(atomicStickyRanges);
 
 /**
- * The sticky ranges `[from, to, lineMarker, hiddenLine]` lying on `line`, ascending, read from the state alone (a
+ * The sticky ranges `[from, to, lineMarker, hiddenLine, chip]` lying on `line`, ascending, read from the state alone (a
  * transaction filter has no view, and the view's decorations describe the state before the transaction): the line's
  * inline specs plus the block field. One line's specs — a caret move does not walk the document.
  */
 function stickySpansOn(state, line) {
   const spans = [];
-  const add = (from, to, lineMarker, hiddenLine) => {
-    if (from >= line.from && to <= line.to && to > from) spans.push([from, to, lineMarker === true, hiddenLine || null]);
+  const add = (from, to, lineMarker, hiddenLine, chip) => {
+    if (from >= line.from && to <= line.to && to > from) spans.push([from, to, lineMarker === true, hiddenLine || null, chip === true]);
   };
   try {
     const specs = livePreviewSpecs(state, activeLinesOf(state), { from: line.from, to: line.to, context: getContext(state) });
-    for (const s of specs) if (s.sticky) add(s.from, s.to, s.lineMarker, s.hiddenLine);
+    for (const s of specs) if (s.sticky) add(s.from, s.to, s.lineMarker, s.hiddenLine, s.chip);
     state.field(blockField, false)?.decos.between(line.from, line.to, (from, to, value) => {
       if (value.spec.lpSticky) add(from, to, false, null);
     });
@@ -283,9 +283,32 @@ const keepHiddenLine = (forward) => (view) => {
   if (head !== (forward ? line.to : line.from) || !line.length || beside < 1 || beside > state.doc.lines) return false;
   return isHiddenLine(state, state.doc.line(beside));
 };
+/**
+ * Backspace right after a chip (`forward` false), Delete right before one: the key first selects the chip — the whole
+ * link, still drawn — and deletes nothing; pressed again it deletes that selection, as it would any other, and typing
+ * replaces it. Without this the key would remove the link at once, long text and all (a chip is atomic). Declines
+ * (false) with a selection, away from a chip's edge, and on a read-only document.
+ */
+const selectChip = (forward) => (view) => {
+  const { state } = view;
+  if (!live(state) || state.readOnly) return false;
+  const head = soleCaret(state);
+  if (head < 0) return false;
+  // The widest chip ending (starting) here: an image at the edge of a link's text is inside that link.
+  let chip = null;
+  for (const span of stickySpansOn(state, state.doc.lineAt(head))) {
+    if (span[4] && span[forward ? 0 : 1] === head && (!chip || span[1] - span[0] > chip[1] - chip[0])) chip = span;
+  }
+  if (!chip) return false;
+  view.dispatch({ selection: EditorSelection.range(forward ? chip[0] : chip[1], forward ? chip[1] : chip[0]), userEvent: 'select', scrollIntoView: true });
+  return true;
+};
+const selectChipBefore = selectChip(false);
+const selectChipAfter = selectChip(true);
 const backspaceBesideHidden = keepHiddenLine(false);
 const deleteBesideHidden = keepHiddenLine(true);
-const removeMarkerOrKeepHidden = (view) => removeLineMarker(view) || backspaceBesideHidden(view);
+const removeMarkerOrKeepHidden = (view) => removeLineMarker(view) || selectChipBefore(view) || backspaceBesideHidden(view);
+const deleteChipOrKeepHidden = (view) => selectChipAfter(view) || deleteBesideHidden(view);
 
 export const stickyExtension = [
   viewRef,
@@ -298,7 +321,7 @@ export const stickyExtension = [
     { key: 'Backspace', run: removeMarkerOrKeepHidden },
     { key: 'Mod-Backspace', run: backspaceBesideHidden }, // by word, and to the line boundary: they cross the break too
     { key: 'Alt-Backspace', run: backspaceBesideHidden },
-    { key: 'Delete', run: deleteBesideHidden },
+    { key: 'Delete', run: deleteChipOrKeepHidden },
     { key: 'Mod-Delete', run: deleteBesideHidden },
     { key: 'Alt-Delete', run: deleteBesideHidden },
     { key: 'ArrowLeft', run: leaveLineMarker },

@@ -6,7 +6,7 @@ import { fullyParsed } from '../../test/fullParse';
 import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { blocksFromMarkdown, blockMarkers } from '../blockIds';
-import { blockCandidates, activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget } from './ranges';
+import { blockCandidates, activeLinesOf, livePreviewSpecs, resolveImageSrc, attachmentUrl, blockSpecs, parseWikiTarget, caretsInLinks } from './ranges';
 function stateOf(doc, selection) {
   const state = EditorState.create({
     doc, selection,
@@ -894,10 +894,26 @@ describe('links, wikilinks, embeds and images are chips on the caret line', () =
     expect(visible(state, specs, 1)).toBe(doc);
     expect(sticky(state, specs)).toEqual([]);
   });
-  it('a selection across a chip does not reveal it', () => {
-    const state = stateOf('x [[Page|a]] y', EditorSelection.range(1, 6));
+  it.each([[1, 13], [2, 12], [12, 2]])('a selection %i..%i covering a chip does not reveal it', (anchor, head) => {
+    const state = stateOf('x [[Page|a]] y', EditorSelection.range(anchor, head));
     const specs = livePreviewSpecs(state, activeLinesOf(state), { context: ctx });
     expect(visible(state, specs, 1)).toBe('x a y');
+  });
+  it.each([[1, 6], [6, 13], [4, 8], [8, 4]])('a selection %i..%i with an end inside a link shows its source (a find match in a hidden target)', (anchor, head) => {
+    const state = stateOf('x [[Page|a]] y', EditorSelection.range(anchor, head));
+    const specs = livePreviewSpecs(state, activeLinesOf(state), { context: ctx });
+    expect(visible(state, specs, 1)).toBe('x [[Page|a]] y');
+    expect(specs.filter((sp) => sp.sticky)).toEqual([]);
+  });
+  it('caretsInLinks names the links a caret or a selection end is inside, and nothing else', () => {
+    const doc = 'x [[Page|a]] y [t](u) z';
+    const key = (selection) => caretsInLinks(stateOf(doc, selection));
+    expect(key(EditorSelection.cursor(0))).toBe('');
+    expect(key(EditorSelection.cursor(2))).toBe('');
+    expect(key(EditorSelection.cursor(5))).toBe('2,');
+    expect(key(EditorSelection.range(1, 13))).toBe('');
+    expect(key(EditorSelection.range(1, 6))).toBe('2,');
+    expect(key(EditorSelection.range(6, 18))).toBe('2,15,');
   });
   it('a reference-style link keeps reveal-at-caret (the "expensive" set)', () => {
     const doc = 'x [text][ref] y\n\n[ref]: https://e.org\n\nend';

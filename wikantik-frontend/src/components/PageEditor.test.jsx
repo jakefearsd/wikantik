@@ -135,6 +135,18 @@ async function waitForEditor() {
 }
 
 // #19 — the editable surface under the stub is the inner textarea.
+/** Pick a level from the toolbar's Heading menu. */
+function chooseHeading(label) {
+  fireEvent.click(screen.getByRole('button', { name: /^Heading:/ }));
+  fireEvent.click(screen.getByRole('menuitemradio', { name: label }));
+}
+
+/** Pick an item from the toolbar's Insert menu. */
+function chooseInsert(label) {
+  fireEvent.click(screen.getByRole('button', { name: 'Insert' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: label }));
+}
+
 function getEditable() {
   return screen.getByTestId('cm-stub-textarea');
 }
@@ -426,14 +438,10 @@ describe('#18 formatting toolbar', () => {
     renderEditor();
     await waitForEditor();
 
-    expect(screen.getByTitle(/bold/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/italic/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/heading/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/list/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/inline code/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/code block/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/table/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/link/i)).toBeInTheDocument();
+    const names = [...screen.getByRole('toolbar', { name: 'Formatting toolbar' }).querySelectorAll('[data-toolbar-item]')]
+      .map((el) => el.getAttribute('aria-label'));
+    expect(names).toEqual(['Bold', 'Italic', 'Strikethrough', 'Heading: Paragraph', 'Bulleted list', 'Numbered list', 'Task list',
+      'Quote', 'Inline code', 'Table', 'Link', 'Insert', 'Live preview (Ctrl+E)']);
   });
 
   it('formatting toolbar is rendered above textarea', async () => {
@@ -471,22 +479,22 @@ describe('#18 formatting toolbar', () => {
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
     act(() => { setter.call(editable, 'a '); editable.setSelectionRange(2, 2); });
 
-    fireEvent.click(screen.getByTitle(/heading/i));
+    chooseHeading('Heading 2');
 
     await waitFor(() => expect(getEditable().value).toBe('## a '));
   });
 
-  it('the H toolbar button toggles a level-2 heading off again', async () => {
+  it('the Heading menu\'s level 2 toggles a level-2 heading off again', async () => {
     renderEditor();
     await waitForEditor();
     const editable = getEditable();
     fireEvent.change(editable, { target: { value: 'Title' } });
     editable.focus();
     editable.setSelectionRange(0, 0);
-    fireEvent.click(screen.getByTitle('Heading'));
+    chooseHeading('Heading 2');
     await waitFor(() => expect(getEditable().value).toBe('## Title'));
     getEditable().setSelectionRange(4, 4);
-    fireEvent.click(screen.getByTitle('Heading'));
+    chooseHeading('Heading 2');
     await waitFor(() => expect(getEditable().value).toBe('Title'));
   });
 
@@ -1260,7 +1268,7 @@ describe('formatting toolbar — remaining commands', () => {
     fireEvent.change(editable, { target: { value: 'Some line' } });
     editable.focus();
     editable.setSelectionRange(0, 0);
-    fireEvent.click(screen.getByTitle(/^heading/i));
+    chooseHeading('Heading 2');
     await waitFor(() => expect(getEditable().value).toBe('## Some line'));
   });
 
@@ -1271,7 +1279,7 @@ describe('formatting toolbar — remaining commands', () => {
     fireEvent.change(editable, { target: { value: 'Item one' } });
     editable.focus();
     editable.setSelectionRange(0, 0);
-    fireEvent.click(screen.getByTitle(/^list/i));
+    fireEvent.click(screen.getByTitle('Bulleted list'));
     await waitFor(() => expect(getEditable().value).toBe('- Item one'));
   });
 
@@ -1293,7 +1301,7 @@ describe('formatting toolbar — remaining commands', () => {
     fireEvent.change(editable, { target: { value: '' } });
     editable.focus();
     editable.setSelectionRange(0, 0);
-    fireEvent.click(screen.getByTitle(/code block/i));
+    chooseInsert('Code block');
     await waitFor(() => expect(getEditable().value).toContain('```'));
   });
 

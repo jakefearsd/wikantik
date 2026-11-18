@@ -159,7 +159,8 @@ describe('PageEditor command: Access rule', () => {
       fireEvent.change(field, { target: { value: name } });
       fireEvent.keyDown(field, { key: 'Enter' });
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Insert' }));
+    // Scoped to the dialog: the toolbar's Insert menu has the same name.
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Access rule' })).getByRole('button', { name: 'Insert' }));
   };
 
   it('opens the form without touching the document; Insert writes the rule above the caret line, one undo removes it', async () => {

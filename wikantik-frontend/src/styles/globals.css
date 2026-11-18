@@ -1063,6 +1063,58 @@ a.tag:hover {
   border-color: var(--border);
 }
 
+.editor-format-btn:focus-visible, .editor-format-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The row never wraps: buttons that do not fit move into the Insert menu (EditorToolbar measures). */
+.editor-format-toolbar > * { flex: none; }
+.editor-format-menu-wrap { position: relative; display: inline-flex; }
+.editor-format-menu-trigger { gap: var(--space-xs); padding: 0 var(--space-sm); font-family: var(--font-ui); }
+.editor-format-heading { min-width: 7rem; justify-content: space-between; } /* one width for every level */
+.editor-format-menu-caret { font-size: 0.7em; }
+
+.editor-format-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  min-width: 13rem;
+  max-height: min(70vh, 28rem);
+  overflow-y: auto;
+  margin-top: var(--space-xs);
+  padding: var(--space-xs) 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px var(--shadow-strong);
+}
+.editor-format-menu-end { left: auto; right: 0; }
+.editor-format-menu-row { display: block; }
+.editor-format-menu-separator { display: block; margin: var(--space-xs) 0; border-top: 1px solid var(--border); }
+
+.editor-format-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  background: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.editor-format-menu-item:hover:not(:disabled), .editor-format-menu-item:focus { background: var(--bg-sidebar); }
+.editor-format-menu-item:disabled { color: var(--text-muted); cursor: default; }
+.editor-format-menu-item[aria-checked="true"] { color: var(--accent); font-weight: 600; }
+.editor-format-menu-hint { color: var(--text-muted); font-size: 0.8em; }
+
 .editor-format-btn-mode { margin-left: auto; font-family: var(--font-ui); font-weight: 600; letter-spacing: 0.02em; }
 .editor-format-btn[aria-pressed="true"] {
   color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);

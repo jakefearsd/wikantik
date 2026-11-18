@@ -84,7 +84,7 @@ describe('PageEditor formatting on real CodeMirror', () => {
     const view = await editorView();
     typeAtEnd(view, ' x');                                         // a keystroke arms the typing latch
     act(() => { view.dispatch({ selection: { anchor: 0, head: 5 } }); });
-    fireEvent.click(screen.getByRole('button', { name: /^Bold \(/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
     expect(view.state.doc.toString()).toBe('**hello** world x');   // not deferred behind the latch
     expect(view.state.selection.main.from).toBe(2);
     expect(view.state.selection.main.to).toBe(7);
@@ -96,5 +96,42 @@ describe('PageEditor formatting on real CodeMirror', () => {
     fireEvent.keyDown(window, { key: 's', ctrlKey: true });
     await waitFor(() => expect(api.savePage).toHaveBeenCalled());
     expect(api.savePage.mock.calls[0][1].content).toContain('**hello** world xZ');
+  });
+
+  it('the toolbar shows the formatting at the caret: Bold is pressed inside bold text, the heading menu names the level', async () => {
+    api.getPage.mockResolvedValue({ content: '## Title\n\nplain **bold** text', metadata: {}, version: 1, markupSyntax: 'markdown' });
+    render(
+      <MemoryRouter initialEntries={['/edit/Existing']}>
+        <NavigationGuardProvider>
+          <Routes><Route path="/edit/:name" element={<PageEditor />} /></Routes>
+        </NavigationGuardProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(document.querySelector('.cm-editor')).not.toBeNull());
+    const view = EditorView.findFromDOM(document.querySelector('.cm-editor'));
+    await waitFor(() => expect(view.state.doc.toString()).toContain('**bold**'));
+    const bold = screen.getByRole('button', { name: 'Bold' });
+    const heading = () => screen.getByRole('button', { name: /^Heading:/ });
+
+    act(() => { view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf('bold') + 2 } }); });
+    await waitFor(() => expect(bold).toHaveAttribute('aria-pressed', 'true'));
+    expect(heading().textContent).toContain('Paragraph');
+
+    act(() => { view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf('plain') + 2 } }); });
+    await waitFor(() => expect(bold).toHaveAttribute('aria-pressed', 'false'));
+
+    act(() => { view.dispatch({ selection: { anchor: 5 } }); });
+    await waitFor(() => expect(heading().textContent).toContain('Heading 2'));
+    expect(bold).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('an Insert menu choice lands in the document and hands the focus back to the editor', async () => {
+    const view = await editorView();
+    act(() => { view.dispatch({ selection: { anchor: view.state.doc.length } }); });
+    fireEvent.click(screen.getByRole('button', { name: 'Insert' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Horizontal rule' }));
+    expect(view.state.doc.toString()).toContain('---');
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(view.hasFocus).toBe(true);
   });
 });

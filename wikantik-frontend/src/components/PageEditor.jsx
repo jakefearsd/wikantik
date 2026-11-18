@@ -66,6 +66,7 @@ import { loadEmbedState } from '../utils/livePreview/embedSource';
 import { useRunCommand } from '../commands/useCommands';
 import { getCommands, registerCommands } from '../commands/registry';
 import { buildEditorCommands, FENCE_STARTERS } from '../utils/editorCommands';
+import { formatStateAt, EMPTY_FORMAT_STATE } from '../utils/formatState';
 import { createSlashSource } from '../utils/slashComplete';
 import { createTagSource } from '../utils/tagComplete';
 import AttachmentPanel from './AttachmentPanel';
@@ -561,11 +562,19 @@ export default function PageEditor({ collabTransport } = {}) {
     });
   }, []);
 
+  const [formatState, setFormatState] = useState(EMPTY_FORMAT_STATE);
   const handleViewChange = useCallback(() => {
     const editor = editorRef.current;
     const vp = editor?.getViewport?.();
     const cursor = editor?.getCursor?.();
     cursorStore.set({ ...(cursor || {}), ...(vp ? { topLine: vp.topLine } : {}) });
+    // The toolbar's lit buttons: kept by identity while the caret stays in the same formatting, so typing and
+    // scrolling do not re-render the toolbar.
+    const view = editor?.getView?.();
+    if (view) {
+      const next = formatStateAt(view.state);
+      setFormatState((prev) => (Object.keys(next).every((key) => prev[key] === next[key]) ? prev : next));
+    }
     syncPreview();
   }, [cursorStore, syncPreview]);
   const jumpToHeading = useCallback((line) => editorRef.current?.jumpToLineAligned?.(line, 0), []);
@@ -1062,6 +1071,12 @@ export default function PageEditor({ collabTransport } = {}) {
 
   const imageInputRef = useRef(null);
   const runCommand = useRunCommand();
+  // A toolbar choice ends with the caret back in the text: a menu item holds the focus when it is chosen, and a
+  // command that opens a dialog or the file picker would otherwise leave it nowhere. The mode toggle keeps its focus.
+  const runToolbarCommand = useCallback((id) => {
+    if (id !== 'toggle-live-preview') editorRef.current?.focus?.();
+    return runCommand(id);
+  }, [runCommand]);
   const saveNow = useCallback(() => { if (!savingRef.current) latestSaveRef.current?.(); }, []);
   const pickImage = useCallback(() => imageInputRef.current?.click(), []);
   // The access-rule form: the command opens it, Insert writes the rule at the caret the editor kept meanwhile.
@@ -1997,7 +2012,7 @@ export default function PageEditor({ collabTransport } = {}) {
 
       <MathValidationSummary violations={mathViolations} onJump={jumpToMath} />
 
-      <EditorToolbar onRun={runCommand} liveMode={liveActive} liveDisabled={isLegacyWiki} />
+      <EditorToolbar onRun={runToolbarCommand} liveMode={liveActive} liveDisabled={isLegacyWiki} formatState={formatState} />
 
       <div className={`editor-layout${railOpen ? ' rail-open' : ''}`}>
       <div className={`editor-container${previewOpen ? '' : ' preview-hidden'}`}>

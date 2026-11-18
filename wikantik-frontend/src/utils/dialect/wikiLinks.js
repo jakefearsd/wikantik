@@ -1,141 +1,149 @@
 import { parseWikiLink } from '../wikiLinkSyntax';
-import { matchInlineMath } from '../inlineMath';
 
 const BANG = 33;
 const OPEN = 91;
 const CLOSE = 93;
-const NEWLINE = 10;
+
+/** Delimiter types of an open `[[` and an open `![[`: plain markers, resolved by `closeWikiLink` alone. */
+const WikiOpen = {};
+const EmbedOpen = {};
 
 /**
- * Where the `]]` closing a wikilink opened at `at` (the first `[` of `[[`) starts, or -1. The inner text is one or more
- * characters that are none of `[`, `]` or a line break (the grammar of `WIKILINK_TOKEN`), so the scan stops at the
- * first such character and costs no more than the link itself: a run of unclosed `[[a` is linear.
+ * The one open `[[` of an inline block, by its context: `{ delim, index, images }`. At most one is open at a time (a
+ * second `[[` ends the first, as any bracket does), so every bracket of a block is answered without a scan of the parts.
  */
-function closeAt(text, at) {
-  let i = at + 2;
-  while (i < text.length) {
-    const c = text.charCodeAt(i);
-    if (c === OPEN || c === NEWLINE) return -1;
-    if (c === CLOSE) return i > at + 2 && text.charCodeAt(i + 1) === CLOSE ? i : -1;
-    i += 1;
-  }
-  return -1;
+const openByContext = new WeakMap();
+
+/** The open `[[` of `cx`, or null when there is none or an enclosing construct has taken it. */
+function openOf(cx) {
+  const rec = openByContext.get(cx);
+  if (!rec) return null;
+  if (cx.parts[rec.index] === rec.delim) return rec;
+  openByContext.delete(cx);
+  return null;
 }
 
-const BACKTICK = 96;
-const BACKSLASH = 92;
-const DOLLAR = 36;
-
-/** Length of the backtick run starting at `at`. */
-function runLength(text, at) {
-  let n = 0;
-  while (text.charCodeAt(at + n) === BACKTICK) n += 1;
-  return n;
+/** Ends the open `[[` of `cx` as text. */
+function abandon(cx) {
+  const rec = openOf(cx);
+  if (!rec) return;
+  // dropped when it is the last part, so a run of abandoned openers leaves nothing for the bracket parsers to walk
+  if (rec.index === cx.parts.length - 1) cx.parts.pop();
+  else cx.parts[rec.index] = null;
+  openByContext.delete(cx);
 }
 
-let runsText = null;
-let runsByLength = null;
-
-/**
- * The start of every backtick run of `text`, grouped by run length, ascending. Built once per inline block (the parser
- * asks for each link of a paragraph with the same text), so finding a run's closer is a binary search, not a scan to
- * the end of the block: links with unclosed runs of many different lengths stay linear.
- */
-function runsOf(text) {
-  if (runsText === text) return runsByLength;
-  const byLength = new Map();
-  for (let j = 0; j < text.length;) {
-    if (text.charCodeAt(j) !== BACKTICK) { j += 1; continue; }
-    const m = runLength(text, j);
-    if (!byLength.has(m)) byLength.set(m, []);
-    byLength.get(m).push(j);
-    j += m;
+/** The children of a wikilink that IS a link: `[[`, target, alias pipe, alias, `]]`. */
+function linkChildren(cx, from, innerFrom, close, inner) {
+  const pipe = inner.indexOf('|');
+  const kids = [cx.elt('WikiLinkMark', from, innerFrom)];
+  const targetEnd = pipe < 0 ? close : innerFrom + pipe - (pipe > 0 && inner[pipe - 1] === '\\' ? 1 : 0);
+  if (targetEnd > innerFrom) kids.push(cx.elt('WikiLinkTarget', innerFrom, targetEnd));
+  if (pipe >= 0) {
+    kids.push(cx.elt('WikiLinkMark', innerFrom + pipe, innerFrom + pipe + 1));
+    if (close > innerFrom + pipe + 1) kids.push(cx.elt('WikiLinkAlias', innerFrom + pipe + 1, close));
   }
-  runsText = text;
-  runsByLength = byLength;
-  return byLength;
+  kids.push(cx.elt('WikiLinkMark', close, close + 2));
+  return kids;
 }
 
-/** Where the next backtick run of exactly `n` characters at or after `at` starts, or -1. */
-function closerOf(text, at, n) {
-  const starts = runsOf(text).get(n);
-  if (!starts) return -1;
-  let lo = 0;
-  let hi = starts.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (starts[mid] < at) lo = mid + 1;
-    else hi = mid;
+/** At `]`: closes the open `[[` when this is its `]]`, else ends it as text (a lone bracket inside is no wikilink). */
+function closeWikiLink(cx, pos) {
+  const rec = openOf(cx);
+  if (!rec) return -1;
+  const closes = cx.char(pos + 1) === CLOSE;
+  if (rec.images > 0) {
+    // the bracket closes an image opened inside the link text; `]]` there closes the image and then is a lone bracket
+    rec.images -= 1;
+    if (closes) abandon(cx);
+    return -1;
   }
-  return lo < starts.length ? starts[lo] : -1;
-}
-
-/**
- * Whether a code span or inline math opened inside the link text (between `from` and `close`) ends after the link's
- * `]]`. The reader lets the span win there: a backtick run (not backslash-escaped) opens a code span when a run of the
- * same length follows, and a `$` opens inline math by the shared Pandoc rule (`matchInlineMath`), so a link whose text
- * holds the opener and whose closer lies beyond it is not a link at all, and what the span holds is code or math. A
- * span that opens and closes inside the link text leaves the link alone. The math check costs no more than the text up
- * to the next unescaped `$`, so the scans of all links of a block are disjoint and the whole stays linear.
- */
-function opaqueCrossesClose(text, from, close) {
-  for (let i = from; i < close; i += 1) {
-    const c = text.charCodeAt(i);
-    if (c === BACKSLASH) { i += 1; continue; }
-    if (c === DOLLAR) {
-      const end = matchInlineMath(text, i);
-      if (end - 1 >= close) return true;
-      if (end > 0) i = end - 1;
-      continue;
-    }
-    if (c !== BACKTICK) continue;
-    const n = runLength(text, i);
-    const closer = closerOf(text, i + n, n);
-    if (closer >= close) return true;
-    i = (closer < 0 ? i : closer) + n - 1;
-  }
-  return false;
+  if (!closes) { abandon(cx); return -1; }
+  const { delim, index } = rec;
+  const embed = delim.type === EmbedOpen;
+  const from = delim.from;
+  const innerFrom = delim.to;
+  const inner = cx.slice(innerFrom, pos);
+  // what the inline parsers made of the text between is dropped: the reader draws the pair from its source text
+  cx.takeContent(index);
+  openByContext.delete(cx);
+  if (!parseWikiLink(cx.slice(from, pos + 2))) return cx.addElement(cx.elt('WikiLinkText', from, pos + 2));
+  return cx.addElement(cx.elt(embed ? 'WikiEmbed' : 'WikiLink', from, pos + 2, linkChildren(cx, from, innerFrom, pos, inner)));
 }
 
 /**
  * `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading]]`, `[[#Heading]]` as a `WikiLink` node, and `![[file.png|300]]` as a
  * `WikiEmbed` (a distinct node rather than a flag: Lezer nodes carry no per-instance data, and a reader of the tree
  * then tells the two apart by name). Children are `WikiLinkMark` for `[[`, `]]` and the alias `|`, `WikiLinkTarget`
- * for the text before the pipe (page and heading) and `WikiLinkAlias` for the text after it. Whether the inner text IS
- * a wikilink (`[[ x ]]` with a leading space is not) is `parseWikiLink`'s answer, the grammar shared with the reader.
+ * for the text before the pipe (page and heading) and `WikiLinkAlias` for the text after it.
+ *
+ * The brackets are matched as the reader's parser matches them, not by a scan of the text: `[[` opens, the inline
+ * parsers read what follows (so a code span, inline math or an HTML tag that holds a bracket or runs past the `]]`
+ * keeps it), and the next `]]` closes. Any other bracket in between that those parsers left as a character ends the
+ * link as text: `[[a [b] c]]` and `[[a] b]]` are no wikilinks, and a second `[[` starts anew. An image inside
+ * (`![x](u)`) is the one bracket pair the link survives. The match may span line breaks of the paragraph.
+ *
+ * What the pair is then follows the reader too. Whether the text IS a wikilink is `parseWikiLink`'s answer, the grammar
+ * shared with the reader; a pair that is not (`[[ x ]]` with a leading space, an empty `[[]]`, one that spans lines)
+ * is a `WikiLinkText`, which the reader draws as its characters. Either way the reader draws the pair from its source
+ * text, so nothing inside one is a node: no code span, math, emphasis, tag or link, and a `%%` in it is an ordinary
+ * comment marker (the server reads comments the same way: `ReaderStructure.renderedCode`).
+ *
  * Registered before Link, so `[[x]]` never becomes a link. A backslash before the first `[` is consumed by Lezer's
- * Escape first, so `\[[x]]` is text; `\![[x]]` leaves a plain `[[x]]` link, as the reader does. Code and math never
- * reach this parser because their nodes consume their text first, and a code span that opens inside the link text and
- * closes after it wins over the link, as does inline math (`opaqueCrossesClose`).
+ * Escape first, so `\[[x]]` is text; `\![[x]]` leaves a plain `[[x]]` link, as the reader does.
  */
 const WikiLinkParser = {
   name: 'WikiLink',
   parse(cx, next, pos) {
+    if (next === CLOSE) return closeWikiLink(cx, pos);
     const embed = next === BANG;
-    if (embed ? cx.char(pos + 1) !== OPEN || cx.char(pos + 2) !== OPEN : next !== OPEN || cx.char(pos + 1) !== OPEN) return -1;
-    const at = pos - cx.offset + (embed ? 1 : 0);
-    const close = closeAt(cx.text, at);
-    if (close < 0 || !parseWikiLink(cx.text.slice(at - (embed ? 1 : 0), close + 2))) return -1;
-    if (opaqueCrossesClose(cx.text, at + 2, close)) return -1;
-    const o = cx.offset;
-    const innerFrom = at + 2;
-    const inner = cx.text.slice(innerFrom, close);
-    const pipe = inner.indexOf('|');
-    const kids = [cx.elt('WikiLinkMark', pos, at + 2 + o)];
-    const targetEnd = pipe < 0 ? close : innerFrom + pipe - (pipe > 0 && inner[pipe - 1] === '\\' ? 1 : 0);
-    if (targetEnd > innerFrom) kids.push(cx.elt('WikiLinkTarget', innerFrom + o, targetEnd + o));
-    if (pipe >= 0) {
-      kids.push(cx.elt('WikiLinkMark', innerFrom + pipe + o, innerFrom + pipe + 1 + o));
-      if (close > innerFrom + pipe + 1) kids.push(cx.elt('WikiLinkAlias', innerFrom + pipe + 1 + o, close + o));
+    if (!embed && next !== OPEN) return -1;
+    const bracket = pos + (embed ? 1 : 0);
+    if (cx.char(bracket) !== OPEN) return -1;
+    if (cx.char(bracket + 1) !== OPEN || cx.char(bracket + 2) === OPEN) {
+      // a lone `[` ends an open wikilink; `![` opens an image, whose own `]` the open link must let pass
+      const rec = openOf(cx);
+      if (rec && embed) rec.images += 1;
+      else if (rec) abandon(cx);
+      return -1;
     }
-    kids.push(cx.elt('WikiLinkMark', close + o, close + 2 + o));
-    return cx.addElement(cx.elt(embed ? 'WikiEmbed' : 'WikiLink', pos, close + 2 + o, kids));
+    abandon(cx);
+    const index = cx.parts.length;
+    const end = cx.addDelimiter(embed ? EmbedOpen : WikiOpen, pos, bracket + 2, true, false);
+    openByContext.set(cx, { delim: cx.parts[index], index, images: 0 });
+    return end;
   },
   before: 'Link',
 };
 
+/**
+ * GFM's bare-URL autolink, stopped at the bracket that closes an open `[[`. Lezer's own parser ends a URL at an
+ * unbalanced bracket only inside one of ITS links; without this, `[[https://example.com/a]]` would read its `]]` as
+ * part of the address and never close. The reader links bare URLs after the wikilinks are found, so there the wikilink
+ * always wins.
+ *
+ * @param autolink the `Autolink` extension of `@lezer/markdown`
+ * @returns that extension with its URL parser wrapped
+ */
+export function wikiLinkAwareAutolink(autolink) {
+  return {
+    ...autolink,
+    parseInline: autolink.parseInline.map((base) => ({
+      ...base,
+      parse(cx, next, pos) {
+        const end = base.parse(cx, next, pos);
+        if (end < 0 || !openOf(cx)) return end;
+        const keep = /^(?:[^[\]]|\[[^\]]*\])*/.exec(cx.slice(pos, end))[0].length;
+        if (pos + keep === end) return end;
+        cx.parts.pop();
+        return keep > 0 ? cx.addElement(cx.elt('URL', pos, pos + keep)) : -1;
+      },
+    })),
+  };
+}
+
 export const wikiLinkExtension = {
-  defineNodes: ['WikiLink', 'WikiEmbed', 'WikiLinkMark', 'WikiLinkTarget', 'WikiLinkAlias'],
+  defineNodes: ['WikiLink', 'WikiEmbed', 'WikiLinkText', 'WikiLinkMark', 'WikiLinkTarget', 'WikiLinkAlias'],
   parseInline: [WikiLinkParser],
 };
 

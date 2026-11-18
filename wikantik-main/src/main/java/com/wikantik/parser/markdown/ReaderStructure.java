@@ -94,7 +94,7 @@ final class ReaderStructure {
                                                                      final int bodyLength, final long budget ) {
         final String text = prepared.text();
         final RenderPathAccessRules.Structure out = new RenderPathAccessRules.Structure( new ArrayList<>(), new ArrayList<>(),
-                new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>() );
+                new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>() );
         for ( final Node node : ReaderParser.parse( text, budget ).getDescendants() ) {
             if ( node instanceof Link link && LinkParsingOperations.isAccessRuleLink( WikantikLink.wikiLinkOf( link ) ) ) {
                 out.rules().add( rule( prepared, link, bodyStart, bodyLength ) );
@@ -104,8 +104,9 @@ final class ReaderStructure {
                 final List< int[] > kind = regionKind( out, node );
                 if ( kind != null ) {
                     region( kind, prepared, node, bodyStart );
-                    if ( kind == out.math() ) {
-                        region( out.renderedMath(), prepared, node, bodyStart );
+                    final List< int[] > drawn = out.renderedOf( kind, node.getAncestorOfType( WikiNode.class ) != null );
+                    if ( drawn != null ) {
+                        region( drawn, prepared, node, bodyStart );
                     }
                 }
             }

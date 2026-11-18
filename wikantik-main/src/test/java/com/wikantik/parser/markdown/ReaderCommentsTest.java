@@ -168,6 +168,25 @@ class ReaderCommentsTest {
         assertEquals( "[]", render( ReaderComments.ranges( body ) ), "the %% inside the math is math" );
     }
 
+    @Test
+    void codeAndMathInsideAWikilinkAreItsCharacters() {
+        // The render replaces the whole bracket pair with a link (or, when it is no wikilink, with its characters) built
+        // from the source text, so a code span or math inside draws no <code> and no math: a %% there is a comment marker.
+        assertEquals( "[10-18]", render( ReaderComments.ranges( "[[Page|a `%%gone%%` b]]" ) ), "a code span in the display text" );
+        assertEquals( "[5-13]", render( ReaderComments.ranges( "[[a `%%gone%%`|b]]" ) ), "a code span in the target" );
+        assertEquals( "[8-16]", render( ReaderComments.ranges( "[[Page|$%%gone%%$]]" ) ), "inline math in the display text" );
+        assertEquals( "[13-21]", render( ReaderComments.ranges( "See [[Page|\n`%%gone%%`]] now" ) ), "a pair that spans lines (#130)" );
+        assertEquals( "[]", render( ReaderComments.ranges( "[[Page]] `%%kept%%` [[Other]]" ) ), "code between two wikilinks is code" );
+        assertEquals( "[]", render( ReaderComments.ranges( "[text `%%kept%%`](https://example.com)" ) ), "code in a Markdown link's text is code" );
+    }
+
+    @Test
+    void theWideCodeReadingKeptForAccessRulesStillHoldsCodeInsideAWikilink() {
+        final RenderPathAccessRules.Structure structure = ReaderStructure.of( "[[Page|a `x` b]] `y`", 0 );
+        assertEquals( "[9-12, 17-20]", render( structure.code() ) );
+        assertEquals( "[17-20]", render( structure.renderedCode() ) );
+    }
+
     /** The sentinel words of {@code body}'s comments are absent from the rendered page exactly when {@code strip} removed them. */
     private void assertSentinels( final String body, final List< String > hidden, final List< String > shown ) throws Exception {
         final String html = render( body );

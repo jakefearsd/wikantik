@@ -64,6 +64,25 @@ class SpanClassifierCommentsTest {
         return "Rules";
     }
 
+    /**
+     * Rows where the rule this test inserts lands in code, so the page stays readable and no reader enforces or shows
+     * the rule.
+     * <ul>
+     * <li>The comment sits in a code span inside a {@code [[…]]} pair. The render draws that pair from its source text,
+     * so the span is no code to it and the comment is hidden; the access-rule reading keeps the wide {@code code()}, in
+     * which the span is code (and the inserted rule's brackets, held by the span, do not end the pair). The page was
+     * readable before comments followed the render there, and still is (#130).</li>
+     * <li>The #130 row: its backticks are plain text only because the pair holds them. The inserted rule's brackets end
+     * the pair, the backticks then close a code span over the rule, and no comment is left.</li>
+     * </ul>
+     */
+    private static boolean ruleLandsInCode( final String name ) {
+        return name.startsWith( "a bracket pair that spans lines" )
+               || name.startsWith( "a code span in a wikilink's" )
+               || name.startsWith( "brackets that are no wikilink (a leading space)" )
+               || name.startsWith( "issue 130:" );
+    }
+
     private static List< String > check( final boolean crlf ) throws Exception {
         final List< String > wrong = new ArrayList<>();
         int hidden = 0;
@@ -90,7 +109,11 @@ class SpanClassifierCommentsTest {
             if ( crlf ) {
                 text = text.replace( "\n", "\r\n" );
             }
-            if ( hides && !lockedInComment( text ) ) {
+            if ( hides && ruleLandsInCode( row.get( "name" ).getAsString() ) ) {
+                if ( !( AccessRules.read( text ) instanceof AccessRules.Rules ) ) {
+                    wrong.add( row.get( "name" ).getAsString() + ": expected Rules" + ( crlf ? " (CRLF)" : "" ) );
+                }
+            } else if ( hides && !lockedInComment( text ) ) {
                 wrong.add( row.get( "name" ).getAsString() + ( crlf ? " (CRLF)" : "" ) );
             } else if ( !hides ) {
                 // Observed: a literal %% leaves the page readable (Rules), except where the %% sits in inline math the

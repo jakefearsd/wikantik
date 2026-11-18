@@ -31,9 +31,10 @@ import java.util.List;
  * of its characters in code or math opens and closes nothing; otherwise the closing {@code %%} is the next free one
  * after the opener, and an unterminated opener stays literal.
  *
- * <p>The opaque spans are the structure's {@code code()} and {@code renderedMath()}: display math as the render draws it
- * (a list item can end the block early) plus inline math. They are not {@code math()}, the wider reading kept for locking
- * access rules.
+ * <p>The opaque spans are the structure's {@code renderedCode()} and {@code renderedMath()}: code and math as the render
+ * draws them. Display math stops where a list item ends it, and a code span or math inside a {@code [[…]]} pair is neither
+ * (the render draws that pair from its source text, so a {@code %%} in it is an ordinary marker). They are not
+ * {@code code()} and {@code math()}, the wider readings kept for locking access rules.
  *
  * <p>When the parse is cut off or fails, comments are still hidden, read without code or math: hiding a comment that
  * should have stayed is the safe side. That is logged once per call.
@@ -112,7 +113,7 @@ public final class ReaderComments {
         List< int[] > opaque;
         try {
             final RenderPathAccessRules.Structure structure = parse.get();
-            opaque = merged( structure.code(), structure.renderedMath(), bodyStart );
+            opaque = merged( structure.renderedCode(), structure.renderedMath(), bodyStart );
         } catch ( final RenderPathAccessRules.Unreadable e ) {
             LOG.warn( "comment boundaries read without code/math: the parse of a {}-character body failed: {}", body.length(), e.getMessage() );
             opaque = List.of();

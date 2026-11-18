@@ -76,14 +76,19 @@ public final class RenderPathAccessRules {
      *
      * @param rules the access rules the render path reads (see {@link #find})
      * @param code  inline code spans and code blocks the author wrote (a {@code $$} block's generated fence is math)
+     * @param renderedCode code as the render draws it: {@code code} without the spans inside a {@code [[…]]} pair, which
+     *              the render replaces whole with a link (or with its characters) built from the source text, so nothing
+     *              in it is drawn as code. Comments read code this way; {@code code} stays the wide reading that locks
+     *              access rules
      * @param html  HTML blocks, HTML comments and inline HTML tags
      * @param math  inline math and {@code $$} display-math blocks, the <em>wide</em> reading kept for locking access rules:
      *              each {@code $$} block the pre-pass rewrote, as it found it, so a rule is locked wherever readers
      *              could disagree (#104). The pre-pass reads the render's block structure (#128), so this now agrees
      *              with {@code renderedMath} on display math; comments and the editor follow {@code renderedMath}
      * @param renderedMath inline math and display math as the render draws it: a {@code $$} block spans only its parsed
-     *              fence, so it stops where its container ends it. Comments and the editor read math this way, so what
-     *              a reader sees is what they hide
+     *              fence, so it stops where its container ends it, and math inside a {@code [[…]]} pair is left out (the
+     *              render draws that pair from its source text). Comments and the editor read math this way, so what a
+     *              reader sees is what they hide
      * @param links links that are not access rules but have a target ({@code [text](url)}), images, reference links,
      *              link reference definitions and {@code [[…]]} wiki links
      * @param labels links with no target that the render path does <em>not</em> read as rules but whose text starts,
@@ -93,8 +98,22 @@ public final class RenderPathAccessRules {
      *              text is left out (it is no rule the render path reads, so it is no reason to call the text
      *              unreadable)
      */
-    public record Structure( List< Rule > rules, List< int[] > code, List< int[] > html, List< int[] > math,
+    public record Structure( List< Rule > rules, List< int[] > code, List< int[] > renderedCode, List< int[] > html, List< int[] > math,
                              List< int[] > renderedMath, List< int[] > links, List< Rule > labels ) {
+
+        /**
+         * @param kind             one of this structure's region lists
+         * @param insideWikiPair   whether the node read sits inside a {@code [[…]]} pair, which the render draws from
+         *                         its source text, so that nothing in it is drawn as code or math
+         * @return the list of what the render draws for that kind ({@code renderedCode} for {@code code},
+         *         {@code renderedMath} for {@code math}), or {@code null} when the kind has none or the node is not drawn
+         */
+        List< int[] > renderedOf( final List< int[] > kind, final boolean insideWikiPair ) {
+            if ( insideWikiPair ) {
+                return null;
+            }
+            return kind == math ? renderedMath : kind == code ? renderedCode : null;
+        }
     }
 
     private RenderPathAccessRules() {

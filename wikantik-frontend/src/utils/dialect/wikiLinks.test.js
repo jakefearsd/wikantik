@@ -146,6 +146,69 @@ describe('WikiLink and inline math', () => {
   }, LINEAR_COST_TIMEOUT_MS);
 });
 
+describe('WikiLink bracket matching (the reader pairs the brackets, #130)', () => {
+  const kinds = (text, name) => { const out = []; parse(text).iterate({ enter: (n) => { if (n.name === name) out.push(text.slice(n.from, n.to)); } }); return out; };
+  it('a pair that spans lines is WikiLinkText, not a link, and nothing inside it is drawn', () => {
+    const text = 'x [[a\n*b* #tag `c`]] y';
+    expect(links(text)).toEqual([]);
+    expect(kinds(text, 'WikiLinkText')).toEqual(['[[a\n*b* #tag `c`]]']);
+    expect(kinds(text, 'Emphasis')).toEqual([]);
+    expect(kinds(text, 'InlineCode')).toEqual([]);
+    expect(inlineTagRanges(parse(text))).toEqual([]);
+  });
+  it('a pair that is no wikilink on one line is WikiLinkText too', () => {
+    expect(shape('[[ *x* ]] [[]]')).toEqual([['WikiLinkText', '[[ *x* ]]'], ['WikiLinkText', '[[]]']]);
+    expect(kinds('[[ *x* ]]', 'Emphasis')).toEqual([]);
+  });
+  it('nothing inside a pair is a node: the reader draws it from its source text', () => {
+    for (const text of ['[[P|a `x` $m$ *e* ==h== #t]]', '[[a `x`#h|b]]', '![[a `x`]]', '[[a\n`x`|\n`y`]]']) {
+      for (const name of ['InlineCode', 'InlineMath', 'Emphasis', 'Highlight']) expect(kinds(text, name)).toEqual([]);
+      expect(inlineTagRanges(parse(text))).toEqual([]);
+    }
+  });
+  it('the link keeps its children', () => {
+    expect(shape('[[P|a `x`]]')).toEqual([['WikiLink', '[[P|a `x`]]'], ['WikiLinkMark', '[['], ['WikiLinkTarget', 'P'],
+      ['WikiLinkMark', '|'], ['WikiLinkAlias', 'a `x`'], ['WikiLinkMark', ']]']]);
+  });
+  it('a pair may span the lines of a blockquote or a list item', () => {
+    expect(kinds('> x [[a\n> b]] y', 'WikiLinkText')).toEqual(['[[a\n> b]]']);
+    expect(kinds('- x [[a\n  b]] y', 'WikiLinkText')).toEqual(['[[a\n  b]]']);
+    expect(links('> x [[a]]\n> [[b|c]] y')).toEqual(['[[a]]', '[[b|c]]']);
+  });
+  it('the everyday shapes are links wherever they stand', () => {
+    expect(links('# H [[A]]\n\n*em [[B|b]]* **[[C#h]]** ![[i.png|300]]\n\n| [[D\\|d]] | [[E]] |\n|---|---|\n\n[t [[F]] u](https://example.com) [[G]]] [[H]]'))
+      .toEqual(['[[A]]', '[[B|b]]', '[[C#h]]', '![[i.png|300]]', '[[D\\|d]]', '[[E]]', '[[F]]', '[[G]]', '[[H]]']);
+  });
+  it('a lone bracket inside ends the pair as text; a second [[ starts anew', () => {
+    expect(shape('[[a [b] c]]').filter(([n]) => n !== 'WikiLinkMark')).toEqual([]);
+    expect(shape('[[a] b]]')).toEqual([]);
+    expect(links('[[a [[b]] c]]')).toEqual(['[[b]]']);
+    expect(links('[[[a]]')).toEqual(['[[a]]']);
+    expect(links('[[a]]]')).toEqual(['[[a]]']);
+  });
+  it('a bracket held by a code span, math or an escape does not end the pair', () => {
+    expect(kinds('[[a `]` b]]', 'WikiLinkText')).toEqual(['[[a `]` b]]']);
+    expect(kinds('[[a $]$ b]]', 'WikiLinkText')).toEqual(['[[a $]$ b]]']);
+    expect(kinds('[[a \\] b]]', 'WikiLinkText')).toEqual(['[[a \\] b]]']);
+  });
+  it('an image inside is the one bracket pair it survives; an unclosed image bracket is not', () => {
+    expect(kinds('[[a ![i](u) b]]', 'WikiLinkText')).toEqual(['[[a ![i](u) b]]']);
+    expect(shape('[[a ![b c]]')).toEqual([]);
+  });
+  it('a web address or an HTML tag in the text leaves the link', () => {
+    expect(links('[[https://example.com/a]] [[P|see www.example.com]] [[P|a <b>c</b>]]'))
+      .toEqual(['[[https://example.com/a]]', '[[P|see www.example.com]]', '[[P|a <b>c</b>]]']);
+  });
+  it.each(['[[a\n', '[[a ![i](u) ', '[[a ![i] ', '[[a] ', '[[a `b` ', '![[a\n]] '])('%j repeated stays linear', (unit) => {
+    const { ratio, bound } = linearCost((n) => unit.repeat(n), parse, { small: 4000, factor: 5 });
+    expect(ratio).toBeLessThan(bound);
+  }, LINEAR_COST_TIMEOUT_MS);
+  it('one pair holding many images stays linear', () => {
+    const { ratio, bound } = linearCost((n) => `[[a ${'![i](u) '.repeat(n)}]]`, parse, { small: 2000, factor: 5 });
+    expect(ratio).toBeLessThan(bound);
+  }, LINEAR_COST_TIMEOUT_MS);
+});
+
 describe('WikiLink code-span lookup cost', () => {
   it('links with unclosed backtick runs of ever-longer lengths stay linear in the text', () => {
     // One link per run length k = 1..K, so no run has an equal-length closer: each lookup used to scan to the end of the

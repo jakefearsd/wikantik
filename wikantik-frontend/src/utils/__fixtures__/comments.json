@@ -53,5 +53,15 @@
   {"name": "$$ lines inside a fenced code block are code, not display math", "input": "```\n%%x\n$$\n%%\n$$\n```\n%%y%% z\n", "output": "```\n%%x\n$$\n%%\n$$\n```\n z\n"},
   {"name": "display math ends with its list item and its later $$ line, with no $$ line below, is text: both comments are removed", "input": "- i\n  $$\n  x\ny %%s%%\n  $$\n%%t%% z\n", "output": "- i\n  $$\n  x\ny \n  $$\n z\n"},
   {"name": "display math ends with its list item and its later $$ line opens the next block", "input": "- i\n  $$\n  x\ny %%s%%\n  $$\nm %%u%%\n$$\nafter %%v%%\n", "output": "- i\n  $$\n  x\ny \n  $$\nm %%u%%\n$$\nafter \n"},
-  {"name": "display math right after an HTML comment is math: an HTML block that has ended holds nothing more", "input": "<!-- c -->\n$$\n%%s%%\n$$\nafter %%t%% z\n", "output": "<!-- c -->\n$$\n%%s%%\n$$\nafter  z\n"}
+  {"name": "display math right after an HTML comment is math: an HTML block that has ended holds nothing more", "input": "<!-- c -->\n$$\n%%s%%\n$$\nafter %%t%% z\n", "output": "<!-- c -->\n$$\n%%s%%\n$$\nafter  z\n"},
+  {"name": "a bracket pair that spans lines is drawn as its characters: a code span in it is no code, so the comment in it is removed", "input": "See [[Page\n`%%gone%%`|label]] now", "output": "See [[Page\n``|label]] now"},
+  {"name": "a bracket pair that spans lines: a code span after its pipe is no code either", "input": "See [[Page|\n`%%gone%%`]] now", "output": "See [[Page|\n``]] now"},
+  {"name": "a code span in a wikilink's display text is drawn as its characters, so the comment in it is removed", "input": "[[Page|a `%%gone%%` b]]", "output": "[[Page|a `` b]]"},
+  {"name": "a code span in a wikilink's target is drawn as its characters", "input": "[[a `%%gone%%`|b]]", "output": "[[a ``|b]]"},
+  {"name": "inline math in a wikilink's display text is drawn as its characters", "input": "[[Page|$%%gone%%$]]", "output": "[[Page|$$]]"},
+  {"name": "brackets that are no wikilink (a leading space) still take the code span before their pipe", "input": "[[ `%%gone%%`|x]]", "output": "[[ ``|x]]"},
+  {"name": "issue 130: a bracket pair over three lines whose backticks are plain text", "input": "x\n[[$$\n` | a | b |\n<b t=\"==%%`%% | ]]", "output": "x\n[[$$\n` | a | b |\n<b t=\"== | ]]"},
+  {"name": "a code span opens right after an escaped backtick", "input": "a \\````%%kept%%``` b", "output": "a \\````%%kept%%``` b"},
+  {"name": "a code span that opens right after an escaped backtick runs over lines to its closer", "input": "a%%\\````\n%%b | $a | b$ |\na```\n|---|---|\nx\n", "output": "a%%\\````\n%%b | $a | b$ |\na```\n|---|---|\nx\n"},
+  {"name": "a code span in a wikilink's display text, the pair over two lines of a blockquote", "input": "> See [[Page|a\n> `%%gone%%`]] now", "output": "> See [[Page|a\n> ``]] now"}
 ]

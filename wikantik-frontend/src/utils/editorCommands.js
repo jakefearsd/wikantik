@@ -46,6 +46,6 @@ export function buildEditorCommands({ format, save, pickImage, togglePreview, to
     cmd('unfold-all', 'Unfold all headings', 'View', unfoldAll, { keys: 'Ctrl-Alt-]' }),
     cmd('toggle-preview', 'Toggle preview', 'View', togglePreview),
     cmd('toggle-rail', 'Toggle rail', 'View', toggleRail),
-    cmd('toggle-live-preview', 'Toggle live preview', 'View', toggleLivePreview, { keys: 'Mod-E' }),
+    cmd('toggle-live-preview', 'Switch between Rich and Source', 'View', toggleLivePreview, { keys: 'Mod-E' }),
   ];
 }

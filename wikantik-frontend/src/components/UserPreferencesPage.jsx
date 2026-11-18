@@ -447,7 +447,7 @@ export default function UserPreferencesPage() {
             disabled={savingEditorMode}
             style={inputStyle}
           >
-            <option value="live">Live preview</option>
+            <option value="live">Rich</option>
             <option value="source">Source</option>
           </select>
           <p style={helpStyle}>

@@ -510,12 +510,12 @@ describe('UserPreferencesPage — default editing mode', () => {
     await waitFor(() => expect(select).not.toBeDisabled());
   });
 
-  it('shows Live preview when no preference is stored', async () => {
+  it('shows Rich when no preference is stored', async () => {
     api.getProfile.mockResolvedValue({ ...FAKE_PROFILE, editorMode: null });
     renderPage();
     const select = await screen.findByLabelText('Default editing mode');
     expect(select.value).toBe('live');
-    expect(select.selectedOptions[0].textContent).toBe('Live preview');
+    expect(select.selectedOptions[0].textContent).toBe('Rich');
   });
 
   it('shows Source when the stored preference is source', async () => {

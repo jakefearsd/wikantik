@@ -62,11 +62,11 @@ afterEach(async () => {
 
 const isLive = () => document.querySelector('.cm-editor.cm-live-preview') !== null;
 
-describe('live preview mode toggle', () => {
+describe('rich mode toggle', () => {
   it('the toolbar button toggles live mode and remembers it', async () => {
     const view = await mountRealEditor(PageEditor, NavigationGuardProvider, INITIAL);
     expect(isLive()).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: /live preview/i }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Rich' }));
     await until(isLive);
     expect(localStorage.getItem('wikantik.editor.mode')).toBe('live');
     expect(docOf(view)).toBe(INITIAL);
@@ -120,14 +120,14 @@ describe('live preview mode toggle', () => {
     expect(docOf(view)).toBe(`${INITIAL}Z`);
   });
 
-  it('a legacy-wiki page is never live-rendered, and the Live toggle is disabled with an explanation', async () => {
+  it('a legacy-wiki page is never live-rendered, and the Rich option is disabled with an explanation', async () => {
     localStorage.setItem('wikantik.editor.mode', 'live');
     api.getPage.mockResolvedValue({ content: INITIAL, metadata: {}, version: 1, markupSyntax: 'wiki' });
     await mountRealEditor(PageEditor, NavigationGuardProvider, INITIAL);
     expect(isLive()).toBe(false);
-    const live = screen.getByRole('button', { name: /live preview/i });
+    const live = screen.getByRole('radio', { name: 'Rich' });
     expect(live).toBeDisabled();
-    expect(live).toHaveAttribute('title', 'Live preview is available for Markdown pages');
+    expect(live).toHaveAttribute('title', 'Rich editing is available for Markdown pages');
   });
 
   it('Mod-e is ignored while a modal is open, on key auto-repeat, and during IME composition', async () => {

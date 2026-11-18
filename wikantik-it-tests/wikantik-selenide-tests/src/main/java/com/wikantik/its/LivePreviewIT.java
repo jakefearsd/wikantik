@@ -96,8 +96,8 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
         final var editor = $( "[data-testid=page-editor] .cm-editor" );
         editor.shouldHave( cssClass( "cm-live-preview" ), WAIT );
 
-        // Toggle live -> source via the toolbar button.
-        $( "[aria-label^='Live preview']" ).click();
+        // Switch rich -> source via the toolbar's mode control.
+        $( "[data-testid=editor-mode] [data-mode=source]" ).click();
         editor.shouldNotHave( cssClass( "cm-live-preview" ), WAIT );
         awaitServerMode( "source" );
 

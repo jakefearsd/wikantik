@@ -85,7 +85,7 @@ describe('buildEditorCommands', () => {
   it('declares the live-preview toggle with Mod-E and runs the injected action', () => {
     const d = deps();
     const cmd = buildEditorCommands(d).find((c) => c.id === 'toggle-live-preview');
-    expect(cmd).toMatchObject({ title: 'Toggle live preview', section: 'View', keys: 'Mod-E' });
+    expect(cmd).toMatchObject({ title: 'Switch between Rich and Source', section: 'View', keys: 'Mod-E' });
     cmd.run();
     expect(d.toggleLivePreview).toHaveBeenCalled();
   });

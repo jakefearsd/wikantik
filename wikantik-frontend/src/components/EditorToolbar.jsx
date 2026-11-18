@@ -46,6 +46,12 @@ const INSERT_IDS = ['code-block', 'insert-mermaid', 'insert-plantuml', 'math-blo
   'callout-warning', 'callout-danger', 'insert-image', 'insert-embed', 'insert-footnote', 'format-highlight', 'toggle-comment',
   'horizontal-rule', 'insert-access-rule'];
 
+/** The mode control's two options, in order; both are toolbar items, so the arrow keys reach them. */
+const MODE_OPTIONS = [
+  { id: 'mode-rich', label: 'Rich', data: 'rich' },
+  { id: 'mode-source', label: 'Source', data: 'source' },
+];
+
 const keepEditorFocus = (e) => e.preventDefault();
 
 /**
@@ -161,7 +167,7 @@ function ToolbarMenu({ name, title, ariaLabel, face, items, checkable = 'menuite
  *
  * Props:
  *   onRun(commandId) — e.g. 'format-bold', 'heading-2', 'insert-table'
- *   liveMode / liveDisabled — the mode toggle's pressed and disabled state
+ *   liveMode / liveDisabled — the mode control's state: Rich checked, and Rich disabled (legacy page)
  *   formatState — what the caret is in (`formatStateAt`); lights the toggle buttons and names the heading level
  */
 function EditorToolbar({ onRun, liveMode = false, liveDisabled = false, formatState = EMPTY_FORMAT_STATE }) {
@@ -193,8 +199,10 @@ function EditorToolbar({ onRun, liveMode = false, liveDisabled = false, formatSt
 
   const inRow = BUTTONS.slice(0, BUTTONS.length - overflowCount);
   const moved = BUTTONS.slice(BUTTONS.length - overflowCount);
-  const active = activeId === 'heading' || activeId === 'insert' || activeId === 'mode' || inRow.some((b) => b.id === activeId)
-    ? activeId : (inRow[0]?.id ?? 'heading');
+  const resolved = activeId === 'heading' || activeId === 'insert' || MODE_OPTIONS.some((o) => o.id === activeId)
+    || inRow.some((b) => b.id === activeId) ? activeId : (inRow[0]?.id ?? 'heading');
+  // A disabled Rich cannot be the tab stop, or the toolbar would have none.
+  const active = resolved === 'mode-rich' && liveDisabled ? 'mode-source' : resolved;
   const roving = (id) => ({ 'data-toolbar-item': id, tabIndex: id === active ? 0 : -1, onFocus: () => setActiveId(id) });
 
   const onKeyDown = (e) => {
@@ -256,20 +264,29 @@ function EditorToolbar({ onRun, liveMode = false, liveDisabled = false, formatSt
       />
       {inRow.slice(HEADING_AT).map(rowButton)}
       <ToolbarMenu name="Insert" title="Insert" ariaLabel="Insert" face="Insert" items={insertItems} onChoose={onRun} itemProps={roving('insert')} />
-      <button
-        type="button"
-        id="toggle-live-preview"
-        className="editor-format-btn editor-format-btn-mode"
-        title={liveDisabled ? 'Live preview is available for Markdown pages' : `Live preview (${formatKeys('Mod-E')})`}
-        aria-label={`Live preview (${formatKeys('Mod-E')})`}
-        aria-pressed={liveMode}
-        onMouseDown={keepEditorFocus}
-        onClick={() => onRun('toggle-live-preview')}
-        disabled={liveDisabled}
-        {...roving('mode')}
-      >
-        Live
-      </button>
+      <span id="toggle-live-preview" data-testid="editor-mode" className="editor-mode-control" role="radiogroup" aria-label="Editor mode">
+        {MODE_OPTIONS.map(({ id, label, data }) => {
+          const disabled = id === 'mode-rich' && liveDisabled;
+          const checked = id === 'mode-rich' ? liveMode : !liveMode;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              data-mode={data}
+              className="editor-mode-option"
+              title={disabled ? 'Rich editing is available for Markdown pages' : `${label} (${formatKeys('Mod-E')} switches)`}
+              onMouseDown={keepEditorFocus}
+              onClick={() => { if (!checked) onRun('toggle-live-preview'); }}
+              disabled={disabled}
+              {...roving(id)}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </span>
     </div>
   );
 }

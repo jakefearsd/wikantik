@@ -59,8 +59,9 @@ public class EditWikiPage implements SpaPage {
 
     private static final String CONTENT = "[data-testid=editor-textarea] .cm-content";
     private static final String EDITOR = "[data-testid=editor-textarea] .cm-editor";
-    /** The toolbar's Live toggle; its {@code aria-pressed} mirrors whether live preview is active. */
-    private static final String LIVE_TOGGLE = "[data-testid=page-editor] #toggle-live-preview";
+    /** The toolbar's Rich | Source radiogroup; the option with {@code aria-checked=true} is the active mode. */
+    private static final String MODE_CONTROL = "[data-testid=page-editor] [data-testid=editor-mode]";
+    private static final String RICH_OPTION = MODE_CONTROL + " [data-mode=rich]";
     private static final Duration MODE_WAIT = Duration.ofSeconds( 10 );
 
     /**
@@ -148,8 +149,8 @@ public class EditWikiPage implements SpaPage {
     public EditWikiPage assertMode( final EditorMode mode ) {
         final SelenideElement editor = $( EDITOR ).shouldBe( Condition.visible, MODE_WAIT );
         final boolean live = mode == EditorMode.LIVE;
-        $( LIVE_TOGGLE ).shouldBe( Condition.visible, MODE_WAIT )
-            .shouldHave( Condition.attribute( "aria-pressed", String.valueOf( live ) ), MODE_WAIT );
+        $( RICH_OPTION ).shouldBe( Condition.visible, MODE_WAIT )
+            .shouldHave( Condition.attribute( "aria-checked", String.valueOf( live ) ), MODE_WAIT );
         if ( live ) {
             editor.shouldHave( Condition.cssClass( "cm-live-preview" ), MODE_WAIT );
         } else {

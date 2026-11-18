@@ -20,7 +20,7 @@ A short reminder of what the page editor offers. In shortcuts, **Mod** means Ctr
 | Bold | Mod+B |
 | Italic | Mod+I |
 | Insert link | Mod+K |
-| Toggle live preview | Mod+E |
+| Switch between Rich and Source | Mod+E |
 | Save | Mod+S |
 | Paste as plain text | Mod+Shift+V |
 | Highlight the selection | Mod+Shift+H |
@@ -28,13 +28,13 @@ A short reminder of what the page editor offers. In shortcuts, **Mod** means Ctr
 
 The toolbar also has heading, list, inline code, code block and table buttons. Type `/` at the start of a line for a menu of blocks such as tables, callouts and math.
 
-## Live preview
+## Rich mode
 
-Live preview shows your Markdown as it will look. Headings, emphasis, tables, diagrams, math, images, embeds and task checkboxes display formatted, and plugin and access-rule lines such as `[{ALLOW view Admin}]` appear as labelled chips. The page text stays plain Markdown.
+Rich mode shows your Markdown as it will look. Headings, emphasis, tables, diagrams, math, images, embeds and task checkboxes display formatted, and plugin and access-rule lines such as `[{ALLOW view Admin}]` appear as labelled chips. The page text stays plain Markdown.
 
-* Press Mod+E, choose the toolbar button, or pick **Toggle live preview** from the command palette. Switching modes never changes the page text.
+* Press Mod+E, choose **Rich** or **Source** on the toolbar, or pick **Switch between Rich and Source** from the command palette. Switching modes never changes the page text.
 * The line your cursor is on always shows its raw source. To edit a table, chip, diagram or formula, click into it.
-* Your choice is saved to your account when you are signed in (otherwise in this browser). To change the default, open **Preferences**, go to **Editor** and set **Default editing mode**. New users start in live preview.
+* Your choice is saved to your account when you are signed in (otherwise in this browser). To change the default, open **Preferences**, go to **Editor** and set **Default editing mode**. New users start in Rich mode.
 
 ## Writing
 

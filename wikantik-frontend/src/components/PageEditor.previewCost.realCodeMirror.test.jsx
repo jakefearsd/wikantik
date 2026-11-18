@@ -74,7 +74,7 @@ describe('editor preview render cost', () => {
     expect(preview()).toBe('helloXYZ');
     expect(renders.count).toBe(3);
     renders.count = 0;
-    fireEvent.click(screen.getByRole('button', { name: /live preview/i })); // re-renders PageEditor, same text
+    fireEvent.click(screen.getByRole('radio', { name: 'Rich' })); // re-renders PageEditor, same text
     await until(() => document.querySelector('.cm-editor.cm-live-preview') !== null);
     expect(renders.count).toBe(0);
   });

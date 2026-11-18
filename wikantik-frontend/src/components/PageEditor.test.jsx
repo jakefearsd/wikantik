@@ -439,9 +439,9 @@ describe('#18 formatting toolbar', () => {
     await waitForEditor();
 
     const names = [...screen.getByRole('toolbar', { name: 'Formatting toolbar' }).querySelectorAll('[data-toolbar-item]')]
-      .map((el) => el.getAttribute('aria-label'));
+      .map((el) => el.getAttribute('aria-label') ?? el.textContent);
     expect(names).toEqual(['Bold', 'Italic', 'Strikethrough', 'Heading: Paragraph', 'Bulleted list', 'Numbered list', 'Task list',
-      'Quote', 'Inline code', 'Table', 'Link', 'Insert', 'Live preview (Ctrl+E)']);
+      'Quote', 'Inline code', 'Table', 'Link', 'Insert', 'Rich', 'Source']);
   });
 
   it('formatting toolbar is rendered above textarea', async () => {

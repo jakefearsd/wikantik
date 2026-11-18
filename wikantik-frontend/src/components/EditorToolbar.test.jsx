@@ -9,6 +9,7 @@ const INSERT_ITEMS = ['Code block', 'Mermaid diagram', 'PlantUML diagram', 'Math
   'Horizontal rule', 'Access rule'];
 
 const button = (name) => screen.getByRole('button', { name });
+const radio = (name) => screen.getByRole('radio', { name });
 const headingTrigger = () => screen.getByRole('button', { name: /^Heading:/ });
 const openInsert = () => { fireEvent.click(button('Insert')); return screen.getByRole('menu', { name: 'Insert' }); };
 const itemNames = (menu) => [...menu.querySelectorAll('[data-label]')].map((el) => el.dataset.label);
@@ -16,9 +17,9 @@ const itemNames = (menu) => [...menu.querySelectorAll('[data-label]')].map((el) 
 describe('EditorToolbar buttons', () => {
   it('has every button, by accessible name, in the layout order', () => {
     render(<EditorToolbar onRun={vi.fn()} />);
-    const names = [...screen.getByRole('toolbar').querySelectorAll('[data-toolbar-item]')].map((el) => el.getAttribute('aria-label'));
+    const names = [...screen.getByRole('toolbar').querySelectorAll('[data-toolbar-item]')].map((el) => el.getAttribute('aria-label') ?? el.textContent);
     expect(names).toEqual(['Bold', 'Italic', 'Strikethrough', 'Heading: Paragraph', 'Bulleted list', 'Numbered list', 'Task list',
-      'Quote', 'Inline code', 'Table', 'Link', 'Insert', 'Live preview (Ctrl+E)']);
+      'Quote', 'Inline code', 'Table', 'Link', 'Insert', 'Rich', 'Source']);
   });
 
   it('the tooltip is the title plus the shortcut for this platform; the accessible name is the title alone', () => {
@@ -56,20 +57,31 @@ describe('EditorToolbar buttons', () => {
     expect(onRun).not.toHaveBeenCalled();
   });
 
-  it('the Live toggle reflects the mode and runs toggle-live-preview', () => {
+  it('the mode control is a Rich | Source radiogroup; Rich is checked in rich mode and clicking Source switches', () => {
     const onRun = vi.fn();
-    const { rerender } = render(<EditorToolbar onRun={onRun} liveMode={false} />);
-    const live = button(/live preview/i);
-    expect(live).toHaveAttribute('aria-pressed', 'false');
-    expect(live.textContent).toBe('Live');
-    fireEvent.click(live);
+    const { rerender } = render(<EditorToolbar onRun={onRun} liveMode />);
+    const group = screen.getByRole('radiogroup', { name: 'Editor mode' });
+    expect(within(group).getAllByRole('radio').map((el) => el.textContent)).toEqual(['Rich', 'Source']);
+    expect(radio('Rich')).toHaveAttribute('aria-checked', 'true');
+    expect(radio('Source')).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(radio('Rich'));
+    expect(onRun).not.toHaveBeenCalled(); // the checked option is already the mode
+    fireEvent.click(radio('Source'));
     expect(onRun).toHaveBeenCalledWith('toggle-live-preview');
-    rerender(<EditorToolbar onRun={onRun} liveMode />);
-    expect(button(/live preview/i)).toHaveAttribute('aria-pressed', 'true');
+    onRun.mockClear();
+    rerender(<EditorToolbar onRun={onRun} liveMode={false} />);
+    expect(radio('Source')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(radio('Rich'));
+    expect(onRun).toHaveBeenCalledWith('toggle-live-preview');
   });
-});
 
-describe('EditorToolbar format state', () => {
+  it('on a legacy page Rich is disabled with a reason and Source stays checked', () => {
+    render(<EditorToolbar onRun={vi.fn()} liveDisabled />);
+    expect(radio('Rich')).toBeDisabled();
+    expect(radio('Rich')).toHaveAttribute('title', 'Rich editing is available for Markdown pages');
+    expect(radio('Source')).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('nothing is pressed for the empty state, and Table is not a toggle', () => {
     render(<EditorToolbar onRun={vi.fn()} />);
     for (const name of ROW.filter((n) => n !== 'Table')) expect(button(name)).toHaveAttribute('aria-pressed', 'false');
@@ -82,7 +94,7 @@ describe('EditorToolbar format state', () => {
     [{ list: 'ordered' }, 'Numbered list'], [{ list: 'task' }, 'Task list'],
   ])('%j presses only %s', (part, name) => {
     render(<EditorToolbar onRun={vi.fn()} formatState={{ ...EMPTY_FORMAT_STATE, ...part }} />);
-    const pressed = [...screen.getByRole('toolbar').querySelectorAll('[aria-pressed="true"]')].map((el) => el.getAttribute('aria-label'));
+    const pressed = [...screen.getByRole('toolbar').querySelectorAll('[aria-pressed="true"]')].map((el) => el.getAttribute('aria-label') ?? el.textContent);
     expect(pressed).toEqual([name]);
   });
 
@@ -216,7 +228,7 @@ describe('EditorToolbar Insert menu', () => {
 
 describe('EditorToolbar keyboard', () => {
   const tabStops = () => [...screen.getByRole('toolbar').querySelectorAll('[data-toolbar-item]')]
-    .filter((el) => el.tabIndex === 0).map((el) => el.getAttribute('aria-label'));
+    .filter((el) => el.tabIndex === 0).map((el) => el.getAttribute('aria-label') ?? el.textContent);
 
   it('is one tab stop: only one item is in the tab order', () => {
     render(<EditorToolbar onRun={vi.fn()} />);
@@ -241,20 +253,28 @@ describe('EditorToolbar keyboard', () => {
     render(<EditorToolbar onRun={vi.fn()} />);
     button('Quote').focus();
     fireEvent.keyDown(document.activeElement, { key: 'End' });
-    expect(button(/live preview/i)).toHaveFocus();
+    expect(radio('Source')).toHaveFocus();
     fireEvent.keyDown(document.activeElement, { key: 'ArrowRight' });
     expect(button('Bold')).toHaveFocus();
     fireEvent.keyDown(document.activeElement, { key: 'ArrowLeft' });
-    expect(button(/live preview/i)).toHaveFocus();
+    expect(radio('Source')).toHaveFocus();
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowLeft' });
+    expect(radio('Rich')).toHaveFocus();
     fireEvent.keyDown(document.activeElement, { key: 'Home' });
     expect(button('Bold')).toHaveFocus();
   });
 
-  it('a disabled mode toggle is skipped', () => {
-    render(<EditorToolbar onRun={vi.fn()} liveDisabled />);
+  it('a disabled Rich option is skipped, and the toolbar keeps a tabbable element when it was the stop', () => {
+    const { rerender } = render(<EditorToolbar onRun={vi.fn()} liveDisabled />);
     button('Bold').focus();
     fireEvent.keyDown(document.activeElement, { key: 'End' });
-    expect(button('Insert')).toHaveFocus();
+    expect(radio('Source')).toHaveFocus();
+    rerender(<EditorToolbar onRun={vi.fn()} liveDisabled={false} />);
+    radio('Rich').focus(); // Rich becomes the roving stop...
+    rerender(<EditorToolbar onRun={vi.fn()} liveDisabled />); // ...then is disabled
+    const stops = [...screen.getByRole('toolbar').querySelectorAll('[data-toolbar-item][tabindex="0"]')];
+    expect(stops).toHaveLength(1);
+    expect(stops[0]).not.toBeDisabled();
   });
 
   it('Tab is left alone, so it leaves the toolbar', () => {
@@ -288,7 +308,7 @@ describe('EditorToolbar overflow', () => {
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get() { return width.current; } });
     return () => act(() => { observers.forEach((cb) => cb()); });
   }
-  const rowNames = () => [...screen.getByRole('toolbar').querySelectorAll('[data-overflow-id]')].map((el) => el.getAttribute('aria-label'));
+  const rowNames = () => [...screen.getByRole('toolbar').querySelectorAll('[data-overflow-id]')].map((el) => el.getAttribute('aria-label') ?? el.textContent);
 
   it('without ResizeObserver nothing moves', () => {
     render(<EditorToolbar onRun={vi.fn()} />);
@@ -307,7 +327,7 @@ describe('EditorToolbar overflow', () => {
     resized();
     expect(rowNames()).toEqual(ROW.slice(0, 6));
     expect(headingTrigger()).toBeInTheDocument();
-    expect(button(/live preview/i)).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Editor mode' })).toBeInTheDocument();
     const menu = openInsert();
     expect(itemNames(menu)).toEqual(['Quote', 'Inline code', 'Table', 'Link', ...INSERT_ITEMS]);
     expect(within(menu).getByRole('separator')).toBeInTheDocument();
@@ -336,6 +356,6 @@ describe('EditorToolbar overflow', () => {
     width.current = 9 * 32;
     resized();
     const stops = [...screen.getByRole('toolbar').querySelectorAll('[data-toolbar-item]')].filter((el) => el.tabIndex === 0);
-    expect(stops.map((el) => el.getAttribute('aria-label'))).toEqual(['Bold']);
+    expect(stops.map((el) => el.getAttribute('aria-label') ?? el.textContent)).toEqual(['Bold']);
   });
 });

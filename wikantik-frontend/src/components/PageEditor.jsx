@@ -85,6 +85,8 @@ import DraftBanner from '../collab/DraftBanner';
 import PublishDialog from '../collab/PublishDialog';
 import Modal from './ui/Modal';
 import AccessRuleForm from './editor/AccessRuleForm';
+import LinkCard from './editor/LinkCard';
+import { useLinkCard } from '../hooks/useLinkCard';
 import { DiffHtml } from './DiffViewer';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -947,10 +949,15 @@ export default function PageEditor({ collabTransport } = {}) {
     }
   }, [guardActive]);
 
+  // Rich mode's card for a link, wikilink, embed or image; its page field asks what the `[[` completion asks.
+  const linkCard = useLinkCard({ editorRef, live: liveActive, suggestPages: linkCompletion.searchPages });
+  const { runLinkCommand } = linkCard;
+
   // `arg` carries what a command's form collected (the access rule's permission and names).
   const applyFormat = useCallback((command, arg) => {
     const editor = editorRef.current;
     if (!editor) return;
+    if (command === 'link' && runLinkCommand()) return; // Rich: the card, or `[[` with the page completion
 
     const { selStart, selEnd } = editor.getSelection();
     const state = {
@@ -1000,7 +1007,7 @@ export default function PageEditor({ collabTransport } = {}) {
     requestAnimationFrame(() => {
       editorRef.current?.setSelection(next.selStart, next.selEnd);
     });
-  }, [fallbackSetBody, liveActive]);
+  }, [fallbackSetBody, liveActive, runLinkCommand]);
 
   // #4 — Cmd/Ctrl+S save. The handler is registered once but calls the LATEST save via a ref, so it
   // always saves the current body/metadata (not a stale first-render closure).
@@ -2065,6 +2072,7 @@ export default function PageEditor({ collabTransport } = {}) {
             dark={dark}
             livePreview={liveActive}
             livePreviewContext={livePreviewContext}
+            onOpenLinkCard={linkCard.onOpenLinkCard}
             onBold={handleBold}
             onItalic={handleItalic}
             onLink={handleLink}
@@ -2104,6 +2112,7 @@ export default function PageEditor({ collabTransport } = {}) {
         </div>
         )}
         {sourceCard}
+        {linkCard.cardProps && <LinkCard {...linkCard.cardProps} />}
         <input
           type="file"
           ref={imageInputRef}

@@ -9,6 +9,7 @@ import { renderFences } from '../fences/renderFences';
 import { fillFenceEnvelope } from '../fences/envelope';
 import { TableWidget } from './tableWidget';
 import { FenceHeaderWidget, picker, fromPicker, calloutTypeOptions, calloutTypeChange } from './headers';
+import { requestLinkCard } from './linkCard';
 
 const el = (tag, cls, text) => {
   const node = document.createElement(tag);
@@ -44,7 +45,7 @@ export class ChipWidget extends WidgetType {
     if (this.title) s.setAttribute('title', this.title);
     return s;
   }
-  ignoreEvent() { return false; } // a mousedown places the caret, which reveals the source
+  ignoreEvent() { return false; } // a mousedown places the caret, which reveals the source (plugins, footnotes)
 }
 
 /**
@@ -97,7 +98,7 @@ export class ImageWidget extends WidgetType {
     wrap.appendChild(img);
     return wrap;
   }
-  ignoreEvent() { return false; }
+  ignoreEvent() { return false; } // a click opens the image's card (linkCard.js), or places the caret beside it
 }
 
 const TASK_AT = /^(?:[-*+]|\d+[.)])[ \t]+\[([ xX])\]/;
@@ -176,9 +177,10 @@ export class CheckboxWidget extends WidgetType {
 
 /**
  * Block widgets: a mousedown (not on a link) puts the caret at the widget, which reveals its source — or at
- * `placeOf(state, widget start)` for a widget whose first line cannot hold the caret.
+ * `placeOf(state, widget start)` for a widget whose first line cannot hold the caret. `instead(pos)`, when given, is
+ * asked first and the caret stays where it is when it answers true (a page embed opens its card).
  */
-export function revealOnMouseDown(view, dom, placeOf = (_state, pos) => pos) {
+export function revealOnMouseDown(view, dom, placeOf = (_state, pos) => pos, instead = null) {
   dom.addEventListener('mousedown', (e) => {
     e.preventDefault();
     const a = e.target.closest?.('a');
@@ -187,7 +189,9 @@ export function revealOnMouseDown(view, dom, placeOf = (_state, pos) => pos) {
       return;
     }
     try {
-      view.dispatch({ selection: { anchor: placeOf(view.state, view.posAtDOM(dom)) } });
+      const at = view.posAtDOM(dom);
+      if (instead?.(at)) return;
+      view.dispatch({ selection: { anchor: placeOf(view.state, at) } });
       view.focus();
     } catch (err) {
       console.warn('[live-preview] could not place the caret at a block widget', err?.message || err);
@@ -253,7 +257,9 @@ export class EmbedWidget extends WidgetType {
       const base = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
       window.open(`${base}/wiki/${wikiLinkHref({ target: this.target, heading: this.section })}`, '_blank', 'noopener');
     }, true);
-    revealOnMouseDown(view, box);
+    // A click opens the embed's card. The widget covers its whole line, and the embed starts after any indentation.
+    const embedStart = (pos) => { const line = view.state.doc.lineAt(pos); return line.from + line.text.search(/\S|$/); };
+    revealOnMouseDown(view, box, undefined, (pos) => requestLinkCard(view, embedStart(pos)));
     return box;
   }
   ignoreEvent() { return true; } // the widget handles its own mouse events

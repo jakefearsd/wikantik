@@ -201,6 +201,8 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-comment`]: { color: 'var(--text-muted)', fontStyle: 'italic' },
   [`${ROOT} .cm-lp-code`]: { fontFamily: 'var(--font-mono)', backgroundColor: 'var(--code-bg)', borderRadius: 'var(--radius-sm)', padding: '0 3px' },
   [`${ROOT} .cm-lp-link`]: { color: 'var(--accent)', textDecoration: 'underline', textDecorationColor: 'color-mix(in srgb, var(--accent) 45%, transparent)' },
+  // A chip: the link, embed or image as one unit, which a click opens in its card.
+  [`${ROOT} .cm-lp-linkchip, ${ROOT} .cm-lp-image-wrap`]: { cursor: 'pointer' },
   [`${ROOT} .cm-lp-setext-underline`]: { color: 'var(--text-muted)', fontSize: '0.8em' },
   [`${ROOT} .cm-lp-html`]: { fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' },
   [`${ROOT} .cm-lp-quote`]: { borderLeft: '3px solid var(--border)', paddingLeft: '0.75em', color: 'var(--text-secondary)' },
@@ -251,7 +253,7 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-footnote-def`]: { color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' },
   [`${ROOT} .cm-lp-blockid`]: { padding: '0 4px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', backgroundColor: 'color-mix(in srgb, var(--text) 5%, transparent)', fontFamily: 'var(--font-mono)', fontSize: '0.8em' },
   [`${ROOT} .cm-lp-blockid-dup`]: { padding: '0 4px', borderRadius: 'var(--radius-sm)', color: 'var(--warning)', backgroundColor: 'var(--warning-bg)', textDecoration: 'underline wavy', textDecorationColor: 'var(--warning)', fontFamily: 'var(--font-mono)', fontSize: '0.8em', cursor: 'help' },
-  [`${ROOT} .cm-lp-embed`]: { margin: '0.4em 0', padding: '0.5em 0.75em', border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-elevated)', cursor: 'text' },
+  [`${ROOT} .cm-lp-embed`]: { margin: '0.4em 0', padding: '0.5em 0.75em', border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-elevated)', cursor: 'pointer' }, // a click opens its card
   [`${ROOT} .cm-lp-embed-title`]: { fontFamily: 'var(--font-ui)', fontSize: '0.8em', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.3em' },
   [`${ROOT} .cm-lp-embed-body`]: { lineHeight: '1.5' },
   ...Object.fromEntries(['loading', 'missing', 'restricted', 'error'].map((s) => [`${ROOT} .cm-lp-embed-${s}`, { color: 'var(--text-secondary)', fontStyle: 'italic' }])),

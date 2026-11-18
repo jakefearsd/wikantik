@@ -20,6 +20,23 @@ const LINKED_URL_PARENT = new Set(['Link', 'Image', 'Autolink']);
 const CLOSING_FENCE = /^(?:[ \t]*>)*[ \t]*(`{3,}|~{3,})[ \t]*$/;
 const PLUGIN = /\[\{[^\n]*?\}\](?:\(\))?/g;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+/** The nodes Rich mode draws as a chip (or an image) also under the caret, and edits through the link card. */
+const CHIP_NODE = new Set(['Link', 'Image', 'WikiLink', 'WikiEmbed']);
+/**
+ * The starts of the link nodes a caret is strictly inside, as a key. Such a link is being typed (the only way a caret
+ * gets inside one: motion and clicks step over a chip), so it shows its source until the caret leaves it. Costs the
+ * nesting depth at each caret, never the document.
+ */
+export function caretsInLinks(state) {
+  let key = '';
+  for (const r of state.selection.ranges) {
+    if (!r.empty) continue;
+    for (let n = syntaxTree(state).resolveInner(r.head, 0); n; n = n.parent) {
+      if (CHIP_NODE.has(n.name) && n.from < r.head && n.to > r.head) { key += `${n.from},`; break; }
+    }
+  }
+  return key;
+}
 /**
  * The whole document's `%%comments%%`, read off the syntax tree (which decides what is code and math) and memoised per
  * (document, tree): a keystroke reparses incrementally and scans the text once for its markers, never the masks of old.
@@ -495,15 +512,27 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   // one. Never together with lineMarker: Backspace must not remove a fence.
   const flags = ({ sticky = false, lineMarker = false, hiddenLine = null } = {}) => (sticky
     ? { sticky: true, ...(lineMarker && { lineMarker: true }), ...(hiddenLine && { hiddenLine }) } : null);
+  // `{ drawn: true }`: emitted on an active line too, but not flagged: a part of a chip, whose one sticky range is the
+  // mark over the whole link (so the caret rule and the arrow keys see one unit, not its parts).
   const hide = (a, b, group, opts) => {
-    if (b > a && (opts?.sticky || inactive(a))) specs.push({ kind: 'hide', from: a, to: b, group, ...flags(opts) });
+    if (b > a && (opts?.sticky || opts?.drawn || inactive(a))) specs.push({ kind: 'hide', from: a, to: b, group, ...flags(opts) });
   };
   const mark = (a, b, cls, group, opts) => {
     if (b > a) specs.push({ kind: 'mark', from: a, to: b, cls, group, ...flags(opts) });
   };
   const widget = (a, b, w, opts) => {
-    if (b > a && (opts?.sticky || inactive(a))) specs.push({ kind: 'widget', from: a, to: b, widget: w, ...flags(opts) });
+    if (b > a && (opts?.sticky || opts?.drawn || inactive(a))) specs.push({ kind: 'widget', from: a, to: b, widget: w, ...flags(opts) });
   };
+  const DRAWN = { drawn: true };
+  const STICKY = { sticky: true };
+  /**
+   * Whether the link, wikilink, embed or image at [a, b] is a chip: drawn also with the caret on its line, one atomic
+   * unit that its card edits. Not while a caret is strictly inside it — it is then being typed, and shows its source
+   * as before — and not across a line break, which a chip cannot hide.
+   */
+  const isChip = (a, b) => b <= doc.lineAt(a).to && !state.selection.ranges.some((r) => r.empty && r.head > a && r.head < b);
+  /** The one sticky range of a chip. Its parts (hidden brackets, the shown text) are `drawn`, not sticky. */
+  const chip = (a, b, group) => mark(a, b, 'cm-lp-linkchip', group, STICKY);
   // Whether a quote or list marker stays hidden under the caret. Not where the block it opens on its line is in the
   // "expensive" set, which is edited as source: a footnote definition, or a table inside the container.
   const stickyMarker = (m) => {
@@ -562,9 +591,13 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       if (!referenceLabels(state).has(normalizeLabel(given || text))) return;
     }
     const g = `Link@${n.from}`;
+    // A chip only for the inline form with text to show: a reference-style link is in the "expensive" set, and a link
+    // without text would be a chip nobody can see.
+    const opts = n.getChild('URL') && marks[1].from > marks[0].to && isChip(n.from, n.to) ? DRAWN : undefined;
+    if (opts) chip(n.from, n.to, g);
     mark(marks[0].to, marks[1].from, 'cm-lp-link', g);
-    hide(marks[0].from, marks[0].to, g);
-    hide(marks[1].from, n.to, g);
+    hide(marks[0].from, marks[0].to, g, opts);
+    hide(marks[1].from, n.to, g, opts);
   };
   const image = (node) => {
     const n = node.node;
@@ -572,7 +605,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     const marks = n.getChildren('LinkMark');
     if (!url || marks.length < 2) return;
     const src = resolveImageSrc(doc.sliceString(url.from, url.to), context);
-    if (src) widget(n.from, n.to, { type: 'image', src, alt: doc.sliceString(marks[0].to, marks[1].from) });
+    if (src) widget(n.from, n.to, { type: 'image', src, alt: doc.sliceString(marks[0].to, marks[1].from) }, isChip(n.from, n.to) ? STICKY : undefined);
   };
   const blockquote = (node) => {
     const n = node.node;
@@ -709,17 +742,20 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const wikiSpecs = (ref, a, b, whole) => {
     const open = a + (ref.embed ? 3 : 2);
     const attachment = isAttachmentRef(ref, context);
+    const sticky = isChip(a, b);
+    const opts = sticky ? DRAWN : undefined;
     if (ref.embed && attachment && isImageFileName.test(ref.fileName)) {
       const owner = ref.isAttachment ? ref.pageName : context.pageName;
       const w = { type: 'image', src: attachmentUrl(owner, ref.fileName), alt: ref.alias != null && !ref.size ? ref.alias : ref.fileName };
       if (ref.size) { w.width = ref.size[0]; if (ref.size[1] >= 0) w.height = ref.size[1]; }
-      widget(a, b, w);
+      widget(a, b, w, sticky ? STICKY : undefined);
       return;
     }
     if (ref.embed && !attachment && whole && inactive(a) && blockEmbedAt(state, a, context)) return; // blockSpecs renders it
     const inner = doc.sliceString(open, b - 2);
     const pipe = inner.indexOf('|');
-    const showSpan = (start, end) => { hide(a, start); mark(start, end, 'cm-lp-link'); hide(end, b); };
+    if (sticky) chip(a, b);
+    const showSpan = (start, end) => { hide(a, start, undefined, opts); mark(start, end, 'cm-lp-link'); hide(end, b, undefined, opts); };
     if (ref.embed && attachment && ref.alias != null) { showSpan(open, open + ref.target.length); return; }
     if (ref.alias != null) {
       const raw = inner.slice(pipe + 1);
@@ -735,11 +771,11 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
       const hashAt = open + ref.target.length + (inner.slice(ref.target.length).indexOf('#'));
       const raw = inner.slice(hashAt - open + 1);
       const hStart = hashAt + 1 + (raw.length - raw.trimStart().length);
-      hide(a, open);
+      hide(a, open, undefined, opts);
       mark(open, open + ref.target.length, 'cm-lp-link');
-      widget(hashAt, hStart, { type: 'text', text: ' > ', cls: 'cm-lp-link' });
+      widget(hashAt, hStart, { type: 'text', text: ' > ', cls: 'cm-lp-link' }, opts);
       mark(hStart, hStart + ref.heading.length, 'cm-lp-link');
-      hide(hStart + ref.heading.length, b);
+      hide(hStart + ref.heading.length, b, undefined, opts);
     }
   };
   let wikiAt = 0;

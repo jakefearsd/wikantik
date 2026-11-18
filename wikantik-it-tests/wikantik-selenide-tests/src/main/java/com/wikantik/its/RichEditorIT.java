@@ -23,6 +23,7 @@ import com.codeborne.selenide.WebDriverRunner;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.its.environment.Env;
+import com.wikantik.its.environment.PlatformKeys;
 import com.wikantik.pages.spa.EditWikiPage;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +36,7 @@ import java.time.Duration;
 import java.util.List;
 
 import static com.codeborne.selenide.Condition.cssClass;
+import static com.codeborne.selenide.Condition.exist;
 import static com.codeborne.selenide.Condition.focused;
 import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Condition.value;
@@ -47,7 +49,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Rich mode in a real browser: block markers stay hidden with the caret on their line (a heading's {@code #}, a list
  * marker, a code block's fences, which are drawn as a header with a language picker), the toolbar's mode control
- * switches to Source, and saving a page that was only looked at stores nothing new.
+ * switches to Source, and saving a page that was only looked at stores nothing new. A link stays a chip under the
+ * caret, and its card retargets it.
  */
 public class RichEditorIT extends WithIntegrationTestSetup {
 
@@ -68,6 +71,14 @@ public class RichEditorIT extends WithIntegrationTestSetup {
     /** {@link #BODY} plus a titled callout, for the header pickers. */
     private static final String PICKER_BODY = BODY + "\n> [!note] Heads up\n> Callout body.\n";
     private static final String EDITOR = "[data-testid=page-editor] .cm-editor";
+    /** {@link #BODY} plus a wikilink (no display text: an aliased link counts towards the legacy-syntax score). */
+    private static final String OLD_LINK = "[[RichEditorOldTarget]]";
+    private static final String NEW_LINK = "[[RichEditorNewTarget]]";
+    private static final String LINK_LINE = "See " + OLD_LINK + " for the plan.";
+    private static final String LINK_BODY = BODY + "\n" + LINK_LINE + "\n";
+    private static final String LINK_CHIP = CONTENT + " .cm-lp-linkchip";
+    private static final String LINK_CARD = "[data-testid=link-card]";
+    private static final String CARD_PAGE_FIELD = LINK_CARD + " #link-card-target";
     private static final String FENCE_PICKER = CONTENT + " .cm-lp-fence-header select";
     private static final String CALLOUT_PICKER = CONTENT + " .cm-lp-callout-title-widget select";
 
@@ -183,6 +194,56 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         Selenide.actions().sendKeys( Keys.ARROW_DOWN, Keys.ENTER ).perform();
         EditWikiPage.awaitDocumentEquals( PICKER_BODY.replace( "[!note]", "[!tip]" ), WAIT );
         $( CALLOUT_PICKER ).shouldHave( value( "tip" ), WAIT );
+    }
+
+    // ---- the link card ----
+
+    @Test
+    void aWikilinkRetargetedThroughItsCardIsSavedWithOnlyItsPageChanged() throws Exception {
+        RestSeedHelper.writePage( PAGE, LINK_BODY );
+        final String seeded = fetchPage().get( "content" ).getAsString();
+        EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
+        $( EDITOR ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
+        EditWikiPage.awaitDocumentEquals( LINK_BODY, WAIT );
+
+        // The caret on the link's own line, in its text and right at the link's end: the link stays a chip.
+        final int lineFrom = LINK_BODY.indexOf( LINK_LINE );
+        for ( final int pos : List.of( lineFrom + 2, lineFrom + LINK_LINE.indexOf( OLD_LINK ) + OLD_LINK.length() ) ) {
+            EditWikiPage.setCaret( pos );
+            assertEquals( LINK_LINE.replace( OLD_LINK, "RichEditorOldTarget" ), EditWikiPage.renderedLineText( pos ),
+                "the link's line, with the caret on it at offset " + pos + ", shows the link as a chip" );
+        }
+
+        // A click on the chip opens its card, focused on the page field.
+        $( LINK_CHIP ).shouldBe( visible, WAIT ).shouldHave( text( "RichEditorOldTarget" ) ).click();
+        $( LINK_CARD ).shouldBe( visible, WAIT );
+        $( CARD_PAGE_FIELD ).shouldBe( focused, WAIT ).shouldHave( value( "RichEditorOldTarget" ) );
+        assertEquals( LINK_BODY, EditWikiPage.documentText(), "opening the card must not change the document" );
+
+        // Real keys: select the name, type the new one, Enter commits the card.
+        Selenide.actions().sendKeys( PlatformKeys.selectAll() ).sendKeys( "RichEditorNewTarget" ).perform();
+        $( CARD_PAGE_FIELD ).shouldHave( value( "RichEditorNewTarget" ), WAIT );
+        assertEquals( LINK_BODY, EditWikiPage.documentText(), "typing in the card must not change the document" );
+        Selenide.actions().sendKeys( Keys.ENTER ).perform();
+
+        final String retargeted = LINK_BODY.replace( OLD_LINK, NEW_LINK );
+        EditWikiPage.awaitDocumentEquals( retargeted, WAIT );
+        $( LINK_CARD ).shouldNot( exist, WAIT );
+        $( EDITOR ).shouldHave( cssClass( "cm-focused" ), WAIT ); // the focus is back in the text
+        $( LINK_CHIP ).shouldHave( text( "RichEditorNewTarget" ), WAIT );
+
+        // One undo step restores the page; redo brings the new target back.
+        EditWikiPage.pressMod( "z" );
+        EditWikiPage.awaitDocumentEquals( LINK_BODY, WAIT );
+        Selenide.actions().keyDown( PlatformKeys.mod() ).keyDown( Keys.SHIFT ).sendKeys( "z" ).keyUp( Keys.SHIFT )
+            .keyUp( PlatformKeys.mod() ).perform();
+        EditWikiPage.awaitDocumentEquals( retargeted, WAIT );
+
+        EditWikiPage.publish();
+        new WebDriverWait( WebDriverRunner.getWebDriver(), WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
+        $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
+        assertEquals( seeded.replace( OLD_LINK, NEW_LINK ), fetchPage().get( "content" ).getAsString(),
+            "the saved source differs from the seeded one in the link's page name only" );
     }
 
     /** Seeds the page with a code block and a callout and opens it in Rich mode, fully loaded. */

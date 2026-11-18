@@ -37,8 +37,8 @@ import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview
  *   insertText(pos, text)       -> insert via a CodeMirror transaction; false if no view
  *   replaceText(find, repl)     -> replace first exact match via a transaction; false if no view
  *   applyEdit(text, start, end) -> make the document `text` with selection [start, end] in one transaction
- *   applyChanges(changes)       -> apply non-overlapping [{from, to, insert}] (all against the current doc) as one
- *                                  isolated undo step, the selection mapped through them; false if no view
+ *   applyChanges(changes, { userEvent }) -> apply non-overlapping [{from, to, insert}] (all against the current doc)
+ *                                  as one isolated undo step, the selection mapped through them; false if no view
  *
  * Props:
  *   value       string            current document text
@@ -57,6 +57,10 @@ import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview
  *   pasteAsMarkdown boolean       convert rich pastes to Markdown (default true; off for legacy wiki-markup pages)
  *   livePreview boolean           render markdown inline (decorations only; the document text is never changed)
  *   livePreviewContext { pageName, attachments, loadEmbed }  context for live-preview widgets (read through a ref)
+ *   onOpenLinkCard (open|null, view) => void   Rich mode's link card: the link it is open on (`{ from, to, source,
+ *                                 openedAt }`, again whenever an edit moves it) or null once it is closed. Whether
+ *                                 cards are shown at all is fixed at mount: without this prop a click on a chip
+ *                                 places the caret.
  *   readOnly    boolean           the document cannot be edited (a frozen collab draft, no edit permission)
  *   collabExtensions Extension    collaborative mode (docs/MultiEdit.MD §0 A4): the `collab()` + `collabPeer()` pair.
  *                                 The editor is then UNCONTROLLED: it starts from `collabDoc` and a changed `value`
@@ -130,7 +134,7 @@ const BASIC_SETUP = {
 };
 
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, tagSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, onPasteImages, pasteAsMarkdown = true, livePreview = false, livePreviewContext, readOnly = false, collabExtensions, collabDoc, onEditorReady, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, linkCompletion, slashSource, tagSource, onLinkHover, wikiLinkResolution, onViewChange, onFiles, onPasteConverted, onPasteImages, pasteAsMarkdown = true, livePreview = false, livePreviewContext, onOpenLinkCard, readOnly = false, collabExtensions, collabDoc, onEditorReady, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -211,9 +215,15 @@ const CodeEditor = forwardRef(function CodeEditor(
   livePreviewContextRef.current = livePreviewContext;
   const livePreviewRef = useRef(livePreview);
   livePreviewRef.current = livePreview;
+  const onOpenLinkCardRef = useRef(onOpenLinkCard);
+  onOpenLinkCardRef.current = onOpenLinkCard;
+  const [showsLinkCards] = useState(() => !!onOpenLinkCard);
   const liveExtension = useMemo(
-    () => livePreviewExtension({ getContext: () => livePreviewContextRef.current || {} }),
-    [],
+    () => livePreviewExtension({
+      getContext: () => livePreviewContextRef.current || {},
+      onLinkCard: showsLinkCards ? (open, view) => onOpenLinkCardRef.current?.(open, view) : undefined,
+    }),
+    [showsLinkCards],
   );
   const onEditorReadyRef = useRef(onEditorReady);
   onEditorReadyRef.current = onEditorReady;
@@ -348,9 +358,10 @@ const CodeEditor = forwardRef(function CodeEditor(
      * reversed range is ordered, and CRLF / lone CR in inserted text become LF (the document is always LF).
      * Changes must NOT overlap: after sorting by position, a change that starts inside an earlier one is skipped
      * with a console warning (the rest still apply). The edit is its own undo step (never merged with adjacent
-     * typing). It neither focuses the editor nor reveals folds. Returns false when there is no view.
+     * typing). It neither focuses the editor nor reveals folds. `userEvent` names the edit for the editor's own
+     * rules (`input.…`, `delete.…`). Returns false when there is no view.
      */
-    applyChanges(changes) {
+    applyChanges(changes, { userEvent } = {}) {
       const view = viewRef.current;
       if (!view) return false;
       const len = view.state.doc.length;
@@ -370,7 +381,7 @@ const CodeEditor = forwardRef(function CodeEditor(
         spec.push(c);
       }
       if (spec.length === 0) return true;
-      view.dispatch({ changes: spec, annotations: isolateHistory.of('full') });
+      view.dispatch({ changes: spec, annotations: isolateHistory.of('full'), ...(userEvent && { userEvent }) });
       return true;
     },
     /**

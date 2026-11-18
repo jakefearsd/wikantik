@@ -9,6 +9,9 @@ import { activeLinesOf, livePreviewSpecs } from './ranges';
  * skip it), the caret never rests inside one nor before the markers that start its line, and Backspace right after
  * such a line marker removes the marker as a whole. All of it is inert outside live mode, and while nothing is sticky.
  *
+ * A link, wikilink, embed or image is one sticky range over the whole of it (ranges.js `chip`): the arrow keys step
+ * over it and its card edits it. It is no sticky range while a caret is inside it — a link being typed shows its source.
+ *
  * A sticky range can also be all its line shows (`hiddenLine`: a fence's header line, its hidden closing line). The
  * caret does not rest on such a line: it goes on to the next line that shows text (restingPlace), the arrow keys step
  * over it (verticalMotion.js), and Backspace/Delete do not join a neighbouring line onto it (keepHiddenLine).

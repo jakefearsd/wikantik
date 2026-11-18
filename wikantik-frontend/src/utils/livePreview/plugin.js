@@ -1,7 +1,7 @@
 import { StateEffect, StateField, Facet } from '@codemirror/state';
 import { ViewPlugin, Decoration, EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { activeLinesOf, livePreviewSpecs, blockCandidates, updateBlockCandidates } from './ranges';
+import { activeLinesOf, livePreviewSpecs, blockCandidates, updateBlockCandidates, caretsInLinks } from './ranges';
 import { widgetFor } from './widgets';
 
 const warned = new Set();
@@ -164,6 +164,7 @@ export const blockField = StateField.define({
 export const livePreviewPlugin = ViewPlugin.fromClass(class {
   constructor(view) {
     this.active = activeLinesOf(view.state);
+    this.typed = caretsInLinks(view.state);
     this.decorations = buildInline(view, this.active);
   }
   update(u) {
@@ -171,9 +172,12 @@ export const livePreviewPlugin = ViewPlugin.fromClass(class {
       || u.transactions.some(touchesMode);
     if (!rebuild && !u.selectionSet) return;
     const active = activeLinesOf(u.state);
-    // A caret move that leaves the revealed lines unchanged cannot change any inline decoration.
-    if (!rebuild && sameLines(this.active, active)) return;
+    // A caret move that leaves the revealed lines unchanged cannot change any inline decoration — unless it leaves (or
+    // lands in) a link being typed, which is a chip only while no caret is inside it.
+    const typed = caretsInLinks(u.state);
+    if (!rebuild && sameLines(this.active, active) && typed === this.typed) return;
     this.active = active;
+    this.typed = typed;
     this.decorations = buildInline(u.view, active);
   }
 }, { decorations: (v) => v.decorations });

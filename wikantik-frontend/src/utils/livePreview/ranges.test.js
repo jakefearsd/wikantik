@@ -201,9 +201,9 @@ describe('livePreviewSpecs — wikilinks', () => {
     expect(visible(state, specs, 1)).toBe(`x ${shown} y`);
     expect(specs.some((s) => s.kind === 'mark' && s.cls === 'cm-lp-link')).toBe(true);
   });
-  it('keeps the link style but hides nothing on the active line', () => {
-    const { specs } = specsOf('x [[Page]] y', [1], ctx);
-    expect(replacing(specs)).toEqual([]);
+  it('stays a chip on the active line: the brackets are still hidden', () => {
+    const { state, specs } = specsOf('x [[Page]] y', [1], ctx);
+    expect(visible(state, specs, 1)).toBe('x Page y');
     expect(specs.some((s) => s.cls === 'cm-lp-link')).toBe(true);
   });
   it('leaves prose brackets, inline code and fenced code alone', () => {
@@ -859,5 +859,70 @@ describe('block markers stay hidden on the caret line (sticky)', () => {
     expect(visible(state, specs, 1)).toBe(doc.split('\n')[0]);
     const off = specsOf(`${doc}\n\nend`, [doc.split('\n').length + 2]);
     expect(off.specs.filter((s) => s.sticky)).toEqual([]);
+  });
+});
+
+describe('links, wikilinks, embeds and images are chips on the caret line', () => {
+  const ctx = { pageName: 'Here', attachments: ['pic.png'] };
+  const at = (doc, caret) => {
+    const state = stateOf(doc, EditorSelection.cursor(caret));
+    return { state, specs: livePreviewSpecs(state, activeLinesOf(state), { context: ctx }) };
+  };
+  const sticky = (state, specs) => specs.filter((s) => s.sticky).map((s) => `${s.kind} ${state.sliceDoc(s.from, s.to)}`);
+  it.each([
+    ['x [[Page|a]] y', 'x a y', 'mark [[Page|a]]'],
+    ['x [[Page#Setup]] y', 'x Page > Setup y', 'mark [[Page#Setup]]'],
+    ['x ![[Other]] y', 'x Other y', 'mark ![[Other]]'],
+    ['x [text](https://e.org "t") y', 'x text y', 'mark [text](https://e.org "t")'],
+    ['x ![alt](pic.png) y', 'x [image] y', 'widget ![alt](pic.png)'],
+    ['x ![[pic.png|300]] y', 'x [image] y', 'widget ![[pic.png|300]]'],
+  ])('%s with the caret at the line start reads as %s, one sticky range', (doc, shown, range) => {
+    const { state, specs } = at(doc, 0);
+    expect(visible(state, specs, 1)).toBe(shown);
+    expect(sticky(state, specs)).toEqual([range]);
+  });
+  it('is still a chip with the caret at either end of it', () => {
+    for (const caret of [2, 12]) {
+      const { state, specs } = at('x [[Page|a]] y', caret);
+      expect(visible(state, specs, 1)).toBe('x a y');
+    }
+  });
+  it.each([
+    ['x [[Page|a]] y', 5], ['x [text](url) y', 4], ['x ![alt](pic.png) y', 6], ['x ![[pic.png]] y', 7],
+  ])('%s shows its source while a caret is strictly inside it (it is being typed)', (doc, caret) => {
+    const { state, specs } = at(doc, caret);
+    expect(visible(state, specs, 1)).toBe(doc);
+    expect(sticky(state, specs)).toEqual([]);
+  });
+  it('a selection across a chip does not reveal it', () => {
+    const state = stateOf('x [[Page|a]] y', EditorSelection.range(1, 6));
+    const specs = livePreviewSpecs(state, activeLinesOf(state), { context: ctx });
+    expect(visible(state, specs, 1)).toBe('x a y');
+  });
+  it('a reference-style link keeps reveal-at-caret (the "expensive" set)', () => {
+    const doc = 'x [text][ref] y\n\n[ref]: https://e.org\n\nend';
+    const active = at(doc, 0);
+    expect(visible(active.state, active.specs, 1)).toBe('x [text][ref] y');
+    expect(sticky(active.state, active.specs)).toEqual([]);
+    const away = at(doc, doc.length);
+    expect(visible(away.state, away.specs, 1)).toBe('x text y');
+  });
+  it('a link with no text keeps reveal-at-caret: a chip nobody could see', () => {
+    const { state, specs } = at('x [](https://e.org) y', 0);
+    expect(visible(state, specs, 1)).toBe('x [](https://e.org) y');
+    expect(sticky(state, specs)).toEqual([]);
+  });
+  it('a link whose text holds an image: the link is one sticky range and the image is drawn inside it', () => {
+    const { state, specs } = at('x [![alt](pic.png)](https://e.org) y', 0);
+    expect(visible(state, specs, 1)).toBe('x [image] y');
+    expect(sticky(state, specs)).toEqual(['mark [![alt](pic.png)](https://e.org)', 'widget ![alt](pic.png)']);
+  });
+  it('a whole-line page embed is a chip once the caret is on its line (off it, the block widget)', () => {
+    const doc = '![[Other]]\n\nend';
+    const on = at(doc, 0);
+    expect(visible(on.state, on.specs, 1)).toBe('Other');
+    expect(sticky(on.state, on.specs)).toEqual(['mark ![[Other]]']);
+    const off = at(doc, doc.length);
+    expect(off.specs.filter((s) => s.from < 10 && s.kind !== 'line')).toEqual([]);
   });
 });

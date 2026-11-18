@@ -2964,6 +2964,18 @@ h3:focus-within .heading-anchor {
 .link-preview-missing, .link-preview-loading { color: var(--text-secondary); font-style: italic; }
 .cm-mod-held .cm-content .cm-link-range { cursor: pointer; text-decoration: underline; }
 
+/* Link card (Rich mode): edits the link, embed or image it sits under. */
+.link-card { z-index: 1000; display: flex; flex-direction: column; gap: 0.5rem; width: 20rem; max-width: calc(100vw - 16px);
+  padding: 0.75rem 0.8rem 0.6rem; background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); box-shadow: 0 8px 24px var(--shadow-strong); font-size: 0.85rem; line-height: 1.4; }
+.link-card-field { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: center; gap: 0.5rem; }
+.link-card-label { color: var(--text-secondary); }
+.link-card-field input { width: 100%; }
+.link-card-field input[readonly] { color: var(--text-secondary); background: var(--bg-sidebar); }
+.link-card-error { margin: 0; color: var(--danger); font-size: 0.8rem; }
+.link-card-actions { display: flex; justify-content: flex-end; gap: 0.4rem; border-top: 1px solid var(--border); padding-top: 0.45rem; }
+.link-card-actions .btn { padding: 0.2rem 0.6rem; font-size: 0.8rem; }
+
 /* Unlinked mentions (editor rail): phrase → title / jump-to context / actions, rows split by a hairline. */
 .mention-rows { list-style: none; margin: 0; padding: 0; }
 .mention-row { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.6rem 0; font-size: 0.8rem; line-height: 1.35; }

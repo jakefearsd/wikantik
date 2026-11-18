@@ -30,6 +30,7 @@ import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Keys;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -57,7 +58,10 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
     private static final Duration WAIT = Duration.ofSeconds( 15 );
 
     /** One line carrying three kinds of hidden markup: emphasis, an aliased wikilink and a plugin chip. */
-    private static final String MIXED_LINE = "Intro **bold** then [[Page|alias]] and [{TableOfContents}] end";
+    private static final String MIXED_LINK = "[[Page|alias]]";
+    private static final String MIXED_LINE = "Intro **bold** then " + MIXED_LINK + " and [{TableOfContents}] end";
+    /** The line with the caret on it: emphasis and the plugin show their source; the link stays a chip (Rich mode). */
+    private static final String MIXED_LINE_AT_CARET = MIXED_LINE.replace( MIXED_LINK, "alias" );
     private static final String MIXED_PAGE = "LivePreviewKeyboardMixedIT";
     private static final String MIXED_BODY = "# Mixed markup\n\n" + MIXED_LINE + "\n\nAfter the line\n";
 
@@ -107,7 +111,7 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    void arrowKeysStepOneDocumentPositionAcrossRevealedMarkup() throws Exception {
+    void arrowKeysStepOneDocumentPositionAcrossRevealedMarkupAndOverALinkChip() throws Exception {
         RestSeedHelper.writePage( MIXED_PAGE, MIXED_BODY );
         final String doc = openLive( MIXED_PAGE, MIXED_BODY );
         final int from = lineStart( doc, MIXED_LINE );
@@ -119,17 +123,29 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
         assertTrue( !hiddenView.equals( MIXED_LINE ) && !hiddenView.contains( "**" ),
             "off the caret's line the markup should be hidden; the line showed [" + hiddenView + "]" );
 
+        // The stops of the caret along the line: every document position, except those inside the link, which is one
+        // unit in Rich mode — a single press takes the caret from its start to its end.
+        final int linkFrom = from + MIXED_LINE.indexOf( MIXED_LINK );
+        final int linkTo = linkFrom + MIXED_LINK.length();
+        final List< Integer > stops = new ArrayList<>();
+        for ( int pos = from; pos <= to; pos++ ) {
+            if ( pos <= linkFrom || pos >= linkTo ) {
+                stops.add( pos );
+            }
+        }
+
         setCaret( from );
-        awaitRenderedLine( from, MIXED_LINE );
-        for ( int i = 1; i <= MIXED_LINE.length(); i++ ) {
+        awaitRenderedLine( from, MIXED_LINE_AT_CARET );
+        for ( int i = 1; i < stops.size(); i++ ) {
             pressKeys( Keys.ARROW_RIGHT );
-            assertEquals( from + i, caretOffset(), "ArrowRight press " + i + " from the line start" );
-            assertEquals( MIXED_LINE, renderedLineText( from ), "markup stays revealed on the caret's line (press " + i + ")" );
+            assertEquals( stops.get( i ), caretOffset(), "ArrowRight press " + i + " from the line start" );
+            assertEquals( MIXED_LINE_AT_CARET, renderedLineText( from ), "emphasis and plugin stay revealed on the caret's "
+                + "line and the link stays a chip (press " + i + ")" );
         }
         assertEquals( to, caretOffset() );
-        for ( int i = 1; i <= MIXED_LINE.length(); i++ ) {
+        for ( int i = stops.size() - 2; i >= 0; i-- ) {
             pressKeys( Keys.ARROW_LEFT );
-            assertEquals( to - i, caretOffset(), "ArrowLeft press " + i + " from the line end" );
+            assertEquals( stops.get( i ), caretOffset(), "ArrowLeft back to stop " + i );
         }
         assertEquals( from, caretOffset() );
         assertEquals( doc, documentText(), "moving the caret must not change the document" );
@@ -146,8 +162,8 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
         final int from = lineStart( doc, HOME_END_LINE );
         final int to = from + HOME_END_LINE.length();
 
-        setCaret( from + HOME_END_LINE.indexOf( "[[" ) );
-        awaitRenderedLine( from, HOME_END_LINE );
+        setCaret( from + HOME_END_LINE.indexOf( "[[" ) ); // right before the link: a caret cannot rest inside a chip
+        awaitRenderedLine( from, HOME_END_LINE.replace( "[[Page]]", "Page" ) ); // the link stays a chip on the caret's line
         assertSingleVisualLine( from, to );
         pressKeys( Keys.END );
         assertEquals( to, caretOffset(), "End lands after the line's last source character (the chip's ']')" );

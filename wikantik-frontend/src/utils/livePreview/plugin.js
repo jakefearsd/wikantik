@@ -25,11 +25,14 @@ export const liveModeField = StateField.define({
 export const livePreviewConfig = Facet.define({ combine: (values) => values[0] ?? { getContext: () => ({}) } });
 
 const hidden = Decoration.replace({});
+// lpSticky marks a decoration that stays under the caret; sticky.js collects these (atomic ranges, caret rule).
+const stickyHidden = Decoration.replace({ lpSticky: true });
+const stickyFlag = (s) => (s.sticky ? { lpSticky: true } : null);
 const lineDecos = new Map();
 const markDecos = new Map();
 const cached = (map, cls, make) => { if (!map.has(cls)) map.set(cls, make(cls)); return map.get(cls); };
 
-const blockDeco = (s, context) => Decoration.replace({ widget: widgetFor(s.widget, context), block: true, lpWidget: s.widget });
+const blockDeco = (s, context) => Decoration.replace({ widget: widgetFor(s.widget, context), block: true, lpWidget: s.widget, ...stickyFlag(s) });
 
 function toDecorations(specs, context) {
   const ranges = [];
@@ -37,15 +40,15 @@ function toDecorations(specs, context) {
     if (s.kind === 'line') ranges.push(cached(lineDecos, s.cls, (c) => Decoration.line({ class: c })).range(s.from));
     else if (s.kind === 'mark' && s.title) ranges.push(cached(markDecos, `${s.cls}\n${s.title}`, () => Decoration.mark({ class: s.cls, attributes: { title: s.title } })).range(s.from, s.to));
     else if (s.kind === 'mark') ranges.push(cached(markDecos, s.cls, (c) => Decoration.mark({ class: c })).range(s.from, s.to));
-    else if (s.kind === 'hide') ranges.push(hidden.range(s.from, s.to));
-    else if (s.kind === 'widget') ranges.push(Decoration.replace({ widget: widgetFor(s.widget, context) }).range(s.from, s.to));
+    else if (s.kind === 'hide') ranges.push((s.sticky ? stickyHidden : hidden).range(s.from, s.to));
+    else if (s.kind === 'widget') ranges.push(Decoration.replace({ widget: widgetFor(s.widget, context), ...stickyFlag(s) }).range(s.from, s.to));
     else if (s.kind === 'block') ranges.push(blockDeco(s, context).range(s.from, s.to));
   }
   // sort=true: specs come from several passes; Decoration.set orders by (from, startSide) for us.
   return Decoration.set(ranges, true);
 }
 
-const getContext = (state) => state.facet(livePreviewConfig).getContext() || {};
+export const getContext = (state) => state.facet(livePreviewConfig).getContext() || {};
 const touchesMode = (tr) => tr.effects.some((e) => e.is(setLiveMode) || e.is(refreshLivePreview));
 const treeChanged = (a, b) => syntaxTree(a) !== syntaxTree(b);
 

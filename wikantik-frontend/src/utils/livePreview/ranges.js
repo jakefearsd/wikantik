@@ -485,9 +485,17 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const spaceAfter = (pos) => (doc.sliceString(pos, pos + 1) === ' ' ? 1 : 0);
   // `group` ties a construct's specs together (e.g. an emphasis mark and its two hidden markers) so Task 3 can
   // drop a construct as a whole when it cuts through a wikilink/math range.
-  const hide = (a, b, group) => { if (b > a && inactive(a)) specs.push({ kind: 'hide', from: a, to: b, group }); };
+  // `{ sticky: true }`: emitted whether or not the line is active and flagged, so it stays hidden under the caret
+  // (the caret rules that make that usable are in sticky.js). Non-sticky specs carry no flag.
+  const hide = (a, b, group, { sticky = false } = {}) => {
+    if (b > a && (sticky || inactive(a))) specs.push({ kind: 'hide', from: a, to: b, group, ...(sticky && { sticky: true }) });
+  };
   const mark = (a, b, cls, group) => { if (b > a) specs.push({ kind: 'mark', from: a, to: b, cls, group }); };
-  const widget = (a, b, w) => { if (b > a && inactive(a)) specs.push({ kind: 'widget', from: a, to: b, widget: w }); };
+  const widget = (a, b, w, { sticky = false } = {}) => {
+    if (b > a && (sticky || inactive(a))) specs.push({ kind: 'widget', from: a, to: b, widget: w, ...(sticky && { sticky: true }) });
+  };
+  // Test seam, unset in production: construct kinds to treat as sticky until their own paths pass { sticky: true }.
+  const stickyKinds = context.stickyKinds || [];
   const addLine = (lineStart, cls) => {
     if (!lineClasses.has(lineStart)) lineClasses.set(lineStart, new Set());
     lineClasses.get(lineStart).add(cls);
@@ -504,7 +512,7 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
   const heading = (node, level) => {
     addLine(doc.lineAt(node.from).from, `cm-lp-h${level}`);
     const m = node.node.firstChild;
-    if (m && m.name === 'HeaderMark') hide(m.from, m.to + spaceAfter(m.to));
+    if (m && m.name === 'HeaderMark') hide(m.from, m.to + spaceAfter(m.to), undefined, { sticky: stickyKinds.includes('heading') });
   };
   const setextHeading = (node, level) => {
     const mk = node.node.getChild('HeaderMark');

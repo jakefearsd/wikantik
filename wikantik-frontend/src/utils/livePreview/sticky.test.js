@@ -4,7 +4,7 @@
  * (heading, bullet, number, task box, quote mark) are the sticky ranges here; a line can carry several.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { ChangeSet, EditorState, EditorSelection, Transaction } from '@codemirror/state';
+import { ChangeSet, EditorState, EditorSelection, StateEffect, Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, indentWithTab, history, undo, redo } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
@@ -329,6 +329,80 @@ describe('a peer\'s change as @codemirror/collab applies it: no transaction filt
     expect(head(view)).toBe(12);
   });
 
+  it('a change on another line that makes the caret\'s line hidden (a table\'s delimiter row): the caret leaves it', async () => {
+    const ragged = 'top\n\n| h1 | h2 | h3 |\n| --- | --- |\n| a1 | a2 |\n\nend';
+    const { view, receive } = mountShared(ragged);
+    const inDelimiter = ragged.indexOf('| --- |') + 4;
+    caretAt(view, inDelimiter);
+    expect(head(view)).toBe(inDelimiter); // a resting place while the table is no grid
+    const extra = ragged.indexOf(' h3 |');
+    receive({ from: extra, to: extra + ' h3 |'.length });
+    await Promise.resolve();
+    type(view, 'z');
+    expect(text(view)).toBe('top\n\n| h1 | h2z |\n| --- | --- |\n| a1 | a2 |\n\nend'); // in a cell (the header's last), the delimiter row whole
+  });
+
+  it('a change on other lines that makes the caret\'s line a fence\'s hidden opening line: the caret leaves it', async () => {
+    const nested = '````\n```\ncode\n```\n````\nafter';
+    const { view } = mountShared(nested);
+    caretAt(view, 8);
+    expect(head(view)).toBe(8); // the inner fence is code text inside the outer one
+    view.dispatch(receiveUpdates(view.state, [{ clientID: 'peer', changes: view.state.changes([{ from: 0, to: 4 }, { from: 18, to: 22 }]) }]));
+    await Promise.resolve();
+    expect(text(view)).toBe('\n```\ncode\n```\n\nafter');
+    type(view, 'z');
+    expect(text(view)).toBe('\n```\nzcode\n```\n\nafter');
+  });
+
+  it('several carets: the one on the fence line its typing hid stays, another the change left before a marker is moved', async () => {
+    const doc = '```\ncode\n``\nafter\nTitle';
+    const title = doc.indexOf('Title');
+    const { view, seen } = mountShared(doc);
+    view.dispatch({ effects: StateEffect.appendConfig.of(EditorState.allowMultipleSelections.of(true)) });
+    view.dispatch({ selection: EditorSelection.create([EditorSelection.cursor(11), EditorSelection.cursor(title)], 0) });
+    view.dispatch({
+      changes: { from: 11, insert: '`' },
+      selection: EditorSelection.create([EditorSelection.cursor(12), EditorSelection.cursor(title + 1)], 0),
+      userEvent: 'input.type',
+    });
+    expect(view.state.selection.ranges.map((r) => r.head)).toEqual([12, title + 1]);
+    seen.length = 0;
+    // The peer has not seen the backtick: its change is against the document before it.
+    view.dispatch(receiveUpdates(view.state, [{ clientID: 'peer', changes: ChangeSet.of({ from: title, insert: '## ' }, doc.length) }]));
+    expect(text(view)).toBe('```\ncode\n```\nafter\n## Title');
+    expect(view.state.selection.ranges.map((r) => r.head)).toEqual([12, title + 1]);
+    await Promise.resolve();
+    expect(view.state.selection.ranges.map((r) => r.head)).toEqual([12, title + 4]);
+    expect(seen).toHaveLength(2);
+    expect(seen[1].docChanged).toBe(false);
+  });
+
+  it('a peer\'s change on the caret\'s own line that hides it (the peer closes the fence): the caret leaves the line', async () => {
+    const { view, receive } = mountShared('```\ncode\n``\nafter');
+    caretAt(view, 11);
+    receive({ from: 11, insert: '`' });
+    await Promise.resolve();
+    expect(text(view)).toBe('```\ncode\n```\nafter');
+    const at = head(view);
+    expect(at < 9 || at > 12, `the caret, at ${at}, is off the hidden closing line (9 to 12)`).toBe(true);
+  });
+
+  it('redo of the typing that hid a closing fence line leaves the caret on it, as the typing did', async () => {
+    const { view, seen } = mountShared('```\ncode\n``\nafter');
+    caretAt(view, 11);
+    type(view, '`');
+    expect(head(view)).toBe(12);
+    undo(view);
+    await Promise.resolve();
+    expect(text(view)).toBe('```\ncode\n``\nafter');
+    seen.length = 0;
+    redo(view);
+    await Promise.resolve();
+    expect(text(view)).toBe('```\ncode\n```\nafter');
+    expect(head(view)).toBe(12);
+    expect(seen).toHaveLength(1);
+  });
+
   it('undo, which the history also applies without the filters, restoring a caret a peer has since put a marker after', async () => {
     const { view, seen } = mountShared(PLAIN);
     caretAt(view, H);
@@ -347,7 +421,7 @@ describe('a peer\'s change as @codemirror/collab applies it: no transaction filt
     redo(view);
     await Promise.resolve();
     expect(text(view)).toBe('Para one\n## xTitle\nAfter');
-    expect(head(view)).toBeGreaterThanOrEqual(H + 3);
+    expect(head(view)).toBe(H + 3);
     undo(view);
     await Promise.resolve();
     type(view, 'y');

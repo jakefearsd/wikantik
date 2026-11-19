@@ -196,6 +196,31 @@ function touchesLine(update, line) {
   return touched;
 }
 
+/** Whether what is now `line` was (at either of its ends) a hidden line before `update`. */
+function wasHiddenLine(update, line) {
+  const before = update.startState;
+  if (!live(before)) return false;
+  const back = update.changes.invertedDesc;
+  const first = before.doc.lineAt(back.mapPos(line.from, 1));
+  const last = before.doc.lineAt(back.mapPos(line.to, -1));
+  return isHiddenLine(before, first) || (last.number !== first.number && isHiddenLine(before, last));
+}
+
+/**
+ * Whether the caret at `head`, on a hidden line after `update`, is left there. Two carets are, both stickyCaret's
+ * exception — the caret on a line its own typing just hid (a closing fence), from where Enter continues below the block:
+ * - one that was there already: the line was hidden before the update, and the update's changes do not reach it;
+ * - one a redo (or undo) puts there by hiding the line itself: the line was not hidden before, and the change is on it.
+ * A line that a peer's change made hidden — whether the change is on it or elsewhere (a header row repaired above a
+ * delimiter row, a fence opened around the line) — is no place the user chose: the caret leaves it.
+ */
+function staysOnHiddenLine(update, head, undone) {
+  const line = update.state.doc.lineAt(head);
+  if (!isHiddenLine(update.state, line)) return false;
+  const touched = touchesLine(update, line);
+  return wasHiddenLine(update, line) ? !touched : undone && touched;
+}
+
 /**
  * The caret rules after the transactions no transaction filter sees. Two kinds are built with `filter: false`: a
  * shared-editing peer's change (@codemirror/collab's receiveUpdates) and an undo or redo (@codemirror/commands'
@@ -203,15 +228,12 @@ function touchesLine(update, line) {
  * nor tableGrid.js's rule runs on them, so the caret rests wherever it was mapped or restored: before a marker that is
  * hidden now, after a row's closing pipe when a peer deleted the row it was in, on a table's hidden delimiter row —
  * where the next keystroke would break the table without the caret ever having been shown there. The change need not
- * be on the caret's line: one elsewhere can make the caret's table a grid, or its line a heading.
+ * be on the caret's line: one elsewhere can make the caret's table a grid, or its line a heading or a hidden line.
  *
- * So after every update holding a peer's document change, an undo or a redo, in Rich mode, the selection is set
- * again, as it is, once the update is over: the filters run on that, and nothing is dispatched when they would leave
- * it alone. A selection only, out of the undo history, so no peer and no undo step ever sees it.
- *
- * One caret is not set again: stickyCaret's exception, the caret on a hidden line its own typing just made hidden
- * (a closing fence). A peer's change that does not reach that line leaves it there; the filter, run on a selection,
- * would move it.
+ * So after every update holding a peer's document change, an undo or a redo, in Rich mode, the caret rules are run on
+ * the selection as it is, once the update is over, and every caret they would move is moved — except a caret that
+ * staysOnHiddenLine, decided range by range. Nothing is dispatched when no caret moves. A selection only, out of the
+ * undo history, so no peer and no undo step ever sees it.
  *
  * This dispatch is nobody's action, so it stands down more broadly than the filter (where the user's own key or click
  * is the trigger, and too broad a test would lose the correction): during a composition and also while one has
@@ -220,32 +242,45 @@ function touchesLine(update, line) {
  * the filter.
  */
 const caretAfterUnfiltered = ViewPlugin.fromClass(class {
-  constructor(view) { this.view = view; }
+  constructor(view) {
+    this.view = view;
+    this.pending = false;
+    this.staying = []; // while pending: where the carets that stay on a hidden line are
+  }
 
   update(update) {
     const { state } = update;
+    // Kept current through whatever else happens before the correction runs.
+    if (this.pending && update.docChanged) this.staying = this.staying.map((pos) => update.changes.mapPos(pos, 1));
     if (!live(state)) return;
     const undone = update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
-    if (!undone) {
-      if (!update.transactions.some((tr) => tr.docChanged && tr.annotation(Transaction.remote))) return;
-      const kept = state.selection.ranges.some((range) => {
-        if (!range.empty) return false;
-        const line = state.doc.lineAt(range.head);
-        return isHiddenLine(state, line) && !touchesLine(update, line);
-      });
-      if (kept) return;
+    if (!undone && !update.transactions.some((tr) => tr.docChanged && tr.annotation(Transaction.remote))) return;
+    for (const range of state.selection.ranges) {
+      if (range.empty && staysOnHiddenLine(update, range.head, undone)) this.staying.push(range.head);
     }
-    const { view } = this;
-    Promise.resolve().then(() => {
-      if (this.destroyed || view.composing || view.compositionStarted || !live(view.state)) return;
-      try {
-        const { selection } = view.state;
-        const tr = view.state.update({ selection, annotations: Transaction.addToHistory.of(false) });
-        if (!tr.newSelection.eq(selection, true)) view.dispatch(tr);
-      } catch (err) {
-        console.warn('[rich] could not put the caret back in place after a shared edit or an undo; the next caret move does', err?.message || err);
-      }
-    });
+    if (this.pending) return;
+    this.pending = true;
+    Promise.resolve().then(() => this.correct());
+  }
+
+  correct() {
+    const { view, staying } = this;
+    this.pending = false;
+    this.staying = [];
+    if (this.destroyed || view.composing || view.compositionStarted || !live(view.state)) return;
+    try {
+      const { selection } = view.state;
+      const ruled = view.state.update({ selection }).newSelection; // what the caret rules make of it; nothing is applied
+      const stays = (range) => range.empty && staying.includes(range.head);
+      const next = ruled.ranges.length === selection.ranges.length && selection.ranges.some(stays)
+        ? EditorSelection.create(selection.ranges.map((range, i) => (stays(range) ? range : ruled.ranges[i])), selection.mainIndex)
+        : ruled;
+      if (next.eq(selection, true)) return;
+      // The rules have been applied above; run again on this they would move the carets that stay.
+      view.dispatch({ selection: next, annotations: Transaction.addToHistory.of(false), filter: false });
+    } catch (err) {
+      console.warn('[rich] could not put the caret back in place after a shared edit or an undo; the next caret move does', err?.message || err);
+    }
   }
 
   destroy() { this.destroyed = true; }

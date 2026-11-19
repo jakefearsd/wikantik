@@ -852,7 +852,7 @@ describe('PageEditor collaborative mode', () => {
     const banner = await screen.findByTestId('collab-evicted');
     expect(banner).toHaveTextContent(/no longer have permission/i);
     expect(banner).toHaveTextContent(/not saved — copy it if you need it/);
-    expect(currentView().state.readOnly).toBe(true);
+    await until(() => currentView().state.readOnly === true); // the banner renders a step before the editor is read-only
     expect(screen.queryByTestId('collab-forbidden')).toBeNull();
     expect(screen.queryByTestId('editor-save')).toBeNull();
     // the abandoned field edit is not shown as if it were current
@@ -871,8 +871,8 @@ describe('PageEditor collaborative mode', () => {
     await until(() => docOf(view) === 'Hello world');
     act(() => { server.evict(server.liveParticipantIds()[0], 'lost-edit'); });
     await screen.findByTestId('collab-evicted');
+    await until(() => currentView().state.readOnly === true); // the banner renders a step before the editor is read-only
     const frozen = currentView();
-    expect(frozen.state.readOnly).toBe(true);
     const text = docOf(frozen);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     act(() => { frozen.dispatch({ selection: { anchor: 0, head: 5 } }); });
@@ -1563,7 +1563,7 @@ describe('PageEditor collaborative mode', () => {
     await until(() => api.convertWikiToMarkdown.mock.calls.length === 1);
     act(() => { server.evict(server.liveParticipantIds()[0], 'lost-edit'); });
     await screen.findByTestId('collab-evicted');
-    expect(currentView().state.readOnly).toBe(true);
+    await until(() => currentView().state.readOnly === true); // the banner renders a step before the editor is read-only
     await act(async () => { answer.resolve({ markdown: 'Hello *world*', warnings: [] }); await answer.promise; });
     await until(() => screen.queryByTestId('editor-error') !== null);
     expect(screen.getByTestId('editor-error')).toHaveTextContent(/could not be converted.*read-only/i);

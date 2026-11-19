@@ -915,12 +915,14 @@ a.tag:hover {
    ============================================================ */
 
 .editor-container.preview-hidden {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .editor-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, 1fr), not 1fr (= minmax(auto, 1fr)): a wide table or code block in the preview must not widen its
+     column and squeeze the editor. Wide content scrolls inside its pane. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1px;
   background: var(--border);
   border: 1px solid var(--border);
@@ -938,6 +940,7 @@ a.tag:hover {
   /* Let the grid cell be the track height (75vh) instead of growing to content,
      so the child editor/preview scrolls internally rather than the whole page. */
   min-height: 0;
+  min-width: 0;
 }
 
 .editor-textarea {
@@ -966,6 +969,7 @@ a.tag:hover {
 
 .editor-preview {
   overflow-y: auto;
+  overflow-x: auto;
   height: 100%;
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
@@ -1614,7 +1618,7 @@ a[data-attachment-missing] {
     padding: var(--space-lg) var(--space-md);
   }
   .editor-container {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   /* Show the tap handle in the visible 35px strip */
   .sidebar-tab-handle {

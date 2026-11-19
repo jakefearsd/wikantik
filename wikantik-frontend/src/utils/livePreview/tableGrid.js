@@ -108,8 +108,9 @@ function cellPlace(state, range) {
 
 /**
  * Keeps every caret on a grid row inside a cell, leaning into it. Like the sticky caret rule, which it follows: runs on
- * a transaction that sets the selection or changes the document (a change with no selection maps the caret; a peer's
- * change bypasses every filter, and sticky.js sets the selection again after it, which brings it here), skips a
+ * a transaction that sets the selection or changes the document (a change with no selection maps the caret). A peer's
+ * change, an undo and a redo bypass every filter: sticky.js (caretAfterUnfiltered) sets the selection again after each,
+ * which brings it here. Skips a
  * composition, leaves non-empty ranges alone, and only ever adds a selection.
  */
 const gridCaret = EditorState.transactionFilter.of((tr) => {

@@ -4,9 +4,9 @@
  * (heading, bullet, number, task box, quote mark) are the sticky ranges here; a line can carry several.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { EditorState, EditorSelection, Transaction } from '@codemirror/state';
+import { ChangeSet, EditorState, EditorSelection, Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { defaultKeymap, indentWithTab, history, undo, redo } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { editorMarkdownConfig } from '../editorMarkdown';
@@ -215,7 +215,8 @@ describe('sticky caret', () => {
 describe('a change that puts a marker in front of the caret', () => {
   const PLAIN = 'Para one\nTitle\nAfter'; // line 2 starts at H
 
-  it.each([['a local change with no selection', []], ['a shared-editing peer', [Transaction.remote.of(true)]]])(
+  // The second models no real peer: @codemirror/collab applies a peer's change with the filters off (see the next describe).
+  it.each([['a local change with no selection', []], ['a change annotated remote that goes through the filters', [Transaction.remote.of(true)]]])(
     '%s turns the caret line into a heading: the caret ends after the marker and the change arrives intact',
     (_name, annotations) => {
       const seen = [];
@@ -256,7 +257,7 @@ describe('a peer\'s change as @codemirror/collab applies it: no transaction filt
   const PLAIN = 'Para one\nTitle\nAfter'; // line 2 starts at H
   function mountShared(doc, live = true) {
     const seen = [];
-    const view = mount(doc, { live, extra: [collab({ startVersion: 0, clientID: 'me' }), EditorView.updateListener.of((u) => seen.push(...u.transactions))] });
+    const view = mount(doc, { live, extra: [history(), collab({ startVersion: 0, clientID: 'me' }), EditorView.updateListener.of((u) => seen.push(...u.transactions))] });
     const receive = (change) => view.dispatch(receiveUpdates(view.state, [{ clientID: 'peer', changes: view.state.changes(change) }]));
     return { view, seen, receive };
   }
@@ -277,7 +278,7 @@ describe('a peer\'s change as @codemirror/collab applies it: no transaction filt
     expect(text(view)).toBe('Para one\n## xTitle\nAfter');
   });
 
-  it('a change that leaves the caret in place, or is on another line, dispatches nothing more', async () => {
+  it('a change that leaves the caret in a resting place, on its line or another, dispatches nothing more', async () => {
     const { view, seen, receive } = mountShared(DOC);
     caretAt(view, H + 5);
     seen.length = 0;
@@ -286,6 +287,85 @@ describe('a peer\'s change as @codemirror/collab applies it: no transaction filt
     await Promise.resolve();
     expect(seen).toHaveLength(2);
     expect(head(view)).toBe(H + 8);
+  });
+
+  it('a change on another line that makes the caret\'s table a grid: the caret, after a closing pipe, is put in the cell', async () => {
+    const ragged = 'top\n\n| h1 | h2 |\n| --- | --- |\n| a1 | a2 | extra |\n| b1 | b2 |\n\nend';
+    const { view, receive } = mountShared(ragged);
+    const afterPipe = ragged.indexOf('| b1 | b2 |') + '| b1 | b2 |'.length;
+    caretAt(view, afterPipe);
+    expect(head(view)).toBe(afterPipe); // a resting place while the table is no grid
+    const extra = ragged.indexOf(' extra |');
+    receive({ from: extra, to: extra + ' extra |'.length });
+    await Promise.resolve();
+    expect(head(view)).toBe(text(view).indexOf('b2') + 2);
+    type(view, 'z');
+    expect(text(view)).toBe('top\n\n| h1 | h2 |\n| --- | --- |\n| a1 | a2 |\n| b1 | b2z |\n\nend');
+  });
+
+  it('a change on another line that makes the caret\'s line a heading (the fence above it is taken away): the caret goes after the marker', async () => {
+    const { view, receive } = mountShared('```\n## Title\nmore');
+    caretAt(view, 4);
+    expect(head(view)).toBe(4); // inside the fence the line is code
+    receive({ from: 0, to: 3 });
+    await Promise.resolve();
+    expect(text(view)).toBe('\n## Title\nmore');
+    expect(head(view)).toBe(4);
+    type(view, 'y');
+    expect(text(view)).toBe('\n## yTitle\nmore');
+  });
+
+  it('the caret left on the fence line its own typing just hid stays there through a change on another line', async () => {
+    const { view, seen } = mountShared('```\ncode\n``\nafter');
+    caretAt(view, 11);
+    type(view, '`');
+    expect(head(view)).toBe(12); // stickyCaret's exception: Enter continues below the block
+    seen.length = 0;
+    // The peer has not seen the typed backtick: its change is against the 17 characters before it.
+    view.dispatch(receiveUpdates(view.state, [{ clientID: 'peer', changes: ChangeSet.of({ from: 17, insert: '!' }, 17) }]));
+    expect(text(view)).toBe('```\ncode\n```\nafter!');
+    await Promise.resolve();
+    expect(seen).toHaveLength(1);
+    expect(head(view)).toBe(12);
+  });
+
+  it('undo, which the history also applies without the filters, restoring a caret a peer has since put a marker after', async () => {
+    const { view, seen } = mountShared(PLAIN);
+    caretAt(view, H);
+    type(view, 'x');
+    // A peer that has not seen the "x" makes the line a heading.
+    view.dispatch(receiveUpdates(view.state, [{ clientID: 'peer', changes: ChangeSet.of({ from: H, insert: '## ' }, PLAIN.length) }]));
+    await Promise.resolve();
+    expect(text(view)).toBe('Para one\n## xTitle\nAfter');
+    seen.length = 0;
+    undo(view);
+    expect(text(view)).toBe(DOC);
+    await Promise.resolve();
+    expect(head(view)).toBe(H + 3);
+    expect(seen).toHaveLength(2);
+    expect(seen[1].docChanged).toBe(false);
+    redo(view);
+    await Promise.resolve();
+    expect(text(view)).toBe('Para one\n## xTitle\nAfter');
+    expect(head(view)).toBeGreaterThanOrEqual(H + 3);
+    undo(view);
+    await Promise.resolve();
+    type(view, 'y');
+    expect(text(view)).toBe('Para one\n## yTitle\nAfter');
+  });
+
+  // Unasked for by the user, this dispatch stands down more broadly than the caret filter does (there the user's own
+  // action is the trigger): also between compositionstart and the first composed change, when `composing` is still false.
+  it.each(['composing', 'compositionStarted'])('nothing is dispatched while view.%s', async (flag) => {
+    const { view, seen, receive } = mountShared(PLAIN);
+    caretAt(view, H);
+    seen.length = 0;
+    receive({ from: H, insert: '## ' });
+    Object.defineProperty(view, flag, { configurable: true, get: () => true });
+    await Promise.resolve();
+    expect(seen).toHaveLength(1);
+    expect(head(view)).toBe(H);
+    delete view[flag];
   });
 
   it('in Source the caret stays where the change mapped it', async () => {

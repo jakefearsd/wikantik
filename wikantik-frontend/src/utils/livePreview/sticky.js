@@ -179,52 +179,76 @@ function restingPlace(state, head, origin, inward) {
 
 /**
  * Whether an IME composition is running is view state, which a transaction filter cannot see. The field holds one
- * mutable reference per state lineage, pointed by the plugin at the view showing it — read-only plumbing. Only
- * `view.composing` is consulted (`compositionStarted` is true far too broadly on Android). The plugin's one dispatch
- * is the caret's correction after a peer's change (see its `update`).
+ * mutable reference per state lineage, pointed by the plugin at the view showing it — read-only plumbing: neither
+ * dispatches anything. Only `view.composing` is consulted (`compositionStarted` is true far too broadly on Android).
  */
 const viewRef = StateField.define({ create: () => ({ view: null }), update: (ref) => ref });
-const trackView = ViewPlugin.fromClass(class {
-  constructor(view) {
-    this.view = view;
-    this.ref = view.state.field(viewRef, false);
-    if (this.ref) this.ref.view = view;
-  }
+const trackView = ViewPlugin.define((view) => {
+  const ref = view.state.field(viewRef, false);
+  if (ref) ref.view = view;
+  return { destroy() { if (ref && ref.view === view) ref.view = null; } };
+});
 
-  /**
-   * The caret rules after a shared-editing peer's change. @codemirror/collab applies what it receives with
-   * `filter: false`, so no transaction filter sees it — not stickyCaret, not tableGrid.js's rule — and the caret rests
-   * wherever the change mapped it: after a row's closing pipe when a peer deleted the row it was in, on the hidden
-   * delimiter row, where the next keystroke would break the table without the caret ever having been shown there.
-   * So when such a change touched a caret's line, the selection is set again, as it is, once the update is over, and
-   * the filters run on that; nothing is dispatched when they would leave it alone. A selection only, out of the undo
-   * history, and never during a composition (the next selection or change corrects the caret then, as in stickyCaret).
-   */
+/** Whether the document changes of `update` reach into `line` (a line of the updated document). */
+function touchesLine(update, line) {
+  let touched = false;
+  update.changes.iterChangedRanges((_fromA, _toA, fromB, toB) => { if (fromB <= line.to && toB >= line.from) touched = true; });
+  return touched;
+}
+
+/**
+ * The caret rules after the transactions no transaction filter sees. Two kinds are built with `filter: false`: a
+ * shared-editing peer's change (@codemirror/collab's receiveUpdates) and an undo or redo (@codemirror/commands'
+ * history, whose restored selection is the old one mapped through whatever peers changed since). Neither stickyCaret
+ * nor tableGrid.js's rule runs on them, so the caret rests wherever it was mapped or restored: before a marker that is
+ * hidden now, after a row's closing pipe when a peer deleted the row it was in, on a table's hidden delimiter row —
+ * where the next keystroke would break the table without the caret ever having been shown there. The change need not
+ * be on the caret's line: one elsewhere can make the caret's table a grid, or its line a heading.
+ *
+ * So after every update holding a peer's document change, an undo or a redo, in Rich mode, the selection is set
+ * again, as it is, once the update is over: the filters run on that, and nothing is dispatched when they would leave
+ * it alone. A selection only, out of the undo history, so no peer and no undo step ever sees it.
+ *
+ * One caret is not set again: stickyCaret's exception, the caret on a hidden line its own typing just made hidden
+ * (a closing fence). A peer's change that does not reach that line leaves it there; the filter, run on a selection,
+ * would move it.
+ *
+ * This dispatch is nobody's action, so it stands down more broadly than the filter (where the user's own key or click
+ * is the trigger, and too broad a test would lose the correction): during a composition and also while one has
+ * started and written nothing yet (`compositionStarted`), when a moved DOM selection would pull the text out from
+ * under the IME. Nothing sets the caret again when the composition ends; the next selection or change goes through
+ * the filter.
+ */
+const caretAfterUnfiltered = ViewPlugin.fromClass(class {
+  constructor(view) { this.view = view; }
+
   update(update) {
-    if (!update.docChanged || !live(update.state) || !update.transactions.some((tr) => tr.annotation(Transaction.remote))) return;
-    const lines = update.state.selection.ranges.filter((r) => r.empty).map((r) => update.state.doc.lineAt(r.head));
-    let touched = false;
-    update.changes.iterChangedRanges((_fromA, _toA, fromB, toB) => {
-      if (lines.some((line) => fromB <= line.to && toB >= line.from)) touched = true;
-    });
-    if (!touched) return;
+    const { state } = update;
+    if (!live(state)) return;
+    const undone = update.transactions.some((tr) => tr.isUserEvent('undo') || tr.isUserEvent('redo'));
+    if (!undone) {
+      if (!update.transactions.some((tr) => tr.docChanged && tr.annotation(Transaction.remote))) return;
+      const kept = state.selection.ranges.some((range) => {
+        if (!range.empty) return false;
+        const line = state.doc.lineAt(range.head);
+        return isHiddenLine(state, line) && !touchesLine(update, line);
+      });
+      if (kept) return;
+    }
     const { view } = this;
     Promise.resolve().then(() => {
-      if (this.destroyed || view.composing || !live(view.state)) return;
+      if (this.destroyed || view.composing || view.compositionStarted || !live(view.state)) return;
       try {
         const { selection } = view.state;
         const tr = view.state.update({ selection, annotations: Transaction.addToHistory.of(false) });
         if (!tr.newSelection.eq(selection, true)) view.dispatch(tr);
       } catch (err) {
-        console.warn('[rich] could not put the caret back in place after a shared edit; the next caret move does', err?.message || err);
+        console.warn('[rich] could not put the caret back in place after a shared edit or an undo; the next caret move does', err?.message || err);
       }
     });
   }
 
-  destroy() {
-    this.destroyed = true;
-    if (this.ref && this.ref.view === this.view) this.ref.view = null;
-  }
+  destroy() { this.destroyed = true; }
 });
 export const composing = (tr) => tr.isUserEvent('input.type.compose') || tr.startState.field(viewRef, false)?.view?.composing === true;
 
@@ -244,7 +268,8 @@ function justHidden(tr, origin, head) {
  * Caret rule: every empty range is moved to its resting place, on any transaction that can leave a caret somewhere
  * else — one that sets the selection, or one that changes the document (a change with no selection maps the caret,
  * and a marker inserted at the caret's line start by a command lands after it; a shared-editing peer's change is
- * applied without the filters, and trackView sets the selection again after it for this rule to run). Non-empty
+ * applied without the filters, as is an undo: caretAfterUnfiltered sets the selection again after those, for this
+ * rule to run). Non-empty
  * ranges are left alone (a selection may cut into a marker, so deleting it behaves as in Source). Nothing moves
  * during a composition — moving the caret under an IME aborts it; a caret the composition leaves before a marker is
  * corrected by the next selection or change. The rule only ever adds a selection: the transaction's changes, effects
@@ -356,6 +381,7 @@ const deleteChipOrKeepHidden = (view) => selectChipAfter(view) || deleteBesideHi
 export const stickyExtension = [
   viewRef,
   trackView,
+  caretAfterUnfiltered,
   stickyAtomic,
   stickyCaret,
   // Highest: lang-markdown's own keymap binds Backspace (deleteMarkupBackward) at Prec.high and precedes this

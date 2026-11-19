@@ -353,13 +353,20 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         EditWikiPage.pressKeys( "ripe" );
         final String edited = widened.replace( "| 91 |  |", "| 91 | ripe |" );
         EditWikiPage.awaitDocumentEquals( TABLE_BODY.replace( TABLE, edited ), WAIT );
-        $( CONTENT + " .cm-lp-table-block" ).shouldNot( exist ); // still the grid: every row has its three cells
+        // Still the grid, every row with its three cells: the header and the two body rows are drawn as rows of cells.
+        $$( CONTENT + " .cm-lp-table-row" ).shouldHave( size( 3 ), WAIT );
+        $$( GRID_CELL ).findBy( exactText( "ripe" ) ).shouldBe( visible, WAIT );
 
         EditWikiPage.publish();
         new WebDriverWait( WebDriverRunner.getWebDriver(), WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
         $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
-        assertTrue( seeded.contains( TABLE ), "the seeded page holds the table as written; it is:\n" + seeded );
-        assertEquals( seeded.replace( TABLE, edited ), fetchPage().get( "content" ).getAsString(),
+        // The stored text has CRLF line ends, the seeded one and the saved one alike (the editor's document is LF),
+        // so the table is looked for, and replaced, as it is stored.
+        final String storedTable = TABLE.replace( "\n", "\r\n" );
+        assertTrue( seeded.contains( storedTable ), "the seeded page holds the table as written, with CRLF line ends; "
+            + "it is:\n" + seeded.replace( "\r", "\\r" ) );
+        assertEquals( seeded.replace( storedTable, edited.replace( "\n", "\r\n" ) ),
+            fetchPage().get( "content" ).getAsString(),
             "the saved source differs from the seeded one in the edited cells and the new column only" );
 
         // The reader, loaded afresh, shows the table with its third column.

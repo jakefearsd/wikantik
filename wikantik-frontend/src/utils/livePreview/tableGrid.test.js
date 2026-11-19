@@ -178,7 +178,8 @@ describe('typing in a cell is typing in the document', () => {
 });
 
 describe('what the input rules leave alone', () => {
-  it('a remote change inserting a raw pipe is not escaped', () => {
+  // Not how a real peer's change arrives: @codemirror/collab applies those with the filters off altogether.
+  it('a change annotated remote that goes through the filters, inserting a raw pipe, is not escaped', () => {
     const view = mount();
     caretAt(view, at('two'));
     const mark = view.seen.length;

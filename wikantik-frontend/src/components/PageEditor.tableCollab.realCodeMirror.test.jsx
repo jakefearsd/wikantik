@@ -236,9 +236,6 @@ async function typeInARowBeingDeleted(mode, how) {
   return { clients, afterDelete, text: server.doc };
 }
 
-/** Case 3's outcome in Source, by pace: what Rich is held to. */
-const sourceReference = {};
-
 describe('the table grid in a shared session', () => {
   describe.each(PACES)('typing %s', (how) => {
     it('1. A types in cell (1,0) while B types in cell (2,2): both edits are kept and each caret stays in its cell', async () => {
@@ -269,15 +266,13 @@ describe('the table grid in a shared session', () => {
       expect(cellText(b.view)).toBe('');
     });
 
-    it('3 (the Source reference). the same operations by two Source clients', async () => {
-      const source = await typeInARowBeingDeleted('source', how);
-      sourceReference[how] = { afterDelete: source.afterDelete.text, text: source.text };
-      expect(source.text).toContain('z');
-    });
-
     it('3. A types in row 2 while B deletes row 2: A\'s caret stays in a cell or right after the table, and typing on is no worse than in Source', async () => {
-      const source = sourceReference[how];
-      expect(source, 'the Source reference test of this pace runs first').toBeDefined();
+      // The reference first: the same operations by two Source clients.
+      const replay = await typeInARowBeingDeleted('source', how);
+      const source = { afterDelete: replay.afterDelete.text, text: replay.text };
+      expect(source.text).toContain('z');
+      await unmountAll();
+
       const rich = await typeInARowBeingDeleted('live', how);
       const { a } = rich.clients;
       const { caret, table, text } = rich.afterDelete;
@@ -349,6 +344,9 @@ describe('the table grid in a shared session', () => {
       expect(tableOf(a.view)).toMatchObject({ editable: true, columns: 3 });
       expect(tableOf(b.view)).toMatchObject({ editable: true, columns: 3 });
       expect(cellOf(b.view)).toEqual({ row: 1, col: 1 });
+      // The undo restores A's caret (the history applies it without the caret rules): it is in A's cell, after its text.
+      expect(cellOf(a.view)).toEqual({ row: 1, col: 0 });
+      expect(caretOf(a.view)).toBe(endOf(a.view, 'a1'));
     });
 
     it('9b. undo on A of a column added next to the cell B is typing in removes the column and keeps B\'s text', async () => {
@@ -362,6 +360,8 @@ describe('the table grid in a shared session', () => {
       act(() => { undo(a.view); });
       await converged(clients, DOC.replace('b3', 'b3PQR'));
       expect(tableOf(a.view)).toMatchObject({ editable: true, columns: 3 });
+      expect(cellOf(a.view)).toEqual({ row: 1, col: 2 }); // back in the cell the command was run from
+      expect(caretOf(a.view)).toBe(endOf(a.view, 'a3'));
       expect(cellOf(b.view)).toEqual({ row: 2, col: 2 });
       expect(caretOf(b.view)).toBe(endOf(b.view, 'b3PQR'));
     });

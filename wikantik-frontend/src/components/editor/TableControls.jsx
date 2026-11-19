@@ -41,7 +41,7 @@ export default function TableControls({
   useLayoutEffect(() => {
     const bar = ref.current;
     return () => { if (bar?.contains(document.activeElement)) leaveRef.current?.(); };
-  }, [ref]);
+  }, [ref, host]);
 
   const onKeyDown = (e) => {
     if (e.key === 'Escape') { e.preventDefault(); onLeave?.(); return; }

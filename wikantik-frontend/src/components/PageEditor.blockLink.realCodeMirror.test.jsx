@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor, act, cleanup } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { EditorView } from '@codemirror/view';
+import { EditorState, Prec, StateEffect } from '@codemirror/state';
 import { undo } from '@codemirror/commands';
 
 vi.mock('../api/client', () => ({
@@ -102,23 +103,71 @@ describe('PageEditor "Copy block link"', () => {
 
   // In Rich a grid table rewrites local input made at a selection range (clipped to the cell, pipes escaped, line
   // breaks turned into spaces). The server's edit is none of that, even when the selection reaches where it goes.
-  it('on a table the grid draws (Rich), the server\'s edit is written byte for byte, whatever is selected', async () => {
-    localStorage.setItem('wikantik.editor.mode', 'live');
+  // The edits are the server's own shapes for a block that takes a standalone marker (BlockEdits.withStandaloneMarker):
+  // behind a blank line at the text end, or `\n^id\n` at the start of the blank line after the table.
+  describe('on a table the grid draws (Rich), the server\'s edit is written byte for byte, whatever is selected', () => {
     const table = '| A | B |\n| --- | --- |\n| one | two |';
-    const doc = `Intro\n\n${table}\n\nAfter`;
-    const tableEnd = doc.indexOf(table) + table.length;
-    api.draftBlocks.mockResolvedValue({ id: 'abc123', change: { from: tableEnd, to: tableEnd, insert: '\n^abc123' }, block: { index: 1, from: 7, to: tableEnd } });
-    const view = await editorView(doc);
-    await waitFor(() => expect(document.querySelector('.cm-editor.cm-live-preview')).not.toBeNull());
-    act(() => { parseFully(view); });
-    await waitFor(() => expect(view.contentDOM.querySelector('.cm-lp-table-row')).not.toBeNull());
-    // Anchored in a cell, ending after the row's closing pipe: the selection touches the place the edit goes.
-    act(() => { view.dispatch({ selection: { anchor: doc.indexOf('one'), head: tableEnd } }); });
-    await run();
-    expect(view.state.doc.toString()).toBe(`Intro\n\n${table}\n^abc123\n\nAfter`);
-    expect(writeText).toHaveBeenCalledWith('[[Existing#^abc123]]');
-    act(() => { undo(view); });
-    expect(view.state.doc.toString()).toBe(doc);
+    async function richView(doc) {
+      localStorage.setItem('wikantik.editor.mode', 'live');
+      const view = await editorView(doc);
+      await waitFor(() => expect(document.querySelector('.cm-editor.cm-live-preview')).not.toBeNull());
+      act(() => { parseFully(view); });
+      await waitFor(() => expect(view.contentDOM.querySelector('.cm-lp-table-row')).not.toBeNull());
+      return view;
+    }
+
+    it('a table that ends the document, selected from a cell to the end', async () => {
+      const doc = `Intro\n\n${table}`;
+      api.draftBlocks.mockResolvedValue({ id: 'abc123', change: { from: doc.length, to: doc.length, insert: '\n\n^abc123' }, block: { index: 1, from: 7, to: doc.length } });
+      const view = await richView(doc);
+      // Anchored in a cell, ending after the row's closing pipe: the selection touches the place the edit goes.
+      act(() => { view.dispatch({ selection: { anchor: doc.indexOf('one'), head: doc.length } }); });
+      await run();
+      expect(view.state.doc.toString()).toBe(`${doc}\n\n^abc123`);
+      expect(writeText).toHaveBeenCalledWith('[[Existing#^abc123]]');
+      act(() => { undo(view); });
+      expect(view.state.doc.toString()).toBe(doc);
+    });
+
+    it('a table with text after it, the caret in a cell', async () => {
+      const doc = `Intro\n\n${table}\n\nAfter`;
+      const tableEnd = doc.indexOf(table) + table.length;
+      api.draftBlocks.mockResolvedValue({ id: 'abc123', change: { from: tableEnd + 1, to: tableEnd + 1, insert: '\n^abc123\n' }, block: { index: 1, from: 7, to: tableEnd } });
+      const view = await richView(doc);
+      act(() => { view.dispatch({ selection: { anchor: doc.indexOf('one'), head: tableEnd } }); });
+      await run();
+      expect(view.state.doc.toString()).toBe(`Intro\n\n${table}\n\n^abc123\n\nAfter`);
+      expect(writeText).toHaveBeenCalledWith('[[Existing#^abc123]]');
+    });
+  });
+
+  // view.dispatch does not check readOnly. A block that already has an id can still be linked; one that needs the
+  // edit cannot be given it, so nothing is written and nothing is copied.
+  describe('on a read-only document', () => {
+    const lock = (view) => act(() => { view.dispatch({ effects: StateEffect.appendConfig.of(Prec.highest(EditorState.readOnly.of(true))) }); });
+
+    it('a block that needs an id is not given one: the text is unchanged, nothing is copied, and a toast says why', async () => {
+      api.draftBlocks.mockResolvedValue({ id: 'aaaaaa', change: { from: 20, to: 20, insert: ' ^aaaaaa' }, block: { index: 0, from: 9, to: 20 } });
+      const view = await editorView('# Title\n\nhello world\n\nnext');
+      caretAt(view, 12);
+      lock(view);
+      expect(view.state.readOnly).toBe(true);
+      await run();
+      expect(view.state.doc.toString()).toBe('# Title\n\nhello world\n\nnext');
+      expect(writeText).not.toHaveBeenCalled();
+      expect(toast.info).toHaveBeenCalledWith('This page is read-only right now — a block without an id cannot be linked');
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('a block that has an id is still copied', async () => {
+      api.draftBlocks.mockResolvedValue({ id: 'abc', change: null, block: { index: 0, from: 0, to: 11 } });
+      const view = await editorView('- item ^abc\n- other');
+      caretAt(view, 3);
+      lock(view);
+      await run();
+      expect(writeText).toHaveBeenCalledWith('[[Existing#^abc]]');
+      expect(view.state.doc.toString()).toBe('- item ^abc\n- other');
+    });
   });
 
   it('copies the id the server reads for the block without editing the text', async () => {

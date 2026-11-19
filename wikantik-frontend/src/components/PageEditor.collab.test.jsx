@@ -12,7 +12,7 @@ import { act, cleanup, configure, fireEvent, render, screen, within } from '@tes
 configure({ asyncUtilTimeout: 3000 });
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { EditorView } from '@codemirror/view';
-import { ChangeSet } from '@codemirror/state';
+import { ChangeSet, EditorState } from '@codemirror/state';
 
 vi.mock('../api/client', () => ({
   api: {
@@ -545,6 +545,50 @@ describe('PageEditor collaborative mode', () => {
     await until(() => currentView() !== null && currentView() !== view);
     await until(() => docOf(currentView()) === 'A ![x](new.png)');
     await until(() => server.doc === 'A ![x](new.png)');
+  });
+
+  // The editor can refuse a write (read-only) at a moment the session's own state does not call blocked. A queued
+  // write that is refused stays queued, and goes in once the editor takes writes.
+  it('a queued attachment rename the editor refuses (read-only) stays queued and is applied once it is writable', async () => {
+    server = createFakeCollabServer({ initialText: 'A ![x](old.png)', maxPageBytes: 20, pollTimeoutMs: 2000 });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'A ![x](old.png)');
+    placeCaret(view, docOf(view).length);
+    typeAtCaret(view, ' far too large');
+    await screen.findByTestId('collab-recovery');
+    startRename('new');
+    await until(() => renameAttachment.mock.calls.length === 1);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // From here every editor state says read-only, whatever the session thinks.
+    const readOnly = vi.spyOn(EditorState.prototype, 'readOnly', 'get').mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
+    await until(() => currentView() !== null && currentView() !== view);
+    await until(() => docOf(currentView()) === 'A ![x](old.png)');
+    await wait(100); // the remounted editor has been offered the queue, and refused it
+    expect(docOf(currentView())).toBe('A ![x](old.png)');
+    readOnly.mockRestore();
+    placeCaret(currentView(), 0); // anything the editor reports: the queue is offered again
+    await until(() => docOf(currentView()) === 'A ![x](new.png)');
+    await until(() => server.doc === 'A ![x](new.png)');
+    warn.mockRestore();
+  });
+
+  it('an attachment rename the editor refuses outright (read-only, session not blocked) is queued, not sent to the fallback, and applied once writable', async () => {
+    server = createFakeCollabServer({ initialText: 'A ![x](old.png)', pollTimeoutMs: 2000 });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'A ![x](old.png)');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const readOnly = vi.spyOn(EditorState.prototype, 'readOnly', 'get').mockReturnValue(true);
+    startRename('new');
+    await until(() => renameAttachment.mock.calls.length === 1);
+    await wait(50);
+    expect(docOf(view)).toBe('A ![x](old.png)');
+    expect(warn.mock.calls.map((args) => args.join(' ')).filter((m) => /body update skipped/.test(m))).toEqual([]);
+    readOnly.mockRestore();
+    placeCaret(view, 0);
+    await until(() => docOf(view) === 'A ![x](new.png)');
+    await until(() => server.doc === 'A ![x](new.png)');
+    warn.mockRestore();
   });
 
   it('an attachment rename while the page is frozen says the links were not updated', async () => {
@@ -1502,6 +1546,35 @@ describe('PageEditor collaborative mode', () => {
     await until(() => screen.queryByRole('button', { name: 'Convert and publish' }) === null);
     expect(screen.queryByTestId('wiki-view')).toBeNull();
     expect(screen.getByText('a note')).toBeInTheDocument();
+  });
+
+  // A write the editor refuses (the draft went read-only while the convert request was out) is no conversion: saying
+  // it was would publish the page as Markdown with its wiki-syntax body.
+  it('a draft gone read-only while the conversion is in flight is not converted: no markup change, no publish, and the user is told', async () => {
+    server = createFakeCollabServer({ initialText: "Hello ''world''", pollTimeoutMs: 2000 });
+    api.getPage.mockResolvedValue({ content: "Hello ''world''", metadata: {}, version: 7, markupSyntax: 'wiki' });
+    const answer = deferred();
+    api.convertWikiToMarkdown.mockReturnValue(answer.promise);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { view } = await mount();
+    await until(() => docOf(view) === "Hello ''world''");
+    fireEvent.click(screen.getByRole('button', { name: 'Convert and publish' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Convert and publish' }));
+    await until(() => api.convertWikiToMarkdown.mock.calls.length === 1);
+    act(() => { server.evict(server.liveParticipantIds()[0], 'lost-edit'); });
+    await screen.findByTestId('collab-evicted');
+    expect(currentView().state.readOnly).toBe(true);
+    await act(async () => { answer.resolve({ markdown: 'Hello *world*', warnings: [] }); await answer.promise; });
+    await until(() => screen.queryByTestId('editor-error') !== null);
+    expect(screen.getByTestId('editor-error')).toHaveTextContent(/could not be converted.*read-only/i);
+    await wait(300);
+    expect(docOf(currentView())).toBe("Hello ''world''");
+    expect(server.doc).toBe("Hello ''world''");
+    expect(server.calls.filter((c) => c.path === '/publish')).toEqual([]);
+    // still a legacy page: the offer to convert is still there, and nothing claims it was converted
+    expect(screen.getByRole('button', { name: 'Convert and publish' })).toBeInTheDocument();
+    expect(screen.queryByTestId('collab-convert-unpublished')).toBeNull();
+    warn.mockRestore();
   });
 
   it('anotherEditorsConvertRefreshesMarkupSyntax', async () => {

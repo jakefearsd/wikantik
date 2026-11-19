@@ -492,15 +492,20 @@ export default function PageEditor({ collabTransport } = {}) {
     collabFrozenRef.current = collabMode && collab.status === 'frozen';
   });
   const pendingWritesRef = useRef([]);
+  const applyPendingWritesRef = useRef(null); // handleViewChange is defined before applyPendingWrites
   // Fallback body writer for edits made without a view: never in collab mode, where the uncontrolled editor would
   // diverge from React state (A4).
   const fallbackSetBody = useCallback((update) => {
     if (collabModeRef.current) {
       console.warn('[collab] body update skipped: the collab editor view is not mounted');
-      return;
+      return false;
     }
     setBody(update);
+    return true;
   }, []);
+  // The editor refuses writes to a read-only document (CodeEditor's applyEdit / applyChanges answer false, as they do
+  // without a view): asked here first, because a refusal must never be taken for "no view" and sent to the fallback.
+  const editorIsReadOnly = useCallback(() => editorRef.current?.getView?.()?.state?.readOnly === true, []);
 
   const guardActive = collabMode
     ? (collabEditing && (unsynced || !!collabMeta?.pending)) || !!collab.resync?.unsyncedText || unplacedInserts.length > 0
@@ -591,6 +596,8 @@ export default function PageEditor({ collabTransport } = {}) {
     trackTable();
     trackBlockPicker();
     syncPreview();
+    // Writes the editor refused while it was read-only are offered again with whatever it reports next.
+    if (pendingWritesRef.current.length) applyPendingWritesRef.current?.();
   }, [cursorStore, syncPreview, trackTable, trackBlockPicker]);
   const jumpToHeading = useCallback((line) => editorRef.current?.jumpToLineAligned?.(line, 0), []);
 
@@ -787,25 +794,34 @@ export default function PageEditor({ collabTransport } = {}) {
   // react-codemirror's typing latch to be replayed over later keystrokes. setBody only when there is no view.
   // Incoming text is normalised to LF first: the server stores CRLF, the editor always holds LF, and text that
   // differs only in line endings must not count as a change.
+  // Answers whether the editor now holds the text: false when the write was refused (a read-only document, or a shared
+  // draft whose editor is not mounted) — the caller must then not go on as if it had been written.
   const replaceBody = useCallback((raw) => {
     const text = String(raw ?? '').replace(/\r\n?/g, '\n');
     const editor = editorRef.current;
     const live = editor?.getText?.();
-    if (live === text) return;
-    if (live != null && editor.applyChanges?.([minimalChange(live, text)])) return;
-    fallbackSetBody(text);
-  }, [fallbackSetBody]);
+    if (live === text) return true;
+    if (editorIsReadOnly()) {
+      console.warn('[editor] body not replaced: the document is read-only');
+      return false;
+    }
+    if (live != null && editor.applyChanges?.([minimalChange(live, text)])) return true;
+    return fallbackSetBody(text);
+  }, [fallbackSetBody, editorIsReadOnly]);
 
   // Queued collab writes (see queueCollabWrite) go in once the editor takes writes again, each as one transaction.
   const applyPendingWrites = useCallback(() => {
     const ops = pendingWritesRef.current;
     const editor = editorRef.current;
-    if (!ops.length || collabWriteBlockedRef.current || editor?.getText?.() == null) return;
+    // A read-only editor takes none of them: they stay queued (handleViewChange offers them again).
+    if (!ops.length || collabWriteBlockedRef.current || editor?.getText?.() == null || editorIsReadOnly()) return;
     pendingWritesRef.current = [];
     let unplaced = unplacedRef.current;
     for (const op of ops) {
-      if (op.kind === 'rename') editor.applyChanges(attachmentLinkChanges(editor.getText(), op.oldName, op.newName));
-      else if (op.kind === 'replace') {
+      if (op.kind === 'rename') {
+        // refused after all (it turned read-only under the loop): kept, not dropped
+        if (editor.applyChanges(attachmentLinkChanges(editor.getText(), op.oldName, op.newName)) === false) pendingWritesRef.current.push(op);
+      } else if (op.kind === 'replace') {
         // a placeholder handed back below (an upload that finished while out of sync) gets its final link there
         if (!editor.getText().includes(op.find) && unplaced.some((t) => t.includes(op.find))) {
           unplaced = replaceInUnplaced(unplaced, op.find, op.replacement);
@@ -817,7 +833,8 @@ export default function PageEditor({ collabTransport } = {}) {
     }
     // (state outside the caller's effect: the panel is news for the next render, not a cascade of this one)
     if (unplaced !== unplacedRef.current) updateUnplaced(unplaced, { defer: true });
-  }, [updateUnplaced]);
+  }, [updateUnplaced, editorIsReadOnly]);
+  useEffect(() => { applyPendingWritesRef.current = applyPendingWrites; });
   // A fresh view: its mount runs inside react-codemirror's layout effect, before this component's refs are updated.
   const handleEditorReady = useCallback(() => { setTimeout(applyPendingWrites, 0); }, [applyPendingWrites]);
   useEffect(() => {
@@ -847,7 +864,8 @@ export default function PageEditor({ collabTransport } = {}) {
 
   const handleRename = useCallback(async (oldName, newName) => {
     const result = await attachments.renameAttachment(oldName, newName);
-    if (collabWriteBlockedRef.current) {
+    // Also when the editor itself is read-only: its refusal is not "no view", and must not reach the fallback below.
+    if (collabWriteBlockedRef.current || editorIsReadOnly()) {
       queueCollabWrite({ kind: 'rename', oldName, newName });
       return result;
     }
@@ -859,7 +877,7 @@ export default function PageEditor({ collabTransport } = {}) {
     if (live != null && editor.applyChanges?.(attachmentLinkChanges(live, oldName, newName))) return result;
     fallbackSetBody((prev) => rewriteAttachmentLinks(prev, oldName, newName));
     return result;
-  }, [attachments, fallbackSetBody, queueCollabWrite]);
+  }, [attachments, fallbackSetBody, queueCollabWrite, editorIsReadOnly]);
 
   // Captured once per page: the route state is cleared after it is applied, so Back / reload to
   // /edit/P does not re-apply the restore (and clearing it must not re-trigger the load effect).
@@ -1169,6 +1187,8 @@ export default function PageEditor({ collabTransport } = {}) {
       .then(({ id, change }) => {
         // a resync remount while the server answered: this view is destroyed, and its text is not the editor's any more
         if (editorRef.current?.getView?.() !== view) throw Object.assign(new Error('Block link: changed'), { code: 'changed' });
+        // The block needs an id written into the text, which a read-only document does not take (dispatch would).
+        if (change && view.state.readOnly) throw Object.assign(new Error('Block link: read-only'), { code: 'read-only' });
         if (change) {
           view.dispatch({
             changes: change,
@@ -1189,6 +1209,7 @@ export default function PageEditor({ collabTransport } = {}) {
       else if (err?.code === 'no-page') toast.info('Save the page first to link its blocks');
       else if (err?.code === 'refused') toast.error("Couldn't add a block id here");
       else if (err?.code === 'changed') toast.error('The text changed — copy the block link again');
+      else if (err?.code === 'read-only') toast.info('This page is read-only right now — a block without an id cannot be linked');
       else {
         console.warn('[editor] could not get a block link', name, pos, err?.cause?.message || err?.message || err);
         toast.error("Couldn't get a block link — try again");
@@ -1275,7 +1296,11 @@ export default function PageEditor({ collabTransport } = {}) {
         setError('The page changed while converting — run Convert again.');
         return false;
       }
-      replaceBody(result.markdown);
+      if (!replaceBody(result.markdown)) {
+        // Nothing was written: the page is still wiki syntax, and must not be marked (or published) as Markdown.
+        setError('The page could not be converted: it is read-only right now. Run Convert again once it can be edited.');
+        return false;
+      }
       setMarkupSyntax('markdown');
       setConversionWarnings(result.warnings || []);
       return true;

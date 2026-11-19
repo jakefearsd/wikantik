@@ -82,7 +82,7 @@ The command palette (Mod+P) also lists commands with no key: Heading 1, 2 and 3,
 
 ### Insert blocks with the slash menu
 
-Type `/` at the start of a line or after a space to open a menu of blocks. It offers the same blocks as the **Insert** menu, plus Heading 1 to 3, Table and Link. Keep typing to narrow it (for example `/tab`), press Up and Down to choose, and press Enter to insert. It does not open inside frontmatter, code, a URL or math.
+Type `/` at the start of a line or after a space to open a menu of blocks. It offers the same blocks as the **Insert** menu, plus Heading 1 to 4, the bulleted, numbered and task lists, Quote, Table and Link. Keep typing to narrow it (for example `/tab`), press Up and Down to choose, and press Enter to insert. It does not open inside frontmatter, code, a URL or math.
 
 ### Rich and Source modes
 

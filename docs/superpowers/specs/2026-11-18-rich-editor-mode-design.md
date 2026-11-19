@@ -294,7 +294,8 @@ Links and cards:
   so does a selection that ends inside one (a find match in a page name). The table's "always a chip" holds
   for a caret beside the link or elsewhere on its line.
 - `Mod-K` on a selection writes nothing until the card is committed. The design had it wrap the selection
-  first. It does nothing for a selection that crosses a table cell boundary or holds a whole link.
+  first. It does nothing for a selection that crosses a table cell boundary or holds a whole link, an
+  autolink or a bare URL.
 - Backspace right after a link chip (Delete right before one) selects the chip; a second press deletes it.
 - `Ctrl/Cmd-S` with the focus in the card writes the card's edit first; a value the card refuses keeps it
   open, and nothing is saved.
@@ -323,8 +324,8 @@ Tables:
 - Search-and-replace passes through unchanged (a match may span a pipe).
 - A `|` typed through an IME is stored unescaped; the table falls back to the old drawing until the pipe is
   repaired.
-- Blanks typed or pasted in front of the text of a cell write nothing (they would be stored in the hidden
-  padding and shown nowhere).
+- Spaces and tabs typed or pasted in front of the text of a cell write nothing (they would be stored in the
+  hidden padding and shown nowhere). A no-break or ideographic space is text and is kept.
 - Block commands run with the caret in a grid cell (insert table, heading, list prefix) are written as
   dispatched and break the table, as they do in Source.
 
@@ -339,6 +340,9 @@ Read-only documents and programmatic writes:
 
 - A read-only editor (a frozen or out-of-sync shared draft, no edit permission) takes no format or insert
   command from the toolbar, the palette, the slash menu or a shortcut.
+- A write the read-only editor refuses is reported, never taken as done: Convert then leaves the markup as
+  it is, publishes nothing and says so; a queued attachment rename stays queued until the editor takes
+  writes; Copy block link copies nothing for a block that would need an id written.
 - A write that is exact by construction (the link card, a server-decided block id, every `applyChanges`
   call) carries the `asDispatched` annotation, and the grid's cell rules pass it through whatever its user
   event and wherever the selection is.

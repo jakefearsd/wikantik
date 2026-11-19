@@ -363,6 +363,11 @@ describe('a card on text that is not a link yet', () => {
     ['a range that holds a whole wikilink and text after it', 26, 37],
     ['a range around a whole Markdown link', DOC.length + 1, DOC.length + 16, `${DOC}\nsee [x](u) here`],
     ['a range around a whole image', DOC.length + 1, DOC.length + 17, `${DOC}\nsee ![x](u) here`],
+    // Written, these would be a link inside a link's text: the reader then draws the inner one and shows the outer as text.
+    ['a range around an autolink', DOC.length + 1, DOC.length + 20, `${DOC}\nsee <http://q> here`],
+    ['an autolink alone', DOC.length + 5, DOC.length + 15, `${DOC}\nsee <http://q> here`],
+    ['a range around a bare URL', DOC.length + 1, DOC.length + 27, `${DOC}\ntext http://bare.example x`],
+    ['a range around a www address', DOC.length + 1, DOC.length + 20, `${DOC}\nwww.example.com now`],
   ])('is refused for %s: no card, no change', (_name, from, to, doc = DOC) => {
     const onLinkCard = vi.fn();
     const view = mount(doc, { onLinkCard });

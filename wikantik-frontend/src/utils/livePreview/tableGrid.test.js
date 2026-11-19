@@ -207,6 +207,14 @@ describe('a space typed at the start of a cell that has text', () => {
     paste(view, ' x');
     expect(text(view)).toBe(DOC.replace('| three |', '|  xthree |'));
   });
+  // Only the blanks the table reads as padding. A no-break or ideographic space is cell text wherever it is typed.
+  it.each([['a no-break space', '\u00a0'], ['an ideographic space', '\u3000']])('%s at the start of the cell is text, and is kept', (_name, ch) => {
+    const view = mount();
+    caretAt(view, at('one'));
+    type(view, ch);
+    expect(text(view)).toBe(DOC.replace('| one |', `| ${ch}one |`));
+    expect(head(view)).toBe(at('one') + 1);
+  });
   it('in an empty cell a space is typed as anywhere else', () => {
     const view = mount();
     caretAt(view, EMPTY);

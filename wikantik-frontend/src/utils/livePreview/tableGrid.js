@@ -196,7 +196,8 @@ function cellChange(state, fromA, toA, text, { cut = false, drop = false } = {})
   if (cut && /[^ \t|]/.test(doc.sliceString(fromA, from) + doc.sliceString(to, toA))) return { from, to: from, insert: '', before: '' };
   // Blanks inserted in front of a cell's text would join the hidden padding after the pipe: stored, shown nowhere,
   // the caret not moving. Nothing is written (an empty cell has no text to be in front of, and takes them).
-  if (from === to && from <= cell.from && cell.to > cell.from && text && !/\S/.test(text)) return { from, to: from, insert: '', before: '' };
+  // Only the blanks the table reads as padding (a line break is stored as a space): any other space is cell text.
+  if (from === to && from <= cell.from && cell.to > cell.from && /^[ \t\r\n]+$/.test(text)) return { from, to: from, insert: '', before: '' };
   const charAt = (pos) => doc.sliceString(pos, pos + 1);
   if (to > from && from > cell.from && charAt(from) === '|' && charAt(from - 1) === BACKSLASH) from -= 1;
   let before = doc.sliceString(cell.outerFrom, from);

@@ -122,7 +122,10 @@ export function requestLinkCard(view, pos) {
   return true;
 }
 
-const LINK_NODES = new Set(['Link', 'Image', 'WikiLink', 'WikiEmbed']);
+// `Autolink` (`<http://…>`) and a bare `URL` (GFM's `http://…`, `www.…`) are links too. The wrap would keep their
+// text, but a link's text cannot hold a link: the reader draws the inner one and shows the outer brackets as text.
+// (A `URL` that is a link's own address is only ever in the range together with its `Link`.)
+const LINK_NODES = new Set(['Link', 'Image', 'WikiLink', 'WikiEmbed', 'Autolink', 'URL']);
 
 /**
  * Whether the text [from, to] can become a link's text. Not an empty range or one across a line break; not one that

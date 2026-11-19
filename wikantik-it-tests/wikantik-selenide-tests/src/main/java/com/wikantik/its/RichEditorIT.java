@@ -37,6 +37,7 @@ import java.util.List;
 
 import static com.codeborne.selenide.CollectionCondition.exactTexts;
 import static com.codeborne.selenide.CollectionCondition.size;
+import static com.codeborne.selenide.Condition.attribute;
 import static com.codeborne.selenide.Condition.cssClass;
 import static com.codeborne.selenide.Condition.exactText;
 import static com.codeborne.selenide.Condition.exactValue;
@@ -56,7 +57,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * marker, a code block's fences, which are drawn as a header with a language picker), the toolbar's mode control
  * switches to Source, and saving a page that was only looked at stores nothing new. A link stays a chip under the
  * caret, and its card retargets it. A table is edited as a grid: a click and Tab move between its cells, the controls
- * add a column, and what is saved is the Markdown table the reader shows.
+ * add a column, and what is saved is the Markdown table the reader shows. A diagram inserted from the Insert menu is
+ * drawn in the editor and by the reader. Bold, italic and the other inline marks are the one thing Rich still shows at
+ * the caret: on the caret's line only. A page taken through Rich, Source and Rich again and saved is stored unchanged.
  */
 public class RichEditorIT extends WithIntegrationTestSetup {
 
@@ -95,6 +98,16 @@ public class RichEditorIT extends WithIntegrationTestSetup {
     private static final String GRID_CELL = CONTENT + " .cm-lp-table-row .cm-lp-cell";
     /** The table controls' toolbar, drawn in the editor's scroller while the caret is in a grid table. */
     private static final String TABLE_CONTROLS = "[data-testid=page-editor] [role=toolbar][aria-label=Table]";
+    private static final String MODE_RICH = "[data-testid=editor-mode] [data-mode=rich]";
+    private static final String MODE_SOURCE = "[data-testid=editor-mode] [data-mode=source]";
+    /** What the Insert menu's "Mermaid diagram" writes (editorCommands.js FENCE_STARTERS), as a fenced block. */
+    private static final String MERMAID_BLOCK = "```mermaid\nflowchart TD\n  A-->B\n```\n";
+    private static final String DRAWN_FENCE = "figure.wk-fence[data-fence=mermaid][data-fence-state=drawn] svg";
+    /** {@link #BODY} plus a line with a bold word; the asterisks are the only ones on the page. */
+    private static final String BOLD_LINE = "Some **bold** word here.";
+    private static final String BOLD_BODY = BODY + "\n" + BOLD_LINE + "\n";
+    /** One page with every kind of thing Rich draws: markers, a code block, a callout, a link, a table, a bold word. */
+    private static final String EVERYTHING_BODY = PICKER_BODY + "\n" + LINK_LINE + "\n\n" + TABLE + "\n" + BOLD_LINE + "\n";
 
     @BeforeEach
     void login() throws Exception {
@@ -377,6 +390,145 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         $$( readerTable + " thead th" ).shouldHave( size( 3 ), WAIT );
         $$( readerTable + " tbody tr" ).shouldHave( size( 2 ), WAIT );
         $$( readerTable + " tbody tr" ).first().$$( "td" ).shouldHave( exactTexts( apple, "91", "ripe" ), WAIT );
+    }
+
+    // ---- a diagram from the Insert menu ----
+
+    @Test
+    void aMermaidDiagramInsertedFromTheToolbarIsDrawnInTheEditorAndByTheReader() throws Exception {
+        final String seeded = fetchPage().get( "content" ).getAsString();
+        EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
+        $( EDITOR ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
+        EditWikiPage.awaitDocumentEquals( BODY, WAIT );
+
+        // The caret on the empty line under the first paragraph: the diagram takes that place, a blank line each side.
+        final String above = "Intro paragraph.\n";
+        final int at = BODY.indexOf( above ) + above.length();
+        EditWikiPage.setCaret( at );
+        $( "[role=toolbar] button[aria-label='Insert']" ).shouldBe( visible, WAIT ).click();
+        $( "[role=menu][aria-label='Insert'] [data-label='Mermaid diagram']" ).shouldBe( visible, WAIT ).click();
+        final String inserted = BODY.substring( 0, at ) + "\n" + MERMAID_BLOCK + BODY.substring( at );
+        EditWikiPage.awaitDocumentEquals( inserted, WAIT );
+
+        // The caret is in the new diagram's source, ready to be typed over, and the focus never left the text.
+        $( EDITOR ).shouldHave( cssClass( "cm-focused" ), WAIT );
+        final int bodyFrom = inserted.indexOf( "flowchart TD" );
+        assertEquals( bodyFrom, EditWikiPage.caretOffset(), "the caret is at the start of the diagram's source" );
+        assertEquals( "flowchart TD", EditWikiPage.renderedLineText( bodyFrom + 3 ),
+            "with the caret in the diagram, its source is what the editor shows" );
+
+        // The caret elsewhere: the block is drawn (Mermaid draws in the browser, some time after the caret has left).
+        EditWikiPage.setCaret( inserted.indexOf( "Closing words" ) + 3 );
+        $( CONTENT + " .cm-lp-fence-block " + DRAWN_FENCE ).shouldBe( exist, Duration.ofSeconds( 30 ) );
+        assertEquals( inserted, EditWikiPage.documentText(), "drawing the diagram must not change the document" );
+
+        EditWikiPage.publish();
+        new WebDriverWait( WebDriverRunner.getWebDriver(), WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
+        $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
+        // The stored text has CRLF line ends (see the grid test): the block is looked for as it is stored.
+        final String storedAbove = above.replace( "\n", "\r\n" );
+        assertTrue( seeded.contains( storedAbove ), "the seeded page holds its first paragraph with a CRLF line end; "
+            + "it is:\n" + seeded.replace( "\r", "\\r" ) );
+        assertEquals( seeded.replace( storedAbove, storedAbove + ( "\n" + MERMAID_BLOCK ).replace( "\n", "\r\n" ) ),
+            fetchPage().get( "content" ).getAsString(),
+            "the saved source is the seeded one with the diagram's block, and a blank line before it, added" );
+
+        // The reader, loaded afresh, draws the diagram too.
+        Selenide.refresh();
+        $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
+        $( "[data-testid=page-view] " + DRAWN_FENCE ).shouldBe( exist, Duration.ofSeconds( 30 ) );
+    }
+
+    // ---- inline marks: shown on the caret's line (the design's fallback) ----
+
+    @Test
+    void boldMarksShowOnTheCaretsLineOnlyAndTheBoldButtonWrapsTheSelectedWord() throws Exception {
+        RestSeedHelper.writePage( PAGE, BOLD_BODY );
+        final String seeded = fetchPage().get( "content" ).getAsString();
+        EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
+        $( EDITOR ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
+        EditWikiPage.awaitDocumentEquals( BOLD_BODY, WAIT );
+        final int boldLine = BOLD_BODY.indexOf( BOLD_LINE );
+        final int inBold = BOLD_BODY.indexOf( "bold**" ) + 2;
+        final int closing = BOLD_BODY.indexOf( "Closing words" );
+
+        // The caret on another line: the word is drawn bold and its marks are not shown.
+        EditWikiPage.setCaret( closing + 3 );
+        assertEquals( BOLD_LINE.replace( "**", "" ), EditWikiPage.renderedLineText( boldLine + 2 ),
+            "with the caret on another line, the bold word's line shows no asterisks" );
+        // The caret inside the bold word: its line shows the marks.
+        EditWikiPage.setCaret( inBold );
+        assertEquals( BOLD_LINE, EditWikiPage.renderedLineText( boldLine + 2 ),
+            "with the caret inside the bold word, its line shows the word's marks" );
+        // And away again: hidden again.
+        EditWikiPage.setCaret( closing + 3 );
+        assertEquals( BOLD_LINE.replace( "**", "" ), EditWikiPage.renderedLineText( boldLine + 2 ),
+            "with the caret gone from the line, the marks are hidden again" );
+        assertEquals( BOLD_BODY, EditWikiPage.documentText(), "moving the caret must not change the document" );
+
+        // A selected word and the toolbar's Bold: exactly the two marks are written, around the word.
+        final String bold = "[role=toolbar] button[aria-label='Bold']";
+        select( closing, closing + "Closing".length() );
+        $( bold ).shouldBe( visible, WAIT ).shouldHave( attribute( "aria-pressed", "false" ) ).click();
+        final String bolded = BOLD_BODY.replace( "Closing words", "**Closing** words" );
+        EditWikiPage.awaitDocumentEquals( bolded, WAIT );
+        $( EDITOR ).shouldHave( cssClass( "cm-focused" ), WAIT ); // the press on the button left the focus in the text
+        $( bold ).shouldHave( attribute( "aria-pressed", "true" ), WAIT ); // the button shows what the selection is in
+        assertEquals( "**Closing** words.", EditWikiPage.renderedLineText( bolded.indexOf( "Closing" ) + 3 ),
+            "the selection is on the line, so the new marks show there" );
+
+        EditWikiPage.publish();
+        new WebDriverWait( WebDriverRunner.getWebDriver(), WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
+        $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
+        assertEquals( seeded.replace( "Closing words", "**Closing** words" ), fetchPage().get( "content" ).getAsString(),
+            "the saved source differs from the seeded one in the two marks around the word only" );
+    }
+
+    // ---- Rich, Source and Rich again ----
+
+    @Test
+    void aPageTakenThroughRichSourceAndRichAgainAndSavedUneditedIsStoredByteIdentical() throws Exception {
+        RestSeedHelper.writePage( PAGE, EVERYTHING_BODY );
+        final JsonObject seeded = fetchPage();
+        final int seededVersion = seeded.get( "version" ).getAsInt();
+
+        EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
+        $( EDITOR ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
+        EditWikiPage.awaitDocumentEquals( EVERYTHING_BODY, WAIT );
+        // Rich has drawn the page: the code block's header, the callout's picker, the link's chip, the table's grid.
+        $( FENCE_PICKER ).shouldBe( visible, WAIT ).shouldHave( value( "java" ) );
+        $( CALLOUT_PICKER ).shouldBe( visible, WAIT ).shouldHave( value( "note" ) );
+        $( LINK_CHIP ).shouldBe( visible, WAIT ).shouldHave( text( "RichEditorOldTarget" ) );
+        $$( CONTENT + " .cm-lp-table-row" ).shouldHave( size( 3 ), WAIT );
+
+        // To Source with the toolbar's control: the markup is text.
+        $( MODE_SOURCE ).shouldHave( attribute( "aria-checked", "false" ) ).click();
+        new EditWikiPage().assertMode( EditorMode.SOURCE );
+        $( EDITOR ).shouldNotHave( cssClass( "cm-live-preview" ), WAIT );
+        $( MODE_SOURCE ).shouldHave( attribute( "aria-checked", "true" ), WAIT );
+        $( CONTENT ).shouldHave( text( "# " + HEADING ), WAIT ).shouldHave( text( OLD_LINK ) )
+            .shouldHave( text( "| apple | 1 |" ) ).shouldHave( text( "**bold**" ) );
+        assertEquals( EVERYTHING_BODY, EditWikiPage.documentText(), "switching to Source must not change the document" );
+
+        // Back to Rich with the key, the caret in the text: the page is drawn again.
+        EditWikiPage.setCaret( EVERYTHING_BODY.indexOf( "Closing words" ) + 3 );
+        EditWikiPage.pressMod( "e" );
+        new EditWikiPage().assertMode( EditorMode.LIVE );
+        $( EDITOR ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
+        $( MODE_RICH ).shouldHave( attribute( "aria-checked", "true" ), WAIT );
+        $( LINK_CHIP ).shouldBe( visible, WAIT ).shouldHave( text( "RichEditorOldTarget" ) );
+        $$( CONTENT + " .cm-lp-table-row" ).shouldHave( size( 3 ), WAIT );
+        assertEquals( EVERYTHING_BODY, EditWikiPage.documentText(), "switching back to Rich must not change the document" );
+
+        EditWikiPage.publish();
+        new WebDriverWait( WebDriverRunner.getWebDriver(), WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
+        $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
+
+        final JsonObject saved = fetchPage();
+        assertEquals( seededVersion, saved.get( "version" ).getAsInt(), "an unedited save must not create a version" );
+        assertEquals( seeded.get( "content" ).getAsString(), saved.get( "content" ).getAsString(),
+            "a page taken through both modes and saved unedited must be stored byte-identical" );
+        assertEquals( seeded.get( "contentHash" ).getAsString(), saved.get( "contentHash" ).getAsString() );
     }
 
     /** Selects the document range {@code [from, to)} with the editor focused (both ends in content, on one line). */

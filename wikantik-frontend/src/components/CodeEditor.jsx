@@ -425,6 +425,43 @@ const CodeEditor = forwardRef(function CodeEditor(
       return { line: lineObj.number, col: head - lineObj.from + 1, selectionText: view.state.sliceDoc(from, to) };
     },
     /**
+     * The editor's geometry for the block-by-block preview sync, in the scroll coordinates of `.cm-scroller`
+     * (0 = the top of its content, the same scale as its scrollTop): the scroll position and its maximum, the
+     * content's height,
+     * `lineTop(n)` for the top of line n (1-based, clamped), and the caret's line and top. The caret's top is its
+     * drawn position when it is drawn (inside a wrapped paragraph it is lower than its line's top). Null without a
+     * view, or when the view cannot be measured.
+     */
+    scrollGeometry() {
+      const view = viewRef.current;
+      if (!view) return null;
+      try {
+        const dom = view.scrollDOM;
+        const scrollTop = dom.scrollTop;
+        const toScroll = (viewportY) => viewportY - dom.getBoundingClientRect().top + scrollTop;
+        const offset = toScroll(view.documentTop);
+        const doc = view.state.doc;
+        const lineTop = (n) => view.lineBlockAt(doc.line(Math.max(1, Math.min(Math.round(n), doc.lines))).from).top + offset;
+        const head = view.state.selection.main.head;
+        const drawn = view.coordsAtPos(head);
+        return {
+          scrollTop,
+          maxScroll: Math.max(0, dom.scrollHeight - dom.clientHeight),
+          height: dom.scrollHeight,
+          lineTop,
+          caret: { line: doc.lineAt(head).number, top: drawn ? toScroll(drawn.top) : view.lineBlockAt(head).top + offset },
+        };
+      } catch (err) {
+        console.warn('[editor] could not measure the editor for the preview sync', err?.message || err);
+        return null;
+      }
+    },
+    /** Scroll the editor to `top` (scroll coordinates, see scrollGeometry) — preview→editor sync. */
+    setScrollTop(top) {
+      const view = viewRef.current;
+      if (view) view.scrollDOM.scrollTop = Math.max(0, top);
+    },
+    /**
      * Scroll the editor so `line` (1-based) sits at the top — preview→editor sync. Reveals the target's
      * folds by default; passive scroll sync passes `{ reveal: false }` so folds survive.
      */

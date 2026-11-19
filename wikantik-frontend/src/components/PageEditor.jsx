@@ -11,8 +11,9 @@ import remarkBlockIds, { rehypeBlockIds } from '../utils/remarkBlockIds';
 import rehypeKatex from 'rehype-katex';
 import { api } from '../api/client';
 import { reconstructContent, stripFrontmatter, frontmatterOffsetLines } from '../utils/frontmatterUtils';
-import { frontmatterLineCount, caretToPreviewFraction, previewFractionToLine, previewScrollTopFor } from '../utils/scrollSync';
-import rehypeSourceLine from '../utils/rehypeSourceLine';
+import { scrollAnchors, previewScrollFor, editorScrollFor } from '../utils/scrollSync';
+import { collectPreviewAnchors, caretBlock, PREVIEW_CARET_CLASS } from '../utils/previewAnchors';
+import rehypeSourceLine, { rehypeDisplayMathLines } from '../utils/rehypeSourceLine';
 import FrontmatterPreview from './FrontmatterPreview';
 import FrontmatterEditor from './frontmatter/FrontmatterEditor';
 import ValidationSummary from './frontmatter/ValidationSummary';
@@ -63,6 +64,7 @@ import { useUnlinkedMentions } from '../hooks/useUnlinkedMentions';
 import { locatePhrase, linkMarkup } from '../utils/mentionLink';
 import { createEditorCursorStore } from '../utils/editorCursorStore';
 import { useRailOpen } from '../hooks/useRailOpen';
+import { useSidePane } from '../hooks/useSidePane';
 import { useEditorMode } from '../hooks/useEditorMode';
 import { loadEmbedState } from '../utils/livePreview/embedSource';
 import { asDispatched } from '../utils/livePreview';
@@ -252,6 +254,7 @@ export default function PageEditor({ collabTransport } = {}) {
   const liveActive = editorMode === 'live' && !isLegacyWiki;
   const dropContainerRef = useRef(null);
   const previewRef = useRef(null);
+  const previewArticleRef = useRef(null);
   const syncRafRef = useRef(0);
   const editorRafRef = useRef(0);
   const syncingRef = useRef(false);
@@ -555,25 +558,74 @@ export default function PageEditor({ collabTransport } = {}) {
     if (mathViolations.length > 0) setMathViolations([]);
   }, [mathViolations.length]);
 
-  // Editor→preview scroll sync. The editor now holds the BODY only, so the frontmatter offset is 0;
-  // the helpers stay (returning 0) for robustness.
-  const syncPreview = useCallback(() => {
-    if (syncingRef.current || syncRafRef.current || clickSyncGuardRef.current) return;
+  // Editor <-> preview scroll sync, block by block (utils/scrollSync): each rendered block's top in the preview is
+  // matched to its line's top in the editor. The preview's blocks are measured once per layout: again when its
+  // text was re-rendered (the cache is dropped), or its height or width changed (a picture loaded, a resize).
+  const anchorCacheRef = useRef(null);
+  const readingLineRef = useRef(0); // see syncPreview
+  const previewBlocks = useCallback(() => {
+    const preview = previewRef.current;
+    const article = previewArticleRef.current;
+    if (!preview || !article) return [];
+    const cached = anchorCacheRef.current;
+    if (cached && cached.article === article && cached.height === preview.scrollHeight && cached.width === preview.clientWidth) {
+      return cached.anchors;
+    }
+    const anchors = collectPreviewAnchors(article, preview);
+    anchorCacheRef.current = { article, height: preview.scrollHeight, width: preview.clientWidth, anchors };
+    return anchors;
+  }, []);
+  // The two panes as utils/scrollSync reads them, for the editor's geometry `g` (CodeEditor.scrollGeometry).
+  const paneFor = useCallback((g, preview, anchors) => {
+    const offset = frontmatterOffsetLines(bodyRef.current);
+    return {
+      anchors: scrollAnchors(anchors.map((a) => [g.lineTop(a.line + offset), a.top]), g.height, preview.scrollHeight),
+      readingLine: readingLineRef.current,
+      editorMax: g.maxScroll,
+      editorWindow: g.height - g.maxScroll,
+      previewMax: Math.max(0, preview.scrollHeight - preview.clientHeight),
+    };
+  }, []);
+  // The preview block holding the caret, lightly marked.
+  const caretBlockRef = useRef(null);
+  const markCaretBlock = useCallback((el) => {
+    const prev = caretBlockRef.current;
+    if (prev && prev !== el) prev.classList.remove(PREVIEW_CARET_CLASS);
+    if (el) el.classList.add(PREVIEW_CARET_CLASS);
+    caretBlockRef.current = el;
+  }, []);
+  // The reading line: how far down the editor's window the panes are held level, in px. It is where the caret was
+  // in the window when it last moved there (typing, a click, the arrow keys), and 0 (the window's top) before that.
+  // Every sync, a scroll included, matches that height in both panes, so a scroll after typing does not jump; the
+  // tops meet at the top and the ends at the end (utils/scrollSync previewScrollFor).
+  const caretMovedRef = useRef(false);
+  // `caretMoved` makes the caret's height in the window the reading line, when the caret is in the window. Calls
+  // within one frame share one sync. The guard against scroll echoes drops only scrolls: a caret move is never an
+  // echo, nor is `force` (a re-rendered preview).
+  const syncPreview = useCallback(({ caretMoved = false, force = false } = {}) => {
+    if (clickSyncGuardRef.current || (syncingRef.current && !force && !caretMoved)) return;
+    if (caretMoved) caretMovedRef.current = true;
+    if (syncRafRef.current) return;
     syncRafRef.current = requestAnimationFrame(() => {
       syncRafRef.current = 0;
+      const moved = caretMovedRef.current;
+      caretMovedRef.current = false;
       if (clickSyncGuardRef.current) return;
-      const editor = editorRef.current;
       const preview = previewRef.current;
-      if (!editor?.getViewport || !preview) return;
-      const vp = editor.getViewport();
-      if (!vp) return;
-      const fm = frontmatterLineCount(bodyRef.current);
-      const fraction = caretToPreviewFraction(vp.topLine, vp.totalLines, fm);
+      const g = preview ? editorRef.current?.scrollGeometry?.() : null;
+      if (!g) return;
+      const caretInWindow = g.caret.top - g.scrollTop;
+      if (moved && caretInWindow >= 0 && caretInWindow < g.height - g.maxScroll) readingLineRef.current = caretInWindow;
+      const anchors = previewBlocks();
+      markCaretBlock(caretBlock(anchors, g.caret.line - frontmatterOffsetLines(bodyRef.current)));
+      // The reader is scrolling the preview this frame: the editor follows it, not the other way round.
+      if (editorRafRef.current) return;
+      const target = previewScrollFor(g.scrollTop, paneFor(g, preview, anchors));
       syncingRef.current = true;
-      preview.scrollTop = previewScrollTopFor(fraction, preview.scrollHeight, preview.clientHeight);
+      preview.scrollTop = Math.max(0, Math.round(target));
       requestAnimationFrame(() => { syncingRef.current = false; });
     });
-  }, []);
+  }, [previewBlocks, paneFor, markCaretBlock]);
 
   const [formatState, setFormatState] = useState(EMPTY_FORMAT_STATE);
   // Rich mode's row and column controls for the table the caret is in, and the table commands of the palette.
@@ -581,6 +633,7 @@ export default function PageEditor({ collabTransport } = {}) {
   const { onViewChange: trackTable } = tableControls;
   // The palette's way to a code block's language picker or a callout's type picker (no key can reach them otherwise).
   const { onViewChange: trackBlockPicker } = useBlockPicker({ editorRef, readOnly: collabReadOnly || collabForbidden });
+  const lastCaretRef = useRef('');
   const handleViewChange = useCallback(() => {
     const editor = editorRef.current;
     const vp = editor?.getViewport?.();
@@ -588,6 +641,9 @@ export default function PageEditor({ collabTransport } = {}) {
     cursorStore.set({ ...(cursor || {}), ...(vp ? { topLine: vp.topLine } : {}) });
     // The toolbar's lit buttons: kept by identity while the caret stays in the same formatting, so typing and
     // scrolling do not re-render the toolbar.
+    const caretAt = cursor ? `${cursor.line}:${cursor.col}` : '';
+    const caretMoved = caretAt !== lastCaretRef.current;
+    lastCaretRef.current = caretAt;
     const view = editor?.getView?.();
     if (view) {
       const next = formatStateAt(view.state);
@@ -595,7 +651,7 @@ export default function PageEditor({ collabTransport } = {}) {
     }
     trackTable();
     trackBlockPicker();
-    syncPreview();
+    syncPreview({ caretMoved });
     // Writes the editor refused while it was read-only are offered again with whatever it reports next.
     if (pendingWritesRef.current.length) applyPendingWritesRef.current?.();
   }, [cursorStore, syncPreview, trackTable, trackBlockPicker]);
@@ -639,22 +695,21 @@ export default function PageEditor({ collabTransport } = {}) {
     editorRef.current?.scrollToLine(m.line);
   }, []);
 
+  // Preview -> editor: the same, the other way: level at the reading line, through the same blocks; the end follows the end.
   const syncEditor = useCallback(() => {
     if (syncingRef.current || editorRafRef.current) return;
     editorRafRef.current = requestAnimationFrame(() => {
       editorRafRef.current = 0;
       const editor = editorRef.current;
       const preview = previewRef.current;
-      if (!editor?.scrollToLine || !preview) return;
-      const range = preview.scrollHeight - preview.clientHeight;
-      const fraction = range > 0 ? preview.scrollTop / range : 0;
-      const total = bodyRef.current ? bodyRef.current.split('\n').length : 1;
-      const fm = frontmatterLineCount(bodyRef.current);
+      const g = preview && editor?.setScrollTop ? editor.scrollGeometry?.() : null;
+      if (!g) return;
+      const target = editorScrollFor(preview.scrollTop, paneFor(g, preview, previewBlocks()));
       syncingRef.current = true;
-      editor.scrollToLine(previewFractionToLine(fraction, total, fm), { reveal: false });
+      editor.setScrollTop(Math.round(target));
       requestAnimationFrame(() => { syncingRef.current = false; });
     });
-  }, []);
+  }, [previewBlocks, paneFor]);
 
   useEffect(() => () => {
     if (syncRafRef.current) cancelAnimationFrame(syncRafRef.current);
@@ -675,6 +730,9 @@ export default function PageEditor({ collabTransport } = {}) {
     const previewRect = previewRef.current?.getBoundingClientRect?.() ?? null;
     const scrollerTop = scrollerRect ? scrollerRect.top : previewRect ? previewRect.top : 0;
     const offset = el.getBoundingClientRect().top - scrollerTop;
+    // The caret lands level with the clicked block, so that height is the reading line from here on.
+    readingLineRef.current = Math.max(0, offset);
+    caretMovedRef.current = false;
     clickSyncGuardRef.current = true;
     syncingRef.current = true;
     editorRef.current?.jumpToLineAligned?.(sourceLine, offset);
@@ -1089,18 +1147,24 @@ export default function PageEditor({ collabTransport } = {}) {
   }, [toggleEditorMode]);
 
   // The side pane: hidden, the rendered preview, or the page's Markdown source (read-only; a learning aid offered in
-  // Rich mode only, never a way to change the editing mode). `last` is what "Toggle preview" restores. Not persisted.
-  const [paneState, setPaneState] = useState({ pane: 'preview', last: 'preview' });
-  const choosePane = useCallback((pane) => setPaneState({ pane, last: pane }), []);
+  // Rich mode only, never a way to change the editing mode). Whether it is shown is remembered per browser.
+  const [paneState, choosePane, togglePreview] = useSidePane();
   const showPreviewPane = useCallback(() => choosePane('preview'), [choosePane]);
   const showSourcePane = useCallback(() => choosePane('source'), [choosePane]);
   // Outside Rich a Source choice is kept but shown as the preview, until Rich is back.
   const shownPane = paneState.pane === 'source' && !liveActive ? 'preview' : paneState.pane;
   const previewShown = shownPane === 'preview';
+  // A re-rendered or re-opened preview has moved its blocks: measure them again and sync, so the caret's place stays
+  // level with the caret while typing (and the caret's mark is not left on a reused node showing another block).
+  // A hidden preview lets go of its measured blocks, which would hold its unmounted elements.
+  useEffect(() => {
+    anchorCacheRef.current = null;
+    if (previewShown) syncPreview({ force: true });
+    else caretBlockRef.current = null;
+  }, [previewSource, previewShown, syncPreview]);
   // Re-fetch embeds whenever the preview is re-opened so edits to embedded pages show up.
   useEmbedCacheLifecycle(previewShown);
 
-  const previewArticleRef = useRef(null);
   const { card: previewCard } = useLinkPreview(previewArticleRef, previewShown);
 
   // Ctrl/Cmd-hover over a link in the source editor.
@@ -1161,8 +1225,6 @@ export default function PageEditor({ collabTransport } = {}) {
     // After the dialog's focus trap has handed focus back to whatever opened it (a toolbar button, the palette).
     requestAnimationFrame(() => editorRef.current?.focus());
   }, [applyFormat]);
-  const togglePreview = useCallback(() => setPaneState(({ pane, last }) => (
-    pane === 'hidden' ? { pane: last, last } : { pane: 'hidden', last: pane })), []);
   const foldAll = useCallback(() => editorRef.current?.foldAll?.(), []);
   const unfoldAll = useCallback(() => editorRef.current?.unfoldAll?.(), []);
   // "Paste as plain text" from the palette: the browser may refuse a programmatic clipboard read (permission prompt
@@ -1271,7 +1333,7 @@ export default function PageEditor({ collabTransport } = {}) {
     [remarkAttachments, { attachments: previewAttachments, pageName: name }],
   ], [wikiLinkResolution, previewAttachments, name, missingPages]);
   const previewRehypePlugins = useMemo(
-    () => [rehypeBlockIds, rehypeKatex, rehypeRenderedFences, [rehypeHighlightCode, { lowlight }], rehypeSourceLine],
+    () => [rehypeBlockIds, rehypeDisplayMathLines, rehypeKatex, rehypeRenderedFences, [rehypeHighlightCode, { lowlight }], rehypeSourceLine],
     [lowlight],
   );
   const slashSource = useMemo(() => createSlashSource(getCommands, (id) => runCommand(id)), [runCommand]);
@@ -1747,6 +1809,10 @@ export default function PageEditor({ collabTransport } = {}) {
             style={{ fontSize: '1.1rem', padding: 'var(--space-xs) var(--space-sm)' }}
             title="Attachments">
             Attach
+          </button>
+          <button className="btn btn-ghost" data-testid="editor-preview-toggle" onClick={togglePreview}
+            aria-pressed={shownPane !== 'hidden'} title="Show or hide the preview pane">
+            Preview
           </button>
           <button className="btn btn-ghost" data-testid="editor-rail-toggle" onClick={toggleRail}
             aria-pressed={railOpen} title="Toggle outline rail">

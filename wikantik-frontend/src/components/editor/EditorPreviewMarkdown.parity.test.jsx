@@ -22,7 +22,7 @@ import { remarkMissingLinks } from '../../utils/wikiLinkTargets';
 import { remarkAttachments } from '../../utils/remarkAttachments';
 import { rehypeRenderedFences } from '../../utils/fences/rehypeRenderedFences';
 import { rehypeHighlightCode } from '../../utils/codeHighlight';
-import rehypeSourceLine from '../../utils/rehypeSourceLine';
+import rehypeSourceLine, { rehypeDisplayMathLines } from '../../utils/rehypeSourceLine';
 import fixture from '../../utils/__fixtures__/live-preview-parity.json';
 import pageEditorSource from '../PageEditor.jsx?raw';
 import EditorPreviewMarkdown from './EditorPreviewMarkdown';
@@ -41,7 +41,7 @@ const REMARK = [
   [remarkMissingLinks, { missing: new Set() }],
   [remarkAttachments, { attachments: [], pageName: PAGE }],
 ];
-const REHYPE = [rehypeBlockIds, rehypeKatex, rehypeRenderedFences, [rehypeHighlightCode, { lowlight: null }], rehypeSourceLine];
+const REHYPE = [rehypeBlockIds, rehypeDisplayMathLines, rehypeKatex, rehypeRenderedFences, [rehypeHighlightCode, { lowlight: null }], rehypeSourceLine];
 const EXPECT_FIELDS = ['liveExpect', 'previewExpect', 'readerExpect'];
 
 function render(markdown) {

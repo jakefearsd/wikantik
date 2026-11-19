@@ -103,6 +103,12 @@ Some tables are shown as a table but are not editable as a grid; click one to ed
 
 The editor is read-only when you may not edit the page, and for a moment when a shared draft is catching up with the server. While it is read-only the toolbar, the `/` menu, the shortcuts and **Copy block link** (for a block that has no id yet) change nothing. Try again once you can type.
 
+## The preview pane
+
+The rendered preview beside the editor stays level with it block by block: a heading, paragraph, formula, picture or table sits at the same height in both panes, at the height of the cursor (at the top of the pane until you place the cursor). Scrolling either pane scrolls the other the same way, and the preview lightly marks the block the cursor is in.
+
+**Preview** in the header hides or shows the pane, giving the editor the full width. The wiki remembers the choice in this browser. The pane is shown until you hide it.
+
 ## The Markdown source pane
 
 In Rich mode, the pane beside the editor can show the page's Markdown instead of the preview: choose **Source** at the top of the pane (or run **Show Markdown source beside the editor** from the command palette), and **Preview** to go back.

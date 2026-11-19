@@ -1058,6 +1058,14 @@ a.tag:hover {
   color: var(--text-secondary);
 }
 
+/* The preview block holding the editor's caret (PageEditor, utils/previewAnchors): a faint wash and an accent bar
+   just left of the block, as the source mirror marks the caret's line. */
+.editor-preview .editor-preview-caret-block {
+  background-color: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: -4px 0 0 var(--accent);
+  border-radius: 2px;
+}
+
 .editor-preview::-webkit-scrollbar {
   width: 10px;
 }

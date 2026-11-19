@@ -28,10 +28,10 @@ Below the buttons a preview shows the starting text for the chosen type. Click *
 
 The editor page has these parts from top to bottom:
 
-1. A header with the **Change note…** box, **Attach**, **Outline**, **Cancel** and **Save**.
+1. A header with the **Change note…** box, **Attach**, **Preview**, **Outline**, **Cancel** and **Save**.
 2. The **Frontmatter** tab (see [Edit the page's metadata](#edit-the-pages-metadata)).
 3. The formatting toolbar.
-4. The Markdown source on the left and a rendered preview on the right, with a side rail (outline, backlinks, unlinked mentions) at the far right.
+4. The editor on the left and, in a pane of the same width on the right, a rendered preview (in Rich mode it can show the Markdown source instead), with a side rail (outline, backlinks, unlinked mentions) at the far right.
 5. A status bar showing word count, reading time and the cursor line and column.
 
 Type a short **Change note…** to describe the edit. It is stored with the version and shown in the page's history. If you leave it blank the note is "Created page" or "Updated page".
@@ -154,7 +154,9 @@ In Rich mode, the pane beside the editor can show the page's Markdown instead of
 - It shows the body of the page. The metadata is edited on the **Frontmatter** tab and is not shown here.
 - It is not a way to switch mode. To edit the Markdown, switch the editor to Source.
 
-The rendered preview is a separate pane. It re-parses your text as you type and scrolls with the editor.
+The rendered preview is a separate pane. It re-parses your text as you type and stays level with the editor block by block: a heading, paragraph, formula, picture or table sits at the same height in both panes, at the height of the cursor (at the top of the pane until you place the cursor). Scrolling either pane scrolls the other the same way, and the preview lightly marks the block the cursor is in.
+
+**Preview** in the header hides or shows the pane, giving the editor the full width. The wiki remembers the choice in this browser. The pane is shown until you hide it.
 
 #### When the page is read-only
 

@@ -15,6 +15,8 @@ vi.mock('./CodeEditor', async () => {
       React.useImperativeHandle(ref, () => ({
         getSelection: () => ({ selStart: 0, selEnd: 0 }),
         setSelection() {}, focus() {}, getViewport: () => null, scrollToLine: (...args) => { (globalThis.__scrollCalls ||= []).push(args); },
+        scrollGeometry: () => ({ scrollTop: 0, maxScroll: 100, height: 200, lineTop: (n) => (n - 1) * 20, caret: { line: 1, top: 0 } }),
+        setScrollTop: (top) => { (globalThis.__setScrollTops ||= []).push(top); },
         getScrollerRect: () => null, jumpToLineAligned() {},
       }));
       globalThis.__linkCompletion = linkCompletion;
@@ -120,13 +122,15 @@ describe('link completion heading cache', () => {
 describe('preview scroll sync', () => {
   it('syncEditor scrolls the editor without revealing folds (passive sync must not unfold)', async () => {
     globalThis.__scrollCalls = [];
+    globalThis.__setScrollTops = [];
     const { container } = renderEditor('Existing');
     await screen.findByTestId('body-value');
     const preview = container.querySelector('.editor-preview');
     expect(preview).not.toBeNull();
     fireEvent.scroll(preview);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(globalThis.__scrollCalls.length).toBeGreaterThan(0);
-    expect(globalThis.__scrollCalls[0][1]).toEqual({ reveal: false });
+    // it sets the scroll position only: scrollToLine (which reveals the target's folds) is never called
+    expect(globalThis.__setScrollTops.length).toBeGreaterThan(0);
+    expect(globalThis.__scrollCalls).toEqual([]);
   });
 });

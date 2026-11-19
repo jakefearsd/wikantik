@@ -67,8 +67,12 @@ vi.mock('@uiw/react-codemirror', async () => {
       },
       scrollDOM: {
         scrollTop: 0,
+        scrollHeight: 50,
+        clientHeight: 20,
         getBoundingClientRect: () => ({ top: 20 }),
       },
+      // The content's top in the viewport: the scroller's top, moved up by the scroll.
+      get documentTop() { return 20 - view.scrollDOM.scrollTop; },
       focus() { ta.focus(); },
       dispatch(tr) {
         if (tr && tr.changes) {
@@ -336,6 +340,46 @@ describe('#19 CodeEditor getViewport / scrollToLine / getScrollerRect', () => {
     const ref = createRef();
     render(<CodeEditor ref={ref} value="__NO_VIEW__" onChange={() => {}} />);
     expect(ref.current.getViewport()).toBeNull();
+  });
+
+  it('scrollGeometry gives the scroll range, line tops and the caret in scroll coordinates', () => {
+    const { ref, ta } = mount(multiline);
+    ta.setSelectionRange(6, 6); // line 3
+    const g = ref.current.scrollGeometry();
+    expect(g.scrollTop).toBe(0);
+    expect(g.maxScroll).toBe(30);
+    expect(g.height).toBe(50);
+    expect(g.lineTop(1)).toBe(0);
+    expect(g.lineTop(4)).toBe(30);
+    expect(g.lineTop(99)).toBe(40); // clamped to the last line
+    expect(g.caret).toEqual({ line: 3, top: 20 }); // drawn at viewport 40, the scroller's top at 20
+  });
+
+  it('scrollGeometry takes the caret from its line when it is not drawn', () => {
+    const { ref, ta } = mount(multiline);
+    ta.setSelectionRange(9, 9); // line 4
+    ta.__coordsAtPosNull = true;
+    expect(ref.current.scrollGeometry().caret).toEqual({ line: 4, top: 30 });
+  });
+
+  it('scrollGeometry is null when the view cannot be measured, or has not been created', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { ref, ta } = mount(multiline);
+    ta.__throwCoordsAtPos = true;
+    expect(ref.current.scrollGeometry()).toBeNull();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+    const noView = createRef();
+    render(<CodeEditor ref={noView} value="__NO_VIEW__" onChange={() => {}} />);
+    expect(noView.current.scrollGeometry()).toBeNull();
+  });
+
+  it('setScrollTop scrolls the editor, never above the top', () => {
+    const { ref } = mount(multiline);
+    ref.current.setScrollTop(25);
+    expect(lastView.scrollDOM.scrollTop).toBe(25);
+    ref.current.setScrollTop(-5);
+    expect(lastView.scrollDOM.scrollTop).toBe(0);
   });
 
   it('scrollToLine sets scrollTop from the target line block', () => {

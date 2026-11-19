@@ -821,6 +821,29 @@ describe('PageEditor collaborative mode', () => {
     expect(server.metadata.summary).toBeUndefined();
   });
 
+  // view.dispatch does not check readOnly itself: a command must not write to a document nobody may edit.
+  it('a read-only editor (evicted) is not changed by a format, insert or link command, and the access-rule form does not open', async () => {
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello world');
+    act(() => { server.evict(server.liveParticipantIds()[0], 'lost-edit'); });
+    await screen.findByTestId('collab-evicted');
+    const frozen = currentView();
+    expect(frozen.state.readOnly).toBe(true);
+    const text = docOf(frozen);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    act(() => { frozen.dispatch({ selection: { anchor: 0, head: 5 } }); });
+    for (const id of ['format-bold', 'format-list', 'heading-2', 'insert-table', 'insert-footnote', 'code-block', 'insert-link', 'insert-access-rule']) {
+      await act(async () => { await getCommand(id).run(); });
+      expect(docOf(currentView()), id).toBe(text);
+    }
+    expect(screen.queryByRole('dialog', { name: 'Access rule' })).toBeNull();
+    // The keyboard path (Mod-B through the editor's keymap) ends in the same command.
+    act(() => { frozen.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', code: 'KeyB', ctrlKey: true, bubbles: true, cancelable: true })); });
+    expect(docOf(currentView())).toBe(text);
+    expect(warn.mock.calls.map((args) => args.join(' '))).toEqual([]); // refused up front, not by a fallback that complains
+    warn.mockRestore();
+  });
+
   it('signedOutKeepsEditsAndPromptsLogin: after signing in again the kept text reaches the shared draft', async () => {
     const { view } = await mount();
     await until(() => docOf(view) === 'Hello world');

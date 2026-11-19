@@ -236,6 +236,43 @@ describe('committing the card', () => {
   });
 });
 
+describe('saving with the card open (Ctrl/Cmd-S with the focus in a field of the card)', () => {
+  const saveKey = (el) => fireEvent.keyDown(el, { key: 's', ctrlKey: true });
+
+  it('writes what the card holds first: the save carries the edit, the card closes and the focus is back in the text', async () => {
+    const view = await mountRich();
+    clickChip(view);
+    edit('Page', 'Q');
+    await act(async () => { saveKey(field('Page')); });
+    const wanted = INITIAL.replace('[[P|a]]', '[[Q|a]]');
+    expect(docOf(view)).toBe(wanted);
+    expect(api.savePage).toHaveBeenCalledTimes(1);
+    expect(api.savePage.mock.calls[0][1].content).toBe(wanted);
+    expect(card()).toBe(null);
+    expect(view.hasFocus).toBe(true);
+  });
+
+  it('with nothing edited in the card it just saves', async () => {
+    const view = await mountRich();
+    clickChip(view);
+    await act(async () => { saveKey(field('Page')); });
+    expect(api.savePage).toHaveBeenCalledTimes(1);
+    expect(api.savePage.mock.calls[0][1].content).toBe(INITIAL);
+    expect(docOf(view)).toBe(INITIAL);
+  });
+
+  it('a value the link cannot carry is not saved around: the card stays with the reason, and nothing is sent', async () => {
+    const view = await mountRich();
+    clickChip(view);
+    edit('Page', 'A|B');
+    await act(async () => { saveKey(field('Page')); });
+    expect(api.savePage).not.toHaveBeenCalled();
+    expect(card()).not.toBe(null);
+    expect(screen.getByRole('alert').textContent).toMatch(/cannot contain \|/);
+    expect(docOf(view)).toBe(INITIAL);
+  });
+});
+
 describe('Insert link (Mod-K) in Rich mode', () => {
   it('with the caret on a link opens that link\'s card', async () => {
     const view = await mountRich();

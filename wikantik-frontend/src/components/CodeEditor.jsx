@@ -36,9 +36,11 @@ import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview
  *   focus()                     -> focus the editor
  *   insertText(pos, text)       -> insert via a CodeMirror transaction; false if no view
  *   replaceText(find, repl)     -> replace first exact match via a transaction; false if no view
- *   applyEdit(text, start, end) -> make the document `text` with selection [start, end] in one transaction
+ *   applyEdit(text, start, end) -> make the document `text` with selection [start, end] in one transaction;
+ *                                  false if no view or the document is read-only
  *   applyChanges(changes, { userEvent }) -> apply non-overlapping [{from, to, insert}] (all against the current doc)
  *                                  as one isolated undo step, the selection mapped through them; false if no view
+ *                                  or the document is read-only
  *
  * Props:
  *   value       string            current document text
@@ -343,11 +345,16 @@ const CodeEditor = forwardRef(function CodeEditor(
      * Turn the document into `text` with the selection [selStart, selEnd], as ONE normal transaction (only the
      * changed span is replaced). Editor commands must use this rather than the `value` prop: react-codemirror
      * defers a `value` change that arrives within its typing latch and later replays it over newer keystrokes.
-     * Returns false when there is no view.
+     * Returns false when there is no view, and (with a warning, nothing written) on a read-only document:
+     * `view.dispatch` does not check `readOnly` itself.
      */
     applyEdit(text, selStart, selEnd) {
       const view = viewRef.current;
       if (!view) return false;
+      if (view.state.readOnly) {
+        console.warn('[editor] applyEdit refused: the document is read-only');
+        return false;
+      }
       const len = text.length;
       const anchor = Math.max(0, Math.min(selStart, len));
       const head = Math.max(0, Math.min(selEnd, len));
@@ -366,11 +373,17 @@ const CodeEditor = forwardRef(function CodeEditor(
      * with a console warning (the rest still apply). The edit is its own undo step (never merged with adjacent
      * typing). It neither focuses the editor nor reveals folds. `userEvent` names the edit for the editor's own
      * rules (`input.…`, `delete.…`); whatever it is, the transaction is marked `asDispatched`, so no input rule (the
-     * table grid's cell rules) rewrites these changes as if they were typed. Returns false when there is no view.
+     * table grid's cell rules) rewrites these changes as if they were typed. Returns false when there is no view,
+     * and (with a warning, nothing written) on a read-only document: no caller writes to one — PageEditor queues its
+     * background writes while a shared draft is read-only, and the card and the table commands stand down.
      */
     applyChanges(changes, { userEvent } = {}) {
       const view = viewRef.current;
       if (!view) return false;
+      if (view.state.readOnly) {
+        console.warn('[editor] applyChanges refused: the document is read-only');
+        return false;
+      }
       const len = view.state.doc.length;
       const clamp = (pos) => Math.max(0, Math.min(pos ?? 0, len));
       const sorted = (changes || []).map((c) => {

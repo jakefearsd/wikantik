@@ -53,6 +53,8 @@ const focusInCard = () => !!document.activeElement?.closest?.('.link-card');
  *   the card on that text, which becomes `[text](url)` only when the card is committed with an address; with nothing
  *   selected it writes `[[]]` and opens the page completion. False outside Rich: the caller's Source behaviour applies.
  * - `cardProps` are LinkCard's props while the card is open, else null.
+ * - `flush()` has the open card write what it holds, by taking the focus out of it (before a save by shortcut). False
+ *   when the card refused a value (it stays open, showing the reason); true otherwise, also when no card is open.
  *
  * Every write is one change through the editor's `applyChanges` (one undo step), over the card's range as it is now,
  * and only by the card that is open: each opening has an id, and a callback of an earlier card writes nothing.
@@ -148,9 +150,17 @@ export function useLinkCard({ editorRef, live, suggestPages }) {
     onOpen: href ? () => window.open(href, '_blank', 'noopener') : null,
   }), [id, href, end]);
 
+  const flush = useCallback(() => {
+    // A field that reports its text when the focus leaves it (the page field) must lose the focus to be heard.
+    const active = document.activeElement;
+    if (active?.closest?.('.link-card')) active.blur?.();
+    return flushRef.current?.() !== false;
+  }, []);
+
   return {
     onOpenLinkCard,
     runLinkCommand,
+    flush,
     cardProps: card && live ? { key: card.id, model: card.model, anchorRect: card.anchorRect, suggestPages, flushRef, ...cardProps } : null,
   };
 }

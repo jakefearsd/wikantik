@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useNavigationGuard, useGuardedNavigate } from '../navigation/NavigationGuardProvider';
 import { isLeaving } from '../navigation/navigationGuard';
@@ -959,11 +960,16 @@ export default function PageEditor({ collabTransport } = {}) {
   // Rich mode's card for a link, wikilink, embed or image; its page field asks what the `[[` completion asks.
   const linkCard = useLinkCard({ editorRef, live: liveActive, suggestPages: linkCompletion.searchPages });
   const { runLinkCommand } = linkCard;
+  const flushLinkCardRef = useRef(null);
+  useEffect(() => { flushLinkCardRef.current = linkCard.flush; });
 
   // `arg` carries what a command's form collected (the access rule's permission and names).
   const applyFormat = useCallback((command, arg) => {
     const editor = editorRef.current;
     if (!editor) return;
+    // A read-only document (a frozen shared draft, no edit permission) is never written to: not from the toolbar,
+    // the palette, the slash menu or a shortcut. (The view itself would take the change: dispatch does not check.)
+    if (editor.getView?.()?.state?.readOnly) return;
     if (command === 'link' && runLinkCommand()) return; // Rich: the card, or `[[` with the page completion
 
     const { selStart, selEnd } = editor.getSelection();
@@ -1031,7 +1037,16 @@ export default function PageEditor({ collabTransport } = {}) {
       if (!hotkey) return;
       if (e.key === 's') {
         e.preventDefault();
-        if (!savingRef.current) latestSaveRef.current?.();
+        if (savingRef.current) return;
+        // With the focus in the link card, what the card holds is written first, as when the focus leaves it; a value
+        // it refuses keeps the card open with the reason, and nothing is saved around it. Synchronously, so that the
+        // save below is the one of the render that has the card's change.
+        const inCard = !!document.activeElement?.closest?.('.link-card');
+        let flushed = true;
+        flushSync(() => { flushed = flushLinkCardRef.current?.() !== false; });
+        if (!flushed) return;
+        if (inCard) editorRef.current?.focus?.(); // the card is gone, and the focus with it
+        latestSaveRef.current?.();
       }
     };
     window.addEventListener('keydown', handler);
@@ -1113,7 +1128,10 @@ export default function PageEditor({ collabTransport } = {}) {
   const pickImage = useCallback(() => imageInputRef.current?.click(), []);
   // The access-rule form: the command opens it, Insert writes the rule at the caret the editor kept meanwhile.
   const [accessRuleOpen, setAccessRuleOpen] = useState(false);
-  const pickAccessRule = useCallback(() => setAccessRuleOpen(true), []);
+  const pickAccessRule = useCallback(() => {
+    if (editorRef.current?.getView?.()?.state?.readOnly) return; // nothing could be inserted
+    setAccessRuleOpen(true);
+  }, []);
   const closeAccessRule = useCallback(() => setAccessRuleOpen(false), []);
   const insertAccessRuleFromForm = useCallback((rule) => {
     setAccessRuleOpen(false);

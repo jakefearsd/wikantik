@@ -94,6 +94,23 @@ describe('CodeEditor in collab mode', () => {
     expect(warn).toHaveBeenCalled();
   });
 
+  // view.dispatch does not check readOnly: the handle's two write paths for commands refuse, and say so.
+  it('applyEdit and applyChanges write nothing to a read-only editor and return false', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { view, ref, rerender, el } = setup();
+    rerender(el({ readOnly: true }));
+    expect(view.state.readOnly).toBe(true);
+    const before = view.state.doc.toString();
+    act(() => { expect(ref.current.applyEdit(`**${before}**`, 0, 0)).toBe(false); });
+    act(() => { expect(ref.current.applyChanges([{ from: 0, to: 1, insert: 'X' }], { userEvent: 'input.link-card' })).toBe(false); });
+    expect(view.state.doc.toString()).toBe(before);
+    expect(warn.mock.calls.map(([message]) => message)).toEqual([
+      '[editor] applyEdit refused: the document is read-only',
+      '[editor] applyChanges refused: the document is read-only',
+    ]);
+    warn.mockRestore();
+  });
+
   it('readOnly makes the editor read-only', () => {
     const { view, rerender, el } = setup();
     expect(view.state.readOnly).toBe(false);

@@ -14,6 +14,7 @@ import { livePreview, setLivePreview } from './index';
 import { livePreviewPlugin } from './plugin';
 import { livePreviewSpecs, activeLinesOf } from './ranges';
 import { stickyRangesOf, removeLineMarker, leaveLineMarker } from './sticky';
+import { collab, receiveUpdates, sendableUpdates } from '@codemirror/collab';
 import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 
 const context = { pageName: 'Sticky', attachments: [] };
@@ -247,6 +248,62 @@ describe('a change that puts a marker in front of the caret', () => {
     const view = mount(PLAIN, { live: false });
     caretAt(view, H);
     view.dispatch({ changes: { from: H, insert: '## ' } });
+    expect(head(view)).toBe(H);
+  });
+});
+
+describe('a peer\'s change as @codemirror/collab applies it: no transaction filter runs', () => {
+  const PLAIN = 'Para one\nTitle\nAfter'; // line 2 starts at H
+  function mountShared(doc, live = true) {
+    const seen = [];
+    const view = mount(doc, { live, extra: [collab({ startVersion: 0, clientID: 'me' }), EditorView.updateListener.of((u) => seen.push(...u.transactions))] });
+    const receive = (change) => view.dispatch(receiveUpdates(view.state, [{ clientID: 'peer', changes: view.state.changes(change) }]));
+    return { view, seen, receive };
+  }
+
+  it('a marker put in front of the caret: the caret is set after it once the update is over, by a selection alone', async () => {
+    const { view, seen, receive } = mountShared(PLAIN);
+    caretAt(view, H);
+    seen.length = 0;
+    receive({ from: H, insert: '## ' });
+    expect(head(view)).toBe(H); // as the change mapped it: the caret rule did not see the change
+    await Promise.resolve();
+    expect(head(view)).toBe(H + 3);
+    expect(seen).toHaveLength(2);
+    expect(seen[1].docChanged).toBe(false);
+    expect(seen[1].annotation(Transaction.addToHistory)).toBe(false);
+    expect(sendableUpdates(view.state)).toEqual([]); // nothing of it reaches the peers
+    type(view, 'x');
+    expect(text(view)).toBe('Para one\n## xTitle\nAfter');
+  });
+
+  it('a change that leaves the caret in place, or is on another line, dispatches nothing more', async () => {
+    const { view, seen, receive } = mountShared(DOC);
+    caretAt(view, H + 5);
+    seen.length = 0;
+    receive({ from: H + 8, insert: '!' }); // on the caret's line, the caret already fine
+    receive({ from: 0, insert: '## ' }); // a marker, on another line
+    await Promise.resolve();
+    expect(seen).toHaveLength(2);
+    expect(head(view)).toBe(H + 8);
+  });
+
+  it('in Source the caret stays where the change mapped it', async () => {
+    const { view, seen, receive } = mountShared(PLAIN, false);
+    caretAt(view, H);
+    seen.length = 0;
+    receive({ from: H, insert: '## ' });
+    await Promise.resolve();
+    expect(seen).toHaveLength(1);
+    expect(head(view)).toBe(H);
+  });
+
+  it('a view destroyed before the update is over is left alone', async () => {
+    const { view, receive } = mountShared(PLAIN);
+    caretAt(view, H);
+    receive({ from: H, insert: '## ' });
+    view.destroy();
+    await Promise.resolve();
     expect(head(view)).toBe(H);
   });
 });

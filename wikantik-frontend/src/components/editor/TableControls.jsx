@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { buildTableCommands } from '../../utils/editorCommands';
 import ToolbarMenu, { keepEditorFocus } from './ToolbarMenu';
@@ -21,7 +21,9 @@ const SHORTCUT = 'Alt+T';
  *   canDeleteRow, canDeleteColumn     — false disables that menu item (the header row; the last column)
  *   canInsertRowAbove, canMoveLeft, canMoveRight — likewise, default true
  *   align                             — the caret's column's alignment ('left' | 'center' | 'right' | null), checked in the menu
- *   onLeave()                         — Escape on a button
+ *   onLeave()                         — Escape on a button; also called when the controls go away while they hold
+ *                                       the focus (a peer deleted the table, the document became read-only), which
+ *                                       would otherwise drop to the page
  *   barRef                            — receives the toolbar element (the host positions and focuses it)
  *   host                              — an element to draw into (the editor's scroller, so the controls scroll with
  *                                       the table); without one they are drawn in place
@@ -32,6 +34,14 @@ export default function TableControls({
 }) {
   const ownRef = useRef(null);
   const ref = barRef || ownRef;
+
+  const leaveRef = useRef(onLeave);
+  useEffect(() => { leaveRef.current = onLeave; });
+  // A layout effect: its cleanup runs before the toolbar's elements are removed, while one of them still has the focus.
+  useLayoutEffect(() => {
+    const bar = ref.current;
+    return () => { if (bar?.contains(document.activeElement)) leaveRef.current?.(); };
+  }, [ref]);
 
   const onKeyDown = (e) => {
     if (e.key === 'Escape') { e.preventDefault(); onLeave?.(); return; }

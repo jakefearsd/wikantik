@@ -1,4 +1,4 @@
-import { EditorState, EditorSelection, Prec, RangeSet, StateField } from '@codemirror/state';
+import { EditorState, EditorSelection, Prec, RangeSet, StateField, Transaction } from '@codemirror/state';
 import { EditorView, ViewPlugin, keymap } from '@codemirror/view';
 import { liveModeField, blockField, livePreviewPlugin, getContext } from './plugin';
 import { activeLinesOf, livePreviewSpecs } from './ranges';
@@ -179,14 +179,52 @@ function restingPlace(state, head, origin, inward) {
 
 /**
  * Whether an IME composition is running is view state, which a transaction filter cannot see. The field holds one
- * mutable reference per state lineage, pointed by the plugin at the view showing it — read-only plumbing: neither
- * dispatches anything. Only `view.composing` is consulted (`compositionStarted` is true far too broadly on Android).
+ * mutable reference per state lineage, pointed by the plugin at the view showing it — read-only plumbing. Only
+ * `view.composing` is consulted (`compositionStarted` is true far too broadly on Android). The plugin's one dispatch
+ * is the caret's correction after a peer's change (see its `update`).
  */
 const viewRef = StateField.define({ create: () => ({ view: null }), update: (ref) => ref });
-const trackView = ViewPlugin.define((view) => {
-  const ref = view.state.field(viewRef, false);
-  if (ref) ref.view = view;
-  return { destroy() { if (ref && ref.view === view) ref.view = null; } };
+const trackView = ViewPlugin.fromClass(class {
+  constructor(view) {
+    this.view = view;
+    this.ref = view.state.field(viewRef, false);
+    if (this.ref) this.ref.view = view;
+  }
+
+  /**
+   * The caret rules after a shared-editing peer's change. @codemirror/collab applies what it receives with
+   * `filter: false`, so no transaction filter sees it — not stickyCaret, not tableGrid.js's rule — and the caret rests
+   * wherever the change mapped it: after a row's closing pipe when a peer deleted the row it was in, on the hidden
+   * delimiter row, where the next keystroke would break the table without the caret ever having been shown there.
+   * So when such a change touched a caret's line, the selection is set again, as it is, once the update is over, and
+   * the filters run on that; nothing is dispatched when they would leave it alone. A selection only, out of the undo
+   * history, and never during a composition (the next selection or change corrects the caret then, as in stickyCaret).
+   */
+  update(update) {
+    if (!update.docChanged || !live(update.state) || !update.transactions.some((tr) => tr.annotation(Transaction.remote))) return;
+    const lines = update.state.selection.ranges.filter((r) => r.empty).map((r) => update.state.doc.lineAt(r.head));
+    let touched = false;
+    update.changes.iterChangedRanges((_fromA, _toA, fromB, toB) => {
+      if (lines.some((line) => fromB <= line.to && toB >= line.from)) touched = true;
+    });
+    if (!touched) return;
+    const { view } = this;
+    Promise.resolve().then(() => {
+      if (this.destroyed || view.composing || !live(view.state)) return;
+      try {
+        const { selection } = view.state;
+        const tr = view.state.update({ selection, annotations: Transaction.addToHistory.of(false) });
+        if (!tr.newSelection.eq(selection, true)) view.dispatch(tr);
+      } catch (err) {
+        console.warn('[rich] could not put the caret back in place after a shared edit; the next caret move does', err?.message || err);
+      }
+    });
+  }
+
+  destroy() {
+    this.destroyed = true;
+    if (this.ref && this.ref.view === this.view) this.ref.view = null;
+  }
 });
 export const composing = (tr) => tr.isUserEvent('input.type.compose') || tr.startState.field(viewRef, false)?.view?.composing === true;
 
@@ -205,7 +243,8 @@ function justHidden(tr, origin, head) {
 /**
  * Caret rule: every empty range is moved to its resting place, on any transaction that can leave a caret somewhere
  * else — one that sets the selection, or one that changes the document (a change with no selection maps the caret,
- * and a marker inserted at the caret's line start, by a command or a shared-editing peer, lands after it). Non-empty
+ * and a marker inserted at the caret's line start by a command lands after it; a shared-editing peer's change is
+ * applied without the filters, and trackView sets the selection again after it for this rule to run). Non-empty
  * ranges are left alone (a selection may cut into a marker, so deleting it behaves as in Source). Nothing moves
  * during a composition — moving the caret under an IME aborts it; a caret the composition leaves before a marker is
  * corrected by the next selection or change. The rule only ever adds a selection: the transaction's changes, effects

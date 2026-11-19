@@ -35,7 +35,10 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 import java.util.List;
 
+import static com.codeborne.selenide.CollectionCondition.exactTexts;
+import static com.codeborne.selenide.CollectionCondition.size;
 import static com.codeborne.selenide.Condition.cssClass;
+import static com.codeborne.selenide.Condition.exactText;
 import static com.codeborne.selenide.Condition.exactValue;
 import static com.codeborne.selenide.Condition.exist;
 import static com.codeborne.selenide.Condition.focused;
@@ -43,6 +46,7 @@ import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Condition.value;
 import static com.codeborne.selenide.Condition.visible;
 import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.$$;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -51,7 +55,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Rich mode in a real browser: block markers stay hidden with the caret on their line (a heading's {@code #}, a list
  * marker, a code block's fences, which are drawn as a header with a language picker), the toolbar's mode control
  * switches to Source, and saving a page that was only looked at stores nothing new. A link stays a chip under the
- * caret, and its card retargets it.
+ * caret, and its card retargets it. A table is edited as a grid: a click and Tab move between its cells, the controls
+ * add a column, and what is saved is the Markdown table the reader shows.
  */
 public class RichEditorIT extends WithIntegrationTestSetup {
 
@@ -84,6 +89,12 @@ public class RichEditorIT extends WithIntegrationTestSetup {
     private static final String CARD_TEXT_FIELD = LINK_CARD + " #link-card-text";
     private static final String FENCE_PICKER = CONTENT + " .cm-lp-fence-header select";
     private static final String CALLOUT_PICKER = CONTENT + " .cm-lp-callout-title-widget select";
+    /** A table the grid draws (whole rows, outer pipes), after {@link #BODY}. */
+    private static final String TABLE = "| Name | Count |\n| --- | --- |\n| apple | 1 |\n| pear | 2 |\n";
+    private static final String TABLE_BODY = BODY + "\n" + TABLE;
+    private static final String GRID_CELL = CONTENT + " .cm-lp-table-row .cm-lp-cell";
+    /** The table controls' toolbar, drawn in the editor's scroller while the caret is in a grid table. */
+    private static final String TABLE_CONTROLS = "[data-testid=page-editor] [role=toolbar][aria-label=Table]";
 
     @BeforeEach
     void login() throws Exception {
@@ -305,6 +316,60 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
         assertEquals( seeded.replace( "Closing words", "[Closing](" + address + ") words" ),
             fetchPage().get( "content" ).getAsString(), "the saved source is the seeded one with the selection made a link" );
+    }
+
+    // ---- the table grid ----
+
+    @Test
+    void aTableEditedInTheGridAndGivenAColumnIsSavedAsMarkdownAndShownByTheReader() throws Exception {
+        RestSeedHelper.writePage( PAGE, TABLE_BODY );
+        final String seeded = fetchPage().get( "content" ).getAsString();
+        EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
+        $( EDITOR ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
+        EditWikiPage.awaitDocumentEquals( TABLE_BODY, WAIT );
+
+        // A click on a cell's text puts the caret in that cell; what is typed goes in at the caret.
+        $$( GRID_CELL ).findBy( exactText( "apple" ) ).shouldBe( visible, WAIT ).click();
+        $( EDITOR ).shouldHave( cssClass( "cm-focused" ), WAIT );
+        final int cellFrom = TABLE_BODY.indexOf( "apple" );
+        final int into = EditWikiPage.caretOffset() - cellFrom;
+        assertTrue( into >= 0 && into <= "apple".length(), "the caret is in the clicked cell's text (offsets "
+            + cellFrom + " to " + ( cellFrom + "apple".length() ) + "); it is at " + ( cellFrom + into ) );
+        EditWikiPage.pressKeys( "X" );
+        final String apple = "apple".substring( 0, into ) + "X" + "apple".substring( into );
+        EditWikiPage.awaitDocumentEquals( TABLE_BODY.replace( "| apple |", "| " + apple + " |" ), WAIT );
+
+        // Tab: the start of the next cell.
+        EditWikiPage.pressKeys( Keys.TAB );
+        EditWikiPage.pressKeys( "9" );
+        EditWikiPage.awaitDocumentEquals( TABLE_BODY.replace( "| apple | 1 |", "| " + apple + " | 91 |" ), WAIT );
+
+        // "+ col" in the controls adds an empty column right of the caret's and puts the caret in its cell of this row.
+        $( TABLE_CONTROLS ).shouldBe( visible, WAIT );
+        $( TABLE_CONTROLS + " button[aria-label='Insert column right']" ).shouldBe( visible, WAIT ).click();
+        final String widened = "| Name | Count |  |\n| --- | --- | --- |\n| " + apple + " | 91 |  |\n| pear | 2 |  |\n";
+        EditWikiPage.awaitDocumentEquals( TABLE_BODY.replace( TABLE, widened ), WAIT );
+        $( EDITOR ).shouldHave( cssClass( "cm-focused" ), WAIT ); // the press on the control left the focus in the text
+        EditWikiPage.pressKeys( "ripe" );
+        final String edited = widened.replace( "| 91 |  |", "| 91 | ripe |" );
+        EditWikiPage.awaitDocumentEquals( TABLE_BODY.replace( TABLE, edited ), WAIT );
+        $( CONTENT + " .cm-lp-table-block" ).shouldNot( exist ); // still the grid: every row has its three cells
+
+        EditWikiPage.publish();
+        new WebDriverWait( WebDriverRunner.getWebDriver(), WAIT ).until( d -> !d.getCurrentUrl().contains( "/edit/" ) );
+        $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
+        assertTrue( seeded.contains( TABLE ), "the seeded page holds the table as written; it is:\n" + seeded );
+        assertEquals( seeded.replace( TABLE, edited ), fetchPage().get( "content" ).getAsString(),
+            "the saved source differs from the seeded one in the edited cells and the new column only" );
+
+        // The reader, loaded afresh, shows the table with its third column.
+        Selenide.refresh();
+        $( "[data-testid=page-view]" ).shouldBe( visible, WAIT );
+        final String readerTable = "[data-testid=page-view] .article-prose table";
+        $( readerTable ).shouldBe( visible, WAIT );
+        $$( readerTable + " thead th" ).shouldHave( size( 3 ), WAIT );
+        $$( readerTable + " tbody tr" ).shouldHave( size( 2 ), WAIT );
+        $$( readerTable + " tbody tr" ).first().$$( "td" ).shouldHave( exactTexts( apple, "91", "ripe" ), WAIT );
     }
 
     /** Selects the document range {@code [from, to)} with the editor focused (both ends in content, on one line). */

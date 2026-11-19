@@ -101,7 +101,9 @@ describe('live preview round trip', () => {
   });
 
   it('mounted every widget kind across the slices', () => {
-    const kinds = ['cm-lp-rule', 'cm-lp-math-block', 'cm-lp-math', 'cm-lp-embed', 'cm-lp-table-block', 'cm-lp-fence-block',
+    // The fixture's table is drawn as the grid (its rows are lines, not a widget); the table widget's own mousedown is
+    // pinned in tableWidget.test.js.
+    const kinds = ['cm-lp-rule', 'cm-lp-math-block', 'cm-lp-math', 'cm-lp-embed', 'cm-lp-fence-block',
       'cm-lp-callout-icon', 'cm-lp-image-wrap', 'cm-lp-chip'];
     for (const kind of kinds) {
       expect(seen.some((c) => c.split(/\s+/).includes(kind)), kind).toBe(true);

@@ -66,7 +66,7 @@ public class LivePreviewRoundTripIT extends WithIntegrationTestSetup {
 
     /** One widget class per kind the kitchen sink must draw somewhere between its top and bottom. */
     private static final List< String > REQUIRED_WIDGETS = List.of(
-        "cm-lp-table-block",   // table
+        "cm-lp-table-row",     // table: drawn as the grid, its rows are editor lines of cells
         "cm-lp-chip",          // plugin / footnote / block-id chips
         "cm-lp-footnote-ref",  // footnote reference
         "cm-lp-math",          // math (inline and display)

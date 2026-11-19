@@ -8,6 +8,7 @@ import { rendererFor } from '../fences/registry';
 import { parseWikiLink, isImageFileName } from '../wikiLinkSyntax';
 import { chipFor } from './chips';
 import { BLOCK_ID_RE, STANDALONE_RE, RULE_TEXT, MARKER_WITH_SPACE } from '../blockIds';
+import { readTable } from '../tableModel';
 /** Nodes whose whole range stays source and is never scanned by the line regexes (Task 3). */
 const SKIP = new Set(['Frontmatter', 'Table', 'HTMLBlock', 'CommentBlock', 'ProcessingInstructionBlock', 'CodeBlock', 'LinkReference']);
 const HEADING = /^ATXHeading([1-6])$/;
@@ -57,6 +58,71 @@ export function commentsOf(state) {
   const ranges = marked ? commentRangesInTree(state.doc.toString(), tree) : [];
   commentCache.set(state.doc, { tree, ranges });
   return ranges;
+}
+const gridCache = new WeakMap(); // doc → { tree, tables: Map<table start, model> }
+/**
+ * The model of the `Table` node `node` (of this state's syntax tree) when the grid draws it — a top-level table that
+ * tableModel.js calls `editable` — else null. Read once per (document, parse tree, table): the block candidates, the
+ * inline pass, the grid's decorations, its caret rule and its input rules all ask on the same keystroke.
+ */
+export function gridTableOf(state, node) {
+  if (!node.parent?.type.isTop) return null;
+  const tree = syntaxTree(state);
+  let hit = gridCache.get(state.doc);
+  if (!hit || hit.tree !== tree) {
+    hit = { tree, tables: new Map() };
+    gridCache.set(state.doc, hit);
+  }
+  let model = hit.tables.get(node.from);
+  if (!model) {
+    model = readTable(state, node);
+    hit.tables.set(node.from, model);
+  }
+  return model.editable ? model : null;
+}
+/** The grid table `pos` is in or at the edge of, or null. Costs the nesting depth at `pos`, and one read of that table. */
+export function gridTableAt(state, pos) {
+  const tree = syntaxTree(state);
+  for (const side of [1, -1]) {
+    for (let node = tree.resolve(pos, side); node; node = node.parent) {
+      if (node.name === 'Table') return gridTableOf(state, node);
+    }
+  }
+  return null;
+}
+/**
+ * Where a grid cell's drawn text ends: its content's end, or a caret resting in its trailing padding (a space just
+ * typed). The padding up to that caret is drawn as cell text; hidden, the next character typed would land in what
+ * looks like the next cell.
+ */
+export function cellShownEnd(cell, selection) {
+  let end = cell.to;
+  for (const r of selection.ranges) if (r.head > end && r.head <= cell.outerTo) end = r.head;
+  return end;
+}
+/**
+ * The carets resting in a grid cell's trailing padding, as a key: what a grid row hides depends on them, so a caret
+ * move that changes the key redraws. A caret with no space before it is in no padding, which settles most moves
+ * without a tree lookup.
+ */
+export function caretsInCellPadding(state) {
+  let key = '';
+  for (const r of state.selection.ranges) {
+    if (r.head === 0 || state.doc.sliceString(r.head - 1, r.head) !== ' ') continue;
+    const table = gridTableAt(state, r.head);
+    if (!table) continue;
+    const row = gridRowAt(table, r.head);
+    if (row && row.cells.some((c) => r.head > c.to && r.head <= c.outerTo)) key += `${r.head},`;
+  }
+  return key;
+}
+/** The header or body row of `table` on the line of `pos` (a row's line can hold indentation before it), or null. */
+export function gridRowAt(table, pos) {
+  const line = table.doc.lineAt(pos);
+  const onLine = (row) => row.from >= line.from && row.from <= line.to;
+  if (onLine(table.header)) return table.header;
+  const i = firstAtLeast(table.body, line.from, 'from');
+  return i < table.body.length && onLine(table.body[i]) ? table.body[i] : null;
 }
 export function activeLinesOf(state) {
   const lines = new Set();
@@ -130,9 +196,11 @@ function fenceCandidateOf(doc, node) {
 /**
  * A top-level GFM table as a table widget candidate: whole lines from the header row to Lezer's end of the `Table`
  * node (which includes lazy-continuation rows). Anything Lezer does not parse as `Table` (a bad delimiter row,
- * mid-edit) never reaches here, so it stays source.
+ * mid-edit) never reaches here, so it stays source. Not a table the grid draws (gridTableOf): its rows stay lines.
  */
-function tableCandidateOf(doc, node) {
+function tableCandidateOf(state, node) {
+  if (gridTableOf(state, node)) return null;
+  const { doc } = state;
   const from = doc.lineAt(node.from).from;
   const to = doc.lineAt(node.to).to;
   return { kind: 'block', from, to, widget: { type: 'table', source: doc.sliceString(from, to) } };
@@ -142,9 +210,10 @@ function tableCandidateOf(doc, node) {
  * Only TOP-LEVEL nodes qualify (we walk the document's direct children), so a fence nested in a list or
  * blockquote stays code in live preview, the same rule display math follows.
  */
-function blockCandidateOf(doc, node, context) {
+function blockCandidateOf(state, node, context) {
+  const { doc } = state;
   if (node.name === 'FencedCode') return fenceCandidateOf(doc, node);
-  if (node.name === 'Table') return tableCandidateOf(doc, node);
+  if (node.name === 'Table') return tableCandidateOf(state, node);
   const startLine = doc.lineAt(node.from);
   const endLine = node.to <= startLine.to ? startLine : doc.lineAt(node.to);
   if (node.name === 'DisplayMath') {
@@ -165,7 +234,7 @@ function blockCandidateOf(doc, node, context) {
 export function blockCandidates(state, context = {}) {
   const out = [];
   for (let node = syntaxTree(state).topNode.firstChild; node; node = node.nextSibling) {
-    const c = blockCandidateOf(state.doc, node, context);
+    const c = blockCandidateOf(state, node, context);
     if (c) out.push(c);
   }
   return out;
@@ -231,7 +300,7 @@ export function updateBlockCandidates(prev, tr, context = {}) {
         return out;
       }
     }
-    const c = blockCandidateOf(doc, node, context);
+    const c = blockCandidateOf(tr.state, node, context);
     if (c) out.push(c);
   }
   return out;
@@ -694,6 +763,34 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
     if (openLine.to >= from && openLine.from <= to) widget(node.from, openLine.to, { type: 'fence-header', language: headed.language, kind: headed.kind }, { sticky: true, hiddenLine: 'open' });
     if (closeLine.to >= from && closeLine.from <= to) hide(CLOSING_FENCE.test(closeLine.text) ? closeLine.from : headed.closeFrom, closeLine.to, undefined, { sticky: true, hiddenLine: 'close' });
   };
+  /**
+   * A table the grid draws (tableGrid.js draws the cells' boxes; this hides what is not cell text). Per row in range:
+   * the opening pipe, and after each cell its trailing padding, its closing pipe and the next cell's leading padding,
+   * as one sticky range each — an empty cell's is the widget that draws its box. The delimiter row is a hidden line.
+   * No range is a line marker: Backspace never removes a pipe.
+   */
+  const gridTable = (table) => {
+    const inRange = (row) => row.to >= from && row.from <= to;
+    const HIDDEN = { sticky: true };
+    const gridRow = (row) => {
+      const line = doc.lineAt(row.from);
+      const last = row.cells.length - 1;
+      row.cells.forEach((c, i) => {
+        if (i === 0) hide(line.from, c.from, undefined, HIDDEN);
+        const end = i < last ? row.cells[i + 1].from : line.to;
+        const shown = cellShownEnd(c, state.selection);
+        if (shown === c.from) widget(c.from, end, { type: 'table-cell', col: i, last: i === last, align: table.aligns[i] || null }, HIDDEN);
+        else hide(shown, end, undefined, HIDDEN);
+      });
+    };
+    if (inRange(table.header)) gridRow(table.header);
+    if (inRange(table.delimiter)) {
+      const line = doc.lineAt(table.delimiter.from);
+      addLine(line.from, 'cm-lp-table-delim');
+      hide(line.from, line.to, undefined, { sticky: true, hiddenLine: 'close' });
+    }
+    for (let i = firstAtLeast(table.body, from, 'to'); i < table.body.length && table.body[i].from <= to; i += 1) gridRow(table.body[i]);
+  };
   const inlineMath = []; // `$…$` nodes in document order; typeset in the line pass, after wikilinks and plugins claim theirs
   const wikis = []; // `[[…]]` / `![[…]]` nodes in document order; the line pass claims their ranges before plugins do
   syntaxTree(state).iterate({
@@ -710,6 +807,11 @@ export function livePreviewSpecs(state, activeLines, { from = 0, to = state.doc.
           return false;
         }
         eachLine(node.from, node.to, (line) => addLine(line.from, 'cm-lp-linkdef'));
+      }
+      if (name === 'Table') {
+        // A grid table's cells are text like a paragraph's: the walk goes on into them. Any other table stays source.
+        const table = gridTableOf(state, node.node);
+        if (table) { gridTable(table); return undefined; }
       }
       if (SKIP.has(name)) { excluded.push([node.from, node.to]); return false; }
       if (name === 'FencedCode') { fenced(node); excluded.push([node.from, node.to]); return false; }

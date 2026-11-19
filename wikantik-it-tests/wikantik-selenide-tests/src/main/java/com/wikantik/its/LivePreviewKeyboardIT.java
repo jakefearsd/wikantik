@@ -71,6 +71,11 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
     private static final String CHIP_LINE = CHIP_PREFIX + " after";
     private static final String TASK_LINE = "- [ ] open task";
     private static final String TABLE_FIRST_LINE = "| A | B |";
+    /**
+     * The rest of the table: its body row is a cell short, so the table widget draws it. A table whose rows are all
+     * whole is the grid, whose rows stay editor lines; these tests are about stepping into a block widget.
+     */
+    private static final String RAGGED_TABLE_REST = "\n| --- | --- |\n| one |";
 
     /**
      * A heading long enough to wrap onto several visual rows, directly above a table (a heading, not a paragraph: a
@@ -80,7 +85,7 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
         .repeat( 8 ).trim();
     private static final String WRAP_PAGE = "LivePreviewKeyboardWrapIT";
     private static final String WRAP_BODY = "# Wrapping\n\n" + WRAPPED_LINE + "\n"
-        + TABLE_FIRST_LINE + "\n| --- | --- |\n| one | two |\n\nAfter the table\n";
+        + TABLE_FIRST_LINE + RAGGED_TABLE_REST + "\n\nAfter the table\n";
 
     private static final String PAGE = "LivePreviewKeyboardIT";
     // One plugin call and no aliased link: a recognisably-Markdown page (WikiToMarkdownConverter.isLikelyWikiSyntax
@@ -90,7 +95,7 @@ public class LivePreviewKeyboardIT extends WithIntegrationTestSetup {
         + CHIP_LINE + "\n\n"
         + TASK_LINE + "\n\n"
         + "Above the table\n\n"
-        + TABLE_FIRST_LINE + "\n| --- | --- |\n| one | two |\n\n"
+        + TABLE_FIRST_LINE + RAGGED_TABLE_REST + "\n\n"
         + "Last line\n";
 
     @BeforeEach

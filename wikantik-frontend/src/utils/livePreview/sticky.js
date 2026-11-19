@@ -16,6 +16,10 @@ import { activeLinesOf, livePreviewSpecs } from './ranges';
  * caret does not rest on such a line: it goes on to the next line that shows text (restingPlace), the arrow keys step
  * over it (verticalMotion.js), and Backspace/Delete do not join a neighbouring line onto it (keepHiddenLine).
  *
+ * A grid table's pipes, with the padding around them, are sticky ranges too, and its delimiter row a hidden line
+ * (ranges.js `gridTable`). None is a line marker: Backspace never removes a pipe. tableGrid.js adds what is the grid's
+ * own: the caret's place in a cell, and the cell keys.
+ *
  * Two sources, on purpose: the atomic ranges (stickyRangesOf) are the decorations actually drawn, while the caret
  * rule and the key commands read the state (stickySpansOn: one line's specs plus the block field), because a
  * transaction filter has no view and the drawn decorations describe the state before the transaction. The two can
@@ -184,7 +188,7 @@ const trackView = ViewPlugin.define((view) => {
   if (ref) ref.view = view;
   return { destroy() { if (ref && ref.view === view) ref.view = null; } };
 });
-const composing = (tr) => tr.isUserEvent('input.type.compose') || tr.startState.field(viewRef, false)?.view?.composing === true;
+export const composing = (tr) => tr.isUserEvent('input.type.compose') || tr.startState.field(viewRef, false)?.view?.composing === true;
 
 /** Whether the caret stayed on its line through a change that made that line hidden (it was not, before). */
 function justHidden(tr, origin, head) {

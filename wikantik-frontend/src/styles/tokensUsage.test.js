@@ -8,8 +8,9 @@ const css = readFileSync(join(SRC, 'styles/globals.css'), 'utf8');
 const declared = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
 // Built at runtime from a callout kind, e.g. `--callout-${kind}`; declared per kind in globals.css.
 // Declared locally rather than in globals.css: --c / --callout-icon are set per .callout-* rule in article.css;
-// --selection-bar-* are set on the selection bar in admin.css.
-const DYNAMIC = [/^--callout-$/, /^--cm-callout-tint$/, /^--c$/, /^--callout-icon$/, /^--selection-bar-(bg|border|accent)$/];
+// --selection-bar-* are set on the selection bar in admin.css; --lp-col-<n> (a grid table's column widths) are set on
+// each of the table's row lines by utils/livePreview/tableGrid.js.
+const DYNAMIC = [/^--callout-$/, /^--cm-callout-tint$/, /^--c$/, /^--callout-icon$/, /^--selection-bar-(bg|border|accent)$/, /^--lp-col-$/];
 
 function walk(dir) {
   return readdirSync(dir).flatMap((name) => {

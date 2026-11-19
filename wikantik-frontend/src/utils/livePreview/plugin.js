@@ -1,7 +1,7 @@
 import { StateEffect, StateField, Facet } from '@codemirror/state';
 import { ViewPlugin, Decoration, EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { activeLinesOf, livePreviewSpecs, blockCandidates, updateBlockCandidates, caretsInLinks } from './ranges';
+import { activeLinesOf, livePreviewSpecs, blockCandidates, updateBlockCandidates, caretsInLinks, caretsInCellPadding } from './ranges';
 import { widgetFor } from './widgets';
 
 const warned = new Set();
@@ -161,10 +161,13 @@ export const blockField = StateField.define({
   provide: (f) => EditorView.decorations.from(f, (v) => v.decos),
 });
 
+/** What of the inline decorations depends on where on its line a caret is. */
+const caretKey = (state) => `${caretsInLinks(state)}|${caretsInCellPadding(state)}`;
+
 export const livePreviewPlugin = ViewPlugin.fromClass(class {
   constructor(view) {
     this.active = activeLinesOf(view.state);
-    this.typed = caretsInLinks(view.state);
+    this.typed = caretKey(view.state);
     this.decorations = buildInline(view, this.active);
   }
   update(u) {
@@ -173,8 +176,9 @@ export const livePreviewPlugin = ViewPlugin.fromClass(class {
     if (!rebuild && !u.selectionSet) return;
     const active = activeLinesOf(u.state);
     // A caret move that leaves the revealed lines unchanged cannot change any inline decoration — unless it leaves (or
-    // lands in) a link being typed, which is a chip only while no caret is inside it.
-    const typed = caretsInLinks(u.state);
+    // lands in) a link being typed, which is a chip only while no caret is inside it, or a grid cell's trailing
+    // padding, which is drawn as cell text only up to a caret resting in it.
+    const typed = caretKey(u.state);
     if (!rebuild && sameLines(this.active, active) && typed === this.typed) return;
     this.active = active;
     this.typed = typed;

@@ -256,13 +256,14 @@ describe('live preview incremental updates', () => {
       for (const it = blocksOf(view).iter(); it.value; it.next()) out.push(it.value.spec.lpWidget);
       return out;
     };
-    const doc = 'top\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n```mermaid\nflowchart TD\n  A-->B\n```\n\nend';
+    // The last row has no closing pipe: a table the widget draws (the grid takes a table with every row whole).
+    const doc = 'top\n\n| a | b |\n|---|---|\n| 1 | 2\n\n```mermaid\nflowchart TD\n  A-->B\n```\n\nend';
     const view = liveView(doc, { caret: 1 });
     expect(shown(view).map((w) => w.type)).toEqual(['table', 'fence']);
     // A find/replace-style change: no selection moves into either block, so both stay inactive.
     view.dispatch({ changes: { from: doc.indexOf('| 1') + 2, insert: '9' } });
     expect(view.state.selection.main.head).toBe(1);
-    expect(shown(view)[0].source).toBe('| a | b |\n|---|---|\n| 91 | 2 |');
+    expect(shown(view)[0].source).toBe('| a | b |\n|---|---|\n| 91 | 2');
     expect(view.dom.querySelector('.cm-lp-table tbody td').textContent).toBe('91');
     const at = view.state.doc.toString().indexOf('A-->B');
     view.dispatch({ changes: { from: at + 4, insert: 'C' } });

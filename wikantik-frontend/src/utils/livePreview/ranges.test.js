@@ -163,7 +163,7 @@ describe('livePreviewSpecs — blocks', () => {
     expect(Math.max(...lines)).toBeLessThanOrEqual(1003);
   });
   it('tables, HTML and frontmatter stay untouched source (HTML only gains its line class)', () => {
-    const doc = '---\ntitle: x\n---\n\n| a | **b** |\n|---|---|\n| 1 | 2 |\n\n<div>**x**</div>\n\nend';
+    const doc = '---\ntitle: x\n---\n\n| a | **b** |\n|---|---|\n| 1 |\n\n<div>**x**</div>\n\nend'; // a ragged table: not the grid's
     const { specs } = specsOf(doc, [11]);
     expect(specs.filter((s) => s.kind !== 'line')).toEqual([]);
     expect(specs.filter((s) => s.kind === 'line').map((s) => s.cls)).toEqual(['cm-lp-html']);
@@ -431,7 +431,8 @@ describe('fence block widgets', () => {
 });
 describe('table block widgets', () => {
   const block = (doc, active = [99]) => { const state = stateOf(doc); return { state, specs: blockSpecs(state, new Set(active), {}) }; };
-  const TABLE = '| a | b |\n|:--|--:|\n| 1 | 2 |\n| 3 | 4 |';
+  // Ragged (its last row is a cell short), so the widget draws it: a table with every row whole is the grid's.
+  const TABLE = '| a | b |\n|:--|--:|\n| 1 | 2 |\n| 3 |';
   it('a top-level table off the caret is one block spec spanning exactly its lines', () => {
     const doc = `intro\n\n${TABLE}\n\nend`;
     const { specs } = block(doc, [1]);
@@ -459,10 +460,66 @@ describe('table block widgets', () => {
     const doc = `x\n\n${TABLE}`;
     expect(block(doc).specs).toEqual([{ kind: 'block', from: 3, to: doc.length, widget: { type: 'table', source: TABLE } }]);
   });
-  it('the inline pass never decorates inside a table', () => {
+  it('the inline pass never decorates inside a table the widget draws', () => {
     const doc = `${TABLE.replace('| 1 |', '| **b** [[P]] $x$ |')}\n\nend`;
     const { specs } = specsOf(doc, [99]);
     expect(specs.filter((s) => s.from < doc.indexOf('\n\nend'))).toEqual([]);
+  });
+});
+describe('grid tables', () => {
+  const GRID = '| a | b |\n|:--|--:|\n| **x** | [[P]] |\n| 3 |  |';
+  const doc = `intro\n\n${GRID}\n\nend`;
+  const start = doc.indexOf('| a');
+  const hidden = (specs) => specs.filter((s) => s.sticky && (s.kind === 'hide' || s.kind === 'widget')).map((s) => [doc.slice(s.from, s.to), s.widget?.type ?? s.kind]);
+  it('a table with every row whole is no block widget, with the caret on it or off it', () => {
+    const state = stateOf(doc);
+    expect(blockSpecs(state, new Set([99]), {})).toEqual([]);
+    expect(blockCandidates(state)).toEqual([]);
+  });
+  it('hides each row\'s pipes and padding as sticky ranges, an empty cell\'s as its box, and the delimiter row as a hidden line', () => {
+    const { specs } = specsOf(doc, [99]);
+    expect(hidden(specs)).toEqual([
+      ['| ', 'hide'], [' | ', 'hide'], [' |', 'hide'],
+      ['|:--|--:|', 'hide'],
+      ['| ', 'hide'], [' | ', 'hide'], [' |', 'hide'],
+      ['| ', 'hide'], [' | ', 'hide'], [' |', 'table-cell'],
+    ]);
+    const delimiter = specs.find((s) => s.hiddenLine);
+    expect(doc.slice(delimiter.from, delimiter.to)).toBe('|:--|--:|');
+    expect(delimiter.hiddenLine).toBe('close');
+    expect(specs.filter((s) => s.kind === 'line').map((s) => s.cls)).toEqual(['cm-lp-table-delim']);
+    expect(specs.some((s) => s.lineMarker)).toBe(false); // Backspace never removes a pipe
+    expect(specs.find((s) => s.widget?.type === 'table-cell').widget).toEqual({ type: 'table-cell', col: 1, last: true, align: 'right' });
+  });
+  it('the same ranges stay hidden with the caret on the row', () => {
+    const state = stateOf(doc);
+    const row = state.doc.lineAt(doc.indexOf('| **x**')).number;
+    const off = livePreviewSpecs(state, new Set(), {});
+    const on = livePreviewSpecs(state, new Set([row]), {});
+    expect(hidden(on)).toEqual(hidden(off));
+  });
+  it('decorates a cell\'s text as a paragraph\'s: emphasis, and a link as a chip', () => {
+    const { specs } = specsOf(doc, [99]);
+    const marks = specs.filter((s) => s.kind === 'mark').map((s) => [s.cls, doc.slice(s.from, s.to)]);
+    expect(marks).toContainEqual(['cm-lp-strong', '**x**']);
+    expect(marks).toContainEqual(['cm-lp-linkchip', '[[P]]']);
+  });
+  it('a caret in a cell\'s trailing padding ends that cell\'s hidden range at the caret', () => {
+    const padded = doc.replace('| 3 |', '| 3  |');
+    const caret = padded.indexOf('| 3  |') + 4; // after the first of the two spaces
+    const state = stateOf(padded).update({ selection: { anchor: caret } }).state;
+    const specs = livePreviewSpecs(state, new Set(), {});
+    expect(specs.some((s) => s.kind === 'hide' && s.sticky && s.from === caret)).toBe(true);
+    expect(specs.some((s) => s.kind === 'hide' && s.from === caret - 1)).toBe(false);
+  });
+  it('reads only the rows in the requested range', () => {
+    const big = ['| a | b |', '|---|---|', ...Array.from({ length: 300 }, (_, i) => `| r${i} | v |`)].join('\n');
+    const state = stateOf(big);
+    const line = state.doc.line(150);
+    const specs = livePreviewSpecs(state, new Set(), { from: line.from, to: line.to });
+    expect(specs.length).toBe(3);
+    expect(specs.every((s) => s.from >= line.from && s.to <= line.to)).toBe(true);
+    expect(start).toBeGreaterThan(0);
   });
 });
 describe('live-preview parity with the shared rendered-fence fixture', () => {

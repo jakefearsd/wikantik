@@ -76,6 +76,9 @@ describe('parseTableSource', () => {
 
 describe('TableWidget', () => {
   const SRC = '| Name | Qty | Note |\n|:-----|:---:|-----:|\n| **a** | 1 | `c` |\n| b | 2 | [[P\\|Alias]] |';
+  // The same cells with the last row's opening pipe left out: in an editor the widget draws only a table the grid
+  // does not (tableGrid.js), and a row without an outer pipe is one of those.
+  const LOOSE = SRC.replace('\n| b |', '\nb |');
 
   it('renders a thead/tbody table with th/td cells, alignment and inline Markdown', () => {
     const dom = new TableWidget(SRC).toDOM(undefined);
@@ -114,7 +117,7 @@ describe('TableWidget', () => {
   });
 
   it('a mousedown on body row 2 puts the caret at the start of table line 4, revealing the source', () => {
-    const doc = `intro\n\n${SRC}\n\nend`;
+    const doc = `intro\n\n${LOOSE}\n\nend`;
     const view = liveView(doc);
     const rows = view.dom.querySelectorAll('.cm-lp-table tbody tr');
     expect(rows).toHaveLength(2);
@@ -144,14 +147,14 @@ describe('TableWidget', () => {
   });
 
   it('a mousedown on the header row puts the caret at the start of the header line', () => {
-    const doc = `intro\n\n${SRC}\n\nend`;
+    const doc = `intro\n\n${LOOSE}\n\nend`;
     const view = liveView(doc);
     fireEvent.mouseDown(view.dom.querySelector('.cm-lp-table thead th'));
     expect(view.state.selection.main.head).toBe(doc.indexOf('| Name'));
   });
 
   it('a mousedown outside any row puts the caret at the table start', () => {
-    const doc = `intro\n\n${SRC}\n\nend`;
+    const doc = `intro\n\n${LOOSE}\n\nend`;
     const view = liveView(doc);
     fireEvent.mouseDown(view.dom.querySelector('.cm-lp-table-block'));
     expect(view.state.selection.main.head).toBe(doc.indexOf('| Name'));
@@ -215,7 +218,7 @@ describe('TableWidget', () => {
   });
 
   it('row clicks work on a table drawn from the cache', () => {
-    const doc = `intro\n\n${SRC}\n\nend`;
+    const doc = `intro\n\n${LOOSE}\n\nend`;
     liveView(doc); // builds (or reuses) the cached table
     renderInlineMarkdown.mockClear();
     const view = liveView(doc);

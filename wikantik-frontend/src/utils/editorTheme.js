@@ -241,6 +241,19 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-table thead th`]: { fontFamily: 'var(--font-ui)', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', textAlign: 'left', padding: 'var(--space-sm) var(--space-md)', borderBottom: '2px solid var(--border-strong)' },
   [`${ROOT} .cm-lp-table tbody td`]: { padding: 'var(--space-sm) var(--space-md)', borderBottom: '1px solid var(--border)', verticalAlign: 'top' },
   [`${ROOT} .cm-lp-table tbody tr:hover`]: { background: 'var(--bg-sidebar)' },
+  // The table grid (livePreview/tableGrid.js): a row is a flex line and a cell a box sized by its column's width
+  // variable, which the row line carries. Flex rather than inline-block cells: the borders of a row with a wrapped
+  // cell then all reach the row's height. The cell box (padding, left border) is read back by tableGrid.js's fit.
+  [`${ROOT} .cm-lp-table-row`]: { display: 'flex', alignItems: 'stretch', whiteSpace: 'nowrap', width: 'max-content', minWidth: '100%', boxSizing: 'border-box' },
+  [`${ROOT} .cm-lp-cell`]: { display: 'block', flex: '0 0 auto', boxSizing: 'content-box', padding: '2px 8px', borderLeft: '1px solid var(--border)', borderBottom: '1px solid var(--border)', whiteSpace: 'break-spaces', overflowWrap: 'anywhere', minHeight: '1lh' },
+  [`${ROOT} .cm-lp-cell-last`]: { borderRight: '1px solid var(--border)' },
+  [`${ROOT} .cm-lp-cell-empty`]: { cursor: 'text' }, // a widget, but a place to type like any cell
+  [`${ROOT} .cm-lp-table-header .cm-lp-cell`]: { fontWeight: '600', borderTop: '1px solid var(--border)', borderBottom: '2px solid var(--border-strong)', backgroundColor: 'var(--bg-sidebar)' },
+  // What a row holds besides its cells takes no room, or its cells would stand beside the other rows': CodeMirror's
+  // widget buffers, the row's hidden opening pipe.
+  [`${ROOT} .cm-lp-table-row > :not(.cm-lp-cell)`]: { flex: '0 0 0px', width: '0', minWidth: '0' },
+  // The delimiter row: its text is hidden and the line collapsed (the caret never rests on it: sticky.js).
+  [`${ROOT} .cm-lp-table-delim`]: { height: '0', overflow: 'hidden', padding: '0 !important', lineHeight: '0', fontSize: '0' },
   [`${ROOT} .cm-lp-codeblock`]: { backgroundColor: 'var(--code-bg)' },
   [`${ROOT} .cm-lp-plugin`]: { padding: '0 6px', borderRadius: '999px', color: 'var(--text-secondary)', backgroundColor: 'color-mix(in srgb, var(--text) 7%, transparent)', fontFamily: 'var(--font-ui)', fontSize: '0.85em' },
   [`${ROOT} .cm-lp-chip`]: { padding: '0 6px', borderRadius: '999px', color: 'var(--text-secondary)', backgroundColor: 'color-mix(in srgb, var(--text) 7%, transparent)', fontFamily: 'var(--font-ui)', fontSize: '0.85em', cursor: 'text' },

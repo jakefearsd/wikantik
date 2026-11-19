@@ -136,7 +136,11 @@ function onOwnScrollbar(e, wrap) {
   return horizontal || vertical;
 }
 
-/** A top-level GFM table, drawn as an HTML table; a mousedown on a row puts the caret on that row's source line. */
+/**
+ * A top-level GFM table that the grid does not draw (tableGrid.js takes every table whose rows are whole: ragged rows,
+ * a row without its outer pipes or several header rows stay here), drawn as an HTML table; a mousedown on a row puts
+ * the caret on that row's source line.
+ */
 export class TableWidget extends WidgetType {
   constructor(source) { super(); this.source = source; }
   eq(o) { return o instanceof TableWidget && o.source === this.source; }

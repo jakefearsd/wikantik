@@ -32,11 +32,14 @@ import java.time.Duration;
 import java.util.Map;
 
 import static com.codeborne.selenide.Condition.cssClass;
+import static com.codeborne.selenide.Condition.exist;
 import static com.codeborne.selenide.Condition.exactText;
 import static com.codeborne.selenide.Condition.text;
 import static com.codeborne.selenide.Condition.visible;
 import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.$$;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Browser IT for editor live preview: GFM tables render as a widget, plugin and footnote
@@ -77,17 +80,23 @@ public class LivePreviewIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    void liveModeRendersTableAndChipsAndRevealsSourceOnClick() {
+    void liveModeRendersTableGridAndChipsAndAClickPutsTheCaretInACell() {
         EditWikiPage.openInMode( PAGE, EditorMode.LIVE );
         $( "[data-testid=page-editor] .cm-editor" ).shouldHave( cssClass( "cm-live-preview" ), WAIT );
 
-        $( ".cm-lp-table-block table.cm-lp-table thead th" ).shouldBe( visible, WAIT ).shouldHave( text( "Alpha" ) );
+        // A table whose rows are whole is the grid: its rows stay editor lines, drawn as cells with the pipes hidden.
+        $( ".cm-lp-table-row.cm-lp-table-header .cm-lp-cell" ).shouldBe( visible, WAIT ).shouldHave( text( "Alpha" ) );
+        $( ".cm-lp-table-block" ).shouldNot( exist );
         $( "span.cm-lp-chip.cm-lp-chip-plugin" ).shouldBe( visible, WAIT ).shouldHave( text( "⚙ TableOfContents" ) );
         $( "span.cm-lp-footnote-ref" ).shouldBe( visible, WAIT ).shouldHave( exactText( "1" ) );
 
-        // Clicking a body row puts the caret on its source line, which swaps the widget for raw text.
-        $( ".cm-lp-table-block table.cm-lp-table tbody tr" ).shouldBe( visible, WAIT ).click();
-        $( "[data-testid=page-editor] .cm-content" ).shouldHave( text( "| one | two |" ), WAIT );
+        // Clicking a body cell puts the caret in that cell's text; the row stays drawn as cells.
+        $$( ".cm-lp-table-row .cm-lp-cell" ).findBy( exactText( "one" ) ).shouldBe( visible, WAIT ).click();
+        final int cellFrom = EditWikiPage.documentText().indexOf( "| one |" ) + 2;
+        final int caret = EditWikiPage.caretOffset();
+        assertTrue( caret >= cellFrom && caret <= cellFrom + 3, "the caret is in the clicked cell's text (offsets "
+            + cellFrom + " to " + ( cellFrom + 3 ) + "); it is at " + caret );
+        $$( ".cm-lp-table-row .cm-lp-cell" ).findBy( exactText( "one" ) ).shouldBe( visible );
     }
 
     @Test

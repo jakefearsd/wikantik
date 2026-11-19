@@ -21,7 +21,8 @@ const context = {
   loadEmbed: () => Promise.resolve({ state: 'ok', html: '<p>embedded</p>' }),
 };
 
-const TABLE = '| A | B |\n| --- | --- |\n| one | two |';
+// Ragged, so the table widget draws it: a table with every row whole is the grid, whose rows are lines (tableGrid.test.js).
+const TABLE = '| A | B |\n| --- | --- |\n| one |';
 const MATH = '$$\nx = 1\n$$';
 const FENCE = '```mermaid\ngraph TD; A-->B;\n```';
 const EMBED = '![[Other]]';

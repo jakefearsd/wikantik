@@ -30,6 +30,23 @@ export class RuleWidget extends WidgetType {
   ignoreEvent() { return false; }
 }
 
+/**
+ * An empty cell of a grid table (tableGrid.js): a cell with no text has nothing for a mark to wrap, so this draws its
+ * box, sized by its column's width variable like any other cell. The caret rests before it, where typing goes.
+ */
+export class EmptyCellWidget extends WidgetType {
+  constructor({ col, last, align }) { super(); this.col = col; this.last = !!last; this.align = align || null; }
+  eq(other) { return other instanceof EmptyCellWidget && other.col === this.col && other.last === this.last && other.align === this.align; }
+  toDOM() {
+    const s = el('span', `cm-lp-cell cm-lp-cell-empty${this.last ? ' cm-lp-cell-last' : ''}`);
+    s.dataset.col = String(this.col);
+    s.style.width = `var(--lp-col-${this.col})`;
+    if (this.align) s.style.textAlign = this.align;
+    return s;
+  }
+  ignoreEvent() { return false; } // the grid places the caret in the cell (tableGrid.js)
+}
+
 export class TextWidget extends WidgetType {
   constructor(text, cls) { super(); this.text = text; this.cls = cls; }
   eq(other) { return other instanceof TextWidget && other.text === this.text && other.cls === this.cls; }
@@ -301,6 +318,7 @@ export function widgetFor(w, context = {}) {
     case 'chip': return new ChipWidget(w.text, w.cls, w.title);
     case 'fence': return new FenceWidget(w.language, w.source);
     case 'table': return new TableWidget(w.source);
+    case 'table-cell': return new EmptyCellWidget(w);
     case 'embed': return new EmbedWidget(w.target, w.section, context.loadEmbed);
     default: throw new Error(`unknown live-preview widget type: ${w.type}`);
   }

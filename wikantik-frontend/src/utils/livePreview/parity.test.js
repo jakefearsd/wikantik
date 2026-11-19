@@ -34,6 +34,8 @@ const marks = (o, cls) => o.specs.filter((s) => s.kind === 'mark' && s.cls === c
 const lineClasses = (o) => new Set(o.specs.filter((s) => s.kind === 'line').map((s) => s.cls));
 const chips = (o, cls) => widgets(o, 'chip').filter((s) => s.widget.cls.split(' ').includes(cls));
 const isQuoteMark = (t) => /^> ?$/.test(t);
+/** Drawn as the table grid (tableGrid.js): its rows are lines, its delimiter row a hidden one. */
+const isGrid = (o) => lineClasses(o).has('cm-lp-table-delim');
 /** Line 1 as the reader of the editor sees it: hidden ranges removed, each widget as `[type]`. */
 function visibleFirstLine(o) {
   const line = o.state.doc.line(1);
@@ -52,8 +54,8 @@ const urlLinks = (o) => links(o).filter((s) => !/[.,:;!?]$/.test(textOf(o.state,
 
 /** Label → whether the live decorations of an entry show it. */
 const PREDICATES = {
-  table: (o) => o.blocks.some((b) => b.widget.type === 'table'),
-  'table-nested': (o) => o.blocks.some((b) => b.widget.type === 'table'),
+  table: (o) => o.blocks.some((b) => b.widget.type === 'table') || isGrid(o),
+  'table-nested': (o) => o.blocks.some((b) => b.widget.type === 'table') || isGrid(o),
   'footnote-ref': (o) => chips(o, 'cm-lp-footnote-ref').length > 0,
   'footnote-def': (o) => chips(o, 'cm-lp-footnote-def').length > 0,
   'ref-link': (o) => links(o).length > 0 && !visibleFirstLine(o).includes('['),
@@ -79,8 +81,10 @@ const PREDICATES = {
   'no-comment': (o) => marks(o, 'cm-lp-comment').length === 0,
   tag: (o) => marks(o, 'cm-lp-tag').length > 0 && hides(o).length === 0,
   'no-tag': (o) => marks(o, 'cm-lp-tag').length === 0,
-  // A top-level table is one block widget; its cells are rendered by inlineCells, which marks a tag the same way.
-  'cell-tag': (o) => o.blocks.some((b) => b.widget.type === 'table' && new TableWidget(b.widget.source).toDOM().querySelector('.cm-lp-tag')),
+  // A tag in a cell of a top-level table: in a table the widget draws, its cells are rendered by inlineCells, which
+  // marks a tag the same way; in a grid table the cell is text, and the tag a decoration spec like any other.
+  'cell-tag': (o) => (isGrid(o) && marks(o, 'cm-lp-tag').length > 0)
+    || o.blocks.some((b) => b.widget.type === 'table' && new TableWidget(b.widget.source).toDOM().querySelector('.cm-lp-tag')),
   'no-highlight': (o) => marks(o, 'cm-lp-mark').length === 0 && !hides(o).includes('=='),
   chip: (o) => widgets(o, 'chip').some((s) => !/cm-lp-footnote/.test(s.widget.cls)),
   // Shown as its source: no block widget and nothing replaced or styled inline beyond list bullets and quote marks

@@ -141,15 +141,16 @@ describe('updateBlockCandidates', () => {
   });
 
   it('incrementalUpdateMatchesFullScan for edits inside, before, after and adjacent to a table', () => {
-    const doc = 'intro\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n$$\nx\n$$\n';
+    // The body row has no closing pipe, so the table is a widget candidate (the grid takes a table with every row whole).
+    const doc = 'intro\n\n| a | b |\n|---|---|\n| 1 | 2\n\n$$\nx\n$$\n';
     const at = (s) => doc.indexOf(s);
     const edits = [
       { from: at('| 1') + 2, insert: 'Z' }, // inside a body cell
       { from: at('|---'), to: at('|---') + 4, insert: '|x' }, // breaks the delimiter row: no longer a table
       { from: 0, insert: 'pre ' }, // before
       { from: at('$$'), insert: 'after\n\n' }, // after
-      { from: at('| 2 |') + 5, insert: '\nlazy' }, // adjacent: a lazy-continuation row
-      { from: at('| 2 |') + 5, insert: '\n' }, // adjacent: a blank line ends the table
+      { from: at('| 2') + 3, insert: '\nlazy' }, // adjacent: a lazy-continuation row
+      { from: at('| 2') + 3, insert: '\n' }, // adjacent: a blank line ends the table
       { from: at('intro') + 5, insert: '\n' }, // adjacent above: the blank line before it removed/added
       { from: at('intro') + 5, to: at('| a') }, // the paragraph above runs into the header row
     ];
@@ -161,6 +162,31 @@ describe('updateBlockCandidates', () => {
       candidates = updateBlockCandidates(candidates, tr, context);
       state = tr.state;
       expect(candidates, JSON.stringify(changes)).toEqual(blockCandidates(state, context));
+    }
+  });
+
+  it('incrementalUpdateMatchesFullScan when an edit hands a table to the grid or takes it back', () => {
+    const grid = 'intro\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n$$\nx\n$$\n';
+    const at = (s) => grid.indexOf(s);
+    const breaks = [
+      { from: at('| 2 |') + 4, to: at('| 2 |') + 5 }, // the row's closing pipe removed
+      { from: at('| 1 ') , to: at('| 2 |') }, // a cell removed: a ragged row
+      { from: at('| 2 |') + 5, insert: '\nlazy' }, // a lazy-continuation row
+      { from: at('| a'), insert: '> ' }, // no longer top level
+    ];
+    for (const changes of breaks) {
+      let state = EditorState.create({ doc: grid, extensions });
+      let candidates = blockCandidates(state, context);
+      expect(candidates.map((c) => c.widget.type)).toEqual(['math']); // the grid's table is no block widget
+      const tr = state.update({ changes });
+      candidates = updateBlockCandidates(candidates, tr, context);
+      state = tr.state;
+      expect(candidates, JSON.stringify(changes)).toEqual(blockCandidates(state, context));
+      // ... and the inverse edit hands it back
+      const back = state.update({ changes: tr.changes.invert(EditorState.create({ doc: grid }).doc) });
+      candidates = updateBlockCandidates(candidates, back, context);
+      expect(candidates, `undo of ${JSON.stringify(changes)}`).toEqual(blockCandidates(back.state, context));
+      expect(candidates.map((c) => c.widget.type)).toEqual(['math']);
     }
   });
 

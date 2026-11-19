@@ -5,6 +5,7 @@ import { stickyExtension } from './sticky';
 import { followReadOnly } from './headers';
 import { obsidianSyntaxKeymap } from '../obsidianSyntaxKeymap';
 import { linkCardExtension, onOpenLinkCard } from './linkCard';
+import { tableGridExtension } from './tableGrid';
 
 export { setLiveMode, refreshLivePreview, liveModeField } from './plugin';
 
@@ -13,7 +14,7 @@ export { setLiveMode, refreshLivePreview, liveModeField } from './plugin';
  * `onLinkCard(card | null, view)`, when given, shows the link card: without it a click on a chip places the caret.
  */
 export function livePreview({ getContext = () => ({}), onLinkCard } = {}) {
-  return [liveModeField, livePreviewConfig.of({ getContext }), referenceDefsField, blockField, livePreviewPlugin, liveAttributes, verticalMotionKeymap, stickyExtension, followReadOnly, obsidianSyntaxKeymap,
+  return [liveModeField, livePreviewConfig.of({ getContext }), referenceDefsField, blockField, livePreviewPlugin, liveAttributes, verticalMotionKeymap, stickyExtension, tableGridExtension, followReadOnly, obsidianSyntaxKeymap,
     linkCardExtension, ...(onLinkCard ? [onOpenLinkCard.of(onLinkCard)] : [])];
 }
 

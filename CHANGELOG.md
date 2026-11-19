@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Rich editor mode.** The editor has two modes, **Rich** and **Source**, switched only by the toolbar control or Mod+E; Rich replaces "Live preview" and is the default. In Rich, heading, list, task, quote and fence markers stay hidden under the cursor; bold, italic and the other inline marks still show on the cursor's line. The page text is the same Markdown in both modes, and opening a page in Rich and saving it changes nothing.
+- **Tables are edited as a grid** in Rich mode: type in a cell, Tab / Shift+Tab / Enter to move, **+ row**, **+ col** and a menu for alignment, moving and deleting (Alt+T from the keyboard). A cell edit rewrites only that cell, so two people editing different cells of one table both keep their edits.
+- **Link, embed and image cards**: click one in Rich mode to change its page, heading, text or address; Mod+K opens the same card and writes nothing until it is confirmed.
+- **Toolbar**: a Heading menu, an Insert menu (code block, Mermaid and PlantUML diagrams, math block, callouts, image, page embed, footnote, highlight, comment, horizontal rule, access rule), numbered list, task list, quote and strikethrough; buttons show the state at the cursor. The slash menu and the command palette offer the same commands.
+- Language and callout-type lists on code blocks and callouts, reachable from the keyboard with the palette command "Change code language / callout type".
+- A read-only **Markdown source pane** beside the Rich editor that follows the cursor.
+
+### Fixed
+
+- The editor pairs `[[…]]` brackets as the reader does: a pair may span lines and nothing inside one is code; hidden comments on the server follow the render there too (#130).
+- A read-only editor (no edit permission, or a shared draft catching up) takes no formatting or insert command, and a write it refuses is reported: "Convert to Markdown" no longer marks or publishes a page whose body it could not convert.
+- The Footnote command writes two small insertions instead of rewriting the page from the cursor to the end.
+
+### Changed
+
+- Edit Page Help and the user editing guide describe Rich and Source modes.
+
 ## [2.6.4] - 2026-11-17
 
 ### Fixed

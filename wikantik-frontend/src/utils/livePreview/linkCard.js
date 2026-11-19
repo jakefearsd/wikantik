@@ -122,17 +122,53 @@ export function requestLinkCard(view, pos) {
   return true;
 }
 
+const LINK_NODES = new Set(['Link', 'Image', 'WikiLink', 'WikiEmbed']);
+
+/**
+ * Whether the text [from, to] can become a link's text. Not an empty range or one across a line break; not one that
+ * cuts into a link, or holds a whole one (its brackets would be escaped, and it would stop being a link); and, in a
+ * table, not one across a cell boundary — a pipe that is not escaped, or whose escaping backslash the range leaves out
+ * — since the link would then swallow the boundary and the row lose a cell. Costs the range, never the document.
+ */
+function wrappable(state, from, to) {
+  if (to <= from) return false;
+  const text = state.sliceDoc(from, to);
+  if (text.includes('\n')) return false;
+  const inLink = (pos) => { const link = readLinkAt(state, pos); return !!link && pos > link.from && pos < link.to; };
+  if (inLink(from) || inLink(to)) return false;
+  let holdsLink = false;
+  syntaxTree(state).iterate({
+    from,
+    to,
+    enter: (node) => {
+      if (LINK_NODES.has(node.name) && node.from >= from && node.to <= to) holdsLink = true;
+      return !holdsLink;
+    },
+  });
+  if (holdsLink) return false;
+  if (inTableAt(state, from) || inTableAt(state, to - 1)) {
+    const lineStart = state.doc.lineAt(from).from;
+    const before = state.sliceDoc(lineStart, from);
+    for (let i = text.indexOf('|'); i >= 0; i = text.indexOf('|', i + 1)) {
+      let slashes = 0; // the backslashes right before this pipe, counted back to the line start
+      const run = before + text.slice(0, i);
+      while (slashes < run.length && run[run.length - 1 - slashes] === '\\') slashes += 1;
+      if (i === 0 || slashes % 2 === 0) return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Opens the card on the text [from, to], to make a link of it: nothing is written until the card is committed. False
- * (and nothing happens) for an empty range, one that crosses a line break or cuts into a link, a read-only document,
- * or when nothing shows cards.
+ * (and nothing happens) for a range that cannot become a link's text (`wrappable`: empty, across a line break, cutting
+ * into a link or holding one, across a table cell boundary), a read-only document, or when nothing shows cards. A card
+ * that is open first writes what it holds, and the range is checked again as that write left it.
  */
 export function requestLinkWrap(view, from, to) {
-  if (!canShow(view.state) || to <= from || view.state.sliceDoc(from, to).includes('\n')) return false;
-  const inLink = (pos) => { const link = readLinkAt(view.state, pos); return !!link && pos > link.from && pos < link.to; };
-  if (inLink(from) || inLink(to)) return false;
+  if (!canShow(view.state) || !wrappable(view.state, from, to)) return false;
   const [a, b] = leaveOpenCard(view, [from, to]);
-  if (!canShow(view.state) || b <= a) return false;
+  if (!canShow(view.state) || !wrappable(view.state, a, b)) return false;
   view.dispatch({ effects: openLinkCard.of({ wrap: { from: a, to: b } }) });
   return true;
 }

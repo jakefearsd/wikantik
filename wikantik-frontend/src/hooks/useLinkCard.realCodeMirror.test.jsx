@@ -18,21 +18,21 @@ const DOC = '[[A|x]] and [[B|y]] end';
 const NO_ANSWER = () => new Promise(() => {});
 const seen = { cardProps: null };
 
-function Host({ editorKey = 'one' }) {
+function Host({ editorKey = 'one', doc = DOC }) {
   const editorRef = useRef(null);
   const linkCard = useLinkCard({ editorRef, live: true, suggestPages: NO_ANSWER });
   useEffect(() => { seen.cardProps = linkCard.cardProps; });
   return (
     <>
-      <CodeEditor key={editorKey} ref={editorRef} value={DOC} onChange={() => {}} livePreview
+      <CodeEditor key={editorKey} ref={editorRef} value={doc} onChange={() => {}} livePreview
         livePreviewContext={{ pageName: 'Here', attachments: [] }} onOpenLinkCard={linkCard.onOpenLinkCard} />
       {linkCard.cardProps && <LinkCard {...linkCard.cardProps} />}
     </>
   );
 }
 
-function mount() {
-  const utils = render(<Host />);
+function mount(doc = DOC) {
+  const utils = render(<Host doc={doc} />);
   const view = EditorView.findFromDOM(utils.container.querySelector('.cm-editor'));
   parseFully(view);
   return { view, ...utils };
@@ -100,3 +100,44 @@ describe('the editor remounting under an open card (a shared draft resyncing)', 
     expect(fresh.state.field(linkCardField)).toBe(null);
   });
 });
+
+/**
+ * The card's writes are exact changes over the link's own range. In a grid table the cell input rules rewrite local
+ * input made at a selection range — clipping it to the cell the selection is anchored in — so a selection that merely
+ * ends at the link (a drag from another cell to the chip's edge) must not make them take the card's write for typing.
+ */
+describe('a card on a link in a grid table, with a selection that starts in another cell', () => {
+  const LINK = '[x](http://u)';
+  const TABLE_DOC = `Intro\n\n| A | B | C |\n| --- | --- | --- |\n| one | two | ${LINK} |\n| p | q | r |\n\nAfter`;
+  const linkFrom = TABLE_DOC.indexOf(LINK);
+  const linkTo = linkFrom + LINK.length;
+  const select = (view, anchor, head) => act(() => { view.dispatch({ selection: { anchor, head } }); });
+
+  it.each([
+    ['two columns away in the same row, ending where the link starts', TABLE_DOC.indexOf('one'), linkFrom],
+    ['in another row, ending where the link ends', TABLE_DOC.indexOf('q'), linkTo],
+  ])('a new address is written over the link alone (anchored %s)', (_name, anchor, head) => {
+    const { view } = mount(TABLE_DOC);
+    select(view, anchor, head);
+    openOn(view, linkFrom);
+    act(() => { seen.cardProps.onCommit({ url: 'http://other' }); });
+    expect(docOf(view)).toBe(TABLE_DOC.replace(LINK, '[x](http://other)'));
+  });
+
+  it('Remove unwraps the link where it is', () => {
+    const { view } = mount(TABLE_DOC);
+    select(view, TABLE_DOC.indexOf('one'), linkFrom);
+    openOn(view, linkFrom);
+    act(() => { seen.cardProps.onRemove(); });
+    expect(docOf(view)).toBe(TABLE_DOC.replace(LINK, 'x'));
+  });
+
+  it('a pipe in the new text is escaped once, by the link\'s own rules', () => {
+    const { view } = mount(TABLE_DOC);
+    select(view, linkTo, linkTo);
+    openOn(view, linkFrom);
+    act(() => { seen.cardProps.onCommit({ text: 'a|b' }); });
+    expect(docOf(view)).toBe(TABLE_DOC.replace(LINK, '[a\\|b](http://u)'));
+  });
+});
+

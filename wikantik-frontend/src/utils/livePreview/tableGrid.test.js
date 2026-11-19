@@ -10,7 +10,7 @@ import { defaultKeymap, indentWithTab, history, undo, redo, deleteLine, insertBl
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { editorMarkdownConfig } from '../editorMarkdown';
-import { livePreview, setLivePreview } from './index';
+import { livePreview, setLivePreview, asDispatched } from './index';
 import { livePreviewPlugin } from './plugin';
 import { currentTable, tableGridPlugin } from './tableGrid';
 import { onOpenLinkCard, cardModelOf } from './linkCard';
@@ -241,7 +241,7 @@ describe('what the input rules leave alone', () => {
     const link = at('[t](u)', doc);
     caretAt(view, onLink ? link + 6 : 0);
     const change = linkChange(readLinkAt(view.state, link + 1), { text: 'a|b' });
-    view.dispatch({ changes: change, userEvent: 'input.link' }); // as CodeEditor.applyChanges dispatches it
+    view.dispatch({ changes: change, userEvent: 'input.link', annotations: asDispatched.of(true) }); // as CodeEditor.applyChanges dispatches it
     expect(text(view)).toBe(doc.replace('[t](u)', '[a\\|b](u)'));
     caretAt(view, at('two', doc) + 4);
     expect(currentTable(view.state)?.table.columns).toBe(2);
@@ -253,11 +253,46 @@ describe('what the input rules leave alone', () => {
     const from = at('one');
     caretAt(view, onText ? from + 3 : 0);
     const model = cardModelOf(view.state, { wrap: true, from, to: from + 3, source: 'one' });
-    view.dispatch({ changes: linkChange(model, { url: 'a|b' }), userEvent: 'input.link-card' });
+    view.dispatch({ changes: linkChange(model, { url: 'a|b' }), userEvent: 'input.link-card', annotations: asDispatched.of(true) });
     expect(text(view)).toBe(DOC.replace('| one |', '| [one](a\\|b) |'));
     caretAt(view, at('A'));
     expect(currentTable(view.state)?.table.columns).toBe(2);
     expect(readLinkAt(view.state, from + 1).url).toBe('a|b');
+  });
+
+  // A programmatic write says so (asDispatched): the selection touching it does not make it typing. Here the
+  // selection is anchored two cells away and ends at the changed text, which the cell rules would clip to the anchor's cell.
+  describe('an exact write marked asDispatched, with a selection that touches it', () => {
+    const doc = DOC.replace('|  |', '| [x](http://u) |');
+    const link = at('[x](http://u)', doc);
+    const linkEnd = link + '[x](http://u)'.length;
+    it.each([
+      ['input.link-card', '[x](http://other)'],
+      ['delete.link-card', 'x'],
+      ['input', 'a|b\nc'],
+    ])('passes through exactly as dispatched (%s)', (userEvent, insert) => {
+      const view = mount(doc);
+      view.dispatch({ selection: EditorSelection.range(at('one', doc), link), userEvent: 'select' });
+      const mark = view.seen.length;
+      view.dispatch({ changes: { from: link, to: linkEnd, insert }, userEvent, annotations: asDispatched.of(true) });
+      expect(changesSince(view, mark)).toEqual([[link, linkEnd, insert]]);
+      expect(text(view)).toBe(doc.slice(0, link) + insert + doc.slice(linkEnd));
+    });
+    it('the same change without the mark is input at the selection, and is clipped to the anchor\'s cell', () => {
+      const view = mount(doc);
+      view.dispatch({ selection: EditorSelection.range(at('one', doc), link), userEvent: 'select' });
+      view.dispatch({ changes: { from: link, to: linkEnd, insert: '[x](http://other)' }, userEvent: 'input.type' });
+      expect(text(view)).not.toBe(doc.replace('http://u', 'http://other'));
+      expect(text(view)).toContain('[x](http://u)');
+    });
+    it('typing never carries the mark: a typed pipe is still escaped, and the rewritten transaction is not marked', () => {
+      const view = mount();
+      caretAt(view, at('one') + 3);
+      const mark = view.seen.length;
+      type(view, '|');
+      expect(text(view)).toBe(DOC.replace('| one |', '| one\\| |'));
+      expect(view.seen.slice(mark).some((tr) => tr.annotation(asDispatched))).toBe(false);
+    });
   });
 
   it('every annotation of a rewritten transaction survives the rewrite', () => {

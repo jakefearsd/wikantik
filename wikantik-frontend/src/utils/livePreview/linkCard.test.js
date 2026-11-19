@@ -348,13 +348,72 @@ describe('a card on text that is not a link yet', () => {
     expect(onLinkCard).not.toHaveBeenCalled();
     expect(view.state.doc.toString()).toBe(DOC);
   });
-  it('is allowed around a whole link, and from a link\'s edge', () => {
-    expect(open(22, 34).ok).toBe(true);
-    expect(open(26, 37).ok).toBe(true);
+  // A link's text cannot hold a link: wrapped, the inner one's brackets would be escaped and it would stop being one.
+  it.each([
+    ['a range that holds a whole wikilink and text before it', 22, 34],
+    ['a range that holds a whole wikilink and text after it', 26, 37],
+    ['a range around a whole Markdown link', DOC.length + 1, DOC.length + 16, `${DOC}\nsee [x](u) here`],
+    ['a range around a whole image', DOC.length + 1, DOC.length + 17, `${DOC}\nsee ![x](u) here`],
+  ])('is refused for %s: no card, no change', (_name, from, to, doc = DOC) => {
+    const onLinkCard = vi.fn();
+    const view = mount(doc, { onLinkCard });
+    expect(requestLinkWrap(view, from, to)).toBe(false);
+    expect(card(view)).toBe(null);
+    expect(onLinkCard).not.toHaveBeenCalled();
+    expect(view.state.doc.toString()).toBe(doc);
+  });
+  it('is allowed from a link\'s edge, the link itself left out', () => {
     expect(open(21, 26).ok).toBe(true);
+    expect(open(34, 39).ok).toBe(true);
+  });
+  it('is checked again once an open card has written: the text it turned into a link cannot be wrapped', () => {
+    const onLinkCard = vi.fn((c, view, leaving) => {
+      // As the host does: the card being left (open on `beta`, an address typed) writes its link.
+      if (leaving) view.dispatch({ changes: { from: c.from, to: c.to, insert: '[beta](http://u)' } });
+    });
+    const view = mount(DOC, { onLinkCard });
+    expect(requestLinkWrap(view, 11, 15)).toBe(true);
+    expect(requestLinkWrap(view, 5, 21)).toBe(false); // `alpha beta gamma`, which holds no link until the card writes
+    expect(view.state.doc.toString()).toBe(DOC.replace('beta', '[beta](http://u)'));
+    expect(card(view)).toBe(null);
   });
   it('is refused on a read-only document', () => {
     const view = mount(DOC, { onLinkCard: vi.fn(), readOnly: true });
     expect(requestLinkWrap(view, 11, 15)).toBe(false);
+  });
+
+  describe('in a table', () => {
+    const ROW = '| one | two | a\\|b | x\\\\| y |';
+    const TDOC = `Intro\n\n| A | B | C | D | E |\n| --- | --- | --- | --- | --- |\n${ROW}\n\nAfter`;
+    const at = (needle) => TDOC.indexOf(needle);
+    const wrap = (from, to) => {
+      const onLinkCard = vi.fn();
+      const view = mount(TDOC, { onLinkCard });
+      return { view, onLinkCard, ok: requestLinkWrap(view, from, to) };
+    };
+    it.each([
+      ['two cells of a row', at('one'), at('two') + 3],
+      ['a cell and the pipe after it', at('one'), at('one') + 5],
+      ['a pipe whose backslash is left out', at('a\\|b') + 2, at('a\\|b') + 4],
+      ['a pipe after an escaped backslash (a cell boundary)', at('x\\\\|'), at('x\\\\|') + 5],
+      ['a whole row', at('| one'), at('| one') + ROW.length],
+    ])('is refused across a cell boundary (%s): no card, no change', (_name, from, to) => {
+      const { view, ok, onLinkCard } = wrap(from, to);
+      expect(ok).toBe(false);
+      expect(card(view)).toBe(null);
+      expect(onLinkCard).not.toHaveBeenCalled();
+      expect(view.state.doc.toString()).toBe(TDOC);
+    });
+    it('is allowed inside one cell, an escaped pipe included', () => {
+      expect(wrap(at('one'), at('one') + 3).ok).toBe(true);
+      const { view, ok } = wrap(at('a\\|b'), at('a\\|b') + 4);
+      expect(ok).toBe(true);
+      expect(cardModelOf(view.state, card(view))).toMatchObject({ text: 'a|b', cell: true });
+    });
+  });
+  it('a pipe outside a table is ordinary text', () => {
+    const doc = 'left | right';
+    const view = mount(doc, { onLinkCard: vi.fn() });
+    expect(requestLinkWrap(view, 0, doc.length)).toBe(true);
   });
 });

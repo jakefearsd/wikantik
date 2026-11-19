@@ -64,6 +64,7 @@ import { createEditorCursorStore } from '../utils/editorCursorStore';
 import { useRailOpen } from '../hooks/useRailOpen';
 import { useEditorMode } from '../hooks/useEditorMode';
 import { loadEmbedState } from '../utils/livePreview/embedSource';
+import { asDispatched } from '../utils/livePreview';
 import { useRunCommand } from '../commands/useCommands';
 import { getCommands, registerCommands } from '../commands/registry';
 import { buildEditorCommands, FENCE_STARTERS } from '../utils/editorCommands';
@@ -1150,6 +1151,8 @@ export default function PageEditor({ collabTransport } = {}) {
           view.dispatch({
             changes: change,
             effects: [...revealEffects(view.state, change.from), ...revealEffects(view.state, change.to)],
+            // The server's change, exactly: not typing for the table grid's cell rules to rewrite.
+            annotations: asDispatched.of(true),
             userEvent: 'input',
           });
         }

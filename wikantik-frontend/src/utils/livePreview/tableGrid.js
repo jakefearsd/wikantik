@@ -5,6 +5,7 @@ import { cellAt, escapeCell, insertRow } from '../tableModel';
 import { liveModeField, setLiveMode, refreshLivePreview } from './plugin';
 import { gridTableOf, gridTableAt, gridRowAt, cellShownEnd, caretsInCellPadding } from './ranges';
 import { composing } from './sticky';
+import { asDispatched } from './asDispatched';
 import { CHIP } from './linkCard';
 import { widths, readGeometry, naturalWidthOf, tableStyle } from './tableWidths';
 
@@ -25,9 +26,10 @@ import { widths, readGeometry, naturalWidthOf, tableStyle } from './tableWidths'
  *
  * Input rules (gridInput): only local user input made at a selection range is rewritten — `input`, `delete` and
  * `move.drop` user events whose change is at one of the transaction's selection ranges (typing, paste, drop, delete).
- * A remote change, an undo or redo, a change with no user event (a command, a table operation), a composition, a
- * search-and-replace and any change made elsewhere than at a selection range pass through exactly as dispatched, and
- * so does a change whose selection starts or ends outside the table, which behaves as in Source. What is rewritten
+ * A remote change, an undo or redo, a change with no user event (a command, a table operation), a programmatic write
+ * marked `asDispatched` (the link card's, a block id's: whatever its user event, and wherever the selection is), a
+ * composition, a search-and-replace and any change made elsewhere than at a selection range pass through exactly as
+ * dispatched, and so does a change whose selection starts or ends outside the table, which behaves as in Source. What is rewritten
  * stays one transaction and is what Source would do for "this text in this cell", except that the text is stored
  * escaped (escapeCell) and a deletion stops at the cell.
  *
@@ -228,6 +230,8 @@ const gridInput = EditorState.transactionFilter.of((tr) => {
   const state = tr.startState;
   if (!tr.docChanged || !live(state) || state.readOnly) return tr;
   if (tr.annotation(Transaction.remote) || tr.isUserEvent('undo') || tr.isUserEvent('redo')) return tr;
+  // An exact programmatic write is no typing, even when the selection happens to touch it (asDispatched.js).
+  if (tr.annotation(asDispatched)) return tr;
   if (!(tr.isUserEvent('input') || tr.isUserEvent('delete') || tr.isUserEvent('move.drop'))) return tr;
   // Two commands worth knowing here. deleteLine's range runs from the end of the line above: in a body row that is
   // inside the table and at the caret, so it clears the caret's cell, not the row; in the header row it starts outside

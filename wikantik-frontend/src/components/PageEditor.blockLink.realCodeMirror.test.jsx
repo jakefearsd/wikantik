@@ -42,6 +42,7 @@ import { useDraft } from '../hooks/useDraft';
 import { useAttachments } from '../hooks/useAttachments';
 import { useToast } from '../hooks/useToast';
 import { getCommand } from '../commands/registry';
+import { parseFully } from '../test/fullParse';
 
 async function editorView(content, metadata = {}) {
   api.getPage.mockResolvedValue({ content, metadata, version: 1, markupSyntax: 'markdown' });
@@ -97,6 +98,27 @@ describe('PageEditor "Copy block link"', () => {
     expect(toast.success).toHaveBeenCalledWith('Block link copied');
     act(() => { undo(view); });
     expect(view.state.doc.toString()).toBe('# Title\n\nhello world\n\nnext');
+  });
+
+  // In Rich a grid table rewrites local input made at a selection range (clipped to the cell, pipes escaped, line
+  // breaks turned into spaces). The server's edit is none of that, even when the selection reaches where it goes.
+  it('on a table the grid draws (Rich), the server\'s edit is written byte for byte, whatever is selected', async () => {
+    localStorage.setItem('wikantik.editor.mode', 'live');
+    const table = '| A | B |\n| --- | --- |\n| one | two |';
+    const doc = `Intro\n\n${table}\n\nAfter`;
+    const tableEnd = doc.indexOf(table) + table.length;
+    api.draftBlocks.mockResolvedValue({ id: 'abc123', change: { from: tableEnd, to: tableEnd, insert: '\n^abc123' }, block: { index: 1, from: 7, to: tableEnd } });
+    const view = await editorView(doc);
+    await waitFor(() => expect(document.querySelector('.cm-editor.cm-live-preview')).not.toBeNull());
+    act(() => { parseFully(view); });
+    await waitFor(() => expect(view.contentDOM.querySelector('.cm-lp-table-row')).not.toBeNull());
+    // Anchored in a cell, ending after the row's closing pipe: the selection touches the place the edit goes.
+    act(() => { view.dispatch({ selection: { anchor: doc.indexOf('one'), head: tableEnd } }); });
+    await run();
+    expect(view.state.doc.toString()).toBe(`Intro\n\n${table}\n^abc123\n\nAfter`);
+    expect(writeText).toHaveBeenCalledWith('[[Existing#^abc123]]');
+    act(() => { undo(view); });
+    expect(view.state.doc.toString()).toBe(doc);
   });
 
   it('copies the id the server reads for the block without editing the text', async () => {

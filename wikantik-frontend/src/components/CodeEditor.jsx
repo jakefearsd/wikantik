@@ -15,7 +15,7 @@ import { createWikiLinkSource } from '../utils/wikiLinkComplete';
 import { filesFromPaste, filesFromDrop } from '../utils/editorFileEvents';
 import { linkInteraction } from '../utils/linkInteraction';
 import { markdownPaste, insertPaste } from '../utils/paste/markdownPaste';
-import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview, liveModeField } from '../utils/livePreview';
+import { livePreview as livePreviewExtension, setLivePreview, refreshLivePreview, liveModeField, asDispatched } from '../utils/livePreview';
 
 /**
  * #19 — CodeMirror 6 markdown source editor.
@@ -365,7 +365,8 @@ const CodeEditor = forwardRef(function CodeEditor(
      * Changes must NOT overlap: after sorting by position, a change that starts inside an earlier one is skipped
      * with a console warning (the rest still apply). The edit is its own undo step (never merged with adjacent
      * typing). It neither focuses the editor nor reveals folds. `userEvent` names the edit for the editor's own
-     * rules (`input.…`, `delete.…`). Returns false when there is no view.
+     * rules (`input.…`, `delete.…`); whatever it is, the transaction is marked `asDispatched`, so no input rule (the
+     * table grid's cell rules) rewrites these changes as if they were typed. Returns false when there is no view.
      */
     applyChanges(changes, { userEvent } = {}) {
       const view = viewRef.current;
@@ -387,7 +388,7 @@ const CodeEditor = forwardRef(function CodeEditor(
         spec.push(c);
       }
       if (spec.length === 0) return true;
-      view.dispatch({ changes: spec, annotations: isolateHistory.of('full'), ...(userEvent && { userEvent }) });
+      view.dispatch({ changes: spec, annotations: [isolateHistory.of('full'), asDispatched.of(true)], ...(userEvent && { userEvent }) });
       return true;
     },
     /**

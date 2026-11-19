@@ -8,6 +8,7 @@ import { linkCardExtension, onOpenLinkCard } from './linkCard';
 import { tableGridExtension } from './tableGrid';
 
 export { setLiveMode, refreshLivePreview, liveModeField } from './plugin';
+export { asDispatched } from './asDispatched';
 
 /**
  * The live-preview extension. Inactive until setLivePreview(view, true). getContext() returns the LiveContext.

@@ -87,6 +87,8 @@ import Modal from './ui/Modal';
 import AccessRuleForm from './editor/AccessRuleForm';
 import LinkCard from './editor/LinkCard';
 import { useLinkCard } from '../hooks/useLinkCard';
+import TableControls from './editor/TableControls';
+import { useTableControls } from '../hooks/useTableControls';
 import { DiffHtml } from './DiffViewer';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -566,6 +568,9 @@ export default function PageEditor({ collabTransport } = {}) {
   }, []);
 
   const [formatState, setFormatState] = useState(EMPTY_FORMAT_STATE);
+  // Rich mode's row and column controls for the table the caret is in, and the table commands of the palette.
+  const tableControls = useTableControls({ editorRef, readOnly: collabReadOnly || collabForbidden });
+  const { onViewChange: trackTable } = tableControls;
   const handleViewChange = useCallback(() => {
     const editor = editorRef.current;
     const vp = editor?.getViewport?.();
@@ -578,8 +583,9 @@ export default function PageEditor({ collabTransport } = {}) {
       const next = formatStateAt(view.state);
       setFormatState((prev) => (Object.keys(next).every((key) => prev[key] === next[key]) ? prev : next));
     }
+    trackTable();
     syncPreview();
-  }, [cursorStore, syncPreview]);
+  }, [cursorStore, syncPreview, trackTable]);
   const jumpToHeading = useCallback((line) => editorRef.current?.jumpToLineAligned?.(line, 0), []);
 
   const [ignoredMentions, setIgnoredMentions] = useState(() => new Set());
@@ -2113,6 +2119,7 @@ export default function PageEditor({ collabTransport } = {}) {
         )}
         {sourceCard}
         {linkCard.cardProps && <LinkCard {...linkCard.cardProps} />}
+        {tableControls.controls && <TableControls {...tableControls.controls} />}
         <input
           type="file"
           ref={imageInputRef}

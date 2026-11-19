@@ -50,3 +50,28 @@ export function buildEditorCommands({ format, save, pickImage, togglePreview, to
     cmd('toggle-live-preview', 'Switch between Rich and Source', 'View', toggleLivePreview, { keys: 'Mod-E' }),
   ];
 }
+
+/** The table commands' ids, titles and search words, in the order the palette and the controls' menu list them. */
+const TABLE_COMMANDS = [
+  ['table-row-above', 'Insert row above', ['add']],
+  ['table-row-below', 'Insert row below', ['add']],
+  ['table-column-left', 'Insert column left', ['add', 'before']],
+  ['table-column-right', 'Insert column right', ['add', 'after']],
+  ['table-move-column-left', 'Move column left', []],
+  ['table-move-column-right', 'Move column right', []],
+  ['table-align-left', 'Align column left', ['alignment']],
+  ['table-align-center', 'Align column center', ['alignment', 'centre']],
+  ['table-align-right', 'Align column right', ['alignment']],
+  ['table-align-none', 'Remove column alignment', ['align', 'default']],
+  ['table-delete-row', 'Delete row', ['remove']],
+  ['table-delete-column', 'Delete column', ['remove']],
+];
+export const TABLE_COMMAND_IDS = TABLE_COMMANDS.map(([id]) => id);
+
+/**
+ * The registry entries of Rich mode's table commands; `runTable(id)` does the work. They act on the table the caret
+ * is in, so their owner registers them only while the caret is in a table the grid edits (useTableControls).
+ */
+export function buildTableCommands({ runTable }) {
+  return TABLE_COMMANDS.map(([id, title, keywords]) => ({ id, title, section: 'Table', keywords: ['table', ...keywords], run: () => runTable(id) }));
+}

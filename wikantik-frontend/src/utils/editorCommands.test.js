@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildEditorCommands, FENCE_STARTERS } from './editorCommands';
+import { buildEditorCommands, buildTableCommands, TABLE_COMMAND_IDS, FENCE_STARTERS } from './editorCommands';
 
 const deps = () => ({ format: vi.fn(), save: vi.fn(), pickImage: vi.fn(), togglePreview: vi.fn(),
                       toggleRail: vi.fn(), foldAll: vi.fn(), unfoldAll: vi.fn(), toggleLivePreview: vi.fn(),
@@ -128,5 +128,24 @@ describe('buildEditorCommands', () => {
     byId['toggle-comment'].run();
     expect(d.format).toHaveBeenCalledWith('highlight');
     expect(d.format).toHaveBeenCalledWith('comment');
+  });
+});
+
+describe('buildTableCommands', () => {
+  it('declares the table commands in the Table section, each handing its id to runTable', () => {
+    const runTable = vi.fn();
+    const commands = buildTableCommands({ runTable });
+    expect(commands.map((c) => c.id).sort()).toEqual(['table-row-above', 'table-row-below', 'table-column-left',
+      'table-column-right', 'table-delete-row', 'table-delete-column', 'table-move-column-left', 'table-move-column-right',
+      'table-align-left', 'table-align-center', 'table-align-right', 'table-align-none'].sort());
+    expect(commands.map((c) => c.id)).toEqual(TABLE_COMMAND_IDS);
+    expect(commands.every((c) => c.section === 'Table' && c.title && !c.slash && !c.keys)).toBe(true);
+    commands.forEach((c) => c.run());
+    expect(runTable.mock.calls.map(([id]) => id)).toEqual(TABLE_COMMAND_IDS);
+  });
+
+  it('is not part of the editor\'s standing command set', () => {
+    const ids = buildEditorCommands({}).map((c) => c.id);
+    expect(ids.filter((id) => id.startsWith('table-'))).toEqual([]);
   });
 });

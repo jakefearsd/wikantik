@@ -2964,6 +2964,14 @@ h3:focus-within .heading-anchor {
 .link-preview-missing, .link-preview-loading { color: var(--text-secondary); font-style: italic; }
 .cm-mod-held .cm-content .cm-link-range { cursor: pointer; text-decoration: underline; }
 
+/* Table controls (Rich mode): drawn inside the editor's scroller, which is their offset parent, so they scroll with
+   the table. useTableControls sets top/left: over the blank line above the table, or under the table. */
+.table-controls { position: absolute; top: 0; left: 0; z-index: 5; display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px var(--shadow-strong); font-family: var(--font-ui); line-height: 1; white-space: nowrap; }
+.table-controls-above { transform: translateY(-100%); }
+.table-controls .table-controls-btn { min-width: 1.4rem; height: 1.3rem; padding: 0 var(--space-xs); font-size: 0.75rem; }
+
 /* Link card (Rich mode): edits the link, embed or image it sits under. */
 .link-card { z-index: 1000; display: flex; flex-direction: column; gap: 0.5rem; width: 20rem; max-width: calc(100vw - 16px);
   padding: 0.75rem 0.8rem 0.6rem; background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border-strong);

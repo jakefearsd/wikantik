@@ -484,11 +484,13 @@ const CodeEditor = forwardRef(function CodeEditor(
     },
   }), []);
 
-  // Notify the parent on scroll, caret move, or edit (so it can sync the preview).
+  // Notify the parent on scroll, caret move, edit, or a change between Rich and Source (so it can sync the preview,
+  // and what it shows for the caret's place: the toolbar's lit buttons, the table controls).
   const syncExtension = useMemo(() => [
     EditorView.domEventHandlers({ scroll() { onViewChangeRef.current?.(); return false; } }),
     EditorView.updateListener.of((u) => {
-      if (u.selectionSet || u.docChanged) onViewChangeRef.current?.();
+      const modeChanged = u.startState.field(liveModeField, false) !== u.state.field(liveModeField, false);
+      if (u.selectionSet || u.docChanged || modeChanged) onViewChangeRef.current?.();
     }),
   ], []);
 

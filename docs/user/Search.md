@@ -48,7 +48,7 @@ Commands available everywhere:
 | Toggle sidebar | none |
 | New page | none |
 
-On a page, **Edit this page** and **Page history** are added. On the edit screen the editor commands appear (Save, Bold, Italic, Insert link, headings, callouts, table, code block, math block, rule, image, fold or unfold headings, toggle preview, toggle rail, toggle live preview); their shortcuts are listed in [Editing.md](Editing.md#toolbar-and-keyboard-shortcuts). If you can create pages, **Import Obsidian vault…** is also listed.
+On a page, **Edit this page** and **Page history** are added. On the edit screen the editor commands appear (Save, Bold, Italic, Insert link, headings, callouts, table, code block, math block, rule, image, fold or unfold headings, toggle preview, toggle rail, switch between Rich and Source); their shortcuts are listed in [Editing.md](Editing.md#toolbar-and-keyboard-shortcuts). If you can create pages, **Import Obsidian vault…** is also listed.
 
 ## Search the full text
 

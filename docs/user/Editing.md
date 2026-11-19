@@ -1,6 +1,6 @@
 # Creating and Editing Pages
 
-This guide is for people who write and edit wiki pages in the web editor. It covers creating a page, the editor's toolbar and keyboard shortcuts, live preview, link completion, attachments, drafts, the frontmatter form, validation messages and page access rules. In every shortcut below, **Mod** means Ctrl on Windows and Linux and Cmd on a Mac.
+This guide is for people who write and edit wiki pages in the web editor. It covers creating a page, the editor's toolbar and keyboard shortcuts, the Rich and Source modes, link completion, attachments, drafts, the frontmatter form, validation messages and page access rules. In every shortcut below, **Mod** means Ctrl on Windows and Linux and Cmd on a Mac.
 
 You can edit a page only when the page view shows an **Edit** button. If it does not, your account lacks the `edit` permission on that page.
 
@@ -40,25 +40,33 @@ Click **Save** or press **Mod+S**. A successful save returns you to the page vie
 
 ### Toolbar and keyboard shortcuts
 
-The toolbar buttons and shortcuts all run entries from one command registry (`commands/registry.js`, `utils/editorCommands.js`), so they match the command palette.
+The toolbar buttons and shortcuts all run entries from one command registry (`commands/registry.js`, `utils/editorCommands.js`), so they match the command palette. The toolbar works the same way in both editor modes: in Source it writes the same Markdown you would type.
 
-| Toolbar button | Command | Shortcut |
-|----------------|---------|----------|
+| Toolbar control | Command | Shortcut |
+|-----------------|---------|----------|
 | **B** | Bold | Mod+B |
 | **I** | Italic | Mod+I |
-| **H** | Heading (level 2) | none |
-| **≡** | Bulleted list | none |
+| Strikethrough | Strikethrough | Mod+Shift+X |
+| Bulleted list, numbered list, task list | Make the line a list item of that kind | none |
+| Quote | Block quote | none |
 | `` ` `` | Inline code | none |
-| **{ }** | Code block | none |
-| **▦** | Table | none |
-| link icon | Insert link | Mod+K |
-| **Live** | Toggle live preview | Mod+E |
+| Table | Insert table | none |
+| link icon | Insert or edit a link | Mod+K |
+| **Heading** menu | Heading 1 to 4, or Paragraph | none |
+| **Insert** menu | The blocks listed below | none |
+| **Rich** / **Source** | Switch editing mode | Mod+E |
+
+A formatting button is lit when the cursor is in text of that kind, and pressing it again takes the formatting off. The **Heading** menu shows the level of the line the cursor is on; choose **Paragraph** to turn a heading back into ordinary text. The **Insert** menu holds the rest: code block, Mermaid diagram, PlantUML diagram, math block, the five callouts (note, tip, info, warning, danger), image, page embed, footnote, highlight, comment, horizontal rule and access rule. **Access rule** asks for a permission and the names allowed to use it, then writes the rule on its own line above the cursor. On a narrow screen, buttons that do not fit move into the **Insert** menu. With the toolbar focused, the Left and Right arrow keys move along it and Tab leaves it.
 
 Other keys bound while you edit:
 
 | Keys | Action |
 |------|--------|
 | Mod+S | Save the page |
+| Mod+E | Switch between Rich and Source |
+| Mod+Shift+H | Highlight the selection |
+| Mod+/ | Comment the selection |
+| Alt+T | Reach the table controls (Rich mode, cursor in a table) |
 | Mod+Shift+V | Paste as plain text (see [Paste formatted text](#paste-formatted-text)) |
 | Ctrl+Alt+[ | Fold all headings |
 | Ctrl+Alt+] | Unfold all headings |
@@ -66,21 +74,91 @@ Other keys bound while you edit:
 | Ctrl (Cmd) + click a link | Open it in a new tab |
 | Esc | Close an open preview card, or close the outline rail on a narrow window |
 
-Mod+K inserts a link while the cursor is in the editor. Outside the editor it opens the page switcher; see [Search.md](Search.md#jump-to-a-page-or-run-a-command). Mod+O, Mod+P and Mod+Alt+N work everywhere, including in the editor.
+Mod+K inserts or edits a link while the cursor is in the editor. Outside the editor it opens the page switcher; see [Search.md](Search.md#jump-to-a-page-or-run-a-command). Mod+O, Mod+P and Mod+Alt+N work everywhere, including in the editor.
 
-Mod+E does nothing while a dialog is open. It is disabled for pages still written in the legacy wiki markup.
+Mod+E does nothing while a dialog is open. A page still written in the legacy wiki markup opens in Source only.
 
-The command palette (Mod+P) also lists commands with no key: Heading 1, 2 and 3, five callouts, Insert table, Code block, Math block, Horizontal rule, Insert image, **Toggle preview** (hide or show the preview pane), **Toggle rail** and **Paste as plain text**.
+The command palette (Mod+P) also lists commands with no key: Heading 1, 2 and 3, five callouts, Insert table, Code block, Math block, Horizontal rule, Insert image, **Change code language / callout type**, **Show Markdown source beside the editor**, **Toggle preview** (hide or show the preview pane), **Toggle rail** and **Paste as plain text**.
 
 ### Insert blocks with the slash menu
 
-Type `/` at the start of a line or after a space to open a menu of blocks. Keep typing to narrow it (for example `/tab`), press Up and Down to choose, and press Enter to insert. The menu offers Heading 1 to 3, callouts (Note, Tip, Info, Warning, Danger), Table, Code block, Math block, Horizontal rule, Image and Link. It does not open inside frontmatter, code, a URL or math.
+Type `/` at the start of a line or after a space to open a menu of blocks. It offers the same blocks as the **Insert** menu, plus Heading 1 to 3, Table and Link. Keep typing to narrow it (for example `/tab`), press Up and Down to choose, and press Enter to insert. It does not open inside frontmatter, code, a URL or math.
 
-### Live preview
+### Rich and Source modes
 
-Press **Mod+E** or click **Live** to render Markdown inside the editor itself: headings, emphasis, links, lists, quotes, images, math, callouts and page embeds appear formatted while you type, and the text underneath is unchanged. Press it again to return to plain source. The choice is remembered in your browser (key `wikantik.editor.mode`) and defaults to source. Live preview works only on Markdown pages.
+The editor has two modes. **Rich** shows the page much as it will read and lets you build it from the toolbar, without typing Markdown. **Source** shows the Markdown itself. The page text is plain Markdown in both, and switching modes never changes it.
 
-The rendered pane on the right is separate. It re-parses your text as you type and scrolls with the editor.
+#### Switch modes
+
+- Choose **Rich** or **Source** at the right-hand end of the toolbar, or press **Mod+E**. Nothing else switches the mode.
+- Your choice is saved to your account when you are signed in, and otherwise in this browser. To change the default, open **Preferences**, go to **Editor** and set **Default editing mode**. New users start in Rich mode.
+- A page written in the legacy wiki syntax opens in Source only. Use **Convert to Markdown** to get Rich mode.
+
+#### What Rich mode shows
+
+Rich mode keeps most markup out of sight, including on the line you are typing on.
+
+- **Headings, lists, task boxes and quotes** show without their markers. Backspace at the start of such a line removes the marker and leaves the text.
+- **Links, page embeds and images** show as a link or a picture. Click one to change it (see [Links, embeds and images](#links-embeds-and-images)).
+- **Tables** are edited cell by cell (see [Tables](#tables)).
+- **Code blocks, diagrams and math blocks** show without their fence lines. A code block has a small header with a language list.
+- **Callouts** show their title, with a list to change the type.
+
+Some markup still appears when the cursor comes to it:
+
+- **Bold, italic, strikethrough, highlight and inline code** show their marks on the line the cursor is on, and hide them again when the cursor leaves.
+- **A diagram or a math block** is drawn until the cursor moves into it; then you see and edit its source. Move the cursor out and it is drawn again.
+- **A link you are typing** shows its source until the cursor leaves it.
+- **Formulas inside a line, footnotes, comments, access rules, block ids and raw HTML** show their source on the cursor's line.
+
+Two keys behave differently from plain text. Backspace just after a link, or Delete just before one, first selects the whole link; press the key again to remove it. When a code block or a table is the first or last thing on the page, the Up or Down arrow key adds an empty line outside it, so you can always get out.
+
+#### Tables
+
+In Rich mode a table is a grid. Use the table button, or **Insert table** in the `/` menu, to start one.
+
+- Click a cell and type. What you type is saved as part of the page straight away, so in a shared session others see it as you write.
+- **Tab** goes to the next cell and **Shift+Tab** to the previous one. **Enter** goes down to the same column of the next row. Tab or Enter at the end of the table adds a row.
+- While the cursor is in a table, **+ row**, **+ col** and a **⋮** menu appear beside it. The menu adds a row above or a column to the left, moves the column left or right, sets its alignment, and deletes the row or column. Press **Alt+T** to reach these controls from the keyboard, and **Escape** to return to the cell.
+- A cell holds one line of text. Bold, links and the rest work in a cell as they do in a paragraph. A vertical bar typed in a cell is kept as text. Spaces typed in front of a cell's text are not kept.
+- With text selected across several cells, typing or deleting changes one cell only, and Cut removes nothing. To change several cells at once, switch to Source.
+
+Some tables are shown as a table but are not editable as a grid; click one to edit its Markdown rows instead. These are tables whose rows do not all start and end with a vertical bar, tables whose rows have different numbers of cells, tables with more than one header row, and tables inside a list or a quote. Giving every row the same number of cells and a bar at each end makes the table a grid again:
+
+```
+| Step   | Owner |
+| ------ | ----- |
+| Deploy | Ops   |
+```
+
+#### Links, embeds and images
+
+- Click a link, a page embed or an image in Rich mode to open a small card with its details: the page, heading and text of a wiki link; the address and text of a web link; the source and alt text of an image.
+- Change a field and press **Enter**, or click away, to apply it. **Escape** closes the card and changes nothing. **Remove** takes the link off and keeps its text. **Open** follows the link.
+- Select some text on one line and press **Mod+K** (or the link button) to make it a web link: the card opens for the address, and the page is not changed until you confirm it. With the cursor on a link, Mod+K opens that link's card. With nothing selected, it starts a wiki link and lists pages to pick from.
+- Mod+K does nothing when the selection runs across table cells, or already holds a link or a web address. Select only the text you want linked.
+- **Mod+S** while a card is open applies the card's change first and then saves. If the card cannot accept what you typed, it stays open and nothing is saved.
+
+#### Code blocks and callouts
+
+- A code block's header has a list of languages; pick one to set how the block is highlighted. A new code block from the toolbar starts empty, with the cursor inside it.
+- A callout's title has a list of types (note, tip, info, warning, danger). Pick one to change the callout; edit the title text in place.
+- Both lists change only that one word of the page.
+- From the keyboard, put the cursor in the code block or callout, open the command palette (Mod+P) and run **Change code language / callout type**. The list takes the focus; press Enter or Space to open it.
+
+#### The Markdown source pane
+
+In Rich mode, the pane beside the editor can show the page's Markdown instead of the rendered preview. Choose **Source** at the top of the pane, or run **Show Markdown source beside the editor** from the command palette; choose **Preview** to go back.
+
+- The pane is read-only. It follows the cursor, with the current line highlighted, so you can watch the Markdown your clicks produce. You can select and copy from it.
+- It shows the body of the page. The metadata is edited on the **Frontmatter** tab and is not shown here.
+- It is not a way to switch mode. To edit the Markdown, switch the editor to Source.
+
+The rendered preview is a separate pane. It re-parses your text as you type and scrolls with the editor.
+
+#### When the page is read-only
+
+The editor is read-only when you may not edit the page, and for a moment when a shared draft is catching up with the server. While it is read-only, the toolbar, the `/` menu and the shortcuts change nothing, and **Copy block link** writes nothing for a block that has no id yet. Try again once you can type.
 
 ### Link to other pages while you type
 

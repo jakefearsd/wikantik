@@ -83,7 +83,7 @@ Markdown-math pipeline. `PageView.jsx` calls `renderMath()`
 `.math-inline`/`.math-display` elements and calls `katex.render()` on each
 directly, using the element's `textContent` (the raw LaTeX) as input — that is
 what produces the typeset mathematics you see in the browser. Separately, the
-editor's live preview pane (`PageEditor.jsx`) re-parses the raw, un-rendered
+editor's preview pane (`PageEditor.jsx`) re-parses the raw, un-rendered
 Markdown source client-side with `react-markdown` +
 [`remark-math`](https://github.com/remarkjs/remark-math) +
 [`rehype-katex`](https://github.com/remarkjs/rehype-katex), since that content

@@ -4,15 +4,15 @@
  * cell keys, and which tables the grid owns at all.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { EditorState, EditorSelection, Transaction } from '@codemirror/state';
+import { Annotation, EditorState, EditorSelection, Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { defaultKeymap, indentWithTab, history, undo, redo } from '@codemirror/commands';
+import { defaultKeymap, indentWithTab, history, undo, redo, deleteLine, insertBlankLine } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreview, setLivePreview } from './index';
 import { livePreviewPlugin } from './plugin';
-import { currentTable, fitColumns, tableGridPlugin } from './tableGrid';
+import { currentTable, tableGridPlugin } from './tableGrid';
 import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 
 const context = { pageName: 'Grid', attachments: [] };
@@ -94,13 +94,36 @@ describe('typing in a cell is typing in the document', () => {
     expect(text(view)).toBe(DOC.replace('| one |', '| one\\| |'));
   });
 
-  it('a backslash typed against a closing pipe does not swallow the pipe', () => {
+  it('a backslash typed against a closing pipe is stored as an escaped backslash, so the pipe still closes the cell', () => {
     const doc = DOC.replace('| one |', '| one|');
     const view = mount(doc);
     caretAt(view, at('one', doc) + 3);
     type(view, '\\');
-    expect(text(view)).toBe(doc.replace('| one|', '| one\\ |'));
+    expect(text(view)).toBe(doc.replace('| one|', '| one\\\\|'));
     expect(currentTable(view.state)).not.toBeNull();
+  });
+
+  it('a backslash typed just before an escaped pipe keeps that pipe escaped (stored as an escaped backslash)', () => {
+    const doc = DOC.replace('one', 'a\\|b');
+    const view = mount(doc);
+    caretAt(view, at('a\\|b', doc) + 1);
+    type(view, '\\');
+    expect(text(view)).toBe(doc.replace('a\\|b', 'a\\\\\\|b')); // a, an escaped backslash, the escaped pipe, b
+    expect(currentTable(view.state)?.table.columns).toBe(2);
+  });
+
+  it('Delete before an escaped pipe removes the pipe with its backslash; so does one Backspace after it', () => {
+    const doc = DOC.replace('one', 'a\\|b');
+    const start = at('a\\|b', doc);
+    const del = mount(doc);
+    caretAt(del, start + 1);
+    press(del, 'Delete');
+    expect(text(del)).toBe(doc.replace('a\\|b', 'ab'));
+    const back = mount(doc);
+    caretAt(back, start + 3);
+    press(back, 'Backspace');
+    expect(text(back)).toBe(doc.replace('a\\|b', 'ab'));
+    expect(head(back)).toBe(start + 1);
   });
 
   it('pasted multi-line text becomes one line with its pipes escaped (Review Focus 1)', () => {
@@ -144,8 +167,70 @@ describe('what the input rules leave alone', () => {
   it('a remote change inserting a raw pipe is not escaped', () => {
     const view = mount();
     caretAt(view, at('two'));
+    const mark = view.seen.length;
     view.dispatch({ changes: { from: at('one') + 3, insert: '|' }, annotations: Transaction.remote.of(true), userEvent: 'input.type' });
     expect(text(view)).toBe(DOC.replace('| one |', '| one| |'));
+    expect(changesSince(view, mark)).toEqual([[at('one') + 3, at('one') + 3, '|']]);
+  });
+
+  it('undo and redo of a raw pipe pass through', () => {
+    const view = mount();
+    caretAt(view, at('two'));
+    view.dispatch({ changes: { from: at('one') + 3, insert: '|' } });
+    const mark = view.seen.length;
+    undo(view);
+    expect(text(view)).toBe(DOC);
+    redo(view);
+    expect(text(view)).toBe(DOC.replace('| one |', '| one| |'));
+    expect(changesSince(view, mark)).toEqual([[at('one') + 3, at('one') + 4, ''], [at('one') + 3, at('one') + 3, '|']]);
+  });
+
+  it('a replace across a pipe passes through exactly as dispatched', () => {
+    const view = mount();
+    const match = at(' | two');
+    view.dispatch({ selection: EditorSelection.range(match, match + 3), userEvent: 'select.search' });
+    const mark = view.seen.length;
+    view.dispatch({ changes: { from: match, to: match + 3, insert: ', ' }, userEvent: 'input.replace' });
+    expect(text(view)).toBe(DOC.replace('one | two', 'one, two'));
+    expect(changesSince(view, mark)).toEqual([[match, match + 3, ', ']]);
+  });
+
+  it('a replace-all with several changes passes through exactly as dispatched', () => {
+    const view = mount();
+    caretAt(view, at('one') + 1);
+    const a = at(' | two');
+    const b = at(' |  |');
+    const mark = view.seen.length;
+    view.dispatch({ changes: [{ from: a, to: a + 3, insert: ', ' }, { from: b, to: b + 3, insert: ', ' }], userEvent: 'input.replace.all' });
+    expect(changesSince(view, mark)).toEqual([[a, a + 3, ', '], [b, b + 3, ', ']]);
+  });
+
+  it('a replace wholly inside one cell passes through exactly as dispatched', () => {
+    const view = mount();
+    view.dispatch({ selection: EditorSelection.range(at('one'), at('one') + 3), userEvent: 'select.search' });
+    view.dispatch({ changes: { from: at('one'), to: at('one') + 3, insert: 'a|b' }, userEvent: 'input.replace' });
+    expect(text(view)).toBe(DOC.replace('| one |', '| a|b |'));
+  });
+
+  it('an input change that did not come from a selection range passes through exactly as dispatched', () => {
+    const view = mount();
+    caretAt(view, at('A'));
+    const mark = view.seen.length;
+    view.dispatch({ changes: { from: at('one') + 3, to: at('two'), insert: 'x|y' }, userEvent: 'input.link' });
+    expect(changesSince(view, mark)).toEqual([[at('one') + 3, at('two'), 'x|y']]);
+  });
+
+  it('every annotation of a rewritten transaction survives the rewrite', () => {
+    const tagged = Annotation.define();
+    const view = mount();
+    caretAt(view, at('one') + 3);
+    const mark = view.seen.length;
+    view.dispatch({ changes: { from: at('one') + 3, insert: '|' }, selection: { anchor: at('one') + 4 }, userEvent: 'input.type', annotations: [tagged.of('kept'), Transaction.addToHistory.of(false)] });
+    expect(text(view)).toBe(DOC.replace('| one |', '| one\\| |'));
+    const tr = view.seen.slice(mark).find((t) => t.docChanged);
+    expect(tr.annotation(tagged)).toBe('kept');
+    expect(tr.annotation(Transaction.addToHistory)).toBe(false);
+    expect(tr.annotation(Transaction.userEvent)).toBe('input.type');
   });
 
   it('a change with no user event (a command, a table operation) is not rewritten', () => {
@@ -154,12 +239,15 @@ describe('what the input rules leave alone', () => {
     expect(text(view)).toBe(DOC.replace('one | two', 'x\ny'));
   });
 
-  it('a composition transaction is not rewritten, nor is the caret moved under it (Review Focus 4)', () => {
+  it('a pipe typed through a composition is stored as typed, not escaped (the table then goes back to the widget); the caret is not moved under it (Review Focus 4)', () => {
     const view = mount();
     caretAt(view, at('one') + 3);
     view.dispatch({ changes: { from: at('one') + 3, insert: '|' }, selection: { anchor: at('one') + 4 }, userEvent: 'input.type.compose' });
     expect(text(view)).toBe(DOC.replace('| one |', '| one| |'));
     expect(head(view)).toBe(at('one') + 4);
+    expect(currentTable(view.state)).toBeNull(); // ragged now: no longer the grid's
+    caretAt(view, 0);
+    expect(view.contentDOM.querySelectorAll('.cm-lp-table-block').length).toBe(1);
   });
 
   it('text composed in a cell lands intact, and nothing dispatches from the composition events', async () => {
@@ -251,6 +339,63 @@ describe('a deletion never eats a pipe', () => {
     back.dispatch({ selection: EditorSelection.range(at('two') + 2, at('one') + 1), userEvent: 'select' });
     press(back, 'Delete');
     expect(text(back)).toBe(DOC.replace('| one | two |', '| one | o |'));
+  });
+
+  describe('a selection across cells inside one table', () => {
+    const cases = [
+      ['two cells of one row', () => [at('one') + 1, at('two') + 2], '| o | two |', '| oX | two |', '| one | two |'],
+      ['two rows', () => [at('one') + 1, at('three') + 2], '| o | two |', '| oX | two |', '| one | two |'],
+    ];
+    const select = (view, [anchor, head]) => view.dispatch({ selection: EditorSelection.range(anchor, head), userEvent: 'select' });
+    it.each(cases)('%s: Delete, Backspace and typing change only the anchor\'s cell', (_name, ends, deleted, typed) => {
+      for (const key of ['Delete', 'Backspace']) {
+        const view = mount();
+        select(view, ends());
+        press(view, key);
+        expect(text(view), key).toBe(DOC.replace('| one | two |', deleted));
+      }
+      const view = mount();
+      select(view, ends());
+      type(view, 'X');
+      expect(text(view)).toBe(DOC.replace('| one | two |', typed));
+    });
+    it.each(cases)('%s: a cut removes nothing — the clipboard has the whole selection, and only part of it could go', (_name, ends) => {
+      const view = mount();
+      const [anchor, head] = ends();
+      select(view, [anchor, head]);
+      const mark = view.seen.length;
+      view.dispatch({ changes: { from: anchor, to: head }, userEvent: 'delete.cut' });
+      expect(text(view)).toBe(DOC);
+      expect(changesSince(view, mark)).toEqual([]);
+      expect([view.state.selection.main.from, view.state.selection.main.to]).toEqual([anchor, head]);
+    });
+    it('a cut inside one cell cuts', () => {
+      const view = mount();
+      select(view, [at('one'), at('one') + 2]);
+      view.dispatch({ changes: { from: at('one'), to: at('one') + 2 }, userEvent: 'delete.cut' });
+      expect(text(view)).toBe(DOC.replace('| one |', '| e |'));
+    });
+    it('the selection itself is not clipped', () => {
+      const view = mount();
+      select(view, [at('one') + 1, at('three') + 2]);
+      expect([view.state.selection.main.from, view.state.selection.main.to]).toEqual([at('one') + 1, at('three') + 2]);
+    });
+  });
+
+  it('deleteLine in a cell clears the cell, not the row', () => {
+    const view = mount();
+    caretAt(view, at('two') + 1);
+    deleteLine(view); // its range is the caret's line: a deletion at the selection, clipped to the caret's cell like any other
+    expect(text(view)).toBe(DOC.replace('| two |', '|  |'));
+    caretAt(view, at('one'));
+    expect(currentTable(view.state)?.table.body).toHaveLength(2);
+  });
+
+  it('Mod-Enter (a blank line after the row) splits the table, as it does in Source', () => {
+    const view = mount();
+    caretAt(view, at('one') + 1);
+    insertBlankLine(view); // its change is at the line's end, not at the selection: it goes as dispatched
+    expect(text(view)).toBe(DOC.replace('| one | two |\n', '| one | two |\n\n'));
   });
 
   it('Backspace right after a chip in a cell selects the chip first, then deletes it', () => {
@@ -431,13 +576,61 @@ describe('cell keys', () => {
     expect(text(view)).toBe(DOC.replace('Intro', 'Intro\n'));
   });
 
-  it('a table that ends the document can be left: ArrowDown from its last row adds a line below it', () => {
+  it('a deliberate keypress edit, not a caret move: ArrowDown from the last row of a table that ends the document adds the blank lines to leave it', () => {
     const view = mount(`${TABLE}`);
     caretAt(view, TABLE.indexOf('three'));
+    const mark = view.seen.length;
     press(view, 'ArrowDown');
     expect(text(view)).toBe(`${TABLE}\n\n`);
     expect(head(view)).toBe(TABLE.length + 2);
     expect(currentTable(view.state)).toBeNull();
+    const edits = view.seen.slice(mark).filter((tr) => tr.docChanged);
+    expect(edits).toHaveLength(1);
+    expect(edits[0].isUserEvent('input')).toBe(true);
+    undo(view);
+    expect(text(view)).toBe(TABLE);
+  });
+
+  it('a deliberate keypress edit, not a caret move: ArrowUp from the header row of a table that starts the document adds the blank lines to leave it', () => {
+    const view = mount(`${TABLE}\n\nAfter`);
+    caretAt(view, TABLE.indexOf('B'));
+    const mark = view.seen.length;
+    press(view, 'ArrowUp');
+    expect(text(view)).toBe(`\n\n${TABLE}\n\nAfter`);
+    expect(head(view)).toBe(0);
+    const edits = view.seen.slice(mark).filter((tr) => tr.docChanged);
+    expect(edits).toHaveLength(1);
+    expect(edits[0].isUserEvent('input')).toBe(true);
+  });
+
+  it('the edge arrows write nothing with Shift held, nor on a read-only document, nor away from the document\'s edge', () => {
+    const shifted = mount(`${TABLE}`);
+    caretAt(shifted, TABLE.indexOf('three'));
+    press(shifted, 'ArrowDown', { shiftKey: true });
+    press(shifted, 'ArrowUp', { shiftKey: true });
+    expect(text(shifted)).toBe(TABLE);
+    const locked = mount(`${TABLE}`, { extra: EditorState.readOnly.of(true) });
+    caretAt(locked, TABLE.indexOf('three'));
+    press(locked, 'ArrowDown');
+    caretAt(locked, TABLE.indexOf('A'));
+    press(locked, 'ArrowUp');
+    expect(text(locked)).toBe(TABLE);
+    const inside = mount();
+    caretAt(inside, at('three'));
+    press(inside, 'ArrowDown');
+    caretAt(inside, at('A'));
+    press(inside, 'ArrowUp');
+    expect(text(inside)).toBe(DOC);
+  });
+
+  it('the row a key adds is one transaction with a user event', () => {
+    const view = mount();
+    caretAt(view, EMPTY);
+    const mark = view.seen.length;
+    press(view, 'Tab');
+    const edits = view.seen.slice(mark).filter((tr) => tr.docChanged);
+    expect(edits).toHaveLength(1);
+    expect(edits[0].isUserEvent('input.table-row')).toBe(true);
   });
 });
 
@@ -501,6 +694,21 @@ describe('which tables the grid draws', () => {
     expect(text(view)).toBe(DOC);
   });
 
+  it('a click in a cell never lands the caret in another cell: right of its text it goes to the text end, left of it to its start', () => {
+    const view = mount();
+    caretAt(view, 0);
+    const cellEl = () => [...view.contentDOM.querySelectorAll('.cm-lp-cell')].find((el) => el.textContent === 'one');
+    const click = () => cellEl().dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    // What a real layout answers for a click right of `one` in a wide column: the far side of the hidden pipe.
+    view.posAtCoords = () => at('two');
+    expect(click()).toBe(false); // handled here
+    expect(head(view)).toBe(at('one') + 3);
+    view.posAtCoords = () => at('one') - 2;
+    click();
+    expect(head(view)).toBe(at('one'));
+    expect(text(view)).toBe(DOC);
+  });
+
   it('with live mode off there is no grid', () => {
     const view = mount(DOC, { live: false });
     expect(rows(view)).toBe(0);
@@ -520,20 +728,6 @@ describe('currentTable', () => {
     expect(currentTable(view.state)).toBe(cur); // memoised per (document, caret)
     caretAt(view, 2);
     expect(currentTable(view.state)).toBeNull();
-  });
-});
-
-describe('column widths', () => {
-  it('columns that fit keep their natural width, at least the minimum', () => {
-    expect(fitColumns([100, 20, 300], 600, 64, 192)).toEqual([100, 64, 300]);
-  });
-
-  it('a table too wide is squeezed: columns under the fair share keep theirs, the rest share what is left', () => {
-    expect(fitColumns([100, 900, 500], 700, 64, 192)).toEqual([100, 300, 300]);
-  });
-
-  it('a table that cannot fit even at the minimum is not squeezed: it scrolls, with columns capped at the wide limit', () => {
-    expect(fitColumns([100, 900, 30, 250], 200, 64, 192)).toEqual([100, 192, 64, 192]);
   });
 });
 

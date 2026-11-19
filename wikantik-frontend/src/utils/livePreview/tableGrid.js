@@ -5,6 +5,7 @@ import { cellAt, escapeCell, insertRow } from '../tableModel';
 import { liveModeField, setLiveMode, refreshLivePreview } from './plugin';
 import { gridTableOf, gridTableAt, gridRowAt, cellShownEnd, caretsInCellPadding } from './ranges';
 import { composing } from './sticky';
+import { widths, readGeometry, naturalWidthOf, tableStyle } from './tableWidths';
 
 /**
  * The table grid of Rich mode: a top-level table that tableModel.js calls `editable` is drawn as a grid of cells while
@@ -21,11 +22,13 @@ import { composing } from './sticky';
  *   the lowest precedence (so the inline marks nest inside it) running to the next cell's text, with that cell's
  *   hidden padding and pipe inside it. It also holds the grid's caret rule, its input rules and its keys.
  *
- * Input rules (gridInput): only local user input is rewritten — `input`, `delete` and `move.drop` user events. A remote
- * change, an undo or redo, a change with no user event (a command, a table operation) and a composition pass through
- * untouched, and so does a change whose selection starts or ends outside the table, which behaves as in Source. What
- * is rewritten stays one transaction and is what Source would do for "this text in this cell", except that the text is
- * stored escaped (escapeCell) and a deletion stops at the cell.
+ * Input rules (gridInput): only local user input made at a selection range is rewritten — `input`, `delete` and
+ * `move.drop` user events whose change is at one of the transaction's selection ranges (typing, paste, drop, delete).
+ * A remote change, an undo or redo, a change with no user event (a command, a table operation), a composition, a
+ * search-and-replace and any change made elsewhere than at a selection range pass through exactly as dispatched, and
+ * so does a change whose selection starts or ends outside the table, which behaves as in Source. What is rewritten
+ * stays one transaction and is what Source would do for "this text in this cell", except that the text is stored
+ * escaped (escapeCell) and a deletion stops at the cell.
  *
  * Nothing here dispatches from a composition or DOM input event (see sticky.js). The one dispatch that is not a key's
  * is the redraw after a width measurement, from a microtask after the measure cycle, and never during a composition.
@@ -140,35 +143,53 @@ function storedText(before, text) {
 
 /**
  * The change `[fromA, toA) → text` of local user input as the grid makes it, `{ from, to, insert, before }`, or null
- * when it is left as it is: outside a grid table, a selection (or change) that starts or ends outside the table, or one
- * anchored outside a cell. Otherwise the range is clipped to the cell its selection's anchor is in — its text and
- * whatever padding a caret rests in, never a pipe — and the text is stored escaped. A pipe straight after the change
- * keeps its meaning: the insertion gets a backslash more before a pipe that was escaped, a space before the cell's
- * closing pipe when it would otherwise escape it.
+ * when it is left exactly as dispatched: it did not come from one of the selection ranges (typing, pasting and deleting
+ * change the text at a selection range; a replace-all, a command editing elsewhere, do not — a dropped text, `drop`,
+ * goes where it was dropped), it is outside a grid table, its selection (or the change) starts or ends outside the
+ * table, or it is anchored outside a cell.
+ *
+ * Otherwise the range is clipped to the cell its selection's anchor is in — its text and whatever padding a caret
+ * rests in, never a pipe — and the text is stored escaped. A `cut` that would be clipped removes nothing: the clipboard
+ * has the whole selection, and only a part of it could go.
+ *
+ * A pipe keeps its meaning through the change, counted over the run of backslashes before it. An escaped pipe goes as
+ * one thing with its backslash (Backspace after `\|`, Delete before it). An insertion that would flip a pipe — a `\`
+ * typed before an escaped pipe, or against the cell's closing pipe — is stored with one backslash more: an escaped
+ * backslash, which reads as the backslash that was typed. A deletion that would flip one takes one character more of
+ * the run (or puts a backslash back before the closing pipe).
  */
-function cellChange(state, fromA, toA, text) {
+function cellChange(state, fromA, toA, text, { cut = false, drop = false } = {}) {
+  const sel = state.selection.ranges.find((r) => r.from <= toA && r.to >= fromA);
+  if (!sel && !drop) return null;
   const table = gridTableAt(state, fromA) || (toA > fromA ? gridTableAt(state, toA) : null);
   if (!table) return null;
-  const sel = state.selection.ranges.find((r) => r.from <= toA && r.to >= fromA);
   if (Math.min(fromA, sel ? sel.from : fromA) < table.from || Math.max(toA, sel ? sel.to : toA) > table.to) return null;
   const pivot = sel ? sel.anchor : fromA;
   const at = cellAt(table, pivot);
   if (!at) return null;
+  const { doc } = state;
   const cell = rowsOf(table)[at.row].cells[at.col];
   const lo = Math.min(cell.from, pivot);
   const hi = Math.max(cellShownEnd(cell, state.selection), pivot);
-  const from = Math.min(Math.max(fromA, lo), hi);
-  const to = Math.min(Math.max(toA, lo), hi);
-  const before = state.doc.sliceString(cell.outerFrom, from);
+  let from = Math.min(Math.max(fromA, lo), hi);
+  let to = Math.min(Math.max(toA, lo), hi);
+  if (cut && (from !== fromA || to !== toA)) return { from, to: from, insert: '', before: '' };
+  const charAt = (pos) => doc.sliceString(pos, pos + 1);
+  if (to > from && from > cell.from && charAt(from) === '|' && charAt(from - 1) === BACKSLASH) from -= 1;
+  const before = doc.sliceString(cell.outerFrom, from);
   let insert = storedText(before, text);
-  if (state.doc.sliceString(to, to + 1) === '|') {
-    const escapes = trailingBackslashes(before + insert) % 2 === 1;
-    const closing = to === cell.outerTo;
-    if (escapes && closing) insert += ' ';
-    else if (!escapes && !closing) insert += BACKSLASH;
+  let run = 0; // the backslashes between the change and the next character
+  while (charAt(to + run) === BACKSLASH) run += 1;
+  if (charAt(to + run) === '|') {
+    const closing = to + run === cell.outerTo;
+    const escaped = (trailingBackslashes(before + insert) + run) % 2 === 1;
+    if (escaped === closing) {
+      if (!insert && (run > 0 || (!closing && to > from))) to += 1;
+      else insert += BACKSLASH;
+    }
   }
   // A deletion that only took an escaping character and puts it back changes nothing.
-  if (insert && insert === state.doc.sliceString(from, to)) return { from, to: from, insert: '', before };
+  if (insert && insert === doc.sliceString(from, to)) return { from, to: from, insert: '', before };
   return { from, to, insert, before };
 }
 
@@ -183,13 +204,22 @@ const gridInput = EditorState.transactionFilter.of((tr) => {
   const state = tr.startState;
   if (!tr.docChanged || !live(state) || state.readOnly) return tr;
   if (tr.annotation(Transaction.remote) || tr.isUserEvent('undo') || tr.isUserEvent('redo')) return tr;
-  if (!(tr.isUserEvent('input') || tr.isUserEvent('delete') || tr.isUserEvent('move.drop')) || composing(tr)) return tr;
+  if (!(tr.isUserEvent('input') || tr.isUserEvent('delete') || tr.isUserEvent('move.drop'))) return tr;
+  // Two commands worth knowing here: deleteLine's range is at the caret, so it clears the caret's cell, not the row;
+  // Mod-Enter's blank line is inserted at the line's end, not at the selection, so it splits the table as in Source.
+  // Search and replace is the user's own edit of the source: a match may span a pipe, and it goes as dispatched.
+  if (tr.isUserEvent('input.replace')) return tr;
+  // A composition is never rewritten, and nothing repairs its text afterwards (no dispatch may come from a composition
+  // event, and a later caret move must not carry a change): a `|` typed through an IME is stored as typed, the table
+  // goes ragged and is drawn by the widget again.
+  if (composing(tr)) return tr;
+  const how = { cut: tr.isUserEvent('delete.cut'), drop: tr.isUserEvent('input.drop') || tr.isUserEvent('move.drop') };
   const parts = [];
   let rewritten = false;
   try {
     tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
       const text = inserted.toString();
-      const fix = cellChange(state, fromA, toA, text);
+      const fix = cellChange(state, fromA, toA, text, how);
       const same = !fix || (fix.from === fromA && fix.to === toA && fix.insert === text);
       if (!same) rewritten = true;
       parts.push({ fromB, toB, text, ...(same ? { from: fromA, to: toA, insert: text, before: null } : fix) });
@@ -236,8 +266,8 @@ const goTo = (view, pos, assoc = 1) => {
 };
 
 /**
- * A new last row, with the caret in its cell `col`: one change (insertRow) and its selection in one transaction, with
- * no user event — it is a table operation, which the input rules leave alone. Nothing on a read-only document.
+ * A new last row, with the caret in its cell `col`: one change (insertRow) and its selection in one transaction. The
+ * input rules leave it alone: it is not made at the selection. Nothing on a read-only document.
  */
 function appendRow(view, table, col) {
   if (view.state.readOnly) return true;
@@ -248,7 +278,7 @@ function appendRow(view, table, col) {
   for (let k = 0; k <= col; k += 1) pipe = change.insert.indexOf('|', pipe + 1);
   const room = change.insert.indexOf('|', pipe + 1) - pipe - 1;
   const typingAt = change.from + pipe + 1 + (room >= 2 ? 1 : 0);
-  view.dispatch({ changes: change, selection: caret(typingAt, 1), scrollIntoView: true });
+  view.dispatch({ changes: change, selection: caret(typingAt, 1), scrollIntoView: true, userEvent: 'input.table-row' });
   return true;
 }
 
@@ -318,8 +348,9 @@ function placeBeside(view, to, range, cell, forward) {
  * ArrowDown/ArrowUp with the caret in a cell: the same column of the next (previous) row, over the delimiter row.
  * Declines inside a wrapped cell until its last (first) visual line, and at the table's edge, where the editor's own
  * motion leaves the table — except that a table ending the document could not be left downwards at all, nor one
- * starting it upwards: there the plain key adds a blank line and an empty one beyond it (one empty line would be read
- * as a row of the table once typed on) and goes there. Not on a read-only document.
+ * starting it upwards: there the plain key (never with Shift, which is not bound here) adds a blank line and an empty
+ * one beyond it (one empty line would be read as a row of the table once typed on) and goes there, in one transaction,
+ * an edit (`userEvent: 'input'`) like the fence's edge exit in verticalMotion.js. Not on a read-only document.
  */
 const rowBeside = (forward) => (view) => {
   const { state } = view;
@@ -341,7 +372,7 @@ const rowBeside = (forward) => (view) => {
   if (!atEdge) return false;
   if (state.readOnly) return true;
   const changes = state.changes({ from: forward ? doc.length : 0, insert: '\n\n' });
-  view.dispatch({ changes, selection: caret(forward ? changes.newLength : 0), scrollIntoView: true });
+  view.dispatch({ changes, selection: caret(forward ? changes.newLength : 0), scrollIntoView: true, userEvent: 'input' });
   return true;
 };
 
@@ -384,145 +415,36 @@ const gridKeymap = Prec.highest(keymap.of([
 ]));
 
 /**
- * A mousedown on an empty cell's box puts the caret in that cell. The box is a widget that stands after the cell's
- * typing position, so the editor's own hit test gives its far side — the next cell — for the right half of it.
+ * A click in a cell puts the caret in that cell. The editor's own hit test does not: right of a cell's text (the
+ * blank of a wide column, an empty cell's box) it answers the far side of the hidden pipe, which is the next cell's
+ * start. A plain click whose hit is outside the clicked cell's text goes to the text's nearer end instead; one that
+ * hits the text is left to the editor (so is a Shift-click, a double click, and with them a drag from the text).
  */
-const emptyCellClick = EditorView.domEventHandlers({
+const cellClick = EditorView.domEventHandlers({
   mousedown(event, view) {
-    const box = event.target?.closest?.('.cm-lp-cell-empty');
-    if (!box || event.button !== 0 || event.shiftKey || !live(view.state)) return false;
+    const box = event.target?.closest?.('.cm-lp-cell');
+    const rowEl = box?.closest('.cm-lp-table-row');
+    if (!rowEl || event.button !== 0 || event.shiftKey || event.detail > 1 || !live(view.state)) return false;
     try {
-      view.dispatch({ selection: caret(view.posAtDOM(box), 1), userEvent: 'select.pointer' });
+      const { state } = view;
+      const lineStart = view.posAtDOM(rowEl, 0);
+      const table = gridTableAt(state, lineStart);
+      const cell = (table ? gridRowAt(table, lineStart) : null)?.cells[Number(box.dataset.col)];
+      if (!cell) return false;
+      const end = cellShownEnd(cell, state.selection);
+      const hit = view.posAtCoords({ x: event.clientX, y: event.clientY }, false);
+      if (hit >= cell.from && hit <= end && end > cell.from) return false;
+      const before = hit < cell.from;
+      view.dispatch({ selection: caret(before ? cell.from : end, before ? 1 : -1), userEvent: 'select.pointer' });
       view.focus();
       event.preventDefault();
       return true;
     } catch (err) {
-      console.warn('[rich] could not place the caret in an empty table cell', err?.message || err);
+      console.warn('[rich] could not place the caret in the clicked table cell', err?.message || err);
       return false;
     }
   },
 });
-
-// ---- Column widths ---------------------------------------------------------------------------------------------
-
-/** A column is never squeezed under this many characters (`ch`) to make a table fit the editor. */
-const MIN_CH = 8;
-/**
- * A table that cannot fit even with every column at the minimum scrolls sideways, and is then not squeezed at all:
- * each column keeps its natural width up to this many characters. (Squeezed to the minimum and scrolling anyway, a
- * twelve-column table drew five-line rows.)
- */
-const WIDE_CH = 24;
-/** The cell box around its text, as the theme draws it (editorTheme.js); read from a drawn cell when there is one. */
-const CELL_BOX = { pad: 16, border: 1 };
-const WIDTH_CACHE_LIMIT = 20000;
-
-/**
- * Column widths (px of cell text) for `natural` widths in `room` px: the naturals, each at least `min`, when they fit;
- * else columns under the fair share keep theirs and the rest share what is left, never under `min`; and when even
- * `min` each does not fit, the naturals capped at `wide` (the row then overflows and the editor scrolls sideways).
- */
-export function fitColumns(natural, room, min, wide) {
-  const n = natural.length;
-  const w = natural.map((x) => Math.max(x, min));
-  if (w.reduce((a, b) => a + b, 0) <= room) return w;
-  if (min * n > room) return w.map((x) => Math.min(x, Math.max(wide, min)));
-  const order = w.map((_, i) => i).sort((a, b) => w[a] - w[b]);
-  const out = new Array(n);
-  let left = room;
-  order.forEach((i, k) => {
-    out[i] = Math.max(min, Math.min(w[i], Math.floor(left / (n - k))));
-    left -= out[i];
-  });
-  return out;
-}
-
-/** Roughly what a cell shows once its marks are hidden: a link's text without its destination, no emphasis or code marks. */
-function drawnText(source) {
-  return source.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
-    .replace(/(\*\*|__|~~|==|`+)/g, '').replace(/(^|\W)[*_](\S(?:.*?\S)?)[*_](?=\W|$)/g, '$1$2').replace(/\\([|*_`\\])/g, '$1');
-}
-
-// Cell text widths by `font|source text`, for every view: an estimate from a canvas, and what a drawn cell measured.
-// A measurement only ever raises a width: lowering one moved a column while its table was being scrolled.
-const estimated = new Map();
-const measured = new Map();
-let generation = 0; // bumped when a width changes: a table's computed style is good for one generation
-let canvas = null;
-
-function widthOf(font, text) {
-  const key = `${font}|${text}`;
-  let width = estimated.get(key);
-  if (width === undefined) {
-    if (estimated.size > WIDTH_CACHE_LIMIT) { estimated.clear(); measured.clear(); }
-    canvas.font = font;
-    width = Math.ceil(canvas.measureText(drawnText(text)).width);
-    estimated.set(key, width);
-  }
-  const real = measured.get(key);
-  return real !== undefined && real > width ? real : width;
-}
-
-/** Each column's natural width over every row of the table, off-screen ones included, or a column would change width as rows scroll in. */
-function naturalWidths(table, fonts) {
-  const widths = new Array(table.columns).fill(0);
-  const { doc } = table;
-  const add = (row, font) => row.cells.forEach((c, i) => {
-    if (c.to > c.from) widths[i] = Math.max(widths[i], widthOf(font, doc.sliceString(c.from, c.to)));
-  });
-  add(table.header, fonts.header);
-  for (const row of table.body) add(row, fonts.body);
-  return widths;
-}
-
-/**
- * What the widths depend on in the view, or null while there is no layout (a hidden editor, a test DOM). The room for a
- * row is the scroller's, never the content's: a row that does not wrap widens `.cm-content`, which would feed back.
- */
-function readGeometry(view) {
-  const scroller = view.scrollDOM;
-  if (!scroller.clientWidth) return null;
-  canvas ||= document.createElement('canvas').getContext('2d');
-  if (!canvas) return null;
-  const cs = getComputedStyle(view.contentDOM);
-  const body = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  const header = `${cs.fontStyle} 600 ${cs.fontSize} ${cs.fontFamily}`;
-  canvas.font = body;
-  const ch = canvas.measureText('0').width;
-  const line = view.contentDOM.querySelector('.cm-line');
-  const ls = line ? getComputedStyle(line) : null;
-  const linePad = ls ? parseFloat(ls.paddingLeft) + parseFloat(ls.paddingRight) : 0;
-  const cell = view.contentDOM.querySelector('.cm-lp-cell');
-  const cellStyle = cell ? getComputedStyle(cell) : null;
-  const pad = cellStyle ? parseFloat(cellStyle.paddingLeft) + parseFloat(cellStyle.paddingRight) : CELL_BOX.pad;
-  const border = cellStyle ? parseFloat(cellStyle.borderLeftWidth) : CELL_BOX.border;
-  const gutter = view.contentDOM.getBoundingClientRect().left - scroller.getBoundingClientRect().left + scroller.scrollLeft;
-  const room = Math.floor(scroller.clientWidth - gutter - linePad);
-  return { body, header, ch, room, pad, border, key: `${body}|${room}|${pad}|${border}` };
-}
-
-/** The unwrapped width of a drawn cell's content: per visual line the extent of its boxes, summed over the lines. */
-function naturalWidthOf(el) {
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  const lines = new Map();
-  for (const r of range.getClientRects()) {
-    if (r.width === 0) continue;
-    const k = Math.round(r.top / 4);
-    const line = lines.get(k);
-    if (!line) lines.set(k, [r.left, r.right]);
-    else { line[0] = Math.min(line[0], r.left); line[1] = Math.max(line[1], r.right); }
-  }
-  // Boxes of one visual line can have different tops (a chip): lines whose keys are adjacent are one line.
-  let total = 0;
-  let last = null;
-  for (const k of [...lines.keys()].sort((a, b) => a - b)) {
-    const [left, right] = lines.get(k);
-    if (last && k - last.k <= 1) { last.left = Math.min(last.left, left); last.right = Math.max(last.right, right); last.k = k; }
-    else { if (last) total += last.right - last.left; last = { k, left, right }; }
-  }
-  return last ? total + last.right - last.left : total;
-}
 
 // ---- Drawing ---------------------------------------------------------------------------------------------------
 
@@ -548,7 +470,6 @@ function cellMark(col, last, align) {
   return mark;
 }
 
-const tableStyles = new WeakMap(); // table model → { key, style }
 
 export const tableGridPlugin = ViewPlugin.fromClass(class {
   constructor(view) {
@@ -567,7 +488,7 @@ export const tableGridPlugin = ViewPlugin.fromClass(class {
 
   update(u) {
     const padding = u.selectionSet || u.docChanged ? caretsInCellPadding(u.state) : this.padding;
-    if (u.docChanged || u.viewportChanged || padding !== this.padding || this.builtAt !== generation
+    if (u.docChanged || u.viewportChanged || padding !== this.padding || this.builtAt !== widths.generation
       || syntaxTree(u.startState) !== syntaxTree(u.state) || u.transactions.some(redraws)) {
       this.padding = padding;
       this.decorations = this.build(u.view);
@@ -577,22 +498,8 @@ export const tableGridPlugin = ViewPlugin.fromClass(class {
 
   destroy() { this.destroyed = true; }
 
-  /** The row style of `table`: its column widths as custom properties, one string for all its rows. */
-  styleOf(table) {
-    const g = this.geometry;
-    if (!g) return '';
-    const key = `${g.key}|${generation}`;
-    const hit = tableStyles.get(table);
-    if (hit && hit.key === key) return hit.style;
-    const room = g.room - table.columns * (g.pad + g.border) - g.border;
-    const widths = fitColumns(naturalWidths(table, g), room, Math.round(MIN_CH * g.ch), Math.round(WIDE_CH * g.ch));
-    const style = widths.map((w, i) => `--lp-col-${i}:${w}px`).join(';');
-    tableStyles.set(table, { key, style });
-    return style;
-  }
-
   build(view) {
-    this.builtAt = generation;
+    this.builtAt = widths.generation;
     this.rows = new Map();
     const { state } = view;
     if (!live(state)) return Decoration.none;
@@ -627,7 +534,7 @@ export const tableGridPlugin = ViewPlugin.fromClass(class {
     const first = visible[0].from;
     const last = visible[visible.length - 1].to;
     const shown = (row) => visible.some((r) => row.from <= r.to && row.to >= r.from);
-    const style = this.styleOf(table);
+    const style = tableStyle(table, this.geometry);
     const attributes = style ? { style } : undefined;
     const drawRow = (row, header) => {
       if (!shown(row)) return;
@@ -681,7 +588,7 @@ export const tableGridPlugin = ViewPlugin.fromClass(class {
               // Keyed by the model's cell text, not by what the span holds: a hidden mark at a cell's edge can be drawn outside it.
               const text = v.state.doc.sliceString(c.from, c.to);
               const width = Math.ceil(natural); // rounded up as measured: any less and the widest cell wraps
-              if (width - widthOf(font, text) >= 1) raised.push([`${font}|${text}`, width]);
+              if (width - widths.widthOf(font, text) >= 1) raised.push([font, text, width]);
             }
           }
           return { geometry, raised };
@@ -694,9 +601,8 @@ export const tableGridPlugin = ViewPlugin.fromClass(class {
         if (!result || this.destroyed) return;
         const { geometry, raised } = result;
         const moved = (geometry?.key ?? '') !== (this.geometry?.key ?? '');
-        if (moved) { this.geometry = geometry; generation += 1; }
-        for (const [key, width] of raised) measured.set(key, width);
-        if (raised.length) generation += 1;
+        if (moved) this.geometry = geometry;
+        for (const [font, text, width] of raised) widths.raise(font, text, width);
         if (!moved && !raised.length) return;
         Promise.resolve().then(() => {
           if (this.destroyed || v.composing || v.compositionStarted) return;
@@ -721,5 +627,5 @@ export const tableGridExtension = [
   Prec.low(gridInput),
   Prec.high(gridCaret),
   gridKeymap,
-  emptyCellClick,
+  cellClick,
 ];

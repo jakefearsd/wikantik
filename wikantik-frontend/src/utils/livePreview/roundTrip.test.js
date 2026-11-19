@@ -76,6 +76,7 @@ describe('live preview round trip', () => {
       const widgets = [...view.dom.querySelectorAll(WIDGET_SELECTOR)].filter((el) => !el.classList.contains('cm-lp-task'));
       expect(widgets.length).toBeGreaterThan(0);
       seen.push(...widgets.map((w) => w.className));
+      seen.push(...[...view.dom.querySelectorAll('.cm-lp-table-row')].map((row) => row.className)); // the grid's rows are lines, not widgets
       // happy-dom fires `selectionchange` synchronously while CodeMirror is mid-update (browsers deliver it later),
       // which makes the observer re-enter the view; hold those events back for the sweep.
       const holdSelectionChange = (e) => e.stopImmediatePropagation();
@@ -101,9 +102,9 @@ describe('live preview round trip', () => {
   });
 
   it('mounted every widget kind across the slices', () => {
-    // The fixture's table is drawn as the grid (its rows are lines, not a widget); the table widget's own mousedown is
-    // pinned in tableWidget.test.js.
-    const kinds = ['cm-lp-rule', 'cm-lp-math-block', 'cm-lp-math', 'cm-lp-embed', 'cm-lp-fence-block',
+    // The fixture's table is drawn as the grid (cm-lp-table-row: its rows are lines, not a widget); the table widget's
+    // own mousedown is pinned in tableWidget.test.js.
+    const kinds = ['cm-lp-rule', 'cm-lp-math-block', 'cm-lp-math', 'cm-lp-embed', 'cm-lp-table-row', 'cm-lp-fence-block',
       'cm-lp-callout-icon', 'cm-lp-image-wrap', 'cm-lp-chip'];
     for (const kind of kinds) {
       expect(seen.some((c) => c.split(/\s+/).includes(kind)), kind).toBe(true);

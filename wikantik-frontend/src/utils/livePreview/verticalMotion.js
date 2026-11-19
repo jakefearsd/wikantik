@@ -75,7 +75,8 @@ const ADD_LINE = Symbol('add line');
  * At the document's edge — a fence on its last line, or its first — there is no line beyond, and the block could not
  * be left: the plain arrow key adds one empty line there and goes to it (one transaction, whatever the number of
  * cursors; an edit, `userEvent: 'input'`). Not when extending and not on a read-only document: the key is then taken
- * and the caret stays. This is the only caret key that edits; nothing else that reaches the dead end adds a line.
+ * and the caret stays. Besides this, only the table grid's edge exit edits on a caret key (tableGrid.js `rowBeside`: a
+ * table that ends or starts the document); nothing else that reaches the dead end adds a line.
  */
 export function moveOverHiddenLine(view, forward, extend) {
   const { state } = view;

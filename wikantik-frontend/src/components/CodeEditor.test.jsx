@@ -143,11 +143,9 @@ describe('CodeEditor reveal rule', () => {
     expect(() => ref.current.scrollToLine(2)).not.toThrow();
     expect(() => ref.current.jumpToLineAligned(3, 0)).not.toThrow();
   });
-  it('scrollToLine reveals the target by default but not with { reveal: false }', () => {
+  it('scrollToLine reveals the target', () => {
     const { ref } = mount('a\nb\nc');
     revealSpy.mockClear();
-    ref.current.scrollToLine(2, { reveal: false });
-    expect(revealSpy).not.toHaveBeenCalled();
     ref.current.scrollToLine(2);
     expect(revealSpy).toHaveBeenCalledTimes(1);
     expect(revealSpy.mock.calls[0][1]).toBe(2); // start of line 2 ('a\n' -> offset 2)
@@ -372,6 +370,45 @@ describe('#19 CodeEditor getViewport / scrollToLine / getScrollerRect', () => {
     const noView = createRef();
     render(<CodeEditor ref={noView} value="__NO_VIEW__" onChange={() => {}} />);
     expect(noView.current.scrollGeometry()).toBeNull();
+  });
+
+  it('scrollGeometry reads the scroller rect once per call', () => {
+    const { ref, ta } = mount(multiline);
+    ta.setSelectionRange(6, 6);
+    lastView.scrollDOM.getBoundingClientRect = vi.fn(() => ({ top: 20 }));
+    const g = ref.current.scrollGeometry();
+    expect(lastView.scrollDOM.getBoundingClientRect).toHaveBeenCalledTimes(1);
+    expect(g.caret).toEqual({ line: 3, top: 20 });
+    expect(g.lineTop(4)).toBe(30);
+  });
+
+  it('scrollGeometry carries the document it measured', () => {
+    const { ref } = mount(multiline);
+    expect(ref.current.scrollGeometry().doc.lines).toBe(5);
+  });
+
+  it('scrollGeometry warns once per failure streak, not every frame', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { ref, ta } = mount(multiline);
+    ta.__throwCoordsAtPos = true;
+    ref.current.scrollGeometry();
+    ref.current.scrollGeometry();
+    expect(warn).toHaveBeenCalledTimes(1);
+    ta.__throwCoordsAtPos = false;
+    expect(ref.current.scrollGeometry()).not.toBeNull();
+    ta.__throwCoordsAtPos = true;
+    ref.current.scrollGeometry();
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it('setScrollTop returns where the editor landed, null without a view', () => {
+    const { ref } = mount(multiline);
+    expect(ref.current.setScrollTop(25)).toBe(25);
+    expect(ref.current.setScrollTop(-5)).toBe(0);
+    const noView = createRef();
+    render(<CodeEditor ref={noView} value="__NO_VIEW__" onChange={() => {}} />);
+    expect(noView.current.setScrollTop(5)).toBeNull();
   });
 
   it('setScrollTop scrolls the editor, never above the top', () => {

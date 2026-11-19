@@ -127,6 +127,9 @@ describe('preview scroll sync', () => {
     await screen.findByTestId('body-value');
     const preview = container.querySelector('.editor-preview');
     expect(preview).not.toBeNull();
+    Object.defineProperty(preview, 'scrollHeight', { value: 800, configurable: true });
+    Object.defineProperty(preview, 'clientHeight', { value: 200, configurable: true });
+    preview.scrollTop = 300; // the reader scrolls the preview
     fireEvent.scroll(preview);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     // it sets the scroll position only: scrollToLine (which reveals the target's folds) is never called

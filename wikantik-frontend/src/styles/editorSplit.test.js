@@ -31,3 +31,21 @@ describe('editor and side pane share the width equally', () => {
     expect(block(globals, '.editor-preview')).toMatch(/overflow-x:\s*auto;/);
   });
 });
+
+describe('the editor preview', () => {
+  // A long URL or unbroken word in a table cell must break inside the cell, so a table never makes the whole
+  // preview scroll sideways.
+  it('table cells break long words instead of widening the table', () => {
+    expect(block(globals, '.editor-preview th, .editor-preview td')).toMatch(/overflow-wrap:\s*anywhere;/);
+  });
+
+  // Safari draws no box-shadow on a table row, so the caret row's accent bar is drawn on its first cell.
+  it('the caret row drops the row shadow that Safari cannot draw', () => {
+    expect(block(globals, '.editor-preview tr.editor-preview-caret-block')).toMatch(/box-shadow:\s*none;/);
+  });
+
+  it('the caret row accent bar is drawn on its first cell', () => {
+    expect(block(globals, '.editor-preview tr.editor-preview-caret-block > :first-child'))
+      .toMatch(/box-shadow:\s*inset 4px 0 0 var\(--accent\);/);
+  });
+});

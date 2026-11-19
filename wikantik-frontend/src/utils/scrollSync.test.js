@@ -1,25 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { frontmatterLineCount, scrollAnchors, mapPosition, previewScrollFor, editorScrollFor } from './scrollSync';
-
-describe('frontmatterLineCount', () => {
-  it('counts both fences of a leading frontmatter block', () => {
-    const text = '---\ntype: article\ncluster: x\n---\n\n# Body\n';
-    expect(frontmatterLineCount(text)).toBe(4); // lines 0..3 (--- type cluster ---)
-  });
-
-  it('returns 0 when there is no frontmatter', () => {
-    expect(frontmatterLineCount('# Just a body\n\ntext')).toBe(0);
-    expect(frontmatterLineCount('')).toBe(0);
-  });
-
-  it('returns 0 for an unterminated (still being typed) block', () => {
-    expect(frontmatterLineCount('---\ntype: article\n')).toBe(0);
-  });
-
-  it('does not treat a mid-document --- (hr) as frontmatter', () => {
-    expect(frontmatterLineCount('# Title\n\n---\n\nmore')).toBe(0);
-  });
-});
+import { scrollAnchors, mapPosition, previewScrollFor, editorScrollFor } from './scrollSync';
 
 describe('scrollAnchors', () => {
   it('starts at the two tops, ends at the two document ends, with each block between', () => {
@@ -121,3 +101,37 @@ describe('previewScrollFor / editorScrollFor', () => {
     expect(editorScrollFor(100, { ...pane(0), previewMax: 0 })).toBe(0);
   });
 });
+
+describe('mapPosition over a long page', () => {
+  // The scan the search replaced: the reference the faster lookup must agree with everywhere.
+  function linear(y, anchors, reverse = false) {
+    const from = reverse ? 1 : 0;
+    const to = reverse ? 0 : 1;
+    if (y <= anchors[0][from]) return anchors[0][to];
+    for (let i = 1; i < anchors.length; i++) {
+      const a = anchors[i - 1];
+      const b = anchors[i];
+      if (y < b[from]) return a[to] + ((y - a[from]) / (b[from] - a[from])) * (b[to] - a[to]);
+    }
+    return anchors[anchors.length - 1][to];
+  }
+
+  it('agrees with a scan of every anchor, both ways, at the anchors, between them and past the ends', () => {
+    const pairs = [];
+    let e = 0;
+    let p = 0;
+    for (let i = 0; i < 3000; i++) {
+      e += 10 + (i % 7) * 13;
+      p += 5 + (i % 11) * 29;
+      pairs.push([e, p]);
+    }
+    const anchors = scrollAnchors(pairs, e + 100, p + 100);
+    for (let y = -50; y < e + 300; y += 37.5) expect(mapPosition(y, anchors)).toBeCloseTo(linear(y, anchors), 9);
+    for (let y = -50; y < p + 300; y += 41.25) expect(mapPosition(y, anchors, true)).toBeCloseTo(linear(y, anchors, true), 9);
+    for (const [ae, ap] of anchors) {
+      expect(mapPosition(ae, anchors)).toBeCloseTo(ap, 9);
+      expect(mapPosition(ap, anchors, true)).toBeCloseTo(ae, 9);
+    }
+  });
+});
+

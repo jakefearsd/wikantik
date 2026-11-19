@@ -8,21 +8,6 @@
 // Side-effect free (no DOM, no rAF); the caller measures both panes and applies the result.
 
 /**
- * Number of source lines occupied by a leading `---` … `---` frontmatter block
- * (counting both fence lines). Returns 0 when the text has no frontmatter.
- */
-export function frontmatterLineCount(text) {
-  if (!text || !text.startsWith('---')) return 0;
-  const lines = text.split('\n');
-  // First line must be exactly the opening fence.
-  if (lines[0].trim() !== '---') return 0;
-  for (let i = 1; i < lines.length; i++) {
-    if (lines[i].trim() === '---') return i + 1; // inclusive of the closing fence
-  }
-  return 0; // unterminated frontmatter (still being typed) — treat as no block
-}
-
-/**
  * The anchor points of the scroll map, as [editorY, previewY] pairs in scroll coordinates: the two tops, each
  * block's top in both panes (`pairs`, in document order), and the two document ends. A point is kept only where
  * both coordinates move strictly down from the last one kept, so a hidden line (no height in the editor) or a
@@ -46,10 +31,16 @@ export function mapPosition(y, anchors, reverse = false) {
   const from = reverse ? 1 : 0;
   const to = reverse ? 0 : 1;
   if (y <= anchors[0][from]) return anchors[0][to];
-  for (let i = 1; i < anchors.length; i++) {
-    const a = anchors[i - 1];
-    const b = anchors[i];
-    if (y < b[from]) return a[to] + ((y - a[from]) / (b[from] - a[from])) * (b[to] - a[to]);
+  let lo = 1;
+  let hi = anchors.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (y < anchors[mid][from]) hi = mid; else lo = mid + 1;
+  }
+  if (lo < anchors.length) {
+    const a = anchors[lo - 1];
+    const b = anchors[lo];
+    return a[to] + ((y - a[from]) / (b[from] - a[from])) * (b[to] - a[to]);
   }
   return anchors[anchors.length - 1][to];
 }

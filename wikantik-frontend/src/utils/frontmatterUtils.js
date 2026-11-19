@@ -114,3 +114,18 @@ export function frontmatterOffsetLines(content) {
   const m = content.match(FRONTMATTER_RE);
   return m ? m[0].split('\n').length - 1 : 0;
 }
+
+/**
+ * Number of source lines occupied by a leading `---` … `---` frontmatter block
+ * (counting both fence lines). Returns 0 when the text has no frontmatter.
+ */
+export function frontmatterLineCount(text) {
+  if (!text || !text.startsWith('---')) return 0;
+  const lines = text.split('\n');
+  // First line must be exactly the opening fence.
+  if (lines[0].trim() !== '---') return 0;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].trim() === '---') return i + 1; // inclusive of the closing fence
+  }
+  return 0; // unterminated frontmatter (still being typed) — treat as no block
+}

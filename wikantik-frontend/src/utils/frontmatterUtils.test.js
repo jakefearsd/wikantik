@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { metadataToYaml, reconstructContent, stripFrontmatter, frontmatterOffsetLines } from './frontmatterUtils.js';
+import { metadataToYaml, reconstructContent, stripFrontmatter, frontmatterOffsetLines, frontmatterLineCount } from './frontmatterUtils.js';
 
 describe('metadataToYaml', () => {
   it('serializes a plain string value without quoting', () => {
@@ -198,5 +198,25 @@ describe('stripFrontmatter', () => {
     const body = 'The body content.';
     const reconstructed = reconstructContent(metadata, body);
     expect(stripFrontmatter(reconstructed)).toBe(body);
+  });
+});
+
+describe('frontmatterLineCount', () => {
+  it('counts both fences of a leading frontmatter block', () => {
+    const text = '---\ntype: article\ncluster: x\n---\n\n# Body\n';
+    expect(frontmatterLineCount(text)).toBe(4); // lines 0..3 (--- type cluster ---)
+  });
+
+  it('returns 0 when there is no frontmatter', () => {
+    expect(frontmatterLineCount('# Just a body\n\ntext')).toBe(0);
+    expect(frontmatterLineCount('')).toBe(0);
+  });
+
+  it('returns 0 for an unterminated (still being typed) block', () => {
+    expect(frontmatterLineCount('---\ntype: article\n')).toBe(0);
+  });
+
+  it('does not treat a mid-document --- (hr) as frontmatter', () => {
+    expect(frontmatterLineCount('# Title\n\n---\n\nmore')).toBe(0);
   });
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { frontmatterLineCount } from '../utils/scrollSync';
+import { frontmatterLineCount } from '../utils/frontmatterUtils';
 
 /**
  * Compact, read-only view of the page's YAML frontmatter, pinned at the top of

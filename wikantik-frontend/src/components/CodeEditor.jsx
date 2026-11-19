@@ -141,6 +141,7 @@ const CodeEditor = forwardRef(function CodeEditor(
   ref,
 ) {
   const viewRef = useRef(null);
+  const geometryWarnedRef = useRef(false);
 
   // Collab mode is decided once, at mount (A4): the document starts from the joined text and the value handed to
   // react-codemirror never changes again, so it never dispatches a whole-document replacement.
@@ -427,7 +428,7 @@ const CodeEditor = forwardRef(function CodeEditor(
     /**
      * The editor's geometry for the block-by-block preview sync, in the scroll coordinates of `.cm-scroller`
      * (0 = the top of its content, the same scale as its scrollTop): the scroll position and its maximum, the
-     * content's height,
+     * content's height, `doc` (the document it measured, for callers that key a cache on its identity),
      * `lineTop(n)` for the top of line n (1-based, clamped), and the caret's line and top. The caret's top is its
      * drawn position when it is drawn (inside a wrapped paragraph it is lower than its line's top). Null without a
      * view, or when the view cannot be measured.
@@ -438,40 +439,54 @@ const CodeEditor = forwardRef(function CodeEditor(
       try {
         const dom = view.scrollDOM;
         const scrollTop = dom.scrollTop;
-        const toScroll = (viewportY) => viewportY - dom.getBoundingClientRect().top + scrollTop;
+        // One rect read per call: the content's top in the viewport.
+        const origin = dom.getBoundingClientRect().top - scrollTop;
+        const toScroll = (viewportY) => viewportY - origin;
         const offset = toScroll(view.documentTop);
         const doc = view.state.doc;
         const lineTop = (n) => view.lineBlockAt(doc.line(Math.max(1, Math.min(Math.round(n), doc.lines))).from).top + offset;
         const head = view.state.selection.main.head;
         const drawn = view.coordsAtPos(head);
-        return {
+        const geometry = {
+          doc,
           scrollTop,
           maxScroll: Math.max(0, dom.scrollHeight - dom.clientHeight),
           height: dom.scrollHeight,
           lineTop,
           caret: { line: doc.lineAt(head).number, top: drawn ? toScroll(drawn.top) : view.lineBlockAt(head).top + offset },
         };
+        geometryWarnedRef.current = false;
+        return geometry;
       } catch (err) {
-        console.warn('[editor] could not measure the editor for the preview sync', err?.message || err);
+        // Called every animation frame while scrolling: warn once per failure streak.
+        if (!geometryWarnedRef.current) {
+          geometryWarnedRef.current = true;
+          console.warn('[editor] could not measure the editor for the preview sync', err?.message || err);
+        }
         return null;
       }
     },
-    /** Scroll the editor to `top` (scroll coordinates, see scrollGeometry) — preview→editor sync. */
+    /**
+     * Scroll the editor to `top` (scroll coordinates, see scrollGeometry) — preview→editor sync. Returns where
+     * the editor actually landed (scrollTop read back after the write), or null without a view.
+     */
     setScrollTop(top) {
       const view = viewRef.current;
-      if (view) view.scrollDOM.scrollTop = Math.max(0, top);
+      if (!view) return null;
+      view.scrollDOM.scrollTop = Math.max(0, top);
+      return view.scrollDOM.scrollTop;
     },
     /**
-     * Scroll the editor so `line` (1-based) sits at the top — preview→editor sync. Reveals the target's
-     * folds by default; passive scroll sync passes `{ reveal: false }` so folds survive.
+     * Scroll the editor so `line` (1-based) sits at the top — for jumping to a mention or location. Always
+     * reveals the target's folds.
      */
-    scrollToLine(line, { reveal: doReveal = true } = {}) {
+    scrollToLine(line) {
       const view = viewRef.current;
       if (!view) return;
       const total = view.state.doc.lines;
       const clamped = Math.max(1, Math.min(Math.round(line), total));
       const pos = view.state.doc.line(clamped).from;
-      if (doReveal) reveal(view, pos);
+      reveal(view, pos);
       try {
         view.scrollDOM.scrollTop = view.lineBlockAt(pos).top;
       } catch {

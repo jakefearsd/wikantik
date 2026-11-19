@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { collectPreviewAnchors, caretBlock } from './previewAnchors';
+import { collectPreviewAnchors, caretBlock, sortedByLine } from './previewAnchors';
 
 // happy-dom lays nothing out, so each element's top is stubbed: `top` is its viewport top with the scroller's
 // own top at 50 and the scroller scrolled by 100.
@@ -35,6 +35,34 @@ describe('collectPreviewAnchors', () => {
     ]);
   });
 
+  it('takes the blocks inside a quote and a callout, not only the quote or callout as one block', () => {
+    document.body.innerHTML = `
+      <div id="scroller"><article id="article">
+        <blockquote data-line="1" data-top="0"><p data-line="1" data-top="4">q one</p><p data-line="3" data-top="40">q two</p></blockquote>
+        <div class="callout callout-note" data-line="5" data-top="80">
+          <div class="callout-title">Note</div>
+          <div class="callout-content"><p data-line="6" data-top="110">c one</p><p data-line="8" data-top="140">c two</p></div>
+        </div>
+      </article></div>`;
+    const scroller = document.getElementById('scroller');
+    scroller.getBoundingClientRect = () => ({ top: 0 });
+    for (const el of document.querySelectorAll('[data-top]')) {
+      const top = Number(el.getAttribute('data-top'));
+      el.getBoundingClientRect = () => ({ top });
+    }
+    const anchors = collectPreviewAnchors(document.getElementById('article'), scroller);
+    expect(anchors.map((a) => [a.el.tagName, a.line])).toEqual([
+      ['BLOCKQUOTE', 1], ['P', 1], ['P', 3], ['DIV', 5], ['P', 6], ['P', 8],
+    ]);
+  });
+
+  it('skips a block that is not laid out (inside a folded callout)', () => {
+    const hidden = dom.article.querySelector('p[data-line="12"]');
+    hidden.getBoundingClientRect = () => ({ top: 0, bottom: 0, width: 0, height: 0 });
+    const lines = collectPreviewAnchors(dom.article, dom.scroller).map((a) => a.line);
+    expect(lines).not.toContain(12);
+  });
+
   it('is empty without an article', () => {
     expect(collectPreviewAnchors(null, dom.scroller)).toEqual([]);
   });
@@ -44,7 +72,7 @@ describe('caretBlock', () => {
   let anchors;
   beforeEach(() => {
     const dom = build();
-    anchors = collectPreviewAnchors(dom.article, dom.scroller);
+    anchors = sortedByLine(collectPreviewAnchors(dom.article, dom.scroller));
   });
 
   it('is the innermost block starting at or above the caret line', () => {
@@ -58,5 +86,15 @@ describe('caretBlock', () => {
 
   it('is null above the first block', () => {
     expect(caretBlock(anchors.slice(1), 1)).toBeNull();
+    expect(caretBlock([], 1)).toBeNull();
+  });
+
+  it('finds the block when the preview shows blocks out of source order (footnotes at the end)', () => {
+    const el = (line) => ({ line, top: 0, el: { tagName: `L${line}` } });
+    // A footnote defined on line 3 is drawn after the paragraph on line 5.
+    const byLine = sortedByLine([el(1), el(5), el(3)]);
+    expect(caretBlock(byLine, 3).tagName).toBe('L3');
+    expect(caretBlock(byLine, 4).tagName).toBe('L3');
+    expect(caretBlock(byLine, 6).tagName).toBe('L5');
   });
 });

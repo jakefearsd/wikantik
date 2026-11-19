@@ -1065,6 +1065,11 @@ a.tag:hover {
   box-shadow: -4px 0 0 var(--accent);
   border-radius: 2px;
 }
+/* A long URL or unbroken word in a cell breaks inside the cell, so a table never scrolls the whole preview sideways. */
+.editor-preview th, .editor-preview td { overflow-wrap: anywhere; }
+/* Safari draws no box-shadow on a table row, so the caret row drops its shadow and draws the bar on its first cell. */
+.editor-preview tr.editor-preview-caret-block { box-shadow: none; }
+.editor-preview tr.editor-preview-caret-block > :first-child { box-shadow: inset 4px 0 0 var(--accent); }
 
 .editor-preview::-webkit-scrollbar {
   width: 10px;

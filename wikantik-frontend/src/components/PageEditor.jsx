@@ -12,7 +12,7 @@ import rehypeKatex from 'rehype-katex';
 import { api } from '../api/client';
 import { reconstructContent, stripFrontmatter, frontmatterOffsetLines } from '../utils/frontmatterUtils';
 import { scrollAnchors, previewScrollFor, editorScrollFor } from '../utils/scrollSync';
-import { collectPreviewAnchors, caretBlock, PREVIEW_CARET_CLASS } from '../utils/previewAnchors';
+import { collectPreviewAnchors, caretBlock, sortedByLine, PREVIEW_CARET_CLASS } from '../utils/previewAnchors';
 import rehypeSourceLine, { rehypeDisplayMathLines } from '../utils/rehypeSourceLine';
 import FrontmatterPreview from './FrontmatterPreview';
 import FrontmatterEditor from './frontmatter/FrontmatterEditor';
@@ -209,6 +209,19 @@ function publishFailureMessage(res) {
  * The page editor. `collabTransport` (tests only) replaces the collaboration HTTP transport; collaborative mode itself
  * is on when /api/capabilities reports `collab.enabled` and the join succeeds (docs/MultiEdit.MD §8.2).
  */
+/**
+ * Whether a pane's scroll position `top` is the one the editor <-> preview sync last gave it (`due.current`, null when
+ * none is due): then the pane is reporting the sync's own scroll, not the reader's, and it is not synced back. The
+ * record holds while the pane stays there, since a pane can report one scroll more than once (CodeMirror does, as it
+ * re-measures), and syncing back a scroll rounded to the whole px nudges the other pane where one px of it is many of
+ * the other's (a tall picture). The first report from anywhere else drops it, so the reader's moves are all followed.
+ */
+function isEcho(due, top) {
+  if (due.current !== null && Math.abs(top - due.current) <= 1) return true;
+  due.current = null;
+  return false;
+}
+
 export default function PageEditor({ collabTransport } = {}) {
   const { name } = useParams();
   const navigate = useNavigate();
@@ -257,7 +270,6 @@ export default function PageEditor({ collabTransport } = {}) {
   const previewArticleRef = useRef(null);
   const syncRafRef = useRef(0);
   const editorRafRef = useRef(0);
-  const syncingRef = useRef(false);
   const clickSyncGuardRef = useRef(false);
   const [dark] = useDarkMode();
   const attachments = useAttachments(name);
@@ -562,70 +574,115 @@ export default function PageEditor({ collabTransport } = {}) {
   // matched to its line's top in the editor. The preview's blocks are measured once per layout: again when its
   // text was re-rendered (the cache is dropped), or its height or width changed (a picture loaded, a resize).
   const anchorCacheRef = useRef(null);
-  const readingLineRef = useRef(0); // see syncPreview
   const previewBlocks = useCallback(() => {
     const preview = previewRef.current;
     const article = previewArticleRef.current;
-    if (!preview || !article) return [];
+    if (!preview || !article) return { anchors: [], byLine: [] };
     const cached = anchorCacheRef.current;
     if (cached && cached.article === article && cached.height === preview.scrollHeight && cached.width === preview.clientWidth) {
-      return cached.anchors;
+      return cached;
     }
     const anchors = collectPreviewAnchors(article, preview);
-    anchorCacheRef.current = { article, height: preview.scrollHeight, width: preview.clientWidth, anchors };
-    return anchors;
-  }, []);
-  // The two panes as utils/scrollSync reads them, for the editor's geometry `g` (CodeEditor.scrollGeometry).
-  const paneFor = useCallback((g, preview, anchors) => {
-    const offset = frontmatterOffsetLines(bodyRef.current);
-    return {
-      anchors: scrollAnchors(anchors.map((a) => [g.lineTop(a.line + offset), a.top]), g.height, preview.scrollHeight),
-      readingLine: readingLineRef.current,
-      editorMax: g.maxScroll,
-      editorWindow: g.height - g.maxScroll,
-      previewMax: Math.max(0, preview.scrollHeight - preview.clientHeight),
-    };
-  }, []);
-  // The preview block holding the caret, lightly marked.
-  const caretBlockRef = useRef(null);
-  const markCaretBlock = useCallback((el) => {
-    const prev = caretBlockRef.current;
-    if (prev && prev !== el) prev.classList.remove(PREVIEW_CARET_CLASS);
-    if (el) el.classList.add(PREVIEW_CARET_CLASS);
-    caretBlockRef.current = el;
+    anchorCacheRef.current = { article, height: preview.scrollHeight, width: preview.clientWidth, anchors, byLine: sortedByLine(anchors) };
+    return anchorCacheRef.current;
   }, []);
   // The reading line: how far down the editor's window the panes are held level, in px. It is where the caret was
   // in the window when it last moved there (typing, a click, the arrow keys), and 0 (the window's top) before that.
   // Every sync, a scroll included, matches that height in both panes, so a scroll after typing does not jump; the
   // tops meet at the top and the ends at the end (utils/scrollSync previewScrollFor).
-  const caretMovedRef = useRef(false);
+  const readingLineRef = useRef(0);
+  // The scroll map, rebuilt only when a block, the text or either pane's height moved: mapping every block into the
+  // editor is one height lookup per block, too much to repeat on every frame of a scroll.
+  const scrollMapRef = useRef(null);
+  // The two panes as utils/scrollSync reads them, for the editor's geometry `g` (CodeEditor.scrollGeometry), the
+  // preview's blocks and the body's line offset.
+  const paneFor = useCallback((g, preview, anchors, offset) => {
+    const previewHeight = preview.scrollHeight;
+    let map = scrollMapRef.current;
+    if (!map || map.anchors !== anchors || map.doc !== g.doc || map.height !== g.height
+        || map.previewHeight !== previewHeight || map.offset !== offset) {
+      const points = scrollAnchors(anchors.map((a) => [g.lineTop(a.line + offset), a.top]), g.height, previewHeight);
+      map = { anchors, doc: g.doc, height: g.height, previewHeight, offset, points };
+      scrollMapRef.current = map;
+    }
+    return {
+      anchors: map.points,
+      readingLine: readingLineRef.current,
+      editorMax: g.maxScroll,
+      editorWindow: g.height - g.maxScroll,
+      previewMax: Math.max(0, previewHeight - preview.clientHeight),
+    };
+  }, []);
+  // The preview block holding the caret, lightly marked; left alone while it stays marked.
+  const caretBlockRef = useRef(null);
+  const markCaretBlock = useCallback((el) => {
+    const prev = caretBlockRef.current;
+    if (prev === el && (!el || el.classList.contains(PREVIEW_CARET_CLASS))) return;
+    if (prev && prev !== el) prev.classList.remove(PREVIEW_CARET_CLASS);
+    if (el) el.classList.add(PREVIEW_CARET_CLASS);
+    caretBlockRef.current = el;
+  }, []);
+  // Where the sync last scrolled each pane, while that pane stays there (isEcho).
+  const previewEchoRef = useRef(null);
+  const editorEchoRef = useRef(null);
+  // Set for the frame after the preview scrolled the editor. CodeMirror measures the lines it scrolled to in that frame
+  // and moves its scroll to keep them in place, so the editor reports a place the sync did not give it: the reader is
+  // moving the preview, and the editor is put back in line with it (alignEditor) rather than the preview moved.
+  const editorSettlingRef = useRef(false);
+  // Preview -> editor, through the same map: the editor to the place the preview's scroll maps to. `settle` arms the
+  // correction above for this write.
+  const alignEditor = useCallback((editor, g, preview, { settle = false } = {}) => {
+    const pane = paneFor(g, preview, previewBlocks().anchors, frontmatterOffsetLines(bodyRef.current));
+    const target = Math.max(0, Math.round(editorScrollFor(preview.scrollTop, pane)));
+    if (Math.abs(g.scrollTop - target) < 1) {
+      editorEchoRef.current = g.scrollTop;
+      return;
+    }
+    const landed = editor.setScrollTop(target);
+    editorEchoRef.current = typeof landed === 'number' ? landed : target;
+    if (!settle) return;
+    editorSettlingRef.current = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { editorSettlingRef.current = false; }));
+  }, [paneFor, previewBlocks]);
+  const pendingSyncRef = useRef({ caretMoved: false, force: false });
   // `caretMoved` makes the caret's height in the window the reading line, when the caret is in the window. Calls
-  // within one frame share one sync. The guard against scroll echoes drops only scrolls: a caret move is never an
-  // echo, nor is `force` (a re-rendered preview).
+  // within one frame share one sync. The editor reporting the sync's own scroll is not synced back, unless the caret
+  // moved too or `force` asks (a re-rendered preview).
   const syncPreview = useCallback(({ caretMoved = false, force = false } = {}) => {
-    if (clickSyncGuardRef.current || (syncingRef.current && !force && !caretMoved)) return;
-    if (caretMoved) caretMovedRef.current = true;
+    if (clickSyncGuardRef.current) return;
+    const pending = pendingSyncRef.current;
+    pending.caretMoved ||= caretMoved;
+    pending.force ||= force;
     if (syncRafRef.current) return;
     syncRafRef.current = requestAnimationFrame(() => {
       syncRafRef.current = 0;
-      const moved = caretMovedRef.current;
-      caretMovedRef.current = false;
+      const { caretMoved: moved, force: forced } = pendingSyncRef.current;
+      pendingSyncRef.current = { caretMoved: false, force: false };
       if (clickSyncGuardRef.current) return;
       const preview = previewRef.current;
       const g = preview ? editorRef.current?.scrollGeometry?.() : null;
       if (!g) return;
+      const echo = isEcho(editorEchoRef, g.scrollTop);
+      const settling = editorSettlingRef.current;
+      editorSettlingRef.current = false;
       const caretInWindow = g.caret.top - g.scrollTop;
       if (moved && caretInWindow >= 0 && caretInWindow < g.height - g.maxScroll) readingLineRef.current = caretInWindow;
-      const anchors = previewBlocks();
-      markCaretBlock(caretBlock(anchors, g.caret.line - frontmatterOffsetLines(bodyRef.current)));
-      // The reader is scrolling the preview this frame: the editor follows it, not the other way round.
-      if (editorRafRef.current) return;
-      const target = previewScrollFor(g.scrollTop, paneFor(g, preview, anchors));
-      syncingRef.current = true;
-      preview.scrollTop = Math.max(0, Math.round(target));
-      requestAnimationFrame(() => { syncingRef.current = false; });
+      const offset = frontmatterOffsetLines(bodyRef.current);
+      const blocks = previewBlocks();
+      markCaretBlock(caretBlock(blocks.byLine, g.caret.line - offset));
+      // The editor is where the sync put it, or the reader is scrolling the preview this frame: the editor follows
+      // the preview, not the other way round.
+      if ((echo && !moved && !forced) || editorRafRef.current) return;
+      if (settling && !moved && !forced) {
+        alignEditor(editorRef.current, g, preview);
+        return;
+      }
+      const target = Math.max(0, Math.round(previewScrollFor(g.scrollTop, paneFor(g, preview, blocks.anchors, offset))));
+      if (Math.abs(preview.scrollTop - target) < 1) return;
+      preview.scrollTop = target;
+      previewEchoRef.current = preview.scrollTop;
     });
-  }, [previewBlocks, paneFor, markCaretBlock]);
+  }, [previewBlocks, paneFor, markCaretBlock, alignEditor]);
 
   const [formatState, setFormatState] = useState(EMPTY_FORMAT_STATE);
   // Rich mode's row and column controls for the table the caret is in, and the table commands of the palette.
@@ -639,11 +696,11 @@ export default function PageEditor({ collabTransport } = {}) {
     const vp = editor?.getViewport?.();
     const cursor = editor?.getCursor?.();
     cursorStore.set({ ...(cursor || {}), ...(vp ? { topLine: vp.topLine } : {}) });
-    // The toolbar's lit buttons: kept by identity while the caret stays in the same formatting, so typing and
-    // scrolling do not re-render the toolbar.
     const caretAt = cursor ? `${cursor.line}:${cursor.col}` : '';
     const caretMoved = caretAt !== lastCaretRef.current;
     lastCaretRef.current = caretAt;
+    // The toolbar's lit buttons: kept by identity while the caret stays in the same formatting, so typing and
+    // scrolling do not re-render the toolbar.
     const view = editor?.getView?.();
     if (view) {
       const next = formatStateAt(view.state);
@@ -697,19 +754,17 @@ export default function PageEditor({ collabTransport } = {}) {
 
   // Preview -> editor: the same, the other way: level at the reading line, through the same blocks; the end follows the end.
   const syncEditor = useCallback(() => {
-    if (syncingRef.current || editorRafRef.current) return;
+    const preview = previewRef.current;
+    if (!preview || clickSyncGuardRef.current) return;
+    if (isEcho(previewEchoRef, preview.scrollTop) || editorRafRef.current) return;
     editorRafRef.current = requestAnimationFrame(() => {
       editorRafRef.current = 0;
       const editor = editorRef.current;
-      const preview = previewRef.current;
-      const g = preview && editor?.setScrollTop ? editor.scrollGeometry?.() : null;
-      if (!g) return;
-      const target = editorScrollFor(preview.scrollTop, paneFor(g, preview, previewBlocks()));
-      syncingRef.current = true;
-      editor.setScrollTop(Math.round(target));
-      requestAnimationFrame(() => { syncingRef.current = false; });
+      const shown = previewRef.current;
+      const g = shown && editor?.setScrollTop ? editor.scrollGeometry?.() : null;
+      if (g) alignEditor(editor, g, shown, { settle: true });
     });
-  }, [previewBlocks, paneFor]);
+  }, [alignEditor]);
 
   useEffect(() => () => {
     if (syncRafRef.current) cancelAnimationFrame(syncRafRef.current);
@@ -732,13 +787,11 @@ export default function PageEditor({ collabTransport } = {}) {
     const offset = el.getBoundingClientRect().top - scrollerTop;
     // The caret lands level with the clicked block, so that height is the reading line from here on.
     readingLineRef.current = Math.max(0, offset);
-    caretMovedRef.current = false;
+    pendingSyncRef.current.caretMoved = false;
     clickSyncGuardRef.current = true;
-    syncingRef.current = true;
     editorRef.current?.jumpToLineAligned?.(sourceLine, offset);
     setTimeout(() => {
       clickSyncGuardRef.current = false;
-      syncingRef.current = false;
     }, 300);
   }, []);
 
@@ -1159,8 +1212,13 @@ export default function PageEditor({ collabTransport } = {}) {
   // A hidden preview lets go of its measured blocks, which would hold its unmounted elements.
   useEffect(() => {
     anchorCacheRef.current = null;
-    if (previewShown) syncPreview({ force: true });
-    else caretBlockRef.current = null;
+    if (previewShown) {
+      syncPreview({ force: true });
+    } else {
+      caretBlockRef.current = null;
+      scrollMapRef.current = null;
+      previewEchoRef.current = null;
+    }
   }, [previewSource, previewShown, syncPreview]);
   // Re-fetch embeds whenever the preview is re-opened so edits to embedded pages show up.
   useEmbedCacheLifecycle(previewShown);

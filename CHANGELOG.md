@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-11-19
+
 ### Added
 
 - The rendered preview stays level with the editor block by block: a heading, paragraph, formula, picture or table sits at the same height in both panes, at the height of the cursor, and scrolling either pane scrolls the other the same way. The preview lightly marks the block the cursor is in.

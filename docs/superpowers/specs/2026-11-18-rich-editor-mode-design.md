@@ -1,6 +1,7 @@
 # Rich editor mode — design
 
-Date: 2026-11-18. Status: awaiting owner approval.
+Date: 2026-11-18. Status: implemented 2026-11-19, with inline marks fallen back to reveal-at-caret and the
+differences listed under [As built](#as-built) at the end. The body below is the design as approved.
 
 ## Intent
 
@@ -263,3 +264,65 @@ Each step ships on its own and leaves the editor better than before.
   views, and it adds another layout to the test matrix. Revisit after Rich has been used.
 - Moving constructs out of the reveal-at-cursor row (inline math first, if asked for).
 - The same toolbar on the work-item body editor.
+
+## As built
+
+Recorded 2026-11-19. Steps 1 to 5 of "Order of work" shipped. Step 6 did not, by the gate in "Inline marks".
+
+### Fell back: inline marks
+
+Bold, italic, strikethrough, highlight and inline code stay in the reveal-at-cursor row: their marks show on
+the caret's line and are hidden elsewhere. The toolbar buttons still show and toggle the state at the caret.
+
+The spike (headless Chrome and Firefox, real keys, 12 scenarios) found the design's rules alone unusable: the
+right arrow stuck in front of a bold run, Delete in front of a run removed the bold, and a space typed at the
+end of a run made the asterisks appear. Nine further mechanisms brought 7 of 12 scenarios to work; 3 stayed
+surprising (bold toggled on with nothing selected, Markdown typed by hand, IME input) and 2 broken (un-bolding
+part of bold-italic text, a backtick typed inside inline code). The cause is in Markdown itself: a run stops
+being a run when a space sits just inside a mark or the run is emptied, the hidden marks then appear as text
+nobody typed, and each such path needs its own repair; the repairs rewrite what was just typed, which cannot
+be done during IME composition.
+
+Not built or measured, noted by the spike as a cheaper idea: reveal only the marks of the run the caret is
+in, not every mark on the caret's line. It needs none of the hidden-mark rules.
+
+### Differs from the design
+
+Links and cards:
+
+- A caret strictly inside a link shows the link's source (a link being typed as `[[…]]` has to be seen), and
+  so does a selection that ends inside one (a find match in a page name). The table's "always a chip" holds
+  for a caret beside the link or elsewhere on its line.
+- `Mod-K` on a selection writes nothing until the card is committed. The design had it wrap the selection
+  first.
+- Backspace right after a link chip (Delete right before one) selects the chip; a second press deletes it.
+
+Code blocks:
+
+- A code block at the very start or end of a page is left with ArrowUp or ArrowDown, which insert an empty
+  line outside it. A grid table at the start or end of a page is left the same way; there the key inserts a
+  blank line and an empty line beyond it, since a single line next to the table would be read as a row.
+- The Code block command in Rich puts the caret in the block's body and writes no placeholder language.
+- The language and callout-type pickers are native dropdowns. They are unverified on touch devices and in
+  Firefox on a Mac.
+
+Tables:
+
+- Besides ragged tables and tables in a list or quote, a table without both its leading and trailing pipes
+  on every row, and a table with several header rows, keep the old drawing and are not editable as a grid.
+- With a selection across cells, Delete, Backspace and typing act on one cell; Cut across cells removes
+  nothing.
+- Search-and-replace passes through unchanged (a match may span a pipe).
+- A `|` typed through an IME is stored unescaped; the table falls back to the old drawing until the pipe is
+  repaired.
+
+Shared sessions:
+
+- The caret is re-seated by the Rich caret rules after every collaborator change and after undo and redo,
+  except during IME composition.
+
+Source pane and insert surface:
+
+- The source pane shows the page body: a leading frontmatter block is omitted. It has no syntax colouring
+  beyond accented markers.
+- Access-rule insertion is a small form: a permission and the names it is allowed to.

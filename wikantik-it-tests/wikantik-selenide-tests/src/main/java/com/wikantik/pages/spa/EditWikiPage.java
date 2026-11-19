@@ -137,11 +137,12 @@ public class EditWikiPage implements SpaPage {
     }
 
     /**
-     * Asserts the mounted editor is in {@code mode}, with a positive signal for every mode: first the toolbar's Live
-     * toggle reports the mode the editor resolved ({@code aria-pressed}, driven by the same {@code liveActive} state
-     * that configures CodeMirror — {@code "true"} only for live), waited for until it holds; then {@code .cm-editor}
-     * carries {@code cm-live-preview} exactly when the mode is live. Waiting on the toggle first means a SOURCE check
-     * cannot pass on a bare absence while the editor is still settling into live.
+     * Asserts the mounted editor is in {@code mode}, with a positive signal for every mode: first the toolbar's mode
+     * control (the Rich | Source radio group) reports the mode the editor resolved — its Rich option's
+     * {@code aria-checked}, driven by the same {@code liveActive} state that configures CodeMirror, is {@code "true"}
+     * only for live (Rich) — waited for until it holds; then {@code .cm-editor} carries {@code cm-live-preview}
+     * exactly when the mode is live. Waiting on the control first means a SOURCE check cannot pass on a bare absence
+     * while the editor is still settling into live.
      *
      * @param mode the expected mode.
      * @return this page object.

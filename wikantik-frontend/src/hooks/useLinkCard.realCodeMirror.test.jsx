@@ -21,12 +21,12 @@ const seen = { cardProps: null };
 function Host({ editorKey = 'one', doc = DOC }) {
   const editorRef = useRef(null);
   const linkCard = useLinkCard({ editorRef, live: true, suggestPages: NO_ANSWER });
-  useEffect(() => { seen.cardProps = linkCard.cardProps; });
+  useEffect(() => { seen.cardProps = linkCard.cardProps; seen.cardKey = linkCard.cardKey; });
   return (
     <>
       <CodeEditor key={editorKey} ref={editorRef} value={doc} onChange={() => {}} livePreview
         livePreviewContext={{ pageName: 'Here', attachments: [] }} onOpenLinkCard={linkCard.onOpenLinkCard} />
-      {linkCard.cardProps && <LinkCard {...linkCard.cardProps} />}
+      {linkCard.cardProps && <LinkCard key={linkCard.cardKey} {...linkCard.cardProps} />}
     </>
   );
 }
@@ -45,6 +45,20 @@ afterEach(() => {
   document.getSelection()?.removeAllRanges();
   cleanup();
   seen.cardProps = null;
+});
+
+describe('rendering the card from the hook\'s props', () => {
+  // React 19 reports a `key` that arrives inside a spread props object; the card's key is passed on its own.
+  it('gives the card its key apart from the props that are spread, and React reports nothing', () => {
+    const error = vi.spyOn(console, 'error');
+    const { view } = mount();
+    openOn(view, 1);
+    expect(card()).not.toBe(null);
+    expect(seen.cardKey).toBe(view.state.field(linkCardField).id);
+    expect(Object.keys(seen.cardProps)).not.toContain('key');
+    expect(error.mock.calls.map((args) => args.map(String).join(' '))).toEqual([]);
+    error.mockRestore();
+  });
 });
 
 describe('a card callback that outlived its card', () => {

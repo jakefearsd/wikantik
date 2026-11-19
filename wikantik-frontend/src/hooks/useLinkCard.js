@@ -52,7 +52,7 @@ const focusInCard = () => !!document.activeElement?.closest?.('.link-card');
  * - `runLinkCommand()` is "Insert link" / Mod-K in Rich: on a link it opens the card; a selection on one line opens
  *   the card on that text, which becomes `[text](url)` only when the card is committed with an address; with nothing
  *   selected it writes `[[]]` and opens the page completion. False outside Rich: the caller's Source behaviour applies.
- * - `cardProps` are LinkCard's props while the card is open, else null.
+ * - `cardProps` are LinkCard's props while the card is open, else null; `cardKey` is its React key (one per opening).
  * - `flush()` has the open card write what it holds, by taking the focus out of it (before a save by shortcut). False
  *   when the card refused a value (it stays open, showing the reason); true otherwise, also when no card is open.
  *
@@ -161,6 +161,9 @@ export function useLinkCard({ editorRef, live, suggestPages }) {
     onOpenLinkCard,
     runLinkCommand,
     flush,
-    cardProps: card && live ? { key: card.id, model: card.model, anchorRect: card.anchorRect, suggestPages, flushRef, ...cardProps } : null,
+    // The card's React key, to be passed on its own (`<LinkCard key={cardKey} {...cardProps} />`): React reports a key
+    // that arrives in a spread. Each opening is a new card, so nothing typed in one is carried into the next.
+    cardKey: card && live ? card.id : null,
+    cardProps: card && live ? { model: card.model, anchorRect: card.anchorRect, suggestPages, flushRef, ...cardProps } : null,
   };
 }

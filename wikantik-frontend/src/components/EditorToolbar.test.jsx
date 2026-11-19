@@ -81,7 +81,9 @@ describe('EditorToolbar buttons', () => {
     expect(radio('Rich')).toHaveAttribute('title', 'Rich editing is available for Markdown pages');
     expect(radio('Source')).toHaveAttribute('aria-checked', 'true');
   });
+});
 
+describe('EditorToolbar format state', () => {
   it('nothing is pressed for the empty state, and Table is not a toggle', () => {
     render(<EditorToolbar onRun={vi.fn()} />);
     for (const name of ROW.filter((n) => n !== 'Table')) expect(button(name)).toHaveAttribute('aria-pressed', 'false');

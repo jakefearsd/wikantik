@@ -259,6 +259,68 @@ describe('CodeEditor live preview', () => {
   });
 });
 
+/**
+ * The table grid binds Enter and the arrow keys at the highest precedence (Enter: the cell below; ArrowDown: the row
+ * below). So does the completion list, whose keymap comes first in CodeEditor's extension list: while a list is open
+ * in a cell its keys are the list's. Pinned here, in CodeEditor's own order, because nothing else holds that order.
+ */
+describe('CodeEditor in Rich mode: an open completion list in a table cell keeps its keys', () => {
+  const TABLE = '| A | B |\n| --- | --- |\n| one [[ | two |\n| three | four |';
+  const rows = (container) => [...container.querySelectorAll('.cm-tooltip-autocomplete li')];
+  const selected = (container) => rows(container).findIndex((li) => li.getAttribute('aria-selected') === 'true');
+  const press = (view, key) => {
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    act(() => { view.contentDOM.dispatchEvent(event); });
+    return event.defaultPrevented;
+  };
+  async function openList() {
+    const linkCompletion = { searchPages: async () => ['Alpha', 'Beta'], getHeadings: async () => [] };
+    const utils = render(<CodeEditor value={TABLE} onChange={() => {}} livePreview livePreviewContext={{ pageName: 'P', attachments: [] }} linkCompletion={linkCompletion} />);
+    const view = EditorView.findFromDOM(utils.container.querySelector('.cm-editor'));
+    act(() => { parseFully(view); });
+    const caret = TABLE.indexOf('[[') + 2;
+    act(() => { view.dispatch({ selection: { anchor: caret } }); });
+    act(() => { startCompletion(view); });
+    await waitFor(() => expect(rows(utils.container).length).toBeGreaterThanOrEqual(2));
+    // The list ignores keys for its first 75 ms (interactionDelay).
+    await act(async () => { await new Promise((r) => { setTimeout(r, 100); }); });
+    return { view, caret, ...utils };
+  }
+
+  it('control: without a list, Enter in that cell goes to the cell below and ArrowDown to the row below', () => {
+    const utils = render(<CodeEditor value={TABLE} onChange={() => {}} livePreview livePreviewContext={{ pageName: 'P', attachments: [] }} />);
+    const view = EditorView.findFromDOM(utils.container.querySelector('.cm-editor'));
+    act(() => { parseFully(view); });
+    act(() => { view.dispatch({ selection: { anchor: TABLE.indexOf('[[') + 2 } }); });
+    expect(press(view, 'Enter')).toBe(true);
+    expect(view.state.selection.main.head).toBe(TABLE.indexOf('three'));
+    expect(view.state.doc.toString()).toBe(TABLE);
+  });
+
+  it('ArrowDown moves the list\'s choice, not the caret', async () => {
+    const { view, caret, container } = await openList();
+    const first = selected(container);
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(press(view, 'ArrowDown')).toBe(true);
+    expect(selected(container)).toBe(first + 1);
+    expect(view.state.selection.main.head).toBe(caret);
+    expect(view.state.doc.toString()).toBe(TABLE);
+  });
+
+  it('Enter takes the list\'s choice, and the caret stays in the cell', async () => {
+    const { view, container } = await openList();
+    expect(selected(container)).toBe(0);
+    expect(press(view, 'Enter')).toBe(true);
+    await waitFor(() => expect(view.state.doc.toString()).not.toBe(TABLE));
+    const row = view.state.doc.line(3);
+    expect(row.text).toMatch(/^\| one \[\[(Alpha|Beta)/); // the page was completed where the caret was
+    expect(row.text).toMatch(/\| two \|$/); // the row kept its cells
+    const { head } = view.state.selection.main;
+    expect(head).toBeGreaterThan(row.from);
+    expect(head).toBeLessThan(row.from + row.text.indexOf('| two'));
+  });
+});
+
 describe('CodeEditor block completion ([[Page#^)', () => {
   const blocks = (canAssign) => ({ version: 2, canAssign, blocks: [
     { index: 0, id: null, kind: 'paragraph', text: 'Locked block' },

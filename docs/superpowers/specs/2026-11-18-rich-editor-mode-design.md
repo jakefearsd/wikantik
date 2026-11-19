@@ -1,6 +1,6 @@
 # Rich editor mode — design
 
-Date: 2026-11-18. Status: implemented 2026-11-19, with inline marks fallen back to reveal-at-caret and the
+Date: 2026-11-18. Status: implemented 2026-11-18, with inline marks fallen back to reveal-at-caret and the
 differences listed under [As built](#as-built) at the end. The body below is the design as approved.
 
 ## Intent
@@ -267,7 +267,7 @@ Each step ships on its own and leaves the editor better than before.
 
 ## As built
 
-Recorded 2026-11-19. Steps 1 to 5 of "Order of work" shipped. Step 6 did not, by the gate in "Inline marks".
+Recorded 2026-11-18. Steps 1 to 5 of "Order of work" shipped. Step 6 did not, by the gate in "Inline marks".
 
 ### Fell back: inline marks
 
@@ -294,8 +294,10 @@ Links and cards:
   so does a selection that ends inside one (a find match in a page name). The table's "always a chip" holds
   for a caret beside the link or elsewhere on its line.
 - `Mod-K` on a selection writes nothing until the card is committed. The design had it wrap the selection
-  first.
+  first. It does nothing for a selection that crosses a table cell boundary or holds a whole link.
 - Backspace right after a link chip (Delete right before one) selects the chip; a second press deletes it.
+- `Ctrl/Cmd-S` with the focus in the card writes the card's edit first; a value the card refuses keeps it
+  open, and nothing is saved.
 
 Code blocks:
 
@@ -303,8 +305,14 @@ Code blocks:
   line outside it. A grid table at the start or end of a page is left the same way; there the key inserts a
   blank line and an empty line beyond it, since a single line next to the table would be read as a row.
 - The Code block command in Rich puts the caret in the block's body and writes no placeholder language.
-- The language and callout-type pickers are native dropdowns. They are unverified on touch devices and in
-  Firefox on a Mac.
+- The language and callout-type pickers stay native dropdowns in this release; a custom menu is a
+  follow-up. The known residuals all fail safe (the pick is put back and nothing is written): touch devices
+  that send no `mousedown`, an arrow key followed by a click in an open list, and Firefox on a Mac, which
+  is unverified.
+- The keyboard reaches a picker through the palette command "Change code language / callout type", offered
+  while the caret is in a fenced block or a callout. It has no shortcut of its own.
+- The no-space callout title form `[!note]Title` is pinned in the frontend tests only; a row in the shared
+  server fixture is a follow-up.
 
 Tables:
 
@@ -315,6 +323,26 @@ Tables:
 - Search-and-replace passes through unchanged (a match may span a pipe).
 - A `|` typed through an IME is stored unescaped; the table falls back to the old drawing until the pipe is
   repaired.
+- Blanks typed or pasted in front of the text of a cell write nothing (they would be stored in the hidden
+  padding and shown nowhere).
+- Block commands run with the caret in a grid cell (insert table, heading, list prefix) are written as
+  dispatched and break the table, as they do in Source.
+
+Keys:
+
+- The guards on Backspace and Delete (beside a hidden fence line, a link chip, a line marker) also cover
+  Shift-Backspace, Shift-Delete and the Mac's Ctrl-H, Ctrl-D, Ctrl-K and Ctrl-Alt-H.
+- A delete that arrives without a key event bypasses them: a mobile or virtual keyboard. A transaction
+  filter on `delete.*` is the follow-up.
+
+Read-only documents and programmatic writes:
+
+- A read-only editor (a frozen or out-of-sync shared draft, no edit permission) takes no format or insert
+  command from the toolbar, the palette, the slash menu or a shortcut.
+- A write that is exact by construction (the link card, a server-decided block id, every `applyChanges`
+  call) carries the `asDispatched` annotation, and the grid's cell rules pass it through whatever its user
+  event and wherever the selection is.
+- The Footnote command writes two insertions, the marker and the definition, in one transaction.
 
 Shared sessions:
 

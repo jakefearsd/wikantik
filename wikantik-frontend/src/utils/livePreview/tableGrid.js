@@ -155,7 +155,7 @@ function storedText(before, text) {
  *
  * Otherwise the range is clipped to the cell its selection's anchor is in — its text and whatever padding a caret
  * rests in, never a pipe — and the text is stored escaped. A `cut` that would be clipped removes nothing: the clipboard
- * has the whole selection, and only a part of it could go.
+ * has the whole selection, and only a part of it could go. Blanks typed or pasted in front of a cell's text write nothing.
  *
  * A pipe keeps its meaning through the change, counted over the run of backslashes before it. An escaped pipe goes as
  * one thing with its backslash (Backspace after `\|`, Delete before it). An insertion that would flip a pipe — a `\`
@@ -194,6 +194,9 @@ function cellChange(state, fromA, toA, text, { cut = false, drop = false } = {})
   let { from, to } = clip;
   // A cut that would be clipped by more than hidden pipes and their padding (another cell's text) removes nothing.
   if (cut && /[^ \t|]/.test(doc.sliceString(fromA, from) + doc.sliceString(to, toA))) return { from, to: from, insert: '', before: '' };
+  // Blanks inserted in front of a cell's text would join the hidden padding after the pipe: stored, shown nowhere,
+  // the caret not moving. Nothing is written (an empty cell has no text to be in front of, and takes them).
+  if (from === to && from <= cell.from && cell.to > cell.from && text && !/\S/.test(text)) return { from, to: from, insert: '', before: '' };
   const charAt = (pos) => doc.sliceString(pos, pos + 1);
   if (to > from && from > cell.from && charAt(from) === '|' && charAt(from - 1) === BACKSLASH) from -= 1;
   let before = doc.sliceString(cell.outerFrom, from);

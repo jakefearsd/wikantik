@@ -1057,7 +1057,7 @@ export default function PageEditor({ collabTransport } = {}) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Mod-e: source <-> live preview (Obsidian's binding), wherever focus is. CodeMirror does not bind Mod-e.
+  // Mod-e: Source <-> Rich (Obsidian's binding for its own mode switch), wherever focus is. CodeMirror does not bind Mod-e.
   useEffect(() => {
     const handler = (e) => {
       if (e.defaultPrevented || e.repeat || e.isComposing || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
@@ -2125,7 +2125,7 @@ export default function PageEditor({ collabTransport } = {}) {
         </div>
         {shownPane !== 'hidden' && (
         <div className="editor-pane editor-side-pane">
-          <div className="editor-pane-header" role="group" aria-label="Side pane" data-testid="editor-pane-content">
+          <div className="editor-pane-header" role="group" aria-label="Side pane" data-testid="editor-pane-header">
             <button type="button" className="editor-pane-option" aria-pressed={previewShown} onClick={showPreviewPane}>
               Preview
             </button>
@@ -2149,7 +2149,7 @@ export default function PageEditor({ collabTransport } = {}) {
         </div>
         )}
         {sourceCard}
-        {linkCard.cardProps && <LinkCard {...linkCard.cardProps} />}
+        {linkCard.cardProps && <LinkCard key={linkCard.cardKey} {...linkCard.cardProps} />}
         {tableControls.controls && <TableControls {...tableControls.controls} />}
         <input
           type="file"

@@ -177,6 +177,50 @@ describe('typing in a cell is typing in the document', () => {
   });
 });
 
+// A cell's text starts after the padding that follows its pipe, and that padding is hidden. A space typed at the
+// start of a cell that has text would be stored in front of it and shown nowhere, the caret not moving: each press
+// one more invisible character, each sent to every collaborator.
+describe('a space typed at the start of a cell that has text', () => {
+  it.each([['a space', ' '], ['a tab', '\t'], ['pasted blanks', '   ']])('%s changes nothing: no document change, and the caret stays', (_name, blank) => {
+    const view = mount();
+    caretAt(view, at('one'));
+    const mark = view.seen.length;
+    for (let i = 0; i < 3; i += 1) {
+      const h = head(view);
+      view.dispatch({ changes: { from: h, insert: blank }, selection: { anchor: h + blank.length }, userEvent: blank.length > 1 ? 'input.paste' : 'input.type' });
+    }
+    expect(text(view)).toBe(DOC);
+    expect(head(view)).toBe(at('one'));
+    expect(view.seen.slice(mark).filter((tr) => tr.docChanged)).toEqual([]);
+  });
+  it('a space inside the text, at its end, and before text typed with it are kept', () => {
+    let view = mount();
+    caretAt(view, at('one') + 1);
+    type(view, ' ');
+    expect(text(view)).toBe(DOC.replace('| one |', '| o ne |'));
+    view = mount();
+    caretAt(view, at('two') + 3);
+    type(view, ' ');
+    expect(text(view)).toBe(DOC.replace('| two |', '| two  |'));
+    view = mount();
+    caretAt(view, at('three'));
+    paste(view, ' x');
+    expect(text(view)).toBe(DOC.replace('| three |', '|  xthree |'));
+  });
+  it('in an empty cell a space is typed as anywhere else', () => {
+    const view = mount();
+    caretAt(view, EMPTY);
+    type(view, ' ');
+    expect(text(view)).toBe(DOC.replace('|  |', '|   |'));
+  });
+  it('a selection at the cell\'s start replaced by a space is replaced', () => {
+    const view = mount();
+    view.dispatch({ selection: EditorSelection.range(at('one'), at('one') + 2), userEvent: 'select' });
+    type(view, ' ');
+    expect(text(view)).toBe(DOC.replace('| one |', '|  e |'));
+  });
+});
+
 describe('what the input rules leave alone', () => {
   // Not how a real peer's change arrives: @codemirror/collab applies those with the filters off altogether.
   it('a change annotated remote that goes through the filters, inserting a raw pipe, is not escaped', () => {

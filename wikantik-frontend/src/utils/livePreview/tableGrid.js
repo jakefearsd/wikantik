@@ -177,9 +177,15 @@ function cellChange(state, fromA, toA, text, { cut = false, drop = false } = {})
   };
   let clip = clipTo(sel ? sel.anchor : fromA);
   if (!clip) return null;
-  // An anchor at the very edge of its cell with the selection all on the other side (a drag released at the next
-  // cell's start, made backwards) has none of that cell selected: the cell is then the one the head is in.
-  if (sel && toA > fromA && clip.from === clip.to) clip = clipTo(sel.head) || clip;
+  // An anchor at the very edge of its cell with nothing of that cell selected, and the selection's other end in the
+  // cell next to it in the same row (a drag released at the next cell's start, made backwards; one begun at a cell's
+  // end): the selected text lies in that one neighbouring cell, and it is the cell acted on. Nothing wider: a
+  // selection that runs on into another row, or over a whole cell into a third, stays clipped to nothing.
+  if (sel && toA > fromA && clip.from === clip.to) {
+    const a = cellAt(table, sel.anchor);
+    const h = cellAt(table, sel.head);
+    if (a && h && a.row === h.row && Math.abs(a.col - h.col) === 1) clip = clipTo(sel.head) || clip;
+  }
   const { cell } = clip;
   let { from, to } = clip;
   // A cut that would be clipped by more than hidden pipes and their padding (another cell's text) removes nothing.

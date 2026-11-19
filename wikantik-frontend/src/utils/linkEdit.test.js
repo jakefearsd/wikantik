@@ -5,7 +5,7 @@ import { syntaxTree } from '@codemirror/language';
 import fixture from './__fixtures__/wikilinks.json';
 import { fullyParsed } from '../test/fullParse';
 import { editorMarkdownConfig } from './editorMarkdown';
-import { readLinkAt, writeLink, unwrapLink, linkChange } from './linkEdit';
+import { readLinkAt, writeLink, unwrapLink, linkChange, inTableAt, textOfSource } from './linkEdit';
 
 const stateOf = (doc) => fullyParsed(EditorState.create({ doc, extensions: [markdown(editorMarkdownConfig)] }));
 /** The model of the link `token`, read with the caret one character into it, inside `before…after`. */
@@ -302,5 +302,73 @@ describe('a Markdown link or image in a table cell', () => {
   it('outside a table a pipe is written as it is, and a backslash before one is read as written', () => {
     expect(patched('[t](u)', { text: 'a|b' })).toBe('[a|b](u)');
     expect(read('[a\\|b](u)').text).toBe('a\\|b');
+  });
+});
+
+describe('backslashes before what a field escapes', () => {
+  const ROW = (token) => `| h | k |\n| --- | --- |\n| ${token} | z |`;
+  const inCell = (token) => {
+    const doc = ROW(token);
+    return readLinkAt(stateOf(doc), doc.indexOf(token) + 1);
+  };
+  /** Pipes of `line` that end a cell: those after an even run of backslashes. */
+  const barePipes = (line) => [...line.matchAll(/(\\*)\|/g)].filter((m) => m[1].length % 2 === 0).length;
+  const BS = '\\';
+  const FIELDS = [['text', '[t](u)', 'text'], ['alt text', '![t](u)', 'alt'], ['address', '[t](u)', 'url'], ['title', '[t](u)', 'title']];
+  const VALUES = ['a|b', `a${BS}|b`, `a${BS}${BS}|b`, `a${BS}${BS}${BS}|b`, `a${BS}`, `a${BS}${BS}`, `|`, `${BS}|${BS}`, `a|b|${BS}${BS}|c`];
+
+  describe.each(FIELDS)('in a table cell, the %s', (_name, token, field) => {
+    it.each(VALUES)('%s is written so that the row keeps its cells, and reads back as entered', (value) => {
+      const { insert } = linkChange(inCell(token), { [field]: value });
+      expect(barePipes(ROW(insert).split('\n')[2]), insert).toBe(3);
+      expect(inCell(insert)?.[field], insert).toBe(value);
+    });
+
+    it('holds for any string of a, backslash and pipe', () => {
+      let seed = 7;
+      const next = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed; };
+      for (let i = 0; i < 400; i += 1) {
+        let value = 'a';
+        for (let k = next() % 9; k > 0; k -= 1) value += 'a\\|'[next() % 3];
+        const { insert } = linkChange(inCell(token), { [field]: value });
+        expect(barePipes(ROW(insert).split('\n')[2]), `${value} -> ${insert}`).toBe(3);
+        expect(inCell(insert)?.[field], `${value} -> ${insert}`).toBe(value);
+      }
+    });
+  });
+
+  it('an edit after reading an escaped backslash and pipe keeps both', () => {
+    const model = inCell(`[a${BS}${BS}${BS}|b](u)`);
+    expect(model.text).toBe(`a${BS}|b`);
+    expect(writeLink(model)).toBe(`[a${BS}${BS}${BS}|b](u)`);
+    const { insert } = linkChange(model, { text: `a${BS}|bc` });
+    expect(insert).toBe(`[a${BS}${BS}${BS}|bc](u)`);
+    expect(inCell(insert).text).toBe(`a${BS}|bc`);
+  });
+
+  it('a built model that says it goes in a cell escapes its pipes, a wikilink\'s separator included', () => {
+    const doc = ROW('word');
+    const state = stateOf(doc);
+    expect(inTableAt(state, doc.indexOf('word'))).toBe(true);
+    expect(inTableAt(stateOf('a word'), 2)).toBe(false);
+    const built = { kind: 'link', from: 0, to: 4, source: 'word', text: 'word', url: '', title: null, cell: true };
+    expect(linkChange(built, { url: 'a|b' }).insert).toBe(`[word](a${BS}|b)`);
+    expect(linkChange({ ...built, cell: false }, { url: 'a|b' }).insert).toBe('[word](a|b)');
+    expect(linkChange({ kind: 'wiki', from: 0, to: 0, source: '', target: 'P', cell: true }, { alias: 'x' }).insert).toBe(`[[P${BS}|x]]`);
+    expect(textOfSource(`a${BS}|b`, true)).toBe('a|b');
+    expect(textOfSource(`a${BS}|b`, false)).toBe(`a${BS}|b`);
+  });
+
+  it.each([
+    ['text', { text: `a${BS}]b` }, `[a${BS}${BS}${BS}]b](u)`],
+    ['text', { text: `a${BS}${BS}]b` }, `[a${BS}${BS}${BS}${BS}${BS}]b](u)`],
+    ['text', { text: 'a]b' }, `[a${BS}]b](u)`],
+    ['title', { title: `x${BS}"y` }, `[t](u "x${BS}${BS}${BS}"y")`],
+    ['title', { title: `x${BS}${BS}"y` }, `[t](u "x${BS}${BS}${BS}${BS}${BS}"y")`],
+    ['title', { title: `x${BS}` }, `[t](u "x${BS}${BS}")`],
+  ])('outside a table too, no %s character it escapes is left bare: %j', (_name, patch, written) => {
+    const insert = patched('[t](u)', patch);
+    expect(insert).toBe(written);
+    expect(read(insert)).toMatchObject({ ...patch, url: 'u' });
   });
 });

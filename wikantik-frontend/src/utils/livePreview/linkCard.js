@@ -5,7 +5,7 @@
 import { StateEffect, StateField, Facet } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { readLinkAt } from '../linkEdit';
+import { readLinkAt, inTableAt, textOfSource } from '../linkEdit';
 
 /**
  * `{ pos }`: open the card on the link at `pos` (nothing happens when there is no link there). `{ wrap: { from, to } }`:
@@ -45,7 +45,11 @@ export function cardModelAt(state, pos) {
 /** The card's model for what the field holds: the link read from the document as it is now, or the text to wrap. */
 export function cardModelOf(state, card) {
   if (!card) return null;
-  if (card.wrap) return { kind: 'link', from: card.from, to: card.to, source: card.source, text: card.source, url: '', title: null, pending: true };
+  if (card.wrap) {
+    // Built, not read: it carries whether it will be written in a table cell, where the link escapes its pipes.
+    const cell = inTableAt(state, card.from);
+    return { kind: 'link', from: card.from, to: card.to, source: card.source, text: textOfSource(card.source, cell), url: '', title: null, pending: true, cell };
+  }
   const model = cardModelAt(state, card.from);
   return model && model.from === card.from && model.to === card.to ? model : null;
 }

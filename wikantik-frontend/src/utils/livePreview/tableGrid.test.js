@@ -13,7 +13,7 @@ import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreview, setLivePreview } from './index';
 import { livePreviewPlugin } from './plugin';
 import { currentTable, tableGridPlugin } from './tableGrid';
-import { onOpenLinkCard } from './linkCard';
+import { onOpenLinkCard, cardModelOf } from './linkCard';
 import { readLinkAt, linkChange } from '../linkEdit';
 import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 
@@ -247,6 +247,18 @@ describe('what the input rules leave alone', () => {
     expect(readLinkAt(view.state, link + 1).text).toBe('a|b');
   });
 
+  it.each([['with the caret elsewhere', false], ['with the caret on the text', true]])('a wrap-card commit (a link made of a selection) with a pipe in its address keeps the row\'s cells, %s', (_name, onText) => {
+    const view = mount();
+    const from = at('one');
+    caretAt(view, onText ? from + 3 : 0);
+    const model = cardModelOf(view.state, { wrap: true, from, to: from + 3, source: 'one' });
+    view.dispatch({ changes: linkChange(model, { url: 'a|b' }), userEvent: 'input.link-card' });
+    expect(text(view)).toBe(DOC.replace('| one |', '| [one](a\\|b) |'));
+    caretAt(view, at('A'));
+    expect(currentTable(view.state)?.table.columns).toBe(2);
+    expect(readLinkAt(view.state, from + 1).url).toBe('a|b');
+  });
+
   it('every annotation of a rewritten transaction survives the rewrite', () => {
     const tagged = Annotation.define();
     const view = mount();
@@ -411,6 +423,27 @@ describe('a deletion never eats a pipe', () => {
       select(view, [at('one') + 1, at('two')]);
       view.dispatch({ changes: { from: at('one') + 1, to: at('two') }, userEvent: 'delete.cut' });
       expect(text(view)).toBe(DOC.replace('| one |', '| o |'));
+    });
+    it('an anchor at its cell\'s edge with only the next cell\'s text selected acts on that cell, forwards as backwards', () => {
+      for (const [anchor, head, left] of [[at('one') + 3, at('two') + 2, '| one | o |'], [at('two'), at('one') + 1, '| o | two |']]) {
+        const view = mount();
+        select(view, [anchor, head]);
+        press(view, 'Delete');
+        expect(text(view), `${anchor}>${head}`).toBe(DOC.replace('| one | two |', left));
+      }
+    });
+    it('an anchor at its cell\'s edge with a selection running into another row removes nothing', () => {
+      for (const key of ['Delete', 'Backspace']) {
+        const view = mount();
+        select(view, [at('one') + 3, at('three') + 2]); // all of `two` and the start of `three` are selected
+        press(view, key);
+        expect(text(view), key).toBe(DOC);
+      }
+      const far = mount(DOC.replace('| A | B |', '| A | B | C |').replace('| --- | --- |', '| --- | --- | --- |').replace('| one | two |', '| one | two | x |').replace('| three |  |', '| three |  | y |'));
+      const doc = text(far);
+      select(far, [doc.indexOf('one') + 3, doc.indexOf('| x') + 3]); // over the whole of `two` into the cell after it
+      press(far, 'Delete');
+      expect(text(far)).toBe(doc);
     });
     it('a cut inside one cell cuts', () => {
       const view = mount();

@@ -7,7 +7,6 @@ import { parseWikiLink, isImageFileName } from './wikiLinkSyntax';
 const KIND = { WikiLink: 'wiki', WikiEmbed: 'embed', Link: 'link', Image: 'image' };
 const SIZE = /^\d{1,5}(?:x\d{1,5})?$/;
 const BRACKET = /[[\]]/;
-const BRACKET_OR_PIPE = /[[\]|]/;
 const BLANK_LINE = /\n[ \t]*\n/;
 
 const isWiki = (model) => model.kind === 'wiki' || model.kind === 'embed';
@@ -98,22 +97,35 @@ function readMarkdown(source, node) {
   };
   // In a table cell a pipe is written `\|` (a bare one would end the cell): the fields hold the pipe it stands for.
   parts.cell = inTable(node);
-  const piped = (s) => (parts.cell ? s.replace(/\\\|/g, '|') : s);
-  const text = piped(parts.text.replace(/\\([[\]])/g, '$1'));
+  const text = unescaped(parts.text, specials(BRACKET, parts.cell));
   const fields = {
     ...(node.name === 'Image' ? { alt: text } : { text }),
-    url: piped(/^<[^]*>$/.test(parts.dest) ? parts.dest.slice(1, -1) : parts.dest),
+    url: unescaped(/^<[^]*>$/.test(parts.dest) ? parts.dest.slice(1, -1) : parts.dest, specials(null, parts.cell)),
     // An empty title (`""`) is no title, as `fieldsOf` has it: read any other way it would count as changed.
-    title: title ? blankToNull(piped(unquoted(parts.title))) : null,
+    title: title ? blankToNull(unquoted(parts.title, parts.cell)) : null,
   };
   return { fields, parts };
 }
 
 /** A link title without its delimiters (`"…"`, `'…'` or `(…)`) and without the backslashes escaping them inside. */
-function unquoted(titleSource) {
+function unquoted(titleSource, cell) {
   const open = titleSource[0];
   const delimiters = open === '(' ? '()' : open;
-  return titleSource.slice(1, -1).replace(/\\(.)/g, (whole, ch) => (delimiters.includes(ch) ? ch : whole));
+  return unescaped(titleSource.slice(1, -1), specials(delimiters, cell));
+}
+
+/**
+ * Whether `pos` of `state` is inside a table: a link written there escapes its pipes. For a model that is built
+ * rather than read (`{ ..., cell: inTableAt(state, from) }`), which has no node to tell it.
+ */
+export function inTableAt(state, pos) {
+  for (let n = syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) if (n.name === 'Table') return true;
+  return false;
+}
+
+/** A stretch of source as the text field of a link built around it holds it (`cell`: the stretch is in a table). */
+export function textOfSource(source, cell) {
+  return unescaped(source, specials(BRACKET, cell));
 }
 
 /** The fields of `model` as they will be written: trimmed where the syntax trims, '' and undefined as null. */
@@ -130,10 +142,42 @@ function fieldsOf(model) {
   return { [textKey(model)]: String(model[textKey(model)] ?? ''), url: String(model.url ?? ''), title: blankToNull(model.title) };
 }
 
-/** `text` with each character `chars` matches escaped, and a backslash that would escape what follows it doubled. */
-function escaped(text, chars) {
-  const out = text.replace(new RegExp(`\\\\(?=${chars.source})|${chars.source}`, 'g'), '\\$&');
-  return /(?:^|[^\\])(?:\\\\)*\\$/.test(out) ? `${out}\\` : out;
+/**
+ * The characters a field escapes, as a predicate: `chars` (a string, a one-character RegExp or null) and, in a table
+ * cell, the pipe — a bare one would end the cell.
+ */
+function specials(chars, cell) {
+  const own = chars == null ? () => false : typeof chars === 'string' ? (ch) => chars.includes(ch) : (ch) => chars.test(ch);
+  return cell ? (ch) => ch === '|' || own(ch) : own;
+}
+
+/**
+ * A field as source, and back. Only the backslashes that end at a special character or at the field's end are
+ * touched — every other one is written as it is. A run of n backslashes before a special character is written as
+ * 2n + 1 (each one escaped, and the character), and one at the field's end as 2n (or it would escape the delimiter
+ * that follows). So a special character is never left bare whatever precedes it, and `unescaped(escaped(x)) === x`.
+ */
+function escaped(text, special) {
+  let out = '';
+  let run = 0;
+  for (const ch of text) {
+    if (ch === '\\') { run += 1; continue; }
+    out += '\\'.repeat(special(ch) ? 2 * run + 1 : run) + ch;
+    run = 0;
+  }
+  return out + '\\'.repeat(2 * run);
+}
+
+/** The inverse of `escaped`. A run that `escaped` cannot have written (an even one before a special character) stays as it is. */
+function unescaped(source, special) {
+  let out = '';
+  let run = 0;
+  for (const ch of source) {
+    if (ch === '\\') { run += 1; continue; }
+    out += '\\'.repeat(special(ch) && run % 2 === 1 ? (run - 1) / 2 : run) + ch;
+    run = 0;
+  }
+  return out + '\\'.repeat(run % 2 === 0 ? run / 2 : run);
 }
 
 const WIKI_PARTS = { target: '', sep: '', alias: '', newSep: '|' };
@@ -153,7 +197,7 @@ export function writeLink(model) {
 }
 
 function writeWiki(model, now, changed) {
-  const parts = { open: model.kind === 'embed' ? '![[' : '[[', ...WIKI_PARTS, ...model.original?.parts };
+  const parts = { open: model.kind === 'embed' ? '![[' : '[[', ...WIKI_PARTS, ...(model.cell && { newSep: '\\|' }), ...model.original?.parts };
   const target = changed('target', 'heading') ? now.target + (now.heading ? `#${now.heading}` : '') : parts.target;
   let rest = parts.sep + parts.alias;
   if (changed('alias', 'size')) {
@@ -170,25 +214,30 @@ function wikiSlot(model, now) {
 }
 
 function writeMarkdown(model, now, changed) {
-  const parts = { open: model.kind === 'image' ? '![' : '[', ...MARKDOWN_PARTS, ...model.original?.parts };
+  const parts = markdownParts(model);
   const text = markdownText(model, now, parts);
   let dest = parts.dest;
   // A changed field of a link in a table cell is written with its pipes escaped (`parts.cell`), as it was read.
   if (changed('url')) {
-    const url = parts.cell ? escaped(now.url, /\|/) : now.url;
+    const url = escaped(now.url, specials(null, parts.cell));
     dest = /[\s()]/.test(now.url) ? `<${url}>` : url;
   }
   let title = parts.gap + parts.title;
-  if (changed('title')) title = now.title == null ? '' : `${parts.gap || ' '}"${escaped(now.title, parts.cell ? /["|]/ : /"/)}"`;
+  if (changed('title')) title = now.title == null ? '' : `${parts.gap || ' '}"${escaped(now.title, specials('"', parts.cell))}"`;
   // With no destination a title would be read as the destination; `<>` is the empty one.
   if (dest === '' && now.title != null) dest = '<>';
   return `${parts.open}${text}${parts.mid}${dest}${title}${parts.tail}`;
 }
 
+/** The source parts of a Markdown model: those it was read with, or a built model's (`model.cell`: it goes in a table). */
+function markdownParts(model) {
+  return { open: model.kind === 'image' ? '![' : '[', ...MARKDOWN_PARTS, cell: !!model.cell, ...model.original?.parts };
+}
+
 /** The link text (an image's alt text) as source: what was written when unchanged, else with its brackets escaped. */
 function markdownText(model, now, parts) {
   const text = now[textKey(model)];
-  return model.original && text === model.original.fields[textKey(model)] ? parts.text : escaped(text, parts.cell ? BRACKET_OR_PIPE : BRACKET);
+  return model.original && text === model.original.fields[textKey(model)] ? parts.text : escaped(text, specials(BRACKET, parts.cell));
 }
 
 /**
@@ -198,7 +247,7 @@ function markdownText(model, now, parts) {
 export function unwrapLink(model) {
   const now = fieldsOf(model);
   if (isWiki(model)) return now.alias ?? (now.target || now.heading || '');
-  return markdownText(model, now, { ...MARKDOWN_PARTS, ...model.original?.parts });
+  return markdownText(model, now, markdownParts(model));
 }
 
 /**
@@ -232,7 +281,7 @@ function checkWiki(model, now, changed) {
   };
   check('target', 'The page name', true);
   check('heading', 'The heading', true);
-  check('alias', 'The display text', model.original?.parts.newSep === '\\|');
+  check('alias', 'The display text', model.original ? model.original.parts.newSep === '\\|' : !!model.cell);
   if (changed('target')) {
     if (now.target.includes('#')) refuse('The page name cannot contain #; the heading has its own field.');
     if (/^\s/.test(now.target)) refuse('The page name cannot start with a space.');

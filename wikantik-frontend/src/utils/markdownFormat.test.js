@@ -260,6 +260,23 @@ describe('insertFootnote', () => {
     const r = insertFootnote(state);
     expectMinimalChange(state, r, state, '\n\n[^1]: ');
   });
+  // The marker and its definition are far apart: as one replaced span they would rewrite everything between them.
+  it.each([
+    ['mid-document', 'First paragraph.\n\n' + 'Line of text.\n'.repeat(200) + '\nLast.', 15, 15],
+    ['after a selection', 'say hello now\n\nmore text', 4, 9],
+    ['at the document end', 'one two', 7, 7],
+    ['in an empty document', '', 0, 0],
+  ])('gives its two insertions as exact changes (%s)', (_name, text, selStart, selEnd) => {
+    const r = insertFootnote({ text, selStart, selEnd });
+    expect(r.changes).toEqual([
+      { from: selEnd, insert: '[^1]' },
+      { from: text.length, insert: '\n\n[^1]: ' },
+    ]);
+    // Applied to the text (both positions are in the text as it was), they give exactly the result.
+    const [marker, definition] = r.changes;
+    expect(text.slice(0, marker.from) + marker.insert + text.slice(marker.from, definition.from) + definition.insert).toBe(r.text);
+    expect(r.text.length - text.length).toBe(marker.insert.length + definition.insert.length);
+  });
 });
 
 describe('insertEmbed', () => {
@@ -313,9 +330,12 @@ describe('insertAccessRule', () => {
   it('changes nothing but the inserted line', () => {
     const state = { text: 'one\ntwo', selStart: 5, selEnd: 5 };
     const r = insertAccessRule(state, { permission: 'delete', principals: ['Admin'] });
-    expect(r.text.startsWith('one\n')).toBe(true);
-    expect(r.text.endsWith('two')).toBe(true);
-    expect(r.text.length).toBe(state.text.length + '[{ALLOW delete Admin}]\n'.length);
+    const rule = '[{ALLOW delete Admin}]\n';
+    const lineStart = 4;
+    // Every character of the text is kept in place: the result is the text with the rule inserted at the line start.
+    expect(r.text).toBe(state.text.slice(0, lineStart) + rule + state.text.slice(lineStart));
+    expect(r.text.length).toBe(state.text.length + rule.length);
+    expect(r.selStart).toBe(lineStart + rule.length);
   });
 });
 

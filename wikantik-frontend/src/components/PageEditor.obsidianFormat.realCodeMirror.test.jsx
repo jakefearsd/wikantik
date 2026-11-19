@@ -145,6 +145,30 @@ describe('PageEditor commands: lists, quote, heading 4, diagrams, footnote, embe
     expect(view.state.doc.toString()).toBe('alpha');
   });
 
+  // The marker and the definition are two insertions far apart; as one replaced span they would rewrite everything
+  // between them (and a collaborator's edit there would be rebased against a delete-and-reinsert of it).
+  it('insert-footnote changes only the two places it writes: the marker and the definition', async () => {
+    const content = 'First paragraph.\n\n' + 'Line of text.\n'.repeat(200) + '\nLast.';
+    const view = await editorView(content);
+    select(view, 15, 15);
+    const changed = [];
+    const dispatch = view.dispatch.bind(view);
+    const spy = vi.spyOn(view, 'dispatch').mockImplementation((...specs) => {
+      for (const spec of specs) {
+        if (spec?.changes) view.state.changes(spec.changes).iterChanges((fromA, toA, _fromB, _toB, inserted) => changed.push([fromA, toA, inserted.toString()]));
+      }
+      return dispatch(...specs);
+    });
+    await run('insert-footnote');
+    spy.mockRestore();
+    expect(changed).toEqual([[15, 15, '[^1]'], [content.length, content.length, '\n\n[^1]: ']]);
+    expect(view.state.doc.toString()).toBe(content.slice(0, 15) + '[^1]' + content.slice(15) + '\n\n[^1]: ');
+    expect(view.state.selection.main.head).toBe(view.state.doc.length);
+    await blur(view);
+    act(() => { undo(view); });
+    expect(view.state.doc.toString()).toBe(content);
+  });
+
   it('the Mermaid starter is the fixture source the reader draws', () => {
     expect(mermaidBody).toBe('flowchart TD\n  A-->B');
     expect(fenceFixture.documents[0].markdown).toBe('```mermaid\n' + mermaidBody + '\n```\n');

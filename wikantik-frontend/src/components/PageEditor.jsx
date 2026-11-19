@@ -1007,6 +1007,12 @@ export default function PageEditor({ collabTransport } = {}) {
       default: return;
     }
 
+    // Insertions that are far apart (a footnote's marker and its definition) go as the exact changes they are, in one
+    // transaction: applyEdit would replace everything between them, text a collaborator may be typing in.
+    if (next.changes && editor.applyChanges?.(next.changes)) {
+      editor.setSelection(next.selStart, next.selEnd);
+      return;
+    }
     // Through the view as one transaction: setBody would be deferred by react-codemirror's typing latch.
     if (editor.applyEdit?.(next.text, next.selStart, next.selEnd)) return;
     fallbackSetBody(next.text);

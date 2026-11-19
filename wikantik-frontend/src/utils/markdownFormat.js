@@ -252,6 +252,9 @@ export function insertFence(state, language, body) {
 /**
  * Inserts `[^N]` after the selection (the caret when empty) and appends `\n\n[^N]: ` at the document end, N being
  * the smallest positive integer no `[^N]` in the text uses; the caret lands after the definition's `: `.
+ *
+ * The two insertions are far apart, so the result also carries them as `changes` (`{ from, insert }`, both positions
+ * in the text as it was): written as one replaced span they would rewrite everything between the caret and the end.
  */
 export function insertFootnote(state) {
   const { text, selEnd } = state;
@@ -260,8 +263,10 @@ export function insertFootnote(state) {
   let n = 1;
   while (used.has(n)) n++;
   const marker = `[^${n}]`;
-  const newText = text.slice(0, selEnd) + marker + text.slice(selEnd) + `\n\n${marker}: `;
-  return { text: newText, selStart: newText.length, selEnd: newText.length };
+  const definition = `\n\n${marker}: `;
+  const newText = text.slice(0, selEnd) + marker + text.slice(selEnd) + definition;
+  const changes = [{ from: selEnd, insert: marker }, { from: text.length, insert: definition }];
+  return { text: newText, selStart: newText.length, selEnd: newText.length, changes };
 }
 
 /** Inserts an empty `![[]]` embed with the caret between the inner brackets, where wikilink completion opens. */

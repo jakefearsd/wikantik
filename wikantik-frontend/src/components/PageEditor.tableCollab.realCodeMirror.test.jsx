@@ -460,3 +460,35 @@ describe('the table grid in a shared session', () => {
     expect(cellText(a.view)).toBe('a2ZW');
   });
 });
+
+/**
+ * A command that writes in two places far apart (the footnote: its marker at the caret, its definition at the document
+ * end) must send those two insertions and nothing else. Sent as one replaced span from the caret to the end, a peer's
+ * edit in between that crosses with it would be rebased against a delete-and-reinsert of the text it was made in.
+ */
+describe('a command that writes in two places, in a shared session', () => {
+  const LONG = `Intro line.\n\n${'Filler line.\n'.repeat(20)}\nmiddle paragraph\n\n${'More filler.\n'.repeat(20)}\nLast.`;
+
+  it.each(['live', 'source'])('the footnote command (%s) crossing a peer\'s typing below the caret: both are kept in place, and the peer receives two insertions', async (mode) => {
+    const clients = await session({ mode, doc: LONG });
+    const { a, b } = clients;
+    // The command registry is one per window and both editors are in it: whichever editor the command acts on is the
+    // local one. Both carets start where the marker goes; nothing is exchanged before the peer has typed.
+    placeCaret(a.view, 5);
+    placeCaret(b.view, 5);
+    await act(async () => { await getCommand('insert-footnote').run(); });
+    const local = docOf(a.view).includes('[^1]') ? a : b;
+    const peer = local === a ? b : a;
+    expect(docOf(local.view)).toBe(`${LONG.slice(0, 5)}[^1]${LONG.slice(5)}\n\n[^1]: `);
+    expect(docOf(peer.view)).toBe(LONG);
+    caretAfter(peer.view, 'middle');
+    typeAtCaret(peer.view, 'XYZ');
+    expect(docOf(peer.view)).toBe(LONG.replace('middle', 'middleXYZ')); // the two edits cross
+
+    await converged(clients, `${LONG.slice(0, 5)}[^1]${LONG.slice(5).replace('middle', 'middleXYZ')}\n\n[^1]: `);
+    // What reached the peer: the marker and the definition, each a pure insertion.
+    expect(peer.remote.map(([from, to, text]) => [to - from, text])).toEqual([[0, '[^1]'], [0, '\n\n[^1]: ']]);
+    expect(caretOf(peer.view)).toBe(endOf(peer.view, 'middleXYZ'));
+    expect(caretOf(local.view)).toBe(docOf(local.view).length);
+  });
+});

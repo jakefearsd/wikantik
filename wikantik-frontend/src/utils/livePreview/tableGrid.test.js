@@ -3,7 +3,7 @@
  * a cell is ordinary typing in the one editor; these pin the cell input rules, the caret's confinement to cells, the
  * cell keys, and which tables the grid owns at all.
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Annotation, EditorState, EditorSelection, Transaction } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, indentWithTab, history, undo, redo, deleteLine, insertBlankLine } from '@codemirror/commands';
@@ -13,6 +13,8 @@ import { editorMarkdownConfig } from '../editorMarkdown';
 import { livePreview, setLivePreview } from './index';
 import { livePreviewPlugin } from './plugin';
 import { currentTable, tableGridPlugin } from './tableGrid';
+import { onOpenLinkCard } from './linkCard';
+import { readLinkAt, linkChange } from '../linkEdit';
 import { linearCost, LINEAR_COST_TIMEOUT_MS } from '../../test/linearCost';
 
 const context = { pageName: 'Grid', attachments: [] };
@@ -101,6 +103,18 @@ describe('typing in a cell is typing in the document', () => {
     type(view, '\\');
     expect(text(view)).toBe(doc.replace('| one|', '| one\\\\|'));
     expect(currentTable(view.state)).not.toBeNull();
+  });
+
+  it('the backslash stored that way goes as one character: Backspace after it, Delete before it or inside it', () => {
+    const doc = DOC.replace('| one |', '| one\\\\|');
+    const end = at('one', doc) + 5;
+    for (const [key, caret] of [['Backspace', end], ['Delete', end - 2], ['Delete', end - 1], ['Backspace', end - 1]]) {
+      const view = mount(doc);
+      caretAt(view, caret);
+      press(view, key);
+      expect(text(view), `${key} at ${caret - end}`).toBe(doc.replace('| one\\\\|', '| one|'));
+      expect(currentTable(view.state)?.table.columns).toBe(2);
+    }
   });
 
   it('a backslash typed just before an escaped pipe keeps that pipe escaped (stored as an escaped backslash)', () => {
@@ -218,6 +232,19 @@ describe('what the input rules leave alone', () => {
     const mark = view.seen.length;
     view.dispatch({ changes: { from: at('one') + 3, to: at('two'), insert: 'x|y' }, userEvent: 'input.link' });
     expect(changesSince(view, mark)).toEqual([[at('one') + 3, at('two'), 'x|y']]);
+  });
+
+  it.each([['with the caret elsewhere', false], ['with the caret on the link', true]])('a link-card commit of a text holding a pipe keeps the row\'s cells, %s, and is not escaped twice', (_name, onLink) => {
+    const doc = DOC.replace('one', '[t](u)');
+    const view = mount(doc);
+    const link = at('[t](u)', doc);
+    caretAt(view, onLink ? link + 6 : 0);
+    const change = linkChange(readLinkAt(view.state, link + 1), { text: 'a|b' });
+    view.dispatch({ changes: change, userEvent: 'input.link' }); // as CodeEditor.applyChanges dispatches it
+    expect(text(view)).toBe(doc.replace('[t](u)', '[a\\|b](u)'));
+    caretAt(view, at('two', doc) + 4);
+    expect(currentTable(view.state)?.table.columns).toBe(2);
+    expect(readLinkAt(view.state, link + 1).text).toBe('a|b');
   });
 
   it('every annotation of a rewritten transaction survives the rewrite', () => {
@@ -369,6 +396,22 @@ describe('a deletion never eats a pipe', () => {
       expect(changesSince(view, mark)).toEqual([]);
       expect([view.state.selection.main.from, view.state.selection.main.to]).toEqual([anchor, head]);
     });
+    it('a cut whose selection only reaches the next cell\'s start cuts the cell\'s text: what is clipped away is a hidden pipe and its padding', () => {
+      for (const [anchor, head] of [[at('one'), at('two')], [at('two'), at('one')]]) {
+        const view = mount();
+        select(view, [anchor, head]);
+        view.dispatch({ changes: { from: at('one'), to: at('two') }, userEvent: 'delete.cut' });
+        expect(text(view), `${anchor}>${head}`).toBe(DOC.replace('| one |', '|  |'));
+        const del = mount();
+        select(del, [anchor, head]);
+        press(del, 'Delete');
+        expect(text(del), `Delete ${anchor}>${head}`).toBe(DOC.replace('| one |', '|  |'));
+      }
+      const view = mount();
+      select(view, [at('one') + 1, at('two')]);
+      view.dispatch({ changes: { from: at('one') + 1, to: at('two') }, userEvent: 'delete.cut' });
+      expect(text(view)).toBe(DOC.replace('| one |', '| o |'));
+    });
     it('a cut inside one cell cuts', () => {
       const view = mount();
       select(view, [at('one'), at('one') + 2]);
@@ -382,7 +425,14 @@ describe('a deletion never eats a pipe', () => {
     });
   });
 
-  it('deleteLine in a cell clears the cell, not the row', () => {
+  it('deleteLine in the header row deletes the row, as in Source: its range starts on the line above the table', () => {
+    const view = mount();
+    caretAt(view, at('B'));
+    deleteLine(view);
+    expect(text(view)).toBe(DOC.replace('| A | B |\n', ''));
+  });
+
+  it('deleteLine in a body cell clears the cell, not the row', () => {
     const view = mount();
     caretAt(view, at('two') + 1);
     deleteLine(view); // its range is the caret's line: a deletion at the selection, clipped to the caret's cell like any other
@@ -685,28 +735,92 @@ describe('which tables the grid draws', () => {
     expect(text(view)).toBe(DOC);
   });
 
-  it('clicking an empty cell puts the caret in it', () => {
-    const view = mount();
-    caretAt(view, 0);
-    const box = view.contentDOM.querySelector('.cm-lp-cell-empty');
-    box.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-    expect(head(view)).toBe(EMPTY);
-    expect(text(view)).toBe(DOC);
-  });
+  describe('the mouse in a cell', () => {
+    // happy-dom fires `selectionchange` synchronously while CodeMirror is mid-update (browsers deliver it later), which
+    // makes the observer re-enter the view: hold those events back, as the round-trip sweep does.
+    const holdSelectionChange = (e) => e.stopImmediatePropagation();
+    beforeEach(() => window.addEventListener('selectionchange', holdSelectionChange, true));
+    afterEach(() => window.removeEventListener('selectionchange', holdSelectionChange, true));
+    const cellEl = (view, label) => [...view.contentDOM.querySelectorAll('.cm-lp-cell')].find((el) => el.textContent === label);
+    const mouse = (el, type, init = {}) => el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, buttons: 1, ...init }));
+    const selected = (view) => [view.state.selection.main.anchor, view.state.selection.main.head];
+    /** A view whose hit test answers `hit()`: what a real layout would for the pointer's place. */
+    const hitting = (hit, doc = DOC) => { const view = mount(doc); caretAt(view, 0); view.posAtCoords = () => hit(); return view; };
 
-  it('a click in a cell never lands the caret in another cell: right of its text it goes to the text end, left of it to its start', () => {
-    const view = mount();
-    caretAt(view, 0);
-    const cellEl = () => [...view.contentDOM.querySelectorAll('.cm-lp-cell')].find((el) => el.textContent === 'one');
-    const click = () => cellEl().dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-    // What a real layout answers for a click right of `one` in a wide column: the far side of the hidden pipe.
-    view.posAtCoords = () => at('two');
-    expect(click()).toBe(false); // handled here
-    expect(head(view)).toBe(at('one') + 3);
-    view.posAtCoords = () => at('one') - 2;
-    click();
-    expect(head(view)).toBe(at('one'));
-    expect(text(view)).toBe(DOC);
+    it('a click never lands the caret in another cell: right of the text it goes to the text end, left of it to its start', () => {
+      let hit = at('two'); // right of `one` in a wide column, the hit test answers the far side of the hidden pipe
+      const view = hitting(() => hit);
+      mouse(cellEl(view, 'one'), 'mousedown');
+      mouse(cellEl(view, 'one'), 'mouseup', { buttons: 0 });
+      expect(selected(view)).toEqual([at('one') + 3, at('one') + 3]);
+      hit = at('one') - 2;
+      mouse(cellEl(view, 'one'), 'mousedown');
+      mouse(cellEl(view, 'one'), 'mouseup', { buttons: 0 });
+      expect(selected(view)).toEqual([at('one'), at('one')]);
+      expect(text(view)).toBe(DOC);
+    });
+
+    it('a press in a cell\'s blank area starts a selection there, and a drag across the text selects it without leaving the cell', () => {
+      let hit = at('two');
+      const view = hitting(() => hit);
+      mouse(cellEl(view, 'one'), 'mousedown');
+      expect(selected(view)).toEqual([at('one') + 3, at('one') + 3]);
+      mouse(cellEl(view, 'one'), 'mousemove'); // still right of the text: the hit is the next cell, the selection is not
+      expect(selected(view)).toEqual([at('one') + 3, at('one') + 3]);
+      hit = at('one') + 1;
+      mouse(cellEl(view, 'one'), 'mousemove');
+      expect(selected(view)).toEqual([at('one') + 3, at('one') + 1]);
+      hit = at('one') - 2; // into the left padding
+      mouse(cellEl(view, 'one'), 'mousemove');
+      expect(selected(view)).toEqual([at('one') + 3, at('one')]);
+      mouse(cellEl(view, 'one'), 'mouseup', { buttons: 0 });
+      expect(selected(view)).toEqual([at('one') + 3, at('one')]);
+    });
+
+    it('a drag over a cell\'s text released right of it ends at the text end; dragged on into another cell it goes there', () => {
+      let hit = at('one');
+      const view = hitting(() => hit);
+      mouse(cellEl(view, 'one'), 'mousedown');
+      hit = at('two');
+      mouse(cellEl(view, 'one'), 'mousemove');
+      expect(selected(view)).toEqual([at('one'), at('one') + 3]);
+      hit = at('two') + 2;
+      mouse(cellEl(view, 'two'), 'mousemove');
+      expect(selected(view)).toEqual([at('one'), at('two') + 2]);
+      mouse(cellEl(view, 'two'), 'mouseup', { buttons: 0 });
+    });
+
+    it('a Shift-click, a double click and a modifier click are the editor\'s own', () => {
+      const view = hitting(() => at('two'));
+      caretAt(view, at('A'));
+      for (const init of [{ shiftKey: true }, { detail: 2 }, { ctrlKey: true }, { altKey: true }]) {
+        mouse(cellEl(view, 'one'), 'mousedown', init);
+        mouse(cellEl(view, 'one'), 'mouseup', { buttons: 0 });
+        expect(view.state.selection.main.head, JSON.stringify(init)).not.toBe(at('one') + 3);
+        caretAt(view, at('A'));
+      }
+    });
+
+    it('a click on a chip in a cell opens its card: the cell rule stands aside', () => {
+      const doc = DOC.replace('one', '[[Page]]');
+      const opened = [];
+      const view = mount(doc, { extra: onOpenLinkCard.of((card) => { if (card) opened.push(card); }) });
+      caretAt(view, 0);
+      view.posAtCoords = () => at('two', doc);
+      const chip = view.contentDOM.querySelector('.cm-lp-cell .cm-lp-linkchip');
+      expect(mouse(chip, 'mousedown')).toBe(false); // taken by the chip's handler
+      expect(opened).toHaveLength(1);
+      expect(head(view)).toBe(0);
+    });
+
+    it('clicking an empty cell puts the caret in it', () => {
+      const view = hitting(() => at('After'));
+      const box = view.contentDOM.querySelector('.cm-lp-cell-empty');
+      mouse(box, 'mousedown');
+      mouse(box, 'mouseup', { buttons: 0 });
+      expect(head(view)).toBe(EMPTY);
+      expect(text(view)).toBe(DOC);
+    });
   });
 
   it('with live mode off there is no grid', () => {

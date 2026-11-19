@@ -133,7 +133,8 @@ export function requestLinkWrap(view, from, to) {
   return true;
 }
 
-const CHIP = '.cm-lp-linkchip, .cm-lp-image-wrap';
+/** What a click opens a card for: the grid's cell rule stands aside for these (tableGrid.js). */
+export const CHIP = '.cm-lp-linkchip, .cm-lp-image-wrap';
 
 /** A plain click on a chip or a drawn image opens its card instead of placing the caret. Ctrl/Cmd-click still follows the link. */
 const chipClicks = EditorView.domEventHandlers({

@@ -7,6 +7,7 @@ import { parseWikiLink, isImageFileName } from './wikiLinkSyntax';
 const KIND = { WikiLink: 'wiki', WikiEmbed: 'embed', Link: 'link', Image: 'image' };
 const SIZE = /^\d{1,5}(?:x\d{1,5})?$/;
 const BRACKET = /[[\]]/;
+const BRACKET_OR_PIPE = /[[\]|]/;
 const BLANK_LINE = /\n[ \t]*\n/;
 
 const isWiki = (model) => model.kind === 'wiki' || model.kind === 'embed';
@@ -95,12 +96,15 @@ function readMarkdown(source, node) {
     title: source.slice(titleFrom, titleTo),
     tail: source.slice(titleTo),
   };
-  const text = parts.text.replace(/\\([[\]])/g, '$1');
+  // In a table cell a pipe is written `\|` (a bare one would end the cell): the fields hold the pipe it stands for.
+  parts.cell = inTable(node);
+  const piped = (s) => (parts.cell ? s.replace(/\\\|/g, '|') : s);
+  const text = piped(parts.text.replace(/\\([[\]])/g, '$1'));
   const fields = {
     ...(node.name === 'Image' ? { alt: text } : { text }),
-    url: /^<[^]*>$/.test(parts.dest) ? parts.dest.slice(1, -1) : parts.dest,
+    url: piped(/^<[^]*>$/.test(parts.dest) ? parts.dest.slice(1, -1) : parts.dest),
     // An empty title (`""`) is no title, as `fieldsOf` has it: read any other way it would count as changed.
-    title: title ? blankToNull(unquoted(parts.title)) : null,
+    title: title ? blankToNull(piped(unquoted(parts.title))) : null,
   };
   return { fields, parts };
 }
@@ -133,7 +137,7 @@ function escaped(text, chars) {
 }
 
 const WIKI_PARTS = { target: '', sep: '', alias: '', newSep: '|' };
-const MARKDOWN_PARTS = { text: '', mid: '](', dest: '', gap: '', title: '', tail: ')' };
+const MARKDOWN_PARTS = { text: '', mid: '](', dest: '', gap: '', title: '', tail: ')', cell: false };
 
 /**
  * The Markdown for `model`. Exactly `model.source` when no field differs from what was read; otherwise only the part
@@ -169,9 +173,13 @@ function writeMarkdown(model, now, changed) {
   const parts = { open: model.kind === 'image' ? '![' : '[', ...MARKDOWN_PARTS, ...model.original?.parts };
   const text = markdownText(model, now, parts);
   let dest = parts.dest;
-  if (changed('url')) dest = /[\s()]/.test(now.url) ? `<${now.url}>` : now.url;
+  // A changed field of a link in a table cell is written with its pipes escaped (`parts.cell`), as it was read.
+  if (changed('url')) {
+    const url = parts.cell ? escaped(now.url, /\|/) : now.url;
+    dest = /[\s()]/.test(now.url) ? `<${url}>` : url;
+  }
   let title = parts.gap + parts.title;
-  if (changed('title')) title = now.title == null ? '' : `${parts.gap || ' '}"${escaped(now.title, /"/)}"`;
+  if (changed('title')) title = now.title == null ? '' : `${parts.gap || ' '}"${escaped(now.title, parts.cell ? /["|]/ : /"/)}"`;
   // With no destination a title would be read as the destination; `<>` is the empty one.
   if (dest === '' && now.title != null) dest = '<>';
   return `${parts.open}${text}${parts.mid}${dest}${title}${parts.tail}`;
@@ -180,7 +188,7 @@ function writeMarkdown(model, now, changed) {
 /** The link text (an image's alt text) as source: what was written when unchanged, else with its brackets escaped. */
 function markdownText(model, now, parts) {
   const text = now[textKey(model)];
-  return model.original && text === model.original.fields[textKey(model)] ? parts.text : escaped(text, BRACKET);
+  return model.original && text === model.original.fields[textKey(model)] ? parts.text : escaped(text, parts.cell ? BRACKET_OR_PIPE : BRACKET);
 }
 
 /**

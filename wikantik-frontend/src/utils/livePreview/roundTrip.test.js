@@ -56,6 +56,7 @@ const docs = [['whole fixture', KITCHEN_SINK],
   ...SLICES.map((s) => [`slice from ${JSON.stringify(s)}`, KITCHEN_SINK.slice(KITCHEN_SINK.indexOf(s))])];
 
 const seen = [];
+let pressedCells = 0;
 
 describe('live preview round trip', () => {
   it.each(docs)('leaves the document byte-identical and never dispatches a doc change: %s', async (_name, DOC) => {
@@ -85,6 +86,14 @@ describe('live preview round trip', () => {
         for (const el of widgets) {
           el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
         }
+        // A grid cell is not a widget but has a mouse rule of its own (tableGrid.js): a press and release in one is inert too.
+        const cells = [...view.dom.querySelectorAll('.cm-lp-table-row .cm-lp-cell')];
+        for (const el of cells) {
+          if (!el.isConnected) continue; // the press before redrew its row
+          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, buttons: 1 }));
+          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+          pressedCells += 1;
+        }
       } finally {
         window.removeEventListener('selectionchange', holdSelectionChange, true);
       }
@@ -109,6 +118,8 @@ describe('live preview round trip', () => {
     for (const kind of kinds) {
       expect(seen.some((c) => c.split(/\s+/).includes(kind)), kind).toBe(true);
     }
+    expect(pressedCells).toBeGreaterThan(0); // the sweep did press in grid cells
+
   });
 });
 

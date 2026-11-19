@@ -5,6 +5,7 @@ import { cellAt, escapeCell, insertRow } from '../tableModel';
 import { liveModeField, setLiveMode, refreshLivePreview } from './plugin';
 import { gridTableOf, gridTableAt, gridRowAt, cellShownEnd, caretsInCellPadding } from './ranges';
 import { composing } from './sticky';
+import { CHIP } from './linkCard';
 import { widths, readGeometry, naturalWidthOf, tableStyle } from './tableWidths';
 
 /**
@@ -156,7 +157,8 @@ function storedText(before, text) {
  * one thing with its backslash (Backspace after `\|`, Delete before it). An insertion that would flip a pipe — a `\`
  * typed before an escaped pipe, or against the cell's closing pipe — is stored with one backslash more: an escaped
  * backslash, which reads as the backslash that was typed. A deletion that would flip one takes one character more of
- * the run (or puts a backslash back before the closing pipe).
+ * the run — an escaped backslash goes as the one character it shows — or, where a backslash is left bare before the
+ * closing pipe by the deletion of what followed it, escapes that backslash.
  */
 function cellChange(state, fromA, toA, text, { cut = false, drop = false } = {}) {
   const sel = state.selection.ranges.find((r) => r.from <= toA && r.to >= fromA);
@@ -164,19 +166,27 @@ function cellChange(state, fromA, toA, text, { cut = false, drop = false } = {})
   const table = gridTableAt(state, fromA) || (toA > fromA ? gridTableAt(state, toA) : null);
   if (!table) return null;
   if (Math.min(fromA, sel ? sel.from : fromA) < table.from || Math.max(toA, sel ? sel.to : toA) > table.to) return null;
-  const pivot = sel ? sel.anchor : fromA;
-  const at = cellAt(table, pivot);
-  if (!at) return null;
   const { doc } = state;
-  const cell = rowsOf(table)[at.row].cells[at.col];
-  const lo = Math.min(cell.from, pivot);
-  const hi = Math.max(cellShownEnd(cell, state.selection), pivot);
-  let from = Math.min(Math.max(fromA, lo), hi);
-  let to = Math.min(Math.max(toA, lo), hi);
-  if (cut && (from !== fromA || to !== toA)) return { from, to: from, insert: '', before: '' };
+  const clipTo = (pivot) => {
+    const at = cellAt(table, pivot);
+    if (!at) return null;
+    const cell = rowsOf(table)[at.row].cells[at.col];
+    const lo = Math.min(cell.from, pivot);
+    const hi = Math.max(cellShownEnd(cell, state.selection), pivot);
+    return { cell, from: Math.min(Math.max(fromA, lo), hi), to: Math.min(Math.max(toA, lo), hi) };
+  };
+  let clip = clipTo(sel ? sel.anchor : fromA);
+  if (!clip) return null;
+  // An anchor at the very edge of its cell with the selection all on the other side (a drag released at the next
+  // cell's start, made backwards) has none of that cell selected: the cell is then the one the head is in.
+  if (sel && toA > fromA && clip.from === clip.to) clip = clipTo(sel.head) || clip;
+  const { cell } = clip;
+  let { from, to } = clip;
+  // A cut that would be clipped by more than hidden pipes and their padding (another cell's text) removes nothing.
+  if (cut && /[^ \t|]/.test(doc.sliceString(fromA, from) + doc.sliceString(to, toA))) return { from, to: from, insert: '', before: '' };
   const charAt = (pos) => doc.sliceString(pos, pos + 1);
   if (to > from && from > cell.from && charAt(from) === '|' && charAt(from - 1) === BACKSLASH) from -= 1;
-  const before = doc.sliceString(cell.outerFrom, from);
+  let before = doc.sliceString(cell.outerFrom, from);
   let insert = storedText(before, text);
   let run = 0; // the backslashes between the change and the next character
   while (charAt(to + run) === BACKSLASH) run += 1;
@@ -184,8 +194,14 @@ function cellChange(state, fromA, toA, text, { cut = false, drop = false } = {})
     const closing = to + run === cell.outerTo;
     const escaped = (trailingBackslashes(before + insert) + run) % 2 === 1;
     if (escaped === closing) {
-      if (!insert && (run > 0 || (!closing && to > from))) to += 1;
-      else insert += BACKSLASH;
+      if (!insert && (run > 0 || (!closing && to > from))) {
+        to += 1;
+      } else if (!insert && to > from && from > cell.from && charAt(to - 1) === BACKSLASH && before.endsWith(BACKSLASH)) {
+        from -= 1; // half of an escaped backslash against the closing pipe: the other half goes with it
+        before = before.slice(0, -1);
+      } else {
+        insert += BACKSLASH;
+      }
     }
   }
   // A deletion that only took an escaping character and puts it back changes nothing.
@@ -205,8 +221,10 @@ const gridInput = EditorState.transactionFilter.of((tr) => {
   if (!tr.docChanged || !live(state) || state.readOnly) return tr;
   if (tr.annotation(Transaction.remote) || tr.isUserEvent('undo') || tr.isUserEvent('redo')) return tr;
   if (!(tr.isUserEvent('input') || tr.isUserEvent('delete') || tr.isUserEvent('move.drop'))) return tr;
-  // Two commands worth knowing here: deleteLine's range is at the caret, so it clears the caret's cell, not the row;
-  // Mod-Enter's blank line is inserted at the line's end, not at the selection, so it splits the table as in Source.
+  // Two commands worth knowing here. deleteLine's range runs from the end of the line above: in a body row that is
+  // inside the table and at the caret, so it clears the caret's cell, not the row; in the header row it starts outside
+  // the table, so it goes as in Source and deletes the row. Mod-Enter's blank line is inserted at the line's end, not
+  // at the selection, so it splits the table as in Source.
   // Search and replace is the user's own edit of the source: a match may span a pipe, and it goes as dispatched.
   if (tr.isUserEvent('input.replace')) return tr;
   // A composition is never rewritten, and nothing repairs its text afterwards (no dispatch may come from a composition
@@ -414,36 +432,61 @@ const gridKeymap = Prec.highest(keymap.of([
   { key: 'ArrowLeft', run: rowEdge(false) },
 ]));
 
+/** The grid cell a DOM node is drawn in, as `{ lineStart, col }`, or null. */
+function drawnCell(view, node) {
+  const box = node?.closest?.('.cm-lp-cell');
+  const rowEl = box?.closest('.cm-lp-table-row');
+  if (!rowEl || !view.contentDOM.contains(rowEl)) return null;
+  return { lineStart: view.state.doc.lineAt(view.posAtDOM(rowEl, 0)).from, col: Number(box.dataset.col) };
+}
+
+/** The text span `[from, to]` of the cell `at` (`{ lineStart, col }`) in `state`, or null when it is no grid cell now. */
+function cellSpan(state, at) {
+  const table = gridTableAt(state, at.lineStart);
+  const cell = (table ? gridRowAt(table, at.lineStart) : null)?.cells[at.col];
+  return cell ? { from: cell.from, to: cellShownEnd(cell, state.selection) } : null;
+}
+
 /**
- * A click in a cell puts the caret in that cell. The editor's own hit test does not: right of a cell's text (the
- * blank of a wide column, an empty cell's box) it answers the far side of the hidden pipe, which is the next cell's
- * start. A plain click whose hit is outside the clicked cell's text goes to the text's nearer end instead; one that
- * hits the text is left to the editor (so is a Shift-click, a double click, and with them a drag from the text).
+ * The mouse in a cell. The editor's own hit test answers the far side of the hidden pipe — the next cell's start —
+ * for a pointer right of a cell's text (the blank of a wide column, an empty cell's box), and the far side of the one
+ * before for a pointer left of it. So for a plain press in a cell this is the selection the mouse makes: it starts at
+ * the hit brought into the pressed cell's text, and while the pointer is over a cell its end is the hit brought into
+ * that cell's text; over anything else it is the editor's own hit. A click therefore never lands in another cell
+ * than the one clicked, and a drag from a cell's blank area across its text selects that text.
+ *
+ * Left to the editor: a press with Shift or another modifier, a double or triple click, a press on a chip or an image
+ * (its card opens: linkCard.js), and everything outside a grid cell.
  */
-const cellClick = EditorView.domEventHandlers({
-  mousedown(event, view) {
-    const box = event.target?.closest?.('.cm-lp-cell');
-    const rowEl = box?.closest('.cm-lp-table-row');
-    if (!rowEl || event.button !== 0 || event.shiftKey || event.detail > 1 || !live(view.state)) return false;
-    try {
-      const { state } = view;
-      const lineStart = view.posAtDOM(rowEl, 0);
-      const table = gridTableAt(state, lineStart);
-      const cell = (table ? gridRowAt(table, lineStart) : null)?.cells[Number(box.dataset.col)];
-      if (!cell) return false;
-      const end = cellShownEnd(cell, state.selection);
-      const hit = view.posAtCoords({ x: event.clientX, y: event.clientY }, false);
-      if (hit >= cell.from && hit <= end && end > cell.from) return false;
-      const before = hit < cell.from;
-      view.dispatch({ selection: caret(before ? cell.from : end, before ? 1 : -1), userEvent: 'select.pointer' });
-      view.focus();
-      event.preventDefault();
-      return true;
-    } catch (err) {
-      console.warn('[rich] could not place the caret in the clicked table cell', err?.message || err);
-      return false;
-    }
-  },
+const cellMouse = EditorView.mouseSelectionStyle.of((view, event) => {
+  if (event.button !== 0 || event.detail > 1 || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return null;
+  if (!live(view.state) || event.target?.closest?.(CHIP)) return null;
+  try {
+    const pressed = drawnCell(view, event.target);
+    const span = pressed ? cellSpan(view.state, pressed) : null;
+    if (!span) return null;
+    const hitIn = (e, within) => Math.min(Math.max(view.posAtCoords({ x: e.clientX, y: e.clientY }, false), within.from), within.to);
+    let anchor = hitIn(event, span);
+    return {
+      get(current) {
+        let head = anchor;
+        try {
+          const over = drawnCell(view, current.target);
+          const within = over ? cellSpan(view.state, over) : null;
+          head = within ? hitIn(current, within) : view.posAtCoords({ x: current.clientX, y: current.clientY }, false);
+        } catch (err) {
+          console.warn('[rich] could not follow the mouse over the table grid', err?.message || err);
+        }
+        return EditorSelection.create([EditorSelection.range(anchor, head)]);
+      },
+      update(update) {
+        if (update.docChanged) anchor = update.changes.mapPos(anchor);
+      },
+    };
+  } catch (err) {
+    console.warn('[rich] could not start a mouse selection in a table cell', err?.message || err);
+    return null;
+  }
 });
 
 // ---- Drawing ---------------------------------------------------------------------------------------------------
@@ -627,5 +670,5 @@ export const tableGridExtension = [
   Prec.low(gridInput),
   Prec.high(gridCaret),
   gridKeymap,
-  cellClick,
+  cellMouse,
 ];

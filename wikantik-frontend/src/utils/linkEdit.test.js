@@ -260,3 +260,47 @@ describe('unwrapLink', () => {
     expect(unwrapLink({ ...read('[t](u)'), text: 'x [y]' })).toBe('x \\[y\\]');
   });
 });
+
+describe('a Markdown link or image in a table cell', () => {
+  const ROW = (token) => `| h | k |\n| --- | --- |\n| ${token} | z |`;
+  const inCell = (token) => {
+    const doc = ROW(token);
+    return readLinkAt(stateOf(doc), doc.indexOf(token) + 1);
+  };
+  const cellsOf = (line) => line.split(/(?<!\\)\|/).length - 2;
+
+  it('reads an escaped pipe as the pipe it stands for, in the text, the address and the title', () => {
+    expect(inCell('[a\\|b](u)')).toMatchObject({ kind: 'link', text: 'a|b', url: 'u' });
+    expect(inCell('![a\\|b](u)')).toMatchObject({ kind: 'image', alt: 'a|b' });
+    expect(inCell('[t](u\\|v "x\\|y")')).toMatchObject({ url: 'u|v', title: 'x|y' });
+  });
+
+  it('writes an unchanged model back byte for byte', () => {
+    for (const token of ['[a\\|b](u\\|v "x\\|y")', '![a\\|b](u)', '[t](u)']) expect(writeLink(inCell(token))).toBe(token);
+  });
+
+  it.each([
+    ['text', '[t](u)', { text: 'a|b' }, '[a\\|b](u)'],
+    ['alt text', '![t](u)', { alt: 'a|b' }, '![a\\|b](u)'],
+    ['address', '[t](u)', { url: 'u|v' }, '[t](u\\|v)'],
+    ['title', '[t](u)', { title: 'x|y' }, '[t](u "x\\|y")'],
+  ])('writes a pipe in the %s escaped, so the row keeps its cells', (_name, token, patch, written) => {
+    const model = inCell(token);
+    const { insert } = linkChange(model, patch);
+    expect(insert).toBe(written);
+    expect(cellsOf(ROW(insert).split('\n')[2])).toBe(2);
+    // ... and it reads back as what was entered
+    expect(inCell(insert)).toMatchObject(patch);
+  });
+
+  it('does not escape again what it read escaped when another part of the field is edited', () => {
+    const model = inCell('[a\\|b](u)');
+    expect(linkChange(model, { text: 'a|bc' }).insert).toBe('[a\\|bc](u)');
+    expect(linkChange(model, { url: 'w' }).insert).toBe('[a\\|b](w)');
+  });
+
+  it('outside a table a pipe is written as it is, and a backslash before one is read as written', () => {
+    expect(patched('[t](u)', { text: 'a|b' })).toBe('[a|b](u)');
+    expect(read('[a\\|b](u)').text).toBe('a\\|b');
+  });
+});

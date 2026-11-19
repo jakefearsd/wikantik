@@ -422,12 +422,19 @@ export const stickyExtension = [
   // Highest: lang-markdown's own keymap binds Backspace (deleteMarkupBackward) at Prec.high and precedes this
   // extension in CodeEditor's list, so at equal precedence it would take a list or quote marker's Backspace first.
   Prec.highest(keymap.of([
-    { key: 'Backspace', run: removeMarkerOrKeepHidden },
+    // Every key that reaches a delete command meets the same guard. With Shift it is still Backspace (CodeMirror binds
+    // Shift-Backspace to the same command; Shift-Delete is left to the platform, where it deletes or cuts).
+    { key: 'Backspace', run: removeMarkerOrKeepHidden, shift: removeMarkerOrKeepHidden },
     { key: 'Mod-Backspace', run: backspaceBesideHidden }, // by word, and to the line boundary: they cross the break too
     { key: 'Alt-Backspace', run: backspaceBesideHidden },
-    { key: 'Delete', run: deleteChipOrKeepHidden },
+    { key: 'Delete', run: deleteChipOrKeepHidden, shift: deleteChipOrKeepHidden },
     { key: 'Mod-Delete', run: deleteBesideHidden },
     { key: 'Alt-Delete', run: deleteBesideHidden },
+    // The Mac's Emacs-style keys (CodeMirror's emacsStyleKeymap): a character back and forward, to the line end, a word back.
+    { mac: 'Ctrl-h', run: removeMarkerOrKeepHidden },
+    { mac: 'Ctrl-d', run: deleteChipOrKeepHidden },
+    { mac: 'Ctrl-k', run: deleteBesideHidden },
+    { mac: 'Ctrl-Alt-h', run: backspaceBesideHidden },
     { key: 'ArrowLeft', run: leaveLineMarker },
     { key: 'Mod-ArrowLeft', mac: 'Alt-ArrowLeft', run: leaveLineMarker }, // word-left stalls the same way
   ])),

@@ -35,7 +35,7 @@ function mount(doc, { onLinkCard, readOnly = false, caret = 0, extra = [] } = {}
   setLivePreview(view, true);
   return view;
 }
-const press = (view, key) => view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+const press = (view, key, init = {}) => view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
 const head = (view) => view.state.selection.main.head;
 const shown = (view) => view.contentDOM.textContent;
 const type = (view, ch) => {
@@ -74,13 +74,13 @@ describe('a chip under the caret', () => {
     expect(head(view)).toBe(4);
     expect(shown(view)).toContain('x [[Page|a]] y');
   });
-  it('Backspace right after it selects the whole link first; a second press deletes it', () => {
+  it.each([['Backspace', {}], ['Shift-Backspace', { shiftKey: true }]])('%s right after it selects the whole link first; a second press deletes it', (_name, mods) => {
     const view = mount(DOC, { caret: 12 });
-    press(view, 'Backspace');
+    press(view, 'Backspace', mods);
     expect(view.state.doc.toString()).toBe(DOC);
     expect(sel(view)).toEqual([2, 12]);
     expect(shown(view)).toBe('x a y'); // still a chip, now selected
-    press(view, 'Backspace');
+    press(view, 'Backspace', mods);
     expect(view.state.doc.toString()).toBe('x  y');
   });
   it('Delete right before it selects the whole link first; a second press deletes it', () => {
@@ -90,6 +90,15 @@ describe('a chip under the caret', () => {
     expect(sel(view)).toEqual([2, 12]);
     press(view, 'Delete');
     expect(view.state.doc.toString()).toBe('x  y');
+  });
+  // (With the link selected, Shift-Delete is the platform's Cut: the editor binds nothing to it.)
+  it('Shift-Delete right before it selects the whole link too, and deletes nothing', () => {
+    const view = mount(DOC, { caret: 2 });
+    const event = new KeyboardEvent('keydown', { key: 'Delete', shiftKey: true, bubbles: true, cancelable: true });
+    view.contentDOM.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.toString()).toBe(DOC);
+    expect(sel(view)).toEqual([2, 12]);
   });
   it('typing after the first press replaces the selected link', () => {
     const view = mount(DOC, { caret: 12 });

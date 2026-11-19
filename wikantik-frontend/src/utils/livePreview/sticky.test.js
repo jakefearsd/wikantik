@@ -491,12 +491,22 @@ describe('Backspace wins over the Markdown keymap, in CodeEditor\'s extension or
 });
 
 describe('Backspace after a line marker', () => {
-  it('removes exactly the marker and its one trailing space', () => {
-    const view = mount();
+  it.each([['Backspace', {}], ['Shift-Backspace', { shiftKey: true }]])('%s removes exactly the marker and its one trailing space, as the marker command', (_name, mods) => {
+    const seen = [];
+    const view = mount(DOC, { extra: EditorView.updateListener.of((u) => { seen.push(...u.transactions.filter((tr) => tr.docChanged)); }) });
     caretAt(view, H + 3);
-    expect(press(view, 'Backspace')).toBe(true);
+    expect(press(view, 'Backspace', mods)).toBe(true);
     expect(text(view)).toBe('Para one\nTitle\nAfter');
     expect(head(view)).toBe(H);
+    // removeLineMarker's own transaction, not the default delete's (which takes the marker only because it is atomic).
+    expect(seen.map((tr) => tr.annotation(Transaction.userEvent))).toEqual(['delete.backward']);
+    expect(seen[0].scrollIntoView).toBe(true);
+  });
+  it.each([['Backspace', {}], ['Shift-Backspace', { shiftKey: true }]])('%s after the innermost of two markers removes that one alone', (_name, mods) => {
+    const view = mount('> - item');
+    caretAt(view, 4);
+    press(view, 'Backspace', mods);
+    expect(text(view)).toBe('> item');
   });
 
   it('Backspace at offset 3 of `## Title` gives `Title`', () => {

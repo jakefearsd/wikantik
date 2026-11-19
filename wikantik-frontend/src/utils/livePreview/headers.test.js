@@ -383,29 +383,39 @@ describe('the caret never rests on a header or a hidden closing line', () => {
 });
 
 describe('Backspace and Delete never join text onto a hidden fence line', () => {
-  it('Backspace at the start of the first body line does nothing', () => {
+  // Every spelling of the key that deletes across the line break: Shift held down is still Backspace (Delete).
+  const BACKSPACES = [['Backspace', {}], ['Shift-Backspace', { shiftKey: true }], ['Ctrl-Backspace', { ctrlKey: true }], ['Alt-Backspace', { altKey: true }]];
+  const DELETES = [['Delete', {}], ['Shift-Delete', { shiftKey: true }], ['Ctrl-Delete', { ctrlKey: true }], ['Alt-Delete', { altKey: true }]];
+
+  it.each(BACKSPACES)('%s at the start of the first body line does nothing', (_name, mods) => {
     const view = mount(CODE);
     caretAt(view, X);
-    expect(press(view, 'Backspace')).toBe(true);
+    expect(press(view, 'Backspace', mods)).toBe(true);
     expect(text(view)).toBe(CODE);
     expect(head(view)).toBe(X);
   });
 
-  it('Delete at the end of the last body line does nothing', () => {
+  it.each(DELETES)('%s at the end of the last body line does nothing', (_name, mods) => {
     const view = mount(CODE);
     caretAt(view, Y + 1);
-    expect(press(view, 'Delete')).toBe(true);
+    expect(press(view, 'Delete', mods)).toBe(true);
     expect(text(view)).toBe(CODE);
   });
 
-  it('Backspace at the start of the text below the block, and Delete at the end of the text above it, do nothing', () => {
-    const view = mount('Above\n```js\nx\n```\nBelow');
+  it.each(BACKSPACES)('%s at the start of the text below the block does nothing: the closing fence stays closed', (_name, mods) => {
+    const doc = 'Above\n```js\nx\n```\nBelow';
+    const view = mount(doc);
     caretAt(view, 18);
-    expect(press(view, 'Backspace')).toBe(true);
+    expect(press(view, 'Backspace', mods)).toBe(true);
+    expect(text(view)).toBe(doc);
+  });
+
+  it.each(DELETES)('%s at the end of the text above the block does nothing', (_name, mods) => {
+    const doc = 'Above\n```js\nx\n```\nBelow';
+    const view = mount(doc);
     caretAt(view, 5);
-    expect(press(view, 'Delete')).toBe(true);
-    expect(press(view, 'Delete', { ctrlKey: true })).toBe(true);
-    expect(text(view)).toBe('Above\n```js\nx\n```\nBelow');
+    expect(press(view, 'Delete', mods)).toBe(true);
+    expect(text(view)).toBe(doc);
   });
 
   it('an empty line next to the block is still removed, and the caret does not stay on the hidden line', () => {

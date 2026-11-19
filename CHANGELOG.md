@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-19
+
 ### Added
 
 - **Rich editor mode.** The editor has two modes, **Rich** and **Source**, switched only by the toolbar control or Mod+E; Rich replaces "Live preview" and is the default. In Rich, heading, list, task, quote and fence markers stay hidden under the cursor; bold, italic and the other inline marks still show on the cursor's line. The page text is the same Markdown in both modes, and opening a page in Rich and saving it changes nothing.

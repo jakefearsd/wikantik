@@ -73,7 +73,7 @@ In Rich mode a table is a grid. Use the table button, or **Insert table** in the
 * Click a cell and type. What you type is saved as part of the page straight away, so in a shared session others see it as you write.
 * **Tab** goes to the next cell and **Shift+Tab** to the previous one. **Enter** goes down to the same column of the next row. Tab or Enter at the end of the table adds a row.
 * While the cursor is in a table, **+ row**, **+ col** and a **⋮** menu appear beside it. The menu adds a row above or a column to the left, moves the column left or right, sets its alignment, and deletes the row or column. Press **Alt+T** to reach these controls from the keyboard, and **Escape** to return to the cell.
-* A cell holds one line of text. Bold, links and the rest work in a cell as they do in a paragraph. A vertical bar typed in a cell is kept as text.
+* A cell holds one line of text. Bold, links and the rest work in a cell as they do in a paragraph. A vertical bar typed in a cell is kept as text. Spaces typed in front of a cell's text are not kept.
 * With text selected across several cells, typing or deleting changes one cell only, and Cut removes nothing. To change several cells at once, switch to Source.
 
 Some tables are shown as a table but are not editable as a grid; click one to edit its Markdown rows instead. These are tables whose rows do not all start and end with a vertical bar, tables whose rows have different numbers of cells, tables with more than one header row, and tables inside a list or a quote. Giving every row the same number of cells and a bar at each end makes the table a grid again:
@@ -89,12 +89,19 @@ Some tables are shown as a table but are not editable as a grid; click one to ed
 * Click a link, a page embed or an image in Rich mode to open a small card with its details: the page, heading and text of a wiki link; the address and text of a web link; the source and alt text of an image.
 * Change a field and press **Enter**, or click away, to apply it. **Escape** closes the card and changes nothing. **Remove** takes the link off and keeps its text. **Open** follows the link.
 * Select some text on one line and press **Mod+K** (or the link button) to make it a web link: the card opens for the address, and the page is not changed until you confirm it. With the cursor on a link, Mod+K opens that link's card. With nothing selected, it starts a wiki link and lists pages to pick from.
+* Mod+K does nothing when the selection runs across table cells, or already holds a link or a web address. Select only the text you want linked.
+* **Mod+S** while a card is open applies the card's change first and then saves. If the card cannot accept what you typed, it stays open and nothing is saved.
 
 ## Code blocks and callouts
 
 * A code block's header has a list of languages; pick one to set how the block is highlighted. A new code block from the toolbar starts empty, with the cursor inside it.
 * A callout's title has a list of types (note, tip, info, warning, danger). Pick one to change the callout; edit the title text in place.
 * Both lists change only that one word of the page.
+* From the keyboard, put the cursor in the code block or callout, open the command palette and run **Change code language / callout type**. The list takes the focus; press Enter or Space to open it.
+
+## When the page is read-only
+
+The editor is read-only when you may not edit the page, and for a moment when a shared draft is catching up with the server. While it is read-only the toolbar, the `/` menu, the shortcuts and **Copy block link** (for a block that has no id yet) change nothing. Try again once you can type.
 
 ## The Markdown source pane
 

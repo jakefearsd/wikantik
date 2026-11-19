@@ -42,6 +42,8 @@ import '../test/asyncSelectionChange'; // a command's selection + focus: happy-d
 import { EditorView } from '@codemirror/view';
 import { StateEffect, EditorState } from '@codemirror/state';
 import { mountRealEditor, placeCaret, typeAtCaret, docOf, caretOf, until } from '../test/realEditorHarness';
+import { parseFully } from '../test/fullParse';
+import { getCommand } from '../commands/registry';
 
 const INITIAL = 'top\n\nsee [[P|a]] here\n\nend';
 const LINK = INITIAL.indexOf('[[');   // the link is [LINK, LINK_END)
@@ -445,5 +447,20 @@ describe('Insert link (Mod-K) in Source mode', () => {
     modK(view);
     expect(docOf(view)).toBe('alpha [text](url)');
     expect(card()).toBe(null);
+  });
+});
+
+describe('the header pickers from the keyboard (palette command)', () => {
+  it('"Change code language / callout type" exists with the caret in a code block and focuses its picker; elsewhere it does not exist', async () => {
+    const doc = 'top\n\n```js\ncode\n```\n\nend';
+    const view = await mountRich(doc);
+    act(() => { parseFully(view); });
+    placeCaret(view, 0);
+    await until(() => getCommand('change-block-kind') === undefined);
+    placeCaret(view, doc.indexOf('code') + 1);
+    await until(() => getCommand('change-block-kind') !== undefined);
+    await act(async () => { await getCommand('change-block-kind').run(); });
+    expect(document.activeElement.getAttribute('aria-label')).toBe('Code language');
+    expect(docOf(view)).toBe(doc);
   });
 });

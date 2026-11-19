@@ -1,5 +1,6 @@
-import { WidgetType, ViewPlugin } from '@codemirror/view';
+import { EditorView, WidgetType, ViewPlugin } from '@codemirror/view';
 import { isolateHistory } from '@codemirror/commands';
+import { syntaxTree } from '@codemirror/language';
 import { FENCE_RENDERERS } from '../fences/registry';
 import { MARKER, defaultTitle } from '../remarkCallouts';
 
@@ -165,6 +166,61 @@ export const followReadOnly = ViewPlugin.define(() => ({
     for (const control of u.view.contentDOM.querySelectorAll('select.cm-lp-picker, input.cm-lp-task')) control.disabled = u.state.readOnly;
   },
 }));
+
+/**
+ * Where the innermost block around the caret that has a header picker starts — a fenced block, or a quote whose first
+ * line carries a callout marker — or -1. Read from the syntax tree at the caret: costs the nesting depth there.
+ */
+export function pickerBlockAt(state) {
+  const { head } = state.selection.main;
+  const tree = syntaxTree(state);
+  for (const side of [-1, 1]) {
+    for (let node = tree.resolveInner(head, side); node; node = node.parent) {
+      if (node.name === 'FencedCode') return node.from;
+      if (node.name !== 'Blockquote') continue;
+      const text = state.doc.lineAt(node.from).text;
+      const at = text.indexOf('[!');
+      if (at >= 0 && /^[\s>]*$/.test(text.slice(0, at)) && MARKER.test(text.slice(at))) return node.from;
+    }
+  }
+  return -1;
+}
+
+/** The enabled picker drawn on the line where the block at `from` starts, or null (the line is not drawn, or has none). */
+function pickerOn(view, from) {
+  const { node } = view.domAtPos(view.state.doc.lineAt(from).from);
+  const el = node.nodeType === 1 ? node : node.parentElement;
+  return el?.closest?.('.cm-line')?.querySelector('select.cm-lp-picker:not(:disabled)') || null;
+}
+
+/**
+ * Moves the focus to the header picker of the caret's block (pickerBlockAt): the keyboard's way there, since the caret
+ * cannot rest on a header line. Enter or Space then opens the list (opensPicker), a choice writes, Escape returns to
+ * the text. A header scrolled out of the drawn range is scrolled to first and focused on the next frame. False (and
+ * nothing happens) when the caret is in no such block, or on a read-only document. Writes nothing.
+ */
+export function focusBlockPicker(view) {
+  if (view.state.readOnly) return false;
+  const from = pickerBlockAt(view.state);
+  if (from < 0) return false;
+  try {
+    const select = pickerOn(view, from);
+    if (select) { select.focus(); return true; }
+    view.dispatch({ effects: EditorView.scrollIntoView(from, { y: 'start' }) });
+    requestAnimationFrame(() => {
+      try {
+        if (view.state.readOnly || pickerBlockAt(view.state) !== from) return;
+        pickerOn(view, from)?.focus();
+      } catch (err) {
+        console.warn('[rich] could not reach the block\'s picker after scrolling to it', err?.message || err);
+      }
+    });
+    return true;
+  } catch (err) {
+    console.warn('[rich] could not move the focus to the block\'s picker', err?.message || err);
+    return false;
+  }
+}
 
 /** Whether an event came from a header picker: CodeMirror leaves those to the `<select>`. */
 export const fromPicker = (event) => !!event.target?.closest?.('select.cm-lp-picker');

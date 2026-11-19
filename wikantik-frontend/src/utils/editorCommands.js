@@ -75,3 +75,20 @@ export const TABLE_COMMAND_IDS = TABLE_COMMANDS.map(([id]) => id);
 export function buildTableCommands({ runTable }) {
   return TABLE_COMMANDS.map(([id, title, keywords]) => ({ id, title, section: 'Table', keywords: ['table', ...keywords], run: () => runTable(id) }));
 }
+
+export const BLOCK_PICKER_COMMAND_ID = 'change-block-kind';
+
+/**
+ * The registry entry that takes the keyboard to the header picker of the caret's block; `focusPicker()` does the work.
+ * Its owner registers it only while the caret is in a fenced block or a callout in Rich mode (useBlockPicker).
+ * No shortcut of its own: the palette is the way to it.
+ */
+export function buildBlockPickerCommands({ focusPicker }) {
+  return [{
+    id: BLOCK_PICKER_COMMAND_ID,
+    title: 'Change code language / callout type',
+    section: 'Editor',
+    keywords: ['code', 'fence', 'language', 'diagram', 'kind', 'callout', 'type', 'picker'],
+    run: focusPicker,
+  }];
+}

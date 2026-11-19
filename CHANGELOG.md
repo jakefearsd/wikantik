@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- The rendered preview stays level with the editor block by block: a heading, paragraph, formula, picture or table sits at the same height in both panes, at the height of the cursor, and scrolling either pane scrolls the other the same way. The preview lightly marks the block the cursor is in.
+- A **Preview** button in the editor's header hides or shows the side pane; the choice is remembered in the browser, and the pane is shown by default.
+
+### Fixed
+
+- The editor and the preview share the width equally: a wide table, code block or long address in the preview no longer squeezes the editor; it scrolls inside the preview.
+
+### Changed
+
+- Edit Page Help and the user editing guide describe the preview pane.
+
 ## [2.7.0] - 2026-11-19
 
 ### Added

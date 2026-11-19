@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.util.List;
 
 import static com.codeborne.selenide.Condition.cssClass;
+import static com.codeborne.selenide.Condition.exactValue;
 import static com.codeborne.selenide.Condition.exist;
 import static com.codeborne.selenide.Condition.focused;
 import static com.codeborne.selenide.Condition.text;
@@ -219,12 +220,17 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         // A click on the chip opens its card, focused on the page field.
         $( LINK_CHIP ).shouldBe( visible, WAIT ).shouldHave( text( "RichEditorOldTarget" ) ).click();
         $( LINK_CARD ).shouldBe( visible, WAIT );
-        $( CARD_PAGE_FIELD ).shouldBe( focused, WAIT ).shouldHave( value( "RichEditorOldTarget" ) );
+        $( CARD_PAGE_FIELD ).shouldBe( focused, WAIT ).shouldHave( exactValue( "RichEditorOldTarget" ) );
         assertEquals( LINK_BODY, EditWikiPage.documentText(), "opening the card must not change the document" );
 
-        // Real keys: select the name, type the new one, Enter commits the card.
-        Selenide.actions().sendKeys( PlatformKeys.selectAll() ).sendKeys( "RichEditorNewTarget" ).perform();
-        $( CARD_PAGE_FIELD ).shouldHave( value( "RichEditorNewTarget" ), WAIT );
+        // As a user would: click into the field, select all, type the new name; Enter commits the card.
+        // The chord goes through the element's sendKeys, which holds the modifier down for the "a"; an Actions
+        // sendKeys presses and releases each key of the chord in turn, so the "a" would be typed into the field.
+        $( CARD_PAGE_FIELD ).click();
+        $( CARD_PAGE_FIELD ).shouldBe( focused, WAIT );
+        $( CARD_PAGE_FIELD ).sendKeys( PlatformKeys.selectAll() );
+        $( CARD_PAGE_FIELD ).sendKeys( "RichEditorNewTarget" );
+        $( CARD_PAGE_FIELD ).shouldHave( exactValue( "RichEditorNewTarget" ), WAIT );
         assertEquals( LINK_BODY, EditWikiPage.documentText(), "typing in the card must not change the document" );
         Selenide.actions().sendKeys( Keys.ENTER ).perform();
 
@@ -262,10 +268,10 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         select( from, to );
         EditWikiPage.pressMod( "k" );
         $( LINK_CARD ).shouldBe( visible, WAIT );
-        $( CARD_URL_FIELD ).shouldBe( focused, WAIT ).shouldHave( value( "" ) );
-        $( CARD_TEXT_FIELD ).shouldHave( value( "Closing" ) );
+        $( CARD_URL_FIELD ).shouldBe( focused, WAIT ).shouldHave( exactValue( "" ) );
+        $( CARD_TEXT_FIELD ).shouldHave( exactValue( "Closing" ) );
         Selenide.actions().sendKeys( "https://example.org/never" ).perform();
-        $( CARD_URL_FIELD ).shouldHave( value( "https://example.org/never" ), WAIT );
+        $( CARD_URL_FIELD ).shouldHave( exactValue( "https://example.org/never" ), WAIT );
         assertEquals( BODY, EditWikiPage.documentText(), "typing in the card must not change the document" );
 
         // Escape: nothing was written, and the focus is back in the text.
@@ -279,7 +285,7 @@ public class RichEditorIT extends WithIntegrationTestSetup {
         EditWikiPage.pressMod( "k" );
         $( CARD_URL_FIELD ).shouldBe( focused, WAIT );
         Selenide.actions().sendKeys( address ).perform();
-        $( CARD_URL_FIELD ).shouldHave( value( address ), WAIT );
+        $( CARD_URL_FIELD ).shouldHave( exactValue( address ), WAIT );
         Selenide.actions().sendKeys( Keys.ENTER ).perform();
         final String linked = BODY.replace( "Closing words", "[Closing](" + address + ") words" );
         EditWikiPage.awaitDocumentEquals( linked, WAIT );

@@ -155,6 +155,8 @@ export default function WorkBoard() {
     const rank = rankForInsert(others, at, { append: status === item.status });
     const changes = status === item.status ? { rank } : { status };
     if (status !== item.status && rank !== undefined) changes.rank = rank;
+    // Name the card it lands before: equal ranks cannot say which side of a tie a drop meant.
+    if (at < others.length) changes.before = others[at].key;
     const movedIn = project.key;
     const stale = () => shownProject.current !== movedIn;
     const original = columns.flatMap((c) => c.items).find((i) => i.key === item.key);
@@ -170,6 +172,8 @@ export default function WorkBoard() {
         setColumns((cols) => (cols || []).map((c) => ({
           ...c, items: c.items.map((i) => (i.key === item.key ? { ...i, ...view.item } : i)),
         })));
+        // A different rank back means the server renumbered the column to keep the drop's place: show its order.
+        if (rank !== undefined && view.item.rank !== rank) load();
         setAnnouncement(`Moved ${item.key} to ${STATUS_LABELS[status] || status}.`);
         // A person is never locked out of a claimed item, but the move ends the claim: say so once it has happened.
         if (original?.claimedByAgent != null && view.item.claimedByAgent == null) {

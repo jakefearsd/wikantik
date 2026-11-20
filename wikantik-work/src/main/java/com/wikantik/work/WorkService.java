@@ -335,9 +335,28 @@ public class WorkService {
             : CloseRules.NONE;
         final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
         scopes.gates().requireNoLoosening( s, is.item(), next );
+        final Long beforeId = changes.containsKey( "before" ) ? beforeCard( next, changes ) : null;
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
-        final Item saved = claims.write( stamped, next, actor, patch.note(), false, action, rules );
+        Item saved = claims.write( stamped, next, actor, patch.note(), false, action, rules );
+        if ( changes.keySet().stream().anyMatch( ItemPatchApplier.MOVE_KEYS::contains )
+                && store.renumberColumn( saved.projectId(), saved.status(), saved.id(), beforeId ) ) {
+            saved = store.itemById( saved.id() ).orElse( saved );
+        }
         return views.view( s, saved );
+    }
+
+    /**
+     * The card a move asks to be placed before: it must be another card of the moved card's project and target
+     * column. An unknown key, another project's and another column's are indistinguishable by design.
+     */
+    private Long beforeCard( final Item moved, final Map< String, Object > changes ) throws SQLException {
+        final String key = ItemPatchApplier.beforeKey( changes ).trim().toUpperCase( java.util.Locale.ROOT );
+        final Item before = ItemKeys.PATTERN.matcher( key ).matches() ? store.item( key ).orElse( null ) : null;
+        if ( before == null || before.projectId() != moved.projectId() || before.status() != moved.status()
+                || before.id() == moved.id() ) {
+            throw new WorkValidationException( "before", "The card to place this before is not in that column." );
+        }
+        return before.id();
     }
 
     /** The item's effective autonomy policy and whether it waits for a person's acknowledgement. */

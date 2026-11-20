@@ -254,6 +254,12 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         return writes.writeItem( current, next, by, note, asHandoff, new CloseRules( ackRequired, false ) );
     }
 
+    @Override
+    public boolean renumberColumn( final long projectId, final WorkStatus status, final long movedItemId,
+                                   final Long beforeItemId ) throws SQLException {
+        return writes.renumberColumn( projectId, status, movedItemId, beforeItemId );
+    }
+
     // ---- queries
 
     @Override

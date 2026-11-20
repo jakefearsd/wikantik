@@ -162,7 +162,45 @@ describe('WorkBoard', () => {
     cards[1].closest('.work-card').getBoundingClientRect = () => ({ top: 100, height: 20 });
     await dragTo('Item 1', 'review', { clientY: 50 });
     await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-1',
-      { expectedVersion: 1, changes: { status: 'review', rank: 1500 } }));
+      { expectedVersion: 1, changes: { status: 'review', rank: 1500, before: 'PLAT-4' } }));
+  });
+
+  describe('board order', () => {
+    async function dropBetween3and4(reply) {
+      board = boardOf({ ready: [item(1, 'ready')], review: [item(3, 'review', { rank: 1000 }), item(4, 'review', { rank: 2000 })] });
+      patchItem.mockResolvedValue({ item: reply });
+      renderBoard();
+      const cards = await screen.findAllByText(/Item [34]/);
+      cards[0].closest('.work-card').getBoundingClientRect = () => ({ top: 0, height: 20 });
+      cards[1].closest('.work-card').getBoundingClientRect = () => ({ top: 100, height: 20 });
+      await dragTo('Item 1', 'review', { clientY: 50 });
+      await waitFor(() => expect(patchItem).toHaveBeenCalled());
+    }
+
+    it('sends the key of the card it was dropped before', async () => {
+      await dropBetween3and4(item(1, 'review', { rank: 1500 }));
+      expect(patchItem.mock.calls[0][1].changes.before).toBe('PLAT-4');
+    });
+
+    it('sends no before when dropped at the end of a column', async () => {
+      board = boardOf({ ready: [item(1, 'ready')], review: [item(3, 'review')] });
+      patchItem.mockResolvedValue({ item: item(1, 'review') });
+      renderBoard();
+      await dragTo('Item 1', 'review');
+      await waitFor(() => expect(patchItem).toHaveBeenCalled());
+      expect(patchItem.mock.calls[0][1].changes).not.toHaveProperty('before');
+    });
+
+    it('reloads the board when the server renumbered the column', async () => {
+      await dropBetween3and4(item(1, 'review', { rank: 4096 }));
+      await waitFor(() => expect(getBoard).toHaveBeenCalledTimes(2));
+    });
+
+    it('does not reload when the server kept the rank', async () => {
+      await dropBetween3and4(item(1, 'review', { rank: 1500 }));
+      await waitFor(() => expect(within(column('review')).getByText('Item 1')).toBeInTheDocument());
+      expect(getBoard).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('dropping a queued card on In progress shows the server rule and puts the card back', async () => {

@@ -33,10 +33,10 @@ final class ItemPatchApplier {
 
     /** The closed set of keys an {@link ItemPatch} may carry. */
     static final Set< String > KEYS = Set.of( "title", "body", "status", "priority", "rank", "dueOn", "assignee",
-        "queue", "parentKey", "productKey", "kind", "autonomy", "doneMeans", "allowDirect" );
+        "queue", "parentKey", "productKey", "kind", "autonomy", "doneMeans", "allowDirect", "before" );
 
     static final Set< String > POLICY_KEYS = Set.of( "autonomy", "doneMeans", "allowDirect" );
-    static final Set< String > MOVE_KEYS = Set.of( "status", "rank" );
+    static final Set< String > MOVE_KEYS = Set.of( "status", "rank", "before" );
 
     static final int MAX_TITLE = 200;
     private static final double RANK_STEP = 1024.0;
@@ -89,6 +89,9 @@ final class ItemPatchApplier {
                 throw new WorkValidationException( key, "Unknown field: " + key );
             }
         }
+        if ( changes.containsKey( "before" ) ) {
+            beforeKey( changes );
+        }
         Long parentId = current.parentId();
         Item newParent = null;
         if ( changes.containsKey( "parentKey" ) ) {
@@ -109,6 +112,15 @@ final class ItemPatchApplier {
         ItemTargets.requireClaimForQueuedWork( current, next );
         checkHandoffNote( current, next, note );
         return next;
+    }
+
+    /** The key a move asks to be placed before, validated as non-blank text; null when the patch has none. */
+    static String beforeKey( final Map< String, Object > changes ) {
+        final String key = PatchValues.string( "before", changes.get( "before" ) );
+        if ( changes.containsKey( "before" ) && ( key == null || key.isBlank() ) ) {
+            throw new WorkValidationException( "before", "before must name a card." );
+        }
+        return key;
     }
 
     /** The current item with the patched fields replaced; the fields resolved by {@link #apply} come in ready. */

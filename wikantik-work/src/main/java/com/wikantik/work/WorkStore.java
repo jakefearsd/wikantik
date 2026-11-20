@@ -111,6 +111,17 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
         return writeItem( current, next, by, note, asHandoff, rules.ackRequired() );
     }
 
+    /**
+     * Gives the column the order a move asked for, in its own transaction with the column's rows locked. The wanted
+     * order is the other cards in {@code (rank, id)} order with {@code movedItemId} immediately before
+     * {@code beforeItemId}, or, when that is null, after every card whose rank is at most its own. When the moved
+     * card's rank is unique and strictly between its wanted neighbours nothing changes and this returns false;
+     * otherwise every card in the column gets {@code rank = (position + 1) * 1024}, with no version bump and no event
+     * (rank is presentation order, not an event field), and this returns true.
+     */
+    boolean renumberColumn( long projectId, WorkStatus status, long movedItemId, Long beforeItemId )
+            throws SQLException;
+
     /** {@link #writeItem} with field events. */
     default Item updateItem( final Item current, final Item next, final Actor by, final String note )
             throws SQLException {

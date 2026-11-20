@@ -20,9 +20,12 @@ package com.wikantik.work;
 
 import com.wikantik.jdbc.NullableColumns;
 import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.SqlBinder;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import static com.wikantik.work.SqlValues.autonomyWire;
@@ -40,6 +43,7 @@ import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 final class JdbcWorkItemWrites {
 
     private static final long NO_HOLDER = -1L;
+    private static final double RANK_STEP = 1024.0;
 
     private final Jdbc jdbc;
     private final JdbcWorkStore store;
@@ -90,6 +94,57 @@ final class JdbcWorkItemWrites {
                 store.appendEvent( conn, WorkEventDiff.releasedEvent( current, next, by, holder ) );
             }
             return new WorkStore.ItemWrite( store.itemById( conn, current.id() ), ended ? holder : null );
+        } );
+    }
+
+    private record Ranked( long id, double rank ) {
+    }
+
+    /**
+     * Gives a column the order a move asked for. A column is ordered by {@code (rank, id)} and a client drops a card
+     * between two equal ranks by sending that same rank, so the order is renumbered when the moved card does not sit
+     * strictly between its wanted neighbours. Writes rank only: no version, no event, no revision.
+     *
+     * @return true when ranks were rewritten
+     */
+    boolean renumberColumn( final long projectId, final WorkStatus status, final long movedItemId,
+                            final Long beforeItemId ) throws SQLException {
+        return jdbc.inTransaction( conn -> {
+            final List< Ranked > column = jdbc.query( conn, "SELECT id, rank FROM work_item WHERE project_id = ? "
+                    + "AND status = ? ORDER BY rank, id FOR UPDATE",
+                ps -> { ps.setLong( 1, projectId ); ps.setString( 2, status.wire() ); },
+                rs -> new Ranked( rs.getLong( 1 ), rs.getDouble( 2 ) ) );
+            final Ranked moved = column.stream().filter( r -> r.id() == movedItemId ).findFirst().orElse( null );
+            if ( moved == null ) {
+                return false;
+            }
+            final List< Ranked > wanted = new ArrayList<>( column );
+            wanted.remove( moved );
+            int at = wanted.size();
+            if ( beforeItemId != null ) {
+                for ( int i = 0; i < wanted.size(); i++ ) {
+                    if ( wanted.get( i ).id() == beforeItemId ) {
+                        at = i;
+                        break;
+                    }
+                }
+            } else {
+                at = (int) wanted.stream().filter( r -> r.rank() <= moved.rank() ).count();
+            }
+            final boolean afterPrev = at == 0 || wanted.get( at - 1 ).rank() < moved.rank();
+            final boolean beforeNext = at == wanted.size() || moved.rank() < wanted.get( at ).rank();
+            if ( afterPrev && beforeNext ) {
+                return false;
+            }
+            wanted.add( at, moved );
+            final List< SqlBinder > binders = new ArrayList<>();
+            for ( int i = 0; i < wanted.size(); i++ ) {
+                final long id = wanted.get( i ).id();
+                final double rank = ( i + 1 ) * RANK_STEP;
+                binders.add( ps -> { ps.setDouble( 1, rank ); ps.setLong( 2, id ); } );
+            }
+            jdbc.batch( conn, "UPDATE work_item SET rank = ? WHERE id = ?", binders );
+            return true;
         } );
     }
 

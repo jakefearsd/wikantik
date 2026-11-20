@@ -328,13 +328,13 @@ describe('WorkBoard moves', () => {
 
   it('puts a card above the first card of a column with a rank 1024 lower', async () => {
     board = boardOf({ ready: [item(1, 'ready')], review: [item(3, 'review', { rank: 2000 }), item(4, 'review', { rank: 3000 })] });
-    patchItem.mockResolvedValue({ item: item(1, 'review') });
+    patchItem.mockResolvedValue({ item: item(1, 'review', { rank: 976 }) });
     renderBoard();
     const cards = await screen.findAllByText(/Item [34]/);
     cards[0].closest('.work-card').getBoundingClientRect = () => ({ top: 100, height: 20 });
     cards[1].closest('.work-card').getBoundingClientRect = () => ({ top: 200, height: 20 });
     await dragTo('Item 1', 'review', { clientY: 10 });
-    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-1', { expectedVersion: 1, changes: { status: 'review', rank: 976 } }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-1', { expectedVersion: 1, changes: { status: 'review', rank: 976, before: 'PLAT-3' } }));
     await waitFor(() => expect(within(column('review')).getAllByText(/^Item [134]$/).map((n) => n.textContent)).toEqual(['Item 1', 'Item 3', 'Item 4']));
   });
 

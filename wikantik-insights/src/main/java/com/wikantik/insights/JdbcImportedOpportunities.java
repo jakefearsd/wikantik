@@ -34,9 +34,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.wikantik.insights.JdbcColumns.getNullableDouble;
-import static com.wikantik.insights.JdbcColumns.setNullableDouble;
-import static com.wikantik.insights.JdbcColumns.setNullableString;
+import static com.wikantik.jdbc.NullableColumns.getNullableDouble;
+import static com.wikantik.jdbc.NullableColumns.setNullableDouble;
+import static com.wikantik.jdbc.NullableColumns.setNullableString;
 
 /**
  * Opportunities imported from jakemon: the upsert path and the freshness-guarded read. Held by

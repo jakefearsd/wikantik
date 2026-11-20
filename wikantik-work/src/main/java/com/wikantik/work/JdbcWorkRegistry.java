@@ -18,6 +18,7 @@
  */
 package com.wikantik.work;
 
+import com.wikantik.jdbc.NullableColumns;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.RowMapper;
 import com.wikantik.jdbc.SqlBinder;
@@ -30,7 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
-import static com.wikantik.work.SqlValues.instant;
+import static com.wikantik.jdbc.NullableColumns.getInstant;
 import static com.wikantik.work.SqlValues.timestamp;
 
 /** Queues and the agent registry; the base of {@link JdbcWorkCatalog}, so {@link JdbcWorkStore} inherits them. */
@@ -39,14 +40,14 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
     private static final String QUEUE_COLUMNS = "key, name, description, retired_at";
 
     private static final RowMapper< Queue > QUEUE_ROW = rs -> new Queue( rs.getString( "key" ),
-        rs.getString( "name" ), rs.getString( "description" ), instant( rs, "retired_at" ) );
+        rs.getString( "name" ), rs.getString( "description" ), getInstant( rs, "retired_at" ) );
 
     private static final RowMapper< Agent > AGENT_ROW = rs -> {
         final Array keys = rs.getArray( "queues" );
         final String[] queues = keys == null ? new String[ 0 ] : ( String[] ) keys.getArray();
         return new Agent( rs.getLong( "id" ), rs.getString( "name" ), rs.getString( "vendor" ),
             rs.getString( "runtime" ), rs.getString( "sponsor" ), List.of( queues ),
-            instant( rs, "created_at" ), instant( rs, "retired_at" ) );
+            getInstant( rs, "created_at" ), getInstant( rs, "retired_at" ) );
     };
 
     private static final String AGENT_SELECT = """
@@ -145,7 +146,7 @@ abstract class JdbcWorkRegistry implements WorkRegistryStore {
         return jdbc.query( "SELECT sponsor, since, changed_by FROM work_agent_sponsor_history WHERE agent_id = ? "
                 + "ORDER BY since DESC, id DESC",
             ps -> ps.setLong( 1, agentId ),
-            rs -> new SponsorChange( rs.getString( "sponsor" ), instant( rs, "since" ), rs.getString( "changed_by" ) ) );
+            rs -> new SponsorChange( rs.getString( "sponsor" ), getInstant( rs, "since" ), rs.getString( "changed_by" ) ) );
     }
 
     @Override

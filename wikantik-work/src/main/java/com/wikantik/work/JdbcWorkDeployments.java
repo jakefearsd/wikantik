@@ -18,6 +18,7 @@
  */
 package com.wikantik.work;
 
+import com.wikantik.jdbc.NullableColumns;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.RowMapper;
 
@@ -28,9 +29,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.wikantik.work.SqlValues.actorKindWire;
-import static com.wikantik.work.SqlValues.instant;
-import static com.wikantik.work.SqlValues.nullableLong;
-import static com.wikantik.work.SqlValues.setNullableLong;
+import static com.wikantik.jdbc.NullableColumns.getInstant;
+import static com.wikantik.jdbc.NullableColumns.getNullableLong;
+import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 
 /** The PostgreSQL {@link WorkDeploymentStore}. */
 final class JdbcWorkDeployments implements WorkDeploymentStore {
@@ -49,15 +50,15 @@ final class JdbcWorkDeployments implements WorkDeploymentStore {
     private static final RowMapper< Deployment > ROW = rs -> new Deployment( rs.getLong( "id" ),
         rs.getLong( "product_id" ), rs.getString( "environment" ), rs.getString( "version" ),
         DeploymentState.fromWire( rs.getString( "state" ) ), rs.getString( "requested_by" ),
-        nullableLong( rs, "requested_by_agent_id" ), rs.getString( "approved_by" ),
-        nullableLong( rs, "approved_by_agent_id" ), instant( rs, "requested_at" ), instant( rs, "approved_at" ),
-        instant( rs, "started_at" ), instant( rs, "verified_at" ), instant( rs, "closed_at" ),
+        getNullableLong( rs, "requested_by_agent_id" ), rs.getString( "approved_by" ),
+        getNullableLong( rs, "approved_by_agent_id" ), getInstant( rs, "requested_at" ), getInstant( rs, "approved_at" ),
+        getInstant( rs, "started_at" ), getInstant( rs, "verified_at" ), getInstant( rs, "closed_at" ),
         rs.getString( "evidence" ), ids( rs.getArray( "item_ids" ) ) );
 
     private static final RowMapper< DeploymentEvent > EVENT_ROW = rs -> new DeploymentEvent( rs.getLong( "id" ),
-        rs.getLong( "deployment_id" ), instant( rs, "at" ), rs.getString( "actor" ),
+        rs.getLong( "deployment_id" ), getInstant( rs, "at" ), rs.getString( "actor" ),
         "agent".equals( rs.getString( "actor_kind" ) ) ? Actor.Kind.AGENT : Actor.Kind.HUMAN,
-        nullableLong( rs, "agent_id" ),
+        getNullableLong( rs, "agent_id" ),
         rs.getString( "from_state" ) == null ? null : DeploymentState.fromWire( rs.getString( "from_state" ) ),
         DeploymentState.fromWire( rs.getString( "to_state" ) ), rs.getString( "note" ) );
 

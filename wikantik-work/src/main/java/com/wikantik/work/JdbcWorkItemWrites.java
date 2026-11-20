@@ -18,6 +18,7 @@
  */
 package com.wikantik.work;
 
+import com.wikantik.jdbc.NullableColumns;
 import com.wikantik.jdbc.Jdbc;
 
 import java.sql.Connection;
@@ -27,9 +28,9 @@ import java.util.Objects;
 import static com.wikantik.work.SqlValues.autonomyWire;
 import static com.wikantik.work.SqlValues.doneMeansWire;
 import static com.wikantik.work.SqlValues.isClosed;
-import static com.wikantik.work.SqlValues.setNullableBoolean;
-import static com.wikantik.work.SqlValues.setNullableDate;
-import static com.wikantik.work.SqlValues.setNullableLong;
+import static com.wikantik.jdbc.NullableColumns.setNullableBoolean;
+import static com.wikantik.jdbc.NullableColumns.setNullableDate;
+import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 
 /**
  * The one statement sequence that changes an item: lock the row, fence an agent off another agent's claim, update,

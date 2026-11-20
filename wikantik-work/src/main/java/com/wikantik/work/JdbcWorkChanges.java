@@ -18,6 +18,7 @@
  */
 package com.wikantik.work;
 
+import com.wikantik.jdbc.NullableColumns;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.RowMapper;
 import com.wikantik.jdbc.SqlBinder;
@@ -30,8 +31,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static com.wikantik.work.SqlValues.instant;
-import static com.wikantik.work.SqlValues.setNullableLong;
+import static com.wikantik.jdbc.NullableColumns.getInstant;
+import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 
 /** The PostgreSQL {@link WorkChangeStore}. */
 final class JdbcWorkChanges implements WorkChangeStore {
@@ -49,10 +50,10 @@ final class JdbcWorkChanges implements WorkChangeStore {
         rs.getString( "head_sha" ), rs.getString( "review_url" ), ChangeState.fromWire( rs.getString( "state" ) ),
         rs.getString( "merged_sha" ),
         rs.getString( "merge_kind" ) == null ? null : MergeKind.fromWire( rs.getString( "merge_kind" ) ),
-        rs.getString( "opened_by" ), SqlValues.nullableLong( rs, "opened_by_agent_id" ),
-        rs.getString( "reviewed_by" ), SqlValues.nullableLong( rs, "reviewed_by_agent_id" ),
-        rs.getString( "reviewed_head_sha" ), instant( rs, "reviewed_at" ), rs.getString( "merged_by" ),
-        SqlValues.nullableLong( rs, "merged_by_agent_id" ), instant( rs, "opened_at" ), instant( rs, "closed_at" ),
+        rs.getString( "opened_by" ), NullableColumns.getNullableLong( rs, "opened_by_agent_id" ),
+        rs.getString( "reviewed_by" ), NullableColumns.getNullableLong( rs, "reviewed_by_agent_id" ),
+        rs.getString( "reviewed_head_sha" ), getInstant( rs, "reviewed_at" ), rs.getString( "merged_by" ),
+        NullableColumns.getNullableLong( rs, "merged_by_agent_id" ), getInstant( rs, "opened_at" ), getInstant( rs, "closed_at" ),
         agentIds( rs.getArray( "head_agent_ids" ) ) );
 
     private static List< Long > agentIds( final java.sql.Array array ) throws SQLException {
@@ -119,7 +120,7 @@ final class JdbcWorkChanges implements WorkChangeStore {
         final LockedItem locked = jdbc.queryOne( conn,
             "SELECT status, product_id, claimed_by_agent FROM work_item WHERE id = ? FOR SHARE",
             ps -> ps.setLong( 1, item.id() ), rs -> new LockedItem( WorkStatus.fromWire( rs.getString( 1 ) ),
-                SqlValues.nullableLong( rs, "product_id" ), SqlValues.nullableLong( rs, "claimed_by_agent" ) ) )
+                NullableColumns.getNullableLong( rs, "product_id" ), NullableColumns.getNullableLong( rs, "claimed_by_agent" ) ) )
             .orElseThrow( () -> new SQLException( "work_item " + item.id() + " not found" ) );
         if ( by.kind() == Actor.Kind.AGENT && locked.holder() != null && !locked.holder().equals( by.agentId() ) ) {
             throw new ClaimFenceException();

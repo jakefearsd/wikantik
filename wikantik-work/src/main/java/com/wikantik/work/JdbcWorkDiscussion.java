@@ -18,8 +18,9 @@
  */
 package com.wikantik.work;
 
-import static com.wikantik.work.SqlValues.nullableLong;
-import static com.wikantik.work.SqlValues.setNullableLong;
+import com.wikantik.jdbc.NullableColumns;
+import static com.wikantik.jdbc.NullableColumns.getNullableLong;
+import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.RowMapper;
 
@@ -48,7 +49,7 @@ final class JdbcWorkDiscussion {
         return new Comment( rs.getLong( "id" ), rs.getLong( "item_id" ), rs.getString( "author" ),
             removed == null ? rs.getString( "body" ) : "", created == null ? null : created.toInstant(),
             edited == null ? null : edited.toInstant(), removed == null ? null : removed.toInstant(),
-            nullableLong( rs, "author_agent_id" ) );
+            getNullableLong( rs, "author_agent_id" ) );
     };
 
     private static final RowMapper< Link > LINK_ROW = rs -> new Link( rs.getLong( "id" ), rs.getLong( "item_id" ),

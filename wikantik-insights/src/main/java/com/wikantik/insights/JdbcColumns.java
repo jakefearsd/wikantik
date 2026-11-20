@@ -21,42 +21,13 @@ package com.wikantik.insights;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.SqlBinder;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.util.List;
 
-/** Column-level helpers shared by the per-aggregate JDBC stores: nullable binds, nullable reads, batch totals. */
+/** Batch helper shared by the per-aggregate JDBC stores (nullable column helpers live in {@code NullableColumns}). */
 final class JdbcColumns {
 
     private JdbcColumns() {
-    }
-
-    /** Binds {@code value}, or SQL NULL typed VARCHAR when it is {@code null}. */
-    static void setNullableString( final PreparedStatement ps, final int index, final String value )
-            throws SQLException {
-        if ( value == null ) {
-            ps.setNull( index, Types.VARCHAR );
-        } else {
-            ps.setString( index, value );
-        }
-    }
-
-    /** Binds {@code value}, or SQL NULL typed NUMERIC when it is {@code null}. */
-    static void setNullableDouble( final PreparedStatement ps, final int index, final Double value )
-            throws SQLException {
-        if ( value == null ) {
-            ps.setNull( index, Types.NUMERIC );
-        } else {
-            ps.setDouble( index, value );
-        }
-    }
-
-    /** Reads a numeric column, mapping SQL NULL to {@code null}. */
-    static Double getNullableDouble( final ResultSet rs, final String column ) throws SQLException {
-        final double value = rs.getDouble( column );
-        return rs.wasNull() ? null : value;
     }
 
     /** Runs {@code sql} once per binder as a JDBC batch and returns the total rows affected (negative counts as 0). */

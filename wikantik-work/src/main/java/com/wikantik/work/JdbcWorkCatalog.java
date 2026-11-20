@@ -18,6 +18,7 @@
  */
 package com.wikantik.work;
 
+import com.wikantik.jdbc.NullableColumns;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.RowMapper;
 
@@ -30,8 +31,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 import static com.wikantik.work.SqlValues.actorKindWire;
-import static com.wikantik.work.SqlValues.instant;
-import static com.wikantik.work.SqlValues.setNullableLong;
+import static com.wikantik.jdbc.NullableColumns.getInstant;
+import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 import static com.wikantik.work.SqlValues.timestamp;
 
 /** The project, membership and product half of the PostgreSQL {@link WorkStore}; {@link JdbcWorkStore} adds the items. */
@@ -46,7 +47,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     static final RowMapper< Project > PROJECT_ROW = rs -> new Project(
         rs.getLong( "id" ), rs.getString( "key" ), rs.getString( "name" ), rs.getString( "description" ),
         Autonomy.fromWire( rs.getString( "default_autonomy" ) ),
-        instant( rs, "created_at" ), instant( rs, "archived_at" ) );
+        getInstant( rs, "created_at" ), getInstant( rs, "archived_at" ) );
 
     private static final RowMapper< Member > MEMBER_ROW = rs -> new Member(
         rs.getLong( "project_id" ), rs.getString( "principal" ), rs.getString( "principal_kind" ),
@@ -56,7 +57,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
         rs.getLong( "id" ), rs.getString( "key" ), rs.getString( "name" ), rs.getString( "repo_url" ),
         rs.getString( "default_branch" ), rs.getString( "wiki_cluster" ),
         Autonomy.fromWire( rs.getString( "autonomy_ceiling" ) ),
-        DeployGate.fromWire( rs.getString( "deploy_gate" ) ), instant( rs, "archived_at" ) );
+        DeployGate.fromWire( rs.getString( "deploy_gate" ) ), getInstant( rs, "archived_at" ) );
 
     private static final String ROLES_FOR_SQL = """
         SELECT role FROM work_member

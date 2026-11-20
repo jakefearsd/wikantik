@@ -18,34 +18,13 @@
  */
 package com.wikantik.work;
 
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.sql.Types;
 import java.time.Instant;
-import java.time.LocalDate;
 
-/** Column and parameter conversions shared by the JDBC work stores. */
+/** Work-domain value conversions shared by the JDBC work stores (generic nullable column helpers live in {@code NullableColumns}). */
 final class SqlValues {
 
     private SqlValues() {
-    }
-
-    static Instant instant( final ResultSet rs, final String column ) throws SQLException {
-        final Timestamp ts = rs.getTimestamp( column );
-        return ts == null ? null : ts.toInstant();
-    }
-
-    static Long nullableLong( final ResultSet rs, final String column ) throws SQLException {
-        final long v = rs.getLong( column );
-        return rs.wasNull() ? null : v;
-    }
-
-    static LocalDate localDate( final ResultSet rs, final String column ) throws SQLException {
-        final Date d = rs.getDate( column );
-        return d == null ? null : d.toLocalDate();
     }
 
     static Timestamp timestamp( final Instant at ) {
@@ -62,33 +41,6 @@ final class SqlValues {
 
     static String doneMeansWire( final DoneMeans d ) {
         return d == null ? null : d.wire();
-    }
-
-    static void setNullableLong( final PreparedStatement ps, final int idx, final Long v )
-            throws SQLException {
-        if ( v == null ) {
-            ps.setNull( idx, Types.BIGINT );
-        } else {
-            ps.setLong( idx, v );
-        }
-    }
-
-    static void setNullableBoolean( final PreparedStatement ps, final int idx, final Boolean v )
-            throws SQLException {
-        if ( v == null ) {
-            ps.setNull( idx, Types.BOOLEAN );
-        } else {
-            ps.setBoolean( idx, v );
-        }
-    }
-
-    static void setNullableDate( final PreparedStatement ps, final int idx, final LocalDate v )
-            throws SQLException {
-        if ( v == null ) {
-            ps.setNull( idx, Types.DATE );
-        } else {
-            ps.setDate( idx, Date.valueOf( v ) );
-        }
     }
 
     static String actorKindWire( final Actor.Kind kind ) {

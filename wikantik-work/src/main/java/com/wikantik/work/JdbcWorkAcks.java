@@ -18,6 +18,7 @@
  */
 package com.wikantik.work;
 
+import com.wikantik.jdbc.NullableColumns;
 import com.wikantik.jdbc.Jdbc;
 
 import java.sql.SQLException;
@@ -39,7 +40,7 @@ final class JdbcWorkAcks implements WorkAckStore {
     public Ack state( final long itemId ) throws SQLException {
         return jdbc.queryOne( "SELECT ack_required, acknowledged_by, acknowledged_at FROM work_item WHERE id = ?",
             ps -> ps.setLong( 1, itemId ), rs -> new Ack( rs.getBoolean( "ack_required" ),
-                rs.getString( "acknowledged_by" ), SqlValues.instant( rs, "acknowledged_at" ) ) )
+                rs.getString( "acknowledged_by" ), NullableColumns.getInstant( rs, "acknowledged_at" ) ) )
             .orElse( Ack.NONE );
     }
 

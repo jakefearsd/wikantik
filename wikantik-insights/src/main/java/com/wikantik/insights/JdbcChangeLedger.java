@@ -33,9 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.wikantik.insights.JdbcColumns.getNullableDouble;
-import static com.wikantik.insights.JdbcColumns.setNullableDouble;
-import static com.wikantik.insights.JdbcColumns.setNullableString;
+import static com.wikantik.jdbc.NullableColumns.getNullableDouble;
+import static com.wikantik.jdbc.NullableColumns.setNullableDouble;
+import static com.wikantik.jdbc.NullableColumns.setNullableString;
 
 /**
  * The content-change ledger: recorded changes, their measured effects and calibration inputs,

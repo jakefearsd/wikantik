@@ -18,6 +18,7 @@
  */
 package com.wikantik.work;
 
+import com.wikantik.jdbc.NullableColumns;
 import com.wikantik.jdbc.Jdbc;
 import com.wikantik.jdbc.RowMapper;
 import com.wikantik.jdbc.SqlBinder;
@@ -35,13 +36,13 @@ import java.util.Set;
 
 import static com.wikantik.work.SqlValues.autonomyWire;
 import static com.wikantik.work.SqlValues.doneMeansWire;
-import static com.wikantik.work.SqlValues.instant;
+import static com.wikantik.jdbc.NullableColumns.getInstant;
 import static com.wikantik.work.SqlValues.isClosed;
-import static com.wikantik.work.SqlValues.localDate;
-import static com.wikantik.work.SqlValues.nullableLong;
-import static com.wikantik.work.SqlValues.setNullableBoolean;
-import static com.wikantik.work.SqlValues.setNullableDate;
-import static com.wikantik.work.SqlValues.setNullableLong;
+import static com.wikantik.jdbc.NullableColumns.getLocalDate;
+import static com.wikantik.jdbc.NullableColumns.getNullableLong;
+import static com.wikantik.jdbc.NullableColumns.setNullableBoolean;
+import static com.wikantik.jdbc.NullableColumns.setNullableDate;
+import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 
 /** PostgreSQL implementation of {@link WorkStore}; all access goes through {@link Jdbc}. */
 public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
@@ -56,16 +57,16 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     static final RowMapper< Item > ITEM_ROW = rs -> new Item(
         rs.getLong( "id" ), rs.getLong( "project_id" ), rs.getString( "item_key" ),
-        WorkLevel.fromWire( rs.getString( "level" ) ), nullableLong( rs, "parent_id" ),
-        nullableLong( rs, "product_id" ), WorkKind.fromWire( rs.getString( "kind" ) ), rs.getString( "title" ),
+        WorkLevel.fromWire( rs.getString( "level" ) ), getNullableLong( rs, "parent_id" ),
+        getNullableLong( rs, "product_id" ), WorkKind.fromWire( rs.getString( "kind" ) ), rs.getString( "title" ),
         rs.getString( "body" ), WorkStatus.fromWire( rs.getString( "status" ) ), rs.getInt( "priority" ),
-        rs.getDouble( "rank" ), localDate( rs, "due_on" ), rs.getString( "assignee" ), rs.getString( "reporter" ),
+        rs.getDouble( "rank" ), getLocalDate( rs, "due_on" ), rs.getString( "assignee" ), rs.getString( "reporter" ),
         rs.getString( "autonomy" ) == null ? null : Autonomy.fromWire( rs.getString( "autonomy" ) ),
         rs.getString( "done_means" ) == null ? null : DoneMeans.fromWire( rs.getString( "done_means" ) ),
         (Boolean) rs.getObject( "allow_direct" ), rs.getInt( "version" ),
-        instant( rs, "created_at" ), instant( rs, "updated_at" ), instant( rs, "closed_at" ),
-        rs.getString( "assignee_queue" ), nullableLong( rs, "claimed_by_agent" ), instant( rs, "claimed_at" ),
-        instant( rs, "claim_expires_at" ), nullableLong( rs, "reporter_agent_id" ) );
+        getInstant( rs, "created_at" ), getInstant( rs, "updated_at" ), getInstant( rs, "closed_at" ),
+        rs.getString( "assignee_queue" ), getNullableLong( rs, "claimed_by_agent" ), getInstant( rs, "claimed_at" ),
+        getInstant( rs, "claim_expires_at" ), getNullableLong( rs, "reporter_agent_id" ) );
 
     static final String EVENT_COLUMNS = """
         e.id, e.project_id, e.item_id,
@@ -82,10 +83,10 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     private static final String EVENT_SELECT = "SELECT " + EVENT_COLUMNS + EVENT_FROM;
 
     static final RowMapper< WorkEvent > EVENT_ROW = rs -> new WorkEvent(
-        rs.getLong( "id" ), rs.getLong( "project_id" ), nullableLong( rs, "item_id" ), rs.getString( "item_key" ),
-        instant( rs, "at" ), rs.getString( "actor" ), "agent".equals( rs.getString( "actor_kind" ) )
+        rs.getLong( "id" ), rs.getLong( "project_id" ), getNullableLong( rs, "item_id" ), rs.getString( "item_key" ),
+        getInstant( rs, "at" ), rs.getString( "actor" ), "agent".equals( rs.getString( "actor_kind" ) )
             ? Actor.Kind.AGENT : Actor.Kind.HUMAN,
-        nullableLong( rs, "agent_id" ), rs.getString( "type" ), rs.getString( "from_value" ),
+        getNullableLong( rs, "agent_id" ), rs.getString( "type" ), rs.getString( "from_value" ),
         rs.getString( "to_value" ), rs.getString( "note" ) );
 
     private static final int DEFAULT_ITEM_LIMIT = 200;
@@ -293,7 +294,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
                 + "WHERE item_id = ? ORDER BY version",
             ps -> ps.setLong( 1, itemId ), rs -> new ItemRevision( rs.getLong( "item_id" ), rs.getInt( "version" ),
                 rs.getString( "title" ), rs.getString( "body" ), rs.getString( "edited_by" ),
-                instant( rs, "edited_at" ), nullableLong( rs, "edited_by_agent_id" ) ) );
+                getInstant( rs, "edited_at" ), getNullableLong( rs, "edited_by_agent_id" ) ) );
     }
 
     @Override

@@ -33,7 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static com.wikantik.insights.JdbcColumns.getNullableDouble;
+import static com.wikantik.jdbc.NullableColumns.getNullableDouble;
 
 /**
  * Search-visibility snapshots: the upsert ingest path, the latest-snapshot reads and the
@@ -236,7 +236,7 @@ final class JdbcVisibilityStore {
                         ps.setDate( 3, Date.valueOf( snapshotDate ) );
                     },
                     rs -> new EngineTotal( rs.getString( "engine" ), rs.getLong( "clicks" ),
-                            rs.getLong( "impressions" ), JdbcColumns.getNullableDouble( rs, "avg_position" ) ) );
+                            rs.getLong( "impressions" ), getNullableDouble( rs, "avg_position" ) ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read visibility engine totals for site {} date {}: {}",
                     siteHost, snapshotDate, e.getMessage(), e );
@@ -278,7 +278,7 @@ final class JdbcVisibilityStore {
                             rs.getString( "query_text" ),
                             rs.getInt( "impressions" ),
                             rs.getInt( "clicks" ),
-                            JdbcColumns.getNullableDouble( rs, "position" ) ) );
+                            getNullableDouble( rs, "position" ) ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read latest visibility rows per engine for site {} within {} days: {}",
                     siteHost, withinDays, e.getMessage(), e );

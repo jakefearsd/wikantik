@@ -65,7 +65,6 @@ public final class ConnectorConfigService {
     private static final Logger LOG = LogManager.getLogger( ConnectorConfigService.class );
 
     private static final String GLOBAL_INTERVAL_PROP = "wikantik.connectors.sync.interval.hours";
-    private static final String GDRIVE_CALLBACK_PATH = "/admin/connector-oauth/gdrive/callback";
 
     /** Config keys an admin must never put secret material under — those belong in the credentials
      *  endpoint ({@link CredentialStore}), not the plaintext {@code connector_configs.config} column.
@@ -184,7 +183,7 @@ public final class ConnectorConfigService {
      *  {@link ConnectorConfigCodec#UI_TYPES} (never {@code filesystem}, design D9) — an
      *  unrecognized/blank/null type yields a {@code connector_type} error without ever invoking
      *  {@link ConnectorConfigCodec#validate} (which NPEs on a null type). For {@code gdrive}, a
-     *  missing {@code redirect_uri} is defaulted from {@code wikantik.baseURL} before validation
+     *  missing {@code redirect_uri} is defaulted (see {@link ConnectorFactory#applyDefaults}) before validation
      *  so the wizard need not compute it. On success the row is persisted and the registry is
      *  hot-rebuilt. */
     public ConnectorConfigCodec.Validation create( final String id, final String type, final JsonObject config,
@@ -200,9 +199,7 @@ public final class ConnectorConfigService {
         }
         errors.putAll( secretKeyErrors( config ) );
         if ( !errors.isEmpty() ) return new ConnectorConfigCodec.Validation( errors );
-        if ( "gdrive".equals( type ) && config != null && isAbsent( config, "redirect_uri" ) ) {
-            config.addProperty( "redirect_uri", props.getProperty( "wikantik.baseURL", "" ) + GDRIVE_CALLBACK_PATH );
-        }
+        ConnectorFactories.forType( type ).ifPresent( factory -> factory.applyDefaults( config, props ) );
         errors.putAll( ConnectorConfigCodec.validate( type, config ).errors() );
         if ( !errors.isEmpty() ) return new ConnectorConfigCodec.Validation( errors );
 
@@ -344,8 +341,8 @@ public final class ConnectorConfigService {
             try {
                 final JsonObject cfg = JsonParser.parseString( row.configJson() ).getAsJsonObject();
                 final Object typed = ConnectorConfigCodec.toConfig( type, cfg );
-                if ( "gdrive".equals( type ) ) {
-                    drives.put( id, resolveDriveSecret( id, ( DriveConfig ) typed ) );
+                if ( typed instanceof DriveConfig drive ) {
+                    drives.put( id, DriveConnectorFactory.resolveSecret( id, drive, credStore ) );
                 }
                 if ( row.enabled() ) {
                     ConnectorAssembler.build( id, type, typed, credStore ).ifPresent( c -> byId.put( id, c ) );
@@ -385,16 +382,6 @@ public final class ConnectorConfigService {
             credStore.list( row.connectorId() ) );
     }
 
-    /** DB-origin {@code DriveConfig} records carry no client secret (never persisted in the config
-     *  row) — it lives in the {@link CredentialStore} under "client_secret" instead. Mirrors
-     *  {@code ConnectorAssembler.resolveDriveSecret}; duplicated here (small, private) rather than
-     *  shared, per the design brief. */
-    private DriveConfig resolveDriveSecret( final String id, final DriveConfig cfg ) {
-        if ( cfg.clientSecret() != null ) return cfg;
-        return new DriveConfig( cfg.folderIds(), cfg.maxFiles(), cfg.clientId(),
-            credStore.get( id, "client_secret" ).orElse( null ), cfg.redirectUri(), cfg.exportMimeType() );
-    }
-
     private long globalIntervalDefault() {
         try {
             return Long.parseLong( props.getProperty( GLOBAL_INTERVAL_PROP, "0" ).trim() );
@@ -419,17 +406,6 @@ public final class ConnectorConfigService {
             }
         }
         return errors;
-    }
-
-    private static boolean isAbsent( final JsonObject config, final String key ) {
-        if ( !config.has( key ) || config.get( key ).isJsonNull() ) return true;
-        try {
-            return config.get( key ).getAsString().isBlank();
-        } catch ( final RuntimeException e ) {
-            // The config is admin-submitted JSON, so a non-string value is bad input; treating it as absent makes validation report it.
-            LOG.debug( "Connector config key '{}' is not a readable string; treating it as absent: {}", key, e.getMessage() );
-            return true;
-        }
     }
 
     private static List< String > parseTags( final String raw ) {

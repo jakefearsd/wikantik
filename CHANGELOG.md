@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.7.2] - 2026-11-19
+
 ### Changed
 
 - The preview follows scrolling with less work per frame, so long pages scroll more smoothly.

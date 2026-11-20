@@ -21,6 +21,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  * @param {any[]} [deps]
  * @param {{refetchShowsLoading?: boolean}} [options]
  * @returns {{data: any, setData: Function, loading: boolean, error: string|null, reload: () => Promise<void>}}
+ *   `error` is the thrown error's message (possibly empty) or, for a thrown non-error, its string form.
  */
 export function useAdminResource(fetcher, deps = [], { refetchShowsLoading = false } = {}) {
   const [data, setData] = useState(null);
@@ -51,7 +52,8 @@ export function useAdminResource(fetcher, deps = [], { refetchShowsLoading = fal
       }
     } catch (err) {
       if (!controller.signal.aborted) {
-        setError(err?.message || String(err));
+        // An Error's message as-is, even an empty one (falsy: no banner); anything else as a string
+        setError(typeof err?.message === 'string' ? err.message : String(err));
       }
     } finally {
       if (!controller.signal.aborted) {

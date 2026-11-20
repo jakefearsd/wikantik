@@ -21,6 +21,20 @@ describe('useAdminResource', () => {
     expect(result.current.data).toBeNull();
   });
 
+  it('an error with an empty message is an empty string, so no banner shows (as the hand-rolled loaders did)', async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error(''));
+    const { result } = renderHook(() => useAdminResource(fetcher));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe('');
+  });
+
+  it('a thrown value with no message is reported as its string form', async () => {
+    const fetcher = vi.fn().mockRejectedValue('offline');
+    const { result } = renderHook(() => useAdminResource(fetcher));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe('offline');
+  });
+
   it('reload refreshes the data without ever setting loading again', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(2);
     const { result } = renderHook(() => useAdminResource(fetcher));

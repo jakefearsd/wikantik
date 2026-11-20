@@ -207,11 +207,13 @@ function GroupsSection() {
 
 /* ─── Grants Section ────────────────────────────────────────── */
 
+const NO_GRANTS = [];
+
 function GrantsSection() {
   const { data: loadedGrants, loading, error, reload: loadGrants } = useAdminResource(
     () => api.admin.listPolicyGrants().then(data => data.grants || []),
   );
-  const grants = loadedGrants ?? [];
+  const grants = loadedGrants ?? NO_GRANTS;
   const [message, setMessage] = useState(null);
 
   // Modal state

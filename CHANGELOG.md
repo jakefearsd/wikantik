@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Internal design pass with no change to what pages, the editor, the APIs or the agent tools do: the dense-search backends, connector types, REST path dispatch, the page API, Content Intelligence's opportunity rules and store, the reference index's saved snapshot, the login success path, the engine's start-up sequence and several editor and admin-screen internals were reorganised around shared building blocks.
+- A connector whose saved settings do not match its type is skipped with a warning naming the connector, instead of stopping the other connectors from starting.
+- Validating connector settings with no type returns an "unknown type" error instead of failing.
+- On the comment-thread, mentions and personal API-key endpoints, a doubled slash in the path is read as a single one (as Tomcat already normalises it).
+- On the admin screens that refresh their data, a successful refresh clears an error left over from an earlier failed one.
+- An unreadable or disallowed reference-index snapshot is logged as a warning with its cause (the index is then rebuilt, as before).
+
+### Fixed
+
+- Content Intelligence read a search result with no recorded ranking position as position 0 (a perfect rank), which could skew engine-divergence and stale-traffic opportunities.
+
 ## [2.7.3] - 2026-11-19
 
 ### Changed

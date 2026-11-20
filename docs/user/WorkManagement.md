@@ -42,16 +42,19 @@ A *project* is a team's board. Only its members (and wiki administrators) know i
    edits, comments, moves cards) or `lead` (also changes the project's policy and settings).
 
 **You should see:** the project on the Work home and an empty board. A person you added sees it too the next time
-they open `/work`; a person you did not add does not.
+they open `/work`; a person you did not add gets "Not found". Wiki administrators see every project without being
+members, so the project you just created may say "This project has no members" until you add people.
 
 ## 4. Items and the board
 
 Items come in three levels: an *epic* holds *stories*, and a story holds *tasks*. Every item has a status, shown
-as a board column: Draft, Refining, Ready, In progress, Review, Done (and Cancelled, off the board).
+as a board column: Draft, Refining, Ready, In progress, Review, Done and Cancelled. New items start as **drafts**,
+and the board hides Draft and Cancelled until you tick **Show draft and cancelled**.
 
-1. Choose **New item**, pick the kind and level, a title, and optionally a parent, product, priority, assignee and
-   due date, then **Create item**.
-2. Drag a card between columns to change its status, or up and down a column to change its order.
+1. Choose **New item**, pick the level (task, story or epic), a title, and optionally a description, parent,
+   product, assignee, kind, priority and due date, then **Create**.
+2. Move the draft to Ready with the card's **Move to…** menu (or tick Show draft and cancelled and drag it). Drag a
+   card between columns to change its status, or up and down a column to change its order.
 3. Open a card to see its page: the description, comments (mention someone with `@` and their name), links to
    other items (`blocked by`), its history, and its policy fields.
 
@@ -79,11 +82,13 @@ An item cannot be closed while one of its changes is still open or in review.
 A *deployment* is one product version going to an environment (production unless you name another), carrying the
 items it ships.
 
-1. Open **Deployments** from the Work home and choose **Request a deployment**: the product, the version, the
-   environment, and the item keys it ships (separated by commas or spaces), then **Request deployment**.
-2. Someone allowed to approve it (by default a wiki administrator, or a lead of every project it carries) chooses
-   approve; it then goes to running and finally verified (with the health and smoke-test output as evidence) or
-   failed. Before it runs it can be withdrawn by whoever asked, or rejected by an approver.
+1. Open **Deployments** from the Work home, choose the product at the top, then **Request a deployment**: the
+   version, the environment, and the item keys it ships (separated by commas or spaces), then **Request
+   deployment**.
+2. Open the deployment. Someone allowed to approve it (by default a wiki administrator, or a lead of every project
+   it carries) chooses **Approve**; then **Mark as running**, and finally **Mark as verified** (paste the health and
+   smoke-test output as evidence) or **Mark as failed**. Before it runs it can be withdrawn by whoever asked, or
+   rejected by an approver.
 
 **You should see:** "Shipped in" on each carried item's page once the deployment is verified, and approvals waiting
 for you listed on the Work home.

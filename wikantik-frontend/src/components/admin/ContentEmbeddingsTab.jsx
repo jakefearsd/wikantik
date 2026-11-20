@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { api } from '../../api/client';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import PageEditLink from './PageEditLink';
 import EmptyState from '../ui/EmptyState';
 import ConfirmDialog from '../ui/ConfirmDialog';
@@ -7,46 +8,51 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 const NO_FM_LIMIT = 50;
 
 export default function ContentEmbeddingsTab() {
-  const [status, setStatus] = useState(null);
-  const [noFmPages, setNoFmPages] = useState([]);
-  const [noFmTotal, setNoFmTotal] = useState(0);
+  // The status and the first page of the no-frontmatter list load together; reload() (after a backfill) is silent.
+  const { data, loading, error: loadError, reload } = useAdminResource(
+    () => api.admin.embeddings.getStatus().then(async (st) => {
+      const fm = await api.admin.embeddings.getPagesWithoutFrontmatter(NO_FM_LIMIT, 0);
+      return { status: st, pages: fm.pages || [], total: fm.total || 0 };
+    }),
+  );
   const [noFmOffset, setNoFmOffset] = useState(0);
-  const [loading, setLoading] = useState(true);
+  // A later page of the list; the first page lives in `data`.
+  const [laterPage, setLaterPage] = useState(null);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillStatus, setBackfillStatus] = useState(null);
-  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
   const [confirmingBackfill, setConfirmingBackfill] = useState(false);
 
-  // setState sits inside the async .then/.catch callbacks (not directly in
-  // this function's own body), so calling loadNoFmPages() synchronously from
-  // an effect is the shape react-hooks/set-state-in-effect allows.
-  const loadNoFmPages = useCallback(
-    (currentOffset) => api.admin.embeddings.getPagesWithoutFrontmatter(NO_FM_LIMIT, currentOffset)
-      .then(fmResult => { setNoFmPages(fmResult.pages || []); setNoFmTotal(fmResult.total || 0); })
-      .catch(err => setError(err.message)),
-    [],
-  );
+  const error = loadError || actionError;
+  const status = data?.status ?? null;
+  const shown = noFmOffset > 0 && laterPage ? laterPage : data;
+  const noFmPages = shown?.pages ?? [];
+  const noFmTotal = shown?.total ?? 0;
 
-  const loadData = useCallback(
-    () => api.admin.embeddings.getStatus()
-      .then(s => { setStatus(s); return loadNoFmPages(0); })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false)),
-    [loadNoFmPages],
-  );
-
-  useEffect(() => { loadData(); }, [loadData]);
-
-  useEffect(() => {
-    if (noFmOffset > 0) {
-      loadNoFmPages(noFmOffset);
+  const goToOffset = async (offset) => {
+    setNoFmOffset(offset);
+    if (offset === 0) {
+      setLaterPage(null);
+      return;
     }
-  }, [noFmOffset, loadNoFmPages]);
+    try {
+      const fm = await api.admin.embeddings.getPagesWithoutFrontmatter(NO_FM_LIMIT, offset);
+      setLaterPage({ pages: fm.pages || [], total: fm.total || 0 });
+    } catch (err) {
+      setActionError(err.message);
+    }
+  };
+
+  const refreshAfterBackfill = async () => {
+    setNoFmOffset(0);
+    setLaterPage(null);
+    await reload();
+  };
 
   const handleBackfill = async () => {
     setConfirmingBackfill(false);
     setBackfilling(true);
-    setError(null);
+    setActionError(null);
     try {
       await api.admin.embeddings.backfillFrontmatter();
       const poll = setInterval(async () => {
@@ -56,17 +62,17 @@ export default function ContentEmbeddingsTab() {
           if (!st.running) {
             clearInterval(poll);
             setBackfilling(false);
-            await loadData();
+            await refreshAfterBackfill();
           }
         } catch (err) {
           clearInterval(poll);
           setBackfilling(false);
-          setError(err.message);
+          setActionError(err.message);
         }
       }, 2000);
     } catch (err) {
       setBackfilling(false);
-      setError(err.message);
+      setActionError(err.message);
     }
   };
 
@@ -129,9 +135,9 @@ export default function ContentEmbeddingsTab() {
           </div>
           {noFmTotal > NO_FM_LIMIT && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--space-sm)', fontSize: '0.85em' }}>
-              <button className="btn btn-sm" onClick={() => setNoFmOffset(Math.max(0, noFmOffset - NO_FM_LIMIT))} disabled={noFmOffset === 0}>Prev</button>
+              <button className="btn btn-sm" onClick={() => goToOffset(Math.max(0, noFmOffset - NO_FM_LIMIT))} disabled={noFmOffset === 0}>Prev</button>
               <span>Showing {noFmOffset + 1}–{noFmOffset + noFmPages.length} of {noFmTotal}</span>
-              <button className="btn btn-sm" onClick={() => setNoFmOffset(noFmOffset + NO_FM_LIMIT)} disabled={noFmOffset + noFmPages.length >= noFmTotal}>Next</button>
+              <button className="btn btn-sm" onClick={() => goToOffset(noFmOffset + NO_FM_LIMIT)} disabled={noFmOffset + noFmPages.length >= noFmTotal}>Next</button>
             </div>
           )}
         </div>

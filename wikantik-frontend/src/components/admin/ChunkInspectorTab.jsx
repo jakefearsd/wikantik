@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { useAdminResource } from '../../hooks/useAdminResource';
 
 const PREVIEW_CHARS = 200;
 
@@ -10,14 +11,11 @@ export default function ChunkInspectorTab() {
   const [chunks, setChunks] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [outliers, setOutliers] = useState(null);
-  const [outliersError, setOutliersError] = useState(null);
-
-  useEffect(() => {
-    api.admin.getChunkOutliers()
-      .then(setOutliers)
-      .catch((e) => setOutliersError(e.message || 'Failed to load outliers'));
-  }, []);
+  const { data: outliers, error: outliersError } = useAdminResource(
+    () => api.admin.getChunkOutliers().catch((e) => {
+      throw new Error(e.message || 'Failed to load outliers');
+    }),
+  );
 
   const handleLoad = async () => {
     const name = pageInput.trim();

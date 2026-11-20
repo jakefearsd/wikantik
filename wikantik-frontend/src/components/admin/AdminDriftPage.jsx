@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
 import Sparkline from './Sparkline';
@@ -13,10 +14,8 @@ const COLUMNS = 7; // family | code | severity | count | delta | trend | expand
 const rowKey = (family, code) => `${family}|${code}`;
 
 export default function AdminDriftPage() {
-  const [summary, setSummary] = useState(null);
-  const [trend, setTrend] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // What the last sweep this page watched finished with; it supersedes the load.
+  const [swept, setSwept] = useState(null);
   const [sweeping, setSweeping] = useState(false);
   const [progress, setProgress] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -54,8 +53,7 @@ export default function AdminDriftPage() {
           if (s?.sweptAt && s.sweptAt !== before) {
             const t = await api.admin.getDriftTrend(30);
             if (!mounted.current) return;
-            setSummary(s);
-            setTrend(t);
+            setSwept({ summary: s, trend: t });
             setPagesByKey({});
             setExpandedKey(null);
             setProgress(null);
@@ -86,23 +84,22 @@ export default function AdminDriftPage() {
     poll();
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([api.admin.getDriftSummary(), api.admin.getDriftTrend(30), api.admin.getDriftStatus()])
+  // The summary and trend load once; a finished sweep replaces them (`swept`). A sweep already running
+  // when the page opens is picked up and polled.
+  const { data: loaded, loading, error } = useAdminResource(
+    (signal) => Promise.all([api.admin.getDriftSummary(), api.admin.getDriftTrend(30), api.admin.getDriftStatus()])
       .then(([s, t, st]) => {
-        if (cancelled) return;
-        setSummary(s);
-        setTrend(t);
-        if (st?.running) {
+        if (!signal.aborted && st?.running) {
           setSweeping(true);
           setProgress(st);
           startStatusPolling(s?.sweptAt ?? null);
         }
-      })
-      .catch(err => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [startStatusPolling]);
+        return { summary: s, trend: t };
+      }),
+  );
+  const data = swept ?? loaded;
+  const summary = data?.summary ?? null;
+  const trend = data?.trend ?? null;
 
   const runNow = async () => {
     setSweeping(true);

@@ -9,24 +9,23 @@
 // The literal `<orphaned>` sentinel (used by the backend to mean "no owner") is
 // passed through verbatim in both the search input and the bulk form — operators
 // occasionally need to mass-reassign orphaned pages onto a real user.
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../../api/client';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
 import '../../styles/admin.css';
 
 const FILTER_ORPHANED = 'orphaned';
 const FILTER_BY_OWNER = 'by-owner';
+const NO_ROWS = [];
 
 export default function AdminPageOwnershipPage() {
   const [filter, setFilter] = useState(FILTER_ORPHANED);
   const [ownerQuery, setOwnerQuery] = useState('');
   const [submittedOwner, setSubmittedOwner] = useState('');
 
-  const [rows, setRows] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const [reassignTarget, setReassignTarget] = useState(null);
   const [newOwner, setNewOwner] = useState('');
@@ -35,72 +34,42 @@ export default function AdminPageOwnershipPage() {
   const [bulkTo, setBulkTo] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  // setLoading(true)/setError(null) used to sit synchronously at the top of
-  // this function (the flagged shape). They're now set at the two events that
-  // trigger a refetch (switchFilter, onSearch) instead, and every setState
-  // below lives inside the async .then/.catch/.finally callbacks, gated by an
-  // `isStale` check so a superseded in-flight request can't clobber a newer
-  // one's result (the effect below passes one; the two other callers of
-  // load() — after a reassign — don't need it and get the default no-op).
-  const load = useCallback((isStale = () => false) => {
-    const request =
-      filter === FILTER_ORPHANED
+  // We never call listByOwner with an empty string: the operator must hit Search first, so a blank submitted owner
+  // on the By-Owner tab has nothing to fetch. A change of filter or submitted owner refetches with the spinner;
+  // reload() after a reassign is silent.
+  const { data, loading, error: loadError, reload } = useAdminResource(
+    () => {
+      if (filter === FILTER_BY_OWNER && !submittedOwner) return Promise.resolve({ pages: [], total: 0 });
+      const request = filter === FILTER_ORPHANED
         ? api.admin.pageOwnership.listOrphaned()
         : api.admin.pageOwnership.listByOwner(submittedOwner);
-    return request
-      .then(res => {
-        if (isStale()) return;
+      return request.then((res) => {
         const pages = res.pages || [];
-        setRows(pages);
-        setTotal(typeof res.total === 'number' ? res.total : pages.length);
-      })
-      .catch(err => {
-        if (isStale()) return;
-        setError(err?.message || String(err));
-        setRows([]);
-        setTotal(0);
-      })
-      .finally(() => {
-        if (!isStale()) setLoading(false);
+        return { pages, total: typeof res.total === 'number' ? res.total : pages.length };
       });
-  }, [filter, submittedOwner]);
-
-  // Reload whenever the active filter or the submitted owner query changes.
-  // We never auto-call listByOwner with an empty string — the operator must
-  // explicitly hit Search first, so a blank submittedOwner suppresses the load
-  // on the By-Owner tab (handled by switchFilter/onSearch resetting loading
-  // directly, since there is nothing to fetch yet).
-  useEffect(() => {
-    if (filter === FILTER_BY_OWNER && !submittedOwner) return;
-    let ignore = false;
-    load(() => ignore);
-    return () => { ignore = true; };
-  }, [filter, submittedOwner, load]);
+    },
+    [filter, submittedOwner],
+    { refetchShowsLoading: true },
+  );
+  // Nothing is fetched (or shown) on the By-Owner tab until a login is submitted.
+  const idle = filter === FILTER_BY_OWNER && !submittedOwner;
+  const shown = idle || loading ? null : data;
+  const rows = shown?.pages ?? NO_ROWS;
+  const total = shown?.total ?? 0;
+  const error = loadError || actionError;
 
   const switchFilter = (next) => {
     if (next === filter) return;
     setFilter(next);
-    setRows([]);
-    setTotal(0);
     if (next === FILTER_ORPHANED) {
       setOwnerQuery('');
       setSubmittedOwner('');
-    } else {
-      // No query submitted yet on the By-Owner tab — nothing to load.
-      setLoading(false);
     }
   };
 
   const onSearch = (e) => {
     e?.preventDefault?.();
-    const trimmed = ownerQuery.trim();
-    setSubmittedOwner(trimmed);
-    if (!trimmed) {
-      // Clearing the query back to empty — nothing to load, matches switchFilter.
-      setRows([]);
-      setTotal(0);
-      setLoading(false);
-    }
+    setSubmittedOwner(ownerQuery.trim());
   };
 
   const openReassign = (row) => {
@@ -121,11 +90,10 @@ export default function AdminPageOwnershipPage() {
         newOwner.trim(),
       );
     } catch (err) {
-      setError(err?.message || String(err));
+      setActionError(err?.message || String(err));
     }
     closeReassign();
-    setLoading(true);
-    await load();
+    await reload();
   };
 
   const onBulkSubmit = async (e) => {
@@ -138,18 +106,18 @@ export default function AdminPageOwnershipPage() {
         bulkTo.trim(),
       );
     } catch (err) {
-      setError(err?.message || String(err));
+      setActionError(err?.message || String(err));
     } finally {
       setBulkBusy(false);
     }
     setBulkFrom('');
     setBulkTo('');
-    await load();
+    await reload();
   };
 
   return (
     <AdminPage
-      loading={loading && rows.length === 0 && !error}
+      loading={loading && !idle}
       error={error}
       loadingLabel="Loading page ownership…"
       className="admin-page-ownership page-enter"

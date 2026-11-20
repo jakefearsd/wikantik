@@ -2698,7 +2698,7 @@ h3:focus-within .heading-anchor {
 .ui-taginput-field:focus-visible { outline: none; }
 /* The borderless field hides its own outline, so the box shows a 2px accent ring instead of a 1px border change. */
 .ui-taginput:focus-within { box-shadow: 0 0 0 1px var(--accent); }
-.ui-tabs-list { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border, #ccc); }
+.ui-tabs-list { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border, #ccc); overflow-x: auto; max-width: 100%; }
 .ui-tab {
   font: inherit;
   padding: 0.4rem 0.8rem;
@@ -2707,6 +2707,8 @@ h3:focus-within .heading-anchor {
   color: inherit;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .ui-tab-active { border-bottom-color: var(--accent, #36c); font-weight: 600; }
 .ui-tabs-panel { padding-top: 0.75rem; }

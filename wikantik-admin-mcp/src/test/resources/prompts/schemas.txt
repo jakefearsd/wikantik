@@ -1,0 +1,35 @@
+name=create-article
+description=Guide structured article creation with proper metadata
+arg=topic required=true description=The topic or title for the new article
+arg=type required=false description=Article type (e.g. report, reference, note, concept)
+
+name=summarize-topic
+description=Guide cross-page research and synthesis on a topic
+arg=topic required=true description=The topic to research and summarize
+
+name=audit-links
+description=Guide checking page link integrity across the wiki
+arg=pageName required=false description=The page to audit links for (or 'all' for wiki-wide)
+
+name=rename-page
+description=Guide safe page rename workflow with link updates
+arg=oldName required=true description=Current page name to rename
+arg=newName required=true description=New page name (CamelCase)
+
+name=wiki-health-check
+description=Guide comprehensive wiki health assessment
+
+name=publish-cluster
+description=Guide creation of a complete article cluster with hub and sub-articles
+arg=topic required=true description=The topic for the article cluster
+arg=pageCount required=false description=Desired number of sub-articles (default: 3-5)
+arg=clusterSlug required=false description=Kebab-case cluster identifier (auto-generated if omitted)
+
+name=extend-cluster
+description=Guide adding a new article to an existing cluster
+arg=clusterSlug required=true description=Cluster identifier to extend
+arg=newPageName required=true description=CamelCase name for the new article
+
+name=seo-audit
+description=Guide SEO readiness assessment across the wiki
+arg=cluster required=false description=Optional cluster to scope the audit (omit for wiki-wide)

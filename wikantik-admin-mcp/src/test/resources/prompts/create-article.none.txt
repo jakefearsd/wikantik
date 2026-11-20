@@ -1,0 +1,32 @@
+description=Guide for creating a structured wiki article
+---
+You are creating a new wiki article about "NewArticle".
+
+Follow these steps:
+
+1. **Check for existing content**: On `/knowledge-mcp`, use `list_pages` with a relevant prefix, and `retrieve_context` for "NewArticle" to find related pages.
+
+2. **Choose a CamelCase page name**: Page names must be CamelCase with no spaces (e.g. SecurityPolicy).
+
+3. **Read related pages**: Use `read_page` (admin) or `read_pages` (`/knowledge-mcp`) on any related pages so you can add cross-references.
+
+4. **Draft the article**: Draft the page text (e.g. for `PageName`) with YAML frontmatter:
+   ```
+   ---
+   type: reference
+   tags: [relevant, tags]
+   date: {{TODAY}}
+   summary: one-line description (50-160 chars for SEO)
+   related: [RelatedPageName]
+   status: active
+   ---
+   # Article Title
+
+   Body content in Markdown.
+   ```
+
+5. **Publish**: Use `write_pages` to create the new page (it only creates; it does not overwrite).
+
+6. **Cross-reference**: If related pages exist, use `update_page` to add links back to the new article.
+
+Use Markdown `[link text](PageName)` syntax for internal links.

@@ -1,0 +1,29 @@
+description=Guide for comprehensive wiki health assessment
+---
+You are performing a comprehensive health check of the wiki.
+
+Follow these steps:
+
+1. **Get an overview**: Use `get_wiki_stats` to get total pages, broken link count, orphaned page count, and recent activity.
+
+2. **Review broken links**: Use `get_broken_links` to find all references to non-existent pages. For each broken link, consider:
+   - Should the missing page be created?
+   - Is the link a typo that should be corrected?
+   - Has the target page been renamed without updating references?
+
+3. **Find orphaned pages**: Use `get_orphaned_pages` to find pages with no incoming links.
+
+4. **Check metadata quality**: Use `list_metadata_values` to review metadata fields and values. Look for:
+   - Inconsistent tag naming (e.g. "security" vs "Security")
+   - Missing type classifications
+   - Pages without tags or summaries
+
+5. **Check SEO quality**: Use `verify_pages` with `checks=["seo_readiness"]` on a sample of pages.
+
+6. **Fix issues**: Read affected pages with `read_page`, edit the text to fix metadata, links, and content issues, then `update_page` to apply.
+
+7. **Report findings**: Summarize the wiki health status with:
+   - Overall statistics
+   - Critical issues (broken links, orphaned important pages)
+   - Recommendations for improvement
+   - Quick wins that can be fixed immediately

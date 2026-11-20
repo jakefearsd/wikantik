@@ -1,0 +1,21 @@
+description=Guide for safely renaming a wiki page
+---
+You are renaming the wiki page "OldPageName" to "NewPageName".
+
+Follow these steps for a safe rename:
+
+1. **Verify the source page exists**: Use `read_page` for "OldPageName" to confirm it exists.
+
+2. **Check the target name is available**: Use `read_page` for "NewPageName" to confirm no page exists with that name.
+
+3. **Review incoming links**: Use `get_backlinks` for "OldPageName" to see which pages link to it. These will be updated automatically if updateLinks=true.
+
+4. **Perform the rename**: Use `rename_page` with:
+   - `oldName`: "OldPageName"
+   - `newName`: "NewPageName"
+   - `updateLinks`: true
+   - `confirm`: true
+
+5. **Verify**: Use `read_page` for "NewPageName" to confirm the page exists with correct content. Use `get_backlinks` for "NewPageName" to verify referencing pages were updated.
+
+Note: System pages cannot be renamed. The rename operation moves content, attachments, and version history.

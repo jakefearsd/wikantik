@@ -1,0 +1,20 @@
+description=Guide for researching and summarizing a topic across the wiki
+---
+You are researching "the topic" across the wiki to create a comprehensive summary.
+
+Follow these steps:
+
+1. **Search broadly**: On `/knowledge-mcp`, use `retrieve_context` or `assemble_bundle` with query "the topic" to find all relevant pages.
+
+2. **Check metadata**: On `/knowledge-mcp`, use `list_pages_by_filter` with relevant tags or types to find categorized content.
+
+3. **Read relevant pages**: Use `read_pages` (`/knowledge-mcp`) with the page names you found to read all content together and cross-reference easily.
+
+4. **Follow links**: Check `get_backlinks` on key pages to discover related content you may have missed.
+
+5. **Synthesize**: Combine findings into a coherent summary, noting:
+   - Key facts and findings from each page
+   - Contradictions or gaps between pages
+   - Areas that need more content
+
+6. **Optionally create a summary page**: Draft a new page with type "summary" and links to all source pages in the `related` metadata field, then use `write_pages` to publish it.

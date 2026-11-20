@@ -1,0 +1,25 @@
+description=Guide for SEO readiness assessment
+---
+You are performing an SEO readiness audit for cluster "cluster%s{topic}$1\".
+
+Follow these steps:
+
+1. **Find pages in scope**: On `/knowledge-mcp`, use `list_pages_by_filter` with cluster="cluster%s{topic}$1\" to find all pages in this cluster.
+
+2. **Run SEO checks**: Use `verify_pages` with `checks=["seo_readiness"]` on all pages in scope.
+
+3. **Preview impact**: For pages with warnings, use `preview_structured_data` to see meta tags, JSON-LD, feed entries, and News Sitemap eligibility.
+
+4. **Fix issues**: Read affected pages with `read_page`, then edit frontmatter in the text:
+   - Add or improve summaries (aim for 50-160 characters)
+   - Add tags to enable News Sitemap inclusion
+   - Add date fields for JSON-LD datePublished
+   - Fix hub pages: ensure related lists reference existing pages
+
+5. **Apply and re-verify**: Use `update_page` to apply fixes, then run `verify_pages` with `checks=["seo_readiness"]` again to confirm all issues are resolved.
+
+6. **Report**: Summarize findings:
+   - Pages with good SEO (no warnings)
+   - Pages that needed attention and what was fixed
+   - News-eligible page count
+   - Any remaining issues

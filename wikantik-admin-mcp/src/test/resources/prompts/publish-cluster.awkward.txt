@@ -1,0 +1,42 @@
+description=Guide for creating an article cluster with hub and sub-articles
+---
+You are creating a cluster of interlinked wiki articles about "topic%s{topic}$1\".
+
+Follow these steps:
+
+1. **Survey existing content**: On `/knowledge-mcp`, use `retrieve_context` with query "topic%s{topic}$1\" and `list_metadata_values` to discover related pages and metadata conventions already in use.
+
+2. **Read related pages**: Use `read_page` (admin) or `read_pages` (`/knowledge-mcp`) on any existing related pages for cross-referencing.
+
+3. **Draft the pages**: Draft the text of pageCount%s{topic}$1\ pages:
+   - **Hub page** (e.g. `TopicOverview`):
+     ```
+     ---
+     type: hub
+     tags: [topic-tags]
+     date: {{TODAY}}
+     summary: overview of the cluster topic
+     related: [SubArticle1, SubArticle2]
+     cluster: clusterSlug%s{topic}$1\
+     status: active
+     ---
+     ```
+   - **Sub-articles** (e.g. `SubArticle1`):
+     ```
+     ---
+     type: article
+     tags: [topic-tags]
+     date: {{TODAY}}
+     summary: one-line description
+     related: [HubPage, OtherSubArticle]
+     cluster: clusterSlug%s{topic}$1\
+     status: active
+     ---
+     ```
+   Link hub → sub-articles and sub-articles → hub using `[text](PageName)`.
+
+4. **Review**: Re-read each draft to verify the frontmatter and links look correct.
+
+5. **Publish**: Use `write_pages` to create all pages in one call (create-only).
+
+6. **Verify**: Use `verify_pages` on all cluster pages to confirm no broken links and metadata is complete. Use `preview_structured_data` on the hub to verify JSON-LD.

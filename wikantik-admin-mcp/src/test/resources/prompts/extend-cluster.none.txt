@@ -1,0 +1,28 @@
+description=Guide for adding an article to an existing cluster
+---
+You are adding the article "NewArticle" to the existing cluster "my-cluster".
+
+Follow these steps:
+
+1. **Find cluster members**: On `/knowledge-mcp`, use `list_pages_by_filter` with cluster="my-cluster".
+
+2. **Read the cluster**: Use `read_pages` (`/knowledge-mcp`) with the cluster page names to get all existing cluster content.
+
+3. **Create the new article**: Draft the page `NewArticle` with matching metadata:
+   ```
+   ---
+   type: article
+   tags: [consistent-with-cluster]
+   date: {{TODAY}}
+   summary: one-line description
+   related: [HubPage, RelevantSiblings]
+   cluster: "my-cluster"
+   status: active
+   ---
+   ```
+
+4. **Update existing pages**: Edit the hub page to add a link to "NewArticle". Update `related` lists in relevant sibling articles.
+
+5. **Publish**: Use `write_pages` for the new article and `update_page` for the hub and siblings.
+
+6. **Verify**: Use `verify_pages` on the new article and updated pages.

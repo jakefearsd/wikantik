@@ -19,14 +19,16 @@
 package com.wikantik.mcp.prompts;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
-import io.modelcontextprotocol.spec.McpSchema;
 
 import java.util.List;
 import java.util.Map;
 
+import com.wikantik.mcp.prompts.PromptDef.Arg;
+
 /**
  * Provides MCP Prompts for common wiki workflows, guiding AI agents through
  * structured interactions with the wiki using the export/import workflow.
+ * Each prompt is a {@link PromptDef}: schema plus a template with named placeholders.
  */
 public final class WikiPrompts {
 
@@ -34,31 +36,16 @@ public final class WikiPrompts {
     }
 
     public static List< McpServerFeatures.SyncPromptSpecification > all() {
-        return List.of( createArticle(), summarizeTopic(), auditLinks(), renamePage(),
-                wikiHealthCheck(), publishCluster(), extendCluster(), seoAudit() );
+        return DEFINITIONS.stream().map( PromptDef::toSpecification ).toList();
     }
 
-    private static McpServerFeatures.SyncPromptSpecification createArticle() {
-        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "create-article" )
-                .description( "Guide structured article creation with proper metadata" )
-                .arguments( List.of(
-                        McpSchema.PromptArgument.builder( "topic" ).description( "The topic or title for the new article" ).required( true ).build(),
-                        McpSchema.PromptArgument.builder( "type" ).description( "Article type (e.g. report, reference, note, concept)" ).required( false ).build()
-                ) )
-                .build();
-
-        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
-            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
-            final String topic = args.getOrDefault( "topic", "NewArticle" ).toString();
-            final String type = args.getOrDefault( "type", "reference" ).toString();
-
-            final String guide = String.format( """
-                    You are creating a new wiki article about "%s".
+    private static final String CREATE_ARTICLE = """
+                    You are creating a new wiki article about "{topic}".
 
                     Follow these steps:
 
                     1. **Check for existing content**: On `/knowledge-mcp`, use `list_pages` with a relevant prefix, and `retrieve_context` \
-                    for "%s" to find related pages.
+                    for "{topic}" to find related pages.
 
                     2. **Choose a CamelCase page name**: Page names must be CamelCase with no spaces (e.g. SecurityPolicy).
 
@@ -69,9 +56,9 @@ public final class WikiPrompts {
                     with YAML frontmatter:
                        ```
                        ---
-                       type: %s
+                       type: {type}
                        tags: [relevant, tags]
-                       date: %s
+                       date: {today}
                        summary: one-line description (50-160 chars for SEO)
                        related: [RelatedPageName]
                        status: active
@@ -85,36 +72,14 @@ public final class WikiPrompts {
 
                     6. **Cross-reference**: If related pages exist, use `update_page` to add links back to the new article.
 
-                    Use Markdown `[link text](PageName)` syntax for internal links.""",
-                    topic, topic, type, java.time.LocalDate.now().toString() );
+                    Use Markdown `[link text](PageName)` syntax for internal links.""";
 
-            return McpSchema.GetPromptResult.builder(
-                    List.of( new McpSchema.PromptMessage(
-                            McpSchema.Role.USER,
-                            McpSchema.TextContent.builder( guide ).build() ) ) )
-                    .description( "Guide for creating a structured wiki article" )
-                    .build();
-        } );
-    }
-
-    private static McpServerFeatures.SyncPromptSpecification summarizeTopic() {
-        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "summarize-topic" )
-                .description( "Guide cross-page research and synthesis on a topic" )
-                .arguments( List.of(
-                        McpSchema.PromptArgument.builder( "topic" ).description( "The topic to research and summarize" ).required( true ).build()
-                ) )
-                .build();
-
-        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
-            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
-            final String topic = args.getOrDefault( "topic", "the topic" ).toString();
-
-            final String guide = String.format( """
-                    You are researching "%s" across the wiki to create a comprehensive summary.
+    private static final String SUMMARIZE_TOPIC = """
+                    You are researching "{topic}" across the wiki to create a comprehensive summary.
 
                     Follow these steps:
 
-                    1. **Search broadly**: On `/knowledge-mcp`, use `retrieve_context` or `assemble_bundle` with query "%s" to find all relevant pages.
+                    1. **Search broadly**: On `/knowledge-mcp`, use `retrieve_context` or `assemble_bundle` with query "{topic}" to find all relevant pages.
 
                     2. **Check metadata**: On `/knowledge-mcp`, use `list_pages_by_filter` with relevant tags or types to find categorized content.
 
@@ -130,33 +95,9 @@ public final class WikiPrompts {
 
                     6. **Optionally create a summary page**: Draft a new page \
                     with type "summary" and links to all source pages in the `related` metadata field, \
-                    then use `write_pages` to publish it.""",
-                    topic, topic );
+                    then use `write_pages` to publish it.""";
 
-            return McpSchema.GetPromptResult.builder(
-                    List.of( new McpSchema.PromptMessage(
-                            McpSchema.Role.USER,
-                            McpSchema.TextContent.builder( guide ).build() ) ) )
-                    .description( "Guide for researching and summarizing a topic across the wiki" )
-                    .build();
-        } );
-    }
-
-    private static McpServerFeatures.SyncPromptSpecification auditLinks() {
-        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "audit-links" )
-                .description( "Guide checking page link integrity across the wiki" )
-                .arguments( List.of(
-                        McpSchema.PromptArgument.builder( "pageName" ).description( "The page to audit links for (or 'all' for wiki-wide)" ).required( false ).build()
-                ) )
-                .build();
-
-        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
-            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
-            final String pageName = args.getOrDefault( "pageName", "all" ).toString();
-
-            final String guide;
-            if ( "all".equals( pageName ) ) {
-                guide = """
+    private static final String AUDIT_LINKS_ALL = """
                         You are auditing link integrity across the entire wiki.
 
                         Follow these steps:
@@ -180,120 +121,68 @@ public final class WikiPrompts {
                            - Pages with very few connections
 
                         Focus on non-system pages for the most actionable results.""";
-            } else {
-                guide = String.format( """
-                        You are auditing link integrity for the page "%s".
+
+    private static final String AUDIT_LINKS_PAGE = """
+                        You are auditing link integrity for the page "{pageName}".
 
                         Follow these steps:
 
-                        1. **Read the page**: Use `read_page` for "%s" to get its content.
+                        1. **Read the page**: Use `read_page` for "{pageName}" to get its content.
 
-                        2. **Check links**: Use `get_outbound_links` and `get_backlinks` for "%s".
+                        2. **Check links**: Use `get_outbound_links` and `get_backlinks` for "{pageName}".
 
                         3. **Check metadata links**: Look at the `related` field in the metadata. \
                         Verify those pages exist too.
 
-                        4. **Fix issues**: If fixes are needed, use `read_page` on "%s" and related pages, \
+                        4. **Fix issues**: If fixes are needed, use `read_page` on "{pageName}" and related pages, \
                         edit the text, then `update_page` to apply changes.
 
-                        5. **Report**: List broken links, suggest fixes, and note any related pages that should link here but don't.""",
-                        pageName, pageName, pageName, pageName );
-            }
+                        5. **Report**: List broken links, suggest fixes, and note any related pages that should link here but don't.""";
 
-            return McpSchema.GetPromptResult.builder(
-                    List.of( new McpSchema.PromptMessage(
-                            McpSchema.Role.USER,
-                            McpSchema.TextContent.builder( guide ).build() ) ) )
-                    .description( "Guide for auditing link integrity" )
-                    .build();
-        } );
-    }
-
-    private static McpServerFeatures.SyncPromptSpecification renamePage() {
-        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "rename-page" )
-                .description( "Guide safe page rename workflow with link updates" )
-                .arguments( List.of(
-                        McpSchema.PromptArgument.builder( "oldName" ).description( "Current page name to rename" ).required( true ).build(),
-                        McpSchema.PromptArgument.builder( "newName" ).description( "New page name (CamelCase)" ).required( true ).build()
-                ) )
-                .build();
-
-        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
-            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
-            final String oldName = args.getOrDefault( "oldName", "OldPageName" ).toString();
-            final String newName = args.getOrDefault( "newName", "NewPageName" ).toString();
-
-            final String guide = String.format( """
-                    You are renaming the wiki page "%s" to "%s".
+    private static final String RENAME_PAGE = """
+                    You are renaming the wiki page "{oldName}" to "{newName}".
 
                     Follow these steps for a safe rename:
 
-                    1. **Verify the source page exists**: Use `read_page` for "%s" to confirm it exists.
+                    1. **Verify the source page exists**: Use `read_page` for "{oldName}" to confirm it exists.
 
-                    2. **Check the target name is available**: Use `read_page` for "%s" to confirm no page exists with that name.
+                    2. **Check the target name is available**: Use `read_page` for "{newName}" to confirm no page exists with that name.
 
-                    3. **Review incoming links**: Use `get_backlinks` for "%s" to see which pages link to it. \
+                    3. **Review incoming links**: Use `get_backlinks` for "{oldName}" to see which pages link to it. \
                     These will be updated automatically if updateLinks=true.
 
                     4. **Perform the rename**: Use `rename_page` with:
-                       - `oldName`: "%s"
-                       - `newName`: "%s"
+                       - `oldName`: "{oldName}"
+                       - `newName`: "{newName}"
                        - `updateLinks`: true
                        - `confirm`: true
 
-                    5. **Verify**: Use `read_page` for "%s" to confirm the page exists with correct content. \
-                    Use `get_backlinks` for "%s" to verify referencing pages were updated.
+                    5. **Verify**: Use `read_page` for "{newName}" to confirm the page exists with correct content. \
+                    Use `get_backlinks` for "{newName}" to verify referencing pages were updated.
 
-                    Note: System pages cannot be renamed. The rename operation moves content, attachments, and version history.""",
-                    oldName, newName, oldName, newName, oldName, oldName, newName, newName, newName );
+                    Note: System pages cannot be renamed. The rename operation moves content, attachments, and version history.""";
 
-            return McpSchema.GetPromptResult.builder(
-                    List.of( new McpSchema.PromptMessage(
-                            McpSchema.Role.USER,
-                            McpSchema.TextContent.builder( guide ).build() ) ) )
-                    .description( "Guide for safely renaming a wiki page" )
-                    .build();
-        } );
-    }
-
-    private static McpServerFeatures.SyncPromptSpecification publishCluster() {
-        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "publish-cluster" )
-                .description( "Guide creation of a complete article cluster with hub and sub-articles" )
-                .arguments( List.of(
-                        McpSchema.PromptArgument.builder( "topic" ).description( "The topic for the article cluster" ).required( true ).build(),
-                        McpSchema.PromptArgument.builder( "pageCount" ).description( "Desired number of sub-articles (default: 3-5)" ).required( false ).build(),
-                        McpSchema.PromptArgument.builder( "clusterSlug" ).description( "Kebab-case cluster identifier (auto-generated if omitted)" ).required( false ).build()
-                ) )
-                .build();
-
-        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
-            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
-            final String topic = args.getOrDefault( "topic", "NewCluster" ).toString();
-            final String pageCount = args.getOrDefault( "pageCount", "3-5" ).toString();
-            final String clusterSlug = args.getOrDefault( "clusterSlug", "" ).toString();
-            final String today = java.time.LocalDate.now().toString();
-
-            final String guide = String.format( """
-                    You are creating a cluster of interlinked wiki articles about "%s".
+    private static final String PUBLISH_CLUSTER = """
+                    You are creating a cluster of interlinked wiki articles about "{topic}".
 
                     Follow these steps:
 
-                    1. **Survey existing content**: On `/knowledge-mcp`, use `retrieve_context` with query "%s" and `list_metadata_values` \
+                    1. **Survey existing content**: On `/knowledge-mcp`, use `retrieve_context` with query "{topic}" and `list_metadata_values` \
                     to discover related pages and metadata conventions already in use.
 
                     2. **Read related pages**: Use `read_page` (admin) or `read_pages` (`/knowledge-mcp`) on any existing \
                     related pages for cross-referencing.
 
-                    3. **Draft the pages**: Draft the text of %s pages:
+                    3. **Draft the pages**: Draft the text of {pageCount} pages:
                        - **Hub page** (e.g. `TopicOverview`):
                          ```
                          ---
                          type: hub
                          tags: [topic-tags]
-                         date: %s
+                         date: {today}
                          summary: overview of the cluster topic
                          related: [SubArticle1, SubArticle2]
-                         cluster: %s
+                         cluster: {slug}
                          status: active
                          ---
                          ```
@@ -302,10 +191,10 @@ public final class WikiPrompts {
                          ---
                          type: article
                          tags: [topic-tags]
-                         date: %s
+                         date: {today}
                          summary: one-line description
                          related: [HubPage, OtherSubArticle]
-                         cluster: %s
+                         cluster: {slug}
                          status: active
                          ---
                          ```
@@ -316,84 +205,39 @@ public final class WikiPrompts {
                     5. **Publish**: Use `write_pages` to create all pages in one call (create-only).
 
                     6. **Verify**: Use `verify_pages` on all cluster pages to confirm no broken links \
-                    and metadata is complete. Use `preview_structured_data` on the hub to verify JSON-LD.""",
-                    topic, topic, pageCount, today,
-                    clusterSlug.isEmpty() ? "a-kebab-case-slug" : clusterSlug,
-                    today,
-                    clusterSlug.isEmpty() ? "a-kebab-case-slug" : clusterSlug );
+                    and metadata is complete. Use `preview_structured_data` on the hub to verify JSON-LD.""";
 
-            return McpSchema.GetPromptResult.builder(
-                    List.of( new McpSchema.PromptMessage(
-                            McpSchema.Role.USER,
-                            McpSchema.TextContent.builder( guide ).build() ) ) )
-                    .description( "Guide for creating an article cluster with hub and sub-articles" )
-                    .build();
-        } );
-    }
-
-    private static McpServerFeatures.SyncPromptSpecification extendCluster() {
-        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "extend-cluster" )
-                .description( "Guide adding a new article to an existing cluster" )
-                .arguments( List.of(
-                        McpSchema.PromptArgument.builder( "clusterSlug" ).description( "Cluster identifier to extend" ).required( true ).build(),
-                        McpSchema.PromptArgument.builder( "newPageName" ).description( "CamelCase name for the new article" ).required( true ).build()
-                ) )
-                .build();
-
-        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
-            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
-            final String clusterSlug = args.getOrDefault( "clusterSlug", "my-cluster" ).toString();
-            final String newPageName = args.getOrDefault( "newPageName", "NewArticle" ).toString();
-
-            final String guide = String.format( """
-                    You are adding the article "%s" to the existing cluster "%s".
+    private static final String EXTEND_CLUSTER = """
+                    You are adding the article "{newPageName}" to the existing cluster "{clusterSlug}".
 
                     Follow these steps:
 
-                    1. **Find cluster members**: On `/knowledge-mcp`, use `list_pages_by_filter` with cluster="%s".
+                    1. **Find cluster members**: On `/knowledge-mcp`, use `list_pages_by_filter` with cluster="{clusterSlug}".
 
                     2. **Read the cluster**: Use `read_pages` (`/knowledge-mcp`) with the cluster page names to get \
                     all existing cluster content.
 
-                    3. **Create the new article**: Draft the page `%s` with matching metadata:
+                    3. **Create the new article**: Draft the page `{newPageName}` with matching metadata:
                        ```
                        ---
                        type: article
                        tags: [consistent-with-cluster]
-                       date: %s
+                       date: {today}
                        summary: one-line description
                        related: [HubPage, RelevantSiblings]
-                       cluster: "%s"
+                       cluster: "{clusterSlug}"
                        status: active
                        ---
                        ```
 
-                    4. **Update existing pages**: Edit the hub page to add a link to "%s". \
+                    4. **Update existing pages**: Edit the hub page to add a link to "{newPageName}". \
                     Update `related` lists in relevant sibling articles.
 
                     5. **Publish**: Use `write_pages` for the new article and `update_page` for the hub and siblings.
 
-                    6. **Verify**: Use `verify_pages` on the new article and updated pages.""",
-                    newPageName, clusterSlug, clusterSlug, newPageName,
-                    java.time.LocalDate.now().toString(), clusterSlug, newPageName );
+                    6. **Verify**: Use `verify_pages` on the new article and updated pages.""";
 
-            return McpSchema.GetPromptResult.builder(
-                    List.of( new McpSchema.PromptMessage(
-                            McpSchema.Role.USER,
-                            McpSchema.TextContent.builder( guide ).build() ) ) )
-                    .description( "Guide for adding an article to an existing cluster" )
-                    .build();
-        } );
-    }
-
-    private static McpServerFeatures.SyncPromptSpecification wikiHealthCheck() {
-        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "wiki-health-check" )
-                .description( "Guide comprehensive wiki health assessment" )
-                .arguments( List.of() )
-                .build();
-
-        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
-            final String guide = """
+    private static final String WIKI_HEALTH_CHECK = """
                     You are performing a comprehensive health check of the wiki.
 
                     Follow these steps:
@@ -425,33 +269,12 @@ public final class WikiPrompts {
                        - Recommendations for improvement
                        - Quick wins that can be fixed immediately""";
 
-            return McpSchema.GetPromptResult.builder(
-                    List.of( new McpSchema.PromptMessage(
-                            McpSchema.Role.USER,
-                            McpSchema.TextContent.builder( guide ).build() ) ) )
-                    .description( "Guide for comprehensive wiki health assessment" )
-                    .build();
-        } );
-    }
-
-    private static McpServerFeatures.SyncPromptSpecification seoAudit() {
-        final McpSchema.Prompt prompt = McpSchema.Prompt.builder( "seo-audit" )
-                .description( "Guide SEO readiness assessment across the wiki" )
-                .arguments( List.of(
-                        McpSchema.PromptArgument.builder( "cluster" ).description( "Optional cluster to scope the audit (omit for wiki-wide)" ).required( false ).build()
-                ) )
-                .build();
-
-        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
-            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
-            final String cluster = args.getOrDefault( "cluster", "" ).toString();
-
-            final String guide = String.format( """
-                    You are performing an SEO readiness audit%s.
+    private static final String SEO_AUDIT = """
+                    You are performing an SEO readiness audit{scope}.
 
                     Follow these steps:
 
-                    1. **Find pages in scope**: %s
+                    1. **Find pages in scope**: {findPages}
 
                     2. **Run SEO checks**: Use `verify_pages` with `checks=["seo_readiness"]` on all pages in scope.
 
@@ -471,19 +294,75 @@ public final class WikiPrompts {
                        - Pages with good SEO (no warnings)
                        - Pages that needed attention and what was fixed
                        - News-eligible page count
-                       - Any remaining issues""",
-                    cluster.isEmpty() ? " across the entire wiki" : " for cluster \"" + cluster + "\"",
-                    cluster.isEmpty()
-                            ? "On `/knowledge-mcp`, use `list_pages` to get all pages, or `list_pages_by_filter` to find pages by type."
-                            : "On `/knowledge-mcp`, use `list_pages_by_filter` with cluster=\"" + cluster +
-                              "\" to find all pages in this cluster." );
+                       - Any remaining issues""";
 
-            return McpSchema.GetPromptResult.builder(
-                    List.of( new McpSchema.PromptMessage(
-                            McpSchema.Role.USER,
-                            McpSchema.TextContent.builder( guide ).build() ) ) )
-                    .description( "Guide for SEO readiness assessment" )
-                    .build();
-        } );
-    }
+    private static final PromptDef AUDIT_LINKS = new PromptDef( "audit-links",
+            "Guide checking page link integrity across the wiki",
+            List.of( new Arg( "pageName", "The page to audit links for (or 'all' for wiki-wide)", false, "all" ) ),
+            "{guide}",
+            "Guide for auditing link integrity",
+            v -> Map.of( "guide", PromptDef.fill(
+                    "all".equals( v.get( "pageName" ) ) ? AUDIT_LINKS_ALL : AUDIT_LINKS_PAGE, v ) ) );
+
+    private static final PromptDef PUBLISH_CLUSTER_DEF = new PromptDef( "publish-cluster",
+            "Guide creation of a complete article cluster with hub and sub-articles",
+            List.of(
+                    new Arg( "topic", "The topic for the article cluster", true, "NewCluster" ),
+                    new Arg( "pageCount", "Desired number of sub-articles (default: 3-5)", false, "3-5" ),
+                    new Arg( "clusterSlug", "Kebab-case cluster identifier (auto-generated if omitted)", false, "" ) ),
+            PUBLISH_CLUSTER,
+            "Guide for creating an article cluster with hub and sub-articles",
+            v -> Map.of( "slug", v.get( "clusterSlug" ).isEmpty() ? "a-kebab-case-slug" : v.get( "clusterSlug" ) ) );
+
+    private static final PromptDef SEO_AUDIT_DEF = new PromptDef( "seo-audit",
+            "Guide SEO readiness assessment across the wiki",
+            List.of( new Arg( "cluster", "Optional cluster to scope the audit (omit for wiki-wide)", false, "" ) ),
+            SEO_AUDIT,
+            "Guide for SEO readiness assessment",
+            v -> {
+                final String cluster = v.get( "cluster" );
+                return cluster.isEmpty()
+                        ? Map.of( "scope", " across the entire wiki",
+                                  "findPages", "On `/knowledge-mcp`, use `list_pages` to get all pages, "
+                                          + "or `list_pages_by_filter` to find pages by type." )
+                        : Map.of( "scope", " for cluster \"" + cluster + "\"",
+                                  "findPages", "On `/knowledge-mcp`, use `list_pages_by_filter` with cluster=\""
+                                          + cluster + "\" to find all pages in this cluster." );
+            } );
+
+    private static final List< PromptDef > DEFINITIONS = List.of(
+            new PromptDef( "create-article",
+                    "Guide structured article creation with proper metadata",
+                    List.of(
+                            new Arg( "topic", "The topic or title for the new article", true, "NewArticle" ),
+                            new Arg( "type", "Article type (e.g. report, reference, note, concept)", false, "reference" ) ),
+                    CREATE_ARTICLE,
+                    "Guide for creating a structured wiki article" ),
+            new PromptDef( "summarize-topic",
+                    "Guide cross-page research and synthesis on a topic",
+                    List.of( new Arg( "topic", "The topic to research and summarize", true, "the topic" ) ),
+                    SUMMARIZE_TOPIC,
+                    "Guide for researching and summarizing a topic across the wiki" ),
+            AUDIT_LINKS,
+            new PromptDef( "rename-page",
+                    "Guide safe page rename workflow with link updates",
+                    List.of(
+                            new Arg( "oldName", "Current page name to rename", true, "OldPageName" ),
+                            new Arg( "newName", "New page name (CamelCase)", true, "NewPageName" ) ),
+                    RENAME_PAGE,
+                    "Guide for safely renaming a wiki page" ),
+            new PromptDef( "wiki-health-check",
+                    "Guide comprehensive wiki health assessment",
+                    List.of(),
+                    WIKI_HEALTH_CHECK,
+                    "Guide for comprehensive wiki health assessment" ),
+            PUBLISH_CLUSTER_DEF,
+            new PromptDef( "extend-cluster",
+                    "Guide adding a new article to an existing cluster",
+                    List.of(
+                            new Arg( "clusterSlug", "Cluster identifier to extend", true, "my-cluster" ),
+                            new Arg( "newPageName", "CamelCase name for the new article", true, "NewArticle" ) ),
+                    EXTEND_CLUSTER,
+                    "Guide for adding an article to an existing cluster" ),
+            SEO_AUDIT_DEF );
 }

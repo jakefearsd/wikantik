@@ -1,0 +1,15 @@
+description=Guide for auditing link integrity
+---
+You are auditing link integrity for the page "pageNameValue".
+
+Follow these steps:
+
+1. **Read the page**: Use `read_page` for "pageNameValue" to get its content.
+
+2. **Check links**: Use `get_outbound_links` and `get_backlinks` for "pageNameValue".
+
+3. **Check metadata links**: Look at the `related` field in the metadata. Verify those pages exist too.
+
+4. **Fix issues**: If fixes are needed, use `read_page` on "pageNameValue" and related pages, edit the text, then `update_page` to apply changes.
+
+5. **Report**: List broken links, suggest fixes, and note any related pages that should link here but don't.

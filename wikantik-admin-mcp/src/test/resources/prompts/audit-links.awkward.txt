@@ -1,0 +1,15 @@
+description=Guide for auditing link integrity
+---
+You are auditing link integrity for the page "pageName%s{topic}$1\".
+
+Follow these steps:
+
+1. **Read the page**: Use `read_page` for "pageName%s{topic}$1\" to get its content.
+
+2. **Check links**: Use `get_outbound_links` and `get_backlinks` for "pageName%s{topic}$1\".
+
+3. **Check metadata links**: Look at the `related` field in the metadata. Verify those pages exist too.
+
+4. **Fix issues**: If fixes are needed, use `read_page` on "pageName%s{topic}$1\" and related pages, edit the text, then `update_page` to apply changes.
+
+5. **Report**: List broken links, suggest fixes, and note any related pages that should link here but don't.

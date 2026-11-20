@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.7.4] - 2026-11-19
+
 ### Changed
 
 - Internal design pass with no change to what pages, the editor, the APIs or the agent tools do: the dense-search backends, connector types, REST path dispatch, the page API, Content Intelligence's opportunity rules and store, the reference index's saved snapshot, the login success path, the engine's start-up sequence and several editor and admin-screen internals were reorganised around shared building blocks.

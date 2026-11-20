@@ -160,6 +160,21 @@ class DefaultReferenceManagerSerializationCoalescingTest {
         assertFalse( new File( workDir, "refmgr.ser" ).exists(), "a destroyed manager must not write into the work dir" );
     }
 
+    /**
+     * A cold-start rebuild that finishes after shutdown (here: destroy ran before the rebuild even created the
+     * snapshot store) must not write the snapshot: the bulk pass writes through saveNow(), not the guarded request path.
+     */
+    @Test
+    void aRebuildThatFinishesAfterDestroyWritesNothing( @TempDir final File workDir ) throws Exception {
+        final DefaultReferenceManager mgr = manager( workDir, mock( PageManager.class ) );
+        mgr.destroy( null );
+
+        mgr.initialize( List.of() );
+
+        assertEquals( 0, mgr.serializationCount() );
+        assertFalse( new File( workDir, "refmgr.ser" ).exists(), "a destroyed manager must not write into the work dir" );
+    }
+
     @Test
     void theTestSeamsDoNotCreateTheSnapshotStore( @TempDir final File workDir ) throws Exception {
         final DefaultReferenceManager mgr = manager( workDir, mock( PageManager.class ) );

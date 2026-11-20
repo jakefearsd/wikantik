@@ -136,6 +136,9 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
                 store = snapshotStore;
                 if ( store == null ) {
                     store = new ReferenceSnapshotStore( Path.of( engine.getWorkDir() ), serializeIntervalNanos, this::currentSnapshot );
+                    if ( destroyed ) { // created after shutdown (a rebuild still running): it still loads, never writes
+                        store.close(); // nothing pending and no other thread has it: returns at once without writing
+                    }
                     snapshotStore = store;
                 }
             }
@@ -410,8 +413,11 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     /** Flushes a pending write of the reference database when the filter chain is torn down (engine shutdown). */
     @Override
     public void destroy( final Engine engine ) {
-        destroyed = true;
-        final ReferenceSnapshotStore store = snapshotStore;
+        final ReferenceSnapshotStore store;
+        synchronized ( this ) { // with snapshotStore(): a store created after this is created closed
+            destroyed = true;
+            store = snapshotStore;
+        }
         if ( store != null ) { // never written to: nothing pending
             store.close();
         }

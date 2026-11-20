@@ -50,7 +50,7 @@ import java.util.function.Supplier;
  * <p>Contract: {@link #requestSave()} marks the snapshot dirty and writes it at once unless the previous write is
  * younger than the interval, in which case one deferred write is scheduled for when the interval has elapsed, so a
  * burst of updates costs a handful of writes. {@link #flush()} writes a pending save now and {@link #close()}
- * flushes and stops further deferred writes. A write that fails is logged, never thrown into the caller, and the
+ * writes every save requested before it began, then refuses all writes: a request after close is a no-op. A write that fails is logged, never thrown into the caller, and the
  * next update writes again; the previous file is never truncated ({@link AtomicFileWriter}). {@link #load()} never
  * throws: a missing, stale-format, corrupt or disallowed file is an empty result and the caller rebuilds the index.
  *
@@ -139,7 +139,14 @@ final class ReferenceSnapshotStore implements AutoCloseable {
     /** {@link System#nanoTime()} of the last write; meaningless until {@link #writtenOnce}. */
     private volatile long lastWriteNanos;
     private volatile boolean writtenOnce;
+    /** Set first thing in {@link #close()}: from then on every save request is a no-op. */
     private volatile boolean closed;
+    /** Set by {@link #close()} when its final write is done (or abandoned): no write starts after it. */
+    private volatile boolean shut;
+    /** Test seam: run at the start of {@link #saveNow()}, after a request registered and before it hands the write over. */
+    private volatile Runnable handOffHook;
+    /** How long {@link #close()} waits for a write in progress before giving up on it. */
+    private volatile long closeWaitNanos = TimeUnit.SECONDS.toNanos( 30 );
 
     /**
      * @param workDir       directory holding {@code refmgr.ser}
@@ -157,6 +164,16 @@ final class ReferenceSnapshotStore implements AutoCloseable {
     /** Test seam: the minimum spacing between debounced writes. */
     void setIntervalNanos( final long intervalNanos ) {
         this.intervalNanos = intervalNanos;
+    }
+
+    /** Test seam: runs {@code hook} at the start of every {@link #saveNow()} (null for none). */
+    void setHandOffHook( final Runnable hook ) {
+        this.handOffHook = hook;
+    }
+
+    /** Test seam: how long {@link #close()} waits for a write in progress. */
+    void setCloseWaitNanos( final long nanos ) {
+        this.closeWaitNanos = nanos;
     }
 
     /** Count of writes so far; lets tests prove a bulk pass writes once. */
@@ -200,7 +217,11 @@ final class ReferenceSnapshotStore implements AutoCloseable {
 
     /** Marks the snapshot dirty and writes it now unless the last write is younger than the interval. */
     void requestSave() {
-        pending.set( true );
+        pending.set( true ); // before reading closed: close() sets closed, then reads pending, so one sees the other
+        if ( closed ) {
+            LOG.debug( "Reference snapshot save requested after close; ignored" );
+            return;
+        }
         final long sinceLast = System.nanoTime() - lastWriteNanos;
         if ( !writtenOnce || sinceLast >= intervalNanos ) {
             flush();
@@ -220,7 +241,7 @@ final class ReferenceSnapshotStore implements AutoCloseable {
 
     /** Writes the snapshot if a save is pending. */
     void flush() {
-        if ( pending.getAndSet( false ) ) {
+        if ( pending.get() ) { // saveNow() clears it only once the rewrite is handed over: see close()
             saveNow();
         }
     }
@@ -234,13 +255,28 @@ final class ReferenceSnapshotStore implements AutoCloseable {
      * rewrite wanted and returns, and the writing thread captures and writes again before it lets go, so the newest
      * state is always the last one written. That hand-off is also what keeps this deadlock-free: the supplier takes
      * the manager's monitor, a caller may already hold that monitor, and so a caller must never block on the writer.
+     *
+     * <p>Once {@link #close()} has begun this writes nothing itself: the request is either seen by close()'s final
+     * write or, arriving after close() looked, dropped.
      */
     void saveNow() {
-        pending.set( false );
+        final Runnable hook = handOffHook;
+        if ( hook != null ) {
+            hook.run();
+        }
+        // Set rewriteWanted before clearing pending, so a request is always visible to close() through one or the other
         rewriteWanted.set( true );
+        pending.set( false );
+        if ( closed ) { // close() writes it as its final flush, or it arrived after close() had already looked
+            LOG.debug( "Reference snapshot save requested during or after close; close() writes it only if it saw it" );
+            return;
+        }
         // tryLock, never lock(): the check after unlock() picks up a request that arrived while this thread wrote
         while ( rewriteWanted.get() && writer.tryLock() ) {
             try {
+                if ( shut ) {
+                    return; // close() has finished: the work directory may be gone
+                }
                 if ( rewriteWanted.getAndSet( false ) ) {
                     write();
                 }
@@ -282,19 +318,42 @@ final class ReferenceSnapshotStore implements AutoCloseable {
     }
 
     /**
-     * Flushes a pending save and stops deferred writes; waits for a write already in progress, so the work directory
-     * may be removed once this returns. Idempotent. It blocks on the writer, which may be waiting for the manager's
-     * monitor, so it must not be called while holding that monitor ({@code destroy()} never is).
+     * Writes every save requested before this call began, then refuses all further writes; a request arriving later is
+     * a no-op. Waits for a write already in progress, so the work directory may be removed once this returns, but
+     * only for a bounded time: a write that never finishes is abandoned with a warning (the snapshot may then lag,
+     * which a warm start repairs by rescanning pages changed after it). Idempotent. The writer may be waiting for the
+     * manager's monitor, so this must not be called while holding that monitor ({@code destroy()} never is).
      */
     @Override
     public void close() {
         closed = true;
-        writer.lock();
+        final boolean locked;
         try {
-            if ( pending.get() || rewriteWanted.get() ) {
-                saveNow(); // also a rewrite a writer handed over but lost the lock to us before taking it back
+            locked = writer.tryLock( closeWaitNanos, TimeUnit.NANOSECONDS );
+        } catch ( final InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            shut = true;
+            LOG.warn( "Interrupted while waiting to flush reference snapshot {}; closing without the final write: {}",
+                      file, e.getMessage() );
+            return;
+        }
+        if ( !locked ) {
+            shut = true;
+            LOG.warn( "A write of reference snapshot {} is still running after {} ms; closing without the final write",
+                      file, TimeUnit.NANOSECONDS.toMillis( closeWaitNanos ) );
+            return;
+        }
+        try {
+            // pending is read first: saveNow() sets rewriteWanted before it clears pending, so a request that set
+            // pending before closed was set is seen here through one flag or the other (a writer that already took
+            // the rewrite has written it: it held the lock this thread now holds)
+            if ( !shut && ( pending.get() || rewriteWanted.get() ) ) {
+                pending.set( false );
+                rewriteWanted.set( false );
+                write();
             }
         } finally {
+            shut = true;
             writer.unlock();
         }
     }

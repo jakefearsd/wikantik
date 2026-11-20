@@ -21,12 +21,15 @@ import java.util.ConcurrentModificationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReferenceSnapshotStoreTest {
@@ -185,6 +188,96 @@ class ReferenceSnapshotStoreTest {
         writer.join( 5_000 );
         assertFalse( writer.isAlive(), "the write finishes once the state lock is released" );
         assertTrue( store.load().orElseThrow().refersTo().containsKey( "C" ), "the newest state is the one on disk" );
+    }
+
+    /**
+     * A save requested before {@code close()} began is written by the time {@code close()} returns, even when the
+     * requesting thread is still between registering the request and handing the write over; and once
+     * {@code close()} has returned that thread writes nothing (the work directory may already be gone). The hook
+     * parks the requester in exactly that gap while the test closes the store.
+     */
+    @Test
+    void closeWritesASaveThatWasStillBeingHandedOverWhenCloseBegan( @TempDir final Path dir ) throws Exception {
+        final AtomicReference< Snapshot > state = new AtomicReference<>( graph( "A", "B" ) );
+        final ReferenceSnapshotStore store = store( dir, 0L, state );
+        final CountDownLatch inGap = new CountDownLatch( 1 );
+        final CountDownLatch resume = new CountDownLatch( 1 );
+        final AtomicBoolean parkedOnce = new AtomicBoolean();
+        store.setHandOffHook( () -> {
+            if ( parkedOnce.compareAndSet( false, true ) ) {
+                inGap.countDown();
+                awaitQuietly( resume );
+            }
+        } );
+        state.set( graph( "C", "D" ) );
+        final Thread requester = new Thread( store::requestSave, "snapshot-requester" );
+        requester.setDaemon( true );
+        try {
+            requester.start();
+            assertTrue( inGap.await( 5, TimeUnit.SECONDS ), "the requester reaches the hand-off" );
+
+            store.close();
+
+            assertTrue( store.load().map( s -> s.refersTo().containsKey( "C" ) ).orElse( false ),
+                    "close() must write the save requested before it began" );
+            final int writesAtClose = store.writeCount();
+            resume.countDown();
+            requester.join( 5_000 );
+            assertFalse( requester.isAlive() );
+            assertEquals( writesAtClose, store.writeCount(), "nothing is written after close() returned" );
+        } finally {
+            resume.countDown();
+        }
+    }
+
+    @Test
+    void aSaveRequestedAfterCloseWritesNothing( @TempDir final Path dir ) {
+        final ReferenceSnapshotStore store = store( dir, 0L, new AtomicReference<>( graph( "A", "B" ) ) );
+        store.close();
+
+        assertDoesNotThrow( store::requestSave );
+        assertDoesNotThrow( store::saveNow );
+        assertDoesNotThrow( store::flush );
+        store.close();
+
+        assertEquals( 0, store.writeCount(), "a request after close() is a no-op" );
+        assertFalse( Files.exists( dir.resolve( "refmgr.ser" ) ), "a closed store must not write into the work dir" );
+    }
+
+    /** A write that never finishes (a hung disk) must not hang shutdown: close() gives up after its bounded wait. */
+    @Test
+    void closeDoesNotWaitForeverForAWriteThatNeverFinishes( @TempDir final Path dir ) throws Exception {
+        final CountDownLatch inWrite = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final ReferenceSnapshotStore store = new ReferenceSnapshotStore( dir, 0L, () -> {
+            inWrite.countDown();
+            awaitQuietly( release );
+            return graph( "A", "B" );
+        } );
+        store.setCloseWaitNanos( TimeUnit.MILLISECONDS.toNanos( 50 ) );
+        final Thread writer = new Thread( store::saveNow, "stuck-writer" );
+        writer.setDaemon( true );
+        try {
+            writer.start();
+            assertTrue( inWrite.await( 5, TimeUnit.SECONDS ), "the writer is inside its write" );
+
+            assertTimeoutPreemptively( Duration.ofSeconds( 5 ), store::close, "close() blocked on a write that never ends" );
+        } finally {
+            release.countDown();
+        }
+        writer.join( 5_000 );
+        assertFalse( writer.isAlive() );
+    }
+
+    private static void awaitQuietly( final CountDownLatch latch ) {
+        try {
+            if ( !latch.await( 10, TimeUnit.SECONDS ) ) {
+                throw new IllegalStateException( "test latch was never released" );
+            }
+        } catch ( final InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException( "interrupted while parked", e );
+        }
     }
 
     private static void writeRaw( final Path dir, final long version, final Object first, final Object second ) throws Exception {

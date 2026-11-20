@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Pins the datasource boot order and each step's failure policy to what the pre-BootSequence
@@ -77,7 +78,7 @@ class WikiEngineDataSourceBootStepsTest {
 
             work.reportContinuedFailure( new IllegalStateException( "work schema missing" ) );
 
-            assertEquals( null, engine.workService() );
+            assertNull( engine.workService() );
         } finally {
             engine.stop();
         }

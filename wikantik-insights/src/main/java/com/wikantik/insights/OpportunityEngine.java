@@ -81,8 +81,12 @@ public final class OpportunityEngine {
     /** {@link SuppressedRule#reason()} for a rule suppressed by the §7.3.0 traffic gate. */
     private static final String TRAFFIC_GATE_REASON = "traffic_gate";
 
-    /** The native rules in evaluation order; the gated ones are skipped while the traffic gate is closed. */
-    private static final List<OpportunityRule> RULES = List.of(
+    /**
+     * The native rules in evaluation order; the gated ones are skipped while the traffic gate is closed. The merge in
+     * {@link #evaluateGated} names each rule's type, so a rule added here must be merged there too (the gate test
+     * pins the set). Package-private for that test.
+     */
+    static final List<OpportunityRule> RULES = List.of(
             new AgentGapRule(), new EngineDivergenceRule(), new VocabularyGapRule(), new StaleHighTrafficRule() );
 
     /**

@@ -59,6 +59,14 @@ class OpportunityRuleGateTest {
                 ExpectedCtrCurve.defaultCurve(), TODAY, defaults );
     }
 
+    /** The merge in evaluateGated names these four types; a fifth rule would be evaluated, then silently dropped. */
+    @Test
+    void theRulesAreExactlyTheFourTypesTheMergeCombines() {
+        assertEquals( List.of( OpportunityEngine.AGENT_GAP, OpportunityEngine.ENGINE_DIVERGENCE,
+                        OpportunityEngine.VOCABULARY_GAP, OpportunityEngine.STALE_HIGH_TRAFFIC ),
+                OpportunityEngine.RULES.stream().map( OpportunityRule::type ).toList() );
+    }
+
     @Test
     void closedGateReportsEachGatedRuleOnceWithMeasuredAndRequired() {
         final Backlog backlog = run( 1234, List.of() );

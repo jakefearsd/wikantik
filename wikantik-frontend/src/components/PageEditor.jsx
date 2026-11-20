@@ -52,7 +52,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { formatRelative } from '../utils/datetime';
 import { formatKeys } from '../utils/keyHints';
-import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock, setHeading, insertCallout, insertMathBlock, insertRule, insertFence, insertFootnote, insertEmbed, insertAccessRule } from '../utils/markdownFormat';
 import { useDarkMode } from '../hooks/useDarkMode';
 import EditorToolbar from './EditorToolbar';
 import CodeEditor, { minimalChange } from './CodeEditor';
@@ -70,7 +69,8 @@ import { loadEmbedState } from '../utils/livePreview/embedSource';
 import { asDispatched } from '../utils/livePreview';
 import { useRunCommand } from '../commands/useCommands';
 import { getCommands, registerCommands } from '../commands/registry';
-import { buildEditorCommands, FENCE_STARTERS } from '../utils/editorCommands';
+import { buildEditorCommands } from '../utils/editorCommands';
+import { resolveFormatCommand } from '../utils/editorFormatCommands';
 import { formatStateAt, EMPTY_FORMAT_STATE } from '../utils/formatState';
 import { createSlashSource } from '../utils/slashComplete';
 import { createTagSource } from '../utils/tagComplete';
@@ -931,39 +931,9 @@ export default function PageEditor({ collabTransport } = {}) {
       selEnd,
     };
 
-    let next;
-    if (command.startsWith('callout:')) {
-      next = insertCallout(state, command.slice('callout:'.length));
-    } else if (command.startsWith('fence:')) {
-      const language = command.slice('fence:'.length);
-      next = insertFence(state, language, FENCE_STARTERS[language] ?? '');
-    } else switch (command) {
-      case 'bold':    next = toggleWrap(state, '**'); break;
-      case 'italic':  next = toggleWrap(state, '*');  break;
-      case 'code':    next = toggleWrap(state, '`');  break;
-      case 'highlight': next = toggleWrap(state, '=='); break; // Mod-Shift-H in the editor keymap does the same
-      case 'strike':  next = toggleWrap(state, '~~'); break;   // Mod-Shift-X in the editor keymap does the same
-      case 'comment': next = toggleWrap(state, '%%'); break;   // Mod-/ in the editor keymap does the same
-      // Rich: the fences are hidden and the header's picker sets the language, so no placeholder; the caret goes to the body.
-      case 'codeblock': next = liveActive ? insertFence(state, '', state.text.slice(selStart, selEnd)) : insertCodeBlock(state); break;
-      case 'heading': next = toggleLinePrefix(state, '## '); break;
-      case 'list':    next = toggleLinePrefix(state, '- ');  break;
-      case 'olist':   next = toggleLinePrefix(state, '1. '); break;
-      case 'tasklist': next = toggleLinePrefix(state, '- [ ] '); break;
-      case 'quote':   next = toggleLinePrefix(state, '> ');  break;
-      case 'table':   next = insertTable(state); break;
-      case 'link':    next = insertLink(state); break;
-      case 'h1':      next = setHeading(state, 1); break;
-      case 'h2':      next = setHeading(state, 2); break;
-      case 'h3':      next = setHeading(state, 3); break;
-      case 'h4':      next = setHeading(state, 4); break;
-      case 'mathblock': next = insertMathBlock(state); break;
-      case 'rule':    next = insertRule(state); break;
-      case 'footnote': next = insertFootnote(state); break;
-      case 'embed':   next = insertEmbed(state); break;
-      case 'accessrule': next = insertAccessRule(state, arg); break; // AccessRuleForm validates what it hands over
-      default: return;
-    }
+    const run = resolveFormatCommand(command);
+    if (!run) return;
+    const next = run(state, { liveActive, arg });
 
     // Insertions that are far apart (a footnote's marker and its definition) go as the exact changes they are, in one
     // transaction: applyEdit would replace everything between them, text a collaborator may be typing in.

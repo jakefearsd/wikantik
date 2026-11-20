@@ -1,14 +1,8 @@
+import { FENCE_STARTERS } from './editorFormatCommands';
+
 const CALLOUTS = [['note', 'Note'], ['tip', 'Tip'], ['warning', 'Warning'], ['danger', 'Danger'], ['info', 'Info']];
 
-/**
- * What a new diagram fence starts with, by fence language. Mermaid's is the first source the shared reader fixture
- * (`__fixtures__/renderedFences.json`, `mermaidPolicy`) allows; that fixture holds no PlantUML source, so PlantUML's
- * is the smallest whole diagram in the `@startuml` spelling the wiki's pages use.
- */
-export const FENCE_STARTERS = {
-  mermaid: 'flowchart TD\n  A-->B',
-  plantuml: '@startuml\nA -> B\n@enduml',
-};
+export { FENCE_STARTERS };
 
 /** The editor's command-registry entries; every action is injected so the list stays pure. */
 export function buildEditorCommands({ format, save, pickImage, togglePreview, toggleRail, foldAll, unfoldAll, toggleLivePreview, pastePlain, copyBlockLink, pickAccessRule, showSourcePane }) {

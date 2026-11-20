@@ -1,6 +1,7 @@
 import { keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { toggleWrap } from './markdownFormat';
+import { MARKERS } from './editorFormatCommands';
 
 /**
  * Obsidian-syntax editing keys, bound in the editor extension itself (not through the command registry's `format`):
@@ -29,9 +30,9 @@ function toggleMarker(view, marker) {
   return true;
 }
 
-export const toggleHighlight = (view) => toggleMarker(view, '==');
-export const toggleStrike = (view) => toggleMarker(view, '~~');
-export const toggleComment = (view) => toggleMarker(view, '%%');
+export const toggleHighlight = (view) => toggleMarker(view, MARKERS.highlight);
+export const toggleStrike = (view) => toggleMarker(view, MARKERS.strike);
+export const toggleComment = (view) => toggleMarker(view, MARKERS.comment);
 
 export const obsidianSyntaxKeymap = Prec.highest(keymap.of([
   { key: 'Mod-Shift-h', preventDefault: true, run: toggleHighlight },

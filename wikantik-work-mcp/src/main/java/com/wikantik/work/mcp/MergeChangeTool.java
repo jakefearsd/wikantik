@@ -31,7 +31,7 @@ import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
-/** Reports that a change was merged: the reviewer's step, after it approved the commit that was merged. */
+/** Reports that a change was merged: the reviewer's step, after it approved the change's current commit. */
 public final class MergeChangeTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "merge_change";
@@ -59,14 +59,14 @@ public final class MergeChangeTool extends WorkMcpTool {
     public McpSchema.Tool definition() {
         final Map< String, Object > props = new LinkedHashMap<>();
         props.put( "change", prop( "integer", "The change's id.", 7 ) );
-        props.put( "merged_sha", prop( "string", "The commit you merged: the one you approved.", "4f2a9c1" ) );
+        props.put( "merged_sha", prop( "string", "The commit the merge produced on the code host (a squash or merge commit is fine).", "4f2a9c1" ) );
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
             .description( "Report a change merged, after you merged it on the code host. Only the agent whose "
                 + "approval stands on the change's current commit may, and never an agent that opened it or put a commit "
                 + "on it. Returns "
                 + "the change. Refusals: denied: (not the approving reviewer, your own change, or a level where a "
-                + "person merges), not_approved: (the commit is not the approved one), change_closed:." )
+                + "person merges), not_approved: (no approval stands on the change's current commit), change_closed:." )
             .inputSchema( schema( props, List.of( "change", "merged_sha" ) ) )
             .annotations( WRITES )
             .build();

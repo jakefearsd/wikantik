@@ -144,7 +144,8 @@ public final class WorkChangesService {
 
     /**
      * Reports the change merged at {@code mergedSha}. An agent must be the one whose approval stands on the
-     * change's current commit, and the commit it reports must be that one; a person may merge any live change.
+     * change's current commit; the commit it reports is the one the merge produced (a squash or merge commit is
+     * fine). A person may merge any live change; it is reviewed when an approval stands on the current commit.
      */
     public Change merge( final Actor a, final long changeId, final String mergedSha ) throws SQLException {
         final ItemScope is = writable( scopeOf( a, changeId ), Action.MERGE_CHANGE );
@@ -152,7 +153,7 @@ public final class WorkChangesService {
         final EffectivePolicy policy = WorkAutonomy.resolve( store.policyChain( is.item().id() ) );
         return fenced( () -> store.changes().merge( is.item(), changeId, sha, locked -> {
             final Decision who = WorkGates.mayMerge( a, locked, policy );
-            final boolean reviewed = locked.approvedForHead() && sha.equals( locked.headSha() );
+            final boolean reviewed = locked.approvedForHead();
             if ( who.allowed() && a.kind() == Actor.Kind.AGENT && !reviewed ) {
                 scopes.decide( is.scope(), "merge", Decision.deny( "not approved" ) );
                 throw new WorkConflictException( "This change has no approval for its current commit.",

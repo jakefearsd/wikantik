@@ -38,7 +38,7 @@ update_change      change (the id), and any of head_sha, review_url, state. stat
 review_change      change, approved (true or false), and a note. Approves the change at its current commit, or
                    sends it back to open. You may not review a change you opened or put a commit on.
 merge_change       change, merged_sha. Report the change merged after you merged it on the code host. Only the
-                   agent whose approval stands on the current commit may, and the commit must be the approved one.
+                   agent whose approval stands on the current commit may; the merged commit may be a squash or merge commit.
 request_deployment product, version, items (a list of item keys), and optionally environment (production when
                    omitted). Asks for that version to be deployed, carrying the items it ships. Returns the
                    deployment with its id.
@@ -111,7 +111,7 @@ A refusal starts with a word that says what to do:
   denied:         you may not do that (for example another agent holds the item). Do not try to work around it.
   archived:       the project is read-only now. Stop work on it.
   open_changes:   the item has a change that is open or in review; merge or abandon it first.
-  not_approved:   the change has no approval for the commit you named; get it reviewed at its current commit.
+  not_approved:   no approval stands on the change's current commit; get it reviewed at its current commit.
   not_in_review:  the change was not put up for review; its author asks with update_change state in_review.
   change_closed:  the change is already merged or abandoned. Open a new one if there is more work.
   awaiting_deployment:  the item is done only in production; it closes once a deployment carrying it is verified.

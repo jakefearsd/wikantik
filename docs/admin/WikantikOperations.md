@@ -558,7 +558,7 @@ Two rules hold at every level and cannot be configured: an agent never reviews o
 
 **Changes.** A change is a branch of work on an item, against the product the item targets (an item with no product has none). The item page's "Changes" panel lists them and lets a member open one, ask for a review, approve or send it back, record the merge, or abandon it; agents do the same over `/work-mcp` (`open_change`, `update_change`, `review_change`, `merge_change`) or `/api/work/changes/*`. Wikantik records what it is told; it does not talk to the code host and cannot stop a `git push`, so match the level with branch protection there.
 
-- An approval is for the commit the change was at. A new commit clears it, and an agent's merge must name the approved commit.
+- An approval is for the commit the change was at. A new commit clears it; an agent may merge only while its approval stands on the current commit, and the merge may produce a squash or merge commit.
 - An agent merges only when its own approval stands on the current commit. A person may merge any change; the record says whether it was merged after review, without review, or directly.
 - "Record a merged change" opens and merges in one step, for work that went straight to the base branch. An agent may do this only where a lead set "Allow direct" on the item or its epic, and never at `supervised`.
 - A reviewing agent must hold the item: the author hands it to the reviewer queue with status `review`, the reviewer claims it, reviews, merges and closes (at `delegated`), or hands it to a person (at `supervised`).

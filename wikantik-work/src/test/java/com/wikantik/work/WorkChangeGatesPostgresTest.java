@@ -39,6 +39,7 @@ class WorkChangeGatesPostgresTest {
 
     private static final String A = "aaaaaaa1";
     private static final String B = "bbbbbbb2";
+    private static final String SQUASH = "ccccccc3";
 
     private GateFixture f;
     private WorkChangesService changes;
@@ -255,9 +256,41 @@ class WorkChangeGatesPostgresTest {
         assertEquals( "not_approved", conflict( () -> changes.merge( f.reviewer, c.id(), B ) ),
             "the approval was for the older commit: ask for a review of this one" );
         changes.review( f.reviewer, c.id(), true, null );
-        assertEquals( "not_approved", conflict( () -> changes.merge( f.reviewer, c.id(), A ) ),
-            "the merged commit must be the approved one" );
         assertEquals( B, changes.merge( f.reviewer, c.id(), B ).mergedSha() );
+    }
+
+    @Test
+    void anAgentSquashMergesItsApprovedChangeAsReviewed() throws SQLException {
+        final Change c = inReview();
+        changes.review( f.reviewer, c.id(), true, null );
+        final Change merged = changes.merge( f.reviewer, c.id(), SQUASH );
+        assertEquals( MergeKind.REVIEWED, merged.mergeKind() );
+        assertEquals( SQUASH, merged.mergedSha() );
+    }
+
+    @Test
+    void aPersonsSquashMergeAfterApprovalIsReviewed() throws SQLException {
+        final Change c = inReview();
+        changes.review( f.reviewer, c.id(), true, null );
+        final Change merged = changes.merge( f.mia, c.id(), SQUASH );
+        assertEquals( MergeKind.REVIEWED, merged.mergeKind() );
+        assertEquals( SQUASH, merged.mergedSha() );
+    }
+
+    @Test
+    void aSquashAfterAPostApprovalPushIsStillRefusedForAnAgent() throws SQLException {
+        final Change c = inReview();
+        changes.review( f.reviewer, c.id(), true, null );
+        changes.update( f.author, c.id(), B, null );
+        assertEquals( "not_approved", conflict( () -> changes.merge( f.reviewer, c.id(), SQUASH ) ) );
+    }
+
+    @Test
+    void aPersonsMergeAfterAPostApprovalPushIsUnreviewed() throws SQLException {
+        final Change c = inReview();
+        changes.review( f.reviewer, c.id(), true, null );
+        changes.update( f.author, c.id(), B, null );
+        assertEquals( MergeKind.UNREVIEWED, changes.merge( f.mia, c.id(), SQUASH ).mergeKind() );
     }
 
     @Test

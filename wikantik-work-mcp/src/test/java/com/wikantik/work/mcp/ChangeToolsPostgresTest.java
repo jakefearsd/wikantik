@@ -181,8 +181,7 @@ class ChangeToolsPostgresTest {
         assertEquals( "not_approved: This change has no approval for its current commit.",
             refused( call( reviewer, "merge_change", "change", id, "merged_sha", B ) ) );
         ok( call( reviewer, "review_change", "change", id, "approved", true ) );
-        assertEquals( "not_approved: This change has no approval for its current commit.",
-            refused( call( reviewer, "merge_change", "change", id, "merged_sha", A ) ) );
+        ok( call( reviewer, "merge_change", "change", id, "merged_sha", A ) );
     }
 
     @Test

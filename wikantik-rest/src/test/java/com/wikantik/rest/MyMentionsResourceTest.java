@@ -313,6 +313,21 @@ class MyMentionsResourceTest {
         assertEquals( 404, invokePost( "/" ).get( "status" ).getAsInt(), "POST has no bare-slash route" );
     }
 
+    /**
+     * Pinned in 2.7.4: the route table drops empty path segments (as Tomcat collapses {@code //}). {@code //read}
+     * used to reach markOneRead with an empty id; it is now plain {@code /read}, a 404, and a doubled slash before a
+     * real id marks that mention read.
+     */
+    @Test
+    void doubled_slashes_are_dropped_before_dispatch() throws Exception {
+        final UUID id = UUID.randomUUID();
+        Mockito.when( svc.markRead( id, "alice" ) ).thenReturn( true );
+
+        assertEquals( 404, invokePost( "//read" ).get( "status" ).getAsInt() );
+        assertTrue( invokePost( "//" + id + "/read" ).get( "ok" ).getAsBoolean() );
+        Mockito.verify( svc, Mockito.never() ).markRead( Mockito.isNull(), Mockito.anyString() );
+    }
+
     // ---- 10: parseInstant + clampLimit branches ----
 
     @Test

@@ -280,6 +280,31 @@ class SelfApiKeysResourceTest {
         verify( mockService, never() ).revoke( anyInt(), anyString() );
     }
 
+    /**
+     * Pinned in 2.7.4: the route table drops empty path segments (as Tomcat collapses {@code //}). POST {@code //}
+     * was a 404 and now generates a key; DELETE {@code //7} was a 400 and now revokes key 7.
+     */
+    @Test
+    void doubledSlashesAreDroppedBeforeDispatch() throws Exception {
+        stubAdmin = true;
+        when( mockService.generate( "alice", "ci", ApiKeyService.Scope.MCP_ADMIN, "alice" ) )
+                .thenReturn( new ApiKeyService.Generated( "wkk_SECRET", rec( 9, "alice", "ci", ApiKeyService.Scope.MCP_ADMIN ) ) );
+        when( mockService.findById( 7 ) ).thenReturn( Optional.of( rec( 7, "alice", "ci", ApiKeyService.Scope.MCP_ADMIN ) ) );
+        when( mockService.revoke( 7, "alice" ) ).thenReturn( true );
+        final HttpServletRequest post = postRequest( "//", "{\"label\":\"ci\",\"scope\":\"mcp\"}" );
+        final StringWriter posted = new StringWriter();
+        final HttpServletRequest delete = mock( HttpServletRequest.class );
+        when( delete.getPathInfo() ).thenReturn( "//7" );
+        final StringWriter deleted = new StringWriter();
+
+        newServlet().doPost( post, mockResponse( posted ) );
+        newServlet().doDelete( delete, mockResponse( deleted ) );
+
+        assertTrue( posted.toString().contains( "wkk_SECRET" ), posted.toString() );
+        verify( mockService ).revoke( 7, "alice" );
+        assertTrue( deleted.toString().contains( "\"success\": true" ), deleted.toString() );
+    }
+
     @Test
     void deleteWithoutAWholeNumberIdReturns400() throws Exception {
         for ( final String pathInfo : new String[] { null, "/", "/abc", "/7/rotate" } ) {

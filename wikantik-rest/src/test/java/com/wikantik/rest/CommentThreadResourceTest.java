@@ -749,6 +749,17 @@ class CommentThreadResourceTest {
         assertEquals( 404, res.get( "status" ).getAsInt() );
     }
 
+    /** Pinned in 2.7.4: the route table drops empty path segments (as Tomcat collapses {@code //}); this was a 404. */
+    @Test
+    void delete_thread_with_a_doubled_slash_deletes_the_thread() throws Exception {
+        final String threadId = createThread();
+
+        final JsonObject res = del( "//" + threadId );
+
+        assertTrue( res.get( "deleted" ).getAsBoolean(), res.toString() );
+        assertTrue( store.findThread( java.util.UUID.fromString( threadId ) ).isEmpty() );
+    }
+
     @Test
     void get_missing_page_param_is_400() throws Exception {
         final JsonObject res = get( "" );

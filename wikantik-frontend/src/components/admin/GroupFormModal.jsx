@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import useAsyncAction from '../../hooks/useAsyncAction';
 
 const UNSET = Symbol('unset');
 
@@ -6,8 +7,10 @@ export default function GroupFormModal({ group, isOpen, onClose, onSave }) {
   const isEdit = !!group;
   const [form, setForm] = useState({ name: '', members: [] });
   const [newMember, setNewMember] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const { run: save, busy: saving, error, setError } = useAsyncAction(onSave, {
+    fallbackMessage: 'Failed to save group',
+    onSuccess: () => onClose(),
+  });
 
   const [prevGroup, setPrevGroup] = useState(UNSET);
   const [prevIsOpen, setPrevIsOpen] = useState(UNSET);
@@ -48,18 +51,9 @@ export default function GroupFormModal({ group, isOpen, onClose, onSave }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      await onSave({ name: form.name, members: form.members });
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Failed to save group');
-    } finally {
-      setSaving(false);
-    }
+    return save({ name: form.name, members: form.members });
   };
 
   return (

@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import Modal from '../ui/Modal';
 import Select from '../ui/Select';
 import { listItems, createItem } from '../../api/work';
+import useAsyncAction from '../../hooks/useAsyncAction';
 import AssigneePicker from './AssigneePicker';
 import { PRIORITY_OPTIONS } from './boardModel';
 
@@ -25,8 +26,13 @@ function FormBody({ project, products, members, queues, onClose, onCreated }) {
   const [dueOn, setDueOn] = useState('');
   const [target, setTarget] = useState({});
   const [candidates, setCandidates] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const { run: create, busy: saving, error } = useAsyncAction(createItem, {
+    fallbackMessage: 'Could not create the item.',
+    onSuccess: (view) => {
+      onCreated?.(view.item, view);
+      onClose();
+    },
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -51,23 +57,13 @@ function FormBody({ project, products, members, queues, onClose, onCreated }) {
   function submit(e) {
     e.preventDefault();
     if (!title.trim() || saving) return;
-    setSaving(true);
-    setError(null);
     const draft = { project: project.key, level, kind, title: title.trim(), body, priority: Number(priority) };
     if (parentKey && current.parentLevel) draft.parentKey = parentKey;
     if (productKey && level !== 'epic') draft.productKey = productKey;
     if (dueOn) draft.dueOn = dueOn;
     if (target.queue) draft.queue = target.queue;
     else if (target.assignee) draft.assignee = target.assignee;
-    createItem(draft)
-      .then((view) => {
-        onCreated?.(view.item, view);
-        onClose();
-      })
-      .catch((err) => {
-        setError(err.message || 'Could not create the item.');
-        setSaving(false);
-      });
+    create(draft);
   }
 
   return (

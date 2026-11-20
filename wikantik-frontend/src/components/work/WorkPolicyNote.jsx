@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { acknowledgeItem, getItemPolicy } from '../../api/work';
+import useAsyncAction from '../../hooks/useAsyncAction';
 
 const LEVEL = { supervised: 'Supervised', delegated: 'Delegated', autonomous: 'Autonomous' };
 const LEVEL_MEANS = {
@@ -26,8 +27,6 @@ function source(own, uncapped, effective) {
  */
 export default function WorkPolicyNote({ itemKey, ownAutonomy = null, canAcknowledge = false, refreshKey = 0, onChanged }) {
   const [policy, setPolicy] = useState(null);
-  const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(false);
 
   const [failed, setFailed] = useState(false);
 
@@ -40,6 +39,11 @@ export default function WorkPolicyNote({ itemKey, ownAutonomy = null, canAcknowl
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
+  const { run: acknowledge, busy, error } = useAsyncAction(() => acknowledgeItem(itemKey), {
+    fallbackMessage: 'Could not acknowledge this.',
+    onSuccess: () => { onChanged?.(); return load(); },
+  });
+
   if (failed && !policy?.effective) {
     return (
       <p className="work-muted">
@@ -50,14 +54,6 @@ export default function WorkPolicyNote({ itemKey, ownAutonomy = null, canAcknowl
   }
   if (!policy?.effective) return null;
   const { autonomy, uncappedAutonomy, allowDirect, doneMeans } = policy.effective;
-
-  function acknowledge() {
-    setBusy(true); setError(null);
-    acknowledgeItem(itemKey)
-      .then(() => { onChanged?.(); return load(); })
-      .catch((e) => setError(e?.message || 'Could not acknowledge this.'))
-      .finally(() => setBusy(false));
-  }
 
   return (
     <div className="work-policy-note" data-testid="policy-note">

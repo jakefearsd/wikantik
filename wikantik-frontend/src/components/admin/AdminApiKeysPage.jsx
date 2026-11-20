@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAdminResource } from '../../hooks/useAdminResource';
+import useAsyncAction from '../../hooks/useAsyncAction';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
@@ -225,8 +226,10 @@ export default function AdminApiKeysPage() {
 
 function ApiKeyFormModal({ isOpen, onClose, onSave }) {
   const [form, setForm] = useState({ principalLogin: '', label: '', scope: 'tools' });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const { run: save, busy: saving, error, setError } = useAsyncAction(onSave, {
+    fallbackMessage: 'Failed to generate API key',
+    onSuccess: () => onClose(),
+  });
 
   // Adjusting state when a prop changes (react.dev/learn/you-might-not-need-an-effect):
   // compare against the previous isOpen during render instead of syncing in an effect,
@@ -244,18 +247,9 @@ function ApiKeyFormModal({ isOpen, onClose, onSave }) {
 
   const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      await onSave(form);
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Failed to generate API key');
-    } finally {
-      setSaving(false);
-    }
+    return save(form);
   };
 
   return (

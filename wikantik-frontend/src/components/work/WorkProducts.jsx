@@ -4,6 +4,7 @@ import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { archiveProduct, createProduct, listProducts, productHistory, updateProduct } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
+import useAsyncAction from '../../hooks/useAsyncAction';
 import { useToast } from '../../hooks/useToast';
 import { formatRelative } from '../../utils/datetime';
 import WorkConfirm from './WorkConfirm';
@@ -69,23 +70,23 @@ function ProductForm({ product, onDone, onCancel }) {
       wikiCluster: product.wikiCluster || '', autonomyCeiling: product.autonomyCeiling || 'delegated',
       deployGate: product.deployGate || 'human' }
     : BLANK);
-  const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const { run, busy, error, setError } = useAsyncAction(
+    (fields) => (editing ? updateProduct(product.key, fields) : createProduct({ key: f.key, ...fields })),
+    {
+      fallbackMessage: 'Could not save the product.',
+      onSuccess: () => { toast.success(editing ? 'Product saved' : `Created ${f.key}`); onDone(); },
+    },
+  );
   const set = (name) => (e) => setF((s) => ({ ...s, [name]: e.target.value }));
 
   function submit(e) {
     e.preventDefault();
     if (!editing && !KEY_PATTERN.test(f.key)) { setError(KEY_MESSAGE); return; }
     if (!f.name.trim()) { setError('Enter a name.'); return; }
-    setError(null); setBusy(true);
     const fields = { name: f.name.trim(), repoUrl: f.repoUrl.trim() || null, defaultBranch: f.defaultBranch.trim() || null,
       wikiCluster: f.wikiCluster.trim() || null, autonomyCeiling: f.autonomyCeiling,
       deployGate: f.deployGate };
-    const request = editing ? updateProduct(product.key, fields) : createProduct({ key: f.key, ...fields });
-    request
-      .then(() => { toast.success(editing ? 'Product saved' : `Created ${f.key}`); onDone(); })
-      .catch((err) => setError(err?.message || 'Could not save the product.'))
-      .finally(() => setBusy(false));
+    run(fields);
   }
 
   return (
@@ -129,8 +130,6 @@ export default function WorkProducts() {
   const [state, setState] = useState({ products: null, error: null });
   const [mode, setMode] = useState(null); // null | 'new' | product key being edited
   const [archiving, setArchiving] = useState(null);
-  const [archiveBusy, setArchiveBusy] = useState(false);
-  const [archiveError, setArchiveError] = useState(null);
   const seq = useRef(0);
 
   const load = useCallback(() => {
@@ -145,6 +144,11 @@ export default function WorkProducts() {
 
   useEffect(() => { if (isAdmin) load(); }, [isAdmin, load]);
 
+  const { run: archive, busy: archiveBusy, error: archiveError, reset: resetArchiveError } = useAsyncAction((key) => archiveProduct(key).then(() => key), {
+    fallbackMessage: 'Could not archive the product.',
+    onSuccess: (key) => { setArchiving(null); toast.success(`Archived ${key}`); load(); },
+  });
+
   // Until /api/auth/user resolves the user is null: deciding now would bounce a signed-in admin.
   if (authLoading) return <Spinner label="Loading…" />;
   if (!isAdmin) return <Navigate to="/work" replace />;
@@ -152,14 +156,6 @@ export default function WorkProducts() {
   if (!state.products) return <Spinner label="Loading products…" />;
 
   const done = () => { setMode(null); load(); };
-  function archive(key) {
-    if (archiveBusy) return;
-    setArchiveBusy(true); setArchiveError(null);
-    archiveProduct(key)
-      .then(() => { setArchiving(null); toast.success(`Archived ${key}`); load(); })
-      .catch((err) => setArchiveError(err?.message || 'Could not archive the product.'))
-      .finally(() => setArchiveBusy(false));
-  }
   const active = state.products.filter((p) => !p.archivedAt);
 
   return (
@@ -192,14 +188,14 @@ export default function WorkProducts() {
                       {archiving === p.key
                         ? (
                           <WorkConfirm yes={`Yes, archive ${p.key}`} disabled={archiveBusy} error={archiveError}
-                            onYes={() => archive(p.key)} onNo={() => { setArchiving(null); setArchiveError(null); }}>
+                            onYes={() => archive(p.key)} onNo={() => { setArchiving(null); resetArchiveError(); }}>
                             Archive {p.key}? It will no longer be offered on items.
                           </WorkConfirm>
                         )
                         : (
                           <div className="work-actions">
                             <button type="button" className="btn btn-sm" aria-label={`Edit ${p.key}`} onClick={() => setMode(p.key)}>Edit</button>
-                            <button type="button" className="btn btn-sm btn-ghost" aria-label={`Archive ${p.key}`} onClick={() => { setArchiveError(null); setArchiving(p.key); }}>Archive</button>
+                            <button type="button" className="btn btn-sm btn-ghost" aria-label={`Archive ${p.key}`} onClick={() => { resetArchiveError(); setArchiving(p.key); }}>Archive</button>
                           </div>
                         )}
                     </>

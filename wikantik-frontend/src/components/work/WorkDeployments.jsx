@@ -5,6 +5,7 @@ import EmptyState from '../ui/EmptyState';
 import Select from '../ui/Select';
 import Spinner from '../ui/Spinner';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import useAsyncAction from '../../hooks/useAsyncAction';
 import { listDeployments, listProducts, requestDeployment } from '../../api/work';
 
 export const STATE_LABEL = {
@@ -17,8 +18,10 @@ const who = (name, kind) => (name ? `${name}${kind === 'agent' ? ' (agent)' : ''
 
 function RequestForm({ product, onDone, onCancel }) {
   const [f, setF] = useState(BLANK);
-  const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const { run, busy, error, setError } = useAsyncAction(requestDeployment, {
+    fallbackMessage: 'Could not request the deployment.',
+    onSuccess: (d) => onDone(d),
+  });
   const set = (name) => (e) => setF((s) => ({ ...s, [name]: e.target.value }));
 
   function submit(e) {
@@ -26,11 +29,7 @@ function RequestForm({ product, onDone, onCancel }) {
     const items = f.items.split(/[\s,]+/).map((k) => k.trim()).filter(Boolean);
     if (!f.version.trim()) { setError('Enter the version.'); return; }
     if (items.length === 0) { setError('Name the items this version ships.'); return; }
-    setBusy(true); setError(null);
-    requestDeployment({ product, version: f.version.trim(), environment: f.environment.trim() || null, items })
-      .then((d) => onDone(d))
-      .catch((err) => setError(err?.message || 'Could not request the deployment.'))
-      .finally(() => setBusy(false));
+    run({ product, version: f.version.trim(), environment: f.environment.trim() || null, items });
   }
 
   return (

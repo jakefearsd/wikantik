@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import useAsyncAction from '../../hooks/useAsyncAction';
 
 const UNSET = Symbol('unset');
 
@@ -20,8 +21,10 @@ export default function PolicyGrantFormModal({ grant, isOpen, onClose, onSave })
     selectedActions: [],
     allPermission: false,
   });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const { run: save, busy: saving, error, setError } = useAsyncAction(onSave, {
+    fallbackMessage: 'Failed to save policy grant',
+    onSuccess: () => onClose(),
+  });
 
   const [prevGrant, setPrevGrant] = useState(UNSET);
   const [prevIsOpen, setPrevIsOpen] = useState(UNSET);
@@ -77,25 +80,16 @@ export default function PolicyGrantFormModal({ grant, isOpen, onClose, onSave })
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      const data = {
-        principalType: form.principalType,
-        principalName: form.principalName,
-        permissionType: form.allPermission ? 'all' : form.permissionType,
-        target: form.allPermission ? '*' : form.target,
-        actions: form.allPermission ? '*' : form.selectedActions.join(','),
-      };
-      await onSave(data, isEdit ? grant.id : undefined);
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Failed to save policy grant');
-    } finally {
-      setSaving(false);
-    }
+    const data = {
+      principalType: form.principalType,
+      principalName: form.principalName,
+      permissionType: form.allPermission ? 'all' : form.permissionType,
+      target: form.allPermission ? '*' : form.target,
+      actions: form.allPermission ? '*' : form.selectedActions.join(','),
+    };
+    return save(data, isEdit ? grant.id : undefined);
   };
 
   const availableActions = ACTION_OPTIONS[form.permissionType] || [];

@@ -17,12 +17,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.ConcurrentModificationException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReferenceSnapshotStoreTest {
@@ -130,6 +134,57 @@ class ReferenceSnapshotStoreTest {
         store.saveNow(); // work "directory" is a file: the write fails and is logged, not thrown
 
         assertArrayEquals( previous, Files.readAllBytes( dir.resolve( "refmgr.ser" ) ) );
+    }
+
+    @Test
+    void aRuntimeExceptionWhileWritingIsLoggedNotThrownIntoTheCaller( @TempDir final Path dir ) {
+        final ReferenceSnapshotStore store = new ReferenceSnapshotStore( dir, 0L, () -> {
+            throw new ConcurrentModificationException( "index changed under the snapshot" );
+        } );
+
+        assertDoesNotThrow( store::requestSave, "a page save or rename must not fail because the snapshot write did" );
+        assertDoesNotThrow( store::saveNow );
+        assertFalse( Files.exists( dir.resolve( "refmgr.ser" ) ), "nothing usable was captured: nothing is written" );
+    }
+
+    /**
+     * The state supplier locks the index it copies (the manager's monitor), and the manager may hold that monitor
+     * when it asks for a save. A write that is waiting for the monitor must never make that save wait for the write
+     * in turn: here the "holder" thread owns the state lock and requests a save while the writer thread is blocked in
+     * the supplier on that lock. The holder's request must return at once, and the write that follows it must carry
+     * the holder's newer state.
+     */
+    @Test
+    void aSaveRequestedUnderTheStateLockNeverWaitsForAWriteThatNeedsTheLock( @TempDir final Path dir ) throws Exception {
+        final Object stateLock = new Object();
+        final AtomicReference< Snapshot > state = new AtomicReference<>( graph( "A", "B" ) );
+        final ReferenceSnapshotStore store = new ReferenceSnapshotStore( dir, 0L, () -> {
+            synchronized ( stateLock ) {
+                return state.get();
+            }
+        } );
+        final Thread writer = new Thread( store::saveNow, "snapshot-writer" );
+        writer.setDaemon( true );
+        final CountDownLatch holderReturned = new CountDownLatch( 1 );
+        final Thread holder = new Thread( () -> {
+            synchronized ( stateLock ) {
+                writer.start();
+                while ( writer.getState() != Thread.State.BLOCKED ) {
+                    Thread.onSpinWait();
+                }
+                state.set( graph( "C", "D" ) );
+                store.saveNow();
+                holderReturned.countDown();
+            }
+        }, "state-lock-holder" );
+        holder.setDaemon( true );
+
+        holder.start();
+
+        assertTrue( holderReturned.await( 5, TimeUnit.SECONDS ), "deadlock: the save under the state lock waited for the write" );
+        writer.join( 5_000 );
+        assertFalse( writer.isAlive(), "the write finishes once the state lock is released" );
+        assertTrue( store.load().orElseThrow().refersTo().containsKey( "C" ), "the newest state is the one on disk" );
     }
 
     private static void writeRaw( final Path dir, final long version, final Object first, final Object second ) throws Exception {

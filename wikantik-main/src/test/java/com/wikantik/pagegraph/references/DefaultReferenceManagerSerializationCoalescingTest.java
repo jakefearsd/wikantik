@@ -40,6 +40,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -144,6 +146,28 @@ class DefaultReferenceManagerSerializationCoalescingTest {
         // The count rises as the timer's write starts; close() waits for a write in progress, so it finishes
         // before @TempDir deletes the directory under it.
         mgr.destroy( null );
+    }
+
+    @Test
+    void anUpdateAfterDestroyWritesNothing( @TempDir final File workDir ) throws Exception {
+        final DefaultReferenceManager mgr = manager( workDir, mock( PageManager.class ) );
+        mgr.destroy( null ); // shut down before anything was written: no snapshot store exists yet
+
+        mgr.updateReferences( "Late", List.of( "Target" ) );
+
+        assertEquals( Set.of( "Late" ), mgr.findReferrers( "Target" ), "the index still follows the update" );
+        assertEquals( 0, mgr.serializationCount() );
+        assertFalse( new File( workDir, "refmgr.ser" ).exists(), "a destroyed manager must not write into the work dir" );
+    }
+
+    @Test
+    void theTestSeamsDoNotCreateTheSnapshotStore( @TempDir final File workDir ) throws Exception {
+        final DefaultReferenceManager mgr = manager( workDir, mock( PageManager.class ) );
+
+        mgr.setSerializeIntervalMillis( 0L );
+
+        assertEquals( 0, mgr.serializationCount() );
+        verify( mgr.engine, never() ).getWorkDir();
     }
 
     private static Page page( final String name, final PageManager pm ) {

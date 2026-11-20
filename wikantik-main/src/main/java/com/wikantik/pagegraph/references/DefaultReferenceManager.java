@@ -125,6 +125,9 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     private transient volatile ReferenceSnapshotStore snapshotStore;
     private transient volatile long serializeIntervalNanos = TimeUnit.MILLISECONDS.toNanos( DEFAULT_SERIALIZE_INTERVAL_MS );
 
+    /** Set by {@link #destroy(Engine)}: later updates still change the index but no longer write it to disk. */
+    private transient volatile boolean destroyed;
+
     /** Created on first use, so the engine's work directory is read when a snapshot is first needed, not at construction. */
     private ReferenceSnapshotStore snapshotStore() {
         ReferenceSnapshotStore store = snapshotStore;
@@ -140,8 +143,17 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         return store;
     }
 
+    /** Test seam: writes of the whole database so far (0 before the snapshot store exists). */
     int serializationCount() {
-        return snapshotStore().writeCount();
+        final ReferenceSnapshotStore store = snapshotStore;
+        return store == null ? 0 : store.writeCount();
+    }
+
+    /** Asks for a debounced write of the database; called without this manager's monitor held. */
+    private void requestSnapshotSave() {
+        if ( !destroyed ) {
+            snapshotStore().requestSave();
+        }
     }
 
     /**
@@ -156,7 +168,10 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     /** Test seam: the minimum spacing between runtime writes (0 writes on every update). */
     void setSerializeIntervalMillis( final long millis ) {
         serializeIntervalNanos = TimeUnit.MILLISECONDS.toNanos( millis );
-        snapshotStore().setIntervalNanos( serializeIntervalNanos );
+        final ReferenceSnapshotStore store = snapshotStore;
+        if ( store != null ) { // otherwise the store picks the interval up when it is created
+            store.setIntervalNanos( serializeIntervalNanos );
+        }
     }
 
     /**
@@ -164,7 +179,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      *  names of non-existing pages.
      */
     private Map< String, Collection< String > > refersTo;
-    /** Reassigned only under the {@code synchronized} constructor/{@code unserializeFromDisk()} paths, but
+    /** Reassigned only in the constructor and under the lock in {@link #adopt}, but
      *  read from {@link #findRefersTo} without a lock; volatile so a reassignment (e.g. a deserialize-reload)
      *  is visible to unsynchronized readers rather than risking a stale reference. */
     private volatile Map< String, Collection< String > > unmutableRefersTo;
@@ -221,9 +236,18 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         unmutableRefersTo   = Collections.unmodifiableMap( refersTo );
     }
 
-    /** The live maps for the snapshot store, which copies them while writing. */
-    private ReferenceSnapshotStore.Snapshot currentSnapshot() {
-        return new ReferenceSnapshotStore.Snapshot( refersTo, referredBy, System.currentTimeMillis() );
+    /**
+     * A copy of the index for the snapshot store, which serialises it while other threads keep updating. Taken under
+     * the monitor every mutator holds, so {@code refersTo} and {@code referredBy} are the same moment, and deep, so the
+     * write never walks a set being changed. The copies keep the live types ({@code HashMap} over the same entries, a
+     * {@code TreeSet} per page), so the file's bytes are what serialising the live maps produced.
+     */
+    synchronized ReferenceSnapshotStore.Snapshot currentSnapshot() {
+        final Map< String, Collection< String > > refersToCopy = new HashMap<>( refersTo );
+        refersToCopy.replaceAll( ( page, targets ) -> new TreeSet<>( targets ) );
+        final Map< String, Set< String > > referredByCopy = new HashMap<>( referredBy );
+        referredByCopy.replaceAll( ( page, referrers ) -> new TreeSet<>( referrers ) );
+        return new ReferenceSnapshotStore.Snapshot( refersToCopy, referredByCopy, System.currentTimeMillis() );
     }
 
     /**
@@ -386,6 +410,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     /** Flushes a pending write of the reference database when the filter chain is torn down (engine shutdown). */
     @Override
     public void destroy( final Engine engine ) {
+        destroyed = true;
         final ReferenceSnapshotStore store = snapshotStore;
         if ( store != null ) { // never written to: nothing pending
             store.close();
@@ -685,7 +710,13 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         pageRemoved( page.getName() );
     }
 
-    private synchronized void pageRemoved( final String pageName ) {
+    private void pageRemoved( final String pageName ) {
+        removeFromIndex( pageName );
+        requestSnapshotSave(); // coalesced; see ReferenceSnapshotStore
+    }
+
+    /** The index and attribute-cache half of {@link #pageRemoved(String)}. */
+    private synchronized void removeFromIndex( final String pageName ) {
         final Collection< String > refTo = refersTo.get( pageName );
         if( refTo != null ) {
             for( final String referredPageName : refTo ) {
@@ -714,9 +745,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             referredBy.remove( pageName );
         }
 
-        //  Remove any traces from the disk, too (coalesced; see ReferenceSnapshotStore)
-        snapshotStore().requestSave();
-
+        //  Remove any traces from the disk, too
         final String hashName = getHashFileName( pageName );
         if( hashName != null ) {
         	File f = new File( engine.getWorkDir(), SERIALIZATION_DIR );
@@ -751,7 +780,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     @Override
     public void updateReferences( final String page, final Collection< String > references ) {
         internalUpdateReferences( page, references );
-        snapshotStore().requestSave();
+        requestSnapshotSave();
     }
 
     /**

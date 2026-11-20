@@ -41,6 +41,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 /**
@@ -49,9 +50,11 @@ import java.util.function.Supplier;
  * <p>Contract: {@link #requestSave()} marks the snapshot dirty and writes it at once unless the previous write is
  * younger than the interval, in which case one deferred write is scheduled for when the interval has elapsed, so a
  * burst of updates costs a handful of writes. {@link #flush()} writes a pending save now and {@link #close()}
- * flushes and stops further deferred writes. A write that fails is logged and the pending flag restored for the
- * deferred path; the previous file is never truncated ({@link AtomicFileWriter}). {@link #load()} never throws: a
- * missing, stale-format, corrupt or disallowed file is an empty result and the caller rebuilds the index.
+ * flushes and stops further deferred writes. A write that fails is logged, never thrown into the caller, and the
+ * next update writes again; the previous file is never truncated ({@link AtomicFileWriter}). {@link #load()} never
+ * throws: a missing, stale-format, corrupt or disallowed file is an empty result and the caller rebuilds the index.
+ *
+ * <p>Thread safety: any thread may request a save, including one holding the index's lock; see {@link #saveNow()}.
  *
  * <p>The file format is private and unchanged since 2.7.3: a {@code long} format version, a {@code long}
  * timestamp, then the {@code refersTo} and {@code referredBy} maps as plain {@link HashMap}s. Reading goes through
@@ -129,6 +132,10 @@ final class ReferenceSnapshotStore implements AutoCloseable {
     private final AtomicBoolean pending = new AtomicBoolean();
     private final AtomicBoolean flushScheduled = new AtomicBoolean();
     private final AtomicInteger writes = new AtomicInteger();
+    /** Held by the one thread writing; a save request only ever {@code tryLock}s it, {@link #close()} waits for it. */
+    private final ReentrantLock writer = new ReentrantLock();
+    /** A save was requested and no write has captured the state since. */
+    private final AtomicBoolean rewriteWanted = new AtomicBoolean();
     /** {@link System#nanoTime()} of the last write; meaningless until {@link #writtenOnce}. */
     private volatile long lastWriteNanos;
     private volatile boolean writtenOnce;
@@ -137,8 +144,9 @@ final class ReferenceSnapshotStore implements AutoCloseable {
     /**
      * @param workDir       directory holding {@code refmgr.ser}
      * @param intervalNanos minimum spacing between two debounced writes (0 writes on every request)
-     * @param state         called at each write for the live maps; the store copies them, so the supplier may return
-     *                      the live instances
+     * @param state         called at each write, by the one writing thread, for a consistent copy of the index: the
+     *                      store serialises it while the index keeps changing, so the supplier must not hand over live
+     *                      collections. It may take the index's own lock (see {@link #saveNow()} and {@link #close()})
      */
     ReferenceSnapshotStore( final Path workDir, final long intervalNanos, final Supplier< Snapshot > state ) {
         this.file = workDir.resolve( FILE_NAME );
@@ -159,10 +167,12 @@ final class ReferenceSnapshotStore implements AutoCloseable {
     /**
      * Reads the snapshot back.
      *
+     * <p>Takes no lock: a write replaces the file atomically, so a concurrent load reads the old or the new snapshot.
+     *
      * @return the snapshot, or empty when the file is missing, was written in another format version, is corrupt, or
      *         holds a class outside the allow-list (all but the first logged)
      */
-    synchronized Optional< Snapshot > load() {
+    Optional< Snapshot > load() {
         final StopWatch sw = StopWatch.createStarted();
         try ( ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( file ) ) ) ) {
             in.setObjectInputFilter( SAFE_DESERIALIZE_FILTER );
@@ -205,12 +215,7 @@ final class ReferenceSnapshotStore implements AutoCloseable {
         if ( closed ) {
             return; // close() already flushed; the work dir may be gone
         }
-        try {
-            flush();
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "Deferred reference-database write failed; it is retried on the next update: {}", e.getMessage(), e );
-            pending.set( true );
-        }
+        flush();
     }
 
     /** Writes the snapshot if a save is pending. */
@@ -222,14 +227,37 @@ final class ReferenceSnapshotStore implements AutoCloseable {
 
     /**
      * Writes the snapshot unconditionally (a bulk pass that has just rebuilt the index), clearing any pending save.
-     * An I/O failure is logged and leaves the previous file intact. The live maps are copied into plain
+     * A failure is logged and leaves the previous file intact; nothing is thrown into the caller, which is a page
+     * save, rename or deletion.
+     *
+     * <p>One thread writes at a time. A request arriving while another thread is writing does not wait: it marks a
+     * rewrite wanted and returns, and the writing thread captures and writes again before it lets go, so the newest
+     * state is always the last one written. That hand-off is also what keeps this deadlock-free: the supplier takes
+     * the manager's monitor, a caller may already hold that monitor, and so a caller must never block on the writer.
+     */
+    void saveNow() {
+        pending.set( false );
+        rewriteWanted.set( true );
+        // tryLock, never lock(): the check after unlock() picks up a request that arrived while this thread wrote
+        while ( rewriteWanted.get() && writer.tryLock() ) {
+            try {
+                if ( rewriteWanted.getAndSet( false ) ) {
+                    write();
+                }
+            } finally {
+                writer.unlock();
+            }
+        }
+    }
+
+    /**
+     * Captures the state and writes it; the caller holds {@link #writer}. The maps are copied into plain
      * {@link HashMap}s: a {@code ConcurrentHashMap}'s serial form carries {@code Segment}/{@code ReentrantLock}
      * internals that {@link #SAFE_DESERIALIZE_FILTER} rejects, which silently turned every warm start into a full
      * rebuild.
      */
-    synchronized void saveNow() {
+    private void write() {
         writes.incrementAndGet();
-        pending.set( false );
         lastWriteNanos = System.nanoTime();
         writtenOnce = true;
         try {
@@ -245,14 +273,29 @@ final class ReferenceSnapshotStore implements AutoCloseable {
             } );
             LOG.debug( "serialization done - took {}", sw );
         } catch ( final IOException ioe ) {
+            // LOG.error justified: the reference index is no longer persisted, so the next restart rebuilds it from every page
             LOG.error( "Unable to serialize!", ioe );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Reference snapshot write to {} failed; the previous snapshot stays and the next update retries: {}",
+                      file, e.getMessage(), e );
         }
     }
 
-    /** Flushes a pending save and stops deferred writes; waits for a write already in progress. Idempotent. */
+    /**
+     * Flushes a pending save and stops deferred writes; waits for a write already in progress, so the work directory
+     * may be removed once this returns. Idempotent. It blocks on the writer, which may be waiting for the manager's
+     * monitor, so it must not be called while holding that monitor ({@code destroy()} never is).
+     */
     @Override
-    public synchronized void close() {
+    public void close() {
         closed = true;
-        flush();
+        writer.lock();
+        try {
+            if ( pending.get() || rewriteWanted.get() ) {
+                saveNow(); // also a rewrite a writer handed over but lost the lock to us before taking it back
+            }
+        } finally {
+            writer.unlock();
+        }
     }
 }

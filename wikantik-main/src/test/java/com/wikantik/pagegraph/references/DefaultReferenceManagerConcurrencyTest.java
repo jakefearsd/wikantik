@@ -28,8 +28,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +40,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -150,6 +155,89 @@ class DefaultReferenceManagerConcurrencyTest {
 
         assertEquals( List.of( "NewTarget" ), new ArrayList<>( mgr.findRefersTo( "Racy" ) ),
                 "the save's newer references must win over the rescan's older scan" );
+    }
+
+    /**
+     * The snapshot store serialises what the manager hands it while other threads keep updating the index. Handing it
+     * the live maps let the write walk a {@code TreeSet} being mutated ({@code ConcurrentModificationException} out of
+     * a page save or rename) and pair a {@code refersTo} with a {@code referredBy} from another moment.
+     */
+    @Test
+    void theSnapshotHandedToTheStoreIsACopyNotTheLiveIndex( @TempDir final File workDir ) throws Exception {
+        final DefaultReferenceManager mgr = manager( workDir );
+        mgr.initialize( List.of() );
+        mgr.updateReferences( "A", List.of( "Target" ) );
+
+        final ReferenceSnapshotStore.Snapshot snapshot = mgr.currentSnapshot();
+        mgr.updateReferences( "B", List.of( "Target" ) );
+        mgr.updateReferences( "A", List.of( "Elsewhere" ) );
+
+        assertEquals( Set.of( "A" ), snapshot.referredBy().get( "Target" ), "a later update must not reach a taken snapshot" );
+        assertEquals( Set.of( "Target" ), Set.copyOf( snapshot.refersTo().get( "A" ) ) );
+        assertNull( snapshot.refersTo().get( "B" ) );
+    }
+
+    /**
+     * Saves and deletions racing the snapshot write, with every update writing (interval 0): no caller may see an
+     * exception from the write, and the file left behind must be one consistent moment of the index, the latest one.
+     */
+    @Test
+    void concurrentUpdatesAndRemovalsWriteConsistentSnapshots( @TempDir final File workDir ) throws Exception {
+        final DefaultReferenceManager mgr = manager( workDir );
+        mgr.setSerializeIntervalMillis( 0L );
+        mgr.initialize( List.of() );
+        final int writers = 4;
+        final int rounds = 150;
+        final List< Throwable > failures = new CopyOnWriteArrayList<>();
+        final ExecutorService pool = Executors.newFixedThreadPool( writers + 1 );
+        final CountDownLatch start = new CountDownLatch( 1 );
+        for ( int t = 0; t < writers; t++ ) {
+            final int thread = t;
+            pool.execute( () -> {
+                try {
+                    start.await();
+                    for ( int i = 0; i < rounds; i++ ) {
+                        final String page = "P" + thread + "_" + ( i % 40 );
+                        mgr.updateReferences( page, List.of( "T" + ( i % 5 ), "T" + ( ( i + 1 ) % 5 ), "P" + thread + "_" + ( ( i + 7 ) % 40 ) ) );
+                    }
+                } catch ( final Throwable e ) { // NOPMD - collected and asserted below
+                    failures.add( e );
+                }
+            } );
+        }
+        pool.execute( () -> {
+            try {
+                start.await();
+                for ( int i = 0; i < rounds; i++ ) {
+                    final Page gone = mock( Page.class );
+                    when( gone.getName() ).thenReturn( "P" + ( i % writers ) + "_" + ( i % 40 ) );
+                    mgr.pageRemoved( gone );
+                }
+            } catch ( final Throwable e ) { // NOPMD - collected and asserted below
+                failures.add( e );
+            }
+        } );
+        start.countDown();
+        pool.shutdown();
+        assertTrue( pool.awaitTermination( 60, TimeUnit.SECONDS ), "workers must finish (a deadlock would hang here)" );
+
+        assertEquals( List.of(), failures.stream().map( Throwable::toString ).toList(), "no save or removal may fail" );
+        final ReferenceSnapshotStore.Snapshot onDisk = new ReferenceSnapshotStore( workDir.toPath(), 0L, () -> null )
+                .load().orElseThrow( () -> new AssertionError( "the snapshot must load back" ) );
+        assertMirrored( onDisk.refersTo(), onDisk.referredBy() );
+        assertEquals( Map.copyOf( mgr.getRefersTo() ), Map.copyOf( onDisk.refersTo() ), "the last write holds the final refersTo" );
+        assertEquals( Map.copyOf( mgr.getReferredBy() ), Map.copyOf( onDisk.referredBy() ), "the last write holds the final referredBy" );
+    }
+
+    /** Every edge appears in both maps: {@code refersTo[a]} holds b exactly when {@code referredBy[b]} holds a. */
+    private static void assertMirrored( final Map< String, Collection< String > > refersTo, final Map< String, Set< String > > referredBy ) {
+        refersTo.forEach( ( from, targets ) -> targets.forEach( to -> {
+            assertNotNull( referredBy.get( to ), from + " refers to " + to + ", which has no referredBy entry" );
+            assertTrue( referredBy.get( to ).contains( from ), from + " -> " + to + " is missing from referredBy" );
+        } ) );
+        referredBy.forEach( ( to, referrers ) -> referrers.forEach( from -> assertTrue(
+                refersTo.containsKey( from ) && refersTo.get( from ).contains( to ),
+                from + " -> " + to + " is in referredBy but not in refersTo" ) ) );
     }
 
     private static DefaultReferenceManager manager( final File workDir ) throws Exception {

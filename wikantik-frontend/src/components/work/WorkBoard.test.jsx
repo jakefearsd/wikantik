@@ -510,4 +510,52 @@ describe('WorkBoard', () => {
       expect(toast.info).not.toHaveBeenCalled();
     });
   });
+
+  describe('empty board', () => {
+    const NONE = 'No items yet. Choose New item to add one; new items start as drafts, shown with Show draft and cancelled.';
+
+    it('says how to add the first item, and where drafts went, when drafts are hidden', async () => {
+      board = boardOf({});
+      renderBoard();
+      expect(await screen.findByText(NONE)).toBeInTheDocument();
+      fireEvent.click(screen.getByLabelText('Show draft and cancelled'));
+      expect(screen.getByText('No items yet. Choose New item to add one.')).toBeInTheDocument();
+      expect(screen.queryByText(NONE)).toBeNull();
+    });
+
+    it('says the filters match nothing, not that the board is empty, when a filter is on', async () => {
+      board = boardOf({});
+      renderBoard({ url: '/work/PLAT?product=wikantik' });
+      expect(await screen.findByText('No items match these filters.')).toBeInTheDocument();
+      expect(screen.queryByText(/No items yet/)).toBeNull();
+    });
+
+    it('is not shown when the board has cards', async () => {
+      renderBoard();
+      await screen.findByText('Item 1');
+      expect(screen.queryByText(/No items yet/)).toBeNull();
+    });
+  });
+
+  it('a created draft says it is hidden and how to show it', async () => {
+    createItem.mockResolvedValue({ item: item(4, 'draft', { title: 'Brand new' }) });
+    renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.click(screen.getByRole('button', { name: 'New item' }));
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Brand new' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(
+      'Created PLAT-4 as a draft. Drafts are hidden: tick Show draft and cancelled to see it.'));
+  });
+
+  it('a created draft keeps the short toast when drafts are shown', async () => {
+    createItem.mockResolvedValue({ item: item(4, 'draft', { title: 'Brand new' }) });
+    renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.click(screen.getByLabelText('Show draft and cancelled'));
+    fireEvent.click(screen.getByRole('button', { name: 'New item' }));
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Brand new' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Created PLAT-4'));
+  });
 });

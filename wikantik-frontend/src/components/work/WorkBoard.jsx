@@ -228,6 +228,15 @@ export default function WorkBoard() {
   const hidden = showAll ? 0 : columns.filter((c) => c.status === 'draft' || c.status === 'cancelled')
     .reduce((n, c) => n + (c.total ?? c.items.length), 0);
 
+  const filtered = !!(productFilter || assigneeFilter || queueFilter);
+  const noCards = ordered.every((c) => c.items.length === 0);
+  let emptyText = null;
+  if (noCards && filtered) emptyText = 'No items match these filters.';
+  else if (noCards && hidden === 0) {
+    emptyText = showAll ? 'No items yet. Choose New item to add one.'
+      : 'No items yet. Choose New item to add one; new items start as drafts, shown with Show draft and cancelled.';
+  }
+
   return (
     <div className="work-board">
       <div className="work-board-toolbar">
@@ -259,6 +268,7 @@ export default function WorkBoard() {
         )}
       </div>
       {waiting.length > 0 && <WaitingLane items={waiting} onAcknowledge={canEdit ? acknowledge : undefined} />}
+      {emptyText && <p className="work-muted work-board-empty">{emptyText}</p>}
       <div className="work-columns">
         {ordered.map((c) => (
           <Column key={c.status} column={c} canEdit={canEdit} grouped={grouped}
@@ -281,7 +291,9 @@ export default function WorkBoard() {
             && (!assigneeFilter || item.assigneeName === assigneeFilter)
             && (!queueFilter || item.queue === queueFilter);
           if (matches) setColumns((cols) => addToColumns(cols || [], item));
-          toast.success(`Created ${item.key}`);
+          toast.success(item.status === 'draft' && !showAll
+            ? `Created ${item.key} as a draft. Drafts are hidden: tick Show draft and cancelled to see it.`
+            : `Created ${item.key}`);
         }} />
     </div>
   );

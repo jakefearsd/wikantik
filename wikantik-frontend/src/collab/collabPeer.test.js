@@ -700,6 +700,35 @@ describe('collabPeer metadata', () => {
     expect(c.statuses.at(-1)).toBe('resync');
     expect(f3).toEqual([edits]);
   });
+
+  it('meta queued after the peer stopped for good comes straight back (it would never be pushed), not after signed-out', async () => {
+    // A field's debounce can fire after a refused push stopped the peer but before the host restarts the session:
+    // those edits must come back as failed (unsent again), or the restart's carry never sees them and they are lost.
+    const edits = [{ field: 'summary', value: 'Mine' }];
+    const server = createFakeCollabServer({ initialText: 'abc' });
+    const failed = [];
+    const a = await makeEditor(server, 'ada', {
+      core: { onMetaFailed: (e) => failed.push(e) },
+      wrap: (t) => ({ ...t, push: async () => { throw Object.assign(new Error('gone'), { status: 410, body: { resync: true } }); } }),
+    });
+    a.core.queueMetaEdits([{ field: 'tags', add: 'x' }]);
+    await advance(1000);
+    expect(a.statuses.at(-1)).toBe('resync');
+    failed.length = 0;
+    a.core.queueMetaEdits(edits);
+    expect(failed).toEqual([edits]);
+    expect(a.core.hasPendingMeta()).toBe(false);
+
+    const s2 = createFakeCollabServer({ initialText: 'abc' });
+    const f2 = [];
+    const b = await makeEditor(s2, 'bob', { core: { onMetaFailed: (e) => f2.push(e) } });
+    s2.evict(b.joined.participantId, 'signed-out');
+    await advance(1000);
+    expect(b.statuses.at(-1)).toBe('auth-required');
+    b.core.queueMetaEdits(edits); // kept for the resumed peer (A13)
+    expect(f2).toEqual([]);
+    expect(b.core.hasPendingMeta()).toBe(true);
+  });
 });
 
 describe('unsentRemainder (final review item 2)', () => {

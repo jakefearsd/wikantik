@@ -1077,6 +1077,21 @@ describe('PageEditor collaborative mode', () => {
     expect(screen.queryByTestId('collab-recovery-meta')).toBeNull();
   }, 30000);
 
+  it('a field edit whose debounce runs out while the recovery panel waits is still carried across the resync', async () => {
+    server = createFakeCollabServer({ initialText: 'Hello', maxPageBytes: 8, initialMeta: { summary: 'Original' }, pollTimeoutMs: 2000 });
+    const { view } = await mount();
+    await until(() => docOf(view) === 'Hello');
+    fireEvent.change(screen.getByLabelText('Summary'), { target: { value: 'Mine' } });
+    await oversizeAndResync(view);
+    await wait(600); // the reader reads the panel: the field's 400 ms debounce hands the edit to the stopped peer
+    const bob = await joinAs('bob');
+    await pushMeta(bob, [{ field: 'summary', value: 'Bobs' }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
+    await until(() => currentView() !== null && currentView() !== view);
+    expect(await screen.findByTestId('collab-recovery-meta', {}, { timeout: 10000 })).toHaveTextContent('summary: Mine');
+    expect(server.metadata.summary).toBe('Bobs');
+  }, 30000);
+
   it('a refused-publish violation clears when the field changes by another route (a remote edit)', async () => {
     server.config.publishInvalid = true;
     const { view } = await mount();

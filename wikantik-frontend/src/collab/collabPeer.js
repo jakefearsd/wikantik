@@ -385,6 +385,9 @@ export function createCollabPeerCore({
     /** Queues metadata edits (`{field,value}`/`{field,add}`/`{field,remove}`); they ride on the next push, text or not. */
     queueMetaEdits(edits) {
       if (destroyed || !edits?.length) return;
+      // A peer stopped for good (resync, eviction, frozen…) never pushes again: hand the edits straight back so the host
+      // keeps them unsent (a restart carries them). Only a signed-out stop resumes, and keeps them for that (A13).
+      if (stopped && status !== 'auth-required') { onMetaFailed(edits); return; }
       metaPending.push(...edits);
       schedulePush(0);
     },

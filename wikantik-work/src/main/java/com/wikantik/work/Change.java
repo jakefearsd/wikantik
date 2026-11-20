@@ -43,6 +43,6 @@ public record Change( long id, long itemId, long productId, String branch, Strin
 
     /** Open or in review: not yet merged or abandoned. */
     public boolean live() {
-        return state == ChangeState.OPEN || state == ChangeState.IN_REVIEW;
+        return state.isLive();
     }
 }

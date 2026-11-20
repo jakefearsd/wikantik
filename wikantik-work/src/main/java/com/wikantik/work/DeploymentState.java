@@ -25,7 +25,7 @@ import java.util.Set;
  * Where a deployment is. It only moves forward: a failed or rejected deployment is retried as a new one. One
  * that has not started running can be rejected, which also takes back an approval that will not be used.
  */
-public enum DeploymentState {
+public enum DeploymentState implements WireEnum {
     REQUESTED("requested"),
     APPROVED("approved"),
     RUNNING("running"),
@@ -41,7 +41,7 @@ public enum DeploymentState {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
@@ -65,12 +65,7 @@ public enum DeploymentState {
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static DeploymentState fromWire( final String value ) {
-        for ( final DeploymentState candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "state", "Unknown state: " + value );
+        return WireEnum.parse( DeploymentState.class, value, "state" );
     }
 
     /** Whether a deployment reaching this state has stopped: its {@code closed_at} is the moment it did. */

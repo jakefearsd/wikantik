@@ -19,7 +19,7 @@
 package com.wikantik.work;
 
 /** How a change was merged: after an approval of the merged commit, by a person without one, or opened and merged in one step. */
-public enum MergeKind {
+public enum MergeKind implements WireEnum {
     REVIEWED("reviewed"),
     UNREVIEWED("unreviewed"),
     DIRECT("direct");
@@ -30,18 +30,13 @@ public enum MergeKind {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static MergeKind fromWire( final String value ) {
-        for ( final MergeKind candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "mergeKind", "Unknown mergeKind: " + value );
+        return WireEnum.parse( MergeKind.class, value, "mergeKind" );
     }
 }

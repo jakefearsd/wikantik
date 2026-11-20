@@ -19,7 +19,7 @@
 package com.wikantik.work;
 
 /** Project role; declaration order is privilege order, lowest first. */
-public enum WorkRole {
+public enum WorkRole implements WireEnum {
     VIEWER("viewer"),
     MEMBER("member"),
     LEAD("lead");
@@ -30,19 +30,14 @@ public enum WorkRole {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static WorkRole fromWire( final String value ) {
-        for ( final WorkRole candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "role", "Unknown role: " + value );
+        return WireEnum.parse( WorkRole.class, value, "role" );
     }
 
     /** True when this role is at least as privileged as {@code other}. */

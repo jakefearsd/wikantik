@@ -18,8 +18,11 @@
  */
 package com.wikantik.work;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 /** Where a change is: open, in review, or closed by a merge or by being abandoned. */
-public enum ChangeState {
+public enum ChangeState implements WireEnum {
     OPEN("open"),
     IN_REVIEW("in_review"),
     MERGED("merged"),
@@ -31,18 +34,31 @@ public enum ChangeState {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
 
+    /** Open or in review: not yet merged or abandoned. */
+    public boolean isLive() {
+        return this == OPEN || this == IN_REVIEW;
+    }
+
+    /**
+     * Whether a change in this state may move to {@code target}. Staying put is not a move (asking again for a
+     * review, or approving one, leaves it in review); a merged or abandoned change never moves.
+     */
+    public boolean mayBecome( final ChangeState target ) {
+        final Set< ChangeState > next = switch ( this ) {
+            case OPEN -> EnumSet.of( IN_REVIEW, MERGED, ABANDONED );
+            case IN_REVIEW -> EnumSet.of( OPEN, MERGED, ABANDONED );
+            case MERGED, ABANDONED -> EnumSet.noneOf( ChangeState.class );
+        };
+        return next.contains( target );
+    }
+
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static ChangeState fromWire( final String value ) {
-        for ( final ChangeState candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "state", "Unknown state: " + value );
+        return WireEnum.parse( ChangeState.class, value, "state" );
     }
 }

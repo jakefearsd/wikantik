@@ -114,12 +114,7 @@ public final class WorkPolicy {
 
     /** The status a patch names, or null when it names none or one that does not exist (which counts as a move). */
     static WorkStatus namedStatus( final Object raw ) {
-        for ( final WorkStatus s : WorkStatus.values() ) {
-            if ( s.wire().equals( raw ) ) {
-                return s;
-            }
-        }
-        return null;
+        return WireEnum.tryParse( WorkStatus.class, raw );
     }
 
     private static boolean claimedByOther( final Actor actor, final Action action, final Item item ) {

@@ -19,7 +19,7 @@
 package com.wikantik.work;
 
 /** What done means for an epic; inert in phase 1. */
-public enum DoneMeans {
+public enum DoneMeans implements WireEnum {
     MERGED("merged"),
     IN_PRODUCTION("in_production");
 
@@ -29,18 +29,13 @@ public enum DoneMeans {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static DoneMeans fromWire( final String value ) {
-        for ( final DoneMeans candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "doneMeans", "Unknown doneMeans: " + value );
+        return WireEnum.parse( DoneMeans.class, value, "doneMeans" );
     }
 }

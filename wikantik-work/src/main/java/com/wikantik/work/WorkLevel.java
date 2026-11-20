@@ -19,7 +19,7 @@
 package com.wikantik.work;
 
 /** Item level; hierarchy is task, story, epic. */
-public enum WorkLevel {
+public enum WorkLevel implements WireEnum {
     EPIC("epic"),
     STORY("story"),
     TASK("task");
@@ -30,19 +30,14 @@ public enum WorkLevel {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static WorkLevel fromWire( final String value ) {
-        for ( final WorkLevel candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "level", "Unknown level: " + value );
+        return WireEnum.parse( WorkLevel.class, value, "level" );
     }
 
     /** True when an item of this level may be the parent of an item of {@code child} level. */

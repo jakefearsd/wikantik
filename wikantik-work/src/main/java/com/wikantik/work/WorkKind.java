@@ -19,7 +19,7 @@
 package com.wikantik.work;
 
 /** Kind of work an item represents. */
-public enum WorkKind {
+public enum WorkKind implements WireEnum {
     SOFTWARE("software"),
     DOCS("docs"),
     ADMIN("admin");
@@ -30,18 +30,13 @@ public enum WorkKind {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static WorkKind fromWire( final String value ) {
-        for ( final WorkKind candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "kind", "Unknown kind: " + value );
+        return WireEnum.parse( WorkKind.class, value, "kind" );
     }
 }

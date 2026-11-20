@@ -227,7 +227,7 @@ final class JdbcWorkChanges implements WorkChangeStore {
             throws SQLException {
         return write( item, id, by, ( conn, locked ) -> {
             check.on( locked );
-            if ( locked.state() == ChangeState.IN_REVIEW ) {
+            if ( !locked.state().mayBecome( ChangeState.IN_REVIEW ) ) {
                 return;
             }
             setState( conn, id, ChangeState.IN_REVIEW );
@@ -265,14 +265,15 @@ final class JdbcWorkChanges implements WorkChangeStore {
                          final Function< Change, MergeKind > decide, final Actor by ) throws SQLException {
         return write( item, id, by, ( conn, locked ) -> {
             final MergeKind kind = decide.apply( locked );
-            jdbc.update( conn, "UPDATE work_change SET state = 'merged', merged_sha = ?, merge_kind = ?, "
+            jdbc.update( conn, "UPDATE work_change SET state = ?, merged_sha = ?, merge_kind = ?, "
                     + "merged_by = ?, merged_by_agent_id = ?, closed_at = NOW() WHERE id = ?",
                 ps -> {
-                    ps.setString( 1, mergedSha );
-                    ps.setString( 2, kind.wire() );
-                    ps.setString( 3, by.login() );
-                    setNullableLong( ps, 4, by.agentId() );
-                    ps.setLong( 5, id );
+                    ps.setString( 1, ChangeState.MERGED.wire() );
+                    ps.setString( 2, mergedSha );
+                    ps.setString( 3, kind.wire() );
+                    ps.setString( 4, by.login() );
+                    setNullableLong( ps, 5, by.agentId() );
+                    ps.setLong( 6, id );
                 } );
             event( conn, item, id, by, WorkEvent.CHANGE_MERGED, kind.wire(), mergedSha );
         } );
@@ -283,8 +284,11 @@ final class JdbcWorkChanges implements WorkChangeStore {
             throws SQLException {
         return write( item, id, by, ( conn, locked ) -> {
             check.on( locked );
-            jdbc.update( conn, "UPDATE work_change SET state = 'abandoned', closed_at = NOW() WHERE id = ?",
-                ps -> ps.setLong( 1, id ) );
+            jdbc.update( conn, "UPDATE work_change SET state = ?, closed_at = NOW() WHERE id = ?",
+                ps -> {
+                    ps.setString( 1, ChangeState.ABANDONED.wire() );
+                    ps.setLong( 2, id );
+                } );
             event( conn, item, id, by, WorkEvent.CHANGE_ABANDONED, locked.branch(), note );
         } );
     }

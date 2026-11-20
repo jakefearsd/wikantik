@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
-public enum WorkStatus {
+public enum WorkStatus implements WireEnum {
     DRAFT("draft"),
     REFINING("refining"),
     READY("ready"),
@@ -38,19 +38,14 @@ public enum WorkStatus {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static WorkStatus fromWire( final String value ) {
-        for ( final WorkStatus candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "status", "Unknown status: " + value );
+        return WireEnum.parse( WorkStatus.class, value, "status" );
     }
 
     private static final Set<WorkStatus> EPIC_STATUSES = Collections.unmodifiableSet(

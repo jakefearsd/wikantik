@@ -19,7 +19,7 @@
 package com.wikantik.work;
 
 /** Who releases a product; inert in phase 1. */
-public enum DeployGate {
+public enum DeployGate implements WireEnum {
     HUMAN("human"),
     AGENT("agent");
 
@@ -29,18 +29,13 @@ public enum DeployGate {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static DeployGate fromWire( final String value ) {
-        for ( final DeployGate candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "deployGate", "Unknown deployGate: " + value );
+        return WireEnum.parse( DeployGate.class, value, "deployGate" );
     }
 }

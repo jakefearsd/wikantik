@@ -19,7 +19,7 @@
 package com.wikantik.work;
 
 /** How much agents may do unattended. Declared strictest first: the order is the scale. */
-public enum Autonomy {
+public enum Autonomy implements WireEnum {
     SUPERVISED("supervised"),
     DELEGATED("delegated"),
     AUTONOMOUS("autonomous");
@@ -30,7 +30,7 @@ public enum Autonomy {
         this.wire = wire;
     }
 
-    /** The lowercase value as stored in the database. */
+    @Override
     public String wire() {
         return wire;
     }
@@ -53,11 +53,6 @@ public enum Autonomy {
 
     /** Parses a stored value; throws {@link WorkValidationException} when unknown. */
     public static Autonomy fromWire( final String value ) {
-        for ( final Autonomy candidate : values() ) {
-            if ( candidate.wire.equals( value ) ) {
-                return candidate;
-            }
-        }
-        throw new WorkValidationException( "autonomy", "Unknown autonomy: " + value );
+        return WireEnum.parse( Autonomy.class, value, "autonomy" );
     }
 }

@@ -874,7 +874,8 @@ class CommentThreadResourceTest {
     }
 
     private JsonObject post( final String query, final String pathInfo, final JsonObject body ) throws Exception {
-        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/api/comment-threads" );
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest(
+                "/api/comment-threads" + ( query == null ? "" : query ) );
         Mockito.doReturn( pathInfo ).when( req ).getPathInfo();
         if ( query != null ) Mockito.doReturn( paramOf( query, "page" ) ).when( req ).getParameter( "page" );
         return invoke( req, "POST", body );

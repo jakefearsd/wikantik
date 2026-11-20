@@ -36,7 +36,7 @@ public class WorkMeResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final SegmentRouteTable< Handler > r ) {
+    protected void routes( final SegmentRouteTable.Builder< Handler > r ) {
         route( r, "GET", "me", c -> {
             final JsonObject out = new JsonObject();
             out.add( "waitingOn", waitingOn( c ) );

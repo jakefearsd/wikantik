@@ -43,6 +43,10 @@ import java.util.regex.Pattern;
  * it writes the "not found" response itself rather than this class doing it —
  * its own not-found status code and message wording exactly as before.
  *
+ * <p><b>Which table.</b> This class matches a raw path string, so a servlet whose path carries a name that
+ * contains {@code /} can use it. A servlet whose every path is literal segments and ids should use
+ * {@link SegmentRouteTable}, which captures {@code {}} segments and matches by method.
+ *
  * <p><b>Serialization.</b> These servlets are {@link java.io.Serializable}
  * (that's inherited from {@code HttpServlet}), but a table built from method
  * references/lambdas that close over live subsystem accessors is not. Java

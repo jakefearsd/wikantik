@@ -47,7 +47,7 @@ public class WorkItemResource extends WorkResourceBase {
     private static final int CLAIMABLE_MAX = 50;
 
     @Override
-    protected void routes( final SegmentRouteTable< Handler > r ) {
+    protected void routes( final SegmentRouteTable.Builder< Handler > r ) {
         route( r, "GET", "items", c -> {
             final String project = c.query( "project" );
             if ( project == null ) {

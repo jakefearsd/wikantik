@@ -34,7 +34,7 @@ public class WorkProjectResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final SegmentRouteTable< Handler > r ) {
+    protected void routes( final SegmentRouteTable.Builder< Handler > r ) {
         route( r, "GET", "projects", c -> c.json( visibleProjects( c ) ) );
         route( r, "POST", "projects", c -> {
             final JsonObject b = c.body();

@@ -32,7 +32,7 @@ public class WorkQueueResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final SegmentRouteTable< Handler > r ) {
+    protected void routes( final SegmentRouteTable.Builder< Handler > r ) {
         route( r, "GET", "queues", c -> c.json( c.svc.registry().listQueues( c.actor ) ) );
         route( r, "POST", "queues", c -> {
             final JsonObject b = c.body();

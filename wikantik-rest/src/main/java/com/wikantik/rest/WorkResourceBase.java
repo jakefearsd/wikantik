@@ -178,19 +178,20 @@ public abstract class WorkResourceBase extends RestServletBase {
     private transient volatile SegmentRouteTable< Handler > routeTable;
 
     /** Adds a route; {@code pattern} is a path under {@code /api/work/} with {@code {}} for a captured segment. */
-    protected static void route( final SegmentRouteTable< Handler > into, final String method, final String pattern,
+    protected static void route( final SegmentRouteTable.Builder< Handler > into, final String method, final String pattern,
                                  final Handler handler ) {
         into.add( method, pattern, handler );
     }
 
     /** The routes of this servlet: call {@link #route} for each. */
-    protected abstract void routes( SegmentRouteTable< Handler > into );
+    protected abstract void routes( SegmentRouteTable.Builder< Handler > into );
 
     private SegmentRouteTable< Handler > table() {
         SegmentRouteTable< Handler > t = routeTable;
         if ( t == null ) {
-            t = new SegmentRouteTable<>( WORK_PREFIX );
-            routes( t );
+            final SegmentRouteTable.Builder< Handler > builder = SegmentRouteTable.builder( WORK_PREFIX );
+            routes( builder );
+            t = builder.build();
             routeTable = t;
         }
         return t;
@@ -214,7 +215,7 @@ public abstract class WorkResourceBase extends RestServletBase {
             return;
         }
         final String method = request.getMethod() == null ? "" : request.getMethod().toUpperCase( Locale.ROOT );
-        final String[] segs = SegmentRouteTable.segments( request, WORK_PREFIX );
+        final String[] segs = table().segments( request );
         try {
             final Optional< SegmentRouteTable.Match< Handler > > match = table().match( method, segs );
             if ( match.isPresent() ) {

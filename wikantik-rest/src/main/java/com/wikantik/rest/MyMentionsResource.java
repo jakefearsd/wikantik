@@ -122,28 +122,17 @@ public class MyMentionsResource extends RestServletBase {
         dispatch( "POST", request, response );
     }
 
-    /** A route's action, run on the servlet that dispatched it with the path segments the route captured. */
-    @FunctionalInterface
-    private interface Handler {
-        void handle( MyMentionsResource servlet, HttpServletRequest request, HttpServletResponse response,
-                     List< String > captured ) throws IOException;
-    }
-
-    private static final String PREFIX = "/api/me/mentions";
-
-    private static final SegmentRouteTable< Handler > ROUTES = new SegmentRouteTable< Handler >( PREFIX )
-        .add( "GET", "", ( s, req, resp, c ) -> s.list( req, resp ) )
-        .add( "GET", "unread-count", ( s, req, resp, c ) -> s.unreadCount( req, resp ) )
-        .add( "POST", "mark-all-read", ( s, req, resp, c ) -> s.markAllRead( req, resp ) )
-        .add( "POST", "{}/read", ( s, req, resp, c ) -> s.markOneRead( req, resp, c.get( 0 ) ) );
+    private static final SegmentRouteTable< SegmentRouteTable.Action< MyMentionsResource > > ROUTES =
+        SegmentRouteTable.< SegmentRouteTable.Action< MyMentionsResource > >builder()
+            .add( "GET", "", ( s, req, resp, c ) -> s.list( req, resp ) )
+            .add( "GET", "unread-count", ( s, req, resp, c ) -> s.unreadCount( req, resp ) )
+            .add( "POST", "mark-all-read", ( s, req, resp, c ) -> s.markAllRead( req, resp ) )
+            .add( "POST", "{}/read", ( s, req, resp, c ) -> s.markOneRead( req, resp, c.get( 0 ) ) )
+            .build();
 
     private void dispatch( final String method, final HttpServletRequest request,
                            final HttpServletResponse response ) throws IOException {
-        final Optional< SegmentRouteTable.Match< Handler > > match =
-            ROUTES.match( method, SegmentRouteTable.segments( request, PREFIX ) );
-        if ( match.isPresent() ) {
-            match.get().handler().handle( this, request, response, match.get().captured() );
-        } else {
+        if ( !SegmentRouteTable.dispatch( ROUTES, this, method, request, response ) ) {
             sendNotFound( response, "Unknown mentions route" );
         }
     }

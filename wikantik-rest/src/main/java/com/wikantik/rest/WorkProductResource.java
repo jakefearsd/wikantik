@@ -33,7 +33,7 @@ public class WorkProductResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final SegmentRouteTable< Handler > r ) {
+    protected void routes( final SegmentRouteTable.Builder< Handler > r ) {
         route( r, "GET", "products", c -> c.tree( productsTree( c ) ) );
         route( r, "POST", "products", c -> {
             final JsonObject b = c.body();

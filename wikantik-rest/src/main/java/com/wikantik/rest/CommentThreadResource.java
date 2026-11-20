@@ -142,31 +142,21 @@ public class CommentThreadResource extends RestServletBase {
         dispatch( "DELETE", request, response );
     }
 
-    /** A route's action, run on the servlet that dispatched it with the path segments the route captured. */
-    @FunctionalInterface
-    private interface Handler {
-        void handle( CommentThreadResource servlet, HttpServletRequest request, HttpServletResponse response,
-                     List< String > captured ) throws IOException;
-    }
-
-    private static final String PREFIX = "/api/comment-threads";
-
-    private static final SegmentRouteTable< Handler > ROUTES = new SegmentRouteTable< Handler >( PREFIX )
-        .add( "POST", "", ( s, req, resp, c ) -> s.createThread( req, resp ) )
-        .add( "POST", "{}/comments", ( s, req, resp, c ) -> s.addReply( req, resp, c.get( 0 ) ) )
-        .add( "POST", "{}/resolve", ( s, req, resp, c ) -> s.setStatus( req, resp, c.get( 0 ), true ) )
-        .add( "POST", "{}/reopen", ( s, req, resp, c ) -> s.setStatus( req, resp, c.get( 0 ), false ) )
-        .add( "PATCH", "{}/comments/{}", ( s, req, resp, c ) -> s.editComment( req, resp, c.get( 0 ), c.get( 1 ) ) )
-        .add( "DELETE", "{}/comments/{}", ( s, req, resp, c ) -> s.deleteComment( req, resp, c.get( 0 ), c.get( 1 ) ) )
-        .add( "DELETE", "{}", ( s, req, resp, c ) -> s.deleteThread( req, resp, c.get( 0 ) ) );
+    private static final SegmentRouteTable< SegmentRouteTable.Action< CommentThreadResource > > ROUTES =
+        SegmentRouteTable.< SegmentRouteTable.Action< CommentThreadResource > >builder()
+            .add( "POST", "", ( s, req, resp, c ) -> s.createThread( req, resp ) )
+            .add( "POST", "{}/comments", ( s, req, resp, c ) -> s.addReply( req, resp, c.get( 0 ) ) )
+            .add( "POST", "{}/resolve", ( s, req, resp, c ) -> s.setStatus( req, resp, c.get( 0 ), true ) )
+            .add( "POST", "{}/reopen", ( s, req, resp, c ) -> s.setStatus( req, resp, c.get( 0 ), false ) )
+            .add( "PATCH", "{}/comments/{}", ( s, req, resp, c ) -> s.editComment( req, resp, c.get( 0 ), c.get( 1 ) ) )
+            .add( "DELETE", "{}/comments/{}",
+                ( s, req, resp, c ) -> s.deleteComment( req, resp, c.get( 0 ), c.get( 1 ) ) )
+            .add( "DELETE", "{}", ( s, req, resp, c ) -> s.deleteThread( req, resp, c.get( 0 ) ) )
+            .build();
 
     private void dispatch( final String method, final HttpServletRequest request,
                            final HttpServletResponse response ) throws IOException {
-        final Optional< SegmentRouteTable.Match< Handler > > match =
-            ROUTES.match( method, SegmentRouteTable.segments( request, PREFIX ) );
-        if ( match.isPresent() ) {
-            match.get().handler().handle( this, request, response, match.get().captured() );
-        } else {
+        if ( !SegmentRouteTable.dispatch( ROUTES, this, method, request, response ) ) {
             sendNotFound( response, "Unknown comment route" );
         }
     }

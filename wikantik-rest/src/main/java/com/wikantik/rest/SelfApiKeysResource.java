@@ -136,7 +136,7 @@ public class SelfApiKeysResource extends RestServletBase {
         final ApiKeyService svc = service();
         if ( svc == null ) { unavailable( response ); return; }
 
-        if ( !dispatch( "POST", request, response, svc, login ) ) {
+        if ( !SegmentRouteTable.dispatch( ROUTES, new KeyCall( this, svc, login ), "POST", request, response ) ) {
             sendNotFound( response, "Not found" );
         }
     }
@@ -149,38 +149,24 @@ public class SelfApiKeysResource extends RestServletBase {
         final ApiKeyService svc = service();
         if ( svc == null ) { unavailable( response ); return; }
 
-        if ( !dispatch( "DELETE", request, response, svc, login ) ) {
+        if ( !SegmentRouteTable.dispatch( ROUTES, new KeyCall( this, svc, login ), "DELETE", request, response ) ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, KEY_ID_REQUIRED );
         }
     }
 
-    /** A route's action, run on the servlet that dispatched it for the signed-in {@code login}. */
-    @FunctionalInterface
-    private interface Handler {
-        void handle( SelfApiKeysResource servlet, HttpServletRequest request, HttpServletResponse response,
-                     ApiKeyService svc, String login, List< String > captured ) throws IOException;
+    /** What a key route acts on: this servlet, the key service, and the signed-in caller. */
+    private record KeyCall( SelfApiKeysResource servlet, ApiKeyService svc, String login ) {
     }
 
     private static final String KEY_ID_REQUIRED = "Key id required in path";
 
-    private static final String PREFIX = "/api/self/apikeys";
-
-    private static final SegmentRouteTable< Handler > ROUTES = new SegmentRouteTable< Handler >( PREFIX )
-        .add( "POST", "", ( s, req, resp, svc, login, c ) -> s.generate( req, svc, login, resp ) )
-        .add( "POST", "{}/rotate", ( s, req, resp, svc, login, c ) -> s.rotateKey( req, resp, svc, login, c.get( 0 ) ) )
-        .add( "DELETE", "{}", ( s, req, resp, svc, login, c ) -> s.revokeKey( resp, svc, login, c.get( 0 ) ) );
-
-    /** Runs the route for {@code method} and the request path; false when no route matches. */
-    private boolean dispatch( final String method, final HttpServletRequest request, final HttpServletResponse response,
-                              final ApiKeyService svc, final String login ) throws IOException {
-        final Optional< SegmentRouteTable.Match< Handler > > match =
-            ROUTES.match( method, SegmentRouteTable.segments( request, PREFIX ) );
-        if ( match.isEmpty() ) {
-            return false;
-        }
-        match.get().handler().handle( this, request, response, svc, login, match.get().captured() );
-        return true;
-    }
+    private static final SegmentRouteTable< SegmentRouteTable.Action< KeyCall > > ROUTES =
+        SegmentRouteTable.< SegmentRouteTable.Action< KeyCall > >builder()
+            .add( "POST", "", ( k, req, resp, c ) -> k.servlet().generate( req, k.svc(), k.login(), resp ) )
+            .add( "POST", "{}/rotate",
+                ( k, req, resp, c ) -> k.servlet().rotateKey( req, resp, k.svc(), k.login(), c.get( 0 ) ) )
+            .add( "DELETE", "{}", ( k, req, resp, c ) -> k.servlet().revokeKey( resp, k.svc(), k.login(), c.get( 0 ) ) )
+            .build();
 
     private void rotateKey( final HttpServletRequest request, final HttpServletResponse response,
                             final ApiKeyService svc, final String login, final String idRaw ) throws IOException {

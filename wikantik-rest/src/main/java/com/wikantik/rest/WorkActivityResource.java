@@ -40,7 +40,7 @@ public class WorkActivityResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final SegmentRouteTable< Handler > r ) {
+    protected void routes( final SegmentRouteTable.Builder< Handler > r ) {
         route( r, "GET", "activity", c -> {
             final String project = c.query( "project" );
             if ( project == null ) {

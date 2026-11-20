@@ -8,7 +8,6 @@ Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls 
 Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1723)
 Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1725)
 Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1727)
-Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1739)
 Method <com.wikantik.WikiEngine.initDataSourceSubsystems(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1480)
 Method <com.wikantik.WikiEngine.initDataSourceSubsystems(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1544)
 Method <com.wikantik.WikiEngine.initDataSourceSubsystems(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1545)

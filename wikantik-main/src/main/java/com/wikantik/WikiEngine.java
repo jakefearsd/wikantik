@@ -309,18 +309,8 @@ public class WikiEngine implements Engine {
         SNAPSHOT_REBUILDERS = s;
     }
 
-    // Audit subsystem (built in initDataSourceSubsystems where the DataSource is in scope).
-    private volatile com.wikantik.audit.AuditService auditService;
-    private volatile com.wikantik.audit.AuditReadPolicy auditReadPolicy;
-    private volatile com.wikantik.audit.AuditWriterThread auditWriter;
-    // Strong reference prevents the listener from being garbage-collected out of
-    // WikiEventManager's WeakHashMap before we can de-register it on shutdown.
-    private volatile com.wikantik.audit.AuditEventListener auditEventListener;
-
-    // Strong reference (same WeakHashMap concern as auditEventListener): stamps each
-    // account's last-login timestamp on LOGIN_AUTHENTICATED.
-    @SuppressWarnings( "PMD.SingularField" ) // must stay a field: WikiEventManager keys listeners in a WeakHashMap, so a local would let this get GC'd
-    private volatile com.wikantik.auth.LastLoginEventListener lastLoginEventListener;
+    /** Audit wired holder (service, writer, read policy, listeners); null when no datasource. Retains strong listener refs. */
+    private volatile com.wikantik.audit.AuditWiringHelper.Wired auditWired;
 
     /** Citation subsystem wired holder; retains a strong ref to the event listener. */
     private com.wikantik.citation.CitationWiringHelper.Wired citationWired;
@@ -658,8 +648,8 @@ public class WikiEngine implements Engine {
      */
     private void wireCorePageFilters( final FilterManager filterManager,
             final ReferenceManager referenceManager, final SearchManager searchManager ) {
-        filterManager.addPageFilter( referenceManager, -1001 );
-        filterManager.addPageFilter( searchManager, -1002 );
+        filterManager.addPageFilter( referenceManager, com.wikantik.filters.SaveFilterPriority.REFERENCES );
+        filterManager.addPageFilter( searchManager, com.wikantik.filters.SaveFilterPriority.SEARCH_INDEX );
         // No access-rule shape filter here: the refusal of a save that would lock a page (#104) runs in
         // DefaultPageLifecycle.saveText on the text the whole filter chain produced, which no filter priority guarantees.
     }
@@ -871,10 +861,16 @@ public class WikiEngine implements Engine {
     }
 
     /** The async audit service; {@code null} when no datasource is configured. */
-    public com.wikantik.audit.AuditService getAuditService() { return auditService; }
+    public com.wikantik.audit.AuditService getAuditService() {
+        final var w = auditWired;
+        return w == null ? null : w.service();
+    }
 
     /** The read-audit policy; {@code null} when no datasource is configured. */
-    public com.wikantik.audit.AuditReadPolicy getAuditReadPolicy() { return auditReadPolicy; }
+    public com.wikantik.audit.AuditReadPolicy getAuditReadPolicy() {
+        final var w = auditWired;
+        return w == null ? null : w.readPolicy();
+    }
 
     /** {@inheritDoc} */
     @Override
@@ -1168,11 +1164,11 @@ public class WikiEngine implements Engine {
             this.setBriefingLogService( com.wikantik.knowledge.querylog.BriefingLogWiring.build( ds, props ) );
 
             // Register save-time filters.
-            filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
+            filterManager.addPageFilter( svcs.chunkProjector(), com.wikantik.filters.SaveFilterPriority.CHUNK_PROJECTOR );
             com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireChunkLifecycle(
                 svcs.chunkProjector(), pageManager,
                 pageSubsystem != null ? pageSubsystem.pageRenamer() : null, this );
-            filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
+            filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), com.wikantik.filters.SaveFilterPriority.FRONTMATTER_DEFAULTS );
             com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireSpineFilters(
                 props, structuralIndex, coreSubsystem, filterManager, pageManager, this );
             // PageOwnershipSaveFilter — postSave hook ensures every saved page has a
@@ -1188,7 +1184,7 @@ public class WikiEngine implements Engine {
                     persistenceSubsystem.pageOwners(),
                     structuralIndex::resolveCanonicalIdFromSlug,
                     ownershipEnforcement ),
-                -998 );
+                com.wikantik.filters.SaveFilterPriority.PAGE_OWNERSHIP );
 
             // Assign the typed snapshot ONLY after all helpers have run.
             // See note above next to the local 'svcs' assignment.
@@ -1213,73 +1209,27 @@ public class WikiEngine implements Engine {
     }
 
     /**
-     * Construct the audit subsystem (JDBC repo + async writer), register the
-     * {@link com.wikantik.audit.AuditEventListener} against the auth + page
-     * managers, and build the {@link com.wikantik.audit.AuditReadPolicy}.
-     * Called from {@link #initialize} independently of Knowledge init so
-     * a Knowledge failure cannot silently disable auditing.
+     * Construct the audit subsystem via {@link com.wikantik.audit.AuditWiringHelper}. Called from
+     * {@link #initialize} independently of Knowledge init so a Knowledge failure cannot silently disable
+     * auditing. Managers are resolved HERE (this method is the approved getManager caller) and may be null
+     * if their subsystems failed to build — read-gating degrades, audit still runs.
      */
     private void initAuditSubsystem( final Properties props ) {
-        // Resolve the DataSource independently of datasource-subsystem init (same JNDI
-        // lookup initDataSourceSubsystems uses). Null when no datasource is configured.
         final javax.sql.DataSource ds = resolveAuditDataSource( props );
-        // Resolve the page manager + structural index from the registry (may be null
-        // if their subsystems failed to build — read-gating degrades, audit still runs).
-        final PageManager pageManager = getManager( PageManager.class );
-        final com.wikantik.api.pagegraph.StructuralIndexService structuralIndex =
-                getManager( com.wikantik.api.pagegraph.StructuralIndexService.class );
-
-        if ( ds == null ) {
-            LOG.warn( "Audit subsystem disabled — no JNDI DataSource resolved; "
-                    + "security and page events will not be written to the audit log." );
-            return;
-        }
-
-        final com.wikantik.audit.AuditSubsystemFactory.AuditSubsystem sub =
-            com.wikantik.audit.AuditSubsystemFactory.build( ds, 10_000 );
-        this.auditService = sub.service();
-        this.auditWriter = sub.writer();
-
-        // Frontmatter lookup — never throws; returns an empty map on any failure.
-        // Page providers do not populate Page.FRONTMATTER_METADATA, so we parse
-        // the raw page text via FrontmatterParser to extract the frontmatter map.
-        final var pmForLookup = getManager( com.wikantik.api.managers.PageManager.class );
-        final java.util.function.Function< String, java.util.Map< String, Object > > frontmatterByPage =
-                auditFrontmatterLookup( pmForLookup );
-
-        // Cluster lookup: resolve canonical_id from slug, then the descriptor, then its cluster. Returns
-        // null (read-auditing simply won't trigger by cluster) on any failure.
-        final java.util.function.Function< String, String > clusterByPage =
-                auditClusterLookup( structuralIndex );
-
-        final java.util.Set< String > auditedClusters = parseAuditedClusters(
-            props.getProperty( "wikantik.audit.readClusters", "" ) );
-
-        this.auditReadPolicy =
-            new com.wikantik.audit.AuditReadPolicy( frontmatterByPage, clusterByPage, auditedClusters );
-
-        // Register the event listener against every manager that fires the events
-        // the audit listener consumes: authn/authz/user/group (WikiSecurityEvent)
-        // and the page manager (WikiPageEvent / WikiPageRenameEvent).
-        // Store in a field so the instance is strongly reachable and won't be
-        // evicted from WikiEventManager's WeakHashMap by the garbage collector.
-        this.auditEventListener = new com.wikantik.audit.AuditEventListener( this.auditService );
-        // The managers are resolved HERE, not inside the helpers: getManager() callers are frozen
-        // per method by DecompositionArchTest, and this method is the approved caller.
-        attachAuthAuditListeners( getManager( AuthenticationManager.class ),
-                                  getManager( AuthorizationManager.class ),
-                                  getManager( UserManager.class ) );
-        attachContentAuditListeners( pageManager, getManager( GroupManager.class ),
-                                     getManager( com.wikantik.content.PageRenamer.class ),
-                                     com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( this ).filterManager() );
-
-        LOG.info( "Audit subsystem initialized (queue=10000)" );
+        this.auditWired = com.wikantik.audit.AuditWiringHelper.wireAudit( props, ds,
+            new com.wikantik.audit.AuditWiringHelper.Managers(
+                getManager( PageManager.class ),
+                getManager( com.wikantik.api.pagegraph.StructuralIndexService.class ),
+                getManager( AuthenticationManager.class ),
+                getManager( AuthorizationManager.class ),
+                getManager( UserManager.class ),
+                getManager( GroupManager.class ),
+                getManager( com.wikantik.content.PageRenamer.class ),
+                com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( this ).filterManager() ) );
     }
 
     /**
-     * Resolves the JNDI DataSource for the audit subsystem, logging and returning
-     * {@code null} on failure. Split out of {@link #initAuditSubsystem(Properties)}
-     * (2026-09, complexity burn-down).
+     * Resolves the JNDI DataSource for the audit subsystem, logging and returning {@code null} on failure.
      */
     private javax.sql.DataSource resolveAuditDataSource( final Properties props ) {
         try {
@@ -1290,110 +1240,6 @@ public class WikiEngine implements Engine {
                     e.getMessage() );
             return null;
         }
-    }
-
-    /**
-     * Builds the frontmatter-by-page-name lookup used by {@link com.wikantik.audit.AuditReadPolicy}.
-     * Never throws; returns an empty map on any failure. Split out of
-     * {@link #initAuditSubsystem(Properties)} (2026-09, complexity burn-down).
-     */
-    private java.util.function.Function< String, java.util.Map< String, Object > > auditFrontmatterLookup(
-            final PageManager pmForLookup ) {
-        return pageName -> {
-            try {
-                if ( pmForLookup == null ) return java.util.Map.of();
-                final String raw = pmForLookup.getPureText( pageName,
-                        com.wikantik.api.providers.PageProvider.LATEST_VERSION );
-                if ( raw == null || raw.isEmpty() ) return java.util.Map.of();
-                final com.wikantik.api.frontmatter.ParsedPage parsed =
-                        com.wikantik.api.frontmatter.FrontmatterParser.parse( raw );
-                final java.util.Map< String, Object > fm = parsed.metadata();
-                return fm != null ? fm : java.util.Map.of();
-            } catch ( final Exception e ) {
-                LOG.warn( "audit frontmatter lookup({}) failed: {}", pageName, e.getMessage(), e );
-                return java.util.Map.of();
-            }
-        };
-    }
-
-    /**
-     * Builds the cluster-by-page-name lookup used by {@link com.wikantik.audit.AuditReadPolicy}.
-     * Returns {@code null} (read-auditing simply won't trigger by cluster) on any failure.
-     * Split out of {@link #initAuditSubsystem(Properties)} (2026-09, complexity burn-down).
-     */
-    private java.util.function.Function< String, String > auditClusterLookup(
-            final com.wikantik.api.pagegraph.StructuralIndexService structuralIndex ) {
-        return pageName -> {
-            try {
-                if ( structuralIndex == null ) return null;
-                return structuralIndex.resolveCanonicalIdFromSlug( pageName )
-                    .flatMap( structuralIndex::getByCanonicalId )
-                    .map( com.wikantik.api.pagegraph.PageDescriptor::cluster )
-                    .orElse( null );
-            } catch ( final Exception e ) {
-                LOG.warn( "audit cluster lookup({}) failed: {}", pageName, e.getMessage(), e );
-                return null;
-            }
-        };
-    }
-
-    /**
-     * Attaches {@link #auditEventListener} to the authn/authz/user managers and wires
-     * {@link #lastLoginEventListener}. Split out of {@link #initAuditSubsystem(Properties)}
-     * (2026-09 complexity burn-down): the run of independent null-checks drove that method's
-     * NPath. Named attach*, not register*, because DecompositionArchTest bans new
-     * register[A-Z]* methods on WikiEngine.
-     */
-    private void attachAuthAuditListeners( final AuthenticationManager authnMgr,
-                                           final AuthorizationManager authzMgr,
-                                           final UserManager userMgr ) {
-        if ( authnMgr != null ) authnMgr.addWikiEventListener( auditEventListener );
-        if ( authzMgr != null ) authzMgr.addWikiEventListener( auditEventListener );
-        if ( userMgr != null ) userMgr.addWikiEventListener( auditEventListener );
-        // Last-login stamping: LOGIN_AUTHENTICATED fires from the authentication manager,
-        // so register the listener there. The user database is the write target.
-        if ( authnMgr != null && userMgr != null && userMgr.getUserDatabase() != null ) {
-            this.lastLoginEventListener = new com.wikantik.auth.LastLoginEventListener( userMgr.getUserDatabase() );
-            authnMgr.addWikiEventListener( this.lastLoginEventListener );
-        }
-    }
-
-    /**
-     * Attaches {@link #auditEventListener} to the group manager, the page manager and the page
-     * renamer. See {@link #attachAuthAuditListeners}.
-     */
-    private void attachContentAuditListeners( final PageManager pageManager, final GroupManager groupMgr,
-                                              final com.wikantik.content.PageRenamer pageRenamer,
-                                              final FilterManager filterManager ) {
-        if ( groupMgr != null ) groupMgr.addWikiEventListener( auditEventListener );
-        // Save events (POST_SAVE_END) are fired by the FilterManager at the end of doPostSaveFiltering.
-        if ( filterManager != null ) {
-            com.wikantik.event.WikiEventManager.addWikiEventListener( filterManager, auditEventListener );
-        }
-        // PageManager has no addWikiEventListener on its interface; it fires page
-        // events via WikiEventManager keyed on the manager instance, so register
-        // the listener against that instance directly (same mechanism).
-        if ( pageManager != null ) {
-            com.wikantik.event.WikiEventManager.addWikiEventListener( pageManager, auditEventListener );
-        }
-        // DefaultPageRenamer fires WikiPageRenameEvent (which carries the detail
-        // field with {"from":...,"to":...}) keyed on itself, not on PageManager.
-        // Register the same listener against the PageRenamer instance so rename
-        // events are captured by the audit chain.
-        if ( pageRenamer != null ) {
-            com.wikantik.event.WikiEventManager.addWikiEventListener( pageRenamer, auditEventListener );
-        }
-    }
-
-    /** Parse the comma-separated {@code wikantik.audit.readClusters} value into a trimmed, non-empty set. */
-    static java.util.Set< String > parseAuditedClusters( final String raw ) {
-        if ( raw == null || raw.isBlank() ) return java.util.Set.of();
-        final java.util.Set< String > out = new java.util.HashSet<>();
-        for ( final String part : raw.split( "," ) ) {
-            final String trimmed = part.trim();
-            if ( !trimmed.isEmpty() ) out.add( trimmed );
-        }
-        return out;
     }
 
     /** {@inheritDoc} */
@@ -1915,8 +1761,9 @@ public class WikiEngine implements Engine {
         closeQuietly( com.wikantik.search.hybrid.QueryEmbedder.class );
         closeQuietly( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
         closeQuietly( com.wikantik.work.runtime.WorkClaimSweeper.class );
-        if ( auditWriter != null ) {
-            auditWriter.shutdownWriter();
+        final var aw = auditWired;
+        if ( aw != null ) {
+            aw.writer().shutdownWriter();
         }
         WikiEventManager.unregisterListenersFor( this );
     }

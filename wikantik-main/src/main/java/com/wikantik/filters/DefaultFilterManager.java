@@ -225,14 +225,8 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     @Override
     public String doPreTranslateFiltering( final Context context, String pageData ) throws FilterException {
-        fireEvent( WikiPageEvent.PRE_TRANSLATE_BEGIN, context );
-        for( final PageFilter f : pageFilters ) {
-            pageData = f.preTranslate( context, pageData );
-        }
-
-        fireEvent( WikiPageEvent.PRE_TRANSLATE_END, context );
-
-        return pageData;
+        return chain( WikiPageEvent.PRE_TRANSLATE_BEGIN, WikiPageEvent.PRE_TRANSLATE_END,
+                      context, pageData, PageFilter::preTranslate );
     }
 
     /**
@@ -246,14 +240,8 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     @Override
     public String doPostTranslateFiltering( final Context context, String htmlData ) throws FilterException {
-        fireEvent( WikiPageEvent.POST_TRANSLATE_BEGIN, context );
-        for( final PageFilter f : pageFilters ) {
-            htmlData = f.postTranslate( context, htmlData );
-        }
-
-        fireEvent( WikiPageEvent.POST_TRANSLATE_END, context );
-
-        return htmlData;
+        return chain( WikiPageEvent.POST_TRANSLATE_BEGIN, WikiPageEvent.POST_TRANSLATE_END,
+                      context, htmlData, PageFilter::postTranslate );
     }
 
     /**
@@ -267,14 +255,8 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     @Override
     public String doPreSaveFiltering( final Context context, String pageData ) throws FilterException {
-        fireEvent( WikiPageEvent.PRE_SAVE_BEGIN, context );
-        for( final PageFilter f : pageFilters ) {
-            pageData = f.preSave( context, pageData );
-        }
-
-        fireEvent( WikiPageEvent.PRE_SAVE_END, context );
-
-        return pageData;
+        return chain( WikiPageEvent.PRE_SAVE_BEGIN, WikiPageEvent.PRE_SAVE_END,
+                      context, pageData, PageFilter::preSave );
     }
 
     /**
@@ -288,13 +270,29 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     @Override
     public void doPostSaveFiltering( final Context context, final String pageData ) throws FilterException {
-        fireEvent( WikiPageEvent.POST_SAVE_BEGIN, context );
-        for( final PageFilter f : pageFilters ) {
-            // LOG.info("POSTSAVE: "+f.toString() );
-            f.postSave( context, pageData );
-        }
+        chain( WikiPageEvent.POST_SAVE_BEGIN, WikiPageEvent.POST_SAVE_END, context, pageData,
+               ( f, c, d ) -> {
+                   f.postSave( c, d );
+                   return d;
+               } );
+    }
 
-        fireEvent( WikiPageEvent.POST_SAVE_END, context );
+    /** One filter invocation in a chain; the returned text feeds the next filter. */
+    @FunctionalInterface
+    private interface FilterStep {
+        String apply( PageFilter filter, Context context, String data ) throws FilterException;
+    }
+
+    /** Fires {@code beginEvt}, threads {@code data} through every filter via {@code step}, fires {@code endEvt}. */
+    private String chain( final int beginEvt, final int endEvt, final Context context, final String data,
+                          final FilterStep step ) throws FilterException {
+        fireEvent( beginEvt, context );
+        String result = data;
+        for( final PageFilter f : pageFilters ) {
+            result = step.apply( f, context, result );
+        }
+        fireEvent( endEvt, context );
+        return result;
     }
 
     /**

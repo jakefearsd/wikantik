@@ -18,6 +18,7 @@
  */
 package com.wikantik.pagegraph.subsystem;
 
+import com.wikantik.filters.SaveFilterPriority;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
@@ -174,19 +175,19 @@ public final class PageGraphWiringHelper {
                 },
                 props,
                 engine.pageCanonicalIdsDao() ),
-            -1003 );
+            SaveFilterPriority.STRUCTURAL_SPINE );
         filterManager.addPageFilter(
             new com.wikantik.knowledge.agent.RunbookValidationPageFilter(
                 structuralIndex, pageManager, props ),
-            -1003 );
+            SaveFilterPriority.RUNBOOK_VALIDATION );
         filterManager.addPageFilter(
             new com.wikantik.frontmatter.schema.SchemaValidationPageFilter( props, pageManager ),
-            -1006 );
+            SaveFilterPriority.SCHEMA_VALIDATION );
         filterManager.addPageFilter(
             new com.wikantik.markdown.extensions.math.MathValidationPageFilter( props, pageManager ),
-            -1007 );
+            SaveFilterPriority.MATH_VALIDATION );
         filterManager.addPageFilter(
             new CitationLinkRenderingFilter( structuralIndex ),
-            100 );
+            SaveFilterPriority.CITATION_LINK_RENDERING );
     }
 }

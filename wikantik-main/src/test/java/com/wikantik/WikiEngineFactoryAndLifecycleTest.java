@@ -283,21 +283,4 @@ class WikiEngineFactoryAndLifecycleTest {
         verify( failingCloseable ).close();
         verify( cleanCloseable ).close();
     }
-
-    // -----------------------------------------------------------------------
-    // parseAuditedClusters — pure static helper (package-visible for testing)
-    // -----------------------------------------------------------------------
-
-    @Test
-    void testParseAuditedClusters_nullOrBlank_returnsEmptySet() {
-        Assertions.assertTrue( WikiEngine.parseAuditedClusters( null ).isEmpty() );
-        Assertions.assertTrue( WikiEngine.parseAuditedClusters( "" ).isEmpty() );
-        Assertions.assertTrue( WikiEngine.parseAuditedClusters( "   " ).isEmpty() );
-    }
-
-    @Test
-    void testParseAuditedClusters_trimsAndDropsEmptyEntries() {
-        final java.util.Set< String > result = WikiEngine.parseAuditedClusters( " engineering , , finance ,engineering" );
-        Assertions.assertEquals( java.util.Set.of( "engineering", "finance" ), result );
-    }
 }

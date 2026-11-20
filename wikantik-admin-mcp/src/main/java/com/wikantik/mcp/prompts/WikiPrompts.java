@@ -57,15 +57,15 @@ public final class WikiPrompts {
 
                     Follow these steps:
 
-                    1. **Check for existing content**: Use `list_pages` with a relevant prefix, and `search_pages` \
+                    1. **Check for existing content**: On `/knowledge-mcp`, use `list_pages` with a relevant prefix, and `retrieve_context` \
                     for "%s" to find related pages.
 
                     2. **Choose a CamelCase page name**: Page names must be CamelCase with no spaces (e.g. SecurityPolicy).
 
-                    3. **Export a working directory**: Use `export_content` to get a working directory. \
-                    If related pages exist, include them so you can add cross-references.
+                    3. **Read related pages**: Use `read_page` (admin) or `read_pages` (`/knowledge-mcp`) on any related pages \
+                    so you can add cross-references.
 
-                    4. **Create the article file**: Create a new .md file (e.g. `PageName.md`) in the working directory \
+                    4. **Draft the article**: Draft the page text (e.g. for `PageName`) \
                     with YAML frontmatter:
                        ```
                        ---
@@ -81,9 +81,9 @@ public final class WikiPrompts {
                        Body content in Markdown.
                        ```
 
-                    5. **Preview and import**: Use `preview_import` to verify, then `import_content` to publish.
+                    5. **Publish**: Use `write_pages` to create the new page (it only creates; it does not overwrite).
 
-                    6. **Cross-reference**: If related pages exist, edit their files to add links back to the new article.
+                    6. **Cross-reference**: If related pages exist, use `update_page` to add links back to the new article.
 
                     Use Markdown `[link text](PageName)` syntax for internal links.""",
                     topic, topic, type, java.time.LocalDate.now().toString() );
@@ -114,12 +114,12 @@ public final class WikiPrompts {
 
                     Follow these steps:
 
-                    1. **Search broadly**: Use `search_pages` with query "%s" to find all relevant pages.
+                    1. **Search broadly**: On `/knowledge-mcp`, use `retrieve_context` or `assemble_bundle` with query "%s" to find all relevant pages.
 
-                    2. **Check metadata**: Use `query_metadata` with relevant tags or types to find categorized content.
+                    2. **Check metadata**: On `/knowledge-mcp`, use `list_pages_by_filter` with relevant tags or types to find categorized content.
 
-                    3. **Export relevant pages**: Use `export_content` with the page names you found \
-                    to get all content in a working directory where you can read and cross-reference easily.
+                    3. **Read relevant pages**: Use `read_pages` (`/knowledge-mcp`) with the page names you found \
+                    to read all content together and cross-reference easily.
 
                     4. **Follow links**: Check `get_backlinks` on key pages to discover related content you may have missed.
 
@@ -128,9 +128,9 @@ public final class WikiPrompts {
                        - Contradictions or gaps between pages
                        - Areas that need more content
 
-                    6. **Optionally create a summary page**: Create a new .md file in the working directory \
+                    6. **Optionally create a summary page**: Draft a new page \
                     with type "summary" and links to all source pages in the `related` metadata field, \
-                    then use `import_content` to publish it.""",
+                    then use `write_pages` to publish it.""",
                     topic, topic );
 
             return McpSchema.GetPromptResult.builder(
@@ -164,15 +164,15 @@ public final class WikiPrompts {
                         1. **Get overview**: Use `get_wiki_stats` for a high-level view, then `get_broken_links` \
                         and `get_orphaned_pages` to find structural issues.
 
-                        2. **Export for inspection**: Use `export_content` to export all pages. \
-                        Grep the exported files for internal links to cross-reference.
+                        2. **Read for inspection**: Use `read_pages` (`/knowledge-mcp`) or `read_page` on the affected pages \
+                        and check their internal links to cross-reference.
 
                         3. **Verify broken link targets**: For each broken link, check if it's a typo, \
                         a renamed page, or content that should be created.
 
-                        4. **Fix issues**: Edit the exported files to fix broken links, add missing links to orphaned pages.
+                        4. **Fix issues**: Edit the page text to fix broken links, add missing links to orphaned pages.
 
-                        5. **Preview and import**: Use `preview_import` to review all changes, then `import_content` to apply.
+                        5. **Apply**: Use `update_page` to apply each fix, reviewing the change with `diff_page` afterwards.
 
                         6. **Report findings**:
                            - Broken links (page references that don't exist)
@@ -193,8 +193,8 @@ public final class WikiPrompts {
                         3. **Check metadata links**: Look at the `related` field in the metadata. \
                         Verify those pages exist too.
 
-                        4. **Fix issues**: If fixes are needed, use `export_content` to export "%s" and related pages, \
-                        edit the files, then `import_content` to apply changes.
+                        4. **Fix issues**: If fixes are needed, use `read_page` on "%s" and related pages, \
+                        edit the text, then `update_page` to apply changes.
 
                         5. **Report**: List broken links, suggest fixes, and note any related pages that should link here but don't.""",
                         pageName, pageName, pageName, pageName );
@@ -278,14 +278,14 @@ public final class WikiPrompts {
 
                     Follow these steps:
 
-                    1. **Survey existing content**: Use `search_pages` with query "%s" and `list_metadata_values` \
+                    1. **Survey existing content**: On `/knowledge-mcp`, use `retrieve_context` with query "%s" and `list_metadata_values` \
                     to discover related pages and metadata conventions already in use.
 
-                    2. **Create a working directory**: Use `export_content` to get a working directory. \
-                    Include any existing related pages for cross-referencing.
+                    2. **Read related pages**: Use `read_page` (admin) or `read_pages` (`/knowledge-mcp`) on any existing \
+                    related pages for cross-referencing.
 
-                    3. **Create the files**: In the working directory, create %s .md files:
-                       - **Hub page** (e.g. `TopicOverview.md`):
+                    3. **Draft the pages**: Draft the text of %s pages:
+                       - **Hub page** (e.g. `TopicOverview`):
                          ```
                          ---
                          type: hub
@@ -297,7 +297,7 @@ public final class WikiPrompts {
                          status: active
                          ---
                          ```
-                       - **Sub-articles** (e.g. `SubArticle1.md`):
+                       - **Sub-articles** (e.g. `SubArticle1`):
                          ```
                          ---
                          type: article
@@ -311,9 +311,9 @@ public final class WikiPrompts {
                          ```
                        Link hub → sub-articles and sub-articles → hub using `[text](PageName)`.
 
-                    4. **Preview**: Use `preview_import` to verify all files look correct.
+                    4. **Review**: Re-read each draft to verify the frontmatter and links look correct.
 
-                    5. **Import**: Use `import_content` to publish all pages at once.
+                    5. **Publish**: Use `write_pages` to create all pages in one call (create-only).
 
                     6. **Verify**: Use `verify_pages` on all cluster pages to confirm no broken links \
                     and metadata is complete. Use `preview_structured_data` on the hub to verify JSON-LD.""",
@@ -350,12 +350,12 @@ public final class WikiPrompts {
 
                     Follow these steps:
 
-                    1. **Find cluster members**: Use `query_metadata` with field="cluster" and value="%s".
+                    1. **Find cluster members**: On `/knowledge-mcp`, use `list_pages_by_filter` with cluster="%s".
 
-                    2. **Export the cluster**: Use `export_content` with the cluster page names to get \
-                    a working directory with all existing cluster content.
+                    2. **Read the cluster**: Use `read_pages` (`/knowledge-mcp`) with the cluster page names to get \
+                    all existing cluster content.
 
-                    3. **Create the new article**: Add a new file `%s.md` with matching metadata:
+                    3. **Create the new article**: Draft the page `%s` with matching metadata:
                        ```
                        ---
                        type: article
@@ -368,10 +368,10 @@ public final class WikiPrompts {
                        ---
                        ```
 
-                    4. **Update existing files**: Edit the hub page to add a link to "%s". \
+                    4. **Update existing pages**: Edit the hub page to add a link to "%s". \
                     Update `related` lists in relevant sibling articles.
 
-                    5. **Preview and import**: Use `preview_import` then `import_content` to publish.
+                    5. **Publish**: Use `write_pages` for the new article and `update_page` for the hub and siblings.
 
                     6. **Verify**: Use `verify_pages` on the new article and updated pages.""",
                     newPageName, clusterSlug, clusterSlug, newPageName,
@@ -416,8 +416,8 @@ public final class WikiPrompts {
 
                     5. **Check SEO quality**: Use `verify_pages` with `checks=["seo_readiness"]` on a sample of pages.
 
-                    6. **Fix issues**: Export affected pages with `export_content`, edit the files to fix \
-                    metadata, links, and content issues, then `import_content` to apply.
+                    6. **Fix issues**: Read affected pages with `read_page`, edit the text to fix \
+                    metadata, links, and content issues, then `update_page` to apply.
 
                     7. **Report findings**: Summarize the wiki health status with:
                        - Overall statistics
@@ -458,13 +458,13 @@ public final class WikiPrompts {
                     3. **Preview impact**: For pages with warnings, use `preview_structured_data` to see \
                     meta tags, JSON-LD, feed entries, and News Sitemap eligibility.
 
-                    4. **Fix issues**: Export affected pages with `export_content`, then edit frontmatter in the files:
+                    4. **Fix issues**: Read affected pages with `read_page`, then edit frontmatter in the text:
                        - Add or improve summaries (aim for 50-160 characters)
                        - Add tags to enable News Sitemap inclusion
                        - Add date fields for JSON-LD datePublished
                        - Fix hub pages: ensure related lists reference existing pages
 
-                    5. **Import and re-verify**: Use `import_content` to apply fixes, then run \
+                    5. **Apply and re-verify**: Use `update_page` to apply fixes, then run \
                     `verify_pages` with `checks=["seo_readiness"]` again to confirm all issues are resolved.
 
                     6. **Report**: Summarize findings:
@@ -474,8 +474,8 @@ public final class WikiPrompts {
                        - Any remaining issues""",
                     cluster.isEmpty() ? " across the entire wiki" : " for cluster \"" + cluster + "\"",
                     cluster.isEmpty()
-                            ? "Use `list_pages` to get all pages, or `query_metadata` to find pages by type."
-                            : "Use `query_metadata` with field=\"cluster\" and value=\"" + cluster +
+                            ? "On `/knowledge-mcp`, use `list_pages` to get all pages, or `list_pages_by_filter` to find pages by type."
+                            : "On `/knowledge-mcp`, use `list_pages_by_filter` with cluster=\"" + cluster +
                               "\" to find all pages in this cluster." );
 
             return McpSchema.GetPromptResult.builder(

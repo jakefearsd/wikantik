@@ -48,6 +48,10 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
 
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {
+        return WebConnectorSupport.guardedPoll( LOG, "crawler", connectorId, cursor, () -> doPoll( cursor ) );
+    }
+
+    private SyncBatch doPoll( final SyncCursor cursor ) {
         final RobotsPolicy robots = new RobotsPolicy( fetcher, config.userAgent() );
         final Set< String > visited = new HashSet<>();
         final Deque< Node > queue = new ArrayDeque<>();

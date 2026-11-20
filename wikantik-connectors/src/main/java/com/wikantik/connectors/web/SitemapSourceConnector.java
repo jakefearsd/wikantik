@@ -48,8 +48,12 @@ public final class SitemapSourceConnector implements SourceConnector {
 
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {
+        return WebConnectorSupport.guardedPoll( LOG, "sitemap", connectorId, cursor, () -> doPoll( cursor ) );
+    }
+
+    private SyncBatch doPoll( final SyncCursor cursor ) {
         final RobotsPolicy robots = new RobotsPolicy( fetcher, config.userAgent() );
-        final Set< String > allowedHosts = allowedHosts();
+        final Set< String > allowedHosts = WebConnectorSupport.hostsOf( config.sitemapUrls(), LOG, "sitemap" );
 
         // trusted=false once enumeration can no longer be treated as a full snapshot — the orchestrator
         // must not derive tombstones from what this poll happened to miss
@@ -71,14 +75,6 @@ public final class SitemapSourceConnector implements SourceConnector {
             return new SyncBatch( items, List.of(), cursor, false );   // untrusted enumeration: input cursor, incomplete
         }
         return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
-    }
-
-    private Set< String > allowedHosts() {
-        final Set< String > allowedHosts = new HashSet<>();
-        for ( final String sm : config.sitemapUrls() ) {
-            WebConnectorSupport.hostOf( sm, LOG, "sitemap" ).ifPresent( allowedHosts::add );
-        }
-        return allowedHosts;
     }
 
     private Enumeration enumeratePages( final RobotsPolicy robots, final Set< String > allowedHosts ) {

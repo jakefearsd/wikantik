@@ -18,12 +18,18 @@
  */
 package com.wikantik.connectors.web;
 
+import com.wikantik.api.connectors.SyncBatch;
+import com.wikantik.api.connectors.SyncCursor;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.LongConsumer;
+import java.util.function.Supplier;
 
 /**
  * Helpers shared by the web-source connectors ({@link FeedSourceConnector}, {@link
@@ -63,5 +69,29 @@ final class WebConnectorSupport {
 
     static boolean isHtml( final String contentType ) {
         return contentType != null && contentType.toLowerCase( Locale.ROOT ).contains( "text/html" );
+    }
+
+    /** Hosts of the configured seed URLs (the {@code same_host_only} allow-list). */
+    static Set< String > hostsOf( final List< String > urls, final Logger log, final String label ) {
+        final Set< String > hosts = new HashSet<>();
+        for ( final String u : urls ) {
+            hostOf( u, log, label ).ifPresent( hosts::add );
+        }
+        return hosts;
+    }
+
+    /**
+     * Runs {@code body}, enforcing the "poll() never throws" contract: any RuntimeException degrades
+     * to an empty INCOMPLETE batch carrying the input cursor (same shape as the token connectors),
+     * so the orchestrator derives no tombstones and retries next cycle.
+     */
+    static SyncBatch guardedPoll( final Logger log, final String label, final String connectorId,
+                                  final SyncCursor cursor, final Supplier< SyncBatch > body ) {
+        try {
+            return body.get();
+        } catch ( final RuntimeException e ) {
+            log.warn( "{} '{}': sync failed, skipping cycle: {}", label, connectorId, e.getMessage(), e );
+            return new SyncBatch( List.of(), List.of(), cursor, false );
+        }
     }
 }

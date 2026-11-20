@@ -52,8 +52,12 @@ public final class FeedSourceConnector implements SourceConnector {
 
     @Override
     public SyncBatch poll( final SyncCursor cursor ) {
+        return WebConnectorSupport.guardedPoll( LOG, "feed", connectorId, cursor, () -> doPoll( cursor ) );
+    }
+
+    private SyncBatch doPoll( final SyncCursor cursor ) {
         final RobotsPolicy robots = new RobotsPolicy( fetcher, config.userAgent() );
-        final Set< String > allowedHosts = allowedHosts();
+        final Set< String > allowedHosts = WebConnectorSupport.hostsOf( config.feedUrls(), LOG, "feed" );
         final FeedFetch fetch = fetchEntries( robots );
 
         // Every configured feed URL failed to fetch (non-2xx / network error) and nothing was
@@ -77,14 +81,6 @@ public final class FeedSourceConnector implements SourceConnector {
             LOG.info( "feed '{}': hit max_items={}, truncated", connectorId, config.maxItems() );
         }
         return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
-    }
-
-    private Set< String > allowedHosts() {
-        final Set< String > allowedHosts = new HashSet<>();
-        for ( final String feedUrl : config.feedUrls() ) {
-            WebConnectorSupport.hostOf( feedUrl, LOG, "feed" ).ifPresent( allowedHosts::add );
-        }
-        return allowedHosts;
     }
 
     /** Parsed entries plus whether every <em>attempted</em> feed fetch failed (robots-disallowed

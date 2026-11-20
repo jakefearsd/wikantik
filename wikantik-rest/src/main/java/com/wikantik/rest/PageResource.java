@@ -18,55 +18,11 @@
  */
 package com.wikantik.rest;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.wikantik.api.pagegraph.ClusterDetails;
-import com.wikantik.api.pagegraph.ClusterPath;
-import com.wikantik.api.pagegraph.ClusterStatus;
-import com.wikantik.api.pagegraph.PageDescriptor;
-import com.wikantik.api.pagegraph.StructuralIndexService;
-
-import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.core.Page;
-import com.wikantik.event.WikiPageEvent;
-import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.AccessRuleShapeException;
-import com.wikantik.api.exceptions.FilterException;
-import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.content.ContentValidationException;
-import com.wikantik.api.content.ContentWarningSink;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
-import com.wikantik.api.frontmatter.FrontmatterWriter;
-import com.wikantik.api.frontmatter.schema.FieldViolation;
-import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
-import com.wikantik.api.frontmatter.schema.Severity;
-import com.wikantik.api.frontmatter.ParsedPage;
-import com.wikantik.api.identity.IdentityDisplay;
-import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pages.PageSaveHelper;
-import com.wikantik.api.pages.SaveOptions;
-import com.wikantik.api.pages.SavedButPostSaveFailedException;
-import com.wikantik.api.pages.VersionConflictException;
-import com.wikantik.api.providers.PageProvider;
-import com.wikantik.api.spi.Wiki;
-import com.wikantik.parser.markdown.BlockIds;
-import com.wikantik.auth.AuthorKeys;
-import com.wikantik.search.embedding.PageEmbeddingSimilarity;
-import com.wikantik.wikilink.WikiEmbedRenderer;
-import com.wikantik.wikilink.WikiLinkResolver;
-import com.wikantik.content.PageRenamer;
-import com.wikantik.export.HeadingSlugs;
-import com.wikantik.preview.PageExcerpts;
-import com.wikantik.parser.markdown.ReaderComments;
-import com.wikantik.auth.acl.AclDirectiveText;
-import com.wikantik.parser.markdown.ReaderText;
-import com.wikantik.auth.permissions.AllPermission;
-import com.wikantik.util.TextUtil;
-import com.wikantik.content.WikiToMarkdownConverter;
-import com.wikantik.render.RenderingManager;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -76,10 +32,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Map;
 
 /**
@@ -107,97 +60,6 @@ public class PageResource extends RestServletBase {
     /** Generic warning text for it: the cause stays in the server log (D5). */
     static final String POST_SAVE_FAILED_MESSAGE =
             "Saved; post-save processing failed and some derived data (search index, references) may lag.";
-    private static final AtomicBoolean MAX_PAGE_BYTES_WARNED = new AtomicBoolean();
-
-    /**
-     *  Builds the derived {@code cluster_status} block for a page, or {@code null} when the
-     *  page names no cluster.
-     *
-     *  <p>Whether a cluster has a declaring hub is not in the page's own frontmatter, so the
-     *  reader cannot compute it — the server resolves it here.</p>
-     *
-     *  <p>{@code hub_slug} is omitted when no hub declares the cluster (Gson drops nulls), so
-     *  the boolean {@code hub_declared} carries that signal instead: it is always present and
-     *  cannot vanish, and the client keys its "cluster not yet defined" badge off it rather
-     *  than inferring meaning from an absent key.</p>
-     *
-     *  <p>Never throws: a structural index that is absent or still warming degrades to the
-     *  declared path with no hub, which the UI renders as an undeclared cluster.</p>
-     */
-    private JsonObject clusterStatusJson( final HttpServletRequest request, final Map< String, Object > metadata ) {
-        // Phase 5: `cluster:` is a scalar or a list. The FIRST entry is the primary and keeps
-        // driving placement — breadcrumbs, sidebar, JSON-LD — so `path` never changes meaning.
-        final List< String > memberships =
-                ClusterPath.memberships( metadata == null ? null : metadata.get( "cluster" ) );
-        if ( memberships.isEmpty() ) {
-            return null;
-        }
-        final ClusterStatus status = resolveCluster( request, memberships.get( 0 ), true );
-
-        final JsonObject out = new JsonObject();
-        out.addProperty( "path", status.path() );
-        out.addProperty( "parent", status.parent() );
-        out.addProperty( "hub_slug", status.hubSlug() );
-        out.addProperty( "hub_declared", status.hubSlug() != null );
-        out.addProperty( "member_count", status.memberCount() );
-
-        // Emitted only when there is genuinely more than one home, so a single-cluster page's
-        // payload is byte-identical to what pre-Phase-5 clients already handle.
-        if ( memberships.size() > 1 ) {
-            final JsonArray all = new JsonArray();
-            for ( final String path : memberships ) {
-                final ClusterStatus each = resolveCluster( request, path, false );
-                final JsonObject entry = new JsonObject();
-                entry.addProperty( "path", each.path() );
-                entry.addProperty( "hub_slug", each.hubSlug() );
-                entry.addProperty( "hub_declared", each.hubSlug() != null );
-                all.add( entry );
-            }
-            out.add( "memberships", all );
-        }
-        return out;
-    }
-
-    /**
-     *  Resolves one cluster path against the structural index, degrading to an undeclared
-     *  status when the index is unavailable — a warming or absent index must leave the page
-     *  renderable rather than failing the whole payload.
-     */
-    private ClusterStatus resolveCluster( final HttpServletRequest request, final String cluster,
-                                          final boolean countMembers ) {
-        try {
-            final StructuralIndexService idx = getSubsystems().pageGraph().structuralIndexService();
-            final ClusterDetails details = idx == null ? null : idx.getCluster( cluster ).orElse( null );
-            return ClusterStatus.of( cluster, details == null ? null : asSeenBy( request, details, countMembers ) );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "cluster_status: structural index unavailable for cluster '{}': {}",
-                      cluster, e.getMessage() );
-            return ClusterStatus.of( cluster, null );
-        }
-    }
-
-    /**
-     *  The cluster as the caller sees it: a hub they may not view is absent and, when {@code countMembers}, only the
-     *  members they may view are counted (as on every other cluster count). Secondary memberships report no count,
-     *  so they cost one check, for the hub.
-     */
-    private ClusterDetails asSeenBy( final HttpServletRequest request, final ClusterDetails details,
-                                     final boolean countMembers ) {
-        final List< String > names = new ArrayList<>();
-        if ( details.hubPage() != null ) {
-            names.add( details.hubPage().slug() );
-        }
-        if ( countMembers ) {
-            details.articles().forEach( a -> names.add( a.slug() ) );
-        }
-        final java.util.Set< String > viewable = filterViewable( request, names );
-        final PageDescriptor hub = details.hubPage() != null && viewable.contains( details.hubPage().slug() )
-                ? details.hubPage() : null;
-        final List< PageDescriptor > articles = countMembers
-                ? details.articles().stream().filter( a -> viewable.contains( a.slug() ) ).toList()
-                : details.articles();
-        return new ClusterDetails( details.name(), hub, articles, details.tagDistribution(), details.updatedAt() );
-    }
 
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
@@ -208,18 +70,17 @@ public class PageResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
             return;
         }
+        final PageReadHandler reader = new PageReadHandler( this );
 
         // GET /api/pages/{name}/similar — similar pages by chunk-embedding centroid
         if ( pathParam.endsWith( "/similar" ) ) {
-            final String pageName = pathParam.substring( 0, pathParam.length() - "/similar".length() );
-            if ( !checkPagePermission( request, response, pageName, "view" ) ) return;
-            handleGetSimilarPages( request, response, pageName );
+            reader.handleSimilarPages( request, response, pathParam.substring( 0, pathParam.length() - "/similar".length() ) );
             return;
         }
 
         // GET /api/pages/{name}/preview — link-preview card data; missing and unviewable are the same 404
         if ( pathParam.endsWith( "/preview" ) ) {
-            handlePreview( request, response, pathParam.substring( 0, pathParam.length() - "/preview".length() ) );
+            reader.handlePreview( request, response, pathParam.substring( 0, pathParam.length() - "/preview".length() ) );
             return;
         }
 
@@ -232,189 +93,15 @@ public class PageResource extends RestServletBase {
 
         // GET /api/pages/{name}/embed — rendered transclusion body; a missing page is data, not a 404
         if ( pathParam.endsWith( "/embed" ) ) {
-            handleEmbed( request, response, pathParam.substring( 0, pathParam.length() - "/embed".length() ) );
+            reader.handleEmbed( request, response, pathParam.substring( 0, pathParam.length() - "/embed".length() ) );
             return;
         }
 
-        final String pageName = pathParam;
-        if ( !checkPagePermission( request, response, pageName, "view" ) ) return;
-
-        LOG.debug( "GET page: {}", pageName );
-
-        final Engine engine = getEngine();
-        final PageManager pm = getSubsystems().page().pages();
-
-        // Rendering decision is hoisted ABOVE the page load because it selects the
-        // accessor: only the rendering path needs page metadata. textToHTML builds a
-        // Context on the page, so [{SET}] page variables must be populated there; the
-        // JSON payload otherwise reads name/version/author/lastModified and takes its
-        // metadata from FrontmatterParser.parse(rawText) directly.
-        //
-        // 2026-09-25 profiling campaign: after the authorization fix,
-        // CachingProvider.refreshMetadata was still 10.00% of ALL CPU and 100% of it
-        // arrived through this endpoint's own getPage.
-        final boolean render = "true".equalsIgnoreCase( request.getParameter( "render" ) );
-
-        // Version-specific retrieval
-        final String versionParam = request.getParameter( "version" );
-        final Page page;
-        final String rawText;
-
-        if ( versionParam != null && !versionParam.isEmpty() ) {
-            final int version;
-            try {
-                version = Integer.parseInt( versionParam );
-            } catch ( final NumberFormatException e ) {
-                LOG.info( "Rejecting page request for '{}' with non-numeric version '{}': {}",
-                    pageName, versionParam, e.getMessage() );
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid version number: " + versionParam );
-                return;
-            }
-            page = render ? pm.getPage( pageName, version )
-                          : pm.getPageWithoutMetadata( pageName, version );
-            if ( page == null ) {
-                sendNotFound( response, "Page not found: " + pageName + " version " + version );
-                return;
-            }
-            rawText = pm.getPureText( pageName, version );
-            if ( rawText == null ) {
-                sendNotFound( response, "Page not found: " + pageName + " version " + version );
-                return;
-            }
-        } else {
-            page = render ? pm.getPage( pageName )
-                          : pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
-            if ( page == null ) {
-                sendNotFound( response, "Page not found: " + pageName );
-                return;
-            }
-            rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
-        }
-
-        // Page-view metric: notify listeners (WikiMetrics) that a page was read.
-        firePageRequested( engine, page.getName() );
-
-        // Audit sensitive reads only when the page opts in (default: no-op).
-        // The policy guard short-circuits cheaply — the normal path is allocation-free.
-        final var auditPolicy = engine instanceof com.wikantik.WikiEngine we ? we.getAuditReadPolicy() : null;
-        final var auditService = engine instanceof com.wikantik.WikiEngine we2 ? we2.getAuditService() : null;
-        if ( auditPolicy != null && auditService != null && auditPolicy.shouldAudit( pageName ) ) {
-            try {
-                final com.wikantik.api.core.Session auditSession = Wiki.session().find( engine, request );
-                final String principalName = auditSession.isAuthenticated()
-                        ? auditSession.getUserPrincipal().getName()
-                        : null;
-                auditService.record( com.wikantik.audit.AuditEntry.builder()
-                        .eventTime( java.time.Instant.now() )
-                        .category( com.wikantik.audit.AuditCategory.READ )
-                        .eventType( "page.read" )
-                        .outcome( com.wikantik.audit.AuditOutcome.SUCCESS )
-                        .actorPrincipal( principalName )
-                        .actorType( principalName == null ? "anonymous" : "user" )
-                        .targetType( "page" ).targetId( pageName ).targetLabel( pageName )
-                        .sourceIp( request.getRemoteAddr() )
-                        .userAgent( request.getHeader( "User-Agent" ) )
-                        .build() );
-            } catch ( final Exception auditEx ) {
-                LOG.warn( "Failed to record page-read audit for {}: {}", pageName, auditEx.getMessage(), auditEx );
-            }
-        }
-
-        // Access-rule directives ([{ALLOW edit alice@…}]) name people by login. Whoever may edit the page
-        // gets its text verbatim — the editor round-trips this very field — everyone else reads it without them.
-        // The text is stripped once, here, and everything a reader is shown (body, frontmatter, hash) derives from it;
-        // the rendered HTML below starts from rawText because the renderer consumes the directives itself.
-        final boolean canEdit = hasPagePermission( request, pageName, "edit" );
-        final String visibleText = ReaderText.forViewer( canEdit, AclDirectiveText.forViewer( canEdit, rawText ) );
-        final ParsedPage parsed = FrontmatterParser.parse( visibleText );
-
-        final Map< String, Object > result = new LinkedHashMap<>();
-        result.put( "name", page.getName() );
-        result.put( "content", parsed.body() );
-
-        // Rendered HTML option
-        if ( render ) {
-            final long t0 = System.nanoTime();
-            try {
-                final RenderingManager renderingManager = getSubsystems().rendering().renderingManager();
-                final Context context = Wiki.context().create( engine, request, page );
-                final String html = renderingManager.textToHTML( context, rawText );
-                result.put( "contentHtml", html );
-                LOG.info( "Rendered page={} bytes={} durationMs={}",
-                        pageName, html != null ? html.length() : 0, ( System.nanoTime() - t0 ) / 1_000_000L );
-            } catch ( final Exception e ) {
-                // Full throwable, not just getMessage(): an NPE/CME here logs "null"
-                // and the stack is the only clue (this exact line hid the shared-
-                // WikiDocument concurrent-render bug for months). The SPA degrades
-                // to raw markdown when contentHtml is null, so this must be loud.
-                LOG.warn( "Failed to render page {} (durationMs={})",
-                        pageName, ( System.nanoTime() - t0 ) / 1_000_000L, e );
-                result.put( "contentHtml", null );
-            }
-        }
-
-        // Readers see display names, never stored logins. Frontmatter author/verified_by are editor-typed text:
-        // they are replaced only when they happen to be a login. The editor SPA writes this metadata back verbatim
-        // (replaceMetadata), so a caller who can edit the page gets it exactly as stored.
-        final PublicIdentity identity = getSubsystems().auth().publicIdentity();
-        result.put( "metadata", canEdit ? parsed.metadata() : IdentityDisplay.frontmatter( identity, parsed.metadata() ) );
-        result.put( "version", Math.max( page.getVersion(), 1 ) );
-        result.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
-        result.put( "lastModified", page.getLastModified() );
-        result.put( "exists", true );
-        // Live-session-first, never cached with the page: someone editing it, or an unpublished draft (MultiEdit 16).
-        result.put( "draft_active", com.wikantik.collab.adapter.CollabEngineAccess.draftActive( getEngine(), page.getName() ) );
-
-        // D19: surface the content hash so clients can round-trip GET → PUT with
-        // expectedContentHash without computing the digest themselves.
-        // An editor round-trips GET → PUT with the hash of the full text. A reader never PUTs, and the hash of the
-        // full text would let them confirm a guess at a hidden directive by hashing candidate texts — so they get
-        // the hash of what they can see.
-        final String contentHash = com.wikantik.api.pages.PageSaveHelper.computeContentHash( visibleText );
-        result.put( "contentHash", contentHash );
-
-        // Include markup syntax — "wiki" for legacy .txt pages, "markdown" for .md pages,
-        // or "likely-wiki" if heuristic detects wiki syntax in a .md page. The heuristic
-        // is content-hash-memoised (markdown-native corpus → almost always false, and the
-        // answer only changes when the body changes) so this is ~free on the read path.
-        String markupSyntax = page.getAttribute( Page.MARKUP_SYNTAX );
-        if( markupSyntax == null ) {
-            markupSyntax = "markdown";
-        }
-        if( "markdown".equals( markupSyntax )
-                && WikiToMarkdownConverter.isLikelyWikiSyntax( contentHash, parsed.body() ) ) {
-            markupSyntax = "likely-wiki";
-        }
-        result.put( "markupSyntax", markupSyntax );
-
-        // Include the current user's effective permissions for this page
-        final Map< String, Boolean > permissions = new LinkedHashMap<>();
-        permissions.put( "edit", canEdit );
-        permissions.put( "comment", hasPagePermission( request, pageName, "comment" ) );
-        permissions.put( "upload", hasPagePermission( request, pageName, "upload" ) );
-        permissions.put( "rename", hasPagePermission( request, pageName, "rename" ) );
-        permissions.put( "delete", hasPagePermission( request, pageName, "delete" ) );
-        result.put( "permissions", permissions );
-
-        final JsonObject clusterStatus = clusterStatusJson( request, parsed.metadata() );
-        if ( clusterStatus != null ) {
-            result.put( "cluster_status", clusterStatus );
-        }
-
-        // Why the page is locked (#104), for administrators only: the reasons quote the rule text, logins included.
-        final Map< String, Object > accessRules = isAdministrator( request ) ? LockedAccessRules.of( rawText ) : null;
-        if ( accessRules != null ) {
-            result.put( "accessRules", accessRules );
-        }
-
-        sendJson( response, result );
+        reader.handleGet( request, response, pathParam );
     }
 
-    /** Whether the caller holds {@link AllPermission}: a silent check, no audit row. */
-    boolean isAdministrator( final HttpServletRequest request ) {
-        final Session session = Wiki.session().find( getEngine(), request );
-        return getSubsystems().auth().authorization().isPermitted( session, new AllPermission( getEngine().getApplicationName() ) );
-    }
+    /** Upper bound on {@code limit} for the similar-pages endpoint. */
+    static final int MAX_SIMILAR_LIMIT = 20;
 
     /**
      * D21: maximum permitted page-name length. Names longer than this are rejected with
@@ -439,308 +126,43 @@ public class PageResource extends RestServletBase {
      */
     static final String PROP_REQUIRE_EXPECTED_VERSION = "wikantik.api.write.requireExpectedVersion";
 
-    /**
-     * D21: characters never permitted in a wiki page name. Colons, slashes, and
-     * backslashes can resolve onto unintended filesystem paths or cluster ids; control
-     * chars indicate header injection or copy-paste artefacts.
-     */
+    /** Delegates to {@link PageSaveHandler#isInvalidPageName}. */
     static boolean isInvalidPageName( final String name ) {
-        if ( name == null || name.isEmpty() || name.length() > MAX_PAGE_NAME_LENGTH ) {
-            return true;
-        }
-        for ( int i = 0; i < name.length(); i++ ) {
-            final char c = name.charAt( i );
-            if ( c == ':' || c == '\\' || c == '/' || c < 0x20 || c == 0x7F ) {
-                return true;
-            }
-        }
-        return false;
+        return PageSaveHandler.isInvalidPageName( name );
     }
 
     @Override
-    protected void doPut( final HttpServletRequest request, final HttpServletResponse response )
-            throws ServletException, IOException {
-
-        final String pageName = requirePathParam( request, response );
-        if ( pageName == null ) return;
-        // D5/D21: reject pathological page names BEFORE any provider call so the
-        // response is a sanitized 400, not a 500 with a leaked filesystem path.
-        if ( isInvalidPageName( pageName ) ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Page name is invalid: must be 1-" + MAX_PAGE_NAME_LENGTH
-                            + " characters and must not contain ':', '/', '\\', or control chars." );
-            return;
-        }
-        if ( !checkPagePermission( request, response, pageName, "edit" ) ) return;
-
-        LOG.debug( "PUT page: {}", pageName );
-
-        final JsonObject body = parseJsonBody( request, response );
-        if ( body == null ) return;
-
-        final String contentRaw = getJsonString( body, "content" );
-        final String content = contentRaw != null ? contentRaw : "";
-
-        // Reject an empty body up front: PageManager.saveText("") does not persist a
-        // page, so saveText() returns null and the caller would NPE on getVersion().
-        if ( content.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page content must not be empty" );
-            return;
-        }
-
-        // D22: enforce the configurable content-size limit before persistence.
-        final int maxBytes = parseMaxPageBytes( getEngine() );
-        final int actualBytes = content.getBytes( java.nio.charset.StandardCharsets.UTF_8 ).length;
-        if ( actualBytes > maxBytes ) {
-            sendError( response, 413,
-                    "Page body is " + actualBytes + " bytes; limit is " + maxBytes
-                            + " bytes (configurable via " + PROP_MAX_PAGE_BYTES + ")." );
-            return;
-        }
-
-        final String changeNote = getJsonString( body, "changeNote" );
-        final String author = getJsonString( body, "author" );
-        final int expectedVersion = getJsonInt( body, "expectedVersion", -1 );
-        final String expectedContentHash = getJsonString( body, "expectedContentHash" );
-        final String markupSyntax = getJsonString( body, "markupSyntax" );
-
-        // D20: optional strict mode — refuse a PUT that doesn't carry expectedVersion.
-        if ( expectedVersion < 0 && isExpectedVersionRequired( getEngine() ) ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "expectedVersion is required when " + PROP_REQUIRE_EXPECTED_VERSION
-                            + " is true. Pass the version returned by the prior GET to confirm "
-                            + "you are not silently overwriting a concurrent update." );
-            return;
-        }
-
-        // Extract metadata if present
-        @SuppressWarnings( "unchecked" )
-        final Map< String, Object > metadata = body.has( "metadata" )
-                ? GSON.fromJson( body.get( "metadata" ), Map.class )
-                : null;
-
-        final SaveOptions.Builder optionsBuilder = SaveOptions.builder()
-                .changeNote( changeNote )
-                .expectedVersion( expectedVersion )
-                .expectedContentHash( expectedContentHash );
-
-        if ( metadata != null ) {
-            optionsBuilder.metadata( metadata );
-            // The structured editor owns the full metadata object, so it sends replaceMetadata=true
-            // to get replace (not merge) semantics — a field removed in the form is actually removed.
-            if ( body.has( "replaceMetadata" ) && body.get( "replaceMetadata" ).getAsBoolean() ) {
-                optionsBuilder.replaceMetadata( true );
-            }
-        }
-        if ( markupSyntax != null ) {
-            optionsBuilder.markupSyntax( markupSyntax );
-        }
-
-        try {
-            final Engine engine = getEngine();
-
-            // Resolve the author: when the session is authenticated, the session's LOGIN is authoritative
-            // (ignore any caller-supplied body author to prevent spoofing). Fall back to the body author
-            // only for the unauthenticated/headless case.
-            final Session wikiSession = Wiki.session().find( engine, request );
-            final String effectiveAuthor = wikiSession.isAuthenticated()
-                    ? AuthorKeys.authorKeyFor( wikiSession )
-                    : author;
-            optionsBuilder.author( effectiveAuthor );
-
-            final PageSaveHelper helper = new PageSaveHelper( engine, getSubsystems().page().pages() );
-            // Clear any stale warnings before the save; the SchemaValidationPageFilter stashes this
-            // request's frontmatter warnings on the sink during saveText for us to return below.
-            // Also clear the math-content warning sink.
-            FrontmatterWarningSink.clear();
-            ContentWarningSink.clear();
-            final Saved outcome = saveReportingPostSaveFailure( helper, pageName, content, optionsBuilder.build() );
-            final Page saved = outcome.page();
-
-            // Defence in depth: a save that did not persist (e.g. vetoed by a filter)
-            // returns null — surface a clean error rather than NPE on getVersion().
-            if ( saved == null ) {
-                LOG.warn( "Page save for '{}' did not persist a page (saveText returned null)", pageName );
-                sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Page save did not persist" );
-                return;
-            }
-
-            final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "success", true );
-            result.put( "name", pageName );
-            result.put( "version", Math.max( saved.getVersion(), 1 ) );
-            result.put( "warnings", withPostSaveWarning( FrontmatterWarningSink.drain( pageName ), outcome ) );
-            result.put( "mathWarnings", ContentWarningSink.drain() );
-
-            sendJson( response, result );
-
-        } catch ( final ContentValidationException e ) {
-            // Math validation produced ERROR-severity violations — the page was not written.
-            ContentWarningSink.clear();
-            LOG.debug( "Math validation rejected save of {}: {}", pageName, e.getMessage() );
-            response.setStatus( 422 );
-            sendJson( response, mathValidationErrorBody( e ) );
-        } catch ( final AccessRuleShapeException e ) {
-            // The save would add an access rule the wiki cannot read (it would lock the page) — not written.
-            // The check runs after every filter, so both sinks hold this save's warnings: clear them, as the siblings do.
-            FrontmatterWarningSink.clear();
-            ContentWarningSink.clear();
-            LOG.debug( "Access-rule shape check rejected save of {}: {}", pageName, e.getMessage() );
-            response.setStatus( 422 );
-            sendJson( response, accessRuleShapeErrorBody( e ) );
-        } catch ( final FrontmatterValidationException e ) {
-            // Schema validation produced ERROR-severity violations — the page was not written.
-            // Return the structured, field-addressable violations so the form can map them inline.
-            FrontmatterWarningSink.clear();
-            LOG.debug( "Frontmatter validation rejected save of {}: {}", pageName, e.getMessage() );
-            response.setStatus( 422 );
-            sendJson( response, validationErrorBody( e ) );
-        } catch ( final VersionConflictException e ) {
-            LOG.debug( "Version conflict saving page {}: {}", pageName, e.getMessage() );
-            sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
-        } catch ( final WikiException e ) {
-            // D5: do not leak the underlying provider message verbatim — a deep IOException
-            // may carry an absolute filesystem path. Log the real cause server-side; return
-            // a sanitized message to the client.
-            LOG.error( "Error saving page {}: {}", pageName, e.getMessage(), e );
-            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    sanitizeSaveErrorMessage( e ) );
-        } catch ( final RuntimeException e ) {
-            LOG.error( "Unexpected error saving page {}: {}", pageName, e.getMessage(), e );
-            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Error saving page: internal server error." );
-        }
+    protected void doPut( final HttpServletRequest request, final HttpServletResponse response ) throws IOException {
+        new PageSaveHandler( this ).handlePut( request, response );
     }
 
-    /** Builds the HTTP 422 body for a frontmatter validation failure: {@code { error, violations }}. */
+    @Override
+    protected void doPatch( final HttpServletRequest request, final HttpServletResponse response ) throws IOException {
+        new PageSaveHandler( this ).handlePatch( request, response );
+    }
+
     static Map< String, Object > validationErrorBody( final FrontmatterValidationException e ) {
-        final Map< String, Object > body = new LinkedHashMap<>();
-        body.put( "error", "frontmatter_validation_failed" );
-        body.put( "violations", e.violations() );
-        return body;
+        return PageSaveErrors.validationErrorBody( e );
     }
 
-    /**
-     * Builds the HTTP 422 body for a save that adds an unreadable access rule: {@code { error, violations, total }}, each
-     * violation {@code { code: "ACCESS_RULE_SHAPE", shape, line | field, text, message }}: {@code line} is a line of the
-     * body as the editor shows it, {@code field} the frontmatter field of a rule in the frontmatter. {@code violations}
-     * holds at most {@link AccessRuleShapeException#MAX_VIOLATIONS}; {@code total} counts them all.
-     */
     static Map< String, Object > accessRuleShapeErrorBody( final AccessRuleShapeException e ) {
-        final Map< String, Object > body = new LinkedHashMap<>();
-        body.put( "error", "access_rule_shape" );
-        body.put( "violations", e.violations() );
-        body.put( "total", e.total() );
-        return body;
+        return PageSaveErrors.accessRuleShapeErrorBody( e );
     }
 
-    /** Builds the HTTP 422 body for a math-content validation failure: {@code { error, violations }}. */
     static Map< String, Object > mathValidationErrorBody( final ContentValidationException e ) {
-        final Map< String, Object > body = new LinkedHashMap<>();
-        body.put( "error", "math_validation_failed" );
-        body.put( "violations", e.violations() );
-        return body;
+        return PageSaveErrors.mathValidationErrorBody( e );
     }
 
-    /** A REST save's result: the page stored, and whether its post-save processing failed after it was stored. */
-    private record Saved( Page page, boolean postSaveFailed ) { }
-
-    /**
-     * Saves, answering a save that was stored but whose post-save processing then failed as saved: the page WAS written,
-     * so an error would invite a confused retry. The cause is logged here and never sent to the client (D5).
-     */
-    private static Saved saveReportingPostSaveFailure( final PageSaveHelper helper, final String pageName,
-                                                       final String text, final SaveOptions options ) throws WikiException {
-        try {
-            return new Saved( helper.saveText( pageName, text, options ), false );
-        } catch ( final SavedButPostSaveFailedException e ) {
-            LOG.warn( "Page {} was saved as version {}, but its post-save processing failed; answering it as saved: {}",
-                    pageName, e.outcome().version(), e.getCause(), e );
-            return new Saved( e.outcome().page(), true );
-        }
-    }
-
-    /** {@code warnings} plus the generic post-save warning when the save's post-save processing failed. */
-    private static List< FieldViolation > withPostSaveWarning( final List< FieldViolation > warnings, final Saved outcome ) {
-        if ( !outcome.postSaveFailed() ) {
-            return warnings;
-        }
-        final List< FieldViolation > all = new ArrayList<>( warnings );
-        all.add( FieldViolation.of( null, Severity.WARNING, POST_SAVE_FAILED_CODE, POST_SAVE_FAILED_MESSAGE ) );
-        return all;
-    }
-
-    /**
-     * D5: returns a client-safe error message for a failed page save. Stringifies the
-     * cause for logging callers but never reveals filesystem paths, JDBC URLs, or
-     * stack frames in the response body.
-     */
     static String sanitizeSaveErrorMessage( final Throwable t ) {
-        // Walk the cause chain looking for a recognisable validation reason; if we
-        // find one, surface a short message. Otherwise fall back to a generic string
-        // that hides absolute paths and class names.
-        Throwable cur = t;
-        while ( cur != null ) {
-            if ( cur instanceof java.io.IOException ) {
-                return "Error saving page: storage I/O failure (see server log).";
-            }
-            cur = cur.getCause();
-        }
-        // Fallback: trust only the top-level message and only if it doesn't look like
-        // a path or class name.
-        final String msg = t.getMessage();
-        if ( msg == null || msg.isEmpty() ) {
-            return "Error saving page: internal error (see server log).";
-        }
-        if ( msg.contains( "/" ) || msg.contains( "\\" ) || msg.contains( "." ) && msg.contains( "Exception" ) ) {
-            return "Error saving page: internal error (see server log).";
-        }
-        return "Error saving page: " + msg;
+        return PageSaveErrors.sanitizeSaveErrorMessage( t );
     }
 
-    /**
-     * Fires a {@link WikiPageEvent#PAGE_REQUESTED} event so observers — notably the
-     * Micrometer {@code wikantik.page.views} counter — see reader / agent page reads.
-     * Best-effort: a metrics-path failure must never break serving the page.
-     */
-    private void firePageRequested( final Engine engine, final String pageName ) {
-        try {
-            // Fire with the engine as the client: WikiEventManager routes by client
-            // object, and WikiMetrics registers its listener on the engine.
-            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus()
-                    .fireEvent( engine, new WikiPageEvent( engine, WikiPageEvent.PAGE_REQUESTED, pageName ) );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "Failed to fire PAGE_REQUESTED event for '{}': {}", pageName, e.getMessage() );
-        }
-    }
-
-    /** D22: read the configured max-bytes property, falling back to the default. */
     static int parseMaxPageBytes( final Engine engine ) {
-        if ( engine == null ) {
-            return DEFAULT_MAX_PAGE_BYTES;
-        }
-        final String raw = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PROP_MAX_PAGE_BYTES );
-        if ( raw == null || raw.isBlank() ) {
-            return DEFAULT_MAX_PAGE_BYTES;
-        }
-        try {
-            final int v = Integer.parseInt( raw.trim() );
-            return v > 0 ? v : DEFAULT_MAX_PAGE_BYTES;
-        } catch ( final NumberFormatException nfe ) {
-            // Operator typo must be visible, but this runs per request: WARN once, then DEBUG.
-            if ( MAX_PAGE_BYTES_WARNED.compareAndSet( false, true ) ) {
-                LOG.warn( "Property {} value '{}' is not an integer; using default {}: {}", PROP_MAX_PAGE_BYTES, raw, DEFAULT_MAX_PAGE_BYTES, nfe.getMessage() );
-            } else {
-                LOG.debug( "Property {} value '{}' is not an integer; using default {}", PROP_MAX_PAGE_BYTES, raw, DEFAULT_MAX_PAGE_BYTES );
-            }
-            return DEFAULT_MAX_PAGE_BYTES;
-        }
+        return PageSaveHandler.parseMaxPageBytes( engine );
     }
 
-    /** D20: read the strict-mode property; defaults to false. */
     static boolean isExpectedVersionRequired( final Engine engine ) {
-        return engine != null && Boolean.parseBoolean(
-                com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PROP_REQUIRE_EXPECTED_VERSION, "false" ).trim() );
+        return PageSaveHandler.isExpectedVersionRequired( engine );
     }
 
     @Override
@@ -770,109 +192,13 @@ public class PageResource extends RestServletBase {
         }
     }
 
-    /**
-     * Handles PATCH requests for metadata-only updates.
-     * <p>
-     * Accepts a JSON body with:
-     * <ul>
-     *   <li>{@code metadata} - a map of frontmatter fields to set</li>
-     *   <li>{@code action} - "merge" (default) to merge with existing metadata, or "replace" to overwrite</li>
-     * </ul>
-     */
-    @SuppressWarnings( "unchecked" )
-    @Override
-    protected void doPatch( final HttpServletRequest request, final HttpServletResponse response )
-            throws ServletException, IOException {
-
-        final String pageName = requirePathParam( request, response );
-        if ( pageName == null ) return;
-        if ( !checkPagePermission( request, response, pageName, "edit" ) ) return;
-
-        LOG.debug( "PATCH page: {}", pageName );
-
-        final Engine engine = getEngine();
-        final PageManager pm = getSubsystems().page().pages();
-        final Page page = requirePage( request, response, pageName );
-        if ( page == null ) return;
-
-        final JsonObject body = parseJsonBody( request, response );
-        if ( body == null ) return;
-
-        if ( !body.has( "metadata" ) ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "metadata field is required" );
-            return;
-        }
-
-        final Map< String, Object > callerMetadata = GSON.fromJson( body.get( "metadata" ), Map.class );
-        final String actionRaw = getJsonString( body, "action" );
-        final String action = actionRaw != null ? actionRaw : "merge";
-
-        // Read current page text and parse frontmatter
-        final String currentText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
-        final ParsedPage parsed = FrontmatterParser.parse( currentText );
-
-        // Build new metadata
-        final Map< String, Object > newMetadata;
-        if ( "replace".equalsIgnoreCase( action ) ) {
-            newMetadata = new LinkedHashMap<>( callerMetadata );
-        } else {
-            // Default: merge (caller wins)
-            newMetadata = new LinkedHashMap<>( parsed.metadata() );
-            newMetadata.putAll( callerMetadata );
-        }
-
-        // Reconstruct page text with updated frontmatter
-        final String newText = FrontmatterWriter.write( newMetadata, parsed.body() );
-
-        try {
-            final PageSaveHelper helper = new PageSaveHelper( engine, pm );
-            // D7: the PageSaveHelper builds a headless context so the author would
-            // otherwise default to "Guest". Resolve it from the authenticated session's login
-            // the same way doPut does.
-            String effectiveAuthor = null;
-            final Session wikiSession = Wiki.session().find( engine, request );
-            if ( wikiSession.isAuthenticated() ) {
-                effectiveAuthor = AuthorKeys.authorKeyFor( wikiSession );
-            }
-            final SaveOptions options = SaveOptions.builder()
-                    .changeNote( "Metadata " + action + " via REST PATCH" )
-                    .author( effectiveAuthor )
-                    .build();
-            final Saved outcome = saveReportingPostSaveFailure( helper, pageName, newText, options );
-            final Page saved = outcome.page();
-
-            final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "success", true );
-            result.put( "name", pageName );
-            result.put( "version", Math.max( saved.getVersion(), 1 ) );
-            if ( outcome.postSaveFailed() ) {
-                result.put( "warnings", withPostSaveWarning( List.of(), outcome ) );
-            }
-            final PublicIdentity identity = getSubsystems().auth().publicIdentity();
-            result.put( "author", IdentityDisplay.ofAuthor( identity, saved.getAuthor() ) ); // D7
-            // Edit permission was enforced above, so the caller is an editor: stored frontmatter, exactly as written.
-            result.put( "metadata", newMetadata );
-
-            sendJson( response, result );
-
-        } catch ( final AccessRuleShapeException e ) {
-            LOG.debug( "Access-rule shape check rejected metadata patch of {}: {}", pageName, e.getMessage() );
-            response.setStatus( 422 );
-            sendJson( response, accessRuleShapeErrorBody( e ) );
-        } catch ( final WikiException e ) {
-            LOG.error( "Error patching page {}: {}", pageName, e.getMessage() );
-            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Error patching page: " + e.getMessage() );
-        }
-    }
-
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
         final String pathParam = extractPathParam( request );
         if ( pathParam != null && pathParam.endsWith( "/rename" ) ) {
             final String pageName = pathParam.substring( 0, pathParam.length() - "/rename".length() );
-            handleRename( request, response, pageName );
+            new PageRenameHandler( this ).handle( request, response, pageName );
             return;
         }
         // POST /api/pages/{name}/blocks/draft — the server's block model of the editor's unsaved text
@@ -888,193 +214,6 @@ public class PageResource extends RestServletBase {
             return;
         }
         sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint" );
-    }
-
-    /**
-     * Handles a page rename request.
-     * <p>
-     * Expects a JSON body with:
-     * <ul>
-     *   <li>{@code newName} - the new page name (required, must not be blank)</li>
-     *   <li>{@code changeReferrers} - if {@code true}, update all referring pages (default {@code true})</li>
-     * </ul>
-     *
-     * @param request  the HTTP request
-     * @param response the HTTP response
-     * @param pageName the current name of the page to rename
-     * @throws IOException if writing the response fails
-     */
-    private void handleRename( final HttpServletRequest request, final HttpServletResponse response,
-                                final String pageName ) throws IOException {
-        if ( !checkPagePermission( request, response, pageName, "rename" ) ) return;
-
-        LOG.debug( "POST rename page: {} ", pageName );
-
-        final JsonObject body = parseJsonBody( request, response );
-        if ( body == null ) return;
-
-        // Validate newName
-        final String rawNewName = getJsonString( body, "newName" );
-        if ( rawNewName == null || rawNewName.isBlank() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "newName is required and must not be blank" );
-            return;
-        }
-        final String newName = rawNewName.trim();
-
-        final boolean changeReferrers = getJsonBoolean( body, "changeReferrers", true );
-
-        final Engine engine = getEngine();
-        final PageManager pm = getSubsystems().page().pages();
-
-        // Source page must exist
-        final Page page = requirePage( request, response, pageName );
-        if ( page == null ) return;
-
-        // Target page must not already exist
-        if ( pm.getPage( newName ) != null ) {
-            sendError( response, HttpServletResponse.SC_CONFLICT, "Page already exists: " + newName );
-            return;
-        }
-
-        try {
-            final PageRenamer renamer = getSubsystems().page().pageRenamer();
-            final Context context = Wiki.context().create( engine, request, page );
-            final String finalName = renamer.renamePage( context, pageName, newName, changeReferrers );
-
-            final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "success", true );
-            result.put( "oldName", pageName );
-            result.put( "newName", finalName );
-
-            sendJson( response, result );
-
-        } catch ( final WikiException e ) {
-            LOG.error( "Error renaming page {} to {}: {}", pageName, newName, e.getMessage() );
-            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Error renaming page: " + e.getMessage() );
-        }
-    }
-
-    private void handlePreview( final HttpServletRequest request, final HttpServletResponse response,
-                                final String pageName ) throws IOException {
-        final PageManager pm = getSubsystems().page().pages();
-        final Page page = pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
-        if ( page == null || !hasPagePermission( request, pageName, "view" ) ) {
-            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Page not found" );
-            return;
-        }
-        // The excerpt is cut from the stripped FULL text (a section is cut from that, not stripped on its own).
-        final String rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
-        final ParsedPage parsed = AclDirectiveText.parseStripped( rawText, " " );
-        final Map< String, Object > fm = parsed.metadata();
-        // Without its %%comments%% before a section is cut, so a comment crossing the section's end is never left open.
-        String body = ReaderComments.strip( parsed.body() );
-        final String section = request.getParameter( "section" );
-        String blockExcerpt = null;
-        boolean blockMissing = false;
-        if ( section != null && BlockIds.isBlockRef( section ) ) {
-            blockExcerpt = PageBlocksHandler.blockExcerpt( pageName, rawText, section ).orElse( null );
-            blockMissing = blockExcerpt == null;
-        } else if ( section != null && !section.isBlank() ) {
-            body = HeadingSlugs.sectionBody( body, section ).orElse( body );
-        }
-        final Map< String, Object > out = new LinkedHashMap<>();
-        out.put( "name", pageName );
-        final Object title = fm.get( "title" );
-        out.put( "title", title != null && !title.toString().isBlank()
-                ? title.toString().trim() : TextUtil.beautifyString( pageName ) );
-        putIfText( out, "type", fm.get( "type" ) );
-        final Object cluster = fm.get( "cluster" );
-        putIfText( out, "cluster", cluster instanceof List< ? > l && !l.isEmpty() ? l.get( 0 ) : cluster );
-        putIfText( out, "summary", fm.get( "summary" ) );
-        out.put( "excerpt", blockExcerpt != null ? blockExcerpt : PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ) );
-        if ( blockMissing ) {
-            out.put( "blockMissing", true );
-        }
-        out.put( "lastModified", page.getLastModified() );
-        // Per-viewer (ACL-filtered) and stale after a save: always revalidate, never reuse from the HTTP cache.
-        response.setHeader( "Cache-Control", "private, no-cache" );
-        sendJson( response, out );
-    }
-
-    /** Placeholder host page that seeds the embed renderer's loop stack; never a real page name. */
-    private static final String EMBED_HOST_PAGE = "<embed>";
-
-    /**
-     * Embed body for {@code ![[name]]}: {@code 403} only when the caller cannot view the resolved page; an
-     * unresolvable target answers {@code 200 missing:true}. The title is the client's to render (html is body only).
-     */
-    private void handleEmbed( final HttpServletRequest request, final HttpServletResponse response,
-                              final String name ) throws IOException {
-        final Engine engine = getEngine();
-        final WikiLinkResolver.Resolution resolved = WikiLinkResolver.forEngine( engine ).resolve( name );
-        if ( resolved.exists() && !checkPagePermission( request, response, resolved.pageName(), "view" ) ) {
-            return;
-        }
-        // The endpoint has no host page: use a placeholder whose name cannot be a real page, so the renderer's
-        // loop guard (seeded with the context page) never mistakes the embedded page for its own host.
-        final Page page = Wiki.contents().page( engine, EMBED_HOST_PAGE );
-        final Context context = Wiki.context().create( engine, request, page );
-        final String section = request.getParameter( "section" );
-        final WikiEmbedRenderer.EmbedResult r = WikiEmbedRenderer.forEngine( engine ).render( context, name, section );
-        final Map< String, Object > out = new LinkedHashMap<>();
-        // The body left the rendering manager outside textToHTML, so its server-fence placeholders are resolved here.
-        final String body = postTranslate( context, name, r.bodyHtml() == null ? "" : r.bodyHtml() );
-        out.put( "html", getSubsystems().rendering().renderingManager().resolveServerFences( body ) );
-        out.put( "missing", r.missing() );
-        out.put( "restricted", r.restricted() );
-        out.put( "truncated", r.truncated() );
-        // Viewer-dependent and stale after a save: never reusable from the HTTP cache.
-        response.setHeader( "Cache-Control", "private, no-cache" );
-        sendJson( response, out );
-    }
-
-    /**
-     * Applies the post-translate filters a server-side embed inherits from its host render (e.g. {@code cite://}
-     * href rewriting), so a previewed body matches the rendered one. A failing filter leaves the body unfiltered.
-     */
-    private String postTranslate( final Context context, final String name, final String html ) {
-        try {
-            return getSubsystems().rendering().filterManager().doPostTranslateFiltering( context, html );
-        } catch ( final FilterException e ) {
-            LOG.warn( "Post-translate filtering of the embed preview of '{}' failed; serving it unfiltered: {}",
-                    name, e.getMessage() );
-            return html;
-        }
-    }
-
-    private static void putIfText( final Map< String, Object > out, final String key, final Object value ) {
-        if ( value != null && !value.toString().isBlank() ) {
-            out.put( key, value.toString().trim() );
-        }
-    }
-
-    /** Upper bound on {@code limit} for the similar-pages endpoint. */
-    static final int MAX_SIMILAR_LIMIT = 20;
-
-    /**
-     * Returns pages similar to {@code pageName} by cosine similarity of their chunk-embedding
-     * centroids (the same vectors hybrid search uses — no Knowledge Graph). Only existing pages the
-     * caller may view are suggested. Degrades to an empty list when embeddings are unavailable.
-     */
-    private void handleGetSimilarPages( final HttpServletRequest request,
-                                        final HttpServletResponse response,
-                                        final String pageName ) throws IOException {
-        final PageEmbeddingSimilarity similarity = getSubsystems().search().pageSimilarity();
-        if ( similarity == null ) {
-            sendJson( response, Map.of( "similar", List.of() ) );
-            return;
-        }
-        final int limit = Math.max( 0, Math.min( parseIntParam( request, "limit", 5 ), MAX_SIMILAR_LIMIT ) );
-        final PageManager pm = getSubsystems().page().pages();
-        final var similar = similarity.similarTo( pageName, limit,
-            name -> pm.wikiPageExists( name ) && !filterViewable( request, List.of( name ) ).isEmpty() );
-        sendJson( response, Map.of( "similar", similar.stream().map( s -> {
-            final Map< String, Object > m = new LinkedHashMap<>();
-            m.put( "name", s.name() );
-            m.put( "similarity", s.score() );
-            return m;
-        } ).toList() ) );
     }
 
 }

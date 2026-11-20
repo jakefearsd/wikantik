@@ -43,6 +43,14 @@ describe('WorkHome', () => {
     expect(await screen.findByText('LOG PAGE')).toBeInTheDocument();
   });
 
+  it('links to the work management guide, for someone in no project too', async () => {
+    renderHome({ me: { projects: [], waitingOn: [] } });
+    const link = await screen.findByRole('link', { name: 'Guide to work management' });
+    expect(link).toHaveAttribute('href', 'https://github.com/jakefearsd/wikantik/blob/main/docs/user/WorkManagement.md');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
   it('hasNoLogLinkWhenTheViewerSeesNoProject', async () => {
     renderHome({ me: { projects: [], waitingOn: [] } });
     await screen.findByText('You are not a member of any project yet.');

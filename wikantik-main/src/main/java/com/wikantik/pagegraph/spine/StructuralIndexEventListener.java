@@ -20,11 +20,7 @@ package com.wikantik.pagegraph.spine;
 
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.content.PageRenamer;
-import com.wikantik.event.WikiEvent;
-import com.wikantik.event.WikiEventListener;
-import com.wikantik.event.WikiEventManager;
-import com.wikantik.event.WikiPageEvent;
-import com.wikantik.event.WikiPageRenameEvent;
+import com.wikantik.event.PageLifecycleListener;
 import com.wikantik.filters.FilterManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,7 +38,7 @@ import org.apache.logging.log4j.Logger;
  * {@code onPageDeleted}. The bare {@code POST_SAVE} is deliberately ignored: a
  * {@code PageEventFilter} fires it as well, so handling both would run the sync twice per save.</p>
  */
-public class StructuralIndexEventListener implements WikiEventListener {
+public class StructuralIndexEventListener extends PageLifecycleListener {
 
     private static final Logger LOG = LogManager.getLogger( StructuralIndexEventListener.class );
 
@@ -53,8 +49,7 @@ public class StructuralIndexEventListener implements WikiEventListener {
     }
 
     public void register( final PageManager pageManager, final FilterManager filterManager ) {
-        WikiEventManager.addWikiEventListener( pageManager, this );
-        WikiEventManager.addWikiEventListener( filterManager, this );
+        listenTo( pageManager, filterManager );
         LOG.info( "Structural index event listener registered for PageManager + FilterManager events" );
     }
 
@@ -67,24 +62,28 @@ public class StructuralIndexEventListener implements WikiEventListener {
                           final PageRenamer pageRenamer ) {
         register( pageManager, filterManager );
         if ( pageRenamer != null ) {
-            WikiEventManager.addWikiEventListener( pageRenamer, this );
+            listenTo( pageRenamer );
             LOG.info( "Structural index event listener registered for PageRenamer events" );
         }
     }
 
     @Override
-    public void actionPerformed( final WikiEvent event ) {
-        if ( event instanceof WikiPageRenameEvent rename ) {
-            service.onPageRenamed( rename.getOldPageName(), rename.getNewPageName() );
-            return;
-        }
-        if ( !( event instanceof WikiPageEvent pageEvent ) ) {
-            return;
-        }
-        switch ( pageEvent.getType() ) {
-            case WikiPageEvent.POST_SAVE_END -> service.onPageSaved( pageEvent.getPageName() );
-            case WikiPageEvent.PAGE_DELETED  -> service.onPageDeleted( pageEvent.getPageName() );
-            default                          -> { /* ignore other event types */ }
-        }
+    protected void onSaved( final String page ) {
+        service.onPageSaved( page );
+    }
+
+    @Override
+    protected void onDeleted( final String page ) {
+        service.onPageDeleted( page );
+    }
+
+    @Override
+    protected void onRenamed( final String from, final String to ) {
+        service.onPageRenamed( from, to );
+    }
+
+    @Override
+    protected String label() {
+        return "structural index";
     }
 }

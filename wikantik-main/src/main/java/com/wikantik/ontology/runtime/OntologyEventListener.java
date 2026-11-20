@@ -20,11 +20,7 @@ package com.wikantik.ontology.runtime;
 
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.content.PageRenamer;
-import com.wikantik.event.WikiEvent;
-import com.wikantik.event.WikiEventListener;
-import com.wikantik.event.WikiEventManager;
-import com.wikantik.event.WikiPageEvent;
-import com.wikantik.event.WikiPageRenameEvent;
+import com.wikantik.event.PageLifecycleListener;
 import com.wikantik.filters.FilterManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,7 +37,7 @@ import org.apache.logging.log4j.Logger;
  * in-phase {@code POST_SAVE} only comes from a {@code PageEventFilter}, which is fired from that
  * same filter loop; handling it too would project every save twice wherever one is configured.</p>
  */
-public final class OntologyEventListener implements WikiEventListener {
+public final class OntologyEventListener extends PageLifecycleListener {
 
     private static final Logger LOG = LogManager.getLogger( OntologyEventListener.class );
 
@@ -52,8 +48,7 @@ public final class OntologyEventListener implements WikiEventListener {
     }
 
     public void register( final PageManager pageManager, final FilterManager filterManager ) {
-        WikiEventManager.addWikiEventListener( pageManager, this );
-        WikiEventManager.addWikiEventListener( filterManager, this );
+        listenTo( pageManager, filterManager );
         LOG.info( "Ontology event listener registered for PageManager + FilterManager events" );
     }
 
@@ -66,24 +61,28 @@ public final class OntologyEventListener implements WikiEventListener {
                           final PageRenamer pageRenamer ) {
         register( pageManager, filterManager );
         if ( pageRenamer != null ) {
-            WikiEventManager.addWikiEventListener( pageRenamer, this );
+            listenTo( pageRenamer );
             LOG.info( "Ontology event listener registered for PageRenamer events" );
         }
     }
 
     @Override
-    public void actionPerformed( final WikiEvent event ) {
-        if ( event instanceof WikiPageRenameEvent rename ) {
-            queue.renamed( rename.getOldPageName(), rename.getNewPageName() );
-            return;
-        }
-        if ( !( event instanceof WikiPageEvent pageEvent ) ) {
-            return;
-        }
-        switch ( pageEvent.getType() ) {
-            case WikiPageEvent.POST_SAVE_END -> queue.saved( pageEvent.getPageName() );
-            case WikiPageEvent.PAGE_DELETED  -> queue.deleted( pageEvent.getPageName() );
-            default                          -> { /* ignore — incl. in-phase POST_SAVE, see class doc */ }
-        }
+    protected void onSaved( final String page ) {
+        queue.saved( page );
+    }
+
+    @Override
+    protected void onDeleted( final String page ) {
+        queue.deleted( page );
+    }
+
+    @Override
+    protected void onRenamed( final String from, final String to ) {
+        queue.renamed( from, to );
+    }
+
+    @Override
+    protected String label() {
+        return "ontology";
     }
 }

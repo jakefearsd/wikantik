@@ -20,11 +20,7 @@ package com.wikantik.knowledge.chunking;
 
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.content.PageRenamer;
-import com.wikantik.event.WikiEvent;
-import com.wikantik.event.WikiEventListener;
-import com.wikantik.event.WikiEventManager;
-import com.wikantik.event.WikiPageEvent;
-import com.wikantik.event.WikiPageRenameEvent;
+import com.wikantik.event.PageLifecycleListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,7 +30,7 @@ import org.apache.logging.log4j.Logger;
  * and a rename re-keys them; until this existed a deleted page's chunks stayed retrievable (dense
  * retrieval, bundles) until an admin content rebuild swept them.
  */
-public final class ChunkLifecycleListener implements WikiEventListener {
+public final class ChunkLifecycleListener extends PageLifecycleListener {
 
     private static final Logger LOG = LogManager.getLogger( ChunkLifecycleListener.class );
 
@@ -54,29 +50,29 @@ public final class ChunkLifecycleListener implements WikiEventListener {
      */
     public void register( final PageManager pageManager, final PageRenamer pageRenamer ) {
         this.pageManager = pageManager;
-        if ( pageManager != null ) {
-            WikiEventManager.addWikiEventListener( pageManager, this );
-        }
-        if ( pageRenamer != null ) {
-            WikiEventManager.addWikiEventListener( pageRenamer, this );
-        }
+        listenTo( pageManager, pageRenamer );
         LOG.info( "Chunk lifecycle listener registered (pageManager={}, pageRenamer={})",
             pageManager != null, pageRenamer != null );
     }
 
     @Override
-    public void actionPerformed( final WikiEvent event ) {
-        if ( event instanceof WikiPageRenameEvent rename ) {
-            projector.onPageRenamed( rename.getOldPageName(), rename.getNewPageName() );
-        } else if ( event instanceof WikiPageEvent pageEvent && pageEvent.getType() == WikiPageEvent.PAGE_DELETED ) {
-            final String pageName = pageEvent.getPageName();
-            if ( mayStillExist( pageName ) ) {
-                LOG.warn( "PAGE_DELETED for '{}' but the page still exists (its delete failed?) — keeping its chunks",
-                    pageName );
-                return;
-            }
-            projector.onPageDeleted( pageName );
+    protected void onRenamed( final String from, final String to ) {
+        projector.onPageRenamed( from, to );
+    }
+
+    @Override
+    protected void onDeleted( final String pageName ) {
+        if ( mayStillExist( pageName ) ) {
+            LOG.warn( "PAGE_DELETED for '{}' but the page still exists (its delete failed?) — keeping its chunks",
+                pageName );
+            return;
         }
+        projector.onPageDeleted( pageName );
+    }
+
+    @Override
+    protected String label() {
+        return "chunk lifecycle";
     }
 
     /** A lookup failure counts as "may exist": keeping stale chunks beats dropping a live page's. */

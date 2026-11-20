@@ -19,11 +19,7 @@
 package com.wikantik.citation;
 
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.event.WikiEvent;
-import com.wikantik.event.WikiEventListener;
-import com.wikantik.event.WikiEventManager;
-import com.wikantik.event.WikiPageEvent;
-import com.wikantik.event.WikiPageRenameEvent;
+import com.wikantik.event.PageLifecycleListener;
 import com.wikantik.filters.FilterManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,9 +29,11 @@ import org.apache.logging.log4j.Logger;
  * {@code OntologyEventListener}: save events arrive from the FilterManager
  * (doPostSaveFiltering), so register on it (and the PageManager). Only POST_SAVE_END is
  * handled: the bare POST_SAVE (fired by a PageEventFilter) is ignored so a save is never synced twice.
- * Deletes are not handled here — see {@link CitationSync#onPageRetired}.
+ * Deletes are not handled here (no {@code onDeleted} override): they reach {@link CitationSync} through the
+ * structural index's retirement hook ({@link CitationSync#onPageRetired}), which knows whether the canonical_id
+ * is truly gone — this listener's position relative to the index's own PAGE_DELETED listener is undefined.
  */
-public final class CitationEventListener implements WikiEventListener {
+public final class CitationEventListener extends PageLifecycleListener {
 
     private static final Logger LOG = LogManager.getLogger( CitationEventListener.class );
 
@@ -46,31 +44,22 @@ public final class CitationEventListener implements WikiEventListener {
     }
 
     public void register( final PageManager pageManager, final FilterManager filterManager ) {
-        WikiEventManager.addWikiEventListener( pageManager, this );
-        WikiEventManager.addWikiEventListener( filterManager, this );
+        listenTo( pageManager, filterManager );
         LOG.info( "Citation event listener registered for PageManager + FilterManager events" );
     }
 
     @Override
-    public void actionPerformed( final WikiEvent event ) {
-        try {
-            if ( event instanceof WikiPageRenameEvent rename ) {
-                sync.onPageRenamed( rename.getOldPageName(), rename.getNewPageName() );
-                return;
-            }
-            if ( !( event instanceof WikiPageEvent pageEvent ) ) {
-                return;
-            }
-            switch ( pageEvent.getType() ) {
-                case WikiPageEvent.POST_SAVE_END -> sync.onPageSaved( pageEvent.getPageName() );
-                // PAGE_DELETED is deliberately not handled here: deletes reach CitationSync through
-                // the structural index's retirement hook (CitationSync#onPageRetired), which knows
-                // whether the canonical_id is truly gone — this listener's position relative to the
-                // index's own PAGE_DELETED listener is undefined.
-                default                          -> { /* ignore */ }
-            }
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "citation event handling failed for {}: {}", event, e.getMessage(), e );
-        }
+    protected void onSaved( final String page ) {
+        sync.onPageSaved( page );
+    }
+
+    @Override
+    protected void onRenamed( final String from, final String to ) {
+        sync.onPageRenamed( from, to );
+    }
+
+    @Override
+    protected String label() {
+        return "citation";
     }
 }

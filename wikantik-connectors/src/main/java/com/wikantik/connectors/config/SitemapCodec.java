@@ -26,22 +26,36 @@ import java.util.Map;
 
 /**
  * Validation and JSON &lt;-&gt; typed-config translation for the {@code sitemap} connector type.
- * Package-private unit dispatched from {@link ConnectorConfigCodec}; see that class for the public
+ * Package-private singleton registered in {@link ConnectorConfigCodec}; see that class for the public
  * API and design notes.
  */
-final class SitemapCodec {
+final class SitemapCodec implements ConnectorTypeCodec< SitemapConfig > {
+
+    static final SitemapCodec INSTANCE = new SitemapCodec();
 
     private SitemapCodec() {}
 
-    static Map< String, String > validate( final JsonObject config ) {
+    @Override
+    public String type() {
+        return "sitemap";
+    }
+
+    @Override
+    public Class< SitemapConfig > configClass() {
+        return SitemapConfig.class;
+    }
+
+    @Override
+    public ConnectorConfigCodec.Validation validate( final JsonObject config ) {
         final Map< String, String > errors = new LinkedHashMap<>();
         ConfigValidationSupport.requireHttpUrlList( errors, config, "sitemap_urls" );
         ConfigValidationSupport.requireMinInt( errors, config, "max_pages", 500, 0 );
         ConfigValidationSupport.requireMinLong( errors, config, "delay_ms", 1000L, 0L );
-        return errors;
+        return new ConnectorConfigCodec.Validation( errors );
     }
 
-    static SitemapConfig build( final JsonObject config, final boolean forTest ) {
+    @Override
+    public SitemapConfig build( final JsonObject config, final boolean forTest ) {
         return new SitemapConfig(
             JsonFieldSupport.strList( config, "sitemap_urls" ),
             JsonFieldSupport.clampMax( JsonFieldSupport.intVal( config, "max_pages", 500 ), forTest ),
@@ -51,7 +65,8 @@ final class SitemapCodec {
             JsonFieldSupport.boolVal( config, "same_host_only", true ) );
     }
 
-    static JsonObject toJson( final SitemapConfig c ) {
+    @Override
+    public JsonObject toJson( final SitemapConfig c ) {
         final JsonObject json = new JsonObject();
         JsonFieldSupport.putStrList( json, "sitemap_urls", c.sitemapUrls() );
         json.addProperty( "max_pages", c.maxPages() );

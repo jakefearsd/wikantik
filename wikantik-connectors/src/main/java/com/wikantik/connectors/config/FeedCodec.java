@@ -26,22 +26,36 @@ import java.util.Map;
 
 /**
  * Validation and JSON &lt;-&gt; typed-config translation for the {@code feed} connector type.
- * Package-private unit dispatched from {@link ConnectorConfigCodec}; see that class for the public
+ * Package-private singleton registered in {@link ConnectorConfigCodec}; see that class for the public
  * API and design notes.
  */
-final class FeedCodec {
+final class FeedCodec implements ConnectorTypeCodec< FeedConfig > {
+
+    static final FeedCodec INSTANCE = new FeedCodec();
 
     private FeedCodec() {}
 
-    static Map< String, String > validate( final JsonObject config ) {
+    @Override
+    public String type() {
+        return "feed";
+    }
+
+    @Override
+    public Class< FeedConfig > configClass() {
+        return FeedConfig.class;
+    }
+
+    @Override
+    public ConnectorConfigCodec.Validation validate( final JsonObject config ) {
         final Map< String, String > errors = new LinkedHashMap<>();
         ConfigValidationSupport.requireHttpUrlList( errors, config, "feed_urls" );
         ConfigValidationSupport.requireMinInt( errors, config, "max_items", 100, 0 );
         ConfigValidationSupport.requireMinLong( errors, config, "delay_ms", 1000L, 0L );
-        return errors;
+        return new ConnectorConfigCodec.Validation( errors );
     }
 
-    static FeedConfig build( final JsonObject config, final boolean forTest ) {
+    @Override
+    public FeedConfig build( final JsonObject config, final boolean forTest ) {
         return new FeedConfig(
             JsonFieldSupport.strList( config, "feed_urls" ),
             JsonFieldSupport.clampMax( JsonFieldSupport.intVal( config, "max_items", 100 ), forTest ),
@@ -52,7 +66,8 @@ final class FeedCodec {
             JsonFieldSupport.boolVal( config, "same_host_only", true ) );
     }
 
-    static JsonObject toJson( final FeedConfig c ) {
+    @Override
+    public JsonObject toJson( final FeedConfig c ) {
         final JsonObject json = new JsonObject();
         JsonFieldSupport.putStrList( json, "feed_urls", c.feedUrls() );
         json.addProperty( "max_items", c.maxItems() );

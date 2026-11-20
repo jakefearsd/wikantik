@@ -26,23 +26,37 @@ import java.util.Map;
 
 /**
  * Validation and JSON &lt;-&gt; typed-config translation for the {@code confluence} connector type.
- * Package-private unit dispatched from {@link ConnectorConfigCodec}; see that class for the public
+ * Package-private singleton registered in {@link ConnectorConfigCodec}; see that class for the public
  * API and design notes.
  */
-final class ConfluenceCodec {
+final class ConfluenceCodec implements ConnectorTypeCodec< ConfluenceConfig > {
+
+    static final ConfluenceCodec INSTANCE = new ConfluenceCodec();
 
     private ConfluenceCodec() {}
 
-    static Map< String, String > validate( final JsonObject config ) {
+    @Override
+    public String type() {
+        return "confluence";
+    }
+
+    @Override
+    public Class< ConfluenceConfig > configClass() {
+        return ConfluenceConfig.class;
+    }
+
+    @Override
+    public ConnectorConfigCodec.Validation validate( final JsonObject config ) {
         final Map< String, String > errors = new LinkedHashMap<>();
         ConfigValidationSupport.requireHttpUrl( errors, config, "base_url" );
         ConfigValidationSupport.requireNonBlank( errors, config, "space_key" );
         ConfigValidationSupport.requireNonBlank( errors, config, "email" );
         ConfigValidationSupport.requireMinInt( errors, config, "max_pages", 500, 0 );
-        return errors;
+        return new ConnectorConfigCodec.Validation( errors );
     }
 
-    static ConfluenceConfig build( final JsonObject config, final boolean forTest ) {
+    @Override
+    public ConfluenceConfig build( final JsonObject config, final boolean forTest ) {
         return new ConfluenceConfig(
             JsonFieldSupport.str( config, "base_url" ),
             JsonFieldSupport.str( config, "space_key" ),
@@ -50,7 +64,8 @@ final class ConfluenceCodec {
             JsonFieldSupport.clampMax( JsonFieldSupport.intVal( config, "max_pages", 500 ), forTest ) );
     }
 
-    static JsonObject toJson( final ConfluenceConfig c ) {
+    @Override
+    public JsonObject toJson( final ConfluenceConfig c ) {
         final JsonObject json = new JsonObject();
         json.addProperty( "base_url", c.baseUrl() );
         json.addProperty( "space_key", c.spaceKey() );

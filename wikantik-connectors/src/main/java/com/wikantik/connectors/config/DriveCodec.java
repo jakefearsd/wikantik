@@ -26,14 +26,27 @@ import java.util.Map;
 
 /**
  * Validation and JSON &lt;-&gt; typed-config translation for the {@code gdrive} connector type.
- * Package-private unit dispatched from {@link ConnectorConfigCodec}; see that class for the public
+ * Package-private singleton registered in {@link ConnectorConfigCodec}; see that class for the public
  * API and design notes.
  */
-final class DriveCodec {
+final class DriveCodec implements ConnectorTypeCodec< DriveConfig > {
+
+    static final DriveCodec INSTANCE = new DriveCodec();
 
     private DriveCodec() {}
 
-    static Map< String, String > validate( final JsonObject config ) {
+    @Override
+    public String type() {
+        return "gdrive";
+    }
+
+    @Override
+    public Class< DriveConfig > configClass() {
+        return DriveConfig.class;
+    }
+
+    @Override
+    public ConnectorConfigCodec.Validation validate( final JsonObject config ) {
         final Map< String, String > errors = new LinkedHashMap<>();
         if ( JsonFieldSupport.strList( config, "folder_ids" ).isEmpty() ) {
             errors.put( "folder_ids", "at least one folder id is required" );
@@ -43,10 +56,11 @@ final class DriveCodec {
         ConfigValidationSupport.requireMinInt( errors, config, "max_files", 500, 0 );
         // client_secret is intentionally never validated here — it is not part of the admin-UI
         // config JSON; it lives in the CredentialStore and is resolved at assembly (Task 5).
-        return errors;
+        return new ConnectorConfigCodec.Validation( errors );
     }
 
-    static DriveConfig build( final JsonObject config, final boolean forTest ) {
+    @Override
+    public DriveConfig build( final JsonObject config, final boolean forTest ) {
         return new DriveConfig(
             JsonFieldSupport.strList( config, "folder_ids" ),
             JsonFieldSupport.clampMax( JsonFieldSupport.intVal( config, "max_files", 500 ), forTest ),
@@ -56,7 +70,8 @@ final class DriveCodec {
             JsonFieldSupport.strOr( config, "export_mime", "text/markdown" ) );
     }
 
-    static JsonObject toJson( final DriveConfig c ) {
+    @Override
+    public JsonObject toJson( final DriveConfig c ) {
         final JsonObject json = new JsonObject();
         JsonFieldSupport.putStrList( json, "folder_ids", c.folderIds() );
         json.addProperty( "max_files", c.maxFiles() );

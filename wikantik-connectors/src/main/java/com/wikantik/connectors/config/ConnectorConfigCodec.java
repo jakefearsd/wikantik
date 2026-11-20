@@ -19,15 +19,11 @@
 package com.wikantik.connectors.config;
 
 import com.google.gson.JsonObject;
-import com.wikantik.connectors.confluence.ConfluenceConfig;
-import com.wikantik.connectors.gdrive.DriveConfig;
-import com.wikantik.connectors.github.GithubConfig;
-import com.wikantik.connectors.web.FeedConfig;
-import com.wikantik.connectors.web.SitemapConfig;
-import com.wikantik.connectors.web.WebCrawlerConfig;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -41,7 +37,8 @@ import java.util.regex.Pattern;
  * server paths, so they stay operator-only (properties-only), never creatable from the admin UI
  * (design decision D9, {@code docs/superpowers/specs/2026-07-15-connector-admin-ui-design.md}).
  *
- * <p>This class is a thin dispatcher: each connector type's validation, JSON-to-typed-config
+ * <p>This class is a thin dispatcher over an immutable registry of {@link ConnectorTypeCodec}s
+ * (see {@link #codecFor}): each connector type's validation, JSON-to-typed-config
  * building, and typed-config-to-JSON logic lives in a package-private per-type codec
  * ({@link WebCrawlerCodec}, {@link SitemapCodec}, {@link FeedCodec}, {@link DriveCodec},
  * {@link GithubCodec}, {@link ConfluenceCodec}), with JSON-field-reading helpers shared via
@@ -49,8 +46,13 @@ import java.util.regex.Pattern;
  */
 public final class ConnectorConfigCodec {
 
-    /** Connector types the admin UI may create. {@code filesystem} is not one of them (D9). */
-    public static final Set< String > UI_TYPES = Set.of( "webcrawler", "sitemap", "feed", "gdrive", "github", "confluence" );
+    private static final Map< String, ConnectorTypeCodec< ? > > CODECS = registry(
+        WebCrawlerCodec.INSTANCE, SitemapCodec.INSTANCE, FeedCodec.INSTANCE,
+        DriveCodec.INSTANCE, GithubCodec.INSTANCE, ConfluenceCodec.INSTANCE );
+
+    /** Connector types the admin UI may create: the registered codecs' types, in registration order.
+     *  {@code filesystem} is not one of them (D9). */
+    public static final Set< String > UI_TYPES = CODECS.keySet();
 
     private static final Pattern ID_PATTERN = Pattern.compile( "[a-z0-9-]{1,64}" );
 
@@ -76,19 +78,17 @@ public final class ConnectorConfigCodec {
         return new Validation( errors );
     }
 
+    /** The codec registered for {@code type}; empty for an unrecognized type, including {@code filesystem} (D9). */
+    public static Optional< ConnectorTypeCodec< ? > > codecFor( final String type ) {
+        return Optional.ofNullable( CODECS.get( type ) );
+    }
+
     /** Field-keyed validation of {@code config} against {@code type}'s rules. An unrecognized
      *  {@code type} (including {@code filesystem}, D9) yields a single {@code "connector_type"} error. */
     public static Validation validate( final String type, final JsonObject config ) {
-        final Map< String, String > errors = switch ( type ) {
-            case "webcrawler" -> WebCrawlerCodec.validate( config );
-            case "sitemap" -> SitemapCodec.validate( config );
-            case "feed" -> FeedCodec.validate( config );
-            case "gdrive" -> DriveCodec.validate( config );
-            case "github" -> GithubCodec.validate( config );
-            case "confluence" -> ConfluenceCodec.validate( config );
-            default -> Map.of( "connector_type", "unknown type: " + type );
-        };
-        return new Validation( errors );
+        return codecFor( type )
+            .map( codec -> codec.validate( config ) )
+            .orElseGet( () -> new Validation( Map.of( "connector_type", "unknown type: " + type ) ) );
     }
 
     /** Builds the typed config record for {@code type} with defaults applied. Callers must call
@@ -108,18 +108,10 @@ public final class ConnectorConfigCodec {
         if ( !v.ok() ) {
             throw new IllegalArgumentException( "invalid " + type + " config: " + v.errors() );
         }
-        return switch ( type ) {
-            case "webcrawler" -> WebCrawlerCodec.build( config, forTest );
-            case "sitemap" -> SitemapCodec.build( config, forTest );
-            case "feed" -> FeedCodec.build( config, forTest );
-            case "gdrive" -> DriveCodec.build( config, forTest );
-            case "github" -> GithubCodec.build( config, forTest );
-            case "confluence" -> ConfluenceCodec.build( config, forTest );
-            default -> throw new IllegalArgumentException( "unknown type: " + type );
-        };
+        return codecFor( type ).orElseThrow().build( config, forTest );
     }
 
-    // ---- typed config → JSON (Task 11 — the admin-UI "import" route reconstructs the config JSON
+    // ---- typed config → JSON (the admin-UI "import" route reconstructs the config JSON
     // for a properties-defined connector from its typed record, one round trip through toConfig) ---
 
     /** Serializes a typed config record for {@code type} back to the codec's JSON field names —
@@ -129,14 +121,24 @@ public final class ConnectorConfigCodec {
      *  {@link IllegalArgumentException} for an unrecognized {@code type} or a {@code config} that
      *  is not the record {@code type} builds (a caller bug, not a data-shape issue). */
     public static JsonObject toJson( final String type, final Object config ) {
-        return switch ( type ) {
-            case "webcrawler" -> WebCrawlerCodec.toJson( ( WebCrawlerConfig ) config );
-            case "sitemap" -> SitemapCodec.toJson( ( SitemapConfig ) config );
-            case "feed" -> FeedCodec.toJson( ( FeedConfig ) config );
-            case "gdrive" -> DriveCodec.toJson( ( DriveConfig ) config );
-            case "github" -> GithubCodec.toJson( ( GithubConfig ) config );
-            case "confluence" -> ConfluenceCodec.toJson( ( ConfluenceConfig ) config );
-            default -> throw new IllegalArgumentException( "unknown type: " + type );
-        };
+        final ConnectorTypeCodec< ? > codec = codecFor( type )
+            .orElseThrow( () -> new IllegalArgumentException( "unknown type: " + type ) );
+        return toJson( codec, config );
+    }
+
+    private static < C > JsonObject toJson( final ConnectorTypeCodec< C > codec, final Object config ) {
+        if ( !codec.configClass().isInstance( config ) ) {
+            throw new IllegalArgumentException(
+                "config for " + codec.type() + " must be " + codec.configClass().getSimpleName() );
+        }
+        return codec.toJson( codec.configClass().cast( config ) );
+    }
+
+    private static Map< String, ConnectorTypeCodec< ? > > registry( final ConnectorTypeCodec< ? >... codecs ) {
+        final Map< String, ConnectorTypeCodec< ? > > byType = new LinkedHashMap<>();
+        for ( final ConnectorTypeCodec< ? > codec : codecs ) {
+            byType.put( codec.type(), codec );
+        }
+        return Collections.unmodifiableMap( byType );
     }
 }

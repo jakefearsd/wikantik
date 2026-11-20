@@ -27,16 +27,29 @@ import java.util.regex.Pattern;
 
 /**
  * Validation and JSON &lt;-&gt; typed-config translation for the {@code github} connector type.
- * Package-private unit dispatched from {@link ConnectorConfigCodec}; see that class for the public
+ * Package-private singleton registered in {@link ConnectorConfigCodec}; see that class for the public
  * API and design notes.
  */
-final class GithubCodec {
+final class GithubCodec implements ConnectorTypeCodec< GithubConfig > {
 
     private static final Pattern REPO_PATTERN = Pattern.compile( "[^/\\s]+/[^/\\s]+" );
 
+    static final GithubCodec INSTANCE = new GithubCodec();
+
     private GithubCodec() {}
 
-    static Map< String, String > validate( final JsonObject config ) {
+    @Override
+    public String type() {
+        return "github";
+    }
+
+    @Override
+    public Class< GithubConfig > configClass() {
+        return GithubConfig.class;
+    }
+
+    @Override
+    public ConnectorConfigCodec.Validation validate( final JsonObject config ) {
         final Map< String, String > errors = new LinkedHashMap<>();
         final String repo = JsonFieldSupport.str( config, "repo" );
         if ( repo == null ) {
@@ -45,10 +58,11 @@ final class GithubCodec {
             errors.put( "repo", "must be \"owner/name\"" );
         }
         ConfigValidationSupport.requireMinInt( errors, config, "max_files", 500, 0 );
-        return errors;
+        return new ConnectorConfigCodec.Validation( errors );
     }
 
-    static GithubConfig build( final JsonObject config, final boolean forTest ) {
+    @Override
+    public GithubConfig build( final JsonObject config, final boolean forTest ) {
         return new GithubConfig(
             JsonFieldSupport.str( config, "repo" ),
             JsonFieldSupport.str( config, "branch" ),
@@ -56,7 +70,8 @@ final class GithubCodec {
             JsonFieldSupport.clampMax( JsonFieldSupport.intVal( config, "max_files", 500 ), forTest ) );
     }
 
-    static JsonObject toJson( final GithubConfig c ) {
+    @Override
+    public JsonObject toJson( final GithubConfig c ) {
         final JsonObject json = new JsonObject();
         json.addProperty( "repo", c.repo() );
         json.addProperty( "branch", c.branch() );

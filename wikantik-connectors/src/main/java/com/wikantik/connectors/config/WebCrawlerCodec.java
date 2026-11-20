@@ -26,23 +26,37 @@ import java.util.Map;
 
 /**
  * Validation and JSON &lt;-&gt; typed-config translation for the {@code webcrawler} connector type.
- * Package-private unit dispatched from {@link ConnectorConfigCodec}; see that class for the public
+ * Package-private singleton registered in {@link ConnectorConfigCodec}; see that class for the public
  * API and design notes.
  */
-final class WebCrawlerCodec {
+final class WebCrawlerCodec implements ConnectorTypeCodec< WebCrawlerConfig > {
+
+    static final WebCrawlerCodec INSTANCE = new WebCrawlerCodec();
 
     private WebCrawlerCodec() {}
 
-    static Map< String, String > validate( final JsonObject config ) {
+    @Override
+    public String type() {
+        return "webcrawler";
+    }
+
+    @Override
+    public Class< WebCrawlerConfig > configClass() {
+        return WebCrawlerConfig.class;
+    }
+
+    @Override
+    public ConnectorConfigCodec.Validation validate( final JsonObject config ) {
         final Map< String, String > errors = new LinkedHashMap<>();
         ConfigValidationSupport.requireHttpUrlList( errors, config, "seeds" );
         ConfigValidationSupport.requireMinInt( errors, config, "max_pages", 100, 0 );
         ConfigValidationSupport.requireMinInt( errors, config, "max_depth", 3, 1 );
         ConfigValidationSupport.requireMinLong( errors, config, "delay_ms", 1000L, 0L );
-        return errors;
+        return new ConnectorConfigCodec.Validation( errors );
     }
 
-    static WebCrawlerConfig build( final JsonObject config, final boolean forTest ) {
+    @Override
+    public WebCrawlerConfig build( final JsonObject config, final boolean forTest ) {
         return new WebCrawlerConfig(
             JsonFieldSupport.strList( config, "seeds" ),
             JsonFieldSupport.boolVal( config, "same_host_only", true ),
@@ -54,7 +68,8 @@ final class WebCrawlerCodec {
             JsonFieldSupport.boolVal( config, "respect_robots", true ) );
     }
 
-    static JsonObject toJson( final WebCrawlerConfig c ) {
+    @Override
+    public JsonObject toJson( final WebCrawlerConfig c ) {
         final JsonObject json = new JsonObject();
         JsonFieldSupport.putStrList( json, "seeds", c.seeds() );
         json.addProperty( "same_host_only", c.sameHostOnly() );

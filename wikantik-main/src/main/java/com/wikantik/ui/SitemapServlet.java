@@ -55,7 +55,6 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.providers.CachingProvider;
-import com.wikantik.providers.PageProviderDecorator;
 import com.wikantik.url.URLConstructor;
 import com.wikantik.util.BaseUrlResolver;
 import com.wikantik.util.TextUtil;
@@ -459,10 +458,10 @@ public class SitemapServlet extends HttpServlet {
     }
 
     /**
-     * Returns the underlying filesystem provider, unwrapping any caching or decorator layers.
+     * Returns the underlying filesystem provider, unwrapping the caching layer.
      * <p>
      * The provider chain may be structured as:
-     * {@code CachingProvider -> PageProviderDecorator(s) -> FileSystemProvider/VersioningFileProvider}
+     * {@code CachingProvider -> FileSystemProvider/VersioningFileProvider}
      * </p>
      * <p>
      * This method traverses the entire chain to find the actual storage provider, ensuring
@@ -479,11 +478,6 @@ public class SitemapServlet extends HttpServlet {
         // Unwrap CachingProvider if present
         if ( provider instanceof CachingProvider cachingProvider ) {
             provider = cachingProvider.getRealProvider();
-        }
-
-        // Unwrap entire decorator chain (there may be multiple: logging, metrics, etc.)
-        while ( provider instanceof PageProviderDecorator decorator ) {
-            provider = decorator.getRealProvider();
         }
 
         LOG.debug( "Using filesystem provider: {}", provider.getClass().getName() );

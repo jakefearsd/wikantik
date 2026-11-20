@@ -1163,34 +1163,6 @@ class SitemapServletTest {
         }
     }
 
-    @Test
-    void testGetFilesystemProviderUnwrapsPageProviderDecoratorChain() throws Exception {
-        final PageManager realPm = m_engine.getManager( PageManager.class );
-        final PageManager spyPm = spy( realPm );
-        final PageProvider innermost = mock( PageProvider.class );
-        when( innermost.getAllPages() ).thenReturn( java.util.List.of() );
-        final com.wikantik.providers.PageProviderDecorator decorator =
-                mock( com.wikantik.providers.PageProviderDecorator.class );
-        when( decorator.getRealProvider() ).thenReturn( innermost );
-        doReturn( decorator ).when( spyPm ).getProvider();
-
-        m_engine.setManager( PageManager.class, spyPm );
-        try {
-            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
-            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
-            final StringWriter stringWriter = new StringWriter();
-            Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
-
-            servlet.doGet( request, response );
-
-            Mockito.verify( decorator ).getRealProvider();
-            final String sitemap = stringWriter.toString();
-            Assertions.assertTrue( sitemap.contains( "<urlset" ) );
-        } finally {
-            m_engine.setManager( PageManager.class, realPm );
-        }
-    }
-
     // ---- pure-logic private helpers, exercised via reflection ---------------------------------
     // (fixBaseUrl/isImageAttachment/escapeXml/isExcludedPage are private, string-in/string-out
     // helpers with no engine dependency beyond systemPageRegistry; reflection avoids widening

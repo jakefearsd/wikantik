@@ -64,7 +64,6 @@ public class ChunkProjector implements PageFilter {
     private static final Logger LOG = LogManager.getLogger( ChunkProjector.class );
 
     private final ContentChunker chunker;
-    private final ChunkingStrategySelector strategySelector;
     private final ContentChunkRepository repository;
     private final BooleanSupplier enabled;
     private final MeterRegistry meterRegistry;
@@ -95,7 +94,6 @@ public class ChunkProjector implements PageFilter {
                            final BooleanSupplier enabled,
                            final MeterRegistry meterRegistry ) {
         this.chunker = chunker;
-        this.strategySelector = new ChunkingStrategySelector();
         this.repository = repository;
         this.enabled = enabled;
         this.meterRegistry = meterRegistry != null ? meterRegistry : new SimpleMeterRegistry();
@@ -251,11 +249,9 @@ public class ChunkProjector implements PageFilter {
         try {
             final ParsedPage pp = new ParsedPage( frontmatter == null ? Map.of() : frontmatter,
                 body == null ? "" : body );
-            // strategy-selection hook: see ChunkingStrategySelector (v1 always returns defaultConfig)
-            final ContentChunker.Config selectedConfig = strategySelector.configFor( pp, chunker.config() );
-            final ContentChunker active = selectedConfig == chunker.config() ? chunker
-                : new ContentChunker( selectedConfig );
-            final List< Chunk > produced = active.chunk( pageName, pp );
+            // All page types chunk with the same wikantik.chunker.* config; per-type tuning is deferred
+            // until a retrieval-harness measurement justifies it (branch here, e.g. on DerivedPage.isDerived).
+            final List< Chunk > produced = chunker.chunk( pageName, pp );
             final List< ChunkDiff.Stored > existing = repository.findByPage( pageName );
             final ChunkDiff.Diff diff = ChunkDiff.compute( existing, produced );
             repository.apply( pageName, diff );

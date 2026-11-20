@@ -46,10 +46,9 @@
             <Class name="com.wikantik.diff.DefaultDifferenceManager"/>
             <!-- Filters -->
             <Class name="com.wikantik.filters.DefaultFilterManager"/>
-            <!-- Access filters + provider decorator (fail-fast on missing config/deps) -->
+            <!-- Access filters (fail-fast on missing config/deps) -->
             <Class name="com.wikantik.mcp.McpAccessFilter"/>
             <Class name="com.wikantik.tools.ToolsAccessFilter"/>
-            <Class name="com.wikantik.providers.PageProviderDecorator"/>
             <!-- Providers -->
             <Class name="com.wikantik.providers.LruPropertyCache"/>
             <!-- Search -->

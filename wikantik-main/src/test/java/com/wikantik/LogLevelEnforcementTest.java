@@ -97,7 +97,6 @@ public class LogLevelEnforcementTest {
             "BasicAttachmentProvider.java",
             "DefaultAttachmentManager.java",
             "PageDirectoryWatcher.java",
-            "LoggingPageProviderDecorator.java",
             // Search index — Lucene failures must be visible
             "LuceneSearchProvider.java",
             // Content operations — rename/system page failures

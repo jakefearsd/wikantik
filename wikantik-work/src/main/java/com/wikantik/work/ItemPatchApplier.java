@@ -84,14 +84,7 @@ final class ItemPatchApplier {
     /** The item that {@code changes} produce from {@code current}; validated, not yet stored. */
     Item apply( final Project project, final Item current, final Map< String, Object > changes, final String note )
             throws SQLException {
-        for ( final String key : changes.keySet() ) {
-            if ( !KEYS.contains( key ) ) {
-                throw new WorkValidationException( key, "Unknown field: " + key );
-            }
-        }
-        if ( changes.containsKey( "before" ) ) {
-            beforeKey( changes );
-        }
+        checkKeys( changes );
         Long parentId = current.parentId();
         Item newParent = null;
         if ( changes.containsKey( "parentKey" ) ) {
@@ -104,14 +97,33 @@ final class ItemPatchApplier {
         final String queue = targets.changedQueue( current, changes );
         final String assignee = queue != null && changes.containsKey( "queue" ) ? null
             : pick( changes, "assignee", PatchValues::assignee, current.assignee() );
-        final double rank = changes.containsKey( "rank" ) ? PatchValues.number( "rank", changes.get( "rank" ) )
-            : status != current.status() ? store.maxRank( project.id(), status ) + RANK_STEP : current.rank();
+        final double rank = rankFor( project, current, changes, status );
         final Item next = merged( current, changes, parentId, productId, status, rank, assignee, queue );
         validate( next, newParent );
         targets.checkAssignee( project, current.assignee(), assignee );
         ItemTargets.requireClaimForQueuedWork( current, next );
         checkHandoffNote( current, next, note );
         return next;
+    }
+
+    private static void checkKeys( final Map< String, Object > changes ) {
+        for ( final String key : changes.keySet() ) {
+            if ( !KEYS.contains( key ) ) {
+                throw new WorkValidationException( key, "Unknown field: " + key );
+            }
+        }
+        if ( changes.containsKey( "before" ) ) {
+            beforeKey( changes );
+        }
+    }
+
+    /** The asked-for rank; else the foot of the new column on a status change; else unchanged. */
+    private double rankFor( final Project project, final Item current, final Map< String, Object > changes,
+                            final WorkStatus status ) throws SQLException {
+        if ( changes.containsKey( "rank" ) ) {
+            return PatchValues.number( "rank", changes.get( "rank" ) );
+        }
+        return status != current.status() ? store.maxRank( project.id(), status ) + RANK_STEP : current.rank();
     }
 
     /** The key a move asks to be placed before, validated as non-blank text; null when the patch has none. */

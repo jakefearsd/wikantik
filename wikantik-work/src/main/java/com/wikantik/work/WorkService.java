@@ -18,9 +18,6 @@
  */
 package com.wikantik.work;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
@@ -50,8 +47,6 @@ import java.util.stream.Collectors;
  */
 public class WorkService {
 
-    private static final Logger LOG = LogManager.getLogger( WorkService.class );
-
     private static final String NOT_FOUND = WorkScopes.NOT_FOUND;
     private static final int PRODUCT_HISTORY_LIMIT = 100;
 
@@ -77,6 +72,7 @@ public class WorkService {
     }
 
     private final WorkStore store;
+    private final BoardOrder boardOrder;
     private final WorkScopes scopes;
     private final ItemViews views;
     private final WorkPeople people;
@@ -133,6 +129,7 @@ public class WorkService {
                         final WorkAudit audit ) {
         final GuardedListener observer = new GuardedListener( listener );
         this.store = store;
+        this.boardOrder = new BoardOrder( store );
         this.scopes = new WorkScopes( store, directory, observer::denied, observer::gate );
         this.scopes.onDeployment( observer::deployment );
         this.people = new WorkPeople( directory );
@@ -349,35 +346,11 @@ public class WorkService {
             : CloseRules.NONE;
         final Item next = applier.apply( s.project(), is.item(), people.withAssigneeLogin( actor, changes ), patch.note() );
         scopes.gates().requireNoLoosening( s, is.item(), next );
-        final Long beforeId = changes.containsKey( "before" ) ? beforeCard( next, changes ) : null;
+        final Long beforeId = boardOrder.beforeCard( next, changes );
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
         Item saved = claims.write( stamped, next, actor, patch.note(), false, action, rules );
-        if ( changes.keySet().stream().anyMatch( ItemPatchApplier.MOVE_KEYS::contains ) ) {
-            try {
-                if ( store.renumberColumn( saved.projectId(), saved.status(), saved.id(), beforeId ) ) {
-                    saved = store.itemById( saved.id() ).orElse( saved );
-                }
-            } catch ( final SQLException e ) {
-                // the move itself committed; the column's order heals on the next move
-                LOG.warn( "Renumbering the board column failed after the move was saved (project {}, status {}, item {}): {}",
-                    saved.projectId(), saved.status(), saved.key(), e.getMessage(), e );
-            }
-        }
+        saved = boardOrder.settle( saved, changes, beforeId );
         return views.view( s, saved );
-    }
-
-    /**
-     * The card a move asks to be placed before: it must be another card of the moved card's project and target
-     * column. An unknown key, another project's and another column's are indistinguishable by design.
-     */
-    private Long beforeCard( final Item moved, final Map< String, Object > changes ) throws SQLException {
-        final String key = ItemPatchApplier.beforeKey( changes ).trim().toUpperCase( java.util.Locale.ROOT );
-        final Item before = ItemKeys.PATTERN.matcher( key ).matches() ? store.item( key ).orElse( null ) : null;
-        if ( before == null || before.projectId() != moved.projectId() || before.status() != moved.status()
-                || before.id() == moved.id() ) {
-            throw new WorkValidationException( "before", "The card to place this before is not in that column." );
-        }
-        return before.id();
     }
 
     /** The item's effective autonomy policy and whether it waits for a person's acknowledgement. */

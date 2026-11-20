@@ -20,6 +20,7 @@ package com.wikantik.connectors.web;
 
 import com.wikantik.api.connectors.SyncBatch;
 import com.wikantik.api.connectors.SyncCursor;
+import com.wikantik.connectors.SyncBatches;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
@@ -91,7 +92,7 @@ final class WebConnectorSupport {
             return body.get();
         } catch ( final RuntimeException e ) {
             log.warn( "{} '{}': sync failed, skipping cycle: {}", label, connectorId, e.getMessage(), e );
-            return new SyncBatch( List.of(), List.of(), cursor, false );
+            return SyncBatches.failed( cursor );
         }
     }
 }

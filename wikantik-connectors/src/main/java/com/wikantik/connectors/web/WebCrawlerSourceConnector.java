@@ -19,6 +19,7 @@
 package com.wikantik.connectors.web;
 
 import com.wikantik.api.connectors.*;
+import com.wikantik.connectors.SyncBatches;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -71,12 +72,7 @@ public final class WebCrawlerSourceConnector implements SourceConnector {
         if ( items.size() >= config.maxPages() ) {
             LOG.info( "crawler '{}': hit max_pages={}, crawl truncated", connectorId, config.maxPages() );
         }
-        if ( !trusted ) {
-            // deliver what was fetched, but signal an untrusted enumeration: input cursor + incomplete
-            // (the orchestrator skips tombstone derivation and retries next scheduled run)
-            return new SyncBatch( items, List.of(), cursor, false );
-        }
-        return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
+        return SyncBatches.finish( items, trusted, cursor );
     }
 
     /** Fetches one queued node, resolving it to an optional {@link SourceItem}, the frontier nodes

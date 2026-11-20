@@ -19,6 +19,7 @@
 package com.wikantik.connectors.web;
 
 import com.wikantik.api.connectors.*;
+import com.wikantik.connectors.SyncBatches;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -71,10 +72,7 @@ public final class SitemapSourceConnector implements SourceConnector {
         if ( items.size() >= config.maxPages() ) {
             LOG.info( "sitemap '{}': hit max_pages={}, truncated", connectorId, config.maxPages() );
         }
-        if ( !trusted ) {
-            return new SyncBatch( items, List.of(), cursor, false );   // untrusted enumeration: input cursor, incomplete
-        }
-        return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
+        return SyncBatches.finish( items, trusted, cursor );
     }
 
     private Enumeration enumeratePages( final RobotsPolicy robots, final Set< String > allowedHosts ) {

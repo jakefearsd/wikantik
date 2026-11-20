@@ -19,6 +19,7 @@
 package com.wikantik.connectors.web;
 
 import com.wikantik.api.connectors.*;
+import com.wikantik.connectors.SyncBatches;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -67,7 +68,7 @@ public final class FeedSourceConnector implements SourceConnector {
         if ( fetch.allFailed() ) {
             LOG.warn( "feed '{}': all {} configured feed URL(s) failed to fetch — batch marked "
                 + "incomplete, no items returned", connectorId, fetch.failedCount() );
-            return new SyncBatch( List.of(), List.of(), cursor, false );
+            return SyncBatches.failed( cursor );
         }
 
         final List< SourceItem > items = new ArrayList<>();
@@ -80,7 +81,7 @@ public final class FeedSourceConnector implements SourceConnector {
         if ( items.size() >= config.maxItems() ) {
             LOG.info( "feed '{}': hit max_items={}, truncated", connectorId, config.maxItems() );
         }
-        return new SyncBatch( items, List.of(), new SyncCursor( String.valueOf( items.size() ) ), true );
+        return SyncBatches.finish( items, true, cursor );
     }
 
     /** Parsed entries plus whether every <em>attempted</em> feed fetch failed (robots-disallowed

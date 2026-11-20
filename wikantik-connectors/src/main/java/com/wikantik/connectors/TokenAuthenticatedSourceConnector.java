@@ -89,24 +89,20 @@ public abstract class TokenAuthenticatedSourceConnector implements SourceConnect
         } catch ( final RuntimeException e ) {
             log.warn( "{} '{}': token lookup failed — skipping sync: {}",
                 providerLabel(), connectorId, e.getMessage() );
-            return new SyncBatch( List.of(), List.of(), cursor, false );
+            return SyncBatches.failed( cursor );
         }
         if ( token.isEmpty() || token.get().isBlank() ) {
             log.warn( "{} '{}': no {} available (credential store disabled or token not set) — skipping sync",
                 providerLabel(), connectorId, credentialLabel() );
-            return new SyncBatch( List.of(), List.of(), cursor, false );
+            return SyncBatches.failed( cursor );
         }
         final FetchOutcome outcome;
         try {
             outcome = fetchItems( token.get() );
         } catch ( final Exception e ) {
             log.warn( "{} '{}': sync failed, skipping cycle: {}", providerLabel(), connectorId, e.getMessage() );
-            return new SyncBatch( List.of(), List.of(), cursor, false );
+            return SyncBatches.failed( cursor );
         }
-        if ( !outcome.trusted() ) {
-            return new SyncBatch( outcome.items(), List.of(), cursor, false );
-        }
-        return new SyncBatch( outcome.items(), List.of(),
-            new SyncCursor( String.valueOf( outcome.items().size() ) ), true );
+        return SyncBatches.finish( outcome.items(), outcome.trusted(), cursor );
     }
 }

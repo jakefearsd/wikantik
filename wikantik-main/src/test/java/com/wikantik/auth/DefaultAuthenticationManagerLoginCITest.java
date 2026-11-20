@@ -137,4 +137,11 @@ class DefaultAuthenticationManagerLoginCITest {
         assertTrue( auth.login( session, request, Users.JANNE, Users.JANNE_PASS ),
                 "a session-ID-rotation failure must not fail the login itself" );
     }
+
+    @Test
+    void login_httpRequest_anonymousVisitor_returnsTrue() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final AuthenticationManager auth = engine.getManager( AuthenticationManager.class );
+        assertTrue( auth.login( request ), "anonymous login always succeeds, so the contract says true" );
+    }
 }

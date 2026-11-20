@@ -88,7 +88,7 @@ class DefaultAuthenticationManagerLoginEventOrderTest {
         Wiki.session().find( engine, request );
         trail.clear();
 
-        auth.login( request );
+        assertTrue( auth.login( request ), "a successful container login must report success" );
 
         assertFalse( trail.isEmpty() );
         assertEquals( WikiSecurityEvent.LOGIN_AUTHENTICATED + ":containerUser", trail.get( 0 ), trail.toString() );

@@ -24,7 +24,6 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.auth.authorize.WebAuthorizer;
 import com.wikantik.auth.authorize.WebContainerAuthorizer;
 import com.wikantik.auth.login.AnonymousLoginModule;
 import com.wikantik.auth.login.CookieAssertionLoginModule;
@@ -209,8 +208,9 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             }
         }
 
-        // If by some unusual turn of events the Anonymous login module doesn't work, login failed!
-        return false;
+        // Authenticated or asserted above: the session holds an identity, so the login succeeded.
+        // Only if the session is still anonymous and the Anonymous login module failed, login failed!
+        return !session.isAnonymous();
     }
 
     /**
@@ -238,7 +238,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
         // If the container logged the user in successfully, tell the Session (and add all the Principals)
         if (!principals.isEmpty()) {
-            establish( session, principals, request, null );
+            establish( session, principals, LoginOrigin.container( request ) );
         }
     }
 
@@ -268,7 +268,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         if(!principals.isEmpty()) {
             // D2: clear the throttle bucket so subsequent legitimate logins are not delayed.
             clearLoginAttempts( username );
-            establish( session, principals, null, request );
+            establish( session, principals, LoginOrigin.credentials( request ) );
 
             return true;
         }
@@ -283,41 +283,45 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     }
 
     /**
+     * What differs between the two login paths in {@link #establish}: which request (if any) the container is
+     * asked about roles, and which request (if any) has its HTTP session id rotated. Two adjacent nullable
+     * {@link HttpServletRequest} parameters were easy to swap, so the paths are named factories instead.
+     *
+     * @param roleRequest the request whose container roles are consulted when injecting roles, or {@code null}
+     * @param rotatedRequest the request whose HTTP session id is rotated (session-fixation defence), or {@code null}
+     */
+    private record LoginOrigin( HttpServletRequest roleRequest, HttpServletRequest rotatedRequest ) {
+
+        /** Container/SSO/cookie login: consult the container for roles, never rotate the session id. */
+        static LoginOrigin container( final HttpServletRequest request ) {
+            return new LoginOrigin( request, null );
+        }
+
+        /** Username/password login: rotate the session id, consult the authorizer only for roles. */
+        static LoginOrigin credentials( final HttpServletRequest request ) {
+            return new LoginOrigin( null, request );
+        }
+    }
+
+    /**
      * The login success tail shared by every successful login: fires {@code LOGIN_AUTHENTICATED}, then one
      * {@code PRINCIPAL_ADD} per principal, optionally rotates the HTTP session id, then injects the
-     * roles of the configured authorizer: each role it reports for the session, or, when it is a
-     * {@link WebAuthorizer} and a {@code roleRequest} is given, each role the container reports for that
-     * request. The two callers differ deliberately in the two request arguments.
+     * roles of the configured authorizer (see {@link RoleInjector}).
      *
      * @param session the session being logged in
      * @param principals the principals the login module produced; must not be empty
-     * @param roleRequest the request whose container roles are consulted when injecting roles, or
-     *        {@code null} to consult the authorizer only (the username/password path passes {@code null})
-     * @param rotatedRequest the request whose HTTP session id is rotated between the principals and the
-     *        roles (session-fixation defence), or {@code null} to leave the id alone (only the
-     *        username/password path rotates)
+     * @param origin which login path this is (what to rotate, whom to ask about container roles)
      * @throws WikiSecurityException if the authorizer cannot be resolved
      */
     private void establish( final Session session, final Set< Principal > principals,
-                            final HttpServletRequest roleRequest, final HttpServletRequest rotatedRequest ) throws WikiSecurityException {
+                            final LoginOrigin origin ) throws WikiSecurityException {
         fireEvent( WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
         for( final Principal principal : principals ) {
             fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
         }
-        rotateSessionId( rotatedRequest );
-
-        // Inject each role the configured authorizer knows the user holds
-        final Authorizer authorizer = authorizationManager().getAuthorizer();
-        for( final Principal role : authorizer.getRoles() ) {
-            if( authorizer.isUserInRole( session, role ) ) {
-                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
-                LOG.debug( "Added authorizer role {}.", role.getName() );
-            // If web authorizer, test the request.isInRole() method also
-            } else if ( roleRequest != null && authorizer instanceof WebAuthorizer wa && wa.isUserInRole( roleRequest, role ) ) {
-                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
-                LOG.debug( "Added container role {}.", role.getName() );
-            }
-        }
+        rotateSessionId( origin.rotatedRequest() );
+        RoleInjector.inject( authorizationManager().getAuthorizer(), session, origin.roleRequest(),
+                role -> fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session ) );
     }
 
     /**

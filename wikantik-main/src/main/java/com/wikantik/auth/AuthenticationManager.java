@@ -97,7 +97,9 @@ public interface AuthenticationManager extends Initializable {
      * </ul>
      *
      * @param request servlet request for this user
-     * @return always returns <code>true</code> (because anonymous login, at least, will always succeed)
+     * @return <code>true</code> if the session ends up with an identity (authenticated, asserted or anonymous),
+     *         which is the normal outcome since anonymous login, at least, will always succeed; <code>false</code>
+     *         only if the anonymous login module itself fails for an otherwise unidentified session
      * @throws com.wikantik.auth.WikiSecurityException if the user cannot be logged in for any reason
      * @since 2.3
      */

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.7.3] - 2026-11-19
+
 ### Changed
 
 - Errors from `/api/briefing` and `/api/structure/*` use the same JSON error body as every other endpoint (`error: true`, `status`, `message`); `message` carries the text that `error` used to hold.

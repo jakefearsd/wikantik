@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The preview follows scrolling with less work per frame, so long pages scroll more smoothly.
+
+### Fixed
+
+- Clicking or scrolling in the preview leaves it where you put it; the editor no longer drags it a few pixels after it lines up.
+- Paragraphs inside quotes and callouts line up with their own lines in the editor, not the whole quote as one block.
+- A long word or address in a table cell wraps inside the cell instead of making the whole preview scroll sideways.
+- The marker for the row the cursor is in shows in Safari.
+
 ## [2.7.1] - 2026-11-19
 
 ### Added

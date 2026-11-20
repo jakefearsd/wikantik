@@ -175,11 +175,11 @@ class DefaultReferenceManagerDiskRoundTripTest {
     }
 
     // -----------------------------------------------------------------------
-    // serializeToDisk() — I/O failure is logged, never thrown
+    // ReferenceSnapshotStore write — I/O failure is logged, never thrown
     // -----------------------------------------------------------------------
 
     @Test
-    void updateReferences_serializeToDiskIoFailure_doesNotThrow( @TempDir final File tempDir )
+    void updateReferences_snapshotWriteIoFailure_doesNotThrow( @TempDir final File tempDir )
             throws Exception {
         // Point the "work dir" at a plain FILE instead of a directory, so
         // new File(workDir, "refmgr.ser") resolves under a non-directory parent
@@ -201,7 +201,7 @@ class DefaultReferenceManagerDiskRoundTripTest {
         final DefaultReferenceManager mgr = new DefaultReferenceManager( engine, pageManager, attachmentManager );
 
         assertDoesNotThrow( () -> mgr.updateReferences( "SomePage", List.of( "Other" ) ),
-                "serializeToDisk() must log the IOException, not propagate it" );
+                "the snapshot write must log the IOException, not propagate it" );
     }
 
     // -----------------------------------------------------------------------
@@ -288,8 +288,8 @@ class DefaultReferenceManagerDiskRoundTripTest {
         // mgr1.initialize() wrote a real refmgr-attr cache file for Alpha (used below to
         // prove the attribute round trip). refmgr.ser is overwritten with a fixture whose
         // "saved" timestamp is pinned, so Alpha's lastModified can be placed after it; the
-        // real serializeToDisk() round trip is covered by
-        // initialize_warmStart_readsCacheWrittenBySerializeToDisk.
+        // real snapshot-store round trip is covered by
+        // initialize_warmStart_readsSnapshotWrittenByTheStore.
         final long saved = System.currentTimeMillis() - 300_000L;
         final File serFile = new File( workDir, "refmgr.ser" );
         final Map< String, java.util.Collection< String > > fixtureRefersTo = new java.util.HashMap<>();
@@ -307,7 +307,7 @@ class DefaultReferenceManagerDiskRoundTripTest {
         }
 
         // ---- Phase 2: warm start — a brand-new manager instance pointed at the same
-        // work dir. unserializeFromDisk() must succeed this time (no exception), taking
+        // work dir. Loading the snapshot must succeed this time (no exception), taking
         // the "success" branch of initialize() instead of the rebuild-everything catch.
         final PageManager pageManager2 = mock( PageManager.class );
         final AttachmentManager attachmentManager2 = mock( AttachmentManager.class );
@@ -363,14 +363,14 @@ class DefaultReferenceManagerDiskRoundTripTest {
     }
 
     /**
-     * The cache written by {@code serializeToDisk()} must be readable by
-     * {@code unserializeFromDisk()} through its own deserialization filter. It used to be
+     * The snapshot written by {@link ReferenceSnapshotStore#saveNow()} must be readable by
+     * {@link ReferenceSnapshotStore#load()} through its own deserialization filter. It used to be
      * written as a {@code ConcurrentHashMap}, whose serial form drags in
      * {@code ConcurrentHashMap$Segment}/{@code ReentrantLock} internals the filter rejects,
      * so every restart silently discarded the cache and rebuilt from the full corpus.
      */
     @Test
-    void initialize_warmStart_readsCacheWrittenBySerializeToDisk( @TempDir final File workDir ) throws Exception {
+    void initialize_warmStart_readsSnapshotWrittenByTheStore( @TempDir final File workDir ) throws Exception {
         final Date oldDate = new Date( System.currentTimeMillis() - 600_000L );
 
         final PageManager pageManager1 = mock( PageManager.class );
@@ -477,7 +477,7 @@ class DefaultReferenceManagerDiskRoundTripTest {
     }
 
     // -----------------------------------------------------------------------
-    // unserializeFromDisk() — a version mismatch triggers a clean rebuild
+    // ReferenceSnapshotStore.load() — a version mismatch triggers a clean rebuild
     // instead of trying (and failing) to read data in an unknown format.
     // -----------------------------------------------------------------------
 
@@ -537,7 +537,7 @@ class DefaultReferenceManagerDiskRoundTripTest {
 
     private void assertAttrsCacheIsIgnored( final File workDir, final String pageName ) throws Exception {
         // unserializeAttrsFromDisk() is only reached from initialize()'s "warm start"
-        // success branch, which requires unserializeFromDisk() to succeed first — so a
+        // success branch, which requires the snapshot load (then adopt()) to succeed first — so a
         // valid (if empty) refmgr.ser fixture must exist alongside the attrs cache file.
         final File serFile = new File( workDir, "refmgr.ser" );
         try ( java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(

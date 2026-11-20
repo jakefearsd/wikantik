@@ -67,6 +67,11 @@ class ConnectorFactoriesTest {
         assertTrue( ConnectorFactories.forType( "filesystem" ).isEmpty() );
     }
 
+    @Test void aNullTypeHasNoFactoryAndNoCodecAlike() {
+        assertTrue( ConnectorFactories.forType( null ).isEmpty() );
+        assertTrue( ConnectorConfigCodec.codecFor( null ).isEmpty() );
+    }
+
     @Test void mismatchedConfigIsEmptyAndWarnsWithIdTypeAndClass() {
         final List< String > warnings = new ArrayList<>();
         final String name = ConnectorAssembler.class.getName();

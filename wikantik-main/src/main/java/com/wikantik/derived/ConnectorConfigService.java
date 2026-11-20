@@ -181,8 +181,8 @@ public final class ConnectorConfigService {
 
     /** Creates a DB-origin connector row. {@code type} must be one of
      *  {@link ConnectorConfigCodec#UI_TYPES} (never {@code filesystem}, design D9) — an
-     *  unrecognized/blank/null type yields a {@code connector_type} error without ever invoking
-     *  {@link ConnectorConfigCodec#validate} (which NPEs on a null type). For {@code gdrive}, a
+     *  unrecognized/blank/null type yields a {@code connector_type} error before
+     *  {@link ConnectorConfigCodec#validate} runs. For {@code gdrive}, a
      *  missing {@code redirect_uri} is defaulted (see {@link ConnectorFactory#applyDefaults}) before validation
      *  so the wizard need not compute it. On success the row is persisted and the registry is
      *  hot-rebuilt. */

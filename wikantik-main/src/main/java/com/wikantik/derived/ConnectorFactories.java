@@ -67,9 +67,9 @@ public final class ConnectorFactories {
 
     private ConnectorFactories() {}
 
-    /** The factory for {@code type}; empty for an unrecognized type, including {@code filesystem}. */
+    /** The factory for {@code type}; empty for a null or unrecognized type, including {@code filesystem}. */
     public static Optional< ConnectorFactory< ? > > forType( final String type ) {
-        return Optional.ofNullable( FACTORIES.get( type ) );
+        return Optional.ofNullable( type ).map( FACTORIES::get );
     }
 
     private static Map< String, ConnectorFactory< ? > > registry( final ConnectorFactory< ? >... factories ) {

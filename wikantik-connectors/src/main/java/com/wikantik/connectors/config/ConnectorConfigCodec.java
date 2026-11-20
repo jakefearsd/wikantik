@@ -78,9 +78,9 @@ public final class ConnectorConfigCodec {
         return new Validation( errors );
     }
 
-    /** The codec registered for {@code type}; empty for an unrecognized type, including {@code filesystem} (D9). */
+    /** The codec registered for {@code type}; empty for a null or unrecognized type, including {@code filesystem} (D9). */
     public static Optional< ConnectorTypeCodec< ? > > codecFor( final String type ) {
-        return Optional.ofNullable( CODECS.get( type ) );
+        return Optional.ofNullable( type ).map( CODECS::get );
     }
 
     /** Field-keyed validation of {@code config} against {@code type}'s rules. An unrecognized

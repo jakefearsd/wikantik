@@ -130,6 +130,7 @@ class WorkInputEdgesTest {
     @Test
     void aRepositoryUrlCarriesNoUserNameOrPassword() {
         for ( final String url : List.of( "https://u:secret@host.example/x.git", "https://token@host.example/x.git",
+                "https://TOKEN@github.com/x", "ssh://git:pw@host.example/x", "git+ssh://git:pw@host.example/x",
                 " https://u@host.example/x " ) ) {
             final Product withUrl = new Product( 7, "web", "Web", url, "main", null, null, null, null );
             final WorkValidationException created = assertThrows( WorkValidationException.class, () -> WorkInputs.newProduct( withUrl ) );
@@ -138,7 +139,8 @@ class WorkInputEdgesTest {
             assertEquals( "repoUrl", field( () -> WorkInputs.updatedProduct( product( "web", null, null ), withUrl ) ) );
         }
         for ( final String ok : java.util.Arrays.asList( null, "", "https://host.example/a@b.git", "https://host.example:8443/x?u=a@b",
-                "git@host.example:org/x.git" ) ) {
+                "git@host.example:org/x.git", "ssh://git@host.example/org/x.git", "ssh://git@host.example:22/x.git",
+                "git+ssh://git@host.example/x.git", "ssh+git://git@host.example/x.git", "SSH://git@host.example/x.git" ) ) {
             final Product withUrl = new Product( 7, "web", "Web", ok, "main", null, null, null, null );
             assertEquals( ok, WorkInputs.newProduct( withUrl ).repoUrl() );
         }

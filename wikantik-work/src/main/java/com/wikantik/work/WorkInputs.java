@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Input rules for {@link WorkService}: what a name, key, link or comment may be. Pure: no storage. */
@@ -33,6 +34,9 @@ final class WorkInputs {
     private static final Pattern PROJECT_KEY = Pattern.compile( "^[A-Z][A-Z0-9]{1,9}$" );
     private static final Pattern PRODUCT_KEY = Pattern.compile( "^[a-z][a-z0-9-]{1,39}$" );
     private static final Pattern QUEUE_KEY = Pattern.compile( "^[a-z][a-z0-9-]{1,29}$" );
+    /** Group 1 the scheme, group 2 the userinfo (the part before the {@code @} in the authority). */
+    private static final Pattern REPO_URL_USERINFO = Pattern.compile( "^([A-Za-z][A-Za-z0-9+.-]*)://([^/?#]*)@" );
+    private static final Set<String> SSH_SCHEMES = Set.of( "ssh", "git+ssh", "ssh+git" );
     private static final Pattern AGENT_NAME =
         Pattern.compile( "^[a-z0-9][a-z0-9._-]{0,39}(@[a-z0-9][a-z0-9.-]{0,39})?$" );
     private static final Set< String > LINK_KINDS = Set.of( "page", "issue", "url", "blocked_by", "commit" );
@@ -104,9 +108,6 @@ final class WorkInputs {
         }
     }
 
-    private static final java.util.regex.Pattern REPO_URL_USERINFO =
-        java.util.regex.Pattern.compile( "^[A-Za-z][A-Za-z0-9+.-]*://[^/?#]*@" );
-
     /** The validated product a draft describes, with the autonomy ceiling and deploy gate defaulted. */
     static Product newProduct( final Product draft ) {
         if ( draft.key() == null || !PRODUCT_KEY.matcher( draft.key() ).matches() ) {
@@ -119,9 +120,14 @@ final class WorkInputs {
             draft.deployGate() == null ? DeployGate.HUMAN : draft.deployGate(), null );
     }
 
-    /** A repository URL is shown in lists and kept in the append-only history, so it must carry no user name or password. */
+    /** A repository URL is shown in lists and kept in the append-only history, so it must carry no user name or password (an ssh user name alone is allowed). */
     private static void requireNoCredentials( final String repoUrl ) {
-        if ( repoUrl != null && REPO_URL_USERINFO.matcher( repoUrl.trim() ).find() ) {
+        if ( repoUrl == null ) {
+            return;
+        }
+        final Matcher m = REPO_URL_USERINFO.matcher( repoUrl.trim() );
+        // ssh://git@host is the conventional form: a bare user name there is not a secret, a password always is
+        if ( m.find() && !( SSH_SCHEMES.contains( m.group( 1 ).toLowerCase( Locale.ROOT ) ) && m.group( 2 ).indexOf( ':' ) < 0 ) ) {
             throw new WorkValidationException( "repoUrl", "Leave the user name and password out of the repository URL." );
         }
     }

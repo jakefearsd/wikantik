@@ -20,11 +20,13 @@ package com.wikantik.work;
 
 import com.wikantik.jdbc.NullableColumns;
 import com.wikantik.jdbc.Jdbc;
+import com.wikantik.jdbc.RowMapper;
 import com.wikantik.jdbc.SqlBinder;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -109,34 +111,19 @@ final class JdbcWorkItemWrites {
      */
     boolean renumberColumn( final long projectId, final WorkStatus status, final long movedItemId,
                             final Long beforeItemId ) throws SQLException {
+        // decide on an unlocked read first: the common move needs no renumber and takes no locks
+        if ( plan( readColumn( null, projectId, status, "" ), movedItemId, beforeItemId ) == null ) {
+            return false;
+        }
         return jdbc.inTransaction( conn -> {
-            final List< Ranked > column = jdbc.query( conn, "SELECT id, rank FROM work_item WHERE project_id = ? "
-                    + "AND status = ? ORDER BY rank, id FOR UPDATE",
-                ps -> { ps.setLong( 1, projectId ); ps.setString( 2, status.wire() ); },
-                rs -> new Ranked( rs.getLong( 1 ), rs.getDouble( 2 ) ) );
-            final Ranked moved = column.stream().filter( r -> r.id() == movedItemId ).findFirst().orElse( null );
-            if ( moved == null ) {
+            // lock in id order (no deadlock between two renumbers), then order by (rank, id) here: Postgres does not
+            // re-sort rows it re-fetched after a lock wait
+            final List< Ranked > column = new ArrayList<>( readColumn( conn, projectId, status, " FOR UPDATE" ) );
+            column.sort( Comparator.comparingDouble( Ranked::rank ).thenComparingLong( Ranked::id ) );
+            final List< Ranked > wanted = plan( column, movedItemId, beforeItemId );
+            if ( wanted == null ) {
                 return false;
             }
-            final List< Ranked > wanted = new ArrayList<>( column );
-            wanted.remove( moved );
-            int at = wanted.size();
-            if ( beforeItemId != null ) {
-                for ( int i = 0; i < wanted.size(); i++ ) {
-                    if ( wanted.get( i ).id() == beforeItemId ) {
-                        at = i;
-                        break;
-                    }
-                }
-            } else {
-                at = (int) wanted.stream().filter( r -> r.rank() <= moved.rank() ).count();
-            }
-            final boolean afterPrev = at == 0 || wanted.get( at - 1 ).rank() < moved.rank();
-            final boolean beforeNext = at == wanted.size() || moved.rank() < wanted.get( at ).rank();
-            if ( afterPrev && beforeNext ) {
-                return false;
-            }
-            wanted.add( at, moved );
             final List< SqlBinder > binders = new ArrayList<>();
             for ( int i = 0; i < wanted.size(); i++ ) {
                 final long id = wanted.get( i ).id();
@@ -146,6 +133,47 @@ final class JdbcWorkItemWrites {
             jdbc.batch( conn, "UPDATE work_item SET rank = ? WHERE id = ?", binders );
             return true;
         } );
+    }
+
+    private List< Ranked > readColumn( final Connection conn, final long projectId, final WorkStatus status,
+                                       final String lock ) throws SQLException {
+        final String sql = "SELECT id, rank FROM work_item WHERE project_id = ? AND status = ? ORDER BY "
+            + ( lock.isEmpty() ? "rank, id" : "id" ) + lock;
+        final SqlBinder binder = ps -> { ps.setLong( 1, projectId ); ps.setString( 2, status.wire() ); };
+        final RowMapper< Ranked > mapper = rs -> new Ranked( rs.getLong( 1 ), rs.getDouble( 2 ) );
+        return conn == null ? jdbc.query( sql, binder, mapper ) : jdbc.query( conn, sql, binder, mapper );
+    }
+
+    /**
+     * The order the column should have, or null when the moved card already sits where it was asked to (or is not in
+     * the column). A {@code before} no longer in the column falls back to the rank-based position.
+     */
+    private static List< Ranked > plan( final List< Ranked > column, final long movedItemId, final Long beforeItemId ) {
+        final Ranked moved = column.stream().filter( r -> r.id() == movedItemId ).findFirst().orElse( null );
+        if ( moved == null ) {
+            return null;
+        }
+        final List< Ranked > wanted = new ArrayList<>( column );
+        wanted.remove( moved );
+        int at = -1;
+        if ( beforeItemId != null ) {
+            for ( int i = 0; i < wanted.size(); i++ ) {
+                if ( wanted.get( i ).id() == beforeItemId ) {
+                    at = i;
+                    break;
+                }
+            }
+        }
+        if ( at < 0 ) {
+            at = (int) wanted.stream().filter( r -> r.rank() <= moved.rank() ).count();
+        }
+        final boolean afterPrev = at == 0 || wanted.get( at - 1 ).rank() < moved.rank();
+        final boolean beforeNext = at == wanted.size() || moved.rank() < wanted.get( at ).rank();
+        if ( afterPrev && beforeNext ) {
+            return null;
+        }
+        wanted.add( at, moved );
+        return wanted;
     }
 
     /**

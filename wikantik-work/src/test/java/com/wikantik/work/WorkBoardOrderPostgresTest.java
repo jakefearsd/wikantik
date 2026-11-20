@@ -194,4 +194,33 @@ class WorkBoardOrderPostgresTest {
         assertEquals( List.of( "A", "C", "B" ), order() );
         assertTrue( moved.rank() > ra && moved.rank() < rb );
     }
+
+    @Test
+    void aBeforeCardThatLeftTheColumnFallsBackToTheRankPosition() throws SQLException {
+        tieAandB();
+        final Item ready = move( admin, card( "R" ), Map.of( "status", "ready" ) );
+        // B is dropped at rank 1024 (tied with A) naming a card that is no longer in the column: it keeps its
+        // rank-based place after A, not the end of the column
+        assertTrue( new JdbcWorkStore( ds ).renumberColumn( a.projectId(), WorkStatus.DRAFT, b.id(), ready.id() ) );
+        assertEquals( List.of( "A", "B", "C" ), order() );
+    }
+
+    @Test
+    void aFailedRenumberStillAnswersTheSavedMove() throws SQLException {
+        tieAandB();
+        final JdbcWorkStore spy = org.mockito.Mockito.spy( new JdbcWorkStore( ds ) );
+        org.mockito.Mockito.doThrow( new SQLException( "boom: renumber" ) ).when( spy )
+            .renumberColumn( org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any() );
+        final WorkService failing = new WorkService( spy, md -> md, new WorkDirectory() {
+            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
+            @Override public boolean exists( final String login ) { return true; }
+            @Override public String displayName( final String login ) { return login; }
+            @Override public Optional< String > loginForDisplayName( final String name ) { return Optional.empty(); }
+        }, Clock.systemUTC(), WorkSettings.DEFAULTS, null );
+        final Item moved = failing.updateItem( admin, c.key(), new ItemPatch( c.version(),
+            Map.of( "rank", 1024.0, "before", b.key() ), null ) ).item();
+        assertEquals( 1024.0, moved.rank(), "the move was saved and is returned" );
+        assertEquals( c.version() + 1, versionOf( c ) );
+    }
 }

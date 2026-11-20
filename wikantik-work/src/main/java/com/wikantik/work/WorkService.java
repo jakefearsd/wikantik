@@ -18,6 +18,9 @@
  */
 package com.wikantik.work;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
@@ -46,6 +49,8 @@ import java.util.stream.Collectors;
  * method and that test fails until it is classified.
  */
 public class WorkService {
+
+    private static final Logger LOG = LogManager.getLogger( WorkService.class );
 
     private static final String NOT_FOUND = WorkScopes.NOT_FOUND;
     private static final int PRODUCT_HISTORY_LIMIT = 100;
@@ -347,9 +352,16 @@ public class WorkService {
         final Long beforeId = changes.containsKey( "before" ) ? beforeCard( next, changes ) : null;
         final Item stamped = WorkInputs.withVersion( is.item(), patch.expectedVersion() );
         Item saved = claims.write( stamped, next, actor, patch.note(), false, action, rules );
-        if ( changes.keySet().stream().anyMatch( ItemPatchApplier.MOVE_KEYS::contains )
-                && store.renumberColumn( saved.projectId(), saved.status(), saved.id(), beforeId ) ) {
-            saved = store.itemById( saved.id() ).orElse( saved );
+        if ( changes.keySet().stream().anyMatch( ItemPatchApplier.MOVE_KEYS::contains ) ) {
+            try {
+                if ( store.renumberColumn( saved.projectId(), saved.status(), saved.id(), beforeId ) ) {
+                    saved = store.itemById( saved.id() ).orElse( saved );
+                }
+            } catch ( final SQLException e ) {
+                // the move itself committed; the column's order heals on the next move
+                LOG.warn( "Renumbering the board column failed after the move was saved (project {}, status {}, item {}): {}",
+                    saved.projectId(), saved.status(), saved.key(), e.getMessage(), e );
+            }
         }
         return views.view( s, saved );
     }

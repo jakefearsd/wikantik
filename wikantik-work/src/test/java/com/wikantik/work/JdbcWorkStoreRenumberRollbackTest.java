@@ -64,9 +64,9 @@ class JdbcWorkStoreRenumberRollbackTest {
     @Test
     void aFailedRenumberLeavesEveryRankAsItWas() throws SQLException {
         final List< Double > before = ranks();
-        // statements: 1 lock and read the column, 2 the batch of rank updates
+        // statements: 1 unlocked read of the column, 2 lock and read it, 3 the batch of rank updates
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
-        faulty.failOn( 2, new RuntimeException( "boom: rank batch" ) );
+        faulty.failOn( 3, new RuntimeException( "boom: rank batch" ) );
         assertThrows( RuntimeException.class,
             () -> new JdbcWorkStore( faulty ).renumberColumn( a.projectId(), WorkStatus.DRAFT, c.id(), b.id() ) );
         assertEquals( 1, faulty.rollbacks() );

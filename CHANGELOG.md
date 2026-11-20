@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.7.3] - 2026-11-20
+
+### Changed
+
+- Errors from `/api/briefing` and `/api/structure/*` use the same JSON error body as every other endpoint (`error: true`, `status`, `message`); `message` carries the text that `error` used to hold.
+- PATCH requests to the page and comment-thread endpoints get the same CORS headers as the other methods.
+
+### Fixed
+
+- In the Rich editor, a Mermaid or PlantUML diagram's **Show source** button keeps the drawing and opens its source underneath, as the preview does; **Expand** opens the full-size view. Both used to swap the drawing for raw text.
+- In the Rich editor, a click just below a drawn diagram or table lands on the line under the pointer, not the line above.
+- In a shared draft, a field edit (summary, tags…) made just before a too-large edit forced a resync is offered in the recovery panel instead of being lost.
+- An error message containing a backslash or line break no longer produces invalid JSON from `/api/briefing` and `/api/structure/*`.
+- If your session expires during an Obsidian vault import, you are asked to sign in again, as with every other request.
+- The feed, sitemap and web-crawler connectors skip a sync cycle that hits an unexpected error instead of throwing it.
+
 ## [2.7.2] - 2026-11-19
 
 ### Changed

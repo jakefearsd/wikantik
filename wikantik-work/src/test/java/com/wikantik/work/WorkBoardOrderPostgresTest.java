@@ -154,9 +154,10 @@ class WorkBoardOrderPostgresTest {
         assertEquals( aVersion, versionOf( a ) );
         assertEquals( othersBefore, WorkAgentFixtures.scalar( ds,
             "SELECT count(*) FROM work_event WHERE item_id <> " + c.id() ), "no event for a renumbered card" );
-        final Item stillValid = svc.updateItem( lena, b.key(), new ItemPatch( bVersion, Map.of( "title", "B2" ), null ) )
-            .item();
-        assertEquals( "B2", stillValid.title(), "B's old expectedVersion still works" );
+        final Item second = svc.updateItem( lena, b.key(), new ItemPatch( bVersion,
+            Map.of( "rank", 100.0, "before", a.key() ), null ) ).item();
+        assertEquals( bVersion + 1, second.version(), "B's old expectedVersion still works for a second member's move" );
+        assertEquals( List.of( "B", "A", "C" ), order() );
     }
 
     @Test

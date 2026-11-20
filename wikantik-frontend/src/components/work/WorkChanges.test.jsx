@@ -262,4 +262,12 @@ describe('WorkChanges', () => {
     release({});
     await waitFor(() => expect(screen.queryByLabelText('Branch')).toBeNull());
   });
+
+  it('does not offer Approve once the approval stands on the current head; Send back stays', async () => {
+    listChanges.mockResolvedValue({ changes: [change(2, 'in_review', { approvedForHead: true, reviewedByName: 'Ada' })] });
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('work/PLAT-7-2');
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Send back' })).toBeInTheDocument();
+  });
 });

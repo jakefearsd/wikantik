@@ -57,8 +57,10 @@ function ChangeRow({ change: c, canEdit, busy, act }) {
             <>
               <input className="work-field-input" aria-label={`Review note for ${c.branch}`} placeholder="Review note"
                 value={note} onChange={(e) => setNote(e.target.value)} />
-              <button type="button" className="btn btn-sm" disabled={busy}
-                onClick={() => act(() => reviewChange(c.id, { approved: true, note: note || null }))}>Approve</button>
+              {!c.approvedForHead && (
+                <button type="button" className="btn btn-sm" disabled={busy}
+                  onClick={() => act(() => reviewChange(c.id, { approved: true, note: note || null }))}>Approve</button>
+              )}
               <button type="button" className="btn btn-sm" disabled={busy}
                 onClick={() => act(() => reviewChange(c.id, { approved: false, note: note || null }))}>Send back</button>
             </>

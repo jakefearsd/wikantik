@@ -109,14 +109,7 @@ public class MyMentionsResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Login required" );
             return;
         }
-        final String[] seg = segments( request );
-        if ( seg.length == 0 ) {
-            list( request, response );
-        } else if ( seg.length == 1 && "unread-count".equals( seg[ 0 ] ) ) {
-            unreadCount( request, response );
-        } else {
-            sendNotFound( response, "Unknown mentions route" );
-        }
+        dispatch( "GET", request, response );
     }
 
     @Override
@@ -126,11 +119,30 @@ public class MyMentionsResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Login required" );
             return;
         }
-        final String[] seg = segments( request );
-        if ( seg.length == 1 && "mark-all-read".equals( seg[ 0 ] ) ) {
-            markAllRead( request, response );
-        } else if ( seg.length == 2 && "read".equals( seg[ 1 ] ) ) {
-            markOneRead( request, response, seg[ 0 ] );
+        dispatch( "POST", request, response );
+    }
+
+    /** A route's action, run on the servlet that dispatched it with the path segments the route captured. */
+    @FunctionalInterface
+    private interface Handler {
+        void handle( MyMentionsResource servlet, HttpServletRequest request, HttpServletResponse response,
+                     List< String > captured ) throws IOException;
+    }
+
+    private static final String PREFIX = "/api/me/mentions";
+
+    private static final SegmentRouteTable< Handler > ROUTES = new SegmentRouteTable< Handler >( PREFIX )
+        .add( "GET", "", ( s, req, resp, c ) -> s.list( req, resp ) )
+        .add( "GET", "unread-count", ( s, req, resp, c ) -> s.unreadCount( req, resp ) )
+        .add( "POST", "mark-all-read", ( s, req, resp, c ) -> s.markAllRead( req, resp ) )
+        .add( "POST", "{}/read", ( s, req, resp, c ) -> s.markOneRead( req, resp, c.get( 0 ) ) );
+
+    private void dispatch( final String method, final HttpServletRequest request,
+                           final HttpServletResponse response ) throws IOException {
+        final Optional< SegmentRouteTable.Match< Handler > > match =
+            ROUTES.match( method, SegmentRouteTable.segments( request, PREFIX ) );
+        if ( match.isPresent() ) {
+            match.get().handler().handle( this, request, response, match.get().captured() );
         } else {
             sendNotFound( response, "Unknown mentions route" );
         }
@@ -235,12 +247,5 @@ public class MyMentionsResource extends RestServletBase {
             LOG.debug( "'{}' is not an ISO instant; ignoring it: {}", raw, e.getMessage() );
             return Optional.empty();
         }
-    }
-
-    private static String[] segments( final HttpServletRequest request ) {
-        final String pathInfo = request.getPathInfo();
-        if ( pathInfo == null || pathInfo.isBlank() || "/".equals( pathInfo ) ) return new String[ 0 ];
-        final String trimmed = pathInfo.startsWith( "/" ) ? pathInfo.substring( 1 ) : pathInfo;
-        return trimmed.split( "/" );
     }
 }

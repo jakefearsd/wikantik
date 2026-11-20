@@ -42,7 +42,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -174,23 +173,24 @@ public abstract class WorkResourceBase extends RestServletBase {
         void handle( Call call ) throws Exception;
     }
 
-    private transient volatile List< WorkRoutes.Route > routeTable;
+    private static final String WORK_PREFIX = "/api/work";
+
+    private transient volatile SegmentRouteTable< Handler > routeTable;
 
     /** Adds a route; {@code pattern} is a path under {@code /api/work/} with {@code {}} for a captured segment. */
-    protected static void route( final List< Object[] > into, final String method, final String pattern,
+    protected static void route( final SegmentRouteTable< Handler > into, final String method, final String pattern,
                                  final Handler handler ) {
-        into.add( new Object[] { method, pattern, handler } );
+        into.add( method, pattern, handler );
     }
 
     /** The routes of this servlet: call {@link #route} for each. */
-    protected abstract void routes( List< Object[] > into );
+    protected abstract void routes( SegmentRouteTable< Handler > into );
 
-    private List< WorkRoutes.Route > table() {
-        List< WorkRoutes.Route > t = routeTable;
+    private SegmentRouteTable< Handler > table() {
+        SegmentRouteTable< Handler > t = routeTable;
         if ( t == null ) {
-            final List< Object[] > raw = new ArrayList<>();
-            routes( raw );
-            t = WorkRoutes.compile( raw );
+            t = new SegmentRouteTable<>( WORK_PREFIX );
+            routes( t );
             routeTable = t;
         }
         return t;
@@ -214,14 +214,12 @@ public abstract class WorkResourceBase extends RestServletBase {
             return;
         }
         final String method = request.getMethod() == null ? "" : request.getMethod().toUpperCase( Locale.ROOT );
-        final String[] segs = WorkRoutes.segments( request );
+        final String[] segs = SegmentRouteTable.segments( request, WORK_PREFIX );
         try {
-            for ( final WorkRoutes.Route r : table() ) {
-                final List< String > captured = WorkRoutes.match( r, method, segs );
-                if ( captured != null ) {
-                    r.handler().handle( new Call( request, response, svc, actor, captured ) );
-                    return;
-                }
+            final Optional< SegmentRouteTable.Match< Handler > > match = table().match( method, segs );
+            if ( match.isPresent() ) {
+                match.get().handler().handle( new Call( request, response, svc, actor, match.get().captured() ) );
+                return;
             }
             sendError( response, HttpServletResponse.SC_NOT_FOUND, NOT_FOUND );
         } catch ( final WorkNotFoundException e ) {

@@ -499,6 +499,28 @@ class CommentThreadResourceTest {
         assertTrue( store.listByCanonicalId( "CID1", "all" ).isEmpty(), "nothing is stored for a refused create" );
     }
 
+    /** Characterisation of path dispatch edges: what each odd path answers, pinned before the RouteTable move. */
+    @Test
+    void unknown_paths_are_404_with_the_unknown_route_message() throws Exception {
+        final JsonObject extra = post( null, "/a/b/c", new JsonObject() );
+        assertEquals( 404, extra.get( "status" ).getAsInt() );
+        assertEquals( "Unknown comment route", extra.get( "message" ).getAsString() );
+        assertEquals( 404, post( null, "/a/other", new JsonObject() ).get( "status" ).getAsInt() );
+        assertEquals( 404, patch( "/a", new JsonObject() ).get( "status" ).getAsInt() );
+        assertEquals( 404, patch( "/a/comments", new JsonObject() ).get( "status" ).getAsInt() );
+        assertEquals( 404, del( "/a/b" ).get( "status" ).getAsInt() );
+        assertEquals( 404, del( "/" ).get( "status" ).getAsInt(), "DELETE has no bare-slash route" );
+    }
+
+    @Test
+    void a_bare_or_trailing_slash_dispatches_like_the_path_without_it() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "exact", "hello" );
+        body.addProperty( "text", "first" );
+        final String threadId = post( "?page=PageOne", "/", body ).get( "id" ).getAsString();
+        assertFalse( del( "/" + threadId + "/" ).has( "error" ), "a trailing slash still deletes the thread" );
+    }
+
     @Test
     void create_unknown_page_is_404() throws Exception {
         Mockito.doReturn( Optional.empty() ).when( servlet ).resolveCanonicalId( "Ghost" );
@@ -852,8 +874,7 @@ class CommentThreadResourceTest {
     }
 
     private JsonObject post( final String query, final String pathInfo, final JsonObject body ) throws Exception {
-        final HttpServletRequest req = HttpMockFactory.createHttpRequest(
-                "/api/comment-threads" + ( query == null ? "" : query ) );
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/api/comment-threads" );
         Mockito.doReturn( pathInfo ).when( req ).getPathInfo();
         if ( query != null ) Mockito.doReturn( paramOf( query, "page" ) ).when( req ).getParameter( "page" );
         return invoke( req, "POST", body );

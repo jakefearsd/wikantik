@@ -25,7 +25,6 @@ import com.wikantik.work.DeployGate;
 import com.wikantik.work.Product;
 import com.wikantik.work.WorkNotFoundException;
 
-import java.util.List;
 import java.util.function.Function;
 
 /** {@code /api/work/products/*}: the product catalogue. */
@@ -34,7 +33,7 @@ public class WorkProductResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final List< Object[] > r ) {
+    protected void routes( final SegmentRouteTable< Handler > r ) {
         route( r, "GET", "products", c -> c.tree( productsTree( c ) ) );
         route( r, "POST", "products", c -> {
             final JsonObject b = c.body();

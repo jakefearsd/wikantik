@@ -21,7 +21,6 @@ package com.wikantik.rest;
 import com.google.gson.JsonObject;
 import com.wikantik.work.WorkNotFoundException;
 
-import java.util.List;
 
 /**
  * {@code /api/work/queues/*}: the queues work can be handed to. Anyone who belongs to a project may list them (a
@@ -33,7 +32,7 @@ public class WorkQueueResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final List< Object[] > r ) {
+    protected void routes( final SegmentRouteTable< Handler > r ) {
         route( r, "GET", "queues", c -> c.json( c.svc.registry().listQueues( c.actor ) ) );
         route( r, "POST", "queues", c -> {
             final JsonObject b = c.body();

@@ -46,7 +46,7 @@ public class WorkAgentResource extends WorkResourceBase {
         org.apache.logging.log4j.LogManager.getLogger( WorkAgentResource.class );
 
     @Override
-    protected void routes( final List< Object[] > r ) {
+    protected void routes( final SegmentRouteTable< Handler > r ) {
         route( r, "GET", "agents", c -> c.tree( agentsTree( c, c.svc.registry().agentViews( c.actor ) ) ) );
         route( r, "POST", "agents", this::register );
         route( r, "PATCH", "agents/{}", this::update );

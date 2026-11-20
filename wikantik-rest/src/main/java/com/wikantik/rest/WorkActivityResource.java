@@ -26,7 +26,6 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -41,7 +40,7 @@ public class WorkActivityResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final List< Object[] > r ) {
+    protected void routes( final SegmentRouteTable< Handler > r ) {
         route( r, "GET", "activity", c -> {
             final String project = c.query( "project" );
             if ( project == null ) {

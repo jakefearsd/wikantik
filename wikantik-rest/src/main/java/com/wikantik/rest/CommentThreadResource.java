@@ -127,39 +127,45 @@ public class CommentThreadResource extends RestServletBase {
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        final String[] seg = segments( request );
-        if ( seg.length == 0 ) {
-            createThread( request, response );
-        } else if ( seg.length == 2 && "comments".equals( seg[ 1 ] ) ) {
-            addReply( request, response, seg[ 0 ] );
-        } else if ( seg.length == 2 && "resolve".equals( seg[ 1 ] ) ) {
-            setStatus( request, response, seg[ 0 ], true );
-        } else if ( seg.length == 2 && "reopen".equals( seg[ 1 ] ) ) {
-            setStatus( request, response, seg[ 0 ], false );
-        } else {
-            sendNotFound( response, "Unknown comment route" );
-        }
+        dispatch( "POST", request, response );
     }
 
     @Override
     protected void doPatch( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        final String[] seg = segments( request );
-        if ( seg.length == 3 && "comments".equals( seg[ 1 ] ) ) {
-            editComment( request, response, seg[ 0 ], seg[ 2 ] );
-        } else {
-            sendNotFound( response, "Unknown comment route" );
-        }
+        dispatch( "PATCH", request, response );
     }
 
     @Override
     protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        final String[] seg = segments( request );
-        if ( seg.length == 3 && "comments".equals( seg[ 1 ] ) ) {
-            deleteComment( request, response, seg[ 0 ], seg[ 2 ] );
-        } else if ( seg.length == 1 ) {
-            deleteThread( request, response, seg[ 0 ] );
+        dispatch( "DELETE", request, response );
+    }
+
+    /** A route's action, run on the servlet that dispatched it with the path segments the route captured. */
+    @FunctionalInterface
+    private interface Handler {
+        void handle( CommentThreadResource servlet, HttpServletRequest request, HttpServletResponse response,
+                     List< String > captured ) throws IOException;
+    }
+
+    private static final String PREFIX = "/api/comment-threads";
+
+    private static final SegmentRouteTable< Handler > ROUTES = new SegmentRouteTable< Handler >( PREFIX )
+        .add( "POST", "", ( s, req, resp, c ) -> s.createThread( req, resp ) )
+        .add( "POST", "{}/comments", ( s, req, resp, c ) -> s.addReply( req, resp, c.get( 0 ) ) )
+        .add( "POST", "{}/resolve", ( s, req, resp, c ) -> s.setStatus( req, resp, c.get( 0 ), true ) )
+        .add( "POST", "{}/reopen", ( s, req, resp, c ) -> s.setStatus( req, resp, c.get( 0 ), false ) )
+        .add( "PATCH", "{}/comments/{}", ( s, req, resp, c ) -> s.editComment( req, resp, c.get( 0 ), c.get( 1 ) ) )
+        .add( "DELETE", "{}/comments/{}", ( s, req, resp, c ) -> s.deleteComment( req, resp, c.get( 0 ), c.get( 1 ) ) )
+        .add( "DELETE", "{}", ( s, req, resp, c ) -> s.deleteThread( req, resp, c.get( 0 ) ) );
+
+    private void dispatch( final String method, final HttpServletRequest request,
+                           final HttpServletResponse response ) throws IOException {
+        final Optional< SegmentRouteTable.Match< Handler > > match =
+            ROUTES.match( method, SegmentRouteTable.segments( request, PREFIX ) );
+        if ( match.isPresent() ) {
+            match.get().handler().handle( this, request, response, match.get().captured() );
         } else {
             sendNotFound( response, "Unknown comment route" );
         }
@@ -357,13 +363,6 @@ public class CommentThreadResource extends RestServletBase {
         if ( CommentThread.OPEN.equals( raw ) || CommentThread.RESOLVED.equals( raw )
                 || CommentThread.DISMISSED.equals( raw ) ) return raw;
         return "all";
-    }
-
-    private static String[] segments( final HttpServletRequest request ) {
-        final String pathInfo = request.getPathInfo();
-        if ( pathInfo == null || pathInfo.isBlank() || "/".equals( pathInfo ) ) return new String[ 0 ];
-        final String trimmed = pathInfo.startsWith( "/" ) ? pathInfo.substring( 1 ) : pathInfo;
-        return trimmed.split( "/" );
     }
 
     /**

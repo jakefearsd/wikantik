@@ -261,6 +261,42 @@ class SelfApiKeysResourceTest {
         verify( mockService, never() ).revoke( anyInt(), anyString() );
     }
 
+    /** Characterisation of path dispatch edges: what each odd path answers, pinned before the RouteTable move. */
+    @Test
+    void postToAnUnknownPathReturns404() throws Exception {
+        for ( final String pathInfo : new String[] { "/nope", "/7/rotate/extra", "/abc/rotate", "/7", "/7/" } ) {
+            final SelfApiKeysResource servlet = newServlet();
+            final HttpServletRequest request = mock( HttpServletRequest.class );
+            when( request.getPathInfo() ).thenReturn( pathInfo );
+            final StringWriter out = new StringWriter();
+            final HttpServletResponse response = mockResponse( out );
+
+            servlet.doPost( request, response );
+
+            verify( response ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+            assertTrue( out.toString().contains( "Not found" ), pathInfo + ": " + out );
+        }
+        verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
+        verify( mockService, never() ).revoke( anyInt(), anyString() );
+    }
+
+    @Test
+    void deleteWithoutAWholeNumberIdReturns400() throws Exception {
+        for ( final String pathInfo : new String[] { null, "/", "/abc", "/7/rotate" } ) {
+            final SelfApiKeysResource servlet = newServlet();
+            final HttpServletRequest request = mock( HttpServletRequest.class );
+            when( request.getPathInfo() ).thenReturn( pathInfo );
+            final StringWriter out = new StringWriter();
+            final HttpServletResponse response = mockResponse( out );
+
+            servlet.doDelete( request, response );
+
+            verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+            assertTrue( out.toString().contains( "Key id required in path" ), pathInfo + ": " + out );
+        }
+        verify( mockService, never() ).revoke( anyInt(), anyString() );
+    }
+
     @Test
     void postWithInvalidScopeReturns400() throws Exception {
         final SelfApiKeysResource servlet = newServlet();

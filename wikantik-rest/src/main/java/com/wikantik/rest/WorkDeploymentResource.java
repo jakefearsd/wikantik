@@ -45,7 +45,7 @@ public class WorkDeploymentResource extends WorkResourceBase {
     private static final int LIST_DEFAULT = 20;
 
     @Override
-    protected void routes( final List< Object[] > r ) {
+    protected void routes( final SegmentRouteTable< Handler > r ) {
         route( r, "POST", "deployments", this::request );
         route( r, "GET", "deployments", this::list );
         route( r, "GET", "deployments/{}", c -> c.tree( view( c, c.svc.deployments().deployment( c.actor, c.idParam( 0 ) ) ) ) );

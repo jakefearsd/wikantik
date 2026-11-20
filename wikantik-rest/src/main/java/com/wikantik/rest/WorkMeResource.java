@@ -25,7 +25,6 @@ import com.wikantik.work.Actor;
 import com.wikantik.work.WaitingItem;
 import com.wikantik.work.WorkEvent;
 
-import java.util.List;
 
 /**
  * {@code /api/work/me}: what is waiting on the caller, and the projects they can see. Each waiting item says why it is
@@ -37,7 +36,7 @@ public class WorkMeResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final List< Object[] > r ) {
+    protected void routes( final SegmentRouteTable< Handler > r ) {
         route( r, "GET", "me", c -> {
             final JsonObject out = new JsonObject();
             out.add( "waitingOn", waitingOn( c ) );

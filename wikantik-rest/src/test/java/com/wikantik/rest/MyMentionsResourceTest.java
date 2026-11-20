@@ -298,6 +298,21 @@ class MyMentionsResourceTest {
         assertEquals( 404, res.get( "status" ).getAsInt() );
     }
 
+    /** Characterisation of path dispatch edges: what each odd path answers, pinned before the RouteTable move. */
+    @Test
+    void path_dispatch_edges_are_pinned() throws Exception {
+        Mockito.when( feed.list( Mockito.anyString(), Mockito.any(), Mockito.anyInt(), Mockito.any() ) )
+                .thenReturn( List.of() );
+        Mockito.when( svc.unreadCount( Mockito.anyString() ) ).thenReturn( 3 );
+        assertTrue( invokeGetPath( "/" ).has( "mentions" ), "a bare slash is the list" );
+        assertEquals( 3, invokeGetPath( "/unread-count/" ).get( "count" ).getAsInt(),
+                "a trailing slash is ignored" );
+        assertEquals( 404, invokeGetPath( "/unread-count/extra" ).get( "status" ).getAsInt() );
+        assertEquals( 404, invokePost( "/a/b/c" ).get( "status" ).getAsInt() );
+        assertEquals( 404, invokePost( "/read" ).get( "status" ).getAsInt(), "'read' alone names no mention" );
+        assertEquals( 404, invokePost( "/" ).get( "status" ).getAsInt(), "POST has no bare-slash route" );
+    }
+
     // ---- 10: parseInstant + clampLimit branches ----
 
     @Test

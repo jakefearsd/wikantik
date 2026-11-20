@@ -31,7 +31,6 @@ import com.wikantik.work.WorkValidationException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -48,7 +47,7 @@ public class WorkItemResource extends WorkResourceBase {
     private static final int CLAIMABLE_MAX = 50;
 
     @Override
-    protected void routes( final List< Object[] > r ) {
+    protected void routes( final SegmentRouteTable< Handler > r ) {
         route( r, "GET", "items", c -> {
             final String project = c.query( "project" );
             if ( project == null ) {

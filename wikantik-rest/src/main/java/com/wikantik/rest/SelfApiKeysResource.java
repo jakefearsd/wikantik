@@ -136,16 +136,9 @@ public class SelfApiKeysResource extends RestServletBase {
         final ApiKeyService svc = service();
         if ( svc == null ) { unavailable( response ); return; }
 
-        final Integer rotateId = parseRotateId( request.getPathInfo() );
-        if ( rotateId != null ) {
-            rotate( svc, login, rotateId, callerIsAdmin( request ), response );
-            return;
-        }
-        if ( request.getPathInfo() != null && !"/".equals( request.getPathInfo() ) ) {
+        if ( !dispatch( "POST", request, response, svc, login ) ) {
             sendNotFound( response, "Not found" );
-            return;
         }
-        generate( request, svc, login, response );
     }
 
     @Override
@@ -156,8 +149,53 @@ public class SelfApiKeysResource extends RestServletBase {
         final ApiKeyService svc = service();
         if ( svc == null ) { unavailable( response ); return; }
 
-        final Integer id = parseLeadingId( request.getPathInfo() );
-        if ( id == null ) { sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Key id required in path" ); return; }
+        if ( !dispatch( "DELETE", request, response, svc, login ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, KEY_ID_REQUIRED );
+        }
+    }
+
+    /** A route's action, run on the servlet that dispatched it for the signed-in {@code login}. */
+    @FunctionalInterface
+    private interface Handler {
+        void handle( SelfApiKeysResource servlet, HttpServletRequest request, HttpServletResponse response,
+                     ApiKeyService svc, String login, List< String > captured ) throws IOException;
+    }
+
+    private static final String KEY_ID_REQUIRED = "Key id required in path";
+
+    private static final String PREFIX = "/api/self/apikeys";
+
+    private static final SegmentRouteTable< Handler > ROUTES = new SegmentRouteTable< Handler >( PREFIX )
+        .add( "POST", "", ( s, req, resp, svc, login, c ) -> s.generate( req, svc, login, resp ) )
+        .add( "POST", "{}/rotate", ( s, req, resp, svc, login, c ) -> s.rotateKey( req, resp, svc, login, c.get( 0 ) ) )
+        .add( "DELETE", "{}", ( s, req, resp, svc, login, c ) -> s.revokeKey( resp, svc, login, c.get( 0 ) ) );
+
+    /** Runs the route for {@code method} and the request path; false when no route matches. */
+    private boolean dispatch( final String method, final HttpServletRequest request, final HttpServletResponse response,
+                              final ApiKeyService svc, final String login ) throws IOException {
+        final Optional< SegmentRouteTable.Match< Handler > > match =
+            ROUTES.match( method, SegmentRouteTable.segments( request, PREFIX ) );
+        if ( match.isEmpty() ) {
+            return false;
+        }
+        match.get().handler().handle( this, request, response, svc, login, match.get().captured() );
+        return true;
+    }
+
+    private void rotateKey( final HttpServletRequest request, final HttpServletResponse response,
+                            final ApiKeyService svc, final String login, final String idRaw ) throws IOException {
+        final Integer id = parseId( idRaw );
+        if ( id == null ) {
+            sendNotFound( response, "Not found" );
+            return;
+        }
+        rotate( svc, login, id, callerIsAdmin( request ), response );
+    }
+
+    private void revokeKey( final HttpServletResponse response, final ApiKeyService svc, final String login,
+                            final String idRaw ) throws IOException {
+        final Integer id = parseId( idRaw );
+        if ( id == null ) { sendError( response, HttpServletResponse.SC_BAD_REQUEST, KEY_ID_REQUIRED ); return; }
 
         // Ownership gate: unknown OR not-owned OR already-revoked all collapse to 404 (no oracle).
         final Optional< ApiKeyService.Record > rec = svc.findById( id );
@@ -277,31 +315,15 @@ public class SelfApiKeysResource extends RestServletBase {
     }
 
     /** Returns the id from a "/{id}/rotate" pathInfo, or null if it isn't a rotate path. */
-    private static Integer parseRotateId( final String pathInfo ) {
-        if ( pathInfo == null ) return null;
-        final String[] parts = pathInfo.split( "/" );   // "/7/rotate" -> ["", "7", "rotate"]
-        if ( parts.length == 3 && "rotate".equals( parts[2] ) ) {
-            try { return Integer.valueOf( parts[1] ); } catch ( final NumberFormatException e ) {
-                // Client-supplied path; no id means the route does not match.
-                LOG.debug( "Path segment '{}' is not an integer id: {}", parts[1], e.getMessage() );
-                return null;
-            }
+    /** The whole-number key id in a path segment, or null when it is not one. */
+    private static Integer parseId( final String segment ) {
+        try {
+            return Integer.valueOf( segment );
+        } catch ( final NumberFormatException e ) {
+            // Client-supplied path; no id means the route does not match.
+            LOG.debug( "Path segment '{}' is not an integer id: {}", segment, e.getMessage() );
+            return null;
         }
-        return null;
-    }
-
-    /** Returns the leading numeric id from a "/{id}" pathInfo, or null. */
-    private static Integer parseLeadingId( final String pathInfo ) {
-        if ( pathInfo == null ) return null;
-        final String[] parts = pathInfo.split( "/" );   // "/7" -> ["", "7"]
-        if ( parts.length == 2 && !parts[1].isBlank() ) {
-            try { return Integer.valueOf( parts[1] ); } catch ( final NumberFormatException e ) {
-                // Client-supplied path; no id means the route does not match.
-                LOG.debug( "Path segment '{}' is not an integer id: {}", parts[1], e.getMessage() );
-                return null;
-            }
-        }
-        return null;
     }
 
     private static String toIso( final Instant i ) {

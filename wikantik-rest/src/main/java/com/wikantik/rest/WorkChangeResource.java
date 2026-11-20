@@ -20,7 +20,6 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 
-import java.util.List;
 
 /**
  * {@code /api/work/changes/*}: what happens to a change once it is open. Opening and listing are item routes
@@ -32,7 +31,7 @@ public class WorkChangeResource extends WorkResourceBase {
     private static final long serialVersionUID = 1L;
 
     @Override
-    protected void routes( final List< Object[] > r ) {
+    protected void routes( final SegmentRouteTable< Handler > r ) {
         route( r, "PATCH", "changes/{}", c -> {
             final JsonObject b = c.body();
             if ( b != null ) {

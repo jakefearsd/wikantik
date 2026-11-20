@@ -342,17 +342,21 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     @Override
     public void updateProduct( final Product before, final Product after, final Actor by ) throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
-        final List< String[] > changed = new ArrayList<>();
-        addIfChanged( changed, "name", before.name(), after.name() );
-        addIfChanged( changed, "repo_url", before.repoUrl(), after.repoUrl() );
-        addIfChanged( changed, "default_branch", before.defaultBranch(), after.defaultBranch() );
-        addIfChanged( changed, "wiki_cluster", before.wikiCluster(), after.wikiCluster() );
-        addIfChanged( changed, "autonomy_ceiling", before.autonomyCeiling().wire(), after.autonomyCeiling().wire() );
-        addIfChanged( changed, "deploy_gate", before.deployGate().wire(), after.deployGate().wire() );
-        if ( changed.isEmpty() ) {
-            return;
-        }
         jdbc.inTransaction( conn -> {
+            // diff against the row as it is under lock, so two concurrent edits record from-values that chain
+            final Product current = jdbc.queryOne( conn, "SELECT " + PRODUCT_COLUMNS
+                    + " FROM work_product WHERE id = ? FOR UPDATE", ps -> ps.setLong( 1, before.id() ), PRODUCT_ROW )
+                .orElse( before );
+            final List< String[] > changed = new ArrayList<>();
+            addIfChanged( changed, "name", current.name(), after.name() );
+            addIfChanged( changed, "repo_url", current.repoUrl(), after.repoUrl() );
+            addIfChanged( changed, "default_branch", current.defaultBranch(), after.defaultBranch() );
+            addIfChanged( changed, "wiki_cluster", current.wikiCluster(), after.wikiCluster() );
+            addIfChanged( changed, "autonomy_ceiling", current.autonomyCeiling().wire(), after.autonomyCeiling().wire() );
+            addIfChanged( changed, "deploy_gate", current.deployGate().wire(), after.deployGate().wire() );
+            if ( changed.isEmpty() ) {
+                return null;
+            }
             jdbc.update( conn, "UPDATE work_product SET name = ?, repo_url = ?, default_branch = ?, wiki_cluster = ?, "
                     + "autonomy_ceiling = ?, deploy_gate = ? WHERE id = ?",
                 ps -> {
@@ -375,11 +379,23 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     public void archiveProduct( final Product product, final Instant at, final Actor by ) throws SQLException {
         requireAttributed( by.kind(), by.agentId() );
         jdbc.inTransaction( conn -> {
-            jdbc.update( conn, "UPDATE work_product SET archived_at = ? WHERE id = ?",
+            // already archived: nothing to overwrite and nothing to record
+            final int archived = jdbc.update( conn, "UPDATE work_product SET archived_at = ? WHERE id = ? "
+                    + "AND archived_at IS NULL",
                 ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, product.id() ); } );
-            appendProductEvent( conn, product.id(), by, "archived", null, at.toString() );
+            if ( archived > 0 ) {
+                appendProductEvent( conn, product.id(), by, "archived", null, at.toString() );
+            }
             return null;
         } );
+    }
+
+    private static final java.util.regex.Pattern URL_USERINFO =
+        java.util.regex.Pattern.compile( "^([A-Za-z][A-Za-z0-9+.-]*://)[^/?#]*@" );
+
+    /** {@code scheme://user:pass@host/…} and {@code scheme://user@host/…} become {@code scheme://***@host/…}. */
+    static String maskUserinfo( final String value ) {
+        return value == null ? null : URL_USERINFO.matcher( value ).replaceFirst( "$1***@" );
     }
 
     private void appendProductEvent( final Connection conn, final long productId, final Actor by, final String field,
@@ -392,8 +408,8 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
                 ps.setString( 3, actorKindWire( by.kind() ) );
                 setNullableLong( ps, 4, by.agentId() );
                 ps.setString( 5, field );
-                ps.setString( 6, from );
-                ps.setString( 7, to );
+                ps.setString( 6, "repo_url".equals( field ) ? maskUserinfo( from ) : from );
+                ps.setString( 7, "repo_url".equals( field ) ? maskUserinfo( to ) : to );
             } );
     }
 

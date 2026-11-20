@@ -109,4 +109,48 @@ class WorkProductHistoryPostgresTest {
     void anUnknownProductHasNoHistory() {
         assertThrows( WorkNotFoundException.class, () -> f.svc.productHistory( f.admin, "ghost" ) );
     }
+
+    @Test
+    void historyNeverKeepsARepositoryUrlsCredentials() throws SQLException {
+        WorkAgentFixtures.exec( f.ds, "UPDATE work_product SET repo_url = 'https://bot:s3cret@git.example.com/org/x.git'" );
+        final Product p = current();
+        f.svc.updateProduct( f.admin, new Product( p.id(), p.key(), p.name(), "git@git.example.com:org/x.git",
+            p.defaultBranch(), p.wikiCluster(), p.autonomyCeiling(), p.deployGate(), p.archivedAt() ) );
+        final ProductEvent e = f.svc.productHistory( f.admin, "wikantik" ).get( 0 );
+        assertEquals( "repo_url", e.field() );
+        assertEquals( "https://***@git.example.com/org/x.git", e.fromValue() );
+        assertEquals( "git@git.example.com:org/x.git", e.toValue(), "scp-style is not userinfo" );
+    }
+
+    @Test
+    void maskingHidesUserinfoOnlyInUrls() {
+        assertEquals( "ssh://***@host/o/x.git", JdbcWorkCatalog.maskUserinfo( "ssh://git@host/o/x.git" ) );
+        assertEquals( "https://***@host/x", JdbcWorkCatalog.maskUserinfo( "https://u:p@host/x" ) );
+        assertEquals( "https://host/x", JdbcWorkCatalog.maskUserinfo( "https://host/x" ) );
+        assertNull( JdbcWorkCatalog.maskUserinfo( null ) );
+    }
+
+    @Test
+    void archivingAnArchivedProductChangesNothing() throws SQLException {
+        f.svc.archiveProduct( f.admin, "wikantik" );
+        final Instant first = f.svc.listProducts( f.admin ).stream().filter( x -> x.key().equals( "wikantik" ) )
+            .findFirst().orElseThrow().archivedAt();
+        f.svc.archiveProduct( f.admin, "wikantik" );
+        assertEquals( 1, f.svc.productHistory( f.admin, "wikantik" ).size() );
+        assertEquals( first, f.svc.listProducts( f.admin ).stream().filter( x -> x.key().equals( "wikantik" ) )
+            .findFirst().orElseThrow().archivedAt() );
+    }
+
+    @Test
+    void concurrentEditsRecordFromValuesThatChain() throws SQLException {
+        final Product stale = current();
+        final JdbcWorkStore store = new JdbcWorkStore( f.ds );
+        store.updateProduct( stale, new Product( stale.id(), stale.key(), "One", stale.repoUrl(), stale.defaultBranch(),
+            stale.wikiCluster(), stale.autonomyCeiling(), stale.deployGate(), null ), f.admin );
+        store.updateProduct( stale, new Product( stale.id(), stale.key(), "Two", stale.repoUrl(), stale.defaultBranch(),
+            stale.wikiCluster(), stale.autonomyCeiling(), stale.deployGate(), null ), f.admin );
+        final List< ProductEvent > events = f.svc.productHistory( f.admin, "wikantik" );
+        assertEquals( "Two", events.get( 0 ).toValue() );
+        assertEquals( "One", events.get( 0 ).fromValue(), "diffed against the row as it is, not the caller's copy" );
+    }
 }

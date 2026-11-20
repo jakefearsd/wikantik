@@ -76,6 +76,26 @@ class BriefingResourceTest {
         return req;
     }
 
+    /* error bodies are valid JSON even when the message carries a backslash, newline or quote */
+    @Test
+    void errorBody_isValidJson_forHostileMessage() throws Exception {
+        final BriefingResource resource = new BriefingResource() {
+            @Override protected BriefingAssemblyService briefingService() { return mock( BriefingAssemblyService.class ); }
+        };
+        final String hostile = "a\\b\nc\"d\u0001";
+        final HttpServletRequest request = req( "A", null, null, null, hostile, null );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( request, resp );
+
+        verify( resp ).setStatus( 400 );
+        final JsonObject body = JsonParser.parseString( sw.toString() ).getAsJsonObject();
+        assertTrue( body.get( "error" ).getAsBoolean() );
+        assertTrue( body.get( "message" ).getAsString().contains( "a\\b\nc" ) );
+    }
+
     /* (a) no params -> 400 */
     @Test
     void noParams_returns_400() throws Exception {

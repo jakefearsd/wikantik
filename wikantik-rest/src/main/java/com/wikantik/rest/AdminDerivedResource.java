@@ -122,7 +122,7 @@ public class AdminDerivedResource extends RestServletBase {
 
     private void handleStatus( final HttpServletResponse response ) throws IOException {
         final DerivedReflowService.ReflowStatus status = statusSnapshot();
-        sendJsonWithStatus( response, 200, Map.of(
+        RestJson.sendJsonKeepingNulls( response, 200, Map.of(
             "derivedTotal",          status.derivedTotal(),
             "staleCount",            status.staleCount(),
             "currentExtractorVersion", status.currentExtractorVersion() ) );
@@ -174,7 +174,7 @@ public class AdminDerivedResource extends RestServletBase {
             // Single-page reflow
             LOG.info( "AdminDerivedResource: reflow requested for page='{}' by author='{}'", page, admin );
             final IngestResult result = svc.reflow( page, admin );
-            sendJsonWithStatus( response, 200, Map.of(
+            RestJson.sendJsonKeepingNulls( response, 200, Map.of(
                 "page",    result.pageName(),
                 "status",  result.status().name().toLowerCase( Locale.ROOT ),
                 "message", result.message() != null ? result.message() : "" ) );
@@ -184,7 +184,7 @@ public class AdminDerivedResource extends RestServletBase {
             final DerivedReflowService.ReflowSummary summary = svc.reflowAll( admin );
             LOG.info( "AdminDerivedResource: reflowAll complete — reflowed={} skipped={} failed={}",
                 summary.reflowed(), summary.skipped(), summary.failed() );
-            sendJsonWithStatus( response, 200, Map.of(
+            RestJson.sendJsonKeepingNulls( response, 200, Map.of(
                 "reflowed", summary.reflowed(),
                 "skipped",  summary.skipped(),
                 "failed",   summary.failed() ) );
@@ -283,19 +283,5 @@ public class AdminDerivedResource extends RestServletBase {
 
         return new DerivedReflowService( pageReader::readMetadata, pageLister,
             attachmentReader, ingestionService );
-    }
-
-    // -------------------------------------------------------------------------
-    // JSON helper (mirrors AdminOntologyResource)
-    // -------------------------------------------------------------------------
-
-    private void sendJsonWithStatus( final HttpServletResponse response,
-                                     final int                  status,
-                                     final Object               payload ) throws IOException {
-        response.setStatus( status );
-        response.setContentType( "application/json" );
-        response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write(
-            new com.google.gson.GsonBuilder().serializeNulls().create().toJson( payload ) );
     }
 }

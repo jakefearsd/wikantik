@@ -51,8 +51,6 @@ public class AdminDriftResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AdminDriftResource.class );
-    private static final com.google.gson.Gson NULL_SAFE_GSON =
-            new com.google.gson.GsonBuilder().serializeNulls().create();
 
     /** Admin-only surface — no cross-origin access. */
     @Override
@@ -102,10 +100,10 @@ public class AdminDriftResource extends RestServletBase {
         try {
             service.triggerAsync( "manual" );
             LOG.info( "manual drift sweep triggered" );
-            sendJsonWithStatus( response, 202, Map.of( "state", "RUNNING" ) );
+            RestJson.sendJsonKeepingNulls( response, 202, Map.of( "state", "RUNNING" ) );
         } catch ( final DriftSweepService.SweepAlreadyRunningException e ) {
             LOG.warn( "manual drift sweep rejected — already running" );
-            sendJsonWithStatus( response, HttpServletResponse.SC_CONFLICT,
+            RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_CONFLICT,
                     Map.of( "state", "RUNNING", "error", "a drift sweep is already running" ) );
         }
     }
@@ -117,7 +115,7 @@ public class AdminDriftResource extends RestServletBase {
         if ( latest.isEmpty() ) {
             out.put( "sweptAt", null );
             out.put( "counts", List.of() );
-            sendJsonWithStatus( response, 200, out );
+            RestJson.sendJsonKeepingNulls( response, 200, out );
             return;
         }
         final DriftSweepRecord sweep = latest.get();
@@ -141,7 +139,7 @@ public class AdminDriftResource extends RestServletBase {
         out.put( "durationMs", sweep.durationMs() );
         out.put( "triggeredBy", sweep.triggeredBy() );
         out.put( "counts", counts );
-        sendJsonWithStatus( response, 200, out );
+        RestJson.sendJsonKeepingNulls( response, 200, out );
     }
 
     private void handleTrend( final DriftSweepService service, final HttpServletRequest request, final HttpServletResponse response )
@@ -166,7 +164,7 @@ public class AdminDriftResource extends RestServletBase {
                     "severity", c.severity(), "count", c.count() ) ).toList() );
             sweeps.add( row );
         }
-        sendJsonWithStatus( response, 200, Map.of( "sweeps", sweeps ) );
+        RestJson.sendJsonKeepingNulls( response, 200, Map.of( "sweeps", sweeps ) );
     }
 
     private void handlePages( final HttpServletRequest request, final HttpServletResponse response,
@@ -190,7 +188,7 @@ public class AdminDriftResource extends RestServletBase {
             row.put( "suggestion", v.suggestion() );
             pages.add( row );
         }
-        sendJsonWithStatus( response, 200, Map.of( "pages", pages ) );
+        RestJson.sendJsonKeepingNulls( response, 200, Map.of( "pages", pages ) );
     }
 
     private void handleStatus( final DriftSweepService service, final HttpServletResponse response )
@@ -202,7 +200,7 @@ public class AdminDriftResource extends RestServletBase {
         out.put( "pagesScanned", p.pagesScanned() );
         out.put( "totalPages", p.totalPages() );
         out.put( "lastError", service.lastError() );
-        sendJsonWithStatus( response, 200, out );
+        RestJson.sendJsonKeepingNulls( response, 200, out );
     }
 
     private void handleCitations( final HttpServletRequest request,
@@ -221,7 +219,7 @@ public class AdminDriftResource extends RestServletBase {
             out.put( "counts", counts );
             out.put( "outbound", List.of() );
             out.put( "inbound", List.of() );
-            sendJsonWithStatus( response, 200, out );
+            RestJson.sendJsonKeepingNulls( response, 200, out );
             return;
         }
 
@@ -247,7 +245,7 @@ public class AdminDriftResource extends RestServletBase {
         out.put( "counts", counts );
         out.put( "outbound", outbound );
         out.put( "inbound", inbound );
-        sendJsonWithStatus( response, 200, out );
+        RestJson.sendJsonKeepingNulls( response, 200, out );
     }
 
     private static Map< String, Object > citationRowJson( final CitationRow row ) {
@@ -275,11 +273,4 @@ public class AdminDriftResource extends RestServletBase {
         return service.repository();
     }
 
-    private void sendJsonWithStatus( final HttpServletResponse response, final int status,
-                                     final Object payload ) throws IOException {
-        response.setStatus( status );
-        response.setContentType( "application/json" );
-        response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write( NULL_SAFE_GSON.toJson( payload ) );
-    }
 }

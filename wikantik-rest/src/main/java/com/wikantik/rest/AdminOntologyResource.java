@@ -67,7 +67,7 @@ public class AdminOntologyResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "ontology service not available" );
             return;
         }
-        sendJsonWithStatus( response, 200, toMap( svc.status() ) );
+        RestJson.sendJsonKeepingNulls( response, 200, toMap( svc.status() ) );
     }
 
     private void handleRebuild( final HttpServletResponse response ) throws IOException {
@@ -79,13 +79,13 @@ public class AdminOntologyResource extends RestServletBase {
         try {
             final OntologyRebuildStatus snap = svc.triggerRebuild();
             LOG.info( "Ontology rebuild triggered" );
-            sendJsonWithStatus( response, 202, toMap( snap ) );
+            RestJson.sendJsonKeepingNulls( response, 202, toMap( snap ) );
         } catch ( final OntologyRebuildCoordinator.ConflictException e ) {
             LOG.warn( "Ontology rebuild rejected — already running: {}", e.getMessage() );
-            sendJsonWithStatus( response, HttpServletResponse.SC_CONFLICT, toMap( svc.status() ) );
+            RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_CONFLICT, toMap( svc.status() ) );
         } catch ( final OntologyRebuildCoordinator.DisabledException e ) {
             LOG.warn( "Ontology rebuild rejected — disabled" );
-            sendJsonWithStatus( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+            RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     Map.of( "error", "ontology disabled", "flag", "wikantik.ontology.enabled" ) );
         }
     }
@@ -95,11 +95,4 @@ public class AdminOntologyResource extends RestServletBase {
                 "graphCount", s.graphCount(), "lastError", s.lastError() == null ? "" : s.lastError() );
     }
 
-    private void sendJsonWithStatus( final HttpServletResponse response, final int status, final Object payload )
-            throws IOException {
-        response.setStatus( status );
-        response.setContentType( "application/json" );
-        response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write( new com.google.gson.GsonBuilder().serializeNulls().create().toJson( payload ) );
-    }
 }

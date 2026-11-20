@@ -56,7 +56,7 @@ public class StructureResource extends RestServletBase {
         final String pathInfo = Optional.ofNullable( req.getPathInfo() ).orElse( "" );
         final StructuralIndexService svc = getSubsystems().pageGraph().structuralIndexService();
         if ( svc == null ) {
-            writeError( resp, 503, "structural index unavailable" );
+            RestJson.sendError( resp, 503, "structural index unavailable" );
             return;
         }
 
@@ -73,11 +73,11 @@ public class StructureResource extends RestServletBase {
             } else if ( "/sitemap".equals( pathInfo ) ) {
                 writeSitemap( resp, svc, req );
             } else {
-                writeError( resp, 404, "unknown structure path: " + pathInfo );
+                RestJson.sendError( resp, 404, "unknown structure path: " + pathInfo );
             }
         } catch ( final RuntimeException e ) {
             LOG.warn( "/api/structure{} failed: {}", pathInfo, e.getMessage(), e );
-            writeError( resp, 500, e.getMessage() );
+            RestJson.sendError( resp, 500, e.getMessage() );
         }
     }
 
@@ -114,7 +114,7 @@ public class StructureResource extends RestServletBase {
         final VisibleCluster visible = d.isEmpty() ? null : visibleMembers( req, d.get() );
         if ( visible == null || visible.empty() ) {
             // A cluster none of whose members the caller may view answers as one that does not exist.
-            writeError( resp, 404, "cluster not found: " + name );
+            RestJson.sendError( resp, 404, "cluster not found: " + name );
             return;
         }
         final JsonObject data = visible.detailJson( d.get().name() );
@@ -235,14 +235,6 @@ public class StructureResource extends RestServletBase {
         resp.getWriter().write( GSON.toJson( envelope ) );
     }
 
-    private void writeError( final HttpServletResponse resp, final int status, final String message )
-            throws IOException {
-        resp.setStatus( status );
-        resp.setContentType( "application/json; charset=UTF-8" );
-        final JsonObject err = new JsonObject();
-        err.addProperty( "error", message );
-        resp.getWriter().write( GSON.toJson( err ) );
-    }
 
     private static int parseIntOr( final String raw, final int fallback ) {
         if ( raw == null || raw.isBlank() ) return fallback;

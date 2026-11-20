@@ -427,7 +427,7 @@ public class AdminContentResource extends RestServletBase {
                 "rebuild service not available" );
             return;
         }
-        sendJsonWithStatus( response, HttpServletResponse.SC_OK,
+        RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_OK,
             snapshotToMap( svc.snapshot() ) );
     }
 
@@ -441,14 +441,14 @@ public class AdminContentResource extends RestServletBase {
         try {
             final IndexStatusSnapshot snap = svc.triggerRebuild();
             LOG.info( "Content index rebuild triggered" );
-            sendJsonWithStatus( response, 202, snapshotToMap( snap ) );
+            RestJson.sendJsonKeepingNulls( response, 202, snapshotToMap( snap ) );
         } catch ( final ContentIndexRebuildService.ConflictException e ) {
             LOG.warn( "Rebuild rejected — already in flight: {}", e.getMessage() );
-            sendJsonWithStatus( response, HttpServletResponse.SC_CONFLICT,
+            RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_CONFLICT,
                 snapshotToMap( e.current() ) );
         } catch ( final ContentIndexRebuildService.DisabledException e ) {
             LOG.warn( "Rebuild rejected — disabled by configuration" );
-            sendJsonWithStatus( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+            RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 Map.of(
                     "error", "rebuild disabled",
                     "flag", "wikantik.rebuild.enabled" ) );
@@ -466,7 +466,7 @@ public class AdminContentResource extends RestServletBase {
         final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =
             getSubsystems().search().bootstrapEmbeddingIndexer();
         if ( boot == null ) {
-            sendJsonWithStatus( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+            RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 Map.of(
                     "error", true,
                     "status", HttpServletResponse.SC_SERVICE_UNAVAILABLE,
@@ -477,12 +477,12 @@ public class AdminContentResource extends RestServletBase {
         try {
             boot.forceStart();
             LOG.info( "Embedding reindex force-started via admin UI (model={})", boot.modelCode() );
-            sendJsonWithStatus( response, 202,
+            RestJson.sendJsonKeepingNulls( response, 202,
                 Map.of( "state", boot.progress().state().name(),
                         "model_code", boot.modelCode() ) );
         } catch( final IllegalStateException e ) {
             LOG.warn( "Embedding reindex rejected — already running: {}", e.getMessage() );
-            sendJsonWithStatus( response, HttpServletResponse.SC_CONFLICT,
+            RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_CONFLICT,
                 Map.of(
                     "error", true,
                     "status", HttpServletResponse.SC_CONFLICT,
@@ -518,7 +518,7 @@ public class AdminContentResource extends RestServletBase {
             final Map< String, Object > body = new LinkedHashMap<>();
             body.put( "error", "page not found" );
             body.put( "page", page );
-            sendJsonWithStatus( response, HttpServletResponse.SC_NOT_FOUND, body );
+            RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_NOT_FOUND, body );
             return;
         }
         final List< Map< String, Object > > rows = new ArrayList<>( chunks.size() );
@@ -537,7 +537,7 @@ public class AdminContentResource extends RestServletBase {
         final Map< String, Object > body = new LinkedHashMap<>();
         body.put( "page", page );
         body.put( "chunks", rows );
-        sendJsonWithStatus( response, HttpServletResponse.SC_OK, body );
+        RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_OK, body );
     }
 
     /**
@@ -557,7 +557,7 @@ public class AdminContentResource extends RestServletBase {
         body.put( "most_chunks", outlierEntriesToMaps( report.mostChunks() ) );
         body.put( "large_single_chunks", outlierEntriesToMaps( report.largeSingleChunks() ) );
         body.put( "oversized_chunks", outlierEntriesToMaps( report.oversizedChunks() ) );
-        sendJsonWithStatus( response, HttpServletResponse.SC_OK, body );
+        RestJson.sendJsonKeepingNulls( response, HttpServletResponse.SC_OK, body );
     }
 
     private List< Map< String, Object > > outlierEntriesToMaps(
@@ -575,19 +575,6 @@ public class AdminContentResource extends RestServletBase {
         return out;
     }
 
-    /**
-     * Like {@link #sendJson} but applies an explicit HTTP status code and emits
-     * {@code null}-valued fields so clients can rely on a stable JSON shape
-     * (e.g. {@code "started_at": null} when no rebuild has run yet).
-     */
-    private void sendJsonWithStatus( final HttpServletResponse response, final int status,
-                                     final Object payload ) throws IOException {
-        response.setStatus( status );
-        response.setContentType( "application/json" );
-        response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write(
-            new com.google.gson.GsonBuilder().serializeNulls().create().toJson( payload ) );
-    }
 
     /**
      * Builds the {@code embeddings.embedder} sub-block from the live

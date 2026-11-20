@@ -72,6 +72,23 @@ public final class RestJson {
         response.getWriter().write( RestServletBase.GSON.newBuilder().serializeNulls().create().toJson( tree ) );
     }
 
+    /** Compact Gson that keeps nulls: the shape the admin status endpoints have always emitted. */
+    private static final com.google.gson.Gson NULL_KEEPING_GSON = new com.google.gson.GsonBuilder().serializeNulls().create();
+
+    /**
+     * Sets {@code status} and writes {@code payload} as compact JSON, keeping {@code null}-valued fields so clients
+     * can rely on a stable shape.
+     *
+     * @throws IOException if writing fails
+     */
+    static void sendJsonKeepingNulls( final HttpServletResponse response, final int status, final Object payload )
+            throws IOException {
+        response.setStatus( status );
+        response.setContentType( "application/json" );
+        response.setCharacterEncoding( "UTF-8" );
+        response.getWriter().write( NULL_KEEPING_GSON.toJson( payload ) );
+    }
+
     /**
      * Sends a JSON error response.
      *
@@ -85,11 +102,12 @@ public final class RestJson {
         response.setStatus( status );
         response.setContentType( "application/json" );
         response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write( RestServletBase.GSON.toJson( Map.of(
-                "error", true,
-                "status", status,
-                "message", message
-        ) ) );
+        // a LinkedHashMap, not Map.of: a null message (e.g. Exception.getMessage()) is dropped rather than throwing
+        final Map< String, Object > body = new java.util.LinkedHashMap<>();
+        body.put( "error", true );
+        body.put( "status", status );
+        body.put( "message", message );
+        response.getWriter().write( RestServletBase.GSON.toJson( body ) );
     }
 
     /**

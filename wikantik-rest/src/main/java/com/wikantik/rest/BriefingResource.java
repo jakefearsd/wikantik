@@ -124,7 +124,7 @@ public class BriefingResource extends RestServletBase {
             try {
                 budget = Integer.parseInt( budgetRaw.trim() );
             } catch ( final NumberFormatException e ) {
-                writeError( resp, 400, "invalid budget" );
+                RestJson.sendError( resp, 400, "invalid budget" );
                 return null;
             }
         }
@@ -133,19 +133,19 @@ public class BriefingResource extends RestServletBase {
         try {
             mode = ScopeMode.fromWire( req.getParameter( "scope_mode" ) );
         } catch ( final IllegalArgumentException e ) {
-            writeError( resp, 400, e.getMessage() );
+            RestJson.sendError( resp, 400, e.getMessage() );
             return null;
         }
 
         final String format = req.getParameter( "format" );
         if ( format != null && !format.isBlank() && !"json".equals( format ) && !"md".equals( format ) ) {
-            writeError( resp, 400, "format must be 'json' or 'md'" );
+            RestJson.sendError( resp, 400, "format must be 'json' or 'md'" );
             return null;
         }
 
         final BriefingRequest request = new BriefingRequest( pins, clusters, prompt, budget, mode );
         if ( !request.hasAnySource() ) {
-            writeError( resp, 400, "at least one of pins, clusters, prompt is required" );
+            RestJson.sendError( resp, 400, "at least one of pins, clusters, prompt is required" );
             return null;
         }
         return new ValidatedBriefingRequest( request, format );
@@ -163,7 +163,7 @@ public class BriefingResource extends RestServletBase {
 
         final BriefingAssemblyService svc = briefingService();
         if ( svc == null ) {
-            writeError( resp, 503, "briefing assembly service unavailable" );
+            RestJson.sendError( resp, 503, "briefing assembly service unavailable" );
             return;
         }
 
@@ -172,7 +172,7 @@ public class BriefingResource extends RestServletBase {
             briefing = svc.assemble( request );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Briefing assembly failed for pins={} clusters={}: {}", pins, clusters, e.getMessage(), e );
-            writeError( resp, 500, "briefing assembly failed" );
+            RestJson.sendError( resp, 500, "briefing assembly failed" );
             return;
         }
 
@@ -225,12 +225,5 @@ public class BriefingResource extends RestServletBase {
     private static Set< String > parameterNames( final HttpServletRequest req ) {
         final Map< String, String[] > parameters = req.getParameterMap();
         return parameters == null ? Set.of() : parameters.keySet();
-    }
-
-    private static void writeError( final HttpServletResponse resp, final int status, final String message )
-            throws IOException {
-        resp.setStatus( status );
-        resp.setContentType( "application/json; charset=UTF-8" );
-        resp.getWriter().write( "{\"error\":\"" + message.replace( "\"", "'" ) + "\"}" );
     }
 }

@@ -3,12 +3,12 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
-  listProducts: vi.fn(), createProduct: vi.fn(), updateProduct: vi.fn(), archiveProduct: vi.fn(),
+  listProducts: vi.fn(), createProduct: vi.fn(), updateProduct: vi.fn(), archiveProduct: vi.fn(), productHistory: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { listProducts, createProduct, updateProduct, archiveProduct } from '../../api/work';
+import { listProducts, createProduct, updateProduct, archiveProduct, productHistory } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import WorkProducts from './WorkProducts';
 
@@ -35,6 +35,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   listProducts.mockResolvedValue([FULL]);
   createProduct.mockResolvedValue({});
+  productHistory.mockResolvedValue({ events: [] });
   updateProduct.mockResolvedValue({});
   archiveProduct.mockResolvedValue(undefined);
 });

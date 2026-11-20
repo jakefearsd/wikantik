@@ -197,11 +197,11 @@ class JdbcWorkStoreProjectsPostgresTest {
 
         final Product changed = new Product( made.id(), "wiki", "Wikantik 2", null, null, null,
             Autonomy.AUTONOMOUS, DeployGate.HUMAN, null );
-        store.updateProduct( changed );
+        store.updateProduct( made, changed, Actor.human( "root", java.util.Set.of(), true ) );
         assertEquals( changed, store.product( "wiki" ).orElseThrow() );
 
         final Instant at = Instant.parse( "2026-11-15T10:00:00Z" );
-        store.archiveProduct( made.id(), at );
+        store.archiveProduct( made, at, Actor.human( "root", java.util.Set.of(), true ) );
         assertEquals( at, store.product( "wiki" ).orElseThrow().archivedAt() );
         assertEquals( 1, store.products().size() );
         assertEquals( Optional.empty(), store.product( "none" ) );

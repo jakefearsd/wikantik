@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
-import { archiveProduct, createProduct, listProducts, updateProduct } from '../../api/work';
+import { archiveProduct, createProduct, listProducts, productHistory, updateProduct } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
+import { formatRelative } from '../../utils/datetime';
 import WorkConfirm from './WorkConfirm';
 import WorkLoadError from './WorkLoadError';
 
@@ -14,6 +15,47 @@ const GATES = [{ value: 'human', label: 'A person approves deployments' }, { val
 const CEILINGS = ['supervised', 'delegated', 'autonomous'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const BLANK = { key: '', name: '', repoUrl: '', defaultBranch: '', wikiCluster: '', autonomyCeiling: 'delegated', deployGate: 'human' };
+
+const FIELD_LABELS = {
+  name: 'Name', repo_url: 'Repository', default_branch: 'Default branch', wiki_cluster: 'Wiki cluster',
+  autonomy_ceiling: 'Autonomy ceiling', deploy_gate: 'Deploy gate',
+};
+const shown = (v) => (v == null || v === '' ? 'nothing' : v);
+
+function describe(e) {
+  const who = e.actorName || e.actor;
+  const when = formatRelative(e.at);
+  if (e.field === 'archived') return `${when} · ${who} archived the product`;
+  return `${when} · ${who} changed ${FIELD_LABELS[e.field] || e.field} from ${shown(e.from)} to ${shown(e.to)}`;
+}
+
+/** The product's recorded setting changes, newest first. */
+function ProductHistory({ productKey }) {
+  const [state, setState] = useState({ events: null, error: null });
+  useEffect(() => {
+    let live = true;
+    productHistory(productKey)
+      .then((r) => { if (live) setState({ events: r?.events || [], error: null }); })
+      .catch((error) => {
+        console.warn('WorkProducts: could not load the history of', productKey, error);
+        if (live) setState({ events: null, error });
+      });
+    return () => { live = false; };
+  }, [productKey]);
+  return (
+    <div className="work-product-history">
+      <h2 className="work-form-field">History</h2>
+      {state.error && <div className="work-form-error" role="alert">{state.error.message || 'Could not load the history.'}</div>}
+      {!state.error && state.events === null && <Spinner label="Loading history…" />}
+      {state.events && state.events.length === 0 && <p className="work-muted">No changes recorded yet.</p>}
+      {state.events && state.events.length > 0 && (
+        <ul className="work-muted">
+          {state.events.map((e, i) => <li key={i}>{describe(e)}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function ProductForm({ product, onDone, onCancel }) {
   const toast = useToast();
@@ -70,6 +112,7 @@ function ProductForm({ product, onDone, onCancel }) {
         <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{editing ? 'Save product' : 'Create product'}</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
       </div>
+      {editing && <ProductHistory productKey={product.key} />}
     </form>
   );
 }

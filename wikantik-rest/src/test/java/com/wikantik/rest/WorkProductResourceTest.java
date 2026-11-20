@@ -153,4 +153,40 @@ class WorkProductResourceTest {
         assertEquals( 400, call( "POST", null, "{\"key\":\"X\",\"name\":\"n\"}" ).status() );
         assertEquals( 400, call( "POST", null, "{\"key\":\"abc\",\"autonomyCeiling\":\"huge\"}" ).status() );
     }
+
+    @Test
+    void historyListsTheProductsEventsNewestFirst() throws Exception {
+        final java.time.Instant t = java.time.Instant.parse( "2026-11-20T10:00:00Z" );
+        Mockito.when( svc.productHistory( ALICE, "wikantik" ) ).thenReturn( List.of(
+            new com.wikantik.work.ProductEvent( 2, t, "alice", com.wikantik.work.Actor.Kind.HUMAN, null,
+                "deploy_gate", "human", "agent" ),
+            new com.wikantik.work.ProductEvent( 1, t.minusSeconds( 60 ), "alice", com.wikantik.work.Actor.Kind.HUMAN, null,
+                "name", "Old", "Wikantik" ) ) );
+        final com.google.gson.JsonArray events = call( "GET", "/wikantik/history", null ).json().getAsJsonObject()
+            .getAsJsonArray( "events" );
+        assertEquals( 2, events.size() );
+        final JsonObject first = events.get( 0 ).getAsJsonObject();
+        assertEquals( "deploy_gate", first.get( "field" ).getAsString() );
+        assertEquals( "human", first.get( "from" ).getAsString() );
+        assertEquals( "agent", first.get( "to" ).getAsString() );
+        assertEquals( "2026-11-20T10:00:00Z", first.get( "at" ).getAsString() );
+        assertEquals( "Name of alice", first.get( "actorName" ).getAsString() );
+        assertEquals( "Name of alice", first.get( "actor" ).getAsString(), "a non-admin caller sees no login" );
+        assertEquals( "name", events.get( 1 ).getAsJsonObject().get( "field" ).getAsString() );
+    }
+
+    @Test
+    void historyOfAnUnknownProductIs404() throws Exception {
+        Mockito.when( svc.productHistory( any(), anyString() ) ).thenThrow( new WorkNotFoundException( "No such product: ghost" ) );
+        assertEquals( 404, call( "GET", "/ghost/history", null ).status() );
+    }
+
+    @Test
+    void historyForANonAdminIsRefused() throws Exception {
+        Mockito.when( svc.productHistory( any(), anyString() ) ).thenThrow( new WorkDeniedException( "Only wiki admins." ) );
+        Mockito.doThrow( new WorkDeniedException( "Only wiki admins." ) ).when( svc ).updateProduct( any(), any() );
+        final int patch = call( "PATCH", "/wikantik", "{\"name\":\"x\"}" ).status();
+        assertEquals( 403, patch );
+        assertEquals( patch, call( "GET", "/wikantik/history", null ).status() );
+    }
 }

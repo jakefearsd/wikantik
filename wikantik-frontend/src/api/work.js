@@ -72,6 +72,8 @@ export const getActivity = (params) => request(`${base}/activity${query(params)}
 /** The assignment log: { events } newest first over the caller's projects; params as /api/work/log. */
 export const getAssignmentLog = (params) => request(`${base}/log${query(params)}`);
 export const getMe = () => request(`${base}/me`);
+/** { events: [{ at, actor, field, from, to }] }: a product's recorded setting changes, newest first (admins only). */
+export const productHistory = (key) => request(`${base}/products/${enc(key)}/history`);
 export const archiveProduct = (key) => request(`${base}/products/${enc(key)}/archive`, { method: 'POST' });
 
 // Queues (writes: instance admins only)

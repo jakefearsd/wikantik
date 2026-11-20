@@ -104,7 +104,12 @@ public interface WorkCatalogStore {
 
     List< Product > products() throws SQLException;
 
-    void updateProduct( Product p ) throws SQLException;
+    /** Applies {@code after} to the row of {@code before} and records one event per changed field, in one transaction. */
+    void updateProduct( Product before, Product after, Actor by ) throws SQLException;
 
-    void archiveProduct( long id, Instant at ) throws SQLException;
+    /** Sets {@code archived_at} and records an {@code archived} event, in one transaction. */
+    void archiveProduct( Product product, Instant at, Actor by ) throws SQLException;
+
+    /** The product's recorded changes, newest first (ties by id), at most {@code limit}. */
+    List< ProductEvent > productEvents( long productId, int limit ) throws SQLException;
 }

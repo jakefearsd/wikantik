@@ -3,12 +3,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
-  listProducts: vi.fn(), createProduct: vi.fn(), updateProduct: vi.fn(), archiveProduct: vi.fn(),
+  listProducts: vi.fn(), createProduct: vi.fn(), updateProduct: vi.fn(), archiveProduct: vi.fn(), productHistory: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { listProducts, createProduct, updateProduct, archiveProduct } from '../../api/work';
+import { listProducts, createProduct, updateProduct, archiveProduct, productHistory } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import WorkProducts from './WorkProducts';
 
@@ -36,6 +36,7 @@ beforeEach(() => {
   createProduct.mockResolvedValue({});
   updateProduct.mockResolvedValue({});
   archiveProduct.mockResolvedValue(undefined);
+  productHistory.mockResolvedValue({ events: [] });
 });
 
 describe('WorkProducts', () => {
@@ -145,5 +146,42 @@ describe('WorkProducts', () => {
   it('leads back to the Work home', async () => {
     renderProducts();
     expect(await screen.findByRole('link', { name: 'Work' })).toHaveAttribute('href', '/work');
+  });
+
+  it("shows the product's history when editing", async () => {
+    const recent = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
+    productHistory.mockResolvedValue({ events: [
+      { at: recent, actor: 'Ada', field: 'deploy_gate', from: 'human', to: 'agent' },
+      { at: recent, actor: 'Ada', field: 'archived', from: null, to: recent },
+    ] });
+    renderProducts();
+    await screen.findByText('Wikantik');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit wikantik' }));
+    expect(await screen.findByText('2h ago · Ada changed Deploy gate from human to agent')).toBeInTheDocument();
+    expect(screen.getByText('2h ago · Ada archived the product')).toBeInTheDocument();
+    expect(productHistory).toHaveBeenCalledWith('wikantik');
+  });
+
+  it('says when no changes are recorded', async () => {
+    renderProducts();
+    await screen.findByText('Wikantik');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit wikantik' }));
+    expect(await screen.findByText('No changes recorded yet.')).toBeInTheDocument();
+  });
+
+  it('a failed history load shows the load error, not an empty list', async () => {
+    productHistory.mockRejectedValue(new Error('history down'));
+    renderProducts();
+    await screen.findByText('Wikantik');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit wikantik' }));
+    expect(await screen.findByText('history down')).toHaveAttribute('role', 'alert');
+    expect(screen.queryByText('No changes recorded yet.')).toBeNull();
+  });
+
+  it('does not ask for history when creating a product', async () => {
+    renderProducts();
+    await screen.findByText('Wikantik');
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
+    expect(productHistory).not.toHaveBeenCalled();
   });
 });

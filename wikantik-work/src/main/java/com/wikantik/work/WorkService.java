@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 public class WorkService {
 
     private static final String NOT_FOUND = WorkScopes.NOT_FOUND;
+    private static final int PRODUCT_HISTORY_LIMIT = 100;
 
     /**
      * An item together with everything a reader needs to show it; {@code archived}: its project is read-only;
@@ -265,14 +266,22 @@ public class WorkService {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final Product existing = store.product( product.key() )
             .orElseThrow( () -> new WorkNotFoundException( "No such product: " + product.key() ) );
-        store.updateProduct( WorkInputs.updatedProduct( existing, product ) );
+        store.updateProduct( existing, WorkInputs.updatedProduct( existing, product ), actor );
     }
 
     public void archiveProduct( final Actor actor, final String key ) throws SQLException {
         scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
         final Product existing = store.product( key )
             .orElseThrow( () -> new WorkNotFoundException( "No such product: " + key ) );
-        store.archiveProduct( existing.id(), clock.instant() );
+        store.archiveProduct( existing, clock.instant(), actor );
+    }
+
+    /** The product's recorded setting changes, newest first. Wiki admins only; an unknown key is "not found". */
+    public List< ProductEvent > productHistory( final Actor actor, final String key ) throws SQLException {
+        scopes.requireInstance( actor, Action.MANAGE_INSTANCE );
+        final Product existing = store.product( key )
+            .orElseThrow( () -> new WorkNotFoundException( "No such product: " + key ) );
+        return store.productEvents( existing.id(), PRODUCT_HISTORY_LIMIT );
     }
 
     // ---- queues, agents and identity

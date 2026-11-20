@@ -47,7 +47,7 @@ class JdbcWorkStoreCatalogRollbackTest {
     void setUp() throws SQLException {
         ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( "work_link", "work_mention", "work_comment", "work_event",
-            "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
+            "work_item_revision", "work_item", "work_member", "work_product_event", "work_product", "work_project" );
         store = new JdbcWorkStore( ds );
         plat = store.createProject( "PLAT", "Platform", "" );
     }
@@ -122,5 +122,32 @@ class JdbcWorkStoreCatalogRollbackTest {
         assertEquals( "hi bob", store.comment( c.id() ).orElseThrow().body() );
         assertEquals( 1, store.mentioning( "bob", Set.of( plat.id() ) ).size() );
         assertTrue( store.mentioning( "carol", Set.of( plat.id() ) ).isEmpty() );
+    }
+
+    @Test
+    void aFailedProductUpdateRecordsNoEventAndChangesNothing() throws SQLException {
+        final Product made = store.createProduct( new Product( 0, "wiki", "Wikantik", null, "main", null,
+            Autonomy.SUPERVISED, DeployGate.HUMAN, null ) );
+        final Product renamed = new Product( made.id(), "wiki", "Renamed", null, "main", null,
+            Autonomy.SUPERVISED, DeployGate.HUMAN, null );
+        // statements: 1 update the row, 2 insert the event
+        final FaultInjectingDataSource faulty = failingAt( 2 );
+        assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty )
+            .updateProduct( made, renamed, Actor.human( "root", java.util.Set.of(), true ) ) );
+        assertEquals( 1, faulty.rollbacks() );
+        assertEquals( "Wikantik", store.product( "wiki" ).orElseThrow().name() );
+        assertTrue( store.productEvents( made.id(), 10 ).isEmpty() );
+    }
+
+    @Test
+    void aFailedProductArchiveRecordsNoEventAndChangesNothing() throws SQLException {
+        final Product made = store.createProduct( new Product( 0, "wiki", "Wikantik", null, "main", null,
+            Autonomy.SUPERVISED, DeployGate.HUMAN, null ) );
+        final FaultInjectingDataSource faulty = failingAt( 2 );
+        assertThrows( RuntimeException.class, () -> new JdbcWorkStore( faulty )
+            .archiveProduct( made, Instant.now(), Actor.human( "root", java.util.Set.of(), true ) ) );
+        assertEquals( 1, faulty.rollbacks() );
+        assertNull( store.product( "wiki" ).orElseThrow().archivedAt() );
+        assertTrue( store.productEvents( made.id(), 10 ).isEmpty() );
     }
 }

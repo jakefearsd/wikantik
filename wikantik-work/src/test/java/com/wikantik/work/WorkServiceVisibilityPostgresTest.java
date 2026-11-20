@@ -75,6 +75,12 @@ class WorkServiceVisibilityPostgresTest {
      */
     private static final Set< String > YES_OR_NO = Set.of( "cleared" );
 
+    /**
+     * Reads that are wiki-admin only ({@code MANAGE_INSTANCE}): they are not about a project, so a stranger is refused
+     * rather than hidden from it. Each is driven as a person with no standing and must refuse.
+     */
+    private static final Set< String > INSTANCE_READS = Set.of( "productHistory" );
+
     /** Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. */
     private static final Set< String > FACADES = Set.of( "registry", "claims", "changes", "deployments" );
 
@@ -212,6 +218,7 @@ class WorkServiceVisibilityPostgresTest {
         final Set< String > classified = new TreeSet<>( READS );
         classified.addAll( OWN );
         classified.addAll( YES_OR_NO );
+        classified.addAll( INSTANCE_READS );
         classified.addAll( WRITES );
         classified.addAll( SYSTEM );
         assertEquals( classified, all, "classify every public WorkService method as a read, a write or system" );
@@ -297,6 +304,24 @@ class WorkServiceVisibilityPostgresTest {
             }
             assertTrue( provedAgainstRealData > 0,
                 m.getName() + " never returned real data to the project lead, so it proved nothing" );
+        }
+    }
+
+    @Test
+    void anInstanceReadRefusesAnyoneWhoIsNotAWikiAdmin() throws Exception {
+        for ( final Op op : ops() ) {
+            if ( !INSTANCE_READS.contains( op.name() ) ) {
+                continue;
+            }
+            final List< Actor > nonAdmins = new ArrayList<>( strangers() );
+            nonAdmins.add( lena );
+            for ( final Actor who : nonAdmins.stream().filter( a -> !a.admin() ).toList() ) {
+                for ( final Object[] args : argumentSets( op.method(), who ) ) {
+                    assertThrows( WorkDeniedException.class, () -> invoke( op.method(), op.target(), args ),
+                        op.name() + " answered " + who.login() );
+                }
+            }
+            assertDoesNotThrow( () -> invoke( op.method(), op.target(), new Object[] { admin, "web" } ) );
         }
     }
 

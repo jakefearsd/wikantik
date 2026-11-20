@@ -340,23 +340,71 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     }
 
     @Override
-    public void updateProduct( final Product p ) throws SQLException {
-        jdbc.update( "UPDATE work_product SET name = ?, repo_url = ?, default_branch = ?, wiki_cluster = ?, "
-                + "autonomy_ceiling = ?, deploy_gate = ? WHERE id = ?",
+    public void updateProduct( final Product before, final Product after, final Actor by ) throws SQLException {
+        requireAttributed( by.kind(), by.agentId() );
+        final List< String[] > changed = new ArrayList<>();
+        addIfChanged( changed, "name", before.name(), after.name() );
+        addIfChanged( changed, "repo_url", before.repoUrl(), after.repoUrl() );
+        addIfChanged( changed, "default_branch", before.defaultBranch(), after.defaultBranch() );
+        addIfChanged( changed, "wiki_cluster", before.wikiCluster(), after.wikiCluster() );
+        addIfChanged( changed, "autonomy_ceiling", before.autonomyCeiling().wire(), after.autonomyCeiling().wire() );
+        addIfChanged( changed, "deploy_gate", before.deployGate().wire(), after.deployGate().wire() );
+        if ( changed.isEmpty() ) {
+            return;
+        }
+        jdbc.inTransaction( conn -> {
+            jdbc.update( conn, "UPDATE work_product SET name = ?, repo_url = ?, default_branch = ?, wiki_cluster = ?, "
+                    + "autonomy_ceiling = ?, deploy_gate = ? WHERE id = ?",
+                ps -> {
+                    ps.setString( 1, after.name() );
+                    ps.setString( 2, after.repoUrl() );
+                    ps.setString( 3, after.defaultBranch() );
+                    ps.setString( 4, after.wikiCluster() );
+                    ps.setString( 5, after.autonomyCeiling().wire() );
+                    ps.setString( 6, after.deployGate().wire() );
+                    ps.setLong( 7, before.id() );
+                } );
+            for ( final String[] c : changed ) {
+                appendProductEvent( conn, before.id(), by, c[ 0 ], c[ 1 ], c[ 2 ] );
+            }
+            return null;
+        } );
+    }
+
+    @Override
+    public void archiveProduct( final Product product, final Instant at, final Actor by ) throws SQLException {
+        requireAttributed( by.kind(), by.agentId() );
+        jdbc.inTransaction( conn -> {
+            jdbc.update( conn, "UPDATE work_product SET archived_at = ? WHERE id = ?",
+                ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, product.id() ); } );
+            appendProductEvent( conn, product.id(), by, "archived", null, at.toString() );
+            return null;
+        } );
+    }
+
+    private void appendProductEvent( final Connection conn, final long productId, final Actor by, final String field,
+                                     final String from, final String to ) throws SQLException {
+        jdbc.update( conn, "INSERT INTO work_product_event (product_id, actor, actor_kind, agent_id, field, "
+                + "from_value, to_value) VALUES (?,?,?,?,?,?,?)",
             ps -> {
-                ps.setString( 1, p.name() );
-                ps.setString( 2, p.repoUrl() );
-                ps.setString( 3, p.defaultBranch() );
-                ps.setString( 4, p.wikiCluster() );
-                ps.setString( 5, p.autonomyCeiling().wire() );
-                ps.setString( 6, p.deployGate().wire() );
-                ps.setLong( 7, p.id() );
+                ps.setLong( 1, productId );
+                ps.setString( 2, by.login() );
+                ps.setString( 3, actorKindWire( by.kind() ) );
+                setNullableLong( ps, 4, by.agentId() );
+                ps.setString( 5, field );
+                ps.setString( 6, from );
+                ps.setString( 7, to );
             } );
     }
 
     @Override
-    public void archiveProduct( final long id, final Instant at ) throws SQLException {
-        jdbc.update( "UPDATE work_product SET archived_at = ? WHERE id = ?",
-            ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, id ); } );
+    public List< ProductEvent > productEvents( final long productId, final int limit ) throws SQLException {
+        return new ArrayList<>( jdbc.query( "SELECT id, at, actor, actor_kind, agent_id, field, from_value, to_value "
+                + "FROM work_product_event WHERE product_id = ? ORDER BY at DESC, id DESC LIMIT ?",
+            ps -> { ps.setLong( 1, productId ); ps.setInt( 2, limit ); },
+            rs -> new ProductEvent( rs.getLong( "id" ), getInstant( rs, "at" ), rs.getString( "actor" ),
+                "agent".equals( rs.getString( "actor_kind" ) ) ? Actor.Kind.AGENT : Actor.Kind.HUMAN,
+                NullableColumns.getNullableLong( rs, "agent_id" ), rs.getString( "field" ),
+                rs.getString( "from_value" ), rs.getString( "to_value" ) ) ) );
     }
 }

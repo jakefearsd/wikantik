@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wikantik.work.Autonomy;
 import com.wikantik.work.DeployGate;
@@ -53,6 +54,7 @@ public class WorkProductResource extends WorkResourceBase {
             c.svc.updateProduct( c.actor, from( b, key, find( c, key ) ) );
             c.json( find( c, key ) );
         } );
+        route( r, "GET", "products/{}/history", c -> c.json( historyTree( c, c.pathParam( 0 ) ) ) );
         route( r, "POST", "products/{}/archive", c -> {
             c.svc.archiveProduct( c.actor, c.pathParam( 0 ) );
             c.noContent();
@@ -78,6 +80,29 @@ public class WorkProductResource extends WorkResourceBase {
             out.add( o );
         }
         return out;
+    }
+
+    /**
+     * {@code { events: [ { at, actor, actorName, field, from, to } ] }}, newest first; the actor is shown the way
+     * every other event's is ({@link WorkJson}): by display name, with the login only for a wiki admin.
+     */
+    private JsonObject historyTree( final Call c, final String key ) throws Exception {
+        final JsonArray events = new JsonArray();
+        for ( final JsonElement e : toTree( c.svc.productHistory( c.actor, key ), c.actor ).getAsJsonArray() ) {
+            final JsonObject in = e.getAsJsonObject();
+            final JsonObject out = new JsonObject();
+            for ( final String k : new String[] { "at", "actor", "actorName", "actorKind", "field" } ) {
+                if ( in.has( k ) ) {
+                    out.add( k, in.get( k ) );
+                }
+            }
+            out.add( "from", in.get( "fromValue" ) );
+            out.add( "to", in.get( "toValue" ) );
+            events.add( out );
+        }
+        final JsonObject body = new JsonObject();
+        body.add( "events", events );
+        return body;
     }
 
     private static Product find( final Call c, final String key ) throws Exception {

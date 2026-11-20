@@ -95,13 +95,10 @@ public class WorkDeploymentApiIT {
         }
         final HttpResponse< String > r = admin.send( "POST", "/api/work/items", draft );
         assertEquals( 201, r.statusCode(), r.body() );
-        final String key = itemOf( json( r ).getAsJsonObject() ).get( "key" ).getAsString();
-        if ( !"epic".equals( level ) ) {
-            // a deployment carries work that is ready or later, never a draft
-            ok( admin.send( "PATCH", "/api/work/items/" + key, Map.of( "expectedVersion", version( key ), "changes",
-                Map.of( "status", "ready" ) ) ) );
-        }
-        return key;
+        final JsonObject made = itemOf( json( r ).getAsJsonObject() );
+        // a deployment carries work that is ready or later, never a draft: a person's task or story starts ready
+        assertEquals( "epic".equals( level ) ? "draft" : "ready", made.get( "status" ).getAsString() );
+        return made.get( "key" ).getAsString();
     }
 
     private static int version( final String key ) throws Exception {
@@ -188,6 +185,9 @@ public class WorkDeploymentApiIT {
 
         final String draft = itemOf( json( admin.send( "POST", "/api/work/items", Map.of( "project", "DPA", "level",
             "task", "title", "Still a draft", "productKey", "depprod" ) ) ).getAsJsonObject() ).get( "key" ).getAsString();
+        // a person's new task starts ready; move it back to draft
+        ok( admin.send( "PATCH", "/api/work/items/" + draft, Map.of( "expectedVersion", version( draft ), "changes",
+            Map.of( "status", "draft" ) ) ) );
         final HttpResponse< String > unready = admin.send( "POST", "/api/work/deployments", Map.of( "product",
             "depprod", "version", "3.4.1", "items", List.of( draft ) ) );
         assertEquals( 400, unready.statusCode(), unready.body() );

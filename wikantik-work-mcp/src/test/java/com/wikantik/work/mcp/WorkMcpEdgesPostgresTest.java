@@ -131,7 +131,7 @@ class WorkMcpEdgesPostgresTest {
     void aNewItemsKindDefaultsAndIsChecked() {
         final JsonObject made = ok( call( f.lena, "create_item", "project", "PLAT", "level", "task", "title",
             "No kind given", "kind", " " ) );
-        assertEquals( "draft", made.get( "status" ).getAsString() );
+        assertEquals( "ready", made.get( "status" ).getAsString(), "a person's new task starts ready" );
         ok( call( f.lena, "create_item", "project", "PLAT", "level", "task", "title", "Docs", "kind", "docs" ) );
         assertTrue( refused( call( f.lena, "create_item", "project", "PLAT", "level", "task", "title", "Bad kind",
             "kind", "poetry" ) ).startsWith( "kind:" ) );

@@ -317,7 +317,8 @@ public class WorkService {
         final Item next = applier.forCreate( s.project(), draft.assignee() == null || draft.assignee().isBlank()
             ? draft : new ItemDraft( draft.projectKey(), draft.level(), draft.parentKey(), draft.productKey(),
                 draft.kind(), draft.title(), draft.body(), draft.priority(), draft.dueOn(),
-                people.assigneeLogin( actor, draft.assignee() ), draft.queue() ) );
+                people.assigneeLogin( actor, draft.assignee() ), draft.queue() ),
+            WorkPolicy.startStatus( actor, draft.level() ) );
         return views.view( s, store.createItem( s.project(), next, actor ) );
     }
 

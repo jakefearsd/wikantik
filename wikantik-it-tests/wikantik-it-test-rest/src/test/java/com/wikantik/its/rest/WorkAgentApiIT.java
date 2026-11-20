@@ -104,7 +104,7 @@ public class WorkAgentApiIT {
         return itemOf( view ).get( "version" ).getAsInt();
     }
 
-    /** A draft epic made by the admin; ready in the queue when {@code queue} is given. */
+    /** A task made by the admin (so it starts ready); handed to {@code queue} when one is given. */
     private static JsonObject newItem( final String project, final String title, final String queue ) throws Exception {
         final HttpResponse< String > r = admin.send( "POST", "/api/work/items", Map.of( "project", project,
             "level", "task", "title", title ) );
@@ -194,7 +194,7 @@ public class WorkAgentApiIT {
 
     @Test
     void fourHandoffDirectionsOverRest() throws Exception {
-        // person -> agent: A creates a draft and hands it to the implementer queue
+        // person -> agent: A creates a task (ready) and hands it to the implementer queue
         final HttpResponse< String > created = personA.send( "POST", "/api/work/items", Map.of( "project", "AGT",
             "level", "task", "title", "Four directions" ) );
         assertEquals( 201, created.statusCode(), created.body() );
@@ -372,14 +372,13 @@ public class WorkAgentApiIT {
     void assignmentLogShowsClaimAssignmentAndTransitions() throws Exception {
         newItem( "HID", "Hidden log item", "implementer" );
 
-        // route 1: created INTO a queue (creation writes `assigned`), made ready by a person, claimed, handed to B
+        // route 1: created by a person INTO a queue (creation writes `assigned`; it starts ready), claimed, handed to B
         final HttpResponse< String > created = personA.send( "POST", "/api/work/items", Map.of( "project", "AGT",
             "level", "task", "title", "Queue at creation", "queue", "implementer" ) );
         assertEquals( 201, created.statusCode(), created.body() );
-        final JsonObject draft = json( created ).getAsJsonObject();
-        final String viaCreation = keyOf( draft );
-        ok( personA.send( "PATCH", "/api/work/items/" + viaCreation, Map.of(
-            "expectedVersion", versionOf( draft ), "changes", Map.of( "status", "ready" ) ) ) );
+        final JsonObject made = json( created ).getAsJsonObject();
+        final String viaCreation = keyOf( made );
+        assertEquals( "ready", itemOf( made ).get( "status" ).getAsString() );
         final JsonObject claimedA = claim( codex, viaCreation );
         // a person cannot give a release the note of a system reason: refused, and the claim stands
         final HttpResponse< String > refused = personA.send( "POST", "/api/work/items/" + viaCreation + "/release",
@@ -391,7 +390,7 @@ public class WorkAgentApiIT {
         ok( personA.send( "POST", "/api/work/items/" + viaCreation + "/handoff", Map.of( "expectedVersion",
             versionOf( claimedA ), "status", "review", "assignee", B_NAME, "note", "over to B" ) ) );
 
-        // route 2: created as a draft, then moved into the queue by a hand-off (writes `handoff`, never `assigned`)
+        // route 2: created with no target, then moved into the queue by a hand-off (writes `handoff`, never `assigned`)
         final String viaHandoff = keyOf( newItem( "AGT", "Queue by hand-off", "implementer" ) );
         final JsonObject claimedB = claim( codex, viaHandoff );
         ok( personA.send( "POST", "/api/work/items/" + viaHandoff + "/handoff", Map.of( "expectedVersion",
@@ -400,7 +399,7 @@ public class WorkAgentApiIT {
         final JsonArray events = logOf( personA.get( "/api/work/log?project=AGT&limit=200" ) );
 
         final List< JsonObject > a = logRowsOf( events, viaCreation );
-        assertEquals( List.of( "released", "handoff", "claimed", "status", "assigned" ),
+        assertEquals( List.of( "released", "handoff", "claimed", "assigned" ),
             a.stream().map( o -> o.get( "type" ).getAsString() ).toList(), a.toString() );
         assertActor( a.get( 0 ), "human", A_NAME );
         assertEquals( "agent:" + codex.id(), a.get( 0 ).get( "fromValue" ).getAsString() );
@@ -411,11 +410,9 @@ public class WorkAgentApiIT {
         assertActor( a.get( 2 ), "agent", CODEX );
         assertEquals( "in_progress", a.get( 2 ).get( "toValue" ).getAsString() );
         assertActor( a.get( 3 ), "human", A_NAME );
-        assertEquals( "ready", a.get( 3 ).get( "toValue" ).getAsString() );
-        assertActor( a.get( 4 ), "human", A_NAME );
-        assertTrue( a.get( 4 ).get( "fromValue" ).isJsonNull() );
-        assertEquals( "queue:implementer", a.get( 4 ).get( "toValue" ).getAsString() );
-        assertEquals( "Queue implementer", a.get( 4 ).get( "toValueName" ).getAsString(), "the queue's name" );
+        assertTrue( a.get( 3 ).get( "fromValue" ).isJsonNull() );
+        assertEquals( "queue:implementer", a.get( 3 ).get( "toValue" ).getAsString() );
+        assertEquals( "Queue implementer", a.get( 3 ).get( "toValueName" ).getAsString(), "the queue's name" );
         for ( final JsonObject row : a ) {
             assertEquals( "Queue at creation", row.get( "itemTitle" ).getAsString() );
             assertEquals( "AGT", row.get( "projectKey" ).getAsString() );

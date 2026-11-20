@@ -224,7 +224,8 @@ export default function WorkBoard() {
 
   const ordered = orderColumns(columns, showAll);
   const allItems = columns.flatMap((c) => c.items);
-  // A new item starts as a draft: say so when drafts are hidden, or it looks as if it was never created.
+  // A new epic (and an agent's item) starts as a draft: say so when drafts are hidden, or it looks as if it was never
+  // created. A person's new task or story starts ready.
   const hidden = showAll ? 0 : columns.filter((c) => c.status === 'draft' || c.status === 'cancelled')
     .reduce((n, c) => n + (c.total ?? c.items.length), 0);
 
@@ -235,7 +236,7 @@ export default function WorkBoard() {
   else if (noCards && hidden === 0) {
     if (!canEdit) emptyText = 'No items yet.';
     else emptyText = showAll ? 'No items yet. Choose New item to add one.'
-      : 'No items yet. Choose New item to add one; new items start as drafts, shown with Show draft and cancelled.';
+      : 'No items yet. Choose New item to add one. A new epic starts as a draft, shown with Show draft and cancelled.';
   }
 
   return (

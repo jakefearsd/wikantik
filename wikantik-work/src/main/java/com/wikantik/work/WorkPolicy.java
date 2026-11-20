@@ -106,6 +106,16 @@ public final class WorkPolicy {
         return target == WorkStatus.DONE ? WorkGates.mayClose( actor, policy ) : Decision.allow();
     }
 
+    /**
+     * The status a new item starts at. An agent's item is a draft, for a person to refine and move forward. A person's
+     * task or story starts ready (creating it is that person's say-so); an epic has no ready status, so it starts as a
+     * draft for everyone.
+     */
+    static WorkStatus startStatus( final Actor actor, final WorkLevel level ) {
+        return actor.kind() == Actor.Kind.HUMAN && level != null && level != WorkLevel.EPIC
+            ? WorkStatus.READY : WorkStatus.DRAFT;
+    }
+
     /** Whether moving {@code item} to {@code target} takes it out of draft or refining: an approval as ready. */
     static boolean approves( final Item item, final WorkStatus target ) {
         return ( item.status() == WorkStatus.DRAFT && target != WorkStatus.DRAFT )

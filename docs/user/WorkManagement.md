@@ -48,13 +48,16 @@ members, so the project you just created may say "This project has no members" u
 ## 4. Items and the board
 
 Items come in three levels: an *epic* holds *stories*, and a story holds *tasks*. Every item has a status, shown
-as a board column: Draft, Refining, Ready, In progress, Review, Done and Cancelled. New items start as **drafts**,
-and the board hides Draft and Cancelled until you tick **Show draft and cancelled**.
+as a board column: Draft, Refining, Ready, In progress, Review, Done and Cancelled. A task or story you create starts
+as **Ready**. An epic has no Ready status, so it starts as a **draft**, and so does anything an agent creates: a
+person moves an agent's draft forward. The board hides Draft and Cancelled until you tick **Show draft and
+cancelled**.
 
 1. Choose **New item**, pick the level (task, story or epic), a title, and optionally a description, parent,
-   product, assignee, kind, priority and due date, then **Create item**.
-2. Tick **Show draft and cancelled**, then move the draft to Ready with its **Move to…** menu or by dragging it. Drag a
-   card between columns to change its status, or up and down a column to change its order.
+   product, assignee, kind, priority and due date, then **Create item**. A task or story you put in an agents'
+   queue is available to its agents straight away.
+2. Drag a card between columns (or use its **Move to…** menu) to change its status, or up and down a column to
+   change its order. To see drafts, such as a new epic, tick **Show draft and cancelled**.
 3. Open a card to see its page: the description, comments (mention someone with `@` and their name), links to
    other items (`blocked by`), its history, and its policy fields.
 

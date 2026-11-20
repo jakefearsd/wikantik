@@ -87,8 +87,11 @@ final class GateFixture {
 
     /** A draft a person created, in the implementer queue, under {@code parentKey} (or none), targeting the product. */
     Item draft( final WorkLevel level, final String parentKey ) throws SQLException {
-        return svc.createItem( lena, new ItemDraft( "PLAT", level, parentKey, level == WorkLevel.EPIC ? null : "wikantik",
-            WorkKind.SOFTWARE, "An item", "", null, null, null, level == WorkLevel.EPIC ? null : "implementer" ) ).item();
+        final Item made = svc.createItem( lena, new ItemDraft( "PLAT", level, parentKey,
+            level == WorkLevel.EPIC ? null : "wikantik", WorkKind.SOFTWARE, "An item", "", null, null, null,
+            level == WorkLevel.EPIC ? null : "implementer" ) ).item();
+        // a person's new task or story starts ready; these tests need the draft, so the person moves it back
+        return made.status() == WorkStatus.DRAFT ? made : status( lena, made, "draft" );
     }
 
     Item task() throws SQLException {

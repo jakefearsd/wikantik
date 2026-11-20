@@ -114,7 +114,7 @@ class WorkHandoffDirectionsPostgresTest {
         assertEquals( WorkStatus.IN_PROGRESS, r.view().item().status() );
         assertEquals( a.agentId(), r.view().item().claimedByAgent() );
         assertEquals( List.of( "created HUMAN null -> null [null]",
-            "handoff HUMAN draft| -> ready|queue:implementer [go]",
+            "handoff HUMAN ready| -> ready|queue:implementer [go]",
             "claimed AGENT ready -> in_progress [" + r.view().item().claimExpiresAt() + "]" ), log( key ) );
         assertEquals( List.of( key ), svc.claims().myClaims( a ).stream().map( Item::key ).toList() );
     }
@@ -171,7 +171,7 @@ class WorkHandoffDirectionsPostgresTest {
         assertEquals( "yours now", w.handoff().note() );
         assertEquals( Actor.Kind.HUMAN, w.handoff().actorKind() );
         assertEquals( List.of( "created HUMAN null -> null [null]", "assigned HUMAN null -> lena [null]",
-            "handoff HUMAN draft|lena -> ready|mo [yours now]" ), log( key ) );
+            "handoff HUMAN ready|lena -> ready|mo [yours now]" ), log( key ) );
         assertTrue( svc.waitingOn( lena ).stream().noneMatch( x -> key.equals( x.item().key() ) ) );
     }
 

@@ -512,7 +512,7 @@ describe('WorkBoard', () => {
   });
 
   describe('empty board', () => {
-    const NONE = 'No items yet. Choose New item to add one; new items start as drafts, shown with Show draft and cancelled.';
+    const NONE = 'No items yet. Choose New item to add one. A new epic starts as a draft, shown with Show draft and cancelled.';
 
     it('says how to add the first item, and where drafts went, when drafts are hidden', async () => {
       board = boardOf({});
@@ -542,6 +542,17 @@ describe('WorkBoard', () => {
       await screen.findByText('Item 1');
       expect(screen.queryByText(/No items yet/)).toBeNull();
     });
+  });
+
+  it('a created ready item lands in Ready with the short toast', async () => {
+    createItem.mockResolvedValue({ item: item(4, 'ready', { title: 'Brand new' }) });
+    renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.click(screen.getByRole('button', { name: 'New item' }));
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Brand new' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Created PLAT-4'));
+    expect(within(column('ready')).getByText('Brand new')).toBeInTheDocument();
   });
 
   it('a created draft says it is hidden and how to show it', async () => {

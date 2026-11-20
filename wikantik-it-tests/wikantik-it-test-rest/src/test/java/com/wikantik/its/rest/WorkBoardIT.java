@@ -127,10 +127,8 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         $$( "button" ).findBy( text( "Add member" ) ).click();
         $$( ".work-member-row" ).findBy( text( MEMBER ) ).shouldBe( visible, WAIT );
 
-        // A story from the board.
+        // A story from the board: a person's new story starts ready.
         open( "/work/UIT" );
-        $$( "label.work-toggle" ).findBy( text( "Show draft and cancelled" ) ).shouldBe( visible, WAIT ).$( "input" ).click();
-        $( "[data-testid=column-draft]" ).shouldBe( visible, WAIT );
         $$( "button" ).findBy( text( "New item" ) ).shouldBe( visible, WAIT ).click();
         $$( "label.work-form-radio" ).findBy( text( "Story" ) ).shouldBe( visible, WAIT ).$( "input" ).click();
         type( $x( "//label[normalize-space()='Title']/following-sibling::input[1]" ).shouldBe( visible, WAIT ), title );
@@ -138,13 +136,17 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
             "First draft of the text " + workToken );
         $( "select[aria-label='Product']" ).selectOptionByValue( "uit-product" );
         $( "form.work-form button[type=submit]" ).shouldHave( exactText( "Create item" ) ).click();
-        final SelenideElement draftCard = $( "[data-testid=column-draft]" ).$$( "article.work-card" )
+        final SelenideElement newCard = $( "[data-testid=column-ready]" ).$$( "article.work-card" )
             .findBy( text( title ) ).shouldBe( visible, WAIT );
-        final String itemKey = draftCard.getAttribute( "data-item-key" );
+        final String itemKey = newCard.getAttribute( "data-item-key" );
         assertTrue( itemKey != null && itemKey.startsWith( "UIT-" ), "the story gets a UIT key, was: " + itemKey );
 
-        // Move to Ready with the keyboard menu; wait until the server has it, then reload the page.
-        draftCard.$( "select[aria-label^='Move ']" ).selectOption( "Ready" );
+        // Back to Refining and on to Ready with the keyboard menu; wait until the server has each, then reload the page.
+        newCard.$( "select[aria-label^='Move ']" ).selectOption( "Refining" );
+        awaitServerStatus( itemKey, "refining" );
+        Selenide.refresh();
+        $( "[data-testid=column-refining] article.work-card[data-item-key='" + itemKey + "']" ).shouldBe( visible, WAIT )
+            .$( "select[aria-label^='Move ']" ).selectOption( "Ready" );
         awaitServerStatus( itemKey, "ready" );
         Selenide.refresh();
         $( "[data-testid=column-ready]" ).shouldBe( visible, WAIT ).$$( "article.work-card" )
@@ -164,7 +166,8 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         // The timeline: created, status, edited, commented.
         final var events = $$( ".work-timeline .work-event-text" );
         events.findBy( text( "created this item" ) ).shouldBe( exist, WAIT );
-        events.findBy( text( "status draft → ready" ) ).shouldBe( exist, WAIT );
+        events.findBy( text( "status ready → refining" ) ).shouldBe( exist, WAIT );
+        events.findBy( text( "status refining → ready" ) ).shouldBe( exist, WAIT );
         events.findBy( text( "edited the title or text" ) ).shouldBe( exist, WAIT );
         events.findBy( text( "commented" ) ).shouldBe( exist, WAIT );
         return itemKey;
@@ -275,10 +278,8 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
             Map.of( "principal", adminName, "principalKind", "user", "role", "member" ) );
         assertEquals( 204, joined.statusCode(), "admit the admin: " + joined.body() );
 
-        // A story, created into the queue, then moved to Ready by a person (an agent cannot move a draft forward).
+        // A story, created by a person into the queue: it starts ready, so it is available to agents at once.
         open( "/work/" + projectKey );
-        $$( "label.work-toggle" ).findBy( text( "Show draft and cancelled" ) ).shouldBe( visible, WAIT ).$( "input" ).click();
-        $( "[data-testid=column-draft]" ).shouldBe( visible, WAIT );
         $$( "button" ).findBy( text( "New item" ) ).shouldBe( visible, WAIT ).click();
         $$( "label.work-form-radio" ).findBy( text( "Story" ) ).shouldBe( visible, WAIT ).$( "input" ).click();
         type( $x( "//label[normalize-space()='Title']/following-sibling::input[1]" ).shouldBe( visible, WAIT ), title );
@@ -286,11 +287,10 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         $( "select[aria-label='Product']" ).selectOptionByValue( productKey );
         $( "select[id$='-assignee']" ).shouldBe( visible, WAIT ).selectOptionByValue( "queue:" + queueKey );
         $( "form.work-form button[type=submit]" ).shouldHave( exactText( "Create item" ) ).click();
-        final SelenideElement draftCard = $( "[data-testid=column-draft]" ).$$( "article.work-card" )
+        final SelenideElement newCard = $( "[data-testid=column-ready]" ).$$( "article.work-card" )
             .findBy( text( title ) ).shouldBe( visible, WAIT );
-        final String itemKey = draftCard.getAttribute( "data-item-key" );
+        final String itemKey = newCard.getAttribute( "data-item-key" );
         assertTrue( itemKey != null && itemKey.startsWith( projectKey + "-" ), "the story gets a key in the project: " + itemKey );
-        draftCard.$( "select[aria-label^='Move ']" ).selectOption( "Ready" );
         awaitServerStatus( itemKey, "ready" );
         Selenide.refresh();
         final SelenideElement readyCard = $( "[data-testid=column-ready] article.work-card[data-item-key='" + itemKey + "']" )
@@ -336,25 +336,23 @@ public class WorkBoardIT extends WithIntegrationTestSetup {
         lane.shouldHave( text( "(agent)" ), WAIT );
         lane.$( "blockquote.work-waiting-note" ).shouldHave( text( note ), WAIT );
 
-        // The project's "Assignments and claims": assignment to the queue, the person's draft to ready, claim, hand-off,
-        // the renewals (consecutive renewals fold into one row), release; newest first.
+        // The project's "Assignments and claims": assignment to the queue, claim, hand-off, the renewals (consecutive
+        // renewals fold into one row), release; newest first. The story was ready from creation: no status row.
         open( "/work/" + projectKey + "/log" );
-        $$( "li.work-log-row" ).filter( text( itemKey ) ).shouldHave( CollectionCondition.size( 6 ), WAIT );
+        $$( "li.work-log-row" ).filter( text( itemKey ) ).shouldHave( CollectionCondition.size( 5 ), WAIT );
         final List< String > rows = new ArrayList<>( $$( "li.work-log-row" ).filter( text( itemKey ) ).texts() );
         final int assigned = indexOf( rows, "assigned this to Queue · " + queueName );
-        final int ready = indexOf( rows, "status draft → ready" );
         final int claim = indexOf( rows, agentName + " agent claimed this" );
         final int renewal = indexOf( rows, agentName + " agent renewed its claim" );
         final int handoff = indexOf( rows, agentName + " agent handed this to " + adminName );
         final int released = indexOf( rows, agentName + " agent handed this item on, ending its own claim" );
-        assertTrue( released < handoff && handoff < renewal && renewal < claim && claim < ready && ready < assigned,
-            "the log runs release, hand-off, renewal, claim, draft to ready, assignment from the newest: " + rows );
+        assertTrue( released < handoff && handoff < renewal && renewal < claim && claim < assigned,
+            "the log runs release, hand-off, renewal, claim, assignment from the newest: " + rows );
         assertTrue( rows.get( handoff ).contains( note ), "the hand-off row carries its note: " + rows.get( handoff ) );
         // The agent's rows wear an agent badge; the assignment (made by a person) does not.
         final var itemRows = $$( "li.work-log-row" ).filter( text( itemKey ) );
         itemRows.get( claim ).$( ".work-agent-badge" ).shouldBe( visible );
         itemRows.get( released ).$( ".work-agent-badge" ).shouldBe( visible );
-        assertEquals( 0, itemRows.get( ready ).$$( ".work-agent-badge" ).size(), "the person's status change has no agent badge" );
         assertEquals( 0, itemRows.get( assigned ).$$( ".work-agent-badge" ).size(), "the person's assignment has no agent badge" );
     }
 

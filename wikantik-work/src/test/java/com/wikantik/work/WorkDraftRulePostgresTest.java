@@ -82,6 +82,26 @@ class WorkDraftRulePostgresTest {
     }
 
     @Test
+    void anAgentsNewItemStartsAsADraft() throws SQLException {
+        assertEquals( WorkStatus.DRAFT, draftByAgent().status() );
+    }
+
+    @Test
+    void aPersonsNewTaskOrStoryStartsReadyAndAnEpicAsADraft() throws SQLException {
+        final Item task = svc.createItem( lena, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
+            "A task", "", null, null, null, "implementer" ) ).item();
+        final Item story = svc.createItem( lena, new ItemDraft( "PLAT", WorkLevel.STORY, null, null, WorkKind.SOFTWARE,
+            "A story", "", null, null, null, null ) ).item();
+        final Item epic = svc.createItem( lena, new ItemDraft( "PLAT", WorkLevel.EPIC, null, null, WorkKind.SOFTWARE,
+            "An epic", "", null, null, null, null ) ).item();
+        assertEquals( WorkStatus.READY, task.status() );
+        assertEquals( WorkStatus.READY, story.status() );
+        assertEquals( WorkStatus.DRAFT, epic.status(), "an epic has no Ready status" );
+        assertEquals( WorkStatus.IN_PROGRESS, svc.claims().claim( agent, task.key() ).view().item().status(),
+            "a person's queued task is available to agents at once" );
+    }
+
+    @Test
     void agentCannotMoveADraftForwardByUpdate() throws SQLException {
         final Item d = draftByAgent();
         final WorkDeniedException e = assertThrows( WorkDeniedException.class, () -> svc.updateItem( agent, d.key(),

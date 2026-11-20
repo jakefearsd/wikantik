@@ -82,11 +82,11 @@ class WorkBoardOrderPostgresTest {
         WorkAgentFixtures.exec( ds, "UPDATE work_item SET rank = " + rank + " WHERE id = " + item.id() );
     }
 
-    /** Titles of the draft column in board order, read straight from the table. */
+    /** Titles of the ready column (where a person's new cards start) in board order, read straight from the table. */
     private List< String > order() throws SQLException {
         final List< String > titles = new ArrayList<>();
         try ( Connection conn = ds.getConnection(); Statement s = conn.createStatement();
-              ResultSet rs = s.executeQuery( "SELECT title FROM work_item WHERE status = 'draft' ORDER BY rank, id" ) ) {
+              ResultSet rs = s.executeQuery( "SELECT title FROM work_item WHERE status = 'ready' ORDER BY rank, id" ) ) {
             while ( rs.next() ) {
                 titles.add( rs.getString( 1 ) );
             }
@@ -163,9 +163,9 @@ class WorkBoardOrderPostgresTest {
     @Test
     void aBeforeKeyOutsideTheTargetColumnIsRefused() throws SQLException {
         tieAandB();
-        final Item ready = move( admin, card( "R" ), Map.of( "status", "ready" ) );
+        final Item moved = move( admin, card( "R" ), Map.of( "status", "draft" ) );
         final WorkValidationException other = assertThrows( WorkValidationException.class,
-            () -> move( admin, c, Map.of( "rank", 10.0, "before", ready.key() ) ) );
+            () -> move( admin, c, Map.of( "rank", 10.0, "before", moved.key() ) ) );
         assertEquals( "before", other.field() );
         svc.createProject( admin, "OTHR", "Other", "" );
         final Item foreign = svc.createItem( admin, new ItemDraft( "OTHR", WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
@@ -198,10 +198,10 @@ class WorkBoardOrderPostgresTest {
     @Test
     void aBeforeCardThatLeftTheColumnFallsBackToTheRankPosition() throws SQLException {
         tieAandB();
-        final Item ready = move( admin, card( "R" ), Map.of( "status", "ready" ) );
+        final Item moved = move( admin, card( "R" ), Map.of( "status", "draft" ) );
         // B is dropped at rank 1024 (tied with A) naming a card that is no longer in the column: it keeps its
         // rank-based place after A, not the end of the column
-        assertTrue( new JdbcWorkStore( ds ).renumberColumn( a.projectId(), WorkStatus.DRAFT, b.id(), ready.id() ) );
+        assertTrue( new JdbcWorkStore( ds ).renumberColumn( a.projectId(), WorkStatus.READY, b.id(), moved.id() ) );
         assertEquals( List.of( "A", "B", "C" ), order() );
     }
 

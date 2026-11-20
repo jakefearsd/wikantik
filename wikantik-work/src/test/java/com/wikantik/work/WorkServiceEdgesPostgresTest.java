@@ -69,7 +69,9 @@ class WorkServiceEdgesPostgresTest {
         assertEquals( WorkKind.SOFTWARE, made.kind() );
         assertEquals( "", made.body() );
         assertEquals( 3, made.priority() );
-        assertEquals( WorkStatus.DRAFT, made.status() );
+        assertEquals( WorkStatus.READY, made.status(), "a person's task starts ready" );
+        assertEquals( WorkStatus.DRAFT, f.svc.createItem( f.mia, draft( WorkLevel.EPIC, "An epic", null, null, null ) )
+            .item().status(), "an epic starts as a draft" );
         assertNull( made.productId() );
         assertNull( made.assignee() );
         final Item mine = f.svc.createItem( f.mia, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.DOCS,

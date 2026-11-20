@@ -186,8 +186,8 @@ class WorkServiceAssignmentLogTest {
         final List< AssignmentLogEvent > forItem = log( lena ).stream().filter( e -> key.equals( e.itemKey() ) )
             .toList().reversed();   // oldest first
         final List< String > types = forItem.stream().map( AssignmentLogEvent::type ).toList();
-        assertEquals( List.of( "assigned", "status", "claimed", "claim_expired" ), types,
-            "an item created into a queue, made ready, claimed, then expired: " + types );
+        assertEquals( List.of( "assigned", "claimed", "claim_expired" ), types,
+            "a person's item created into a queue (ready from the start), claimed, then expired: " + types );
         final AssignmentLogEvent claimed = forItem.get( types.indexOf( "claimed" ) );
         final AssignmentLogEvent expired = forItem.get( types.indexOf( "claim_expired" ) );
         assertEquals( "codex@docker2", claimed.actor() );

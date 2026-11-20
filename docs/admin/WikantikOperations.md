@@ -626,7 +626,7 @@ Metrics on `/metrics` (instance-wide, no project, item or agent labels): `wikant
 - `not_claimable: ...`: the message says why: another agent holds it (and until when), it is not ready or in review, it is blocked, or it is not in a queue the agent serves. Add the queue to the agent (Edit on `/work/agents`) or fix the item.
 - Agents do not see an item at all (`Not found.`): the agent is not a member of the project, or its sponsor is not (the member list then shows "No effect: its sponsor is not a member of this project" beside the agent).
 - A claim is stuck (the agent died and the expiry is hours away): any project member who can edit items (a `member` or `lead`; a `viewer` cannot) opens the item and chooses "Release claim"; the item goes back to its queue. An agent can release only its own claim.
-- "A person moves a draft forward.": an agent tried to move a draft to another status. A person moves it to Ready. (An agent that tries to cancel a draft gets "A person cancels or moves a draft.") Agents create items as `draft` and a person moves them forward.
+- "A person moves a draft forward.": an agent tried to move a draft to another status. A person moves it to Ready. (An agent that tries to cancel a draft gets "A person cancels or moves a draft.") Agents create items as `draft` and a person moves them forward. (A person's own new task or story starts at `ready`.)
 - "Work in a queue is ready or in review until an agent claims it." (400, field `status`): something tried to make an unclaimed queued item `in_progress`. Claim it, or hand it to a person.
 - A hand-off or edit is refused as `stale`: the item changed; the agent re-reads it and retries.
 

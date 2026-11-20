@@ -63,8 +63,8 @@ final class ItemPatchApplier {
         return blocker.key().toUpperCase( Locale.ROOT );
     }
 
-    /** Builds and validates the item a draft describes; status starts as draft. */
-    Item forCreate( final Project project, final ItemDraft d ) throws SQLException {
+    /** Builds and validates the item a draft describes, starting at {@code start} ({@link WorkPolicy#startStatus}). */
+    Item forCreate( final Project project, final ItemDraft d, final WorkStatus start ) throws SQLException {
         if ( d.level() == null ) {
             throw new WorkValidationException( "level", "An item needs a level." );
         }
@@ -74,7 +74,7 @@ final class ItemPatchApplier {
         final String assignee = PatchValues.blankToNull( d.assignee() );
         final Item next = new Item( 0, project.id(), null, d.level(), parent == null ? null : parent.id(),
             product == null ? null : product.id(), d.kind() == null ? WorkKind.SOFTWARE : d.kind(), d.title(),
-            d.body() == null ? "" : d.body(), WorkStatus.DRAFT, priority, 0, d.dueOn(), assignee, null, null, null,
+            d.body() == null ? "" : d.body(), start, priority, 0, d.dueOn(), assignee, null, null, null,
             null, 0, null, null, null, PatchValues.blankToNull( d.queue() ), null, null, null, null );
         targets.checkNew( project, next );
         validate( next, parent );

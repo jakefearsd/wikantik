@@ -21,7 +21,6 @@ package com.wikantik.derived;
 import com.google.gson.JsonObject;
 import com.wikantik.api.connectors.CredentialStore;
 import com.wikantik.api.connectors.SourceConnector;
-import com.wikantik.connectors.config.ConnectorConfigCodec;
 import com.wikantik.connectors.gdrive.DriveConfig;
 import com.wikantik.connectors.gdrive.DriveSourceConnector;
 import com.wikantik.connectors.gdrive.GoogleDriveApiFactory;
@@ -43,7 +42,7 @@ final class DriveConnectorFactory implements ConnectorFactory< DriveConfig > {
     @Override public String type() { return TYPE; }
 
     @Override public Class< DriveConfig > configClass() {
-        return ConnectorFactories.codecConfigClass( TYPE, DriveConfig.class );
+        return DriveConfig.class;
     }
 
     @Override public SourceConnector create( final String id, final DriveConfig config, final CredentialStore creds ) {

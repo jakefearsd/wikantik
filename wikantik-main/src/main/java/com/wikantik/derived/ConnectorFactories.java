@@ -18,6 +18,8 @@
  */
 package com.wikantik.derived;
 
+import com.wikantik.api.connectors.CredentialStore;
+import com.wikantik.api.connectors.SourceConnector;
 import com.wikantik.connectors.config.ConnectorConfigCodec;
 import com.wikantik.connectors.confluence.ConfluenceConfig;
 import com.wikantik.connectors.confluence.ConfluenceSourceConnector;
@@ -32,8 +34,6 @@ import com.wikantik.connectors.web.SitemapConfig;
 import com.wikantik.connectors.web.SitemapSourceConnector;
 import com.wikantik.connectors.web.WebCrawlerConfig;
 import com.wikantik.connectors.web.WebCrawlerSourceConnector;
-import com.wikantik.api.connectors.CredentialStore;
-import com.wikantik.api.connectors.SourceConnector;
 
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -42,8 +42,10 @@ import java.util.Optional;
 import java.util.function.LongConsumer;
 
 /** Registry of the {@link ConnectorFactory} for every admin-creatable connector type (the keys of
- *  {@link ConnectorConfigCodec#UI_TYPES}). Config classes are read from the codec registry, so
- *  there is no second type-to-class table. {@code filesystem} is properties-only and has no factory. */
+ *  {@link ConnectorConfigCodec#UI_TYPES}). Each factory states its config class as a literal (the
+ *  generics need it), so the type-to-class mapping exists here and in the codec registry;
+ *  {@code ConnectorFactoriesTest} is what guarantees the two agree. {@code filesystem} is
+ *  properties-only and has no factory. */
 public final class ConnectorFactories {
 
     private static final Duration FETCH_TIMEOUT = Duration.ofSeconds( 20 );
@@ -70,16 +72,6 @@ public final class ConnectorFactories {
         return Optional.ofNullable( FACTORIES.get( type ) );
     }
 
-    /** The config class the codec registered for {@code type}, which must be {@code expected} (the
-     *  literal that types the factory); a disagreement fails fast rather than mis-dispatching. */
-    static < C > Class< C > codecConfigClass( final String type, final Class< C > expected ) {
-        final Class< ? > registered = ConnectorConfigCodec.codecFor( type ).orElseThrow().configClass();
-        if ( registered != expected ) {
-            throw new IllegalStateException( "codec config class " + registered + " differs from factory's " + expected );
-        }
-        return expected;
-    }
-
     private static Map< String, ConnectorFactory< ? > > registry( final ConnectorFactory< ? >... factories ) {
         final Map< String, ConnectorFactory< ? > > byType = new LinkedHashMap<>();
         for ( final ConnectorFactory< ? > factory : factories ) byType.put( factory.type(), factory );
@@ -99,7 +91,7 @@ public final class ConnectorFactories {
     private static < C > ConnectorFactory< C > simple( final String type, final Class< C > configClass, final Creator< C > creator ) {
         return new ConnectorFactory<>() {
             @Override public String type() { return type; }
-            @Override public Class< C > configClass() { return codecConfigClass( type, configClass ); }
+            @Override public Class< C > configClass() { return configClass; }
             @Override public SourceConnector create( final String id, final C config, final CredentialStore creds ) {
                 return creator.create( id, config, creds );
             }

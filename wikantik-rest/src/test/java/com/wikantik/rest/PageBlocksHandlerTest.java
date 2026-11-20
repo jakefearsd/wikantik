@@ -590,7 +590,7 @@ class PageBlocksHandlerTest {
         assertEquals( 400, post( spy( true, true ), "RestBlkPage/blocks/draft", "{\"text\":\"x\",\"metadata\":\"t\"}" ).status() );
         assertEquals( 200, post( spy( true, true ), "RestBlkPage/blocks/draft", "{\"text\":\"x\",\"metadata\":null}" ).status() );
         assertEquals( 404, post( spy( true, true ), "Bad:Name/blocks/draft", draft( "x", null ) ).status(), "no such page can be saved" );
-        final String big = "x".repeat( PageResource.DEFAULT_MAX_PAGE_BYTES + 1 );
+        final String big = "x".repeat( PageApiLimits.DEFAULT_MAX_PAGE_BYTES + 1 );
         assertEquals( 413, post( spy( true, true ), "RestBlkPage/blocks/draft", draft( big, null ) ).status() );
     }
 
@@ -599,7 +599,7 @@ class PageBlocksHandlerTest {
         engine.saveText( "RestBlkPage", "Saved text.\n" );
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/RestBlkPage/blocks/draft" );
         Mockito.doReturn( "/RestBlkPage/blocks/draft" ).when( request ).getPathInfo();
-        Mockito.doReturn( 100L * PageResource.DEFAULT_MAX_PAGE_BYTES ).when( request ).getContentLengthLong();
+        Mockito.doReturn( 100L * PageApiLimits.DEFAULT_MAX_PAGE_BYTES ).when( request ).getContentLengthLong();
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
         spy( true, true ).doPost( request, response );
@@ -701,7 +701,7 @@ class PageBlocksHandlerTest {
         Mockito.doReturn( -1L ).when( request ).getContentLengthLong();
         // a short text, but padding far past any body a draft may have: without a Content-Length nothing refuses it early
         final long[] served = { 0 };
-        final long padding = 20L * PageResource.DEFAULT_MAX_PAGE_BYTES;
+        final long padding = 20L * PageApiLimits.DEFAULT_MAX_PAGE_BYTES;
         final java.io.Reader endless = new java.io.Reader() {
             private final String head = "{\"text\":\"Para.\",\"pad\":\"";
             @Override
@@ -725,7 +725,7 @@ class PageBlocksHandlerTest {
         Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
         spy( true, true ).doPost( request, response );
         assertEquals( 413, statusOf( response ) );
-        assertTrue( served[ 0 ] < 7L * PageResource.DEFAULT_MAX_PAGE_BYTES + 65_536, "read " + served[ 0 ] + " chars" );
+        assertTrue( served[ 0 ] < 7L * PageApiLimits.DEFAULT_MAX_PAGE_BYTES + 65_536, "read " + served[ 0 ] + " chars" );
     }
 
     @Test

@@ -261,7 +261,7 @@ class SelfApiKeysResourceTest {
         verify( mockService, never() ).revoke( anyInt(), anyString() );
     }
 
-    /** Characterisation of path dispatch edges: what each odd path answers, pinned before the RouteTable move. */
+    /** Characterisation of path dispatch edges: what each odd path answers, pinned before the PathRouteTable move. */
     @Test
     void postToAnUnknownPathReturns404() throws Exception {
         for ( final String pathInfo : new String[] { "/nope", "/7/rotate/extra", "/abc/rotate", "/7", "/7/" } ) {

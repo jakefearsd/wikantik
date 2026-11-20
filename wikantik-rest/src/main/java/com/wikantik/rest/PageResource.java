@@ -54,13 +54,6 @@ public class PageResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( PageResource.class );
 
-    /** Warning code of a save that was stored but whose post-save processing failed. */
-    static final String POST_SAVE_FAILED_CODE = "post_save_failed";
-
-    /** Generic warning text for it: the cause stays in the server log (D5). */
-    static final String POST_SAVE_FAILED_MESSAGE =
-            "Saved; post-save processing failed and some derived data (search index, references) may lag.";
-
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -80,7 +73,7 @@ public class PageResource extends RestServletBase {
 
         // GET /api/pages/{name}/preview — link-preview card data; missing and unviewable are the same 404
         if ( pathParam.endsWith( "/preview" ) ) {
-            reader.handlePreview( request, response, pathParam.substring( 0, pathParam.length() - "/preview".length() ) );
+            new PagePreviewHandler( this ).handlePreview( request, response, pathParam.substring( 0, pathParam.length() - "/preview".length() ) );
             return;
         }
 
@@ -93,38 +86,12 @@ public class PageResource extends RestServletBase {
 
         // GET /api/pages/{name}/embed — rendered transclusion body; a missing page is data, not a 404
         if ( pathParam.endsWith( "/embed" ) ) {
-            reader.handleEmbed( request, response, pathParam.substring( 0, pathParam.length() - "/embed".length() ) );
+            new PagePreviewHandler( this ).handleEmbed( request, response, pathParam.substring( 0, pathParam.length() - "/embed".length() ) );
             return;
         }
 
         reader.handleGet( request, response, pathParam );
     }
-
-    /** Upper bound on {@code limit} for the similar-pages endpoint. */
-    static final int MAX_SIMILAR_LIMIT = 20;
-
-    /**
-     * D21: maximum permitted page-name length. Names longer than this are rejected with
-     * a 400 before they reach the storage layer (which would otherwise fail with an
-     * absolute filesystem path in the message — see D5). 200 is generous for any
-     * reasonable wiki name and still well under typical filesystem path limits.
-     */
-    static final int MAX_PAGE_NAME_LENGTH = 200;
-
-    /**
-     * D22: maximum permitted page body in bytes (UTF-8). Defaults to 256 KB; can be raised
-     * via the {@code wikantik.api.maxPageBytes} property.
-     */
-    static final String PROP_MAX_PAGE_BYTES = "wikantik.api.maxPageBytes";
-    static final int DEFAULT_MAX_PAGE_BYTES = 256 * 1024;
-
-    /**
-     * D20: opt-in strict-mode property. When {@code true}, PUT requests must supply
-     * {@code expectedVersion}; otherwise the request is rejected with a 400 to avoid
-     * silently overwriting a concurrent update. Defaults to {@code false} for backward
-     * compatibility.
-     */
-    static final String PROP_REQUIRE_EXPECTED_VERSION = "wikantik.api.write.requireExpectedVersion";
 
     /** Delegates to {@link PageSaveHandler#isInvalidPageName}. */
     static boolean isInvalidPageName( final String name ) {

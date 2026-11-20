@@ -54,11 +54,11 @@ import java.util.regex.Pattern;
  * <em>not</em> re-run field initializers, so the table must be rebuilt lazily
  * on first use rather than assumed present:
  * <pre>{@code
- * private transient RouteTable<MyAction> routes;
+ * private transient PathRouteTable<MyAction> routes;
  *
- * private RouteTable<MyAction> routes() {
+ * private PathRouteTable<MyAction> routes() {
  *     if ( routes == null ) {
- *         routes = RouteTable.<MyAction>builder()
+ *         routes = PathRouteTable.<MyAction>builder()
  *             .exact( "foo", ( req, resp ) -> handleFoo( req, resp ) )
  *             .build();
  *     }
@@ -66,11 +66,11 @@ import java.util.regex.Pattern;
  * }
  * }</pre>
  */
-final class RouteTable< A > {
+final class PathRouteTable< A > {
 
     private final List< Entry< A > > entries;
 
-    private RouteTable( final List< Entry< A > > entries ) {
+    private PathRouteTable( final List< Entry< A > > entries ) {
         this.entries = entries;
     }
 
@@ -116,8 +116,8 @@ final class RouteTable< A > {
             return this;
         }
 
-        RouteTable< A > build() {
-            return new RouteTable<>( List.copyOf( entries ) );
+        PathRouteTable< A > build() {
+            return new PathRouteTable<>( List.copyOf( entries ) );
         }
     }
 }

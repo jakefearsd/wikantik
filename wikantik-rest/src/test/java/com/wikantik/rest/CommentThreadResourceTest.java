@@ -499,7 +499,7 @@ class CommentThreadResourceTest {
         assertTrue( store.listByCanonicalId( "CID1", "all" ).isEmpty(), "nothing is stored for a refused create" );
     }
 
-    /** Characterisation of path dispatch edges: what each odd path answers, pinned before the RouteTable move. */
+    /** Characterisation of path dispatch edges: what each odd path answers, pinned before the PathRouteTable move. */
     @Test
     void unknown_paths_are_404_with_the_unknown_route_message() throws Exception {
         final JsonObject extra = post( null, "/a/b/c", new JsonObject() );

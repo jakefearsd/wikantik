@@ -298,7 +298,7 @@ class MyMentionsResourceTest {
         assertEquals( 404, res.get( "status" ).getAsInt() );
     }
 
-    /** Characterisation of path dispatch edges: what each odd path answers, pinned before the RouteTable move. */
+    /** Characterisation of path dispatch edges: what each odd path answers, pinned before the PathRouteTable move. */
     @Test
     void path_dispatch_edges_are_pinned() throws Exception {
         Mockito.when( feed.list( Mockito.anyString(), Mockito.any(), Mockito.anyInt(), Mockito.any() ) )

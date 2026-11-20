@@ -35,10 +35,10 @@ import java.util.Optional;
  * segment count is equal, and empty segments in the request are dropped ({@code /a//b/} reads as {@code a, b}).
  * Routes are matched in registration order, which only matters if two patterns could match one path.
  *
- * <p><b>Which table.</b> {@link RouteTable} matches one raw path string against exact keys, regexes or
+ * <p><b>Which table.</b> {@link PathRouteTable} matches one raw path string against exact keys, regexes or
  * predicates, and so can serve a servlet whose path carries a name containing {@code /}. This class cannot: a
  * {@code {}} never spans a {@code /}, so such a servlet (a page or cluster name, a login) dispatches by suffix or
- * with {@link RouteTable} instead. Use this class where every path is literal segments and ids.
+ * with {@link PathRouteTable} instead. Use this class where every path is literal segments and ids.
  *
  * @param <H> what a route runs; the table never invokes it, the caller does (see {@link #dispatch}).
  */

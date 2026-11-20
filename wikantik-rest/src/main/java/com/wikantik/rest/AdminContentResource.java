@@ -106,20 +106,20 @@ public class AdminContentResource extends RestServletBase {
      * Dispatch table — the single source of truth for this servlet's endpoints
      * (GoF Command registry, aligned to the the admin REST house
      * pattern). Adding an endpoint is one line here plus one handler method. See
-     * {@link RouteTable} for the shared matching engine and the
+     * {@link PathRouteTable} for the shared matching engine and the
      * transient-field-plus-lazy-rebuild convention every route table here follows.
      */
-    private transient volatile RouteTable< Route > routes;
+    private transient volatile PathRouteTable< Route > routes;
 
-    private RouteTable< Route > routes() {
+    private PathRouteTable< Route > routes() {
         if ( routes == null ) {
             routes = buildRoutes();
         }
         return routes;
     }
 
-    private RouteTable< Route > buildRoutes() {
-        return RouteTable.< Route >builder()
+    private PathRouteTable< Route > buildRoutes() {
+        return PathRouteTable.< Route >builder()
             .exact( "stats",              Route.get( ( req, resp ) -> handleStats( resp ) ) )
             .exact( "orphaned-pages",     Route.get( ( req, resp ) -> handleOrphanedPages( resp ) ) )
             .exact( "broken-links",       Route.get( ( req, resp ) -> handleBrokenLinks( resp ) ) )

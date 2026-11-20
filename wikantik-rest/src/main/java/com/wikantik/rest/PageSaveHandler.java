@@ -78,7 +78,7 @@ final class PageSaveHandler {
      * chars indicate header injection or copy-paste artefacts.
      */
     static boolean isInvalidPageName( final String name ) {
-        if ( name == null || name.isEmpty() || name.length() > PageResource.MAX_PAGE_NAME_LENGTH ) {
+        if ( name == null || name.isEmpty() || name.length() > PageApiLimits.MAX_PAGE_NAME_LENGTH ) {
             return true;
         }
         for ( int i = 0; i < name.length(); i++ ) {
@@ -100,7 +100,7 @@ final class PageSaveHandler {
         // response is a sanitized 400, not a 500 with a leaked filesystem path.
         if ( isInvalidPageName( pageName ) ) {
             servlet.sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Page name is invalid: must be 1-" + PageResource.MAX_PAGE_NAME_LENGTH
+                    "Page name is invalid: must be 1-" + PageApiLimits.MAX_PAGE_NAME_LENGTH
                             + " characters and must not contain ':', '/', '\\', or control chars." );
             return;
         }
@@ -118,7 +118,7 @@ final class PageSaveHandler {
         // D20: optional strict mode — refuse a PUT that doesn't carry expectedVersion.
         if ( expectedVersion < 0 && isExpectedVersionRequired( servlet.getEngine() ) ) {
             servlet.sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "expectedVersion is required when " + PageResource.PROP_REQUIRE_EXPECTED_VERSION
+                    "expectedVersion is required when " + PageApiLimits.PROP_REQUIRE_EXPECTED_VERSION
                             + " is true. Pass the version returned by the prior GET to confirm "
                             + "you are not silently overwriting a concurrent update." );
             return;
@@ -183,7 +183,7 @@ final class PageSaveHandler {
         if ( actualBytes > maxBytes ) {
             servlet.sendError( response, 413,
                     "Page body is " + actualBytes + " bytes; limit is " + maxBytes
-                            + " bytes (configurable via " + PageResource.PROP_MAX_PAGE_BYTES + ")." );
+                            + " bytes (configurable via " + PageApiLimits.PROP_MAX_PAGE_BYTES + ")." );
             return null;
         }
         return content;
@@ -277,37 +277,37 @@ final class PageSaveHandler {
             return warnings;
         }
         final List< FieldViolation > all = new ArrayList<>( warnings );
-        all.add( FieldViolation.of( null, Severity.WARNING, PageResource.POST_SAVE_FAILED_CODE, PageResource.POST_SAVE_FAILED_MESSAGE ) );
+        all.add( FieldViolation.of( null, Severity.WARNING, PageApiLimits.POST_SAVE_FAILED_CODE, PageApiLimits.POST_SAVE_FAILED_MESSAGE ) );
         return all;
     }
 
     /** D22: read the configured max-bytes property, falling back to the default. */
     static int parseMaxPageBytes( final Engine engine ) {
         if ( engine == null ) {
-            return PageResource.DEFAULT_MAX_PAGE_BYTES;
+            return PageApiLimits.DEFAULT_MAX_PAGE_BYTES;
         }
-        final String raw = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PageResource.PROP_MAX_PAGE_BYTES );
+        final String raw = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PageApiLimits.PROP_MAX_PAGE_BYTES );
         if ( raw == null || raw.isBlank() ) {
-            return PageResource.DEFAULT_MAX_PAGE_BYTES;
+            return PageApiLimits.DEFAULT_MAX_PAGE_BYTES;
         }
         try {
             final int v = Integer.parseInt( raw.trim() );
-            return v > 0 ? v : PageResource.DEFAULT_MAX_PAGE_BYTES;
+            return v > 0 ? v : PageApiLimits.DEFAULT_MAX_PAGE_BYTES;
         } catch ( final NumberFormatException nfe ) {
             // Operator typo must be visible, but this runs per request: WARN once, then DEBUG.
             if ( MAX_PAGE_BYTES_WARNED.compareAndSet( false, true ) ) {
-                LOG.warn( "Property {} value '{}' is not an integer; using default {}: {}", PageResource.PROP_MAX_PAGE_BYTES, raw, PageResource.DEFAULT_MAX_PAGE_BYTES, nfe.getMessage() );
+                LOG.warn( "Property {} value '{}' is not an integer; using default {}: {}", PageApiLimits.PROP_MAX_PAGE_BYTES, raw, PageApiLimits.DEFAULT_MAX_PAGE_BYTES, nfe.getMessage() );
             } else {
-                LOG.debug( "Property {} value '{}' is not an integer; using default {}", PageResource.PROP_MAX_PAGE_BYTES, raw, PageResource.DEFAULT_MAX_PAGE_BYTES );
+                LOG.debug( "Property {} value '{}' is not an integer; using default {}", PageApiLimits.PROP_MAX_PAGE_BYTES, raw, PageApiLimits.DEFAULT_MAX_PAGE_BYTES );
             }
-            return PageResource.DEFAULT_MAX_PAGE_BYTES;
+            return PageApiLimits.DEFAULT_MAX_PAGE_BYTES;
         }
     }
 
     /** D20: read the strict-mode property; defaults to false. */
     static boolean isExpectedVersionRequired( final Engine engine ) {
         return engine != null && Boolean.parseBoolean(
-                com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PageResource.PROP_REQUIRE_EXPECTED_VERSION, "false" ).trim() );
+                com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PageApiLimits.PROP_REQUIRE_EXPECTED_VERSION, "false" ).trim() );
     }
 
     /**

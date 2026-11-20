@@ -18,53 +18,38 @@
  */
 package com.wikantik.rest;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
-import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.identity.IdentityDisplay;
 import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pagegraph.ClusterDetails;
-import com.wikantik.api.pagegraph.ClusterPath;
-import com.wikantik.api.pagegraph.ClusterStatus;
-import com.wikantik.api.pagegraph.PageDescriptor;
-import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.content.WikiToMarkdownConverter;
 import com.wikantik.event.WikiPageEvent;
-import com.wikantik.export.HeadingSlugs;
-import com.wikantik.parser.markdown.BlockIds;
-import com.wikantik.parser.markdown.ReaderComments;
 import com.wikantik.parser.markdown.ReaderText;
-import com.wikantik.preview.PageExcerpts;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.search.embedding.PageEmbeddingSimilarity;
-import com.wikantik.util.TextUtil;
-import com.wikantik.wikilink.WikiEmbedRenderer;
-import com.wikantik.wikilink.WikiLinkResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * The read side of {@code /api/pages/{name}}: the page payload ({@code GET}, with optional rendered HTML or a pinned
- * version) and its {@code /similar}, {@code /preview} and {@code /embed} sub-resources. Lives outside
+ * version) and its {@code /similar} sub-resource; {@code /preview} and {@code /embed} are {@link PagePreviewHandler}'s. Lives outside
  * {@link PageResource} to keep that servlet's complexity in check.
  */
 final class PageReadHandler {
@@ -146,7 +131,7 @@ final class PageReadHandler {
         result.put( "markupSyntax", markupSyntax( page, contentHash, parsed.body() ) );
         result.put( "permissions", permissions( request, pageName, canEdit ) );
 
-        final JsonObject clusterStatus = clusterStatusJson( request, parsed.metadata() );
+        final JsonObject clusterStatus = new ClusterStatusResolver( servlet ).resolve( request, parsed.metadata() );
         if ( clusterStatus != null ) {
             result.put( "cluster_status", clusterStatus );
         }
@@ -281,96 +266,6 @@ final class PageReadHandler {
     }
 
     /**
-     *  Builds the derived {@code cluster_status} block for a page, or {@code null} when the
-     *  page names no cluster.
-     *
-     *  <p>Whether a cluster has a declaring hub is not in the page's own frontmatter, so the
-     *  reader cannot compute it — the server resolves it here.</p>
-     *
-     *  <p>{@code hub_slug} is omitted when no hub declares the cluster (Gson drops nulls), so
-     *  the boolean {@code hub_declared} carries that signal instead: it is always present and
-     *  cannot vanish, and the client keys its "cluster not yet defined" badge off it rather
-     *  than inferring meaning from an absent key.</p>
-     *
-     *  <p>Never throws: a structural index that is absent or still warming degrades to the
-     *  declared path with no hub, which the UI renders as an undeclared cluster.</p>
-     */
-    private JsonObject clusterStatusJson( final HttpServletRequest request, final Map< String, Object > metadata ) {
-        // Phase 5: `cluster:` is a scalar or a list. The FIRST entry is the primary and keeps
-        // driving placement — breadcrumbs, sidebar, JSON-LD — so `path` never changes meaning.
-        final List< String > memberships =
-                ClusterPath.memberships( metadata == null ? null : metadata.get( "cluster" ) );
-        if ( memberships.isEmpty() ) {
-            return null;
-        }
-        final ClusterStatus status = resolveCluster( request, memberships.get( 0 ), true );
-
-        final JsonObject out = new JsonObject();
-        out.addProperty( "path", status.path() );
-        out.addProperty( "parent", status.parent() );
-        out.addProperty( "hub_slug", status.hubSlug() );
-        out.addProperty( "hub_declared", status.hubSlug() != null );
-        out.addProperty( "member_count", status.memberCount() );
-
-        // Emitted only when there is genuinely more than one home, so a single-cluster page's
-        // payload is byte-identical to what pre-Phase-5 clients already handle.
-        if ( memberships.size() > 1 ) {
-            final JsonArray all = new JsonArray();
-            for ( final String path : memberships ) {
-                final ClusterStatus each = resolveCluster( request, path, false );
-                final JsonObject entry = new JsonObject();
-                entry.addProperty( "path", each.path() );
-                entry.addProperty( "hub_slug", each.hubSlug() );
-                entry.addProperty( "hub_declared", each.hubSlug() != null );
-                all.add( entry );
-            }
-            out.add( "memberships", all );
-        }
-        return out;
-    }
-
-    /**
-     *  Resolves one cluster path against the structural index, degrading to an undeclared
-     *  status when the index is unavailable — a warming or absent index must leave the page
-     *  renderable rather than failing the whole payload.
-     */
-    private ClusterStatus resolveCluster( final HttpServletRequest request, final String cluster,
-                                          final boolean countMembers ) {
-        try {
-            final StructuralIndexService idx = servlet.getSubsystems().pageGraph().structuralIndexService();
-            final ClusterDetails details = idx == null ? null : idx.getCluster( cluster ).orElse( null );
-            return ClusterStatus.of( cluster, details == null ? null : asSeenBy( request, details, countMembers ) );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "cluster_status: structural index unavailable for cluster '{}': {}",
-                      cluster, e.getMessage() );
-            return ClusterStatus.of( cluster, null );
-        }
-    }
-
-    /**
-     *  The cluster as the caller sees it: a hub they may not view is absent and, when {@code countMembers}, only the
-     *  members they may view are counted (as on every other cluster count). Secondary memberships report no count,
-     *  so they cost one check, for the hub.
-     */
-    private ClusterDetails asSeenBy( final HttpServletRequest request, final ClusterDetails details,
-                                     final boolean countMembers ) {
-        final List< String > names = new ArrayList<>();
-        if ( details.hubPage() != null ) {
-            names.add( details.hubPage().slug() );
-        }
-        if ( countMembers ) {
-            details.articles().forEach( a -> names.add( a.slug() ) );
-        }
-        final java.util.Set< String > viewable = servlet.filterViewable( request, names );
-        final PageDescriptor hub = details.hubPage() != null && viewable.contains( details.hubPage().slug() )
-                ? details.hubPage() : null;
-        final List< PageDescriptor > articles = countMembers
-                ? details.articles().stream().filter( a -> viewable.contains( a.slug() ) ).toList()
-                : details.articles();
-        return new ClusterDetails( details.name(), hub, articles, details.tagDistribution(), details.updatedAt() );
-    }
-
-    /**
      * Fires a {@link WikiPageEvent#PAGE_REQUESTED} event so observers — notably the
      * Micrometer {@code wikantik.page.views} counter — see reader / agent page reads.
      * Best-effort: a metrics-path failure must never break serving the page.
@@ -383,112 +278,6 @@ final class PageReadHandler {
                     .fireEvent( engine, new WikiPageEvent( engine, WikiPageEvent.PAGE_REQUESTED, pageName ) );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Failed to fire PAGE_REQUESTED event for '{}': {}", pageName, e.getMessage() );
-        }
-    }
-
-    /** {@code GET /api/pages/{name}/preview}: link-preview card data; missing and unviewable are the same 404. */
-    void handlePreview( final HttpServletRequest request, final HttpServletResponse response,
-                        final String pageName ) throws IOException {
-        final PageManager pm = servlet.getSubsystems().page().pages();
-        final Page page = pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
-        if ( page == null || !servlet.hasPagePermission( request, pageName, "view" ) ) {
-            servlet.sendError( response, HttpServletResponse.SC_NOT_FOUND, "Page not found" );
-            return;
-        }
-        // The excerpt is cut from the stripped FULL text (a section is cut from that, not stripped on its own).
-        final String rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
-        final ParsedPage parsed = AclDirectiveText.parseStripped( rawText, " " );
-        final Map< String, Object > fm = parsed.metadata();
-        final PreviewExcerpt excerpt = previewExcerpt( pageName, rawText, parsed.body(), request.getParameter( "section" ) );
-        final Map< String, Object > out = new LinkedHashMap<>();
-        out.put( "name", pageName );
-        final Object title = fm.get( "title" );
-        out.put( "title", title != null && !title.toString().isBlank()
-                ? title.toString().trim() : TextUtil.beautifyString( pageName ) );
-        putIfText( out, "type", fm.get( "type" ) );
-        final Object cluster = fm.get( "cluster" );
-        putIfText( out, "cluster", cluster instanceof List< ? > l && !l.isEmpty() ? l.get( 0 ) : cluster );
-        putIfText( out, "summary", fm.get( "summary" ) );
-        out.put( "excerpt", excerpt.text() );
-        if ( excerpt.blockMissing() ) {
-            out.put( "blockMissing", true );
-        }
-        out.put( "lastModified", page.getLastModified() );
-        // Per-viewer (ACL-filtered) and stale after a save: always revalidate, never reuse from the HTTP cache.
-        response.setHeader( "Cache-Control", "private, no-cache" );
-        servlet.sendJson( response, out );
-    }
-
-    /** A preview card's excerpt, and whether a requested block reference no longer resolves. */
-    private record PreviewExcerpt( String text, boolean blockMissing ) { }
-
-    /** The excerpt for the requested {@code section} (a heading slug or a block reference), or the page's opening. */
-    private static PreviewExcerpt previewExcerpt( final String pageName, final String rawText, final String strippedBody,
-                                                  final String section ) {
-        // Without its %%comments%% before a section is cut, so a comment crossing the section's end is never left open.
-        String body = ReaderComments.strip( strippedBody );
-        if ( section != null && BlockIds.isBlockRef( section ) ) {
-            final String blockExcerpt = PageBlocksHandler.blockExcerpt( pageName, rawText, section ).orElse( null );
-            if ( blockExcerpt != null ) {
-                return new PreviewExcerpt( blockExcerpt, false );
-            }
-            return new PreviewExcerpt( PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ), true );
-        }
-        if ( section != null && !section.isBlank() ) {
-            body = HeadingSlugs.sectionBody( body, section ).orElse( body );
-        }
-        return new PreviewExcerpt( PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ), false );
-    }
-
-    /** Placeholder host page that seeds the embed renderer's loop stack; never a real page name. */
-    private static final String EMBED_HOST_PAGE = "<embed>";
-
-    /**
-     * Embed body for {@code ![[name]]}: {@code 403} only when the caller cannot view the resolved page; an
-     * unresolvable target answers {@code 200 missing:true}. The title is the client's to render (html is body only).
-     */
-    void handleEmbed( final HttpServletRequest request, final HttpServletResponse response,
-                              final String name ) throws IOException {
-        final Engine engine = servlet.getEngine();
-        final WikiLinkResolver.Resolution resolved = WikiLinkResolver.forEngine( engine ).resolve( name );
-        if ( resolved.exists() && !servlet.checkPagePermission( request, response, resolved.pageName(), "view" ) ) {
-            return;
-        }
-        // The endpoint has no host page: use a placeholder whose name cannot be a real page, so the renderer's
-        // loop guard (seeded with the context page) never mistakes the embedded page for its own host.
-        final Page page = Wiki.contents().page( engine, EMBED_HOST_PAGE );
-        final Context context = Wiki.context().create( engine, request, page );
-        final String section = request.getParameter( "section" );
-        final WikiEmbedRenderer.EmbedResult r = WikiEmbedRenderer.forEngine( engine ).render( context, name, section );
-        final Map< String, Object > out = new LinkedHashMap<>();
-        // The body left the rendering manager outside textToHTML, so its server-fence placeholders are resolved here.
-        final String body = postTranslate( context, name, r.bodyHtml() == null ? "" : r.bodyHtml() );
-        out.put( "html", servlet.getSubsystems().rendering().renderingManager().resolveServerFences( body ) );
-        out.put( "missing", r.missing() );
-        out.put( "restricted", r.restricted() );
-        out.put( "truncated", r.truncated() );
-        // Viewer-dependent and stale after a save: never reusable from the HTTP cache.
-        response.setHeader( "Cache-Control", "private, no-cache" );
-        servlet.sendJson( response, out );
-    }
-
-    /**
-     * Applies the post-translate filters a server-side embed inherits from its host render (e.g. {@code cite://}
-     * href rewriting), so a previewed body matches the rendered one. A failing filter leaves the body unfiltered.
-     */
-    private String postTranslate( final Context context, final String name, final String html ) {
-        try {
-            return servlet.getSubsystems().rendering().filterManager().doPostTranslateFiltering( context, html );
-        } catch ( final FilterException e ) {
-            LOG.warn( "Post-translate filtering of the embed preview of '{}' failed; serving it unfiltered: {}",
-                    name, e.getMessage() );
-            return html;
-        }
-    }
-
-    private static void putIfText( final Map< String, Object > out, final String key, final Object value ) {
-        if ( value != null && !value.toString().isBlank() ) {
-            out.put( key, value.toString().trim() );
         }
     }
 
@@ -506,7 +295,7 @@ final class PageReadHandler {
             servlet.sendJson( response, Map.of( "similar", List.of() ) );
             return;
         }
-        final int limit = Math.max( 0, Math.min( servlet.parseIntParam( request, "limit", 5 ), PageResource.MAX_SIMILAR_LIMIT ) );
+        final int limit = Math.max( 0, Math.min( servlet.parseIntParam( request, "limit", 5 ), PageApiLimits.MAX_SIMILAR_LIMIT ) );
         final PageManager pm = servlet.getSubsystems().page().pages();
         final var similar = similarity.similarTo( pageName, limit,
             name -> pm.wikiPageExists( name ) && !servlet.filterViewable( request, List.of( name ) ).isEmpty() );

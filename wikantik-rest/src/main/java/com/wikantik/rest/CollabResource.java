@@ -314,7 +314,7 @@ public class CollabResource extends RestServletBase {
             throws IOException {
         if( PageResource.isInvalidPageName( page ) ) {
             CollabWire.write( response, CollabWire.rejected( "Page name is invalid: must be 1-"
-                + PageResource.MAX_PAGE_NAME_LENGTH + " characters and must not contain ':', '/', '\\', or control chars." ) );
+                + PageApiLimits.MAX_PAGE_NAME_LENGTH + " characters and must not contain ':', '/', '\\', or control chars." ) );
             return null;
         }
         final Caller caller = access.caller( request );

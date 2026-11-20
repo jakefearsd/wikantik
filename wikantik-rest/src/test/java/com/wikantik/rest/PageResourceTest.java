@@ -470,8 +470,8 @@ class PageResourceTest {
             assertEquals( 1, obj.get( "version" ).getAsInt(), json );
             final JsonArray warnings = obj.getAsJsonArray( "warnings" );
             assertEquals( 1, warnings.size(), json );
-            assertEquals( PageResource.POST_SAVE_FAILED_CODE, warnings.get( 0 ).getAsJsonObject().get( "code" ).getAsString() );
-            assertEquals( PageResource.POST_SAVE_FAILED_MESSAGE,
+            assertEquals( PageApiLimits.POST_SAVE_FAILED_CODE, warnings.get( 0 ).getAsJsonObject().get( "code" ).getAsString() );
+            assertEquals( PageApiLimits.POST_SAVE_FAILED_MESSAGE,
                     warnings.get( 0 ).getAsJsonObject().get( "message" ).getAsString() );
             assertNotNull( engine.getManager( PageManager.class ).getPage( "RestPostFailPut" ) );
         } finally {
@@ -500,7 +500,7 @@ class PageResourceTest {
                     obj.get( "version" ).getAsInt(), json );
             final JsonArray warnings = obj.getAsJsonArray( "warnings" );
             assertEquals( 1, warnings.size(), json );
-            assertEquals( PageResource.POST_SAVE_FAILED_MESSAGE,
+            assertEquals( PageApiLimits.POST_SAVE_FAILED_MESSAGE,
                     warnings.get( 0 ).getAsJsonObject().get( "message" ).getAsString() );
         } finally {
             engine.deleteQuietly( "RestPostFailPatch" );
@@ -1172,7 +1172,7 @@ class PageResourceTest {
 
         servletWithPageSimilarity( sim ).doGet( request, response );
 
-        Mockito.verify( sim ).similarTo( Mockito.eq( "RestSimSource" ), Mockito.eq( PageResource.MAX_SIMILAR_LIMIT ), Mockito.any() );
+        Mockito.verify( sim ).similarTo( Mockito.eq( "RestSimSource" ), Mockito.eq( PageApiLimits.MAX_SIMILAR_LIMIT ), Mockito.any() );
     }
 
     @Test

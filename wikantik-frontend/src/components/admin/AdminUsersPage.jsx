@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
@@ -34,9 +35,10 @@ const COLUMNS = [
 ];
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: loadedUsers, loading, error, reload: loadUsers } = useAdminResource(
+    () => api.admin.listUsers().then(data => data.users || []),
+  );
+  const users = loadedUsers ?? [];
   const [currentUser, setCurrentUser] = useState(null);
 
   // Modal state
@@ -49,16 +51,7 @@ export default function AdminUsersPage() {
   const [pendingBulkRows, setPendingBulkRows] = useState(null);
   const [pendingBulkResolve, setPendingBulkResolve] = useState(null);
 
-  // setState sits inside the async .then/.catch/.finally callbacks (not
-  // directly in this function's own body), so calling loadUsers() synchronously
-  // from the mount effect is the shape react-hooks/set-state-in-effect allows.
-  const loadUsers = () => api.admin.listUsers()
-    .then(data => setUsers(data.users || []))
-    .catch(err => setError(err.message))
-    .finally(() => setLoading(false));
-
   useEffect(() => {
-    loadUsers();
     api.getUser().then(u => setCurrentUser(u)).catch(() => {});
   }, []);
 

@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
@@ -83,22 +84,18 @@ const COLUMNS = [
 ];
 
 
+const NO_KEYS = [];
+
 export default function AdminApiKeysPage() {
-  const [keys, setKeys] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: loadedKeys, setData: setKeys, loading, error, reload: loadKeys } = useAdminResource(
+    () => api.admin.listApiKeys().then(data => data.keys || []),
+  );
+  const keys = loadedKeys ?? NO_KEYS;
   const [showRevoked, setShowRevoked] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [revealed, setRevealed] = useState(null); // { token, record }
   const [confirmRevoke, setConfirmRevoke] = useState(null);
   const [revokeError, setRevokeError] = useState(null);
-
-  const loadKeys = () => api.admin.listApiKeys()
-    .then(data => setKeys(data.keys || []))
-    .catch(err => setError(err.message))
-    .finally(() => setLoading(false));
-
-  useEffect(() => { loadKeys(); }, []);
 
   const visible = useMemo(() => {
     return showRevoked ? keys : keys.filter(k => k.active);
@@ -128,7 +125,7 @@ export default function AdminApiKeysPage() {
     // Remove succeeded keys from local state for immediate UI feedback
     if (result.succeeded && result.succeeded.length > 0) {
       const succeededSet = new Set(result.succeeded);
-      setKeys(prev => prev.map(k =>
+      setKeys(prev => (prev ?? []).map(k =>
         succeededSet.has(String(k.id)) ? { ...k, active: false } : k
       ));
     }

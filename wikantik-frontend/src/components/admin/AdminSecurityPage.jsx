@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
@@ -37,10 +38,13 @@ export default function AdminSecurityPage() {
 
 /* ─── Groups Section ────────────────────────────────────────── */
 
+const NO_GROUPS = [];
+
 function GroupsSection() {
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: loadedGroups, loading, error, reload: loadGroups } = useAdminResource(
+    () => api.admin.listGroups().then(data => data.groups || []),
+  );
+  const groups = loadedGroups ?? NO_GROUPS;
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState('name');
   const [sortAsc, setSortAsc] = useState(true);
@@ -50,16 +54,6 @@ function GroupsSection() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-
-  // setState sits inside the async .then/.catch/.finally callbacks (not
-  // directly in this function's own body), so calling loadGroups() synchronously
-  // from the mount effect is the shape react-hooks/set-state-in-effect allows.
-  const loadGroups = () => api.admin.listGroups()
-    .then(data => setGroups(data.groups || []))
-    .catch(err => setError(err.message))
-    .finally(() => setLoading(false));
-
-  useEffect(() => { loadGroups(); }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -214,25 +208,16 @@ function GroupsSection() {
 /* ─── Grants Section ────────────────────────────────────────── */
 
 function GrantsSection() {
-  const [grants, setGrants] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: loadedGrants, loading, error, reload: loadGrants } = useAdminResource(
+    () => api.admin.listPolicyGrants().then(data => data.grants || []),
+  );
+  const grants = loadedGrants ?? [];
   const [message, setMessage] = useState(null);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingGrant, setEditingGrant] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-
-  // setState sits inside the async .then/.catch/.finally callbacks (not
-  // directly in this function's own body), so calling loadGrants() synchronously
-  // from the mount effect is the shape react-hooks/set-state-in-effect allows.
-  const loadGrants = () => api.admin.listPolicyGrants()
-    .then(data => setGrants(data.grants || []))
-    .catch(err => setError(err.message))
-    .finally(() => setLoading(false));
-
-  useEffect(() => { loadGrants(); }, []);
 
   const showMessage = (text, type) => {
     setMessage({ text, type });

@@ -6,7 +6,8 @@
 // (connectors/:id, connectors/new) are owned by later tasks; the Add Connector
 // button here just navigates, it's fine for the target route to 404 until
 // those ship.
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
@@ -29,11 +30,10 @@ const TYPE_ICONS = {
 export default function AdminConnectorsPage() {
   const navigate = useNavigate();
 
-  const [connectors, setConnectors] = useState([]);
-  const [syncingEnabled, setSyncingEnabled] = useState(true);
-  const [credentialStoreEnabled, setCredentialStoreEnabled] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: listing, loading, error, reload: load } = useAdminResource(() => api.connectors.list());
+  const connectors = listing?.connectors || [];
+  const syncingEnabled = listing?.syncingEnabled !== false;
+  const credentialStoreEnabled = listing?.credentialStoreEnabled !== false;
 
   // Per-row sync-in-flight tracking + inline error surfacing (e.g. a 409
   // "sync already running" from ConnectorRuntime).
@@ -44,21 +44,6 @@ export default function AdminConnectorsPage() {
   // button is independent of its Sync Now button.
   const [importingIds, setImportingIds] = useState(() => new Set());
   const [importMessages, setImportMessages] = useState({});
-
-  const load = useCallback(async () => {
-    try {
-      const data = await api.connectors.list();
-      setConnectors(data.connectors || []);
-      setSyncingEnabled(data.syncingEnabled !== false);
-      setCredentialStoreEnabled(data.credentialStoreEnabled !== false);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const goToWizard = () => navigate('/admin/connectors/new');
 

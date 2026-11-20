@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
 import PageEditLink from './PageEditLink';
-import EmptyState from './EmptyState';
+import EmptyState from '../ui/EmptyState';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
 const NO_FM_LIMIT = 50;

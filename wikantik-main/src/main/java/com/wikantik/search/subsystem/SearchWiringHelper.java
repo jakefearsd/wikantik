@@ -100,7 +100,7 @@ public final class SearchWiringHelper {
      * is independently testable without standing up the rest of the wiring.
      */
     static String resolveDenseBackend( final Properties props ) {
-        return props.getProperty( "wikantik.search.dense.backend", DenseBackends.LUCENE_HNSW )
+        return props.getProperty( "wikantik.search.dense.backend", DenseBackend.LUCENE_HNSW.wire() )
             .toLowerCase( java.util.Locale.ROOT );
     }
 
@@ -207,46 +207,22 @@ public final class SearchWiringHelper {
         // (Consumer<List<UUID>>). upsertChunks(Collection<UUID>) method refs satisfy it.
         final java.util.function.Consumer< java.util.List< java.util.UUID > > upsertCallback;
         try {
-            if ( DenseBackends.PGVECTOR.equals( denseBackend ) ) {
-                final int efSearch = Integer.parseInt( props.getProperty(
-                    "wikantik.search.dense.pgvector.ef_search", "100" ) );
-                final com.wikantik.search.hybrid.PgVectorChunkVectorIndex pgIndex =
-                    new com.wikantik.search.hybrid.PgVectorChunkVectorIndex( ds, modelCode, efSearch );
-                vectorIndex = pgIndex;
-                upsertCallback = null;
+            final DenseBackend backend = DenseBackend.parse( denseBackend );
+            vectorIndex = backend.build( ds, modelCode, props );
+            if ( vectorIndex instanceof com.wikantik.search.hybrid.RefreshableChunkVectorIndex refreshable ) {
+                upsertCallback = refreshable::upsertChunks;
+                indexReloadHook = refreshable::reload;
+                denseIndexEmpty = () -> refreshable.size() == 0;
+            } else {
                 // pgvector keeps its HNSW index in sync via the dual-write INSERT
                 // in EmbeddingIndexService.UPSERT_SQL (Task 7) — no in-memory
                 // snapshot to refresh, so the bootstrap reload hook is a no-op.
+                upsertCallback = null;
                 indexReloadHook = () -> {};
                 denseIndexEmpty = () -> false;
-                LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
-                    modelCode, efSearch );
-            } else if ( DenseBackends.LUCENE_HNSW.equals( denseBackend ) ) {
-                final com.wikantik.search.hybrid.HnswParams params =
-                    com.wikantik.search.hybrid.HnswParams.fromProperties( props );
-                final com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex hnswIndex =
-                    new com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex(
-                        ds, modelCode,
-                        com.wikantik.search.hybrid.PgVectorChunkVectorIndex.EMBEDDING_DIM, params );
-                vectorIndex = hnswIndex;
-                upsertCallback = hnswIndex::upsertChunks;
-                indexReloadHook = hnswIndex::reload;
-                denseIndexEmpty = () -> hnswIndex.size() == 0;
-                LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, "
-                        + "ef_search={}, quantization={}, size={})",
-                    modelCode, params.m(), params.efConstruction(), params.efSearch(),
-                    params.quantization(), hnswIndex.size() );
-            } else if ( DenseBackends.INMEMORY.equals( denseBackend ) ) {
-                final InMemoryChunkVectorIndex memIndex = new InMemoryChunkVectorIndex( ds, modelCode );
-                vectorIndex = memIndex;
-                upsertCallback = memIndex::upsertChunks;
-                indexReloadHook = memIndex::reload;
-                denseIndexEmpty = () -> memIndex.size() == 0;
+            }
+            if ( vectorIndex instanceof InMemoryChunkVectorIndex memIndex ) {
                 engine.setManager( InMemoryChunkVectorIndex.class, memIndex );
-                LOG.info( "Dense retrieval backend: in-memory brute-force (model={}, size={})",
-                    modelCode, memIndex.size() );
-            } else {
-                throw DenseBackends.unsupported( denseBackend );
             }
         } catch ( final RuntimeException e ) {
             LOG.warn( "Failed to initialize {} ChunkVectorIndex (model={}); "

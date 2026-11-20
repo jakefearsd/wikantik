@@ -37,7 +37,6 @@ import com.wikantik.search.embedding.PageEmbeddingSimilarity;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
-import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import com.wikantik.search.hybrid.QueryEmbedder;
 
 import javax.sql.DataSource;
@@ -186,8 +185,8 @@ public final class SearchSubsystemFactory {
      */
     static String resolveFallbackDenseBackend( final Properties wikiProps ) {
         return ( wikiProps != null
-            ? wikiProps.getProperty( "wikantik.search.dense.backend", DenseBackends.INMEMORY )
-            : DenseBackends.INMEMORY ).toLowerCase( Locale.ROOT );
+            ? wikiProps.getProperty( "wikantik.search.dense.backend", DenseBackend.INMEMORY.wire() )
+            : DenseBackend.INMEMORY.wire() ).toLowerCase( Locale.ROOT );
     }
 
     /**
@@ -226,58 +225,22 @@ public final class SearchSubsystemFactory {
     }
 
     private static ChunkVectorIndex buildChunkVectorIndexForBackend(
-            final String backend, final SearchSubsystem.Deps deps, final Properties wikiProps,
+            final String backendName, final SearchSubsystem.Deps deps, final Properties wikiProps,
             final ChunkVectorIndex inMemoryChunkVectorIndex ) {
-        final ChunkVectorIndex chunkVectorIndex;
-        switch ( backend ) {
-            case DenseBackends.PGVECTOR -> chunkVectorIndex = buildPgVectorChunkVectorIndex( deps, wikiProps );
-            case DenseBackends.LUCENE_HNSW -> chunkVectorIndex = buildLuceneHnswChunkVectorIndex( deps, wikiProps );
-            case DenseBackends.INMEMORY -> {
-                chunkVectorIndex = inMemoryChunkVectorIndex;
-                LOG.info( "Dense retrieval backend: in-memory brute-force" );
-            }
-            default -> throw DenseBackends.unsupported( backend );
+        final DenseBackend backend = DenseBackend.parse( backendName );
+        if ( backend == DenseBackend.INMEMORY ) {
+            LOG.info( "Dense retrieval backend: in-memory brute-force" );
+            return inMemoryChunkVectorIndex;
         }
-        return chunkVectorIndex;
-    }
-
-    private static ChunkVectorIndex buildPgVectorChunkVectorIndex(
-            final SearchSubsystem.Deps deps, final Properties wikiProps ) {
         final DataSource dataSource = deps.dataSource();
         if ( dataSource == null ) {
-            LOG.warn( "wikantik.search.dense.backend=pgvector but no DataSource is available "
-              + "and no ChunkVectorIndex was wired; dense retrieval disabled for this process." );
+            LOG.warn( "wikantik.search.dense.backend={} but no DataSource is available "
+              + "and no ChunkVectorIndex was wired; dense retrieval disabled for this process.", backend.wire() );
             return null;
         }
         final String modelCode = wikiProps.getProperty(
             EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
-        final int efSearch = Integer.parseInt( wikiProps.getProperty(
-            "wikantik.search.dense.pgvector.ef_search", "100" ) );
-        final ChunkVectorIndex chunkVectorIndex = new PgVectorChunkVectorIndex( dataSource, modelCode, efSearch );
-        LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
-            modelCode, efSearch );
-        return chunkVectorIndex;
-    }
-
-    private static ChunkVectorIndex buildLuceneHnswChunkVectorIndex(
-            final SearchSubsystem.Deps deps, final Properties wikiProps ) {
-        final DataSource dataSource = deps.dataSource();
-        if ( dataSource == null ) {
-            LOG.warn( "wikantik.search.dense.backend=lucene-hnsw but no DataSource is available "
-              + "and no ChunkVectorIndex was wired; dense retrieval disabled for this process." );
-            return null;
-        }
-        final String modelCode = wikiProps.getProperty(
-            EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
-        final com.wikantik.search.hybrid.HnswParams params =
-            com.wikantik.search.hybrid.HnswParams.fromProperties( wikiProps );
-        final ChunkVectorIndex chunkVectorIndex = new com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex(
-            dataSource, modelCode,
-            com.wikantik.search.hybrid.PgVectorChunkVectorIndex.EMBEDDING_DIM, params );
-        LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, "
-                + "ef_search={}, quantization={})",
-            modelCode, params.m(), params.efConstruction(), params.efSearch(), params.quantization() );
-        return chunkVectorIndex;
+        return backend.build( dataSource, modelCode, wikiProps );
     }
 
     /**

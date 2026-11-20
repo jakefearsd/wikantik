@@ -71,7 +71,7 @@ import java.util.UUID;
  *
  * <p>See {@code docs/superpowers/specs/2026-05-22-lucene-hnsw-dense-retrieval-design.md}.</p>
  */
-public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
+public final class LuceneHnswChunkVectorIndex implements RefreshableChunkVectorIndex {
 
     private static final Logger LOG = LogManager.getLogger( LuceneHnswChunkVectorIndex.class );
 
@@ -409,6 +409,7 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     }
 
     /** Live document count. Intended for metrics/admin. */
+    @Override
     public int size() {
         IndexSearcher searcher = null;
         try {
@@ -434,6 +435,7 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     }
 
     /** Full rebuild from the database. Fail-closed: SQL errors log WARN and leave the prior contents. */
+    @Override
     public void reload() {
         if ( jdbc == null ) return; // test-only instance
         try {
@@ -451,6 +453,7 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     }
 
     /** Incremental update for a handful of changed chunks (called from the async index listener). */
+    @Override
     public void upsertChunks( final java.util.Collection< java.util.UUID > chunkIds ) {
         if ( jdbc == null || chunkIds == null || chunkIds.isEmpty() ) return;
         final java.util.Set< java.util.UUID > targets = new java.util.HashSet<>( chunkIds );

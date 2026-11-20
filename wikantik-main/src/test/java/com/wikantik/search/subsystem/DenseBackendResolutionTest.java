@@ -20,11 +20,9 @@ package com.wikantik.search.subsystem;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pins the contract BETWEEN the two places that resolve
@@ -89,7 +87,7 @@ class DenseBackendResolutionTest {
      */
     @Test
     void explicitProperty_bothResolversAgreeForEverySupportedBackend() {
-        for ( final String backend : DenseBackends.SUPPORTED ) {
+        for ( final String backend : java.util.Arrays.stream( DenseBackend.values() ).map( DenseBackend::wire ).toList() ) {
             assertEquals( SearchWiringHelper.resolveDenseBackend( props( backend ) ),
                           SearchSubsystemFactory.resolveFallbackDenseBackend( props( backend ) ),
                           "Both resolvers must agree on an explicitly configured backend: " + backend );
@@ -102,32 +100,5 @@ class DenseBackendResolutionTest {
     void explicitProperty_bothResolversNormaliseCaseIdentically() {
         assertEquals( "lucene-hnsw", SearchWiringHelper.resolveDenseBackend( props( "LUCENE-HNSW" ) ) );
         assertEquals( "lucene-hnsw", SearchSubsystemFactory.resolveFallbackDenseBackend( props( "LUCENE-HNSW" ) ) );
-    }
-
-    // ------------------------------------------------------------------
-    // The supported-backend list and its rejection message
-    // ------------------------------------------------------------------
-
-    @Test
-    void supportedList_isTheSingleSourceOfTruthForBothSwitches() {
-        assertEquals( List.of( "inmemory", "pgvector", "lucene-hnsw" ), DenseBackends.SUPPORTED,
-            "Both dense-backend switches branch on exactly these names; adding a backend "
-          + "means adding it here and to both switches." );
-    }
-
-    /**
-     * The rejection message used to be a hand-copied string literal in two files. Building
-     * it from {@link DenseBackends#SUPPORTED} means a new backend cannot leave one copy
-     * of the message stale.
-     */
-    @Test
-    void unsupportedBackend_messageNamesEverySupportedBackendAndTheOffendingValue() {
-        final IllegalArgumentException e = DenseBackends.unsupported( "redis-vector" );
-        for ( final String backend : DenseBackends.SUPPORTED ) {
-            assertTrue( e.getMessage().contains( backend ),
-                "Rejection message must name supported backend '" + backend + "': " + e.getMessage() );
-        }
-        assertTrue( e.getMessage().contains( "redis-vector" ),
-            "Rejection message must quote the offending value: " + e.getMessage() );
     }
 }

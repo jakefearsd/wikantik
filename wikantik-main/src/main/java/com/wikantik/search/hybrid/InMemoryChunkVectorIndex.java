@@ -54,7 +54,7 @@ import java.util.UUID;
  * new arrays atomically or the caller sees the previous complete generation.
  * No lock is taken on the query path.</p>
  */
-public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
+public final class InMemoryChunkVectorIndex implements RefreshableChunkVectorIndex {
 
     private static final Logger LOG = LogManager.getLogger( InMemoryChunkVectorIndex.class );
 
@@ -93,6 +93,7 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
      * to be called after {@code EmbeddingIndexService} writes a batch — the
      * async reindex listener hooks this to keep the query-path index warm.
      */
+    @Override
     public void reload() {
         final Snapshot loaded = loadFromDatabase();
         this.snapshot = loaded;
@@ -117,6 +118,7 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
      * corpus. Falls back to {@link #reload()} on any SQL failure so the index
      * stays internally consistent.</p>
      */
+    @Override
     public void upsertChunks( final Collection< UUID > chunkIds ) {
         if ( chunkIds == null || chunkIds.isEmpty() ) {
             return;
@@ -288,6 +290,7 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
     }
 
     /** Count of vectors currently loaded. Intended for metrics/admin. */
+    @Override
     public int size() {
         return snapshot.size();
     }

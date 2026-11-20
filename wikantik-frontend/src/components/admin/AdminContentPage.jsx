@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import IndexStatusTab from './IndexStatusTab';
@@ -265,21 +266,10 @@ function OrphanedPagesTab() {
 // ---- Broken Links ----
 
 function BrokenLinksTab() {
-  const [links, setLinks] = useState([]);
-  const [blockRefs, setBlockRefs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    api.admin.getBrokenLinks()
-      .then(data => {
-        setLinks(data.links || []);
-        // Older servers do not send brokenBlockRefs.
-        setBlockRefs(data.brokenBlockRefs || []);
-      })
-      .catch((err) => setError(err.message || 'Failed to scan for broken links'))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: scan, loading, error } = useAdminResource(() => api.admin.getBrokenLinks());
+  const links = scan?.links || [];
+  // Older servers do not send brokenBlockRefs.
+  const blockRefs = scan?.brokenBlockRefs || [];
 
   if (loading) return <div className="admin-loading">Scanning for broken links…</div>;
   if (error) return <div className="error-banner">{error}</div>;

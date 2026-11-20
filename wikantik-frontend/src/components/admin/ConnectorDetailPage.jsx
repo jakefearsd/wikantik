@@ -5,6 +5,7 @@
 // plus a gated delete flow. Loads api.connectors.get(id) and re-fetches on
 // any mutation so the page always reflects the server's current state.
 import { useCallback, useEffect, useState } from 'react';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
@@ -52,23 +53,13 @@ export default function ConnectorDetailPage() {
   const [activeTab, setActiveTab] = useState(
     oauthParam || nextParam === 'authorize' ? 'authorization' : 'overview'
   );
-  const [detail, setDetail] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  // setState sits inside the async .then/.catch/.finally callbacks (not
-  // directly in this function's own body), so calling load() synchronously
-  // from the effect is the shape react-hooks/set-state-in-effect allows.
-  const load = useCallback(
-    () => api.connectors.get(id)
-      .then(data => { setDetail(data); setError(null); })
-      .catch(err => setError(errorMessage(err, 'Failed to load connector')))
-      .finally(() => setLoading(false)),
+  const { data: detail, loading, error, reload: load } = useAdminResource(
+    () => api.connectors.get(id).catch(err => {
+      throw new Error(errorMessage(err, 'Failed to load connector'));
+    }),
     [id],
   );
-
-  useEffect(() => { load(); }, [load]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <AdminPage loading={loading} error={error} loadingLabel="Loading connector…">

@@ -4,7 +4,8 @@
 // Reads GET /admin/insights/acquisition, which reports per-engine totals for the single most
 // recent snapshot_date plus a clicks trend series — both sourced from page-rollup rows
 // (query_text = '') only, since engines omit low-volume queries and summing them undercounts.
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
@@ -27,18 +28,9 @@ function formatCtr(ctr) {
 }
 
 export default function InsightsPanel() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    api.admin.getInsightsAcquisition(DEFAULT_SITE, DEFAULT_DAYS)
-      .then((resp) => { if (!cancelled) setData(resp); })
-      .catch((err) => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
+  const { data, loading, error } = useAdminResource(
+    () => api.admin.getInsightsAcquisition(DEFAULT_SITE, DEFAULT_DAYS),
+  );
 
   // One clicks series per engine, oldest→newest (API order), for the per-row sparkline.
   const trendByEngine = useMemo(() => {

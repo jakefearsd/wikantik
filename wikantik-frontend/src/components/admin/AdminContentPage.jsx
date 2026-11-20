@@ -266,7 +266,11 @@ function OrphanedPagesTab() {
 // ---- Broken Links ----
 
 function BrokenLinksTab() {
-  const { data: scan, loading, error } = useAdminResource(() => api.admin.getBrokenLinks());
+  const { data: scan, loading, error } = useAdminResource(
+    () => api.admin.getBrokenLinks().catch((err) => {
+      throw new Error(err.message || 'Failed to scan for broken links');
+    }),
+  );
   const links = scan?.links || [];
   // Older servers do not send brokenBlockRefs.
   const blockRefs = scan?.brokenBlockRefs || [];

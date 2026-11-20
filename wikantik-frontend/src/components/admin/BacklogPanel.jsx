@@ -7,13 +7,15 @@
 // threshold, so an empty `opportunities` list does NOT mean "nothing to do" — it can just as
 // easily mean "not enough traffic to evaluate yet". Those are different operator-facing
 // statements and this panel must never collapse them into one empty-state message.
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import { api } from '../../api/client';
 import Badge from '../ui/Badge';
 import Select from '../ui/Select';
 import '../../styles/admin.css';
 
 const DEFAULT_SITE = 'wiki.wikantik.com';
+const NOT_CONFIGURED = Object.freeze({ notConfigured: true });
 
 // The full rule set (server-side com.wikantik.insights.runtime.InsightsSettings weight keys).
 // Kept as a fixed list rather than derived from the response — deriving it from a
@@ -41,39 +43,23 @@ function formatEvidenceValue(v) {
 }
 
 export default function BacklogPanel() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [notConfigured, setNotConfigured] = useState(false);
   const [typeFilter, setTypeFilter] = useState('');
   const [includeSnoozed, setIncludeSnoozed] = useState(false);
 
-  // setLoading(true)/setError(null)/setNotConfigured(false) used to sit
-  // synchronously at the top of this effect (the flagged shape). They're now
-  // set at the two filter controls below — the events that trigger a
-  // refetch — plus the mount case, which starts from loading=true already.
-  // Every setState left in the effect lives inside the async .then/.catch/
-  // .finally callbacks, gated by the `cancelled` flag against a stale
-  // in-flight request from a superseded filter combination.
-  useEffect(() => {
-    let cancelled = false;
-    api.admin.getInsightsBacklog({
+  // A 503 means the backlog subsystem is off; it is data (NOT_CONFIGURED), not an error.
+  const { data, loading, error } = useAdminResource(
+    () => api.admin.getInsightsBacklog({
       site: DEFAULT_SITE,
       type: typeFilter || undefined,
       includeSnoozed,
-    })
-      .then((resp) => { if (!cancelled) setData(resp); })
-      .catch((err) => {
-        if (cancelled) return;
-        if (err.status === 503) {
-          setNotConfigured(true);
-        } else {
-          setError(err.message);
-        }
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [typeFilter, includeSnoozed]);
+    }).catch((err) => {
+      if (err.status === 503) return NOT_CONFIGURED;
+      throw err;
+    }),
+    [typeFilter, includeSnoozed],
+    { refetchShowsLoading: true },
+  );
+  const notConfigured = !loading && data === NOT_CONFIGURED;
 
   // Not-configured and hard-error states replace the whole panel, same as the acquisition
   // section above. A loading/filter-refetch failure would also land here, which is an
@@ -116,7 +102,7 @@ export default function BacklogPanel() {
           value={typeFilter}
           options={TYPE_OPTIONS}
           placeholder="All types"
-          onChange={(value) => { setLoading(true); setError(null); setNotConfigured(false); setTypeFilter(value); }}
+          onChange={setTypeFilter}
           ariaLabel="Filter by opportunity type"
           data-testid="backlog-type-filter"
         />
@@ -124,7 +110,7 @@ export default function BacklogPanel() {
           <input
             type="checkbox"
             checked={includeSnoozed}
-            onChange={(e) => { setLoading(true); setError(null); setNotConfigured(false); setIncludeSnoozed(e.target.checked); }}
+            onChange={(e) => setIncludeSnoozed(e.target.checked)}
             data-testid="backlog-include-snoozed"
           />
           {' '}Include snoozed

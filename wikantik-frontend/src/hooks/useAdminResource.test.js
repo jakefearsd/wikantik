@@ -76,4 +76,47 @@ describe('useAdminResource', () => {
     rerender({ d: 2 });
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
   });
+
+  it('a stale aborted response never overwrites newer data or error', async () => {
+    const pending = [];
+    const fetcher = vi.fn(() => new Promise((resolve, reject) => pending.push({ resolve, reject })));
+    const { result } = renderHook(() => useAdminResource(fetcher));
+    act(() => { result.current.reload(); });
+    await act(async () => { pending[1].resolve('new'); });
+    await act(async () => { pending[0].resolve('old'); });
+    expect(result.current.data).toBe('new');
+    await act(async () => { result.current.reload(); });
+    await act(async () => { pending[2].resolve('newest'); });
+    await act(async () => { pending[1].reject(new Error('late')); });
+    expect(result.current.error).toBeNull();
+    expect(result.current.data).toBe('newest');
+  });
+
+  describe('refetchShowsLoading', () => {
+    it('a deps change sets loading and clears error; reload stays silent', async () => {
+      const resolvers = [];
+      const fetcher = vi.fn(() => new Promise((resolve, reject) => resolvers.push({ resolve, reject })));
+      const { result, rerender } = renderHook(
+        ({ d }) => useAdminResource(fetcher, [d], { refetchShowsLoading: true }),
+        { initialProps: { d: 1 } });
+      await act(async () => { resolvers[0].reject(new Error('bad')); });
+      expect(result.current.error).toBe('bad');
+      expect(result.current.loading).toBe(false);
+      rerender({ d: 2 });
+      expect(result.current.loading).toBe(true);
+      expect(result.current.error).toBeNull();
+      await act(async () => { resolvers[1].resolve('ok'); });
+      expect(result.current.loading).toBe(false);
+      act(() => { result.current.reload(); });
+      expect(result.current.loading).toBe(false);
+    });
+
+    it('does not show loading on a deps change by default', async () => {
+      const fetcher = vi.fn(() => Promise.resolve('r'));
+      const { result, rerender } = renderHook(({ d }) => useAdminResource(fetcher, [d]), { initialProps: { d: 1 } });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      rerender({ d: 2 });
+      expect(result.current.loading).toBe(false);
+    });
+  });
 });

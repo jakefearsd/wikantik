@@ -13,15 +13,31 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  * `deps` re-runs the fetch when they change; `fetcher` itself is not a
  * dependency, so callers fold what it closes over into `deps`.
  *
+ * With `refetchShowsLoading`, a change in `deps` (a new query, e.g. a filter) sets
+ * `loading` and clears `error` before the new fetch; `reload()` stays silent in
+ * every mode. Default false.
+ *
  * @param {(signal: AbortSignal) => Promise<any>} fetcher
  * @param {any[]} [deps]
+ * @param {{refetchShowsLoading?: boolean}} [options]
  * @returns {{data: any, setData: Function, loading: boolean, error: string|null, reload: () => Promise<void>}}
  */
-export function useAdminResource(fetcher, deps = []) {
+export function useAdminResource(fetcher, deps = [], { refetchShowsLoading = false } = {}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const controllerRef = useRef(null);
+
+  // Store-previous-and-compare (as usePaginatedQuery does) rather than a setState in an effect.
+  const queryKey = JSON.stringify(deps);
+  const [prevQueryKey, setPrevQueryKey] = useState(queryKey);
+  if (queryKey !== prevQueryKey) {
+    setPrevQueryKey(queryKey);
+    if (refetchShowsLoading) {
+      setLoading(true);
+      setError(null);
+    }
+  }
 
   const reload = useCallback(async () => {
     controllerRef.current?.abort();

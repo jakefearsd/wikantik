@@ -279,6 +279,12 @@ describe('AdminContentPage — Broken Links', () => {
     // Must not claim the wiki is clean when the scan never actually ran.
     expect(screen.queryByText(/No broken links found/)).toBeNull();
   });
+
+  it('falls back to a fixed message when the scan error has no message', async () => {
+    api.admin.getBrokenLinks.mockRejectedValueOnce(new Error(''));
+    await openTab();
+    await screen.findByText('Failed to scan for broken links');
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
+import { useAdminResource } from '../../hooks/useAdminResource';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
@@ -12,45 +13,37 @@ const MODES = ['bm25', 'hybrid'];
 const METRICS = ['ndcg_at_5', 'ndcg_at_10', 'recall_at_20', 'mrr'];
 const DEFAULT_LIMIT = 30;
 
+const NO_RUNS = [];
+
 const cellKey = (querySetId, mode) => `${querySetId}|${mode}`;
 
 export default function AdminRetrievalQualityPage() {
-  const [runs, setRuns] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [filterSet, setFilterSet] = useState('');
   const [filterMode, setFilterMode] = useState('');
   const [runningKey, setRunningKey] = useState(null);
 
-  // setLoading(true)/setError(null) used to sit synchronously at the top of
-  // this function (the flagged shape). They're now set at the two filter
-  // onChange handlers below — the events that actually trigger a refetch —
-  // and the remaining setState calls all live inside .then/.finally callbacks.
-  const loadRuns = useCallback(() => api.admin.listRetrievalRuns({
-    querySetId: filterSet || undefined,
-    mode: filterMode || undefined,
-    limit: DEFAULT_LIMIT,
-  })
-    .then(resp => resp?.recent_runs || [])
-    .finally(() => setLoading(false)), [filterSet, filterMode]);
-
-  useEffect(() => {
-    let ignore = false;
-    loadRuns()
-      .then(rows => { if (!ignore) setRuns(rows); })
-      .catch(err => { if (!ignore) setError(err.message); });
-    return () => { ignore = true; };
-  }, [loadRuns]);
+  const { data: loadedRuns, loading, error: loadError, reload: loadRuns } = useAdminResource(
+    () => api.admin.listRetrievalRuns({
+      querySetId: filterSet || undefined,
+      mode: filterMode || undefined,
+      limit: DEFAULT_LIMIT,
+    }).then(resp => resp?.recent_runs || []),
+    [filterSet, filterMode],
+    { refetchShowsLoading: true },
+  );
+  const runs = loadedRuns ?? NO_RUNS;
+  // A failed run-now is shown like a load failure until the filters change.
+  const [runError, setRunError] = useState(null);
+  const error = loadError || runError;
 
   const runNow = async (querySetId, mode) => {
     const key = cellKey(querySetId, mode);
     setRunningKey(key);
     try {
       await api.admin.runRetrievalNow(querySetId, mode);
-      const rows = await loadRuns();
-      setRuns(rows);
+      await loadRuns();
     } catch (err) {
-      setError(err.message);
+      setRunError(err.message);
     } finally {
       setRunningKey(null);
     }
@@ -94,13 +87,13 @@ export default function AdminRetrievalQualityPage() {
           <input
             type="text"
             value={filterSet}
-            onChange={e => { setLoading(true); setError(null); setFilterSet(e.target.value); }}
+            onChange={e => { setRunError(null); setFilterSet(e.target.value); }}
             placeholder="(any)"
           />
         </label>
         <label style={{ marginLeft: '12px' }}>
           Mode:{' '}
-          <select value={filterMode} onChange={e => { setLoading(true); setError(null); setFilterMode(e.target.value); }}>
+          <select value={filterMode} onChange={e => { setRunError(null); setFilterMode(e.target.value); }}>
             <option value="">(any)</option>
             {MODES.map(m => (
               <option key={m} value={m}>{m}</option>

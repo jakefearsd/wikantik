@@ -3,6 +3,7 @@ import { STATUS_LABELS } from './boardModel';
 import { Link, useParams } from 'react-router-dom';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
+import { useAuth } from '../../hooks/useAuth';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import {
   approveDeployment, failDeployment, getDeployment, getDeploymentHistory, rejectDeployment, rollBackDeployment,
@@ -25,6 +26,8 @@ function historyVerb(h) {
  */
 export default function WorkDeploymentView() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const isAdmin = !!user?.roles?.includes('Admin');
   const [d, setD] = useState(null);
   const [history, setHistory] = useState([]);
   const [missing, setMissing] = useState(false);
@@ -71,8 +74,9 @@ export default function WorkDeploymentView() {
   const rejectLabel = d.mayApprove || d.state === 'approved' ? 'Reject' : 'Withdraw';
   return (
     <article className="work-deployment-view">
-      <p><Link to="/work/deployments">Deployments</Link></p>
-      <h1 className="work-heading">{d.product} {d.version} <span className="work-chip">{stateText(d.state)}</span></h1>
+      <h1 className="work-heading">
+        <Link to="/work">Work</Link> <span aria-hidden="true">▸</span> <Link to="/work/deployments">Deployments</Link>{' '}
+        <span aria-hidden="true">▸</span> {d.product} {d.version} <span className="work-chip">{stateText(d.state)}</span></h1>
       <p className="work-muted">
         {d.environment} · requested by {who(d.requestedByName, d.requestedByKind)} {when(d.requestedAt)}
         {d.approvedByName && <> · approved by {who(d.approvedByName, d.approvedByKind)} {when(d.approvedAt)}</>}
@@ -84,7 +88,7 @@ export default function WorkDeploymentView() {
           <li key={i.key}><Link to={`/work/item/${i.key}`}>{i.key}</Link> {i.title} <span className="work-muted">· {STATUS_LABELS[i.status] || i.status}</span></li>
         ))}
       </ul>
-      <p className="work-muted">Only the items in projects you belong to are listed.</p>
+      {!isAdmin && <p className="work-muted">Only the items in projects you belong to are listed.</p>}
 
       {d.evidence && (
         <section aria-label="Evidence">

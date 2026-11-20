@@ -11,6 +11,8 @@ import {
   getDeployment, getDeploymentHistory, approveDeployment, startDeployment, verifyDeployment, failDeployment,
   rollBackDeployment, rejectDeployment,
 } from '../../api/work';
+vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
+import { useAuth } from '../../hooks/useAuth';
 import WorkDeploymentView from './WorkDeploymentView';
 
 const dep = (state, extra = {}) => ({
@@ -25,6 +27,7 @@ const renderView = () => render(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useAuth.mockReturnValue({ user: { authenticated: true, roles: [] }, loading: false });
   getDeploymentHistory.mockResolvedValue({ history: [
     { id: 1, actorName: 'codex', actorKind: 'agent', from: null, to: 'requested', at: '2026-11-17T10:00:00Z', note: null },
     { id: 2, actorName: 'Jake Fear', actorKind: 'human', from: 'requested', to: 'approved', at: '2026-11-17T10:05:00Z', note: 'go' },
@@ -212,5 +215,21 @@ describe('WorkDeploymentView', () => {
     renderView();
     expect(await screen.findByRole('heading', { name: 'History' })).toBeInTheDocument();
     expect(screen.queryByText(/moved it to|requested it/)).toBeNull();
+  });
+
+  it('has the Work > Deployments breadcrumb heading like the other work pages', async () => {
+    getDeployment.mockResolvedValue(dep('approved'));
+    renderView();
+    const h = await screen.findByRole('heading', { name: /wikantik 2\.5\.26/ });
+    expect(within(h).getByRole('link', { name: 'Work' })).toHaveAttribute('href', '/work');
+    expect(within(h).getByRole('link', { name: 'Deployments' })).toHaveAttribute('href', '/work/deployments');
+  });
+
+  it('does not tell a wiki administrator that only their projects are listed', async () => {
+    useAuth.mockReturnValue({ user: { authenticated: true, roles: ['Admin'] }, loading: false });
+    getDeployment.mockResolvedValue(dep('approved'));
+    renderView();
+    await screen.findByRole('heading', { name: /wikantik 2\.5\.26/ });
+    expect(screen.queryByText('Only the items in projects you belong to are listed.')).toBeNull();
   });
 });

@@ -322,6 +322,8 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         rotateSessionId( origin.rotatedRequest() );
         RoleInjector.inject( authorizationManager().getAuthorizer(), session, origin.roleRequest(),
                 role -> fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session ) );
+        LOG.debug( "Established login for {} ({} principal(s), session id {}).", getLoginPrincipal( principals ).getName(),
+                   principals.size(), origin.rotatedRequest() != null ? "rotated" : "kept" );
     }
 
     /**

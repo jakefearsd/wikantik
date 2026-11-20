@@ -30,6 +30,15 @@ describe('editor chrome theme', () => {
     expect(used.has('--row-selected-bg')).toBe(true);
   });
 
+  it('spaces the drawn fence and table blocks with padding, not margin (the height map does not count a block widget\'s margins)', () => {
+    for (const cls of ['.cm-lp-fence-block', '.cm-lp-table-block']) {
+      const rule = Object.entries(editorChromeSpec).find(([sel]) => sel.endsWith(` ${cls}`))[1];
+      expect(rule.margin).toBeUndefined();
+      expect(rule.marginTop).toBeUndefined();
+      expect(rule.marginBottom).toBeUndefined();
+      expect(rule.padding).toBe('0.4em 0');
+    }
+  });
   it('roots every selector at the editor so it out-ranks the default themes', () => {
     expect(Object.keys(editorChromeSpec).filter((s) => !s.startsWith('&.cm-editor '))).toEqual([]);
   });

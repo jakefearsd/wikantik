@@ -234,9 +234,11 @@ export const editorChromeSpec = {
   [`${ROOT} .cm-lp-picker option`]: { color: 'var(--text)', backgroundColor: 'var(--bg-elevated)', fontWeight: '400' },
   [`${ROOT} .cm-lp-fence-lang`]: { color: 'var(--text-secondary)' },
   [`${ROOT} .cm-lp-callout-type`]: { fontWeight: '600' },
-  [`${ROOT} .cm-lp-fence-block`]: { display: 'block', margin: '0.4em 0', overflow: 'auto', cursor: 'text' },
+  // Block widgets space themselves with padding, never margin: CodeMirror's height map does not count a block widget's
+  // margins, so a margin left every line below it that much higher than drawn (a click or End landed a line off).
+  [`${ROOT} .cm-lp-fence-block`]: { display: 'block', padding: '0.4em 0', overflow: 'auto', cursor: 'text' },
   // Tables mirror the reader's (.article-prose table in styles/article.css); cell alignment is set inline per column.
-  [`${ROOT} .cm-lp-table-block`]: { display: 'block', margin: '0.4em 0', overflowX: 'auto', cursor: 'text' },
+  [`${ROOT} .cm-lp-table-block`]: { display: 'block', padding: '0.4em 0', overflowX: 'auto', cursor: 'text' },
   [`${ROOT} .cm-lp-table`]: { width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem', lineHeight: '1.5' },
   [`${ROOT} .cm-lp-table thead th`]: { fontFamily: 'var(--font-ui)', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', textAlign: 'left', padding: 'var(--space-sm) var(--space-md)', borderBottom: '2px solid var(--border-strong)' },
   [`${ROOT} .cm-lp-table tbody td`]: { padding: 'var(--space-sm) var(--space-md)', borderBottom: '1px solid var(--border)', verticalAlign: 'top' },

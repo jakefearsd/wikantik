@@ -298,6 +298,14 @@ export class FenceWidget extends WidgetType {
     // drawFence (policy, registry, toolbar) is loaded on first use so a page without diagrams never fetches it.
     import('../fences/drawFence').then(({ drawFence }) => drawFence(figure, () => !figure.isConnected)).then(() => view?.requestMeasure?.())
       .catch((err) => console.warn('[live-preview] fence draw failed', this.language, err?.message || err));
+    if (view) {
+      // The toolbar (Show source, Expand) works as it does in the preview: a press on it is not a press on the
+      // drawing, so it never reveals the fence. Its click then changes the block's height (the source opens under the
+      // drawing), which the view must re-measure.
+      const onToolbar = (e) => !!e.target.closest?.('.wk-fence-toolbar');
+      wrap.addEventListener('mousedown', (e) => { if (onToolbar(e)) e.stopImmediatePropagation(); }, true);
+      wrap.addEventListener('click', (e) => { if (onToolbar(e)) view.requestMeasure?.(); });
+    }
     // Revealed, the opening line is a header the caret cannot rest on: go to the first body line (when there is one).
     if (view) revealOnMouseDown(view, wrap, (state, pos) => (this.source ? Math.min(state.doc.lineAt(pos).to + 1, state.doc.length) : pos));
     return wrap;

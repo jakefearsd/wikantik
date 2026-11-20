@@ -1281,6 +1281,19 @@ describe('api.importVault', () => {
       .rejects.toMatchObject({ status: 409, message: 'changed since', body: { message: 'changed since' } });
     expect(global.fetch.mock.calls[0][1].body.get('planHash')).toBe('h1');
   });
+
+  it('a session that expired during an import asks for sign-in, as every other request does', async () => {
+    const listener = vi.fn();
+    window.addEventListener('wikantik:auth-required', listener);
+    try {
+      global.fetch.mockResolvedValue(mockFetchResponse({ status: 401, body: { message: 'expired' } }));
+      await expect(api.importVault.plan(new File(['z'], 'v.zip'))).rejects.toMatchObject({ status: 401 });
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0].detail).toMatchObject({ status: 401, path: '/api/import/obsidian/plan' });
+    } finally {
+      window.removeEventListener('wikantik:auth-required', listener);
+    }
+  });
 });
 
 describe('api block methods', () => {

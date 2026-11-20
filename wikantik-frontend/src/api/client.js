@@ -7,6 +7,18 @@ const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
 /* global __BUILD_VERSION__ */
 let versionMismatchSignaled = false;
 
+/**
+ * Authenticated session expired or revoked mid-flight. Tell the auth context so it re-queries /api/auth/user — the
+ * SPA's RequireAuth gate then redirects to login. Without this, the user clicks a button that 403s and nothing visible
+ * happens. Skipped for /api/auth/user itself: that endpoint is the auth probe; re-querying it on its own failure would
+ * loop. Every request path (JSON and multipart) goes through this.
+ */
+function signalAuthRequired(status, path) {
+  if ((status === 401 || status === 403) && typeof window !== 'undefined' && path !== '/api/auth/user') {
+    window.dispatchEvent(new CustomEvent('wikantik:auth-required', { detail: { status, path } }));
+  }
+}
+
 async function request(path, options = {}) {
   const { signal, extraErrorCodes, ...rest } = options;
   const resp = await fetch(`${BASE}${path}`, {
@@ -27,19 +39,7 @@ async function request(path, options = {}) {
 
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({ message: resp.statusText }));
-    // Authenticated session expired or revoked mid-flight. Tell the auth
-    // context so it re-queries /api/auth/user — the SPA's RequireAuth gate
-    // then redirects to login. Without this, the user clicks a button that
-    // 403s and nothing visible happens. Skip for /api/auth/user itself —
-    // that endpoint is the auth probe; re-querying it on its own failure
-    // would loop.
-    if ((resp.status === 401 || resp.status === 403)
-        && typeof window !== 'undefined'
-        && path !== '/api/auth/user') {
-      window.dispatchEvent(new CustomEvent('wikantik:auth-required', {
-        detail: { status: resp.status, path },
-      }));
-    }
+    signalAuthRequired(resp.status, path);
     // Caller-supplied custom status → app-level code mapping. Lets callers
     // surface domain errors (rebuild_in_flight, hybrid_disabled, …) without
     // duplicating the entire fetch/error-envelope dance.
@@ -74,6 +74,7 @@ async function postMultipart(path, form) {
   });
   const body = await resp.json().catch(() => ({ message: resp.statusText }));
   if (!resp.ok) {
+    signalAuthRequired(resp.status, path);
     throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });
   }
   return body;

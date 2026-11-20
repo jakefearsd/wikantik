@@ -98,6 +98,7 @@ public class SSORedirectServlet extends HttpServlet {
             }
 
             final Client client = clientOpt.get();
+            rememberReturnPath( request );
             final JEEContext webContext = new JEEContext( request, response );
             final JEESessionStore sessionStore = new JEESessionStore();
             final CallContext callContext = new CallContext( webContext, sessionStore );
@@ -116,6 +117,26 @@ public class SSORedirectServlet extends HttpServlet {
         } catch( final Exception e ) {
             LOG.error( "Failed to initiate SSO redirect", e );
             response.sendRedirect( request.getContextPath() + "/login?error=sso_redirect_failed" );
+        }
+    }
+
+    /**
+     * Stores the page the user started signing in from ({@code ?return=}) so the callback can land them back
+     * on it; an absent or unsafe value clears any path left over from an abandoned earlier attempt.
+     */
+    private static void rememberReturnPath( final HttpServletRequest request ) {
+        final String raw = request.getParameter( "return" );
+        final var returnPath = SsoReturnPath.sanitize( raw, request.getContextPath() );
+        if( returnPath.isPresent() ) {
+            request.getSession().setAttribute( SsoReturnPath.SESSION_ATTRIBUTE, returnPath.get() );
+            return;
+        }
+        if( raw != null && !raw.isBlank() ) {
+            LOG.warn( "Ignoring unsafe SSO return path (length {}); the user will land on the front page", raw.length() );
+        }
+        final var session = request.getSession( false );
+        if( session != null ) {
+            session.removeAttribute( SsoReturnPath.SESSION_ATTRIBUTE );
         }
     }
 }

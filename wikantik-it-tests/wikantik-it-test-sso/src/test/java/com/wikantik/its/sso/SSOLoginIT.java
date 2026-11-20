@@ -118,6 +118,40 @@ public class SSOLoginIT extends WithIntegrationTestSetup {
     }
 
     /**
+     * Signing in from a page lands the user back on that page, not on the front page: the SSO button
+     * carries {@code ?return=}, {@code /sso/login} remembers it and {@code /sso/callback} redirects there.
+     * The page need not exist; the SPA route is what the user was looking at.
+     */
+    @Test
+    void ssoLoginReturnsToThePageItStartedFrom() {
+        final String target = baseUrl() + "/wiki/SsoReturnTarget";
+        Selenide.open( target );
+        $( "[data-testid=user-badge-signin]" ).shouldBe( Condition.visible, Duration.ofSeconds( 15 ) ).click();
+        $( "[data-testid=sso-login-button]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) ).click();
+
+        // Keycloak may still hold a session from another test in this class, in which case it answers
+        // without showing its form.
+        new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 10 ) )
+            .until( driver -> driver.getCurrentUrl().startsWith( IDP_ISSUER )
+                          || ( driver.getCurrentUrl().startsWith( baseUrl() ) && !driver.getCurrentUrl().contains( "/sso/" ) ) );
+        if( WebDriverRunner.getWebDriver().getCurrentUrl().startsWith( IDP_ISSUER ) ) {
+            new KeycloakLoginPage().submit( SSO_SUBJECT, "testpass" );
+        }
+
+        new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 15 ) )
+            .until( driver -> driver.getCurrentUrl().startsWith( baseUrl() )
+                          && !driver.getCurrentUrl().contains( "/sso/" ) );
+        Assertions.assertEquals( target, WebDriverRunner.getWebDriver().getCurrentUrl(),
+            "After SSO the user should be back on the page they signed in from." );
+        $( "[data-testid=user-badge][data-authenticated=true]" )
+            .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
+
+        $( "[data-testid=user-badge-logout]" ).click();
+        $( "[data-testid=user-badge][data-authenticated=false]" )
+            .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
+    }
+
+    /**
      * Direct hit on the callback servlet with no {@code code} parameter must
      * fail gracefully — not with a 500 — and redirect back to the login page
      * with an error marker. Guards against regressions in the servlet's

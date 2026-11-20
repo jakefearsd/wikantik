@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useHref } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import SsoLoginButton from './SsoLoginButton';
 import { HOME_PATH } from '../utils/homePage';
@@ -15,6 +15,17 @@ function ssoErrorMessage(code) {
   return SSO_ERROR_MESSAGES[code] ?? 'Sign-in failed. Please try again.';
 }
 
+/**
+ * The `return` parameter names the in-app page to go back to after signing in
+ * (e.g. /login?return=/page-graph). Only an in-app path is honoured: a value
+ * starting with // or carrying a backslash could point at another host.
+ */
+function safeReturnPath(raw) {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return null;
+  if (/^\/(login|logout|sso)(?:[/?#]|$)/i.test(raw)) return null;
+  return raw;
+}
+
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -22,6 +33,9 @@ export default function LoginPage() {
 
   const errorCode = searchParams.get('error');
   const ssoMessage = ssoErrorMessage(errorCode);
+  const returnPath = safeReturnPath(searchParams.get('return'));
+  // The SSO servlet needs the full browser path (router basename included).
+  const returnHref = useHref(returnPath ?? HOME_PATH);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +48,7 @@ export default function LoginPage() {
     setCredError(null);
     try {
       const result = await login(username, password);
-      navigate(result?.mustChangePassword ? '/change-password' : HOME_PATH);
+      navigate(result?.mustChangePassword ? '/change-password' : (returnPath ?? HOME_PATH));
     } catch {
       setCredError('Invalid credentials');
     } finally {
@@ -78,7 +92,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <SsoLoginButton />
+          <SsoLoginButton returnTo={returnPath ? returnHref : null} />
 
           {credError && (
             <div className="error-banner" data-testid="login-error" style={{ marginBottom: 'var(--space-md)' }}>

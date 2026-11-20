@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider } from '../hooks/useAuth';
 import SsoLoginButton from './SsoLoginButton';
@@ -21,13 +21,20 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-function renderButton() {
+function renderButton(props = {}) {
   return render(
     <AuthProvider>
-      <SsoLoginButton />
+      <SsoLoginButton {...props} />
     </AuthProvider>,
   );
 }
+
+const ENABLED_USER = {
+  authenticated: false,
+  username: 'anonymous',
+  roles: [],
+  sso: { enabled: true, loginUrl: '/sso/login', providerLabel: 'Google' },
+};
 
 describe('SsoLoginButton', () => {
   it('renders a provider-labelled link to the SSO login URL when SSO is enabled', async () => {
@@ -42,7 +49,7 @@ describe('SsoLoginButton', () => {
 
     const link = await screen.findByTestId('sso-login-button');
     expect(link).toHaveTextContent('Continue with Google');
-    expect(link.getAttribute('href')).toBe('/sso/login');
+    expect(link.getAttribute('href')).toBe('/sso/login?return=%2F');
     // The account-creation hint addresses the "no create-account entry" gap.
     expect(screen.getByText(/Signing in creates your account/i)).toBeInTheDocument();
   });
@@ -83,6 +90,40 @@ describe('SsoLoginButton', () => {
 
     const link = await screen.findByTestId('sso-login-button');
     expect(link).toHaveTextContent('Continue with Google');
-    expect(link.getAttribute('href')).toBe('/sso/login');
+    expect(link.getAttribute('href')).toBe('/sso/login?return=%2F');
+  });
+
+  describe('return path (land back on the page you signed in from)', () => {
+    afterEach(() => window.history.pushState({}, '', '/'));
+
+    it('carries the current page, query and fragment by default', async () => {
+      window.history.pushState({}, '', '/edit/SomePage?section=2#intro');
+      api.getUser.mockResolvedValue(ENABLED_USER);
+
+      renderButton();
+
+      const link = await screen.findByTestId('sso-login-button');
+      expect(link.getAttribute('href'))
+        .toBe('/sso/login?return=' + encodeURIComponent('/edit/SomePage?section=2#intro'));
+    });
+
+    it('uses an explicit returnTo over the current page', async () => {
+      window.history.pushState({}, '', '/login');
+      api.getUser.mockResolvedValue(ENABLED_USER);
+
+      renderButton({ returnTo: '/wiki/Target' });
+
+      const link = await screen.findByTestId('sso-login-button');
+      expect(link.getAttribute('href')).toBe('/sso/login?return=%2Fwiki%2FTarget');
+    });
+
+    it('sends no return path when returnTo is null', async () => {
+      api.getUser.mockResolvedValue(ENABLED_USER);
+
+      renderButton({ returnTo: null });
+
+      const link = await screen.findByTestId('sso-login-button');
+      expect(link.getAttribute('href')).toBe('/sso/login');
+    });
   });
 });

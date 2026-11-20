@@ -8,17 +8,26 @@ import { useAuth } from '../hooks/useAuth';
  *
  * /sso/login is a servlet, not an SPA route, so this is a deliberate full-page
  * navigation (plain anchor) rather than a react-router link.
+ *
+ * The link carries `?return=<page>` so the server lands the user back where they
+ * started signing in, not on the front page. `returnTo` is a full browser path
+ * (router basename included); omitted, it is the current page; null sends none.
+ * The server re-validates it and falls back to the front page.
  */
-export default function SsoLoginButton() {
+export default function SsoLoginButton({ returnTo }) {
   const { sso } = useAuth();
   if (!sso?.enabled) return null;
 
   const label = sso.providerLabel || 'single sign-on';
+  const target = returnTo === undefined
+    ? window.location.pathname + window.location.search + window.location.hash
+    : returnTo;
+  const href = target ? `${sso.loginUrl}?return=${encodeURIComponent(target)}` : sso.loginUrl;
 
   return (
     <div data-testid="sso-login">
       <a
-        href={sso.loginUrl}
+        href={href}
         className="btn btn-primary"
         data-testid="sso-login-button"
         style={{

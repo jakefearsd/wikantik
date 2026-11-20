@@ -33,6 +33,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 
 /**
@@ -78,12 +79,10 @@ public class SSOCallbackServlet extends HttpServlet {
         LOG.debug( "Processing SSO callback for request: {}", request.getRequestURI() );
 
         try {
-            final CallbackLogic callbackLogic = new DefaultCallbackLogic();
+            final CallbackLogic callbackLogic = newCallbackLogic();
             final var frameworkParameters = new JEEFrameworkParameters( request, response );
-            // Land on a no-store SPA route (the front page) rather than the context
-            // root "/": the root shell is browser-cacheable and could serve a stale
-            // bundle here, tripping the SPA's version-mismatch banner on every SSO login.
-            final String defaultUrl = request.getContextPath() + "/wiki/Main";
+            // Read BEFORE perform(): renewSession=true below swaps the HTTP session.
+            final String defaultUrl = landingUrl( request );
             // renewSession=true causes pac4j to invalidate the pre-authentication session
             // and issue a fresh JSESSIONID while migrating the stored profile, preventing
             // session-fixation attacks.
@@ -109,6 +108,33 @@ public class SSOCallbackServlet extends HttpServlet {
             LOG.warn( "SSO callback processing failed", e );
             response.sendRedirect( request.getContextPath() + "/login?error=sso_callback_failed" );
         }
+    }
+
+    /** Seam for tests; production always uses pac4j's {@link DefaultCallbackLogic}. */
+    CallbackLogic newCallbackLogic() {
+        return new DefaultCallbackLogic();
+    }
+
+    /**
+     * Where the user lands once signed in: the page they started signing in from (remembered by
+     * {@link SSORedirectServlet}, re-checked here since it round-tripped through the session), else the front
+     * page. The front page fallback is a no-store SPA route rather than the context root "/": the root shell
+     * is browser-cacheable and could serve a stale bundle, tripping the SPA's version-mismatch banner.
+     */
+    private static String landingUrl( final HttpServletRequest request ) {
+        final String contextPath = request.getContextPath();
+        final HttpSession session = request.getSession( false );
+        if( session != null ) {
+            final Object remembered = session.getAttribute( SsoReturnPath.SESSION_ATTRIBUTE );
+            session.removeAttribute( SsoReturnPath.SESSION_ATTRIBUTE );
+            if( remembered instanceof String path ) {
+                final var safe = SsoReturnPath.sanitize( path, contextPath );
+                if( safe.isPresent() ) {
+                    return safe.get();
+                }
+            }
+        }
+        return contextPath + "/wiki/Main";
     }
 
     /**

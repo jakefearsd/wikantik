@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Signing in with single sign-on from a page now returns you to that page instead of the front page. The sign-in page also honours its `return` parameter for password sign-in. Only a page path on this wiki is accepted as the place to return to.
+
 ## [2.7.4] - 2026-11-19
 
 ### Changed

@@ -33,6 +33,7 @@ function renderLoginPage(initialEntry = '/login') {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<div data-testid="wiki-main">Wiki Main</div>} />
           <Route path="/change-password" element={<div data-testid="change-password-page">Change Password</div>} />
+          <Route path="/wiki/:name" element={<div data-testid="returned-page">Returned</div>} />
         </Routes>
       </AuthProvider>
     </MemoryRouter>,
@@ -106,6 +107,50 @@ describe('LoginPage', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('change-password-page')).toBeInTheDocument();
+    });
+  });
+
+  describe('return parameter (land back on the page you signed in from)', () => {
+    async function signIn(entry) {
+      const { api } = await import('../api/client');
+      api.login.mockResolvedValue({ success: true });
+      api.getUser.mockResolvedValue({ authenticated: true, username: 'bob', roles: ['Authenticated'] });
+      renderLoginPage(entry);
+      fireEvent.change(screen.getByTestId('login-username'), { target: { value: 'bob' } });
+      fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'pw' } });
+      fireEvent.click(screen.getByTestId('login-submit'));
+    }
+
+    it('password sign-in navigates to the return path', async () => {
+      await signIn('/login?return=%2Fwiki%2FSomePage');
+      expect(await screen.findByTestId('returned-page')).toBeInTheDocument();
+    });
+
+    it('password sign-in ignores an off-site return path and goes home', async () => {
+      await signIn('/login?return=%2F%2Fevil.example%2Fwiki%2FX');
+      expect(await screen.findByTestId('wiki-main')).toBeInTheDocument();
+    });
+
+    it('hands the return path to the SSO button', async () => {
+      const { api } = await import('../api/client');
+      api.getUser.mockResolvedValue({
+        authenticated: false, username: 'anonymous', roles: [],
+        sso: { enabled: true, loginUrl: '/sso/login', providerLabel: 'Google' },
+      });
+      renderLoginPage('/login?return=%2Fwiki%2FSomePage');
+      const link = await screen.findByTestId('sso-login-button');
+      expect(link.getAttribute('href')).toBe('/sso/login?return=%2Fwiki%2FSomePage');
+    });
+
+    it('sends the SSO button no return path when none was given', async () => {
+      const { api } = await import('../api/client');
+      api.getUser.mockResolvedValue({
+        authenticated: false, username: 'anonymous', roles: [],
+        sso: { enabled: true, loginUrl: '/sso/login', providerLabel: 'Google' },
+      });
+      renderLoginPage('/login');
+      const link = await screen.findByTestId('sso-login-button');
+      expect(link.getAttribute('href')).toBe('/sso/login');
     });
   });
 });

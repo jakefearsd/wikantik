@@ -185,6 +185,53 @@ class SSORedirectServletTest {
         verify( response ).sendRedirect( "https://idp.example.com/auth" );
     }
 
+    // ---- return path: remembered in the session so the callback can land the user back on it ----
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void doGetRemembersASafeReturnPathInTheSession() throws Exception {
+        final jakarta.servlet.http.HttpSession session = stubRedirectingClient();
+        when( request.getParameter( "return" ) ).thenReturn( "/JSPWiki/edit/SomePage" );
+
+        servlet.doGet( request, response );
+
+        verify( session ).setAttribute( SsoReturnPath.SESSION_ATTRIBUTE, "/JSPWiki/edit/SomePage" );
+        verify( response ).sendRedirect( "https://idp.example.com/auth" );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void doGetDropsAnOffSiteReturnPathAndClearsAnyStaleOne() throws Exception {
+        final jakarta.servlet.http.HttpSession session = stubRedirectingClient();
+        when( request.getParameter( "return" ) ).thenReturn( "//evil.example/phish" );
+
+        servlet.doGet( request, response );
+
+        verify( session, never() ).setAttribute( eq( SsoReturnPath.SESSION_ATTRIBUTE ), any() );
+        verify( session ).removeAttribute( SsoReturnPath.SESSION_ATTRIBUTE );
+        verify( response ).sendRedirect( "https://idp.example.com/auth" );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private jakarta.servlet.http.HttpSession stubRedirectingClient() throws Exception {
+        final Client client = mock( Client.class );
+        when( client.getName() ).thenReturn( "OidcClient" );
+        when( client.getRedirectionAction( any( CallContext.class ) ) )
+                .thenReturn( Optional.of( new FoundAction( "https://idp.example.com/auth" ) ) );
+        final Clients clients = mock( Clients.class );
+        when( clients.findAllClients() ).thenReturn( List.of( client ) );
+        final Config pac4jConfig = mock( Config.class );
+        when( pac4jConfig.getClients() ).thenReturn( clients );
+        final SSOConfig ssoConfig = mock( SSOConfig.class );
+        when( ssoConfig.isEnabled() ).thenReturn( true );
+        when( ssoConfig.getPac4jConfig() ).thenReturn( pac4jConfig );
+        SSOConfigHolder.setConfig( engine, ssoConfig );
+        final jakarta.servlet.http.HttpSession session = mock( jakarta.servlet.http.HttpSession.class );
+        when( request.getSession( anyBoolean() ) ).thenReturn( session );
+        when( request.getSession() ).thenReturn( session );
+        return session;
+    }
+
     // ---- SSO enabled, client throws exception → redirect to /login ----
 
     @Test

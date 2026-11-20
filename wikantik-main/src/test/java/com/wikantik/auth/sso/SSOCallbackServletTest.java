@@ -131,6 +131,57 @@ class SSOCallbackServletTest {
         verify( response ).sendRedirect( "/JSPWiki/login?error=sso_callback_failed" );
     }
 
+    // ---- Landing page: the page the user signed in from, else the front page ----
+
+    @Test
+    void serviceLandsOnTheRememberedReturnPathAndForgetsIt() throws Exception {
+        final HttpSession session = request.getSession( false );
+        when( session.getAttribute( SsoReturnPath.SESSION_ATTRIBUTE ) ).thenReturn( "/JSPWiki/edit/SomePage" );
+        final CallbackLogic logic = enableWithCapturingLogic();
+
+        servlet.service( request, response );
+
+        verify( logic ).perform( any( Config.class ), eq( "/JSPWiki/edit/SomePage" ), eq( true ), isNull(), any() );
+        verify( session ).removeAttribute( SsoReturnPath.SESSION_ATTRIBUTE );
+    }
+
+    @Test
+    void serviceLandsOnTheFrontPageWithoutARememberedReturnPath() throws Exception {
+        final CallbackLogic logic = enableWithCapturingLogic();
+
+        servlet.service( request, response );
+
+        verify( logic ).perform( any( Config.class ), eq( "/JSPWiki/wiki/Main" ), eq( true ), isNull(), any() );
+    }
+
+    @Test
+    void serviceIgnoresATamperedReturnPath() throws Exception {
+        final HttpSession session = request.getSession( false );
+        when( session.getAttribute( SsoReturnPath.SESSION_ATTRIBUTE ) ).thenReturn( "https://evil.example/" );
+        final CallbackLogic logic = enableWithCapturingLogic();
+
+        servlet.service( request, response );
+
+        verify( logic ).perform( any( Config.class ), eq( "/JSPWiki/wiki/Main" ), eq( true ), isNull(), any() );
+    }
+
+    private CallbackLogic enableWithCapturingLogic() {
+        final SSOConfig ssoConfig = mock( SSOConfig.class );
+        when( ssoConfig.isEnabled() ).thenReturn( true );
+        when( ssoConfig.getPac4jConfig() ).thenReturn( mock( Config.class ) );
+        SSOConfigHolder.setConfig( engine, ssoConfig );
+        final CallbackLogic logic = mock( CallbackLogic.class );
+        servlet = new SSOCallbackServlet() {
+            private static final long serialVersionUID = 1L;
+            @Override
+            CallbackLogic newCallbackLogic() {
+                return logic;
+            }
+        };
+        injectEngine( servlet, engine );
+        return logic;
+    }
+
     // ---- Helper: inject engine via reflection ----
 
     private static void injectEngine( final SSOCallbackServlet target, final Engine eng ) {

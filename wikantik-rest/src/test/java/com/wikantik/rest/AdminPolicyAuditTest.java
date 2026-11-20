@@ -89,12 +89,12 @@ class AdminPolicyAuditTest {
         Mockito.when( authMgr.getDatabasePolicy() ).thenReturn( dbPolicy );
         ( (WikiEngine) engine ).setManager( AuthorizationManager.class, authMgr );
 
-        // WikiEngine wires its AuditService during initialize() and exposes only a getter,
-        // so a capturing stub goes in by reflection. Nothing else observes audit writes.
+        // WikiEngine wires its audit subsystem during initialize() and exposes only a getter, so a capturing
+        // stub goes in by reflection, as the wired holder (no writer or listeners). Nothing else observes audit writes.
         auditService = Mockito.mock( AuditService.class );
-        final java.lang.reflect.Field f = WikiEngine.class.getDeclaredField( "auditService" );
+        final java.lang.reflect.Field f = WikiEngine.class.getDeclaredField( "auditWired" );
         f.setAccessible( true );
-        f.set( engine, auditService );
+        f.set( engine, new com.wikantik.audit.AuditWiringHelper.Wired( auditService, null, null, null, null ) );
 
         servlet = new AdminPolicyResource();
         final ServletConfig config = Mockito.mock( ServletConfig.class );

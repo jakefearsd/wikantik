@@ -1762,7 +1762,7 @@ public class WikiEngine implements Engine {
         closeQuietly( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
         closeQuietly( com.wikantik.work.runtime.WorkClaimSweeper.class );
         final var aw = auditWired;
-        if ( aw != null ) {
+        if ( aw != null && aw.writer() != null ) {
             aw.writer().shutdownWriter();
         }
         WikiEventManager.unregisterListenersFor( this );

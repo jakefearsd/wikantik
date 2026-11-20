@@ -157,7 +157,7 @@ describe('WorkProducts', () => {
     renderProducts();
     await screen.findByText('Wikantik');
     fireEvent.click(screen.getByRole('button', { name: 'Edit wikantik' }));
-    expect(await screen.findByText('2h ago · Ada changed Deploy gate from human to agent')).toBeInTheDocument();
+    expect(await screen.findByText('2h ago · Ada changed Deployments are approved by from A person approves deployments to An agent may approve deployments')).toBeInTheDocument();
     expect(screen.getByText('2h ago · Ada archived the product')).toBeInTheDocument();
     expect(productHistory).toHaveBeenCalledWith('wikantik');
   });
@@ -183,5 +183,35 @@ describe('WorkProducts', () => {
     await screen.findByText('Wikantik');
     fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     expect(productHistory).not.toHaveBeenCalled();
+  });
+
+  it('history uses the form labels for fields and values', async () => {
+    const recent = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
+    productHistory.mockResolvedValue({ events: [
+      { at: recent, actor: 'Ada', field: 'autonomy_ceiling', from: 'delegated', to: 'autonomous' },
+      { at: recent, actor: 'Ada', field: 'repo_url', from: null, to: 'https://x.test/r' },
+      { at: recent, actor: 'Ada', field: 'wiki_cluster', from: 'a', to: 'b' },
+    ] });
+    renderProducts();
+    await screen.findByText('Wikantik');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit wikantik' }));
+    expect(await screen.findByText('2h ago · Ada changed Agents may do at most from Delegated to Autonomous')).toBeInTheDocument();
+    expect(screen.getByText('2h ago · Ada changed Repository URL from nothing to https://x.test/r')).toBeInTheDocument();
+    expect(screen.getByText('2h ago · Ada changed Wiki cluster from a to b')).toBeInTheDocument();
+  });
+
+  it('explains what a product is', async () => {
+    renderProducts();
+    expect(await screen.findByText('A product is something you build and ship: a repository and its default branch. Items target a product, and deployments ship its versions.')).toBeInTheDocument();
+  });
+
+  it('hides New product while a create or edit form is open', async () => {
+    renderProducts();
+    await screen.findByText('Wikantik');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit wikantik' }));
+    expect(screen.queryByRole('button', { name: 'New product' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
+    expect(screen.queryByRole('button', { name: 'New product' })).toBeNull();
   });
 });

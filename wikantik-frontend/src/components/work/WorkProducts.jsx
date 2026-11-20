@@ -17,16 +17,20 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const BLANK = { key: '', name: '', repoUrl: '', defaultBranch: '', wikiCluster: '', autonomyCeiling: 'delegated', deployGate: 'human' };
 
 const FIELD_LABELS = {
-  name: 'Name', repo_url: 'Repository', default_branch: 'Default branch', wiki_cluster: 'Wiki cluster',
-  autonomy_ceiling: 'Autonomy ceiling', deploy_gate: 'Deploy gate',
+  name: 'Name', repo_url: 'Repository URL', default_branch: 'Default branch', wiki_cluster: 'Wiki cluster',
+  autonomy_ceiling: 'Agents may do at most', deploy_gate: 'Deployments are approved by',
 };
-const shown = (v) => (v == null || v === '' ? 'nothing' : v);
+const VALUE_LABELS = {
+  autonomy_ceiling: Object.fromEntries(CEILINGS.map((c) => [c, cap(c)])),
+  deploy_gate: Object.fromEntries(GATES.map((g) => [g.value, g.label])),
+};
+const shown = (v, field) => (v == null || v === '' ? 'nothing' : (VALUE_LABELS[field]?.[v] ?? v));
 
 function describe(e) {
   const who = e.actorName || e.actor;
   const when = formatRelative(e.at);
   if (e.field === 'archived') return `${when} · ${who} archived the product`;
-  return `${when} · ${who} changed ${FIELD_LABELS[e.field] || e.field} from ${shown(e.from)} to ${shown(e.to)}`;
+  return `${when} · ${who} changed ${FIELD_LABELS[e.field] || e.field} from ${shown(e.from, e.field)} to ${shown(e.to, e.field)}`;
 }
 
 /** The product's recorded setting changes, newest first. */
@@ -161,9 +165,10 @@ export default function WorkProducts() {
   return (
     <div className="work-products">
       <h1 className="work-heading"><Link to="/work">Work</Link> <span aria-hidden="true">▸</span> Products</h1>
+      <p className="work-muted">A product is something you build and ship: a repository and its default branch. Items target a product, and deployments ship its versions.</p>
       {mode === 'new'
         ? <ProductForm onDone={done} onCancel={() => setMode(null)} />
-        : <p><button type="button" className="btn btn-sm" onClick={() => setMode('new')}>New product</button></p>}
+        : mode === null && <p><button type="button" className="btn btn-sm" onClick={() => setMode('new')}>New product</button></p>}
       {active.length === 0
         ? <EmptyState message="No products yet." />
         : (

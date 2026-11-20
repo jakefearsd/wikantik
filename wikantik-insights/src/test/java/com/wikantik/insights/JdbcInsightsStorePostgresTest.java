@@ -460,6 +460,23 @@ class JdbcInsightsStorePostgresTest {
     }
 
     @Test
+    void latestRowsPerEngineReadsAMissingPositionAsNullAndKeepsARealOne() {
+        // wasNull() reflects only the last column read; a NULL position followed by a non-null
+        // clicks read used to come back as 0.0, the best possible rank.
+        final InsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "bing", "2026-08-14", 40, 3, null ),
+                rollup( "google", "2026-08-14", 200, 8, 15.0 ) ) );
+
+        final List<VisibilityRow> rows = store.latestRowsPerEngine( "wiki.wikantik.com", 28 );
+
+        assertNull( rows.stream().filter( r -> r.engine().equals( "bing" ) ).findFirst().orElseThrow().position(),
+                "a NULL position must read back as null, never 0.0" );
+        assertEquals( 15.0, rows.stream().filter( r -> r.engine().equals( "google" ) ).findFirst()
+                .orElseThrow().position() );
+    }
+
+    @Test
     void latestRowsPerEngineDropsAnEngineStalerThanWithinDays() {
         final InsightsStore store = new JdbcInsightsStore( ds );
         store.upsert( List.of(

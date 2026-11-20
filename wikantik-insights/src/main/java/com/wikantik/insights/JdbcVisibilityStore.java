@@ -235,12 +235,8 @@ final class JdbcVisibilityStore {
                         ps.setString( 2, PAGE_ROLLUP_QUERY_TEXT );
                         ps.setDate( 3, Date.valueOf( snapshotDate ) );
                     },
-                    rs -> {
-                        final double avgPosition = rs.getDouble( "avg_position" );
-                        final Double position = rs.wasNull() ? null : avgPosition;
-                        return new EngineTotal( rs.getString( "engine" ), rs.getLong( "clicks" ),
-                                rs.getLong( "impressions" ), position );
-                    } );
+                    rs -> new EngineTotal( rs.getString( "engine" ), rs.getLong( "clicks" ),
+                            rs.getLong( "impressions" ), JdbcColumns.getNullableDouble( rs, "avg_position" ) ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read visibility engine totals for site {} date {}: {}",
                     siteHost, snapshotDate, e.getMessage(), e );
@@ -273,19 +269,16 @@ final class JdbcVisibilityStore {
                         ps.setString( 2, siteHost );
                         ps.setInt( 3, withinDays );
                     },
-                    rs -> {
-                        final double position = rs.getDouble( "position" );
-                        return new VisibilityRow(
-                                rs.getDate( "snapshot_date" ).toLocalDate(),
-                                rs.getInt( "window_days" ),
-                                rs.getString( "engine" ),
-                                rs.getString( "site_host" ),
-                                rs.getString( "page_path" ),
-                                rs.getString( "query_text" ),
-                                rs.getInt( "impressions" ),
-                                rs.getInt( "clicks" ),
-                                rs.wasNull() ? null : position );
-                    } );
+                    rs -> new VisibilityRow(
+                            rs.getDate( "snapshot_date" ).toLocalDate(),
+                            rs.getInt( "window_days" ),
+                            rs.getString( "engine" ),
+                            rs.getString( "site_host" ),
+                            rs.getString( "page_path" ),
+                            rs.getString( "query_text" ),
+                            rs.getInt( "impressions" ),
+                            rs.getInt( "clicks" ),
+                            JdbcColumns.getNullableDouble( rs, "position" ) ) );
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to read latest visibility rows per engine for site {} within {} days: {}",
                     siteHost, withinDays, e.getMessage(), e );

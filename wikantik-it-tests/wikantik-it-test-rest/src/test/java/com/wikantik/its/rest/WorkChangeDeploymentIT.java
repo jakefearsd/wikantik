@@ -99,8 +99,8 @@ public class WorkChangeDeploymentIT extends WithIntegrationTestSetup {
         row.$$( "button" ).findBy( exactText( "Approve" ) ).shouldBe( visible, WAIT ).click();
         row.shouldHave( text( "approved by" ), WAIT );
 
-        // The merged commit is offered as the approved one: merging exactly what was approved is "after review"
-        // (any other commit would be recorded as merged without review).
+        // The merged commit is offered as the approved one. A squash or merge commit also counts as reviewed
+        // while the approval stands on the change's head.
         row.$( "input[aria-label='Merged commit for " + branch + "']" ).shouldHave( value( "abc1234def" ), WAIT );
         row.$$( "button" ).findBy( exactText( "Record merge" ) ).click();
         row.$( ".work-chip" ).shouldHave( exactText( "merged after review" ), WAIT );

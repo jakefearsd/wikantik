@@ -523,6 +523,13 @@ describe('WorkBoard', () => {
       expect(screen.queryByText(NONE)).toBeNull();
     });
 
+    it('does not tell a viewer to choose New item, which they do not have', async () => {
+      board = boardOf({});
+      renderBoard({ role: 'viewer' });
+      expect(await screen.findByText('No items yet.')).toBeInTheDocument();
+      expect(screen.queryByText(/New item/)).toBeNull();
+    });
+
     it('says the filters match nothing, not that the board is empty, when a filter is on', async () => {
       board = boardOf({});
       renderBoard({ url: '/work/PLAT?product=wikantik' });

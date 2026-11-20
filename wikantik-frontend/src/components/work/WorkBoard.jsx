@@ -233,7 +233,8 @@ export default function WorkBoard() {
   let emptyText = null;
   if (noCards && filtered) emptyText = 'No items match these filters.';
   else if (noCards && hidden === 0) {
-    emptyText = showAll ? 'No items yet. Choose New item to add one.'
+    if (!canEdit) emptyText = 'No items yet.';
+    else emptyText = showAll ? 'No items yet. Choose New item to add one.'
       : 'No items yet. Choose New item to add one; new items start as drafts, shown with Show draft and cancelled.';
   }
 

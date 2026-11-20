@@ -50,10 +50,10 @@ function NewProjectForm({ onCancel }) {
   );
 }
 
-/** /work: the viewer's projects and the items waiting on them. */
 /** The user guide; it lives in the repository so it can be read before work management is switched on. */
 const GUIDE_URL = 'https://github.com/jakefearsd/wikantik/blob/main/docs/user/WorkManagement.md';
 
+/** /work: the viewer's projects and the items waiting on them. */
 export default function WorkHome() {
   const { user, loading: authLoading } = useAuth();
   const { capabilities, loading } = useCapabilities();

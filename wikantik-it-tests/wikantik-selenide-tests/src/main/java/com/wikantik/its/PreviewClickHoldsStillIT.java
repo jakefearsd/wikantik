@@ -161,6 +161,7 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
                 scrollBefore: scrollBefore,
                 scrollRange:  scrollRange,
                 blockTop:     blockTop,
+                previewTop:   previewRect.top,
                 dataLine:     dataLine
             };
             """;
@@ -174,6 +175,7 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
         final double scrollBefore  = ((Number) setup.get( "scrollBefore" )).doubleValue();
         final double scrollRange   = ((Number) setup.get( "scrollRange" )).doubleValue();
         final double blockTopBefore = ((Number) setup.get( "blockTop" )).doubleValue();
+        final double previewTopBefore = ((Number) setup.get( "previewTop" )).doubleValue();
         final int    dataLine      = ((Number) setup.get( "dataLine" )).intValue();
 
         System.out.printf(
@@ -332,16 +334,20 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
         // deltas are tolerated deliberately; do not tighten this number back down
         // without a fresh noise-floor measurement.
         final double scrollDelta    = Math.abs( scrollAfter - scrollBefore );
-        final double blockMoveDelta = blockTopAfter > 0 ? Math.abs( blockTopAfter - blockTopBefore ) : 0;
+        // Measured inside the preview pane, not the window: when the block's click point lies below the fold (collab
+        // mode's presence row pushes the pane down), WebDriver scrolls the whole page to reach it, which moves the
+        // block in the window without the preview moving at all.
+        final double blockMoveDelta = blockTopAfter > 0 && previewTop > 0
+            ? Math.abs( ( blockTopAfter - previewTop ) - ( blockTopBefore - previewTopBefore ) ) : 0;
 
         assertTrue( scrollDelta <= 8,
             String.format( "Preview scrolled %.1f px after clicking a lower block "
                     + "(scrollBefore=%.1f scrollAfter=%.1f) — the scroll-echo bug is back.",
                 scrollDelta, scrollBefore, scrollAfter ) );
         assertTrue( blockMoveDelta <= 8,
-            String.format( "Clicked block moved %.1f px (before=%.1f after=%.1f) — "
-                    + "the preview did not hold still.",
-                blockMoveDelta, blockTopBefore, blockTopAfter ) );
+            String.format( "Clicked block moved %.1f px in the preview pane (before=%.1f after=%.1f, pane top "
+                    + "%.1f -> %.1f) — the preview did not hold still.",
+                blockMoveDelta, blockTopBefore, blockTopAfter, previewTopBefore, previewTop ) );
 
         // --- Soft check: caret alignment (KNOWN NONDETERMINISTIC, 2026-07-30) ---
         //

@@ -349,6 +349,33 @@ describe('a pane reporting the sync\'s scroll more than once', () => {
     expect(editor.setScrollTop).toHaveBeenLastCalledWith(100); // the editor is put back in line with it
   });
 
+  it('a preview re-rendered while the editor corrects itself moves the editor back in line, never the preview', async () => {
+    const preview = await mountEditor();
+    await fire();
+    preview.scrollTop = 351;
+    fireEvent.scroll(preview);
+    runFrame(); // the editor follows to 100 …
+    editor.scrollTop = 107; // … CodeMirror moves itself on as it measures …
+    act(() => { editor.onChange(BODY.replace('para two', 'para two, edited')); }); // … and the preview re-renders
+    await screen.findByText('para two, edited');
+    act(() => { editor.onViewChange(); });
+    await frame();
+    expect(preview.scrollTop).toBe(351);
+    expect(editor.setScrollTop).toHaveBeenLastCalledWith(100);
+  });
+
+  it('the editor\'s first report of all is not taken for a caret move (a shared draft opens without one)', async () => {
+    const preview = await mountEditor();
+    preview.scrollTop = 351;
+    fireEvent.scroll(preview);
+    runFrame(); // the editor follows to 100 …
+    editor.scrollTop = 107; // … CodeMirror corrects itself, and reports for the first time
+    act(() => { editor.onViewChange(); });
+    await frame();
+    expect(preview.scrollTop).toBe(351);
+    expect(editor.setScrollTop).toHaveBeenLastCalledWith(100);
+  });
+
   it('a later move of the editor away and back is the reader\'s, and is followed', async () => {
     const preview = await mountEditor();
     await fire();

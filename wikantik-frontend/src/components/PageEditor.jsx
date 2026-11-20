@@ -672,8 +672,9 @@ export default function PageEditor({ collabTransport } = {}) {
       markCaretBlock(caretBlock(blocks.byLine, g.caret.line - offset));
       // The editor is where the sync put it, or the reader is scrolling the preview this frame: the editor follows
       // the preview, not the other way round.
+      // A re-rendered preview (`forced`) does not change that: the reader still put the preview where it is.
       if ((echo && !moved && !forced) || editorRafRef.current) return;
-      if (settling && !moved && !forced) {
+      if (settling && !moved) {
         alignEditor(editorRef.current, g, preview);
         return;
       }
@@ -690,14 +691,15 @@ export default function PageEditor({ collabTransport } = {}) {
   const { onViewChange: trackTable } = tableControls;
   // The palette's way to a code block's language picker or a callout's type picker (no key can reach them otherwise).
   const { onViewChange: trackBlockPicker } = useBlockPicker({ editorRef, readOnly: collabReadOnly || collabForbidden });
-  const lastCaretRef = useRef('');
+  // null until the editor's first report, which is where the caret starts, not a move of it.
+  const lastCaretRef = useRef(null);
   const handleViewChange = useCallback(() => {
     const editor = editorRef.current;
     const vp = editor?.getViewport?.();
     const cursor = editor?.getCursor?.();
     cursorStore.set({ ...(cursor || {}), ...(vp ? { topLine: vp.topLine } : {}) });
     const caretAt = cursor ? `${cursor.line}:${cursor.col}` : '';
-    const caretMoved = caretAt !== lastCaretRef.current;
+    const caretMoved = lastCaretRef.current !== null && caretAt !== lastCaretRef.current;
     lastCaretRef.current = caretAt;
     // The toolbar's lit buttons: kept by identity while the caret stays in the same formatting, so typing and
     // scrolling do not re-render the toolbar.

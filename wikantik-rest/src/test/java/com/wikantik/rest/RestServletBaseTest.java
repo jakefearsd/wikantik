@@ -454,4 +454,24 @@ class RestServletBaseTest {
         assertEquals( -1, sanitized.indexOf( "https://" ) );
         assertEquals( -1, sanitized.indexOf( "com.google" ) );
     }
+
+    /** HttpServlet 6.1 dispatches PATCH to doPatch natively, and the base service() still applies CORS first. */
+    @Test
+    void patchIsDispatchedToDoPatchWithCorsApplied() throws Exception {
+        final boolean[] patched = { false };
+        final TestRestServlet servlet = new TestRestServlet( engine ) {
+            @Override protected void doPatch( final HttpServletRequest r, final HttpServletResponse s ) {
+                patched[ 0 ] = true;
+            }
+        };
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        Mockito.when( req.getMethod() ).thenReturn( "PATCH" );
+        Mockito.when( req.getHeader( "Origin" ) ).thenReturn( "https://wiki.example.com" );
+
+        servlet.service( req, resp );
+
+        org.junit.jupiter.api.Assertions.assertTrue( patched[ 0 ] );
+        Mockito.verify( resp ).setHeader( "Access-Control-Allow-Origin", "https://wiki.example.com" );
+    }
 }

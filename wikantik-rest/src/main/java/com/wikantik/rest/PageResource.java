@@ -771,20 +771,6 @@ public class PageResource extends RestServletBase {
     }
 
     /**
-     * Routes PATCH requests to {@link #doPatch(HttpServletRequest, HttpServletResponse)}.
-     * HttpServlet does not provide a doPatch method by default, so we intercept it here.
-     */
-    @Override
-    protected void service( final HttpServletRequest req, final HttpServletResponse resp )
-            throws ServletException, IOException {
-        if ( "PATCH".equalsIgnoreCase( req.getMethod() ) ) {
-            doPatch( req, resp );
-        } else {
-            super.service( req, resp );
-        }
-    }
-
-    /**
      * Handles PATCH requests for metadata-only updates.
      * <p>
      * Accepts a JSON body with:

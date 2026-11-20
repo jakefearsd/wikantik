@@ -115,20 +115,15 @@ abstract class AbstractScimServlet extends HttpServlet {
         handleReplace( id, req, resp );
     }
 
-    /** Dispatches PATCH (not a standard HttpServlet override — must override service). */
     @Override
-    protected final void service( final HttpServletRequest req, final HttpServletResponse resp )
-            throws ServletException, IOException {
-        if ( "PATCH".equalsIgnoreCase( req.getMethod() ) ) {
-            final String id = extractIdentifier( req );
-            if ( id == null ) {
-                sendError( resp, 400, null, "PATCH requires a " + identifierLabel() + " in the path" );
-                return;
-            }
-            handlePatch( id, req, resp );
-        } else {
-            super.service( req, resp );
+    protected final void doPatch( final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
+        final String id = extractIdentifier( req );
+        if ( id == null ) {
+            sendError( resp, 400, null, "PATCH requires a " + identifierLabel() + " in the path" );
+            return;
         }
+        handlePatch( id, req, resp );
     }
 
     @Override

@@ -99,22 +99,6 @@ public class CommentThreadResource extends RestServletBase {
         return s != null && s.isAuthenticated();
     }
 
-    /**
-     * Routes PATCH requests to {@link #doPatch(HttpServletRequest, HttpServletResponse)}.
-     * Mirror PageResource: route PATCH to doPatch explicitly (consistent with the other
-     * REST resources); everything else flows through {@link RestServletBase#service} so
-     * CORS headers are still applied.
-     */
-    @Override
-    protected void service( final HttpServletRequest request, final HttpServletResponse response )
-            throws ServletException, IOException {
-        if ( "PATCH".equalsIgnoreCase( request.getMethod() ) ) {
-            doPatch( request, response );
-        } else {
-            super.service( request, response );
-        }
-    }
-
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {

@@ -18,8 +18,6 @@
  */
 package com.wikantik.rest;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.util.Locale;
 import java.util.Optional;
@@ -55,8 +53,10 @@ import java.util.Calendar;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * REST servlet for admin user management.
@@ -112,44 +112,98 @@ public class AdminUserResource extends RestServletBase {
                 pageOwners(), persistence == null ? null : persistence.trustedAuthors() );
     }
 
+    /**
+     * What a route runs, against the servlet that dispatched it (passed in rather than captured, so a table
+     * copied along with a spied servlet still reaches the spy): the request, the response, and the path
+     * parameter (the path info without its leading slash).
+     */
+    @FunctionalInterface
+    private interface Route {
+        void run( AdminUserResource self, HttpServletRequest request, HttpServletResponse response,
+                  String pathParam ) throws IOException;
+    }
+
+    /**
+     * One table per HTTP method, rebuilt lazily because the handlers close over this servlet and servlets are
+     * serializable (see {@link PathRouteTable}). The key is the raw path parameter, with {@code ""} standing for
+     * "no path"; matching the raw string rather than segments keeps a trailing slash or an embedded slash exactly
+     * as hand-routed before. {@code POST bulk-action} is registered ahead of the {@code {login}/lock} suffix routes.
+     */
+    private transient volatile Map< String, PathRouteTable< Route > > routes;
+
+    private Map< String, PathRouteTable< Route > > routes() {
+        Map< String, PathRouteTable< Route > > r = routes;
+        if ( r == null ) {
+            final Route loginRequired = ( self, req, resp, pathParam ) ->
+                    self.sendError( resp, HttpServletResponse.SC_BAD_REQUEST, "Login name required in path" );
+            r = Map.of(
+                "GET", PathRouteTable.< Route >builder()
+                        .exact( NO_PATH, ( self, req, resp, p ) -> self.handleListUsers( resp ) )
+                        .when( p -> true, ( self, req, resp, p ) -> self.handleGetUser( resp, p ) )
+                        .build(),
+                "POST", PathRouteTable.< Route >builder()
+                        .exact( "bulk-action", ( self, req, resp, p ) -> self.doBulkAction( req, resp ) )
+                        .exact( NO_PATH, ( self, req, resp, p ) -> self.handleCreateUser( req, resp ) )
+                        .when( p -> p.endsWith( LOCK ),
+                                ( self, req, resp, p ) -> self.handleLockUser( req, resp, withoutSuffix( p, LOCK ) ) )
+                        .when( p -> p.endsWith( UNLOCK ),
+                                ( self, req, resp, p ) -> self.handleUnlockUser( req, resp, withoutSuffix( p, UNLOCK ) ) )
+                        .build(),
+                "PUT", PathRouteTable.< Route >builder()
+                        .exact( NO_PATH, loginRequired )
+                        .when( p -> true, ( self, req, resp, p ) -> self.handleUpdateUser( req, resp, p ) )
+                        .build(),
+                "DELETE", PathRouteTable.< Route >builder()
+                        .exact( NO_PATH, loginRequired )
+                        .when( p -> true, ( self, req, resp, p ) -> self.handleDeleteUser( req, resp, p ) )
+                        .build() );
+            routes = r;
+        }
+        return r;
+    }
+
+    private static final String NO_PATH = "";
+    private static final String LOCK = "/lock";
+    private static final String UNLOCK = "/unlock";
+
+    private static String withoutSuffix( final String pathParam, final String suffix ) {
+        return pathParam.substring( 0, pathParam.length() - suffix.length() );
+    }
+
+    private void dispatch( final String method, final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
+        final String pathParam = extractPathParam( request );
+        final String key = pathParam == null ? NO_PATH : pathParam;
+        final Optional< Route > route = routes().get( method ).match( key );
+        if ( route.isPresent() ) {
+            route.get().run( this, request, response, key );
+        } else {
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint" );
+        }
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-
-        final String pathParam = extractPathParam( request );
-
-        if ( pathParam == null ) {
-            handleListUsers( response );
-        } else {
-            handleGetUser( response, pathParam );
-        }
+        dispatch( "GET", request, response );
     }
 
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
+        dispatch( "POST", request, response );
+    }
 
-        // Dispatch bulk-action BEFORE any other path handling so it doesn't
-        // collide with the {loginName}/lock|unlock subpaths.
-        final String pathInfo = request.getPathInfo();
-        if ( "/bulk-action".equals( pathInfo ) ) {
-            doBulkAction( request, response );
-            return;
-        }
+    @Override
+    protected void doPut( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        dispatch( "PUT", request, response );
+    }
 
-        final String pathParam = extractPathParam( request );
-
-        if ( pathParam == null ) {
-            handleCreateUser( request, response );
-        } else if ( pathParam.endsWith( "/lock" ) ) {
-            final String loginName = pathParam.substring( 0, pathParam.length() - "/lock".length() );
-            handleLockUser( request, response, loginName );
-        } else if ( pathParam.endsWith( "/unlock" ) ) {
-            final String loginName = pathParam.substring( 0, pathParam.length() - "/unlock".length() );
-            handleUnlockUser( request, response, loginName );
-        } else {
-            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint" );
-        }
+    @Override
+    protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        dispatch( "DELETE", request, response );
     }
 
     /**
@@ -177,140 +231,87 @@ public class AdminUserResource extends RestServletBase {
      */
     private void doBulkAction( final HttpServletRequest request,
             final HttpServletResponse response )
-            throws ServletException, IOException {
-
-        final JsonObject body = parseJsonBody( request, response );
-        if ( body == null ) return;
-
-        final String action = getJsonString( body, "action" );
-        if ( action == null || action.isBlank() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "action is required (supported: lock, unlock, delete, add-to-group)" );
-            return;
-        }
-        if ( !"lock".equals( action ) && !"unlock".equals( action )
-                && !"delete".equals( action ) && !"add-to-group".equals( action ) ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Unsupported action '" + action + "' — supported: lock, unlock, delete, add-to-group" );
-            return;
-        }
-
-        final JsonElement idsEl = body.get( "ids" );
-        if ( idsEl == null || !idsEl.isJsonArray() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "ids is required and must be a JSON array" );
-            return;
-        }
-        final JsonArray idsArr = idsEl.getAsJsonArray();
-        if ( idsArr.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "ids must not be empty" );
-            return;
-        }
-
-        // --- add-to-group pre-validation: resolve group once, bail with 400 if absent ---
-        Group targetGroup = null;
-        Session session = null;
-        if ( "add-to-group".equals( action ) ) {
-            final GroupResolution resolution = resolveGroupForBulkAdd( request, body, response );
-            if ( resolution == null ) return;
-            targetGroup = resolution.group;
-            session = resolution.session;
-        } else if ( "delete".equals( action ) ) {
-            session = Wiki.session().find( getEngine(), request );
-        }
-
+            throws IOException {
         final String actor = currentLogin( request );
-        final BulkActionResult result = new BulkActionResult();
-
-        for ( final JsonElement idEl : idsArr ) {
-            applyBulkAction( action, idEl, targetGroup, session, actor, result );
-        }
-
-        final String suffix = "add-to-group".equals( action )
-                ? " group=" + getJsonString( body, "group" )
-                : "";
-        LOG.info( "bulk action={} resource=users actor={} attempted={} succeeded={} failed={}{}",
-                action, actor, idsArr.size(), result.succeededCount(), result.failedCount(), suffix );
-
-        sendJson( response, result.toResponseBody( idsArr.size(), "users " + actionPastTense( action ) ) );
+        final BulkTarget target = new BulkTarget();
+        final Map< String, BulkActions.Action > actions = new LinkedHashMap<>();
+        actions.put( "lock", userAction( "lock", "users locked", id -> tryLockUser( id, actor ) ) );
+        actions.put( "unlock", userAction( "unlock", "users unlocked", id -> tryUnlockUser( id, actor ) ) );
+        actions.put( "delete", userAction( "delete", "users deleted",
+                id -> tryDeleteUser( id, actor, target.session ) ) );
+        actions.put( "add-to-group", new BulkActions.Action( "add-to-group", "users added to group",
+                perUser( id -> tryAddToGroup( id, target.group, target.session, actor ) ),
+                "id must be a non-blank string",
+                body -> " group=" + getJsonString( body, "group" ) ) );
+        BulkActions.handle( request, response, "users", actions,
+                ( action, body, resp ) -> prepareBulk( action, request, body, resp, target ) );
     }
 
-    /** Applies {@code action} to one bulk-request id, recording success/failure on
-     *  {@code result}. Split out of {@link #doBulkAction} — the per-id switch dispatch was the
-     *  dominant contributor to that method's NPath complexity once nested inside the loop. */
-    private void applyBulkAction( final String action, final JsonElement idEl, final Group targetGroup,
-            final Session session, final String actor, final BulkActionResult result ) {
-        final String loginName = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
-        if ( loginName == null || loginName.isBlank() ) {
-            result.fail( idEl.toString(), "id must be a non-blank string" );
-            return;
-        }
-
-        final Optional< String > err;
-        switch ( action ) {
-            case "lock"   -> err = tryLockUser( loginName, actor );
-            case "unlock" -> err = tryUnlockUser( loginName, actor );
-            case "delete" -> err = tryDeleteUser( loginName, actor, session );
-            case "add-to-group" -> err = tryAddToGroup( loginName, targetGroup, session, actor );
-            default -> err = Optional.of( "Unknown action" );  // unreachable
-        }
-
-        if ( err.isEmpty() ) {
-            result.succeed( loginName );
-        } else {
-            result.fail( loginName, err.get() );
-        }
+    private static BulkActions.Action userAction( final String name, final String pastTense,
+            final Function< String, Optional< String > > perUser ) {
+        return new BulkActions.Action( name, pastTense, perUser( perUser ) );
     }
 
-    /** Holds the group + acting session resolved for a bulk {@code add-to-group} request. */
-    private static final class GroupResolution {
-        private final Group group;
-        private final Session session;
+    /** Adapts a per-login attempt (empty on success, a message on failure) to the template's per-id handler. */
+    private static BulkActions.IdHandler perUser( final Function< String, Optional< String > > attempt ) {
+        return ( id, result ) -> {
+            final Optional< String > err = attempt.apply( id );
+            if ( err.isEmpty() ) {
+                result.succeed( id );
+            } else {
+                result.fail( id, err.get() );
+            }
+        };
+    }
 
-        private GroupResolution( final Group group, final Session session ) {
-            this.group = group;
-            this.session = session;
+    /** What the pre-step resolved for one bulk request: the add-to-group target and the acting session. */
+    private static final class BulkTarget {
+        private Group group;
+        private Session session;
+    }
+
+    /**
+     * The pre-step of the bulk template: {@code add-to-group} resolves its group once (a 400 when absent) and
+     * {@code delete} looks up the acting session. Returns {@code false} when it has sent the error response.
+     */
+    private boolean prepareBulk( final String action, final HttpServletRequest request, final JsonObject body,
+            final HttpServletResponse response, final BulkTarget target ) throws IOException {
+        if ( "add-to-group".equals( action ) ) {
+            return resolveGroupForBulkAdd( request, body, response, target );
         }
+        if ( "delete".equals( action ) ) {
+            target.session = Wiki.session().find( getEngine(), request );
+        }
+        return true;
     }
 
     /**
      * Resolves the target group (and acting session) for a bulk {@code add-to-group} request.
-     * On failure, sends the appropriate error response itself and returns {@code null}.
+     * On failure, sends the appropriate error response itself and returns {@code false}.
      */
-    private GroupResolution resolveGroupForBulkAdd( final HttpServletRequest request, final JsonObject body,
-            final HttpServletResponse response ) throws IOException {
+    private boolean resolveGroupForBulkAdd( final HttpServletRequest request, final JsonObject body,
+            final HttpServletResponse response, final BulkTarget target ) throws IOException {
         final String groupName = getJsonString( body, "group" );
         if ( groupName == null || groupName.isBlank() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                     "group is required for action 'add-to-group'" );
-            return null;
+            return false;
         }
         try {
-            final Group targetGroup = getSubsystems().auth().groups().getGroup( groupName );
-            final Session session = Wiki.session().find( getEngine(), request );
-            return new GroupResolution( targetGroup, session );
+            target.group = getSubsystems().auth().groups().getGroup( groupName );
+            target.session = Wiki.session().find( getEngine(), request );
+            return true;
         } catch ( final NoSuchPrincipalException e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                     "Group not found: " + groupName );
-            return null;
+            return false;
         } catch ( final Exception e ) {
             LOG.warn( "bulk add-to-group: could not resolve group actor={}: {}",
                     currentLogin( request ), e.getMessage(), e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Failed to resolve group" );
-            return null;
+            return false;
         }
-    }
-
-    private static String actionPastTense( final String action ) {
-        return switch ( action ) {
-            case "lock"         -> "locked";
-            case "unlock"       -> "unlocked";
-            case "delete"       -> "deleted";
-            case "add-to-group" -> "added to group";
-            default             -> action + "d";
-        };
     }
 
     // ---- per-id helpers shared with single-item path ----
@@ -429,30 +430,6 @@ public class AdminUserResource extends RestServletBase {
     private static String currentLogin( final HttpServletRequest request ) {
         final Principal p = request.getUserPrincipal();
         return p != null ? p.getName() : null;
-    }
-
-    @Override
-    protected void doPut( final HttpServletRequest request, final HttpServletResponse response )
-            throws ServletException, IOException {
-
-        final String loginName = extractPathParam( request );
-        if ( loginName == null ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Login name required in path" );
-            return;
-        }
-        handleUpdateUser( request, response, loginName );
-    }
-
-    @Override
-    protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
-            throws ServletException, IOException {
-
-        final String loginName = extractPathParam( request );
-        if ( loginName == null ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Login name required in path" );
-            return;
-        }
-        handleDeleteUser( request, response, loginName );
     }
 
     private void handleListUsers( final HttpServletResponse response ) throws IOException {

@@ -18,8 +18,6 @@
  */
 package com.wikantik.rest;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import com.wikantik.auth.NoSuchPrincipalException;
@@ -43,6 +41,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Admin REST resource for managing DB-backed API keys used by the MCP and
@@ -89,6 +88,30 @@ public class AdminApiKeysResource extends RestServletBase {
         sendJson( response, Map.of( "keys", rows ) );
     }
 
+    /**
+     * What a {@code POST} sub-path runs, against the dispatching servlet (passed in, not captured, so a table
+     * copied along with a spied servlet still reaches the spy).
+     */
+    @FunctionalInterface
+    private interface PostRoute {
+        void run( AdminApiKeysResource self, HttpServletRequest request, HttpServletResponse response,
+                  ApiKeyService svc ) throws IOException;
+    }
+
+    /** Matches the raw path info, so {@code /bulk-action/} stays a key-generation request as before. */
+    private transient volatile PathRouteTable< PostRoute > postRoutes;
+
+    private PathRouteTable< PostRoute > postRoutes() {
+        PathRouteTable< PostRoute > r = postRoutes;
+        if ( r == null ) {
+            r = PathRouteTable.< PostRoute >builder()
+                    .exact( "/bulk-action", ( self, req, resp, svc ) -> self.doBulkAction( req, resp, svc ) )
+                    .build();
+            postRoutes = r;
+        }
+        return r;
+    }
+
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -101,8 +124,9 @@ public class AdminApiKeysResource extends RestServletBase {
 
         // Dispatch bulk-action sub-path before parsing the body for key generation.
         final String pathInfo = request.getPathInfo();
-        if ( "/bulk-action".equals( pathInfo ) ) {
-            doBulkAction( request, response, svc );
+        final Optional< PostRoute > route = postRoutes().match( pathInfo == null ? "" : pathInfo );
+        if ( route.isPresent() ) {
+            route.get().run( this, request, response, svc );
             return;
         }
 
@@ -211,56 +235,17 @@ public class AdminApiKeysResource extends RestServletBase {
      */
     private void doBulkAction( final HttpServletRequest request,
             final HttpServletResponse response, final ApiKeyService svc )
-            throws ServletException, IOException {
-
-        final JsonObject body = parseJsonBody( request, response );
-        if ( body == null ) return;
-
-        final String action = getJsonString( body, "action" );
-        if ( action == null || action.isBlank() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "action is required (supported: revoke)" );
-            return;
-        }
-        if ( !"revoke".equals( action ) ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Unsupported action '" + action + "' — supported: revoke" );
-            return;
-        }
-
-        final JsonElement idsEl = body.get( "ids" );
-        if ( idsEl == null || !idsEl.isJsonArray() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "ids is required and must be a JSON array" );
-            return;
-        }
-        final JsonArray idsArr = idsEl.getAsJsonArray();
-        if ( idsArr.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "ids must not be empty" );
-            return;
-        }
-
+            throws IOException {
         final String actor = currentLogin( request );
-        final BulkActionResult result = new BulkActionResult();
-
-        for ( final JsonElement idEl : idsArr ) {
-            revokeOneBulkId( idEl, svc, actor, result );
-        }
-
-        LOG.info( "bulk action=revoke resource=apikeys actor={} attempted={} succeeded={} failed={}",
-                actor, idsArr.size(), result.succeededCount(), result.failedCount() );
-
-        sendJson( response, result.toResponseBody( idsArr.size(), "keys revoked" ) );
+        final Map< String, BulkActions.Action > actions = new LinkedHashMap<>();
+        actions.put( "revoke", new BulkActions.Action( "revoke", "keys revoked",
+                ( id, result ) -> revokeOneBulkId( id, svc, actor, result ),
+                "id must be a non-blank string or integer", null ) );
+        BulkActions.handle( request, response, "apikeys", actions, null );
     }
 
-    private void revokeOneBulkId( final JsonElement idEl, final ApiKeyService svc,
+    private void revokeOneBulkId( final String idStr, final ApiKeyService svc,
                                   final String actor, final BulkActionResult result ) {
-        final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
-        if ( idStr == null || idStr.isBlank() ) {
-            result.fail( idEl.toString(), "id must be a non-blank string or integer" );
-            return;
-        }
         final int id;
         try {
             id = Integer.parseInt( idStr );

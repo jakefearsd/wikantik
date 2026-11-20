@@ -56,6 +56,7 @@ import java.util.Properties;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -89,23 +90,65 @@ public class AuthResource extends RestServletBase {
     private static final String RESET_GENERIC_MESSAGE =
             "If an account exists with that email, a new password has been sent.";
 
-    @Override
-    protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
-            throws ServletException, IOException {
+    /**
+     * What an auth endpoint runs, against the servlet that dispatched it (passed in rather than captured, so a
+     * table copied along with a spied servlet still reaches the spy).
+     */
+    @FunctionalInterface
+    private interface Route {
+        void run( AuthResource self, HttpServletRequest request, HttpServletResponse response ) throws IOException;
+    }
 
+    /**
+     * One table per HTTP method, keyed on the raw path parameter (so {@code login/} is not {@code login}),
+     * rebuilt lazily because servlets are serializable (see {@link PathRouteTable}).
+     */
+    private transient volatile Map< String, PathRouteTable< Route > > routes;
+
+    private Map< String, PathRouteTable< Route > > routes() {
+        Map< String, PathRouteTable< Route > > r = routes;
+        if ( r == null ) {
+            r = Map.of(
+                "GET", PathRouteTable.< Route >builder()
+                        .exact( "user", ( self, req, resp ) -> self.handleGetUser( req, resp ) )
+                        .exact( "profile", ( self, req, resp ) -> self.handleGetProfile( req, resp ) )
+                        // D24: idiomatic /me alias plus /session and /status which agents commonly try.
+                        // All three return the same compact { authenticated, login, fullName, roles } shape.
+                        .exact( "me", ( self, req, resp ) -> self.handleGetMe( req, resp ) )
+                        .exact( "session", ( self, req, resp ) -> self.handleGetMe( req, resp ) )
+                        .exact( "status", ( self, req, resp ) -> self.handleGetMe( req, resp ) )
+                        .build(),
+                "POST", PathRouteTable.< Route >builder()
+                        .exact( "login", ( self, req, resp ) -> self.handleLogin( req, resp ) )
+                        .exact( "logout", ( self, req, resp ) -> self.handleLogout( req, resp ) )
+                        .exact( "reset-password", ( self, req, resp ) -> self.handleResetPassword( req, resp ) )
+                        .build(),
+                "PUT", PathRouteTable.< Route >builder()
+                        .exact( "profile", ( self, req, resp ) -> self.handleUpdateProfile( req, resp ) )
+                        .build(),
+                "DELETE", PathRouteTable.< Route >builder()
+                        .exact( "profile", ( self, req, resp ) -> self.handleDeleteProfile( req, resp ) )
+                        .build() );
+            routes = r;
+        }
+        return r;
+    }
+
+    private void dispatch( final String method, final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
         final String action = extractPathParam( request );
-
-        if ( "user".equals( action ) ) {
-            handleGetUser( request, response );
-        } else if ( "profile".equals( action ) ) {
-            handleGetProfile( request, response );
-        } else if ( "me".equals( action ) || "session".equals( action ) || "status".equals( action ) ) {
-            // D24: idiomatic /me alias plus /session and /status which agents commonly try.
-            // All three return the same compact { authenticated, login, fullName, roles } shape.
-            handleGetMe( request, response );
+        final Optional< Route > route = routes().get( method ).match( action );
+        if ( route.isPresent() ) {
+            route.get().run( this, request, response );
         } else {
             sendNotFound( response, "Unknown auth endpoint: " + action );
         }
+    }
+
+    @Override
+    protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        dispatch( "GET", request, response );
     }
 
     /**
@@ -141,42 +184,19 @@ public class AuthResource extends RestServletBase {
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-
-        final String action = extractPathParam( request );
-
-        if ( "login".equals( action ) ) {
-            handleLogin( request, response );
-        } else if ( "logout".equals( action ) ) {
-            handleLogout( request, response );
-        } else if ( "reset-password".equals( action ) ) {
-            handleResetPassword( request, response );
-        } else {
-            sendNotFound( response, "Unknown auth endpoint: " + action );
-        }
+        dispatch( "POST", request, response );
     }
 
     @Override
     protected void doPut( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-
-        final String action = extractPathParam( request );
-
-        if ( "profile".equals( action ) ) {
-            handleUpdateProfile( request, response );
-        } else {
-            sendNotFound( response, "Unknown auth endpoint: " + action );
-        }
+        dispatch( "PUT", request, response );
     }
 
     @Override
     protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        final String action = extractPathParam( request );
-        if ( "profile".equals( action ) ) {
-            handleDeleteProfile( request, response );
-        } else {
-            sendNotFound( response, "Unknown auth endpoint: " + action );
-        }
+        dispatch( "DELETE", request, response );
     }
 
     /**

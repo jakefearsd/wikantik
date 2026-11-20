@@ -63,9 +63,7 @@ class DefaultReferenceManagerDiskRoundTripTest {
     // -----------------------------------------------------------------------
 
     private static ObjectInputFilter safeDeserializeFilter() throws Exception {
-        final Field f = DefaultReferenceManager.class.getDeclaredField( "SAFE_DESERIALIZE_FILTER" );
-        f.setAccessible( true );
-        return ( ObjectInputFilter ) f.get( null );
+        return ReferenceSnapshotStore.SAFE_DESERIALIZE_FILTER;
     }
 
     private static ObjectInputFilter.FilterInfo filterInfoFor( final Class< ? > clazz ) {

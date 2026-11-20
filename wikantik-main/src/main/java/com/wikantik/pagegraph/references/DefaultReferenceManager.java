@@ -50,6 +50,7 @@ import com.wikantik.util.TextUtil;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
@@ -120,11 +121,27 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
 
     private transient volatile WikiLinkResolver wikiLinkResolver;
     private transient volatile boolean nativeRescanPending;
-    /** Count of reference-map serialisations; lets tests prove a bulk pass writes once. */
-    private final transient java.util.concurrent.atomic.AtomicInteger serializations = new java.util.concurrent.atomic.AtomicInteger();
+    /** The debounced on-disk snapshot of the two maps below; see {@link ReferenceSnapshotStore}. */
+    private transient volatile ReferenceSnapshotStore snapshotStore;
+    private transient volatile long serializeIntervalNanos = TimeUnit.MILLISECONDS.toNanos( DEFAULT_SERIALIZE_INTERVAL_MS );
+
+    /** Created on first use, so the engine's work directory is read when a snapshot is first needed, not at construction. */
+    private ReferenceSnapshotStore snapshotStore() {
+        ReferenceSnapshotStore store = snapshotStore;
+        if ( store == null ) {
+            synchronized ( this ) {
+                store = snapshotStore;
+                if ( store == null ) {
+                    store = new ReferenceSnapshotStore( Path.of( engine.getWorkDir() ), serializeIntervalNanos, this::currentSnapshot );
+                    snapshotStore = store;
+                }
+            }
+        }
+        return store;
+    }
 
     int serializationCount() {
-        return serializations.get();
+        return snapshotStore().writeCount();
     }
 
     /**
@@ -136,25 +153,10 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      */
     static final long DEFAULT_SERIALIZE_INTERVAL_MS = 5_000L;
 
-    private transient volatile long serializeIntervalNanos = TimeUnit.MILLISECONDS.toNanos( DEFAULT_SERIALIZE_INTERVAL_MS );
-    private final transient AtomicBoolean serializationPending = new AtomicBoolean();
-    /** {@link System#nanoTime()} of the last write; meaningless until {@link #serializedOnce}. */
-    private transient volatile long lastSerializedNanos;
-    private transient volatile boolean serializedOnce;
-    private final transient AtomicBoolean flushScheduled = new AtomicBoolean();
-    private transient volatile boolean destroyed;
-
-    /** One daemon thread for every manager's deferred write (a write is at most one interval late). */
-    private static final java.util.concurrent.ScheduledExecutorService FLUSHER =
-            java.util.concurrent.Executors.newSingleThreadScheduledExecutor( r -> {
-                final Thread t = new Thread( r, "refmgr-deferred-serialization" );
-                t.setDaemon( true );
-                return t;
-            } );
-
     /** Test seam: the minimum spacing between runtime writes (0 writes on every update). */
     void setSerializeIntervalMillis( final long millis ) {
-        this.serializeIntervalNanos = TimeUnit.MILLISECONDS.toNanos( millis );
+        serializeIntervalNanos = TimeUnit.MILLISECONDS.toNanos( millis );
+        snapshotStore().setIntervalNanos( serializeIntervalNanos );
     }
 
     /**
@@ -181,56 +183,13 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     private final AtomicBoolean initialized = new AtomicBoolean( false );
 
     private static final Logger LOG = LogManager.getLogger( DefaultReferenceManager.class);
-    private static final String SERIALIZATION_FILE = "refmgr.ser";
     private static final String SERIALIZATION_DIR  = "refmgr-attr";
 
     /**
-     * We use this also a generic serialization id.
-     *
-     * <p>Bumped 4 to 5 when Mermaid diagram {@code click} targets began feeding the reference graph. Both
-     * {@code unserializeFromDisk} and the attribute reader compare the stored version to this constant and throw
-     * {@link java.io.IOException} on a mismatch, which makes {@code initialize} discard {@code refmgr.ser} and
-     * rescan every page once at the first startup after deploy; that is how existing pages pick up their diagram
-     * links.
+     * We use this also a generic serialization id: the per-page attribute files carry it as their format version
+     * (see {@link ReferenceSnapshotStore#FORMAT_VERSION} for what a bump does).
      */
-    private static final long serialVersionUID = 5L;
-
-    /**
-     * Set of classes that are safe to deserialize from the reference manager cache.
-     * Only standard JDK collection and value types used by the reference data structures are allowed.
-     */
-    private static final Set<String> SAFE_DESERIALIZE_CLASSES = Set.of(
-        "java.util.HashMap", "java.util.LinkedHashMap", "java.util.TreeMap",
-        "java.util.ArrayList", "java.util.HashSet", "java.util.LinkedHashSet", "java.util.TreeSet",
-        "java.lang.String", "java.lang.Integer", "java.lang.Long",
-        "java.lang.Boolean", "java.lang.Float", "java.lang.Double",
-        "java.lang.Number", "java.lang.Enum", "java.util.Date"
-    );
-
-    /**
-     * ObjectInputFilter whitelist for reference manager deserialization. Rejects
-     * any class not in the safe set, blocking arbitrary class instantiation attacks.
-     */
-    private static final ObjectInputFilter SAFE_DESERIALIZE_FILTER = filterInfo -> {
-        final Class<?> clazz = filterInfo.serialClass();
-        if ( clazz == null ) {
-            return ObjectInputFilter.Status.UNDECIDED;
-        }
-        if ( clazz.isArray() ) {
-            final Class<?> component = clazz.getComponentType();
-            if ( component.isPrimitive() || SAFE_DESERIALIZE_CLASSES.contains( component.getName() ) ) {
-                return ObjectInputFilter.Status.ALLOWED;
-            }
-            if ( component.getName().startsWith( "java.util." ) ) {
-                return ObjectInputFilter.Status.ALLOWED;
-            }
-            return ObjectInputFilter.Status.REJECTED;
-        }
-        if ( SAFE_DESERIALIZE_CLASSES.contains( clazz.getName() ) ) {
-            return ObjectInputFilter.Status.ALLOWED;
-        }
-        return ObjectInputFilter.Status.REJECTED;
-    };
+    private static final long serialVersionUID = ReferenceSnapshotStore.FORMAT_VERSION;
 
     private final transient PageManager pageManager;
     private final transient AttachmentManager attachmentManager;
@@ -260,6 +219,11 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         //
         unmutableReferredBy = Collections.unmodifiableMap( referredBy );
         unmutableRefersTo   = Collections.unmodifiableMap( refersTo );
+    }
+
+    /** The live maps for the snapshot store, which copies them while writing. */
+    private ReferenceSnapshotStore.Snapshot currentSnapshot() {
+        return new ReferenceSnapshotStore.Snapshot( refersTo, referredBy, System.currentTimeMillis() );
     }
 
     /**
@@ -309,7 +273,10 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             //  the pages to be read already...
             //
             //  Yes, this is a kludge.  We know.  Will be fixed.
-            final long saved = unserializeFromDisk();
+            final ReferenceSnapshotStore.Snapshot snapshot = snapshotStore().load()
+                    .orElseThrow( () -> new IOException( "no usable reference snapshot" ) );
+            adopt( snapshot );
+            final long saved = snapshot.savedAt();
 
             for( final Page page : pages ) {
                 unserializeAttrsFromDisk( page );
@@ -354,7 +321,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
                 }
             }
 
-            serializeToDisk();
+            snapshotStore().saveNow();
         }
 
         initialized.set( true );
@@ -408,108 +375,20 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         }
     }
 
-    /**
-     *  Reads the serialized data from the disk back to memory. Returns the date when the data was last written on disk
-     */
-    @SuppressWarnings("unchecked")
-    private synchronized long unserializeFromDisk() throws IOException, ClassNotFoundException {
-        final long saved;
-
-        final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
-        try( ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( serializationFile.toPath() ) ) ) ) {
-            in.setObjectInputFilter( SAFE_DESERIALIZE_FILTER );
-            final StopWatch sw = new StopWatch();
-            sw.start();
-
-            final long ver = in.readLong();
-
-            if( ver != serialVersionUID ) {
-                throw new IOException("File format has changed; I need to recalculate references.");
-            }
-
-            saved        = in.readLong();
-            refersTo   = new ConcurrentHashMap<>( ( Map< String, Collection< String > > ) in.readObject() );
-            referredBy = new ConcurrentHashMap<>( ( Map< String, Set< String > > ) in.readObject() );
-
-            unmutableReferredBy = Collections.unmodifiableMap( referredBy );
-            unmutableRefersTo   = Collections.unmodifiableMap( refersTo );
-
-            sw.stop();
-            LOG.debug( "Read serialized data successfully in {}", sw );
-        }
-
-        return saved;
-    }
-
-    /** Marks the reference database dirty and writes it now unless the last write is younger than the interval. */
-    private void requestSerialization() {
-        serializationPending.set( true );
-        final long sinceLast = System.nanoTime() - lastSerializedNanos;
-        if ( !serializedOnce || sinceLast >= serializeIntervalNanos ) {
-            flushSerialization();
-        } else if ( flushScheduled.compareAndSet( false, true ) ) {
-            // bound the delay: with no further update and no shutdown the pending write would otherwise wait forever
-            FLUSHER.schedule( this::deferredFlush, serializeIntervalNanos - sinceLast, TimeUnit.NANOSECONDS );
-        }
-    }
-
-    private void deferredFlush() {
-        flushScheduled.set( false );
-        if ( destroyed ) {
-            return; // destroy() already flushed; the work dir may be gone
-        }
-        try {
-            flushSerialization();
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "Deferred reference-database write failed; it is retried on the next update: {}", e.getMessage(), e );
-            serializationPending.set( true );
-        }
-    }
-
-    /** Writes the reference database if an update is pending. */
-    private void flushSerialization() {
-        if ( serializationPending.getAndSet( false ) ) {
-            serializeToDisk();
-        }
+    /** Replaces the index with a snapshot read from disk. */
+    private synchronized void adopt( final ReferenceSnapshotStore.Snapshot snapshot ) {
+        refersTo   = new ConcurrentHashMap<>( snapshot.refersTo() );
+        referredBy = new ConcurrentHashMap<>( snapshot.referredBy() );
+        unmutableReferredBy = Collections.unmodifiableMap( referredBy );
+        unmutableRefersTo   = Collections.unmodifiableMap( refersTo );
     }
 
     /** Flushes a pending write of the reference database when the filter chain is torn down (engine shutdown). */
     @Override
     public void destroy( final Engine engine ) {
-        destroyed = true;
-        flushSerialization();
-    }
-
-    /**
-     *  Serializes hashmaps to disk.  The format is private, don't touch it.
-     *  The live maps are copied into plain {@link HashMap}s: a {@code ConcurrentHashMap}'s serial
-     *  form carries {@code Segment}/{@code ReentrantLock} internals that {@link #SAFE_DESERIALIZE_FILTER}
-     *  rejects, which silently turned every warm start into a full rebuild.
-     */
-    private synchronized void serializeToDisk() {
-        serializations.incrementAndGet();
-        serializationPending.set( false );
-        lastSerializedNanos = System.nanoTime();
-        serializedOnce = true;
-        final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
-        try {
-            final StopWatch sw = new StopWatch();
-            sw.start();
-
-            AtomicFileWriter.write( serializationFile.toPath(), raw -> {
-                try( ObjectOutputStream out = new ObjectOutputStream( raw ) ) {
-                    out.writeLong( serialVersionUID );
-                    out.writeLong( System.currentTimeMillis() ); // Timestamp
-                    out.writeObject( new HashMap<>( refersTo ) );
-                    out.writeObject( new HashMap<>( referredBy ) );
-                }
-            } );
-
-            sw.stop();
-
-            LOG.debug( "serialization done - took {}", sw );
-        } catch( final IOException ioe ) {
-            LOG.error( "Unable to serialize!", ioe );
+        final ReferenceSnapshotStore store = snapshotStore;
+        if ( store != null ) { // never written to: nothing pending
+            store.close();
         }
     }
 
@@ -544,7 +423,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             }
 
             try( ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( f.toPath() ) ) ) ) {
-                in.setObjectInputFilter( SAFE_DESERIALIZE_FILTER );
+                in.setObjectInputFilter( ReferenceSnapshotStore.SAFE_DESERIALIZE_FILTER );
                 final StopWatch sw = new StopWatch();
                 sw.start();
                 LOG.debug( "Deserializing attributes for {}", p.getName() );
@@ -580,10 +459,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     }
 
     /**
-     *  Serializes hashmaps to disk.  The format is private, don't touch it.
-     *  The live maps are copied into plain {@link HashMap}s: a {@code ConcurrentHashMap}'s serial
-     *  form carries {@code Segment}/{@code ReentrantLock} internals that {@link #SAFE_DESERIALIZE_FILTER}
-     *  rejects, which silently turned every warm start into a full rebuild.
+     *  Writes the page's attributes to its attribute file.  The format is private, don't touch it.
      */
     private synchronized void serializeAttrsToDisk( final Page p ) {
         final StopWatch sw = new StopWatch();
@@ -755,7 +631,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             LOG.warn( "Native wikilink rescan stopped after {} pages: {}", rescanned, e.getMessage(), e );
         }
         if ( rescanned > 0 ) {
-            serializeToDisk(); // once for the whole pass, not per page
+            snapshotStore().saveNow(); // once for the whole pass, not per page
         }
         LOG.info( "Native wikilink rescan refreshed references for {} pages", rescanned );
     }
@@ -838,8 +714,8 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             referredBy.remove( pageName );
         }
 
-        //  Remove any traces from the disk, too (coalesced; see DEFAULT_SERIALIZE_INTERVAL_MS)
-        requestSerialization();
+        //  Remove any traces from the disk, too (coalesced; see ReferenceSnapshotStore)
+        snapshotStore().requestSave();
 
         final String hashName = getHashFileName( pageName );
         if( hashName != null ) {
@@ -875,7 +751,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     @Override
     public void updateReferences( final String page, final Collection< String > references ) {
         internalUpdateReferences( page, references );
-        requestSerialization();
+        snapshotStore().requestSave();
     }
 
     /**

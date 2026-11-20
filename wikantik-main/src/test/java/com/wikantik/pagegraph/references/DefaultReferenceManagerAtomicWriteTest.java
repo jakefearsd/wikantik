@@ -32,6 +32,7 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -63,15 +64,14 @@ class DefaultReferenceManagerAtomicWriteTest {
 
     @Test
     void failedSerializeKeepsPreviousReferenceDatabase( @TempDir final File workDir ) throws Exception {
-        final DefaultReferenceManager mgr = manager( workDir );
+        final ReferenceSnapshotStore store = new ReferenceSnapshotStore( workDir.toPath(), 0L,
+                () -> new ReferenceSnapshotStore.Snapshot( Map.of( "A", List.of( "B" ) ), Map.of(), 1L ) );
         final File ser = new File( workDir, "refmgr.ser" );
         Files.write( ser.toPath(), SENTINEL );
         Assumptions.assumeTrue( workDir.setWritable( false ) );
         Assumptions.assumeFalse( workDir.canWrite(), "permission bits not enforced here (running as root?)" );
         try {
-            final Method m = DefaultReferenceManager.class.getDeclaredMethod( "serializeToDisk" );
-            m.setAccessible( true );
-            m.invoke( mgr );
+            store.saveNow();
         } finally {
             workDir.setWritable( true );
         }

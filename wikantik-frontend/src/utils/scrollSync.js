@@ -5,7 +5,7 @@
 // top in the preview, and a position between two blocks moves linearly between them. A tall image, diagram or
 // table therefore shifts only its own stretch, not everything below it.
 //
-// Side-effect free (no DOM, no rAF); the caller measures both panes and applies the result.
+// Side-effect free apart from isEcho's record (no DOM, no rAF); the caller measures both panes and applies the result.
 
 /**
  * The anchor points of the scroll map, as [editorY, previewY] pairs in scroll coordinates: the two tops, each
@@ -78,4 +78,17 @@ export function editorScrollFor(p, pane) {
     if (previewScrollFor(mid, pane) < p) lo = mid; else hi = mid;
   }
   return (lo + hi) / 2;
+}
+
+/**
+ * Whether a pane's scroll position `top` is the one the editor <-> preview sync last gave it (`due.current`, null when
+ * none is due): then the pane is reporting the sync's own scroll, not the reader's, and it is not synced back. The
+ * record holds while the pane stays there, since a pane can report one scroll more than once (CodeMirror does, as it
+ * re-measures), and syncing back a scroll rounded to the whole px nudges the other pane where one px of it is many of
+ * the other's (a tall picture). The first report from anywhere else drops it, so the reader's moves are all followed.
+ */
+export function isEcho(due, top) {
+  if (due.current !== null && Math.abs(top - due.current) <= 1) return true;
+  due.current = null;
+  return false;
 }

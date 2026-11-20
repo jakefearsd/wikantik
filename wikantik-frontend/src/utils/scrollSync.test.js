@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scrollAnchors, mapPosition, previewScrollFor, editorScrollFor } from './scrollSync';
+import { scrollAnchors, mapPosition, previewScrollFor, editorScrollFor, isEcho } from './scrollSync';
 
 describe('scrollAnchors', () => {
   it('starts at the two tops, ends at the two document ends, with each block between', () => {
@@ -135,3 +135,26 @@ describe('mapPosition over a long page', () => {
   });
 });
 
+
+describe('isEcho', () => {
+  it('is false and stays clear when no sync position is due', () => {
+    const due = { current: null };
+    expect(isEcho(due, 100)).toBe(false);
+    expect(due.current).toBeNull();
+  });
+
+  it('holds for repeated reports within one px of the due position', () => {
+    const due = { current: 100 };
+    expect(isEcho(due, 100)).toBe(true);
+    expect(isEcho(due, 101)).toBe(true);
+    expect(isEcho(due, 99)).toBe(true);
+    expect(due.current).toBe(100);
+  });
+
+  it('drops the record on the first report from anywhere else', () => {
+    const due = { current: 100 };
+    expect(isEcho(due, 150)).toBe(false);
+    expect(due.current).toBeNull();
+    expect(isEcho(due, 100)).toBe(false);
+  });
+});

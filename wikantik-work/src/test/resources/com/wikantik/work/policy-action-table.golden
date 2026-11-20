@@ -1,0 +1,1152 @@
+VIEW|human|none|none|false|You are not a member of this project.
+VIEW|human|none|unclaimed|false|You are not a member of this project.
+VIEW|human|none|other|false|You are not a member of this project.
+VIEW|human|none|self|false|You are not a member of this project.
+VIEW|human|viewer|none|true|null
+VIEW|human|viewer|unclaimed|true|null
+VIEW|human|viewer|other|true|null
+VIEW|human|viewer|self|true|null
+VIEW|human|member|none|true|null
+VIEW|human|member|unclaimed|true|null
+VIEW|human|member|other|true|null
+VIEW|human|member|self|true|null
+VIEW|human|lead|none|true|null
+VIEW|human|lead|unclaimed|true|null
+VIEW|human|lead|other|true|null
+VIEW|human|lead|self|true|null
+VIEW|admin|none|none|true|null
+VIEW|admin|none|unclaimed|true|null
+VIEW|admin|none|other|true|null
+VIEW|admin|none|self|true|null
+VIEW|admin|viewer|none|true|null
+VIEW|admin|viewer|unclaimed|true|null
+VIEW|admin|viewer|other|true|null
+VIEW|admin|viewer|self|true|null
+VIEW|admin|member|none|true|null
+VIEW|admin|member|unclaimed|true|null
+VIEW|admin|member|other|true|null
+VIEW|admin|member|self|true|null
+VIEW|admin|lead|none|true|null
+VIEW|admin|lead|unclaimed|true|null
+VIEW|admin|lead|other|true|null
+VIEW|admin|lead|self|true|null
+VIEW|agent-admin-sponsor|none|none|false|You are not a member of this project.
+VIEW|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+VIEW|agent-admin-sponsor|none|other|false|You are not a member of this project.
+VIEW|agent-admin-sponsor|none|self|false|You are not a member of this project.
+VIEW|agent-admin-sponsor|viewer|none|true|null
+VIEW|agent-admin-sponsor|viewer|unclaimed|true|null
+VIEW|agent-admin-sponsor|viewer|other|true|null
+VIEW|agent-admin-sponsor|viewer|self|true|null
+VIEW|agent-admin-sponsor|member|none|true|null
+VIEW|agent-admin-sponsor|member|unclaimed|true|null
+VIEW|agent-admin-sponsor|member|other|true|null
+VIEW|agent-admin-sponsor|member|self|true|null
+VIEW|agent-admin-sponsor|lead|none|true|null
+VIEW|agent-admin-sponsor|lead|unclaimed|true|null
+VIEW|agent-admin-sponsor|lead|other|true|null
+VIEW|agent-admin-sponsor|lead|self|true|null
+VIEW|agent-member-sponsor|none|none|false|You are not a member of this project.
+VIEW|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+VIEW|agent-member-sponsor|none|other|false|You are not a member of this project.
+VIEW|agent-member-sponsor|none|self|false|You are not a member of this project.
+VIEW|agent-member-sponsor|viewer|none|true|null
+VIEW|agent-member-sponsor|viewer|unclaimed|true|null
+VIEW|agent-member-sponsor|viewer|other|true|null
+VIEW|agent-member-sponsor|viewer|self|true|null
+VIEW|agent-member-sponsor|member|none|true|null
+VIEW|agent-member-sponsor|member|unclaimed|true|null
+VIEW|agent-member-sponsor|member|other|true|null
+VIEW|agent-member-sponsor|member|self|true|null
+VIEW|agent-member-sponsor|lead|none|true|null
+VIEW|agent-member-sponsor|lead|unclaimed|true|null
+VIEW|agent-member-sponsor|lead|other|true|null
+VIEW|agent-member-sponsor|lead|self|true|null
+CREATE_ITEM|human|none|none|false|You are not a member of this project.
+CREATE_ITEM|human|none|unclaimed|false|You are not a member of this project.
+CREATE_ITEM|human|none|other|false|You are not a member of this project.
+CREATE_ITEM|human|none|self|false|You are not a member of this project.
+CREATE_ITEM|human|viewer|none|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|human|viewer|other|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|human|viewer|self|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|human|member|none|true|null
+CREATE_ITEM|human|member|unclaimed|true|null
+CREATE_ITEM|human|member|other|true|null
+CREATE_ITEM|human|member|self|true|null
+CREATE_ITEM|human|lead|none|true|null
+CREATE_ITEM|human|lead|unclaimed|true|null
+CREATE_ITEM|human|lead|other|true|null
+CREATE_ITEM|human|lead|self|true|null
+CREATE_ITEM|admin|none|none|true|null
+CREATE_ITEM|admin|none|unclaimed|true|null
+CREATE_ITEM|admin|none|other|true|null
+CREATE_ITEM|admin|none|self|true|null
+CREATE_ITEM|admin|viewer|none|true|null
+CREATE_ITEM|admin|viewer|unclaimed|true|null
+CREATE_ITEM|admin|viewer|other|true|null
+CREATE_ITEM|admin|viewer|self|true|null
+CREATE_ITEM|admin|member|none|true|null
+CREATE_ITEM|admin|member|unclaimed|true|null
+CREATE_ITEM|admin|member|other|true|null
+CREATE_ITEM|admin|member|self|true|null
+CREATE_ITEM|admin|lead|none|true|null
+CREATE_ITEM|admin|lead|unclaimed|true|null
+CREATE_ITEM|admin|lead|other|true|null
+CREATE_ITEM|admin|lead|self|true|null
+CREATE_ITEM|agent-admin-sponsor|none|none|false|You are not a member of this project.
+CREATE_ITEM|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+CREATE_ITEM|agent-admin-sponsor|none|other|false|You are not a member of this project.
+CREATE_ITEM|agent-admin-sponsor|none|self|false|You are not a member of this project.
+CREATE_ITEM|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|agent-admin-sponsor|member|none|true|null
+CREATE_ITEM|agent-admin-sponsor|member|unclaimed|true|null
+CREATE_ITEM|agent-admin-sponsor|member|other|true|null
+CREATE_ITEM|agent-admin-sponsor|member|self|true|null
+CREATE_ITEM|agent-admin-sponsor|lead|none|true|null
+CREATE_ITEM|agent-admin-sponsor|lead|unclaimed|true|null
+CREATE_ITEM|agent-admin-sponsor|lead|other|true|null
+CREATE_ITEM|agent-admin-sponsor|lead|self|true|null
+CREATE_ITEM|agent-member-sponsor|none|none|false|You are not a member of this project.
+CREATE_ITEM|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+CREATE_ITEM|agent-member-sponsor|none|other|false|You are not a member of this project.
+CREATE_ITEM|agent-member-sponsor|none|self|false|You are not a member of this project.
+CREATE_ITEM|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+CREATE_ITEM|agent-member-sponsor|member|none|true|null
+CREATE_ITEM|agent-member-sponsor|member|unclaimed|true|null
+CREATE_ITEM|agent-member-sponsor|member|other|true|null
+CREATE_ITEM|agent-member-sponsor|member|self|true|null
+CREATE_ITEM|agent-member-sponsor|lead|none|true|null
+CREATE_ITEM|agent-member-sponsor|lead|unclaimed|true|null
+CREATE_ITEM|agent-member-sponsor|lead|other|true|null
+CREATE_ITEM|agent-member-sponsor|lead|self|true|null
+EDIT_ITEM|human|none|none|false|You are not a member of this project.
+EDIT_ITEM|human|none|unclaimed|false|You are not a member of this project.
+EDIT_ITEM|human|none|other|false|You are not a member of this project.
+EDIT_ITEM|human|none|self|false|You are not a member of this project.
+EDIT_ITEM|human|viewer|none|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|human|viewer|other|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|human|viewer|self|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|human|member|none|true|null
+EDIT_ITEM|human|member|unclaimed|true|null
+EDIT_ITEM|human|member|other|true|null
+EDIT_ITEM|human|member|self|true|null
+EDIT_ITEM|human|lead|none|true|null
+EDIT_ITEM|human|lead|unclaimed|true|null
+EDIT_ITEM|human|lead|other|true|null
+EDIT_ITEM|human|lead|self|true|null
+EDIT_ITEM|admin|none|none|true|null
+EDIT_ITEM|admin|none|unclaimed|true|null
+EDIT_ITEM|admin|none|other|true|null
+EDIT_ITEM|admin|none|self|true|null
+EDIT_ITEM|admin|viewer|none|true|null
+EDIT_ITEM|admin|viewer|unclaimed|true|null
+EDIT_ITEM|admin|viewer|other|true|null
+EDIT_ITEM|admin|viewer|self|true|null
+EDIT_ITEM|admin|member|none|true|null
+EDIT_ITEM|admin|member|unclaimed|true|null
+EDIT_ITEM|admin|member|other|true|null
+EDIT_ITEM|admin|member|self|true|null
+EDIT_ITEM|admin|lead|none|true|null
+EDIT_ITEM|admin|lead|unclaimed|true|null
+EDIT_ITEM|admin|lead|other|true|null
+EDIT_ITEM|admin|lead|self|true|null
+EDIT_ITEM|agent-admin-sponsor|none|none|false|You are not a member of this project.
+EDIT_ITEM|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+EDIT_ITEM|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-admin-sponsor|none|self|false|You are not a member of this project.
+EDIT_ITEM|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|agent-admin-sponsor|member|none|true|null
+EDIT_ITEM|agent-admin-sponsor|member|unclaimed|true|null
+EDIT_ITEM|agent-admin-sponsor|member|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-admin-sponsor|member|self|true|null
+EDIT_ITEM|agent-admin-sponsor|lead|none|true|null
+EDIT_ITEM|agent-admin-sponsor|lead|unclaimed|true|null
+EDIT_ITEM|agent-admin-sponsor|lead|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-admin-sponsor|lead|self|true|null
+EDIT_ITEM|agent-member-sponsor|none|none|false|You are not a member of this project.
+EDIT_ITEM|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+EDIT_ITEM|agent-member-sponsor|none|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-member-sponsor|none|self|false|You are not a member of this project.
+EDIT_ITEM|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+EDIT_ITEM|agent-member-sponsor|member|none|true|null
+EDIT_ITEM|agent-member-sponsor|member|unclaimed|true|null
+EDIT_ITEM|agent-member-sponsor|member|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-member-sponsor|member|self|true|null
+EDIT_ITEM|agent-member-sponsor|lead|none|true|null
+EDIT_ITEM|agent-member-sponsor|lead|unclaimed|true|null
+EDIT_ITEM|agent-member-sponsor|lead|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-member-sponsor|lead|self|true|null
+MOVE|human|none|none|false|You are not a member of this project.
+MOVE|human|none|unclaimed|false|You are not a member of this project.
+MOVE|human|none|other|false|You are not a member of this project.
+MOVE|human|none|self|false|You are not a member of this project.
+MOVE|human|viewer|none|false|This action needs the member role; you hold viewer.
+MOVE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+MOVE|human|viewer|other|false|This action needs the member role; you hold viewer.
+MOVE|human|viewer|self|false|This action needs the member role; you hold viewer.
+MOVE|human|member|none|true|null
+MOVE|human|member|unclaimed|true|null
+MOVE|human|member|other|true|null
+MOVE|human|member|self|true|null
+MOVE|human|lead|none|true|null
+MOVE|human|lead|unclaimed|true|null
+MOVE|human|lead|other|true|null
+MOVE|human|lead|self|true|null
+MOVE|admin|none|none|true|null
+MOVE|admin|none|unclaimed|true|null
+MOVE|admin|none|other|true|null
+MOVE|admin|none|self|true|null
+MOVE|admin|viewer|none|true|null
+MOVE|admin|viewer|unclaimed|true|null
+MOVE|admin|viewer|other|true|null
+MOVE|admin|viewer|self|true|null
+MOVE|admin|member|none|true|null
+MOVE|admin|member|unclaimed|true|null
+MOVE|admin|member|other|true|null
+MOVE|admin|member|self|true|null
+MOVE|admin|lead|none|true|null
+MOVE|admin|lead|unclaimed|true|null
+MOVE|admin|lead|other|true|null
+MOVE|admin|lead|self|true|null
+MOVE|agent-admin-sponsor|none|none|false|You are not a member of this project.
+MOVE|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+MOVE|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
+MOVE|agent-admin-sponsor|none|self|false|You are not a member of this project.
+MOVE|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+MOVE|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+MOVE|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
+MOVE|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+MOVE|agent-admin-sponsor|member|none|true|null
+MOVE|agent-admin-sponsor|member|unclaimed|true|null
+MOVE|agent-admin-sponsor|member|other|false|This item is claimed by another agent.
+MOVE|agent-admin-sponsor|member|self|true|null
+MOVE|agent-admin-sponsor|lead|none|true|null
+MOVE|agent-admin-sponsor|lead|unclaimed|true|null
+MOVE|agent-admin-sponsor|lead|other|false|This item is claimed by another agent.
+MOVE|agent-admin-sponsor|lead|self|true|null
+MOVE|agent-member-sponsor|none|none|false|You are not a member of this project.
+MOVE|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+MOVE|agent-member-sponsor|none|other|false|This item is claimed by another agent.
+MOVE|agent-member-sponsor|none|self|false|You are not a member of this project.
+MOVE|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+MOVE|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+MOVE|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
+MOVE|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+MOVE|agent-member-sponsor|member|none|true|null
+MOVE|agent-member-sponsor|member|unclaimed|true|null
+MOVE|agent-member-sponsor|member|other|false|This item is claimed by another agent.
+MOVE|agent-member-sponsor|member|self|true|null
+MOVE|agent-member-sponsor|lead|none|true|null
+MOVE|agent-member-sponsor|lead|unclaimed|true|null
+MOVE|agent-member-sponsor|lead|other|false|This item is claimed by another agent.
+MOVE|agent-member-sponsor|lead|self|true|null
+COMMENT|human|none|none|false|You are not a member of this project.
+COMMENT|human|none|unclaimed|false|You are not a member of this project.
+COMMENT|human|none|other|false|You are not a member of this project.
+COMMENT|human|none|self|false|You are not a member of this project.
+COMMENT|human|viewer|none|false|This action needs the member role; you hold viewer.
+COMMENT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+COMMENT|human|viewer|other|false|This action needs the member role; you hold viewer.
+COMMENT|human|viewer|self|false|This action needs the member role; you hold viewer.
+COMMENT|human|member|none|true|null
+COMMENT|human|member|unclaimed|true|null
+COMMENT|human|member|other|true|null
+COMMENT|human|member|self|true|null
+COMMENT|human|lead|none|true|null
+COMMENT|human|lead|unclaimed|true|null
+COMMENT|human|lead|other|true|null
+COMMENT|human|lead|self|true|null
+COMMENT|admin|none|none|true|null
+COMMENT|admin|none|unclaimed|true|null
+COMMENT|admin|none|other|true|null
+COMMENT|admin|none|self|true|null
+COMMENT|admin|viewer|none|true|null
+COMMENT|admin|viewer|unclaimed|true|null
+COMMENT|admin|viewer|other|true|null
+COMMENT|admin|viewer|self|true|null
+COMMENT|admin|member|none|true|null
+COMMENT|admin|member|unclaimed|true|null
+COMMENT|admin|member|other|true|null
+COMMENT|admin|member|self|true|null
+COMMENT|admin|lead|none|true|null
+COMMENT|admin|lead|unclaimed|true|null
+COMMENT|admin|lead|other|true|null
+COMMENT|admin|lead|self|true|null
+COMMENT|agent-admin-sponsor|none|none|false|You are not a member of this project.
+COMMENT|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+COMMENT|agent-admin-sponsor|none|other|false|You are not a member of this project.
+COMMENT|agent-admin-sponsor|none|self|false|You are not a member of this project.
+COMMENT|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+COMMENT|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+COMMENT|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+COMMENT|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+COMMENT|agent-admin-sponsor|member|none|true|null
+COMMENT|agent-admin-sponsor|member|unclaimed|true|null
+COMMENT|agent-admin-sponsor|member|other|true|null
+COMMENT|agent-admin-sponsor|member|self|true|null
+COMMENT|agent-admin-sponsor|lead|none|true|null
+COMMENT|agent-admin-sponsor|lead|unclaimed|true|null
+COMMENT|agent-admin-sponsor|lead|other|true|null
+COMMENT|agent-admin-sponsor|lead|self|true|null
+COMMENT|agent-member-sponsor|none|none|false|You are not a member of this project.
+COMMENT|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+COMMENT|agent-member-sponsor|none|other|false|You are not a member of this project.
+COMMENT|agent-member-sponsor|none|self|false|You are not a member of this project.
+COMMENT|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+COMMENT|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+COMMENT|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+COMMENT|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+COMMENT|agent-member-sponsor|member|none|true|null
+COMMENT|agent-member-sponsor|member|unclaimed|true|null
+COMMENT|agent-member-sponsor|member|other|true|null
+COMMENT|agent-member-sponsor|member|self|true|null
+COMMENT|agent-member-sponsor|lead|none|true|null
+COMMENT|agent-member-sponsor|lead|unclaimed|true|null
+COMMENT|agent-member-sponsor|lead|other|true|null
+COMMENT|agent-member-sponsor|lead|self|true|null
+LINK|human|none|none|false|You are not a member of this project.
+LINK|human|none|unclaimed|false|You are not a member of this project.
+LINK|human|none|other|false|You are not a member of this project.
+LINK|human|none|self|false|You are not a member of this project.
+LINK|human|viewer|none|false|This action needs the member role; you hold viewer.
+LINK|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+LINK|human|viewer|other|false|This action needs the member role; you hold viewer.
+LINK|human|viewer|self|false|This action needs the member role; you hold viewer.
+LINK|human|member|none|true|null
+LINK|human|member|unclaimed|true|null
+LINK|human|member|other|true|null
+LINK|human|member|self|true|null
+LINK|human|lead|none|true|null
+LINK|human|lead|unclaimed|true|null
+LINK|human|lead|other|true|null
+LINK|human|lead|self|true|null
+LINK|admin|none|none|true|null
+LINK|admin|none|unclaimed|true|null
+LINK|admin|none|other|true|null
+LINK|admin|none|self|true|null
+LINK|admin|viewer|none|true|null
+LINK|admin|viewer|unclaimed|true|null
+LINK|admin|viewer|other|true|null
+LINK|admin|viewer|self|true|null
+LINK|admin|member|none|true|null
+LINK|admin|member|unclaimed|true|null
+LINK|admin|member|other|true|null
+LINK|admin|member|self|true|null
+LINK|admin|lead|none|true|null
+LINK|admin|lead|unclaimed|true|null
+LINK|admin|lead|other|true|null
+LINK|admin|lead|self|true|null
+LINK|agent-admin-sponsor|none|none|false|You are not a member of this project.
+LINK|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+LINK|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
+LINK|agent-admin-sponsor|none|self|false|You are not a member of this project.
+LINK|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+LINK|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+LINK|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
+LINK|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+LINK|agent-admin-sponsor|member|none|true|null
+LINK|agent-admin-sponsor|member|unclaimed|true|null
+LINK|agent-admin-sponsor|member|other|false|This item is claimed by another agent.
+LINK|agent-admin-sponsor|member|self|true|null
+LINK|agent-admin-sponsor|lead|none|true|null
+LINK|agent-admin-sponsor|lead|unclaimed|true|null
+LINK|agent-admin-sponsor|lead|other|false|This item is claimed by another agent.
+LINK|agent-admin-sponsor|lead|self|true|null
+LINK|agent-member-sponsor|none|none|false|You are not a member of this project.
+LINK|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+LINK|agent-member-sponsor|none|other|false|This item is claimed by another agent.
+LINK|agent-member-sponsor|none|self|false|You are not a member of this project.
+LINK|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+LINK|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+LINK|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
+LINK|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+LINK|agent-member-sponsor|member|none|true|null
+LINK|agent-member-sponsor|member|unclaimed|true|null
+LINK|agent-member-sponsor|member|other|false|This item is claimed by another agent.
+LINK|agent-member-sponsor|member|self|true|null
+LINK|agent-member-sponsor|lead|none|true|null
+LINK|agent-member-sponsor|lead|unclaimed|true|null
+LINK|agent-member-sponsor|lead|other|false|This item is claimed by another agent.
+LINK|agent-member-sponsor|lead|self|true|null
+MANAGE_PROJECT|human|none|none|false|You are not a member of this project.
+MANAGE_PROJECT|human|none|unclaimed|false|You are not a member of this project.
+MANAGE_PROJECT|human|none|other|false|You are not a member of this project.
+MANAGE_PROJECT|human|none|self|false|You are not a member of this project.
+MANAGE_PROJECT|human|viewer|none|false|This action needs the lead role; you hold viewer.
+MANAGE_PROJECT|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
+MANAGE_PROJECT|human|viewer|other|false|This action needs the lead role; you hold viewer.
+MANAGE_PROJECT|human|viewer|self|false|This action needs the lead role; you hold viewer.
+MANAGE_PROJECT|human|member|none|false|This action needs the lead role; you hold member.
+MANAGE_PROJECT|human|member|unclaimed|false|This action needs the lead role; you hold member.
+MANAGE_PROJECT|human|member|other|false|This action needs the lead role; you hold member.
+MANAGE_PROJECT|human|member|self|false|This action needs the lead role; you hold member.
+MANAGE_PROJECT|human|lead|none|true|null
+MANAGE_PROJECT|human|lead|unclaimed|true|null
+MANAGE_PROJECT|human|lead|other|true|null
+MANAGE_PROJECT|human|lead|self|true|null
+MANAGE_PROJECT|admin|none|none|true|null
+MANAGE_PROJECT|admin|none|unclaimed|true|null
+MANAGE_PROJECT|admin|none|other|true|null
+MANAGE_PROJECT|admin|none|self|true|null
+MANAGE_PROJECT|admin|viewer|none|true|null
+MANAGE_PROJECT|admin|viewer|unclaimed|true|null
+MANAGE_PROJECT|admin|viewer|other|true|null
+MANAGE_PROJECT|admin|viewer|self|true|null
+MANAGE_PROJECT|admin|member|none|true|null
+MANAGE_PROJECT|admin|member|unclaimed|true|null
+MANAGE_PROJECT|admin|member|other|true|null
+MANAGE_PROJECT|admin|member|self|true|null
+MANAGE_PROJECT|admin|lead|none|true|null
+MANAGE_PROJECT|admin|lead|unclaimed|true|null
+MANAGE_PROJECT|admin|lead|other|true|null
+MANAGE_PROJECT|admin|lead|self|true|null
+MANAGE_PROJECT|agent-admin-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|human|none|none|false|You are not a member of this project.
+SET_POLICY|human|none|unclaimed|false|You are not a member of this project.
+SET_POLICY|human|none|other|false|You are not a member of this project.
+SET_POLICY|human|none|self|false|You are not a member of this project.
+SET_POLICY|human|viewer|none|false|This action needs the lead role; you hold viewer.
+SET_POLICY|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
+SET_POLICY|human|viewer|other|false|This action needs the lead role; you hold viewer.
+SET_POLICY|human|viewer|self|false|This action needs the lead role; you hold viewer.
+SET_POLICY|human|member|none|false|This action needs the lead role; you hold member.
+SET_POLICY|human|member|unclaimed|false|This action needs the lead role; you hold member.
+SET_POLICY|human|member|other|false|This action needs the lead role; you hold member.
+SET_POLICY|human|member|self|false|This action needs the lead role; you hold member.
+SET_POLICY|human|lead|none|true|null
+SET_POLICY|human|lead|unclaimed|true|null
+SET_POLICY|human|lead|other|true|null
+SET_POLICY|human|lead|self|true|null
+SET_POLICY|admin|none|none|true|null
+SET_POLICY|admin|none|unclaimed|true|null
+SET_POLICY|admin|none|other|true|null
+SET_POLICY|admin|none|self|true|null
+SET_POLICY|admin|viewer|none|true|null
+SET_POLICY|admin|viewer|unclaimed|true|null
+SET_POLICY|admin|viewer|other|true|null
+SET_POLICY|admin|viewer|self|true|null
+SET_POLICY|admin|member|none|true|null
+SET_POLICY|admin|member|unclaimed|true|null
+SET_POLICY|admin|member|other|true|null
+SET_POLICY|admin|member|self|true|null
+SET_POLICY|admin|lead|none|true|null
+SET_POLICY|admin|lead|unclaimed|true|null
+SET_POLICY|admin|lead|other|true|null
+SET_POLICY|admin|lead|self|true|null
+SET_POLICY|agent-admin-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|human|none|none|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|none|unclaimed|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|none|other|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|none|self|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|viewer|none|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|viewer|unclaimed|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|viewer|other|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|viewer|self|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|member|none|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|member|unclaimed|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|member|other|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|member|self|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|lead|none|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|lead|unclaimed|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|lead|other|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|lead|self|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|admin|none|none|true|null
+MANAGE_INSTANCE|admin|none|unclaimed|true|null
+MANAGE_INSTANCE|admin|none|other|true|null
+MANAGE_INSTANCE|admin|none|self|true|null
+MANAGE_INSTANCE|admin|viewer|none|true|null
+MANAGE_INSTANCE|admin|viewer|unclaimed|true|null
+MANAGE_INSTANCE|admin|viewer|other|true|null
+MANAGE_INSTANCE|admin|viewer|self|true|null
+MANAGE_INSTANCE|admin|member|none|true|null
+MANAGE_INSTANCE|admin|member|unclaimed|true|null
+MANAGE_INSTANCE|admin|member|other|true|null
+MANAGE_INSTANCE|admin|member|self|true|null
+MANAGE_INSTANCE|admin|lead|none|true|null
+MANAGE_INSTANCE|admin|lead|unclaimed|true|null
+MANAGE_INSTANCE|admin|lead|other|true|null
+MANAGE_INSTANCE|admin|lead|self|true|null
+MANAGE_INSTANCE|agent-admin-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|human|none|none|false|You are not a member of this project.
+MANAGE_AGENT|human|none|unclaimed|false|You are not a member of this project.
+MANAGE_AGENT|human|none|other|false|You are not a member of this project.
+MANAGE_AGENT|human|none|self|false|You are not a member of this project.
+MANAGE_AGENT|human|viewer|none|false|This action needs the lead role; you hold viewer.
+MANAGE_AGENT|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
+MANAGE_AGENT|human|viewer|other|false|This action needs the lead role; you hold viewer.
+MANAGE_AGENT|human|viewer|self|false|This action needs the lead role; you hold viewer.
+MANAGE_AGENT|human|member|none|false|This action needs the lead role; you hold member.
+MANAGE_AGENT|human|member|unclaimed|false|This action needs the lead role; you hold member.
+MANAGE_AGENT|human|member|other|false|This action needs the lead role; you hold member.
+MANAGE_AGENT|human|member|self|false|This action needs the lead role; you hold member.
+MANAGE_AGENT|human|lead|none|true|null
+MANAGE_AGENT|human|lead|unclaimed|true|null
+MANAGE_AGENT|human|lead|other|true|null
+MANAGE_AGENT|human|lead|self|true|null
+MANAGE_AGENT|admin|none|none|true|null
+MANAGE_AGENT|admin|none|unclaimed|true|null
+MANAGE_AGENT|admin|none|other|true|null
+MANAGE_AGENT|admin|none|self|true|null
+MANAGE_AGENT|admin|viewer|none|true|null
+MANAGE_AGENT|admin|viewer|unclaimed|true|null
+MANAGE_AGENT|admin|viewer|other|true|null
+MANAGE_AGENT|admin|viewer|self|true|null
+MANAGE_AGENT|admin|member|none|true|null
+MANAGE_AGENT|admin|member|unclaimed|true|null
+MANAGE_AGENT|admin|member|other|true|null
+MANAGE_AGENT|admin|member|self|true|null
+MANAGE_AGENT|admin|lead|none|true|null
+MANAGE_AGENT|admin|lead|unclaimed|true|null
+MANAGE_AGENT|admin|lead|other|true|null
+MANAGE_AGENT|admin|lead|self|true|null
+MANAGE_AGENT|agent-admin-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+CLAIM|human|none|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|none|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|none|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|none|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|viewer|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|viewer|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|viewer|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|viewer|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|member|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|member|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|member|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|member|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|lead|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|lead|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|lead|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|lead|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|none|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|none|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|none|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|none|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|viewer|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|viewer|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|viewer|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|viewer|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|member|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|member|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|member|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|member|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|lead|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|lead|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|lead|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|lead|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|agent-admin-sponsor|none|none|false|You are not a member of this project.
+CLAIM|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+CLAIM|agent-admin-sponsor|none|other|false|You are not a member of this project.
+CLAIM|agent-admin-sponsor|none|self|false|You are not a member of this project.
+CLAIM|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+CLAIM|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+CLAIM|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+CLAIM|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+CLAIM|agent-admin-sponsor|member|none|true|null
+CLAIM|agent-admin-sponsor|member|unclaimed|true|null
+CLAIM|agent-admin-sponsor|member|other|true|null
+CLAIM|agent-admin-sponsor|member|self|true|null
+CLAIM|agent-admin-sponsor|lead|none|true|null
+CLAIM|agent-admin-sponsor|lead|unclaimed|true|null
+CLAIM|agent-admin-sponsor|lead|other|true|null
+CLAIM|agent-admin-sponsor|lead|self|true|null
+CLAIM|agent-member-sponsor|none|none|false|You are not a member of this project.
+CLAIM|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+CLAIM|agent-member-sponsor|none|other|false|You are not a member of this project.
+CLAIM|agent-member-sponsor|none|self|false|You are not a member of this project.
+CLAIM|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+CLAIM|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+CLAIM|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+CLAIM|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+CLAIM|agent-member-sponsor|member|none|true|null
+CLAIM|agent-member-sponsor|member|unclaimed|true|null
+CLAIM|agent-member-sponsor|member|other|true|null
+CLAIM|agent-member-sponsor|member|self|true|null
+CLAIM|agent-member-sponsor|lead|none|true|null
+CLAIM|agent-member-sponsor|lead|unclaimed|true|null
+CLAIM|agent-member-sponsor|lead|other|true|null
+CLAIM|agent-member-sponsor|lead|self|true|null
+OPEN_CHANGE|human|none|none|false|You are not a member of this project.
+OPEN_CHANGE|human|none|unclaimed|false|You are not a member of this project.
+OPEN_CHANGE|human|none|other|false|You are not a member of this project.
+OPEN_CHANGE|human|none|self|false|You are not a member of this project.
+OPEN_CHANGE|human|viewer|none|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|human|viewer|other|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|human|viewer|self|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|human|member|none|true|null
+OPEN_CHANGE|human|member|unclaimed|true|null
+OPEN_CHANGE|human|member|other|true|null
+OPEN_CHANGE|human|member|self|true|null
+OPEN_CHANGE|human|lead|none|true|null
+OPEN_CHANGE|human|lead|unclaimed|true|null
+OPEN_CHANGE|human|lead|other|true|null
+OPEN_CHANGE|human|lead|self|true|null
+OPEN_CHANGE|admin|none|none|true|null
+OPEN_CHANGE|admin|none|unclaimed|true|null
+OPEN_CHANGE|admin|none|other|true|null
+OPEN_CHANGE|admin|none|self|true|null
+OPEN_CHANGE|admin|viewer|none|true|null
+OPEN_CHANGE|admin|viewer|unclaimed|true|null
+OPEN_CHANGE|admin|viewer|other|true|null
+OPEN_CHANGE|admin|viewer|self|true|null
+OPEN_CHANGE|admin|member|none|true|null
+OPEN_CHANGE|admin|member|unclaimed|true|null
+OPEN_CHANGE|admin|member|other|true|null
+OPEN_CHANGE|admin|member|self|true|null
+OPEN_CHANGE|admin|lead|none|true|null
+OPEN_CHANGE|admin|lead|unclaimed|true|null
+OPEN_CHANGE|admin|lead|other|true|null
+OPEN_CHANGE|admin|lead|self|true|null
+OPEN_CHANGE|agent-admin-sponsor|none|none|false|You are not a member of this project.
+OPEN_CHANGE|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+OPEN_CHANGE|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-admin-sponsor|none|self|false|You are not a member of this project.
+OPEN_CHANGE|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|agent-admin-sponsor|member|none|true|null
+OPEN_CHANGE|agent-admin-sponsor|member|unclaimed|true|null
+OPEN_CHANGE|agent-admin-sponsor|member|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-admin-sponsor|member|self|true|null
+OPEN_CHANGE|agent-admin-sponsor|lead|none|true|null
+OPEN_CHANGE|agent-admin-sponsor|lead|unclaimed|true|null
+OPEN_CHANGE|agent-admin-sponsor|lead|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-admin-sponsor|lead|self|true|null
+OPEN_CHANGE|agent-member-sponsor|none|none|false|You are not a member of this project.
+OPEN_CHANGE|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+OPEN_CHANGE|agent-member-sponsor|none|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-member-sponsor|none|self|false|You are not a member of this project.
+OPEN_CHANGE|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+OPEN_CHANGE|agent-member-sponsor|member|none|true|null
+OPEN_CHANGE|agent-member-sponsor|member|unclaimed|true|null
+OPEN_CHANGE|agent-member-sponsor|member|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-member-sponsor|member|self|true|null
+OPEN_CHANGE|agent-member-sponsor|lead|none|true|null
+OPEN_CHANGE|agent-member-sponsor|lead|unclaimed|true|null
+OPEN_CHANGE|agent-member-sponsor|lead|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-member-sponsor|lead|self|true|null
+REVIEW_CHANGE|human|none|none|false|You are not a member of this project.
+REVIEW_CHANGE|human|none|unclaimed|false|You are not a member of this project.
+REVIEW_CHANGE|human|none|other|false|You are not a member of this project.
+REVIEW_CHANGE|human|none|self|false|You are not a member of this project.
+REVIEW_CHANGE|human|viewer|none|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|human|viewer|other|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|human|viewer|self|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|human|member|none|true|null
+REVIEW_CHANGE|human|member|unclaimed|true|null
+REVIEW_CHANGE|human|member|other|true|null
+REVIEW_CHANGE|human|member|self|true|null
+REVIEW_CHANGE|human|lead|none|true|null
+REVIEW_CHANGE|human|lead|unclaimed|true|null
+REVIEW_CHANGE|human|lead|other|true|null
+REVIEW_CHANGE|human|lead|self|true|null
+REVIEW_CHANGE|admin|none|none|true|null
+REVIEW_CHANGE|admin|none|unclaimed|true|null
+REVIEW_CHANGE|admin|none|other|true|null
+REVIEW_CHANGE|admin|none|self|true|null
+REVIEW_CHANGE|admin|viewer|none|true|null
+REVIEW_CHANGE|admin|viewer|unclaimed|true|null
+REVIEW_CHANGE|admin|viewer|other|true|null
+REVIEW_CHANGE|admin|viewer|self|true|null
+REVIEW_CHANGE|admin|member|none|true|null
+REVIEW_CHANGE|admin|member|unclaimed|true|null
+REVIEW_CHANGE|admin|member|other|true|null
+REVIEW_CHANGE|admin|member|self|true|null
+REVIEW_CHANGE|admin|lead|none|true|null
+REVIEW_CHANGE|admin|lead|unclaimed|true|null
+REVIEW_CHANGE|admin|lead|other|true|null
+REVIEW_CHANGE|admin|lead|self|true|null
+REVIEW_CHANGE|agent-admin-sponsor|none|none|false|You are not a member of this project.
+REVIEW_CHANGE|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+REVIEW_CHANGE|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-admin-sponsor|none|self|false|You are not a member of this project.
+REVIEW_CHANGE|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|agent-admin-sponsor|member|none|true|null
+REVIEW_CHANGE|agent-admin-sponsor|member|unclaimed|true|null
+REVIEW_CHANGE|agent-admin-sponsor|member|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-admin-sponsor|member|self|true|null
+REVIEW_CHANGE|agent-admin-sponsor|lead|none|true|null
+REVIEW_CHANGE|agent-admin-sponsor|lead|unclaimed|true|null
+REVIEW_CHANGE|agent-admin-sponsor|lead|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-admin-sponsor|lead|self|true|null
+REVIEW_CHANGE|agent-member-sponsor|none|none|false|You are not a member of this project.
+REVIEW_CHANGE|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+REVIEW_CHANGE|agent-member-sponsor|none|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-member-sponsor|none|self|false|You are not a member of this project.
+REVIEW_CHANGE|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+REVIEW_CHANGE|agent-member-sponsor|member|none|true|null
+REVIEW_CHANGE|agent-member-sponsor|member|unclaimed|true|null
+REVIEW_CHANGE|agent-member-sponsor|member|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-member-sponsor|member|self|true|null
+REVIEW_CHANGE|agent-member-sponsor|lead|none|true|null
+REVIEW_CHANGE|agent-member-sponsor|lead|unclaimed|true|null
+REVIEW_CHANGE|agent-member-sponsor|lead|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-member-sponsor|lead|self|true|null
+MERGE_CHANGE|human|none|none|false|You are not a member of this project.
+MERGE_CHANGE|human|none|unclaimed|false|You are not a member of this project.
+MERGE_CHANGE|human|none|other|false|You are not a member of this project.
+MERGE_CHANGE|human|none|self|false|You are not a member of this project.
+MERGE_CHANGE|human|viewer|none|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|human|viewer|other|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|human|viewer|self|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|human|member|none|true|null
+MERGE_CHANGE|human|member|unclaimed|true|null
+MERGE_CHANGE|human|member|other|true|null
+MERGE_CHANGE|human|member|self|true|null
+MERGE_CHANGE|human|lead|none|true|null
+MERGE_CHANGE|human|lead|unclaimed|true|null
+MERGE_CHANGE|human|lead|other|true|null
+MERGE_CHANGE|human|lead|self|true|null
+MERGE_CHANGE|admin|none|none|true|null
+MERGE_CHANGE|admin|none|unclaimed|true|null
+MERGE_CHANGE|admin|none|other|true|null
+MERGE_CHANGE|admin|none|self|true|null
+MERGE_CHANGE|admin|viewer|none|true|null
+MERGE_CHANGE|admin|viewer|unclaimed|true|null
+MERGE_CHANGE|admin|viewer|other|true|null
+MERGE_CHANGE|admin|viewer|self|true|null
+MERGE_CHANGE|admin|member|none|true|null
+MERGE_CHANGE|admin|member|unclaimed|true|null
+MERGE_CHANGE|admin|member|other|true|null
+MERGE_CHANGE|admin|member|self|true|null
+MERGE_CHANGE|admin|lead|none|true|null
+MERGE_CHANGE|admin|lead|unclaimed|true|null
+MERGE_CHANGE|admin|lead|other|true|null
+MERGE_CHANGE|admin|lead|self|true|null
+MERGE_CHANGE|agent-admin-sponsor|none|none|false|You are not a member of this project.
+MERGE_CHANGE|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+MERGE_CHANGE|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-admin-sponsor|none|self|false|You are not a member of this project.
+MERGE_CHANGE|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|agent-admin-sponsor|member|none|true|null
+MERGE_CHANGE|agent-admin-sponsor|member|unclaimed|true|null
+MERGE_CHANGE|agent-admin-sponsor|member|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-admin-sponsor|member|self|true|null
+MERGE_CHANGE|agent-admin-sponsor|lead|none|true|null
+MERGE_CHANGE|agent-admin-sponsor|lead|unclaimed|true|null
+MERGE_CHANGE|agent-admin-sponsor|lead|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-admin-sponsor|lead|self|true|null
+MERGE_CHANGE|agent-member-sponsor|none|none|false|You are not a member of this project.
+MERGE_CHANGE|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+MERGE_CHANGE|agent-member-sponsor|none|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-member-sponsor|none|self|false|You are not a member of this project.
+MERGE_CHANGE|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+MERGE_CHANGE|agent-member-sponsor|member|none|true|null
+MERGE_CHANGE|agent-member-sponsor|member|unclaimed|true|null
+MERGE_CHANGE|agent-member-sponsor|member|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-member-sponsor|member|self|true|null
+MERGE_CHANGE|agent-member-sponsor|lead|none|true|null
+MERGE_CHANGE|agent-member-sponsor|lead|unclaimed|true|null
+MERGE_CHANGE|agent-member-sponsor|lead|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-member-sponsor|lead|self|true|null
+ACKNOWLEDGE|human|none|none|false|You are not a member of this project.
+ACKNOWLEDGE|human|none|unclaimed|false|You are not a member of this project.
+ACKNOWLEDGE|human|none|other|false|You are not a member of this project.
+ACKNOWLEDGE|human|none|self|false|You are not a member of this project.
+ACKNOWLEDGE|human|viewer|none|false|This action needs the member role; you hold viewer.
+ACKNOWLEDGE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+ACKNOWLEDGE|human|viewer|other|false|This action needs the member role; you hold viewer.
+ACKNOWLEDGE|human|viewer|self|false|This action needs the member role; you hold viewer.
+ACKNOWLEDGE|human|member|none|true|null
+ACKNOWLEDGE|human|member|unclaimed|true|null
+ACKNOWLEDGE|human|member|other|true|null
+ACKNOWLEDGE|human|member|self|true|null
+ACKNOWLEDGE|human|lead|none|true|null
+ACKNOWLEDGE|human|lead|unclaimed|true|null
+ACKNOWLEDGE|human|lead|other|true|null
+ACKNOWLEDGE|human|lead|self|true|null
+ACKNOWLEDGE|admin|none|none|true|null
+ACKNOWLEDGE|admin|none|unclaimed|true|null
+ACKNOWLEDGE|admin|none|other|true|null
+ACKNOWLEDGE|admin|none|self|true|null
+ACKNOWLEDGE|admin|viewer|none|true|null
+ACKNOWLEDGE|admin|viewer|unclaimed|true|null
+ACKNOWLEDGE|admin|viewer|other|true|null
+ACKNOWLEDGE|admin|viewer|self|true|null
+ACKNOWLEDGE|admin|member|none|true|null
+ACKNOWLEDGE|admin|member|unclaimed|true|null
+ACKNOWLEDGE|admin|member|other|true|null
+ACKNOWLEDGE|admin|member|self|true|null
+ACKNOWLEDGE|admin|lead|none|true|null
+ACKNOWLEDGE|admin|lead|unclaimed|true|null
+ACKNOWLEDGE|admin|lead|other|true|null
+ACKNOWLEDGE|admin|lead|self|true|null
+ACKNOWLEDGE|agent-admin-sponsor|none|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|none|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|none|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|none|self|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|viewer|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|viewer|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|viewer|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|viewer|self|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|member|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|member|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|member|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|member|self|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|lead|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|lead|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|lead|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|lead|self|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|none|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|none|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|none|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|none|self|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|viewer|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|viewer|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|viewer|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|viewer|self|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|member|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|member|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|member|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|member|self|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|lead|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|lead|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|lead|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|lead|self|false|A person acknowledges work closed without one.
+REQUEST_DEPLOYMENT|human|none|none|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|human|none|unclaimed|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|human|none|other|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|human|none|self|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|human|viewer|none|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|human|viewer|other|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|human|viewer|self|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|human|member|none|true|null
+REQUEST_DEPLOYMENT|human|member|unclaimed|true|null
+REQUEST_DEPLOYMENT|human|member|other|true|null
+REQUEST_DEPLOYMENT|human|member|self|true|null
+REQUEST_DEPLOYMENT|human|lead|none|true|null
+REQUEST_DEPLOYMENT|human|lead|unclaimed|true|null
+REQUEST_DEPLOYMENT|human|lead|other|true|null
+REQUEST_DEPLOYMENT|human|lead|self|true|null
+REQUEST_DEPLOYMENT|admin|none|none|true|null
+REQUEST_DEPLOYMENT|admin|none|unclaimed|true|null
+REQUEST_DEPLOYMENT|admin|none|other|true|null
+REQUEST_DEPLOYMENT|admin|none|self|true|null
+REQUEST_DEPLOYMENT|admin|viewer|none|true|null
+REQUEST_DEPLOYMENT|admin|viewer|unclaimed|true|null
+REQUEST_DEPLOYMENT|admin|viewer|other|true|null
+REQUEST_DEPLOYMENT|admin|viewer|self|true|null
+REQUEST_DEPLOYMENT|admin|member|none|true|null
+REQUEST_DEPLOYMENT|admin|member|unclaimed|true|null
+REQUEST_DEPLOYMENT|admin|member|other|true|null
+REQUEST_DEPLOYMENT|admin|member|self|true|null
+REQUEST_DEPLOYMENT|admin|lead|none|true|null
+REQUEST_DEPLOYMENT|admin|lead|unclaimed|true|null
+REQUEST_DEPLOYMENT|admin|lead|other|true|null
+REQUEST_DEPLOYMENT|admin|lead|self|true|null
+REQUEST_DEPLOYMENT|agent-admin-sponsor|none|none|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|none|other|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|none|self|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|member|none|true|null
+REQUEST_DEPLOYMENT|agent-admin-sponsor|member|unclaimed|true|null
+REQUEST_DEPLOYMENT|agent-admin-sponsor|member|other|true|null
+REQUEST_DEPLOYMENT|agent-admin-sponsor|member|self|true|null
+REQUEST_DEPLOYMENT|agent-admin-sponsor|lead|none|true|null
+REQUEST_DEPLOYMENT|agent-admin-sponsor|lead|unclaimed|true|null
+REQUEST_DEPLOYMENT|agent-admin-sponsor|lead|other|true|null
+REQUEST_DEPLOYMENT|agent-admin-sponsor|lead|self|true|null
+REQUEST_DEPLOYMENT|agent-member-sponsor|none|none|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-member-sponsor|none|other|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-member-sponsor|none|self|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+REQUEST_DEPLOYMENT|agent-member-sponsor|member|none|true|null
+REQUEST_DEPLOYMENT|agent-member-sponsor|member|unclaimed|true|null
+REQUEST_DEPLOYMENT|agent-member-sponsor|member|other|true|null
+REQUEST_DEPLOYMENT|agent-member-sponsor|member|self|true|null
+REQUEST_DEPLOYMENT|agent-member-sponsor|lead|none|true|null
+REQUEST_DEPLOYMENT|agent-member-sponsor|lead|unclaimed|true|null
+REQUEST_DEPLOYMENT|agent-member-sponsor|lead|other|true|null
+REQUEST_DEPLOYMENT|agent-member-sponsor|lead|self|true|null
+APPROVE_DEPLOYMENT|human|none|none|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|human|none|unclaimed|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|human|none|other|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|human|none|self|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|human|viewer|none|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|human|viewer|other|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|human|viewer|self|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|human|member|none|true|null
+APPROVE_DEPLOYMENT|human|member|unclaimed|true|null
+APPROVE_DEPLOYMENT|human|member|other|true|null
+APPROVE_DEPLOYMENT|human|member|self|true|null
+APPROVE_DEPLOYMENT|human|lead|none|true|null
+APPROVE_DEPLOYMENT|human|lead|unclaimed|true|null
+APPROVE_DEPLOYMENT|human|lead|other|true|null
+APPROVE_DEPLOYMENT|human|lead|self|true|null
+APPROVE_DEPLOYMENT|admin|none|none|true|null
+APPROVE_DEPLOYMENT|admin|none|unclaimed|true|null
+APPROVE_DEPLOYMENT|admin|none|other|true|null
+APPROVE_DEPLOYMENT|admin|none|self|true|null
+APPROVE_DEPLOYMENT|admin|viewer|none|true|null
+APPROVE_DEPLOYMENT|admin|viewer|unclaimed|true|null
+APPROVE_DEPLOYMENT|admin|viewer|other|true|null
+APPROVE_DEPLOYMENT|admin|viewer|self|true|null
+APPROVE_DEPLOYMENT|admin|member|none|true|null
+APPROVE_DEPLOYMENT|admin|member|unclaimed|true|null
+APPROVE_DEPLOYMENT|admin|member|other|true|null
+APPROVE_DEPLOYMENT|admin|member|self|true|null
+APPROVE_DEPLOYMENT|admin|lead|none|true|null
+APPROVE_DEPLOYMENT|admin|lead|unclaimed|true|null
+APPROVE_DEPLOYMENT|admin|lead|other|true|null
+APPROVE_DEPLOYMENT|admin|lead|self|true|null
+APPROVE_DEPLOYMENT|agent-admin-sponsor|none|none|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|none|other|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|none|self|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|member|none|true|null
+APPROVE_DEPLOYMENT|agent-admin-sponsor|member|unclaimed|true|null
+APPROVE_DEPLOYMENT|agent-admin-sponsor|member|other|true|null
+APPROVE_DEPLOYMENT|agent-admin-sponsor|member|self|true|null
+APPROVE_DEPLOYMENT|agent-admin-sponsor|lead|none|true|null
+APPROVE_DEPLOYMENT|agent-admin-sponsor|lead|unclaimed|true|null
+APPROVE_DEPLOYMENT|agent-admin-sponsor|lead|other|true|null
+APPROVE_DEPLOYMENT|agent-admin-sponsor|lead|self|true|null
+APPROVE_DEPLOYMENT|agent-member-sponsor|none|none|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-member-sponsor|none|other|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-member-sponsor|none|self|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+APPROVE_DEPLOYMENT|agent-member-sponsor|member|none|true|null
+APPROVE_DEPLOYMENT|agent-member-sponsor|member|unclaimed|true|null
+APPROVE_DEPLOYMENT|agent-member-sponsor|member|other|true|null
+APPROVE_DEPLOYMENT|agent-member-sponsor|member|self|true|null
+APPROVE_DEPLOYMENT|agent-member-sponsor|lead|none|true|null
+APPROVE_DEPLOYMENT|agent-member-sponsor|lead|unclaimed|true|null
+APPROVE_DEPLOYMENT|agent-member-sponsor|lead|other|true|null
+APPROVE_DEPLOYMENT|agent-member-sponsor|lead|self|true|null
+RUN_DEPLOYMENT|human|none|none|false|You are not a member of this project.
+RUN_DEPLOYMENT|human|none|unclaimed|false|You are not a member of this project.
+RUN_DEPLOYMENT|human|none|other|false|You are not a member of this project.
+RUN_DEPLOYMENT|human|none|self|false|You are not a member of this project.
+RUN_DEPLOYMENT|human|viewer|none|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|human|viewer|other|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|human|viewer|self|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|human|member|none|true|null
+RUN_DEPLOYMENT|human|member|unclaimed|true|null
+RUN_DEPLOYMENT|human|member|other|true|null
+RUN_DEPLOYMENT|human|member|self|true|null
+RUN_DEPLOYMENT|human|lead|none|true|null
+RUN_DEPLOYMENT|human|lead|unclaimed|true|null
+RUN_DEPLOYMENT|human|lead|other|true|null
+RUN_DEPLOYMENT|human|lead|self|true|null
+RUN_DEPLOYMENT|admin|none|none|true|null
+RUN_DEPLOYMENT|admin|none|unclaimed|true|null
+RUN_DEPLOYMENT|admin|none|other|true|null
+RUN_DEPLOYMENT|admin|none|self|true|null
+RUN_DEPLOYMENT|admin|viewer|none|true|null
+RUN_DEPLOYMENT|admin|viewer|unclaimed|true|null
+RUN_DEPLOYMENT|admin|viewer|other|true|null
+RUN_DEPLOYMENT|admin|viewer|self|true|null
+RUN_DEPLOYMENT|admin|member|none|true|null
+RUN_DEPLOYMENT|admin|member|unclaimed|true|null
+RUN_DEPLOYMENT|admin|member|other|true|null
+RUN_DEPLOYMENT|admin|member|self|true|null
+RUN_DEPLOYMENT|admin|lead|none|true|null
+RUN_DEPLOYMENT|admin|lead|unclaimed|true|null
+RUN_DEPLOYMENT|admin|lead|other|true|null
+RUN_DEPLOYMENT|admin|lead|self|true|null
+RUN_DEPLOYMENT|agent-admin-sponsor|none|none|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-admin-sponsor|none|other|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-admin-sponsor|none|self|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|agent-admin-sponsor|member|none|true|null
+RUN_DEPLOYMENT|agent-admin-sponsor|member|unclaimed|true|null
+RUN_DEPLOYMENT|agent-admin-sponsor|member|other|true|null
+RUN_DEPLOYMENT|agent-admin-sponsor|member|self|true|null
+RUN_DEPLOYMENT|agent-admin-sponsor|lead|none|true|null
+RUN_DEPLOYMENT|agent-admin-sponsor|lead|unclaimed|true|null
+RUN_DEPLOYMENT|agent-admin-sponsor|lead|other|true|null
+RUN_DEPLOYMENT|agent-admin-sponsor|lead|self|true|null
+RUN_DEPLOYMENT|agent-member-sponsor|none|none|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-member-sponsor|none|other|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-member-sponsor|none|self|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+RUN_DEPLOYMENT|agent-member-sponsor|member|none|true|null
+RUN_DEPLOYMENT|agent-member-sponsor|member|unclaimed|true|null
+RUN_DEPLOYMENT|agent-member-sponsor|member|other|true|null
+RUN_DEPLOYMENT|agent-member-sponsor|member|self|true|null
+RUN_DEPLOYMENT|agent-member-sponsor|lead|none|true|null
+RUN_DEPLOYMENT|agent-member-sponsor|lead|unclaimed|true|null
+RUN_DEPLOYMENT|agent-member-sponsor|lead|other|true|null
+RUN_DEPLOYMENT|agent-member-sponsor|lead|self|true|null

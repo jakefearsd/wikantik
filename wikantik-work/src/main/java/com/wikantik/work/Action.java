@@ -18,9 +18,56 @@
  */
 package com.wikantik.work;
 
-/** An operation a caller may attempt on a project or item. */
+/**
+ * An operation a caller may attempt on a project or item, with its policy attributes: the least project role it needs
+ * ({@code null} for {@link #MANAGE_INSTANCE}, which is decided before any role is looked at), whether it is
+ * management (an agent never does it) and whether it is fenced (an agent may not do it to an item another agent
+ * holds the claim on). The constant order is stable.
+ */
 public enum Action {
-    VIEW, CREATE_ITEM, EDIT_ITEM, MOVE, COMMENT, LINK, MANAGE_PROJECT, SET_POLICY, MANAGE_INSTANCE, MANAGE_AGENT, CLAIM,
-    OPEN_CHANGE, REVIEW_CHANGE, MERGE_CHANGE, ACKNOWLEDGE,
-    REQUEST_DEPLOYMENT, APPROVE_DEPLOYMENT, RUN_DEPLOYMENT
+    VIEW( WorkRole.VIEWER, false, false ),
+    CREATE_ITEM( WorkRole.MEMBER, false, false ),
+    EDIT_ITEM( WorkRole.MEMBER, false, true ),
+    MOVE( WorkRole.MEMBER, false, true ),
+    COMMENT( WorkRole.MEMBER, false, false ),
+    LINK( WorkRole.MEMBER, false, true ),
+    MANAGE_PROJECT( WorkRole.LEAD, true, false ),
+    SET_POLICY( WorkRole.LEAD, true, false ),
+    MANAGE_INSTANCE( null, true, false ),
+    // Managing an agent is decided by sponsorship (AgentSponsorship), not by a role in one project; asked of a role
+    // it takes a lead, the least that may ever register one.
+    MANAGE_AGENT( WorkRole.LEAD, true, false ),
+    CLAIM( WorkRole.MEMBER, false, false ),
+    OPEN_CHANGE( WorkRole.MEMBER, false, true ),
+    REVIEW_CHANGE( WorkRole.MEMBER, false, true ),
+    MERGE_CHANGE( WorkRole.MEMBER, false, true ),
+    ACKNOWLEDGE( WorkRole.MEMBER, false, false ),
+    REQUEST_DEPLOYMENT( WorkRole.MEMBER, false, false ),
+    APPROVE_DEPLOYMENT( WorkRole.MEMBER, false, false ),
+    RUN_DEPLOYMENT( WorkRole.MEMBER, false, false );
+
+    private final WorkRole minRole;
+    private final boolean management;
+    private final boolean fenced;
+
+    Action( final WorkRole minRole, final boolean management, final boolean fenced ) {
+        this.minRole = minRole;
+        this.management = management;
+        this.fenced = fenced;
+    }
+
+    /** The least project role that may do this; null for {@link #MANAGE_INSTANCE}, which no project role grants. */
+    public WorkRole minRole() {
+        return minRole;
+    }
+
+    /** Whether this changes policy, a project, an agent or the instance: an agent never may. */
+    public boolean management() {
+        return management;
+    }
+
+    /** Whether an agent may not do this to an item another agent holds the claim on. */
+    public boolean fenced() {
+        return fenced;
+    }
 }

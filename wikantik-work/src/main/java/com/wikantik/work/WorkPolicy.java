@@ -24,16 +24,9 @@ public final class WorkPolicy {
     private static final String AGENT_ACKNOWLEDGE = "A person acknowledges work closed without one.";
     private static final String HUMAN_CLAIM = "People are assigned work; assign it to yourself instead.";
 
-    /** What an agent may not do to an item another agent holds the claim on. */
-    private static final java.util.Set< Action > FENCED = java.util.EnumSet.of( Action.EDIT_ITEM, Action.MOVE,
-        Action.LINK, Action.OPEN_CHANGE, Action.REVIEW_CHANGE, Action.MERGE_CHANGE );
-
     /** Leaving refining for one of these approves nothing. */
     private static final java.util.Set< WorkStatus > BEFORE_READY = java.util.EnumSet.of( WorkStatus.DRAFT,
         WorkStatus.REFINING, WorkStatus.CANCELLED );
-
-    private static final java.util.Set< Action > LEAD_ACTIONS = java.util.EnumSet.of( Action.MANAGE_PROJECT,
-        Action.SET_POLICY, Action.MANAGE_AGENT );
 
     /**
      * Besides draft, the statuses a move forward from is an approval: refining, and cancelled too, or an agent
@@ -57,7 +50,7 @@ public final class WorkPolicy {
         if ( action == Action.ACKNOWLEDGE && actor.kind() == Actor.Kind.AGENT ) {
             return Decision.deny( AGENT_ACKNOWLEDGE );
         }
-        if ( actor.kind() == Actor.Kind.AGENT && isManagement( action ) ) {
+        if ( actor.kind() == Actor.Kind.AGENT && action.management() ) {
             return Decision.deny( "An agent may not change policy, manage a project or manage the work instance." );
         }
         if ( actor.kind() == Actor.Kind.AGENT && claimedByOther( actor, action, itemOrNull ) ) {
@@ -72,7 +65,7 @@ public final class WorkPolicy {
         if ( roleOrNull == null ) {
             return Decision.deny( "You are not a member of this project." );
         }
-        final WorkRole needed = roleNeeded( action );
+        final WorkRole needed = action.minRole();
         if ( roleOrNull.atLeast( needed ) ) {
             return Decision.allow();
         }
@@ -128,24 +121,7 @@ public final class WorkPolicy {
     }
 
     private static boolean claimedByOther( final Actor actor, final Action action, final Item item ) {
-        return FENCED.contains( action )
+        return action.fenced()
             && item != null && item.claimedByAgent() != null && !item.claimedByAgent().equals( actor.agentId() );
-    }
-
-    private static boolean isManagement( final Action action ) {
-        return action == Action.SET_POLICY || action == Action.MANAGE_PROJECT || action == Action.MANAGE_INSTANCE
-            || action == Action.MANAGE_AGENT;
-    }
-
-    private static WorkRole roleNeeded( final Action action ) {
-        if ( action == Action.MANAGE_INSTANCE ) {
-            throw new IllegalStateException( "handled above" );
-        }
-        if ( action == Action.VIEW ) {
-            return WorkRole.VIEWER;
-        }
-        // Managing an agent is decided by sponsorship (AgentSponsorship), not by a role in one project; asked
-        // here it takes a lead, the least that may ever register one.
-        return LEAD_ACTIONS.contains( action ) ? WorkRole.LEAD : WorkRole.MEMBER;
     }
 }

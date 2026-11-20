@@ -1,0 +1,32 @@
+{
+  "name": "comment_on_item",
+  "description": "Comment on an item as the agent you are. Returns {id,at}. Refusals: denied:, archived:, or body: when the comment is empty or too long.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "The item key.",
+        "examples": [
+          "PLAT-12"
+        ]
+      },
+      "body": {
+        "type": "string",
+        "description": "The comment, Markdown source. Mention a person by display name token as the service accepts.",
+        "examples": [
+          "Tests added; waiting on review."
+        ]
+      }
+    },
+    "required": [
+      "key",
+      "body"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

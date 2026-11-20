@@ -1,0 +1,24 @@
+{
+  "name": "claim_item",
+  "description": "Claim an item as the agent you are, or renew your own claim by calling this again before expiresAt. Returns {claim:{expiresAt,renewed},item:\u003cas get_item\u003e}. A claim you abandon blocks the item until it expires: finish with handoff_item or release_item. Refusals: not_claimable: (it names who holds it and until when), denied:, archived:.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "The item key.",
+        "examples": [
+          "PLAT-12"
+        ]
+      }
+    },
+    "required": [
+      "key"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

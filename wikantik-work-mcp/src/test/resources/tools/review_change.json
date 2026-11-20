@@ -1,0 +1,39 @@
+{
+  "name": "review_change",
+  "description": "Review a change that is in review. An approval is for the commit the change is at now: a later commit needs a new review. You may not review a change you opened or put a commit on. Returns the change. Refusals: denied: (your own change, or another agent holds the item), not_in_review:, change_closed:.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "change": {
+        "type": "integer",
+        "description": "The change\u0027s id.",
+        "examples": [
+          7
+        ]
+      },
+      "approved": {
+        "type": "boolean",
+        "description": "true to approve the change at its current commit; false to send it back.",
+        "examples": [
+          true
+        ]
+      },
+      "note": {
+        "type": "string",
+        "description": "What you found; required in practice when you send it back.",
+        "examples": [
+          "The new route has no test."
+        ]
+      }
+    },
+    "required": [
+      "change",
+      "approved"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

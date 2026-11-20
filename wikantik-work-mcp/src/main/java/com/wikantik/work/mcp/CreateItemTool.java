@@ -28,9 +28,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
@@ -42,8 +40,20 @@ public final class CreateItemTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "create_item";
 
-    private static final Set< String > ALLOWED = Set.of( "project", "level", "title", "body", "parentKey",
-        "productKey", "kind", "priority", "queue" );
+    private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
+        .description( "Create a work item. It is always created as a draft with no assignee, for a person to "
+            + "refine; status and assignee are refused by name. Returns {key,version,status}. Use handoff_item "
+            + "afterwards to give it to someone." )
+        .requiredArg( "project", "string", "The project key.", "PLAT" )
+        .requiredArg( "level", "string", "epic, story or task.", "task" )
+        .requiredArg( "title", "string", "The title.", "Retry failed uploads" )
+        .arg( "body", "string", "The body, Markdown source.", "Why and what." )
+        .arg( "parentKey", "string", "The parent item's key.", "PLAT-2" )
+        .arg( "productKey", "string", "The product's key.", "web" )
+        .arg( "kind", "string", "software (default), docs or admin.", "software" )
+        .arg( "priority", "integer", "1 (highest) to 4.", 3 )
+        .arg( "queue", "string", "The queue key to put it in.", "implementer" );
+
     private static final Map< String, String > REASONS = Map.of(
         "status", "New items always start as drafts.",
         "assignee", UpdateItemTool.USE_HANDOFF,
@@ -53,44 +63,13 @@ public final class CreateItemTool extends WorkMcpTool {
     private final WorkService svc;
 
     public CreateItemTool( final WorkService svc ) {
+        super( SPEC );
         this.svc = svc;
     }
 
     @Override
-    public String name() {
-        return TOOL_NAME;
-    }
-
-    @Override
-    protected boolean writes() {
-        return true;
-    }
-
-    @Override
-    public McpSchema.Tool definition() {
-        final Map< String, Object > props = new LinkedHashMap<>();
-        props.put( "project", prop( "string", "The project key.", "PLAT" ) );
-        props.put( "level", prop( "string", "epic, story or task.", "task" ) );
-        props.put( "title", prop( "string", "The title.", "Retry failed uploads" ) );
-        props.put( "body", prop( "string", "The body, Markdown source.", "Why and what." ) );
-        props.put( "parentKey", prop( "string", "The parent item's key.", "PLAT-2" ) );
-        props.put( "productKey", prop( "string", "The product's key.", "web" ) );
-        props.put( "kind", prop( "string", "software (default), docs or admin.", "software" ) );
-        props.put( "priority", prop( "integer", "1 (highest) to 4.", 3 ) );
-        props.put( "queue", prop( "string", "The queue key to put it in.", "implementer" ) );
-        return McpSchema.Tool.builder()
-            .name( TOOL_NAME )
-            .description( "Create a work item. It is always created as a draft with no assignee, for a person to "
-                + "refine; status and assignee are refused by name. Returns {key,version,status}. Use handoff_item "
-                + "afterwards to give it to someone." )
-            .inputSchema( schema( props, List.of( "project", "level", "title" ) ) )
-            .annotations( WRITES )
-            .build();
-    }
-
-    @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
-        rejectOthers( args, ALLOWED, REASONS );
+        rejectOthers( args, allowed(), REASONS );
         final String project = requiredString( args, "project" );
         final String level = requiredString( args, "level" );
         final String title = requiredString( args, "title" );

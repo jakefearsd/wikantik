@@ -26,10 +26,7 @@ import com.wikantik.work.WorkValidationException;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
@@ -37,50 +34,32 @@ import static com.wikantik.work.mcp.WorkMcpArgs.*;
 public final class UpdateDeploymentTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "update_deployment";
-    private static final Set< String > ALLOWED = Set.of( "deployment", "state", "evidence", "note" );
+
+    private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
+        .description( "Move a deployment to its next state. It only moves forward: requested, approved, running, "
+            + "then verified or failed; a verified or failed one can be rolled_back. One that is not running yet "
+            + "can be rejected, by whoever requested it or could approve it. Approving is refused where "
+            + "a person approves deployments of the product. Returns the deployment. Refusals: denied:, "
+            + "bad_transition: (not the next state), evidence: (verified needs it)." )
+        .requiredArg( "deployment", "integer", "The deployment's id.", 4 )
+        .requiredArg( "state", "string", "approved, rejected, running, verified, failed or rolled_back.", "running" )
+        .arg( "evidence", "string", "With verified: the health and smoke-test output. Required.",
+            "GET /api/health 200; smoke-wiki.sh: SMOKE OK" )
+        .arg( "note", "string", "Why, for the deployment's history.", "Smoke test failed on search." );
     private static final String VERIFIED = "verified";
 
     private final WorkService svc;
     private final WorkDirectory directory;
 
     public UpdateDeploymentTool( final WorkService svc, final WorkDirectory directory ) {
+        super( SPEC );
         this.svc = svc;
         this.directory = directory;
     }
 
     @Override
-    public String name() {
-        return TOOL_NAME;
-    }
-
-    @Override
-    protected boolean writes() {
-        return true;
-    }
-
-    @Override
-    public McpSchema.Tool definition() {
-        final Map< String, Object > props = new LinkedHashMap<>();
-        props.put( "deployment", prop( "integer", "The deployment's id.", 4 ) );
-        props.put( "state", prop( "string", "approved, rejected, running, verified, failed or rolled_back.", "running" ) );
-        props.put( "evidence", prop( "string", "With verified: the health and smoke-test output. Required.",
-            "GET /api/health 200; smoke-wiki.sh: SMOKE OK" ) );
-        props.put( "note", prop( "string", "Why, for the deployment's history.", "Smoke test failed on search." ) );
-        return McpSchema.Tool.builder()
-            .name( TOOL_NAME )
-            .description( "Move a deployment to its next state. It only moves forward: requested, approved, running, "
-                + "then verified or failed; a verified or failed one can be rolled_back. One that is not running yet "
-                + "can be rejected, by whoever requested it or could approve it. Approving is refused where "
-                + "a person approves deployments of the product. Returns the deployment. Refusals: denied:, "
-                + "bad_transition: (not the next state), evidence: (verified needs it)." )
-            .inputSchema( schema( props, List.of( "deployment", "state" ) ) )
-            .annotations( WRITES )
-            .build();
-    }
-
-    @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
-        rejectOthers( args, ALLOWED, Map.of() );
+        rejectOthers( args, allowed(), Map.of() );
         final long id = idArg( args, "deployment" );
         final String state = requiredString( args, "state" );
         final String evidence = stringArg( args, "evidence" );

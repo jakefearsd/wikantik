@@ -1,0 +1,31 @@
+{
+  "name": "release_item",
+  "description": "Release your claim on an item you cannot finish, so someone else can take it. Returns {key,status}. Refusals: not_claimed: (you hold no claim), denied: (another agent holds it).",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "The item key.",
+        "examples": [
+          "PLAT-12"
+        ]
+      },
+      "note": {
+        "type": "string",
+        "description": "Why you are letting go of it; recorded in the item\u0027s history.",
+        "examples": [
+          "Blocked on a missing credential."
+        ]
+      }
+    },
+    "required": [
+      "key"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

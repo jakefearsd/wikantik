@@ -26,10 +26,8 @@ import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
@@ -41,42 +39,25 @@ public final class ClaimItemTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "claim_item";
 
-    private static final Set< String > ALLOWED = Set.of( "key" );
+    private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
+        .description( "Claim an item as the agent you are, or renew your own claim by calling this again before "
+            + "expiresAt. Returns {claim:{expiresAt,renewed},item:<as get_item>}. A claim you abandon blocks the "
+            + "item until it expires: finish with handoff_item or release_item. Refusals: not_claimable: (it "
+            + "names who holds it and until when), denied:, archived:." )
+        .requiredArg( "key", "string", "The item key.", "PLAT-12" );
 
     private final WorkService svc;
     private final WorkDirectory directory;
 
     public ClaimItemTool( final WorkService svc, final WorkDirectory directory ) {
+        super( SPEC );
         this.svc = svc;
         this.directory = directory;
     }
 
     @Override
-    public String name() {
-        return TOOL_NAME;
-    }
-
-    @Override
-    protected boolean writes() {
-        return true;
-    }
-
-    @Override
-    public McpSchema.Tool definition() {
-        return McpSchema.Tool.builder()
-            .name( TOOL_NAME )
-            .description( "Claim an item as the agent you are, or renew your own claim by calling this again before "
-                + "expiresAt. Returns {claim:{expiresAt,renewed},item:<as get_item>}. A claim you abandon blocks the "
-                + "item until it expires: finish with handoff_item or release_item. Refusals: not_claimable: (it "
-                + "names who holds it and until when), denied:, archived:." )
-            .inputSchema( schema( Map.of( "key", prop( "string", "The item key.", "PLAT-12" ) ), List.of( "key" ) ) )
-            .annotations( WRITES )
-            .build();
-    }
-
-    @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
-        rejectOthers( args, ALLOWED, Map.of() );
+        rejectOthers( args, allowed(), Map.of() );
         final String key = itemKey( args );
         final ClaimResult result = svc.claims().claim( actor, key );
         WorkMcpLog.written( TOOL_NAME, result.renewed() ? "renewed" : "claimed", key, actor );

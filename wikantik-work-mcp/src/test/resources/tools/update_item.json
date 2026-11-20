@@ -1,0 +1,74 @@
+{
+  "name": "update_item",
+  "description": "Change an item\u0027s title, body, status, priority or dueOn, as the agent you are. Give at least one of them. It cannot change who has the item (use handoff_item) or any policy or structural field; those arguments are refused by name. Returns the item as get_item does. Refusals start stale: (re-read and retry), denied:, archived: or name the field.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "The item key.",
+        "examples": [
+          "PLAT-12"
+        ]
+      },
+      "expectedVersion": {
+        "type": "integer",
+        "description": "The item\u0027s version as you last read it; a stale one is refused with the current version.",
+        "examples": [
+          3
+        ]
+      },
+      "title": {
+        "type": "string",
+        "description": "New title.",
+        "examples": [
+          "Retry failed uploads"
+        ]
+      },
+      "body": {
+        "type": "string",
+        "description": "New body, Markdown source.",
+        "examples": [
+          "Why and what."
+        ]
+      },
+      "status": {
+        "type": "string",
+        "description": "New status: draft, refining, ready, in_progress, review, done or cancelled. To give the item to someone else use handoff_item.",
+        "examples": [
+          "in_progress"
+        ]
+      },
+      "priority": {
+        "type": "integer",
+        "description": "1 (highest) to 4.",
+        "examples": [
+          2
+        ]
+      },
+      "dueOn": {
+        "type": "string",
+        "description": "ISO date, or null to clear.",
+        "examples": [
+          "2026-12-01"
+        ]
+      },
+      "note": {
+        "type": "string",
+        "description": "Why you changed it; recorded in the item\u0027s history.",
+        "examples": [
+          "Started work."
+        ]
+      }
+    },
+    "required": [
+      "key",
+      "expectedVersion"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

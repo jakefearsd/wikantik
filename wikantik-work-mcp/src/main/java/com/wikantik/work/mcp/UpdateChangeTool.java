@@ -25,10 +25,7 @@ import com.wikantik.work.WorkValidationException;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
@@ -36,51 +33,34 @@ import static com.wikantik.work.mcp.WorkMcpArgs.*;
 public final class UpdateChangeTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "update_change";
-    private static final Set< String > ALLOWED = Set.of( "change", "head_sha", "review_url", "state", "note" );
+
     private static final String IN_REVIEW = "in_review";
     private static final String ABANDONED = "abandoned";
+
+    private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
+        .description( "Update a change you are working on: its newest commit, its review link (an empty "
+            + "review_url removes it), or its state (in_review, abandoned). Returns the change. Refusals: change_closed: (already merged or "
+            + "abandoned), denied: (another agent holds the item)." )
+        .requiredArg( "change", "integer", "The change's id, from open_change or get_item.", 7 )
+        .arg( "head_sha", "string", "The branch's newest commit. A new commit clears any approval.",
+            "4f2a9c1" )
+        .arg( "review_url", "string", "A link to the review.", "https://example.com/pull/7" )
+        .arg( "state", "string", "in_review to ask for a review, abandoned to give the change up.",
+            IN_REVIEW )
+        .arg( "note", "string", "With abandoned: why.", "Superseded by a smaller change." );
 
     private final WorkService svc;
     private final WorkDirectory directory;
 
     public UpdateChangeTool( final WorkService svc, final WorkDirectory directory ) {
+        super( SPEC );
         this.svc = svc;
         this.directory = directory;
     }
 
     @Override
-    public String name() {
-        return TOOL_NAME;
-    }
-
-    @Override
-    protected boolean writes() {
-        return true;
-    }
-
-    @Override
-    public McpSchema.Tool definition() {
-        final Map< String, Object > props = new LinkedHashMap<>();
-        props.put( "change", prop( "integer", "The change's id, from open_change or get_item.", 7 ) );
-        props.put( "head_sha", prop( "string", "The branch's newest commit. A new commit clears any approval.",
-            "4f2a9c1" ) );
-        props.put( "review_url", prop( "string", "A link to the review.", "https://example.com/pull/7" ) );
-        props.put( "state", prop( "string", "in_review to ask for a review, abandoned to give the change up.",
-            IN_REVIEW ) );
-        props.put( "note", prop( "string", "With abandoned: why.", "Superseded by a smaller change." ) );
-        return McpSchema.Tool.builder()
-            .name( TOOL_NAME )
-            .description( "Update a change you are working on: its newest commit, its review link (an empty "
-                + "review_url removes it), or its state (in_review, abandoned). Returns the change. Refusals: change_closed: (already merged or "
-                + "abandoned), denied: (another agent holds the item)." )
-            .inputSchema( schema( props, List.of( "change" ) ) )
-            .annotations( WRITES )
-            .build();
-    }
-
-    @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
-        rejectOthers( args, ALLOWED, Map.of() );
+        rejectOthers( args, allowed(), Map.of() );
         final long id = WorkMcpChanges.id( args );
         final String head = stringArg( args, "head_sha" );
         final String url = stringArg( args, "review_url" );

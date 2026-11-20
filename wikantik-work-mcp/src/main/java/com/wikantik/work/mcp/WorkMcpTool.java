@@ -32,6 +32,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.itemKey;
 
@@ -52,23 +53,46 @@ public abstract class WorkMcpTool {
 
     static final String UNAVAILABLE = "Work is unavailable right now.";
 
-    /** Annotations shared by every tool that only reads. */
-    protected static final McpSchema.ToolAnnotations READ_ONLY =
-        new McpSchema.ToolAnnotations( null, true, false, true, null, null );
+    private final ToolSpec spec;
+    private final WorkService versionSource;
 
-    /** Annotations shared by every tool that changes something (none is destructive: history is append-only). */
-    protected static final McpSchema.ToolAnnotations WRITES =
-        new McpSchema.ToolAnnotations( null, false, false, false, null, null );
+    /** For a tool that supplies its own {@link #name()} and {@link #definition()} (a test double). */
+    protected WorkMcpTool() {
+        this( null, null );
+    }
+
+    /** A tool declared by {@code spec}; its name, schema, annotations and allowed arguments all come from it. */
+    protected WorkMcpTool( final ToolSpec spec ) {
+        this( spec, null );
+    }
+
+    /**
+     * A tool declared by {@code spec} whose stale-version refusal reports the item's current version, read through
+     * {@code versionSource} (the tool takes {@code key}).
+     */
+    protected WorkMcpTool( final ToolSpec spec, final WorkService versionSource ) {
+        this.spec = spec;
+        this.versionSource = versionSource;
+    }
 
     /** The tool name in the MCP protocol. */
-    public abstract String name();
+    public String name() {
+        return spec.name();
+    }
 
     /** The tool's schema and annotations. */
-    public abstract McpSchema.Tool definition();
+    public McpSchema.Tool definition() {
+        return spec.definition();
+    }
 
     /** Whether the tool changes something: a refused call of such a tool leaves a line in the security log. */
     protected boolean writes() {
-        return false;
+        return spec != null && spec.writes();
+    }
+
+    /** The arguments the tool declares, which are the only ones it accepts. */
+    protected Set< String > allowed() {
+        return spec.allowed();
     }
 
     /** Runs the tool for an actor that is known not to be null. */
@@ -79,7 +103,7 @@ public abstract class WorkMcpTool {
      * has no item to report.
      */
     protected Integer currentVersion( final Actor actor, final Map< String, Object > args ) {
-        return null;
+        return versionSource == null ? null : versionOf( versionSource, actor, args );
     }
 
     /** Runs the tool; a null actor is answered with {@link #NEEDS_KEY} and nothing else happens. */
@@ -138,7 +162,7 @@ public abstract class WorkMcpTool {
     }
 
     /** The version the item has now, for a stale refusal; null when it cannot be read (the refusal then omits it). */
-    protected static Integer versionOf( final WorkService svc, final Actor actor, final Map< String, Object > args ) {
+    private static Integer versionOf( final WorkService svc, final Actor actor, final Map< String, Object > args ) {
         try {
             return svc.item( actor, itemKey( args ) ).item().version();
         } catch ( final SQLException | RuntimeException e ) {

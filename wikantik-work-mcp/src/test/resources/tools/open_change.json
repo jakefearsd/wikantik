@@ -1,0 +1,60 @@
+{
+  "name": "open_change",
+  "description": "Record a branch of work on an item. Returns the change, with the id the other change tools take. Refusals: denied: (another agent holds the item; or a direct commit nobody allowed), productKey: (the item targets no product), branch: (the item already has a live change on it), status: (the item is closed).",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "The item key.",
+        "examples": [
+          "PLAT-12"
+        ]
+      },
+      "branch": {
+        "type": "string",
+        "description": "The branch the work is on. Name it work/\u003cITEM-KEY\u003e-\u003cslug\u003e.",
+        "examples": [
+          "work/PLAT-12-spa-route"
+        ]
+      },
+      "base_branch": {
+        "type": "string",
+        "description": "The branch it will merge into; the product\u0027s default when omitted.",
+        "examples": [
+          "main"
+        ]
+      },
+      "head_sha": {
+        "type": "string",
+        "description": "The branch\u0027s newest commit.",
+        "examples": [
+          "4f2a9c1"
+        ]
+      },
+      "review_url": {
+        "type": "string",
+        "description": "A link to the review, when there is one.",
+        "examples": [
+          "https://example.com/pull/7"
+        ]
+      },
+      "merged_sha": {
+        "type": "string",
+        "description": "Only when the work is already on the base branch: its commit. The change is then recorded as merged directly, which needs a lead to have allowed direct commits.",
+        "examples": [
+          "9b01c77"
+        ]
+      }
+    },
+    "required": [
+      "key",
+      "branch"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

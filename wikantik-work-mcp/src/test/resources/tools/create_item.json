@@ -1,0 +1,82 @@
+{
+  "name": "create_item",
+  "description": "Create a work item. It is always created as a draft with no assignee, for a person to refine; status and assignee are refused by name. Returns {key,version,status}. Use handoff_item afterwards to give it to someone.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "project": {
+        "type": "string",
+        "description": "The project key.",
+        "examples": [
+          "PLAT"
+        ]
+      },
+      "level": {
+        "type": "string",
+        "description": "epic, story or task.",
+        "examples": [
+          "task"
+        ]
+      },
+      "title": {
+        "type": "string",
+        "description": "The title.",
+        "examples": [
+          "Retry failed uploads"
+        ]
+      },
+      "body": {
+        "type": "string",
+        "description": "The body, Markdown source.",
+        "examples": [
+          "Why and what."
+        ]
+      },
+      "parentKey": {
+        "type": "string",
+        "description": "The parent item\u0027s key.",
+        "examples": [
+          "PLAT-2"
+        ]
+      },
+      "productKey": {
+        "type": "string",
+        "description": "The product\u0027s key.",
+        "examples": [
+          "web"
+        ]
+      },
+      "kind": {
+        "type": "string",
+        "description": "software (default), docs or admin.",
+        "examples": [
+          "software"
+        ]
+      },
+      "priority": {
+        "type": "integer",
+        "description": "1 (highest) to 4.",
+        "examples": [
+          3
+        ]
+      },
+      "queue": {
+        "type": "string",
+        "description": "The queue key to put it in.",
+        "examples": [
+          "implementer"
+        ]
+      }
+    },
+    "required": [
+      "project",
+      "level",
+      "title"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

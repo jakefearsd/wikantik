@@ -24,10 +24,7 @@ import com.wikantik.work.WorkService;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
@@ -35,49 +32,31 @@ import static com.wikantik.work.mcp.WorkMcpArgs.*;
 public final class ReviewChangeTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "review_change";
-    private static final Set< String > ALLOWED = Set.of( "change", "approved", "note" );
+
+    private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
+        .description( "Review a change that is in review. An approval is for the commit the change is at now: a "
+            + "later commit needs a new review. You may not review a change you opened or put a commit on. Returns the "
+            + "change. "
+            + "Refusals: denied: (your own change, or another agent holds the item), not_in_review:, "
+            + "change_closed:." )
+        .requiredArg( "change", "integer", "The change's id.", 7 )
+        .requiredArg( "approved", "boolean", "true to approve the change at its current commit; false to send "
+            + "it back.", true )
+        .arg( "note", "string", "What you found; required in practice when you send it back.",
+            "The new route has no test." );
 
     private final WorkService svc;
     private final WorkDirectory directory;
 
     public ReviewChangeTool( final WorkService svc, final WorkDirectory directory ) {
+        super( SPEC );
         this.svc = svc;
         this.directory = directory;
     }
 
     @Override
-    public String name() {
-        return TOOL_NAME;
-    }
-
-    @Override
-    protected boolean writes() {
-        return true;
-    }
-
-    @Override
-    public McpSchema.Tool definition() {
-        final Map< String, Object > props = new LinkedHashMap<>();
-        props.put( "change", prop( "integer", "The change's id.", 7 ) );
-        props.put( "approved", prop( "boolean", "true to approve the change at its current commit; false to send "
-            + "it back.", true ) );
-        props.put( "note", prop( "string", "What you found; required in practice when you send it back.",
-            "The new route has no test." ) );
-        return McpSchema.Tool.builder()
-            .name( TOOL_NAME )
-            .description( "Review a change that is in review. An approval is for the commit the change is at now: a "
-                + "later commit needs a new review. You may not review a change you opened or put a commit on. Returns the "
-                + "change. "
-                + "Refusals: denied: (your own change, or another agent holds the item), not_in_review:, "
-                + "change_closed:." )
-            .inputSchema( schema( props, List.of( "change", "approved" ) ) )
-            .annotations( WRITES )
-            .build();
-    }
-
-    @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
-        rejectOthers( args, ALLOWED, Map.of() );
+        rejectOthers( args, allowed(), Map.of() );
         final long id = WorkMcpChanges.id( args );
         final boolean approved = WorkMcpChanges.requiredBoolean( args, "approved" );
         svc.changes().review( actor, id, approved, stringArg( args, "note" ) );

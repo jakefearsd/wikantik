@@ -1,0 +1,46 @@
+{
+  "name": "update_deployment",
+  "description": "Move a deployment to its next state. It only moves forward: requested, approved, running, then verified or failed; a verified or failed one can be rolled_back. One that is not running yet can be rejected, by whoever requested it or could approve it. Approving is refused where a person approves deployments of the product. Returns the deployment. Refusals: denied:, bad_transition: (not the next state), evidence: (verified needs it).",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "deployment": {
+        "type": "integer",
+        "description": "The deployment\u0027s id.",
+        "examples": [
+          4
+        ]
+      },
+      "state": {
+        "type": "string",
+        "description": "approved, rejected, running, verified, failed or rolled_back.",
+        "examples": [
+          "running"
+        ]
+      },
+      "evidence": {
+        "type": "string",
+        "description": "With verified: the health and smoke-test output. Required.",
+        "examples": [
+          "GET /api/health 200; smoke-wiki.sh: SMOKE OK"
+        ]
+      },
+      "note": {
+        "type": "string",
+        "description": "Why, for the deployment\u0027s history.",
+        "examples": [
+          "Smoke test failed on search."
+        ]
+      }
+    },
+    "required": [
+      "deployment",
+      "state"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

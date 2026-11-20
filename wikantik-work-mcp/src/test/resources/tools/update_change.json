@@ -1,0 +1,52 @@
+{
+  "name": "update_change",
+  "description": "Update a change you are working on: its newest commit, its review link (an empty review_url removes it), or its state (in_review, abandoned). Returns the change. Refusals: change_closed: (already merged or abandoned), denied: (another agent holds the item).",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "change": {
+        "type": "integer",
+        "description": "The change\u0027s id, from open_change or get_item.",
+        "examples": [
+          7
+        ]
+      },
+      "head_sha": {
+        "type": "string",
+        "description": "The branch\u0027s newest commit. A new commit clears any approval.",
+        "examples": [
+          "4f2a9c1"
+        ]
+      },
+      "review_url": {
+        "type": "string",
+        "description": "A link to the review.",
+        "examples": [
+          "https://example.com/pull/7"
+        ]
+      },
+      "state": {
+        "type": "string",
+        "description": "in_review to ask for a review, abandoned to give the change up.",
+        "examples": [
+          "in_review"
+        ]
+      },
+      "note": {
+        "type": "string",
+        "description": "With abandoned: why.",
+        "examples": [
+          "Superseded by a smaller change."
+        ]
+      }
+    },
+    "required": [
+      "change"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

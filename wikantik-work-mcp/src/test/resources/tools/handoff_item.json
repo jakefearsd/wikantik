@@ -1,0 +1,62 @@
+{
+  "name": "handoff_item",
+  "description": "Hand an item on, as the agent you are, to a queue or a person, with a status and a note saying what was done and what is expected next. Any claim you hold on it ends. Give exactly one of assignee (display name) or queue. Returns the item as get_item does. Refusals: stale: (re-read and retry), denied:, archived:, or the field name.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "The item key.",
+        "examples": [
+          "PLAT-12"
+        ]
+      },
+      "expectedVersion": {
+        "type": "integer",
+        "description": "The item\u0027s version as you last read it.",
+        "examples": [
+          3
+        ]
+      },
+      "status": {
+        "type": "string",
+        "description": "The status the item takes: draft, refining, ready, in_progress, review, done or cancelled. To a queue: ready or review (only a claim puts queued work in progress).",
+        "examples": [
+          "review"
+        ]
+      },
+      "assignee": {
+        "type": "string",
+        "description": "A person\u0027s DISPLAY NAME, never a login. Give this or queue.",
+        "examples": [
+          "Lena Lead"
+        ]
+      },
+      "queue": {
+        "type": "string",
+        "description": "A queue key. Give this or assignee.",
+        "examples": [
+          "reviewer"
+        ]
+      },
+      "note": {
+        "type": "string",
+        "description": "What you did and what is expected next; required.",
+        "examples": [
+          "Implemented with tests; please review the retry logic."
+        ]
+      }
+    },
+    "required": [
+      "key",
+      "expectedVersion",
+      "status",
+      "note"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

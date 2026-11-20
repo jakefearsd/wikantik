@@ -25,9 +25,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
@@ -36,42 +34,24 @@ public final class CommentOnItemTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "comment_on_item";
 
-    private static final Set< String > ALLOWED = Set.of( "key", "body" );
+    private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
+        .description( "Comment on an item as the agent you are. Returns {id,at}. Refusals: denied:, archived:, "
+            + "or body: when the comment is empty or too long." )
+        .requiredArg( "key", "string", "The item key.", "PLAT-12" )
+        .requiredArg( "body", "string", "The comment, Markdown source. Mention a person by display name "
+            + "token as the service accepts.", "Tests added; waiting on review." );
+
 
     private final WorkService svc;
 
     public CommentOnItemTool( final WorkService svc ) {
+        super( SPEC );
         this.svc = svc;
     }
 
     @Override
-    public String name() {
-        return TOOL_NAME;
-    }
-
-    @Override
-    protected boolean writes() {
-        return true;
-    }
-
-    @Override
-    public McpSchema.Tool definition() {
-        final Map< String, Object > props = new LinkedHashMap<>();
-        props.put( "key", prop( "string", "The item key.", "PLAT-12" ) );
-        props.put( "body", prop( "string", "The comment, Markdown source. Mention a person by display name "
-            + "token as the service accepts.", "Tests added; waiting on review." ) );
-        return McpSchema.Tool.builder()
-            .name( TOOL_NAME )
-            .description( "Comment on an item as the agent you are. Returns {id,at}. Refusals: denied:, archived:, "
-                + "or body: when the comment is empty or too long." )
-            .inputSchema( schema( props, List.of( "key", "body" ) ) )
-            .annotations( WRITES )
-            .build();
-    }
-
-    @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
-        rejectOthers( args, ALLOWED, Map.of() );
+        rejectOthers( args, allowed(), Map.of() );
         final String key = itemKey( args );
         final String body = requiredString( args, "body" );
         final CommentView comment = svc.addComment( actor, key, body );

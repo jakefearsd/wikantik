@@ -24,7 +24,6 @@ import com.wikantik.work.WorkService;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,36 +34,21 @@ public final class ListClaimableTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "list_claimable";
 
+    private static final ToolSpec SPEC = ToolSpec.reads( TOOL_NAME )
+        .description( "Items you could claim now: unclaimed, ready or in review, in a queue you serve, in a "
+            + "project you were admitted to as a member. Returns {items:[{key,title,level,kind,status,priority,"
+            + "queue,queueKey,productKey,parentKey,dueOn}]}. An unknown or hidden project is \"Not found.\"" )
+        .arg( "project", "string", "Only this project (its key).", "PLAT" )
+        .arg( "queue", "string", "Only this queue (its key).", "implementer" )
+        .arg( "limit", "integer", "Most items to return; default 20, at most 50.", 20 );
+
     private final WorkService svc;
     private final WorkDirectory directory;
 
     public ListClaimableTool( final WorkService svc, final WorkDirectory directory ) {
+        super( SPEC );
         this.svc = svc;
         this.directory = directory;
-    }
-
-    @Override
-    public String name() {
-        return TOOL_NAME;
-    }
-
-    @Override
-    public McpSchema.Tool definition() {
-        final Map< String, Object > props = new LinkedHashMap<>();
-        props.put( "project", Map.of( "type", "string", "description", "Only this project (its key).",
-            "examples", List.of( "PLAT" ) ) );
-        props.put( "queue", Map.of( "type", "string", "description", "Only this queue (its key).",
-            "examples", List.of( "implementer" ) ) );
-        props.put( "limit", Map.of( "type", "integer", "description", "Most items to return; default 20, at most 50.",
-            "examples", List.of( 20 ) ) );
-        return McpSchema.Tool.builder()
-            .name( TOOL_NAME )
-            .description( "Items you could claim now: unclaimed, ready or in review, in a queue you serve, in a "
-                + "project you were admitted to as a member. Returns {items:[{key,title,level,kind,status,priority,"
-                + "queue,queueKey,productKey,parentKey,dueOn}]}. An unknown or hidden project is \"Not found.\"" )
-            .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
-            .annotations( READ_ONLY )
-            .build();
     }
 
     @Override

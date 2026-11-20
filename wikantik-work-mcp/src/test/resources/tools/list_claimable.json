@@ -1,0 +1,36 @@
+{
+  "name": "list_claimable",
+  "description": "Items you could claim now: unclaimed, ready or in review, in a queue you serve, in a project you were admitted to as a member. Returns {items:[{key,title,level,kind,status,priority,queue,queueKey,productKey,parentKey,dueOn}]}. An unknown or hidden project is \"Not found.\"",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "project": {
+        "description": "Only this project (its key).",
+        "type": "string",
+        "examples": [
+          "PLAT"
+        ]
+      },
+      "queue": {
+        "description": "Only this queue (its key).",
+        "type": "string",
+        "examples": [
+          "implementer"
+        ]
+      },
+      "limit": {
+        "description": "Most items to return; default 20, at most 50.",
+        "type": "integer",
+        "examples": [
+          20
+        ]
+      }
+    },
+    "required": []
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true
+  }
+}

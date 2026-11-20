@@ -1,0 +1,53 @@
+{
+  "name": "request_deployment",
+  "description": "Request a deployment of a product version carrying the items it ships. Returns the deployment with its id; may_approve says whether you could approve it (the product decides: where a person approves deployments, an agent can only request). Refusals: items: (none, one that targets another product, or one not yet ready), denied:, archived: (an item\u0027s project is read-only), Not found. (the product or an item you cannot see).",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "product": {
+        "type": "string",
+        "description": "The product key.",
+        "examples": [
+          "wikantik"
+        ]
+      },
+      "version": {
+        "type": "string",
+        "description": "The version to deploy.",
+        "examples": [
+          "2.5.26"
+        ]
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "The keys of the items this version ships. Each must target the product, and you must be a member of each one\u0027s project.",
+        "examples": [
+          [
+            "PLAT-12",
+            "PLAT-15"
+          ]
+        ]
+      },
+      "environment": {
+        "type": "string",
+        "description": "Where it goes; production when omitted.",
+        "examples": [
+          "production"
+        ]
+      }
+    },
+    "required": [
+      "product",
+      "version",
+      "items"
+    ]
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false
+  }
+}

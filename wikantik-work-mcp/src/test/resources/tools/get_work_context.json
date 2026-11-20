@@ -1,0 +1,14 @@
+{
+  "name": "get_work_context",
+  "description": "Who you are and what you can see: your agent record (name, vendor, runtime, queues), the projects you were admitted to with your role in each, the items you currently hold a claim on, and claimExpiryMinutes (how long a claim lasts before it lapses). Call this first. Returns {agent, person, projects:[{key,name,role}], claims:[{key,title,status,expiresAt}], claimExpiryMinutes}.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true
+  }
+}

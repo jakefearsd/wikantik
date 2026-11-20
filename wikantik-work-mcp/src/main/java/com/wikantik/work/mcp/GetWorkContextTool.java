@@ -40,31 +40,20 @@ public final class GetWorkContextTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "get_work_context";
 
+    private static final ToolSpec SPEC = ToolSpec.reads( TOOL_NAME )
+        .description( "Who you are and what you can see: your agent record (name, vendor, runtime, queues), the "
+            + "projects you were admitted to with your role in each, the items you currently hold a claim on, "
+            + "and claimExpiryMinutes (how long a claim lasts before it lapses). Call this first. Returns "
+            + "{agent, person, projects:[{key,name,role}], claims:[{key,title,status,expiresAt}], "
+            + "claimExpiryMinutes}." );
+
     private final WorkService svc;
     private final WorkDirectory directory;
 
     public GetWorkContextTool( final WorkService svc, final WorkDirectory directory ) {
+        super( SPEC );
         this.svc = svc;
         this.directory = directory;
-    }
-
-    @Override
-    public String name() {
-        return TOOL_NAME;
-    }
-
-    @Override
-    public McpSchema.Tool definition() {
-        return McpSchema.Tool.builder()
-            .name( TOOL_NAME )
-            .description( "Who you are and what you can see: your agent record (name, vendor, runtime, queues), the "
-                + "projects you were admitted to with your role in each, the items you currently hold a claim on, "
-                + "and claimExpiryMinutes (how long a claim lasts before it lapses). Call this first. Returns "
-                + "{agent, person, projects:[{key,name,role}], claims:[{key,title,status,expiresAt}], "
-                + "claimExpiryMinutes}." )
-            .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
-            .annotations( READ_ONLY )
-            .build();
     }
 
     @Override

@@ -25,9 +25,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
 
@@ -36,42 +34,24 @@ public final class ReleaseItemTool extends WorkMcpTool {
 
     public static final String TOOL_NAME = "release_item";
 
-    private static final Set< String > ALLOWED = Set.of( "key", "note" );
+    private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
+        .description( "Release your claim on an item you cannot finish, so someone else can take it. Returns "
+            + "{key,status}. Refusals: not_claimed: (you hold no claim), denied: (another agent holds it)." )
+        .requiredArg( "key", "string", "The item key.", "PLAT-12" )
+        .arg( "note", "string", "Why you are letting go of it; recorded in the item's history.",
+            "Blocked on a missing credential." );
+
 
     private final WorkService svc;
 
     public ReleaseItemTool( final WorkService svc ) {
+        super( SPEC );
         this.svc = svc;
     }
 
     @Override
-    public String name() {
-        return TOOL_NAME;
-    }
-
-    @Override
-    protected boolean writes() {
-        return true;
-    }
-
-    @Override
-    public McpSchema.Tool definition() {
-        final Map< String, Object > props = new LinkedHashMap<>();
-        props.put( "key", prop( "string", "The item key.", "PLAT-12" ) );
-        props.put( "note", prop( "string", "Why you are letting go of it; recorded in the item's history.",
-            "Blocked on a missing credential." ) );
-        return McpSchema.Tool.builder()
-            .name( TOOL_NAME )
-            .description( "Release your claim on an item you cannot finish, so someone else can take it. Returns "
-                + "{key,status}. Refusals: not_claimed: (you hold no claim), denied: (another agent holds it)." )
-            .inputSchema( schema( props, List.of( "key" ) ) )
-            .annotations( WRITES )
-            .build();
-    }
-
-    @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
-        rejectOthers( args, ALLOWED, Map.of() );
+        rejectOthers( args, allowed(), Map.of() );
         final String key = itemKey( args );
         final String note = stringArg( args, "note" );
         final ItemView view = svc.claims().release( actor, key, note );

@@ -104,20 +104,32 @@ final class WorkInputs {
         }
     }
 
+    private static final java.util.regex.Pattern REPO_URL_USERINFO =
+        java.util.regex.Pattern.compile( "^[A-Za-z][A-Za-z0-9+.-]*://[^/?#]*@" );
+
     /** The validated product a draft describes, with the autonomy ceiling and deploy gate defaulted. */
     static Product newProduct( final Product draft ) {
         if ( draft.key() == null || !PRODUCT_KEY.matcher( draft.key() ).matches() ) {
             throw new WorkValidationException( "key", "A product key is lowercase letters, digits and dashes." );
         }
         requireName( draft.name() );
+        requireNoCredentials( draft.repoUrl() );
         return new Product( 0, draft.key(), draft.name().trim(), draft.repoUrl(), draft.defaultBranch(),
             draft.wikiCluster(), draft.autonomyCeiling() == null ? Autonomy.DELEGATED : draft.autonomyCeiling(),
             draft.deployGate() == null ? DeployGate.HUMAN : draft.deployGate(), null );
     }
 
+    /** A repository URL is shown in lists and kept in the append-only history, so it must carry no user name or password. */
+    private static void requireNoCredentials( final String repoUrl ) {
+        if ( repoUrl != null && REPO_URL_USERINFO.matcher( repoUrl.trim() ).find() ) {
+            throw new WorkValidationException( "repoUrl", "Leave the user name and password out of the repository URL." );
+        }
+    }
+
     /** {@code existing} with the editable fields of {@code product}; an unset ceiling or gate is kept. */
     static Product updatedProduct( final Product existing, final Product product ) {
         requireName( product.name() );
+        requireNoCredentials( product.repoUrl() );
         return new Product( existing.id(), existing.key(), product.name().trim(), product.repoUrl(),
             product.defaultBranch(), product.wikiCluster(),
             product.autonomyCeiling() == null ? existing.autonomyCeiling() : product.autonomyCeiling(),

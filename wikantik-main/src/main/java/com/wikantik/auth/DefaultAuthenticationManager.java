@@ -181,8 +181,6 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     public boolean login( final HttpServletRequest request ) throws WikiSecurityException {
         final HttpSession httpSession = request.getSession();
         final Session session = SessionMonitor.getInstance( engine ).find( httpSession );
-        final AuthenticationManager authenticationMgr = this;
-        final AuthorizationManager authorizationMgr = authorizationManager();
         CallbackHandler handler = null;
         final Map< String, String > options = EMPTY_MAP;
 
@@ -190,13 +188,13 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         if ( !session.isAuthenticated() ) {
             // Create a callback handler
             handler = new WebContainerCallbackHandler( engine, request );
-            attemptContainerOrSsoLogin( session, request, handler, authenticationMgr, authorizationMgr, options );
+            attemptContainerOrSsoLogin( session, request, handler, options );
         }
 
         // If user still not authenticated, check if assertion cookie was supplied
-        if ( !session.isAuthenticated() && authenticationMgr.allowsCookieAssertions() ) {
+        if ( !session.isAuthenticated() && allowsCookieAssertions() ) {
             // Execute the cookie assertion login module
-            final Set< Principal > principals = authenticationMgr.doJAASLogin( CookieAssertionLoginModule.class, handler, options );
+            final Set< Principal > principals = doJAASLogin( CookieAssertionLoginModule.class, handler, options );
             if (!principals.isEmpty()) {
                 fireEvent( WikiSecurityEvent.LOGIN_ASSERTED, getLoginPrincipal( principals ), session);
             }
@@ -204,7 +202,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
         // If user still anonymous, use the remote address
         if( session.isAnonymous() ) {
-            final Set< Principal > principals = authenticationMgr.doJAASLogin( AnonymousLoginModule.class, handler, options );
+            final Set< Principal > principals = doJAASLogin( AnonymousLoginModule.class, handler, options );
             if(!principals.isEmpty()) {
                 fireEvent( WikiSecurityEvent.LOGIN_ANONYMOUS, getLoginPrincipal( principals ), session );
                 return true;
@@ -222,32 +220,25 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
      *  method's complexity in check.
      */
     private void attemptContainerOrSsoLogin( final Session session, final HttpServletRequest request, final CallbackHandler handler,
-                                              final AuthenticationManager authenticationMgr, final AuthorizationManager authorizationMgr,
                                               final Map< String, String > options ) throws WikiSecurityException {
         // Try SSO login first if SSO is enabled
         final SSOConfig ssoConfig = SSOConfigHolder.getConfig( engine );
         Set< Principal > principals = NO_PRINCIPALS;
         if( ssoConfig != null && ssoConfig.isEnabled() ) {
-            principals = authenticationMgr.doJAASLogin( SSOLoginModule.class, handler, loginModuleOptions );
+            principals = doJAASLogin( SSOLoginModule.class, handler, loginModuleOptions );
         }
 
         // Execute the container login module, then (if that fails) the cookie auth module
         if( principals.isEmpty() ) {
-            principals = authenticationMgr.doJAASLogin( WebContainerLoginModule.class, handler, options );
+            principals = doJAASLogin( WebContainerLoginModule.class, handler, options );
         }
-        if (principals.isEmpty() && authenticationMgr.allowsCookieAuthentication() ) {
-            principals = authenticationMgr.doJAASLogin( CookieAuthenticationLoginModule.class, handler, options );
+        if (principals.isEmpty() && allowsCookieAuthentication() ) {
+            principals = doJAASLogin( CookieAuthenticationLoginModule.class, handler, options );
         }
 
         // If the container logged the user in successfully, tell the Session (and add all the Principals)
         if (!principals.isEmpty()) {
-            fireEvent( WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
-            for( final Principal principal : principals ) {
-                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
-            }
-
-            // Add all appropriate Authorizer roles
-            injectAuthorizerRoles( session, authorizationMgr.getAuthorizer(), request );
+            establish( session, principals, request, null );
         }
     }
 
@@ -277,20 +268,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         if(!principals.isEmpty()) {
             // D2: clear the throttle bucket so subsequent legitimate logins are not delayed.
             clearLoginAttempts( username );
-            fireEvent(WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
-            for ( final Principal principal : principals ) {
-                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
-            }
-
-            // Session-fixation defense: now that this session has transitioned from anonymous to
-            // authenticated, rotate its HTTP session ID so any pre-auth ID an attacker may have
-            // fixed on the victim's browser cannot be replayed as an authenticated session. The
-            // SessionMonitor entry is remapped to the new ID (the lack of which previously made
-            // this unsafe to enable). No-op for sessionless/test requests.
-            rotateSessionId( request );
-
-            // Add all appropriate Authorizer roles
-            injectAuthorizerRoles( session, authorizationManager().getAuthorizer(), null );
+            establish( session, principals, null, request );
 
             return true;
         }
@@ -302,6 +280,44 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         // successful login resets the counter.
         registerFailedLogin( username );
         return false;
+    }
+
+    /**
+     * The login success tail shared by every successful login: fires {@code LOGIN_AUTHENTICATED}, then one
+     * {@code PRINCIPAL_ADD} per principal, optionally rotates the HTTP session id, then injects the
+     * roles of the configured authorizer: each role it reports for the session, or, when it is a
+     * {@link WebAuthorizer} and a {@code roleRequest} is given, each role the container reports for that
+     * request. The two callers differ deliberately in the two request arguments.
+     *
+     * @param session the session being logged in
+     * @param principals the principals the login module produced; must not be empty
+     * @param roleRequest the request whose container roles are consulted when injecting roles, or
+     *        {@code null} to consult the authorizer only (the username/password path passes {@code null})
+     * @param rotatedRequest the request whose HTTP session id is rotated between the principals and the
+     *        roles (session-fixation defence), or {@code null} to leave the id alone (only the
+     *        username/password path rotates)
+     * @throws WikiSecurityException if the authorizer cannot be resolved
+     */
+    private void establish( final Session session, final Set< Principal > principals,
+                            final HttpServletRequest roleRequest, final HttpServletRequest rotatedRequest ) throws WikiSecurityException {
+        fireEvent( WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
+        for( final Principal principal : principals ) {
+            fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
+        }
+        rotateSessionId( rotatedRequest );
+
+        // Inject each role the configured authorizer knows the user holds
+        final Authorizer authorizer = authorizationManager().getAuthorizer();
+        for( final Principal role : authorizer.getRoles() ) {
+            if( authorizer.isUserInRole( session, role ) ) {
+                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
+                LOG.debug( "Added authorizer role {}.", role.getName() );
+            // If web authorizer, test the request.isInRole() method also
+            } else if ( roleRequest != null && authorizer instanceof WebAuthorizer wa && wa.isUserInRole( roleRequest, role ) ) {
+                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
+                LOG.debug( "Added container role {}.", role.getName() );
+            }
+        }
     }
 
     /**
@@ -589,33 +605,6 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             if( !"saml".equalsIgnoreCase( ssoType ) ) {
                 final String discoveryUri = props.getProperty( SSOConfig.PROP_OIDC_DISCOVERY_URI );
                 new com.wikantik.auth.sso.OidcDiscoverySelfCheck().checkAsync( discoveryUri );
-            }
-        }
-    }
-
-    /**
-     * After successful login, this method is called to inject authorized role Principals into the Session. To determine which roles
-     * should be injected, the configured Authorizer is queried for the roles it knows about by calling  {@link Authorizer#getRoles()}.
-     * Then, each role returned by the authorizer is tested by calling {@link Authorizer#isUserInRole(Session, Principal)}. If this
-     * check fails, and the Authorizer is of type WebAuthorizer, the role is checked again by calling
-     * {@link WebAuthorizer#isUserInRole(HttpServletRequest, Principal)}). Any roles that pass the test are injected into the Subject by
-     * firing appropriate authentication events.
-     *
-     * @param session the user's current Session
-     * @param authorizer the Engine's configured Authorizer
-     * @param request the user's HTTP session, which may be <code>null</code>
-     */
-    private void injectAuthorizerRoles( final Session session, final Authorizer authorizer, final HttpServletRequest request ) {
-        // Test each role the authorizer knows about
-        for( final Principal role : authorizer.getRoles() ) {
-            // Test the Authorizer
-            if( authorizer.isUserInRole( session, role ) ) {
-                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
-                LOG.debug( "Added authorizer role {}.", role.getName() );
-            // If web authorizer, test the request.isInRole() method also
-            } else if ( request != null && authorizer instanceof WebAuthorizer wa && wa.isUserInRole( request, role ) ) {
-                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
-                LOG.debug( "Added container role {}.",role.getName() );
             }
         }
     }

@@ -22,11 +22,9 @@ import com.wikantik.util.WikiPageNameValidator;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.content.ContentValidationException;
-import com.wikantik.api.content.ContentWarningSink;
 import com.wikantik.api.exceptions.AccessRuleShapeException;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.FrontmatterParseException;
-import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -180,25 +178,13 @@ public class WritePagesTool extends DefaultAuthorTool {
             try {
                 normalized = FrontmatterNormalizer.normalize( content, metadata );
             } catch ( final FrontmatterParseException fpe ) {
-                entry.put( "created", false );
-                entry.put( "error", "frontmatter parse error: " + fpe.getMessage() );
-                if ( fpe.line() > 0 ) {
-                    entry.put( "frontmatterLine", fpe.line() );
-                }
-                if ( fpe.column() > 0 ) {
-                    entry.put( "frontmatterColumn", fpe.column() );
-                }
-                entry.put( "hint", "Wrap values containing ':' or other YAML special "
-                    + "characters in double quotes, e.g. title: \"Foo: Bar\". Or pass the "
-                    + "fields as the structured metadata argument and omit the YAML block "
-                    + "from content." );
+                entry.putAll( SaveRefusals.parseError( fpe, "created" ) );
                 results.add( entry );
                 failedCount++;
                 continue;
             }
             final Map< String, Object > mergedMetadata = normalized.metadata();
-            FrontmatterWarningSink.clear();
-            ContentWarningSink.clear();
+            SaveWarnings.clear();
             try {
                 saveHelper.saveText( pageName, normalized.body(),
                     SaveOptions.builder()
@@ -210,40 +196,12 @@ public class WritePagesTool extends DefaultAuthorTool {
                         .build() );
                 McpAudit.logWrite( TOOL_NAME, "created", pageName, defaultAuthor );
                 entry.put( "created", true );
-                final var fmWarnings = FrontmatterWarningSink.drain( pageName );
-                if ( !fmWarnings.isEmpty() ) {
-                    entry.put( "frontmatterWarnings", fmWarnings );
-                }
-                final var mathWarnings = ContentWarningSink.drain();
-                if ( !mathWarnings.isEmpty() ) {
-                    entry.put( "mathWarnings", mathWarnings );
-                }
+                SaveWarnings.attach( entry, pageName );
                 results.add( entry );
                 createdCount++;
-            } catch ( final ContentValidationException cve ) {
-                // Math validator refused this page (ERROR-severity).
-                ContentWarningSink.clear();
-                entry.put( "created", false );
-                entry.put( "error", "math validation failed" );
-                entry.put( "violations", cve.violations() );
-                results.add( entry );
-                failedCount++;
-            } catch ( final AccessRuleShapeException are ) {
-                // The page would carry an access rule the wiki cannot read, locking it to administrators (#104).
-                FrontmatterWarningSink.clear();
-                ContentWarningSink.clear();
-                entry.put( "created", false );
-                entry.put( "error", "access rule shape refused" );
-                entry.put( "violations", are.violations() );
-                entry.put( "total", are.total() );
-                results.add( entry );
-                failedCount++;
-            } catch ( final FrontmatterValidationException fve ) {
-                // Same schema validator the form + REST use refused this page (ERROR-severity).
-                FrontmatterWarningSink.clear();
-                entry.put( "created", false );
-                entry.put( "error", "frontmatter validation failed" );
-                entry.put( "violations", fve.violations() );
+            } catch ( final ContentValidationException | AccessRuleShapeException | FrontmatterValidationException e ) {
+                // The page was refused (math, unreadable access rule #104, or frontmatter schema, ERROR-severity).
+                entry.putAll( SaveRefusals.refusalFor( e, "created" ) );
                 results.add( entry );
                 failedCount++;
             } catch ( final Exception e ) {

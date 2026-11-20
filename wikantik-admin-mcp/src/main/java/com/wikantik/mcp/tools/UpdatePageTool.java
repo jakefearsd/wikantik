@@ -21,7 +21,6 @@ package com.wikantik.mcp.tools;
 import com.wikantik.util.WikiPageNameValidator;
 
 import com.wikantik.api.content.ContentValidationException;
-import com.wikantik.api.content.ContentWarningSink;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParseException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
@@ -30,7 +29,6 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.exceptions.AccessRuleShapeException;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
-import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.providers.PageProvider;
@@ -273,18 +271,7 @@ public class UpdatePageTool extends DefaultAuthorTool {
             } catch ( final FrontmatterParseException fpe ) {
                 final Map< String, Object > parseFail = new LinkedHashMap<>();
                 parseFail.put( "pageName", pageName );
-                parseFail.put( "updated", false );
-                parseFail.put( "error", "frontmatter parse error: " + fpe.getMessage() );
-                if ( fpe.line() > 0 ) {
-                    parseFail.put( "frontmatterLine", fpe.line() );
-                }
-                if ( fpe.column() > 0 ) {
-                    parseFail.put( "frontmatterColumn", fpe.column() );
-                }
-                parseFail.put( "hint", "Wrap values containing ':' or other YAML special "
-                    + "characters in double quotes, e.g. title: \"Foo: Bar\". Or pass the "
-                    + "fields as the structured metadata argument and omit the YAML block "
-                    + "from content." );
+                parseFail.putAll( SaveRefusals.parseError( fpe, "updated" ) );
                 return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, parseFail );
             }
             // Merge: existing frontmatter is the base; content-frontmatter + the explicit
@@ -299,8 +286,7 @@ public class UpdatePageTool extends DefaultAuthorTool {
             }
             final boolean hasMetadata = !mergedMetadata.isEmpty();
 
-            FrontmatterWarningSink.clear();
-            ContentWarningSink.clear();
+            SaveWarnings.clear();
             saveHelper.saveText( pageName, normalized.body(),
                 SaveOptions.builder()
                     .author( defaultAuthor )
@@ -326,52 +312,15 @@ public class UpdatePageTool extends DefaultAuthorTool {
             ok.put( "updated", true );
             ok.put( "newContentHash", newHash );
             ok.put( "newVersion", McpToolUtils.normalizeVersion( existing.getVersion() + 1 ) );
-            final var fmWarnings = FrontmatterWarningSink.drain( pageName );
-            if ( !fmWarnings.isEmpty() ) {
-                ok.put( "frontmatterWarnings", fmWarnings );
-            }
-            final var mathWarnings = ContentWarningSink.drain();
-            if ( !mathWarnings.isEmpty() ) {
-                ok.put( "mathWarnings", mathWarnings );
-            }
+            SaveWarnings.attach( ok, pageName );
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, ok );
-        } catch ( final ContentValidationException e ) {
-            // Math validator refused this write (ERROR-severity).
-            // Cite violations with excerpt+caret so the agent can locate and fix the error.
-            ContentWarningSink.clear();
+        } catch ( final ContentValidationException | AccessRuleShapeException | FrontmatterValidationException e ) {
+            // A save refusal: cite the violations (with excerpt/caret or shape/line) so the agent can fix and retry.
             final String rejectedPage = McpToolUtils.pageSlug( arguments );
-            LOG.debug( "update_page rejected by math validation for {}: {}", rejectedPage, e.getMessage() );
+            LOG.debug( "update_page refused for {}: {}", rejectedPage, e.getMessage() );
             final Map< String, Object > refused = new LinkedHashMap<>();
             refused.put( "pageName", rejectedPage );
-            refused.put( "updated", false );
-            refused.put( "error", "math validation failed" );
-            refused.put( "violations", e.violations() );
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
-        } catch ( final AccessRuleShapeException e ) {
-            // The write would add an access rule the wiki cannot read, locking the page to administrators (#104).
-            // Cite each refused span (shape, line, how to write it instead) so the agent can fix and retry.
-            FrontmatterWarningSink.clear();
-            ContentWarningSink.clear();
-            final String rejectedPage = McpToolUtils.pageSlug( arguments );
-            LOG.debug( "update_page rejected by the access-rule shape check for {}: {}", rejectedPage, e.getMessage() );
-            final Map< String, Object > refused = new LinkedHashMap<>();
-            refused.put( "pageName", rejectedPage );
-            refused.put( "updated", false );
-            refused.put( "error", "access rule shape refused" );
-            refused.put( "violations", e.violations() );
-            refused.put( "total", e.total() );
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
-        } catch ( final FrontmatterValidationException e ) {
-            // Same schema validator the form + REST use refused this write (ERROR-severity).
-            // Cite the structured violations so the agent can self-correct and retry.
-            FrontmatterWarningSink.clear();
-            final String rejectedPage = McpToolUtils.pageSlug( arguments );
-            LOG.debug( "update_page rejected by frontmatter validation for {}: {}", rejectedPage, e.getMessage() );
-            final Map< String, Object > refused = new LinkedHashMap<>();
-            refused.put( "pageName", rejectedPage );
-            refused.put( "updated", false );
-            refused.put( "error", "frontmatter validation failed" );
-            refused.put( "violations", e.violations() );
+            refused.putAll( SaveRefusals.refusalFor( e, "updated" ) );
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
         }
     }

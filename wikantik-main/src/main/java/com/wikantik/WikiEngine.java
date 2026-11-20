@@ -49,6 +49,10 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.plugin.PluginManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.render.RenderingManager;
+import com.wikantik.runtime.boot.BootSequence;
+import com.wikantik.runtime.boot.BootStep;
+import com.wikantik.runtime.boot.FailurePolicy;
+import com.wikantik.runtime.boot.WiringEnv;
 import com.wikantik.search.SearchManager;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.progress.ProgressManager;
@@ -73,6 +77,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -940,261 +945,293 @@ public class WikiEngine implements Engine {
     }
 
     /**
-     * Initialises the datasource-backed subsystems (search and dense retrieval, Page Graph, audit,
-     * ontology, query log, insights) when a JNDI datasource is configured.
+     * Initialises the datasource-backed subsystems (persistence, Knowledge core, structural spine, search and dense
+     * retrieval, ontology, connectors, collaboration, drift, citations, query log, insights, work management) when a
+     * JNDI datasource is configured.
      *
-     * <p>Phase 9 Ckpt 4c: the bulk of the inline wiring has been relocated to
-     * {@link com.wikantik.pagegraph.subsystem.PageGraphWiringHelper},
-     * {@link com.wikantik.knowledge.subsystem.KnowledgeWiringHelper}, and
-     * {@link com.wikantik.search.subsystem.SearchWiringHelper}. This method
-     * is now a sequenced call into those helpers.</p>
+     * <p>This method resolves the datasource and every collaborator the wiring needs into a {@link WiringEnv} — it is
+     * the approved {@code getManager} caller (DecompositionArchTest), so no step lambda looks anything up — and then
+     * starts {@link #dataSourceBootSteps}. A step declared {@link FailurePolicy#ABORT_REST} abandons the rest of the
+     * sequence; its exception is logged once below and the wiki starts without the Knowledge snapshot.</p>
      *
      * @param props engine properties
      */
     private void initDataSourceSubsystems( final Properties props ) {
         final String datasource = AbstractJDBCDatabase.datasourceName( props );
         try {
-            final javax.sql.DataSource ds = resolveConfiguredDataSource( datasource );
+            final WiringEnv env = new WiringEnv( props, resolveConfiguredDataSource( datasource ),
+                getManager( SearchManager.class ),
+                com.wikantik.api.observability.MeterRegistryHolder.get(),
+                getManager( PageManager.class ),
+                getManager( FilterManager.class ),
+                getManager( ReferenceManager.class ),
+                getManager( CachingManager.class ),
+                serviceRegistry.get( AttachmentManager.class ),
+                serviceRegistry.get( PageRenamer.class ) );
+            final DataSourceBootProducts made = new DataSourceBootProducts();
+            new BootSequence( dataSourceBootSteps( made ) ).start( env );
 
-            // Phase 3: Persistence subsystem.
-            //
-            // The anchored-comments DAOs (PageOwnerService, MentionService)
-            // need to ask "does this login exist?", "who is the frontmatter
-            // author of this canonical_id?" and "which login owns this
-            // users.uid?" — the first and third live in the Auth subsystem
-            // (built before initDataSourceSubsystems), the second in the structural
-            // index (built later in this method by PageGraphWiringHelper).
-            // We thread all three through Deps as closures that capture `this`
-            // and resolve lazily at call time.
-            final java.util.function.Predicate< String > userExistsLookup = login -> {
-                if ( login == null || login.isBlank() ) return false;
-                final com.wikantik.auth.subsystem.AuthSubsystem.Services auth = this.authSubsystem;
-                if ( auth == null || auth.users() == null ) return false;
-                try {
-                    auth.users().getUserDatabase().findByLoginName( login );
-                    return true;
-                } catch ( final com.wikantik.auth.NoSuchPrincipalException e ) {
-                    // An absent principal is the normal lookup-miss path, not an error.
-                    LOG.debug( "No user profile for login '{}': {}", login, e.getMessage() );
-                    return false;
-                } catch ( final Exception e ) {
-                    LOG.warn( "userExistsLookup({}) failed: {}", login, e.getMessage(), e );
-                    return false;
-                }
-            };
-            final java.util.function.Function< String, java.util.Optional< String > > pageAuthorLookup = canonicalId -> {
-                if ( canonicalId == null || canonicalId.isBlank() ) return java.util.Optional.empty();
-                try {
-                    final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pg = this.pageGraphSubsystem;
-                    if ( pg == null || pg.structuralIndexService() == null ) return java.util.Optional.empty();
-                    final java.util.Optional< String > slug = pg.structuralIndexService().resolveSlugFromCanonicalId( canonicalId );
-                    if ( slug.isEmpty() ) return java.util.Optional.empty();
-                    final com.wikantik.page.subsystem.PageSubsystem.Services ps = this.pageSubsystem;
-                    if ( ps == null || ps.pages() == null ) return java.util.Optional.empty();
-                    final com.wikantik.api.managers.PageManager pm = ps.pages();
-                    final com.wikantik.api.core.Page page = pm.getPage( slug.get() );
-                    if ( page == null ) return java.util.Optional.empty();
-                    final String author = page.getAuthor();
-                    if ( author == null || author.isBlank() ) return java.util.Optional.empty();
-                    return java.util.Optional.of( author );
-                } catch ( final Exception e ) {
-                    LOG.warn( "pageAuthorLookup({}) failed: {}", canonicalId, e.getMessage(), e );
-                    return java.util.Optional.empty();
-                }
-            };
-
-            // A mention token carries users.uid; the identity service turns it into the member's login.
-            // Resolved lazily (like the closures above) because the Auth bundle is rebuilt on manager swaps.
-            final java.util.function.Function< String, java.util.Optional< String > > loginForUserIdLookup = uid -> {
-                final com.wikantik.auth.subsystem.AuthSubsystem.Services auth = this.authSubsystem;
-                if ( auth == null || auth.publicIdentity() == null ) return java.util.Optional.empty();
-                return auth.publicIdentity().loginForUserId( uid );
-            };
-
-            this.persistenceSubsystem = com.wikantik.persistence.subsystem.PersistenceSubsystemFactory.create(
-                new com.wikantik.persistence.subsystem.PersistenceSubsystem.Deps(
-                    ds, coreSubsystem.properties(), userExistsLookup, pageAuthorLookup, loginForUserIdLookup ) );
-
-            final SearchManager searchMgr = getManager( SearchManager.class );
-
-            final io.micrometer.core.instrument.MeterRegistry meterRegistry =
-                com.wikantik.api.observability.MeterRegistryHolder.get();
-            if ( meterRegistry == null ) {
-                LOG.warn( "No shared MeterRegistry installed — ChunkProjector and "
-                        + "ContentIndexRebuildService will publish metrics to a "
-                        + "local SimpleMeterRegistry that is NOT scraped at "
-                        + "/observability/metrics. Check that ObservabilityLifecycleExtension "
-                        + "is on the classpath and that onInit has run." );
-            }
-
-            // Audit dropped-entry gauge — lazy, null-safe: the AuditService is
-            // built later in this same method (initAuditSubsystem). The supplier
-            // reads getAuditService() at scrape time so the gauge is always
-            // present even before the audit subsystem finishes constructing.
-            if ( meterRegistry != null ) {
-                io.micrometer.core.instrument.Gauge.builder(
-                        "wikantik_audit_dropped_total",
-                        this,
-                        e -> {
-                            final com.wikantik.audit.AuditService a = e.getAuditService();
-                            return a == null ? 0d : (double) a.droppedCount();
-                        } )
-                    .description( "Audit entries dropped due to full queue" )
-                    .register( meterRegistry );
-            }
-
-            // Build Knowledge subsystem core.
-            final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps kgDeps =
-                new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps(
-                    persistenceSubsystem, coreSubsystem );
-            final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services svcs =
-                com.wikantik.knowledge.subsystem.KnowledgeSubsystemFactory.create( kgDeps );
-            // Note: this.knowledgeSubsystem is intentionally assigned at the END
-            // of this method, AFTER all wiring helpers have run. Each helper
-            // calls engine.setManager(...) which invalidates the
-            // knowledgeSubsystem snapshot (so it can be rebuilt on the next
-            // legacy getManager lookup). Assigning the snapshot before the
-            // helpers means it would be wiped to null before initialize()
-            // reaches rebuildKnowledgeSubsystemWithPostConstructionServices,
-            // and the WikiSubsystems stash would be skipped — leaving REST
-            // endpoints to fall through to the synthetic bridge. (Phase 9 Ckpt 4c-fix.)
-
-            // Resolve collaborators that multiple wiring helpers consume.
-            final PageManager pageManager = getManager( PageManager.class );
-            final FilterManager filterManager = getManager( FilterManager.class );
-            final ReferenceManager referenceManager = getManager( ReferenceManager.class );
-            final CachingManager cachingManager = getManager( CachingManager.class );
-
-            // Wire structural spine + page graph (PageGraphWiringHelper).
-            final com.wikantik.pagegraph.spine.DefaultStructuralIndexService structuralIndex =
-                com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireStructuralSpine(
-                    props, persistenceSubsystem, coreSubsystem,
-                    pageManager, filterManager, referenceManager, this );
-
-            // Wire ForAgent + ContentIndexRebuild (KnowledgeWiringHelper).
-            final com.wikantik.admin.ContentIndexRebuildService rebuildService =
-                com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireContentServices(
-                    props, structuralIndex, coreSubsystem,
-                    svcs,
-                    new com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.ContentManagers(
-                        searchMgr, meterRegistry, pageManager, cachingManager, referenceManager ),
-                    this );
-
-            // Wire hybrid retrieval (SearchWiringHelper).
-            // Pass a FrontmatterMetadataCache so the embedding indexer can build
-            // contextual document embeddings (title|cluster|section|summary). A fresh
-            // instance over pageManager is fine — it's a bounded on-demand parse cache.
-            com.wikantik.search.subsystem.SearchWiringHelper.wireHybridRetrieval(
-                props, ds, svcs.chunkProjector(), svcs.contentChunkRepository(),
-                new com.wikantik.search.FrontmatterMetadataCache( pageManager ),
-                rebuildService, this );
-
-            // Wire the RDF ontology runtime (OntologyWiringHelper): builds the TDB2-backed
-            // OntologyModelManager + rebuild coordinator, registers the coordinator, and
-            // kicks a startup-if-empty rebuild. setManager-only, so ArchUnit-neutral.
-            final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontologyCoordinator =
-                    com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager, filterManager );
-
-            // Wire the connector runtime (ConnectorWiringHelper): builds properties- and DB-backed
-            // connectors from config, registers ConnectorRuntime + ConnectorConfigService. Syncing
-            // is enabled by default (wikantik.connectors.enabled=false opts out); wiring itself is
-            // unconditional and fail-closed — a wiring failure must not break the rest of startup
-            // (drift/citation wiring below).
-            try {
-                com.wikantik.derived.ConnectorWiringHelper.wireConnectors(
-                    this, props, ds, pageManager, serviceRegistry.get( AttachmentManager.class ) );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "connector runtime wiring failed (continuing without connectors): {}", e.getMessage() );
-            }
-
-            // Wire collaborative editing (CollabWiring): the session registry + its 1 s tick (dark unless
-            // wikantik.collab.enabled). setManager-only, so ArchUnit-neutral; the REST layer reads it via registryFor.
-            try {
-                com.wikantik.collab.adapter.CollabWiring.wire( this, props, ds, pageManager );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "collaboration wiring failed (continuing without collaboration): {}", e.getMessage(), e );
-            }
-
-            // Note: wireOntology's startup rebuildIfEmpty() has already run, so a first-boot
-            // rebuild does NOT trigger a drift sweep — the first sweep comes from the nightly
-            // scheduler or the admin dashboard. Intentional: keeps first deploy fast.
-            com.wikantik.drift.DriftWiringHelper.wireDrift( this, props, ds, pageManager, ontologyCoordinator );
-
-            // Wire citation subsystem (CitationWiringHelper): builds CitationRepository,
-            // CitationSync, and CitationEventListener; registers both components on the engine;
-            // wires reconcileAll() onto the ontology rebuild coordinator (if present).
-            // The Wired holder is kept as a strong reference so the event listener is
-            // not garbage-collected out of WikiEventManager's WeakHashMap.
-            this.citationWired = com.wikantik.citation.CitationWiringHelper.wireCitations(
-                this, props, ds, pageManager, filterManager, structuralIndex, ontologyCoordinator );
-
-            // Wire the per-page content-changed date (sitemap lastmod / JSON-LD dateModified source).
-            this.contentDateWired = com.wikantik.seo.ContentDateWiringHelper.wireContentDates(
-                this, props, ds, pageManager,
-                com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( this ).filterManager(),
-                serviceRegistry.get( com.wikantik.content.PageRenamer.class ) );
-
-            // Wire retrieval-quality runner (SearchWiringHelper).
-            // HybridSearchService is registered by wireHybridRetrieval above.
-            final com.wikantik.search.hybrid.HybridSearchService hybridSearch =
-                getManager( com.wikantik.search.hybrid.HybridSearchService.class );
-            com.wikantik.search.subsystem.SearchWiringHelper.wireRetrievalQualityRunner(
-                props, ds, structuralIndex, searchMgr, pageManager, hybridSearch, this );
-
-            // Wire the retrieval query log (real-traffic capture for eval-corpus grounding; default on).
-            this.setQueryLogService( com.wikantik.knowledge.querylog.QueryLogWiring.build( ds, props ) );
-            this.setQueryLogReader( com.wikantik.knowledge.querylog.QueryLogWiring.buildReader( ds ) );
-
-            // Wire the content-opportunity engine (content-intelligence design §7.5.1; default on).
-            this.setContentOpportunityService(
-                com.wikantik.insights.runtime.InsightsWiring.build( ds, props, structuralIndex ) );
-
-            // Wire work management (default off: wikantik.work.enabled). Null when disabled; callers no-op.
-            // Fail-closed like collaboration and connectors: a wiring failure leaves work unavailable (its endpoints
-            // answer 404, the capability reports false) instead of stopping the wiki from starting.
-            try {
-                this.setWorkService( com.wikantik.work.runtime.WorkWiring.build( ds, props, this ) );
-            } catch ( final RuntimeException e ) {
-                LOG.error( "work management wiring failed (continuing without work management): {}", e.getMessage(), e );
-                this.setWorkService( null );
-            }
-            startWorkClaimSweeper();
-
-            // Wire the briefing log (S3 telemetry for session-start context briefings; default on).
-            this.setBriefingLogService( com.wikantik.knowledge.querylog.BriefingLogWiring.build( ds, props ) );
-
-            // Register save-time filters.
-            filterManager.addPageFilter( svcs.chunkProjector(), com.wikantik.filters.SaveFilterPriority.CHUNK_PROJECTOR );
-            com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireChunkLifecycle(
-                svcs.chunkProjector(), pageManager,
-                pageSubsystem != null ? pageSubsystem.pageRenamer() : null, this );
-            filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), com.wikantik.filters.SaveFilterPriority.FRONTMATTER_DEFAULTS );
-            com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireSpineFilters(
-                props, structuralIndex, coreSubsystem, filterManager, pageManager, this );
-            // PageOwnershipSaveFilter — postSave hook ensures every saved page has a
-            // page_owners row. Uses StructuralIndexService::resolveCanonicalIdFromSlug
-            // and PageOwnerService::getOwner (find-or-create). Gated by
-            // wikantik.page_ownership.enforcement.enabled (default true).
-            final boolean ownershipEnforcement = Boolean.parseBoolean(
-                props.getProperty(
-                    com.wikantik.comments.PageOwnershipSaveFilter.PROP_ENFORCEMENT_ENABLED,
-                    "true" ) );
-            filterManager.addPageFilter(
-                new com.wikantik.comments.PageOwnershipSaveFilter(
-                    persistenceSubsystem.pageOwners(),
-                    structuralIndex::resolveCanonicalIdFromSlug,
-                    ownershipEnforcement ),
-                com.wikantik.filters.SaveFilterPriority.PAGE_OWNERSHIP );
-
-            // Assign the typed snapshot ONLY after all helpers have run.
-            // See note above next to the local 'svcs' assignment.
-            this.knowledgeSubsystem = svcs;
+            // Assign the typed snapshot ONLY after all steps have run; see the note on the knowledge-core step.
+            this.knowledgeSubsystem = made.knowledge;
 
             LOG.info( "Knowledge subsystem initialized with datasource '{}'", datasource );
 
         } catch ( final javax.naming.NamingException | RuntimeException e ) {
             LOG.warn( "Knowledge subsystem initialization failed: {}", e.getMessage(), e );
         }
+    }
+
+    /** What earlier datasource boot steps build and later ones consume; one instance per boot. */
+    static final class DataSourceBootProducts {
+        private com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledge;
+        private com.wikantik.pagegraph.spine.DefaultStructuralIndexService structuralIndex;
+        private com.wikantik.admin.ContentIndexRebuildService contentIndexRebuild;
+        private com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontologyCoordinator;
+    }
+
+    /**
+     * The datasource-backed subsystems in their load-bearing start order, each with the failure policy its old
+     * position in a try/catch implied: only connectors, collaboration and work management (each with its own catch
+     * before) continue past a failure; every other step's failure abandons the rest. The steps read collaborators
+     * from the {@link WiringEnv} only — never {@code getManager}, which inside a lambda would be a new frozen-rule
+     * violation.
+     *
+     * @param made where steps leave what later steps (and {@link #initDataSourceSubsystems}) consume
+     * @return the steps, in start order
+     */
+    List< BootStep > dataSourceBootSteps( final DataSourceBootProducts made ) {
+        return List.of(
+            // The anchored-comments DAOs (PageOwnerService, MentionService) ask "does this login exist?", "who is the
+            // frontmatter author of this canonical_id?" and "which login owns this users.uid?". The first and third
+            // live in the Auth subsystem (built before this boot), the second in the structural index (built by the
+            // structural-spine step below), so all three are lookups that resolve lazily at call time.
+            BootStep.abortRestOnFailure( "persistence", env -> {
+                this.persistenceSubsystem = com.wikantik.persistence.subsystem.PersistenceSubsystemFactory.create(
+                    new com.wikantik.persistence.subsystem.PersistenceSubsystem.Deps(
+                        env.dataSource(), coreSubsystem.properties(),
+                        this::userExistsLookup, this::pageAuthorLookup, this::loginForUserIdLookup ) );
+            } ),
+
+            // Audit dropped-entry gauge — lazy, null-safe: the AuditService is built after this boot
+            // (initAuditSubsystem). The supplier reads getAuditService() at scrape time so the gauge is always
+            // present even before the audit subsystem finishes constructing.
+            BootStep.abortRestOnFailure( "audit-dropped-gauge", env -> {
+                final io.micrometer.core.instrument.MeterRegistry meterRegistry = env.meterRegistry();
+                if ( meterRegistry == null ) {
+                    LOG.warn( "No shared MeterRegistry installed — ChunkProjector and "
+                            + "ContentIndexRebuildService will publish metrics to a "
+                            + "local SimpleMeterRegistry that is NOT scraped at "
+                            + "/observability/metrics. Check that ObservabilityLifecycleExtension "
+                            + "is on the classpath and that onInit has run." );
+                } else {
+                    io.micrometer.core.instrument.Gauge.builder(
+                            "wikantik_audit_dropped_total",
+                            this,
+                            e -> {
+                                final com.wikantik.audit.AuditService a = e.getAuditService();
+                                return a == null ? 0d : (double) a.droppedCount();
+                            } )
+                        .description( "Audit entries dropped due to full queue" )
+                        .register( meterRegistry );
+                }
+            } ),
+
+            // Note: this.knowledgeSubsystem is intentionally assigned at the END of initDataSourceSubsystems,
+            // AFTER every step has run. Each wiring helper calls engine.setManager(...), which invalidates the
+            // knowledgeSubsystem snapshot (so it can be rebuilt on the next legacy getManager lookup). Assigning the
+            // snapshot before the helpers means it would be wiped to null before initialize() reaches
+            // rebuildKnowledgeSubsystemWithPostConstructionServices, and the WikiSubsystems stash would be skipped —
+            // leaving REST endpoints to fall through to the synthetic bridge. (Phase 9 Ckpt 4c-fix.)
+            BootStep.abortRestOnFailure( "knowledge-core", env -> {
+                made.knowledge = com.wikantik.knowledge.subsystem.KnowledgeSubsystemFactory.create(
+                    new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps( persistenceSubsystem, coreSubsystem ) );
+            } ),
+
+            BootStep.abortRestOnFailure( "structural-spine", env -> {
+                made.structuralIndex = com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireStructuralSpine(
+                    env.props(), persistenceSubsystem, coreSubsystem,
+                    env.pageManager(), env.filterManager(), env.referenceManager(), this );
+            } ),
+
+            // ForAgent + ContentIndexRebuild.
+            BootStep.abortRestOnFailure( "content-services", env -> {
+                made.contentIndexRebuild = com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireContentServices(
+                    env.props(), made.structuralIndex, coreSubsystem,
+                    made.knowledge,
+                    new com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.ContentManagers(
+                        env.searchManager(), env.meterRegistry(), env.pageManager(), env.cachingManager(),
+                        env.referenceManager() ),
+                    this );
+            } ),
+
+            // A FrontmatterMetadataCache lets the embedding indexer build contextual document embeddings
+            // (title|cluster|section|summary). A fresh instance over the page manager is fine — it's a bounded
+            // on-demand parse cache.
+            BootStep.abortRestOnFailure( "hybrid-retrieval", env ->
+                com.wikantik.search.subsystem.SearchWiringHelper.wireHybridRetrieval(
+                    env.props(), env.dataSource(), made.knowledge.chunkProjector(), made.knowledge.contentChunkRepository(),
+                    new com.wikantik.search.FrontmatterMetadataCache( env.pageManager() ),
+                    made.contentIndexRebuild, this ) ),
+
+            // The RDF ontology runtime: builds the TDB2-backed OntologyModelManager + rebuild coordinator, registers
+            // the coordinator, and kicks a startup-if-empty rebuild. setManager-only, so ArchUnit-neutral.
+            BootStep.abortRestOnFailure( "ontology", env -> {
+                made.ontologyCoordinator = com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology(
+                    this, env.props(), env.dataSource(), env.pageManager(), env.filterManager() );
+            } ),
+
+            // Builds properties- and DB-backed connectors from config, registers ConnectorRuntime +
+            // ConnectorConfigService. Syncing is enabled by default (wikantik.connectors.enabled=false opts out);
+            // wiring itself is unconditional and fail-closed — a wiring failure must not break the rest of startup.
+            BootStep.continueOnFailure( "connectors", env ->
+                com.wikantik.derived.ConnectorWiringHelper.wireConnectors(
+                    this, env.props(), env.dataSource(), env.pageManager(), env.attachmentManager() ),
+                e -> LOG.warn( "connector runtime wiring failed (continuing without connectors): {}", e.getMessage() ) ),
+
+            // Collaborative editing: the session registry + its 1 s tick (dark unless wikantik.collab.enabled).
+            // setManager-only, so ArchUnit-neutral; the REST layer reads it via registryFor.
+            BootStep.continueOnFailure( "collaboration", env ->
+                com.wikantik.collab.adapter.CollabWiring.wire( this, env.props(), env.dataSource(), env.pageManager() ),
+                e -> LOG.warn( "collaboration wiring failed (continuing without collaboration): {}", e.getMessage(), e ) ),
+
+            // The ontology step's startup rebuildIfEmpty() has already run, so a first-boot rebuild does NOT trigger
+            // a drift sweep — the first sweep comes from the nightly scheduler or the admin dashboard. Intentional:
+            // keeps first deploy fast.
+            BootStep.abortRestOnFailure( "drift", env ->
+                com.wikantik.drift.DriftWiringHelper.wireDrift(
+                    this, env.props(), env.dataSource(), env.pageManager(), made.ontologyCoordinator ) ),
+
+            // Builds CitationRepository, CitationSync and CitationEventListener; registers both components on the
+            // engine; wires reconcileAll() onto the ontology rebuild coordinator (if present). The Wired holder is
+            // kept as a strong reference so the event listener is not garbage-collected out of WikiEventManager's
+            // WeakHashMap.
+            BootStep.abortRestOnFailure( "citations", env -> {
+                this.citationWired = com.wikantik.citation.CitationWiringHelper.wireCitations(
+                    this, env.props(), env.dataSource(), env.pageManager(), env.filterManager(),
+                    made.structuralIndex, made.ontologyCoordinator );
+            } ),
+
+            // The per-page content-changed date (sitemap lastmod / JSON-LD dateModified source).
+            BootStep.abortRestOnFailure( "content-dates", env -> {
+                this.contentDateWired = com.wikantik.seo.ContentDateWiringHelper.wireContentDates(
+                    this, env.props(), env.dataSource(), env.pageManager(),
+                    com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( this ).filterManager(),
+                    env.pageRenamer() );
+            } ),
+
+            // HybridSearchService is registered by the hybrid-retrieval step; it is read straight from the registry
+            // because a getManager call here would be a new frozen-rule violation.
+            BootStep.abortRestOnFailure( "retrieval-quality-runner", env ->
+                com.wikantik.search.subsystem.SearchWiringHelper.wireRetrievalQualityRunner(
+                    env.props(), env.dataSource(), made.structuralIndex, env.searchManager(), env.pageManager(),
+                    serviceRegistry.get( com.wikantik.search.hybrid.HybridSearchService.class ), this ) ),
+
+            // Real-traffic capture for eval-corpus grounding; default on.
+            BootStep.abortRestOnFailure( "query-log", env -> {
+                this.setQueryLogService( com.wikantik.knowledge.querylog.QueryLogWiring.build( env.dataSource(), env.props() ) );
+                this.setQueryLogReader( com.wikantik.knowledge.querylog.QueryLogWiring.buildReader( env.dataSource() ) );
+            } ),
+
+            // The content-opportunity engine (content-intelligence design §7.5.1; default on).
+            BootStep.abortRestOnFailure( "insights", env ->
+                this.setContentOpportunityService(
+                    com.wikantik.insights.runtime.InsightsWiring.build( env.dataSource(), env.props(), made.structuralIndex ) ) ),
+
+            // Default off: wikantik.work.enabled. Null when disabled; callers no-op. A wiring failure leaves work
+            // unavailable (its endpoints answer 404, the capability reports false) instead of stopping the wiki.
+            BootStep.continueOnFailure( "work-management", env ->
+                this.setWorkService( com.wikantik.work.runtime.WorkWiring.build( env.dataSource(), env.props(), this ) ),
+                e -> {
+                    LOG.error( "work management wiring failed (continuing without work management): {}", e.getMessage(), e );
+                    this.setWorkService( null );
+                } ),
+
+            // Runs whether or not work management wired (a null service starts no sweeper).
+            BootStep.abortRestOnFailure( "work-claim-sweeper", env -> startWorkClaimSweeper() ),
+
+            // S3 telemetry for session-start context briefings; default on.
+            BootStep.abortRestOnFailure( "briefing-log", env ->
+                this.setBriefingLogService( com.wikantik.knowledge.querylog.BriefingLogWiring.build( env.dataSource(), env.props() ) ) ),
+
+            BootStep.abortRestOnFailure( "save-filters", env -> addDataSourceSaveFilters( env, made ) ) );
+    }
+
+    /**
+     * Adds the datasource-backed save-time filters to the filter chain, in their original order.
+     *
+     * <p>PageOwnershipSaveFilter's postSave hook ensures every saved page has a page_owners row, using
+     * StructuralIndexService::resolveCanonicalIdFromSlug and PageOwnerService::getOwner (find-or-create). Gated by
+     * wikantik.page_ownership.enforcement.enabled (default true).</p>
+     */
+    private void addDataSourceSaveFilters( final WiringEnv env, final DataSourceBootProducts made ) {
+        final FilterManager filterManager = env.filterManager();
+        filterManager.addPageFilter( made.knowledge.chunkProjector(), com.wikantik.filters.SaveFilterPriority.CHUNK_PROJECTOR );
+        com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireChunkLifecycle(
+            made.knowledge.chunkProjector(), env.pageManager(),
+            pageSubsystem != null ? pageSubsystem.pageRenamer() : null, this );
+        filterManager.addPageFilter( made.knowledge.frontmatterDefaultsFilter(), com.wikantik.filters.SaveFilterPriority.FRONTMATTER_DEFAULTS );
+        com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireSpineFilters(
+            env.props(), made.structuralIndex, coreSubsystem, filterManager, env.pageManager(), this );
+        final boolean ownershipEnforcement = Boolean.parseBoolean(
+            env.props().getProperty(
+                com.wikantik.comments.PageOwnershipSaveFilter.PROP_ENFORCEMENT_ENABLED,
+                "true" ) );
+        filterManager.addPageFilter(
+            new com.wikantik.comments.PageOwnershipSaveFilter(
+                persistenceSubsystem.pageOwners(),
+                made.structuralIndex::resolveCanonicalIdFromSlug,
+                ownershipEnforcement ),
+            com.wikantik.filters.SaveFilterPriority.PAGE_OWNERSHIP );
+    }
+
+    /** Persistence lookup: whether {@code login} names a user in the Auth subsystem's user database. */
+    private boolean userExistsLookup( final String login ) {
+        if ( login == null || login.isBlank() ) return false;
+        final com.wikantik.auth.subsystem.AuthSubsystem.Services auth = this.authSubsystem;
+        if ( auth == null || auth.users() == null ) return false;
+        try {
+            auth.users().getUserDatabase().findByLoginName( login );
+            return true;
+        } catch ( final com.wikantik.auth.NoSuchPrincipalException e ) {
+            // An absent principal is the normal lookup-miss path, not an error.
+            LOG.debug( "No user profile for login '{}': {}", login, e.getMessage() );
+            return false;
+        } catch ( final Exception e ) {
+            LOG.warn( "userExistsLookup({}) failed: {}", login, e.getMessage(), e );
+            return false;
+        }
+    }
+
+    /** Persistence lookup: the frontmatter author of the page whose canonical_id is {@code canonicalId}. */
+    private java.util.Optional< String > pageAuthorLookup( final String canonicalId ) {
+        if ( canonicalId == null || canonicalId.isBlank() ) return java.util.Optional.empty();
+        try {
+            final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pg = this.pageGraphSubsystem;
+            if ( pg == null || pg.structuralIndexService() == null ) return java.util.Optional.empty();
+            final java.util.Optional< String > slug = pg.structuralIndexService().resolveSlugFromCanonicalId( canonicalId );
+            if ( slug.isEmpty() ) return java.util.Optional.empty();
+            final com.wikantik.page.subsystem.PageSubsystem.Services ps = this.pageSubsystem;
+            if ( ps == null || ps.pages() == null ) return java.util.Optional.empty();
+            final com.wikantik.api.managers.PageManager pm = ps.pages();
+            final com.wikantik.api.core.Page page = pm.getPage( slug.get() );
+            if ( page == null ) return java.util.Optional.empty();
+            final String author = page.getAuthor();
+            if ( author == null || author.isBlank() ) return java.util.Optional.empty();
+            return java.util.Optional.of( author );
+        } catch ( final Exception e ) {
+            LOG.warn( "pageAuthorLookup({}) failed: {}", canonicalId, e.getMessage(), e );
+            return java.util.Optional.empty();
+        }
+    }
+
+    /**
+     * Persistence lookup: the login of the member a mention token's users.uid names. Resolved at call time because
+     * the Auth bundle is rebuilt on manager swaps.
+     */
+    private java.util.Optional< String > loginForUserIdLookup( final String uid ) {
+        final com.wikantik.auth.subsystem.AuthSubsystem.Services auth = this.authSubsystem;
+        if ( auth == null || auth.publicIdentity() == null ) return java.util.Optional.empty();
+        return auth.publicIdentity().loginForUserId( uid );
     }
 
     /**

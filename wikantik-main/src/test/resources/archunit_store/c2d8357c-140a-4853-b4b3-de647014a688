@@ -13,7 +13,6 @@ Method <com.wikantik.WikiEngine.initDataSourceSubsystems(java.util.Properties)> 
 Method <com.wikantik.WikiEngine.initDataSourceSubsystems(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1545)
 Method <com.wikantik.WikiEngine.initDataSourceSubsystems(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1546)
 Method <com.wikantik.WikiEngine.initDataSourceSubsystems(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1547)
-Method <com.wikantik.WikiEngine.initDataSourceSubsystems(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1579)
 Method <com.wikantik.WikiEngine.initReferenceManager()> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1393)
 Method <com.wikantik.WikiEngine.initReferenceManager()> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1395)
 Method <com.wikantik.WikiEngine.initReferenceManager()> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1396)

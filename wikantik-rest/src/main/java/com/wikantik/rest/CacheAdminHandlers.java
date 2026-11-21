@@ -37,9 +37,9 @@ import java.util.List;
 import java.util.Map;
 
 /** Cache statistics and flush routes of {@link AdminContentResource}. */
-final class AdminCacheHandlers {
+final class CacheAdminHandlers {
 
-    private static final Logger LOG = LogManager.getLogger( AdminCacheHandlers.class );
+    private static final Logger LOG = LogManager.getLogger( CacheAdminHandlers.class );
 
     static final String[] CACHE_NAMES = {
         CachingManager.CACHE_PAGES,
@@ -54,7 +54,7 @@ final class AdminCacheHandlers {
 
     private final AdminContentResource resource;
 
-    AdminCacheHandlers( final AdminContentResource resource ) {
+    CacheAdminHandlers( final AdminContentResource resource ) {
         this.resource = resource;
     }
 

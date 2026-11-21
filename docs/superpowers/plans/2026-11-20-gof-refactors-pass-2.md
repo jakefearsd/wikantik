@@ -311,3 +311,20 @@
 - [ ] **Step 1:** `bin/agent-build.sh start gate -- bin/run-tests.sh --parallel 4`; poll to completion. Expected: `RESULT: ALL PASSED`.
 - [ ] **Step 2:** Confirm `git status` is clean apart from known untracked files and that the PMD baseline only lost entries (`git diff --stat build-support/pmd-complexity-baseline.properties` shows deletions only).
 - [ ] **Step 3:** Push to `origin main` once the owner has approved the push. No release.
+
+---
+
+## Outcome and follow-ups (2026-11-20)
+
+All tasks landed (commits `9fd977988d`..HEAD). Deliberate deviations and follow-ups the final review left open:
+
+- **Task 15** shipped as a static `StartupPhase` helper plus `AuditedToolCall`, not an abstract initializer: the first cut (a 13-hook Template Method) was reviewed as harder to read and replaced. `WorkMcpInitializer` still hand-writes its try/catch phases and could adopt `StartupPhase`.
+- **Task 16** migrated 7 of ~28 busy/error sites to `useAsyncAction`. The rest need a hook extension (an `onError` or error-code routing) or stay hand-written:
+  - per-field errors, 403→toast, rollback in catch: `WorkAgentForm`, `WorkQueues`, `WorkHome`, `WorkSettings` (details/autonomy/archive/members), `WorkAgents`, `UserFormModal`;
+  - errors only logged (`console.warn`): `WorkBodyEditor`, `WorkFieldRow`, `WorkClaim`, `WorkHandoff`, `WorkLinks`, `WorkComments`;
+  - shared `act(call, after, onError)` with two error slots: `WorkChanges`, `WorkDeploymentView`;
+  - other bespoke flows: `ChangePasswordPage` (`err.body?.message` precedence), `UserPreferencesPage`, `MyApiKeys`, `ConnectorSettingsForm` (no catch: errors propagate), `AddConnectorWizard`, `ConnectorDetailPage`, `PageEditor`.
+- **Task 12**: `VerifyTotals` is one shared bag of every check's aggregates (as planned); a check owning its own aggregate would make a new check a single class. The package-private `check*` delegates on `VerifyPagesTool` exist only for the unedited `VerifyPagesToolTest` and can go when those tests move onto the strategies.
+- **Logger categories**: the audit line (Task 15) and the stale-hit lines (Task 13) now log under `AuditedToolCall` and `StaleHitReconciler`; Task 2 kept per-listener categories. No in-repo log config routes by the old names.
+- PMD baseline entries for `UpdatePageTool` and `WritePagesTool` may now be stale (not verified).
+- Out of scope: C1 (`SpaRoutingFilter` split) and C2 (`PageEditor` flow hooks) remain for their own plans.

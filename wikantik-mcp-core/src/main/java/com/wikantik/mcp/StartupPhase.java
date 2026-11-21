@@ -42,7 +42,10 @@ public final class StartupPhase {
     private StartupPhase() {
     }
 
-    /** Runs {@code step}; returns its value, or null after logging {@code failureMessage} if it threw. */
+    /**
+     * Runs {@code step}; returns its value, or null after logging {@code failureMessage} if it threw. Null is
+     * the failure sentinel, so a step must not legitimately return null.
+     */
     public static < T > T call( final Logger log, final String failureMessage, final Step< T > step ) {
         try {
             return step.run();

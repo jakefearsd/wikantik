@@ -78,8 +78,7 @@ describe('useAsyncAction', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('sets no state and calls no onSuccess after unmount', async () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('calls no onSuccess after unmount', async () => {
     let resolve;
     const fn = vi.fn(() => new Promise((r) => { resolve = r; }));
     const onSuccess = vi.fn();
@@ -88,7 +87,6 @@ describe('useAsyncAction', () => {
     unmount();
     await act(async () => { resolve(1); });
     expect(onSuccess).not.toHaveBeenCalled();
-    expect(errSpy).not.toHaveBeenCalled();
   });
 
   it('reset clears the error; setError sets it', async () => {

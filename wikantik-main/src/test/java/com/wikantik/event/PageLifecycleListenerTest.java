@@ -47,6 +47,7 @@ class PageLifecycleListenerTest {
 
     private class Recorder extends PageLifecycleListener {
         boolean failSave;
+        boolean failRename;
 
         @Override protected void onSaved( final String page ) {
             calls.add( "saved:" + page );
@@ -55,7 +56,12 @@ class PageLifecycleListenerTest {
             }
         }
         @Override protected void onDeleted( final String page ) { calls.add( "deleted:" + page ); }
-        @Override protected void onRenamed( final String from, final String to ) { calls.add( "renamed:" + from + ">" + to ); }
+        @Override protected void onRenamed( final String from, final String to ) {
+            calls.add( "renamed:" + from + ">" + to );
+            if ( failRename ) {
+                throw new IllegalStateException( "rename-boom" );
+            }
+        }
         @Override protected String label() { return "recorder"; }
     }
 
@@ -122,6 +128,17 @@ class PageLifecycleListenerTest {
         assertEquals( 1, warnings.size(), "warnings: " + warnings );
         assertTrue( warnings.get( 0 ).startsWith( "recorder event handling failed for" )
                     && warnings.get( 0 ).contains( "boom" ), warnings.get( 0 ) );
+    }
+
+    @Test
+    void aThrowingRenameHookIsLoggedOnceAndNotPropagated() {
+        final Recorder r = new Recorder();
+        r.failRename = true;
+        assertDoesNotThrow( () -> r.actionPerformed( new WikiPageRenameEvent( this, "Old", "New" ) ) );
+        assertEquals( List.of( "renamed:Old>New" ), calls );
+        assertEquals( 1, warnings.size(), "warnings: " + warnings );
+        assertTrue( warnings.get( 0 ).startsWith( "recorder event handling failed for" )
+                    && warnings.get( 0 ).contains( "rename-boom" ), warnings.get( 0 ) );
     }
 
     @Test

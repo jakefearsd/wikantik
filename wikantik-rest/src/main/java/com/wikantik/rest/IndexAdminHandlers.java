@@ -40,13 +40,13 @@ import java.util.List;
 import java.util.Map;
 
 /** Search, chunk and embedding index routes of {@link AdminContentResource}, with the DTO mapping they serve. */
-final class AdminIndexHandlers {
+final class IndexAdminHandlers {
 
-    private static final Logger LOG = LogManager.getLogger( AdminIndexHandlers.class );
+    private static final Logger LOG = LogManager.getLogger( IndexAdminHandlers.class );
 
     private final AdminContentResource resource;
 
-    AdminIndexHandlers( final AdminContentResource resource ) {
+    IndexAdminHandlers( final AdminContentResource resource ) {
         this.resource = resource;
     }
 

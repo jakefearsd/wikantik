@@ -26,7 +26,10 @@ import java.util.Map;
  */
 public interface VerifyCheck {
 
-    /** The check's name as it appears in the tool's {@code checks} argument. */
+    /**
+     * The internal check name. The four user-facing checks match the values of the tool's {@code checks}
+     * argument; {@code links} covers both {@code outbound_links} and {@code broken_links}.
+     */
     String name();
 
     /** Adds this check's keys to the page's result entry and records its aggregates in {@code totals}. */

@@ -53,10 +53,10 @@ public class AdminContentResource extends RestServletBase {
         return false;
     }
 
-    /** Test seam: clock (epoch millis) driving the scan-cache TTL. Read by {@link AdminContentHealthHandlers}. */
+    /** Test seam: clock (epoch millis) driving the scan-cache TTL. Read by {@link ContentHealthAdminHandlers}. */
     java.util.function.LongSupplier clockMs = System::currentTimeMillis;
 
-    /** Test seam: replaces the real block-ref scan when set. Read by {@link AdminContentHealthHandlers}. */
+    /** Test seam: replaces the real block-ref scan when set. Read by {@link ContentHealthAdminHandlers}. */
     java.util.function.Supplier< List< com.wikantik.references.BrokenBlockRefs.Entry > > blockRefScan;
 
     /** One action for one HTTP verb on one endpoint. Same idiom as the admin REST. */
@@ -74,7 +74,7 @@ public class AdminContentResource extends RestServletBase {
 
     /**
      * Dispatch table — the single source of truth for this servlet's endpoints
-     * (GoF Command registry, aligned to the the admin REST house
+     * (GoF Command registry, aligned to the admin REST house
      * pattern). Adding an endpoint is one line here plus one handler method. See
      * {@link PathRouteTable} for the shared matching engine and the
      * transient-field-plus-lazy-rebuild convention every route table here follows.
@@ -89,10 +89,10 @@ public class AdminContentResource extends RestServletBase {
     }
 
     private PathRouteTable< Route > buildRoutes() {
-        final AdminCacheHandlers cache = new AdminCacheHandlers( this );
-        final AdminContentHealthHandlers health = new AdminContentHealthHandlers( this, cache );
-        final AdminContentMutationHandlers mutation = new AdminContentMutationHandlers( this );
-        final AdminIndexHandlers index = new AdminIndexHandlers( this );
+        final CacheAdminHandlers cache = new CacheAdminHandlers( this );
+        final ContentHealthAdminHandlers health = new ContentHealthAdminHandlers( this, cache );
+        final ContentMutationAdminHandlers mutation = new ContentMutationAdminHandlers( this );
+        final IndexAdminHandlers index = new IndexAdminHandlers( this );
         return PathRouteTable.< Route >builder()
             .exact( "stats",              Route.get( ( req, resp ) -> health.handleStats( resp ) ) )
             .exact( "orphaned-pages",     Route.get( ( req, resp ) -> health.handleOrphanedPages( resp ) ) )
@@ -133,4 +133,5 @@ public class AdminContentResource extends RestServletBase {
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
         dispatch( request, response, Route::post );
-    }}
+    }
+}

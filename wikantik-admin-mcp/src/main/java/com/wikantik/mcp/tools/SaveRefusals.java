@@ -44,7 +44,7 @@ final class SaveRefusals {
     }
 
     /**
-     * Maps a save refusal to its result fields, draining the warning sinks that refusal leaves stale.
+     * Maps a save refusal to its result fields, clearing the warning sinks that refusal leaves stale.
      *
      * @param t the thrown exception
      * @param flagKey {@code "created"} or {@code "updated"}

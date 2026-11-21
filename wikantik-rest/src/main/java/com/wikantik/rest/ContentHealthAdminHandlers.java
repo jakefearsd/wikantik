@@ -39,18 +39,18 @@ import java.util.Map;
 import java.util.Set;
 
 /** Page-health routes of {@link AdminContentResource}: stats, orphans, broken links, locked pages. */
-final class AdminContentHealthHandlers {
+final class ContentHealthAdminHandlers {
 
-    private static final Logger LOG = LogManager.getLogger( AdminContentHealthHandlers.class );
+    private static final Logger LOG = LogManager.getLogger( ContentHealthAdminHandlers.class );
 
     /** Successful block-ref scan results, cached for {@code wikantik.admin.scanCacheTTL} seconds. */
     private final ScanCache< List< Map< String, Object > > > blockRefCache;
 
-    private final AdminCacheHandlers cache;
+    private final CacheAdminHandlers cache;
 
     private final AdminContentResource resource;
 
-    AdminContentHealthHandlers( final AdminContentResource resource, final AdminCacheHandlers cache ) {
+    ContentHealthAdminHandlers( final AdminContentResource resource, final CacheAdminHandlers cache ) {
         this.resource = resource;
         this.cache = cache;
         this.blockRefCache = new ScanCache<>( () -> resource.clockMs.getAsLong() );

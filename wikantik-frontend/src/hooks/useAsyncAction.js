@@ -5,7 +5,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  * while a run is in flight, clears the error, sets `busy`, calls `fn(...args)` (a
  * promise) and then `onSuccess(result)`, awaiting what it returns. A rejection sets `error` to the error's
  * message, or `fallbackMessage` when it has none, and `run` resolves `undefined`.
- * `busy` is cleared either way, and nothing sets state after unmount.
+ * `busy` is cleared either way, and nothing sets state after unmount. `onSuccess` is skipped
+ * when the component unmounted while the action was in flight; a promise it returns is awaited
+ * before `busy` clears.
  *
  * `fn` and `onSuccess` are read at call time, so they may close over current render state.
  *

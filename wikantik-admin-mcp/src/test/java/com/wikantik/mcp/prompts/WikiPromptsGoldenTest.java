@@ -116,4 +116,16 @@ class WikiPromptsGoldenTest {
                             .replace( LocalDate.now().toString(), TODAY_TOKEN ) );
         }
     }
+
+    @Test
+    void anArgumentGivenAsJsonNullTakesItsDefault() {
+        for ( final McpServerFeatures.SyncPromptSpecification spec : WikiPrompts.all() ) {
+            final Map< String, Object > nulls = new LinkedHashMap<>();
+            for ( final McpSchema.PromptArgument a : spec.prompt().arguments() ) {
+                nulls.put( a.name(), null );
+            }
+            assertEquals( render( spec, Map.of() ), render( spec, nulls ),
+                    spec.prompt().name() + " with every argument null" );
+        }
+    }
 }

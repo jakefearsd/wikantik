@@ -56,7 +56,11 @@ public abstract class WorkMcpTool {
     private final ToolSpec spec;
     private final WorkService versionSource;
 
-    /** For a tool that supplies its own {@link #name()} and {@link #definition()} (a test double). */
+    /**
+     * For a tool that supplies its own {@link #name()} and {@link #definition()} (a test double). A subclass using
+     * this constructor must override both, and {@link #allowed()} too if it reads its arguments; the defaults
+     * throw {@link IllegalStateException}.
+     */
     protected WorkMcpTool() {
         this( null, null );
     }
@@ -77,12 +81,12 @@ public abstract class WorkMcpTool {
 
     /** The tool name in the MCP protocol. */
     public String name() {
-        return spec.name();
+        return requireSpec( "name()" ).name();
     }
 
     /** The tool's schema and annotations. */
     public McpSchema.Tool definition() {
-        return spec.definition();
+        return requireSpec( "definition()" ).definition();
     }
 
     /** Whether the tool changes something: a refused call of such a tool leaves a line in the security log. */
@@ -92,7 +96,15 @@ public abstract class WorkMcpTool {
 
     /** The arguments the tool declares, which are the only ones it accepts. */
     protected Set< String > allowed() {
-        return spec.allowed();
+        return requireSpec( "allowed()" ).allowed();
+    }
+
+    private ToolSpec requireSpec( final String member ) {
+        if ( spec == null ) {
+            throw new IllegalStateException( getClass().getName() + " was built without a ToolSpec and does not override "
+                + member );
+        }
+        return spec;
     }
 
     /** Runs the tool for an actor that is known not to be null. */

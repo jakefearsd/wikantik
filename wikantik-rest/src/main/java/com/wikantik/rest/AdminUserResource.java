@@ -53,7 +53,6 @@ import java.util.Calendar;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -234,16 +233,14 @@ public class AdminUserResource extends RestServletBase {
             throws IOException {
         final String actor = currentLogin( request );
         final BulkTarget target = new BulkTarget();
-        final Map< String, BulkActions.Action > actions = new LinkedHashMap<>();
-        actions.put( "lock", userAction( "lock", "users locked", id -> tryLockUser( id, actor ) ) );
-        actions.put( "unlock", userAction( "unlock", "users unlocked", id -> tryUnlockUser( id, actor ) ) );
-        actions.put( "delete", userAction( "delete", "users deleted",
-                id -> tryDeleteUser( id, actor, target.session ) ) );
-        actions.put( "add-to-group", new BulkActions.Action( "add-to-group", "users added to group",
-                perUser( id -> tryAddToGroup( id, target.group, target.session, actor ) ),
-                "id must be a non-blank string",
-                body -> " group=" + getJsonString( body, "group" ) ) );
-        BulkActions.handle( request, response, "users", actions,
+        BulkActions.handle( request, response, "users", List.of(
+                userAction( "lock", "users locked", id -> tryLockUser( id, actor ) ),
+                userAction( "unlock", "users unlocked", id -> tryUnlockUser( id, actor ) ),
+                userAction( "delete", "users deleted", id -> tryDeleteUser( id, actor, target.session ) ),
+                new BulkActions.Action( "add-to-group", "users added to group",
+                        perUser( id -> tryAddToGroup( id, target.group, target.session, actor ) ),
+                        "id must be a non-blank string",
+                        body -> " group=" + getJsonString( body, "group" ) ) ),
                 ( action, body, resp ) -> prepareBulk( action, request, body, resp, target ) );
     }
 

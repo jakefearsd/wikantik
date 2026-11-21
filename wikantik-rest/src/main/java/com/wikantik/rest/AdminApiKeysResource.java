@@ -41,7 +41,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Admin REST resource for managing DB-backed API keys used by the MCP and
@@ -88,30 +87,6 @@ public class AdminApiKeysResource extends RestServletBase {
         sendJson( response, Map.of( "keys", rows ) );
     }
 
-    /**
-     * What a {@code POST} sub-path runs, against the dispatching servlet (passed in, not captured, so a table
-     * copied along with a spied servlet still reaches the spy).
-     */
-    @FunctionalInterface
-    private interface PostRoute {
-        void run( AdminApiKeysResource self, HttpServletRequest request, HttpServletResponse response,
-                  ApiKeyService svc ) throws IOException;
-    }
-
-    /** Matches the raw path info, so {@code /bulk-action/} stays a key-generation request as before. */
-    private transient volatile PathRouteTable< PostRoute > postRoutes;
-
-    private PathRouteTable< PostRoute > postRoutes() {
-        PathRouteTable< PostRoute > r = postRoutes;
-        if ( r == null ) {
-            r = PathRouteTable.< PostRoute >builder()
-                    .exact( "/bulk-action", ( self, req, resp, svc ) -> self.doBulkAction( req, resp, svc ) )
-                    .build();
-            postRoutes = r;
-        }
-        return r;
-    }
-
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -124,9 +99,8 @@ public class AdminApiKeysResource extends RestServletBase {
 
         // Dispatch bulk-action sub-path before parsing the body for key generation.
         final String pathInfo = request.getPathInfo();
-        final Optional< PostRoute > route = postRoutes().match( pathInfo == null ? "" : pathInfo );
-        if ( route.isPresent() ) {
-            route.get().run( this, request, response, svc );
+        if ( "/bulk-action".equals( pathInfo ) ) {
+            doBulkAction( request, response, svc );
             return;
         }
 
@@ -237,11 +211,10 @@ public class AdminApiKeysResource extends RestServletBase {
             final HttpServletResponse response, final ApiKeyService svc )
             throws IOException {
         final String actor = currentLogin( request );
-        final Map< String, BulkActions.Action > actions = new LinkedHashMap<>();
-        actions.put( "revoke", new BulkActions.Action( "revoke", "keys revoked",
-                ( id, result ) -> revokeOneBulkId( id, svc, actor, result ),
-                "id must be a non-blank string or integer", null ) );
-        BulkActions.handle( request, response, "apikeys", actions, null );
+        BulkActions.handle( request, response, "apikeys", List.of(
+                new BulkActions.Action( "revoke", "keys revoked",
+                        ( id, result ) -> revokeOneBulkId( id, svc, actor, result ),
+                        "id must be a non-blank string or integer", null ) ), null );
     }
 
     private void revokeOneBulkId( final String idStr, final ApiKeyService svc,

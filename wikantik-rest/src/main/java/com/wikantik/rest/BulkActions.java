@@ -30,6 +30,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.security.Principal;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -40,8 +42,8 @@ import java.util.function.Function;
  * the {@link BulkActionResult} envelope. A resource supplies only what differs: its {@link Action}s (the per-id
  * work) and, when an action needs it, a {@code Prepare}.
  *
- * <p>The 400 texts are built from the keys of the {@code actions} map in iteration order, so register the actions
- * in the order the message should list them ({@code "supported: lock, unlock, delete, add-to-group"}).
+ * <p>The 400 texts list the action names in list order, so pass the actions in the order the message should
+ * list them ({@code "supported: lock, unlock, delete, add-to-group"}).
  */
 final class BulkActions {
 
@@ -89,11 +91,15 @@ final class BulkActions {
      * Runs the template for one request.
      *
      * @param resource the resource label of the summary log line, for example {@code users}
-     * @param actions  the supported actions by wire name, in the order the 400 text lists them
+     * @param actionList the supported actions, in the order the 400 text lists their names
      * @param prepare  the optional pre-step, or {@code null}
      */
     static void handle( final HttpServletRequest req, final HttpServletResponse resp, final String resource,
-                        final Map< String, Action > actions, final Prepare prepare ) throws IOException {
+                        final List< Action > actionList, final Prepare prepare ) throws IOException {
+        final Map< String, Action > actions = new LinkedHashMap<>();
+        for ( final Action a : actionList ) {
+            actions.put( a.name(), a );
+        }
         final JsonObject body = RestJson.parseJsonBody( req, resp );
         if ( body == null ) {
             return;

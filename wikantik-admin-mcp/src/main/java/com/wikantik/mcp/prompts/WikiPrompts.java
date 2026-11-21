@@ -27,7 +27,7 @@ import com.wikantik.mcp.prompts.PromptDef.Arg;
 
 /**
  * Provides MCP Prompts for common wiki workflows, guiding AI agents through
- * structured interactions with the wiki using the export/import workflow.
+ * structured interactions with the wiki using the read-then-write page tools.
  * Each prompt is a {@link PromptDef}: schema plus a template with named placeholders.
  */
 public final class WikiPrompts {

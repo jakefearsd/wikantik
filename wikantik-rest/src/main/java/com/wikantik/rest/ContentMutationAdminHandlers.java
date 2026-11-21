@@ -37,13 +37,13 @@ import java.util.List;
 import java.util.Map;
 
 /** Page-mutation routes of {@link AdminContentResource}: bulk delete and version purge. */
-final class AdminContentMutationHandlers {
+final class ContentMutationAdminHandlers {
 
-    private static final Logger LOG = LogManager.getLogger( AdminContentMutationHandlers.class );
+    private static final Logger LOG = LogManager.getLogger( ContentMutationAdminHandlers.class );
 
     private final AdminContentResource resource;
 
-    AdminContentMutationHandlers( final AdminContentResource resource ) {
+    ContentMutationAdminHandlers( final AdminContentResource resource ) {
         this.resource = resource;
     }
 

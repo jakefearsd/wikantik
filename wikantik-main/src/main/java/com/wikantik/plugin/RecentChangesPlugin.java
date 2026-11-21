@@ -85,41 +85,128 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
     public static final String DEFAULT_DATE_FORMAT ="dd.MM.yyyy";
 
 
+    /** How a listing is laid out: "full" shows author and change note, "compact" is as small as possible. */
+    record Layout( String spacing, String tableWidth, boolean showAuthor, boolean showChangenote ) {
+        static final Layout FULL = new Layout( "4", "4", true, true );
+        static final Layout COMPACT = new Layout( "0", "2", false, false );
+
+        static Layout of( final String format ) {
+            return "compact".equals( format ) ? COMPACT : FULL;
+        }
+    }
+
+    /** One change line: the page or attachment name cell and the time cell differ by kind. */
+    sealed interface ChangeRow permits PageRow, AttachmentRow {
+        Page page();
+
+        /** The link cell, in the order the cell's children are emitted. */
+        Element nameCell( Context context, Engine engine );
+
+        /** The "last change" cell. */
+        Element timeCell( Context context, DateFormat tfmt );
+
+        static ChangeRow of( final Page page ) {
+            return page instanceof Attachment ? new AttachmentRow( page ) : new PageRow( page );
+        }
+
+        default Element titleLink( final Context context, final Engine engine, final ContextEnum target ) {
+            final String href = context.getURL( target.getRequestContext(), page().getName() );
+            return XhtmlUtil.link( href, com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine )
+                                                                                               .renderingManager().beautifyTitle( page().getName() ) );
+        }
+    }
+
+    record PageRow( Page page ) implements ChangeRow {
+        @Override
+        public Element nameCell( final Context context, final Engine engine ) {
+            final Element col = XhtmlUtil.element( XHTML.td );
+            col.setAttribute( XHTML.ATTR_width, "30%" );
+            col.addContent( titleLink( context, engine, ContextEnum.PAGE_VIEW ) );
+            return col;
+        }
+
+        @Override
+        public Element timeCell( final Context context, final DateFormat tfmt ) {
+            final Element infocol = XhtmlUtil.element( XHTML.td );
+            infocol.setAttribute( XHTML.ATTR_class, "lastchange" );
+            infocol.addContent( XhtmlUtil.link( context.getURL( WikiContext.DIFF, page().getName(), "r1=-1" ),
+                                                tfmt.format( page().getLastModified() ) ) );
+            return infocol;
+        }
+    }
+
+    record AttachmentRow( Page page ) implements ChangeRow {
+        @Override
+        public Element nameCell( final Context context, final Engine engine ) {
+            final Element col = XhtmlUtil.element( XHTML.td );
+            col.setAttribute( XHTML.ATTR_width, "30%" );
+            col.addContent( titleLink( context, engine, ContextEnum.PAGE_ATTACH ) );
+
+            // The direct link to the attachment info.
+            final Element link = XhtmlUtil.link( context.getURL( WikiContext.INFO, page().getName() ), null );
+            link.setAttribute( XHTML.ATTR_class, "infolink" );
+            link.addContent( XhtmlUtil.img( context.getURL( WikiContext.NONE, "images/attachment_small.png" ), null ) );
+            col.addContent( link );
+            return col;
+        }
+
+        @Override
+        public Element timeCell( final Context context, final DateFormat tfmt ) {
+            final Element td = XhtmlUtil.element( XHTML.td, tfmt.format( page().getLastModified() ) );
+            td.setAttribute( XHTML.ATTR_class, "lastchange" );
+            return td;
+        }
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
         final int since = TextUtil.parseIntParameter( params.get( "since" ), DEFAULT_DAYS );
-        String spacing  = "4";
-        boolean showAuthor = true;
-        boolean showChangenote = true;
-        String tablewidth = "4";
-        
         final Engine engine = context.getEngine();
-        final PublicIdentity identity = PublicIdentities.forEngine( engine );
 
         // The listing is filtered by the viewer's view permission, so it differs per viewer; keep it out of the
         // shared, principal-less render caches (PluginContent also flags every executed plugin; this keeps the
         // guarantee local to the plugin for callers that reach it by another route).
         context.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
 
-        //
-        //  Which format we want to see?
-        //
-        if( "compact".equals( params.get( PARAM_FORMAT ) ) ) {
-            spacing  = "0";
-            showAuthor = false;
-            showChangenote = false;
-            tablewidth = "2";
-        }
+        final Layout layout = Layout.of( params.get( PARAM_FORMAT ) );
 
         final Calendar sincedate = new GregorianCalendar();
         sincedate.add( Calendar.DAY_OF_MONTH, -since );
 
         LOG.debug("Calculating recent changes from {}", sincedate.getTime());
 
-        Collection< Page > changes = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getRecentChanges( sincedate.getTime() );
+        final Collection< Page > changes = visibleChanges( context, params, sincedate.getTime() );
+        if( changes == null ) {
+            return "";
+        }
+
+        Date olddate = new Date( 0 );
+        final DateFormat fmt = getDateFormat( context, params );
+        final DateFormat tfmt = getTimeFormat( context, params );
+        final PublicIdentity identity = PublicIdentities.forEngine( engine );
+
+        final Element rt = XhtmlUtil.element( XHTML.table );
+        rt.setAttribute( XHTML.ATTR_class, "recentchanges" );
+        rt.setAttribute( XHTML.ATTR_cellpadding, layout.spacing() );
+
+        for( final Page pageref : changes ) {
+            final Date lastmod = pageref.getLastModified();
+            if( !isSameDay( lastmod, olddate ) ) {
+                rt.addContent( dateHeaderRow( layout, fmt.format( lastmod ) ) );
+                olddate = lastmod;
+            }
+            rt.addContent( row( context, engine, identity, layout, tfmt, ChangeRow.of( pageref ) ) );
+        }
+        return XhtmlUtil.serialize( rt, XhtmlUtil.EXPAND_EMPTY_NODES );
+    }
+
+    /** Changes since the given date that the viewer may view, minus system pages. */
+    private Collection< Page > visibleChanges( final Context context, final Map< String, String > params, final Date since ) throws PluginException {
+        final Engine engine = context.getEngine();
+        Collection< Page > changes = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getRecentChanges( since );
         super.initialize( context, params );
         // Cut down to the pages this viewer may view (the shared filter applies the view check).
         changes = filterWikiPageCollection( changes );
@@ -130,109 +217,49 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
                     .filter( p -> !systemPageRegistry.isSystemPage( p.getName() ) )
                     .toList();
         }
+        return changes;
+    }
 
-        if ( changes != null ) {
-            Date olddate = new Date( 0 );
+    private static Element dateHeaderRow( final Layout layout, final String formattedDate ) {
+        final Element row = XhtmlUtil.element( XHTML.tr );
+        final Element col = XhtmlUtil.element( XHTML.td );
+        col.setAttribute( XHTML.ATTR_colspan, layout.tableWidth() );
+        col.setAttribute( XHTML.ATTR_class, "date" );
+        col.addContent( XhtmlUtil.element( XHTML.b, formattedDate ) );
+        row.addContent( col );
+        return row;
+    }
 
-            final DateFormat fmt = getDateFormat( context, params );
-            final DateFormat tfmt = getTimeFormat( context, params );
+    private static Element row( final Context context, final Engine engine, final PublicIdentity identity, final Layout layout,
+                                final DateFormat tfmt, final ChangeRow change ) {
+        final Page pageref = change.page();
+        final Element row = XhtmlUtil.element( XHTML.tr );
+        row.addContent( change.nameCell( context, engine ) );
+        row.addContent( change.timeCell( context, tfmt ) );
 
-            final Element rt = XhtmlUtil.element( XHTML.table );
-            rt.setAttribute( XHTML.ATTR_class, "recentchanges" );
-            rt.setAttribute( XHTML.ATTR_cellpadding, spacing );
-
-            for( final Page pageref : changes ) {
-                final Date lastmod = pageref.getLastModified();
-
-                if( !isSameDay( lastmod, olddate ) ) {
-                    final Element row = XhtmlUtil.element( XHTML.tr );
-                    final Element col = XhtmlUtil.element( XHTML.td );
-                    col.setAttribute( XHTML.ATTR_colspan, tablewidth );
-                    col.setAttribute( XHTML.ATTR_class, "date" );
-                    col.addContent( XhtmlUtil.element( XHTML.b, fmt.format( lastmod ) ) );
-
-                    rt.addContent( row );
-                    row.addContent( col );
-                    olddate = lastmod;
-                }
-
-                final String href = context.getURL( pageref instanceof Attachment ? ContextEnum.PAGE_ATTACH.getRequestContext()
-                                                                                  : ContextEnum.PAGE_VIEW.getRequestContext(), pageref.getName() );
-                Element link = XhtmlUtil.link( href, com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager().beautifyTitle( pageref.getName() ) );
-                final Element row = XhtmlUtil.element( XHTML.tr );
-                final Element col = XhtmlUtil.element( XHTML.td );
-                col.setAttribute( XHTML.ATTR_width, "30%" );
-                col.addContent( link );
-
-                //
-                //  Add the direct link to the attachment info.
-                //
-                if( pageref instanceof Attachment ) {
-                    link = XhtmlUtil.link( context.getURL( WikiContext.INFO, pageref.getName() ), null );
-                    link.setAttribute( XHTML.ATTR_class, "infolink" );
-
-                    final Element img = XhtmlUtil.img( context.getURL( WikiContext.NONE, "images/attachment_small.png" ), null );
-                    link.addContent( img );
-
-                    col.addContent( link );
-                }
-
-                row.addContent( col );
-                rt.addContent( row );
-
-                if( pageref instanceof Attachment ) {
-                    final Element td = XhtmlUtil.element( XHTML.td, tfmt.format( lastmod ) );
-                    td.setAttribute( XHTML.ATTR_class, "lastchange" );
-                    row.addContent( td );
-                } else {
-                    final Element infocol = XhtmlUtil.element( XHTML.td );
-                    infocol.setAttribute( XHTML.ATTR_class, "lastchange" );
-                    infocol.addContent( XhtmlUtil.link( context.getURL( WikiContext.DIFF, pageref.getName(), "r1=-1" ),
-                                                        tfmt.format( lastmod ) ) );
-                    row.addContent( infocol );
-                }
-
-                //
-                //  Display author information.
-                //
-                if( showAuthor ) {
-                    final String author = pageref.getAuthor();
-
-                    final Element authorinfo = XhtmlUtil.element( XHTML.td );
-                    authorinfo.setAttribute( XHTML.ATTR_class, "author" );
-
-                    if( author != null ) {
-                        // The display name as plain text, never a link: the stored value is a login for pages saved
-                        // since 2.4.58 and a href built from it would hand it to every reader.
-                        authorinfo.addContent( IdentityDisplay.ofAuthor( identity, author ) );
-                    } else {
-                        authorinfo.addContent( Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE )
-                                .getString( "common.unknownauthor" ) );
-                    }
-
-                    row.addContent( authorinfo );
-                }
-
-                // Change note
-                if( showChangenote ) {
-                    // "verified by <login>" (mark_page_verified) names the verifier by display name; other notes as written.
-                    final String changenote = IdentityDisplay.changeNote( identity, pageref.getAttribute( Page.CHANGENOTE ) );
-                    final Element td_changenote = XhtmlUtil.element( XHTML.td, changenote );
-                    td_changenote.setAttribute( XHTML.ATTR_class, "changenote" );
-                    row.addContent( td_changenote );
-                }
-
-                //  Revert note
-/*                
-                if( context.hasAdminPermissions() )
-                {
-                    row.addElement( new td("Revert") );
-                }
- */
+        if( layout.showAuthor() ) {
+            final String author = pageref.getAuthor();
+            final Element authorinfo = XhtmlUtil.element( XHTML.td );
+            authorinfo.setAttribute( XHTML.ATTR_class, "author" );
+            if( author != null ) {
+                // The display name as plain text, never a link: the stored value is a login for pages saved
+                // since 2.4.58 and a href built from it would hand it to every reader.
+                authorinfo.addContent( IdentityDisplay.ofAuthor( identity, author ) );
+            } else {
+                authorinfo.addContent( Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE )
+                        .getString( "common.unknownauthor" ) );
             }
-            return XhtmlUtil.serialize( rt, XhtmlUtil.EXPAND_EMPTY_NODES );
+            row.addContent( authorinfo );
         }
-        return "";
+
+        if( layout.showChangenote() ) {
+            // "verified by <login>" (mark_page_verified) names the verifier by display name; other notes as written.
+            final String changenote = IdentityDisplay.changeNote( identity, pageref.getAttribute( Page.CHANGENOTE ) );
+            final Element tdChangenote = XhtmlUtil.element( XHTML.td, changenote );
+            tdChangenote.setAttribute( XHTML.ATTR_class, "changenote" );
+            row.addContent( tdChangenote );
+        }
+        return row;
     }
 
     

@@ -176,4 +176,53 @@ public class RecentChangesPluginTest {
             testEngine.deleteTestPage( "TestPage06" );
         }
     }
+
+    private String attachmentRows( final String formatParam ) throws Exception {
+        testEngine.addAttachment( "TestPage01", "rc-file.txt", "attachment body".getBytes() );
+        try {
+            context = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "TestPage01" ) );
+            return manager.execute( context, "{INSERT com.wikantik.plugin.RecentChangesPlugin include='TestPage01/rc-file.txt' "
+                    + formatParam + " dateFormat='---' timeFormat='==='}" );
+        } finally {
+            TestEngine.deleteAttachments( "TestPage01" );
+        }
+    }
+
+    @Test
+    public void testAttachmentRowFullFormat() throws Exception {
+        final String res = attachmentRows( "" );
+                Assertions.assertEquals( EXPECTED_FULL, res );
+    }
+
+    @Test
+    public void testAttachmentRowCompactFormat() throws Exception {
+        final String res = attachmentRows( "format='compact'" );
+                Assertions.assertEquals( EXPECTED_COMPACT, res );
+    }
+    static final String EXPECTED_FULL = "<table class=\"recentchanges\" cellpadding=\"4\"><tr><td colspan=\"4\" class=\"date\"><b>---</b></td></tr>"
+            + "<tr><td width=\"30%\"><a href=\"/test/attach/TestPage01/rc-file.txt\">Test Page 01/rc-file.txt</a>"
+            + "<a href=\"/test/info?page=TestPage01/rc-file.txt\" class=\"infolink\"><img src=\"/test/images/attachment_small.png\"></img></a></td>"
+            + "<td class=\"lastchange\">===</td><td class=\"author\">unknown</td><td class=\"changenote\"></td></tr></table>";
+    static final String EXPECTED_COMPACT = "<table class=\"recentchanges\" cellpadding=\"0\"><tr><td colspan=\"2\" class=\"date\"><b>---</b></td></tr>"
+            + "<tr><td width=\"30%\"><a href=\"/test/attach/TestPage01/rc-file.txt\">Test Page 01/rc-file.txt</a>"
+            + "<a href=\"/test/info?page=TestPage01/rc-file.txt\" class=\"infolink\"><img src=\"/test/images/attachment_small.png\"></img></a></td>"
+            + "<td class=\"lastchange\">===</td></tr></table>";
+
+    private String pageRows( final String formatParam ) throws Exception {
+        context = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "TestPage01" ) );
+        return manager.execute( context, "{INSERT com.wikantik.plugin.RecentChangesPlugin include='TestPage01' "
+                + formatParam + " dateFormat='---' timeFormat='==='}" );
+    }
+
+    @Test
+    public void testPageRowFullFormat() throws Exception {
+        final String res = pageRows( "" );
+        Assertions.assertEquals( "<table class=\"recentchanges\" cellpadding=\"4\"><tr><td colspan=\"4\" class=\"date\"><b>---</b></td></tr><tr><td width=\"30%\"><a href=\"/test/wiki/TestPage01\">Test Page 01</a></td><td class=\"lastchange\"><a href=\"/test/diff/TestPage01&amp;amp;r1=-1\">===</a></td><td class=\"author\">Administrator</td><td class=\"changenote\"></td></tr></table>", res );
+    }
+
+    @Test
+    public void testPageRowCompactFormat() throws Exception {
+        final String res = pageRows( "format='compact'" );
+        Assertions.assertEquals( "<table class=\"recentchanges\" cellpadding=\"0\"><tr><td colspan=\"2\" class=\"date\"><b>---</b></td></tr><tr><td width=\"30%\"><a href=\"/test/wiki/TestPage01\">Test Page 01</a></td><td class=\"lastchange\"><a href=\"/test/diff/TestPage01&amp;amp;r1=-1\">===</a></td></tr></table>", res );
+    }
 }

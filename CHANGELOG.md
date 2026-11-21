@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.7.8] - 2026-11-21
+
 ### Added
 
 - `wikantik.search.hybrid.embedder.concurrency.mode` (default `adaptive`) with `concurrency.initial` / `.min` / `.max` / `.min-gain`: how many query embeddings may run at once. See Changed. `max-in-flight` is now the cap for `concurrency.mode = fixed`.

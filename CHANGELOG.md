@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.7.6] - 2026-11-20
+
 ### Added
 
 - Work management: a product's setting changes are recorded and shown as a **History** list under the product form, in the form's own wording (migration V083, `work_product_event`). Any user name or password in a repository URL is masked there.

@@ -8,10 +8,10 @@ This page is for developers who build Wikantik from source. It covers the tool v
 |------|---------|--------|
 | Java (JDK) | 25 | `jdk.version` in the root `pom.xml`; the `Dockerfile` builds on `maven:3.9-eclipse-temurin-25` |
 | Maven | 3.9+ recommended; the enforcer floor is 3.5 (`maven.version` in the root `pom.xml`) | `mvn -version` |
-| Node.js + npm | 20.19+ (or 22.12+) for Vite 8; CI uses Node 22 for the gates and Node 20 for releases | `.github/workflows/` |
+| Node.js + npm | 20.19+ (or 22.12+) for Vite 8; CI, releases and the Docker build stage use Node 24 (active LTS) | `.github/workflows/` |
 | PostgreSQL + pgvector | 15+ for local deployment; tests and `docker-compose.yml` use the `pgvector/pgvector:pg18` image | `PostgresTestDb`, `docker-compose.yml` |
 | Docker | any recent version; needed for database-backed unit tests, the IT phase and the embedder | see [Testing.md](Testing.md) |
-| Tomcat | 11.0.27 (pinned in the `Dockerfile`; `bin/deploy-local.sh` downloads it into the gitignored `tomcat/` directory) | `Dockerfile` |
+| Tomcat | 11.0.29 (pinned in the `Dockerfile`; `bin/deploy-local.sh` downloads it into the gitignored `tomcat/` directory) | `Dockerfile` |
 
 ## Build the project
 

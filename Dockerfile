@@ -11,7 +11,7 @@ FROM maven:3.9-eclipse-temurin-25 AS build
 # wikantik-war's reactor build invokes npm + vite to bundle the React
 # frontend into the WAR. The Maven base image has no Node — pull in
 # Node 20 LTS (matches CLAUDE.md's "Node.js + npm | 18+" requirement).
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
@@ -31,7 +31,7 @@ RUN mkdir -p /out/ROOT \
 # Pinned to the same version as bin/deploy-local.sh's TOMCAT_VERSION so the
 # bare-metal and container install paths run on the identical Tomcat patch.
 # Bumping this means bumping deploy-local.sh in lockstep.
-FROM tomcat:11.0.27-jdk25-temurin
+FROM tomcat:11.0.29-jdk25-temurin
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl unzip postgresql-client \
     && rm -rf /var/lib/apt/lists/*

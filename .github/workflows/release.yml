@@ -44,7 +44,7 @@ jobs:
       - name: Set up Node 20
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Build WAR (skip running tests)
         # Tests are not run here: quality-gates.yml runs only the static gates on push

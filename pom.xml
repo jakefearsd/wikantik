@@ -96,18 +96,18 @@
     <owasp-html-sanitizer.version>20261110.1</owasp-html-sanitizer.version>
     <pac4j.version>6.6.1</pac4j.version>
     <rome.version>2.1.0</rome.version>
-    <selenide.version>7.19.1</selenide.version>
-    <selenium.version>4.52.0</selenium.version>
+    <selenide.version>7.19.2</selenide.version>
+    <selenium.version>4.53.0</selenium.version>
     <slf4j.version>2.0.20</slf4j.version>
     <tika.version>4.2.0</tika.version>
     <plantuml.version>1.2026.10</plantuml.version><!-- plantuml-mit; shaded into wikantik-plantuml with Ditaa (LGPL) stripped -->
-    <tomcat.version>11.0.27</tomcat.version>
+    <tomcat.version>11.0.29</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
     <mcp-sdk.version>2.2.0</mcp-sdk.version>
     <snakeyaml.version>2.7</snakeyaml.version>
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.9</xmemcached.version>
-    <micrometer.version>1.17.2</micrometer.version>
+    <micrometer.version>1.18.0</micrometer.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <caffeine.version>3.3.1</caffeine.version>
     <ulid-creator.version>5.2.4</ulid-creator.version>
@@ -117,7 +117,7 @@
          google-http-client 2.x, and the whole http-client family must converge on one version
          (transitives otherwise resolve at a mix via nearest-wins). -->
     <google-api-client.version>2.9.2</google-api-client.version>
-    <google-auth-library.version>1.57.0</google-auth-library.version><!-- 1.58.0 held: its parent POM needs com.google.api:api-common 2.74.0, not yet published to Central (2026-11-14); retry later -->
+    <google-auth-library.version>1.58.0</google-auth-library.version>
     <google-api-services-drive.version>v3-rev20261106-2.9.2</google-api-services-drive.version>
     <google-http-client.version>2.2.0</google-http-client.version>
 
@@ -142,7 +142,7 @@
     <sec.okio.version>3.18.2</sec.okio.version>                          <!-- via akismet->okhttp;           CVE-2023-3635 -->
     <sec.httpclient5.version>5.6.5</sec.httpclient5.version>            <!-- via pac4j-saml->opensaml->shib-networking (5.3.1) + selenide-core
                                                                               (5.6.2); GHSA-hjcp-jmpx-g3qm / CVE-2026-64607. -->
-    <sec.httpcore5.version>5.4.4</sec.httpcore5.version>                 <!-- same chain; GHSA-hf6x-8p5f-cgmf / CVE-2026-54399 (httpcore5 5.2.5)
+    <sec.httpcore5.version>5.5</sec.httpcore5.version>                 <!-- same chain; GHSA-hf6x-8p5f-cgmf / CVE-2026-54399 (httpcore5 5.2.5)
                                                                               and GHSA-v3jc-474w-2wm6 / CVE-2026-54428 (httpcore5-h2 5.2.4).
                                                                               The 5.6.x client / 5.4.x core pairing is the one selenide already
                                                                               resolves to across the IT modules. -->
@@ -182,8 +182,8 @@
     <plugin.clirr.version>2.9</plugin.clirr.version>
     <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
     <plugin.cyclonedx.version>2.9.3</plugin.cyclonedx.version>
-    <plugin.sonar.version>5.8.0.7211</plugin.sonar.version>
-    <plugin.versions.version>2.25.1</plugin.versions.version>
+    <plugin.sonar.version>5.9.0.7382</plugin.sonar.version>
+    <plugin.versions.version>2.25.2</plugin.versions.version>
     <plugin.sonar-report.version>0.1</plugin.sonar-report.version>
     <!-- Override the parent pom's compiler defaults. Since org.apache:apache 39 the
          parent derives ALL THREE of source/target/release from its own ${javaVersion}

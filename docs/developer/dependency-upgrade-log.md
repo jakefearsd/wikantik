@@ -538,3 +538,33 @@ one to three days old. `npm audit signatures`: 415/415 verified.
 - **Tika 3.3.2 -> 4.2.0 and junrar 7.6.1 -> 8.1.2 (supersedes the junrar hold above).** Tika 4 declares junrar 8.1.2 itself. Code changes: `tika-parsers-standard-package` is a jar-less pom artifact (`<type>pom</type>` in management and in wikantik-ingest); `Parser.parse` takes a `TikaInputStream` (`TikaSourceExtractor` wraps the source).
 - google-auth-library held at 1.57.0: 1.58.0 needs `api-common` 2.74.0, not yet on Central.
 - Frontend: minor bumps, vitest 5.0.5, KaTeX 0.19.1, Mermaid 12.2.0 (versions at least two weeks old). **`@codemirror/view` stays pinned at 6.43.13:** 6.43.15 intermittently lands ArrowDown from a wrapped line one character short in a real browser (`LivePreviewKeyboardIT`, 2 of 3 collab runs failed; 0 of 3 on 6.43.13).
+
+## 2026-11-21 sweep (main after 2.7.6, released as 2.7.7)
+
+Stable versions only (Maven: versions-plugin with a rules file dropping alpha/beta/RC/M; frontend: versions at
+least two weeks old, before 2026-11-07).
+
+- **Maven:** Micrometer 1.17.2 -> 1.18.0, httpcore5 5.4.4 -> 5.5, Selenium 4.52.0 -> 4.53.0, Selenide 7.19.1 ->
+  7.19.2, versions-maven-plugin 2.25.2, sonar-maven-plugin 5.9.0.7382. **google-auth-library 1.57.0 -> 1.58.0**:
+  the hold is lifted, `api-common` 2.74.0 is on Central now.
+- **Tomcat 11.0.27 -> 11.0.29** (11.0.28 was never published as a Docker tag): `Dockerfile`, `tomcat.version`
+  (the IT Cargo container) and `bin/deploy-local.sh` move together. An existing local `tomcat/` stays on its
+  version until `deploy-local.sh --upgrade-tomcat`.
+- **Node 20 -> 24** for the Docker build stage and the release workflow, and 22 -> 24 for the CI gates: Node 20
+  reached end of life in 2026-04; 24 is the active LTS and what the dev box runs every test on.
+- **Frontend:** Mermaid 12.2.0 -> 12.3.0 (still exact-pinned; the default `secure` key list is unchanged, so
+  `mermaidRenderer.js`'s `SECURE_KEYS` stays valid; it brings elkjs 0.12 and DOMPurify 3.4.17), Vite 8.3.6,
+  Vitest / coverage-v8 5.1.0, @vitejs/plugin-react 6.2.1, globals 17.14.0, turndown 7.2.5. The built bundle still
+  carries the `__WIKANTIK_BASE__` wrapper and the build-version stamp.
+- **Verification:** `bin/run-tests.sh --all` green (unit, PMD, npm audit, eslint, vitest 7034, all IT modules incl.
+  collab, SSO and the SCIM full-loop); OSV over the CycloneDX BOM + lockfile: 0 of 927 packages vulnerable
+  (positive controls hit); the image built and booted fresh on the test overlay (all 83 migrations from empty,
+  0 ERROR lines, `smoke-wiki.sh` OK); `bin/tests/test-{container,entrypoint,remote,embeddings}.sh` pass.
+
+## Not taken (2026-11-21)
+
+- `@codemirror/view` 6.43.15: still held at 6.43.13 (the real-browser ArrowDown regression).
+- `@testing-library/jest-dom` 8.0.0 (major, two days old); cytoscape 3.35.0, eslint 10.15.0, react-router-dom
+  7.18.6, vite 8.3.8, vitest 5.1.1, @vitejs/plugin-react 6.3.0: under two weeks old.
+- `commons-lang3` 3.22.0 under pluginManagement: the Apache parent's RAT dependency, not ours (ours is already 3.22.0).
+- libthrift (held at 0.23.0, jena-arq) and Bouncy Castle: unchanged holds.

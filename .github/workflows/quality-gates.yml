@@ -31,7 +31,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: wikantik-frontend/package-lock.json
 
@@ -133,7 +133,7 @@ jobs:
       - name: Set up Node.js (load-harness tests)
         uses: actions/setup-node@v6
         with:
-          node-version: '22'   # loadtest/lib is ESM .js with no package.json: relies on 22's module detection
+          node-version: '24'   # loadtest/lib is ESM .js with no package.json: relies on module detection (Node 22+)
 
       - name: Load-harness unit tests
         # The k6-free helpers under loadtest/lib (metrics parsing, the MCP-reply check, the write bodies). The
@@ -202,7 +202,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: wikantik-frontend/package-lock.json
 

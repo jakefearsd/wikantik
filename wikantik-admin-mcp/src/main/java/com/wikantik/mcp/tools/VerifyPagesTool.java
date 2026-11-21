@@ -28,6 +28,10 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.mcp.tools.verify.PageContext;
+import com.wikantik.mcp.tools.verify.VerifyCheck;
+import com.wikantik.mcp.tools.verify.VerifyChecks;
+import com.wikantik.mcp.tools.verify.VerifyTotals;
 
 import java.util.*;
 
@@ -36,26 +40,12 @@ import java.util.*;
  * Checks existence, broken links, backlinks, outbound links, metadata completeness,
  * and SEO readiness.
  *
- * <p>SEO readiness checks use the Strategy pattern — composed {@link PageCheck}
- * instances from {@link PageChecks} — so validation rules are reusable.
+ * <p>Each check is a {@link VerifyCheck} strategy (package {@code verify}); SEO and retrieval
+ * readiness in turn compose {@link PageCheck} instances from {@link PageChecks}.
  */
 public class VerifyPagesTool extends AbstractMcpTool {
 
     public static final String TOOL_NAME = "verify_pages";
-
-    private static final Set< String > STANDARD_METADATA_FIELDS =
-            Set.of( "type", "tags", "summary" );
-
-    /** Composed SEO checks — shared with every other SEO-reporting surface. */
-    private static final List< PageCheck > SEO_CHECKS = PageChecks.SEO_CHECKS;
-
-    /** Composed retrieval-readiness checks — see PageChecks "Retrieval Checks". */
-    private static final List< PageCheck > RETRIEVAL_CHECKS = List.of(
-            new PageChecks.SummarySpecificityCheck(),
-            new PageChecks.HeadingQualityCheck(),
-            new PageChecks.ClusterPresentCheck(),
-            new PageChecks.TitleSpecificityCheck()
-    );
 
     @Override
     public String name() {
@@ -143,12 +133,9 @@ public class VerifyPagesTool extends AbstractMcpTool {
                 ? new HashSet<>( checks )
                 : Set.of( "existence", "broken_links", "backlinks", "outbound_links", "metadata_completeness" );
 
+        final List< VerifyCheck > verifyChecks = VerifyChecks.active( pageManager, referenceManager, activeChecks );
+        final VerifyTotals totals = new VerifyTotals();
         final List< Map< String, Object > > pageResults = new ArrayList<>();
-        int totalBrokenLinks = 0;
-        final List< String > pagesWithNoBacklinks = new ArrayList<>();
-        final List< String > metadataIssues = new ArrayList<>();
-        final List< String > seoIssues = new ArrayList<>();
-        final List< String > retrievalIssues = new ArrayList<>();
         boolean allExist = true;
 
         for ( final String pageName : pageNames ) {
@@ -159,57 +146,26 @@ public class VerifyPagesTool extends AbstractMcpTool {
             final boolean exists = page != null;
             entry.put( "exists", exists );
 
-            if ( exists ) {
-                entry.put( "version", McpToolUtils.normalizeVersion( page.getVersion() ) );
-            } else {
+            if ( !exists ) {
                 allExist = false;
                 pageResults.add( entry );
                 continue;
             }
+            entry.put( "version", McpToolUtils.normalizeVersion( page.getVersion() ) );
 
-            totalBrokenLinks += checkBrokenLinks( pageName, entry, activeChecks );
-
-            checkBacklinks( pageName, entry, activeChecks, pagesWithNoBacklinks );
-
-            // Parse frontmatter once for metadata_completeness, seo_readiness, and/or retrieval_readiness
-            final boolean needsMetadata = activeChecks.contains( "metadata_completeness" )
-                    || activeChecks.contains( "seo_readiness" )
-                    || activeChecks.contains( "retrieval_readiness" );
-            Map< String, Object > metadata = Map.of();
-            String body = "";
-            if ( needsMetadata ) {
-                final String rawText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
-                final ParsedPage parsed = FrontmatterParser.parse( rawText );
-                metadata = parsed.metadata();
-                body = parsed.body();
+            // Frontmatter is parsed lazily, at most once, and only if a check asks for it.
+            final PageContext context = new PageContext( pageName, page, () -> parseFrontmatter( pageName ) );
+            for ( final VerifyCheck check : verifyChecks ) {
+                check.apply( context, entry, totals );
             }
-
-            checkMetadata( pageName, metadata, entry, activeChecks, metadataIssues );
-
-            checkSeoReadiness( pageName, metadata, page, entry, activeChecks, seoIssues );
-
-            checkRetrievalReadiness( pageName, metadata, body, page, entry, activeChecks, retrievalIssues );
-
             pageResults.add( entry );
         }
 
         final Map< String, Object > summary = new LinkedHashMap<>();
         summary.put( "totalPages", pageNames.size() );
         summary.put( "allExist", allExist );
-        if ( activeChecks.contains( "broken_links" ) ) {
-            summary.put( "totalBrokenLinks", totalBrokenLinks );
-        }
-        if ( activeChecks.contains( "backlinks" ) ) {
-            summary.put( "pagesWithNoBacklinks", pagesWithNoBacklinks );
-        }
-        if ( activeChecks.contains( "metadata_completeness" ) ) {
-            summary.put( "metadataIssues", metadataIssues );
-        }
-        if ( activeChecks.contains( "seo_readiness" ) ) {
-            summary.put( "seoIssues", seoIssues );
-        }
-        if ( activeChecks.contains( "retrieval_readiness" ) ) {
-            summary.put( "retrievalIssues", retrievalIssues );
+        for ( final VerifyCheck check : verifyChecks ) {
+            check.summarise( totals, summary );
         }
 
         final Map< String, Object > result = new LinkedHashMap<>();
@@ -219,135 +175,57 @@ public class VerifyPagesTool extends AbstractMcpTool {
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 
-    /**
-     * Check outbound and broken links for a page, populating the entry map.
-     *
-     * @return the number of broken links found (for aggregation into the summary)
-     */
+    private ParsedPage parseFrontmatter( final String pageName ) {
+        return FrontmatterParser.parse( pageManager.getPureText( pageName, PageProvider.LATEST_VERSION ) );
+    }
+
+    // The package-private methods below run one check outside the tool loop; they exist for the
+    // per-check unit tests (VerifyPagesToolTest) and delegate to the same VerifyCheck objects.
+
     int checkBrokenLinks( final String pageName, final Map< String, Object > entry,
                           final Set< String > activeChecks ) {
-        if ( !activeChecks.contains( "outbound_links" ) && !activeChecks.contains( "broken_links" ) ) {
-            return 0;
-        }
-
-        final Collection< String > refersTo = referenceManager.findRefersTo( pageName );
-        final List< String > outbound = new ArrayList<>( refersTo );
-        Collections.sort( outbound );
-
-        if ( activeChecks.contains( "outbound_links" ) ) {
-            entry.put( "outboundLinks", outbound );
-        }
-
-        if ( activeChecks.contains( "broken_links" ) ) {
-            final List< String > broken = new ArrayList<>();
-            for ( final String target : outbound ) {
-                if ( pageManager.getPage( target ) == null ) {
-                    broken.add( target );
-                }
-            }
-            Collections.sort( broken );
-            entry.put( "brokenLinks", broken );
-            return broken.size();
-        }
-
-        return 0;
+        final VerifyTotals totals = new VerifyTotals();
+        runOne( VerifyChecks.active( pageManager, referenceManager, activeChecks ),
+                pageName, null, "links", entry, totals );
+        return totals.brokenLinks();
     }
 
-    /**
-     * Check backlinks for a page, populating the entry map and aggregate list.
-     */
     void checkBacklinks( final String pageName, final Map< String, Object > entry,
                          final Set< String > activeChecks, final List< String > pagesWithNoBacklinks ) {
-        if ( !activeChecks.contains( "backlinks" ) ) {
-            return;
-        }
-
-        final Set< String > referrers = referenceManager.findReferrers( pageName );
-        final List< String > backlinks = new ArrayList<>( referrers );
-        Collections.sort( backlinks );
-        entry.put( "backlinks", backlinks );
-
-        if ( backlinks.isEmpty() ) {
-            pagesWithNoBacklinks.add( pageName );
-        }
+        final VerifyTotals totals = new VerifyTotals();
+        runOne( VerifyChecks.active( pageManager, referenceManager, activeChecks ),
+                pageName, null, "backlinks", entry, totals );
+        pagesWithNoBacklinks.addAll( totals.pagesWithNoBacklinks() );
     }
 
-    /**
-     * Check metadata completeness for a page, populating the entry map and aggregate list.
-     */
     void checkMetadata( final String pageName, final Map< String, Object > metadata,
                         final Map< String, Object > entry, final Set< String > activeChecks,
                         final List< String > metadataIssues ) {
-        if ( !activeChecks.contains( "metadata_completeness" ) ) {
-            return;
-        }
-
-        if ( !metadata.isEmpty() ) {
-            entry.put( "metadata", new LinkedHashMap<>( metadata ) );
-        }
-
-        final List< String > missing = new ArrayList<>();
-        for ( final String field : STANDARD_METADATA_FIELDS ) {
-            if ( !metadata.containsKey( field ) ) {
-                missing.add( field );
-            }
-        }
-        Collections.sort( missing );
-        entry.put( "missingMetadata", missing );
-
-        if ( !missing.isEmpty() ) {
-            metadataIssues.add( pageName + " missing: " + String.join( ", ", missing ) );
-        }
+        final VerifyTotals totals = new VerifyTotals();
+        runOne( VerifyChecks.active( pageManager, referenceManager, activeChecks ), pageName,
+                new PageContext( pageName, null, () -> new ParsedPage( metadata, "" ) ),
+                "metadata_completeness", entry, totals );
+        metadataIssues.addAll( totals.metadataIssues() );
     }
 
-    /**
-     * Check SEO readiness for a page using composed {@link PageCheck} strategies,
-     * populating the entry map and aggregate list.
-     */
     void checkSeoReadiness( final String pageName, final Map< String, Object > metadata,
                             final Page page, final Map< String, Object > entry,
                             final Set< String > activeChecks, final List< String > seoIssues ) {
-        if ( !activeChecks.contains( "seo_readiness" ) ) {
-            return;
-        }
-
-        final PageCheckContext checkCtx = new PageCheckContext(
-                pageName, metadata, "", page, pageManager );
-        final List< String > seoWarnings = new ArrayList<>();
-        for ( final PageCheck check : SEO_CHECKS ) {
-            for ( final PageCheckResult result : check.check( checkCtx ) ) {
-                seoWarnings.add( result.detail() );
-            }
-        }
-
-        entry.put( "seoWarnings", seoWarnings );
-
-        if ( !seoWarnings.isEmpty() ) {
-            seoIssues.add( pageName + ": " + String.join( "; ", seoWarnings ) );
-        }
+        final VerifyTotals totals = new VerifyTotals();
+        runOne( VerifyChecks.active( pageManager, referenceManager, activeChecks ), pageName,
+                new PageContext( pageName, page, () -> new ParsedPage( metadata, "" ) ),
+                "seo_readiness", entry, totals );
+        seoIssues.addAll( totals.seoIssues() );
     }
 
-    /**
-     * Check retrieval readiness using composed {@link PageCheck} strategies. Unlike SEO checks,
-     * these need the body (heading structure feeds each chunk's embedding), so it is passed in.
-     */
-    void checkRetrievalReadiness( final String pageName, final Map< String, Object > metadata,
-                                  final String body, final Page page, final Map< String, Object > entry,
-                                  final Set< String > activeChecks, final List< String > retrievalIssues ) {
-        if ( !activeChecks.contains( "retrieval_readiness" ) ) {
-            return;
-        }
-        final PageCheckContext checkCtx = new PageCheckContext(
-                pageName, metadata, body, page, pageManager );
-        final List< String > warnings = new ArrayList<>();
-        for ( final PageCheck check : RETRIEVAL_CHECKS ) {
-            for ( final PageCheckResult result : check.check( checkCtx ) ) {
-                warnings.add( result.detail() );
+    private void runOne( final List< VerifyCheck > active, final String pageName, final PageContext supplied,
+                         final String checkName, final Map< String, Object > entry, final VerifyTotals totals ) {
+        final PageContext context = supplied != null ? supplied
+                : new PageContext( pageName, null, () -> parseFrontmatter( pageName ) );
+        for ( final VerifyCheck check : active ) {
+            if ( check.name().equals( checkName ) ) {
+                check.apply( context, entry, totals );
             }
-        }
-        entry.put( "retrievalWarnings", warnings );
-        if ( !warnings.isEmpty() ) {
-            retrievalIssues.add( pageName + ": " + String.join( "; ", warnings ) );
         }
     }
 }

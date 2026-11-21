@@ -92,15 +92,18 @@ final class PageReadHandler {
 
         // Page-view metric: notify listeners (WikiMetrics) that a page was read.
         firePageRequested( engine, page.getName() );
-        auditRead( request, pageName );
 
         // Access-rule directives ([{ALLOW edit alice@…}]) name people by login. Whoever may edit the page
         // gets its text verbatim — the editor round-trips this very field — everyone else reads it without them.
         // The text is stripped once, here, and everything a reader is shown (body, frontmatter, hash) derives from it;
         // the rendered HTML below starts from rawText because the renderer consumes the directives itself.
         final boolean canEdit = servlet.hasPagePermission( request, pageName, "edit" );
-        final String visibleText = ReaderText.forViewer( canEdit, AclDirectiveText.forViewer( canEdit, rawText ) );
+        final String aclVisible = AclDirectiveText.forViewer( canEdit, rawText );
+        final String visibleText = ReaderText.forViewer( canEdit, aclVisible );
         final ParsedPage parsed = FrontmatterParser.parse( visibleText );
+        final String versionParam = request.getParameter( "version" );
+        auditRead( request, pageName, latestFrontmatterForAudit(
+                versionParam == null || versionParam.isEmpty(), rawText, aclVisible, parsed ) );
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "name", page.getName() );
@@ -185,11 +188,28 @@ final class PageReadHandler {
      * Audits sensitive reads only when the page opts in (default: no-op). The policy guard short-circuits cheaply —
      * the normal path is allocation-free. A failing audit is logged and never breaks the read.
      */
-    private void auditRead( final HttpServletRequest request, final String pageName ) {
+    /**
+     * The page's latest frontmatter for the read-audit policy, so the policy does not load and parse the page a
+     * second time; {@code null} (let the policy look it up) when this request read an older version. The policy
+     * must see the page's real frontmatter, not the reader's view of it: comment stripping never touches the YAML
+     * block, but access-rule stripping can (a directive inside a frontmatter value, or a block emptied in fail-closed
+     * mode), so the parsed reader view is reused only when nothing was stripped — {@code AclDirectiveText} returns
+     * the very same instance then.
+     */
+    static Map< String, Object > latestFrontmatterForAudit( final boolean latestRead, final String rawText,
+                                                           final String aclVisible, final ParsedPage parsedVisible ) {
+        if ( !latestRead ) {
+            return null;
+        }
+        return aclVisible == rawText ? parsedVisible.metadata() : FrontmatterParser.parse( rawText ).metadata();
+    }
+
+    private void auditRead( final HttpServletRequest request, final String pageName,
+                            final Map< String, Object > latestFrontmatter ) {
         final Engine engine = servlet.getEngine();
         final var auditPolicy = engine instanceof com.wikantik.WikiEngine we ? we.getAuditReadPolicy() : null;
         final var auditService = engine instanceof com.wikantik.WikiEngine we2 ? we2.getAuditService() : null;
-        if ( auditPolicy == null || auditService == null || !auditPolicy.shouldAudit( pageName ) ) {
+        if ( auditPolicy == null || auditService == null || !auditPolicy.shouldAudit( pageName, latestFrontmatter ) ) {
             return;
         }
         try {

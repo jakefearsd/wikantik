@@ -44,5 +44,6 @@ public record QueryEmbedderMetrics(
         long breakerOpen,
         long breakerClose,
         long breakerHalfOpenProbe,
-        long breakerCallRejected ) {
+        long breakerCallRejected,
+        long callShed ) {
 }

@@ -257,6 +257,7 @@ final class IndexAdminHandlers {
             m.put( "breaker_close", 0L );
             m.put( "breaker_half_open_probe", 0L );
             m.put( "breaker_call_rejected", 0L );
+            m.put( "call_shed", 0L );
             return m;
         }
         final com.wikantik.search.hybrid.QueryEmbedderMetrics mt = qe.metrics();
@@ -270,6 +271,7 @@ final class IndexAdminHandlers {
         m.put( "breaker_close", mt.breakerClose() );
         m.put( "breaker_half_open_probe", mt.breakerHalfOpenProbe() );
         m.put( "breaker_call_rejected", mt.breakerCallRejected() );
+        m.put( "call_shed", mt.callShed() );
         return m;
     }
 

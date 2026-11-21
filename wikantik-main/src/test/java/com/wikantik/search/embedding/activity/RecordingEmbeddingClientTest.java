@@ -96,4 +96,24 @@ class RecordingEmbeddingClientTest {
         assertEquals( 1, rec.dimension() );
         assertTrue( rec.modelName().contains( "nomic" ) );
     }
+
+    /** A query timeout cancels the future it waits on; the cancel must reach the delegate's request. */
+    @Test
+    void cancellingTheAsyncResultCancelsTheDelegatesFuture() {
+        final CompletableFuture< List< float[] > > inner = new CompletableFuture<>();
+        final TextEmbeddingClient pending = new TextEmbeddingClient() {
+            @Override public List< float[] > embed( final List< String > t, final EmbeddingKind k ) { return List.of(); }
+            @Override public CompletableFuture< List< float[] > > embedAsync( final List< String > t, final EmbeddingKind k ) {
+                return inner;
+            }
+            @Override public int dimension() { return 1; }
+            @Override public String modelName() { return "pending"; }
+        };
+        final RecordingEmbeddingClient rec = new RecordingEmbeddingClient(
+            pending, new EmbeddingActivityLog( true, 60, 100, 500 ), "ollama", "nomic-embed" );
+
+        final CompletableFuture< List< float[] > > outer = rec.embedAsync( List.of( "q" ), EmbeddingKind.QUERY );
+        outer.cancel( true );
+        assertTrue( inner.isCancelled(), "the delegate's in-flight request must be cancelled too" );
+    }
 }

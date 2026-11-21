@@ -40,7 +40,16 @@ public final class AuditReadPolicy {
     }
 
     public boolean shouldAudit( final String pageName ) {
-        final Map<String, Object> fm = frontmatterByPage.apply( pageName );
+        return shouldAudit( pageName, null );
+    }
+
+    /**
+     * As {@link #shouldAudit(String)}, but with the page's latest frontmatter already parsed by the
+     * caller (the page read path has it), so the page is not loaded and parsed a second time.
+     * {@code null} means "not known" and falls back to the lookup.
+     */
+    public boolean shouldAudit( final String pageName, final Map<String, Object> knownFrontmatter ) {
+        final Map<String, Object> fm = knownFrontmatter != null ? knownFrontmatter : frontmatterByPage.apply( pageName );
         if ( fm != null && asBool( fm.get( "audit_reads" ) ) ) return true;
         if ( auditedClusters.isEmpty() ) return false;
         final String cluster = clusterByPage.apply( pageName );

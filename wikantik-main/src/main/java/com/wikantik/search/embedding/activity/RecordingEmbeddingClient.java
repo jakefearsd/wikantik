@@ -63,13 +63,22 @@ public final class RecordingEmbeddingClient implements TextEmbeddingClient {
                                                             final EmbeddingKind kind ) {
         final EmbeddingCall call = log.begin( Subsystem.EMBEDDING, backend, model, "embed",
                                         size( texts ) + " texts" );
-        return delegate.embedAsync( texts, kind ).whenComplete( ( result, error ) -> {
+        final CompletableFuture< List< float[] > > inner = delegate.embedAsync( texts, kind );
+        final CompletableFuture< List< float[] > > recorded = inner.whenComplete( ( result, error ) -> {
             if ( error != null ) {
                 log.fail( call, error );
             } else {
                 log.succeed( call, size( result ) + " vectors" );
             }
         } );
+        // A caller that gives up cancels the future it holds; cancelling a dependent stage does not cancel the
+        // delegate's, so pass it through or the delegate's request keeps running.
+        recorded.whenComplete( ( result, error ) -> {
+            if ( recorded.isCancelled() ) {
+                inner.cancel( true );
+            }
+        } );
+        return recorded;
     }
 
     @Override

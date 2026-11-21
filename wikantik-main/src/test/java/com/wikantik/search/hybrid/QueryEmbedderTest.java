@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -192,6 +193,62 @@ class QueryEmbedderTest {
         final QueryEmbedderMetrics m = embedder.metrics();
         assertEquals( 1, m.callTimeout() );
         assertEquals( 1, m.callFailure() );
+    }
+
+    /* ---------- in-flight cap (shed instead of queueing) ---------- */
+
+    @Test
+    void callsOverTheInFlightCapAreShedAtOnceWithoutTouchingTheClientOrTheBreaker() throws Exception {
+        final GatedClient client = new GatedClient();
+        embedder = new QueryEmbedder( client, new QueryEmbedderConfig(
+                5_000, 60, 100, 10, 5, 0.5, 1000, 1 ), clock );
+        final ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            final var held = pool.submit( () -> embedder.embed( "held query" ) );
+            assertTrue( client.started.await( 5, TimeUnit.SECONDS ), "the first call reached the client" );
+
+            final long start = System.nanoTime();
+            for( int i = 0; i < 20; i++ ) {
+                assertTrue( embedder.embed( "overflow " + i ).isEmpty(), "a call over the cap falls back at once" );
+            }
+            final long elapsedMs = TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - start );
+            assertTrue( elapsedMs < 1_000, "shed calls must not wait for the timeout, took " + elapsedMs + " ms" );
+            assertEquals( 1, client.calls.get(), "shed calls never reach the embedding backend" );
+            final QueryEmbedderMetrics m = embedder.metrics();
+            assertEquals( 20, m.callShed() );
+            assertEquals( 0, m.callFailure(), "overload is not a backend failure" );
+            assertEquals( 0, m.breakerCallRejected() );
+            assertEquals( CircuitState.CLOSED, embedder.circuitState(), "shedding never opens the breaker" );
+
+            client.release( new float[]{ 0.5f } );
+            assertTrue( held.get( 5, TimeUnit.SECONDS ).isPresent() );
+            client.autoComplete = true;
+            assertTrue( embedder.embed( "after release" ).isPresent(), "the permit came back" );
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void thePermitIsReturnedAfterAFailedCall() {
+        final CountingFailingClient client = new CountingFailingClient();
+        embedder = new QueryEmbedder( client, new QueryEmbedderConfig(
+                200, 60, 100, 10, 5, 0.5, 1000, 1 ), clock );
+        assertTrue( embedder.embed( "first" ).isEmpty() );
+        assertTrue( embedder.embed( "second" ).isEmpty() );
+        assertEquals( 2, client.calls.get(), "a failed call must release its permit" );
+        assertEquals( 0, embedder.metrics().callShed() );
+    }
+
+    @Test
+    void thePermitIsReturnedWhenTheClientThrowsAnError() {
+        final FlippingErrorClient client = new FlippingErrorClient();
+        embedder = new QueryEmbedder( client, new QueryEmbedderConfig(
+                200, 60, 100, 10, 5, 0.5, 1000, 1 ), clock );
+        assertTrue( embedder.embed( "first" ).isEmpty(), "a JVM Error collapses to the BM25 fallback" );
+        client.fail = false;
+        assertTrue( embedder.embed( "second" ).isPresent(), "the permit came back after the Error" );
+        assertEquals( 0, embedder.metrics().callShed() );
     }
 
     /* ---------- breaker integration ---------- */
@@ -400,6 +457,38 @@ class QueryEmbedderTest {
         }
         @Override public int dimension() { return 2; }
         @Override public String modelName() { return "fake-model"; }
+    }
+
+    /** Holds every embedAsync future open until {@link #release} (or completes at once when autoComplete). */
+    static final class GatedClient implements TextEmbeddingClient {
+        final AtomicInteger calls = new AtomicInteger();
+        final CountDownLatch started = new CountDownLatch( 1 );
+        final CompletableFuture< List< float[] > > gate = new CompletableFuture<>();
+        volatile boolean autoComplete;
+
+        void release( final float[] vec ) { gate.complete( List.of( vec ) ); }
+
+        @Override public CompletableFuture< List< float[] > > embedAsync( final List< String > t, final EmbeddingKind k ) {
+            calls.incrementAndGet();
+            started.countDown();
+            return autoComplete ? CompletableFuture.completedFuture( List.of( new float[]{ 0.9f } ) ) : gate;
+        }
+        @Override public List< float[] > embed( final List< String > t, final EmbeddingKind k ) {
+            throw new AssertionError( "the embedder uses embedAsync" );
+        }
+        @Override public int dimension() { return 1; }
+        @Override public String modelName() { return "gated"; }
+    }
+
+    /** Throws an {@link Error} while {@code fail}, then answers normally. */
+    static final class FlippingErrorClient implements TextEmbeddingClient {
+        volatile boolean fail = true;
+        @Override public List< float[] > embed( final List< String > t, final EmbeddingKind k ) {
+            if( fail ) { throw new StackOverflowError( "simulated" ); }
+            return List.of( new float[]{ 0.3f } );
+        }
+        @Override public int dimension() { return 1; }
+        @Override public String modelName() { return "flip-error"; }
     }
 
     /** Always throws the provided failure. */

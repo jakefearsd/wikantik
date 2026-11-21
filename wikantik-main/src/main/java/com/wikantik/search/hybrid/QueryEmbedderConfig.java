@@ -41,7 +41,8 @@ public record QueryEmbedderConfig(
         int breakerWindowSize,
         int breakerMinCalls,
         double breakerFailureRate,
-        long breakerCooldownMs ) {
+        long breakerCooldownMs,
+        int maxInFlight ) {
 
     /** Config-key prefix, used both for property lookup and for documentation. */
     public static final String PREFIX = "wikantik.search.hybrid.embedder.";
@@ -53,6 +54,12 @@ public record QueryEmbedderConfig(
     public static final int DEFAULT_BREAKER_MIN_CALLS = 10;
     public static final double DEFAULT_BREAKER_FAILURE_RATE = 0.5;
     public static final long DEFAULT_BREAKER_COOLDOWN_MS = 30_000L;
+    /**
+     * Query embeddings allowed in flight at once. A call over the cap is shed: it falls back to
+     * BM25 at once instead of queueing behind the backend until the timeout, and it is not a
+     * breaker failure. Twice a typical embedder's parallelism (Ollama {@code OLLAMA_NUM_PARALLEL=4}).
+     */
+    public static final int DEFAULT_MAX_IN_FLIGHT = 8;
 
     public QueryEmbedderConfig {
         if( timeoutMs <= 0 ) {
@@ -78,6 +85,17 @@ public record QueryEmbedderConfig(
         if( breakerCooldownMs < 0 ) {
             throw new IllegalArgumentException( "breakerCooldownMs must be >= 0, got " + breakerCooldownMs );
         }
+        if( maxInFlight <= 0 ) {
+            throw new IllegalArgumentException( "maxInFlight must be > 0, got " + maxInFlight );
+        }
+    }
+
+    /** Every setting except the in-flight cap, which takes {@link #DEFAULT_MAX_IN_FLIGHT}. */
+    public QueryEmbedderConfig( final long timeoutMs, final long cacheTtlSeconds, final long cacheMaxEntries,
+                                final int breakerWindowSize, final int breakerMinCalls,
+                                final double breakerFailureRate, final long breakerCooldownMs ) {
+        this( timeoutMs, cacheTtlSeconds, cacheMaxEntries, breakerWindowSize, breakerMinCalls,
+              breakerFailureRate, breakerCooldownMs, DEFAULT_MAX_IN_FLIGHT );
     }
 
     /** All-defaults config. */
@@ -89,7 +107,8 @@ public record QueryEmbedderConfig(
                 DEFAULT_BREAKER_WINDOW_SIZE,
                 DEFAULT_BREAKER_MIN_CALLS,
                 DEFAULT_BREAKER_FAILURE_RATE,
-                DEFAULT_BREAKER_COOLDOWN_MS );
+                DEFAULT_BREAKER_COOLDOWN_MS,
+                DEFAULT_MAX_IN_FLIGHT );
     }
 
     /**
@@ -108,7 +127,8 @@ public record QueryEmbedderConfig(
                 (int) readLong( p, "breaker.window-size", DEFAULT_BREAKER_WINDOW_SIZE ),
                 (int) readLong( p, "breaker.min-calls",   DEFAULT_BREAKER_MIN_CALLS ),
                 readDouble( p, "breaker.failure-rate",   DEFAULT_BREAKER_FAILURE_RATE ),
-                readLong( p, "breaker.cooldown-ms",      DEFAULT_BREAKER_COOLDOWN_MS ) );
+                readLong( p, "breaker.cooldown-ms",      DEFAULT_BREAKER_COOLDOWN_MS ),
+                (int) readLong( p, "max-in-flight",       DEFAULT_MAX_IN_FLIGHT ) );
     }
 
     private static long readLong( final Properties p, final String suffix, final long fallback ) {

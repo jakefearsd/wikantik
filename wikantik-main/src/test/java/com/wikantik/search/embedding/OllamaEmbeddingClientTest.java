@@ -423,6 +423,25 @@ class OllamaEmbeddingClientTest {
         assertTrue( Thread.interrupted(), "the interrupt flag must be restored on the calling thread" );
     }
 
+    /**
+     * The query path gives up on an embed after its own timeout and cancels the future. That cancel must
+     * reach the HTTP exchange, or the abandoned request keeps a slot in the embedder's queue for up to the
+     * client timeout (30 s) after the caller has moved on.
+     */
+    @SuppressWarnings( "unchecked" )
+    @Test
+    void cancellingTheAsyncResultCancelsTheHttpExchange() {
+        final HttpClient mockHttp = mock( HttpClient.class );
+        final CompletableFuture< HttpResponse< String > > exchange = new CompletableFuture<>();
+        when( mockHttp.sendAsync( any( HttpRequest.class ), any( HttpResponse.BodyHandler.class ) ) )
+            .thenReturn( (CompletableFuture) exchange );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient( mockHttp, config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final CompletableFuture< List< float[] > > future = client.embedAsync( List.of( "q" ), EmbeddingKind.QUERY );
+        future.cancel( true );
+        assertTrue( exchange.isCancelled(), "the in-flight HTTP exchange must be cancelled" );
+    }
+
     @Test
     void embedAsyncSurfacesTransportFailureAsCompletionException() {
         server.stop( 0 );

@@ -36,6 +36,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
@@ -52,6 +53,10 @@ import java.util.concurrent.atomic.LongAdder;
  *       entirely.</li>
  *   <li>Bounds each call by a wall-clock timeout so a slow cold start does not
  *       block the request thread.</li>
+ *   <li>Caps the query embeddings in flight ({@link QueryEmbedderConfig#maxInFlight()}). A call over
+ *       the cap is <em>shed</em>: it falls back to BM25 at once instead of queueing behind a saturated
+ *       backend until the timeout. Shedding is load, not a backend failure, so it never feeds the
+ *       breaker: one burst of novel queries cannot switch dense retrieval off for every caller.</li>
  *   <li>Runs a hand-rolled CLOSED/OPEN/HALF_OPEN circuit breaker on top of the
  *       timeout so a sustained outage fails fast without hammering the backend.</li>
  *   <li>Counts successes, failures, timeouts, cache hits/misses, and breaker
@@ -74,6 +79,7 @@ public final class QueryEmbedder implements AutoCloseable {
 
     private final Cache< String, float[] > cache;
     private final Breaker breaker;
+    private final Semaphore inFlight;
 
     /** Optional latency Timer — injected by HybridMetricsBridge, null in tests/unwired. */
     private volatile Timer latencyTimer;
@@ -88,6 +94,7 @@ public final class QueryEmbedder implements AutoCloseable {
     private final LongAdder breakerClose = new LongAdder();
     private final LongAdder breakerHalfOpenProbe = new LongAdder();
     private final LongAdder breakerCallRejected = new LongAdder();
+    private final LongAdder callShed = new LongAdder();
 
     public QueryEmbedder( final TextEmbeddingClient client,
                           final QueryEmbedderConfig config,
@@ -107,6 +114,7 @@ public final class QueryEmbedder implements AutoCloseable {
                 .maximumSize( config.cacheMaxEntries() )
                 .build();
         this.breaker = new Breaker( config, clock );
+        this.inFlight = new Semaphore( config.maxInFlight() );
     }
 
     /**
@@ -124,7 +132,6 @@ public final class QueryEmbedder implements AutoCloseable {
      * Embed a single query and return {@code Optional.of(vector)} on success,
      * {@code Optional.empty()} on any failure. Never throws.
      */
-    @SuppressWarnings( "PMD.AvoidCatchingThrowable" ) // Callers must fall back to BM25-only on any embedding failure, including JVM-level Errors.
     public Optional< float[] > embed( final String query ) {
         if( client == null ) {   // disabled() instance — permanent BM25-only signal
             return Optional.empty();
@@ -145,6 +152,20 @@ public final class QueryEmbedder implements AutoCloseable {
         }
         cacheMiss.increment();
 
+        if( !inFlight.tryAcquire() ) {
+            callShed.increment();
+            return Optional.empty();
+        }
+        try {
+            return callBackend( query, cacheKey );
+        } finally {
+            inFlight.release();
+        }
+    }
+
+    /** One admitted backend call: breaker gate, timeout, cache fill, counters. Never throws. */
+    @SuppressWarnings( "PMD.AvoidCatchingThrowable" ) // Callers must fall back to BM25-only on any embedding failure, including JVM-level Errors.
+    private Optional< float[] > callBackend( final String query, final String cacheKey ) {
         final Breaker.Admittance admit = breaker.beforeCall();
         if( admit == Breaker.Admittance.REJECT ) {
             breakerCallRejected.increment();
@@ -221,7 +242,8 @@ public final class QueryEmbedder implements AutoCloseable {
                 breakerOpen.sum(),
                 breakerClose.sum(),
                 breakerHalfOpenProbe.sum(),
-                breakerCallRejected.sum() );
+                breakerCallRejected.sum(),
+                callShed.sum() );
     }
 
     /**
@@ -270,9 +292,10 @@ public final class QueryEmbedder implements AutoCloseable {
             }
             return vecs.get( 0 );
         } catch( final TimeoutException te ) {
-            // Cancel propagates to native HttpClient.sendAsync where overridden;
-            // for the default supplyAsync wrapper it merely marks the future cancelled,
-            // which is acceptable — the worker eventually finishes and is reclaimed.
+            // The Ollama client and the recording wrapper pass the cancel through to the HTTP
+            // exchange, so a timed-out query embed stops holding a slot in the embedder's queue.
+            // For the default supplyAsync wrapper it merely marks the future cancelled, which is
+            // acceptable — the worker eventually finishes and is reclaimed.
             future.cancel( true );
             throw te;
         } catch( final CancellationException ce ) {

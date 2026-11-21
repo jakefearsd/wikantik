@@ -112,4 +112,15 @@ class QueryEmbedderConfigTest {
         assertThrows( IllegalArgumentException.class,
                 () -> new QueryEmbedderConfig( 1, 1, 1, 1, 1, 0.5, -1 ) );
     }
+
+    @Test
+    void maxInFlightDefaultsToEightAndIsReadFromProperties() {
+        assertEquals( 8, QueryEmbedderConfig.defaults().maxInFlight() );
+        assertEquals( 8, new QueryEmbedderConfig( 1, 1, 1, 1, 1, 0.5, 0 ).maxInFlight() );
+        final java.util.Properties p = new java.util.Properties();
+        p.setProperty( "wikantik.search.hybrid.embedder.max-in-flight", "3" );
+        assertEquals( 3, QueryEmbedderConfig.fromProperties( p ).maxInFlight() );
+        org.junit.jupiter.api.Assertions.assertThrows( IllegalArgumentException.class,
+                () -> new QueryEmbedderConfig( 1, 1, 1, 1, 1, 0.5, 0, 0 ) );
+    }
 }

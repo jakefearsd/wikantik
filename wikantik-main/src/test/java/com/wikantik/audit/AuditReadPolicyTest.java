@@ -59,4 +59,20 @@ class AuditReadPolicyTest {
             page -> null, Set.of() );
         assertTrue( p.shouldAudit( "P" ) );
     }
+
+    @Test
+    void knownFrontmatterIsUsedWithoutLookingThePageUpAgain() {
+        AuditReadPolicy p = new AuditReadPolicy(
+            page -> { throw new AssertionError( "the page's frontmatter was already parsed by the caller" ); },
+            page -> "ordinary", Set.of( "regulated" ) );
+        assertTrue( p.shouldAudit( "P", Map.of( "audit_reads", true ) ) );
+        assertFalse( p.shouldAudit( "P", Map.of() ) );
+    }
+
+    @Test
+    void noKnownFrontmatterFallsBackToTheLookup() {
+        AuditReadPolicy p = new AuditReadPolicy(
+            page -> Map.of( "audit_reads", true ), page -> null, Set.of() );
+        assertTrue( p.shouldAudit( "P", null ) );
+    }
 }

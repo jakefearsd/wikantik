@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -150,5 +151,19 @@ class StructuralProjectionMultiMembershipTest {
                             .anyMatch( c -> c.kind() == StructuralConflict.Kind.MULTI_CLUSTER_HUB
                                     && "MLHub".equals( c.slug() ) ),
                     "expected MULTI_CLUSTER_HUB for a hub naming two clusters" );
+    }
+
+    /** The projection is an immutable snapshot, so a cluster's details (tag distribution included) are built once. */
+    @Test
+    void cluster_details_are_built_once_per_projection() {
+        final StructuralProjection proj = project(
+                hub( "MLHub", "machine-learning" ),
+                member( "InferenceServing", List.of( "machine-learning" ) ) );
+
+        assertSame( proj.getCluster( "machine-learning" ).orElseThrow(),
+                    proj.getCluster( "machine-learning" ).orElseThrow() );
+        assertTrue( proj.getCluster( "no-such-cluster" ).isEmpty() );
+        assertTrue( proj.getCluster( "no-such-cluster" ).isEmpty(), "an unknown cluster stays empty on a repeat call" );
+        assertEquals( 1, proj.memoisedClusterCount(), "an unknown, caller-supplied name is never held" );
     }
 }

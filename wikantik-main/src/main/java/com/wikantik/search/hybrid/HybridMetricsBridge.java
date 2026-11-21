@@ -39,7 +39,8 @@ import org.apache.logging.log4j.Logger;
  *
  * <p>Registered meters (all prefixed {@code wikantik.search.hybrid}):</p>
  * <ul>
- *   <li>{@code .embedder.calls} tagged {@code result=success|failure|timeout}</li>
+ *   <li>{@code .embedder.calls} tagged {@code result=success|failure|timeout|shed} ({@code shed}: the
+ *       in-flight cap was full, BM25 at once; {@code success + failure + shed} = cache misses)</li>
  *   <li>{@code .embedder.cache} tagged {@code result=hit|miss}</li>
  *   <li>{@code .embedder.breaker.transitions} tagged {@code to=open|close|half_open}</li>
  *   <li>{@code .embedder.breaker.rejected} — calls short-circuited by OPEN state</li>
@@ -111,6 +112,12 @@ public final class HybridMetricsBridge {
         FunctionCounter.builder( PFX + ".embedder.calls", embedder, e -> e.metrics().callTimeout() )
             .description( "Query embedder calls by terminal outcome" )
             .tag( "result", "timeout" )
+            .register( registry );
+        // A shed call never reached the backend (the in-flight cap was full) and fell back to BM25 at once. It is
+        // an outcome of the same calls, so it lives under result=shed and shows on any "by result" panel.
+        FunctionCounter.builder( PFX + ".embedder.calls", embedder, e -> e.metrics().callShed() )
+            .description( "Query embedder calls by terminal outcome" )
+            .tag( "result", "shed" )
             .register( registry );
 
         FunctionCounter.builder( PFX + ".embedder.cache", embedder, e -> e.metrics().cacheHit() )

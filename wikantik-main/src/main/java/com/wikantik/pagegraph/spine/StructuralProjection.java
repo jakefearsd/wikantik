@@ -59,6 +59,15 @@ public final class StructuralProjection {
     private final Map< PageType, List< PageDescriptor > > byType;
     private final List< StructuralConflict > duplicateDeclarations;
     private final Instant generatedAt;
+    /**
+     * {@link #getCluster} results, built at most once per cluster: the projection is an immutable
+     * snapshot and {@link ClusterDetails} is immutable, so every reader of this projection can share
+     * them. The page read path asks for its page's cluster on every request; rebuilding the tag
+     * distribution each time cost CPU in proportion to the cluster's size. Only clusters that exist
+     * are kept: some callers pass a requested name, and an unknown one must not grow the map.
+     */
+    private final java.util.concurrent.ConcurrentMap< String, ClusterDetails > clusterDetails =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     StructuralProjection( final Map< String, PageDescriptor > byCanonicalId,
                           final Map< String, String > slugToCanonicalId,
@@ -175,6 +184,24 @@ public final class StructuralProjection {
     }
 
     public Optional< ClusterDetails > getCluster( final String name ) {
+        if ( name == null ) {
+            return buildCluster( null );
+        }
+        final ClusterDetails known = clusterDetails.get( name );
+        if ( known != null ) {
+            return Optional.of( known );
+        }
+        final Optional< ClusterDetails > built = buildCluster( name );
+        built.ifPresent( d -> clusterDetails.putIfAbsent( name, d ) );
+        return built.map( d -> clusterDetails.getOrDefault( name, d ) );
+    }
+
+    /** Clusters whose details are held; package-private for tests. */
+    int memoisedClusterCount() {
+        return clusterDetails.size();
+    }
+
+    private Optional< ClusterDetails > buildCluster( final String name ) {
         final List< PageDescriptor > pages = membersOf( name );
         if ( pages.isEmpty() ) {
             return Optional.empty();

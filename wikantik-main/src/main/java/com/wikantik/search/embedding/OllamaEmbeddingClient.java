@@ -100,11 +100,12 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
         // in input order. Native HttpClient.sendAsync gives us cancellable, non-blocking
         // I/O so the request thread never has to park on a slow embedding backend.
         final List< CompletableFuture< List< float[] > > > batchFutures = new ArrayList<>();
+        final List< CompletableFuture< ? > > exchanges = new ArrayList<>();
         for( int start = 0; start < texts.size(); start += batchSize ) {
             final int end = Math.min( start + batchSize, texts.size() );
-            batchFutures.add( embedBatchAsync( texts.subList( start, end ), prefix ) );
+            batchFutures.add( embedBatchAsync( texts.subList( start, end ), prefix, exchanges ) );
         }
-        return CompletableFuture
+        final CompletableFuture< List< float[] > > result = CompletableFuture
             .allOf( batchFutures.toArray( new CompletableFuture[ 0 ] ) )
             .thenApply( ignored -> {
                 final List< float[] > merged = new ArrayList<>( texts.size() );
@@ -113,6 +114,15 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
                 }
                 return merged;
             } );
+        // Cancelling a dependent stage never cancels the stages it depends on, so a caller that gives up
+        // (the query path's own timeout) would leave the HTTP exchanges running in the embedder's queue for up
+        // to the client timeout. Pass the cancel through: cancel(true) on a sendAsync future aborts the exchange.
+        result.whenComplete( ( ignored, error ) -> {
+            if( result.isCancelled() ) {
+                exchanges.forEach( exchange -> exchange.cancel( true ) );
+            }
+        } );
+        return result;
     }
 
     @Override
@@ -182,7 +192,8 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
     }
 
     private CompletableFuture< List< float[] > > embedBatchAsync( final List< String > batch,
-                                                                    final String prefix ) {
+                                                                    final String prefix,
+                                                                    final List< CompletableFuture< ? > > exchanges ) {
         final List< String > prefixed;
         try {
             prefixed = prefixInputs( batch, prefix );
@@ -192,7 +203,10 @@ public class OllamaEmbeddingClient implements TextEmbeddingClient {
             return CompletableFuture.failedFuture( e );
         }
 
-        return httpClient.sendAsync( buildEmbedRequest( prefixed ), HttpResponse.BodyHandlers.ofString( StandardCharsets.UTF_8 ) )
+        final CompletableFuture< HttpResponse< String > > exchange =
+            httpClient.sendAsync( buildEmbedRequest( prefixed ), HttpResponse.BodyHandlers.ofString( StandardCharsets.UTF_8 ) );
+        exchanges.add( exchange );
+        return exchange
             .handle( ( resp, err ) -> {
                 if( err != null ) {
                     final Throwable cause = err instanceof CompletionException ce && ce.getCause() != null

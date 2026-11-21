@@ -51,7 +51,8 @@ class HybridMetricsBridgeTest {
             /*breakerOpen*/     2,
             /*breakerClose*/    2,
             /*breakerHalfOpenProbe*/ 1,
-            /*breakerCallRejected*/  7
+            /*breakerCallRejected*/  7,
+            /*callShed*/             4
         );
     }
 
@@ -93,6 +94,8 @@ class HybridMetricsBridgeTest {
         assertEquals( 1.0, reg.find( "wikantik.search.hybrid.embedder.breaker.transitions" )
             .tag( "to", "half_open" ).functionCounter().count() );
 
+        assertEquals( 4.0, reg.find( "wikantik.search.hybrid.embedder.calls" )
+            .tag( "result", "shed" ).functionCounter().count(), 0.0 );
         assertEquals( 7.0, reg.find( "wikantik.search.hybrid.embedder.breaker.rejected" )
             .functionCounter().count() );
 

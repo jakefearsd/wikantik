@@ -36,7 +36,7 @@ The retrieval stack is assembled during engine init by `SearchWiringHelper.wireH
 2. **TextEmbeddingClient** — backend adapter (Ollama is the only backend). Used by both index-time and query-time paths.
 3. **EmbeddingIndexService** + **AsyncEmbeddingIndexListener** — hook into `ChunkProjector` so every page save re-embeds the new chunks, on a single daemon thread. A failed embed is logged at WARN and the listener does **not** requeue it: the chunk stays unembedded until the next startup reconcile or a Reindex Embeddings run (step 7).
 4. **Dense vector index** — `LuceneHnswChunkVectorIndex` (default), `PgVectorChunkVectorIndex` or `InMemoryChunkVectorIndex`, chosen by `wikantik.search.dense.backend` (see [Dense backend selection](#dense-backend-selection)). The two in-process backends load `content_chunk_embeddings` at construction and are updated incrementally after each page-save embed; pgvector queries the table directly.
-5. **QueryEmbedder** — wraps the client with a Caffeine cache, a timeout budget, and a hand-rolled circuit breaker (`CLOSED → OPEN → HALF_OPEN` probe → `CLOSED`).
+5. **QueryEmbedder** — wraps the client with a Caffeine cache, a cap on query embeddings in flight (a call over it is *shed*: BM25 at once, never a breaker failure), a timeout budget, and a hand-rolled circuit breaker (`CLOSED → OPEN → HALF_OPEN` probe → `CLOSED`).
 6. **DenseRetriever** + **HybridFuser** + **HybridSearchService** — the query-time orchestrator. Registered as a manager; `DefaultContextRetrievalService` (behind `GET /api/search` and `retrieve_context`) uses it transparently.
 7. **BootstrapEmbeddingIndexer** — at startup runs a background *stale reconcile* (`indexStale`): it embeds only the chunks that have no embedding for the current model, or whose embedding is older than the chunk. It retries up to 4 times, 45 s apart, while the embedding backend warms. When a run ends COMPLETED it fires the dense index's reload hook. The admin **Reindex Embeddings** action runs `forceStart()` instead: delete every row for the model, then re-embed everything. Progress shows on the admin index-status panel.
 8. **HybridMetricsBridge** — publishes embedder, bootstrap, and vector-index meters to the process-wide Micrometer registry.
@@ -57,6 +57,7 @@ The retrieval stack is assembled during engine init by `SearchWiringHelper.wireH
 | Vector index not ready (zero vectors loaded) | BM25 verbatim (dense returns empty)   |
 | Query-vector dimension ≠ index dimension   | BM25 verbatim, WARN logged              |
 | Circuit breaker OPEN                       | BM25 verbatim (embedder returns empty)  |
+| In-flight cap full (embedder saturated)    | BM25 verbatim at once, counted as shed  |
 
 A fused response keeps every BM25 hit: the fuser's window (`rrf.truncate`) can push BM25 hits out of the fused block, and `HybridSearchService` appends them back after it. Pages that only the dense side found are wrapped as `DenseOnlySearchResult` entries (score 0, no context snippets) and sit at their fused position.
 
@@ -167,6 +168,7 @@ wikantik.search.hybrid.embedder.breaker.window-size      = 20
 wikantik.search.hybrid.embedder.breaker.min-calls        = 10
 wikantik.search.hybrid.embedder.breaker.failure-rate     = 0.5
 wikantik.search.hybrid.embedder.breaker.cooldown-ms      = 30000
+wikantik.search.hybrid.embedder.max-in-flight            = 8
 ```
 
 `timeout-ms` is the per-call wall-clock budget for the embed request. `cache.*`
@@ -176,6 +178,14 @@ calls in CLOSED state and trips OPEN once at least `breaker.min-calls` of them
 have been observed and the failure ratio reaches `breaker.failure-rate`. After
 `breaker.cooldown-ms` it transitions to HALF_OPEN and admits exactly one probe
 call; success closes the breaker, failure re-opens it.
+
+`max-in-flight` caps the query embeddings running at once. A search whose query embedding would exceed
+it is *shed*: it gets BM25 immediately instead of queueing behind a saturated embedder until
+`timeout-ms`, and the shed is not counted as a breaker failure. Without the cap, a burst of novel
+queries above the embedder's throughput (about 26/s for `qwen3-embedding:0.6b` on one iGPU with
+`OLLAMA_NUM_PARALLEL=4`, measured 2026-11-20) queued calls to the 2 s timeout, tripped the breaker, and
+switched dense retrieval off for every caller until the cooldown. Size it near twice the embedder's
+parallelism.
 
 ## Admin UI
 
@@ -195,7 +205,7 @@ Scraped at `/metrics` (Prometheus text format). The table gives the Micrometer n
 
 | Meter                                          | Type              | Tags                          | Meaning                                               |
 |------------------------------------------------|-------------------|-------------------------------|-------------------------------------------------------|
-| `.embedder.calls`                              | function counter  | `result=success\|failure\|timeout` | Embed calls by terminal outcome                  |
+| `.embedder.calls`                              | function counter  | `result=success\|failure\|timeout\|shed` | Embed calls by terminal outcome (`shed`: cap full, BM25 at once) |
 | `.embedder.cache`                              | function counter  | `result=hit\|miss`             | Caffeine cache outcome                                |
 | `.embedder.breaker.transitions`                | function counter  | `to=open\|close\|half_open`    | Breaker state transitions                             |
 | `.embedder.breaker.rejected`                   | function counter  | —                             | Calls short-circuited by OPEN breaker                 |
@@ -217,8 +227,9 @@ Retrieval *quality* is published separately by the nightly runner as `wikantik_r
 Check, in order:
 
 1. `wikantik.search.hybrid.embedder.circuit_state` gauge — if it is pegged at 2 (OPEN), the embedder is failing upstream. Look at the backend (`curl <wikantik.search.embedding.base-url>/api/tags` should list `qwen3-embedding:0.6b`). See [HandlingEmbeddingServiceOutages](HandlingEmbeddingServiceOutages).
-2. `wikantik.search.hybrid.vector_index.size` — if 0, the bootstrap never succeeded. Check `bootstrap.state`; if `FAILED`, check `error_message` in index-status JSON or WARN logs for the stack.
-3. `wikantik.search.hybrid.bootstrap.state` — if stuck at `RUNNING` for longer than the corpus size warrants, watch `chunks_total` vs the live `embeddings.row_count` in index-status; if they're not moving, the backend is rate-limiting or wedged. A `FAILED` run on `inmemory` / `lucene-hnsw` means the dense index was **not** reloaded (see the freshness gotcha above).
+2. `wikantik.search.hybrid.embedder.calls{result=shed}` rising — the embedder is saturated rather than down: searches past `max-in-flight` are getting BM25. Raise the embedder's parallelism or add capacity; raising `max-in-flight` alone only lengthens the queue.
+3. `wikantik.search.hybrid.vector_index.size` — if 0, the bootstrap never succeeded. Check `bootstrap.state`; if `FAILED`, check `error_message` in index-status JSON or WARN logs for the stack.
+4. `wikantik.search.hybrid.bootstrap.state` — if stuck at `RUNNING` for longer than the corpus size warrants, watch `chunks_total` vs the live `embeddings.row_count` in index-status; if they're not moving, the backend is rate-limiting or wedged. A `FAILED` run on `inmemory` / `lucene-hnsw` means the dense index was **not** reloaded (see the freshness gotcha above).
 
 ### Post-model-swap corpus mismatch
 

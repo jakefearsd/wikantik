@@ -6,6 +6,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Work management: a product's setting changes are recorded and shown as a **History** list under the product form, in the form's own wording (migration V083, `work_product_event`). Any user name or password in a repository URL is masked there.
+- Work management: a user guide, `docs/user/WorkManagement.md`, written as a first-use walkthrough, linked from the Work home.
+- `wikantik.search.hybrid.embedder.max-in-flight` (default 4): the most query embeddings run at once. See Changed.
+
+### Changed
+
+- Search under load: when the embedding service is busy, a search whose query embedding would exceed the in-flight cap gets keyword (BM25) results at once instead of waiting up to 2 s, and that never opens the embedder's circuit breaker. Before, a burst of new queries could queue to the timeout and switch dense retrieval off for every search until the breaker's cooldown. Measured on a copy of production: the breaker no longer opens under overload, three times as many searches get dense results, and the slowest searches went from about 1.7 s to about 0.25 s. Shed calls are counted as `wikantik_search_hybrid_embedder_calls_total{result="shed"}` and shown as **Calls Shed** on the admin index-status page.
+- A query embedding that times out now cancels its request to the embedding service, so the abandoned request no longer holds a place in the service's queue.
+- Work management: a task or story a person creates starts as **Ready**. Epics, and every item an agent creates, still start as Draft.
+- Work management: a squash or merge commit counts as reviewed when nothing was pushed after the approval; an agent may merge it under the same condition.
+- Work management: a product's repository URL may not carry a user name or password; a plain user on an `ssh://` URL (`ssh://git@host/…`) is still accepted.
+- Work management screen fixes: the New item dialog fits its window, project tabs scroll inside themselves on narrow screens, an empty board says what to do next, the created-item message says when a new draft is hidden, Approve is no longer offered on a change whose approval stands, and a deployment's page has a Work breadcrumb.
+- Page views no longer rebuild their cluster's tag counts on every read, and the read-audit check reuses the page's already-parsed frontmatter.
+- The admin MCP prompts named five tools that do not exist (`search_pages`, `export_content`, `import_content`, `preview_import`, `query_metadata`); they now name the real ones and say which endpoint each is on.
+- Internal design pass with no change to what pages, the editor, the APIs or the agent tools do: page-event listeners, admin MCP prompts, work-agent tool declarations, work-management permissions, save refusals, editor toolbar commands, recent-articles rendering, REST bulk actions and routing, the admin content endpoints, the recent-changes plugin, `verify_pages` checks, keyword search, the live-preview decorator, form busy/error handling and MCP endpoint start-up were reorganised around shared building blocks.
+
+### Fixed
+
+- Work management: a card dropped between cards of equal rank keeps its place after a reload (the server renumbers the column).
+- A login through the container, single sign-on or the remember-me cookie reported failure to its caller although the user was signed in.
+- Shutting down while the reference index was saving could skip a save requested just before it, or write after shutdown.
+
 ## [2.7.5] - 2026-11-20
 
 ### Fixed

@@ -45,6 +45,8 @@ import org.apache.logging.log4j.Logger;
  *   <li>{@code .embedder.breaker.transitions} tagged {@code to=open|close|half_open}</li>
  *   <li>{@code .embedder.breaker.rejected} — calls short-circuited by OPEN state</li>
  *   <li>{@code .embedder.circuit_state} gauge (0=CLOSED, 1=HALF_OPEN, 2=OPEN)</li>
+ *   <li>{@code .embedder.concurrency.limit} gauge — query embeddings allowed in flight (learned or fixed)</li>
+ *   <li>{@code .embedder.concurrency.in_flight} gauge — query embeddings in flight now</li>
  *   <li>{@code .vector_index.size} gauge — chunks in the active vector index (in-memory or pgvector)</li>
  *   <li>{@code .bootstrap.state} gauge (0=IDLE, 1=SKIPPED_ALREADY_POPULATED,
  *       2=SKIPPED_NO_CHUNKS, 3=RUNNING, 4=COMPLETED, 5=FAILED)</li>
@@ -148,6 +150,12 @@ public final class HybridMetricsBridge {
 
         Gauge.builder( PFX + ".embedder.circuit_state", embedder, HybridMetricsBridge::encodeCircuit )
             .description( "Current circuit breaker state (0=CLOSED, 1=HALF_OPEN, 2=OPEN)" )
+            .register( registry );
+        Gauge.builder( PFX + ".embedder.concurrency.limit", embedder, QueryEmbedder::concurrencyLimit )
+            .description( "Query embeddings allowed in flight at once (learned from the embedder, or a fixed cap)" )
+            .register( registry );
+        Gauge.builder( PFX + ".embedder.concurrency.in_flight", embedder, QueryEmbedder::embedsInFlight )
+            .description( "Query embeddings in flight now" )
             .register( registry );
 
         final Timer latency = Timer.builder( PFX + ".embedder.latency" )

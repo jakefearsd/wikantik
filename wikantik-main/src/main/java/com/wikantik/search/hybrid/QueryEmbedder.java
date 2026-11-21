@@ -36,7 +36,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
@@ -53,10 +52,12 @@ import java.util.concurrent.atomic.LongAdder;
  *       entirely.</li>
  *   <li>Bounds each call by a wall-clock timeout so a slow cold start does not
  *       block the request thread.</li>
- *   <li>Caps the query embeddings in flight ({@link QueryEmbedderConfig#maxInFlight()}). A call over
- *       the cap is <em>shed</em>: it falls back to BM25 at once instead of queueing behind a saturated
+ *   <li>Limits the query embeddings in flight ({@link EmbedConcurrencyLimiter}). A call over the
+ *       limit is <em>shed</em>: it falls back to BM25 at once instead of queueing behind a saturated
  *       backend until the timeout. Shedding is load, not a backend failure, so it never feeds the
- *       breaker: one burst of novel queries cannot switch dense retrieval off for every caller.</li>
+ *       breaker: one burst of novel queries cannot switch dense retrieval off for every caller. The
+ *       limit is learned from the embedder's response times by default ({@link ThroughputGradientPolicy})
+ *       or fixed by the operator ({@link QueryEmbedderConfig#concurrency()}).</li>
  *   <li>Runs a hand-rolled CLOSED/OPEN/HALF_OPEN circuit breaker on top of the
  *       timeout so a sustained outage fails fast without hammering the backend.</li>
  *   <li>Counts successes, failures, timeouts, cache hits/misses, and breaker
@@ -79,7 +80,8 @@ public final class QueryEmbedder implements AutoCloseable {
 
     private final Cache< String, float[] > cache;
     private final Breaker breaker;
-    private final Semaphore inFlight;
+    private final EmbedderWarmth warmth;
+    private final EmbedConcurrencyLimiter limiter;
 
     /** Optional latency Timer — injected by HybridMetricsBridge, null in tests/unwired. */
     private volatile Timer latencyTimer;
@@ -108,13 +110,13 @@ public final class QueryEmbedder implements AutoCloseable {
                            final boolean marker ) {
         this.client = client;
         this.config = Objects.requireNonNull( config, "config" );
-        Objects.requireNonNull( clock, "clock" );
+        this.warmth = new EmbedderWarmth( Objects.requireNonNull( clock, "clock" ) );
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite( Duration.ofSeconds( config.cacheTtlSeconds() ) )
                 .maximumSize( config.cacheMaxEntries() )
                 .build();
         this.breaker = new Breaker( config, clock );
-        this.inFlight = new Semaphore( config.maxInFlight() );
+        this.limiter = config.concurrency().newLimiter( System::nanoTime );
     }
 
     /**
@@ -152,20 +154,27 @@ public final class QueryEmbedder implements AutoCloseable {
         }
         cacheMiss.increment();
 
-        if( !inFlight.tryAcquire() ) {
+        final EmbedConcurrencyLimiter.Permit permit = limiter.tryAcquire();
+        if( permit == null ) {
             callShed.increment();
             return Optional.empty();
         }
+        final EmbedConcurrencyLimiter.Outcome[] outcome = { EmbedConcurrencyLimiter.Outcome.DROPPED };
         try {
-            return callBackend( query, cacheKey );
+            return callBackend( query, cacheKey, outcome );
         } finally {
-            inFlight.release();
+            limiter.release( permit, outcome[ 0 ] );
         }
     }
 
-    /** One admitted backend call: breaker gate, timeout, cache fill, counters. Never throws. */
+    /**
+     * One admitted backend call: breaker gate, timeout, cache fill, counters. Never throws. Sets
+     * {@code outcome[0]} to what the concurrency limiter should learn from the call: a response time
+     * ({@code COMPLETED}), a timeout, or nothing ({@code DROPPED}, the default).
+     */
     @SuppressWarnings( "PMD.AvoidCatchingThrowable" ) // Callers must fall back to BM25-only on any embedding failure, including JVM-level Errors.
-    private Optional< float[] > callBackend( final String query, final String cacheKey ) {
+    private Optional< float[] > callBackend( final String query, final String cacheKey,
+                                             final EmbedConcurrencyLimiter.Outcome[] outcome ) {
         final Breaker.Admittance admit = breaker.beforeCall();
         if( admit == Breaker.Admittance.REJECT ) {
             breakerCallRejected.increment();
@@ -181,6 +190,7 @@ public final class QueryEmbedder implements AutoCloseable {
         boolean success = false;
         try {
             final float[] vec = invokeWithTimeout( query );
+            outcome[ 0 ] = EmbedConcurrencyLimiter.Outcome.COMPLETED;   // the embedder answered, whatever it said
             if( vec == null ) {
                 // empty or malformed response — treat as failure but no exception was thrown
                 callFailure.increment();
@@ -191,6 +201,7 @@ public final class QueryEmbedder implements AutoCloseable {
             success = true;
             return Optional.of( vec );
         } catch( final TimeoutException e ) {
+            outcome[ 0 ] = EmbedConcurrencyLimiter.Outcome.TIMED_OUT;
             callTimeout.increment();
             callFailure.increment();
             LOG.debug( "Query embedding timed out after {} ms", config.timeoutMs() );
@@ -224,6 +235,21 @@ public final class QueryEmbedder implements AutoCloseable {
      */
     public void setLatencyTimer( final Timer timer ) {
         this.latencyTimer = timer;
+    }
+
+    /** The query-embedding concurrency limit now in force (learned or fixed). */
+    public int concurrencyLimit() {
+        return limiter.limit();
+    }
+
+    /** Query embeddings holding a slot right now. */
+    public int embedsInFlight() {
+        return limiter.inFlight();
+    }
+
+    /** {@code adaptive} or {@code fixed}. */
+    public String concurrencyMode() {
+        return limiter.mode();
     }
 
     /** Current circuit state — cheap read for admin panels and health probes. */
@@ -285,6 +311,7 @@ public final class QueryEmbedder implements AutoCloseable {
     private float[] invokeWithTimeout( final String query ) throws Exception {
         final CompletableFuture< List< float[] > > future =
                 client.embedAsync( List.of( query ), EmbeddingKind.QUERY );
+        warmth.watch( future );
         try {
             final List< float[] > vecs = future.get( config.timeoutMs(), TimeUnit.MILLISECONDS );
             if( vecs == null || vecs.isEmpty() || vecs.get( 0 ) == null ) {
@@ -292,11 +319,17 @@ public final class QueryEmbedder implements AutoCloseable {
             }
             return vecs.get( 0 );
         } catch( final TimeoutException te ) {
-            // The Ollama client and the recording wrapper pass the cancel through to the HTTP
-            // exchange, so a timed-out query embed stops holding a slot in the embedder's queue.
-            // For the default supplyAsync wrapper it merely marks the future cancelled, which is
-            // acceptable — the worker eventually finishes and is reclaimed.
-            future.cancel( true );
+            if( warmth.isAnswering() ) {
+                // The Ollama client and the recording wrapper pass the cancel through to the HTTP
+                // exchange, so a timed-out query embed stops holding a slot in the embedder's queue.
+                // For the default supplyAsync wrapper it merely marks the future cancelled, which is
+                // acceptable — the worker eventually finishes and is reclaimed.
+                future.cancel( true );
+            } else {
+                // Nothing has answered lately: the embedder may be loading its model, and cancelling would
+                // abort the load (see EmbedderWarmth). The client's own request timeout still bounds it.
+                LOG.debug( "Query embedding timed out on a cold embedder; leaving the request to finish" );
+            }
             throw te;
         } catch( final CancellationException ce ) {
             final TimeoutException te2 = new TimeoutException( "Query embedding cancelled: " + ce.getMessage() );

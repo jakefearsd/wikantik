@@ -376,7 +376,12 @@ function EmbedderMetrics({ embedder }) {
         <StatCard label="Call Success" value={embedder.call_success ?? 0} />
         <StatCard label="Call Failure" value={embedder.call_failure ?? 0} />
         <StatCard label="Call Timeout" value={embedder.call_timeout ?? 0} />
-        <StatCard label="Calls Shed" value={embedder.call_shed ?? 0} subtitle="cap full: keyword search at once" />
+        <StatCard label="Calls Shed" value={embedder.call_shed ?? 0} subtitle="limit full: keyword search at once" />
+        <StatCard
+          label="Concurrency Limit"
+          value={embedder.concurrency_limit ?? '—'}
+          subtitle={`${embedder.concurrency_mode ?? 'unknown'}: ${embedder.embeds_in_flight ?? 0} in flight`}
+        />
         <StatCard label="Breaker Open" value={embedder.breaker_open ?? 0} />
         <StatCard label="Breaker Close" value={embedder.breaker_close ?? 0} />
         <StatCard label="Half-Open Probe" value={embedder.breaker_half_open_probe ?? 0} />

@@ -168,7 +168,12 @@ wikantik.search.hybrid.embedder.breaker.window-size      = 20
 wikantik.search.hybrid.embedder.breaker.min-calls        = 10
 wikantik.search.hybrid.embedder.breaker.failure-rate     = 0.5
 wikantik.search.hybrid.embedder.breaker.cooldown-ms      = 30000
+wikantik.search.hybrid.embedder.concurrency.mode         = adaptive
 wikantik.search.hybrid.embedder.max-in-flight            = 4
+wikantik.search.hybrid.embedder.concurrency.initial      = 4
+wikantik.search.hybrid.embedder.concurrency.min          = 1
+wikantik.search.hybrid.embedder.concurrency.max          = 32
+wikantik.search.hybrid.embedder.concurrency.min-gain     = 0.10
 ```
 
 `timeout-ms` is the per-call wall-clock budget for the embed request. `cache.*`
@@ -179,14 +184,48 @@ have been observed and the failure ratio reaches `breaker.failure-rate`. After
 `breaker.cooldown-ms` it transitions to HALF_OPEN and admits exactly one probe
 call; success closes the breaker, failure re-opens it.
 
-`max-in-flight` caps the query embeddings running at once. A search whose query embedding would exceed
-it is *shed*: it gets BM25 immediately instead of queueing behind a saturated embedder until
-`timeout-ms`, and the shed is not counted as a breaker failure. Without the cap, a burst of novel
-queries above the embedder's throughput (about 26/s for `qwen3-embedding:0.6b` on one iGPU with
-`OLLAMA_NUM_PARALLEL=4`, measured 2026-11-20) queued calls to the 2 s timeout, tripped the breaker, and
-switched dense retrieval off for every caller until the cooldown. Set it to the embedder's parallelism:
-the same probe served as many dense queries with a cap of 4 as with 8, at half the p95 wait (≈0.25 s
-against ≈0.5 s), because calls past the backend's parallelism only queue.
+### Query-embedding concurrency limit
+
+A limit caps the query embeddings running at once. A search whose query embedding would exceed it is
+*shed*: it gets BM25 immediately instead of queueing behind a saturated embedder until `timeout-ms`, and
+the shed is not counted as a breaker failure. Without a limit, a burst of novel queries above the
+embedder's throughput (about 26/s for `qwen3-embedding:0.6b` on one iGPU with `OLLAMA_NUM_PARALLEL=4`,
+measured 2026-11-20) queued calls to the 2 s timeout, tripped the breaker, and switched dense retrieval
+off for every caller until the cooldown.
+
+**`concurrency.mode = adaptive` (default)** learns the limit from the embedder itself, so it needs no load
+test and follows the hardware, `OLLAMA_NUM_PARALLEL`, and load from background re-embedding sharing the GPU
+(`ThroughputGradientPolicy`):
+
+- Each finished call reports the concurrency it *experienced* (the time-average of calls in flight over its
+  lifetime) and its response time. Per concurrency level the policy keeps smoothed means of both, so by
+  Little's law a level's throughput is `N(c) / R(c)`.
+- An embedder gets more done with more calls in parallel up to its own parallelism; past that, extra calls
+  only queue: throughput goes flat while response time keeps rising. The limit settles at that knee: where
+  one more parallel call stops buying at least `concurrency.min-gain` (default 10%) more throughput. Between
+  half of `min-gain` and `min-gain` it holds still (hysteresis against noise).
+- It raises the limit only while calls are being shed, so an idle period never inflates it. It steps down
+  whenever the top level buys too little, halves the limit on a timeout (once per stall: calls that started
+  before the last cut and time out too are not counted again), and forgets levels not measured for
+  30 s, which makes it re-probe one level up and down and so follow the embedder when its capacity changes.
+- With random arrivals, a limit of exactly the embedder's parallelism leaves a slot idle between one call
+  finishing and the next arriving, so the limit may rest one above the parallelism when that extra call
+  measurably pays.
+- Cache hits, breaker rejections and transport errors teach it nothing; only answered calls and timeouts do.
+- Measured on a production copy (2026-11-21, docker2 iGPU, `loadtest/results/CAMPAIGN-2026-11-21-adaptive-concurrency.md`):
+  the limit settled at about 2 — a third parallel embed bought under 5% more throughput on that APU, whatever
+  `OLLAMA_NUM_PARALLEL` said (4 or 1). Against the fixed cap of 4 it served about 6% fewer dense answers under
+  overload with roughly half the tail wait (search p95 ≈135 ms against ≈250 ms), and it fell to 1 while batch
+  re-embedding owned the GPU, recovering within about 30 s after.
+
+A timed-out query embed is cancelled (so it stops holding a place in the embedder's queue) only while the
+embedder is answering — some call completed in the last 10 s. When nothing has answered for that long the
+embedder may be loading its model after a restart, and Ollama aborts a load whose client disconnects, so the
+call is left to finish; dense search then comes back on its own within seconds of the load completing.
+
+**`concurrency.mode = fixed`** uses `max-in-flight` as a fixed cap, for an embedder you have measured. Set
+it to the embedder's parallelism: on 2026-11-20 a probe served as many dense queries with a cap of 4 as with
+8, at half the p95 wait (≈0.25 s against ≈0.5 s), because calls past the backend's parallelism only queue.
 
 ## Admin UI
 
@@ -198,7 +237,7 @@ The **Index Status** tab of Admin → Content (`/admin/content`, backed by `GET 
   - `202 Accepted` on dispatch (includes `state`, `model_code`)
   - `409 Conflict` when a bootstrap is already in flight
   - `503 Service Unavailable` when `wikantik.search.hybrid.enabled = false`
-- **Embedder metrics panel** — circuit state (colored), cache hit rate, call success / failure / timeout, calls shed, breaker open / close / half-open probe, calls rejected.
+- **Embedder metrics panel** — circuit state (colored), cache hit rate, call success / failure / timeout, calls shed, concurrency limit (mode and calls in flight), breaker open / close / half-open probe, calls rejected.
 
 ## Prometheus metrics
 
@@ -206,7 +245,9 @@ Scraped at `/metrics` (Prometheus text format). The table gives the Micrometer n
 
 | Meter                                          | Type              | Tags                          | Meaning                                               |
 |------------------------------------------------|-------------------|-------------------------------|-------------------------------------------------------|
-| `.embedder.calls`                              | function counter  | `result=success\|failure\|timeout\|shed` | Embed calls by terminal outcome (`shed`: cap full, BM25 at once) |
+| `.embedder.calls`                              | function counter  | `result=success\|failure\|timeout\|shed` | Embed calls by terminal outcome (`shed`: limit full, BM25 at once) |
+| `.embedder.concurrency.limit`                  | gauge             | —                             | Query embeddings allowed in flight (learned in adaptive mode, the cap in fixed mode) |
+| `.embedder.concurrency.in_flight`              | gauge             | —                             | Query embeddings in flight now                        |
 | `.embedder.cache`                              | function counter  | `result=hit\|miss`             | Caffeine cache outcome                                |
 | `.embedder.breaker.transitions`                | function counter  | `to=open\|close\|half_open`    | Breaker state transitions                             |
 | `.embedder.breaker.rejected`                   | function counter  | —                             | Calls short-circuited by OPEN breaker                 |
@@ -228,7 +269,7 @@ Retrieval *quality* is published separately by the nightly runner as `wikantik_r
 Check, in order:
 
 1. `wikantik.search.hybrid.embedder.circuit_state` gauge — if it is pegged at 2 (OPEN), the embedder is failing upstream. Look at the backend (`curl <wikantik.search.embedding.base-url>/api/tags` should list `qwen3-embedding:0.6b`). See [HandlingEmbeddingServiceOutages](HandlingEmbeddingServiceOutages).
-2. `wikantik.search.hybrid.embedder.calls{result=shed}` rising — the embedder is saturated rather than down: searches past `max-in-flight` are getting BM25. Raise the embedder's parallelism or add capacity; raising `max-in-flight` alone only lengthens the queue.
+2. `wikantik.search.hybrid.embedder.calls{result=shed}` rising — the embedder is saturated rather than down: searches past the concurrency limit are getting BM25. Watch `embedder.concurrency.limit`: in adaptive mode it already sits at what the embedder can use, so raise the embedder's parallelism or add capacity; raising the limit by hand (or `max-in-flight` in fixed mode) only lengthens the queue. A limit pinned at 1–2 while the embedder is idle points at slow or timing-out calls: check `embedder.latency`.
 3. `wikantik.search.hybrid.vector_index.size` — if 0, the bootstrap never succeeded. Check `bootstrap.state`; if `FAILED`, check `error_message` in index-status JSON or WARN logs for the stack.
 4. `wikantik.search.hybrid.bootstrap.state` — if stuck at `RUNNING` for longer than the corpus size warrants, watch `chunks_total` vs the live `embeddings.row_count` in index-status; if they're not moving, the backend is rate-limiting or wedged. A `FAILED` run on `inmemory` / `lucene-hnsw` means the dense index was **not** reloaded (see the freshness gotcha above).
 

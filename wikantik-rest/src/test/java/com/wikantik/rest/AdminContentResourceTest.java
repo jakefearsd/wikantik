@@ -660,6 +660,9 @@ class AdminContentResourceTest {
         Mockito.doReturn( com.wikantik.search.hybrid.CircuitState.HALF_OPEN ).when( qe ).circuitState();
         Mockito.doReturn( new com.wikantik.search.hybrid.QueryEmbedderMetrics(
                 100L, 5L, 2L, 80L, 25L, 1L, 1L, 1L, 3L, 4L ) ).when( qe ).metrics();
+        Mockito.doReturn( "adaptive" ).when( qe ).concurrencyMode();
+        Mockito.doReturn( 5 ).when( qe ).concurrencyLimit();
+        Mockito.doReturn( 2 ).when( qe ).embedsInFlight();
         engine.setManager( com.wikantik.search.hybrid.QueryEmbedder.class, qe );
 
         final String json = doGet( "/index-status" );
@@ -682,6 +685,9 @@ class AdminContentResourceTest {
         assertEquals( 25L, embedder.get( "cache_miss" ).getAsLong() );
         assertEquals( 3L, embedder.get( "breaker_call_rejected" ).getAsLong() );
         assertEquals( 4L, embedder.get( "call_shed" ).getAsLong() );
+        assertEquals( "adaptive", embedder.get( "concurrency_mode" ).getAsString() );
+        assertEquals( 5, embedder.get( "concurrency_limit" ).getAsInt() );
+        assertEquals( 2, embedder.get( "embeds_in_flight" ).getAsInt() );
     }
 
     /**

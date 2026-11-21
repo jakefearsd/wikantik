@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `wikantik.search.hybrid.embedder.concurrency.mode` (default `adaptive`) with `concurrency.initial` / `.min` / `.max` / `.min-gain`: how many query embeddings may run at once. See Changed. `max-in-flight` is now the cap for `concurrency.mode = fixed`.
+
+### Changed
+
+- Search under load: the limit on query embeddings running at once is learned from the embedding service instead of fixed at 4. The wiki measures how much throughput each extra parallel embedding buys and settles where one more stops paying, so the limit follows the GPU, `OLLAMA_NUM_PARALLEL`, and load from background re-embedding without a load test. It only rises while searches are being turned away, halves on a timeout, and re-checks itself every 30 s. Searches past the limit still get keyword results at once. The limit is published as `wikantik_search_hybrid_embedder_concurrency_limit` (with `…_concurrency_in_flight`) and shown as **Concurrency Limit** on the admin index-status page. Set `concurrency.mode = fixed` to keep a measured cap.
+
+### Fixed
+
+- Search after the embedding service restarts: dense retrieval could stay off indefinitely. Since 2.7.6 a query embedding that timed out cancelled its request, and the embedding service (Ollama) abandons loading its model when the request is cancelled, so a model that took longer than the 2 s query timeout to load was never loaded by searches; dense results came back only when a page save's re-embedding happened to load it. A timed-out query embedding is now cancelled only while the service is answering other calls; otherwise it is left to finish loading. Measured: dense search back about 15 s after a restart under search traffic, instead of not at all.
+
 ## [2.7.7] - 2026-11-20
 
 ### Changed

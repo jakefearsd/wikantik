@@ -33,6 +33,7 @@ import java.util.Properties;
  * @param breakerMinCalls     minimum observations in the window before the breaker will consider opening
  * @param breakerFailureRate  failure rate (0.0 – 1.0) that trips the breaker open
  * @param breakerCooldownMs   how long the breaker stays OPEN before a probe is allowed
+ * @param concurrency         how many query embeddings may run at once (fixed cap or learned limit)
  */
 public record QueryEmbedderConfig(
         long timeoutMs,
@@ -42,7 +43,7 @@ public record QueryEmbedderConfig(
         int breakerMinCalls,
         double breakerFailureRate,
         long breakerCooldownMs,
-        int maxInFlight ) {
+        EmbedConcurrencyConfig concurrency ) {
 
     /** Config-key prefix, used both for property lookup and for documentation. */
     public static final String PREFIX = "wikantik.search.hybrid.embedder.";
@@ -54,14 +55,6 @@ public record QueryEmbedderConfig(
     public static final int DEFAULT_BREAKER_MIN_CALLS = 10;
     public static final double DEFAULT_BREAKER_FAILURE_RATE = 0.5;
     public static final long DEFAULT_BREAKER_COOLDOWN_MS = 30_000L;
-    /**
-     * Query embeddings allowed in flight at once. A call over the cap is shed: it falls back to
-     * BM25 at once instead of queueing behind the backend until the timeout, and it is not a
-     * breaker failure. Matches a typical embedder's parallelism (Ollama {@code OLLAMA_NUM_PARALLEL=4}): measured
-     * 2026-11-20, a cap of 4 served as many dense queries as 8 with half the p95 wait, because calls past the
-     * backend's parallelism only queue.
-     */
-    public static final int DEFAULT_MAX_IN_FLIGHT = 4;
 
     public QueryEmbedderConfig {
         if( timeoutMs <= 0 ) {
@@ -87,17 +80,26 @@ public record QueryEmbedderConfig(
         if( breakerCooldownMs < 0 ) {
             throw new IllegalArgumentException( "breakerCooldownMs must be >= 0, got " + breakerCooldownMs );
         }
-        if( maxInFlight <= 0 ) {
-            throw new IllegalArgumentException( "maxInFlight must be > 0, got " + maxInFlight );
+        if( concurrency == null ) {
+            throw new IllegalArgumentException( "concurrency must not be null" );
         }
     }
 
-    /** Every setting except the in-flight cap, which takes {@link #DEFAULT_MAX_IN_FLIGHT}. */
+    /** Every setting except concurrency, which takes {@link EmbedConcurrencyConfig#defaults()} (adaptive). */
     public QueryEmbedderConfig( final long timeoutMs, final long cacheTtlSeconds, final long cacheMaxEntries,
                                 final int breakerWindowSize, final int breakerMinCalls,
                                 final double breakerFailureRate, final long breakerCooldownMs ) {
         this( timeoutMs, cacheTtlSeconds, cacheMaxEntries, breakerWindowSize, breakerMinCalls,
-              breakerFailureRate, breakerCooldownMs, DEFAULT_MAX_IN_FLIGHT );
+              breakerFailureRate, breakerCooldownMs, EmbedConcurrencyConfig.defaults() );
+    }
+
+    /** Every setting, with a fixed cap of {@code maxInFlight} query embeddings in flight. */
+    public QueryEmbedderConfig( final long timeoutMs, final long cacheTtlSeconds, final long cacheMaxEntries,
+                                final int breakerWindowSize, final int breakerMinCalls,
+                                final double breakerFailureRate, final long breakerCooldownMs,
+                                final int maxInFlight ) {
+        this( timeoutMs, cacheTtlSeconds, cacheMaxEntries, breakerWindowSize, breakerMinCalls,
+              breakerFailureRate, breakerCooldownMs, EmbedConcurrencyConfig.fixed( maxInFlight ) );
     }
 
     /** All-defaults config. */
@@ -110,7 +112,7 @@ public record QueryEmbedderConfig(
                 DEFAULT_BREAKER_MIN_CALLS,
                 DEFAULT_BREAKER_FAILURE_RATE,
                 DEFAULT_BREAKER_COOLDOWN_MS,
-                DEFAULT_MAX_IN_FLIGHT );
+                EmbedConcurrencyConfig.defaults() );
     }
 
     /**
@@ -130,10 +132,10 @@ public record QueryEmbedderConfig(
                 (int) readLong( p, "breaker.min-calls",   DEFAULT_BREAKER_MIN_CALLS ),
                 readDouble( p, "breaker.failure-rate",   DEFAULT_BREAKER_FAILURE_RATE ),
                 readLong( p, "breaker.cooldown-ms",      DEFAULT_BREAKER_COOLDOWN_MS ),
-                (int) readLong( p, "max-in-flight",       DEFAULT_MAX_IN_FLIGHT ) );
+                EmbedConcurrencyConfig.fromProperties( p ) );
     }
 
-    private static long readLong( final Properties p, final String suffix, final long fallback ) {
+    static long readLong( final Properties p, final String suffix, final long fallback ) {
         final String raw = p.getProperty( PREFIX + suffix );
         if( raw == null || raw.isBlank() ) {
             return fallback;
@@ -146,7 +148,7 @@ public record QueryEmbedderConfig(
         }
     }
 
-    private static double readDouble( final Properties p, final String suffix, final double fallback ) {
+    static double readDouble( final Properties p, final String suffix, final double fallback ) {
         final String raw = p.getProperty( PREFIX + suffix );
         if( raw == null || raw.isBlank() ) {
             return fallback;

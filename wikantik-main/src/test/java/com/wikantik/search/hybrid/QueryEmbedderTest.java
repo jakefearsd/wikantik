@@ -251,6 +251,109 @@ class QueryEmbedderTest {
         assertEquals( 0, embedder.metrics().callShed() );
     }
 
+    @Test
+    void theDefaultLimitIsAdaptiveAndATimeoutHalvesIt() {
+        final SlowClient client = new SlowClient( 2_000 );
+        embedder = new QueryEmbedder( client, new QueryEmbedderConfig(
+                50, 60, 100, 10, 5, 0.5, 1000 ), clock );
+        assertEquals( "adaptive", embedder.concurrencyMode() );
+        assertEquals( 4, embedder.concurrencyLimit() );
+        assertTrue( embedder.embed( "slow" ).isEmpty() );
+        assertEquals( 2, embedder.concurrencyLimit(), "a timed-out embed is a sign of overload" );
+        assertEquals( 0, embedder.embedsInFlight() );
+    }
+
+    @Test
+    void anExplicitCapIsFixedAndIgnoresTimeouts() {
+        final SlowClient client = new SlowClient( 2_000 );
+        embedder = new QueryEmbedder( client, new QueryEmbedderConfig(
+                50, 60, 100, 10, 5, 0.5, 1000, 3 ), clock );
+        assertEquals( "fixed", embedder.concurrencyMode() );
+        assertTrue( embedder.embed( "slow" ).isEmpty() );
+        assertEquals( 3, embedder.concurrencyLimit() );
+    }
+
+    @Test
+    void breakerRejectionsDoNotMoveTheAdaptiveLimit() {
+        final ExplodingClient client = new ExplodingClient( new RuntimeException( "down" ) );
+        embedder = new QueryEmbedder( client, testConfig(), clock );
+        for( int i = 0; i < 20; i++ ) {
+            embedder.embed( "q" + i );   // fails fast, then the breaker opens and rejects
+        }
+        assertTrue( embedder.metrics().breakerCallRejected() > 0 );
+        assertEquals( 4, embedder.concurrencyLimit(), "errors and rejections say nothing about the embedder's speed" );
+    }
+
+    /* ---------- cancelling timed-out calls: only on a warm embedder ---------- */
+
+    /** Each call returns a fresh pending future unless {@code answerNow}; remembers every future it handed out. */
+    static final class PendingClient implements TextEmbeddingClient {
+        final List< CompletableFuture< List< float[] > > > futures = new java.util.concurrent.CopyOnWriteArrayList<>();
+        volatile boolean answerNow;
+
+        @Override public CompletableFuture< List< float[] > > embedAsync( final List< String > t, final EmbeddingKind k ) {
+            final CompletableFuture< List< float[] > > f = answerNow
+                    ? CompletableFuture.completedFuture( List.of( new float[]{ 0.7f } ) )
+                    : new CompletableFuture<>();
+            futures.add( f );
+            return f;
+        }
+        @Override public List< float[] > embed( final List< String > t, final EmbeddingKind k ) {
+            throw new AssertionError( "the embedder uses embedAsync" );
+        }
+        @Override public int dimension() { return 1; }
+        @Override public String modelName() { return "pending"; }
+        CompletableFuture< List< float[] > > last() { return futures.get( futures.size() - 1 ); }
+    }
+
+    private QueryEmbedderConfig fastTimeout() {
+        return new QueryEmbedderConfig( 50, 60, 100, 10, 5, 0.5, 1000 );
+    }
+
+    @Test
+    void aTimedOutEmbedOnAColdEmbedderIsLeftRunningSoTheModelLoadCanFinish() {
+        // Ollama aborts a model load when the client disconnects. If every query embed were cancelled at the
+        // 2 s timeout, a model needing longer than that to load would never load, and dense search would stay
+        // off until some uncancelled request (a save-time re-embed) happened to load it.
+        final PendingClient client = new PendingClient();
+        embedder = new QueryEmbedder( client, fastTimeout(), clock );
+        assertTrue( embedder.embed( "first query after a restart" ).isEmpty() );
+        assertFalse( client.last().isCancelled(), "nothing has answered yet: the embedder may be loading its model" );
+
+        client.last().complete( List.of( new float[]{ 0.1f } ) );   // the load finished in the background
+        assertTrue( embedder.embed( "next query" ).isEmpty() );
+        assertTrue( client.last().isCancelled(), "a warm embedder's timed-out call is abandoned and cancelled" );
+    }
+
+    @Test
+    void aTimedOutEmbedOnAWarmEmbedderIsCancelledSoItStopsHoldingAQueueSlot() {
+        final PendingClient client = new PendingClient();
+        embedder = new QueryEmbedder( client, fastTimeout(), clock );
+        client.answerNow = true;
+        assertTrue( embedder.embed( "warm-up" ).isPresent() );
+        client.answerNow = false;
+        assertTrue( embedder.embed( "slow one" ).isEmpty() );
+        assertTrue( client.last().isCancelled() );
+    }
+
+    @Test
+    void aRestartedEmbedderIsLeftToLoadOnceNothingHasAnsweredForTheWarmWindow() {
+        // Warm a moment ago, then the embedder restarts: the first timeout still looks like overload and is
+        // cancelled, but once nothing has answered for WARM_WINDOW a timed-out call is left to finish the load.
+        final PendingClient client = new PendingClient();
+        embedder = new QueryEmbedder( client, fastTimeout(), clock );
+        client.answerNow = true;
+        assertTrue( embedder.embed( "warm-up" ).isPresent() );
+        client.answerNow = false;
+        clock.advanceMillis( 1_000 );
+        assertTrue( embedder.embed( "just after the restart" ).isEmpty() );
+        assertTrue( client.last().isCancelled(), "an answer a second ago: this looks like overload" );
+
+        clock.advanceMillis( EmbedderWarmth.WINDOW.toMillis() );
+        assertTrue( embedder.embed( "still nothing answering" ).isEmpty() );
+        assertFalse( client.last().isCancelled(), "nothing has answered for the window: maybe loading" );
+    }
+
     /* ---------- breaker integration ---------- */
 
     @Test

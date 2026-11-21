@@ -40,6 +40,9 @@ const embeddingsEnabledStatus = {
             breaker_close: 0,
             breaker_half_open_probe: 0,
             breaker_call_rejected: 0,
+            concurrency_mode: 'adaptive',
+            concurrency_limit: 6,
+            embeds_in_flight: 3,
         },
     },
 };
@@ -162,6 +165,8 @@ describe('IndexStatusTab', () => {
         // 80 hits / (80+25 miss) = 76.2%
         expect(screen.getByText('76.2%')).toBeInTheDocument();
         expect(screen.getByText(/80 hits \/ 25 miss/)).toBeInTheDocument();
+        expect(screen.getByText('Concurrency Limit')).toBeInTheDocument();
+        expect(screen.getByText('adaptive: 3 in flight')).toBeInTheDocument();
     });
 
     it('shows progress bar and disables button while bootstrap is RUNNING', async () => {

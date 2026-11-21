@@ -258,6 +258,9 @@ final class IndexAdminHandlers {
             m.put( "breaker_half_open_probe", 0L );
             m.put( "breaker_call_rejected", 0L );
             m.put( "call_shed", 0L );
+            m.put( "concurrency_mode", "disabled" );
+            m.put( "concurrency_limit", 0 );
+            m.put( "embeds_in_flight", 0 );
             return m;
         }
         final com.wikantik.search.hybrid.QueryEmbedderMetrics mt = qe.metrics();
@@ -272,6 +275,9 @@ final class IndexAdminHandlers {
         m.put( "breaker_half_open_probe", mt.breakerHalfOpenProbe() );
         m.put( "breaker_call_rejected", mt.breakerCallRejected() );
         m.put( "call_shed", mt.callShed() );
+        m.put( "concurrency_mode", qe.concurrencyMode() );
+        m.put( "concurrency_limit", qe.concurrencyLimit() );
+        m.put( "embeds_in_flight", qe.embedsInFlight() );
         return m;
     }
 

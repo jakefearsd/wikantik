@@ -74,6 +74,21 @@ class HybridMetricsBridgeTest {
     }
 
     @Test
+    void registersConcurrencyGauges() {
+        final MeterRegistry reg = new SimpleMeterRegistry();
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        when( embedder.metrics() ).thenReturn( fixedMetrics() );
+        when( embedder.circuitState() ).thenReturn( CircuitState.CLOSED );
+        when( embedder.concurrencyLimit() ).thenReturn( 6 );
+        when( embedder.embedsInFlight() ).thenReturn( 2 );
+
+        HybridMetricsBridge.register( reg, embedder, null, null );
+
+        assertEquals( 6.0, reg.find( "wikantik.search.hybrid.embedder.concurrency.limit" ).gauge().value() );
+        assertEquals( 2.0, reg.find( "wikantik.search.hybrid.embedder.concurrency.in_flight" ).gauge().value() );
+    }
+
+    @Test
     void registersCacheAndBreakerMeters() {
         final MeterRegistry reg = new SimpleMeterRegistry();
         final QueryEmbedder embedder = mock( QueryEmbedder.class );

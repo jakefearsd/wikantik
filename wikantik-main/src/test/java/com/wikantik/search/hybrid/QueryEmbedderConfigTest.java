@@ -114,13 +114,31 @@ class QueryEmbedderConfigTest {
     }
 
     @Test
-    void maxInFlightDefaultsToFourAndIsReadFromProperties() {
-        assertEquals( 4, QueryEmbedderConfig.defaults().maxInFlight() );
-        assertEquals( 4, new QueryEmbedderConfig( 1, 1, 1, 1, 1, 0.5, 0 ).maxInFlight() );
-        final java.util.Properties p = new java.util.Properties();
-        p.setProperty( "wikantik.search.hybrid.embedder.max-in-flight", "3" );
-        assertEquals( 3, QueryEmbedderConfig.fromProperties( p ).maxInFlight() );
+    void concurrencyDefaultsToAdaptiveAndAnExplicitCapIsFixed() {
+        assertEquals( EmbedConcurrencyConfig.Mode.ADAPTIVE, QueryEmbedderConfig.defaults().concurrency().mode() );
+        assertEquals( EmbedConcurrencyConfig.Mode.ADAPTIVE,
+                new QueryEmbedderConfig( 1, 1, 1, 1, 1, 0.5, 0 ).concurrency().mode() );
+        final EmbedConcurrencyConfig capped = new QueryEmbedderConfig( 1, 1, 1, 1, 1, 0.5, 0, 3 ).concurrency();
+        assertEquals( EmbedConcurrencyConfig.Mode.FIXED, capped.mode() );
+        assertEquals( 3, capped.fixedLimit() );
         org.junit.jupiter.api.Assertions.assertThrows( IllegalArgumentException.class,
                 () -> new QueryEmbedderConfig( 1, 1, 1, 1, 1, 0.5, 0, 0 ) );
+        org.junit.jupiter.api.Assertions.assertThrows( IllegalArgumentException.class,
+                () -> new QueryEmbedderConfig( 1, 1, 1, 1, 1, 0.5, 0, (EmbedConcurrencyConfig) null ) );
+    }
+
+    @Test
+    void concurrencySettingsAreReadFromProperties() {
+        final java.util.Properties p = new java.util.Properties();
+        p.setProperty( "wikantik.search.hybrid.embedder.concurrency.mode", " Fixed " );
+        p.setProperty( "wikantik.search.hybrid.embedder.max-in-flight", "3" );
+        p.setProperty( "wikantik.search.hybrid.embedder.concurrency.initial", "6" );
+        p.setProperty( "wikantik.search.hybrid.embedder.concurrency.min", "2" );
+        p.setProperty( "wikantik.search.hybrid.embedder.concurrency.max", "12" );
+        p.setProperty( "wikantik.search.hybrid.embedder.concurrency.min-gain", "0.2" );
+        assertEquals( new EmbedConcurrencyConfig( EmbedConcurrencyConfig.Mode.FIXED, 3, 6, 2, 12, 0.2 ),
+                QueryEmbedderConfig.fromProperties( p ).concurrency() );
+        assertEquals( EmbedConcurrencyConfig.defaults(),
+                QueryEmbedderConfig.fromProperties( new java.util.Properties() ).concurrency() );
     }
 }

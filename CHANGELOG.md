@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.7.7] - 2026-11-20
+
 ### Changed
 
 - Library upgrades (stable releases only): Tomcat 11.0.29, Micrometer 1.18.0, httpcore5 5.5, google-auth-library 1.58.0, Selenium 4.53.0 / Selenide 7.19.2 (tests), and on the frontend Mermaid 12.3.0 (newer DOMPurify), Vite 8.3.6 and Vitest 5.1.0. The Docker build stage and the release build use Node 24 (Node 20 is end-of-life). No change to what pages, the editor, the APIs or the agent tools do; details in `docs/developer/dependency-upgrade-log.md`.

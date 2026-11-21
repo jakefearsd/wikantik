@@ -45,7 +45,6 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.search.SearchResult;
-import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.util.TextUtil;
@@ -213,26 +212,8 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
 
         try ( LuceneIndexStore.ReaderLease lease = store.acquire() ) {
             final IndexReader reader = lease.reader();
-
-            final String[] queryfields = {
-                    DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS,
-                    DefaultLuceneIndexer.LUCENE_PAGE_NAME,
-                    DefaultLuceneIndexer.LUCENE_AUTHOR,
-                    DefaultLuceneIndexer.LUCENE_ATTACHMENTS,
-                    DefaultLuceneIndexer.LUCENE_PAGE_KEYWORDS,
-                    DefaultLuceneIndexer.LUCENE_PAGE_TAGS,
-                    DefaultLuceneIndexer.LUCENE_PAGE_CLUSTER,
-                    DefaultLuceneIndexer.LUCENE_PAGE_SUMMARY
-            };
-            final Map<String, Float> boosts = new HashMap<>();
-            for ( int i = 0; i < queryfields.length; i++ ) {
-                boosts.put( queryfields[ i ], FIELD_BOOSTS[ i ] );
-            }
-            final QueryParser qp = new MultiFieldQueryParser(
-                    queryfields, lifecycle.getAnalyzer(), boosts );
-            final Query luceneQuery = qp.parse( query );
+            final Query luceneQuery = buildQuery( query );
             final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );
-
             if ( ( flags & FLAG_CONTEXTS ) != 0 ) {
                 highlighter = new Highlighter(
                         new SimpleHTMLFormatter( "<span class=\"searchmatch\">", "</span>" ),
@@ -240,72 +221,11 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                         new QueryScorer( luceneQuery ) );
             }
 
-            // AuthorizationManager is initialized after SearchManager in the engine
-            // startup sequence, so resolve it lazily from the engine on first use.
-            if ( authorizationManager == null ) {
-                authorizationManager = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
-            }
-            final AuthorizationManager mgr = authorizationManager;
-            final PageManager pm = pageManager;
-            final Session session = wikiContext.getWikiSession();
-
             final TopDocs hits = searcher.search( luceneQuery, MAX_SEARCH_HITS );
-            final StoredFields storedFields = reader.storedFields();
-
-            // When highlighting is off (default), we never read the body field,
-            // so select only the id — skips per-result decompress + decode of
-            // the full page contents. When highlighting is on we still need the
-            // body for snippet extraction, so read the full document.
-            final boolean needBody = highlighter != null;
-            // Pass 1: load each hit's page. Pass 2 keeps the ones the session may view, asked of the
-            // authorization manager in one batch: its filterViewable fast path is the only no-ACL
-            // shortcut, so every rule it applies (inline ACLs, private clusters) applies here too.
-            final List< Hit > loaded = new ArrayList<>( hits.scoreDocs.length );
-            for ( final ScoreDoc hit : hits.scoreDocs ) {
-                // Highlighting off (default): read only the id, and via DocValues so
-                // we never decompress the stored-fields block. Highlighting on: read
-                // the full stored document because we need the body for snippets.
-                final Document doc = needBody ? storedFields.document( hit.doc ) : null;
-                final String pageName = needBody
-                    ? doc.get( DefaultLuceneIndexer.LUCENE_ID )
-                    : LuceneHitSupport.readPageId( reader, storedFields, hit.doc, ID_ONLY_FIELDS );
-                // Deliberately skips the frontmatter parse: this page is used only for
-                // ACL/permission checks + lastModified below, never for page variables.
-                final Page page = pm.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
-
-                if ( page != null ) {
-                    loaded.add( new Hit( page, hit.score, doc ) );
-                } else {
-                    // A null page is AMBIGUOUS: the page may genuinely be gone, or the
-                    // page provider may have failed transiently (an FS race, a closed
-                    // cache). Deleting on that signal lets one bad read permanently
-                    // drop a valid document from the index, and the only symptom the
-                    // user ever sees is fewer results. Confirm the absence explicitly,
-                    // and when the check itself cannot answer, leave the index alone —
-                    // a stale entry is filtered out of results anyway, so keeping it is
-                    // strictly safer than deleting a live one.
-                    boolean confirmedAbsent;
-                    try {
-                        confirmedAbsent = !pm.wikiPageExists( pageName, PageProvider.LATEST_VERSION );
-                    } catch ( final ProviderException e ) {
-                        LOG.warn( "Lucene hit '{}' could not be loaded and its existence could not be confirmed "
-                                  + "({}); leaving the index entry in place", pageName, e.getMessage(), e );
-                        confirmedAbsent = false;
-                    }
-                    if ( confirmedAbsent ) {
-                        // LOG.error justified: stale index entry; Lucene references a page that no longer exists in the page store.
-                        LOG.error( "Lucene found a result page '{}' that no longer exists, removing from Lucene cache",
-                                   pageName );
-                        indexer.pageRemoved( Wiki.contents().page( engine, pageName ) );
-                    } else {
-                        LOG.warn( "Lucene hit '{}' could not be loaded but the page still exists; "
-                                  + "skipping it for this search and leaving the index intact", pageName );
-                    }
-                }
-            }
-
-            final Set< String > viewable = loaded.isEmpty() ? Set.of()
-                    : mgr.filterViewable( session, loaded.stream().map( h -> h.page().getName() ).toList() );
+            // Pass 1 (loadHits) loads each hit's page, within this lease; pass 2 keeps the ones the
+            // session may view, asked of the authorization manager in one batch.
+            final List< Hit > loaded = loadHits( reader, hits, highlighter != null );
+            final Set< String > viewable = filterViewable( wikiContext.getWikiSession(), loaded );
             list = new ArrayList<>( loaded.size() );
             for ( final Hit hit : loaded ) {
                 if ( viewable.contains( hit.page().getName() ) ) {
@@ -354,6 +274,70 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         }
 
         return list;
+    }
+
+    /** Parses the user's query across the boosted index fields. */
+    private Query buildQuery( final String query ) throws ParseException {
+        final String[] queryfields = {
+                DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS,
+                DefaultLuceneIndexer.LUCENE_PAGE_NAME,
+                DefaultLuceneIndexer.LUCENE_AUTHOR,
+                DefaultLuceneIndexer.LUCENE_ATTACHMENTS,
+                DefaultLuceneIndexer.LUCENE_PAGE_KEYWORDS,
+                DefaultLuceneIndexer.LUCENE_PAGE_TAGS,
+                DefaultLuceneIndexer.LUCENE_PAGE_CLUSTER,
+                DefaultLuceneIndexer.LUCENE_PAGE_SUMMARY
+        };
+        final Map<String, Float> boosts = new HashMap<>();
+        for ( int i = 0; i < queryfields.length; i++ ) {
+            boosts.put( queryfields[ i ], FIELD_BOOSTS[ i ] );
+        }
+        final QueryParser qp = new MultiFieldQueryParser( queryfields, lifecycle.getAnalyzer(), boosts );
+        return qp.parse( query );
+    }
+
+    /**
+     * Loads each hit's page. Must run while the reader lease is held: it reads stored fields.
+     * A hit whose page is null is handed to the {@link StaleHitReconciler} and dropped.
+     */
+    private List< Hit > loadHits( final IndexReader reader, final TopDocs hits, final boolean needBody )
+            throws IOException, ProviderException {
+        final StoredFields storedFields = reader.storedFields();
+        final StaleHitReconciler reconciler = new StaleHitReconciler( pageManager, indexer, engine );
+        final List< Hit > loaded = new ArrayList<>( hits.scoreDocs.length );
+        for ( final ScoreDoc hit : hits.scoreDocs ) {
+            // Highlighting off (default): read only the id, and via DocValues so
+            // we never decompress the stored-fields block. Highlighting on: read
+            // the full stored document because we need the body for snippets.
+            final Document doc = needBody ? storedFields.document( hit.doc ) : null;
+            final String pageName = needBody
+                ? doc.get( DefaultLuceneIndexer.LUCENE_ID )
+                : LuceneHitSupport.readPageId( reader, storedFields, hit.doc, ID_ONLY_FIELDS );
+            // Deliberately skips the frontmatter parse: this page is used only for
+            // ACL/permission checks + lastModified below, never for page variables.
+            final Page page = pageManager.getPageWithoutMetadata( pageName, PageProvider.LATEST_VERSION );
+            if ( page != null ) {
+                loaded.add( new Hit( page, hit.score, doc ) );
+            } else {
+                reconciler.reconcile( pageName );
+            }
+        }
+        return loaded;
+    }
+
+    /**
+     * The names of the loaded hits the session may view, in one batch: the authorization manager's
+     * filterViewable fast path is the only no-ACL shortcut, so every rule it applies (inline ACLs,
+     * private clusters) applies here too.
+     */
+    private Set< String > filterViewable( final Session session, final List< Hit > loaded ) {
+        // AuthorizationManager is initialized after SearchManager in the engine
+        // startup sequence, so resolve it lazily from the engine on first use.
+        if ( authorizationManager == null ) {
+            authorizationManager = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
+        }
+        return loaded.isEmpty() ? Set.of()
+                : authorizationManager.filterViewable( session, loaded.stream().map( h -> h.page().getName() ).toList() );
     }
 
     /** A Lucene hit whose page loaded: the page, the raw Lucene score and the stored document (null unless highlighting). */

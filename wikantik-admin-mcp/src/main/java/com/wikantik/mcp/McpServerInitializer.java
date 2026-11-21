@@ -20,17 +20,12 @@ package com.wikantik.mcp;
 
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
-import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
-import jakarta.servlet.ServletContextListener;
-import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
@@ -52,12 +47,15 @@ import com.wikantik.render.subsystem.RenderingSubsystemBridge;
  * from the ServletContext, creates MCP tool instances, resources, and prompts, and
  * registers a Streamable HTTP transport servlet at {@code /wikantik-admin-mcp}.
  */
-public class McpServerInitializer implements ServletContextListener {
+public class McpServerInitializer extends McpEndpointInitializer {
 
     private static final Logger LOG = LogManager.getLogger( McpServerInitializer.class );
     static final String ATTR_MCP_SERVER = "com.wikantik.mcp.McpSyncServer";
 
     private McpSyncServer mcpServer;
+    // Set while the server is configured, read when the "started" lines are written.
+    private McpToolRegistry toolRegistry;
+    private String instructions;
     // WikiEventManager holds listeners as WeakReferences — keep a strong reference
     // to the bridge here so it isn't GC'd between save/delete events. Without this,
     // REST-saved pages never reach the MCP client (mirrors the
@@ -66,117 +64,119 @@ public class McpServerInitializer implements ServletContextListener {
     private WikiEventSubscriptionBridge subscriptionBridge;
 
     @Override
-    public void contextInitialized( final ServletContextEvent sce ) {
-        final ServletContext servletContext = sce.getServletContext();
+    protected Logger log() {
+        return LOG;
+    }
 
-        // Eagerly create the WikiEngine if it doesn't exist yet.
-        // WikiBootstrapServletContextListener has already initialized SPIs by the time
-        // this listener runs, so getInstance() is safe to call here.
-        final Engine engine;
-        try {
-            engine = Wiki.engine().find( servletContext, null );
-        } catch ( final Exception e ) {
-            LOG.warn( "WikiEngine could not be created — MCP server not started: {}", e.getMessage() );
-            return;
-        }
+    @Override
+    protected String logTag() {
+        return "MCP";
+    }
 
-        final McpEndpointBootstrapper bootstrapper = McpEndpointBootstrapper.builder()
+    @Override
+    protected String attributeName() {
+        return ATTR_MCP_SERVER;
+    }
+
+    @Override
+    protected McpEndpointBootstrapper.Builder bootstrapper( final Engine engine ) {
+        return McpEndpointBootstrapper.builder()
                 .logTag( "MCP" )
                 .endpointPath( "/wikantik-admin-mcp" )
                 .filterName( "McpAccessFilter" )
                 .servletName( "McpTransportServlet" )
-                .loadOnStartup( 2 )
-                .engine( engine )
-                .build();
+                .loadOnStartup( 2 );
+    }
 
-        // Phase 1: register the access-control filter (config + rate limiter + API-key service).
-        try {
-            bootstrapper.registerAccessFilter( servletContext );
-        } catch ( final Exception e ) {
-            LOG.error( "MCP server startup failed during config/access-filter setup — endpoint will be unavailable: {}",
-                    e.getMessage(), e );
-            return;
+    @Override
+    protected String accessFilterFailureMessage() {
+        return "MCP server startup failed during config/access-filter setup — endpoint will be unavailable: {}";
+    }
+
+    @Override
+    protected String transportFailureMessage() {
+        return "MCP server startup failed during transport servlet registration — " +
+                "access filter was registered but endpoint has no servlet: {}";
+    }
+
+    @Override
+    protected String buildFailureMessage() {
+        return "MCP server startup failed while wiring tools/resources/prompts — " +
+                "transport servlet is registered but will return protocol errors: {}";
+    }
+
+    /** Builds the MCP server spec (tools, resources, prompts, completions). */
+    @Override
+    protected void registerTools( final McpServer.SyncSpecification< ? > builder, final Engine engine ) {
+        final McpConfig config = new McpConfig();
+        toolRegistry = new McpToolRegistry( engine );
+
+        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
+        final ReferenceManager referenceManager = PageSubsystemBridge.fromLegacyEngine( engine ).referenceManager();
+        final AttachmentManager attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
+        final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
+
+        final WikiResources wikiResources = new WikiResources(
+                pageManager, referenceManager, attachmentManager, systemPageRegistry );
+
+        final var serverImpl = new McpSchema.Implementation(
+                config.serverName(), config.serverTitle(), config.serverVersion() );
+
+        builder.serverInfo( serverImpl )
+                .capabilities( ServerCapabilities.builder()
+                        .tools( true )
+                        .resources( true, true )
+                        .prompts( true )
+                        .build() );
+
+        instructions = config.instructions();
+        if ( instructions != null ) {
+            builder.instructions( instructions );
         }
 
-        // Phase 2: create the streamable HTTP transport and register it as a servlet.
-        final HttpServletStreamableServerTransportProvider transportProvider;
-        try {
-            transportProvider = bootstrapper.registerTransport( servletContext );
-        } catch ( final Exception e ) {
-            LOG.error( "MCP server startup failed during transport servlet registration — " +
-                    "access filter was registered but endpoint has no servlet: {}", e.getMessage(), e );
-            return;
+        for ( final McpTool tool : toolRegistry.readOnlyTools() ) {
+            builder.toolCall( tool.definition(), ( exchange, request ) ->
+                    AuditedToolCall.run( "MCP", tool, request.arguments(), exchange, "read",
+                            () -> tool.execute( request.arguments() ) ) );
         }
 
-        // Phase 3: build the MCP server (tools, resources, prompts, completions, event bridge).
-        try {
-            final McpConfig config = new McpConfig();
-            final McpToolRegistry toolRegistry = new McpToolRegistry( engine );
-
-            final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
-            final ReferenceManager referenceManager = PageSubsystemBridge.fromLegacyEngine( engine ).referenceManager();
-            final AttachmentManager attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
-            final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
-
-            final WikiResources wikiResources = new WikiResources(
-                    pageManager, referenceManager, attachmentManager, systemPageRegistry );
-
-            final var serverImpl = new McpSchema.Implementation(
-                    config.serverName(), config.serverTitle(), config.serverVersion() );
-
-            final var builder = McpServer.sync( transportProvider )
-                    .serverInfo( serverImpl )
-                    .capabilities( ServerCapabilities.builder()
-                            .tools( true )
-                            .resources( true, true )
-                            .prompts( true )
-                            .build() );
-
-            final String instructions = config.instructions();
-            if ( instructions != null ) {
-                builder.instructions( instructions );
-            }
-
-            for ( final McpTool tool : toolRegistry.readOnlyTools() ) {
-                builder.toolCall( tool.definition(), ( exchange, request ) ->
-                        auditedExecute( tool, request.arguments(), exchange, false ) );
-            }
-
-            for ( final McpTool tool : toolRegistry.authorConfigurableTools() ) {
-                builder.toolCall( tool.definition(), ( exchange, request ) -> {
-                    resolveAuthor( exchange, tool );
-                    return CallerIdentity.runAs( clientName( exchange ),
-                            () -> auditedExecute( tool, request.arguments(), exchange, true ) );
-                } );
-            }
-
-            mcpServer = builder
-                    .resources( wikiResources.staticResources() )
-                    .resourceTemplates( wikiResources.resourceTemplates() )
-                    .prompts( WikiPrompts.all() )
-                    .completions( WikiCompletions.all( referenceManager ) )
-                    .build();
-
-            subscriptionBridge = new WikiEventSubscriptionBridge( mcpServer );
-            subscriptionBridge.register( pageManager, RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager() );
-
-            servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
-            final int totalTools = toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size();
-            // D12: warn loudly when the static instructions text mentions tools that are
-            // not actually registered (or vice versa). The instructions are loaded from
-            // a static file; tool registration is dynamic. A drift means the description
-            // we hand the agent is lying about what's available.
-            if ( instructions != null ) {
-                final java.util.Set< String > registered = new java.util.LinkedHashSet<>();
-                for ( final McpTool t : toolRegistry.readOnlyTools() ) registered.add( t.name() );
-                for ( final McpTool t : toolRegistry.authorConfigurableTools() ) registered.add( t.name() );
-                logToolNameDriftIfAny( instructions, registered );
-            }
-            LOG.info( "MCP server started with {} tools, 6 resources, 8 prompts, and 3 completions at /wikantik-admin-mcp", totalTools );
-        } catch ( final Exception e ) {
-            LOG.error( "MCP server startup failed while wiring tools/resources/prompts — " +
-                    "transport servlet is registered but will return protocol errors: {}", e.getMessage(), e );
+        for ( final McpTool tool : toolRegistry.authorConfigurableTools() ) {
+            builder.toolCall( tool.definition(), ( exchange, request ) -> {
+                resolveAuthor( exchange, tool );
+                return CallerIdentity.runAs( clientName( exchange ),
+                        () -> AuditedToolCall.run( "MCP", tool, request.arguments(), exchange, "write",
+                                () -> tool.execute( request.arguments() ) ) );
+            } );
         }
+
+        builder.resources( wikiResources.staticResources() )
+                .resourceTemplates( wikiResources.resourceTemplates() )
+                .prompts( WikiPrompts.all() )
+                .completions( WikiCompletions.all( referenceManager ) );
+    }
+
+    @Override
+    protected void serverBuilt( final McpSyncServer server, final Engine engine ) {
+        mcpServer = server;
+        subscriptionBridge = new WikiEventSubscriptionBridge( mcpServer );
+        subscriptionBridge.register( PageSubsystemBridge.fromLegacyEngine( engine ).pages(),
+                RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager() );
+    }
+
+    @Override
+    protected void started( final Engine engine ) {
+        final int totalTools = toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size();
+        // D12: warn loudly when the static instructions text mentions tools that are
+        // not actually registered (or vice versa). The instructions are loaded from
+        // a static file; tool registration is dynamic. A drift means the description
+        // we hand the agent is lying about what's available.
+        if ( instructions != null ) {
+            final java.util.Set< String > registered = new java.util.LinkedHashSet<>();
+            for ( final McpTool t : toolRegistry.readOnlyTools() ) registered.add( t.name() );
+            for ( final McpTool t : toolRegistry.authorConfigurableTools() ) registered.add( t.name() );
+            logToolNameDriftIfAny( instructions, registered );
+        }
+        LOG.info( "MCP server started with {} tools, 6 resources, 8 prompts, and 3 completions at /wikantik-admin-mcp", totalTools );
     }
 
     @Override
@@ -270,47 +270,6 @@ public class McpServerInitializer implements ServletContextListener {
             LOG.warn( "MCP tools registered but NOT mentioned in the instructions text: {} — "
                     + "the agent will not know about these without seeing tools/list directly.",
                     drift.registeredButNotMentioned() );
-        }
-    }
-
-    /**
-     * Wraps {@link McpTool#execute} with an INFO-level audit line so admins can see
-     * which MCP tool ran, by which client, how long it took, and whether the tool
-     * returned an error envelope (CallToolResult.isError) — none of which is
-     * visible in the access log alone.
-     */
-    private static McpSchema.CallToolResult auditedExecute(
-            final McpTool tool,
-            final Map< String, Object > arguments,
-            final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
-            final boolean writeSurface ) {
-        final long t0 = System.nanoTime();
-        McpSchema.CallToolResult result = null;
-        Throwable thrown = null;
-        try {
-            result = tool.execute( arguments );
-            return result;
-        } catch ( final RuntimeException re ) {
-            thrown = re;
-            throw re;
-        } finally {
-            final long ms = ( System.nanoTime() - t0 ) / 1_000_000L;
-            String client = "?";
-            try {
-                final McpSchema.Implementation ci = exchange != null ? exchange.getClientInfo() : null;
-                if ( ci != null && ci.name() != null ) client = ci.name();
-            } catch ( final RuntimeException ignored ) {
-                LOG.trace( "exchange.getClientInfo threw before initialize completed", ignored );
-            }
-            final boolean isError = result != null && Boolean.TRUE.equals( result.isError() );
-            if ( thrown != null ) {
-                LOG.info( "MCP tools/call name={} client={} surface={} durationMs={} threw={}",
-                        tool.name(), client, writeSurface ? "write" : "read", ms,
-                        thrown.getClass().getSimpleName() );
-            } else {
-                LOG.info( "MCP tools/call name={} client={} surface={} durationMs={} isError={}",
-                        tool.name(), client, writeSurface ? "write" : "read", ms, isError );
-            }
         }
     }
 

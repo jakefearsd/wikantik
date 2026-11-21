@@ -116,8 +116,17 @@ else
   (( WRITE_VUS > 0 )) && LT_ARGS+=(--write-vus "${WRITE_VUS}")
   echo "--- k6: bin/loadtest.sh ${LT_ARGS[*]} ---"
   set +e
-  SLUGS_FILE=./slugs.local.txt BASE_URL="${BASE_URL}" \
-    "${REPO_ROOT}/bin/loadtest.sh" "${LT_ARGS[@]}" 2>&1 | tee "${OUT_DIR}/k6.log"
+  if [[ -n "${LOADTEST_REMOTE_HOST:-}" ]]; then
+    # k6 runs on another host (e.g. on the target itself, when the LAN path between the workstation
+    # and the target drops packets under load). That host needs ~/perf/{k6,bin/loadtest.sh,loadtest/}
+    # and ~/perf/loadtest.env with its own BASE_URL (usually http://localhost:8080) and SLUGS_FILE.
+    ssh -o BatchMode=yes "${LOADTEST_REMOTE_HOST}" \
+      "cd ~/perf && PATH=\$HOME/perf:\$PATH LOADTEST_ENV_FILE=\$HOME/perf/loadtest.env K6_PROMETHEUS_RW_SERVER_URL= bin/loadtest.sh ${LT_ARGS[*]}" \
+      2>&1 | tee "${OUT_DIR}/k6.log"
+  else
+    SLUGS_FILE="${SLUGS_FILE:-./slugs.local.txt}" BASE_URL="${BASE_URL}" \
+      "${REPO_ROOT}/bin/loadtest.sh" "${LT_ARGS[@]}" 2>&1 | tee "${OUT_DIR}/k6.log"
+  fi
   set -e
 fi
 

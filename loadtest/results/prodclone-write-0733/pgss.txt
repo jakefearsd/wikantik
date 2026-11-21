@@ -1,0 +1,35 @@
+Pager usage is off.
+ calls | total_ms | mean_ms |  rows  |                                                                      q                                                                       
+-------+----------+---------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+   514 |     8460 |   16.46 |    514 | SELECT COUNT( DISTINCT page_name ), COUNT(*), COALESCE( AVG( token_count_estimate ), $1 ), COALESCE( MIN( token_count_estimate ), $2 ), COAL
+    52 |      950 |   18.27 |     52 | SELECT COUNT(*), COUNT(DISTINCT c.page_name) FROM content_chunk_embeddings e JOIN kg_content_chunks c ON c.id = e.chunk_id WHERE e.model_cod
+   514 |      912 |    1.77 |    514 | SELECT COUNT(*), MAX(dim), MAX(updated) FROM content_chunk_embeddings WHERE model_code = $1
+    47 |      670 |   14.25 |     47 | WITH engine_latest AS ( SELECT engine, MAX(snapshot_date) AS latest_date FROM search_visibility_snapshot WHERE site_host = $1 AND query_text
+    47 |      545 |   11.60 |  55225 | WITH engine_latest AS ( SELECT engine, MAX(snapshot_date) AS latest_date FROM search_visibility_snapshot WHERE site_host = $1 AND query_text
+    45 |      382 |    8.49 |   6210 | SELECT snapshot_date, engine, SUM(clicks) AS clicks, SUM(impressions) AS impressions FROM search_visibility_snapshot WHERE site_host = $1 AN
+  2450 |      313 |    0.13 |   2450 | SELECT seq, row_hash FROM audit_log WHERE created_at >= $1 ORDER BY seq DESC LIMIT $2
+     5 |      226 |   45.11 | 148080 | SELECT seq, event_time, category, event_type, actor_id, actor_principal, actor_type, target_type, target_id, target_label, outcome, source_i
+    21 |      185 |    8.81 |    210 | SELECT page_name, COUNT(*), MAX(token_count_estimate), SUM(token_count_estimate), MAX(char_count) FROM kg_content_chunks GROUP BY page_name 
+  3116 |      141 |    0.05 |   3116 | INSERT INTO audit_log ( seq, created_at, event_time, category, event_type, actor_id, actor_principal, actor_type, target_type, target_id, ta
+    47 |      137 |    2.92 | 428286 | SELECT query_text, session_hash, result_count, coverage FROM retrieval_query_log WHERE created_at >= $1
+  1656 |      106 |    0.06 |   1656 | INSERT INTO retrieval_query_log (query_text, actor_type, source_surface, result_count, coverage, session_hash) VALUES ($1, $2, $3, $4, $5, $
+    21 |      103 |    4.90 |    210 | SELECT page_name, $1, token_count_estimate, token_count_estimate, char_count FROM kg_content_chunks WHERE token_count_estimate > $2 ORDER BY
+    52 |       86 |    1.66 |     52 | SELECT COUNT(*) FROM kg_content_chunks
+   309 |       75 |    0.24 |   2710 | SELECT run_id, query_set_id, started_at, finished_at, mode, ndcg_at_5, ndcg_at_10, recall_at_20, mrr FROM retrieval_runs ORDER BY started_at
+    21 |       50 |    2.39 |      0 | SELECT page_name, $1, token_count_estimate, token_count_estimate, char_count FROM kg_content_chunks WHERE page_name IN ( SELECT page_name FR
+   329 |       37 |    0.11 |  43113 | SELECT id, key_hash, principal_login, label, scope, created_at, created_by, last_used_at, revoked_at, revoked_by FROM api_keys ORDER BY crea
+   178 |       24 |    0.14 |    178 | INSERT INTO page_verification (canonical_id, verified_at, verified_by, confidence, audience) VALUES ($1, $2, $3, $4, $5) ON CONFLICT ( canon
+   557 |       24 |    0.04 |  12482 | SELECT sweep_id, family, code, severity, "count" FROM drift_snapshot_counts WHERE sweep_id = ANY( $1 ) ORDER BY sweep_id, family, code, seve
+   178 |       18 |    0.10 |    178 | DELETE FROM page_canonical_ids WHERE canonical_id = $1
+   178 |       16 |    0.09 |    178 | DELETE FROM kg_content_chunks WHERE page_name = $1 RETURNING id
+    57 |       15 |    0.27 |   5700 | SELECT seq, created_at, event_time, category, event_type, actor_id, actor_principal, actor_type, target_type, target_id, target_label, outco
+  2450 |       13 |    0.01 |   2450 | SELECT pg_advisory_xact_lock( $1 )
+   178 |       13 |    0.07 |    178 | INSERT INTO kg_content_chunks ( page_name, chunk_index, heading_path, text, char_count, token_count_estimate, content_hash ) VALUES ( $1, $2
+   356 |        9 |    0.02 |    178 | SELECT id, chunk_index, content_hash FROM kg_content_chunks WHERE page_name = $1 ORDER BY chunk_index
+(25 rows)
+
+ calls | total_ms 
+-------+----------
+ 24737 |    13644
+(1 row)
+

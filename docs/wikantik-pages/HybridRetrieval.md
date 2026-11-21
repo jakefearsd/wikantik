@@ -198,7 +198,7 @@ The **Index Status** tab of Admin → Content (`/admin/content`, backed by `GET 
   - `202 Accepted` on dispatch (includes `state`, `model_code`)
   - `409 Conflict` when a bootstrap is already in flight
   - `503 Service Unavailable` when `wikantik.search.hybrid.enabled = false`
-- **Embedder metrics panel** — circuit state (colored), cache hit rate, call success / failure / timeout, breaker open / close / half-open probe, calls rejected.
+- **Embedder metrics panel** — circuit state (colored), cache hit rate, call success / failure / timeout, calls shed, breaker open / close / half-open probe, calls rejected.
 
 ## Prometheus metrics
 

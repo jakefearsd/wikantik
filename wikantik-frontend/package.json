@@ -42,7 +42,7 @@
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0",
-    "turndown": "^7.2.4",
+    "turndown": "^7.2.5",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.2.0"
   },

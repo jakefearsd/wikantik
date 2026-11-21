@@ -57,9 +57,11 @@ public record QueryEmbedderConfig(
     /**
      * Query embeddings allowed in flight at once. A call over the cap is shed: it falls back to
      * BM25 at once instead of queueing behind the backend until the timeout, and it is not a
-     * breaker failure. Twice a typical embedder's parallelism (Ollama {@code OLLAMA_NUM_PARALLEL=4}).
+     * breaker failure. Matches a typical embedder's parallelism (Ollama {@code OLLAMA_NUM_PARALLEL=4}): measured
+     * 2026-11-20, a cap of 4 served as many dense queries as 8 with half the p95 wait, because calls past the
+     * backend's parallelism only queue.
      */
-    public static final int DEFAULT_MAX_IN_FLIGHT = 8;
+    public static final int DEFAULT_MAX_IN_FLIGHT = 4;
 
     public QueryEmbedderConfig {
         if( timeoutMs <= 0 ) {

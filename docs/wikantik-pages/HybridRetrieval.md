@@ -168,7 +168,7 @@ wikantik.search.hybrid.embedder.breaker.window-size      = 20
 wikantik.search.hybrid.embedder.breaker.min-calls        = 10
 wikantik.search.hybrid.embedder.breaker.failure-rate     = 0.5
 wikantik.search.hybrid.embedder.breaker.cooldown-ms      = 30000
-wikantik.search.hybrid.embedder.max-in-flight            = 8
+wikantik.search.hybrid.embedder.max-in-flight            = 4
 ```
 
 `timeout-ms` is the per-call wall-clock budget for the embed request. `cache.*`
@@ -184,8 +184,9 @@ it is *shed*: it gets BM25 immediately instead of queueing behind a saturated em
 `timeout-ms`, and the shed is not counted as a breaker failure. Without the cap, a burst of novel
 queries above the embedder's throughput (about 26/s for `qwen3-embedding:0.6b` on one iGPU with
 `OLLAMA_NUM_PARALLEL=4`, measured 2026-11-20) queued calls to the 2 s timeout, tripped the breaker, and
-switched dense retrieval off for every caller until the cooldown. Size it near twice the embedder's
-parallelism.
+switched dense retrieval off for every caller until the cooldown. Set it to the embedder's parallelism:
+the same probe served as many dense queries with a cap of 4 as with 8, at half the p95 wait (≈0.25 s
+against ≈0.5 s), because calls past the backend's parallelism only queue.
 
 ## Admin UI
 

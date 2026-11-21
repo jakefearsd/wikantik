@@ -127,3 +127,30 @@ for a few seconds would remove it entirely.
 - `bin/profile-iteration.sh` now takes `SLUGS_FILE` and `LOADTEST_REMOTE_HOST` (run k6 on another host that
   has `~/perf/{k6,bin/loadtest.sh,loadtest/,loadtest.env}`).
 - Raw outputs: `prodclone-{base,write,stress,knee}-0733/` (JFRs and k6 JSON not versioned).
+
+## After the fix (commit 4f567fd549 + cap default 4)
+
+Same clone, same open-model probe (50 → 1,000 req/s, half the queries novel), new image:
+
+| probe | breaker opens | embed timeouts | breaker rejections | dense served | shed to BM25 | search/bundle p95 at 125–625 req/s | avg |
+|---|---:|---:|---:|---:|---:|---|---:|
+| before (`prodclone-knee-0733`) | 8 | 1,443 | 31,312 | 1,573 | — | 1.5–1.9 s | 34.2 ms |
+| cap 8 (`prodclone-knee-4f56`) | 0 | 0 | 0 | 4,802 | 27,982 | 0.45–0.56 s | 23.9 ms |
+| cap 4 (`prodclone-knee-4f56-cap4`) | 0 | 0 | 0 | 4,719 | 28,247 | **0.22–0.28 s** | 15.6 ms |
+
+- The breaker never opens under overload any more: a saturated embedder sheds the excess to BM25 at once,
+  and the embedder serves dense queries at its full ~26/s throughout (3× more dense answers than before).
+- A cap equal to the embedder's parallelism (Ollama `OLLAMA_NUM_PARALLEL=4`) serves as many dense queries as
+  a cap of 8 with half the wait — calls past the backend's parallelism only queue — so the default is 4.
+- Cancelling a timed-out embed now aborts its HTTP exchange (`OllamaEmbeddingClient`, `RecordingEmbeddingClient`),
+  so an abandoned request no longer holds a slot in the embedder's queue for up to 30 s.
+- Read path: `TagAggregation` / `InlineTagSyntax` frames (~97 CPU samples per 3-minute baseline) are gone
+  (`getCluster` memoised per projection); the read-audit policy reuses the handler's parsed frontmatter when
+  nothing was stripped from it. Baseline after: 54.5 req/s, p95 22.5 ms, 0% failed.
+- The remaining tail (~0.25 s) is the embedder's own throughput; more dense capacity means a faster or second
+  embedder (or `OLLAMA_NUM_PARALLEL` above 4 if the GPU allows), not app changes.
+
+New follow-up seen after the fix: `InsightsBacklogResource` → `JdbcDemandStore.demandRows` reads every
+`retrieval_query_log` row in its window and aggregates in Java (85 samples in the after-baseline; inflated on
+the clone by the load tests' own query-log rows). Admin-only, but it grows with query volume — an SQL
+`GROUP BY` would bound it.

@@ -20,9 +20,12 @@ package com.wikantik.knowledge.mcp;
 
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.Release;
@@ -30,13 +33,14 @@ import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.mcp.AuditedToolCall;
 import com.wikantik.mcp.McpEndpointBootstrapper;
-import com.wikantik.mcp.McpEndpointInitializer;
+import com.wikantik.mcp.StartupPhase;
 import com.wikantik.mcp.SdkSessionSweepers;
 import com.wikantik.mcp.tools.McpTool;
 
@@ -59,144 +63,127 @@ import java.util.List;
  * <p>If no service is configured, the initializer logs an informational
  * message and returns without starting the server.</p>
  */
-public class KnowledgeMcpInitializer extends McpEndpointInitializer {
+public class KnowledgeMcpInitializer implements ServletContextListener {
 
     private static final Logger LOG = LogManager.getLogger( KnowledgeMcpInitializer.class );
     static final String ATTR_KNOWLEDGE_MCP_SERVER = "com.wikantik.knowledge.mcp.McpSyncServer";
 
     private McpSyncServer mcpServer;
-    // Resolved in preflight (before anything is registered), consumed when tools are assembled.
-    private ContextRetrievalService ctxService;
-    private StructuralIndexService structuralIndex;
-    private com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kg;
-    private PageViewGate viewGate;
-    private List< McpTool > tools;
 
     @Override
-    protected Logger log() {
-        return LOG;
-    }
+    public void contextInitialized( final ServletContextEvent sce ) {
+        final ServletContext servletContext = sce.getServletContext();
 
-    @Override
-    protected String logTag() {
-        return "Knowledge MCP";
-    }
+        // Obtain the WikiEngine (already initialized by WikiBootstrapServletContextListener).
+        final Engine engine;
+        try {
+            engine = Wiki.engine().find( servletContext, null );
+        } catch ( final Exception e ) {
+            LOG.warn( "WikiEngine could not be created — Knowledge MCP server not started: {}", e.getMessage() );
+            return;
+        }
 
-    @Override
-    protected String attributeName() {
-        return ATTR_KNOWLEDGE_MCP_SERVER;
-    }
-
-    @Override
-    protected boolean preflight( final Engine engine ) {
         // Retrieval services come from the typed KnowledgeSubsystem.Services bundle.
-        kg = com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine );
-        ctxService = kg.contextRetrievalService();
-        structuralIndex = PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService();
+        final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kg =
+            com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine );
+        final ContextRetrievalService ctxService = kg.contextRetrievalService();
+        final StructuralIndexService structuralIndex = PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService();
+        final ForAgentProjectionService forAgent = kg.forAgentProjectionService();
+        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
 
         // Guest view-gate: the MCP transport carries no caller identity, so the read-only retrieval
         // tools enforce page view-ACLs as an anonymous guest — only publicly-viewable pages are
         // returned. Callers needing restricted content use the privileged /wikantik-admin-mcp surface.
-        viewGate = guestViewGate( engine );
+        final PageViewGate viewGate = guestViewGate( engine );
 
         if ( ctxService == null && structuralIndex == null ) {
             LOG.info( "Neither ContextRetrievalService nor StructuralIndexService configured — " +
                 "Knowledge MCP server not started" );
-            return false;
+            return;
         }
-        return true;
-    }
 
-    @Override
-    protected McpEndpointBootstrapper.Builder bootstrapper( final Engine engine ) {
-        return McpEndpointBootstrapper.builder()
+        final McpEndpointBootstrapper bootstrapper = McpEndpointBootstrapper.builder()
                 .logTag( "Knowledge MCP" )
                 .endpointPath( "/knowledge-mcp" )
                 .filterName( "KnowledgeMcpAccessFilter" )
                 .requiredScope( com.wikantik.auth.apikeys.ApiKeyService.Scope.MCP_READ )
                 .servletName( "KnowledgeMcpTransportServlet" )
-                .loadOnStartup( 3 );
-    }
+                .loadOnStartup( 3 )
+                .engine( engine )
+                .build();
 
-    @Override
-    protected String accessFilterFailureMessage() {
-        return "Knowledge MCP startup failed during access-filter setup — /knowledge-mcp will be unavailable: {}";
-    }
-
-    @Override
-    protected String transportFailureMessage() {
-        return "Knowledge MCP startup failed during transport servlet registration — " +
-                "access filter was registered but endpoint has no servlet: {}";
-    }
-
-    @Override
-    protected String prepareFailureMessage() {
-        return "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
-                "but the server will have no tools to dispatch: {}";
-    }
-
-    /** Assembles the tool list from whichever services are configured. */
-    @Override
-    protected void prepare( final Engine engine ) {
-        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
-        final ForAgentProjectionService forAgent = kg.forAgentProjectionService();
-        // Ontology tools (read-only): present only when the ontology runtime is wired.
-        final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontoCoord =
-            PageGraphSubsystemBridge.fromLegacyEngine( engine ).ontologyRebuildCoordinator();
-        final com.wikantik.ontology.OntologyModelManager ontoMgr =
-            ontoCoord == null ? null : ontoCoord.modelManager();
-        final com.wikantik.citation.CitationRepository citationRepo =
-            PageGraphSubsystemBridge.fromLegacyEngine( engine ).citationRepository();
-        tools = assembleTools( KnowledgeToolDeps.builder()
-            .ctxService( ctxService )
-            .pageManager( pageManager )
-            .structuralIndex( structuralIndex )
-            .forAgent( forAgent )
-            .bundleService( kg.bundleAssemblyService() )
-            .briefingService( kg.briefingAssemblyService() )
-            .ontoMgr( ontoMgr )
-            .citationRepo( citationRepo )
-            .queryLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null )
-            .briefingLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null )
-            .viewGate( viewGate )
-            .draftActive( page -> com.wikantik.collab.adapter.CollabEngineAccess.draftActive( engine, page ) )
-            .publicIdentity( () -> AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() )
-            .referenceManager( () -> PageSubsystemBridge.fromLegacyEngine( engine ).referenceManager() )
-            .build() );
-    }
-
-    @Override
-    protected String buildFailureMessage() {
-        return "Knowledge MCP startup failed during server build — transport servlet is registered " +
-                "but will return protocol errors: {}";
-    }
-
-    @Override
-    protected void registerTools( final McpServer.SyncSpecification< ? > builder, final Engine engine ) {
-        final var serverImpl = new McpSchema.Implementation(
-                "wikantik-knowledge", SERVER_DISPLAY_NAME, Release.getVersionString() );
-
-        builder.serverInfo( serverImpl )
-                .instructions( serverInstructions() )
-                .capabilities( ServerCapabilities.builder()
-                        .tools( true )
-                        .build() );
-
-        for ( final McpTool tool : tools ) {
-            builder.toolCall( tool.definition(), ( exchange, request ) ->
-                    AuditedToolCall.run( "Knowledge MCP", tool, request.arguments(), exchange, null,
-                            () -> tool.execute( request.arguments() ) ) );
+        // Phase 1: register the access-control filter so /knowledge-mcp requires
+        // the same bearer-token / API-key auth as /wikantik-admin-mcp.
+        if ( !StartupPhase.run( LOG,
+                "Knowledge MCP startup failed during access-filter setup — /knowledge-mcp will be unavailable: {}",
+                () -> bootstrapper.registerAccessFilter( servletContext ) ) ) {
+            return;
         }
-    }
 
-    @Override
-    protected void serverBuilt( final McpSyncServer server, final Engine engine ) {
-        mcpServer = server;
-    }
+        // Phase 2: create and register the streamable HTTP transport as a servlet.
+        final HttpServletStreamableServerTransportProvider transportProvider = StartupPhase.call( LOG,
+                "Knowledge MCP startup failed during transport servlet registration — " +
+                        "access filter was registered but endpoint has no servlet: {}",
+                () -> bootstrapper.registerTransport( servletContext ) );
+        if ( transportProvider == null ) {
+            return;
+        }
 
-    @Override
-    protected void started( final Engine engine ) {
-        LOG.info( "Knowledge MCP server started successfully with {} tools at /knowledge-mcp", tools.size() );
+        // Phase 3: assemble the tool list from whichever services are configured.
+        final List< McpTool > tools = StartupPhase.call( LOG,
+                "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
+                        "but the server will have no tools to dispatch: {}", () -> {
+            // Ontology tools (read-only): present only when the ontology runtime is wired.
+            final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontoCoord =
+                PageGraphSubsystemBridge.fromLegacyEngine( engine ).ontologyRebuildCoordinator();
+            final com.wikantik.ontology.OntologyModelManager ontoMgr =
+                ontoCoord == null ? null : ontoCoord.modelManager();
+            final com.wikantik.citation.CitationRepository citationRepo =
+                PageGraphSubsystemBridge.fromLegacyEngine( engine ).citationRepository();
+            return assembleTools( KnowledgeToolDeps.builder()
+                .ctxService( ctxService )
+                .pageManager( pageManager )
+                .structuralIndex( structuralIndex )
+                .forAgent( forAgent )
+                .bundleService( kg.bundleAssemblyService() )
+                .briefingService( kg.briefingAssemblyService() )
+                .ontoMgr( ontoMgr )
+                .citationRepo( citationRepo )
+                .queryLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null )
+                .briefingLog( () -> engine instanceof com.wikantik.WikiEngine we ? we.briefingLogService() : null )
+                .viewGate( viewGate )
+                .draftActive( page -> com.wikantik.collab.adapter.CollabEngineAccess.draftActive( engine, page ) )
+                .publicIdentity( () -> AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() )
+                .referenceManager( () -> PageSubsystemBridge.fromLegacyEngine( engine ).referenceManager() )
+                .build() );
+        } );
+        if ( tools == null ) {
+            return;
+        }
+
+        // Phase 4: build the MCP sync server and wire it to the transport.
+        StartupPhase.run( LOG, "Knowledge MCP startup failed during server build — transport servlet is registered " +
+                "but will return protocol errors: {}", () -> {
+            final var serverImpl = new McpSchema.Implementation(
+                    "wikantik-knowledge", SERVER_DISPLAY_NAME, Release.getVersionString() );
+
+            final var builder = McpServer.sync( transportProvider )
+                    .serverInfo( serverImpl )
+                    .instructions( serverInstructions() )
+                    .capabilities( ServerCapabilities.builder()
+                            .tools( true )
+                            .build() );
+
+            for ( final McpTool tool : tools ) {
+                builder.toolCall( tool.definition(), ( exchange, request ) ->
+                        AuditedToolCall.run( "Knowledge MCP", tool, exchange, null,
+                                () -> tool.execute( request.arguments() ) ) );
+            }
+
+            mcpServer = builder.build();
+            servletContext.setAttribute( ATTR_KNOWLEDGE_MCP_SERVER, mcpServer );
+            LOG.info( "Knowledge MCP server started successfully with {} tools at /knowledge-mcp", tools.size() );
+        } );
     }
 
     /** Server display name advertised in the MCP {@code initialize} response. */

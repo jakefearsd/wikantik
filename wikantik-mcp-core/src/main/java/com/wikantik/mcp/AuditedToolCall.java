@@ -24,7 +24,6 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -45,14 +44,12 @@ public final class AuditedToolCall {
      *
      * @param logTag         line prefix, e.g. {@code "MCP"} or {@code "Knowledge MCP"}
      * @param tool           the tool being called (its name is logged)
-     * @param args           the call arguments (the caller's {@code call} supplies them to the tool)
      * @param exchange       the session exchange, source of the client name; may be null
      * @param surfaceOrNull  {@code "read"}/{@code "write"} for the admin endpoint; null omits the
      *                       {@code surface=} field
      * @param call           executes the tool; a runtime exception is logged ({@code threw=}) and rethrown
      */
     public static McpSchema.CallToolResult run( final String logTag, final McpTool tool,
-                                                final Map< String, Object > args,
                                                 final McpSyncServerExchange exchange,
                                                 final String surfaceOrNull,
                                                 final Supplier< McpSchema.CallToolResult > call ) {

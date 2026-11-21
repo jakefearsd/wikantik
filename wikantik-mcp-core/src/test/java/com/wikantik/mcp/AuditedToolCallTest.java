@@ -30,7 +30,6 @@ import org.apache.logging.log4j.core.config.Property;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -101,7 +100,7 @@ class AuditedToolCallTest {
     void successfulCallWithSurface_logsAdminLine() {
         final McpSchema.CallToolResult ok = result( false );
         final McpSchema.CallToolResult[] returned = new McpSchema.CallToolResult[ 1 ];
-        final List< String > lines = logged( () -> returned[ 0 ] = AuditedToolCall.run( "MCP", tool(), Map.of(),
+        final List< String > lines = logged( () -> returned[ 0 ] = AuditedToolCall.run( "MCP", tool(),
                 exchange( "claude" ), "read", () -> ok ) );
         assertSame( ok, returned[ 0 ] );
         assertLine( "MCP tools/call name=read_page client=claude surface=read durationMs=\\d+ isError=false", lines );
@@ -109,7 +108,7 @@ class AuditedToolCallTest {
 
     @Test
     void errorResultWithoutSurface_logsKnowledgeLine() {
-        final List< String > lines = logged( () -> AuditedToolCall.run( "Knowledge MCP", tool(), Map.of(),
+        final List< String > lines = logged( () -> AuditedToolCall.run( "Knowledge MCP", tool(),
                 exchange( "cursor" ), null, () -> result( true ) ) );
         assertLine( "Knowledge MCP tools/call name=read_page client=cursor durationMs=\\d+ isError=true", lines );
     }
@@ -117,7 +116,7 @@ class AuditedToolCallTest {
     @Test
     void thrownExceptionWithSurface_logsThrewAndRethrows() {
         final List< String > lines = logged( () -> assertThrows( IllegalStateException.class,
-                () -> AuditedToolCall.run( "MCP", tool(), Map.of(), exchange( "claude" ), "write",
+                () -> AuditedToolCall.run( "MCP", tool(), exchange( "claude" ), "write",
                         ( Supplier< McpSchema.CallToolResult > ) () -> {
                             throw new IllegalStateException( "boom" );
                         } ) ) );
@@ -128,7 +127,7 @@ class AuditedToolCallTest {
     @Test
     void thrownExceptionWithoutSurface_logsThrewAndRethrows() {
         final List< String > lines = logged( () -> assertThrows( IllegalArgumentException.class,
-                () -> AuditedToolCall.run( "Knowledge MCP", tool(), Map.of(), exchange( "cursor" ), null,
+                () -> AuditedToolCall.run( "Knowledge MCP", tool(), exchange( "cursor" ), null,
                         ( Supplier< McpSchema.CallToolResult > ) () -> {
                             throw new IllegalArgumentException( "boom" );
                         } ) ) );
@@ -140,14 +139,14 @@ class AuditedToolCallTest {
     void unavailableClientInfo_fallsBackToQuestionMark() {
         final McpSyncServerExchange exchange = mock( McpSyncServerExchange.class );
         when( exchange.getClientInfo() ).thenThrow( new IllegalStateException( "not initialized" ) );
-        final List< String > lines = logged( () -> AuditedToolCall.run( "MCP", tool(), Map.of(), exchange,
+        final List< String > lines = logged( () -> AuditedToolCall.run( "MCP", tool(), exchange,
                 "read", () -> result( false ) ) );
         assertLine( "MCP tools/call name=read_page client=\\? surface=read durationMs=\\d+ isError=false", lines );
     }
 
     @Test
     void nullExchange_fallsBackToQuestionMark() {
-        final List< String > lines = logged( () -> AuditedToolCall.run( "Knowledge MCP", tool(), Map.of(), null,
+        final List< String > lines = logged( () -> AuditedToolCall.run( "Knowledge MCP", tool(), null,
                 null, () -> result( false ) ) );
         assertLine( "Knowledge MCP tools/call name=read_page client=\\? durationMs=\\d+ isError=false", lines );
     }

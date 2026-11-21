@@ -5,14 +5,15 @@ import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { useToast } from '../../hooks/useToast';
 import {
-  acknowledgeItem, getBoard, getChangeCounts, getMe, listMembers, listProducts, listQueues, patchItem,
+  acknowledgeItem, getBoard, getChangeCounts, getMe, listLabels, listMembers, listProducts, listQueues, patchItem,
 } from '../../api/work';
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { useWorkProject } from './useWorkProject';
 import WaitingLane from './WaitingLane';
 import WorkCard from './WorkCard';
 import WorkItemForm from './WorkItemForm';
-import { STATUS_LABELS, addToColumns, groupByEpic, moveInColumns, orderColumns, rankForInsert, revertCard } from './boardModel';
+import WorkTypeLabelFilters from './WorkTypeLabelFilters';
+import { STATUS_LABELS, labelRows, addToColumns, groupByEpic, moveInColumns, orderColumns, rankForInsert, revertCard } from './boardModel';
 
 const CHANGERS = new Set(['member', 'lead']);
 
@@ -60,10 +61,13 @@ export default function WorkBoard() {
   const [products, setProducts] = useState([]);
   const [members, setMembers] = useState([]);
   const [queues, setQueues] = useState([]);
+  const [labels, setLabels] = useState([]);
   const [params, setParams] = useSearchParams();
   const productFilter = params.get('product') || '';
   const assigneeFilter = params.get('assignee') || '';
   const queueFilter = params.get('queue') || '';
+  const typeFilter = params.get('type') || '';
+  const labelFilter = params.get('label') || '';
   const [formOpen, setFormOpen] = useState(false);
   const dragged = useRef(null);
   const loadSeq = useRef(0);
@@ -95,6 +99,8 @@ export default function WorkBoard() {
         ...(productFilter ? { product: productFilter } : {}),
         ...(assigneeFilter ? { assignee: assigneeFilter } : {}),
         ...(queueFilter ? { queue: queueFilter } : {}),
+        ...(typeFilter ? { type: typeFilter } : {}),
+        ...(labelFilter ? { label: labelFilter } : {}),
       })
       .then((cols) => {
         if (seq !== loadSeq.current) return;
@@ -105,7 +111,7 @@ export default function WorkBoard() {
           .catch((e) => console.warn('WorkBoard: failed to load the change counts', e));
       })
       .catch((e) => { if (seq === loadSeq.current) fail(e); });
-  }, [project.key, productFilter, assigneeFilter, queueFilter, setColumns, fail]);
+  }, [project.key, productFilter, assigneeFilter, queueFilter, typeFilter, labelFilter, setColumns, fail]);
 
   function setFilter(name, value) {
     const next = new URLSearchParams(params);
@@ -133,8 +139,16 @@ export default function WorkBoard() {
     .then(loadWaiting)
     .catch((e) => toast.error(e?.message || `Could not acknowledge ${item.key}.`)), [loadWaiting, toast]);
 
+  const loadLabels = useCallback(() => listLabels(project.key)
+    .then((reply) => setLabels(labelRows(reply)))
+    .catch((e) => {
+      console.warn('WorkBoard: failed to load labels', e);
+      setLabels([]);
+    }), [project.key]);
+
   useEffect(() => {
     loadWaiting();
+    loadLabels();
     listProducts()
       .then((list) => setProducts(list || []))
       .catch((e) => console.warn('WorkBoard: failed to load products', e));
@@ -144,7 +158,7 @@ export default function WorkBoard() {
     listQueues()
       .then((list) => setQueues(list || []))
       .catch((e) => console.warn('WorkBoard: failed to load queues', e));
-  }, [project.id, project.key, loadWaiting]);
+  }, [project.id, project.key, loadWaiting, loadLabels]);
 
   function move(item, status, index) {
     const current = columns.find((c) => c.status === item.status);
@@ -229,7 +243,7 @@ export default function WorkBoard() {
   const hidden = showAll ? 0 : columns.filter((c) => c.status === 'draft' || c.status === 'cancelled')
     .reduce((n, c) => n + (c.total ?? c.items.length), 0);
 
-  const filtered = !!(productFilter || assigneeFilter || queueFilter);
+  const filtered = !!(productFilter || assigneeFilter || queueFilter || typeFilter || labelFilter);
   const noCards = ordered.every((c) => c.items.length === 0);
   let emptyText = null;
   if (noCards && filtered) emptyText = 'No items match these filters.';
@@ -265,6 +279,8 @@ export default function WorkBoard() {
               .map((q) => ({ value: `queue:${q.key}`, label: `Queue · ${q.name || q.key}` })),
           ]}
           onChange={setAssigneeFilter} />
+        <WorkTypeLabelFilters type={typeFilter} label={labelFilter} labels={labels}
+          onType={(v) => setFilter('type', v)} onLabel={(v) => setFilter('label', v)} />
         {canEdit && (
           <button type="button" className="btn btn-primary work-new-item" onClick={() => setFormOpen(true)}>New item</button>
         )}
@@ -283,7 +299,7 @@ export default function WorkBoard() {
         ))}
       </div>
       <div className="work-visually-hidden" role="status" aria-live="polite">{announcement}</div>
-      <WorkItemForm isOpen={formOpen} project={project} products={products} members={members} queues={queues} onClose={() => setFormOpen(false)}
+      <WorkItemForm isOpen={formOpen} project={project} products={products} members={members} queues={queues} labelSuggestions={labels.map((l) => l.name)} onClose={() => setFormOpen(false)}
         onCreated={(created, view) => {
           const item = {
             ...created, productKey: view?.productKey ?? null, parentKey: view?.parentKey ?? null,
@@ -291,8 +307,11 @@ export default function WorkBoard() {
           };
           const matches = (!productFilter || item.productKey === productFilter)
             && (!assigneeFilter || item.assigneeName === assigneeFilter)
-            && (!queueFilter || item.queue === queueFilter);
+            && (!queueFilter || item.queue === queueFilter)
+            && (!typeFilter || item.type === typeFilter)
+            && (!labelFilter || (item.labels || []).includes(labelFilter));
           if (matches) setColumns((cols) => addToColumns(cols || [], item));
+          loadLabels();
           toast.success(item.status === 'draft' && !showAll
             ? `Created ${item.key} as a draft. Drafts are hidden: tick Show draft and cancelled to see it.`
             : `Created ${item.key}`);

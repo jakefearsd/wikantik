@@ -61,6 +61,17 @@ class GetItemToolTest {
     }
 
     @Test
+    void includesTypeAndLabels() throws SQLException {
+        final Item item = f.ready( "PLAT", "Typed" );
+        f.svc.updateItem( f.lena, item.key(), new com.wikantik.work.ItemPatch( item.version(),
+            Map.of( "type", "bug", "labels", java.util.List.of( "ui", "api" ) ), null ) );
+        final JsonObject o = WorkMcpFixture.json( asAgent( item.key() ) );
+        assertEquals( "bug", o.get( "type" ).getAsString() );
+        assertEquals( java.util.List.of( "api", "ui" ),
+            o.getAsJsonArray( "labels" ).asList().stream().map( e -> e.getAsString() ).toList() );
+    }
+
+    @Test
     void hiddenAndUnknownGiveIdenticalError() throws SQLException {
         final Item hidden = f.ready( "SECRET", "Not for the builder" );   // lena (the key owner) can see it; the agent cannot
 
@@ -98,7 +109,7 @@ class GetItemToolTest {
     @Test
     void bodyIsMarkdownSource() throws SQLException {
         final Item draft = f.svc.createItem( f.lena, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
-            "Doc", "# Heading\n\nSome **bold** text", null, null, null, "implementer" ) ).item();
+            "Doc", "# Heading\n\nSome **bold** text", null, null, null, "implementer", null, null ) ).item();
         f.svc.addComment( f.lena, draft.key(), "Please *check* this" );
 
         final JsonObject out = WorkMcpFixture.json( asAgent( draft.key() ) );
@@ -113,7 +124,7 @@ class GetItemToolTest {
         f.svc.createProduct( f.admin, new Product( 0, "web", "Web", null, null, "AgentHub", Autonomy.SUPERVISED,
             DeployGate.HUMAN, null ) );
         final Item item = f.svc.createItem( f.lena, new ItemDraft( "PLAT", WorkLevel.TASK, null, "web", WorkKind.SOFTWARE,
-            "In a product", "", null, null, null, "implementer" ) ).item();
+            "In a product", "", null, null, null, "implementer", null, null ) ).item();
 
         final JsonObject out = WorkMcpFixture.json( asAgent( item.key() ) );
 

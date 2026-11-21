@@ -26,6 +26,7 @@ import com.wikantik.work.WorkClaimsService;
 import com.wikantik.work.WorkKind;
 import com.wikantik.work.WorkLevel;
 import com.wikantik.work.WorkStatus;
+import com.wikantik.work.WorkType;
 import com.wikantik.work.WorkValidationException;
 
 import java.time.LocalDate;
@@ -42,7 +43,8 @@ public class WorkItemResource extends WorkResourceBase {
 
     private static final long serialVersionUID = 1L;
     private static final Set< String > DRAFT_FIELDS = Set.of( "project", "projectKey", "level", "parentKey",
-        "productKey", "kind", "title", "body", "priority", "dueOn", "assignee", "queue" );
+        "productKey", "kind", "title", "body", "priority", "dueOn", "assignee", "queue",
+        "type", "labels" );
     private static final int CLAIMABLE_DEFAULT = 20;
     private static final int CLAIMABLE_MAX = 50;
 
@@ -116,10 +118,12 @@ public class WorkItemResource extends WorkResourceBase {
         final String project = b.has( "projectKey" ) ? optString( b, "projectKey" ) : optString( b, "project" );
         final String level = optString( b, "level" );
         final String kind = optString( b, "kind" );
+        final String type = optString( b, "type" );
         c.created( c.svc.createItem( c.actor, new ItemDraft( project, level == null ? null : WorkLevel.fromWire( level ),
             optString( b, "parentKey" ), optString( b, "productKey" ), kind == null ? null : WorkKind.fromWire( kind ),
             optString( b, "title" ), optString( b, "body" ), priority( b ), dueOn( b ), optString( b, "assignee" ),
-            optString( b, "queue" ) ) ) );
+            optString( b, "queue" ), type == null ? null : WorkType.fromWire( type ),
+            optStringList( b, "labels" ) ) ) );
     }
 
     private void openChange( final Call c ) throws Exception {

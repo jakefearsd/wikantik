@@ -1,6 +1,6 @@
 {
   "name": "create_item",
-  "description": "Create a work item. It is always created as a draft with no assignee, for a person to refine; status and assignee are refused by name. Returns {key,version,status}. Use handoff_item afterwards to give it to someone.",
+  "description": "Create a work item. It is always created as a draft with no assignee, for a person to refine; status and assignee are refused by name. Optionally a type and labels. Returns {key,version,status}. Use handoff_item afterwards to give it to someone.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -51,6 +51,26 @@
         "description": "software (default), docs or admin.",
         "examples": [
           "software"
+        ]
+      },
+      "type": {
+        "type": "string",
+        "description": "feature (default), bug or chore; an epic is always a feature.",
+        "examples": [
+          "bug"
+        ]
+      },
+      "labels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Labels: lowercase letters, digits, dots, dashes and underscores, at most 10. The whole set is replaced.",
+        "examples": [
+          [
+            "ui",
+            "billing"
+          ]
         ]
       },
       "priority": {

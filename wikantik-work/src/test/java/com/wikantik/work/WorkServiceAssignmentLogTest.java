@@ -72,7 +72,7 @@ class WorkServiceAssignmentLogTest {
 
     private String ready( final Actor by, final String project, final String title ) throws SQLException {
         final Item draft = svc.createItem( by, new ItemDraft( project, WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
-            title, "", null, null, null, "implementer" ) ).item();
+            title, "", null, null, null, "implementer", null, null ) ).item();
         return svc.updateItem( by, draft.key(), new ItemPatch( draft.version(), Map.of( "status", "ready" ), null ) )
             .item().key();
     }

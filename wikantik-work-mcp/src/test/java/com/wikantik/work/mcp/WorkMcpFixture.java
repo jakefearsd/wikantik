@@ -119,7 +119,7 @@ final class WorkMcpFixture {
     /** A task in the project, in the implementer queue, moved to ready. */
     Item ready( final String project, final String title ) throws SQLException {
         final Item draft = svc.createItem( lena, new ItemDraft( project, WorkLevel.TASK, null, null,
-            WorkKind.SOFTWARE, title, "", null, null, null, "implementer" ) ).item();
+            WorkKind.SOFTWARE, title, "", null, null, null, "implementer", null, null ) ).item();
         return svc.updateItem( lena, draft.key(), new ItemPatch( draft.version(), Map.of( "status", "ready" ), null ) )
             .item();
     }

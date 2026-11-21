@@ -137,3 +137,4 @@ export const failDeployment = (id, body) => request(`${base}/deployments/${enc(i
 export const rollBackDeployment = (id, body) => request(`${base}/deployments/${enc(id)}/roll-back`, json('POST', body));
 /** { shippedIn: [{ id, product, version, environment, verifiedAt }] }: the verified deployments that carried an item. */
 export const getShippedIn = (key) => request(`${base}/items/${enc(key)}/shipped-in`);
+export const listLabels = (key) => request(`${base}/projects/${enc(key)}/labels`);

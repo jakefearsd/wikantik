@@ -4,7 +4,8 @@ import Select from '../ui/Select';
 import { listItems, createItem } from '../../api/work';
 import useAsyncAction from '../../hooks/useAsyncAction';
 import AssigneePicker from './AssigneePicker';
-import { PRIORITY_OPTIONS } from './boardModel';
+import { PRIORITY_OPTIONS, TYPE_OPTIONS } from './boardModel';
+import WorkLabels from './WorkLabels';
 
 const LEVELS = [
   { value: 'task', label: 'Task', parentLevel: 'story' },
@@ -14,7 +15,7 @@ const LEVELS = [
 const KINDS = ['software', 'docs', 'admin'];
 const OPEN_STATUSES = ['draft', 'refining', 'ready', 'in_progress', 'review'];
 
-function FormBody({ project, products, members, queues, onClose, onCreated }) {
+function FormBody({ project, products, members, queues, labelSuggestions, onClose, onCreated }) {
   const uid = useId();
   const [level, setLevel] = useState('task');
   const [title, setTitle] = useState('');
@@ -22,6 +23,8 @@ function FormBody({ project, products, members, queues, onClose, onCreated }) {
   const [parentKey, setParentKey] = useState('');
   const [productKey, setProductKey] = useState('');
   const [kind, setKind] = useState('software');
+  const [type, setType] = useState('feature');
+  const [labels, setLabels] = useState([]);
   const [priority, setPriority] = useState('3');
   const [dueOn, setDueOn] = useState('');
   const [target, setTarget] = useState({});
@@ -61,6 +64,8 @@ function FormBody({ project, products, members, queues, onClose, onCreated }) {
     if (parentKey && current.parentLevel) draft.parentKey = parentKey;
     if (productKey && level !== 'epic') draft.productKey = productKey;
     if (dueOn) draft.dueOn = dueOn;
+    if (level !== 'epic') draft.type = type;
+    if (labels.length > 0) draft.labels = labels;
     if (target.queue) draft.queue = target.queue;
     else if (target.assignee) draft.assignee = target.assignee;
     create(draft);
@@ -110,6 +115,12 @@ function FormBody({ project, products, members, queues, onClose, onCreated }) {
           <label className="work-form-field" htmlFor={`${uid}-kind`}>Kind</label>
           <Select id={`${uid}-kind`} ariaLabel="Kind" value={kind} options={KINDS} onChange={setKind} />
         </div>
+        {level !== 'epic' && (
+          <div>
+            <label className="work-form-field" htmlFor={`${uid}-type`}>Type</label>
+            <Select id={`${uid}-type`} ariaLabel="Type" value={type} options={TYPE_OPTIONS} onChange={setType} />
+          </div>
+        )}
         <div>
           <label className="work-form-field" htmlFor={`${uid}-priority`}>Priority</label>
           <Select id={`${uid}-priority`} ariaLabel="Priority" value={priority}
@@ -121,6 +132,8 @@ function FormBody({ project, products, members, queues, onClose, onCreated }) {
             onChange={(e) => setDueOn(e.target.value)} />
         </div>
       </div>
+      <span className="work-form-field">Labels</span>
+      <WorkLabels labels={labels} suggestions={labelSuggestions} editable onChange={setLabels} />
       {error && <div role="alert" className="work-form-error">{error}</div>}
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
@@ -131,10 +144,10 @@ function FormBody({ project, products, members, queues, onClose, onCreated }) {
 }
 
 /** Modal "New item" form. onCreated receives the created Item and the full ItemView; the board adds it without reloading. */
-export default function WorkItemForm({ isOpen, onClose, project, products, members, queues, onCreated }) {
+export default function WorkItemForm({ isOpen, onClose, project, products, members, queues, labelSuggestions = [], onCreated }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} labelledBy="work-item-form-title" className="work-form-modal">
-      {isOpen && <FormBody project={project} products={products} members={members} queues={queues} onClose={onClose} onCreated={onCreated} />}
+      {isOpen && <FormBody project={project} products={products} members={members} queues={queues} labelSuggestions={labelSuggestions} onClose={onClose} onCreated={onCreated} />}
     </Modal>
   );
 }

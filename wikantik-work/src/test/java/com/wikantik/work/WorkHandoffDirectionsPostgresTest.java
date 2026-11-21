@@ -87,7 +87,7 @@ class WorkHandoffDirectionsPostgresTest {
 
     private String create( final String assignee ) throws SQLException {
         return svc.createItem( lena, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
-            "task " + ++ordinal, "", null, null, assignee, null ) ).item().key();
+            "task " + ++ordinal, "", null, null, assignee, null, null, null ) ).item().key();
     }
 
     private List< WorkEvent > events( final String key ) throws SQLException {

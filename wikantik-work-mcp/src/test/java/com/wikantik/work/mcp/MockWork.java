@@ -67,7 +67,7 @@ final class MockWork {
                       final Instant expires ) {
         return new Item( 1, 1, key, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "A title", "A body", status, 3, 1.0,
             null, null, "lena", Autonomy.SUPERVISED, DoneMeans.MERGED, null, version, Instant.EPOCH, Instant.EPOCH, null,
-            "implementer", claimedBy, null, expires, null );
+            "implementer", claimedBy, null, expires, null, null, null );
     }
 
     static ItemView view( final Item item, final String cluster ) {

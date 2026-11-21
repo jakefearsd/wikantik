@@ -7,10 +7,11 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useToast } from '../../hooks/useToast';
 import {
   addComment, addLink, editComment, getItem, handoffItem, listItems, listMembers, listProducts, listQueues, patchItem,
-  releaseItem, removeComment, removeLink,
+  listLabels, releaseItem, removeComment, removeLink,
 } from '../../api/work';
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
-import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS } from './boardModel';
+import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS, TYPE_OPTIONS, labelRows } from './boardModel';
+import WorkLabels from './WorkLabels';
 import WorkBodyEditor from './WorkBodyEditor';
 import WorkComments from './WorkComments';
 import WorkEpicView from './WorkEpicView';
@@ -51,6 +52,7 @@ function theirValue(current, field) {
   if (field === 'assignee') return item.queue ? queueText(item.queueName) : item.assigneeName || '(nobody)';
   if (field === 'queue') return item.queue ? queueText(item.queueName) : '(none)';
   if (field === 'parentKey' || field === 'productKey') return current[field] || '(none)';
+  if (field === 'labels') return (item.labels || []).length > 0 ? item.labels.join(', ') : '(none)';
   const v = item[field];
   return v == null || v === '' ? '(empty)' : String(v);
 }
@@ -76,6 +78,8 @@ function valueOf(view, name) {
     case 'priority': return String(item.priority);
     case 'dueOn': return item.dueOn || '';
     case 'kind': return item.kind || 'software';
+    case 'type': return item.type || 'feature';
+    case 'labels': return (item.labels || []).join(',');
     case 'allowDirect': return item.allowDirect == null ? '' : String(item.allowDirect);
     case 'autonomy': case 'doneMeans': return item[name] || '';
     case 'body': return item.body ?? '';
@@ -138,6 +142,7 @@ function ItemPage({ itemKey }) {
   const [conflict, setConflict] = useState(null);
   const [products, setProducts] = useState([]);
   const [parents, setParents] = useState([]);
+  const [labelNames, setLabelNames] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [epoch, setEpoch] = useState(0);
   // The one versioned editor that may be open: { name, base, orig, draft }. base is the item version it opened at.
@@ -177,6 +182,13 @@ function ItemPage({ itemKey }) {
       .catch((e) => console.warn('WorkItemView: could not load the project members', e));
     return () => { cancelled = true; };
   }, [projectKey]);
+
+  const loadLabels = useCallback(() => (projectKey
+    ? listLabels(projectKey)
+      .then((reply) => setLabelNames(labelRows(reply).map((l) => l.name)))
+      .catch((e) => console.warn('WorkItemView: could not load the project labels', e))
+    : Promise.resolve()), [projectKey]);
+  useEffect(() => { loadLabels(); }, [loadLabels]);
 
   const assigns = (view?.viewerRole === 'member' || view?.viewerRole === 'lead') && !view?.archived;
   useEffect(() => {
@@ -424,6 +436,17 @@ function ItemPage({ itemKey }) {
           <WorkFieldRow label="Due" error={err('dueOn')} {...editor('dueOn')} type="date" value={item.dueOn || ''} display={item.dueOn || 'No due date'}
             parse={blankToNull} canEdit={canEdit} onSave={field('dueOn')} />
           <WorkFieldRow label="Kind" error={err('kind')} {...editor('kind')} type="select" value={item.kind || 'software'} options={KIND_OPTIONS} canEdit={canEdit} onSave={field('kind')} />
+          {!isEpic && (
+            <WorkFieldRow label="Type" error={err('type')} {...editor('type')} type="select" value={item.type || 'feature'}
+              display={labelOf(TYPE_OPTIONS, item.type || 'feature')} options={TYPE_OPTIONS} canEdit={canEdit} onSave={field('type')} />
+          )}
+          <WorkFieldRow label="Labels" error={err('labels')} {...editor('labels')} value={(item.labels || []).join(',')}
+            display={(item.labels || []).length > 0 ? <WorkLabels labels={item.labels} /> : 'None'}
+            renderControl={({ value, onChange }) => (
+              <WorkLabels editable labels={value ? value.split(',') : []} suggestions={labelNames}
+                onChange={(next) => onChange(next.join(','))} />)}
+            parse={(v) => (v ? v.split(',') : [])} canEdit={canEdit}
+            onSave={(v) => field('labels')(v).then((ok) => { if (ok === true) loadLabels(); return ok; })} />
           {!isEpic && (
             <>
               <WorkFieldRow label="Parent" type="select" value={view.parentKey || ''} display={view.parentKey || 'None'}

@@ -80,7 +80,7 @@ class WorkAgentIdentityPostgresTest {
 
     private static ItemDraft draft( final String project ) {
         return new ItemDraft( project, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", null, null, null,
-            null );
+            null, null, null );
     }
 
     private WorkService.AgentWithToken register( final String name ) throws SQLException {

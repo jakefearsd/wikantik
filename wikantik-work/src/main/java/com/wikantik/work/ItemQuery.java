@@ -19,8 +19,10 @@
 package com.wikantik.work;
 
 import java.sql.Date;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /** The WHERE clause an {@link ItemFilter} describes, as SQL text and positional parameters. */
 final class ItemQuery {
@@ -39,11 +41,24 @@ final class ItemQuery {
         }
         clause( where, params, " AND i.assignee = ?", f.assignee() );
         clause( where, params, " AND i.assignee_queue = ?", f.queue() );
+        clause( where, params, " AND i.type = ?", f.type() == null ? null : f.type().wire() );
+        if ( !f.labels().isEmpty() ) {
+            where.append( " AND i.labels @> ?::text[]" );
+            params.add( textArray( f.labels() ) );
+        }
         clause( where, params, " AND i.product_id = ?", f.productId() );
         clause( where, params, " AND i.level = ?", f.level() == null ? null : f.level().wire() );
         clause( where, params, " AND i.parent_id = ?", f.parentId() );
         text( where, params, f.text() );
         clause( where, params, " AND i.due_on < ?", f.dueBefore() == null ? null : Date.valueOf( f.dueBefore() ) );
+    }
+
+    /**
+     * The labels as a PostgreSQL array literal, sorted, every element double-quoted so a label spelled {@code null}
+     * is text. Labels are validated to hold no quote or backslash.
+     */
+    static String textArray( final Collection< String > labels ) {
+        return labels.stream().sorted().map( l -> "\"" + l + "\"" ).collect( Collectors.joining( ",", "{", "}" ) );
     }
 
     private static void clause( final StringBuilder where, final List< Object > params, final String sql,

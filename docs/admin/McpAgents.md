@@ -275,11 +275,11 @@ Registered in `WorkMcpInitializer.assembleTools` and verified against `WorkMcpIT
 | `list_claimable` | Items the agent could claim now (unclaimed, ready or review, in a queue it serves) | read |
 | `get_item` | One item in full: body, status, claim, links, comments | read |
 | `claim_item` | Claim an item, or renew the agent's own claim | write |
-| `update_item` | Change title, body, status, priority or due date (never who has the item; an agent cannot move a draft forward) | write |
+| `update_item` | Change title, body, status, priority, type, labels or due date (never who has the item; an agent cannot move a draft forward) | write |
 | `comment_on_item` | Add a comment | write |
 | `handoff_item` | Give the item to a queue or a person with a status and a note; ends the agent's claim | write |
 | `release_item` | Give up the agent's claim so someone else can take it | write |
-| `create_item` | Create a draft item for a person to refine | write |
+| `create_item` | Create a draft item (with an optional type and labels) for a person to refine | write |
 | `open_change` | Record a branch of work on an item; with a merged commit, record a change merged directly (needs a lead to have allowed direct commits) | write |
 | `update_change` | A change's newest commit or review link; ask for a review; abandon it | write |
 | `review_change` | Approve a change at its current commit, or send it back. Never an agent that opened it or put a commit on it | write |

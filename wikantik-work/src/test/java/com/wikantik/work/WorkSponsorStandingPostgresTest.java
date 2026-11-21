@@ -105,7 +105,7 @@ class WorkSponsorStandingPostgresTest {
     /** A ready item in the project's implementer queue, claimed by codex. */
     private String claimIn( final String project ) throws SQLException {
         final String key = service.createItem( root, new ItemDraft( project, WorkLevel.TASK, null, null,
-            WorkKind.SOFTWARE, "t", "", null, null, null, null ) ).item().key();
+            WorkKind.SOFTWARE, "t", "", null, null, null, null, null, null ) ).item().key();
         final Item draft = service.item( root, key ).item();
         service.claims().handoff( root, key, new WorkClaimsService.Handoff( draft.version(), WorkStatus.READY, null,
             "implementer", "go" ) );

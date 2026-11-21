@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-vi.mock('../../api/work', () => ({ listItems: vi.fn() }));
+vi.mock('../../api/work', () => ({ listItems: vi.fn(), listLabels: vi.fn(() => Promise.resolve([])) }));
 import { listItems } from '../../api/work';
 import { WorkProjectContext } from './useWorkProject';
 import WorkDates from './WorkDates';
@@ -12,9 +12,9 @@ const item = (n, dueOn, extra = {}) => ({
   assigneeName: 'Ada Lovelace', ...extra,
 });
 
-function renderDates() {
+function renderDates(url = '/') {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[url]}>
       <WorkProjectContext.Provider value={{ project: { id: 1, key: 'PLAT' }, role: 'member', reload: vi.fn() }}>
         <WorkDates />
       </WorkProjectContext.Provider>
@@ -178,5 +178,29 @@ describe('WorkDates edges', () => {
     rerender(mount('OPS'));
     expect(await screen.findByText('Loading…')).toBeInTheDocument();
     expect(screen.queryByText('Plat item')).not.toBeInTheDocument();
+  });
+
+  it('filters by type and label', async () => {
+    listItems.mockResolvedValue([item(1, '2026-11-14')]);
+    renderDates('/?type=bug&label=ui');
+    await screen.findByText('Item 1');
+    expect(listItems).toHaveBeenCalledWith(expect.objectContaining({ project: 'PLAT', type: 'bug', label: 'ui' }));
+    expect(screen.getByLabelText('Filter by type').value).toBe('bug');
+  });
+
+  it('says so, and keeps the filters, when nothing matches', async () => {
+    listItems.mockResolvedValue([]);
+    renderDates('/?label=ui');
+    expect(await screen.findByText('No open items match these filters.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Filter by label')).toBeInTheDocument();
+  });
+
+  it('a bug row shows the marker', async () => {
+    listItems.mockResolvedValue([item(1, '2026-11-14', { type: 'bug' }), item(2, '2026-11-14', { type: 'feature' })]);
+    renderDates();
+    await screen.findByText('Item 2');
+    const rows = screen.getAllByRole('listitem');
+    expect(within(rows.find((r) => r.textContent.includes('Item 1'))).getByText('Bug')).toBeInTheDocument();
+    expect(within(rows.find((r) => r.textContent.includes('Item 2'))).queryByText('Bug')).toBeNull();
   });
 });

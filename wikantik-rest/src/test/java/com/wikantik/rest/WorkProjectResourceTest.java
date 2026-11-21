@@ -225,6 +225,39 @@ class WorkProjectResourceTest {
     }
 
     @Test
+    void boardFilterCarriesTypeAndLabels() throws Exception {
+        Mockito.when( svc.boardSummaries( any(), anyString(), any() ) ).thenReturn( List.of() );
+        WorkHttp.call( servlet, "GET", "/api/work/projects", "/PLAT/board", Map.of( "type", "bug" ), null,
+            req -> Mockito.doReturn( new String[] { "ui", "Api,billing" } ).when( req ).getParameterValues( "label" ) );
+        final ArgumentCaptor< ItemFilter > f = ArgumentCaptor.forClass( ItemFilter.class );
+        Mockito.verify( svc ).boardSummaries( eq( ALICE ), eq( "PLAT" ), f.capture() );
+        assertEquals( com.wikantik.work.WorkType.BUG, f.getValue().type() );
+        assertEquals( java.util.Set.of( "api", "billing", "ui" ), f.getValue().labels() );
+    }
+
+    @Test
+    void labelsRouteListsCounts() throws Exception {
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.labelsOf( ALICE, "PLAT" ) ).thenReturn( List.of(
+            new com.wikantik.work.LabelCount( "ui", 3 ), new com.wikantik.work.LabelCount( "api", 1 ) ) );
+        final WorkHttp.Result r = call( "GET", "/PLAT/labels", Map.of(), null );
+        assertEquals( 200, r.status() );
+        final JsonObject first = r.json().getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertEquals( "ui", first.get( "name" ).getAsString() );
+        assertEquals( 3, first.get( "items" ).getAsInt() );
+    }
+
+    @Test
+    void labelsRouteForAStrangerIs404() throws Exception {
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.labelsOf( any(), anyString() ) )
+            .thenThrow( new com.wikantik.work.WorkNotFoundException( "No such project." ) );
+        assertEquals( 404, call( "GET", "/NOPE/labels", Map.of(), null ).status() );
+    }
+
+    @Test
     void anUnknownRoleIs400() throws Exception {
         final WorkHttp.Result r = call( "PUT", "/PLAT/members", Map.of(),
             "{\"principal\":\"bob\",\"principalKind\":\"user\",\"role\":\"boss\"}" );

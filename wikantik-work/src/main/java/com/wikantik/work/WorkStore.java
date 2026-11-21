@@ -142,6 +142,9 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
     /** Every status in order; {@code done} and {@code cancelled} show the 50 most recently closed. */
     List< BoardColumn > board( long projectId, ItemFilter filter ) throws SQLException;
 
+    /** The labels on a project's items other than cancelled ones, most used first (at most 200). */
+    List< LabelCount > labelCounts( long projectId ) throws SQLException;
+
     List< ItemRevision > revisions( long itemId ) throws SQLException;
 
     List< WorkEvent > itemEvents( long itemId ) throws SQLException;

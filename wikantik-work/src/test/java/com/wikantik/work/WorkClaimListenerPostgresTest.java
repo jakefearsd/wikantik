@@ -69,7 +69,7 @@ class WorkClaimListenerPostgresTest {
     /** A ready item in the implementer queue. */
     private String ready( final String project ) throws SQLException {
         final Item draft = svc.createItem( lena, new ItemDraft( project, WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
-            "t" + ++seq, "", null, null, null, "implementer" ) ).item();
+            "t" + ++seq, "", null, null, null, "implementer", null, null ) ).item();
         return svc.updateItem( lena, draft.key(), new ItemPatch( draft.version(), Map.of( "status", "ready" ), null ) )
             .item().key();
     }

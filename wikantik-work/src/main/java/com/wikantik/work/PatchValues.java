@@ -20,6 +20,7 @@ package com.wikantik.work;
 
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.util.List;
 
 /** Value coercion for item changes: JSON-ish types in, domain types out; every failure names its field. */
 final class PatchValues {
@@ -75,6 +76,20 @@ final class PatchValues {
 
     static WorkKind kind( final Object v ) {
         return WorkKind.fromWire( requiredString( "kind", v ) );
+    }
+
+    static WorkType type( final Object v ) {
+        return WorkType.fromWire( requiredString( "type", v ) );
+    }
+
+    static List< String > labels( final Object v ) {
+        if ( v == null ) {
+            return List.of();
+        }
+        if ( v instanceof List< ? > list && list.stream().allMatch( String.class::isInstance ) ) {
+            return Labels.normalise( list.stream().map( String.class::cast ).toList() );
+        }
+        throw new WorkValidationException( "labels", "labels must be a list of labels." );
     }
 
     static Autonomy autonomy( final Object v ) {

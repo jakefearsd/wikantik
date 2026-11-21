@@ -42,6 +42,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -138,6 +139,22 @@ public abstract class WorkResourceBase extends RestServletBase {
         String query( final String name ) {
             final String v = req.getParameter( name );
             return v == null || v.isBlank() ? null : v.trim();
+        }
+
+        /** Every value of a repeatable parameter, each split on commas, trimmed, blanks dropped. */
+        List< String > queryValues( final String name ) {
+            final String[] raw = req.getParameterValues( name );
+            final List< String > out = new ArrayList<>();
+            if ( raw != null ) {
+                for ( final String value : raw ) {
+                    for ( final String part : value.split( "," ) ) {
+                        if ( !part.isBlank() ) {
+                            out.add( part.trim() );
+                        }
+                    }
+                }
+            }
+            return out;
         }
 
         /** The JSON body (at most {@value #MAX_BODY_CHARS} characters), or null after a 400 or 413 has been sent. */
@@ -332,6 +349,11 @@ public abstract class WorkResourceBase extends RestServletBase {
         return WorkRequests.optString( body, field );
     }
 
+    /** A list of strings, null when absent or JSON null; anything else is a 400. */
+    protected static List< String > optStringList( final JsonObject body, final String field ) {
+        return WorkRequests.optStringList( body, field );
+    }
+
     /** Converts one JSON value of a PATCH {@code changes} object to a plain String, Number, Boolean or null. */
     protected static Object plainValue( final String field, final JsonElement v ) {
         return WorkRequests.plainValue( field, v );
@@ -339,7 +361,7 @@ public abstract class WorkResourceBase extends RestServletBase {
 
     /** The list-query filter; {@code withStatus} reads the {@code status} parameter too. */
     protected ItemFilter filter( final Call c, final boolean withStatus ) throws Exception {
-        return WorkRequests.filter( c, withStatus, clampLimit( c ) );
+        return WorkFilters.filter( c, withStatus, clampLimit( c ) );
     }
 
     /** The {@code limit} parameter clamped to {@value #MAX_LIMIT}; zero means the service default. */

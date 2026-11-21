@@ -82,13 +82,13 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > INSTANCE_READS = Set.of( "productHistory" );
 
     /** Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. */
-    private static final Set< String > FACADES = Set.of( "registry", "claims", "changes", "deployments" );
+    private static final Set< String > FACADES = Set.of( "registry", "claims", "changes", "deployments", "features" );
 
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
 
@@ -131,7 +131,8 @@ class WorkServiceVisibilityPostgresTest {
         // lena is also the assignee so that waitingOn is non-empty for her
         final Item assigned = new Item( item.id(), item.projectId(), item.key(), item.level(), null, web.id(),
             item.kind(), item.title(), item.body(), item.status(), item.priority(), item.rank(), null, "lena",
-            item.reporter(), null, null, null, item.version(), item.createdAt(), item.updatedAt(), null, null, null, null, null, null );
+            item.reporter(), null, null, null, item.version(), item.createdAt(), item.updatedAt(), null, null, null, null, null, null,
+            WorkType.FEATURE, List.of( "secret" ) );
         store.updateItem( item, assigned, Actor.human( "lena", java.util.Set.of(), false ), null );
         // PLAT-2 is claimable, PLAT-3 is held by codex: claimable and myClaims return real data to prove against
         store.createItem( plat, queued( "claimable item" ), lena );
@@ -157,7 +158,7 @@ class WorkServiceVisibilityPostgresTest {
 
     private static Item queued( final String title ) {
         return new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, title, "body", WorkStatus.READY, 3,
-            0, null, null, null, null, null, null, 0, null, null, null, "implementer", null, null, null, null );
+            0, null, null, null, null, null, null, 0, null, null, null, "implementer", null, null, null, null, null, null );
     }
 
     private List< Actor > strangers() {
@@ -328,7 +329,7 @@ class WorkServiceVisibilityPostgresTest {
     @Test
     void everyProjectScopedWriteHidesInvisibleProject() {
         final ItemDraft draft = new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", null,
-            null, null, null );
+            null, null, null, null, null );
         final ItemPatch patch = new ItemPatch( 1, java.util.Map.of( "title", "x" ), null );
         final List< org.junit.jupiter.api.function.Executable > attempts = List.of(
             () -> service.updateProject( mallory, "PLAT", "n", "d", null ),

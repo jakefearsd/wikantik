@@ -308,4 +308,46 @@ describe('WorkItemForm', () => {
       expect(listItems).not.toHaveBeenCalled();
     });
   });
+
+  const fillTitle = (t = 'Ship it') => fireEvent.change(screen.getByLabelText('Title'), { target: { value: t } });
+  const addLabel = (name) => {
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: name } });
+    fireEvent.keyDown(screen.getByLabelText('Add a label'), { key: 'Enter' });
+  };
+
+  it('sends type and labels', async () => {
+    createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } });
+    setup();
+    fillTitle();
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'bug' } });
+    addLabel('UI');
+    addLabel('api');
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(createItem).toHaveBeenCalled());
+    expect(createItem).toHaveBeenCalledWith(expect.objectContaining({ type: 'bug', labels: ['api', 'ui'] }));
+    await waitFor(() => expect(listItems).toHaveBeenCalled());
+  });
+
+  it('an epic has no type control and sends no type', async () => {
+    createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } });
+    setup();
+    fireEvent.click(screen.getByLabelText('Epic'));
+    expect(screen.queryByLabelText('Type')).not.toBeInTheDocument();
+    fillTitle();
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(createItem).toHaveBeenCalled());
+    expect(createItem.mock.calls[0][0]).not.toHaveProperty('type');
+    await waitFor(() => expect(listItems).toHaveBeenCalled());
+  });
+
+  it('sends no labels when none were added', async () => {
+    createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } });
+    setup();
+    fillTitle();
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(createItem).toHaveBeenCalled());
+    expect(createItem.mock.calls[0][0]).not.toHaveProperty('labels');
+    expect(createItem.mock.calls[0][0]).toHaveProperty('type', 'feature');
+    await waitFor(() => expect(listItems).toHaveBeenCalled());
+  });
 });

@@ -29,7 +29,12 @@ import java.util.Set;
  */
 public record ItemFilter( Long projectId, Set< WorkStatus > statuses, String assignee, Long productId,
                           WorkLevel level, Long parentId, String text, LocalDate dueBefore, int limit, Order order,
-                          String queue ) {
+                          String queue, WorkType type, Set< String > labels ) {
+
+    /** Normalises the labels: lower-case and distinct, a malformed one or more than ten refused (field {@code labels}). */
+    public ItemFilter {
+        labels = labels == null || labels.isEmpty() ? Set.of() : Set.copyOf( Labels.normalise( labels ) );
+    }
 
     /** The order of a list: by key (project, then number), or by due date soonest first with no date last. */
     public enum Order {
@@ -44,12 +49,12 @@ public record ItemFilter( Long projectId, Set< WorkStatus > statuses, String ass
     /** This filter with another project id and assignee; everything else kept. */
     public ItemFilter with( final Long newProjectId, final String newAssignee ) {
         return new ItemFilter( newProjectId, statuses, newAssignee, productId, level, parentId, text, dueBefore, limit,
-            order, queue );
+            order, queue, type, labels );
     }
 
     /** This filter restricted to a queue (null = any); everything else kept. */
     public ItemFilter withQueue( final String newQueue ) {
         return new ItemFilter( projectId, statuses, assignee, productId, level, parentId, text, dueBefore, limit,
-            order, newQueue );
+            order, newQueue, type, labels );
     }
 }

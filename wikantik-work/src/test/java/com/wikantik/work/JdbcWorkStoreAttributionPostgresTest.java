@@ -68,7 +68,7 @@ class JdbcWorkStoreAttributionPostgresTest {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), title,
             body, status, i.priority(), i.rank(), i.dueOn(), assignee, i.reporter(), i.autonomy(), i.doneMeans(),
             i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), queue, i.claimedByAgent(),
-            i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId() );
+            i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(), null, null );
     }
 
     private static Item moved( final Item i, final WorkStatus status, final String assignee, final String queue ) {
@@ -154,7 +154,7 @@ class JdbcWorkStoreAttributionPostgresTest {
             WorkRole.MEMBER, anonymousAgent ) );
         assertEquals( 0, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_comment" ) );
         assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null,
-            null ) ).size() );
+            null, null, null ) ).size() );
         assertEquals( 0, store.members( plat.id() ).size() );
     }
 
@@ -192,7 +192,7 @@ class JdbcWorkStoreAttributionPostgresTest {
     void createWithQueueStoresIt() throws SQLException {
         final Item d = JdbcWorkStoreItemsPostgresTest.draft( "q" );
         final Item draft = new Item( 0, 0, null, d.level(), null, null, d.kind(), "q", "b", WorkStatus.DRAFT, 3, 0,
-            null, null, null, null, null, null, 0, null, null, null, "reviewer", null, null, null, null );
+            null, null, null, null, null, null, 0, null, null, null, "reviewer", null, null, null, null, null, null );
         assertEquals( "reviewer", store.createItem( plat, draft, LENA ).queue() );
     }
 
@@ -318,7 +318,7 @@ class JdbcWorkStoreAttributionPostgresTest {
         store.updateItem( a, moved( a, WorkStatus.DRAFT, null, "implementer" ), LENA, null );
         store.updateItem( b, moved( b, WorkStatus.DRAFT, null, "reviewer" ), LENA, null );
         final ItemFilter filter = new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null,
-            "implementer" );
+            "implementer", null, null );
         assertEquals( List.of( a.id() ), store.items( filter ).stream().map( Item::id ).toList() );
         final long onBoard = store.board( plat.id(), filter ).stream().mapToLong( col -> col.items().size() ).sum();
         assertEquals( 1, onBoard );
@@ -334,7 +334,7 @@ class JdbcWorkStoreAttributionPostgresTest {
         final Item item = create( "x" );
         final Item d = JdbcWorkStoreItemsPostgresTest.draft( "y" );
         final Item bothDraft = new Item( 0, 0, null, d.level(), null, null, d.kind(), "y", "b", WorkStatus.DRAFT, 3,
-            0, null, "lena", null, null, null, null, 0, null, null, null, "implementer", null, null, null, null );
+            0, null, "lena", null, null, null, null, 0, null, null, null, "implementer", null, null, null, null, null, null );
         final WorkValidationException e = assertThrows( WorkValidationException.class,
             () -> store.createItem( plat, bothDraft, LENA ) );
         assertEquals( "queue", e.field() );

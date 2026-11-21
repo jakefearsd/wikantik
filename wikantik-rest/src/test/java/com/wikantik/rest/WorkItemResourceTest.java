@@ -98,6 +98,85 @@ class WorkItemResourceTest {
         assertEquals( "2026-12-31", f.getValue().dueBefore().toString() );
     }
 
+    // ---- type and labels
+
+    @Test
+    void createPassesTypeAndLabels() throws Exception {
+        Mockito.when( svc.createItem( eq( ALICE ), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        final WorkHttp.Result r = send( "POST", "/api/work/items", null,
+            "{\"project\":\"PLAT\",\"level\":\"task\",\"title\":\"T\",\"type\":\"bug\",\"labels\":[\"UI\",\"api\"]}" );
+        assertEquals( 201, r.status() );
+        final ArgumentCaptor< com.wikantik.work.ItemDraft > d = ArgumentCaptor.forClass( com.wikantik.work.ItemDraft.class );
+        Mockito.verify( svc ).createItem( eq( ALICE ), d.capture() );
+        assertEquals( com.wikantik.work.WorkType.BUG, d.getValue().type() );
+        assertEquals( List.of( "UI", "api" ), d.getValue().labels() );
+    }
+
+    @Test
+    void createRefusesLabelsThatAreNotAListOfText() throws Exception {
+        for ( final String labels : List.of( "\"ui\"", "[1]" ) ) {
+            final WorkHttp.Result r = send( "POST", "/api/work/items", null,
+                "{\"project\":\"PLAT\",\"title\":\"T\",\"labels\":" + labels + "}" );
+            assertEquals( 400, r.status(), labels );
+            assertEquals( "labels", r.json().getAsJsonObject().get( "field" ).getAsString() );
+        }
+    }
+
+    @Test
+    void createRefusesAnUnknownType() throws Exception {
+        final WorkHttp.Result r = send( "POST", "/api/work/items", null,
+            "{\"project\":\"PLAT\",\"title\":\"T\",\"type\":\"story\"}" );
+        assertEquals( 400, r.status() );
+        assertEquals( "type", r.json().getAsJsonObject().get( "field" ).getAsString() );
+    }
+
+    @Test
+    void patchPassesLabelsAsAList() throws Exception {
+        Mockito.when( svc.updateItem( eq( ALICE ), eq( "PLAT-1" ), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 2 ) );
+        final WorkHttp.Result r = send( "PATCH", "/api/work/items", "/PLAT-1",
+            "{\"expectedVersion\":1,\"changes\":{\"type\":\"chore\",\"labels\":[\"ui\",\"api\"]}}" );
+        assertEquals( 200, r.status() );
+        final ArgumentCaptor< ItemPatch > p = ArgumentCaptor.forClass( ItemPatch.class );
+        Mockito.verify( svc ).updateItem( eq( ALICE ), eq( "PLAT-1" ), p.capture() );
+        assertEquals( List.of( "ui", "api" ), p.getValue().changes().get( "labels" ) );
+        assertEquals( "chore", p.getValue().changes().get( "type" ) );
+    }
+
+    @Test
+    void patchStillRefusesAnObjectValue() throws Exception {
+        final WorkHttp.Result r = send( "PATCH", "/api/work/items", "/PLAT-1",
+            "{\"expectedVersion\":1,\"changes\":{\"labels\":{}}}" );
+        assertEquals( 400, r.status() );
+        assertEquals( "labels", r.json().getAsJsonObject().get( "field" ).getAsString() );
+        assertEquals( "labels must be a plain value.", r.json().getAsJsonObject().get( "message" ).getAsString() );
+        final WorkHttp.Result nested = send( "PATCH", "/api/work/items", "/PLAT-1",
+            "{\"expectedVersion\":1,\"changes\":{\"labels\":[[\"a\"]]}}" );
+        assertEquals( 400, nested.status() );
+    }
+
+    @Test
+    void aLabelRefusalFromTheServiceIs400NamingLabels() throws Exception {
+        Mockito.when( svc.updateItem( any(), anyString(), any() ) )
+            .thenThrow( new WorkValidationException( "labels", "A label is lower case." ) );
+        final WorkHttp.Result r = send( "PATCH", "/api/work/items", "/PLAT-1",
+            "{\"expectedVersion\":1,\"changes\":{\"labels\":[\"Bad Label\"]}}" );
+        assertEquals( 400, r.status() );
+        assertEquals( "labels", r.json().getAsJsonObject().get( "field" ).getAsString() );
+    }
+
+    @Test
+    void listFilterCarriesTypeAndLabels() throws Exception {
+        Mockito.when( svc.itemSummaries( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( List.of() );
+        final WorkHttp.Result r = WorkHttp.call( servlet, "GET", "/api/work/items", null,
+            Map.of( "project", "PLAT", "type", "bug" ), null,
+            req -> Mockito.doReturn( new String[] { "ui", "Api,billing" } ).when( req ).getParameterValues( "label" ) );
+        assertEquals( 200, r.status() );
+        final ArgumentCaptor< ItemFilter > f = ArgumentCaptor.forClass( ItemFilter.class );
+        Mockito.verify( svc ).itemSummaries( eq( ALICE ), eq( "PLAT" ), f.capture() );
+        assertEquals( com.wikantik.work.WorkType.BUG, f.getValue().type() );
+        assertEquals( java.util.Set.of( "api", "billing", "ui" ), f.getValue().labels() );
+    }
+
     @Test
     void projectIsRequiredForTheList() throws Exception {
         final WorkHttp.Result r = get( null, Map.of() );
@@ -576,7 +655,7 @@ class WorkItemResourceTest {
         final com.wikantik.work.Item claimed = new com.wikantik.work.Item( base.id(), base.projectId(), base.key(), base.level(),
             null, null, base.kind(), base.title(), base.body(), WorkStatus.IN_PROGRESS, 3, 1.0, null, null, "bob", null, null, null,
             2, base.createdAt(), base.updatedAt(), null, "triage", 5L, Instant.parse( "2026-11-15T10:00:00Z" ),
-            Instant.parse( "2026-11-15T10:30:00Z" ), null );
+            Instant.parse( "2026-11-15T10:30:00Z" ), null, null, null );
         Mockito.when( svc.item( ALICE, "PLAT-1" ) ).thenReturn( new WorkService.ItemView( claimed, "<p>b</p>", "PLAT", null, null,
             List.of(), List.of(), List.of(), false, WorkRole.MEMBER, false, null ) );
         final JsonObject item = get( "/PLAT-1", Map.of() ).json().getAsJsonObject().getAsJsonObject( "item" );

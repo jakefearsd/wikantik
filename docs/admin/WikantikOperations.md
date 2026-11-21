@@ -510,6 +510,8 @@ The user-facing walkthrough (first product, project, board, change, deployment, 
 2. Migration `V074__work_management_core.sql` is applied by `bin/db/migrate.sh` like any other (`bin/redeploy.sh` runs it).
 3. An Admin creates the first product at `/work/products` and the first project at `/work` ("New project"), then adds members under the project's Settings tab. Only members and Admins see a project; everyone else gets "Not found".
 
+**Before deploying a release that adds the project key `DEPLOYMENTS` to the reserved keys,** check production has no such project: `SELECT key FROM work_project WHERE upper(key) = 'DEPLOYMENTS';` must return no rows (rename it first if it does). Migration `V084` (item type and labels) is applied by `bin/db/migrate.sh` as usual.
+
 To turn it off, set the property back to `false` (or remove it) and restart: `/api/work/*` returns 404 and the navigation entry disappears. The data is kept, and returns when the flag is turned back on.
 
 ### 1.15 Agents and work queues

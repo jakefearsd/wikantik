@@ -10,6 +10,7 @@ vi.mock('../../api/work', () => ({
   listChanges: vi.fn(() => Promise.resolve({ changes: [] })), getItemPolicy: vi.fn(() => Promise.resolve(null)),
   openChange: vi.fn(), requestReview: vi.fn(), reviewChange: vi.fn(), mergeChange: vi.fn(), abandonChange: vi.fn(),
   acknowledgeItem: vi.fn(), getShippedIn: vi.fn(() => Promise.resolve({ shippedIn: [] })),
+  listLabels: vi.fn(() => Promise.resolve([])),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
@@ -17,7 +18,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { authenticated:
 
 import {
   getItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
-  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn,
+  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn, listLabels,
 } from '../../api/work';
 import WorkItemView from './WorkItemView';
 
@@ -1014,5 +1015,60 @@ describe('WorkItemView', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
       expect(screen.getByText("codex@docker2's claim has lapsed and will be cleared; handing it off clears it now.")).toBeInTheDocument();
     });
+  });
+
+  it('saving labels patches the whole set', async () => {
+    patchItem.mockResolvedValue(makeView({}, { labels: ['api', 'ui'], version: 5 }));
+    renderView(makeView({}, { labels: ['ui'] }));
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Labels' }));
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'api' } });
+    fireEvent.keyDown(screen.getByLabelText('Add a label'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Labels' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledTimes(1));
+    expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { labels: ['api', 'ui'] } });
+  });
+
+  it('saving type patches type', async () => {
+    patchItem.mockResolvedValue(makeView({}, { type: 'bug', version: 5 }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Type' }));
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'bug' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Type' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { type: 'bug' } }));
+  });
+
+  it('an epic shows no type row', async () => {
+    renderView(makeView({}, { level: 'epic', status: 'draft' }));
+    await ready();
+    expect(screen.queryByRole('button', { name: 'Edit Type' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Labels' })).toBeInTheDocument();
+  });
+
+  it('a 409 on labels lists their labels in the conflict banner', async () => {
+    const theirs = makeView({}, { labels: ['api', 'db'], version: 5 });
+    patchItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: theirs }));
+    renderView(makeView({}, { labels: ['ui'] }));
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Labels' }));
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'web' } });
+    fireEvent.keyDown(screen.getByLabelText('Add a label'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Labels' }));
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Review their version' }));
+    expect(within(screen.getByTestId('conflict-review')).getByText('api, db')).toBeInTheDocument();
+  });
+
+  it('reloads the project labels after a successful labels save', async () => {
+    patchItem.mockResolvedValue(makeView({}, { labels: ['new'], version: 5 }));
+    renderView(makeView({}, { labels: ['ui'] }));
+    await ready();
+    await waitFor(() => expect(listLabels).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Labels' }));
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'new' } });
+    fireEvent.keyDown(screen.getByLabelText('Add a label'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Labels' }));
+    await waitFor(() => expect(listLabels).toHaveBeenCalledTimes(2));
   });
 });

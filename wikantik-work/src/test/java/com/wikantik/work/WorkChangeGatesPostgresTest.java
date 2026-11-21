@@ -360,7 +360,7 @@ class WorkChangeGatesPostgresTest {
     @Test
     void anItemWithNoProductHasNoChanges() throws SQLException {
         final Item bare = f.svc.createItem( f.lena, new ItemDraft( "PLAT", WorkLevel.TASK, null, null,
-            WorkKind.ADMIN, "Admin work", "", null, null, null, null ) ).item();
+            WorkKind.ADMIN, "Admin work", "", null, null, null, null, null, null ) ).item();
         assertEquals( "productKey", invalid( () -> changes.open( f.mia, bare.key(), branch( "b", A ) ) ) );
     }
 

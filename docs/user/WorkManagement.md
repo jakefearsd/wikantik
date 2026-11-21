@@ -61,6 +61,12 @@ cancelled**.
 3. Open a card to see its page: the description, comments (mention someone with `@` and their name), links to
    other items (`blocked by`), its history, and its policy fields.
 
+**Type and labels.** Every item has a type: *feature* (new capability, the default), *bug* (something broken; its
+card shows a Bug marker) or *chore* (upkeep that changes nothing a user sees). An epic is always a feature. An item
+can also carry up to 10 labels: type one in the form or on the item page to create it, and press Enter to add it.
+Colours are automatic. A label drops out of the suggestions once no open or done item carries it. The Board and
+Dates views can each be filtered by one type and one label.
+
 **You should see:** the card where you dropped it, still there after you reload the page. Every change is in the
 item's history and the project's activity.
 

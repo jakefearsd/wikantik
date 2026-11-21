@@ -77,7 +77,7 @@ class CreateItemToolTest {
         final ArgumentCaptor< ItemDraft > d = ArgumentCaptor.forClass( ItemDraft.class );
         verify( w.svc ).createItem( org.mockito.ArgumentMatchers.eq( w.agent ), d.capture() );
         assertEquals( new ItemDraft( "PLAT", WorkLevel.TASK, "PLAT-2", "web", WorkKind.DOCS, "Do it", "Why", 2, null,
-            null, "implementer" ), d.getValue() );
+            null, "implementer", null, null ), d.getValue() );
         assertNull( d.getValue().assignee() );
     }
 
@@ -89,6 +89,34 @@ class CreateItemToolTest {
         final ArgumentCaptor< ItemDraft > d = ArgumentCaptor.forClass( ItemDraft.class );
         verify( w.svc ).createItem( any(), d.capture() );
         assertEquals( WorkKind.SOFTWARE, d.getValue().kind() );
+    }
+
+    @Test
+    void typeAndLabelsArePassedToTheService() throws SQLException {
+        when( w.svc.createItem( any(), any() ) )
+            .thenReturn( MockWork.view( MockWork.item( "PLAT-5", WorkStatus.DRAFT, 1, null, null ) ) );
+        tool.call( w.agent, args( "project", "PLAT", "level", "task", "title", "T", "type", "bug",
+            "labels", java.util.List.of( "ui" ) ) );
+        final ArgumentCaptor< ItemDraft > d = ArgumentCaptor.forClass( ItemDraft.class );
+        verify( w.svc ).createItem( any(), d.capture() );
+        assertEquals( com.wikantik.work.WorkType.BUG, d.getValue().type() );
+        assertEquals( java.util.List.of( "ui" ), d.getValue().labels() );
+    }
+
+    @Test
+    void labelsMustBeAListOfText() {
+        final var r = tool.call( w.agent, args( "project", "PLAT", "level", "task", "title", "T", "labels", "ui" ) );
+        assertEquals( Boolean.TRUE, r.isError() );
+        assertEquals( "labels: must be a list of labels.", WorkMcpFixture.text( r ) );
+        verifyNoInteractions( w.svc );
+    }
+
+    @Test
+    void anUnknownTypeIsAValidationErrorByName() {
+        final var r = tool.call( w.agent, args( "project", "PLAT", "level", "task", "title", "T", "type", "epic" ) );
+        assertEquals( Boolean.TRUE, r.isError() );
+        assertEquals( "type: Unknown type: epic", WorkMcpFixture.text( r ) );
+        verifyNoInteractions( w.svc );
     }
 
     @Test

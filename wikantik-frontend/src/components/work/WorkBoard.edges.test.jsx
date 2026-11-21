@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
   getBoard: vi.fn(), getMe: vi.fn(), listProducts: vi.fn(), listMembers: vi.fn(), patchItem: vi.fn(), listItems: vi.fn(), createItem: vi.fn(), listQueues: vi.fn(),
-  getChangeCounts: vi.fn(), acknowledgeItem: vi.fn(),
+  getChangeCounts: vi.fn(), acknowledgeItem: vi.fn(), listLabels: vi.fn(() => Promise.resolve([])),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));

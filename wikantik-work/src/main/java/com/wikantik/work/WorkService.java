@@ -84,6 +84,7 @@ public class WorkService {
     private final Acknowledgements acknowledgements;
     private final WorkChangesService changes;
     private final WorkDeploymentsService deployments;
+    private final WorkFeatures features;
 
     /** A newly registered or rotated agent and its API token, which is shown once and never stored or logged. */
     public record AgentWithToken( Agent agent, String token ) {
@@ -140,6 +141,7 @@ public class WorkService {
         this.acknowledgements = new Acknowledgements( store, scopes, views );
         this.changes = new WorkChangesService( store, scopes );
         this.deployments = new WorkDeploymentsService( store, scopes );
+        this.features = new WorkFeatures( store, scopes );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
         this.listener = observer;
@@ -308,6 +310,11 @@ public class WorkService {
         return changes;
     }
 
+    /** Reads beyond the core item calls: a project's labels. */
+    public WorkFeatures features() {
+        return features;
+    }
+
     // ---- items
 
     public ItemView createItem( final Actor actor, final ItemDraft draft ) throws SQLException {
@@ -317,7 +324,8 @@ public class WorkService {
         final Item next = applier.forCreate( s.project(), draft.assignee() == null || draft.assignee().isBlank()
             ? draft : new ItemDraft( draft.projectKey(), draft.level(), draft.parentKey(), draft.productKey(),
                 draft.kind(), draft.title(), draft.body(), draft.priority(), draft.dueOn(),
-                people.assigneeLogin( actor, draft.assignee() ), draft.queue() ),
+                people.assigneeLogin( actor, draft.assignee() ), draft.queue(), draft.type(),
+                draft.labels() ),
             WorkPolicy.startStatus( actor, draft.level() ) );
         return views.view( s, store.createItem( s.project(), next, actor ) );
     }

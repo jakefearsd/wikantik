@@ -82,6 +82,58 @@ public class WorkApiIT {
         return itemView.getAsJsonObject( "item" ).get( "version" ).getAsInt();
     }
 
+    private static boolean boardHolds( final String query, final String itemKey ) throws Exception {
+        final JsonArray board = json( member.get( "/api/work/projects/PLAT/board" + query ) ).getAsJsonArray();
+        for ( final JsonElement c : board ) {
+            for ( final JsonElement i : c.getAsJsonObject().getAsJsonArray( "items" ) ) {
+                if ( itemKey.equals( i.getAsJsonObject().get( "key" ).getAsString() ) ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Test
+    @Order( 2 )
+    void typeAndLabelsRoundTripAndFilter() throws Exception {
+        final JsonObject created = created( member.send( "POST", "/api/work/items", Map.of( "project", "PLAT",
+            "level", "task", "title", "Typed task", "type", "bug", "labels", List.of( "UI", "billing" ) ) ) );
+        final String k = key( created );
+        final JsonObject item = created.getAsJsonObject( "item" );
+        assertEquals( "bug", item.get( "type" ).getAsString() );
+        assertEquals( List.of( "billing", "ui" ), labelNames( item ), "labels are lower-cased and sorted" );
+
+        final JsonObject patched = ok( member.send( "PATCH", "/api/work/items/" + k, Map.of(
+            "expectedVersion", version( created ), "changes", Map.of( "labels", List.of( "ui" ) ) ) ) );
+        assertEquals( List.of( "ui" ), labelNames( patched.getAsJsonObject( "item" ) ) );
+
+        final JsonArray events = json( member.get( "/api/work/items/" + k + "/events" ) ).getAsJsonArray();
+        final JsonObject last = events.get( events.size() - 1 ).getAsJsonObject();
+        assertEquals( "field", last.get( "type" ).getAsString(), last.toString() );
+        assertEquals( "labels", last.get( "note" ).getAsString(), last.toString() );
+        assertEquals( "billing,ui", last.get( "fromValue" ).getAsString(), last.toString() );
+        assertEquals( "ui", last.get( "toValue" ).getAsString(), last.toString() );
+
+        assertTrue( boardHolds( "?label=ui&type=bug", k ), "the bug labelled ui is on the filtered board" );
+        assertFalse( boardHolds( "?label=billing", k ), "it no longer carries billing" );
+
+        final JsonArray labels = json( member.get( "/api/work/projects/PLAT/labels" ) ).getAsJsonArray();
+        boolean listed = false;
+        for ( final JsonElement l : labels ) {
+            listed |= "ui".equals( l.getAsJsonObject().get( "name" ).getAsString() );
+        }
+        assertTrue( listed, "the label list names ui: " + labels );
+    }
+
+    private static List< String > labelNames( final JsonObject item ) {
+        final List< String > names = new ArrayList<>();
+        for ( final JsonElement e : item.getAsJsonArray( "labels" ) ) {
+            names.add( e.getAsString() );
+        }
+        return names;
+    }
+
     @Test
     @Order( 1 )
     void memberRunsAnItemThroughItsLife() throws Exception {
@@ -172,7 +224,7 @@ public class WorkApiIT {
     }
 
     @Test
-    @Order( 2 )
+    @Order( 3 )
     void staleVersionIs409() throws Exception {
         final JsonObject item = created( member.send( "POST", "/api/work/items", Map.of( "project", "PLAT",
             "level", "story", "title", "Racy" ) ) );
@@ -196,7 +248,7 @@ public class WorkApiIT {
     }
 
     @Test
-    @Order( 3 )
+    @Order( 4 )
     void nonMemberGets404Everywhere() throws Exception {
         // the real numeric ids of a comment and a link in PLAT, found as the member
         final JsonObject story = ok( member.get( "/api/work/items/PLAT-2" ) );
@@ -219,6 +271,7 @@ public class WorkApiIT {
             new Probe( "PUT", "/api/work/projects/PLAT/members", "/api/work/projects/GHOST/members", member1, 404 ),
             new Probe( "DELETE", "/api/work/projects/PLAT/members", "/api/work/projects/GHOST/members", member2, 404 ),
             new Probe( "GET", "/api/work/projects/PLAT/board", "/api/work/projects/GHOST/board", null, 404 ),
+            new Probe( "GET", "/api/work/projects/PLAT/labels", "/api/work/projects/GHOST/labels", null, 404 ),
             new Probe( "POST", "/api/work/products", "/api/work/products", Map.of( "key", "wikantik", "name", "x" ), 403 ),
             new Probe( "PATCH", "/api/work/products/wikantik", "/api/work/products/ghostprod", Map.of( "name", "x" ), 404 ),
             new Probe( "POST", "/api/work/products/wikantik/archive", "/api/work/products/ghostprod/archive", null, 403 ),
@@ -280,7 +333,7 @@ public class WorkApiIT {
     }
 
     @Test
-    @Order( 4 )
+    @Order( 5 )
     void removedMemberLosesAccessOnNextRequest() throws Exception {
         final Caller carol = WorkIt.account( admin, "wapicarol", "Wapi Carol Name" );
         created( admin.send( "POST", "/api/work/projects", Map.of( "key", "GONE", "name", "Gone soon" ) ) );
@@ -299,7 +352,7 @@ public class WorkApiIT {
     }
 
     @Test
-    @Order( 5 )
+    @Order( 6 )
     void aBlockerInAProjectTheCallerCannotSeeLooksLikeAMissingOne() throws Exception {
         created( admin.send( "POST", "/api/work/projects", Map.of( "key", "OTHR", "name", "Other" ) ) );
         final JsonObject hiddenItem = created( admin.send( "POST", "/api/work/items", Map.of( "project", "OTHR",
@@ -332,7 +385,7 @@ public class WorkApiIT {
     private static final String OTHER_NAME = "Olga Otherly Name";
 
     @Test
-    @Order( 6 )
+    @Order( 7 )
     void aNonAdminMemberIsShownNoLoginAnywhere() throws Exception {
         final Caller lead = WorkIt.account( admin, LEAD_LOGIN, LEAD_NAME );
         final Caller mem = WorkIt.account( admin, MEM_LOGIN, MEM_NAME );
@@ -432,7 +485,7 @@ public class WorkApiIT {
     }
 
     @Test
-    @Order( 7 )
+    @Order( 8 )
     void anArchivedProjectIsReadableButRefusesWritesAsArchived() throws Exception {
         created( admin.send( "POST", "/api/work/projects", Map.of( "key", "ARCH", "name", "To be archived" ) ) );
         noContent( admin.send( "PUT", "/api/work/projects/ARCH/members", Map.of( "principal", "wapimember",

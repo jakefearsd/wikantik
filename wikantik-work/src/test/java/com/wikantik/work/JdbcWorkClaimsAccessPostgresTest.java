@@ -234,7 +234,7 @@ class JdbcWorkClaimsAccessPostgresTest {
             real.productId(), real.kind(), real.title(), real.body(), real.status(), real.priority(), real.rank(),
             real.dueOn(), real.assignee(), real.reporter(), real.autonomy(), real.doneMeans(), real.allowDirect(),
             real.version(), real.createdAt(), real.updatedAt(), real.closedAt(), real.queue(), real.claimedByAgent(),
-            real.claimedAt(), real.claimExpiresAt(), real.reporterAgentId() );
+            real.claimedAt(), real.claimExpiresAt(), real.reporterAgentId(), null, null );
         assertTrue( claims.claim( wrongCopy, fx.actorA, HOUR ).isEmpty() );
         assertEquals( real, fx.reload( real ) );
         assertTrue( fx.events( real, WorkEvent.CLAIMED ).isEmpty() );

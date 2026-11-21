@@ -5,13 +5,14 @@ import { MemoryRouter } from 'react-router-dom';
 vi.mock('../../api/work', () => ({
   getBoard: vi.fn(), getMe: vi.fn(), listProducts: vi.fn(), listMembers: vi.fn(), patchItem: vi.fn(), listItems: vi.fn(), createItem: vi.fn(), listQueues: vi.fn(),
   getChangeCounts: vi.fn(() => Promise.resolve({})), acknowledgeItem: vi.fn(() => Promise.resolve({})),
+  listLabels: vi.fn(() => Promise.resolve([])),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 
 import {
   getBoard, getMe, listProducts, listMembers, patchItem, listItems, createItem, listQueues, getChangeCounts,
-  acknowledgeItem,
+  acknowledgeItem, listLabels,
 } from '../../api/work';
 import { WorkProjectContext } from './useWorkProject';
 import WorkBoard from './WorkBoard';
@@ -575,5 +576,49 @@ describe('WorkBoard', () => {
     fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Brand new' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Created PLAT-4'));
+  });
+
+  it('the label filter requests label=', async () => {
+    listLabels.mockResolvedValue([{ name: 'ui', items: 2 }, { name: 'api', items: 1 }]);
+    renderBoard();
+    await screen.findByText('Item 1');
+    const select = screen.getByLabelText('Filter by label');
+    await waitFor(() => expect(within(select).getByRole('option', { name: 'ui (2)' })).toBeInTheDocument());
+    expect(listLabels).toHaveBeenCalledWith('PLAT');
+    fireEvent.change(select, { target: { value: 'ui' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { label: 'ui' }));
+    expect(screen.getByLabelText('Filter by label').value).toBe('ui');
+  });
+
+  it('the type filter requests type=', async () => {
+    renderBoard();
+    await screen.findByText('Item 1');
+    fireEvent.change(screen.getByLabelText('Filter by type'), { target: { value: 'bug' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { type: 'bug' }));
+    fireEvent.change(screen.getByLabelText('Filter by type'), { target: { value: '' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', {}));
+  });
+
+  it('a created item that does not carry the filtered label is not added to the board', async () => {
+    createItem.mockResolvedValue({ item: item(78, 'ready', { title: 'Unlabelled', labels: [], type: 'feature' }), comments: [] });
+    renderBoard({ url: '/work/PLAT?label=ui' });
+    await screen.findByText('Item 1');
+    fireEvent.click(screen.getByRole('button', { name: 'New item' }));
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Unlabelled' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(screen.queryByText('Unlabelled')).not.toBeInTheDocument();
+  });
+
+  it('a created item that carries the filtered label is added, and the label list is refreshed', async () => {
+    createItem.mockResolvedValue({ item: item(79, 'ready', { title: 'Labelled', labels: ['ui'], type: 'feature' }), comments: [] });
+    renderBoard({ url: '/work/PLAT?label=ui&type=feature' });
+    await screen.findByText('Item 1');
+    const before = listLabels.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'New item' }));
+    fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Labelled' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    expect(await screen.findByText('Labelled')).toBeInTheDocument();
+    await waitFor(() => expect(listLabels.mock.calls.length).toBeGreaterThan(before));
   });
 });

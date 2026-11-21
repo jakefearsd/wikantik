@@ -85,6 +85,26 @@ class UpdateItemToolTest {
     }
 
     @Test
+    void typeAndLabelsAreSettable() throws SQLException {
+        when( w.svc.updateItem( eq( w.agent ), eq( "PLAT-1" ), any() ) )
+            .thenReturn( MockWork.view( MockWork.item( "PLAT-1", WorkStatus.IN_PROGRESS, 4, null, null ) ) );
+        tool.call( w.agent, args( "key", "PLAT-1", "expectedVersion", 3, "type", "bug",
+            "labels", java.util.List.of( "ui", "api" ) ) );
+        final ArgumentCaptor< ItemPatch > patch = ArgumentCaptor.forClass( ItemPatch.class );
+        verify( w.svc ).updateItem( eq( w.agent ), eq( "PLAT-1" ), patch.capture() );
+        assertEquals( "bug", patch.getValue().changes().get( "type" ) );
+        assertEquals( java.util.List.of( "ui", "api" ), patch.getValue().changes().get( "labels" ) );
+    }
+
+    @Test
+    void labelsMustBeAListOfText() {
+        final var r = tool.call( w.agent, args( "key", "PLAT-1", "expectedVersion", 3, "labels", "ui" ) );
+        assertEquals( Boolean.TRUE, r.isError() );
+        assertEquals( "labels: must be a list of labels.", WorkMcpFixture.text( r ) );
+        verifyNoInteractions( w.svc );
+    }
+
+    @Test
     void nullActorRefusedAndServiceNeverCalled() {
         final var r = tool.call( null, args( "key", "PLAT-1", "expectedVersion", 1, "title", "x" ) );
         assertEquals( "This endpoint needs a work API key.", WorkMcpFixture.text( r ) );

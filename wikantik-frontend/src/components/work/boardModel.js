@@ -133,3 +133,12 @@ export const PRIORITY_OPTIONS = [
   { value: '1', label: 'P1 – highest' }, { value: '2', label: 'P2 – high' },
   { value: '3', label: 'P3 – normal' }, { value: '4', label: 'P4 – lowest' },
 ];
+
+export const TYPE_OPTIONS = [{ value: 'feature', label: 'Feature' }, { value: 'bug', label: 'Bug' }, { value: 'chore', label: 'Chore' }];
+/** A label is lower-case letters, digits, dots, dashes and underscores, 1 to 40 characters, starting with a letter or digit. */
+export const LABEL_PATTERN = /^[a-z0-9][a-z0-9._-]{0,39}$/;
+export const MAX_LABELS = 10;
+/** The project's labels as [{ name, count }], from a `listLabels` reply: a bare array of `{ name, items }`, most used first. */
+export function labelRows(reply) {
+  return (Array.isArray(reply) ? reply : []).map((l) => ({ name: l.name, count: l.items }));
+}

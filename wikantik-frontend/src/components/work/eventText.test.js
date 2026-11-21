@@ -288,6 +288,15 @@ describe('eventText', () => {
   });
 });
 
+describe('eventText labels and type', () => {
+  it('changed labels none → api, ui', () => {
+    expect(eventText(ev('field', { note: 'labels', fromValue: null, toValue: 'api,ui' })).text).toBe('changed labels none → api, ui');
+  });
+  it('changed type feature → bug', () => {
+    expect(eventText(ev('field', { note: 'type', fromValue: 'feature', toValue: 'bug' })).text).toBe('changed type feature → bug');
+  });
+});
+
 describe('eventText with empty values', () => {
   const TYPES = ['created', 'edited', 'status', 'assigned', 'handoff', 'claimed', 'claim_renewed', 'released', 'claim_expired',
     'field', 'commented', 'comment_edited', 'comment_removed', 'linked', 'unlinked', 'change_opened', 'change_updated',

@@ -72,7 +72,7 @@ class DeploymentToolsPostgresTest {
         f.svc.putMember( f.admin, "PLAT", "reviewer-bot", "agent", WorkRole.MEMBER );
         product( Autonomy.AUTONOMOUS, DeployGate.AGENT );
         final Item e = f.svc.createItem( f.lena, new ItemDraft( "PLAT", WorkLevel.EPIC, null, null, WorkKind.SOFTWARE,
-            "Production incidents", "", null, null, null, null ) ).item();
+            "Production incidents", "", null, null, null, null, null, null ) ).item();
         final Map< String, Object > standing = new HashMap<>();
         standing.put( "autonomy", "autonomous" );
         standing.put( "doneMeans", "in_production" );

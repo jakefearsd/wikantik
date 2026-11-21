@@ -74,7 +74,7 @@ class WorkDraftRulePostgresTest {
 
     private Item draftByAgent() throws SQLException {
         return svc.createItem( agent, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "A draft", "",
-            null, null, null, "implementer" ) ).item();
+            null, null, null, "implementer", null, null ) ).item();
     }
 
     private long eventCount() throws SQLException {
@@ -89,11 +89,11 @@ class WorkDraftRulePostgresTest {
     @Test
     void aPersonsNewTaskOrStoryStartsReadyAndAnEpicAsADraft() throws SQLException {
         final Item task = svc.createItem( lena, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
-            "A task", "", null, null, null, "implementer" ) ).item();
+            "A task", "", null, null, null, "implementer", null, null ) ).item();
         final Item story = svc.createItem( lena, new ItemDraft( "PLAT", WorkLevel.STORY, null, null, WorkKind.SOFTWARE,
-            "A story", "", null, null, null, null ) ).item();
+            "A story", "", null, null, null, null, null, null ) ).item();
         final Item epic = svc.createItem( lena, new ItemDraft( "PLAT", WorkLevel.EPIC, null, null, WorkKind.SOFTWARE,
-            "An epic", "", null, null, null, null ) ).item();
+            "An epic", "", null, null, null, null, null, null ) ).item();
         assertEquals( WorkStatus.READY, task.status() );
         assertEquals( WorkStatus.READY, story.status() );
         assertEquals( WorkStatus.DRAFT, epic.status(), "an epic has no Ready status" );
@@ -170,7 +170,7 @@ class WorkDraftRulePostgresTest {
     void hiddenStillGivesNotFoundNotTheDraftRule() throws SQLException {
         svc.createProject( admin, "SECRET", "Secret", "" );
         final Item hidden = svc.createItem( admin, new ItemDraft( "SECRET", WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
-            "hid", "", null, null, null, null ) ).item();
+            "hid", "", null, null, null, null, null, null ) ).item();
         assertThrows( WorkNotFoundException.class, () -> svc.updateItem( agent, hidden.key(),
             new ItemPatch( 1, Map.of( "status", "ready" ), null ) ) );
         assertThrows( WorkNotFoundException.class, () -> svc.claims().handoff( agent, hidden.key(),

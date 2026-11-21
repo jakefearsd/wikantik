@@ -61,6 +61,20 @@ class WorkJsonTest {
     }
 
     @Test
+    void anItemCarriesTypeAndLabels() {
+        final Item base = WorkHttp.item( "PLAT-1", null, 1 );
+        final Item bug = new Item( base.id(), base.projectId(), base.key(), base.level(), base.parentId(), base.productId(),
+            base.kind(), base.title(), base.body(), base.status(), base.priority(), base.rank(), base.dueOn(),
+            base.assignee(), base.reporter(), base.autonomy(), base.doneMeans(), base.allowDirect(), base.version(),
+            base.createdAt(), base.updatedAt(), base.closedAt(), base.queue(), base.claimedByAgent(), base.claimedAt(),
+            base.claimExpiresAt(), base.reporterAgentId(), com.wikantik.work.WorkType.BUG, List.of( "api", "ui" ) );
+        final JsonObject o = WorkJson.GSON.toJsonTree( bug ).getAsJsonObject();
+        assertEquals( "bug", text( o, "type" ) );
+        assertEquals( 2, o.getAsJsonArray( "labels" ).size() );
+        assertEquals( "api", o.getAsJsonArray( "labels" ).get( 0 ).getAsString() );
+    }
+
+    @Test
     void agentEventShowsAgentName() {
         // the event stored the name at write time ("builder-old"); the agent has since been renamed to "builder"
         final JsonObject o = enriched( event( "builder-old", Actor.Kind.AGENT, 5L, "claimed", "ready", "in_progress",
@@ -133,7 +147,7 @@ class WorkJsonTest {
         final Item base = WorkHttp.item( "PLAT-1", "erin", 3 );
         final Item item = new Item( base.id(), base.projectId(), base.key(), base.level(), null, null, base.kind(),
             base.title(), base.body(), base.status(), 3, 1.0, null, null, "reviewer", null, null, null, 3, AT, AT, null,
-            "triage", 5L, AT, AT.plusSeconds( 1800 ), 6L );
+            "triage", 5L, AT, AT.plusSeconds( 1800 ), 6L, null, null );
         final JsonObject o = enriched( item, MEMBER );
         assertEquals( "builder", text( o, "claimedByName" ) );
         assertEquals( "Triage queue", text( o, "queueName" ) );
@@ -196,7 +210,7 @@ class WorkJsonTest {
         final Item base = WorkHttp.item( "PLAT-1", "bob.login", 3 );
         final Item item = new Item( base.id(), base.projectId(), base.key(), base.level(), null, null, base.kind(),
             base.title(), base.body(), base.status(), 3, 1.0, null, "bob.login", "carol.login", null, null, null, 3, AT, AT,
-            null, "triage", 5L, AT, AT.plusSeconds( 60 ), null );
+            null, "triage", 5L, AT, AT.plusSeconds( 60 ), null, null, null );
         final List< Object > everything = List.of( item,
             event( "carol.login", Actor.Kind.HUMAN, null, "released", "agent:5", "ready", "reassigned" ),
             event( "bob.login", Actor.Kind.HUMAN, null, "handoff", "ready|carol.login", "review|bob.login", "n" ),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { STATUSES, DEFAULT_STATUSES, STATUS_LABELS, orderColumns, rankForInsert, addToColumns, moveInColumns, revertCard, groupByEpic, isOverdue } from './boardModel';
+import { STATUSES, DEFAULT_STATUSES, STATUS_LABELS, orderColumns, rankForInsert, addToColumns, moveInColumns, revertCard, groupByEpic, isOverdue, labelRows } from './boardModel';
 
 const item = (id, rank, extra = {}) => ({ id, key: `P-${id}`, rank, status: 'ready', level: 'task', ...extra });
 
@@ -222,5 +222,16 @@ describe('isOverdue with the real clock', () => {
   it('is true for a date long past and false for a date far ahead', () => {
     expect(isOverdue({ dueOn: '2000-01-01', status: 'ready' })).toBe(true);
     expect(isOverdue({ dueOn: '2999-01-01', status: 'ready' })).toBe(false);
+  });
+});
+
+describe('labelRows', () => {
+  it('reads the bare array of { name, items } the labels endpoint returns', () => {
+    expect(labelRows([{ name: 'ui', items: 3 }, { name: 'api', items: 1 }]))
+      .toEqual([{ name: 'ui', count: 3 }, { name: 'api', count: 1 }]);
+  });
+  it('is empty for anything that is not that array', () => {
+    expect(labelRows(undefined)).toEqual([]);
+    expect(labelRows({ labels: [{ name: 'ui', items: 3 }] })).toEqual([]);
   });
 });

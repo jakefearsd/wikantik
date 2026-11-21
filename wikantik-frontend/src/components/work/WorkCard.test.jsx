@@ -143,4 +143,22 @@ describe('WorkCard', () => {
     renderCard();
     expect(screen.queryByText(/open change|in review/)).toBeNull();
   });
+
+  it('a bug card shows the bug marker', () => {
+    renderCard({ item: { ...ITEM, type: 'bug' } });
+    expect(screen.getByText('Bug')).toBeInTheDocument();
+  });
+
+  it('a feature card shows none', () => {
+    renderCard({ item: { ...ITEM, type: 'feature', labels: [] } });
+    expect(screen.queryByText('Bug')).toBeNull();
+    expect(screen.queryByText('Feature')).toBeNull();
+  });
+
+  it('a card shows its labels, at most three then +N', () => {
+    renderCard({ item: { ...ITEM, labels: ['api', 'db', 'ui', 'web', 'zz'] } });
+    ['api', 'db', 'ui'].forEach((l) => expect(screen.getByText(l)).toBeInTheDocument());
+    expect(screen.queryByText('web')).toBeNull();
+    expect(screen.getByText('+2')).toBeInTheDocument();
+  });
 });

@@ -21,7 +21,6 @@ package com.wikantik.work;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -33,12 +32,11 @@ final class ItemPatchApplier {
 
     /** The closed set of keys an {@link ItemPatch} may carry. */
     static final Set< String > KEYS = Set.of( "title", "body", "status", "priority", "rank", "dueOn", "assignee",
-        "queue", "parentKey", "productKey", "kind", "autonomy", "doneMeans", "allowDirect", "before" );
+        "queue", "parentKey", "productKey", "kind", "type", "labels", "autonomy", "doneMeans", "allowDirect", "before" );
 
     static final Set< String > POLICY_KEYS = Set.of( "autonomy", "doneMeans", "allowDirect" );
     static final Set< String > MOVE_KEYS = Set.of( "status", "rank", "before" );
 
-    static final int MAX_TITLE = 200;
     private static final double RANK_STEP = 1024.0;
     private static final String NO_PARENT = "No such item in this project.";
 
@@ -70,15 +68,21 @@ final class ItemPatchApplier {
         }
         final Item parent = d.parentKey() == null ? null : resolveParent( project, d.parentKey(), -1 );
         final Product product = d.productKey() == null ? null : resolveProduct( d.productKey() );
-        final int priority = d.priority() == null ? 3 : d.priority();
-        final String assignee = PatchValues.blankToNull( d.assignee() );
-        final Item next = new Item( 0, project.id(), null, d.level(), parent == null ? null : parent.id(),
-            product == null ? null : product.id(), d.kind() == null ? WorkKind.SOFTWARE : d.kind(), d.title(),
-            d.body() == null ? "" : d.body(), start, priority, 0, d.dueOn(), assignee, null, null, null,
-            null, 0, null, null, null, PatchValues.blankToNull( d.queue() ), null, null, null, null );
+        final Item next = newItem( project, d, parent, product, start );
         targets.checkNew( project, next );
-        validate( next, parent );
+        ItemRules.validate( next, parent );
         return next;
+    }
+
+    /** The unsaved item a draft describes once its parent and product are resolved. */
+    private static Item newItem( final Project project, final ItemDraft d, final Item parent, final Product product,
+                                 final WorkStatus start ) {
+        return new Item( 0, project.id(), null, d.level(), parent == null ? null : parent.id(),
+            product == null ? null : product.id(), d.kind() == null ? WorkKind.SOFTWARE : d.kind(), d.title(),
+            d.body() == null ? "" : d.body(), start, d.priority() == null ? 3 : d.priority(), 0, d.dueOn(),
+            PatchValues.blankToNull( d.assignee() ), null, null, null, null, 0, null, null, null,
+            PatchValues.blankToNull( d.queue() ), null, null, null, null,
+            d.type() == null ? WorkType.FEATURE : d.type(), Labels.normalise( d.labels() ) );
     }
 
     /** The item that {@code changes} produce from {@code current}; validated, not yet stored. */
@@ -99,10 +103,10 @@ final class ItemPatchApplier {
             : pick( changes, "assignee", PatchValues::assignee, current.assignee() );
         final double rank = rankFor( project, current, changes, status );
         final Item next = merged( current, changes, parentId, productId, status, rank, assignee, queue );
-        validate( next, newParent );
+        ItemRules.validate( next, newParent );
         targets.checkAssignee( project, current.assignee(), assignee );
         ItemTargets.requireClaimForQueuedWork( current, next );
-        checkHandoffNote( current, next, note );
+        ItemRules.checkHandoffNote( current, next, note );
         return next;
     }
 
@@ -153,7 +157,9 @@ final class ItemPatchApplier {
             pick( changes, "allowDirect", PatchValues::allowDirect, current.allowDirect() ),
             current.version(), current.createdAt(), current.updatedAt(), current.closedAt(),
             queue,
-            current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(), current.reporterAgentId() );
+            current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(), current.reporterAgentId(),
+            pick( changes, "type", PatchValues::type, current.type() ),
+            pick( changes, "labels", PatchValues::labels, current.labels() ) );
     }
 
     private static < T > T pick( final Map< String, Object > changes, final String key,
@@ -169,45 +175,6 @@ final class ItemPatchApplier {
     private Long changedProduct( final Object value ) throws SQLException {
         final String key = PatchValues.string( "productKey", value );
         return key == null ? null : resolveProduct( key ).id();
-    }
-
-    private static void checkHandoffNote( final Item current, final Item next, final String note ) {
-        if ( next.status() != current.status() && !Objects.equals( next.assignee(), current.assignee() )
-                && ( note == null || note.isBlank() ) ) {
-            throw new WorkValidationException( "note", "Changing status and assignee together needs a note." );
-        }
-    }
-
-    /** Field rules; {@code newParent} is the freshly resolved parent, null when the parent is not being set. */
-    private static void validate( final Item next, final Item newParent ) {
-        validateTitle( next.title() );
-        validateShape( next, newParent );
-        if ( next.priority() < 1 || next.priority() > 4 ) {
-            throw new WorkValidationException( "priority", "Priority must be between 1 and 4." );
-        }
-    }
-
-    private static void validateTitle( final String title ) {
-        if ( title == null || title.isBlank() ) {
-            throw new WorkValidationException( "title", "A title is required." );
-        }
-        if ( title.length() > MAX_TITLE ) {
-            throw new WorkValidationException( "title", "A title may be at most " + MAX_TITLE + " characters." );
-        }
-    }
-
-    private static void validateShape( final Item next, final Item newParent ) {
-        if ( !WorkStatus.allowedFor( next.level() ).contains( next.status() ) ) {
-            throw new WorkValidationException( "status",
-                "A " + next.level().wire() + " cannot have status " + next.status().wire() + "." );
-        }
-        if ( next.level() == WorkLevel.EPIC && next.productId() != null ) {
-            throw new WorkValidationException( "productKey", "An epic has no product of its own." );
-        }
-        if ( newParent != null && !newParent.level().canParent( next.level() ) ) {
-            throw new WorkValidationException( "parentKey",
-                "A " + newParent.level().wire() + " cannot be the parent of a " + next.level().wire() + "." );
-        }
     }
 
     /**

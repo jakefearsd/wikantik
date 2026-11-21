@@ -198,7 +198,7 @@ final class JdbcWorkItemWrites {
     return jdbc.update( conn, """
             UPDATE work_item SET parent_id = ?, product_id = ?, kind = ?, title = ?, body = ?, status = ?,
                 priority = ?, rank = ?, due_on = ?, assignee = ?, autonomy = ?, done_means = ?,
-                allow_direct = ?, assignee_queue = ?,
+                allow_direct = ?, assignee_queue = ?, type = ?, labels = ?,
                 claimed_by_agent = CASE WHEN ? THEN NULL ELSE claimed_by_agent END,
                 claimed_at = CASE WHEN ? THEN NULL ELSE claimed_at END,
                 claim_expires_at = CASE WHEN ? THEN NULL ELSE claim_expires_at END,
@@ -224,18 +224,20 @@ final class JdbcWorkItemWrites {
                 ps.setString( 12, doneMeansWire( next.doneMeans() ) );
                 setNullableBoolean( ps, 13, next.allowDirect() );
                 ps.setString( 14, next.queue() );
-                ps.setBoolean( 15, f.clearClaim() );
-                ps.setBoolean( 16, f.clearClaim() );
+                ps.setString( 15, next.type().wire() );
+                ps.setArray( 16, conn.createArrayOf( "text", next.labels().toArray( new String[ 0 ] ) ) );
                 ps.setBoolean( 17, f.clearClaim() );
-                ps.setBoolean( 18, f.closing() );
-                ps.setBoolean( 19, f.reopening() );
-                ps.setBoolean( 20, f.finishing() );
-                ps.setBoolean( 21, f.ackRequired() );
-                ps.setBoolean( 22, f.leavingDone() );
-                ps.setBoolean( 23, f.finishing() || f.leavingDone() );
-                ps.setBoolean( 24, f.finishing() || f.leavingDone() );
-                ps.setLong( 25, current.id() );
-                ps.setInt( 26, current.version() );
+                ps.setBoolean( 18, f.clearClaim() );
+                ps.setBoolean( 19, f.clearClaim() );
+                ps.setBoolean( 20, f.closing() );
+                ps.setBoolean( 21, f.reopening() );
+                ps.setBoolean( 22, f.finishing() );
+                ps.setBoolean( 23, f.ackRequired() );
+                ps.setBoolean( 24, f.leavingDone() );
+                ps.setBoolean( 25, f.finishing() || f.leavingDone() );
+                ps.setBoolean( 26, f.finishing() || f.leavingDone() );
+                ps.setLong( 27, current.id() );
+                ps.setInt( 28, current.version() );
             } );
     }
 

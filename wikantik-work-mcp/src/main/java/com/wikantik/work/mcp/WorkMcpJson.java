@@ -109,6 +109,8 @@ final class WorkMcpJson {
         o.put( "title", i.title() );
         o.put( "level", i.level().wire() );
         o.put( "kind", i.kind().wire() );
+        o.put( "type", i.type().wire() );
+        o.put( "labels", i.labels() );
         o.put( "status", i.status().wire() );
         o.put( "priority", i.priority() );
         o.put( "queue", queue( i.queue() ) );
@@ -127,6 +129,8 @@ final class WorkMcpJson {
         o.put( "body", i.body() == null ? "" : i.body() );
         o.put( "level", i.level().wire() );
         o.put( "kind", i.kind().wire() );
+        o.put( "type", i.type().wire() );
+        o.put( "labels", i.labels() );
         o.put( "status", i.status().wire() );
         o.put( "priority", i.priority() );
         o.put( "version", i.version() );

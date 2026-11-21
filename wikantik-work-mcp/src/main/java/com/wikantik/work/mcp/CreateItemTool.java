@@ -23,11 +23,13 @@ import com.wikantik.work.ItemDraft;
 import com.wikantik.work.WorkKind;
 import com.wikantik.work.WorkLevel;
 import com.wikantik.work.WorkService;
+import com.wikantik.work.WorkType;
 import com.wikantik.work.WorkService.ItemView;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.wikantik.work.mcp.WorkMcpArgs.*;
@@ -42,7 +44,7 @@ public final class CreateItemTool extends WorkMcpTool {
 
     private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
         .description( "Create a work item. It is always created as a draft with no assignee, for a person to "
-            + "refine; status and assignee are refused by name. Returns {key,version,status}. Use handoff_item "
+            + "refine; status and assignee are refused by name. Optionally a type and labels. Returns {key,version,status}. Use handoff_item "
             + "afterwards to give it to someone." )
         .requiredArg( "project", "string", "The project key.", "PLAT" )
         .requiredArg( "level", "string", "epic, story or task.", "task" )
@@ -51,6 +53,8 @@ public final class CreateItemTool extends WorkMcpTool {
         .arg( "parentKey", "string", "The parent item's key.", "PLAT-2" )
         .arg( "productKey", "string", "The product's key.", "web" )
         .arg( "kind", "string", "software (default), docs or admin.", "software" )
+        .arg( "type", "string", "feature (default), bug or chore; an epic is always a feature.", "bug" )
+        .arg( "labels", labelsSchema(), false )
         .arg( "priority", "integer", "1 (highest) to 4.", 3 )
         .arg( "queue", "string", "The queue key to put it in.", "implementer" );
 
@@ -79,9 +83,12 @@ public final class CreateItemTool extends WorkMcpTool {
         final String kind = stringArg( args, "kind" );
         final Integer priority = intArg( args, "priority" );
         final String queue = stringArg( args, "queue" );
+        final String type = stringArg( args, "type" );
+        final List< String > labels = stringListArg( args, "labels" );
         final ItemDraft draft = new ItemDraft( project, WorkLevel.fromWire( level ), parentKey, productKey,
             kind == null || kind.isBlank() ? WorkKind.SOFTWARE : WorkKind.fromWire( kind ), title, body, priority, null,
-            null, queue );
+            null, queue,
+            type == null || type.isBlank() ? null : WorkType.fromWire( type ), labels );
         final ItemView view = svc.createItem( actor, draft );
         WorkMcpLog.written( TOOL_NAME, "created", view.item().key(), actor );
         final Map< String, Object > out = new LinkedHashMap<>();

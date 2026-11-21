@@ -75,7 +75,7 @@ class WorkBoardOrderPostgresTest {
 
     private Item card( final String title ) throws SQLException {
         return svc.createItem( admin, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, title, "",
-            null, null, null, null ) ).item();
+            null, null, null, null, null, null ) ).item();
     }
 
     private void setRank( final Item item, final double rank ) throws SQLException {
@@ -169,7 +169,7 @@ class WorkBoardOrderPostgresTest {
         assertEquals( "before", other.field() );
         svc.createProject( admin, "OTHR", "Other", "" );
         final Item foreign = svc.createItem( admin, new ItemDraft( "OTHR", WorkLevel.TASK, null, null, WorkKind.SOFTWARE,
-            "F", "", null, null, null, null ) ).item();
+            "F", "", null, null, null, null, null, null ) ).item();
         final WorkValidationException cross = assertThrows( WorkValidationException.class,
             () -> move( admin, c, Map.of( "rank", 10.0, "before", foreign.key() ) ) );
         assertEquals( "before", cross.field() );

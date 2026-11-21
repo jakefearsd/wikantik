@@ -42,7 +42,7 @@ final class WorkInputs {
     private static final Set< String > LINK_KINDS = Set.of( "page", "issue", "url", "blocked_by", "commit" );
     private static final Set< String > PRINCIPAL_KINDS = Set.of( "user", "group", "agent" );
     /** First segments of SPA routes under {@code /work/}: a project with one of these keys could not be opened. */
-    private static final Set< String > RESERVED_KEYS = Set.of( "ITEM", "PRODUCTS", "AGENTS", "LOG" );
+    private static final Set< String > RESERVED_KEYS = Set.of( "ITEM", "PRODUCTS", "AGENTS", "LOG", "DEPLOYMENTS" );
     private static final int DEFAULT_ACTIVITY = 50;
     private static final int MAX_ACTIVITY = 200;
     private static final int MAX_LINK_TARGET = 2000;
@@ -198,7 +198,8 @@ final class WorkInputs {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
             i.doneMeans(), i.allowDirect(), version, i.createdAt(), i.updatedAt(), i.closedAt(),
-            i.queue(), i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId() );
+            i.queue(), i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(),
+            i.type(), i.labels() );
     }
 
     /** Keeps only the logins {@code isMember} accepts. */

@@ -58,7 +58,7 @@ class WorkServiceEdgesPostgresTest {
 
     private static ItemDraft draft( final WorkLevel level, final String title, final Integer priority,
                                     final String parentKey, final String productKey ) {
-        return new ItemDraft( "PLAT", level, parentKey, productKey, null, title, null, priority, null, null, null );
+        return new ItemDraft( "PLAT", level, parentKey, productKey, null, title, null, priority, null, null, null, null, null );
     }
 
     // ---- items
@@ -75,7 +75,7 @@ class WorkServiceEdgesPostgresTest {
         assertNull( made.productId() );
         assertNull( made.assignee() );
         final Item mine = f.svc.createItem( f.mia, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.DOCS,
-            "Assigned", "text", 1, null, " mia ", null ) ).item();
+            "Assigned", "text", 1, null, " mia ", null, null, null ) ).item();
         assertEquals( "mia", mine.assignee(), "a display name or login, trimmed" );
         assertEquals( WorkKind.DOCS, mine.kind() );
     }
@@ -100,7 +100,7 @@ class WorkServiceEdgesPostgresTest {
         f.svc.createProject( f.admin, "OPS", "Operations", "" );
         f.svc.putMember( f.admin, "OPS", "mia", "user", WorkRole.MEMBER );
         final Item elsewhere = f.svc.createItem( f.mia, new ItemDraft( "OPS", WorkLevel.EPIC, null, null, null,
-            "Ops epic", null, null, null, null, null ) ).item();
+            "Ops epic", null, null, null, null, null, null, null ) ).item();
         assertEquals( "parentKey", field( () -> f.svc.createItem( f.mia,
             draft( WorkLevel.STORY, "Cross project", null, elsewhere.key(), null ) ) ) );
         assertEquals( "parentKey", field( () -> f.svc.createItem( f.mia,

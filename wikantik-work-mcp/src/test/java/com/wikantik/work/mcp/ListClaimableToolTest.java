@@ -97,6 +97,18 @@ class ListClaimableToolTest {
     }
 
     @Test
+    void aSummaryCarriesTypeAndLabels() throws SQLException {
+        final Item item = f.ready( "PLAT", "Typed" );
+        f.svc.updateItem( f.lena, item.key(), new com.wikantik.work.ItemPatch( item.version(),
+            Map.of( "type", "chore", "labels", java.util.List.of( "ui" ) ), null ) );
+        final JsonObject o = WorkMcpFixture.json( tool.call( f.builderActor, Map.of( "queue", "implementer" ) ) )
+            .getAsJsonArray( "items" ).get( 0 ).getAsJsonObject();
+        assertEquals( "chore", o.get( "type" ).getAsString() );
+        assertEquals( 1, o.getAsJsonArray( "labels" ).size() );
+        assertEquals( "ui", o.getAsJsonArray( "labels" ).get( 0 ).getAsString() );
+    }
+
+    @Test
     void anotherQueueYieldsNothing() throws SQLException {
         f.ready( "PLAT", "Shape" );
         assertEquals( 0, WorkMcpFixture.json( tool.call( f.builderActor, Map.of( "queue", "reviewer" ) ) )

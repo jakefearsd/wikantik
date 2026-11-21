@@ -41,6 +41,8 @@ class WireEnumTest {
         assertEquals( "Unknown autonomy: bogus", e.getMessage() );
         assertEquals( "Unknown mergeKind: q",
             assertThrows( WorkValidationException.class, () -> MergeKind.fromWire( "q" ) ).getMessage() );
+        assertEquals( "Unknown type: epic",
+            assertThrows( WorkValidationException.class, () -> WorkType.fromWire( "epic" ) ).getMessage() );
         assertEquals( "Unknown deployGate: null",
             assertThrows( WorkValidationException.class, () -> DeployGate.fromWire( null ) ).getMessage() );
     }

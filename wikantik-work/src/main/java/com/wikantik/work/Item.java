@@ -20,6 +20,7 @@ package com.wikantik.work;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 /** A work item: epic, story or task. */
 public record Item( long id, long projectId, String key, WorkLevel level, Long parentId, Long productId,
@@ -27,5 +28,11 @@ public record Item( long id, long projectId, String key, WorkLevel level, Long p
                     LocalDate dueOn, String assignee, String reporter, Autonomy autonomy, DoneMeans doneMeans,
                     Boolean allowDirect, int version, Instant createdAt, Instant updatedAt, Instant closedAt,
                     String queue, Long claimedByAgent, Instant claimedAt, Instant claimExpiresAt,
-                    Long reporterAgentId ) {
+                    Long reporterAgentId, WorkType type, List< String > labels ) {
+
+    /** Defaults: no type means a feature, no labels means none; the label list is copied. */
+    public Item {
+        type = type == null ? WorkType.FEATURE : type;
+        labels = labels == null ? List.of() : List.copyOf( labels );
+    }
 }

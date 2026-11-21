@@ -369,6 +369,29 @@ class WorkMcpFlowPostgresTest {
     }
 
     @Test
+    void anAgentSetsTypeAndLabelsThroughTheRealService() throws SQLException {
+        final String key = f.ready( "PLAT", "Classify me" ).key();
+        ok( call( f.builder, "claim_item", "key", key ) );
+        ok( call( f.builder, "update_item", "key", key, "expectedVersion", version( f.builder, key ),
+            "type", "bug", "labels", List.of( "UI" ) ) );
+
+        final JsonObject got = WorkMcpFixture.json( call( f.builder, "get_item", "key", key ) );
+        assertEquals( "bug", got.get( "type" ).getAsString() );
+        assertEquals( 1, got.getAsJsonArray( "labels" ).size() );
+        assertEquals( "ui", got.getAsJsonArray( "labels" ).get( 0 ).getAsString() );
+        final List< String > log = events( key );
+        final List< String > fields = log.stream().filter( r -> r.startsWith( "field|" ) ).toList();
+        assertEquals( 2, fields.size(), log.toString() );
+        assertTrue( fields.get( 0 ).endsWith( "|type" ), fields.get( 0 ) );
+        assertTrue( fields.get( 1 ).endsWith( "|labels" ), fields.get( 1 ) );
+        assertEquals( "agent/" + f.builder.id(), agentFields( fields.get( 0 ) ) );
+        assertEquals( "agent/" + f.builder.id(), agentFields( fields.get( 1 ) ) );
+        assertTrue( log.get( log.size() - 1 ).startsWith( "field|" ), "the two field events end the log: " + log );
+        assertEquals( "labels: must be a list of labels.", WorkMcpFixture.text(
+            call( f.builder, "update_item", "key", key, "expectedVersion", version( f.builder, key ), "labels", "ui" ) ) );
+    }
+
+    @Test
     void anAgentCannotPromoteItsOwnDraftButCanPassItToAPerson() throws SQLException {
         final McpSchema.CallToolResult created = call( f.builder, "create_item", "project", "PLAT", "level", "task",
             "title", "Idea", "queue", "implementer" );

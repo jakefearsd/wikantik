@@ -41,7 +41,7 @@ class WorkClaimListenerTest {
     private static Item item( final WorkStatus status, final Long holder ) {
         return new Item( 12, 1, "PLAT-1", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "title", "body", status, 3,
             1024, null, null, null, null, null, null, 4, NOW, NOW, null, "implementer", holder,
-            holder == null ? null : NOW, holder == null ? null : NOW.plusSeconds( 3600 ), null );
+            holder == null ? null : NOW, holder == null ? null : NOW.plusSeconds( 3600 ), null, null, null );
     }
 
     @BeforeEach
@@ -93,7 +93,7 @@ class WorkClaimListenerTest {
         return new Item( n.id(), n.projectId(), n.key(), n.level(), n.parentId(), n.productId(), n.kind(), n.title(),
             n.body(), n.status(), n.priority(), n.rank(), n.dueOn(), n.assignee(), n.reporter(), n.autonomy(),
             n.doneMeans(), n.allowDirect(), n.version() + 1, n.createdAt(), n.updatedAt(), n.closedAt(), n.queue(),
-            null, null, null, n.reporterAgentId() );
+            null, null, null, n.reporterAgentId(), null, null );
     }
 
     private WorkClaimsService.Handoff toLena() {

@@ -51,7 +51,8 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         SELECT i.id, i.project_id, p.key || '-' || i.seq AS item_key, i.level, i.parent_id, i.product_id, i.kind,
                i.title, i.body, i.status, i.priority, i.rank, i.due_on, i.assignee, i.reporter, i.autonomy,
                i.done_means, i.allow_direct, i.version, i.created_at, i.updated_at, i.closed_at,
-               i.assignee_queue, i.claimed_by_agent, i.claimed_at, i.claim_expires_at, i.reporter_agent_id
+               i.assignee_queue, i.claimed_by_agent, i.claimed_at, i.claim_expires_at, i.reporter_agent_id,
+               i.type, i.labels
           FROM work_item i JOIN work_project p ON p.id = i.project_id
         """;
 
@@ -66,7 +67,8 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         (Boolean) rs.getObject( "allow_direct" ), rs.getInt( "version" ),
         getInstant( rs, "created_at" ), getInstant( rs, "updated_at" ), getInstant( rs, "closed_at" ),
         rs.getString( "assignee_queue" ), getNullableLong( rs, "claimed_by_agent" ), getInstant( rs, "claimed_at" ),
-        getInstant( rs, "claim_expires_at" ), getNullableLong( rs, "reporter_agent_id" ) );
+        getInstant( rs, "claim_expires_at" ), getNullableLong( rs, "reporter_agent_id" ),
+        WorkType.fromWire( rs.getString( "type" ) ), JdbcWorkLabels.fromArray( rs.getArray( "labels" ) ) );
 
     static final String EVENT_COLUMNS = """
         e.id, e.project_id, e.item_id,
@@ -97,6 +99,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     private final JdbcWorkEventLog eventLog;
     private final JdbcWorkAcks acks;
     private final JdbcWorkItemWrites writes;
+    private final JdbcWorkLabels labels;
     private final JdbcWorkChanges changes;
     private final JdbcWorkDeployments deployments;
 
@@ -106,6 +109,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         this.eventLog = new JdbcWorkEventLog( jdbc );
         this.acks = new JdbcWorkAcks( jdbc, this );
         this.writes = new JdbcWorkItemWrites( jdbc, this );
+        this.labels = new JdbcWorkLabels( jdbc );
         this.changes = new JdbcWorkChanges( jdbc, this );
         this.deployments = new JdbcWorkDeployments( jdbc, this );
     }
@@ -145,8 +149,8 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
             final long id = jdbc.queryOne( conn, """
                 INSERT INTO work_item (project_id, seq, level, parent_id, product_id, kind, title, body, status,
                     priority, rank, due_on, assignee, reporter, autonomy, done_means, allow_direct, closed_at,
-                    assignee_queue, reporter_agent_id)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, CASE WHEN ? THEN NOW() END, ?, ?)
+                    assignee_queue, reporter_agent_id, type, labels)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, CASE WHEN ? THEN NOW() END, ?, ?, ?, ?)
                 RETURNING id
                 """,
                 ps -> {
@@ -170,6 +174,8 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
                     ps.setBoolean( 18, isClosed( status ) );
                     ps.setString( 19, draft.queue() );
                     setNullableLong( ps, 20, by.agentId() );
+                    ps.setString( 21, draft.type().wire() );
+                    ps.setArray( 22, conn.createArrayOf( "text", draft.labels().toArray( new String[ 0 ] ) ) );
                 }, rs -> rs.getLong( 1 ) )
                 .orElseThrow( () -> new SQLException( "INSERT work_item returned no row" ) );
             insertRevision( conn, id, 1, draft.title(), body, by );
@@ -274,9 +280,14 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     }
 
     @Override
+    public List< LabelCount > labelCounts( final long projectId ) throws SQLException {
+        return labels.counts( projectId );
+    }
+
+    @Override
     public List< BoardColumn > board( final long projectId, final ItemFilter f ) throws SQLException {
         final ItemFilter scoped = new ItemFilter( projectId, null, f.assignee(), f.productId(), f.level(),
-            f.parentId(), f.text(), f.dueBefore(), 0, null, f.queue() );
+            f.parentId(), f.text(), f.dueBefore(), 0, null, f.queue(), f.type(), f.labels() );
         final List< BoardColumn > columns = new ArrayList<>();
         for ( final WorkStatus status : WorkStatus.values() ) {
             final StringBuilder where = new StringBuilder( " WHERE i.status = ?" );

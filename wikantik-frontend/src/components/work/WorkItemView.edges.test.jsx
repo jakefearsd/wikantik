@@ -10,6 +10,7 @@ vi.mock('../../api/work', () => ({
   listChanges: vi.fn(() => Promise.resolve({ changes: [] })), getItemPolicy: vi.fn(() => Promise.resolve(null)),
   openChange: vi.fn(), requestReview: vi.fn(), reviewChange: vi.fn(), mergeChange: vi.fn(), abandonChange: vi.fn(),
   acknowledgeItem: vi.fn(), getShippedIn: vi.fn(() => Promise.resolve({ shippedIn: [] })),
+  listLabels: vi.fn(() => Promise.resolve([])),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
@@ -484,10 +485,10 @@ describe('WorkItemView edges', () => {
       expect(screen.getByText('Created').nextSibling).toHaveTextContent('');
     });
 
-    it('shows no parent, product or kind as None, None and software', async () => {
+    it('shows no parent, product or labels as None and no kind as software', async () => {
       renderView(makeView({ parentKey: null, productKey: null }, { kind: null }));
       await ready();
-      expect(screen.getAllByText('None')).toHaveLength(2);
+      expect(screen.getAllByText('None')).toHaveLength(3); // parent, product, labels
       expect(screen.getByText('software')).toBeInTheDocument();
     });
 

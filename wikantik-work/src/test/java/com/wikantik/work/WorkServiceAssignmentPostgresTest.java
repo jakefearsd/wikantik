@@ -64,7 +64,7 @@ class WorkServiceAssignmentPostgresTest {
     @Test
     void assigningAPersonToAClaimedQueueItemClearsQueueAndClaim() throws SQLException {
         service.createItem( lena, new ItemDraft( "PLAT", WorkLevel.TASK, null, null,
-            WorkKind.SOFTWARE, "t", "", null, null, null, "implementer" ) );
+            WorkKind.SOFTWARE, "t", "", null, null, null, "implementer", null, null ) );
         final Item item = store.item( "PLAT-1" ).orElseThrow();
         WorkAgentFixtures.exec( ds, "UPDATE work_item SET claimed_by_agent = " + agentId
             + ", claimed_at = NOW(), claim_expires_at = NOW() + INTERVAL '1 hour' WHERE id = " + item.id() );
@@ -92,7 +92,7 @@ class WorkServiceAssignmentPostgresTest {
     void createWithPersonAndQueueIsRejectedAndWritesNothing() throws SQLException {
         final WorkValidationException e = assertThrows( WorkValidationException.class, () -> service.createItem( lena,
             new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", null, null, "lena",
-                "implementer" ) ) );
+                "implementer", null, null ) ) );
         assertEquals( "queue", e.field() );
         assertEquals( "Assign a person or a queue, not both.", e.getMessage() );
         assertEquals( 0, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_item" ) );

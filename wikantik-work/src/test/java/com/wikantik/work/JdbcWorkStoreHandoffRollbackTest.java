@@ -54,7 +54,7 @@ class JdbcWorkStoreHandoffRollbackTest {
         final long agent = WorkAgentFixtures.agent( ds, "codex" );
         final Item d = JdbcWorkStoreItemsPostgresTest.draft( "x" );
         final Item draft = new Item( 0, 0, null, d.level(), null, null, d.kind(), "x", "b", WorkStatus.IN_PROGRESS,
-            3, 0, null, null, null, null, null, null, 0, null, null, null, "implementer", null, null, null, null );
+            3, 0, null, null, null, null, null, null, 0, null, null, null, "implementer", null, null, null, null, null, null );
         final Item created = store.createItem( plat, draft, lena );
         WorkAgentFixtures.exec( ds, "UPDATE work_item SET claimed_by_agent = " + agent
             + ", claimed_at = NOW(), claim_expires_at = NOW() + INTERVAL '1 hour' WHERE id = " + created.id() );
@@ -63,7 +63,7 @@ class JdbcWorkStoreHandoffRollbackTest {
         final Item next = new Item( current.id(), current.projectId(), current.key(), current.level(), null, null,
             current.kind(), current.title(), current.body(), WorkStatus.REVIEW, current.priority(), current.rank(),
             null, null, current.reporter(), null, null, null, current.version(), null, null, null, "reviewer",
-            current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(), null );
+            current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(), null, null, null );
         // statements: 1 lock the row (holder read), 2 update item, 3 insert handoff event, 4 insert released event
         final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
         faulty.failOn( 4, new RuntimeException( "boom: released insert" ) );

@@ -73,7 +73,7 @@ class ChangeToolsPostgresTest {
         f.svc.createProduct( f.admin, new Product( 0, "wikantik", "Wikantik", null, "main", null, Autonomy.DELEGATED,
             DeployGate.HUMAN, null ) );
         final Item draft = f.svc.createItem( f.lena, new ItemDraft( "PLAT", WorkLevel.TASK, null, "wikantik",
-            WorkKind.SOFTWARE, "Build the thing", "", null, null, null, "implementer" ) ).item();
+            WorkKind.SOFTWARE, "Build the thing", "", null, null, null, "implementer", null, null ) ).item();
         key = f.svc.updateItem( f.lena, draft.key(), new ItemPatch( draft.version(), Map.of( "status", "ready" ),
             null ) ).item().key();
     }

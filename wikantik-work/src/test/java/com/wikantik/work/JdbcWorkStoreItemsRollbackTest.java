@@ -69,13 +69,13 @@ class JdbcWorkStoreItemsRollbackTest {
         assertThrows( RuntimeException.class, () -> faultyStore.createItem( plat,
             JdbcWorkStoreItemsPostgresTest.draft( "x" ), Actor.human( "alice", java.util.Set.of(), false ) ) );
         assertEquals( 1, faulty.rollbacks() );
-        assertTrue( store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null, null ) ).isEmpty() );
+        assertTrue( store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null, null, null, null ) ).isEmpty() );
         assertEquals( before, nextSeq() );
     }
 
     private static Item draftFor( final String assignee, final String queue ) {
         return new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "x", "body", WorkStatus.DRAFT, 3, 0,
-            null, assignee, null, null, null, null, 0, null, null, null, queue, null, null, null, null );
+            null, assignee, null, null, null, null, 0, null, null, null, queue, null, null, null, null, null, null );
     }
 
     private void createRollsBackWhenAssignedInsertFails( final Item draft ) throws SQLException {
@@ -88,7 +88,7 @@ class JdbcWorkStoreItemsRollbackTest {
         assertThrows( RuntimeException.class, () -> faultyStore.createItem( plat, draft,
             Actor.human( "alice", java.util.Set.of(), false ) ) );
         assertEquals( 1, faulty.rollbacks() );
-        assertTrue( store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null, null ) ).isEmpty() );
+        assertTrue( store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null, null, null, null ) ).isEmpty() );
         assertEquals( 0, WorkAgentFixtures.scalar( ds, "SELECT count(*) FROM work_event WHERE project_id = " + plat.id() ),
             "the created event rolled back with it" );
         assertEquals( before, nextSeq() );
@@ -114,7 +114,7 @@ class JdbcWorkStoreItemsRollbackTest {
         final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
         final Item next = new Item( i.id(), i.projectId(), i.key(), i.level(), null, null, i.kind(), "changed",
             i.body(), i.status(), i.priority(), i.rank(), null, null, i.reporter(), null, null, null, i.version(),
-            null, null, null, null, null, null, null, null );
+            null, null, null, null, null, null, null, null, null, null );
         assertThrows( RuntimeException.class, () -> faultyStore.updateItem( i, next, Actor.human( "bob", java.util.Set.of(), false ), null ) );
         assertEquals( 1, faulty.rollbacks() );
         final Item after = store.item( "PLAT-1" ).orElseThrow();
@@ -122,5 +122,23 @@ class JdbcWorkStoreItemsRollbackTest {
         assertEquals( 1, after.version() );
         assertEquals( 1, store.revisions( i.id() ).size() );
         assertEquals( 1, store.itemEvents( i.id() ).size() );
+    }
+
+    @Test
+    void aFailedLabelsEventRollsBackTypeAndLabels() throws SQLException {
+        final Item i = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "x" ),
+            Actor.human( "alice", java.util.Set.of(), false ) );
+        // statements: 1 lockHolder, 2 update item, 3 the type event, 4 the labels event
+        final FaultInjectingDataSource faulty = new FaultInjectingDataSource( ds );
+        faulty.failOn( 4, new RuntimeException( "boom: labels event" ) );
+        final JdbcWorkStore faultyStore = new JdbcWorkStore( faulty );
+        final Item next = JdbcWorkStoreItemsPostgresTest.typed( i, WorkType.BUG, java.util.List.of( "ui" ) );
+        assertThrows( RuntimeException.class,
+            () -> faultyStore.updateItem( i, next, Actor.human( "bob", java.util.Set.of(), false ), null ) );
+        assertEquals( 1, faulty.rollbacks() );
+        final Item after = store.item( "PLAT-1" ).orElseThrow();
+        assertEquals( WorkType.FEATURE, after.type() );
+        assertEquals( java.util.List.of(), after.labels() );
+        assertTrue( store.itemEvents( i.id() ).stream().noneMatch( e -> "field".equals( e.type() ) ) );
     }
 }

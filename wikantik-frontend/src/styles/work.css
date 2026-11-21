@@ -185,3 +185,11 @@
 
 /* A column a card is being dragged over */
 .work-column-over { border-color: var(--accent); background: var(--accent-soft); }
+
+/* Labels */
+.work-labels { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+.work-label { display: inline-block; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-xs); font-size: 0.75rem; }
+.work-label-more { font-size: 0.75rem; color: var(--text-muted); }
+.work-label-remove { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 0 0 var(--space-xs); font-size: 0.75rem; }
+.work-label-input { font-size: 0.8rem; min-width: 8rem; }
+.work-label-error { font-size: 0.75rem; color: var(--text-muted); }

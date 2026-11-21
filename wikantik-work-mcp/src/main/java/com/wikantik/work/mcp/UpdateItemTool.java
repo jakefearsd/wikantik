@@ -43,7 +43,7 @@ public final class UpdateItemTool extends WorkMcpTool {
     public static final String TOOL_NAME = "update_item";
 
     private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
-        .description( "Change an item's title, body, status, priority or dueOn, as the agent you are. Give at "
+        .description( "Change an item's title, body, status, priority, dueOn, type or labels, as the agent you are. Give at "
             + "least one of them. It cannot change who has the item (use handoff_item) or any policy or "
             + "structural field; those arguments are refused by name. Returns the item as get_item does. "
             + "Refusals start stale: (re-read and retry), denied:, archived: or name the field." )
@@ -56,12 +56,15 @@ public final class UpdateItemTool extends WorkMcpTool {
             + "cancelled. To give the item to someone else use handoff_item.", "in_progress" )
         .arg( "priority", "integer", "1 (highest) to 4.", 2 )
         .arg( "dueOn", "string", "ISO date, or null to clear.", "2026-12-01" )
+        .arg( "type", "string", "feature, bug or chore.", "bug" )
+        .arg( "labels", labelsSchema(), false )
         .arg( "note", "string", "Why you changed it; recorded in the item's history.", "Started work." );
 
     static final String USE_HANDOFF = "Use handoff_item to change who has the item.";
     static final String NOT_SETTABLE = "That field is not settable through this endpoint.";
 
-    private static final Set< String > SETTABLE = Set.of( "title", "body", "status", "priority", "dueOn" );
+    private static final Set< String > SETTABLE = Set.of( "title", "body", "status", "priority", "dueOn", "type",
+        "labels" );
     private static final Map< String, String > REASONS = Map.ofEntries(
         Map.entry( "assignee", USE_HANDOFF ), Map.entry( "queue", USE_HANDOFF ),
         Map.entry( "autonomy", NOT_SETTABLE ), Map.entry( "doneMeans", NOT_SETTABLE ),
@@ -86,7 +89,7 @@ public final class UpdateItemTool extends WorkMcpTool {
         final Map< String, Object > changes = new LinkedHashMap<>();
         for ( final String field : SETTABLE ) {
             if ( args.containsKey( field ) ) {
-                changes.put( field, "priority".equals( field ) ? priority( args ) : stringArg( args, field ) );
+                changes.put( field, value( args, field ) );
             }
         }
         final String note = stringArg( args, "note" );
@@ -96,6 +99,14 @@ public final class UpdateItemTool extends WorkMcpTool {
         final ItemView view = svc.updateItem( actor, key, new ItemPatch( expectedVersion, changes, note ) );
         WorkMcpLog.written( TOOL_NAME, "updated", key, actor );
         return ok( WorkMcpJson.fullItem( svc, directory, actor, view ) );
+    }
+
+    private static Object value( final Map< String, Object > args, final String field ) {
+        return switch ( field ) {
+            case "priority" -> priority( args );
+            case "labels" -> stringListArg( args, field );
+            default -> stringArg( args, field );
+        };
     }
 
     private static Object priority( final Map< String, Object > args ) {

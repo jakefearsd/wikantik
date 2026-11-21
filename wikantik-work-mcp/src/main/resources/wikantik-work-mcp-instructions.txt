@@ -12,13 +12,14 @@ get_work_context   Who you are (your agent record and queues), the projects you 
                    long pause.
 list_claimable     Items you could claim now: unclaimed, ready or in review, in a queue you serve, in a project
                    where you are a member. Optional project, queue and limit (default 20, at most 50).
-get_item           One item in full by key: body and comments as Markdown source, status, version, assignee, queue,
-                   claim, wikiCluster, links, and the last 20 events. Use its version when you change the item.
+get_item           One item in full by key: body and comments as Markdown source, status, type, labels, version,
+                   assignee, queue, claim, wikiCluster, links, and the last 20 events. Use its version when you change the item.
 claim_item         key. Take an item for yourself, or renew your own claim by calling it again before expiresAt.
                    Returns {claim:{expiresAt,renewed}, item} with the item as get_item shows it.
-update_item        key, expectedVersion, and any of title, body, status, priority, dueOn, plus an optional note.
-                   Returns the item. It cannot change who has the item or any policy field; those arguments are
-                   refused by name (use handoff_item to change who has it).
+update_item        key, expectedVersion, and any of title, body, status, priority, dueOn, type, labels,
+                   plus an optional note. Returns the item. It cannot change who has the item or any policy field; those arguments are
+                   refused by name (use handoff_item to change who has it). labels replaces the whole set; an
+                   unknown or malformed label is refused as labels:.
 comment_on_item    key, body (Markdown). Returns {id, at}.
 handoff_item       key, expectedVersion, status, exactly one of assignee (a person's display name, never a login)
                    or queue (a queue key), and a note. Returns the item. Your claim on it ends. To a queue the
@@ -26,8 +27,8 @@ handoff_item       key, expectedVersion, status, exactly one of assignee (a pers
 release_item       key and an optional note. Gives up your claim; the item goes back where it was waiting.
                    Returns {key, status}.
 create_item        project, level (epic, story or task), title, and optionally body, parentKey, productKey, kind,
-                   priority, queue. Returns {key, version, status}. A new item is always a draft with no
-                   assignee, for a person to refine; status and assignee are refused by name. You cannot
+                   type (feature, bug or chore), labels (a list), priority, queue. Returns {key, version,
+                   status}. A new item is always a draft with no assignee, for a person to refine; status and assignee are refused by name. You cannot
                    move a draft out of draft: hand it to a person (status draft) with a note.
 open_change        key, branch, and optionally base_branch, head_sha, review_url. Records a branch of work on the
                    item and returns the change with its id. Name the branch work/<ITEM-KEY>-<slug>. With

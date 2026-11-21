@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import Icon from '../ui/Icon';
 import Select from '../ui/Select';
+import WorkLabels from './WorkLabels';
 import { STATUSES, STATUS_LABELS, isOverdue } from './boardModel';
 import { clockText, fullTime, isPast, useExpiryClock } from './workTime';
 
@@ -44,8 +45,10 @@ export default function WorkCard({ item, productKey, changes = null, draggable =
         <Link to={`/work/item/${item.key}`} className="work-card-key" draggable={false}>{item.key}</Link>
         {item.level !== 'task' && <span className="work-card-level">{item.level}</span>}
         {item.blocked && <Badge variant="danger" title="Blocked by an open item">Blocked</Badge>}
+        {item.type === 'bug' && <Badge variant="warning" title="Bug">Bug</Badge>}
       </div>
       <div className="work-card-title">{item.title}</div>
+      {item.labels?.length > 0 && <WorkLabels labels={item.labels} max={3} />}
       <div className="work-card-meta">
         {productKey && <span className="work-card-product">{productKey}</span>}
         <span className="work-card-priority">P{item.priority}</span>

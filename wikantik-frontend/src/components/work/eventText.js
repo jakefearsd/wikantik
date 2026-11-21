@@ -166,7 +166,10 @@ export function eventText(e) {
       const back = ev.toValue ? ` — back to ${statusWords(ev.toValue)}` : '';
       return { text: `claim by ${ev.actorName || 'an agent'} expired${back}`, note: null, standalone: true };
     }
-    case 'field': return { text: `changed ${words(ev.note || 'a field')} ${orNone(ev.fromValue)} → ${orNone(ev.toValue)}`, note: null };
+    case 'field': {
+      const side = ev.note === 'labels' ? (v) => orNone(v).split(',').join(', ') : orNone;
+      return { text: `changed ${words(ev.note || 'a field')} ${side(ev.fromValue)} → ${side(ev.toValue)}`, note: null };
+    }
     case 'commented': return { text: 'commented', note };
     case 'comment_edited': return { text: 'edited a comment', note };
     case 'comment_removed': return { text: 'removed a comment', note };

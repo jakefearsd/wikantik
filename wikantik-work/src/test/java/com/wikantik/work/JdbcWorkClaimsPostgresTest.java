@@ -281,7 +281,7 @@ class JdbcWorkClaimsPostgresTest {
             before.productId(), before.kind(), before.title(), before.body(), WorkStatus.READY, before.priority(),
             before.rank(), before.dueOn(), before.assignee(), before.reporter(), before.autonomy(),
             before.doneMeans(), before.allowDirect(), before.version() + 1, before.createdAt(), after.updatedAt(),
-            before.closedAt(), before.queue(), null, null, null, before.reporterAgentId() ), after );
+            before.closedAt(), before.queue(), null, null, null, before.reporterAgentId(), null, null ), after );
         assertEquals( links, store.links( held.id() ) );
         assertEquals( comments, store.comments( held.id() ) );
     }
@@ -434,7 +434,7 @@ class JdbcWorkClaimsPostgresTest {
         store.updateItem( cur, new Item( cur.id(), cur.projectId(), cur.key(), cur.level(), null, null, cur.kind(),
             cur.title(), cur.body(), status, cur.priority(), cur.rank(), null, null, cur.reporter(), null, null, null,
             cur.version(), null, null, null, queue, cur.claimedByAgent(), cur.claimedAt(), cur.claimExpiresAt(),
-            null ), WorkClaimFixtures.LENA, null );
+            null, null, null ), WorkClaimFixtures.LENA, null );
     }
 
     @Test

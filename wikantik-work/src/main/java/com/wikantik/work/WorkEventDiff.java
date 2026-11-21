@@ -70,6 +70,8 @@ final class WorkEventDiff {
         fieldEvent( out, cur, by, "parent_id", text( cur.parentId() ), text( nxt.parentId() ) );
         fieldEvent( out, cur, by, "product_id", text( cur.productId() ), text( nxt.productId() ) );
         fieldEvent( out, cur, by, "kind", cur.kind().wire(), nxt.kind().wire() );
+        fieldEvent( out, cur, by, "type", cur.type().wire(), nxt.type().wire() );
+        fieldEvent( out, cur, by, "labels", joined( cur.labels() ), joined( nxt.labels() ) );
         fieldEvent( out, cur, by, "autonomy", autonomyWire( cur.autonomy() ), autonomyWire( nxt.autonomy() ) );
         fieldEvent( out, cur, by, "done_means", doneMeansWire( cur.doneMeans() ), doneMeansWire( nxt.doneMeans() ) );
         fieldEvent( out, cur, by, "allow_direct", text( cur.allowDirect() ), text( nxt.allowDirect() ) );
@@ -93,6 +95,10 @@ final class WorkEventDiff {
         if ( !Objects.equals( from, to ) ) {
             out.add( event( cur, by, WorkEvent.FIELD, from, to, field ) );
         }
+    }
+
+    private static String joined( final List< String > labels ) {
+        return labels.isEmpty() ? null : String.join( ",", labels );
     }
 
     private static WorkEvent event( final Item item, final Actor by, final String type, final String from,

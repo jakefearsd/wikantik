@@ -22,6 +22,7 @@ import com.wikantik.work.WorkNotFoundException;
 import com.wikantik.work.WorkValidationException;
 import io.modelcontextprotocol.spec.McpSchema;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +56,39 @@ final class WorkMcpArgs {
             return s;
         }
         throw new WorkValidationException( key, "must be a string." );
+    }
+
+    /** An optional list-of-strings argument: null when absent, an empty list for null; anything else is an error. */
+    static List< String > stringListArg( final Map< String, Object > args, final String key ) {
+        if ( !args.containsKey( key ) ) {
+            return null;
+        }
+        final Object v = args.get( key );
+        if ( v == null ) {
+            return List.of();
+        }
+        if ( v instanceof List< ? > list ) {
+            final List< String > out = new ArrayList<>();
+            for ( final Object e : list ) {
+                if ( !( e instanceof String s ) ) {
+                    throw new WorkValidationException( key, "must be a list of labels." );
+                }
+                out.add( s );
+            }
+            return out;
+        }
+        throw new WorkValidationException( key, "must be a list of labels." );
+    }
+
+    /** The input schema of a {@code labels} argument. */
+    static Map< String, Object > labelsSchema() {
+        final Map< String, Object > p = new LinkedHashMap<>();
+        p.put( "type", "array" );
+        p.put( "items", Map.of( "type", "string" ) );
+        p.put( "description", "Labels: lowercase letters, digits, dots, dashes and underscores, at most 10. "
+            + "The whole set is replaced." );
+        p.put( "examples", List.of( List.of( "ui", "billing" ) ) );
+        return p;
     }
 
     /** The {@code key} argument; a missing or blank one is the same answer as an unknown item. */

@@ -60,7 +60,7 @@ class WorkDeploymentAccessPostgresTest {
         f.svc.putMember( f.admin, "OPS", "author", "agent", WorkRole.MEMBER );
         plat = f.status( f.lena, f.task(), "ready" );
         ops = f.status( olga, f.svc.createItem( olga, new ItemDraft( "OPS", WorkLevel.TASK, null, "wikantik",
-            WorkKind.SOFTWARE, "An ops item", "", null, null, null, null ) ).item(), "ready" );
+            WorkKind.SOFTWARE, "An ops item", "", null, null, null, null, null, null ) ).item(), "ready" );
     }
 
     private DeploymentView requestedBy( final Actor who ) throws SQLException {

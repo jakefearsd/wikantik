@@ -100,7 +100,7 @@ class WorkPolicyTest {
 
     private static Item claimedBy( final Long agent ) {
         return new Item( 1, 1, "PLAT-1", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", WorkStatus.READY, 3,
-            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, agent, null, null, null );
+            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, agent, null, null, null, null, null );
     }
 
     @ParameterizedTest
@@ -166,7 +166,7 @@ class WorkPolicyTest {
 
     private static Item inStatus( final WorkStatus status ) {
         return new Item( 1, 1, "PLAT-1", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", status, 3,
-            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, null, null, null, null );
+            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, null, null, null, null, null, null );
     }
 
     private static final EffectivePolicy DELEGATED = PolicyItems.policy( Autonomy.DELEGATED, false );

@@ -71,7 +71,7 @@ class WorkInputEdgesTest {
 
     @Test
     void aKeyThatIsAlsoARouteIsReserved() {
-        for ( final String reserved : List.of( "ITEM", "products", "Agents", "LOG" ) ) {
+        for ( final String reserved : List.of( "ITEM", "products", "Agents", "LOG", "DEPLOYMENTS", "Deployments" ) ) {
             assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( reserved ) ), reserved );
         }
         WorkInputs.requireUnreservedKey( null );

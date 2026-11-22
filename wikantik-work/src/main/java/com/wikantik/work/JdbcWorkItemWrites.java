@@ -27,8 +27,11 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import static com.wikantik.work.SqlValues.autonomyWire;
 import static com.wikantik.work.SqlValues.doneMeansWire;
@@ -74,7 +77,8 @@ final class JdbcWorkItemWrites {
         final int version = current.version() + 1;
         final String body = next.body() == null ? "" : next.body();
         return jdbc.inTransaction( conn -> {
-            final long holder = lockHolder( conn, current.id() );
+            lockSprints( conn, current, next );
+            final long holder = lockHolder( conn, current );
             requireNotFenced( by, holder );
             requireNoLiveChange( conn, current, next );
             requireShipped( conn, current, next, rules );
@@ -180,11 +184,19 @@ final class JdbcWorkItemWrites {
      * The holder as the row is now, under lock: the caller's copy may predate a claim (claims need not bump the
      * version), so the release is decided and named from here.
      */
-    private long lockHolder( final Connection conn, final long itemId ) throws SQLException {
-        return jdbc.queryOne( conn, "SELECT claimed_by_agent FROM work_item WHERE id = ? FOR UPDATE",
-            ps -> ps.setLong( 1, itemId ), rs -> {
+    private long lockHolder( final Connection conn, final Item current ) throws SQLException {
+        return jdbc.queryOne( conn, "SELECT claimed_by_agent, sprint_id FROM work_item WHERE id = ? FOR UPDATE",
+            ps -> ps.setLong( 1, current.id() ), rs -> {
                 final long v = rs.getLong( 1 );
-                return rs.wasNull() ? NO_HOLDER : v;
+                final boolean unheld = rs.wasNull();
+                final long sprint = rs.getLong( 2 );
+                final Long sprintId = rs.wasNull() ? null : sprint;
+                // The sprint rows were locked for the sprint the caller read; if the item moved since, refuse.
+                if ( !Objects.equals( sprintId, current.sprintId() ) ) {
+                    throw new WorkConflictException( "Item " + current.key() + " changed since version "
+                        + current.version() );
+                }
+                return unheld ? NO_HOLDER : v;
             } ).orElse( NO_HOLDER );
     }
 
@@ -198,7 +210,7 @@ final class JdbcWorkItemWrites {
     return jdbc.update( conn, """
             UPDATE work_item SET parent_id = ?, product_id = ?, kind = ?, title = ?, body = ?, status = ?,
                 priority = ?, rank = ?, due_on = ?, assignee = ?, autonomy = ?, done_means = ?,
-                allow_direct = ?, assignee_queue = ?, type = ?, labels = ?,
+                allow_direct = ?, assignee_queue = ?, sprint_id = ?, estimate = ?, type = ?, labels = ?,
                 claimed_by_agent = CASE WHEN ? THEN NULL ELSE claimed_by_agent END,
                 claimed_at = CASE WHEN ? THEN NULL ELSE claimed_at END,
                 claim_expires_at = CASE WHEN ? THEN NULL ELSE claim_expires_at END,
@@ -224,21 +236,49 @@ final class JdbcWorkItemWrites {
                 ps.setString( 12, doneMeansWire( next.doneMeans() ) );
                 setNullableBoolean( ps, 13, next.allowDirect() );
                 ps.setString( 14, next.queue() );
-                ps.setString( 15, next.type().wire() );
-                ps.setArray( 16, conn.createArrayOf( "text", next.labels().toArray( new String[ 0 ] ) ) );
-                ps.setBoolean( 17, f.clearClaim() );
-                ps.setBoolean( 18, f.clearClaim() );
+                setNullableLong( ps, 15, next.sprintId() );
+                ps.setBigDecimal( 16, next.estimate() );
+                ps.setString( 17, next.type().wire() );
+                ps.setArray( 18, conn.createArrayOf( "text", next.labels().toArray( new String[ 0 ] ) ) );
                 ps.setBoolean( 19, f.clearClaim() );
-                ps.setBoolean( 20, f.closing() );
-                ps.setBoolean( 21, f.reopening() );
-                ps.setBoolean( 22, f.finishing() );
-                ps.setBoolean( 23, f.ackRequired() );
-                ps.setBoolean( 24, f.leavingDone() );
-                ps.setBoolean( 25, f.finishing() || f.leavingDone() );
-                ps.setBoolean( 26, f.finishing() || f.leavingDone() );
-                ps.setLong( 27, current.id() );
-                ps.setInt( 28, current.version() );
+                ps.setBoolean( 20, f.clearClaim() );
+                ps.setBoolean( 21, f.clearClaim() );
+                ps.setBoolean( 22, f.closing() );
+                ps.setBoolean( 23, f.reopening() );
+                ps.setBoolean( 24, f.finishing() );
+                ps.setBoolean( 25, f.ackRequired() );
+                ps.setBoolean( 26, f.leavingDone() );
+                ps.setBoolean( 27, f.finishing() || f.leavingDone() );
+                ps.setBoolean( 28, f.finishing() || f.leavingDone() );
+                ps.setLong( 29, current.id() );
+                ps.setInt( 30, current.version() );
             } );
+    }
+
+    /**
+     * A write that changes the sprint, estimate or status of an item that is, or becomes, part of a sprint takes
+     * {@code FOR SHARE} on those sprint rows (id order) before the item row is changed, so a start or close, which
+     * lock the sprint first, count a settled set. Joining a closed sprint is refused here, on the locked row. Any
+     * other write issues no statement.
+     */
+    private void lockSprints( final Connection conn, final Item current, final Item next ) throws SQLException {
+        final boolean sprintMatters = current.sprintId() != null || next.sprintId() != null;
+        final boolean changes = !Objects.equals( current.sprintId(), next.sprintId() )
+            || !Objects.equals( current.estimate(), next.estimate() ) || current.status() != next.status();
+        if ( !sprintMatters || !changes ) {
+            return;
+        }
+        final Long[] ids = Stream.of( current.sprintId(), next.sprintId() ).filter( Objects::nonNull ).distinct()
+            .sorted().toArray( Long[]::new );
+        final Map< Long, String > states = new HashMap<>();
+        jdbc.query( conn, "SELECT id, state FROM work_sprint WHERE id = ANY( ? ) ORDER BY id FOR SHARE",
+            ps -> ps.setArray( 1, conn.createArrayOf( "bigint", ids ) ),
+            rs -> states.put( rs.getLong( 1 ), rs.getString( 2 ) ) );
+        if ( next.sprintId() != null && !next.sprintId().equals( current.sprintId() )
+                && SprintState.CLOSED.wire().equals( states.get( next.sprintId() ) ) ) {
+            throw new WorkConflictException( "A closed sprint takes no more work.",
+                WorkConflictException.SPRINT_CLOSED );
+        }
     }
 
     /**

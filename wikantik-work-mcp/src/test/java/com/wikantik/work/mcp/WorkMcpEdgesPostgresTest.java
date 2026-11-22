@@ -172,4 +172,19 @@ class WorkMcpEdgesPostgresTest {
         assertEquals( "PLAT-1agentroot", WorkMcpLog.cleanKey( "PLAT-1 agent=root" ) );
         assertEquals( "PLAT-1x", WorkMcpLog.cleanKey( "PLAT-1  x" ) );
     }
+
+    @Test
+    void anAgentEstimatesThroughTheRealService() throws SQLException {
+        final com.wikantik.work.Item item = f.ready( "PLAT", "Sized by the agent" );
+        final JsonObject o = ok( call( f.builderActor, "update_item", "key", item.key(),
+            "expectedVersion", item.version(), "estimate", 3 ) );
+        assertEquals( 3.0, o.get( "estimate" ).getAsDouble() );
+        final var estimateEvents = f.svc.events( f.lena, item.key() ).stream()
+            .filter( e -> "field".equals( e.type() ) && "estimate".equals( e.note() ) ).toList();
+        assertEquals( 1, estimateEvents.size() );
+        assertEquals( f.builder.id(), estimateEvents.get( 0 ).agentId() );
+        assertEquals( com.wikantik.work.Actor.Kind.AGENT, estimateEvents.get( 0 ).actorKind() );
+        assertEquals( "sprint: A person plans a sprint.", refused( call( f.builderActor, "update_item",
+            "key", item.key(), "expectedVersion", o.get( "version" ).getAsInt(), "sprint", 1 ) ) );
+    }
 }

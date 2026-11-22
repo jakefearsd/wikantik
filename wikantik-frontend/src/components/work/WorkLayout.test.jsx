@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useNavigate } from 'react-router-dom';
 
-vi.mock('../../api/work', () => ({ getProject: vi.fn() }));
-import { getProject } from '../../api/work';
+vi.mock('../../api/work', () => ({ getProject: vi.fn(), listSprints: vi.fn() }));
+import { getProject, listSprints } from '../../api/work';
 import WorkLayout from './WorkLayout';
 import { useWorkProject } from './useWorkProject';
 
@@ -22,9 +22,75 @@ const renderAt = (path) => render(
     </Routes>
   </MemoryRouter>);
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => { vi.clearAllMocks(); listSprints.mockResolvedValue([]); });
 
 describe('WorkLayout', () => {
+  it('a project with no sprint shows no Sprints tab to a member', async () => {
+    getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'member' });
+    renderAt('/work/PLAT');
+    await screen.findByTestId('probe');
+    expect(listSprints).toHaveBeenCalledWith('PLAT');
+    expect(screen.queryByRole('tab', { name: 'Sprints' })).toBeNull();
+  });
+
+  it('a lead sees the Sprints tab before the first sprint', async () => {
+    getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'lead' });
+    renderAt('/work/PLAT');
+    await screen.findByTestId('probe');
+    expect(screen.getByRole('tab', { name: 'Sprints' })).toBeInTheDocument();
+  });
+
+  it('a member sees the Sprints tab once the project has a sprint', async () => {
+    getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'member' });
+    listSprints.mockResolvedValue([{ id: 5, name: 'Sprint 1', state: 'planned' }]);
+    renderAt('/work/PLAT');
+    await screen.findByTestId('probe');
+    expect(screen.getByRole('tab', { name: 'Sprints' })).toBeInTheDocument();
+  });
+
+  it('does not wait for the sprint list', async () => {
+    getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'member' });
+    listSprints.mockReturnValue(new Promise(() => {}));
+    renderAt('/work/PLAT');
+    expect(await screen.findByTestId('probe')).toBeInTheDocument();
+  });
+
+  it('shows a failed sprint load with a retry that recovers', async () => {
+    getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'lead' });
+    listSprints.mockRejectedValueOnce(new Error('down'));
+    renderAt('/work/PLAT');
+    expect(await screen.findByText(/Could not load the sprints: down/)).toBeInTheDocument();
+    listSprints.mockResolvedValue([{ id: 5, name: 'Sprint 1', state: 'planned' }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.queryByText(/Could not load the sprints/)).toBeNull());
+  });
+
+  it('a failed reload keeps the last good sprint list', async () => {
+    getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'member' });
+    listSprints.mockResolvedValue([{ id: 5, name: 'Sprint 1', state: 'planned' }]);
+    function Reloader() {
+      const { sprints, reloadSprints } = useWorkProject();
+      return <button type="button" onClick={reloadSprints}>reload {sprints.length}</button>;
+    }
+    render(
+      <MemoryRouter initialEntries={['/work/PLAT']}>
+        <Routes><Route path="/work/:project" element={<WorkLayout />}><Route index element={<Reloader />} /></Route></Routes>
+      </MemoryRouter>);
+    const button = await screen.findByRole('button', { name: 'reload 1' });
+    listSprints.mockRejectedValue(new Error('blip'));
+    fireEvent.click(button);
+    expect(await screen.findByText(/Could not load the sprints: blip/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'reload 1' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Sprints' })).toBeInTheDocument();
+  });
+
+  it('still loads when the sprint list fails', async () => {
+    getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'member' });
+    listSprints.mockRejectedValue(new Error('down'));
+    renderAt('/work/PLAT');
+    expect(await screen.findByTestId('probe')).toBeInTheDocument();
+  });
+
   it('loads the project and exposes project and role to children', async () => {
     getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'lead' });
     renderAt('/work/PLAT');

@@ -51,6 +51,13 @@ public class WorkConflictException extends RuntimeException {
     /** The item closes only when a deployment that carries it is verified. */
     public static final String AWAITING_DEPLOYMENT = "awaiting_deployment";
 
+    /** The project already has an active sprint. */
+    public static final String SPRINT_ACTIVE = "sprint_active";
+    /** A closed sprint takes no more work and cannot be edited. */
+    public static final String SPRINT_CLOSED = "sprint_closed";
+    /** The target of the request is not one the operation can use. */
+    public static final String BAD_TARGET = "bad_target";
+
     private final String reason;
 
     /** A stale-version conflict. */

@@ -206,4 +206,21 @@ class GetItemToolTest {
         assertEquals( 20, events.size() );
         assertEquals( "commented", events.get( 19 ).getAsJsonObject().get( "type" ).getAsString() );
     }
+
+    @Test
+    void itemShowsEstimateAndSprintName() throws SQLException {
+        final Item item = f.ready( "PLAT", "Planned" );
+        final var sprint = f.activeSprint( "PLAT" );
+        f.svc.updateItem( f.lena, item.key(), new com.wikantik.work.ItemPatch( item.version(),
+            Map.of( "sprint", sprint.sprint().id(), "estimate", 2.5 ), null ) );
+        final JsonObject o = WorkMcpFixture.json( asAgent( item.key() ) );
+        assertEquals( 2.5, o.get( "estimate" ).getAsDouble() );
+        assertEquals( sprint.sprint().name(), o.getAsJsonObject( "sprint" ).get( "name" ).getAsString() );
+        assertEquals( "active", o.getAsJsonObject( "sprint" ).get( "state" ).getAsString() );
+        assertEquals( sprint.sprint().endsOn().toString(), o.getAsJsonObject( "sprint" ).get( "endsOn" ).getAsString() );
+        final Item plain = f.ready( "PLAT", "Plain" );
+        final JsonObject p = WorkMcpFixture.json( asAgent( plain.key() ) );
+        assertTrue( p.get( "estimate" ).isJsonNull() );
+        assertTrue( p.get( "sprint" ).isJsonNull() );
+    }
 }

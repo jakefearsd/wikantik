@@ -693,6 +693,10 @@
        <servlet-class>com.wikantik.rest.WorkDeploymentResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>WorkSprintResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkSprintResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>WorkChangeResource</servlet-name>
        <servlet-class>com.wikantik.rest.WorkChangeResource</servlet-class>
    </servlet>
@@ -1074,6 +1078,11 @@
        <servlet-name>WorkDeploymentResource</servlet-name>
        <url-pattern>/api/work/deployments</url-pattern>
        <url-pattern>/api/work/deployments/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkSprintResource</servlet-name>
+       <url-pattern>/api/work/sprints</url-pattern>
+       <url-pattern>/api/work/sprints/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>WorkChangeResource</servlet-name>

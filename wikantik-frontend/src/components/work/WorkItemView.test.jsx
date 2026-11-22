@@ -10,7 +10,8 @@ vi.mock('../../api/work', () => ({
   listChanges: vi.fn(() => Promise.resolve({ changes: [] })), getItemPolicy: vi.fn(() => Promise.resolve(null)),
   openChange: vi.fn(), requestReview: vi.fn(), reviewChange: vi.fn(), mergeChange: vi.fn(), abandonChange: vi.fn(),
   acknowledgeItem: vi.fn(), getShippedIn: vi.fn(() => Promise.resolve({ shippedIn: [] })),
-  listLabels: vi.fn(() => Promise.resolve([])),
+  listLabels: vi.fn(() => Promise.resolve([])), listSprints: vi.fn(() => Promise.resolve([])),
+  getItemPoints: vi.fn(() => Promise.resolve({ points: 0 })),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
@@ -18,7 +19,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { authenticated:
 
 import {
   getItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
-  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn, listLabels,
+  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn, listLabels, listSprints,
 } from '../../api/work';
 import WorkItemView from './WorkItemView';
 
@@ -77,6 +78,69 @@ const chooseTarget = async (label, value) => {
   await waitFor(() => expect(screen.getByLabelText(label).querySelector(`option[value="${value}"]`)).not.toBeNull());
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 };
+
+const PLAN_SPRINTS = [
+  { id: 11, name: 'Sprint 12', state: 'active' }, { id: 12, name: 'Sprint 13', state: 'planned' }, { id: 10, name: 'Sprint 11', state: 'closed' },
+];
+
+describe('WorkItemView estimate and sprint', () => {
+  beforeEach(() => { listSprints.mockResolvedValue(PLAN_SPRINTS); });
+
+  it('an estimate of 1.25 is refused', async () => {
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Estimate' }));
+    fireEvent.change(screen.getByLabelText('Estimate'), { target: { value: '1.25' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Estimate' }));
+    expect(await screen.findByText('Use whole or half points, from 0 to 999.5.')).toBeInTheDocument();
+    expect(patchItem).not.toHaveBeenCalled();
+  });
+
+  it('a half point is saved as a number, and clearing sends null', async () => {
+    patchItem.mockResolvedValue(makeView({}, { estimate: 2.5, version: 5 }));
+    renderView();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Estimate' }));
+    fireEvent.change(screen.getByLabelText('Estimate'), { target: { value: '2.5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Estimate' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { estimate: 2.5 } }));
+    expect(await screen.findByText('2.5 pts')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Estimate' }));
+    fireEvent.change(screen.getByLabelText('Estimate'), { target: { value: '' } });
+    patchItem.mockResolvedValue(makeView({}, { estimate: null, version: 6 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Estimate' }));
+    await waitFor(() => expect(patchItem).toHaveBeenLastCalledWith('PLAT-7', { expectedVersion: 5, changes: { estimate: null } }));
+  });
+
+  it('the sprint row patches sprint', async () => {
+    patchItem.mockResolvedValue(makeView({}, { sprintId: 12, version: 5 }));
+    renderView();
+    await ready();
+    await waitFor(() => expect(listSprints).toHaveBeenCalledWith('PLAT'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Sprint' }));
+    const select = screen.getByLabelText('Sprint');
+    expect([...select.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Backlog', 'Sprint 12', 'Sprint 13']);
+    fireEvent.change(select, { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Sprint' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { sprint: 12 } }));
+  });
+
+  it('a viewer sees the sprint read-only, and a closed sprint by name', async () => {
+    renderView(makeView({ viewerRole: 'viewer' }, { sprintId: 10, estimate: 3 }));
+    await ready();
+    expect(await screen.findByText('Sprint 11')).toBeInTheDocument();
+    expect(screen.getByText('3 pts')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Sprint' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit Estimate' })).toBeNull();
+  });
+
+  it('an epic has neither row', async () => {
+    renderView(makeView({}, { level: 'epic' }));
+    await ready();
+    expect(screen.queryByText('Estimate')).toBeNull();
+    expect(screen.queryByText('Sprint')).toBeNull();
+  });
+});
 
 describe('WorkItemView', () => {
   it('rendersBodyHtmlFromServer', async () => {
@@ -218,6 +282,22 @@ describe('WorkItemView', () => {
     expect(screen.getByLabelText('Title').value).toBe('My title');
     fireEvent.click(screen.getByRole('button', { name: 'Review their version' }));
     expect(within(screen.getByTestId('conflict-review')).getByText('Their title')).toBeInTheDocument();
+  });
+
+  it('a sprint conflict names the sprints, not their ids', async () => {
+    listSprints.mockResolvedValue(PLAN_SPRINTS);
+    const theirs = makeView({}, { sprintId: 11, version: 5 });
+    patchItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, current: theirs }));
+    renderView();
+    await ready();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Sprint' }));
+    fireEvent.change(screen.getByLabelText('Sprint'), { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Sprint' }));
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Review their version' }));
+    const review = within(screen.getByTestId('conflict-review'));
+    expect(review.getByText('Sprint 12')).toBeInTheDocument();
+    expect(review.getByText('Sprint 13')).toBeInTheDocument();
   });
 
   it('handoffRequiresNote', async () => {

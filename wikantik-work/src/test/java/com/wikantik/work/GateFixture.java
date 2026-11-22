@@ -51,6 +51,11 @@ final class GateFixture {
 
     /** As above, reporting outcomes to {@code listener} (null for none). */
     GateFixture( final WorkListener listener ) throws SQLException {
+        this( listener, Clock.systemUTC() );
+    }
+
+    /** As above, on {@code clock}. */
+    GateFixture( final WorkListener listener, final Clock clock ) throws SQLException {
         ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
         svc = new WorkService( new JdbcWorkStore( ds ), md -> md, new WorkDirectory() {
@@ -60,7 +65,7 @@ final class GateFixture {
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return Set.of( "lena", "mia" ).contains( name ) ? Optional.of( name ) : Optional.empty();
             }
-        }, Clock.systemUTC(), WorkSettings.DEFAULTS, listener );
+        }, clock, WorkSettings.DEFAULTS, listener );
         svc.createProject( admin, "PLAT", "Platform", "" );
         svc.putMember( admin, "PLAT", "lena", "user", WorkRole.LEAD );
         svc.putMember( admin, "PLAT", "mia", "user", WorkRole.MEMBER );

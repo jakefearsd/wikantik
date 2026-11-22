@@ -32,7 +32,8 @@ final class ItemPatchApplier {
 
     /** The closed set of keys an {@link ItemPatch} may carry. */
     static final Set< String > KEYS = Set.of( "title", "body", "status", "priority", "rank", "dueOn", "assignee",
-        "queue", "parentKey", "productKey", "kind", "type", "labels", "autonomy", "doneMeans", "allowDirect", "before" );
+        "queue", "parentKey", "productKey", "kind", "type", "labels", "sprint", "estimate", "autonomy", "doneMeans", "allowDirect",
+        "before" );
 
     static final Set< String > POLICY_KEYS = Set.of( "autonomy", "doneMeans", "allowDirect" );
     static final Set< String > MOVE_KEYS = Set.of( "status", "rank", "before" );
@@ -82,7 +83,7 @@ final class ItemPatchApplier {
             d.body() == null ? "" : d.body(), start, d.priority() == null ? 3 : d.priority(), 0, d.dueOn(),
             PatchValues.blankToNull( d.assignee() ), null, null, null, null, 0, null, null, null,
             PatchValues.blankToNull( d.queue() ), null, null, null, null,
-            d.type() == null ? WorkType.FEATURE : d.type(), Labels.normalise( d.labels() ) );
+            d.type() == null ? WorkType.FEATURE : d.type(), Labels.normalise( d.labels() ), null, null );
     }
 
     /** The item that {@code changes} produce from {@code current}; validated, not yet stored. */
@@ -104,6 +105,7 @@ final class ItemPatchApplier {
         final double rank = rankFor( project, current, changes, status );
         final Item next = merged( current, changes, parentId, productId, status, rank, assignee, queue );
         ItemRules.validate( next, newParent );
+        targets.checkSprint( project, current, next );
         targets.checkAssignee( project, current.assignee(), assignee );
         ItemTargets.requireClaimForQueuedWork( current, next );
         ItemRules.checkHandoffNote( current, next, note );
@@ -159,7 +161,9 @@ final class ItemPatchApplier {
             queue,
             current.claimedByAgent(), current.claimedAt(), current.claimExpiresAt(), current.reporterAgentId(),
             pick( changes, "type", PatchValues::type, current.type() ),
-            pick( changes, "labels", PatchValues::labels, current.labels() ) );
+            pick( changes, "labels", PatchValues::labels, current.labels() ),
+            pick( changes, "sprint", PatchValues::sprintId, current.sprintId() ),
+            pick( changes, "estimate", PatchValues::estimate, current.estimate() ) );
     }
 
     private static < T > T pick( final Map< String, Object > changes, final String key,

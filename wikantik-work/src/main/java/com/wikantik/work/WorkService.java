@@ -141,7 +141,7 @@ public class WorkService {
         this.acknowledgements = new Acknowledgements( store, scopes, views );
         this.changes = new WorkChangesService( store, scopes );
         this.deployments = new WorkDeploymentsService( store, scopes );
-        this.features = new WorkFeatures( store, scopes );
+        this.features = new WorkFeatures( store, scopes, views, clock );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
         this.listener = observer;
@@ -346,9 +346,7 @@ public class WorkService {
         final Action action = ItemPatchApplier.MOVE_KEYS.containsAll( changes.keySet() ) ? Action.MOVE
             : Action.EDIT_ITEM;
         s.require( action, is.item() );
-        if ( changes.keySet().stream().anyMatch( ItemPatchApplier.POLICY_KEYS::contains ) ) {
-            scopes.gates().requirePolicyChange( s, is.item(), changes );
-        }
+        scopes.gates().requireFieldGates( s, is.item(), changes );
         s.requireWritable();
         final CloseRules rules = changes.containsKey( "status" )
             ? scopes.gates().requireStatusChange( s, is.item(), WorkPolicy.namedStatus( changes.get( "status" ) ) )

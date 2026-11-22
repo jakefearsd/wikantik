@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.wikantik.work.ItemFilter;
 import com.wikantik.work.Product;
+import com.wikantik.work.SprintRef;
 import com.wikantik.work.WorkLevel;
 import com.wikantik.work.WorkStatus;
 import com.wikantik.work.WorkType;
@@ -47,7 +48,8 @@ final class WorkFilters {
         final List< String > labels = c.queryValues( "label" );
         return new ItemFilter( null, withStatus ? statuses( c ) : null, c.query( "assignee" ), productId( c ), level,
             parentId, c.query( "q" ), dueBefore( c ), limit, order( c.query( "order" ) ), c.query( "queue" ),
-            type == null ? null : WorkType.fromWire( type ), labels.isEmpty() ? null : new LinkedHashSet<>( labels ) );
+            type == null ? null : WorkType.fromWire( type ), labels.isEmpty() ? null : new LinkedHashSet<>( labels ),
+            SprintRef.parse( c.query( "sprint" ) ) );
     }
 
     private static Set< WorkStatus > statuses( final WorkResourceBase.Call c ) {

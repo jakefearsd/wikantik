@@ -1,26 +1,26 @@
 {
   "name": "list_claimable",
-  "description": "Items you could claim now: unclaimed, ready or in review, in a queue you serve, in a project you were admitted to as a member. Returns {items:[{key,title,level,kind,status,priority,queue,queueKey,productKey,parentKey,dueOn}]}. An unknown or hidden project is \"Not found.\"",
+  "description": "Items you could claim now: unclaimed, ready or in review, in a queue you serve, in a project you were admitted to as a member. Items in a project\u0027s active sprint come first, then by priority and due date. Returns {items:[{key,title,level,kind,status,priority,estimate,queue,queueKey,productKey,parentKey,dueOn}]}. An unknown or hidden project is \"Not found.\"",
   "inputSchema": {
     "type": "object",
     "properties": {
       "project": {
-        "description": "Only this project (its key).",
         "type": "string",
+        "description": "Only this project (its key).",
         "examples": [
           "PLAT"
         ]
       },
       "queue": {
-        "description": "Only this queue (its key).",
         "type": "string",
+        "description": "Only this queue (its key).",
         "examples": [
           "implementer"
         ]
       },
       "limit": {
-        "description": "Most items to return; default 20, at most 50.",
         "type": "integer",
+        "description": "Most items to return; default 20, at most 50.",
         "examples": [
           20
         ]

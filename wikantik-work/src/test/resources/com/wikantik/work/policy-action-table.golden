@@ -1150,3 +1150,131 @@ RUN_DEPLOYMENT|agent-member-sponsor|lead|none|true|null
 RUN_DEPLOYMENT|agent-member-sponsor|lead|unclaimed|true|null
 RUN_DEPLOYMENT|agent-member-sponsor|lead|other|true|null
 RUN_DEPLOYMENT|agent-member-sponsor|lead|self|true|null
+MANAGE_SPRINT|human|none|none|false|You are not a member of this project.
+MANAGE_SPRINT|human|none|unclaimed|false|You are not a member of this project.
+MANAGE_SPRINT|human|none|other|false|You are not a member of this project.
+MANAGE_SPRINT|human|none|self|false|You are not a member of this project.
+MANAGE_SPRINT|human|viewer|none|false|This action needs the lead role; you hold viewer.
+MANAGE_SPRINT|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
+MANAGE_SPRINT|human|viewer|other|false|This action needs the lead role; you hold viewer.
+MANAGE_SPRINT|human|viewer|self|false|This action needs the lead role; you hold viewer.
+MANAGE_SPRINT|human|member|none|false|This action needs the lead role; you hold member.
+MANAGE_SPRINT|human|member|unclaimed|false|This action needs the lead role; you hold member.
+MANAGE_SPRINT|human|member|other|false|This action needs the lead role; you hold member.
+MANAGE_SPRINT|human|member|self|false|This action needs the lead role; you hold member.
+MANAGE_SPRINT|human|lead|none|true|null
+MANAGE_SPRINT|human|lead|unclaimed|true|null
+MANAGE_SPRINT|human|lead|other|true|null
+MANAGE_SPRINT|human|lead|self|true|null
+MANAGE_SPRINT|admin|none|none|true|null
+MANAGE_SPRINT|admin|none|unclaimed|true|null
+MANAGE_SPRINT|admin|none|other|true|null
+MANAGE_SPRINT|admin|none|self|true|null
+MANAGE_SPRINT|admin|viewer|none|true|null
+MANAGE_SPRINT|admin|viewer|unclaimed|true|null
+MANAGE_SPRINT|admin|viewer|other|true|null
+MANAGE_SPRINT|admin|viewer|self|true|null
+MANAGE_SPRINT|admin|member|none|true|null
+MANAGE_SPRINT|admin|member|unclaimed|true|null
+MANAGE_SPRINT|admin|member|other|true|null
+MANAGE_SPRINT|admin|member|self|true|null
+MANAGE_SPRINT|admin|lead|none|true|null
+MANAGE_SPRINT|admin|lead|unclaimed|true|null
+MANAGE_SPRINT|admin|lead|other|true|null
+MANAGE_SPRINT|admin|lead|self|true|null
+MANAGE_SPRINT|agent-admin-sponsor|none|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|none|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|none|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|none|self|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|viewer|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|viewer|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|viewer|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|viewer|self|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|member|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|member|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|member|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|member|self|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|lead|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|lead|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|lead|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|lead|self|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|none|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|none|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|none|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|none|self|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|viewer|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|viewer|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|viewer|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|viewer|self|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|member|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|member|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|member|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|member|self|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|lead|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|lead|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|lead|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|lead|self|false|A person plans a sprint.
+PLAN_SPRINT|human|none|none|false|You are not a member of this project.
+PLAN_SPRINT|human|none|unclaimed|false|You are not a member of this project.
+PLAN_SPRINT|human|none|other|false|You are not a member of this project.
+PLAN_SPRINT|human|none|self|false|You are not a member of this project.
+PLAN_SPRINT|human|viewer|none|false|This action needs the member role; you hold viewer.
+PLAN_SPRINT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+PLAN_SPRINT|human|viewer|other|false|This action needs the member role; you hold viewer.
+PLAN_SPRINT|human|viewer|self|false|This action needs the member role; you hold viewer.
+PLAN_SPRINT|human|member|none|true|null
+PLAN_SPRINT|human|member|unclaimed|true|null
+PLAN_SPRINT|human|member|other|true|null
+PLAN_SPRINT|human|member|self|true|null
+PLAN_SPRINT|human|lead|none|true|null
+PLAN_SPRINT|human|lead|unclaimed|true|null
+PLAN_SPRINT|human|lead|other|true|null
+PLAN_SPRINT|human|lead|self|true|null
+PLAN_SPRINT|admin|none|none|true|null
+PLAN_SPRINT|admin|none|unclaimed|true|null
+PLAN_SPRINT|admin|none|other|true|null
+PLAN_SPRINT|admin|none|self|true|null
+PLAN_SPRINT|admin|viewer|none|true|null
+PLAN_SPRINT|admin|viewer|unclaimed|true|null
+PLAN_SPRINT|admin|viewer|other|true|null
+PLAN_SPRINT|admin|viewer|self|true|null
+PLAN_SPRINT|admin|member|none|true|null
+PLAN_SPRINT|admin|member|unclaimed|true|null
+PLAN_SPRINT|admin|member|other|true|null
+PLAN_SPRINT|admin|member|self|true|null
+PLAN_SPRINT|admin|lead|none|true|null
+PLAN_SPRINT|admin|lead|unclaimed|true|null
+PLAN_SPRINT|admin|lead|other|true|null
+PLAN_SPRINT|admin|lead|self|true|null
+PLAN_SPRINT|agent-admin-sponsor|none|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|none|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|none|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|none|self|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|viewer|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|viewer|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|viewer|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|viewer|self|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|member|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|member|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|member|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|member|self|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|lead|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|lead|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|lead|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|lead|self|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|none|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|none|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|none|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|none|self|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|viewer|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|viewer|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|viewer|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|viewer|self|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|member|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|member|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|member|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|member|self|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|lead|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|lead|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|lead|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|lead|self|false|A person plans a sprint.

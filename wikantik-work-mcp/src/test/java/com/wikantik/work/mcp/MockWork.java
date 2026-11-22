@@ -46,6 +46,8 @@ final class MockWork {
     final WorkRegistryService registry = mock( WorkRegistryService.class );
     final com.wikantik.work.WorkDeploymentsService deployments = mock( com.wikantik.work.WorkDeploymentsService.class );
     final com.wikantik.work.WorkChangesService changes = mock( com.wikantik.work.WorkChangesService.class );
+    final com.wikantik.work.WorkFeatures features = mock( com.wikantik.work.WorkFeatures.class );
+    final com.wikantik.work.WorkSprintsService sprints = mock( com.wikantik.work.WorkSprintsService.class );
     final WorkDirectory directory = mock( WorkDirectory.class );
     final Actor agent = Actor.agent( 7, "builder", com.wikantik.work.Actor.human( "admin", java.util.Set.of(), true ) );
 
@@ -56,6 +58,9 @@ final class MockWork {
         when( registry.listQueues( any() ) ).thenReturn( List.of() );
         when( svc.events( any(), any() ) ).thenReturn( List.of() );
         when( svc.changes() ).thenReturn( changes );
+        when( svc.features() ).thenReturn( features );
+        when( features.sprints() ).thenReturn( sprints );
+        when( sprints.list( any(), any() ) ).thenReturn( List.of() );
         when( svc.deployments() ).thenReturn( deployments );
         when( svc.policyOf( any(), any() ) ).thenReturn( new com.wikantik.work.ItemPolicyView(
             new com.wikantik.work.EffectivePolicy( Autonomy.DELEGATED, false, DoneMeans.MERGED ), Autonomy.DELEGATED,
@@ -67,7 +72,7 @@ final class MockWork {
                       final Instant expires ) {
         return new Item( 1, 1, key, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "A title", "A body", status, 3, 1.0,
             null, null, "lena", Autonomy.SUPERVISED, DoneMeans.MERGED, null, version, Instant.EPOCH, Instant.EPOCH, null,
-            "implementer", claimedBy, null, expires, null, null, null );
+            "implementer", claimedBy, null, expires, null, null, null, null, null );
     }
 
     static ItemView view( final Item item, final String cluster ) {

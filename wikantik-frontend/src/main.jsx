@@ -28,6 +28,8 @@ const WorkLog = React.lazy(() => import('./components/work/WorkLog'));
 const WorkAgents = React.lazy(() => import('./components/work/WorkAgents'));
 const WorkDeployments = React.lazy(() => import('./components/work/WorkDeployments'));
 const WorkDeploymentView = React.lazy(() => import('./components/work/WorkDeploymentView'));
+const WorkSprints = React.lazy(() => import('./components/work/WorkSprints'));
+const WorkSprintReport = React.lazy(() => import('./components/work/WorkSprintReport'));
 const WorkItemView = React.lazy(() => import('./components/work/WorkItemView'));
 const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage'));
 
@@ -83,6 +85,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path=":project" element={<WorkLayout />}>
                 <Route index element={<WorkBoard />} />
                 <Route path="dates" element={<WorkDates />} />
+                <Route path="sprints" element={<WorkSprints />} />
+                <Route path="sprints/:id" element={<WorkSprintReport />} />
                 <Route path="activity" element={<WorkActivity />} />
                 <Route path="log" element={<WorkLog />} />
                 <Route path="settings" element={<WorkSettings />} />

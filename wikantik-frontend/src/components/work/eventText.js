@@ -187,6 +187,10 @@ export function eventText(e) {
     case 'shipped': return { text: `shipped this in ${orNone(ev.toValue)}${env(ev.note)}`, note: null };
     case 'rolled_back': return { text: `rolled back ${orNone(ev.toValue)}${env(ev.note)}, which carried this`, note: null };
     case 'acknowledged': return { text: 'acknowledged that an agent closed this with no person in the path', note: null };
+    case 'sprint_created': return { text: `created sprint ${orNone(ev.note)}`, note: null };
+    case 'sprint_updated': return { text: `changed sprint ${orNone(ev.note)}`, note: null };
+    case 'sprint_started': return { text: `started sprint ${orNone(ev.note)}`, note: null };
+    case 'sprint_closed': return { text: `closed sprint ${orNone(ev.note)}`, note: null };
     case 'member': return { text: memberText(ev), note: null };
     case 'settings': return { text: settingsText(ev), note: null };
     default: {

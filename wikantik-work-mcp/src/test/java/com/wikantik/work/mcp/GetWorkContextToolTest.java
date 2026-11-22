@@ -107,4 +107,23 @@ class GetWorkContextToolTest {
     void noActorIsTheFixedError() {
         assertEquals( "This endpoint needs a work API key.", WorkMcpFixture.text( tool.call( null, Map.of() ) ) );
     }
+
+    @Test
+    void eachProjectNamesItsActiveSprintAndGoal() throws SQLException {
+        final var sprint = f.activeSprint( "PLAT" );
+        final JsonObject out = WorkMcpFixture.json( tool.call( f.lena, Map.of() ) );
+        for ( final var e : out.getAsJsonArray( "projects" ) ) {
+            final JsonObject p = e.getAsJsonObject();
+            if ( "PLAT".equals( p.get( "key" ).getAsString() ) ) {
+                assertEquals( sprint.sprint().name(), p.getAsJsonObject( "activeSprint" ).get( "name" ).getAsString() );
+                assertEquals( "Ship the thing", p.getAsJsonObject( "activeSprint" ).get( "goal" ).getAsString() );
+                assertEquals( sprint.sprint().startsOn().toString(),
+                    p.getAsJsonObject( "activeSprint" ).get( "startsOn" ).getAsString() );
+                assertEquals( sprint.sprint().endsOn().toString(),
+                    p.getAsJsonObject( "activeSprint" ).get( "endsOn" ).getAsString() );
+            } else {
+                assertTrue( p.get( "activeSprint" ).isJsonNull(), "no sprint in " + p );
+            }
+        }
+    }
 }

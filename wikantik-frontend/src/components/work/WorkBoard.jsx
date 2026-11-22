@@ -13,6 +13,7 @@ import WaitingLane from './WaitingLane';
 import WorkCard from './WorkCard';
 import WorkItemForm from './WorkItemForm';
 import WorkTypeLabelFilters from './WorkTypeLabelFilters';
+import { boardSprintParam, activeSprint, openSprints } from './sprintModel';
 import { STATUS_LABELS, labelRows, addToColumns, groupByEpic, moveInColumns, orderColumns, rankForInsert, revertCard } from './boardModel';
 
 const CHANGERS = new Set(['member', 'lead']);
@@ -48,7 +49,7 @@ function Column({ column, canEdit, grouped, allItems, changeCounts, over, onDrag
 }
 
 export default function WorkBoard() {
-  const { project, role, reload } = useWorkProject();
+  const { project, role, reload, sprints = [], sprintsSettled = true } = useWorkProject();
   const toast = useToast();
   const canEdit = CHANGERS.has(role) && !project.archived;
   const [state, setState] = useState({ projectKey: null, columns: null });
@@ -68,6 +69,8 @@ export default function WorkBoard() {
   const queueFilter = params.get('queue') || '';
   const typeFilter = params.get('type') || '';
   const labelFilter = params.get('label') || '';
+  const sprintUrl = params.get('sprint') || '';
+  const sprintParam = boardSprintParam(sprintUrl, sprints);
   const [formOpen, setFormOpen] = useState(false);
   const dragged = useRef(null);
   const loadSeq = useRef(0);
@@ -93,6 +96,8 @@ export default function WorkBoard() {
 
   // Only the latest request may write state: an older response arriving late is dropped.
   const load = useCallback(() => {
+    // The default (the active sprint) needs the sprint list: wait for it rather than load the whole board first.
+    if (!sprintsSettled) return Promise.resolve();
     const seq = ++loadSeq.current;
     return getBoard(project.key,
       {
@@ -101,6 +106,7 @@ export default function WorkBoard() {
         ...(queueFilter ? { queue: queueFilter } : {}),
         ...(typeFilter ? { type: typeFilter } : {}),
         ...(labelFilter ? { label: labelFilter } : {}),
+        ...(sprintParam ? { sprint: sprintParam } : {}),
       })
       .then((cols) => {
         if (seq !== loadSeq.current) return;
@@ -111,7 +117,7 @@ export default function WorkBoard() {
           .catch((e) => console.warn('WorkBoard: failed to load the change counts', e));
       })
       .catch((e) => { if (seq === loadSeq.current) fail(e); });
-  }, [project.key, productFilter, assigneeFilter, queueFilter, typeFilter, labelFilter, setColumns, fail]);
+  }, [project.key, productFilter, assigneeFilter, queueFilter, typeFilter, labelFilter, sprintParam, sprintsSettled, setColumns, fail]);
 
   function setFilter(name, value) {
     const next = new URLSearchParams(params);
@@ -281,6 +287,14 @@ export default function WorkBoard() {
           onChange={setAssigneeFilter} />
         <WorkTypeLabelFilters type={typeFilter} label={labelFilter} labels={labels}
           onType={(v) => setFilter('type', v)} onLabel={(v) => setFilter('label', v)} />
+        {sprints.length > 0 && (
+          <Select ariaLabel="Sprint" value={sprintUrl || (activeSprint(sprints) ? 'active' : 'all')}
+            options={[
+              { value: 'all', label: 'All' }, { value: 'active', label: 'Active sprint' }, { value: 'none', label: 'Backlog' },
+              ...openSprints(sprints).map((s) => ({ value: String(s.id), label: s.name })),
+            ]}
+            onChange={(v) => setFilter('sprint', v)} />
+        )}
         {canEdit && (
           <button type="button" className="btn btn-primary work-new-item" onClick={() => setFormOpen(true)}>New item</button>
         )}
@@ -309,7 +323,9 @@ export default function WorkBoard() {
             && (!assigneeFilter || item.assigneeName === assigneeFilter)
             && (!queueFilter || item.queue === queueFilter)
             && (!typeFilter || item.type === typeFilter)
-            && (!labelFilter || (item.labels || []).includes(labelFilter));
+            && (!labelFilter || (item.labels || []).includes(labelFilter))
+            // a new item is in no sprint
+            && (!sprintParam || sprintParam === 'none');
           if (matches) setColumns((cols) => addToColumns(cols || [], item));
           loadLabels();
           toast.success(item.status === 'draft' && !showAll

@@ -70,7 +70,7 @@ class WorkClaimsServiceTest {
     private static Item item( final String key, final WorkStatus status, final String queue, final Long holder ) {
         return new Item( 12, 1, key, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "title", "body", status, 3, 1024,
             null, null, "lena", null, null, null, 4, NOW, NOW, null, queue, holder, holder == null ? null : NOW,
-            holder == null ? null : UNTIL, null, null, null );
+            holder == null ? null : UNTIL, null, null, null, null, null );
     }
 
     @BeforeEach

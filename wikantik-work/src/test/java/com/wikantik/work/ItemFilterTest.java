@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class ItemFilterTest {
 
     private static ItemFilter filter( final WorkType type, final Set< String > labels ) {
-        return new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null, type, labels );
+        return new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null, type, labels, null );
     }
 
     @Test

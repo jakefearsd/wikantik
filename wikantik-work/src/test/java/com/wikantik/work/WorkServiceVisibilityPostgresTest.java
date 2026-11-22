@@ -56,7 +56,8 @@ class WorkServiceVisibilityPostgresTest {
         "putMember", "removeMember", "createProduct", "updateProduct", "archiveProduct", "createItem", "updateItem",
         "addComment", "editComment", "removeComment", "addLink", "removeLink", "createQueue", "updateQueue",
         "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge", "open", "update",
-        "requestReview", "review", "merge", "abandon", "request", "approve", "start", "verify", "fail", "rollBack", "reject" );
+        "requestReview", "review", "merge", "abandon", "request", "approve", "start", "verify", "fail", "rollBack", "reject",
+        "create", "close" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
@@ -81,14 +82,17 @@ class WorkServiceVisibilityPostgresTest {
      */
     private static final Set< String > INSTANCE_READS = Set.of( "productHistory" );
 
-    /** Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. */
+    /**
+     * Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. A
+     * facade's own accessors that return a service ({@code features().sprints()}) are walked the same way.
+     */
     private static final Set< String > FACADES = Set.of( "registry", "claims", "changes", "deployments", "features" );
 
     /** Methods that only read. */
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
 
@@ -128,12 +132,17 @@ class WorkServiceVisibilityPostgresTest {
         final Product web = store.createProduct( new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED,
             DeployGate.HUMAN, null ) );
         final Item item = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "secret item" ), Actor.human( "lena", java.util.Set.of(), false ) );
+        // a sprint holding PLAT-1, started and closed, so list, get and velocity return real data to prove against
+        final java.time.LocalDate today = java.time.LocalDate.now();
+        final Sprint sprint = store.sprints().create( plat, new SprintDraft( "S1", "", today, today.plusDays( 13 ) ), lena );
         // lena is also the assignee so that waitingOn is non-empty for her
         final Item assigned = new Item( item.id(), item.projectId(), item.key(), item.level(), null, web.id(),
             item.kind(), item.title(), item.body(), item.status(), item.priority(), item.rank(), null, "lena",
             item.reporter(), null, null, null, item.version(), item.createdAt(), item.updatedAt(), null, null, null, null, null, null,
-            WorkType.FEATURE, List.of( "secret" ) );
+            WorkType.FEATURE, List.of( "secret" ), sprint.id(), new java.math.BigDecimal( "3.0" ) );
         store.updateItem( item, assigned, Actor.human( "lena", java.util.Set.of(), false ), null );
+        store.sprints().start( sprint.id(), sprint.version(), lena );
+        store.sprints().close( sprint.id(), sprint.version() + 1, null, lena );
         // PLAT-2 is claimable, PLAT-3 is held by codex: claimable and myClaims return real data to prove against
         store.createItem( plat, queued( "claimable item" ), lena );
         final Item held = store.createItem( plat, queued( "held item" ), lena );
@@ -158,7 +167,7 @@ class WorkServiceVisibilityPostgresTest {
 
     private static Item queued( final String title ) {
         return new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, title, "body", WorkStatus.READY, 3,
-            0, null, null, null, null, null, null, 0, null, null, null, "implementer", null, null, null, null, null, null );
+            0, null, null, null, null, null, null, 0, null, null, null, "implementer", null, null, null, null, null, null, null, null );
     }
 
     private List< Actor > strangers() {
@@ -184,18 +193,29 @@ class WorkServiceVisibilityPostgresTest {
             }
         }
         for ( final String accessor : FACADES ) {
-            final Object facade = WorkService.class.getMethod( accessor ).invoke( service );
-            for ( final Method m : facade.getClass().getDeclaredMethods() ) {
-                if ( isOwnPublic( m ) ) {
-                    out.add( new Op( m, facade ) );
-                }
-            }
+            addFacade( out, WorkService.class.getMethod( accessor ).invoke( service ) );
         }
         return out;
     }
 
+    private static boolean isServiceAccessor( final Method m ) {
+        return isOwnPublic( m ) && m.getParameterCount() == 0
+            && m.getReturnType().getName().matches( "com\\.wikantik\\.work\\.\\w*Service" );
+    }
+
+    /** The facade's public methods; an accessor returning a service is walked into, not classified. */
+    private static void addFacade( final List< Op > out, final Object facade ) throws Exception {
+        for ( final Method m : facade.getClass().getDeclaredMethods() ) {
+            if ( isServiceAccessor( m ) ) {
+                addFacade( out, m.invoke( facade ) );
+            } else if ( isOwnPublic( m ) ) {
+                out.add( new Op( m, facade ) );
+            }
+        }
+    }
+
     @Test
-    void everySubFacadeIsListedSoItCannotEscapeClassification() {
+    void everySubFacadeIsListedSoItCannotEscapeClassification() throws Exception {
         for ( final Method m : WorkService.class.getDeclaredMethods() ) {
             final boolean facade = isOwnPublic( m ) && m.getParameterCount() == 0
                 && m.getReturnType().getName().matches( "com\\.wikantik\\.work\\.\\w*Service" );
@@ -206,6 +226,8 @@ class WorkServiceVisibilityPostgresTest {
         for ( final String accessor : FACADES ) {
             assertDoesNotThrow( () -> WorkService.class.getMethod( accessor ), accessor + " is not a WorkService method" );
         }
+        assertTrue( ops().stream().anyMatch( op -> op.target() instanceof WorkSprintsService ),
+            "the sprint service, reached through features(), is walked" );
     }
 
     @Test
@@ -344,6 +366,15 @@ class WorkServiceVisibilityPostgresTest {
             () -> service.addLink( mallory, "PLAT-1", "url", "https://a.example" ),
             () -> service.removeLink( mallory, linkId ) );
         for ( final var attempt : attempts ) {
+            assertThrows( WorkNotFoundException.class, attempt );
+        }
+        final WorkSprintsService sprints = service.features().sprints();
+        final SprintDraft sprintDraft = new SprintDraft( "S2", "", java.time.LocalDate.now(),
+            java.time.LocalDate.now().plusDays( 13 ) );
+        final List< org.junit.jupiter.api.function.Executable > sprintAttempts = List.of(
+            () -> sprints.create( mallory, "PLAT", sprintDraft ), () -> sprints.update( mallory, 1, 1, sprintDraft ),
+            () -> sprints.start( mallory, 1, 1 ), () -> sprints.close( mallory, 1, 1, null ) );
+        for ( final var attempt : sprintAttempts ) {
             assertThrows( WorkNotFoundException.class, attempt );
         }
         final WorkClaimsService.Handoff handoff = new WorkClaimsService.Handoff( 1, null, null, "implementer", "n" );

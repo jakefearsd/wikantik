@@ -341,4 +341,67 @@ class WorkProjectResourceTest {
         assertEquals( 404, call( "GET", "/PLAT/nothing", Map.of(), null ).status() );
         assertEquals( 404, call( "PUT", "/PLAT", Map.of(), "{}" ).status() );
     }
+
+    private com.wikantik.work.WorkSprintsService sprints() {
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        final com.wikantik.work.WorkSprintsService sprints = Mockito.mock( com.wikantik.work.WorkSprintsService.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.sprints() ).thenReturn( sprints );
+        return sprints;
+    }
+
+    @Test
+    void listsTheProjectsSprints() throws Exception {
+        final com.wikantik.work.WorkSprintsService sprints = sprints();
+        Mockito.when( sprints.list( ALICE, "PLAT" ) ).thenReturn( List.of( WorkSprintFixtures.planned( 9 ) ) );
+        final WorkHttp.Result r = call( "GET", "/PLAT/sprints", Map.of(), null );
+        assertEquals( 200, r.status() );
+        assertEquals( 9, r.json().getAsJsonArray().get( 0 ).getAsJsonObject().get( "id" ).getAsLong() );
+    }
+
+    @Test
+    void createIs201AndRefusesAnUnknownField() throws Exception {
+        final com.wikantik.work.WorkSprintsService sprints = sprints();
+        Mockito.when( sprints.create( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( WorkSprintFixtures.planned( 9 ) );
+        final WorkHttp.Result r = call( "POST", "/PLAT/sprints", Map.of(),
+            "{\"name\":\"Sprint 1\",\"goal\":\"g\",\"startsOn\":\"2026-11-23\",\"endsOn\":\"2026-12-04\"}" );
+        assertEquals( 201, r.status() );
+        final ArgumentCaptor< com.wikantik.work.SprintDraft > d = ArgumentCaptor.forClass( com.wikantik.work.SprintDraft.class );
+        Mockito.verify( sprints ).create( eq( ALICE ), eq( "PLAT" ), d.capture() );
+        assertEquals( new com.wikantik.work.SprintDraft( "Sprint 1", "g", java.time.LocalDate.parse( "2026-11-23" ),
+            java.time.LocalDate.parse( "2026-12-04" ) ), d.getValue() );
+        final WorkHttp.Result bad = call( "POST", "/PLAT/sprints", Map.of(), "{\"name\":\"x\",\"state\":\"active\"}" );
+        assertEquals( 400, bad.status() );
+        assertEquals( "state", bad.json().getAsJsonObject().get( "field" ).getAsString() );
+        final WorkHttp.Result date = call( "POST", "/PLAT/sprints", Map.of(), "{\"name\":\"x\",\"startsOn\":\"soon\"}" );
+        assertEquals( "startsOn", date.json().getAsJsonObject().get( "field" ).getAsString() );
+    }
+
+    @Test
+    void velocityRoute() throws Exception {
+        final com.wikantik.work.WorkSprintsService sprints = sprints();
+        Mockito.when( sprints.velocity( ALICE, "PLAT" ) ).thenReturn( List.of( new com.wikantik.work.Velocity( 9, "Sprint 1",
+            java.time.LocalDate.parse( "2026-12-04" ), 5, new java.math.BigDecimal( "10.0" ), 4, new java.math.BigDecimal( "8.5" ) ) ) );
+        final JsonObject v = call( "GET", "/PLAT/velocity", Map.of(), null ).json().getAsJsonObject()
+            .getAsJsonArray( "sprints" ).get( 0 ).getAsJsonObject();
+        assertEquals( 9, v.get( "id" ).getAsLong() );
+        assertEquals( "Sprint 1", v.get( "name" ).getAsString() );
+        assertEquals( "2026-12-04", v.get( "endsOn" ).getAsString() );
+        assertEquals( 5, v.get( "committedItems" ).getAsInt() );
+        assertEquals( 10.0, v.get( "committedPoints" ).getAsDouble() );
+        assertEquals( 4, v.get( "completedItems" ).getAsInt() );
+        assertEquals( 8.5, v.get( "completedPoints" ).getAsDouble() );
+    }
+
+    @Test
+    void boardFilterCarriesTheSprint() throws Exception {
+        Mockito.when( svc.boardSummaries( any(), anyString(), any() ) ).thenReturn( List.of() );
+        assertEquals( 200, call( "GET", "/PLAT/board", Map.of( "sprint", "active" ), null ).status() );
+        final ArgumentCaptor< ItemFilter > f = ArgumentCaptor.forClass( ItemFilter.class );
+        Mockito.verify( svc ).boardSummaries( eq( ALICE ), eq( "PLAT" ), f.capture() );
+        assertEquals( com.wikantik.work.SprintRef.parse( "active" ), f.getValue().sprint() );
+        final WorkHttp.Result bad = call( "GET", "/PLAT/board", Map.of( "sprint", "x" ), null );
+        assertEquals( 400, bad.status() );
+        assertEquals( "sprint", bad.json().getAsJsonObject().get( "field" ).getAsString() );
+    }
 }

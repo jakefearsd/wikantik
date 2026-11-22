@@ -259,6 +259,9 @@ public class WorkApiIT {
         final Map< String, Object > member2 = Map.of( "principal", "wapimember", "principalKind", "user" );
         final Map< String, Object > patchBody = Map.of( "expectedVersion", 1, "changes", Map.of( "title", "x" ) );
         final Map< String, Object > newItem = Map.of( "level", "epic", "title", "x" );
+        final Map< String, Object > sprintBody = Map.of( "name", "x", "startsOn", "2030-01-01", "endsOn", "2030-01-14" );
+        // a real sprint of PLAT, made by the admin (a lead everywhere)
+        final long sprintId = created( admin.send( "POST", "/api/work/projects/PLAT/sprints", sprintBody ) ).get( "id" ).getAsLong();
 
         // every route of the endpoint table, every method; project/product creation and the product writes are
         // admin-only by design, so for a non-member they are 403 whether or not the target exists
@@ -296,7 +299,18 @@ public class WorkApiIT {
             new Probe( "POST", "/api/work/items/PLAT-1/release", "/api/work/items/GHOST-1/release",
                 Map.of( "note", "x" ), 404 ),
             new Probe( "POST", "/api/work/items/PLAT-1/handoff", "/api/work/items/GHOST-1/handoff",
-                Map.of( "expectedVersion", 1, "status", "ready", "assignee", "Wapi Member", "note", "yours" ), 404 ) );
+                Map.of( "expectedVersion", 1, "status", "ready", "assignee", "Wapi Member", "note", "yours" ), 404 ),
+            // sprints: a real sprint of PLAT against a ghost id; the project routes against a ghost project
+            new Probe( "GET", "/api/work/projects/PLAT/sprints", "/api/work/projects/GHOST/sprints", null, 404 ),
+            new Probe( "POST", "/api/work/projects/PLAT/sprints", "/api/work/projects/GHOST/sprints", sprintBody, 404 ),
+            new Probe( "GET", "/api/work/projects/PLAT/velocity", "/api/work/projects/GHOST/velocity", null, 404 ),
+            new Probe( "GET", "/api/work/items/PLAT-1/points", "/api/work/items/GHOST-1/points", null, 404 ),
+            new Probe( "GET", "/api/work/sprints/" + sprintId, "/api/work/sprints/" + ghostId, null, 404 ),
+            new Probe( "GET", "/api/work/sprints/" + sprintId + "/report", "/api/work/sprints/" + ghostId + "/report", null, 404 ),
+            new Probe( "POST", "/api/work/sprints/" + sprintId + "/start", "/api/work/sprints/" + ghostId + "/start",
+                Map.of( "version", 1 ), 404 ),
+            new Probe( "POST", "/api/work/sprints/" + sprintId + "/close", "/api/work/sprints/" + ghostId + "/close",
+                Map.of( "version", 1 ), 404 ) );
 
         for ( final Probe p : probes ) {
             final HttpResponse< String > real = outsider.send( p.method, p.real, p.body );

@@ -281,7 +281,7 @@ class JdbcWorkClaimsPostgresTest {
             before.productId(), before.kind(), before.title(), before.body(), WorkStatus.READY, before.priority(),
             before.rank(), before.dueOn(), before.assignee(), before.reporter(), before.autonomy(),
             before.doneMeans(), before.allowDirect(), before.version() + 1, before.createdAt(), after.updatedAt(),
-            before.closedAt(), before.queue(), null, null, null, before.reporterAgentId(), null, null ), after );
+            before.closedAt(), before.queue(), null, null, null, before.reporterAgentId(), null, null, null, null ), after );
         assertEquals( links, store.links( held.id() ) );
         assertEquals( comments, store.comments( held.id() ) );
     }
@@ -434,7 +434,7 @@ class JdbcWorkClaimsPostgresTest {
         store.updateItem( cur, new Item( cur.id(), cur.projectId(), cur.key(), cur.level(), null, null, cur.kind(),
             cur.title(), cur.body(), status, cur.priority(), cur.rank(), null, null, cur.reporter(), null, null, null,
             cur.version(), null, null, null, queue, cur.claimedByAgent(), cur.claimedAt(), cur.claimExpiresAt(),
-            null, null, null ), WorkClaimFixtures.LENA, null );
+            null, null, null, null, null ), WorkClaimFixtures.LENA, null );
     }
 
     @Test
@@ -528,5 +528,55 @@ class JdbcWorkClaimsPostgresTest {
         assertEquals( fx.a.id(), fx.reload( other ).claimedByAgent(), "a claim in another project is untouched" );
         assertTrue( fx.events( other, WorkEvent.RELEASED ).isEmpty() );
         assertEquals( 0, store.archiveProject( fx.plat.id(), Instant.now(), root ), "archiving twice releases none" );
+    }
+    private Sprint sprint( final String name, final boolean start, final boolean close ) throws SQLException {
+        final LocalDate day = LocalDate.of( 2026, 12, 1 );
+        final Sprint s = store.sprints().create( fx.plat, new SprintDraft( name, "", day, day.plusDays( 13 ) ),
+            WorkClaimFixtures.LENA );
+        if ( !start ) {
+            return s;
+        }
+        final Sprint started = store.sprints().start( s.id(), s.version(), WorkClaimFixtures.LENA );
+        return close ? store.sprints().close( s.id(), started.version(), null, WorkClaimFixtures.LENA ) : started;
+    }
+
+    /** A ready task in the queue, put in the sprint with plain SQL (no event). */
+    private Item inSprint( final String title, final int priority, final Sprint sprint ) throws SQLException {
+        final Item i = fx.create( fx.plat, title, WorkStatus.READY, priority, null, null, "implementer" );
+        if ( sprint != null ) {
+            WorkAgentFixtures.exec( fx.ds, "UPDATE work_item SET sprint_id = " + sprint.id() + " WHERE id = " + i.id() );
+        }
+        return i;
+    }
+
+    private List< Long > order() throws SQLException {
+        return claims.claimable( fx.a.id(), Set.of( fx.plat.id() ), null, 50 ).stream().map( Item::id ).toList();
+    }
+
+    @Test
+    void activeSprintItemsAreOfferedFirst() throws SQLException {
+        final Sprint active = sprint( "S1", true, false );
+        final Item outside = inSprint( "p1 outside", 1, null );
+        final Item inside = inSprint( "p4 inside", 4, active );
+        assertEquals( List.of( inside.id(), outside.id() ), order() );
+    }
+
+    @Test
+    void aPlannedOrClosedSprintGivesNoPreference() throws SQLException {
+        final Sprint planned = sprint( "S1", false, false );
+        final Item plannedItem = inSprint( "p4 planned", 4, planned );
+        final Item outside = inSprint( "p1 outside", 1, null );
+        assertEquals( List.of( outside.id(), plannedItem.id() ), order() );
+        final Sprint closed = sprint( "S2", true, true );
+        final Item closedItem = inSprint( "p4 closed", 4, closed );
+        assertEquals( List.of( outside.id(), plannedItem.id(), closedItem.id() ), order() );
+    }
+
+    @Test
+    void theOrderIsUnchangedForAProjectWithNoSprint() throws SQLException {
+        final Item low = inSprint( "p4", 4, null );
+        final Item high = inSprint( "p1", 1, null );
+        final Item mid = inSprint( "p3", 3, null );
+        assertEquals( List.of( high.id(), mid.id(), low.id() ), order() );
     }
 }

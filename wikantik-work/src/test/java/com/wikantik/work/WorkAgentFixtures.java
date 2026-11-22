@@ -30,7 +30,7 @@ final class WorkAgentFixtures {
 
     /** Tables a test that writes as an agent truncates, in one call. */
     static final String[] TABLES = { "work_agent_credential", "work_agent_sponsor_history", "work_agent_queue", "work_agent", "work_queue", "work_link", "work_mention",
-        "work_comment", "work_event", "work_item_revision", "work_item", "work_member", "work_product_event", "work_product",
+        "work_comment", "work_event", "work_item_revision", "work_sprint", "work_item", "work_member", "work_product_event", "work_product",
         "work_project" };
 
     private WorkAgentFixtures() {

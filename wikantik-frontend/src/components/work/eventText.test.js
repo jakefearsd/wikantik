@@ -4,6 +4,16 @@ import { eventText, eventSentence, actorLabel } from './eventText';
 const ev = (type, extra = {}) => ({ id: 1, type, fromValue: null, toValue: null, note: null, actorName: 'Ana A', actor: 'ana-login', ...extra });
 
 describe('eventText', () => {
+  it('the four sprint events name the sprint', () => {
+    expect(eventText(ev('sprint_created', { note: 'Sprint 12' })).text).toBe('created sprint Sprint 12');
+    expect(eventText(ev('sprint_updated', { note: 'Sprint 12' })).text).toBe('changed sprint Sprint 12');
+    expect(eventText(ev('sprint_started', { note: 'Sprint 12' })).text).toBe('started sprint Sprint 12');
+    expect(eventText(ev('sprint_closed', { note: 'Sprint 12' })).text).toBe('closed sprint Sprint 12');
+  });
+  it('a field event noted estimate keeps the generic text', () => {
+    expect(eventText(ev('field', { note: 'estimate', fromValue: '3', toValue: '5' })).text).toBe('changed estimate 3 → 5');
+    expect(eventText(ev('field', { note: 'sprint', fromValue: null, toValue: '7' })).text).toBe('changed sprint none → 7');
+  });
   it('created', () => expect(eventText(ev('created')).text).toBe('created this item'));
   it('edited has no values and asks for a diff link', () => {
     const t = eventText(ev('edited'));

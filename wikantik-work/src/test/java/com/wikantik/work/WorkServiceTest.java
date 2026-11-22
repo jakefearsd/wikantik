@@ -71,7 +71,7 @@ class WorkServiceTest {
     private static Item item( final long id, final long projectId, final String key, final WorkLevel level,
                               final Long parentId ) {
         return new Item( id, projectId, key, level, parentId, null, WorkKind.SOFTWARE, "title " + key, "body",
-            WorkStatus.DRAFT, 3, 1024, null, null, "alice", null, null, null, 4, NOW, NOW, null, null, null, null, null, null, null, null );
+            WorkStatus.DRAFT, 3, 1024, null, null, "alice", null, null, null, 4, NOW, NOW, null, null, null, null, null, null, null, null, null, null );
     }
 
     private void role( final long projectId, final String login, final WorkRole role ) throws SQLException {
@@ -116,7 +116,7 @@ class WorkServiceTest {
             final Item d = inv.getArgument( 1 );
             return new Item( 99, 1, "PLAT-9", d.level(), d.parentId(), d.productId(), d.kind(), d.title(), d.body(),
                 d.status(), d.priority(), 1024, d.dueOn(), d.assignee(), "alice", null, null, null, 1, NOW, NOW,
-                null, null, null, null, null, null, null, null );
+                null, null, null, null, null, null, null, null, null, null );
         } );
         role( 1, "vera", WorkRole.VIEWER );
         role( 1, "alice", WorkRole.MEMBER );
@@ -187,7 +187,7 @@ class WorkServiceTest {
     void blankBodyIsNotRendered() throws SQLException {
         when( store.item( "PLAT-3" ) ).thenReturn( Optional.of( new Item( 12, 1, "PLAT-3", WorkLevel.TASK, 11L,
             null, WorkKind.SOFTWARE, "t", null, WorkStatus.DRAFT, 3, 1, null, null, "a", null, null, null, 1, NOW,
-            NOW, null, null, null, null, null, null, null, null ) ) );
+            NOW, null, null, null, null, null, null, null, null, null, null ) ) );
         assertEquals( "", service.item( alice, "PLAT-3" ).bodyHtml() );
     }
 
@@ -398,9 +398,9 @@ class WorkServiceTest {
     void waitingOnExcludesInvisibleProjects() throws SQLException {
         when( store.visibleProjects( alice ) ).thenReturn( List.of( plat ) );
         final Item older = new Item( 12, 1, "PLAT-3", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "",
-            WorkStatus.DRAFT, 3, 1, null, "alice", "x", null, null, null, 1, NOW, NOW.minusSeconds( 60 ), null, null, null, null, null, null, null, null );
+            WorkStatus.DRAFT, 3, 1, null, "alice", "x", null, null, null, 1, NOW, NOW.minusSeconds( 60 ), null, null, null, null, null, null, null, null, null, null );
         final Item newer = new Item( 13, 1, "PLAT-4", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "",
-            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null, null, null );
+            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null, null, null, null, null );
         when( store.assignedOpen( "alice", Set.of( 1L ) ) ).thenReturn( List.of( older ) );
         when( store.mentioning( "alice", Set.of( 1L ) ) ).thenReturn( List.of( newer, older ) );
         assertEquals( List.of( "PLAT-4", "PLAT-3" ),

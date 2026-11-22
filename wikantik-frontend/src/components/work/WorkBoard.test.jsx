@@ -27,13 +27,13 @@ const boardOf = (byStatus, totals = {}) => ['draft', 'refining', 'ready', 'in_pr
   .map((s) => ({ status: s, total: totals[s] ?? (byStatus[s] || []).length, items: byStatus[s] || [] }));
 
 let board;
-function renderBoard({ role = 'member', me = { waitingOn: [], projects: [] }, url = '/work/PLAT' } = {}) {
+function renderBoard({ role = 'member', me = { waitingOn: [], projects: [] }, url = '/work/PLAT', sprints = [], sprintsSettled = true } = {}) {
   getBoard.mockImplementation(() => Promise.resolve(board));
   getMe.mockResolvedValue(me);
   const reload = vi.fn();
   render(
     <MemoryRouter initialEntries={[url]}>
-      <WorkProjectContext.Provider value={{ project: PROJECT, role, reload }}>
+      <WorkProjectContext.Provider value={{ project: PROJECT, role, reload, sprints, sprintsSettled }}>
         <WorkBoard />
       </WorkProjectContext.Provider>
     </MemoryRouter>);
@@ -66,6 +66,64 @@ beforeEach(() => {
   board = boardOf({ ready: [item(1, 'ready'), item(2, 'ready')], review: [item(3, 'review')] });
   getChangeCounts.mockResolvedValue({});
   acknowledgeItem.mockResolvedValue({});
+});
+
+const SPRINTS = [
+  { id: 11, name: 'Sprint 12', state: 'active' }, { id: 12, name: 'Sprint 13', state: 'planned' }, { id: 10, name: 'Sprint 11', state: 'closed' },
+];
+
+describe('WorkBoard sprints', () => {
+  it('no sprint selector without sprints', async () => {
+    renderBoard();
+    await screen.findByText('Item 1');
+    expect(screen.queryByLabelText('Sprint')).toBeNull();
+    expect(getBoard).toHaveBeenCalledWith('PLAT', {});
+  });
+
+  it('the board defaults to the active sprint', async () => {
+    renderBoard({ sprints: SPRINTS });
+    await screen.findByText('Item 1');
+    expect(getBoard).toHaveBeenCalledWith('PLAT', { sprint: 'active' });
+    const select = screen.getByLabelText('Sprint');
+    expect(select).toHaveValue('active');
+    expect([...select.querySelectorAll('option')].map((o) => o.textContent))
+      .toEqual(['All', 'Active sprint', 'Backlog', 'Sprint 12', 'Sprint 13']);
+  });
+
+  it('waits for the sprint list before loading the board', async () => {
+    renderBoard({ sprints: [], sprintsSettled: false });
+    await screen.findByText('Loading board…');
+    expect(getBoard).not.toHaveBeenCalled();
+  });
+
+  it('All sends no sprint', async () => {
+    renderBoard({ sprints: SPRINTS });
+    await screen.findByText('Item 1');
+    fireEvent.change(screen.getByLabelText('Sprint'), { target: { value: 'all' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', {}));
+  });
+
+  it('Backlog and a named sprint send their value', async () => {
+    renderBoard({ sprints: SPRINTS });
+    await screen.findByText('Item 1');
+    fireEvent.change(screen.getByLabelText('Sprint'), { target: { value: 'none' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { sprint: 'none' }));
+    fireEvent.change(screen.getByLabelText('Sprint'), { target: { value: '12' } });
+    await waitFor(() => expect(getBoard).toHaveBeenLastCalledWith('PLAT', { sprint: '12' }));
+  });
+
+  it('the URL value wins, and without an active sprint nothing is sent', async () => {
+    renderBoard({ sprints: SPRINTS, url: '/work/PLAT?sprint=12' });
+    await screen.findByText('Item 1');
+    expect(getBoard).toHaveBeenCalledWith('PLAT', { sprint: '12' });
+  });
+
+  it('with only planned sprints the selector starts on All and sends nothing', async () => {
+    renderBoard({ sprints: [SPRINTS[1]] });
+    await screen.findByText('Item 1');
+    expect(getBoard).toHaveBeenCalledWith('PLAT', {});
+    expect(screen.getByLabelText('Sprint')).toHaveValue('all');
+  });
 });
 
 describe('WorkBoard', () => {

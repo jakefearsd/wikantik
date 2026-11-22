@@ -90,6 +90,23 @@ final class ItemTargets {
         }
     }
 
+    /**
+     * A sprint the item newly joins must be one of this project's and not closed; unknown and another project's are
+     * one refusal. An item may stay in, or leave, a closed sprint.
+     */
+    void checkSprint( final Project project, final Item current, final Item next ) throws SQLException {
+        if ( next.sprintId() == null || next.sprintId().equals( current.sprintId() ) ) {
+            return;
+        }
+        final Sprint sprint = store.sprints().byId( next.sprintId() ).orElse( null );
+        if ( sprint == null || sprint.projectId() != project.id() ) {
+            throw new WorkValidationException( "sprint", "No such sprint in this project." );
+        }
+        if ( sprint.state() == SprintState.CLOSED ) {
+            throw new WorkConflictException( "A closed sprint takes no more work.", WorkConflictException.SPRINT_CLOSED );
+        }
+    }
+
     /** The queue must exist and not be retired; unknown and retired are the same refusal. */
     void requireActiveQueue( final String key ) throws SQLException {
         final Queue q = store.queue( key ).orElse( null );

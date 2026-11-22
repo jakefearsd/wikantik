@@ -7,10 +7,11 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useToast } from '../../hooks/useToast';
 import {
   addComment, addLink, editComment, getItem, handoffItem, listItems, listMembers, listProducts, listQueues, patchItem,
-  listLabels, releaseItem, removeComment, removeLink,
+  listLabels, listSprints, releaseItem, removeComment, removeLink,
 } from '../../api/work';
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS, TYPE_OPTIONS, labelRows } from './boardModel';
+import { formatPoints, isHalfPoint, openSprints } from './sprintModel';
 import WorkLabels from './WorkLabels';
 import WorkBodyEditor from './WorkBodyEditor';
 import WorkComments from './WorkComments';
@@ -46,19 +47,21 @@ const dateText = (iso) => (iso ? new Date(iso).toLocaleDateString() : '');
 /** What the server holds for a field, shown beside what the person typed after a 409. */
 const queueText = (name) => `Queue · ${name || 'a queue'}`;
 
-function theirValue(current, field) {
+function theirValue(current, field, sprintNameOf) {
   const item = current?.item;
   if (!item) return '(unavailable)';
   if (field === 'assignee') return item.queue ? queueText(item.queueName) : item.assigneeName || '(nobody)';
   if (field === 'queue') return item.queue ? queueText(item.queueName) : '(none)';
   if (field === 'parentKey' || field === 'productKey') return current[field] || '(none)';
   if (field === 'labels') return (item.labels || []).length > 0 ? item.labels.join(', ') : '(none)';
+  if (field === 'sprint') return item.sprintId == null ? 'Backlog' : sprintNameOf(item.sprintId);
   const v = item[field];
   return v == null || v === '' ? '(empty)' : String(v);
 }
 
 /** What the person typed, in words: a login is shown as the member's display name. */
-function mineText(field, value, nameOf, queueNameOf) {
+function mineText(field, value, nameOf, queueNameOf, sprintNameOf) {
+  if (field === 'sprint') return value == null || value === '' ? 'Backlog' : sprintNameOf(value);
   if (value == null || value === '') return field === 'assignee' || field === 'queue' ? '(nobody)' : '(empty)';
   if (field === 'queue') return queueText(queueNameOf(value));
   if (field === 'assignee') {
@@ -80,6 +83,8 @@ function valueOf(view, name) {
     case 'kind': return item.kind || 'software';
     case 'type': return item.type || 'feature';
     case 'labels': return (item.labels || []).join(',');
+    case 'sprint': return item.sprintId == null ? '' : String(item.sprintId);
+    case 'estimate': return formatPoints(item.estimate);
     case 'allowDirect': return item.allowDirect == null ? '' : String(item.allowDirect);
     case 'autonomy': case 'doneMeans': return item[name] || '';
     case 'body': return item.body ?? '';
@@ -88,7 +93,7 @@ function valueOf(view, name) {
   }
 }
 
-function ConflictBanner({ banner, nameOf, queueNameOf, onReload, onKeep }) {
+function ConflictBanner({ banner, nameOf, queueNameOf, sprintNameOf, onReload, onKeep }) {
   const [review, setReview] = useState(false);
   const [seen, setSeen] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -118,11 +123,11 @@ function ConflictBanner({ banner, nameOf, queueNameOf, onReload, onKeep }) {
             <div key={field} className="work-conflict-pair">
               <div>
                 <h3 className="work-conflict-title">Their version ({field})</h3>
-                <pre className="work-conflict-text">{theirValue(current, field)}</pre>
+                <pre className="work-conflict-text">{theirValue(current, field, sprintNameOf)}</pre>
               </div>
               <div>
                 <h3 className="work-conflict-title">Your unsaved text ({field})</h3>
-                <pre className="work-conflict-text">{mineText(field, changes[field], nameOf, queueNameOf)}</pre>
+                <pre className="work-conflict-text">{mineText(field, changes[field], nameOf, queueNameOf, sprintNameOf)}</pre>
               </div>
             </div>
           ))}
@@ -143,6 +148,7 @@ function ItemPage({ itemKey }) {
   const [products, setProducts] = useState([]);
   const [parents, setParents] = useState([]);
   const [labelNames, setLabelNames] = useState([]);
+  const [sprints, setSprints] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [epoch, setEpoch] = useState(0);
   // The one versioned editor that may be open: { name, base, orig, draft }. base is the item version it opened at.
@@ -189,6 +195,15 @@ function ItemPage({ itemKey }) {
       .catch((e) => console.warn('WorkItemView: could not load the project labels', e))
     : Promise.resolve()), [projectKey]);
   useEffect(() => { loadLabels(); }, [loadLabels]);
+
+  useEffect(() => {
+    if (!projectKey) return undefined;
+    let cancelled = false;
+    listSprints(projectKey)
+      .then((rows) => { if (!cancelled) setSprints(rows || []); })
+      .catch((e) => console.warn('WorkItemView: could not load the project sprints', e));
+    return () => { cancelled = true; };
+  }, [projectKey]);
 
   const assigns = (view?.viewerRole === 'member' || view?.viewerRole === 'lead') && !view?.archived;
   useEffect(() => {
@@ -349,12 +364,18 @@ function ItemPage({ itemKey }) {
       sameFieldChanged: !!open && (!!conflict?.unavailable || valueOf(source, open.name) !== (typeof open.orig === 'string' ? open.orig : JSON.stringify(open.orig))),
     };
   }
+  const sprintNameOf = (id) => sprints.find((s) => s.id === Number(id))?.name || `sprint ${id}`;
   const withCurrent = (opts, value, label) => (value && !opts.some((o) => o.value === value) ? [...opts, { value, label }] : opts);
   const productOptions = withCurrent([{ value: '', label: 'None' },
     ...products.filter((p) => !p.archived)
       .map((p) => ({ value: p.key, label: p.name ? `${p.key} – ${p.name}` : p.key }))], view.productKey, view.productKey);
   const parentOptions = withCurrent([{ value: '', label: 'None' },
     ...parents.filter((p) => p.key !== item.key).map((p) => ({ value: p.key, label: `${p.key} – ${p.title}` }))], view.parentKey, view.parentKey);
+
+  const sprintName = item.sprintId == null ? 'Backlog' : sprintNameOf(item.sprintId);
+  const sprintOptions = withCurrent([{ value: '', label: 'Backlog' },
+    ...openSprints(sprints).map((s) => ({ value: String(s.id), label: s.name }))],
+  item.sprintId == null ? '' : String(item.sprintId), sprintName);
 
   return (
     <article className="work-item">
@@ -372,7 +393,7 @@ function ItemPage({ itemKey }) {
       <WorkClaim item={item} canRelease={canEdit} onRelease={release} />
       {banner && (
         <ConflictBanner
-          banner={banner} nameOf={nameOf} queueNameOf={queueNameOf}
+          banner={banner} nameOf={nameOf} queueNameOf={queueNameOf} sprintNameOf={sprintNameOf}
           onReload={() => { setConflict(null); setOpen(null); setEpoch((n) => n + 1); load(); }}
           onKeep={() => {
             setConflict(null);
@@ -447,6 +468,22 @@ function ItemPage({ itemKey }) {
                 onChange={(next) => onChange(next.join(','))} />)}
             parse={(v) => (v ? v.split(',') : [])} canEdit={canEdit}
             onSave={(v) => field('labels')(v).then((ok) => { if (ok === true) loadLabels(); return ok; })} />
+          {!isEpic && (
+            <WorkFieldRow label="Estimate" error={err('estimate')} {...editor('estimate')} type="number" value={formatPoints(item.estimate)}
+              display={item.estimate == null ? 'Not estimated' : `${formatPoints(item.estimate)} pts`} parse={blankToNull} canEdit={canEdit}
+              onSave={(v) => {
+                if (v !== null && !isHalfPoint(v)) {
+                  setFieldErrors({ estimate: { message: 'Use whole or half points, from 0 to 999.5.', source: 'field' } });
+                  return Promise.resolve(false);
+                }
+                return save({ estimate: v === null ? null : Number(v) });
+              }} />
+          )}
+          {!isEpic && (sprints.length > 0 || item.sprintId != null) && (
+            <WorkFieldRow label="Sprint" error={err('sprint')} {...editor('sprint')} type="select"
+              value={item.sprintId == null ? '' : String(item.sprintId)} display={sprintName}
+              options={sprintOptions} parse={(v) => (v === '' ? null : Number(v))} canEdit={canEdit} onSave={field('sprint')} />
+          )}
           {!isEpic && (
             <>
               <WorkFieldRow label="Parent" type="select" value={view.parentKey || ''} display={view.parentKey || 'None'}

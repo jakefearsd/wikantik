@@ -53,16 +53,30 @@ final class ItemRules {
         }
     }
 
+    /** What an epic may not carry: a product, a type other than feature, an estimate or a sprint. */
+    private static void validateEpic( final Item epic ) {
+        if ( epic.productId() != null ) {
+            throw new WorkValidationException( "productKey", "An epic has no product of its own." );
+        }
+        if ( epic.type() != WorkType.FEATURE ) {
+            throw new WorkValidationException( "type", "An epic is always a feature." );
+        }
+        if ( epic.estimate() != null ) {
+            throw new WorkValidationException( "estimate",
+                "An epic has no estimate of its own; it shows the sum of its children." );
+        }
+        if ( epic.sprintId() != null ) {
+            throw new WorkValidationException( "sprint", "An epic is not planned into a sprint." );
+        }
+    }
+
     private static void validateShape( final Item next, final Item newParent ) {
         if ( !WorkStatus.allowedFor( next.level() ).contains( next.status() ) ) {
             throw new WorkValidationException( "status",
                 "A " + next.level().wire() + " cannot have status " + next.status().wire() + "." );
         }
-        if ( next.level() == WorkLevel.EPIC && next.productId() != null ) {
-            throw new WorkValidationException( "productKey", "An epic has no product of its own." );
-        }
-        if ( next.level() == WorkLevel.EPIC && next.type() != WorkType.FEATURE ) {
-            throw new WorkValidationException( "type", "An epic is always a feature." );
+        if ( next.level() == WorkLevel.EPIC ) {
+            validateEpic( next );
         }
         if ( newParent != null && !newParent.level().canParent( next.level() ) ) {
             throw new WorkValidationException( "parentKey",

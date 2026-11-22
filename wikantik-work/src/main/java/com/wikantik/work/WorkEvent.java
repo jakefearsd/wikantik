@@ -55,6 +55,10 @@ public record WorkEvent( long id, long projectId, Long itemId, String itemKey, I
     public static final String DEPLOYMENT_REQUESTED = "deployment_requested";
     public static final String SHIPPED = "shipped";
     public static final String ROLLED_BACK = "rolled_back";
+    public static final String SPRINT_CREATED = "sprint_created";
+    public static final String SPRINT_UPDATED = "sprint_updated";
+    public static final String SPRINT_STARTED = "sprint_started";
+    public static final String SPRINT_CLOSED = "sprint_closed";
 
     /**
      * What the assignment log shows, in the order its filters list them: assignments, hand-offs, status changes and
@@ -68,5 +72,6 @@ public record WorkEvent( long id, long projectId, Long itemId, String itemKey, I
     /** Every type of event this module writes: what a {@code types} filter may name. */
     public static final Set< String > ALL_TYPES = Collections.unmodifiableSet( new LinkedHashSet<>( List.of(
         CREATED, EDITED, STATUS, ASSIGNED, HANDOFF, FIELD, COMMENTED, COMMENT_EDITED, COMMENT_REMOVED, LINKED,
-        UNLINKED, MEMBER, SETTINGS, CLAIMED, CLAIM_RENEWED, RELEASED, CLAIM_EXPIRED ) ) );
+        UNLINKED, MEMBER, SETTINGS, CLAIMED, CLAIM_RENEWED, RELEASED, CLAIM_EXPIRED, SPRINT_CREATED, SPRINT_UPDATED,
+        SPRINT_STARTED, SPRINT_CLOSED ) ) );
 }

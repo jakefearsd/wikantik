@@ -197,4 +197,42 @@ class UpdateItemToolTest {
         assertEquals( "archived: Archived.",
             WorkMcpFixture.text( tool.call( w.agent, args( "key", "A-3", "expectedVersion", 1, "title", "x" ) ) ) );
     }
+
+    private ItemPatch patchOf( final Object... kv ) throws SQLException {
+        when( w.svc.updateItem( eq( w.agent ), eq( "PLAT-1" ), any() ) )
+            .thenReturn( MockWork.view( MockWork.item( "PLAT-1", WorkStatus.IN_PROGRESS, 4, null, null ) ) );
+        final Map< String, Object > a = args( "key", "PLAT-1", "expectedVersion", 3 );
+        a.putAll( args( kv ) );
+        final var r = tool.call( w.agent, a );
+        assertTrue( r.isError() == null || !r.isError(), WorkMcpFixture.text( r ) );
+        final ArgumentCaptor< ItemPatch > patch = ArgumentCaptor.forClass( ItemPatch.class );
+        verify( w.svc ).updateItem( eq( w.agent ), eq( "PLAT-1" ), patch.capture() );
+        return patch.getValue();
+    }
+
+    @Test
+    void anEstimateIsPassedToTheService() throws SQLException {
+        assertEquals( 2.5, ( ( Number ) patchOf( "estimate", 2.5 ).changes().get( "estimate" ) ).doubleValue() );
+    }
+
+    @Test
+    void aNullEstimateClearsIt() throws SQLException {
+        final ItemPatch p = patchOf( "estimate", null );
+        assertTrue( p.changes().containsKey( "estimate" ) );
+        assertEquals( null, p.changes().get( "estimate" ) );
+    }
+
+    @Test
+    void aTextEstimateIsRefusedNamingEstimate() {
+        final var r = tool.call( w.agent, args( "key", "PLAT-1", "expectedVersion", 3, "estimate", "lots" ) );
+        assertEquals( "estimate: must be a number.", WorkMcpFixture.text( r ) );
+    }
+
+    @Test
+    void aSprintIsRefusedWithThePlanningText() throws SQLException {
+        final var r = tool.call( w.agent, args( "key", "PLAT-1", "expectedVersion", 3, "sprint", 7 ) );
+        assertEquals( Boolean.TRUE, r.isError() );
+        assertEquals( "sprint: A person plans a sprint.", WorkMcpFixture.text( r ) );
+        verify( w.svc, never() ).updateItem( any(), any(), any() );
+    }
 }

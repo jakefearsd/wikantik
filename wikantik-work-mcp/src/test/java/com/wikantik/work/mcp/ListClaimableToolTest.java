@@ -114,4 +114,22 @@ class ListClaimableToolTest {
         assertEquals( 0, WorkMcpFixture.json( tool.call( f.builderActor, Map.of( "queue", "reviewer" ) ) )
             .getAsJsonArray( "items" ).size() );
     }
+
+    @Test
+    void summariesCarryTheEstimate() throws SQLException {
+        final Item item = f.ready( "PLAT", "Sized" );
+        f.svc.updateItem( f.lena, item.key(), new com.wikantik.work.ItemPatch( item.version(),
+            Map.of( "estimate", 3 ), null ) );
+        f.ready( "PLAT", "Unsized" );
+        final JsonArray items = WorkMcpFixture.json( tool.call( f.builderActor, Map.of( "queue", "implementer" ) ) )
+            .getAsJsonArray( "items" );
+        for ( final var e : items ) {
+            final JsonObject o = e.getAsJsonObject();
+            if ( "Sized".equals( o.get( "title" ).getAsString() ) ) {
+                assertEquals( 3.0, o.get( "estimate" ).getAsDouble() );
+            } else {
+                assertTrue( o.get( "estimate" ).isJsonNull() );
+            }
+        }
+    }
 }

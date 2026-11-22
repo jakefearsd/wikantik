@@ -655,7 +655,7 @@ class WorkItemResourceTest {
         final com.wikantik.work.Item claimed = new com.wikantik.work.Item( base.id(), base.projectId(), base.key(), base.level(),
             null, null, base.kind(), base.title(), base.body(), WorkStatus.IN_PROGRESS, 3, 1.0, null, null, "bob", null, null, null,
             2, base.createdAt(), base.updatedAt(), null, "triage", 5L, Instant.parse( "2026-11-15T10:00:00Z" ),
-            Instant.parse( "2026-11-15T10:30:00Z" ), null, null, null );
+            Instant.parse( "2026-11-15T10:30:00Z" ), null, null, null, null, null );
         Mockito.when( svc.item( ALICE, "PLAT-1" ) ).thenReturn( new WorkService.ItemView( claimed, "<p>b</p>", "PLAT", null, null,
             List.of(), List.of(), List.of(), false, WorkRole.MEMBER, false, null ) );
         final JsonObject item = get( "/PLAT-1", Map.of() ).json().getAsJsonObject().getAsJsonObject( "item" );
@@ -809,5 +809,28 @@ class WorkItemResourceTest {
             assertEquals( missing.body(), hidden.body(), route[ 1 ] );
             assertFalse( hidden.body().contains( "PLAT" ), hidden.body() );
         }
+    }
+
+    @Test
+    void pointsRoute() throws Exception {
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        final com.wikantik.work.WorkSprintsService sprints = Mockito.mock( com.wikantik.work.WorkSprintsService.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.sprints() ).thenReturn( sprints );
+        Mockito.when( sprints.childPoints( ALICE, "PLAT-1" ) ).thenReturn( new java.math.BigDecimal( "12.5" ) );
+        final WorkHttp.Result r = get( "/PLAT-1/points", Map.of() );
+        assertEquals( 200, r.status() );
+        assertEquals( 12.5, r.json().getAsJsonObject().get( "points" ).getAsDouble() );
+    }
+
+    @Test
+    void patchPassesSprintAndEstimateAsNumbers() throws Exception {
+        Mockito.when( svc.updateItem( eq( ALICE ), eq( "PLAT-1" ), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 2 ) );
+        assertEquals( 200, send( "PATCH", "/api/work/items", "/PLAT-1",
+            "{\"expectedVersion\":1,\"changes\":{\"sprint\":7,\"estimate\":2.5}}" ).status() );
+        final ArgumentCaptor< ItemPatch > p = ArgumentCaptor.forClass( ItemPatch.class );
+        Mockito.verify( svc ).updateItem( eq( ALICE ), eq( "PLAT-1" ), p.capture() );
+        assertEquals( 7, ( ( Number ) p.getValue().changes().get( "sprint" ) ).intValue() );
+        assertEquals( 2.5, ( ( Number ) p.getValue().changes().get( "estimate" ) ).doubleValue() );
     }
 }

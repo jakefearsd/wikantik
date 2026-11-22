@@ -305,7 +305,8 @@ final class JdbcWorkClaims implements WorkClaimStore {
             sql.append( " AND i.assignee_queue = ?" );
             extra.add( queue );
         }
-        sql.append( " ORDER BY i.priority ASC, i.due_on ASC NULLS LAST, i.id ASC LIMIT ?" );
+        sql.append( " ORDER BY ( i.sprint_id IS NOT NULL AND EXISTS ( SELECT 1 FROM work_sprint s WHERE s.id = i.sprint_id"
+        + " AND s.state = 'active' ) ) DESC, i.priority ASC, i.due_on ASC NULLS LAST, i.id ASC LIMIT ?" );
         extra.add( limit > 0 ? limit : DEFAULT_LIMIT );
         return jdbc.withConnection( conn -> jdbc.query( conn, sql.toString(), ps -> {
             ps.setArray( 1, conn.createArrayOf( "bigint", projectIds.toArray() ) );

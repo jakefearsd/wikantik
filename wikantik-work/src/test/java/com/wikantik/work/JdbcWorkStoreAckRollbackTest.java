@@ -56,7 +56,7 @@ class JdbcWorkStoreAckRollbackTest {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), WorkStatus.DONE, i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
             i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null,
-            null, null, null, null, null );
+            null, null, null, null, null, null, null );
     }
 
     @Test

@@ -29,7 +29,7 @@ import java.util.Set;
  */
 public record ItemFilter( Long projectId, Set< WorkStatus > statuses, String assignee, Long productId,
                           WorkLevel level, Long parentId, String text, LocalDate dueBefore, int limit, Order order,
-                          String queue, WorkType type, Set< String > labels ) {
+                          String queue, WorkType type, Set< String > labels, SprintRef sprint ) {
 
     /** Normalises the labels: lower-case and distinct, a malformed one or more than ten refused (field {@code labels}). */
     public ItemFilter {
@@ -49,12 +49,18 @@ public record ItemFilter( Long projectId, Set< WorkStatus > statuses, String ass
     /** This filter with another project id and assignee; everything else kept. */
     public ItemFilter with( final Long newProjectId, final String newAssignee ) {
         return new ItemFilter( newProjectId, statuses, newAssignee, productId, level, parentId, text, dueBefore, limit,
-            order, queue, type, labels );
+            order, queue, type, labels, sprint );
+    }
+
+    /** The filter a board uses: pinned to the project, no status set, no limit and no order; the rest kept. */
+    public ItemFilter forBoard( final long newProjectId ) {
+        return new ItemFilter( newProjectId, null, assignee, productId, level, parentId, text, dueBefore, 0, null,
+            queue, type, labels, sprint );
     }
 
     /** This filter restricted to a queue (null = any); everything else kept. */
     public ItemFilter withQueue( final String newQueue ) {
         return new ItemFilter( projectId, statuses, assignee, productId, level, parentId, text, dueBefore, limit,
-            order, newQueue, type, labels );
+            order, newQueue, type, labels, sprint );
     }
 }

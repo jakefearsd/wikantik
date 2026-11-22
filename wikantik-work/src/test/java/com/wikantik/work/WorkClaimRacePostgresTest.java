@@ -315,13 +315,13 @@ class WorkClaimRacePostgresTest {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), title,
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
             i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), i.queue(),
-            i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(), null, null );
+            i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(), null, null, null, null );
     }
 
     private static Item withQueue( final Item i, final String queue ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), null, i.reporter(), i.autonomy(),
             i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), queue,
-            i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(), null, null );
+            i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(), null, null, null, null );
     }
 }

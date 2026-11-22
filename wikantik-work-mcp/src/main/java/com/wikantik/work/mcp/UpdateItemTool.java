@@ -43,9 +43,9 @@ public final class UpdateItemTool extends WorkMcpTool {
     public static final String TOOL_NAME = "update_item";
 
     private static final ToolSpec SPEC = ToolSpec.writes( TOOL_NAME )
-        .description( "Change an item's title, body, status, priority, dueOn, type or labels, as the agent you are. Give at "
+        .description( "Change an item's title, body, status, priority, dueOn, estimate, type or labels, as the agent you are. Give at "
             + "least one of them. It cannot change who has the item (use handoff_item) or any policy or "
-            + "structural field; those arguments are refused by name. Returns the item as get_item does. "
+            + "structural field; those arguments are refused by name (sprint too: a person plans a sprint). Returns the item as get_item does. "
             + "Refusals start stale: (re-read and retry), denied:, archived: or name the field." )
         .requiredArg( "key", "string", "The item key.", "PLAT-12" )
         .requiredArg( "expectedVersion", "integer", "The item's version as you last read it; a stale one is "
@@ -56,6 +56,7 @@ public final class UpdateItemTool extends WorkMcpTool {
             + "cancelled. To give the item to someone else use handoff_item.", "in_progress" )
         .arg( "priority", "integer", "1 (highest) to 4.", 2 )
         .arg( "dueOn", "string", "ISO date, or null to clear.", "2026-12-01" )
+        .arg( "estimate", "number", "Story points from 0 to 999.5 in halves; null clears it.", 2.5 )
         .arg( "type", "string", "feature, bug or chore.", "bug" )
         .arg( "labels", labelsSchema(), false )
         .arg( "note", "string", "Why you changed it; recorded in the item's history.", "Started work." );
@@ -63,13 +64,14 @@ public final class UpdateItemTool extends WorkMcpTool {
     static final String USE_HANDOFF = "Use handoff_item to change who has the item.";
     static final String NOT_SETTABLE = "That field is not settable through this endpoint.";
 
-    private static final Set< String > SETTABLE = Set.of( "title", "body", "status", "priority", "dueOn", "type",
-        "labels" );
+    private static final Set< String > SETTABLE = Set.of( "title", "body", "status", "priority", "dueOn", "estimate",
+        "type", "labels" );
     private static final Map< String, String > REASONS = Map.ofEntries(
         Map.entry( "assignee", USE_HANDOFF ), Map.entry( "queue", USE_HANDOFF ),
         Map.entry( "autonomy", NOT_SETTABLE ), Map.entry( "doneMeans", NOT_SETTABLE ),
         Map.entry( "allowDirect", NOT_SETTABLE ), Map.entry( "parentKey", NOT_SETTABLE ),
         Map.entry( "productKey", NOT_SETTABLE ), Map.entry( "project", NOT_SETTABLE ),
+        Map.entry( "sprint", "A person plans a sprint." ),
         Map.entry( "level", NOT_SETTABLE ), Map.entry( "kind", NOT_SETTABLE ), Map.entry( "rank", NOT_SETTABLE ) );
 
     private final WorkService svc;
@@ -104,6 +106,7 @@ public final class UpdateItemTool extends WorkMcpTool {
     private static Object value( final Map< String, Object > args, final String field ) {
         return switch ( field ) {
             case "priority" -> priority( args );
+            case "estimate" -> decimalArg( args, field );
             case "labels" -> stringListArg( args, field );
             default -> stringArg( args, field );
         };

@@ -36,8 +36,9 @@ public final class ListClaimableTool extends WorkMcpTool {
 
     private static final ToolSpec SPEC = ToolSpec.reads( TOOL_NAME )
         .description( "Items you could claim now: unclaimed, ready or in review, in a queue you serve, in a "
-            + "project you were admitted to as a member. Returns {items:[{key,title,level,kind,status,priority,"
-            + "queue,queueKey,productKey,parentKey,dueOn}]}. An unknown or hidden project is \"Not found.\"" )
+            + "project you were admitted to as a member. Items in a project's active sprint come first, then by "
+            + "priority and due date. Returns {items:[{key,title,level,kind,status,priority,"
+            + "estimate,queue,queueKey,productKey,parentKey,dueOn}]}. An unknown or hidden project is \"Not found.\"" )
         .arg( "project", "string", "Only this project (its key).", "PLAT" )
         .arg( "queue", "string", "Only this queue (its key).", "implementer" )
         .arg( "limit", "integer", "Most items to return; default 20, at most 50.", 20 );

@@ -8,16 +8,18 @@ and a request on it with any other is refused (HTTP 403); open a session per cre
 == Tools ==
 
 get_work_context   Who you are (your agent record and queues), the projects you can see with your role in each, the
-                   items you currently hold a claim on, and claimExpiryMinutes. Call it first, and again after a
-                   long pause.
+                   items you currently hold a claim on, and claimExpiryMinutes. Each project names its activeSprint
+                   (name, goal, startsOn, endsOn) or null. Call it first, and again after a long pause.
 list_claimable     Items you could claim now: unclaimed, ready or in review, in a queue you serve, in a project
-                   where you are a member. Optional project, queue and limit (default 20, at most 50).
-get_item           One item in full by key: body and comments as Markdown source, status, type, labels, version,
+                   where you are a member. Optional project, queue and limit (default 20, at most 50). Items in a
+                   project's active sprint come first, then by priority and due date.
+get_item           One item in full by key: body and comments as Markdown source, status, type, labels, estimate, sprint (name, state, endsOn, or null), version,
                    assignee, queue, claim, wikiCluster, links, and the last 20 events. Use its version when you change the item.
 claim_item         key. Take an item for yourself, or renew your own claim by calling it again before expiresAt.
                    Returns {claim:{expiresAt,renewed}, item} with the item as get_item shows it.
-update_item        key, expectedVersion, and any of title, body, status, priority, dueOn, type, labels,
-                   plus an optional note. Returns the item. It cannot change who has the item or any policy field; those arguments are
+update_item        key, expectedVersion, and any of title, body, status, priority, dueOn, estimate, type, labels,
+                   plus an optional note. estimate is story points from 0 to 999.5 in halves (null clears it). Sprints are
+                   planned by people: sprint is refused ("A person plans a sprint.") and you cannot create, start or close one. Returns the item. It cannot change who has the item or any policy field; those arguments are
                    refused by name (use handoff_item to change who has it). labels replaces the whole set; an
                    unknown or malformed label is refused as labels:.
 comment_on_item    key, body (Markdown). Returns {id, at}.

@@ -40,7 +40,7 @@ class WorkPolicyActionTableTest {
 
     private static Item item( final Long claimedBy ) {
         return new Item( 1, 1, "PLAT-1", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", WorkStatus.READY, 3,
-            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, claimedBy, null, null, null, null, null );
+            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, claimedBy, null, null, null, null, null, null, null );
     }
 
     static List< String > table() {

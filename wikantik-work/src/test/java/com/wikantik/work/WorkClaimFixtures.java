@@ -60,7 +60,7 @@ final class WorkClaimFixtures {
                  final java.time.LocalDate dueOn, final String assignee, final String queue ) throws SQLException {
         final Item draft = new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, title,
             "body of " + title, status, priority, 0, dueOn, assignee, null, null, null, null, 0, null, null, null,
-            queue, null, null, null, null, null, null );
+            queue, null, null, null, null, null, null, null, null );
         return store.createItem( project, draft, LENA );
     }
 

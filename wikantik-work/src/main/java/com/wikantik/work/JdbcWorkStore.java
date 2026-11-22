@@ -52,7 +52,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
                i.title, i.body, i.status, i.priority, i.rank, i.due_on, i.assignee, i.reporter, i.autonomy,
                i.done_means, i.allow_direct, i.version, i.created_at, i.updated_at, i.closed_at,
                i.assignee_queue, i.claimed_by_agent, i.claimed_at, i.claim_expires_at, i.reporter_agent_id,
-               i.type, i.labels
+               i.type, i.labels, i.sprint_id, i.estimate
           FROM work_item i JOIN work_project p ON p.id = i.project_id
         """;
 
@@ -68,7 +68,8 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         getInstant( rs, "created_at" ), getInstant( rs, "updated_at" ), getInstant( rs, "closed_at" ),
         rs.getString( "assignee_queue" ), getNullableLong( rs, "claimed_by_agent" ), getInstant( rs, "claimed_at" ),
         getInstant( rs, "claim_expires_at" ), getNullableLong( rs, "reporter_agent_id" ),
-        WorkType.fromWire( rs.getString( "type" ) ), JdbcWorkLabels.fromArray( rs.getArray( "labels" ) ) );
+        WorkType.fromWire( rs.getString( "type" ) ), JdbcWorkLabels.fromArray( rs.getArray( "labels" ) ),
+        getNullableLong( rs, "sprint_id" ), rs.getBigDecimal( "estimate" ) );
 
     static final String EVENT_COLUMNS = """
         e.id, e.project_id, e.item_id,
@@ -102,6 +103,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
     private final JdbcWorkLabels labels;
     private final JdbcWorkChanges changes;
     private final JdbcWorkDeployments deployments;
+    private final JdbcWorkSprints sprints;
 
     public JdbcWorkStore( final DataSource dataSource ) {
         super( new Jdbc( dataSource ) );
@@ -112,6 +114,12 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
         this.labels = new JdbcWorkLabels( jdbc );
         this.changes = new JdbcWorkChanges( jdbc, this );
         this.deployments = new JdbcWorkDeployments( jdbc, this );
+        this.sprints = new JdbcWorkSprints( jdbc, this );
+    }
+
+    @Override
+    public WorkSprintStore sprints() {
+        return sprints;
     }
 
     @Override
@@ -286,8 +294,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     @Override
     public List< BoardColumn > board( final long projectId, final ItemFilter f ) throws SQLException {
-        final ItemFilter scoped = new ItemFilter( projectId, null, f.assignee(), f.productId(), f.level(),
-            f.parentId(), f.text(), f.dueBefore(), 0, null, f.queue(), f.type(), f.labels() );
+        final ItemFilter scoped = f.forBoard( projectId );
         final List< BoardColumn > columns = new ArrayList<>();
         for ( final WorkStatus status : WorkStatus.values() ) {
             final StringBuilder where = new StringBuilder( " WHERE i.status = ?" );
@@ -296,9 +303,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
             ItemQuery.conditions( scoped, false, where, params );
             final int total = jdbc.queryOne( "SELECT COUNT(*) FROM work_item i" + where,
                 SqlBinder.positional( params ), rs -> rs.getInt( 1 ) ).orElse( 0 );
-            final boolean closed = isClosed( status );
-            final String order = closed ? " ORDER BY i.closed_at DESC NULLS LAST, i.id DESC LIMIT " + CLOSED_COLUMN_CAP
-                : " ORDER BY i.rank, i.id";
+            final String order = ItemQuery.boardOrder( isClosed( status ), CLOSED_COLUMN_CAP );
             columns.add( new BoardColumn( status, total, jdbc.query( ITEM_SELECT + where + order,
                 SqlBinder.positional( params ), ITEM_ROW ) ) );
         }

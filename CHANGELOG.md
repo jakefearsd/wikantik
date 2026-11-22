@@ -9,6 +9,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Work items have a type (feature, bug or chore) and up to ten labels. Both can be set from the board's new-item form, the item page, REST (`type`, `labels`; `GET /api/work/projects/{key}/labels`) and the work MCP (`create_item`, `update_item`), and the board and dates views filter by them. Schema `V084`.
+- Sprints and estimates in work management: a project lead plans, starts and closes sprints; members plan stories and tasks into them and estimate them in points (agents may estimate, never plan); starting records the commitment, closing records what was completed and moves unfinished work on; the Sprints view shows a burndown and velocity computed from the item history; the board filters by sprint and defaults to the active one; claimable work offers the active sprint first. REST under `/api/work/sprints/*`, `update_item` takes `estimate`. Schema `V085`.
 
 ## [2.7.8] - 2026-11-21
 

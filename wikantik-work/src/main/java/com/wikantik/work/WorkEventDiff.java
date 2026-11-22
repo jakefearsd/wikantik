@@ -72,6 +72,8 @@ final class WorkEventDiff {
         fieldEvent( out, cur, by, "kind", cur.kind().wire(), nxt.kind().wire() );
         fieldEvent( out, cur, by, "type", cur.type().wire(), nxt.type().wire() );
         fieldEvent( out, cur, by, "labels", joined( cur.labels() ), joined( nxt.labels() ) );
+        fieldEvent( out, cur, by, "sprint", text( cur.sprintId() ), text( nxt.sprintId() ) );
+        fieldEvent( out, cur, by, "estimate", points( cur.estimate() ), points( nxt.estimate() ) );
         fieldEvent( out, cur, by, "autonomy", autonomyWire( cur.autonomy() ), autonomyWire( nxt.autonomy() ) );
         fieldEvent( out, cur, by, "done_means", doneMeansWire( cur.doneMeans() ), doneMeansWire( nxt.doneMeans() ) );
         fieldEvent( out, cur, by, "allow_direct", text( cur.allowDirect() ), text( nxt.allowDirect() ) );
@@ -95,6 +97,11 @@ final class WorkEventDiff {
         if ( !Objects.equals( from, to ) ) {
             out.add( event( cur, by, WorkEvent.FIELD, from, to, field ) );
         }
+    }
+
+    /** Points as event text: {@code 3}, {@code 2.5}, {@code 0}; null for none. {@code 3} and {@code 3.0} are one. */
+    static String points( final java.math.BigDecimal p ) {
+        return p == null ? null : p.stripTrailingZeros().toPlainString();
     }
 
     private static String joined( final List< String > labels ) {

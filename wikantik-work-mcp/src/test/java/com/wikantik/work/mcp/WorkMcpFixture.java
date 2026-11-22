@@ -124,6 +124,14 @@ final class WorkMcpFixture {
             .item();
     }
 
+    /** A started sprint of the project, made by lena, who leads it. */
+    com.wikantik.work.WorkSprintsService.SprintView activeSprint( final String project ) throws SQLException {
+        final java.time.LocalDate today = java.time.LocalDate.now();
+        final com.wikantik.work.WorkSprintsService.SprintView made = svc.features().sprints().create( lena, project,
+            new com.wikantik.work.SprintDraft( "Sprint " + ++seq, "Ship the thing", today, today.plusDays( 13 ) ) );
+        return svc.features().sprints().start( lena, made.sprint().id(), made.sprint().version() );
+    }
+
     /** The result as the agent reads it: the first text content. */
     static String text( final McpSchema.CallToolResult r ) {
         return ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();

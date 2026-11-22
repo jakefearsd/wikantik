@@ -44,7 +44,10 @@ public enum Action {
     ACKNOWLEDGE( WorkRole.MEMBER, false, false ),
     REQUEST_DEPLOYMENT( WorkRole.MEMBER, false, false ),
     APPROVE_DEPLOYMENT( WorkRole.MEMBER, false, false ),
-    RUN_DEPLOYMENT( WorkRole.MEMBER, false, false );
+    RUN_DEPLOYMENT( WorkRole.MEMBER, false, false ),
+    // Sprints are planned by people: an agent is refused both (WorkPolicy), though it may estimate (EDIT_ITEM).
+    MANAGE_SPRINT( WorkRole.LEAD, true, false ),
+    PLAN_SPRINT( WorkRole.MEMBER, false, false );
 
     private final WorkRole minRole;
     private final boolean management;

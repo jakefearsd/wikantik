@@ -45,6 +45,7 @@ final class EventKeys {
         final Map< String, String > products = new HashMap<>();
         final Map< String, String > parents = new HashMap<>();
         boolean productsLoaded = false;
+        Map< String, String > sprints = null;
         final List< WorkEvent > out = new ArrayList<>( events.size() );
         for ( final WorkEvent e : events ) {
             if ( !WorkEvent.FIELD.equals( e.type() ) ) {
@@ -59,11 +60,24 @@ final class EventKeys {
                 }
                 out.add( renamed( e, "product", keyOrNull( products, e.fromValue() ),
                     keyOrNull( products, e.toValue() ) ) );
+            } else if ( "sprint".equals( e.note() ) ) {
+                if ( sprints == null ) {
+                    sprints = sprintNames( store, projectId );
+                }
+                out.add( renamed( e, "sprint", keyOrNull( sprints, e.fromValue() ), keyOrNull( sprints, e.toValue() ) ) );
             } else {
                 out.add( e );
             }
         }
         return out;
+    }
+
+    /** The project's sprint names by id; read only when a sprint event occurs. */
+    private static Map< String, String > sprintNames( final WorkStore store, final long projectId )
+            throws SQLException {
+        final Map< String, String > names = new HashMap<>();
+        store.sprints().forProject( projectId ).forEach( s -> names.put( String.valueOf( s.id() ), s.name() ) );
+        return names;
     }
 
     private static String keyOrNull( final Map< String, String > keys, final String id ) {

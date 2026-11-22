@@ -47,6 +47,9 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
     /** Deployments: product versions going to an environment, carrying items. */
     WorkDeploymentStore deployments();
 
+    /** Sprints: named date ranges of a project that items are planned into. */
+    WorkSprintStore sprints();
+
     // ---- items
 
     /**

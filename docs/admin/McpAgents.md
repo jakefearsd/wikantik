@@ -271,11 +271,11 @@ Registered in `WorkMcpInitializer.assembleTools` and verified against `WorkMcpIT
 
 | Tool | Purpose | Access |
 |---|---|---|
-| `get_work_context` | Who the key acts as, the projects it can see, its current claims and the claim lifetime | read |
+| `get_work_context` | Who the key acts as, the projects it can see (with each one's active sprint), its current claims and the claim lifetime | read |
 | `list_claimable` | Items the agent could claim now (unclaimed, ready or review, in a queue it serves) | read |
 | `get_item` | One item in full: body, status, claim, links, comments | read |
 | `claim_item` | Claim an item, or renew the agent's own claim | write |
-| `update_item` | Change title, body, status, priority, type, labels or due date (never who has the item; an agent cannot move a draft forward) | write |
+| `update_item` | Change title, body, status, priority, type, labels, estimate or due date (never who has the item or its sprint; an agent cannot move a draft forward) | write |
 | `comment_on_item` | Add a comment | write |
 | `handoff_item` | Give the item to a queue or a person with a status and a note; ends the agent's claim | write |
 | `release_item` | Give up the agent's claim so someone else can take it | write |

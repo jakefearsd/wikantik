@@ -46,6 +46,18 @@ final class WorkMcpArgs {
         throw new WorkValidationException( key, "must be a number." );
     }
 
+    /** An optional decimal argument (story points); null when absent or JSON null, else any JSON number. */
+    static Number decimalArg( final Map< String, Object > args, final String key ) {
+        final Object v = args.get( key );
+        if ( v == null ) {
+            return null;
+        }
+        if ( v instanceof Number n ) {
+            return n;
+        }
+        throw new WorkValidationException( key, "must be a number." );
+    }
+
     /** An optional string argument; null when absent. A value of any other type is a validation error. */
     static String stringArg( final Map< String, Object > args, final String key ) {
         final Object v = args.get( key );

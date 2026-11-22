@@ -24,6 +24,9 @@ import com.wikantik.work.CommentView;
 import com.wikantik.work.Item;
 import com.wikantik.work.Link;
 import com.wikantik.work.Queue;
+import com.wikantik.work.Sprint;
+import com.wikantik.work.SprintState;
+import com.wikantik.work.WorkSprintsService.SprintView;
 import com.wikantik.work.WorkDirectory;
 import com.wikantik.work.WorkEvent;
 import com.wikantik.work.WorkService;
@@ -85,7 +88,43 @@ final class WorkMcpJson {
         o.put( "effective", WorkMcpChanges.effective( svc.policyOf( actor, view.item().key() ).effective() ) );
         o.put( "changes", WorkMcpChanges.list( names, svc.changes().views( actor, view.item().key() ) ) );
         o.put( "shipped_in", WorkMcpDeployments.briefs( svc.deployments().shippedIn( actor, view.item().key() ) ) );
+        putSprint( svc, actor, view, o );
         return o;
+    }
+
+    /** Adds {@code sprint}: {name, state, endsOn} of the item's sprint, or null; one lookup, only for an item in one. */
+    static void putSprint( final WorkService svc, final Actor actor, final ItemView view,
+                           final Map< String, Object > into ) throws SQLException {
+        Map< String, Object > sprint = null;
+        final Long id = view.item().sprintId();
+        if ( id != null ) {
+            for ( final SprintView v : svc.features().sprints().list( actor, view.projectKey() ) ) {
+                if ( v.sprint().id() == id ) {
+                    sprint = new LinkedHashMap<>();
+                    sprint.put( "name", v.sprint().name() );
+                    sprint.put( "state", v.sprint().state().wire() );
+                    sprint.put( "endsOn", v.sprint().endsOn().toString() );
+                }
+            }
+        }
+        into.put( "sprint", sprint );
+    }
+
+    /** The project's active sprint as {name, goal, startsOn, endsOn}, or null. */
+    static Map< String, Object > activeSprint( final WorkService svc, final Actor actor, final String projectKey )
+            throws SQLException {
+        for ( final SprintView v : svc.features().sprints().list( actor, projectKey ) ) {
+            final Sprint s = v.sprint();
+            if ( s.state() == SprintState.ACTIVE ) {
+                final Map< String, Object > o = new LinkedHashMap<>();
+                o.put( "name", s.name() );
+                o.put( "goal", s.goal() );
+                o.put( "startsOn", s.startsOn().toString() );
+                o.put( "endsOn", s.endsOn().toString() );
+                return o;
+            }
+        }
+        return null;
     }
 
     String person( final String login ) {
@@ -113,6 +152,7 @@ final class WorkMcpJson {
         o.put( "labels", i.labels() );
         o.put( "status", i.status().wire() );
         o.put( "priority", i.priority() );
+        o.put( "estimate", i.estimate() );
         o.put( "queue", queue( i.queue() ) );
         o.put( "queueKey", i.queue() );
         o.put( "productKey", s.productKey() );
@@ -133,6 +173,7 @@ final class WorkMcpJson {
         o.put( "labels", i.labels() );
         o.put( "status", i.status().wire() );
         o.put( "priority", i.priority() );
+        o.put( "estimate", i.estimate() );
         o.put( "version", i.version() );
         o.put( "dueOn", i.dueOn() == null ? null : i.dueOn().toString() );
         o.put( "assignee", person( i.assignee() ) );

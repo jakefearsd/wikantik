@@ -11,6 +11,16 @@ const renderCard = (props = {}) => render(
   <MemoryRouter><WorkCard item={ITEM} productKey="wikantik" {...props} /></MemoryRouter>);
 
 describe('WorkCard', () => {
+  it('shows the estimate', () => {
+    renderCard({ item: { ...ITEM, estimate: 3 } });
+    expect(screen.getByText('3 pts')).toBeInTheDocument();
+  });
+
+  it('shows no estimate when there is none', () => {
+    renderCard({ item: { ...ITEM, estimate: null } });
+    expect(screen.queryByText(/pts/)).toBeNull();
+  });
+
   it('shows key, title, product key, assignee display name, priority and due date', () => {
     renderCard();
     expect(screen.getByRole('link', { name: 'PLAT-7' })).toHaveAttribute('href', '/work/item/PLAT-7');

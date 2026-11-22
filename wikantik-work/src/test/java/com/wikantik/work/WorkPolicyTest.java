@@ -45,7 +45,9 @@ class WorkPolicyTest {
         "member,COMMENT,true", "member,LINK,true", "member,MANAGE_PROJECT,false", "member,SET_POLICY,false",
         "member,MANAGE_INSTANCE,false",
         "lead,VIEW,true", "lead,CREATE_ITEM,true", "lead,EDIT_ITEM,true", "lead,MOVE,true", "lead,COMMENT,true",
-        "lead,LINK,true", "lead,MANAGE_PROJECT,true", "lead,SET_POLICY,true", "lead,MANAGE_INSTANCE,false"
+        "lead,LINK,true", "lead,MANAGE_PROJECT,true", "lead,SET_POLICY,true", "lead,MANAGE_INSTANCE,false",
+        "none,MANAGE_SPRINT,false", "viewer,MANAGE_SPRINT,false", "member,MANAGE_SPRINT,false", "lead,MANAGE_SPRINT,true",
+        "none,PLAN_SPRINT,false", "viewer,PLAN_SPRINT,false", "member,PLAN_SPRINT,true", "lead,PLAN_SPRINT,true"
     } )
     void rolePolicyTable( final String role, final Action action, final boolean allowed ) {
         final Actor actor = Actor.human( "alice", Set.of(), false );
@@ -100,7 +102,7 @@ class WorkPolicyTest {
 
     private static Item claimedBy( final Long agent ) {
         return new Item( 1, 1, "PLAT-1", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", WorkStatus.READY, 3,
-            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, agent, null, null, null, null, null );
+            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, agent, null, null, null, null, null, null, null );
     }
 
     @ParameterizedTest
@@ -166,7 +168,7 @@ class WorkPolicyTest {
 
     private static Item inStatus( final WorkStatus status ) {
         return new Item( 1, 1, "PLAT-1", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", status, 3,
-            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, null, null, null, null, null, null );
+            1.0, null, null, "alice", null, null, null, 1, null, null, null, null, null, null, null, null, null, null, null, null );
     }
 
     private static final EffectivePolicy DELEGATED = PolicyItems.policy( Autonomy.DELEGATED, false );

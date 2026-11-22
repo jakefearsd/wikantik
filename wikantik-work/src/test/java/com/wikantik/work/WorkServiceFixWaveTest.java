@@ -83,7 +83,7 @@ class WorkServiceFixWaveTest {
         }, WorkPeopleTest.DIRECTORY, Clock.fixed( NOW, ZoneOffset.UTC ) );
         plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null );
         task = new Item( 12, 1, "PLAT-3", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", WorkStatus.DRAFT,
-            3, 1024, null, null, "u-7f3a", null, null, null, 4, NOW, NOW, null, null, null, null, null, null, null, null );
+            3, 1024, null, null, "u-7f3a", null, null, null, 4, NOW, NOW, null, null, null, null, null, null, null, null, null, null );
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
         when( store.item( "PLAT-3" ) ).thenReturn( Optional.of( task ) );
         when( store.itemById( 12 ) ).thenReturn( Optional.of( task ) );
@@ -145,10 +145,10 @@ class WorkServiceFixWaveTest {
 
     @Test
     void anUnresolvedAssigneeFilterMatchesNobody() throws SQLException {
-        final ItemFilter byName = new ItemFilter( null, null, "Ana Lima", null, null, null, null, null, 0, null, null, null, null );
+        final ItemFilter byName = new ItemFilter( null, null, "Ana Lima", null, null, null, null, null, 0, null, null, null, null, null );
         service.items( lead, "PLAT", byName );
         verify( store ).items( argThat( f -> "u-7f3a".equals( f.assignee() ) && f.projectId() == 1L ) );
-        final ItemFilter byLogin = new ItemFilter( null, null, "u-7f3a", null, null, null, null, null, 0, null, null, null, null );
+        final ItemFilter byLogin = new ItemFilter( null, null, "u-7f3a", null, null, null, null, null, 0, null, null, null, null, null );
         service.board( lead, "PLAT", byLogin );
         verify( store ).board( eq( 1L ), argThat( f -> "\n".equals( f.assignee() ) ) );
     }
@@ -156,7 +156,7 @@ class WorkServiceFixWaveTest {
     @Test
     void theDueOrderSurvivesPinning() throws SQLException {
         service.items( lead, "PLAT", new ItemFilter( 99L, null, null, null, null, null, null, null, 0,
-            ItemFilter.Order.DUE, null, null, null ) );
+            ItemFilter.Order.DUE, null, null, null, null ) );
         verify( store ).items( argThat( f -> f.order() == ItemFilter.Order.DUE && f.projectId() == 1L ) );
     }
 
@@ -259,9 +259,9 @@ class WorkServiceFixWaveTest {
     @Test
     void parentAndProductEventsAreShownAsKeys() throws SQLException {
         final Item parent = new Item( 30, 1, "PLAT-7", WorkLevel.STORY, null, null, WorkKind.SOFTWARE, "p", "",
-            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null, null, null );
+            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null, null, null, null, null );
         final Item foreign = new Item( 40, 2, "OPS-1", WorkLevel.STORY, null, null, WorkKind.SOFTWARE, "p", "",
-            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null, null, null );
+            WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null, null, null, null, null );
         when( store.itemById( 30 ) ).thenReturn( Optional.of( parent ) );
         when( store.itemById( 40 ) ).thenReturn( Optional.of( foreign ) );
         when( store.products() ).thenReturn( List.of( new Product( 3, "web", "Web", null, null, null,

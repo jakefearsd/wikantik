@@ -18,12 +18,18 @@
  */
 package com.wikantik.work;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.List;
 
 /** Value coercion for item changes: JSON-ish types in, domain types out; every failure names its field. */
 final class PatchValues {
+
+    private static final double LONG_LIMIT = 0x1p63;
+    private static final BigDecimal MAX_ESTIMATE = new BigDecimal( "999.5" );
+    private static final BigDecimal TWO = BigDecimal.valueOf( 2 );
 
     private PatchValues() {
     }
@@ -90,6 +96,38 @@ final class PatchValues {
             return Labels.normalise( list.stream().map( String.class::cast ).toList() );
         }
         throw new WorkValidationException( "labels", "labels must be a list of labels." );
+    }
+
+    /** A sprint id: null clears; otherwise a whole positive number. */
+    static Long sprintId( final Object v ) {
+        if ( v == null ) {
+            return null;
+        }
+        if ( v instanceof Long || v instanceof Integer || v instanceof Short || v instanceof Byte ) {
+            if ( ( (Number) v ).longValue() >= 1 ) {
+                return ( (Number) v ).longValue();
+            }
+        } else if ( v instanceof Number n && Double.isFinite( n.doubleValue() )
+                && n.doubleValue() == Math.rint( n.doubleValue() ) && n.doubleValue() >= 1
+                && n.doubleValue() < LONG_LIMIT ) {
+            return n.longValue();
+        }
+        throw new WorkValidationException( "sprint", "sprint must be a sprint id." );
+    }
+
+    /** An estimate in points: null clears; otherwise 0 to 999.5 in halves, at scale one. */
+    static BigDecimal estimate( final Object v ) {
+        if ( v == null ) {
+            return null;
+        }
+        if ( v instanceof Number n && Double.isFinite( n.doubleValue() ) ) {
+            final BigDecimal points = new BigDecimal( n.toString() );
+            if ( points.signum() >= 0 && points.compareTo( MAX_ESTIMATE ) <= 0
+                    && points.multiply( TWO ).stripTrailingZeros().scale() <= 0 ) {
+                return points.setScale( 1, RoundingMode.UNNECESSARY );
+            }
+        }
+        throw new WorkValidationException( "estimate", "An estimate is a number of points from 0 to 999.5, in halves." );
     }
 
     static Autonomy autonomy( final Object v ) {

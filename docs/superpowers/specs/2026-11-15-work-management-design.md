@@ -36,12 +36,7 @@ wiki pages and is not an add-on glued to them.
 
 ## Non-goals
 
-- Sprints, story points, velocity, time tracking, burndown charts — **not now, and
-  not locked out**. The owner expects sprints may come. Nothing in the model may
-  assume continuous flow only: a sprint must be addable later as a new table plus
-  nullable columns on `work_item` (sprint, estimate), with no rework of items,
-  events, the board query or the policy. A builder choice that would make that hard
-  is wrong.
+- Sprints, story points, velocity and burndown are built (2026-11-21 small-teams design, part 2). Time tracking is still a non-goal.
 - Custom fields, configurable workflows, permission schemes, issue-type schemes.
 - Multi-tenancy. One instance is one company.
 - Launching or scheduling agents. Agents pull work; the system never starts one.

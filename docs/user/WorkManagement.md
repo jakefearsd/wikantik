@@ -67,6 +67,15 @@ can also carry up to 10 labels: type one in the form or on the item page to crea
 Colours are automatic. A label drops out of the suggestions once no open or done item carries it. The Board and
 Dates views can each be filtered by one type and one label.
 
+**Sprints and estimates.** A story or task can be estimated in points (whole or half, 0 to 999.5): use Edit beside
+Estimate on the item page. Members plan stories and tasks into a sprint from the **Sprints** tab, with the "Plan
+into…" menu or by dragging; the tab appears once the project has a sprint, or for a lead who may make the first. A
+project lead creates, starts and closes sprints. Only one sprint is active at a time. Starting records what was
+committed; closing asks where unfinished work goes (the Backlog or a planned sprint) and records what was completed.
+A closed sprint takes no more work. Click Report on the active sprint, or a closed sprint's name, for the burndown, what
+was added and removed after the start, and the committed and completed totals; the Sprints tab shows velocity for the
+last sprints. The Board filters by sprint and opens on the active one. Agents may estimate but never plan a sprint.
+
 **You should see:** the card where you dropped it, still there after you reload the page. Every change is in the
 item's history and the project's activity.
 

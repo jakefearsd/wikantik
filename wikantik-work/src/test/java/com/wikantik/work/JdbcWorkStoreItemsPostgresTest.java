@@ -46,14 +46,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @RequiresPostgres
 class JdbcWorkStoreItemsPostgresTest {
 
+    private javax.sql.DataSource ds;
     private JdbcWorkStore store;
     private Project plat;
 
     @BeforeEach
     void setUp() throws SQLException {
-        store = new JdbcWorkStore( PostgresTestDb.createDataSource() );
+        ds = PostgresTestDb.createDataSource();
+        store = new JdbcWorkStore( ds );
         PostgresTestDb.truncate( "work_link", "work_mention", "work_comment", "work_event",
-            "work_item_revision", "work_item", "work_member", "work_product", "work_project" );
+            "work_item_revision", "work_sprint", "work_item", "work_member", "work_product", "work_project" );
         plat = store.createProject( "PLAT", "Platform", "" );
     }
 
@@ -63,7 +65,7 @@ class JdbcWorkStoreItemsPostgresTest {
 
     static Item draft( final WorkLevel level, final String title ) {
         return new Item( 0, 0, null, level, null, null, WorkKind.SOFTWARE, title, "body of " + title,
-            WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null, null, null );
+            WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null, null, null, null, null );
     }
 
     private Item create( final String title ) throws SQLException {
@@ -73,43 +75,209 @@ class JdbcWorkStoreItemsPostgresTest {
     private static Item withStatus( final Item i, final WorkStatus s ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), s, i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(), i.doneMeans(),
-            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null );
+            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null, null, null );
     }
 
     private static Item withAssignee( final Item i, final String a ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), a, i.reporter(), i.autonomy(), i.doneMeans(),
-            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null );
+            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null, null, null );
     }
 
     private static Item withPriority( final Item i, final int p ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), i.status(), p, i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(), i.doneMeans(),
-            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null );
+            i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null, null, null );
     }
 
     private static Item withTitle( final Item i, final String t ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), t,
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
-            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null );
+            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null, null, null );
     }
 
     private static Item withParentAndProduct( final Item i, final Long parent, final Long product ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), parent, product, i.kind(), i.title(),
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
-            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null );
+            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null, null, null );
     }
 
     static Item typed( final Item i, final WorkType type, final List< String > labels ) {
         return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
             i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), i.queue(),
-            i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(), type, labels );
+            i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(), type, labels, null, null );
     }
 
     private List< WorkEvent > fieldEvents( final Item i, final String note ) throws SQLException {
         return store.itemEvents( i.id() ).stream()
             .filter( e -> "field".equals( e.type() ) && note.equals( e.note() ) ).toList();
+    }
+
+
+    private static final Actor BOB = Actor.human( "bob", Set.of(), false );
+
+    private Item planned( final Item i, final Long sprintId, final String estimate ) {
+        return new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(), i.title(),
+            i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
+            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), i.queue(),
+            i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(), i.type(), i.labels(),
+            sprintId, estimate == null ? null : new java.math.BigDecimal( estimate ) );
+    }
+
+    /** The item a patch produces, through the real applier, so what the patch leaves alone is what it keeps. */
+    private Item patched( final Item i, final java.util.Map< String, Object > changes ) throws SQLException {
+        return new ItemPatchApplier( store, ( projectId, login ) -> true ).apply( plat, i, changes, "over to you" );
+    }
+
+    /** A sprint of {@link #plat} in the given state, inserted with plain SQL (sprint writes arrive in 2.1c). */
+    private long sprint( final String name, final String state ) throws SQLException {
+        final String started = "planned".equals( state ) ? "NULL, NULL" : "NOW(), 0";
+        final String closed = "closed".equals( state ) ? "NOW(), 0" : "NULL, NULL";
+        return WorkAgentFixtures.scalar( ds, "INSERT INTO work_sprint (project_id, name, starts_on, ends_on, state, "
+            + "started_at, committed_items, closed_at, completed_items) VALUES (" + plat.id() + ", '" + name
+            + "', '2026-11-01', '2026-11-14', '" + state + "', " + started + ", " + closed + ") RETURNING id" );
+    }
+
+    private ItemFilter bySprint( final SprintRef ref ) {
+        return new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0, null, null, null, null, ref );
+    }
+
+    @Test
+    void aNewItemHasNoSprintAndNoEstimate() throws SQLException {
+        final Item i = create( "a" );
+        assertNull( i.sprintId() );
+        assertNull( i.estimate() );
+    }
+
+    @Test
+    void aSprintChangeWritesOneFieldEventWithIds() throws SQLException {
+        final long s = sprint( "S1", "planned" );
+        final Item i = create( "a" );
+        store.updateItem( i, planned( i, s, null ), BOB, null );
+        final List< WorkEvent > events = fieldEvents( i, "sprint" );
+        assertEquals( 1, events.size() );
+        assertNull( events.get( 0 ).fromValue() );
+        assertEquals( String.valueOf( s ), events.get( 0 ).toValue() );
+        assertEquals( s, store.item( i.key() ).orElseThrow().sprintId() );
+    }
+
+    @Test
+    void anEstimateChangeWritesOneFieldEventInPlainPoints() throws SQLException {
+        final Item i = create( "a" );
+        final Item three = store.updateItem( i, planned( i, null, "3" ), BOB, null );
+        assertEquals( new java.math.BigDecimal( "3.0" ), three.estimate() );
+        store.updateItem( three, planned( three, null, "2.5" ), BOB, null );
+        final List< WorkEvent > events = fieldEvents( i, "estimate" );
+        assertEquals( 2, events.size() );
+        assertNull( events.get( 0 ).fromValue() );
+        assertEquals( "3", events.get( 0 ).toValue() );
+        assertEquals( "3", events.get( 1 ).fromValue() );
+        assertEquals( "2.5", events.get( 1 ).toValue() );
+    }
+
+    @Test
+    void theSameEstimateAtAnotherScaleWritesNothing() throws SQLException {
+        final Item i = create( "a" );
+        final Item three = store.updateItem( i, planned( i, null, "3" ), BOB, null );
+        store.updateItem( three, planned( three, null, "3.0" ), BOB, null );
+        assertEquals( 1, fieldEvents( i, "estimate" ).size() );
+    }
+
+    @Test
+    void anItemCannotJoinAClosedSprint() throws SQLException {
+        final long closed = sprint( "Old", "closed" );
+        final Item i = create( "a" );
+        final WorkConflictException e = assertThrows( WorkConflictException.class,
+            () -> store.updateItem( i, planned( i, closed, null ), BOB, null ) );
+        assertEquals( WorkConflictException.SPRINT_CLOSED, e.reason() );
+        final Item again = store.item( i.key() ).orElseThrow();
+        assertNull( again.sprintId() );
+        assertEquals( i.version(), again.version() );
+    }
+
+    @Test
+    void anItemMayLeaveAClosedSprint() throws SQLException {
+        final long closed = sprint( "Old", "closed" );
+        final Item i = create( "a" );
+        WorkAgentFixtures.exec( ds, "UPDATE work_item SET sprint_id = " + closed + " WHERE id = " + i.id() );
+        final Item in = store.item( i.key() ).orElseThrow();
+        final Item out = store.updateItem( in, planned( in, null, null ), BOB, null );
+        assertNull( out.sprintId() );
+        assertEquals( 1, fieldEvents( i, "sprint" ).size() );
+    }
+
+    @Test
+    void aTitleOnlyPatchKeepsSprintAndEstimate() throws SQLException {
+        final long s = sprint( "S1", "planned" );
+        final Item i = create( "a" );
+        final Item in = store.updateItem( i, planned( i, s, "5" ), BOB, null );
+        final Item titled = store.updateItem( in, patched( in, java.util.Map.of( "title", "renamed" ) ), BOB, null );
+        assertEquals( s, titled.sprintId() );
+        assertEquals( new java.math.BigDecimal( "5.0" ), titled.estimate() );
+    }
+
+    @Test
+    void aHandoffKeepsSprintAndEstimate() throws SQLException {
+        final long s = sprint( "S1", "planned" );
+        final Item i = create( "a" );
+        final Item in = store.updateItem( i, planned( i, s, "5" ), BOB, null );
+        final Item handed = store.handoff( in, patched( in, java.util.Map.of( "assignee", "carol" ) ), BOB, "over to you" );
+        assertEquals( "carol", handed.assignee() );
+        assertEquals( s, handed.sprintId() );
+        assertEquals( new java.math.BigDecimal( "5.0" ), handed.estimate() );
+    }
+
+    @Test
+    void filteringBySprintIdActiveAndNone() throws SQLException {
+        final long active = sprint( "Now", "active" );
+        final long planned = sprint( "Next", "planned" );
+        final Item a = create( "in active" );
+        final Item p = create( "in planned" );
+        final Item n = create( "in none" );
+        store.updateItem( a, planned( a, active, null ), BOB, null );
+        store.updateItem( p, planned( p, planned, null ), BOB, null );
+        assertEquals( List.of( a.id() ), ids( bySprint( new SprintRef( SprintRef.Kind.ID, active ) ) ) );
+        assertEquals( List.of( p.id() ), ids( bySprint( new SprintRef( SprintRef.Kind.ID, planned ) ) ) );
+        assertEquals( List.of( a.id() ), ids( bySprint( new SprintRef( SprintRef.Kind.ACTIVE, null ) ) ) );
+        assertEquals( List.of( n.id() ), ids( bySprint( new SprintRef( SprintRef.Kind.NONE, null ) ) ) );
+        final List< BoardColumn > board = store.board( plat.id(), bySprint( new SprintRef( SprintRef.Kind.ACTIVE, null ) ) );
+        assertEquals( 1, board.get( 0 ).total() );
+        assertEquals( List.of( a.id() ), board.get( 0 ).items().stream().map( Item::id ).toList() );
+    }
+
+    private List< Long > ids( final ItemFilter f ) throws SQLException {
+        return store.items( f ).stream().map( Item::id ).toList();
+    }
+
+    @Test
+    void aFilterNamingAnotherProjectsSprintMatchesNothing() throws SQLException {
+        final Project other = store.createProject( "OTH", "Other", "" );
+        final long foreign = WorkAgentFixtures.scalar( ds, "INSERT INTO work_sprint (project_id, name, starts_on, "
+            + "ends_on) VALUES (" + other.id() + ", 'Theirs', '2026-11-01', '2026-11-14') RETURNING id" );
+        final Item i = create( "a" );
+        assertTrue( ids( bySprint( new SprintRef( SprintRef.Kind.ID, foreign ) ) ).isEmpty() );
+        assertEquals( List.of( i.id() ), ids( bySprint( new SprintRef( SprintRef.Kind.NONE, null ) ) ) );
+    }
+
+    @Test
+    void eventKeysShowSprintNames() throws SQLException {
+        final long s = sprint( "Sprint 7", "planned" );
+        final Item i = create( "a" );
+        final Item in = store.updateItem( i, planned( i, s, null ), BOB, null );
+        store.updateItem( in, planned( in, null, null ), BOB, null );
+        final List< WorkEvent > shown = EventKeys.resolve( store, plat.id(), fieldEvents( i, "sprint" ) );
+        assertEquals( 2, shown.size() );
+        assertNull( shown.get( 0 ).fromValue() );
+        assertEquals( "Sprint 7", shown.get( 0 ).toValue() );
+        assertEquals( "sprint", shown.get( 0 ).note() );
+        assertEquals( "Sprint 7", shown.get( 1 ).fromValue() );
+        assertNull( shown.get( 1 ).toValue() );
+        final WorkEvent odd = new WorkEvent( 0, plat.id(), i.id(), i.key(), null, "x", Actor.Kind.HUMAN, null,
+            WorkEvent.FIELD, "999", "abc", "sprint" );
+        final WorkEvent unknown = EventKeys.resolve( store, plat.id(), List.of( odd ) ).get( 0 );
+        assertEquals( EventKeys.UNKNOWN, unknown.fromValue() );
+        assertEquals( EventKeys.UNKNOWN, unknown.toValue() );
     }
 
     @Test
@@ -176,7 +344,7 @@ class JdbcWorkStoreItemsPostgresTest {
 
     private static ItemFilter byTypeAndLabels( final WorkType type, final String... labels ) {
         return new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null, type,
-            Set.of( labels ) );
+            Set.of( labels ), null );
     }
 
     private Item createTyped( final Project in, final String title, final WorkType type, final String... labels )
@@ -191,7 +359,7 @@ class JdbcWorkStoreItemsPostgresTest {
         createTyped( plat, "api only", WorkType.FEATURE, "api" );
         final Item both = createTyped( plat, "both", WorkType.FEATURE, "api", "ui" );
         final List< Item > found = store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0,
-            null, null, null, Set.of( "api", "ui" ) ) );
+            null, null, null, Set.of( "api", "ui" ), null ) );
         assertEquals( List.of( both.id() ), found.stream().map( Item::id ).toList() );
     }
 
@@ -200,7 +368,7 @@ class JdbcWorkStoreItemsPostgresTest {
         createTyped( plat, "feature", WorkType.FEATURE );
         final Item bug = createTyped( plat, "bug", WorkType.BUG );
         final List< Item > found = store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0,
-            null, null, WorkType.BUG, null ) );
+            null, null, WorkType.BUG, null, null ) );
         assertEquals( List.of( bug.id() ), found.stream().map( Item::id ).toList() );
     }
 
@@ -219,7 +387,7 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item literal = createTyped( plat, "literal", WorkType.FEATURE, "null" );
         createTyped( plat, "none", WorkType.FEATURE );
         final List< Item > found = store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 0,
-            null, null, null, Set.of( "null" ) ) );
+            null, null, null, Set.of( "null" ), null ) );
         assertEquals( List.of( literal.id() ), found.stream().map( Item::id ).toList() );
     }
 
@@ -385,7 +553,7 @@ class JdbcWorkStoreItemsPostgresTest {
     void boardReturnsAllSevenColumnsInOrder() throws SQLException {
         create( "a" );
         final List< BoardColumn > board = store.board( plat.id(), new ItemFilter( null, null, null, null, null, null,
-            null, null, 0, null, null, null, null ) );
+            null, null, 0, null, null, null, null, null ) );
         // Pinned literally: comparing with WorkStatus.values() would follow any reordering of the enum.
         assertEquals( List.of( "draft", "refining", "ready", "in_progress", "review", "done", "cancelled" ),
             board.stream().map( c -> c.status().wire() ).toList() );
@@ -401,10 +569,10 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item c = create( "c" );
         final Item mine = store.updateItem( c, withAssignee( c, "dave" ), Actor.human( "alice", java.util.Set.of(), false ), null );
         final List< BoardColumn > all = store.board( plat.id(),
-            new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null, null, null ) );
+            new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null, null, null, null ) );
         assertEquals( List.of( a.id(), b.id(), c.id() ), all.get( 0 ).items().stream().map( Item::id ).toList() );
         final List< BoardColumn > filtered = store.board( plat.id(),
-            new ItemFilter( null, null, "dave", null, null, null, null, null, 0, null, null, null, null ) );
+            new ItemFilter( null, null, "dave", null, null, null, null, null, 0, null, null, null, null, null ) );
         assertEquals( 1, filtered.get( 0 ).total() );
         assertEquals( mine.id(), filtered.get( 0 ).items().get( 0 ).id() );
     }
@@ -416,7 +584,7 @@ class JdbcWorkStoreItemsPostgresTest {
             store.updateItem( i, withStatus( i, WorkStatus.DONE ), Actor.human( "alice", java.util.Set.of(), false ), null );
         }
         final BoardColumn done = store.board( plat.id(),
-            new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null, null, null ) ).get( 5 );
+            new ItemFilter( null, null, null, null, null, null, null, null, 0, null, null, null, null, null ) ).get( 5 );
         assertEquals( WorkStatus.DONE, done.status() );
         assertEquals( 60, done.total() );
         assertEquals( 50, done.items().size() );
@@ -426,13 +594,13 @@ class JdbcWorkStoreItemsPostgresTest {
     @Test
     void textFilterMatchesTitleAndBody() throws SQLException {
         store.createItem( plat, new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.DOCS, "Fix Login",
-            "plain", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null, null, null ),
+            "plain", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null, null, null, null, null ),
             Actor.human( "alice", java.util.Set.of(), false ) );
         store.createItem( plat, new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.DOCS, "Other",
-            "mentions LOGIN flow", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null, null, null ),
+            "mentions LOGIN flow", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null, null, null, null, null ),
             Actor.human( "alice", java.util.Set.of(), false ) );
         create( "unrelated" );
-        assertEquals( 2, store.items( new ItemFilter( plat.id(), null, null, null, null, null, "login", null, 0, null, null, null, null ) ).size() );
+        assertEquals( 2, store.items( new ItemFilter( plat.id(), null, null, null, null, null, "login", null, 0, null, null, null, null, null ) ).size() );
     }
 
     @Test
@@ -442,9 +610,9 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item under = create( "a_b marker" );
         create( "axb marker" );
         assertEquals( List.of( pct.id() ), store.items( new ItemFilter( plat.id(), null, null, null, null, null,
-            "100%", null, 0, null, null, null, null ) ).stream().map( Item::id ).toList() );
+            "100%", null, 0, null, null, null, null, null ) ).stream().map( Item::id ).toList() );
         assertEquals( List.of( under.id() ), store.items( new ItemFilter( plat.id(), null, null, null, null, null,
-            "a_b", null, 0, null, null, null, null ) ).stream().map( Item::id ).toList() );
+            "a_b", null, 0, null, null, null, null, null ) ).stream().map( Item::id ).toList() );
     }
 
     @Test
@@ -453,16 +621,16 @@ class JdbcWorkStoreItemsPostgresTest {
         final Item t = create( "t" );
         final Item due = store.updateItem( t, new Item( t.id(), t.projectId(), t.key(), t.level(), null, null,
             t.kind(), t.title(), t.body(), WorkStatus.READY, 3, t.rank(), LocalDate.of( 2026, 12, 1 ), null,
-            t.reporter(), null, null, null, t.version(), null, null, null, null, null, null, null, null, null, null ), Actor.human( "alice", java.util.Set.of(), false ), null );
+            t.reporter(), null, null, null, t.version(), null, null, null, null, null, null, null, null, null, null, null, null ), Actor.human( "alice", java.util.Set.of(), false ), null );
         assertEquals( List.of( epic.id() ), store.items( new ItemFilter( plat.id(), null, null, null, WorkLevel.EPIC,
-            null, null, null, 0, null, null, null, null ) ).stream().map( Item::id ).toList() );
+            null, null, null, 0, null, null, null, null, null ) ).stream().map( Item::id ).toList() );
         assertEquals( List.of( due.id() ), store.items( new ItemFilter( plat.id(), Set.of( WorkStatus.READY ), null,
-            null, null, null, null, null, 0, null, null, null, null ) ).stream().map( Item::id ).toList() );
+            null, null, null, null, null, 0, null, null, null, null, null ) ).stream().map( Item::id ).toList() );
         assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null,
-            LocalDate.of( 2027, 1, 1 ), 0, null, null, null, null ) ).size() );
+            LocalDate.of( 2027, 1, 1 ), 0, null, null, null, null, null ) ).size() );
         assertEquals( 0, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null,
-            LocalDate.of( 2026, 11, 1 ), 0, null, null, null, null ) ).size() );
-        assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 1, null, null, null, null ) ).size() );
+            LocalDate.of( 2026, 11, 1 ), 0, null, null, null, null, null ) ).size() );
+        assertEquals( 1, store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null, 1, null, null, null, null, null ) ).size() );
     }
 
     @Test
@@ -565,10 +733,10 @@ class JdbcWorkStoreItemsPostgresTest {
         due( late, LocalDate.of( 2027, 3, 1 ) );
         due( soon, LocalDate.of( 2026, 12, 1 ) );
         final List< String > keys = store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null,
-            2, ItemFilter.Order.DUE, null, null, null ) ).stream().map( Item::key ).toList();
+            2, ItemFilter.Order.DUE, null, null, null, null ) ).stream().map( Item::key ).toList();
         assertEquals( List.of( soon.key(), late.key() ), keys, "the cap keeps the nearest dates" );
         assertEquals( none.key(), store.items( new ItemFilter( plat.id(), null, null, null, null, null, null, null,
-            0, ItemFilter.Order.DUE, null, null, null ) ).get( 2 ).key() );
+            0, ItemFilter.Order.DUE, null, null, null, null ) ).get( 2 ).key() );
     }
 
     private void due( final Item i, final LocalDate on ) throws SQLException {

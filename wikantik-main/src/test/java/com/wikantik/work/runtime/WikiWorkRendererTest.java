@@ -367,7 +367,7 @@ class WikiWorkRendererTest {
         final com.wikantik.work.Item item = new com.wikantik.work.Item( 12, 1, "PLAT-1", com.wikantik.work.WorkLevel.TASK,
             null, null, com.wikantik.work.WorkKind.SOFTWARE, "t", "", com.wikantik.work.WorkStatus.DRAFT, 3, 1, null,
             null, "janne", null, null, null, 1, now, now, null,
-            null, null, null, null, null, null, null );
+            null, null, null, null, null, null, null, null, null );
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
         when( store.item( "PLAT-1" ) ).thenReturn( Optional.of( item ) );
         when( store.roleFor( org.mockito.ArgumentMatchers.eq( 1L ), org.mockito.ArgumentMatchers.any() ) )

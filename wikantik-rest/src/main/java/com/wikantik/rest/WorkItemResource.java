@@ -88,6 +88,11 @@ public class WorkItemResource extends WorkResourceBase {
             out.add( "shippedIn", WorkDeploymentJson.brief( c.svc.deployments().shippedIn( c.actor, c.pathParam( 0 ) ) ) );
             c.tree( out );
         } );
+        route( r, "GET", "items/{}/points", c -> {
+            final JsonObject out = new JsonObject();
+            out.addProperty( "points", c.svc.features().sprints().childPoints( c.actor, c.pathParam( 0 ) ) );
+            c.tree( out );
+        } );
         route( r, "POST", "items/{}/acknowledge", c -> c.json( c.svc.acknowledge( c.actor, c.pathParam( 0 ) ) ) );
         route( r, "GET", "claimable", this::claimable );
         route( r, "POST", "items/{}/claim", this::claim );

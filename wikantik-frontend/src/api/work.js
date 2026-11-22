@@ -138,3 +138,22 @@ export const rollBackDeployment = (id, body) => request(`${base}/deployments/${e
 /** { shippedIn: [{ id, product, version, environment, verifiedAt }] }: the verified deployments that carried an item. */
 export const getShippedIn = (key) => request(`${base}/items/${enc(key)}/shipped-in`);
 export const listLabels = (key) => request(`${base}/projects/${enc(key)}/labels`);
+
+// Sprints: a time-boxed plan of items. A refusal's reason is the Error message; a 409 carries body.reason
+// (stale, sprint_active, sprint_closed, bad_transition, bad_target, archived) and a 400 body.field.
+export const listSprints = (projectKey) => request(`${base}/projects/${enc(projectKey)}/sprints`);
+/** body is { name, goal?, startsOn, endsOn } with dates as YYYY-MM-DD. */
+export const createSprint = (projectKey, body) => request(`${base}/projects/${enc(projectKey)}/sprints`, json('POST', body));
+export const getSprint = (id) => request(`${base}/sprints/${enc(id)}`);
+/** body is { version, name?, goal?, startsOn?, endsOn? }; an absent field keeps its value. */
+export const updateSprint = (id, body) => request(`${base}/sprints/${enc(id)}`, json('PATCH', body));
+export const startSprint = (id, version) => request(`${base}/sprints/${enc(id)}/start`, json('POST', { version }));
+/** moveOpenTo is the id of a planned sprint, or null for the backlog. */
+export const closeSprint = (id, { version, moveOpenTo }) =>
+  request(`${base}/sprints/${enc(id)}/close`, json('POST', { version, moveOpenTo: moveOpenTo ?? null }));
+/** { sprint, days: [{ date, remainingPoints, remainingItems, scopePoints, scopeItems }], added, removed }. */
+export const getSprintReport = (id) => request(`${base}/sprints/${enc(id)}/report`);
+/** { sprints: [{ id, name, endsOn, committedItems, committedPoints, completedItems, completedPoints }] }. */
+export const getVelocity = (projectKey) => request(`${base}/projects/${enc(projectKey)}/velocity`);
+/** { points }: what an epic or story adds up to. */
+export const getItemPoints = (key) => request(`${base}/items/${enc(key)}/points`);

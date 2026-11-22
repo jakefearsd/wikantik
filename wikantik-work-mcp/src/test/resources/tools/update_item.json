@@ -1,6 +1,6 @@
 {
   "name": "update_item",
-  "description": "Change an item\u0027s title, body, status, priority, dueOn, type or labels, as the agent you are. Give at least one of them. It cannot change who has the item (use handoff_item) or any policy or structural field; those arguments are refused by name. Returns the item as get_item does. Refusals start stale: (re-read and retry), denied:, archived: or name the field.",
+  "description": "Change an item\u0027s title, body, status, priority, dueOn, estimate, type or labels, as the agent you are. Give at least one of them. It cannot change who has the item (use handoff_item) or any policy or structural field; those arguments are refused by name (sprint too: a person plans a sprint). Returns the item as get_item does. Refusals start stale: (re-read and retry), denied:, archived: or name the field.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -51,6 +51,13 @@
         "description": "ISO date, or null to clear.",
         "examples": [
           "2026-12-01"
+        ]
+      },
+      "estimate": {
+        "type": "number",
+        "description": "Story points from 0 to 999.5 in halves; null clears it.",
+        "examples": [
+          2.5
         ]
       },
       "type": {

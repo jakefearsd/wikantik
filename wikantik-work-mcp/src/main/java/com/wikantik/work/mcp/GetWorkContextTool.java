@@ -44,7 +44,7 @@ public final class GetWorkContextTool extends WorkMcpTool {
         .description( "Who you are and what you can see: your agent record (name, vendor, runtime, queues), the "
             + "projects you were admitted to with your role in each, the items you currently hold a claim on, "
             + "and claimExpiryMinutes (how long a claim lasts before it lapses). Call this first. Returns "
-            + "{agent, person, projects:[{key,name,role}], claims:[{key,title,status,expiresAt}], "
+            + "{agent, person, projects:[{key,name,role,activeSprint:{name,goal,startsOn,endsOn}|null}], claims:[{key,title,status,expiresAt}], "
             + "claimExpiryMinutes}." );
 
     private final WorkService svc;
@@ -69,6 +69,7 @@ public final class GetWorkContextTool extends WorkMcpTool {
             p.put( "key", pr.project().key() );
             p.put( "name", pr.project().name() );
             p.put( "role", pr.role().wire() );
+            p.put( "activeSprint", WorkMcpJson.activeSprint( svc, actor, pr.project().key() ) );
             projects.add( p );
         }
         out.put( "projects", projects );

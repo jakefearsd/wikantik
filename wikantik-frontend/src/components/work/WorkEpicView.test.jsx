@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-vi.mock('../../api/work', () => ({ listItems: vi.fn() }));
-import { listItems } from '../../api/work';
+vi.mock('../../api/work', () => ({ listItems: vi.fn(), getItemPoints: vi.fn() }));
+import { listItems, getItemPoints } from '../../api/work';
 import WorkEpicView from './WorkEpicView';
 
 const child = (id, status, extra = {}) => ({ id, key: `PLAT-${id}`, level: 'story', title: `Story ${id}`, status, ...extra });
@@ -15,11 +15,18 @@ beforeEach(() => {
   vi.clearAllMocks();
   children = [child(2, 'done'), child(3, 'in_progress'), child(4, 'cancelled'), child(5, 'done')];
   tasksByStory = { 'PLAT-2': [{ id: 20 }, { id: 21 }], 'PLAT-3': [{ id: 30 }], 'PLAT-4': [], 'PLAT-5': [{ id: 50 }, { id: 51 }, { id: 52 }] };
+  getItemPoints.mockResolvedValue({ points: 12.5 });
   listItems.mockImplementation(({ parent }) => Promise.resolve(parent === 'PLAT-1' ? children : (tasksByStory[parent] || [])));
 });
 const renderEpic = (view = VIEW) => render(<MemoryRouter><WorkEpicView view={view} /></MemoryRouter>);
 
 describe('WorkEpicView', () => {
+  it('shows the epic\'s points', async () => {
+    renderEpic();
+    expect(await screen.findByText('Points: 12.5')).toBeInTheDocument();
+    expect(getItemPoints).toHaveBeenCalledWith('PLAT-1');
+  });
+
   it('listsStoriesWithTaskCounts', async () => {
     renderEpic();
     expect(await screen.findByRole('link', { name: 'PLAT-2' })).toHaveAttribute('href', '/work/item/PLAT-2');

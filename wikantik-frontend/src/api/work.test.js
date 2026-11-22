@@ -13,6 +13,34 @@ describe('work api client', () => {
     expect(collabRequest).toHaveBeenCalledWith('/api/work/log?types=claimed%2Creleased&project=PLAT&actorKind=agent&agent=7&before=2026-11-16T10%3A00%3A00Z&beforeId=9&limit=50');
   });
 
+  it('the nine sprint calls hit the documented routes', async () => {
+    await work.listSprints('PLAT');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/projects/PLAT/sprints');
+    await work.createSprint('PLAT', { name: 'S1', startsOn: '2026-11-23', endsOn: '2026-12-06' });
+    let [path, opts] = collabRequest.mock.lastCall;
+    expect([path, opts.method]).toEqual(['/api/work/projects/PLAT/sprints', 'POST']);
+    expect(JSON.parse(opts.body)).toEqual({ name: 'S1', startsOn: '2026-11-23', endsOn: '2026-12-06' });
+    await work.getSprint(7);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/sprints/7');
+    await work.updateSprint(7, { version: 2, name: 'S2' });
+    [path, opts] = collabRequest.mock.lastCall;
+    expect([path, opts.method, JSON.parse(opts.body)]).toEqual(['/api/work/sprints/7', 'PATCH', { version: 2, name: 'S2' }]);
+    await work.startSprint(7, 2);
+    [path, opts] = collabRequest.mock.lastCall;
+    expect([path, opts.method, JSON.parse(opts.body)]).toEqual(['/api/work/sprints/7/start', 'POST', { version: 2 }]);
+    await work.closeSprint(7, { version: 3, moveOpenTo: 8 });
+    [path, opts] = collabRequest.mock.lastCall;
+    expect([path, opts.method, JSON.parse(opts.body)]).toEqual(['/api/work/sprints/7/close', 'POST', { version: 3, moveOpenTo: 8 }]);
+    await work.closeSprint(7, { version: 3 });
+    expect(JSON.parse(collabRequest.mock.lastCall[1].body)).toEqual({ version: 3, moveOpenTo: null });
+    await work.getSprintReport(7);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/sprints/7/report');
+    await work.getVelocity('PLAT');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/projects/PLAT/velocity');
+    await work.getItemPoints('PLAT-1');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-1/points');
+  });
+
   it('exports one function per endpoint', () => {
     for (const name of ['listProjects', 'getProject', 'createProject', 'updateProject', 'archiveProject',
       'listMembers', 'putMember', 'removeMember', 'getBoard', 'listProducts', 'createProduct', 'updateProduct',

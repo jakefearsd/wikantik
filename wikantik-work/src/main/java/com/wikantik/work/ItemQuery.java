@@ -46,11 +46,29 @@ final class ItemQuery {
             where.append( " AND i.labels @> ?::text[]" );
             params.add( textArray( f.labels() ) );
         }
+        sprint( f.sprint(), where, params );
         clause( where, params, " AND i.product_id = ?", f.productId() );
         clause( where, params, " AND i.level = ?", f.level() == null ? null : f.level().wire() );
         clause( where, params, " AND i.parent_id = ?", f.parentId() );
         text( where, params, f.text() );
         clause( where, params, " AND i.due_on < ?", f.dueBefore() == null ? null : Date.valueOf( f.dueBefore() ) );
+    }
+
+    /** The order of one board column: closed columns newest first and capped, open ones by rank. */
+    static String boardOrder( final boolean closedColumn, final int cap ) {
+        return closedColumn ? " ORDER BY i.closed_at DESC NULLS LAST, i.id DESC LIMIT " + cap
+            : " ORDER BY i.rank, i.id";
+    }
+
+    private static void sprint( final SprintRef ref, final StringBuilder where, final List< Object > params ) {
+        if ( ref == null ) {
+            return;
+        }
+        switch ( ref.kind() ) {
+            case ID -> clause( where, params, " AND i.sprint_id = ?", ref.sprintId() );
+            case ACTIVE -> where.append( " AND i.sprint_id IN ( SELECT s.id FROM work_sprint s WHERE s.state = 'active' )" );
+            case NONE -> where.append( " AND i.sprint_id IS NULL" );
+        }
     }
 
     /**

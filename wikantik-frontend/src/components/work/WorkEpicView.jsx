@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Spinner from '../ui/Spinner';
-import { listItems } from '../../api/work';
+import { getItemPoints, listItems } from '../../api/work';
 import { STATUS_LABELS } from './boardModel';
+import { formatPoints } from './sprintModel';
 
 // Task counts need one request per story; only the first stories are counted eagerly, the rest on demand.
 const EAGER_COUNTS = 20;
@@ -21,6 +22,7 @@ export default function WorkEpicView({ view }) {
   const projectKey = view.projectKey;
   const [state, setState] = useState({ children: null, error: null });
   const [counts, setCounts] = useState({});
+  const [points, setPoints] = useState(null);
 
   const loadCount = useCallback((storyKey) => listItems({ project: projectKey, parent: storyKey, limit: LIMIT })
     .then((rows) => setCounts((c) => ({ ...c, [storyKey]: (rows || []).length })))
@@ -45,6 +47,14 @@ export default function WorkEpicView({ view }) {
     return () => { cancelled = true; };
   }, [projectKey, epicKey, loadCount]);
 
+  useEffect(() => {
+    let cancelled = false;
+    getItemPoints(epicKey)
+      .then((reply) => { if (!cancelled) setPoints(reply?.points ?? null); })
+      .catch((e) => console.warn(`WorkEpicView: could not load the points of ${epicKey}`, e));
+    return () => { cancelled = true; };
+  }, [epicKey]);
+
   const { children, error } = state;
   const active = children ? children.filter((c) => c.status !== 'cancelled') : [];
   const done = active.filter((c) => c.status === 'done').length;
@@ -54,6 +64,7 @@ export default function WorkEpicView({ view }) {
   return (
     <section className="work-section work-epic" aria-label="Epic">
       <h2 className="work-subheading">Stories</h2>
+      {points != null && <p className="work-epic-points">Points: {formatPoints(points)}</p>}
       {error && <div className="error-banner" role="alert">{error}</div>}
       {!error && !children && <Spinner label="Loading stories…" />}
       {children && children.length === 0 && <p className="work-muted">No stories yet.</p>}

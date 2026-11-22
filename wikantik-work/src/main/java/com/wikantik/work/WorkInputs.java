@@ -199,7 +199,7 @@ final class WorkInputs {
             i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
             i.doneMeans(), i.allowDirect(), version, i.createdAt(), i.updatedAt(), i.closedAt(),
             i.queue(), i.claimedByAgent(), i.claimedAt(), i.claimExpiresAt(), i.reporterAgentId(),
-            i.type(), i.labels() );
+            i.type(), i.labels(), i.sprintId(), i.estimate() );
     }
 
     /** Keeps only the logins {@code isMember} accepts. */

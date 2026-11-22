@@ -59,14 +59,14 @@ class JdbcWorkStoreDiscussionPostgresTest {
     private Item move( final Item i, final WorkStatus s ) throws SQLException {
         final Item next = new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(),
             i.title(), i.body(), s, i.priority(), i.rank(), i.dueOn(), i.assignee(), i.reporter(), i.autonomy(),
-            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null );
+            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null, null, null );
         return store.updateItem( i, next, Actor.human( "alice", java.util.Set.of(), false ), null );
     }
 
     private Item assign( final Item i, final String who ) throws SQLException {
         final Item next = new Item( i.id(), i.projectId(), i.key(), i.level(), i.parentId(), i.productId(), i.kind(),
             i.title(), i.body(), i.status(), i.priority(), i.rank(), i.dueOn(), who, i.reporter(), i.autonomy(),
-            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null );
+            i.doneMeans(), i.allowDirect(), i.version(), i.createdAt(), i.updatedAt(), i.closedAt(), null, null, null, null, null, null, null, null, null );
         return store.updateItem( i, next, Actor.human( "alice", java.util.Set.of(), false ), null );
     }
 
@@ -271,7 +271,7 @@ class JdbcWorkStoreDiscussionPostgresTest {
     private Item child( final Item parent, final Long productId, final String title ) throws SQLException {
         return store.createItem( plat, new Item( 0, 0, null, WorkLevel.TASK, parent == null ? null : parent.id(),
             productId, WorkKind.SOFTWARE, title, "", WorkStatus.DRAFT, 3, 0, null, null, null, null, null, null, 0,
-            null, null, null, null, null, null, null, null, null, null ), Actor.human( "alice", java.util.Set.of(), false ) );
+            null, null, null, null, null, null, null, null, null, null, null, null ), Actor.human( "alice", java.util.Set.of(), false ) );
     }
 
     @Test

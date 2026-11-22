@@ -18,6 +18,8 @@
  */
 package com.wikantik.work;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -28,11 +30,16 @@ public record Item( long id, long projectId, String key, WorkLevel level, Long p
                     LocalDate dueOn, String assignee, String reporter, Autonomy autonomy, DoneMeans doneMeans,
                     Boolean allowDirect, int version, Instant createdAt, Instant updatedAt, Instant closedAt,
                     String queue, Long claimedByAgent, Instant claimedAt, Instant claimExpiresAt,
-                    Long reporterAgentId, WorkType type, List< String > labels ) {
+                    Long reporterAgentId, WorkType type, List< String > labels, Long sprintId,
+                    BigDecimal estimate ) {
 
-    /** Defaults: no type means a feature, no labels means none; the label list is copied. */
+    /**
+     * Defaults: no type means a feature, no labels means none; the label list is copied. An estimate is held at
+     * scale one (half points), so {@code 3} and {@code 3.0} are the same value.
+     */
     public Item {
         type = type == null ? WorkType.FEATURE : type;
         labels = labels == null ? List.of() : List.copyOf( labels );
+        estimate = estimate == null ? null : estimate.setScale( 1, RoundingMode.UNNECESSARY );
     }
 }

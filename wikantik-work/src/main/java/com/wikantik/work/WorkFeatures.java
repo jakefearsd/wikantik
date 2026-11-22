@@ -21,6 +21,7 @@ package com.wikantik.work;
 import com.wikantik.work.WorkScopes.Scope;
 
 import java.sql.SQLException;
+import java.time.Clock;
 import java.util.List;
 
 /**
@@ -31,10 +32,17 @@ public final class WorkFeatures {
 
     private final WorkStore store;
     private final WorkScopes scopes;
+    private final WorkSprintsService sprints;
 
-    WorkFeatures( final WorkStore store, final WorkScopes scopes ) {
+    WorkFeatures( final WorkStore store, final WorkScopes scopes, final ItemViews views, final Clock clock ) {
         this.store = store;
         this.scopes = scopes;
+        this.sprints = new WorkSprintsService( store, scopes, views, clock );
+    }
+
+    /** Sprints: the sprint service. */
+    public WorkSprintsService sprints() {
+        return sprints;
     }
 
     /** The labels in use in a project, most used first, at most 200; cancelled items do not count. */

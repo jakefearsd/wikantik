@@ -170,7 +170,7 @@ class WorkLabelsPostgresTest {
 
     private static ItemFilter byLabel( final Long projectId, final String label ) {
         return new ItemFilter( projectId, null, null, null, null, null, null, null, 0, null, null, null,
-            java.util.Set.of( label ) );
+            java.util.Set.of( label ), null );
     }
 
     @Test

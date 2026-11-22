@@ -22,6 +22,7 @@ package com.wikantik.work;
 public final class WorkPolicy {
 
     private static final String AGENT_ACKNOWLEDGE = "A person acknowledges work closed without one.";
+    private static final String AGENT_SPRINT = "A person plans a sprint.";
     private static final String HUMAN_CLAIM = "People are assigned work; assign it to yourself instead.";
 
     /** Leaving refining for one of these approves nothing. */
@@ -47,8 +48,9 @@ public final class WorkPolicy {
         if ( action == Action.CLAIM && actor.kind() == Actor.Kind.HUMAN ) {
             return Decision.deny( HUMAN_CLAIM );
         }
-        if ( action == Action.ACKNOWLEDGE && actor.kind() == Actor.Kind.AGENT ) {
-            return Decision.deny( AGENT_ACKNOWLEDGE );
+        final Decision refusal = agentRefusal( actor, action );
+        if ( refusal != null ) {
+            return refusal;
         }
         if ( actor.kind() == Actor.Kind.AGENT && action.management() ) {
             return Decision.deny( "An agent may not change policy, manage a project or manage the work instance." );
@@ -118,6 +120,20 @@ public final class WorkPolicy {
     /** The status a patch names, or null when it names none or one that does not exist (which counts as a move). */
     static WorkStatus namedStatus( final Object raw ) {
         return WireEnum.tryParse( WorkStatus.class, raw );
+    }
+
+    /** The refusals that name an action an agent never takes, whatever its role; null when there is none. */
+    private static Decision agentRefusal( final Actor actor, final Action action ) {
+        if ( actor.kind() != Actor.Kind.AGENT ) {
+            return null;
+        }
+        if ( action == Action.ACKNOWLEDGE ) {
+            return Decision.deny( AGENT_ACKNOWLEDGE );
+        }
+        if ( action == Action.MANAGE_SPRINT || action == Action.PLAN_SPRINT ) {
+            return Decision.deny( AGENT_SPRINT );
+        }
+        return null;
     }
 
     private static boolean claimedByOther( final Actor actor, final Action action, final Item item ) {

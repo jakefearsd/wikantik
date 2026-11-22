@@ -80,6 +80,17 @@ final class ItemGates {
         }
     }
 
+    /** The gates a patch's fields add to its action: planning a sprint, and changing the autonomy policy. */
+    void requireFieldGates( final WorkScopes.Scope s, final Item item, final Map< String, Object > changes )
+            throws SQLException {
+        if ( changes.containsKey( "sprint" ) ) {
+            s.require( Action.PLAN_SPRINT, item );
+        }
+        if ( changes.keySet().stream().anyMatch( ItemPatchApplier.POLICY_KEYS::contains ) ) {
+            requirePolicyChange( s, item, changes );
+        }
+    }
+
     /**
      * Who may set the policy fields: an agent none of them; done-means, direct commits and the autonomous level a
      * lead. Anyone else who may edit the item may make it stricter: name a level stricter than the item inherits,

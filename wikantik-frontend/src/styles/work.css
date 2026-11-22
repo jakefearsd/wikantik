@@ -193,3 +193,15 @@
 .work-label-remove { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 0 0 var(--space-xs); font-size: 0.75rem; }
 .work-label-input { font-size: 0.8rem; min-width: 8rem; }
 .work-label-error { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Sprints */
+.work-sprints { display: flex; flex-direction: column; gap: var(--space-md); }
+.work-sprint { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); padding: var(--space-sm) var(--space-md); }
+.work-sprint-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--space-sm); }
+.work-sprint-summary { color: var(--text-secondary); font-size: 0.85rem; }
+.work-sprint-list { list-style: none; margin: var(--space-xs) 0; padding: 0; }
+.work-sprint-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); }
+.work-sprint-row .ui-select { font-size: 0.78rem; margin-left: auto; }
+.work-sprint-points { color: var(--text-secondary); font-size: 0.85rem; min-width: 3.5rem; text-align: right; }
+.work-card-estimate { font-variant-numeric: tabular-nums; }
+.work-burndown { margin: var(--space-md) 0; }

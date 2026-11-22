@@ -3,6 +3,7 @@ import Badge from '../ui/Badge';
 import Icon from '../ui/Icon';
 import Select from '../ui/Select';
 import WorkLabels from './WorkLabels';
+import { formatPoints } from './sprintModel';
 import { STATUSES, STATUS_LABELS, isOverdue } from './boardModel';
 import { clockText, fullTime, isPast, useExpiryClock } from './workTime';
 
@@ -52,6 +53,7 @@ export default function WorkCard({ item, productKey, changes = null, draggable =
       <div className="work-card-meta">
         {productKey && <span className="work-card-product">{productKey}</span>}
         <span className="work-card-priority">P{item.priority}</span>
+        {item.estimate != null && <span className="work-card-estimate">{formatPoints(item.estimate)} pts</span>}
         {item.dueOn && <span className="work-card-due" title={item.dueOn}>due {formatDue(item.dueOn)}</span>}
         {item.assigneeName && <span className="work-card-assignee">{item.assigneeName}</span>}
         {item.queue && <span className="work-chip work-card-queue">Queue · {item.queueName || 'a queue'}</span>}

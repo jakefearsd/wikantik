@@ -138,6 +138,58 @@ class WorkInboxResourceTest {
         assertEquals( "Name of erin-login", e.get( "toValue" ).getAsString() );
     }
 
+    /**
+     * Ruling 1 (Part 8): a person who only reports gets the notice the service reshaped for them (a status event of
+     * status words, no note, no agent id, reason watching); the route adds nothing back, and the actor is a display
+     * name. The service-side reshaping itself is pinned by {@code WorkReporterSurfacesPostgresTest} in wikantik-work.
+     */
+    @Test
+    void aReportersNoticeCarriesNoNoteNoTargetAndNoLogin() throws Exception {
+        final Actor rita = Actor.human( "rita-login", java.util.Set.of(), false );
+        servlet = WorkHttp.wire( new WorkInboxResource(), wiredService(), rita );
+        final WorkEvent reshaped = new WorkEvent( 6, 1, 7L, "PLAT-7", Instant.parse( "2026-11-21T09:59:00Z" ), "frank-login",
+            Actor.Kind.HUMAN, null, "status", "review", "done", null );
+        Mockito.when( notifications.inbox( any(), any(), anyInt() ) ).thenReturn( List.of( new NoticeView( 9,
+            NoticeReason.WATCHING, Instant.parse( "2026-11-21T10:00:00Z" ), null, reshaped, "PLAT", "Fix the build" ) ) );
+        Mockito.when( notifications.unread( rita ) ).thenReturn( 1 );
+        final String body = call( "GET", "/inbox", null ).body();
+        // the stub's display name embeds the login ("Name of frank-login"), so a bare login is a quoted value
+        for ( final String hidden : List.of( "internal reason", "\"frank-login\"", "rita-login", "queue:", "|" ) ) {
+            assertFalse( body.contains( hidden ), hidden + " in " + body );
+        }
+        final JsonObject e = com.google.gson.JsonParser.parseString( body ).getAsJsonObject().getAsJsonArray( "notices" )
+            .get( 0 ).getAsJsonObject().getAsJsonObject( "event" );
+        assertTrue( e.get( "note" ) == null || e.get( "note" ).isJsonNull() );
+        assertEquals( "Name of frank-login", e.get( "actor" ).getAsString() );
+        assertEquals( "done", e.get( "toValue" ).getAsString() );
+    }
+
+    /** A lapsed claim's notice to a reporter has no actor: the field is present as explicit null, and nothing throws. */
+    @Test
+    void aReportersNoticeWithNoActorSerialisesTheActorAsExplicitNull() throws Exception {
+        final Actor rita = Actor.human( "rita-login", java.util.Set.of(), false );
+        servlet = WorkHttp.wire( new WorkInboxResource(), wiredService(), rita );
+        final WorkEvent lapsed = new WorkEvent( 6, 1, 7L, "PLAT-7", Instant.parse( "2026-11-21T09:59:00Z" ), null,
+            Actor.Kind.SYSTEM, null, "status", "in_progress", "ready", null );
+        Mockito.when( notifications.inbox( any(), any(), anyInt() ) ).thenReturn( List.of( new NoticeView( 9,
+            NoticeReason.WATCHING, Instant.parse( "2026-11-21T10:00:00Z" ), null, lapsed, "PLAT", "Fix the build" ) ) );
+        final WorkHttp.Result r = call( "GET", "/inbox", null );
+        assertEquals( 200, r.status(), r.body() );
+        final JsonObject e = r.json().getAsJsonObject().getAsJsonArray( "notices" ).get( 0 ).getAsJsonObject()
+            .getAsJsonObject( "event" );
+        assertTrue( e.has( "actor" ) && e.get( "actor" ).isJsonNull(), e.toString() );
+        assertFalse( e.has( "actorName" ) && !e.get( "actorName" ).isJsonNull(), "no name is invented: " + e );
+        assertEquals( "ready", e.get( "toValue" ).getAsString() );
+    }
+
+    private WorkService wiredService() {
+        final WorkService svc = Mockito.mock( WorkService.class );
+        final WorkFeatures features = Mockito.mock( WorkFeatures.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.notifications() ).thenReturn( notifications );
+        return svc;
+    }
+
     @Test
     void anAdminStillSeesTheLoginInTheActorField() throws Exception {
         final Actor admin = Actor.human( "root", Set.of(), true );

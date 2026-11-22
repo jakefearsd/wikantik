@@ -10,6 +10,7 @@ import {
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { useWorkProject } from './useWorkProject';
 import WaitingLane from './WaitingLane';
+import { assignable } from './people';
 import WorkCard from './WorkCard';
 import WorkItemForm from './WorkItemForm';
 import WorkTypeLabelFilters from './WorkTypeLabelFilters';
@@ -279,7 +280,7 @@ export default function WorkBoard() {
         <Select ariaLabel="Filter by assignee" placeholder="All assignees"
           value={queueFilter ? `queue:${queueFilter}` : assigneeFilter}
           options={[
-            ...members.filter((m) => m.principalKind === 'user' && m.displayName)
+            ...assignable(members).filter((m) => m.principalKind === 'user' && m.displayName)
               .map((m) => ({ value: m.displayName, label: m.displayName })),
             ...queues.filter((q) => !q.retiredAt || q.key === queueFilter)
               .map((q) => ({ value: `queue:${q.key}`, label: `Queue · ${q.name || q.key}` })),

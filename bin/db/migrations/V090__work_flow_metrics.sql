@@ -23,7 +23,12 @@
 --
 -- Three partial indexes serve the read-time figures (flow and DORA are computed on every request; no table stores a
 -- computed metric). Each covers only the rows the figure reads:
---   idx_work_event_status         status events that start or finish work (cycle and lead time, throughput)
+--   idx_work_event_moves          events that can move an item's status (cycle and lead time, throughput): a
+--                                 plain status change, a hand-off, a claim, a lapsed claim, a release. Which of
+--                                 them is a move into in progress or done is decided by the query (StatusMoves);
+--                                 the index only narrows the rows to the five types. An earlier draft of this
+--                                 migration named idx_work_event_status over status events alone; it is dropped
+--                                 if present, so a database that applied the draft converges on re-apply.
 --   idx_work_deployment_verified  production deployments that went live (frequency, recovery)
 --   idx_work_change_merged        merged changes by product and merge time (lead time, merge mix)
 -- No table and no grant: UPDATE on work_deployment already exists, and the column is written by the INSERT.
@@ -35,8 +40,9 @@ ALTER TABLE work_deployment ADD CONSTRAINT work_deployment_remediates_self_chk
 CREATE INDEX IF NOT EXISTS idx_work_deployment_remediates ON work_deployment (remediates_id)
     WHERE remediates_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_work_event_status ON work_event (item_id, at)
-    WHERE type = 'status' AND to_value IN ('done', 'in_progress');
+DROP INDEX IF EXISTS idx_work_event_status;
+CREATE INDEX IF NOT EXISTS idx_work_event_moves ON work_event (item_id, at)
+    WHERE type IN ('claim_expired', 'claimed', 'handoff', 'released', 'status');
 CREATE INDEX IF NOT EXISTS idx_work_deployment_verified ON work_deployment (product_id, verified_at)
     WHERE environment = 'production' AND verified_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_work_change_merged ON work_change (product_id, closed_at)

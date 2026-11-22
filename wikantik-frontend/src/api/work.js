@@ -222,3 +222,15 @@ export const getProjectFlow = (key, params) => request(`${base}/projects/${enc(k
 export const getProjectDora = (key, params) => request(`${base}/projects/${enc(key)}/dora${query(params)}`);
 /** Wiki admins only: the same figures over every project of a product. */
 export const getProductDora = (key, params) => request(`${base}/products/${enc(key)}/dora${query(params)}`);
+
+// Intake (Part 8): the only routes a reporter (a person with no member role in the project) uses besides
+// /me, the inbox and the attachments of their own item. Everything here answers a reduced shape.
+/** [{ key, name, role }]: the projects the caller may file into, by the name the server returns. */
+export const listReportable = () => request(`${base}/intake/projects`);
+/** body is { projectKey, level, type, title, body }; answers the reported view of the new draft. */
+export const submitIntake = (draft) => request(`${base}/intake/items`, json('POST', draft));
+/** [{ key, projectKey, projectName, title, status, ... }]: items filed into projects where the caller is only a reporter. */
+export const listReported = () => request(`${base}/intake/items`);
+/** { key, projectKey, projectName, level, type, status, title, body, bodyHtml, reporterName, createdAt, updatedAt, comments, events, archived }. */
+export const getReportedItem = (key) => request(`${base}/intake/items/${enc(key)}`);
+export const addReportedComment = (key, body) => request(`${base}/intake/items/${enc(key)}/comments`, json('POST', { body }));

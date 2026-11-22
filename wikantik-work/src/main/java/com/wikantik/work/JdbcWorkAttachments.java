@@ -38,6 +38,13 @@ final class JdbcWorkAttachments implements WorkAttachmentStore {
     private static final String A_COLUMNS = "a.id, a.item_id, a.comment_id, a.filename, a.content_type, a.size_bytes, "
         + "a.sha256, a.uploaded_by, a.uploaded_by_agent_id, a.uploaded_at, a.removed_at";
 
+    /**
+     * Excludes a file whose comment has been removed: {@code removeComment} only stamps the comment, and the file then
+     * stops being reachable (the row and bytes stay). {@code %s} is the attachment's alias.
+     */
+    private static final String COMMENT_LIVE = " AND NOT EXISTS ( SELECT 1 FROM work_comment rc WHERE rc.id = %s.comment_id "
+        + "AND rc.removed_at IS NOT NULL )";
+
     private static final RowMapper< Attachment > ROW = rs -> new Attachment( rs.getLong( "id" ), rs.getLong( "item_id" ),
         NullableColumns.getNullableLong( rs, "comment_id" ), rs.getString( "filename" ), rs.getString( "content_type" ),
         rs.getLong( "size_bytes" ), rs.getString( "sha256" ), rs.getString( "uploaded_by" ),
@@ -61,8 +68,8 @@ final class JdbcWorkAttachments implements WorkAttachmentStore {
             if ( commentId != null ) {
                 requireComment( conn, item, commentId );
             }
-            final long live = jdbc.queryOne( conn, "SELECT COALESCE(SUM(size_bytes), 0) FROM work_attachment "
-                    + "WHERE item_id = ? AND removed_at IS NULL", ps -> ps.setLong( 1, item.id() ),
+            final long live = jdbc.queryOne( conn, "SELECT COALESCE(SUM(a.size_bytes), 0) FROM work_attachment a "
+                    + "WHERE a.item_id = ? AND a.removed_at IS NULL" + COMMENT_LIVE.formatted( "a" ), ps -> ps.setLong( 1, item.id() ),
                 rs -> rs.getLong( 1 ) ).orElse( 0L );
             if ( live + file.content().length > maxItemBytes ) {
                 throw new WorkConflictException( "This item's attachments would pass the limit of " + maxItemBytes
@@ -91,8 +98,8 @@ final class JdbcWorkAttachments implements WorkAttachmentStore {
 
     @Override
     public Optional< Attachment > attachment( final long itemId, final long attachmentId ) throws SQLException {
-        return jdbc.queryOne( "SELECT " + COLUMNS + " FROM work_attachment WHERE id = ? AND item_id = ? "
-            + "AND removed_at IS NULL", ps -> {
+        return jdbc.queryOne( "SELECT " + A_COLUMNS + " FROM work_attachment a WHERE a.id = ? AND a.item_id = ? "
+            + "AND a.removed_at IS NULL" + COMMENT_LIVE.formatted( "a" ), ps -> {
                 ps.setLong( 1, attachmentId );
                 ps.setLong( 2, itemId );
             }, ROW );
@@ -101,7 +108,7 @@ final class JdbcWorkAttachments implements WorkAttachmentStore {
     @Override
     public Optional< AttachmentContent > content( final long itemId, final long attachmentId ) throws SQLException {
         return jdbc.queryOne( "SELECT " + A_COLUMNS + ", b.content FROM work_attachment a JOIN work_attachment_blob b "
-            + "ON b.attachment_id = a.id WHERE a.id = ? AND a.item_id = ? AND a.removed_at IS NULL", ps -> {
+            + "ON b.attachment_id = a.id WHERE a.id = ? AND a.item_id = ? AND a.removed_at IS NULL" + COMMENT_LIVE.formatted( "a" ), ps -> {
                 ps.setLong( 1, attachmentId );
                 ps.setLong( 2, itemId );
             }, rs -> new AttachmentContent( ROW.map( rs ), rs.getBytes( "content" ) ) );
@@ -112,8 +119,8 @@ final class JdbcWorkAttachments implements WorkAttachmentStore {
         JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         return jdbc.inTransaction( conn -> {
             lockItem( conn, item, by );
-            final Attachment gone = jdbc.queryOne( conn, "UPDATE work_attachment SET removed_at = NOW() WHERE id = ? "
-                    + "AND item_id = ? AND removed_at IS NULL RETURNING " + COLUMNS, ps -> {
+            final Attachment gone = jdbc.queryOne( conn, "UPDATE work_attachment a SET removed_at = NOW() WHERE a.id = ? "
+                    + "AND a.item_id = ? AND a.removed_at IS NULL" + COMMENT_LIVE.formatted( "a" ) + " RETURNING " + COLUMNS, ps -> {
                         ps.setLong( 1, attachmentId );
                         ps.setLong( 2, item.id() );
                     }, ROW ).orElseThrow( () -> new WorkNotFoundException( WorkScopes.NOT_FOUND ) );
@@ -126,8 +133,8 @@ final class JdbcWorkAttachments implements WorkAttachmentStore {
 
     @Override
     public List< Attachment > forItem( final long itemId ) throws SQLException {
-        return jdbc.query( "SELECT " + COLUMNS + " FROM work_attachment WHERE item_id = ? AND removed_at IS NULL "
-            + "ORDER BY id", ps -> ps.setLong( 1, itemId ), ROW );
+        return jdbc.query( "SELECT " + A_COLUMNS + " FROM work_attachment a WHERE a.item_id = ? AND a.removed_at IS NULL"
+            + COMMENT_LIVE.formatted( "a" ) + " ORDER BY a.id", ps -> ps.setLong( 1, itemId ), ROW );
     }
 
     /**

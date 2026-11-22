@@ -239,3 +239,50 @@ export function eventSentence(e) {
   const head = t.standalone ? t.text : `${actorLabel(e)} ${t.text}`;
   return t.prominentNote && t.note ? `${head} — '${t.note}'` : head;
 }
+
+const REPORTER_STATUS = {
+  draft: 'Draft', refining: 'Refining', ready: 'Ready', in_progress: 'In progress',
+  review: 'Review', done: 'Done', cancelled: 'Cancelled',
+};
+
+/**
+ * Plain words for a status, for a reader who is not a member of the project. A value carrying anything after a `|`
+ * (the member-facing `status|assignee` shape) is cut there: nothing but the status is ever shown.
+ */
+export function reporterStatusWords(value) {
+  const status = String(value ?? '').split('|')[0];
+  return REPORTER_STATUS[status] || (status ? words(status) : 'a new status');
+}
+
+/**
+ * The line a reporter's timeline shows for one event of their own item, as `{ text }` with the actor in front:
+ * only the type, the actor's name and a status's new value are read. Assignees, queues, notes and an old value are
+ * never rendered, whatever else the event carries. An unknown type reads as a generic update.
+ */
+export function reporterEventText(e) {
+  const ev = e || {};
+  switch (ev.type) {
+    case 'created': return { text: 'filed this' };
+    case 'status': return { text: `moved this to ${reporterStatusWords(ev.toValue)}` };
+    case 'commented': return { text: 'commented' };
+    case 'attached': return { text: 'attached a file' };
+    default: return { text: 'updated this' };
+  }
+}
+
+const NO_ACTOR_LINE = {
+  created: 'This was filed',
+  commented: 'A comment was added',
+  attached: 'A file was attached',
+};
+
+/**
+ * The whole line for a reporter, subject included. An event with no acting person (a claim that lapsed, a sweep)
+ * arrives with a null actor and reads without one ("This moved to Ready"): no actor is ever invented.
+ */
+export function reporterEventLine(e) {
+  const ev = e || {};
+  if (ev.actorName) return `${ev.actorName} ${reporterEventText(ev).text}`;
+  if (ev.type === 'status') return `This moved to ${reporterStatusWords(ev.toValue)}`;
+  return NO_ACTOR_LINE[ev.type] || 'This was updated';
+}

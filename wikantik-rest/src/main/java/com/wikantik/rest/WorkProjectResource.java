@@ -24,6 +24,7 @@ import com.wikantik.work.Autonomy;
 import com.wikantik.work.Member;
 import com.wikantik.work.Project;
 import com.wikantik.work.WorkRegistryService;
+import com.wikantik.work.WorkService;
 import com.wikantik.work.WorkRole;
 
 import java.util.List;
@@ -78,7 +79,13 @@ public class WorkProjectResource extends WorkResourceBase {
         route( r, "GET", "projects/{}/velocity", c -> c.tree( WorkSprintJson.velocity(
             c.svc.features().sprints().velocity( c.actor, c.pathParam( 0 ) ) ) ) );
         WorkWebhookRoutes.register( r );
-        route( r, "GET", "projects/{}/board", c -> c.tree( boardTree( c.svc.boardSummaries( c.actor, c.pathParam( 0 ), filter( c, false ) ), c.actor ) ) );
+        route( r, "GET", "projects/{}/board", this::board );
+    }
+
+    private void board( final Call c ) throws Exception {
+        final List< WorkService.SummaryColumn > columns = c.svc.boardSummaries( c.actor, c.pathParam( 0 ), filter( c, false ) );
+        c.tree( WorkOutside.markBoard( boardTree( columns, c.actor ).getAsJsonArray(), columns,
+            WorkOutside.of( c, c.pathParam( 0 ), WorkOutside.itemsOfBoard( columns ) ) ) );
     }
 
     /**

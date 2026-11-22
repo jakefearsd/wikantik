@@ -149,7 +149,7 @@ public class WorkService {
         this.changes = new WorkChangesService( store, scopes, clock );
         this.deployments = new WorkDeploymentsService( store, scopes );
         this.features = new WorkFeatures( store, scopes, views, clock,
-            new FeatureDeps( people, observer, auditor, ports, settings, directory ) );
+            new FeatureDeps( people, observer, auditor, ports, settings, directory, applier ) );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
         this.listener = observer;

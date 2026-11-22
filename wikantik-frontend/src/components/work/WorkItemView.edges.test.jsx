@@ -15,6 +15,8 @@ vi.mock('../../api/work', () => ({
   listLabels: vi.fn(() => Promise.resolve([])), listSprints: vi.fn(() => Promise.resolve([])),
   markItemRead: vi.fn(() => Promise.resolve()), getWatch: vi.fn(() => Promise.resolve({ state: 'none' })), setWatch: vi.fn(),
   getItemPoints: vi.fn(() => Promise.resolve({ points: 0 })),
+  getReportedItem: vi.fn(() => Promise.reject(Object.assign(new Error('Not found.'), { status: 404 }))),
+  addReportedComment: vi.fn(),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));

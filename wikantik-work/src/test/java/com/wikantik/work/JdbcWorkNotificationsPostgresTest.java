@@ -206,9 +206,10 @@ class JdbcWorkNotificationsPostgresTest {
     @Test
     void groupLeadsArriveAsGroups() throws SQLException {
         plant();
+        // V091 makes an agent lead row impossible; an agent row of any kind still must not be read as a lead.
         WorkAgentFixtures.exec( fx.ds, "INSERT INTO work_member (project_id, principal_kind, principal, role) VALUES ("
             + fx.project + ",'user','lena','lead'), (" + fx.project + ",'group','ops','lead'), (" + fx.project
-            + ",'user','mo','member'), (" + fx.project + ",'agent','7','lead')" );
+            + ",'user','mo','member'), (" + fx.project + ",'agent','7','member')" );
         fx.event( WorkEvent.EDITED, "bob", null );
         assertEquals( 1, DispatchAwait.events( () -> store.dispatch( 10, zed ), 1 ) );
         assertEquals( Set.of( "lena" ), seenFacts.get( 0 ).leads() );
@@ -251,19 +252,19 @@ class JdbcWorkNotificationsPostgresTest {
         final long mine = fx.event( WorkEvent.EDITED, "bob", null );
         WorkAgentFixtures.scalar( fx.ds, fx.eventSql( other, otherItem, WorkEvent.EDITED, "bob", null, null ) );
         assertEquals( 2, DispatchAwait.events( () -> store.dispatch( 10, zed ), 2 ) );
-        final List< NoticeView > mineOnly = store.inbox( "zed", Set.of( fx.project ), null, 10 );
+        final List< NoticeView > mineOnly = store.inbox( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project ) ), null, 10 );
         assertEquals( 1, mineOnly.size() );
         assertEquals( mine, mineOnly.get( 0 ).event().id() );
         assertEquals( "WIKI", mineOnly.get( 0 ).projectKey() );
         assertEquals( "t1", mineOnly.get( 0 ).itemTitle() );
         assertEquals( "WIKI-1", mineOnly.get( 0 ).event().itemKey() );
         assertEquals( NoticeReason.WATCHING, mineOnly.get( 0 ).reason() );
-        assertEquals( 2, store.inbox( "zed", Set.of( fx.project, other ), null, 10 ).size() );
-        assertTrue( store.inbox( "zed", Set.of(), null, 10 ).isEmpty() );
-        assertTrue( store.inbox( "nobody", Set.of( fx.project, other ), null, 10 ).isEmpty() );
-        final List< NoticeView > both = store.inbox( "zed", Set.of( fx.project, other ), null, 10 );
+        assertEquals( 2, store.inbox( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project, other ) ), null, 10 ).size() );
+        assertTrue( store.inbox( "zed", WorkNotificationStore.Readable.visible( Set.of() ), null, 10 ).isEmpty() );
+        assertTrue( store.inbox( "nobody", WorkNotificationStore.Readable.visible( Set.of( fx.project, other ) ), null, 10 ).isEmpty() );
+        final List< NoticeView > both = store.inbox( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project, other ) ), null, 10 );
         assertTrue( both.get( 0 ).id() > both.get( 1 ).id() );
-        assertEquals( 1, store.inbox( "zed", Set.of( fx.project, other ), both.get( 0 ).id(), 10 ).size() );
+        assertEquals( 1, store.inbox( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project, other ) ), both.get( 0 ).id(), 10 ).size() );
     }
 
     @Test
@@ -275,14 +276,14 @@ class JdbcWorkNotificationsPostgresTest {
         fx.event( WorkEvent.EDITED, "bob", null );
         WorkAgentFixtures.scalar( fx.ds, fx.eventSql( other, otherItem, WorkEvent.EDITED, "bob", null, null ) );
         assertEquals( 3, DispatchAwait.events( () -> store.dispatch( 10, zed ), 3 ) );
-        assertEquals( 2, store.unread( "zed", Set.of( fx.project ) ) );
-        assertEquals( 3, store.unread( "zed", Set.of( fx.project, other ) ) );
-        assertEquals( 0, store.unread( "zed", Set.of() ) );
-        assertEquals( 0, store.markAllRead( "zed", Set.of(), AT ) );
-        assertEquals( 2, store.markAllRead( "zed", Set.of( fx.project ), AT ) );
-        assertEquals( 0, store.unread( "zed", Set.of( fx.project ) ) );
-        assertEquals( 1, store.unread( "zed", Set.of( fx.project, other ) ) );
-        assertEquals( AT, store.inbox( "zed", Set.of( fx.project ), null, 10 ).get( 0 ).readAt() );
+        assertEquals( 2, store.unread( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project ) ) ) );
+        assertEquals( 3, store.unread( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project, other ) ) ) );
+        assertEquals( 0, store.unread( "zed", WorkNotificationStore.Readable.visible( Set.of() ) ) );
+        assertEquals( 0, store.markAllRead( "zed", WorkNotificationStore.Readable.visible( Set.of() ), AT ) );
+        assertEquals( 2, store.markAllRead( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project ) ), AT ) );
+        assertEquals( 0, store.unread( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project ) ) ) );
+        assertEquals( 1, store.unread( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project, other ) ) ) );
+        assertEquals( AT, store.inbox( "zed", WorkNotificationStore.Readable.visible( Set.of( fx.project ) ), null, 10 ).get( 0 ).readAt() );
         assertEquals( 1, store.markRead( "zed", otherItem, AT ) );
         assertEquals( 0, store.markRead( "zed", otherItem, AT ) );
     }

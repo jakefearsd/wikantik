@@ -49,7 +49,7 @@ class WorkPolicyActionTableTest {
         final String[] actorNames = { "human", "admin", "agent-admin-sponsor", "agent-member-sponsor" };
         final Actor[] actors = { Actor.human( "alice", Set.of(), false ), adminSponsor,
             Actor.agent( SELF, "bot", adminSponsor ), Actor.agent( SELF, "bot", memberSponsor ) };
-        final WorkRole[] roles = { null, WorkRole.VIEWER, WorkRole.MEMBER, WorkRole.LEAD };
+        final WorkRole[] roles = { null, WorkRole.REPORTER, WorkRole.VIEWER, WorkRole.MEMBER, WorkRole.LEAD };
         final String[] itemNames = { "none", "unclaimed", "other", "self" };
         final Item[] items = { null, item( null ), item( OTHER ), item( SELF ) };
         final List< String > lines = new ArrayList<>();

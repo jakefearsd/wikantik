@@ -261,3 +261,12 @@
 .work-stat-row { display: flex; flex-wrap: wrap; gap: var(--space-md); margin: var(--space-sm) 0; }
 .work-flow-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-sm); margin: var(--space-sm) 0; }
 .work-flow-filters label { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.8rem; color: var(--text-secondary); }
+
+/* Intake: the submit page, the reporter's item view and the outside marker */
+.work-submit { max-width: 40rem; }
+.work-item-reported .work-item-main { max-width: 48rem; }
+.work-upload-list { list-style: none; margin: var(--space-sm) 0; padding: 0; }
+.work-upload-row { display: flex; flex-wrap: wrap; gap: var(--space-sm); padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); }
+.work-outside-note { margin: var(--space-sm) 0; padding: var(--space-sm) var(--space-md); background: var(--bg-elevated); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); color: var(--text-secondary); }
+.work-card-outside { border: 1px solid var(--border-strong); color: var(--text-secondary); background: transparent; }
+.work-char-count { font-size: 0.8rem; margin-top: var(--space-xs); }

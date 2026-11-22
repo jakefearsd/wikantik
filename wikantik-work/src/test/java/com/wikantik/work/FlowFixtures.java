@@ -52,6 +52,25 @@ final class FlowFixtures {
         update( f, "UPDATE work_item SET status = '" + to + "' WHERE id = " + item.id() );
     }
 
+    /**
+     * Records an event of any type at {@code at}, in the exact shape its real writer uses (a hand-off's values are
+     * {@code status|target}, a claim's note is its expiry, a release's {@code from} names the holder), and sets the
+     * item's status to {@code status} when that is not null, as the real write would have.
+     */
+    static void event( final GateFixture f, final Item item, final String type, final String from, final String to,
+                       final String note, final String status, final Instant at ) throws SQLException {
+        update( f, "INSERT INTO work_event (project_id, item_id, at, actor, type, from_value, to_value, note) VALUES ("
+            + item.projectId() + "," + item.id() + ",'" + at + "'::timestamptz,'lena','" + type + "',"
+            + quoted( from ) + "," + quoted( to ) + "," + quoted( note ) + ")" );
+        if ( status != null ) {
+            update( f, "UPDATE work_item SET status = '" + status + "' WHERE id = " + item.id() );
+        }
+    }
+
+    private static String quoted( final String value ) {
+        return value == null ? "NULL" : "'" + value + "'";
+    }
+
     static void update( final GateFixture f, final String sql ) throws SQLException {
         WorkAgentFixtures.exec( f.ds, sql );
     }

@@ -37,8 +37,9 @@ import java.util.Optional;
 
 /**
  * Mails what is due, one message per person per run. A person is mailed only with an address, their choice on, and
- * standing in the item's project <em>now</em>; rows they can no longer see, or with nowhere to go, are stamped and
- * never sent. Sending happens outside any transaction and the stamp follows it (at least once: a crash between the
+ * standing in the item's project <em>now</em>, or, for a person who only reports there, only about an item they filed
+ * and only what {@link ReporterEvents} lets them hear, reshaped and worded for a reporter (re-checked per item at send
+ * time, never per project); rows they can no longer see, or with nowhere to go, are stamped and never sent. Sending happens outside any transaction and the stamp follows it (at least once: a crash between the
  * two repeats one message). A failure for one person is logged and leaves their rows for the next run.
  */
 final class EmailSender {
@@ -100,9 +101,12 @@ final class EmailSender {
             stamp( login, rows, now, null );
             return 0;
         }
-        final List< PendingEmail > visible = visibleRows( person.get(), rows );
+        final Visible seen = visibleRows( person.get(), rows );
+        final List< PendingEmail > visible = seen.rows();
         if ( visible.size() < rows.size() ) {
-            stamp( login, rows.stream().filter( r -> !visible.contains( r ) ).toList(), now, null );
+            final java.util.Set< Long > kept = new java.util.HashSet<>();
+            visible.forEach( r -> kept.add( r.notice().id() ) );
+            stamp( login, rows.stream().filter( r -> !kept.contains( r.notice().id() ) ).toList(), now, null );
         }
         if ( visible.isEmpty() ) {
             return 0;
@@ -113,7 +117,7 @@ final class EmailSender {
             return 0;
         }
         final EmailDigest.Email email = EmailDigest.render( visible, ports.settings().emailDetail(),
-            ports.settings().baseUrl(), scopes::displayName );
+            ports.settings().baseUrl(), scopes::displayName, r -> seen.asReporter().contains( r.notice().id() ) );
         try {
             ports.mailer().send( address.get().strip(), email.subject(), email.text() );
         } catch ( final IOException | RuntimeException e ) {
@@ -137,21 +141,65 @@ final class EmailSender {
             && ( first.lastDigestOn() == null || first.lastDigestOn().isBefore( today ) );
     }
 
-    private List< PendingEmail > visibleRows( final WorkDirectory.Person p, final List< PendingEmail > rows )
-            throws SQLException {
+    /** The rows a person may be mailed, and which of them they get as a person who only reports (reshaped). */
+    private record Visible( List< PendingEmail > rows, java.util.Set< Long > asReporter ) {
+    }
+
+    private Visible visibleRows( final WorkDirectory.Person p, final List< PendingEmail > rows ) throws SQLException {
         final Actor actor = Actor.human( p.login(), p.groups(), p.admin() );
         final Map< Long, Boolean > sees = new HashMap<>();
+        final Map< Long, Boolean > follows = new HashMap<>();
+        final Map< Long, Boolean > archived = new HashMap<>();
         final List< PendingEmail > visible = new ArrayList<>();
+        final java.util.Set< Long > asReporter = new java.util.HashSet<>();
         for ( final PendingEmail r : rows ) {
-            final long project = r.notice().event().projectId();
+            final WorkEvent e = r.notice().event();
+            final long project = e.projectId();
             final Boolean known = sees.get( project );
             final boolean can = known != null ? known : scopes.standing().seesProject( project, actor );
             sees.put( project, can );
             if ( can ) {
                 visible.add( r );
+            } else if ( e.itemId() != null && !archived( e.projectId(), archived )
+                    && followsAsReporter( actor, e, follows ) ) {
+                final Optional< NoticeView > shaped = ReporterEvents.reshape( r.notice() );
+                if ( shaped.isPresent() ) {
+                    visible.add( new PendingEmail( r.recipient(), r.mode(), r.lastDigestOn(), shaped.get(), r.commentText() ) );
+                    asReporter.add( r.notice().id() );
+                }
             }
         }
-        return visible;
+        return new Visible( visible, asReporter );
+    }
+
+    /**
+     * Whether the project is archived, read once per project for this person. A person who only reports hears of
+     * nothing in an archived project, as their inbox shows nothing of it (a member's inbox keeps an archived
+     * project, so a member's email does too).
+     */
+    private boolean archived( final long projectId, final Map< Long, Boolean > byProject ) throws SQLException {
+        final Boolean known = byProject.get( projectId );
+        if ( known != null ) {
+            return known;
+        }
+        final boolean gone = store.projects().stream().anyMatch( p -> p.id() == projectId && p.archivedAt() != null );
+        byProject.put( projectId, gone );
+        return gone;
+    }
+
+    /** Whether the person follows the event's item as its reporter only; resolved once per item for this person. */
+    private boolean followsAsReporter( final Actor person, final WorkEvent e, final Map< Long, Boolean > byItem )
+            throws SQLException {
+        final long itemId = e.itemId();
+        final Boolean known = byItem.get( itemId );
+        if ( known != null ) {
+            return known;
+        }
+        final Optional< Item > item = store.itemById( itemId );
+        final boolean follows = item.isPresent() && item.get().projectId() == e.projectId()
+            && scopes.standing().followsAsReporter( person, item.get() );
+        byItem.put( itemId, follows );
+        return follows;
     }
 
     private void stamp( final String login, final List< PendingEmail > rows, final Instant at, final LocalDate digestOn )

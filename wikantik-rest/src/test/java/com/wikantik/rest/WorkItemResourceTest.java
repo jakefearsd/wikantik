@@ -58,6 +58,7 @@ class WorkItemResourceTest {
     private WorkService svc;
     private WorkClaimsService claims;
     private com.wikantik.work.WorkFindService find;
+    private com.wikantik.work.WorkIntakeService intake;
     private WorkItemResource servlet;
 
     @BeforeEach
@@ -69,6 +70,8 @@ class WorkItemResourceTest {
         find = Mockito.mock( com.wikantik.work.WorkFindService.class );
         Mockito.when( svc.features() ).thenReturn( features );
         Mockito.when( features.find() ).thenReturn( find );
+        intake = Mockito.mock( com.wikantik.work.WorkIntakeService.class );
+        Mockito.when( features.intake() ).thenReturn( intake );
         Mockito.when( find.find( any(), any() ) ).thenReturn( com.wikantik.work.FindPage.EMPTY );
         servlet = WorkHttp.wire( new WorkItemResource(), svc, ALICE );
     }
@@ -964,5 +967,91 @@ class WorkItemResourceTest {
         Mockito.verify( svc ).updateItem( eq( ALICE ), eq( "PLAT-1" ), p.capture() );
         assertEquals( 7, ( ( Number ) p.getValue().changes().get( "sprint" ) ).intValue() );
         assertEquals( 2.5, ( ( Number ) p.getValue().changes().get( "estimate" ) ).doubleValue() );
+    }
+
+    // ---- the outside-reporter marker
+
+    @Test
+    void anItemFiledFromOutsideIsMarked() throws Exception {
+        Mockito.when( svc.item( ALICE, "PLAT-1" ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        Mockito.when( intake.outsideReporters( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( java.util.Set.of( "bob" ) );
+        final JsonObject o = get( "/PLAT-1", Map.of() ).json().getAsJsonObject();
+        assertEquals( true, o.get( "reportedFromOutside" ).getAsBoolean() );
+        assertEquals( true, o.getAsJsonObject( "item" ).get( "reportedFromOutside" ).getAsBoolean() );
+        assertEquals( "Name of bob", o.getAsJsonObject( "item" ).get( "reporterName" ).getAsString(),
+            "a member sees the display name, the marker is a flag" );
+        assertFalse( o.toString().contains( "\"bob\"" ), "no login on the wire" );
+    }
+
+    private void bobFiledFromOutside() throws Exception {
+        Mockito.when( intake.outsideReporters( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( java.util.Set.of( "bob" ) );
+    }
+
+    @Test
+    void theHandoffResponseIsMarkedToo() throws Exception {
+        Mockito.when( claims.handoff( any(), anyString(), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", "erin", 4 ) );
+        bobFiledFromOutside();
+        final JsonObject o = send( "POST", "/api/work/items", "/PLAT-1/handoff",
+            "{\"expectedVersion\":3,\"assignee\":\"erin\",\"note\":\"n\"}" ).json().getAsJsonObject();
+        assertEquals( true, o.get( "reportedFromOutside" ).getAsBoolean() );
+        assertEquals( true, o.getAsJsonObject( "item" ).get( "reportedFromOutside" ).getAsBoolean() );
+    }
+
+    @Test
+    void theCurrentItemOfAStaleConflictIsMarkedToo() throws Exception {
+        Mockito.when( svc.updateItem( any(), anyString(), any() ) ).thenThrow( new WorkConflictException( "changed" ) );
+        Mockito.when( svc.item( any(), anyString() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 5 ) );
+        bobFiledFromOutside();
+        final JsonObject cur = send( "PATCH", "/api/work/items", "/PLAT-1",
+            "{\"expectedVersion\":1,\"changes\":{\"title\":\"x\"}}" ).json().getAsJsonObject().getAsJsonObject( "current" );
+        assertEquals( true, cur.get( "reportedFromOutside" ).getAsBoolean() );
+        assertEquals( true, cur.getAsJsonObject( "item" ).get( "reportedFromOutside" ).getAsBoolean() );
+    }
+
+    @Test
+    void theClaimReleaseAcknowledgeAndCreateResponsesAreMarkedToo() throws Exception {
+        bobFiledFromOutside();
+        Mockito.when( claims.claim( any(), anyString() ) ).thenReturn(
+            new WorkClaimsService.ClaimResult( WorkHttp.view( "PLAT-1", "alice", 2 ), false ) );
+        Mockito.when( claims.release( any(), anyString(), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 3 ) );
+        Mockito.when( svc.acknowledge( any(), anyString() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 4 ) );
+        Mockito.when( svc.createItem( any(), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        for ( final WorkHttp.Result r : List.of(
+            send( "POST", "/api/work/items", "/PLAT-1/claim", "{}" ),
+            send( "POST", "/api/work/items", "/PLAT-1/release", "{}" ),
+            send( "POST", "/api/work/items", "/PLAT-1/acknowledge", "{}" ),
+            send( "POST", "/api/work/items", "", "{\"project\":\"PLAT\",\"title\":\"t\"}" ) ) ) {
+            assertEquals( true, r.json().getAsJsonObject().get( "reportedFromOutside" ).getAsBoolean(), r.toString() );
+        }
+    }
+
+    @Test
+    void anOrdinaryItemIsNot() throws Exception {
+        Mockito.when( svc.item( ALICE, "PLAT-1" ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        final JsonObject o = get( "/PLAT-1", Map.of() ).json().getAsJsonObject();
+        assertEquals( false, o.get( "reportedFromOutside" ).getAsBoolean() );
+    }
+
+    @Test
+    void thePatchedItemIsMarkedToo() throws Exception {
+        Mockito.when( svc.updateItem( eq( ALICE ), eq( "PLAT-1" ), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 2 ) );
+        Mockito.when( intake.outsideReporters( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( java.util.Set.of( "bob" ) );
+        final JsonObject o = send( "PATCH", "/api/work/items", "/PLAT-1", "{\"expectedVersion\":1,\"changes\":{\"title\":\"x\"}}" )
+            .json().getAsJsonObject();
+        assertEquals( true, o.get( "reportedFromOutside" ).getAsBoolean() );
+    }
+
+    @Test
+    void theProjectListCarriesTheMarkerAndFindDoesNot() throws Exception {
+        Mockito.when( svc.itemSummaries( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( List.of(
+            WorkHttp.summary( WorkHttp.item( "PLAT-1", null, 1 ), 0, false, null, null ) ) );
+        Mockito.when( intake.outsideReporters( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( java.util.Set.of( "bob" ) );
+        final JsonObject card = get( null, Map.of( "project", "PLAT" ) ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertEquals( true, card.get( "reportedFromOutside" ).getAsBoolean() );
+        final com.wikantik.work.FindPage page = new com.wikantik.work.FindPage( List.of(
+            WorkHttp.summary( WorkHttp.item( "PLAT-1", null, 1 ), 0, false, null, null ) ), null );
+        Mockito.when( find.find( any(), any() ) ).thenReturn( page );
+        final String found = get( null, Map.of() ).body();
+        assertFalse( found.contains( "reportedFromOutside" ), "the cross-project find shape has no marker" );
     }
 }

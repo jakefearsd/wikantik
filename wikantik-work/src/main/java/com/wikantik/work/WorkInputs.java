@@ -42,7 +42,9 @@ final class WorkInputs {
     private static final Set< String > LINK_KINDS = Set.of( "page", "issue", "url", "blocked_by", "commit" );
     private static final Set< String > PRINCIPAL_KINDS = Set.of( "user", "group", "agent" );
     /** First segments of SPA routes under {@code /work/}: a project with one of these keys could not be opened. */
-    private static final Set< String > RESERVED_KEYS = Set.of( "ITEM", "PRODUCTS", "AGENTS", "LOG", "DEPLOYMENTS", "INBOX", "FIND" );
+    private static final Set< String > RESERVED_KEYS = Set.of( "ITEM", "PRODUCTS", "AGENTS", "LOG", "DEPLOYMENTS", "INBOX", "FIND", "SUBMIT" );
+    /** An agent's role is viewer or member: lead and reporter are people's. */
+    private static final Set< WorkRole > NOT_FOR_AGENTS = java.util.EnumSet.of( WorkRole.LEAD, WorkRole.REPORTER );
     private static final int DEFAULT_ACTIVITY = 50;
     private static final int MAX_ACTIVITY = 200;
     private static final int MAX_LINK_TARGET = 2000;
@@ -78,7 +80,7 @@ final class WorkInputs {
     }
 
     static void requireAgentRole( final WorkRole role ) {
-        if ( role == WorkRole.LEAD ) {
+        if ( NOT_FOR_AGENTS.contains( role ) ) {
             throw new WorkValidationException( "role", "An agent's role is viewer or member." );
         }
     }

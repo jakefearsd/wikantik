@@ -225,6 +225,37 @@ class WorkSprintReportPostgresTest {
         assertDay( d.get( 1 ), "5", 2, "2", 1 );
     }
 
+    /**
+     * I-1: an agent claims both items and hands each off as done. The sprint's completion (velocity), its burndown and
+     * the flow page's throughput for the sprint must all say two, and both claims start a cycle.
+     */
+    @Test
+    void velocityAndThroughputAgreeForOneSprint() throws SQLException {
+        final Item a = task( 3 );
+        final Item b = task( 2 );
+        on( -3, () -> plan( a, sprintId ) );
+        on( -3, () -> plan( b, sprintId ) );
+        start();
+        fx.level( a, Autonomy.AUTONOMOUS );
+        fx.level( b, Autonomy.AUTONOMOUS );
+        on( 0, () -> fx.claimedBy( fx.author, a ) );
+        on( 0, () -> fx.claimedBy( fx.author, b ) );
+        on( 1, () -> fx.handoff( fx.author, a, WorkStatus.DONE, "lena", null ) );
+        on( 2, () -> fx.handoff( fx.author, b, WorkStatus.DONE, "lena", null ) );
+        closeOn( MON.plusDays( 4 ) );
+        final SprintReport r = report();
+        final Sprint s = r.sprint().sprint();
+        final FlowReport flow = fx.svc.features().flow().project( fx.lena, "PLAT",
+            new FlowQuery( null, null, sprintId, null, null, null ) );
+        final int throughput = flow.throughput().stream().mapToInt( FlowReport.Week::items ).sum();
+        assertEquals( 2, s.completedItems() );
+        assertEquals( s.completedItems(), throughput, "velocity and throughput agree" );
+        final Day last = r.days().get( r.days().size() - 1 );
+        assertEquals( s.completedItems(), last.scopeItems() - last.remainingItems(), "and so does the burndown" );
+        assertEquals( 2, flow.cycleTime().n(), "each claim started a cycle" );
+        assertEquals( 2, flow.leadTime().n() );
+    }
+
     @Test
     void addedAndRemovedAreRelativeToTheStart() throws SQLException {
         final Item kept = task( 1 );

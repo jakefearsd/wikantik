@@ -54,17 +54,43 @@ public interface WorkNotificationStore {
      */
     int dispatch( int maxEvents, NoticePlanner planner ) throws SQLException;
 
-    /** Newest first; {@code beforeId} (exclusive) pages. Empty with no query when {@code projectIds} is empty. */
-    List< NoticeView > inbox( String recipient, Set< Long > projectIds, Long beforeId, int limit ) throws SQLException;
+    /**
+     * Which of a reader's notices they may read now: every notice in a project they see, and, in a project where they
+     * only report, a notice about an item they filed themselves of a kind {@link ReporterEvents#notifies} allows
+     * (never one without an item). The two sets are disjoint by construction (see {@link WorkStanding}).
+     *
+     * @param visible    the projects the reader sees
+     * @param reportOnly the projects where the reader holds nothing but the reporter role
+     */
+    record Readable( Set< Long > visible, Set< Long > reportOnly ) {
 
-    /** Unread rows in the given projects. */
-    int unread( String recipient, Set< Long > projectIds ) throws SQLException;
+        public Readable {
+            visible = visible == null ? Set.of() : Set.copyOf( visible );
+            reportOnly = reportOnly == null ? Set.of() : Set.copyOf( reportOnly );
+        }
+
+        /** Only the projects the reader sees (a reader who reports nowhere). */
+        public static Readable visible( final Set< Long > projectIds ) {
+            return new Readable( projectIds, Set.of() );
+        }
+
+        /** True when the reader may read no notice at all. */
+        public boolean none() {
+            return visible.isEmpty() && reportOnly.isEmpty();
+        }
+    }
+
+    /** Newest first; {@code beforeId} (exclusive) pages. Empty with no query when nothing is readable. */
+    List< NoticeView > inbox( String recipient, Readable readable, Long beforeId, int limit ) throws SQLException;
+
+    /** Unread rows the reader may read. */
+    int unread( String recipient, Readable readable ) throws SQLException;
 
     /** Marks the recipient's unread rows about one item read at {@code at}; returns how many. */
     int markRead( String recipient, long itemId, Instant at ) throws SQLException;
 
-    /** Marks every unread row in the given projects read at {@code at}; returns how many. */
-    int markAllRead( String recipient, Set< Long > projectIds, Instant at ) throws SQLException;
+    /** Marks every unread row the reader may read (see {@link #unread}) read at {@code at}; returns how many. */
+    int markAllRead( String recipient, Readable readable, Instant at ) throws SQLException;
 
     /** {@link EmailMode#EACH} without a stored preference. */
     EmailMode emailMode( String login ) throws SQLException;

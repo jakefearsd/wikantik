@@ -28,7 +28,7 @@ import com.wikantik.work.WorkEvent;
 
 
 /**
- * {@code /api/work/me}: what is waiting on the caller, and the projects they can see. Each waiting item says why it is
+ * {@code /api/work/me}: what is waiting on the caller, and the projects they can see and {@code reportable}, where they may file an item (key, name and role only). Each waiting item says why it is
  * there ({@code waiting.reason}: {@code assigned}, {@code mentioned}, {@code acknowledge} or
  * {@code change_outside_policy}, a merge the code host reported outside policy) and, for an assignment that came with a
  * hand-off, who handed it over and their note.
@@ -43,6 +43,7 @@ public class WorkMeResource extends WorkResourceBase {
             final JsonObject out = new JsonObject();
             out.add( "waitingOn", waitingOn( c ) );
             out.add( "projects", visibleProjects( c ) );
+            out.add( "reportable", WorkIntakeJson.reportable( c.svc.features().intake().reportableProjects( c.actor ) ) );
             out.add( "deploymentsAwaiting", WorkDeploymentJson.brief( c.svc.deployments().awaitingMyApproval( c.actor ) ) );
             out.add( "notify", notify( c ) );
             c.json( out );

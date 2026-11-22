@@ -20,6 +20,7 @@ package com.wikantik.work;
 
 import com.wikantik.jdbc.Jdbc;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
@@ -27,8 +28,9 @@ import java.util.Set;
 /** Flagged merges: the lane of those a lead has yet to acknowledge, and the acknowledgement itself. */
 final class JdbcWorkChangeFlags {
 
-    private static final String WAITING = "c.policy_flag IS NOT NULL AND c.flag_acknowledged_at IS NULL "
-        + "AND c.superseded_by IS NULL";
+    private static final String WAITING = FlagNotices.waiting( "c" );
+    private static final String CLEARED = "This merge's flag was already cleared by a later delivery from the code "
+        + "host (an approval from before the merge, or the pull request's own merge); there is nothing to acknowledge.";
 
     private final Jdbc jdbc;
     private final JdbcWorkCatalog catalog;
@@ -58,6 +60,9 @@ final class JdbcWorkChangeFlags {
                     ps.setLong( 1, changeId );
                     ps.setLong( 2, item.id() );
                 }, JdbcWorkChanges.ROW ).orElseThrow( () -> new SQLException( "work_change " + changeId + " not found" ) );
+            if ( locked.supersededBy() != null || locked.policyFlag() == null && wasFlagged( conn, item, changeId ) ) {
+                throw new WorkConflictException( CLEARED, WorkConflictException.NOT_FLAGGED );
+            }
             if ( locked.policyFlag() == null ) {
                 throw new WorkConflictException( "This change was not merged outside policy.",
                     WorkConflictException.NOT_FLAGGED );
@@ -76,5 +81,15 @@ final class JdbcWorkChangeFlags {
             return jdbc.queryOne( conn, JdbcWorkChanges.SELECT + " WHERE id = ?", ps -> ps.setLong( 1, changeId ),
                 JdbcWorkChanges.ROW ).orElseThrow( () -> new SQLException( "work_change " + changeId + " not found" ) );
         } );
+    }
+
+    /** Whether a {@code change_flagged} event was ever written for the change (so a missing flag was cleared). */
+    private boolean wasFlagged( final Connection conn, final Item item, final long changeId ) throws SQLException {
+        return jdbc.queryOne( conn, "SELECT 1 FROM work_event WHERE item_id = ? AND type = ? AND from_value = ? LIMIT 1",
+            ps -> {
+                ps.setLong( 1, item.id() );
+                ps.setString( 2, WorkEvent.CHANGE_FLAGGED );
+                ps.setString( 3, "change:" + changeId );
+            }, rs -> Boolean.TRUE ).isPresent();
     }
 }

@@ -38,7 +38,7 @@ class WorkCodeHostRejectedTest {
                 seen.add( kind + "/" + outcome );
             }
         };
-        final FeatureDeps deps = new FeatureDeps( null, new GuardedListener( recording ), null, null, null, null );
+        final FeatureDeps deps = new FeatureDeps( null, new GuardedListener( recording ), null, null, null, null, null );
         new WorkCodeHostService( mock( WorkStore.class ), null, Clock.systemUTC(), deps ).rejected();
         assertEquals( List.of( "delivery/rejected" ), seen );
     }

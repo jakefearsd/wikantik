@@ -162,6 +162,18 @@ class JdbcWorkClaimsSponsorPostgresTest {
     }
 
     @Test
+    void demotingTheSponsorToReporterReleasesTheAgentsClaims() throws SQLException {
+        sponsorIs( WorkRole.MEMBER );
+        final Item held = claims.claim( fx.ready( "x" ), agentA( ana() ), HOUR ).orElseThrow();
+        assertEquals( 1, fx.store.putMember( fx.plat.id(), "ana", "user", WorkRole.REPORTER, WorkClaimFixtures.LENA,
+            List.of( ana() ) ) );
+        assertNull( fx.reload( held ).claimedByAgent() );
+        assertEquals( 1, released( held ).size() );
+        assertEquals( "sponsor access removed", released( held ).get( 0 ).note() );
+        assertTrue( claims.claim( fx.ready( "y" ), agentA( ana() ), HOUR ).isEmpty(), "a reporter sponsor cannot stand behind a claim" );
+    }
+
+    @Test
     void removingAGroupRowReleasesClaimsOfSponsorsWhoStoodOnlyOnThatGroup() throws SQLException {
         fx.store.putMember( fx.plat.id(), "Crew", "group", WorkRole.MEMBER, ROOT );
         final Item held = claims.claim( fx.ready( "x" ), agentA( ana( "Crew" ) ), HOUR ).orElseThrow();

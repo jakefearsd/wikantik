@@ -59,7 +59,18 @@ final class JdbcWorkNotifications implements WorkNotificationStore {
     private static final String INBOX_SELECT = "SELECT n.id AS notice_id, n.reason, n.created_at AS notice_at, "
         + "n.read_at, p.key AS project_key, i.title AS item_title, " + JdbcWorkStore.EVENT_COLUMNS
         + " FROM work_notification n JOIN work_event e ON e.id = n.event_id JOIN work_project p ON p.id = e.project_id "
-        + "LEFT JOIN work_item i ON i.id = e.item_id WHERE n.recipient = ? AND n.project_id = ANY( ? )";
+        + "LEFT JOIN work_item i ON i.id = e.item_id WHERE n.recipient = ? AND ";
+    /**
+     * What a reader may read (two array parameters: the projects they see, the projects where they only report): any
+     * notice in the first, and in the second only a notice about an item the reader filed themselves (a person's
+     * report, never an agent's) of a kind {@link ReporterEvents#notifiedSql} allows. The inner join on the item means an
+     * item-less notice never matches the second branch. A notice must also be live ({@link FlagNotices}): a
+     * {@code change_flagged} notice whose flag was cleared, superseded or acknowledged is not read, counted or marked.
+     */
+    private static final String READABLE = "( ( n.project_id = ANY( ? ) OR ( n.project_id = ANY( ? ) AND EXISTS ( "
+        + "SELECT 1 FROM work_event re JOIN work_item ri ON ri.id = re.item_id WHERE re.id = n.event_id "
+        + "AND ri.id IS NOT NULL AND ri.reporter = n.recipient AND ri.reporter_agent_id IS NULL AND "
+        + ReporterEvents.notifiedSql( "re" ) + " ) ) ) AND " + FlagNotices.liveNoticeSql( "n" ) + " )";
 
     private record Cursor( String tx, long eventId ) {
     }
@@ -129,16 +140,17 @@ final class JdbcWorkNotifications implements WorkNotificationStore {
     }
 
     @Override
-    public List< NoticeView > inbox( final String recipient, final Set< Long > projectIds, final Long beforeId,
+    public List< NoticeView > inbox( final String recipient, final Readable readable, final Long beforeId,
                                      final int limit ) throws SQLException {
-        if ( projectIds.isEmpty() ) {
+        if ( readable.none() ) {
             return List.of();
         }
-        return jdbc.withConnection( conn -> jdbc.query( conn, INBOX_SELECT + ( beforeId == null ? "" : " AND n.id < ?" )
-                + " ORDER BY n.id DESC LIMIT ?", ps -> {
+        return jdbc.withConnection( conn -> jdbc.query( conn, INBOX_SELECT + READABLE
+                + ( beforeId == null ? "" : " AND n.id < ?" ) + " ORDER BY n.id DESC LIMIT ?", ps -> {
                     ps.setString( 1, recipient );
-                    ps.setArray( 2, ids( conn, projectIds ) );
-                    int next = 3;
+                    ps.setArray( 2, ids( conn, readable.visible() ) );
+                    ps.setArray( 3, ids( conn, readable.reportOnly() ) );
+                    int next = 4;
                     if ( beforeId != null ) {
                         ps.setLong( next++, beforeId );
                     }
@@ -149,14 +161,15 @@ final class JdbcWorkNotifications implements WorkNotificationStore {
     }
 
     @Override
-    public int unread( final String recipient, final Set< Long > projectIds ) throws SQLException {
-        if ( projectIds.isEmpty() ) {
+    public int unread( final String recipient, final Readable readable ) throws SQLException {
+        if ( readable.none() ) {
             return 0;
         }
-        return jdbc.withConnection( conn -> jdbc.queryOne( conn, "SELECT COUNT(*) FROM work_notification "
-                + "WHERE recipient = ? AND read_at IS NULL AND project_id = ANY( ? )", ps -> {
+        return jdbc.withConnection( conn -> jdbc.queryOne( conn, "SELECT COUNT(*) FROM work_notification n "
+                + "WHERE n.recipient = ? AND n.read_at IS NULL AND " + READABLE, ps -> {
                     ps.setString( 1, recipient );
-                    ps.setArray( 2, ids( conn, projectIds ) );
+                    ps.setArray( 2, ids( conn, readable.visible() ) );
+                    ps.setArray( 3, ids( conn, readable.reportOnly() ) );
                 }, rs -> rs.getInt( 1 ) ).orElse( 0 ) );
     }
 
@@ -171,16 +184,17 @@ final class JdbcWorkNotifications implements WorkNotificationStore {
     }
 
     @Override
-    public int markAllRead( final String recipient, final Set< Long > projectIds, final Instant at )
+    public int markAllRead( final String recipient, final Readable readable, final Instant at )
             throws SQLException {
-        if ( projectIds.isEmpty() ) {
+        if ( readable.none() ) {
             return 0;
         }
-        return jdbc.withConnection( conn -> jdbc.update( conn, "UPDATE work_notification SET read_at = ? "
-                + "WHERE recipient = ? AND read_at IS NULL AND project_id = ANY( ? )", ps -> {
+        return jdbc.withConnection( conn -> jdbc.update( conn, "UPDATE work_notification n SET read_at = ? "
+                + "WHERE n.recipient = ? AND n.read_at IS NULL AND " + READABLE, ps -> {
                     ps.setTimestamp( 1, Timestamp.from( at ) );
                     ps.setString( 2, recipient );
-                    ps.setArray( 3, ids( conn, projectIds ) );
+                    ps.setArray( 3, ids( conn, readable.visible() ) );
+                    ps.setArray( 4, ids( conn, readable.reportOnly() ) );
                 } ) );
     }
 

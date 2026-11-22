@@ -5,7 +5,8 @@ import { getMe } from '../api/work';
 
 /**
  * Whether the "Work" navigation entry shows: the feature is on AND the viewer is signed in AND is either
- * an admin or a member of at least one project that is not archived. Costs no request while the feature is off.
+ * an admin or a member of at least one project that is not archived, or may file into some project (a reporter has no project
+ * of their own but still has requests to file and follow). Costs no request while the feature is off.
  */
 export function useWorkNavVisible() {
   const { user } = useAuth();
@@ -22,8 +23,8 @@ export function useWorkNavVisible() {
     if (!enabled) return undefined;
     let cancelled = false;
     getMe()
-      // Archived projects are read-only and listed apart: they alone do not earn a navigation entry.
-      .then((me) => { if (!cancelled) setAnswer({ who, hasProject: (me?.projects || []).some((p) => !p.archived) }); })
+      // Archived projects are read-only and listed apart: they alone do not earn a navigation entry. A project one may file into does.
+      .then((me) => { if (!cancelled) setAnswer({ who, hasProject: (me?.projects || []).some((p) => !p.archived) || (me?.reportable || []).length > 0 }); })
       .catch((e) => console.warn('useWorkNavVisible: failed to load /api/work/me', e));
     return () => { cancelled = true; };
   }, [enabled, who]);

@@ -206,4 +206,21 @@ class JdbcWorkStoreProjectsPostgresTest {
         assertEquals( 1, store.products().size() );
         assertEquals( Optional.empty(), store.product( "none" ) );
     }
+
+    @Test
+    void aReporterRowRoundTrips() throws SQLException {
+        final Project p = store.createProject( "WIKI", "Wiki", "" );
+        store.putMember( p.id(), "rita", "user", WorkRole.REPORTER, Actor.human( "admin", java.util.Set.of(), false ) );
+        assertEquals( List.of( WorkRole.REPORTER ), store.members( p.id() ).stream().map( Member::role ).toList() );
+    }
+
+    @Test
+    void theStoreRefusesAnAgentReporter() throws SQLException {
+        final Project p = store.createProject( "WIKI", "Wiki", "" );
+        final WorkValidationException e = assertThrows( WorkValidationException.class,
+            () -> store.putMember( p.id(), "7", "agent", WorkRole.REPORTER, Actor.human( "admin", java.util.Set.of(), false ) ) );
+        assertEquals( "role", e.field() );
+        assertTrue( store.members( p.id() ).isEmpty() );
+        assertEquals( 0, store.projectEvents( p.id(), null, null, null, null, true, 50 ).size() );
+    }
 }

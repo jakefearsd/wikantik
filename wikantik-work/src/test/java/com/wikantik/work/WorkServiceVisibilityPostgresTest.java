@@ -58,7 +58,7 @@ class WorkServiceVisibilityPostgresTest {
         "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge", "open", "update",
         "requestReview", "review", "merge", "abandon", "request", "approve", "start", "verify", "fail", "rollBack", "reject",
         "create", "close", "markRead", "setWatch", "add", "remove",
-        "save", "rename", "delete", "upload", "enableHook", "disableHook", "acknowledgeFlag" );
+        "save", "rename", "delete", "upload", "enableHook", "disableHook", "acknowledgeFlag", "comment" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
@@ -72,6 +72,42 @@ class WorkServiceVisibilityPostgresTest {
      * reads in the hiding sense (an agent with no project still gets its own row), so each has its own test.
      */
     private static final Set< String > OWN = Set.of( "self", "inbox", "unread", "markAllRead", "preference", "setPreference" );
+
+    /**
+     * Where each {@link #OWN} method is driven, as {@code Class#method}: the claim "each has its own test" is checked
+     * ({@code everyOwnMethodPointsAtATestThatExists}), so it cannot go stale. The notification ones are driven as a
+     * person who only reports (Part 8, Task 8.2c).
+     */
+    private static final java.util.Map< String, String > OWN_TESTS = java.util.Map.of(
+        "self", "WorkServiceVisibilityPostgresTest#selfIsTheCallingAgentsOwnRecordOnly",
+        "inbox", "WorkReporterSurfacesPostgresTest#aDemotedMembersOldNoticesShowOnlyAsAReporterMay",
+        "unread", "WorkReporterSurfacesPostgresTest#aDemotedMembersOldNoticesShowOnlyAsAReporterMay",
+        "markAllRead", "WorkReporterSurfacesPostgresTest#aReporterReadsTheirWatchStateAndClearsTheirUnread",
+        "preference", "WorkReporterSurfacesPostgresTest#aReportersOwnPreferenceIsHers",
+        "setPreference", "WorkReporterSurfacesPostgresTest#aReportersOwnPreferenceIsHers" );
+
+    /**
+     * Surfaces a person who only reports may use on the item they filed (Task 8.2c, rulings 3 and 4): the reflective
+     * reporter loop drives them with every argument set except the reporter's own item, and the own-item case is driven
+     * by the named test.
+     */
+    private static final java.util.Map< String, String > OWN_ITEM_TESTS = java.util.Map.of(
+        "WorkNotificationsService.markRead", "WorkReporterSurfacesPostgresTest#aReporterReadsTheirWatchStateAndClearsTheirUnread",
+        "WorkNotificationsService.watchState", "WorkReporterSurfacesPostgresTest#aReporterReadsTheirWatchStateAndClearsTheirUnread",
+        "WorkNotificationsService.setWatch", "WorkReporterSurfacesPostgresTest#aReporterWatchesAndMarksReadOnlyTheirOwnItem",
+        "WorkAttachmentsService.upload", "WorkReporterSurfacesPostgresTest#aReporterAttachesToAndReadsTheirOwnItem",
+        "WorkAttachmentsService.list", "WorkReporterSurfacesPostgresTest#aReporterAttachesToAndReadsTheirOwnItem",
+        "WorkAttachmentsService.content", "WorkReporterSurfacesPostgresTest#aReporterAttachesToAndReadsTheirOwnItem",
+        "WorkAttachmentsService.mayAttach", "WorkReporterSurfacesPostgresTest#aReporterAttachesToAndReadsTheirOwnItem",
+        "WorkAttachmentsService.listing", "WorkReporterSurfacesPostgresTest#aReporterSeesTheListingWithMayAttachTrue",
+        "WorkAttachmentsService.remove", "WorkReporterSurfacesPostgresTest#aReporterRemovesOnlyTheirOwnUpload" );
+
+    /**
+     * What intake lets a person do for themselves: file a draft into a project they hold any row in, list what they
+     * can file into and what they filed. Strangers are not "refused" these: rita and gus legitimately file into PLAT, so
+     * the reflective write loop cannot treat {@code submit} as a write (ruling 10). Each has its own test.
+     */
+    private static final Set< String > INTAKE_OWN = Set.of( "reportableProjects", "reported", "submit" );
 
     /**
      * Reads that answer yes or no, so "returned real data" has no meaning for them: each is driven as a stranger
@@ -95,19 +131,27 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "mayAttach", "listing", "dora" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "mayAttach", "listing", "dora", "outsideReporters" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
+
+    /** As above plus the two reporters' own items, so a reporter is driven against the very item she may follow. */
+    private static final List< String > REPORTER_FIXTURES = List.of( "PLAT", "PLAT-1", "PLAT-4", "PLAT-5", "implementer", "web" );
 
     private final Actor mallory = Actor.human( "mallory", Set.of(), false );
     private final Actor lena = Actor.human( "lena", Set.of(), false );
     private final Actor admin = Actor.human( "admin", Set.of(), true );
+    /** A reporter by name, and one by the Customers group; each filed one item (PLAT-4 and PLAT-5). */
+    private final Actor rita = Actor.human( "rita", Set.of(), false );
+    private final Actor gus = Actor.human( "gus", Set.of( "Customers" ), false );
     private Actor rogueAgent;
     private Actor flaggedAgent;
     private Actor codexActor;
     /** The member agent itself (it holds a claim in PLAT) under a sponsor who is not a member, and under none. */
     private Actor codexUnderAStranger;
     private Actor codexWithNoSponsor;
+    /** The member agent itself, under a sponsor whose only standing is the reporter row. */
+    private Actor codexUnderAReporter;
 
     private WorkService service;
     private long commentId;
@@ -130,9 +174,12 @@ class WorkServiceVisibilityPostgresTest {
         codexActor = WorkAgentFixtures.sponsored( codex, "codex@docker2" );
         codexUnderAStranger = Actor.agent( codex, "codex@docker2", Actor.human( "mallory", Set.of(), false ) );
         codexWithNoSponsor = Actor.agent( codex, "codex@docker2" );
+        codexUnderAReporter = Actor.agent( codex, "codex@docker2", rita );
         store.putMember( plat.id(), String.valueOf( codex ), "agent", WorkRole.MEMBER,
             Actor.human( "admin", java.util.Set.of(), false ) );
         store.putMember( plat.id(), "lena", "user", WorkRole.LEAD, Actor.human( "admin", java.util.Set.of(), false ) );
+        store.putMember( plat.id(), "rita", "user", WorkRole.REPORTER, Actor.human( "admin", java.util.Set.of(), false ) );
+        store.putMember( plat.id(), "Customers", "group", WorkRole.REPORTER, Actor.human( "admin", java.util.Set.of(), false ) );
         final Product web = store.createProduct( new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED,
             DeployGate.HUMAN, null ) );
         final Item item = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "secret item" ), Actor.human( "lena", java.util.Set.of(), false ) );
@@ -151,6 +198,9 @@ class WorkServiceVisibilityPostgresTest {
         store.createItem( plat, queued( "claimable item" ), lena );
         final Item held = store.createItem( plat, queued( "held item" ), lena );
         store.claims().claim( held, codexActor, java.time.Duration.ofHours( 1 ) );
+        // the two reporters' own items: PLAT-4 is rita's, PLAT-5 is gus's
+        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "rita's report" ), rita );
+        store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "gus's report" ), gus );
         // a live change on PLAT-1, so the change reads return real data to prove against
         store.changes().open( item, web.id(), new ChangeDraft( "work/PLAT-1-secret", "main", "abc1234", null, null ),
             lena );
@@ -171,7 +221,7 @@ class WorkServiceVisibilityPostgresTest {
         store.notifyStores().webhooks().add( plat, java.net.URI.create( "https://hooks.example.com/secret" ),
             WebhookFormat.GENERIC, "s3cret", List.of(), lena );
         service = new WorkService( store, md -> md, new WorkDirectory() {
-            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
+            @Override public Set< String > groupsOf( final String login ) { return "gus".equals( login ) ? Set.of( "Customers" ) : Set.of(); }
             @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC() );
@@ -185,7 +235,8 @@ class WorkServiceVisibilityPostgresTest {
     }
 
     private List< Actor > strangers() {
-        return List.of( mallory, rogueAgent, flaggedAgent, codexUnderAStranger, codexWithNoSponsor, Actor.system( "github" ) );
+        return List.of( mallory, rogueAgent, flaggedAgent, codexUnderAStranger, codexWithNoSponsor, Actor.system( "github" ),
+            rita, gus, codexUnderAReporter );
     }
 
     /** A public method and the object to call it on: the service itself, or the facade an accessor returns. */
@@ -244,6 +295,8 @@ class WorkServiceVisibilityPostgresTest {
             "the sprint service, reached through features(), is walked" );
         assertTrue( ops().stream().anyMatch( op -> op.target() instanceof WorkFlowService ),
             "the flow service, reached through features(), is walked" );
+        assertTrue( ops().stream().anyMatch( op -> op.target() instanceof WorkIntakeService ),
+            "the intake service, reached through features(), is walked" );
     }
 
     @Test
@@ -254,8 +307,13 @@ class WorkServiceVisibilityPostgresTest {
         assertTrue( Collections.disjoint( SYSTEM, READS ) && Collections.disjoint( SYSTEM, WRITES ) );
         assertTrue( Collections.disjoint( OWN, READS ) && Collections.disjoint( OWN, WRITES )
             && Collections.disjoint( OWN, SYSTEM ) );
+        assertTrue( Collections.disjoint( INTAKE_OWN, READS ) && Collections.disjoint( INTAKE_OWN, WRITES )
+            && Collections.disjoint( INTAKE_OWN, SYSTEM ) && Collections.disjoint( INTAKE_OWN, OWN )
+            && Collections.disjoint( INTAKE_OWN, INSTANCE_READS ) && Collections.disjoint( INTAKE_OWN, YES_OR_NO ),
+            "submit is a filing, not a write strangers are refused: it must not be in WRITES" );
         final Set< String > classified = new TreeSet<>( READS );
         classified.addAll( OWN );
+        classified.addAll( INTAKE_OWN );
         classified.addAll( YES_OR_NO );
         classified.addAll( INSTANCE_READS );
         classified.addAll( WRITES );
@@ -276,6 +334,7 @@ class WorkServiceVisibilityPostgresTest {
                 : type == long.class ? List.of( 1L, 999_999L )
                 : type == AssignmentLogQuery.class ? List.of( AssignmentLogQuery.all() )
                 : type == FindFilter.class ? List.of( FindFilter.all() )
+                : type == Collection.class ? List.of( List.of( "rita", "lena" ) )
                 : Arrays.asList( new Object[] { null } );
             final List< Object[] > next = new ArrayList<>();
             for ( final Object[] prefix : sets ) {
@@ -398,6 +457,35 @@ class WorkServiceVisibilityPostgresTest {
         for ( final var attempt : attempts ) {
             assertThrows( WorkNotFoundException.class, attempt );
         }
+        final WorkIntakeService intake = service.features().intake();
+        final long ritasComment = assertDoesNotThrow( () -> intake.comment( rita, "PLAT-4", "my own words" ).id() );
+        for ( final Actor reporter : List.of( rita, gus ) ) {
+            final List< org.junit.jupiter.api.function.Executable > asAReporter = List.of(
+                () -> service.createItem( reporter, draft ),
+                () -> service.updateItem( reporter, "PLAT-4", patch ),
+                () -> service.updateItem( reporter, "PLAT-5", patch ),
+                () -> service.addComment( reporter, "PLAT-4", "hi" ),
+                () -> service.addComment( reporter, "PLAT-5", "hi" ),
+                () -> service.addLink( reporter, "PLAT-4", "url", "https://a.example" ),
+                () -> service.editComment( reporter, commentId, "x" ),
+                () -> service.editComment( reporter, ritasComment, "x" ),
+                () -> service.removeComment( reporter, commentId ),
+                () -> service.removeComment( reporter, ritasComment ),
+                () -> service.removeLink( reporter, linkId ),
+                () -> intake.comment( reporter, "PLAT-1", "hi" ),
+                () -> intake.comment( reporter, "PLAT-2", "hi" ) );
+            for ( final var attempt : asAReporter ) {
+                assertThrows( WorkNotFoundException.class, attempt, reporter.login() );
+            }
+        }
+        assertThrows( WorkNotFoundException.class, () -> intake.comment( rita, "PLAT-5", "gus's item" ) );
+        assertThrows( WorkNotFoundException.class, () -> intake.comment( gus, "PLAT-4", "rita's item" ) );
+        assertThrows( WorkNotFoundException.class, () -> intake.submit( mallory, new IntakeDraft( "PLAT", null, null, "t", "" ) ) );
+        for ( final Actor stranger : strangers().stream().filter( a -> a != rita && a != gus ).toList() ) {
+            assertThrows( WorkNotFoundException.class,
+                () -> intake.submit( stranger, new IntakeDraft( "PLAT", null, null, "t", "" ) ), stranger.login() );
+            assertThrows( WorkNotFoundException.class, () -> intake.comment( stranger, "PLAT-1", "hi" ), stranger.login() );
+        }
         for ( final Actor stranger : strangers() ) {
             assertThrows( WorkNotFoundException.class,
                 () -> service.features().attachments().upload( stranger, "PLAT-1", null, "x.png", PNG ) );
@@ -431,6 +519,209 @@ class WorkServiceVisibilityPostgresTest {
             assertThrows( WorkNotFoundException.class, () -> service.claims().release( stranger, "PLAT-3", "x" ) );
             assertThrows( WorkNotFoundException.class, () -> service.claims().handoff( stranger, "PLAT-2", handoff ) );
         }
+    }
+
+    // ---- reporters: the audit as a test
+
+    /** Prints the outcome list (the report's audit table) only when {@code -Dwork.reporterOutcomes=true}. */
+    private static void say( final String line ) {
+        if ( Boolean.getBoolean( "work.reporterOutcomes" ) ) {
+            System.out.println( "REPORTER-OUTCOME " + line );
+        }
+    }
+
+    @Test
+    void everyOwnMethodPointsAtATestThatExists() throws Exception {
+        assertEquals( OWN, OWN_TESTS.keySet(), "every OWN method names the test that drives it" );
+        final java.util.Map< String, String > all = new java.util.HashMap<>( OWN_TESTS );
+        OWN_ITEM_TESTS.forEach( all::put );
+        for ( final java.util.Map.Entry< String, String > e : all.entrySet() ) {
+            final String[] parts = e.getValue().split( "#" );
+            final Method m = Class.forName( "com.wikantik.work." + parts[ 0 ] ).getDeclaredMethod( parts[ 1 ] );
+            assertTrue( m.isAnnotationPresent( Test.class ), e.getKey() + " -> " + e.getValue() + " is not a test" );
+        }
+    }
+
+    @Test
+    void intakeOwnReadsAnswerOnlyTheCaller() throws SQLException {
+        final WorkIntakeService intake = service.features().intake();
+        assertEquals( List.of( "PLAT" ), intake.reportableProjects( rita ).stream().map( ReportableProject::key ).toList() );
+        assertEquals( List.of( WorkRole.REPORTER ), intake.reportableProjects( rita ).stream().map( ReportableProject::role ).toList() );
+        assertEquals( List.of( "PLAT-4" ), intake.reported( rita ).stream().map( ReportedItem::key ).toList() );
+        assertEquals( List.of( "PLAT" ), intake.reportableProjects( gus ).stream().map( ReportableProject::key ).toList() );
+        assertEquals( List.of( "PLAT-5" ), intake.reported( gus ).stream().map( ReportedItem::key ).toList() );
+        assertEquals( List.of( "PLAT" ), intake.reportableProjects( lena ).stream().map( ReportableProject::key ).toList() );
+        assertEquals( List.of(), intake.reported( lena ), "a lead follows items through the ordinary calls" );
+        for ( final Actor stranger : List.of( mallory, rogueAgent, flaggedAgent, codexUnderAStranger, codexWithNoSponsor,
+                codexUnderAReporter, Actor.system( "github" ) ) ) {
+            assertEquals( List.of(), intake.reportableProjects( stranger ), stranger.login() );
+            assertEquals( List.of(), intake.reported( stranger ), stranger.login() );
+        }
+        say( "rita intake.reportableProjects -> [PLAT]; intake.reported -> [PLAT-4]" );
+        say( "gus intake.reportableProjects -> [PLAT]; intake.reported -> [PLAT-5]" );
+        say( "mallory, agents, system intake.reportableProjects/reported -> empty" );
+    }
+
+    @Test
+    void aReporterFollowsOnlyTheirOwnItemThroughIntake() throws SQLException {
+        final WorkIntakeService intake = service.features().intake();
+        assertEquals( "PLAT-4", intake.item( rita, "PLAT-4" ).key() );
+        assertEquals( "PLAT-5", intake.item( gus, "PLAT-5" ).key() );
+        for ( final String other : List.of( "PLAT-1", "PLAT-2", "PLAT-3", "PLAT-5", "PLAT-99", "PLAT", "web" ) ) {
+            assertThrows( WorkNotFoundException.class, () -> intake.item( rita, other ), "rita " + other );
+        }
+        for ( final String other : List.of( "PLAT-1", "PLAT-2", "PLAT-3", "PLAT-4" ) ) {
+            assertThrows( WorkNotFoundException.class, () -> intake.item( gus, other ), "gus " + other );
+        }
+        assertEquals( "my words", intake.comment( rita, "PLAT-4", "my words" ).body() );
+        assertThrows( WorkNotFoundException.class, () -> intake.comment( rita, "PLAT-5", "x" ) );
+        for ( final Actor stranger : List.of( mallory, rogueAgent, flaggedAgent, codexUnderAStranger, codexWithNoSponsor,
+                codexUnderAReporter, Actor.system( "github" ) ) ) {
+            for ( final String key : List.of( "PLAT-1", "PLAT-4", "PLAT-5" ) ) {
+                assertThrows( WorkNotFoundException.class, () -> intake.item( stranger, key ), stranger.login() + " " + key );
+            }
+        }
+        say( "rita intake.item(PLAT-4) -> allowed; other items -> not found; intake.comment(PLAT-4) -> allowed; others -> not found" );
+        say( "gus intake.item(PLAT-5) -> allowed; other items -> not found" );
+    }
+
+    @Test
+    void filingIsForPeopleWithAnyRowAndStartsADraft() throws SQLException {
+        final WorkIntakeService intake = service.features().intake();
+        for ( final Actor filer : List.of( rita, gus, lena ) ) {
+            final ReportedItemView v = intake.submit( filer, new IntakeDraft( "PLAT", null, null, "from " + filer.login(), "" ) );
+            assertEquals( WorkStatus.DRAFT, v.status(), filer.login() );
+            assertEquals( filer.login(), v.reporter() );
+        }
+        final long before = service.items( lena, "PLAT", null ).size();
+        for ( final Actor stranger : List.of( mallory, rogueAgent, flaggedAgent, codexUnderAStranger, codexWithNoSponsor,
+                Actor.system( "github" ) ) ) {
+            assertThrows( WorkNotFoundException.class,
+                () -> intake.submit( stranger, new IntakeDraft( "PLAT", null, null, "no", "" ) ), stranger.login() );
+        }
+        assertThrows( WorkNotFoundException.class, () -> intake.submit( codexUnderAReporter,
+            new IntakeDraft( "PLAT", null, null, "no", "" ) ), "an agent under a reporter has nothing" );
+        assertEquals( before, service.items( lena, "PLAT", null ).size(), "none of those filed anything" );
+        say( "rita, gus, lena intake.submit -> draft filed; mallory, agents, system, codexUnderAReporter -> not found" );
+    }
+
+    /** The parameter values a reflective call uses: enough for each method to reach its first check. */
+    private static List< Object > samples( final Class< ? > type, final Actor actor ) {
+        final java.time.LocalDate day = java.time.LocalDate.parse( "2026-01-05" );
+        if ( type == Actor.class ) {
+            return List.of( actor );
+        }
+        if ( type == String.class ) {
+            return new ArrayList<>( REPORTER_FIXTURES );
+        }
+        final java.util.Map< Class< ? >, Object > fixed = java.util.Map.ofEntries(
+            java.util.Map.entry( int.class, 1 ), java.util.Map.entry( boolean.class, true ),
+            java.util.Map.entry( Collection.class, List.of( "rita", "gus", "lena" ) ),
+            java.util.Map.entry( AssignmentLogQuery.class, AssignmentLogQuery.all() ),
+            java.util.Map.entry( FindFilter.class, FindFilter.all() ),
+            java.util.Map.entry( java.time.Instant.class, java.time.Instant.parse( "2026-01-05T00:00:00Z" ) ),
+            java.util.Map.entry( java.time.LocalDate.class, day ),
+            java.util.Map.entry( byte[].class, PNG ),
+            java.util.Map.entry( WatchState.class, WatchState.WATCHING ),
+            java.util.Map.entry( WorkRole.class, WorkRole.LEAD ),
+            java.util.Map.entry( ItemDraft.class, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "",
+                null, null, null, null, null, null ) ),
+            java.util.Map.entry( ItemPatch.class, new ItemPatch( 1, java.util.Map.of( "title", "x" ), null ) ),
+            java.util.Map.entry( WorkClaimsService.Handoff.class, new WorkClaimsService.Handoff( 1, null, null, "implementer", "n" ) ),
+            java.util.Map.entry( ChangeDraft.class, new ChangeDraft( "work/x", "main", "abc1234", null, null, null ) ),
+            java.util.Map.entry( DeploymentDraft.class, new DeploymentDraft( "web", null, "1.0", List.of( "PLAT-1" ), null ) ),
+            java.util.Map.entry( SprintDraft.class, new SprintDraft( "S9", "", day, day.plusDays( 13 ) ) ),
+            java.util.Map.entry( WebhookDraft.class, new WebhookDraft( "https://a.example.com/x", "generic", List.of() ) ),
+            java.util.Map.entry( WebhookPatch.class, new WebhookPatch( null, null, false ) ),
+            java.util.Map.entry( SavedFilterDraft.class, new SavedFilterDraft( "x", "PLAT", true, java.util.Map.of() ) ),
+            java.util.Map.entry( AgentDraft.class, new AgentDraft( "new@x", "", "", List.of() ) ),
+            java.util.Map.entry( DoraQuery.class, new DoraQuery( null, null, null ) ),
+            java.util.Map.entry( FlowQuery.class, new FlowQuery( null, null, null, null, null, null ) ),
+            java.util.Map.entry( Product.class, new Product( 0, "web2", "Web", null, null, null, Autonomy.DELEGATED,
+                DeployGate.HUMAN, null ) ) );
+        if ( type == long.class ) {
+            return List.of( 1L, 4L, 999_999L );
+        }
+        return Arrays.asList( fixed.get( type ) );
+    }
+
+    private static List< Object[] > reporterArguments( final Method m, final Actor actor ) {
+        List< Object[] > sets = new ArrayList<>();
+        sets.add( new Object[ m.getParameterCount() ] );
+        for ( int i = 0; i < m.getParameterCount(); i++ ) {
+            final List< Object > options = samples( m.getParameterTypes()[ i ], actor );
+            final List< Object[] > next = new ArrayList<>();
+            for ( final Object[] prefix : sets ) {
+                for ( final Object option : options ) {
+                    final Object[] copy = prefix.clone();
+                    copy[ i ] = option;
+                    next.add( copy );
+                }
+            }
+            sets = next;
+        }
+        return sets;
+    }
+
+    /**
+     * The audit as a test (Part 8, review focus 2). Every public method of the service and of every facade is driven
+     * as a person who is only a reporter (by name, and by group) and as an agent under one, with the fixtures that
+     * include the reporter's own item. The answer is "not found" or "denied", or an empty result for a list: never
+     * data, and no write. The intake methods and the caller's own records have their own tests; a method added
+     * later is classified (or the classification test fails) and then driven here.
+     */
+    @Test
+    void everyMethodAnswersAReporterWithNothing() throws Exception {
+        final Set< String > skipped = new TreeSet<>( SYSTEM );
+        skipped.addAll( OWN );
+        final java.util.Map< String, java.util.Set< String > > outcomes = new java.util.TreeMap<>();
+        final List< String > failures = new ArrayList<>();
+        for ( final Actor reporter : List.of( rita, gus, codexUnderAReporter ) ) {
+            for ( final Op op : ops() ) {
+                if ( skipped.contains( op.name() ) || op.target() instanceof WorkIntakeService ) {
+                    continue;
+                }
+                final String label = reporter.login() + ( reporter.kind() == Actor.Kind.AGENT ? " (agent under a reporter)" : "" )
+                    + " | " + op.target().getClass().getSimpleName() + "." + op.name();
+                final java.util.Set< String > seen = outcomes.computeIfAbsent( label, k -> new TreeSet<>() );
+                final boolean ownItemSurface = OWN_ITEM_TESTS.containsKey( op.target().getClass().getSimpleName() + "." + op.name() );
+                final String ownKey = reporter == rita ? "PLAT-4" : reporter == gus ? "PLAT-5" : null;
+                for ( final Object[] args : reporterArguments( op.method(), reporter ) ) {
+                    if ( ownItemSurface && ownKey != null && Arrays.asList( args ).contains( ownKey ) ) {
+                        continue;   // her own item: driven by the test OWN_ITEM_TESTS names
+                    }
+                    try {
+                        final Object result = invoke( op.method(), op.target(), args );
+                        if ( READS.contains( op.name() ) && isEmptyResult( result ) ) {
+                            seen.add( "empty" );
+                        } else {
+                            seen.add( "RETURNED" );
+                            failures.add( label + " answered " + java.util.Arrays.toString( args ) + " with " + result );
+                        }
+                    } catch ( final WorkNotFoundException e ) {
+                        seen.add( "not found" );
+                    } catch ( final WorkDeniedException e ) {
+                        seen.add( "denied" );
+                    } catch ( final Exception e ) {
+                        seen.add( "UNEXPECTED " + e.getClass().getSimpleName() );
+                        failures.add( label + " threw " + e + " for " + java.util.Arrays.toString( args ) );
+                    }
+                }
+            }
+        }
+        assertEquals( List.of(), failures );
+        final List< String > driven = new ArrayList<>();
+        outcomes.forEach( ( label, seen ) -> driven.add( label + " -> " + String.join( " / ", seen ) ) );
+        driven.forEach( WorkServiceVisibilityPostgresTest::say );
+        final Set< String > drivenNames = new TreeSet<>();
+        outcomes.keySet().forEach( l -> drivenNames.add( l.substring( l.lastIndexOf( '.' ) + 1 ) ) );
+        final Set< String > expected = new TreeSet<>( READS );
+        expected.addAll( WRITES );
+        expected.addAll( INSTANCE_READS );
+        expected.addAll( YES_OR_NO );
+        expected.removeAll( Set.of( "comment", "item", "outsideReporters" ) );   // intake's own: driven by their tests
+        expected.add( "item" );   // WorkService.item itself
+        assertEquals( expected, drivenNames, "every classified method was driven as a reporter" );
     }
 
     @Test

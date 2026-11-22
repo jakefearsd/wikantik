@@ -20,14 +20,12 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.wikantik.work.FindFilter;
-import com.wikantik.work.FindPage;
-import com.wikantik.work.FindParams;
 import com.wikantik.work.ItemDraft;
 import com.wikantik.work.ItemPatch;
 import com.wikantik.work.WorkClaimsService;
 import com.wikantik.work.WorkKind;
 import com.wikantik.work.WorkLevel;
+import com.wikantik.work.WorkService;
 import com.wikantik.work.WorkStatus;
 import com.wikantik.work.WorkType;
 import com.wikantik.work.WorkValidationException;
@@ -35,6 +33,7 @@ import com.wikantik.work.WorkValidationException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -53,9 +52,9 @@ public class WorkItemResource extends WorkResourceBase {
 
     @Override
     protected void routes( final SegmentRouteTable.Builder< Handler > r ) {
-        route( r, "GET", "items", this::list );
+        route( r, "GET", "items", c -> WorkItemReads.list( this, c ) );
         route( r, "POST", "items", this::create );
-        route( r, "GET", "items/{}", c -> c.json( c.svc.item( c.actor, c.pathParam( 0 ) ) ) );
+        route( r, "GET", "items/{}", c -> c.tree( WorkItemReads.markedView( this, c, c.svc.item( c.actor, c.pathParam( 0 ) ) ) ) );
         route( r, "PATCH", "items/{}", this::patch );
         route( r, "GET", "items/{}/revisions", c -> c.json( c.svc.revisions( c.actor, c.pathParam( 0 ) ) ) );
         route( r, "GET", "items/{}/events", c -> c.json( c.svc.events( c.actor, c.pathParam( 0 ) ) ) );
@@ -90,7 +89,7 @@ public class WorkItemResource extends WorkResourceBase {
             out.addProperty( "points", c.svc.features().sprints().childPoints( c.actor, c.pathParam( 0 ) ) );
             c.tree( out );
         } );
-        route( r, "POST", "items/{}/acknowledge", c -> c.json( c.svc.acknowledge( c.actor, c.pathParam( 0 ) ) ) );
+        route( r, "POST", "items/{}/acknowledge", c -> c.tree( WorkItemReads.markedView( this, c, c.svc.acknowledge( c.actor, c.pathParam( 0 ) ) ) ) );
         route( r, "GET", "claimable", this::claimable );
         route( r, "POST", "items/{}/claim", this::claim );
         route( r, "POST", "items/{}/release", this::release );
@@ -108,20 +107,6 @@ public class WorkItemResource extends WorkResourceBase {
         new WorkAttachmentRoutes( this ).register( r );
     }
 
-    /** One project's list (as ever) with {@code project}; without it, a find across the projects the caller can see. */
-    private void list( final Call c ) throws Exception {
-        final String project = c.query( "project" );
-        if ( project != null ) {
-            WorkFilters.refuseFindOnly( c );
-            c.tree( summariesTree( c.svc.itemSummaries( c.actor, project, filter( c, true ) ), c.actor ) );
-            return;
-        }
-        WorkFilters.refuseListOnly( c );
-        final FindFilter wanted = FindParams.parse( WorkFilters.findParams( c ) );
-        final FindPage page = c.svc.features().find().find( c.actor, wanted );
-        c.tree( WorkFindJson.page( summariesTree( page.items(), c.actor ), page.next() ) );
-    }
-
     private void create( final Call c ) throws Exception {
         final JsonObject b = c.body();
         if ( b == null ) {
@@ -136,11 +121,13 @@ public class WorkItemResource extends WorkResourceBase {
         final String level = optString( b, "level" );
         final String kind = optString( b, "kind" );
         final String type = optString( b, "type" );
-        c.created( c.svc.createItem( c.actor, new ItemDraft( project, level == null ? null : WorkLevel.fromWire( level ),
+        final var created = c.svc.createItem( c.actor, new ItemDraft( project, level == null ? null : WorkLevel.fromWire( level ),
             optString( b, "parentKey" ), optString( b, "productKey" ), kind == null ? null : WorkKind.fromWire( kind ),
             optString( b, "title" ), optString( b, "body" ), priority( b ), dueOn( b ), optString( b, "assignee" ),
             optString( b, "queue" ), type == null ? null : WorkType.fromWire( type ),
-            optStringList( b, "labels" ) ) ) );
+            optStringList( b, "labels" ) ) );
+        WorkJson.write( c.resp, jakarta.servlet.http.HttpServletResponse.SC_CREATED,
+            WorkItemReads.markedView( this, c, created ) );
     }
 
     private void openChange( final Call c ) throws Exception {
@@ -163,7 +150,7 @@ public class WorkItemResource extends WorkResourceBase {
 
     private void claim( final Call c ) throws Exception {
         final WorkClaimsService.ClaimResult result = c.svc.claims().claim( c.actor, c.pathParam( 0 ) );
-        final JsonObject out = toTree( result.view(), c.actor ).getAsJsonObject();
+        final JsonObject out = WorkItemReads.markedView( this, c, result.view() );
         out.addProperty( "renewed", result.renewed() );
         c.tree( out );
     }
@@ -172,7 +159,7 @@ public class WorkItemResource extends WorkResourceBase {
     private void release( final Call c ) throws Exception {
         final JsonObject b = c.optionalBody();
         if ( b != null ) {
-            c.json( c.svc.claims().release( c.actor, c.pathParam( 0 ), optString( b, "note" ) ) );
+            c.tree( WorkItemReads.markedView( this, c, c.svc.claims().release( c.actor, c.pathParam( 0 ), optString( b, "note" ) ) ) );
         }
     }
 
@@ -182,9 +169,9 @@ public class WorkItemResource extends WorkResourceBase {
             return;
         }
         final String status = optString( b, "status" );
-        c.json( c.svc.claims().handoff( c.actor, c.pathParam( 0 ), new WorkClaimsService.Handoff( expectedVersion( b ),
-            status == null ? null : WorkStatus.fromWire( status ), optString( b, "assignee" ), optString( b, "queue" ),
-            optString( b, "note" ) ) ) );
+        c.tree( WorkItemReads.markedView( this, c, c.svc.claims().handoff( c.actor, c.pathParam( 0 ),
+            new WorkClaimsService.Handoff( expectedVersion( b ), status == null ? null : WorkStatus.fromWire( status ),
+                optString( b, "assignee" ), optString( b, "queue" ), optString( b, "note" ) ) ) ) );
     }
 
     private static Integer priority( final JsonObject b ) {
@@ -237,7 +224,8 @@ public class WorkItemResource extends WorkResourceBase {
                 changes.put( e.getKey(), plainValue( e.getKey(), e.getValue() ) );
             }
         }
-        c.json( c.svc.updateItem( c.actor, c.pathParam( 0 ),
-            new ItemPatch( expectedVersion, changes, optString( b, "note" ) ) ) );
+        c.tree( WorkItemReads.markedView( this, c, c.svc.updateItem( c.actor, c.pathParam( 0 ),
+            new ItemPatch( expectedVersion, changes, optString( b, "note" ) ) ) ) );
     }
+
 }

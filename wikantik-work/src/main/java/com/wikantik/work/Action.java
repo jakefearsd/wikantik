@@ -53,7 +53,10 @@ public enum Action {
     // Attaching a file (and removing one; the uploader-or-lead rule is WorkAttachmentsService's), fenced like an edit.
     ATTACH( WorkRole.MEMBER, false, true ),
     // A lead acknowledges a merge outside policy (flagged by the code-host service); an agent never does.
-    ACKNOWLEDGE_FLAG( WorkRole.LEAD, true, false );
+    ACKNOWLEDGE_FLAG( WorkRole.LEAD, true, false ),
+    // Filing an item through intake takes any row in the project, a reporter's included; a person's act, never an
+    // agent's (WorkPolicy.agentRefusal). Appended last: the constant order is stable.
+    FILE_ITEM( WorkRole.REPORTER, false, false );
 
     private final WorkRole minRole;
     private final boolean management;

@@ -87,13 +87,18 @@ public interface WorkCatalogStore {
     List< Member > members( long projectId ) throws SQLException;
 
     /**
-     * The highest role the actor holds: its {@code user} row, any {@code group} row for one of its groups,
+     * The highest role the actor holds, raw: its {@code user} row, any {@code group} row for one of its groups,
      * and, for an agent, the {@code agent} row whose principal is its agent id. Empty when none; a Wiki
-     * Admin is not given a role here, see {@link #visibleProjects}.
+     * Admin is not given a role here, see {@link #visibleProjects}. It may be {@link WorkRole#REPORTER}, which is no
+     * standing: only {@code WorkStanding} asks this, and it turns the answer into standing (viewer or above).
      */
     Optional< WorkRole > roleFor( long projectId, Actor actor ) throws SQLException;
 
-    /** All projects for an admin, otherwise those where the actor has a role. */
+    /**
+     * All projects for an admin, otherwise those where the actor holds a role that gives standing
+     * ({@link WorkRole#STANDING}: viewer, member or lead; a reporter row does not count). Only {@code WorkStanding}
+     * asks this.
+     */
     List< Project > visibleProjects( Actor actor ) throws SQLException;
 
     // ---- products

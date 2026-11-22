@@ -386,3 +386,33 @@ describe('code host events', () => {
     expect(t.prominentNote).toBe(true);
   });
 });
+
+describe('reporterEventText', () => {
+  it('names the new status in plain words and shows nothing else of the event', async () => {
+    const { reporterEventText } = await import('./eventText');
+    const ev = { type: 'status', actorName: 'Lena L', fromValue: 'ready', toValue: 'in_progress|agent:7', note: 'internal reason', toValueName: 'Codex', queue: 'impl' };
+    expect(reporterEventText(ev)).toEqual({ text: 'moved this to In progress' });
+  });
+
+  it('reads the four reporter event types and anything else as an update', async () => {
+    const { reporterEventText } = await import('./eventText');
+    expect(reporterEventText({ type: 'created' }).text).toBe('filed this');
+    expect(reporterEventText({ type: 'commented', note: 'secret' }).text).toBe('commented');
+    expect(reporterEventText({ type: 'attached', toValue: 'x.pdf' }).text).toBe('attached a file');
+    expect(reporterEventText({ type: 'handoff', toValue: 'agent:3' }).text).toBe('updated this');
+    expect(reporterEventText(null).text).toBe('updated this');
+    expect(reporterEventText({ type: 'status' }).text).toBe('moved this to a new status');
+  });
+});
+
+describe('reporterEventLine', () => {
+  it('prefixes the actor when there is one and invents none when there is not', async () => {
+    const { reporterEventLine } = await import('./eventText');
+    expect(reporterEventLine({ type: 'status', actorName: 'Lena L', toValue: 'done' })).toBe('Lena L moved this to Done');
+    expect(reporterEventLine({ type: 'status', actor: null, actorName: null, actorKind: null, toValue: 'ready' })).toBe('This moved to Ready');
+    expect(reporterEventLine({ type: 'status', actorName: null, actorKind: 'system', toValue: 'ready' })).toBe('This moved to Ready');
+    expect(reporterEventLine({ type: 'commented', actorName: null })).toBe('A comment was added');
+    expect(reporterEventLine({ type: 'created', actorName: null })).toBe('This was filed');
+    expect(reporterEventLine({ type: 'handoff', actorName: null })).toBe('This was updated');
+  });
+});

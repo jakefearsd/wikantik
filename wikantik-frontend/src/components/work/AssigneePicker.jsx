@@ -1,4 +1,5 @@
 import Select from '../ui/Select';
+import { assignable } from './people';
 
 const QUEUE = 'queue:';
 
@@ -17,7 +18,7 @@ export default function AssigneePicker({
   const current = value?.queue ? `${QUEUE}${value.queue}` : (value?.assignee || '');
   const options = [];
   if (allowNone || placeholder) options.push({ value: '', label: placeholder || 'Unassigned' });
-  for (const m of members) {
+  for (const m of assignable(members)) {
     if (m.principalKind === 'user' && m.displayName) options.push({ value: m.principal, label: m.displayName });
   }
   for (const q of queues) {

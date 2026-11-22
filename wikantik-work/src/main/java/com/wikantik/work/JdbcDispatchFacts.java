@@ -38,7 +38,12 @@ final class JdbcDispatchFacts {
         """;
     private static final String ITEM = "SELECT reporter, reporter_agent_id, "
         + "( ack_required AND acknowledged_at IS NULL AND status = 'done' ) FROM work_item WHERE id = ?";
-    private static final String LEADS = "SELECT principal_kind, principal FROM work_member "
+    /**
+     * The project's lead rows of people and groups. V091's CHECK forbids an agent {@code lead} row, so the
+     * {@code principal_kind} clause can no longer meet one in a migrated database; it stays as the second line (a row
+     * written before the migration, or a constraint dropped by hand), and {@code JdbcDispatchFactsTest} pins it.
+     */
+    static final String LEADS = "SELECT principal_kind, principal FROM work_member "
         + "WHERE project_id = ? AND role = 'lead' AND principal_kind IN ('user','group')";
 
     /** The settings event a webhook switched off by failing writes; the only item-less event that notifies anyone. */

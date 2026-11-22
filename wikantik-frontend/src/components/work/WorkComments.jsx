@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from 'react';
 import MentionPicker from '../MentionPicker';
 import { useMentionPicker } from '../../hooks/useMentionPicker';
 import WorkBody from './WorkBody';
+import { assignable } from './people';
+import CharCount from './CharCount';
 import { useWorkPaste } from './useWorkPaste';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
@@ -143,8 +145,8 @@ function Comment({ comment, users, canEdit, canRemove, onEdit, onRemove, attach 
  * `onAdd(body)`, `onEdit(id, body)` and `onRemove(id)` resolve true on success. With `attach` ({ itemKey, toast, onUploaded })
  * a file pasted or dropped into a comment box uploads as an attachment of the item (and of the comment, when editing one).
  */
-export default function WorkComments({ comments = [], members = [], canComment, isLead, onAdd, onEdit, onRemove, attach = null }) {
-  const users = members.filter((m) => m.principalKind === 'user');
+export default function WorkComments({ comments = [], members = [], canComment, isLead, onAdd, onEdit, onRemove, attach = null, editable = true, limit = null }) {
+  const users = assignable(members).filter((m) => m.principalKind === 'user');
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState(null);
@@ -152,7 +154,7 @@ export default function WorkComments({ comments = [], members = [], canComment, 
 
   function post() {
     const body = text.trim();
-    if (!body || posting) return;
+    if (!body || posting || (limit && body.length > limit)) return;
     setPosting(true);
     setPostError(null);
     onAdd(body)
@@ -173,7 +175,7 @@ export default function WorkComments({ comments = [], members = [], canComment, 
             const mine = c.mine === true;
             return (
               <Comment key={c.id} comment={c} users={users}
-                canEdit={canComment && mine} canRemove={canComment && (mine || !!isLead)}
+                canEdit={editable && canComment && mine} canRemove={editable && canComment && (mine || !!isLead)}
                 onEdit={onEdit} onRemove={onRemove} attach={attach} />
             );
           })}
@@ -182,9 +184,10 @@ export default function WorkComments({ comments = [], members = [], canComment, 
       {canComment && (
         <div className="work-comment-new">
           <MentionTextarea label="Add a comment" value={text} onChange={(v) => { setPostError(null); setText(v); }} users={users} onSubmit={post} pasteHandlers={paste} />
+          {limit && <CharCount length={text.length} limit={limit} noun="comment" />}
           {postError && <div className="work-form-error" role="alert">{postError}</div>}
           <div className="work-actions">
-            <button type="button" className="btn btn-primary btn-sm" disabled={posting} onClick={post}>Comment</button>
+            <button type="button" className="btn btn-primary btn-sm" disabled={posting || !!(limit && text.trim().length > limit)} onClick={post}>Comment</button>
           </div>
         </div>
       )}

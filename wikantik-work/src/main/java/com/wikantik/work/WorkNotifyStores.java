@@ -25,5 +25,6 @@ package com.wikantik.work;
 public record WorkNotifyStores( WorkWatchStore watches, WorkNotificationStore notifications,
                                 WorkWebhookStore webhooks, WorkFindStore finder,
                                 WorkFilterStore filters, WorkAttachmentStore attachments,
-                                WorkCodeHostStore codeHost, WorkFlowStore flow ) {
+                                WorkCodeHostStore codeHost, WorkFlowStore flow,
+                                WorkIntakeStore intake ) {
 }

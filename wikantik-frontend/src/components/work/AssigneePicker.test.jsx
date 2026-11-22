@@ -21,6 +21,13 @@ describe('AssigneePicker', () => {
     expect(optionTexts()).toEqual(['Unassigned', 'Ana Alvarez', 'Bob Brown', 'Queue · Implementer', 'Queue · Reviewer']);
   });
 
+  it('doesNotOfferReporters', () => {
+    const withReporter = [...MEMBERS, { principal: 'rita-login', principalKind: 'user', role: 'reporter', displayName: 'Rita Reporter' }];
+    render(<AssigneePicker members={withReporter} queues={QUEUES} value={{}} onChange={() => {}} />);
+    expect(optionTexts().join('|')).not.toContain('Rita Reporter');
+    expect(optionTexts()).toContain('Bob Brown');
+  });
+
   it('agentsAreNotOffered, nor groups or retired queues', () => {
     render(<AssigneePicker members={MEMBERS} queues={QUEUES} value={{}} onChange={() => {}} />);
     const texts = optionTexts().join('|');

@@ -39,6 +39,7 @@ public final class WorkFeatures {
     private final WorkAttachmentsService attachments;
     private final WorkCodeHostService codeHost;
     private final WorkFlowService flow;
+    private final WorkIntakeService intake;
 
     WorkFeatures( final WorkStore store, final WorkScopes scopes, final ItemViews views, final Clock clock,
                   final FeatureDeps deps ) {
@@ -52,6 +53,7 @@ public final class WorkFeatures {
         this.attachments = new WorkAttachmentsService( store, scopes, deps.settings() );
         this.codeHost = new WorkCodeHostService( store, scopes, clock, deps );
         this.flow = new WorkFlowService( store, scopes, views, clock );
+        this.intake = new WorkIntakeService( store, scopes, views, deps.people(), deps.applier() );
     }
 
     /** Notifications: the inbox, watching, the email preference and the dispatch. */
@@ -89,6 +91,11 @@ public final class WorkFeatures {
     /** Flow and DORA figures, computed at read time (Part 6). */
     public WorkFlowService flow() {
         return flow;
+    }
+
+    /** Intake: filing into a project one is not a member of, and following what one filed (Part 8). */
+    public WorkIntakeService intake() {
+        return intake;
     }
 
     /** The code host: signed-hook check, enabling the hook, and applying what the host reports. */

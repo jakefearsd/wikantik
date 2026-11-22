@@ -48,6 +48,25 @@ final class NoticeText {
         };
     }
 
+    /**
+     * The line a reporter-only person reads for an event of their own item, given the event as
+     * {@link ReporterEvents#reshape} made it: "moved this to <status>" for any status move (never the old value, an
+     * assignee, a queue or a note), "commented" for a comment.
+     */
+    static String reporterLine( final WorkEvent reshaped, final Function< String, String > displayName ) {
+        if ( reshaped.actor() == null && WorkEvent.STATUS.equals( reshaped.type() ) ) {
+            return "This moved to " + words( reshaped.toValue() );   // a lapsed claim: nobody acted
+        }
+        final String a = Actor.shown( reshaped.actorKind(), reshaped.actor(), displayName );
+        return switch ( reshaped.type() ) {
+            case WorkEvent.STATUS -> a + " moved this to " + words( reshaped.toValue() );
+            case WorkEvent.COMMENTED -> a + " commented";
+            case WorkEvent.CREATED -> a + " filed this";
+            case WorkEvent.ATTACHED -> a + " attached a file";
+            default -> a + " updated this";
+        };
+    }
+
     /** The lines for change, deployment and claim events; anything else is the generic line. */
     private static String changeLine( final String type, final String a ) {
         return switch ( type ) {

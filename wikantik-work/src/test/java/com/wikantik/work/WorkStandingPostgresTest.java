@@ -28,6 +28,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The sponsor ceiling: an agent's role is the lower of its own and its sponsor's; it sees only what both can. */
 @RequiresPostgres
@@ -187,5 +189,192 @@ class WorkStandingPostgresTest {
 
     private static List< String > keys( final List< Project > projects ) {
         return projects.stream().map( Project::key ).sorted().toList();
+    }
+
+    // ---- reporters: no standing, three narrow questions
+
+    private Item reportedBy( final long project, final Actor by ) throws SQLException {
+        return store.createItem( store.projects().stream().filter( p -> p.id() == project ).findFirst().orElseThrow(),
+            JdbcWorkStoreItemsPostgresTest.draft( "filed by " + by.login() ), by );
+    }
+
+    private static List< Long > ids( final List< Project > projects ) {
+        return projects.stream().map( Project::id ).toList();
+    }
+
+    @Test
+    void aReporterHasNoRoleAndSeesNoProject() throws SQLException {
+        member( p1, "ana", "user", WorkRole.REPORTER );
+        assertEquals( Optional.empty(), role( ana() ) );
+        assertFalse( standing.seesProject( p1, ana() ) );
+        assertEquals( List.of(), standing.visibleProjects( ana() ) );
+        assertEquals( List.of( p1 ), ids( standing.reportableProjects( ana() ) ) );
+        assertTrue( standing.reportsOnly( p1, ana() ) );
+    }
+
+    @Test
+    void aReporterWhoIsAlsoAMemberElsewhereSeesOnlyThatElsewhere() throws SQLException {
+        member( p1, "ana", "user", WorkRole.REPORTER );
+        member( p2, "ana", "user", WorkRole.VIEWER );
+        assertEquals( List.of( p2 ), ids( standing.visibleProjects( ana() ) ) );
+        assertEquals( List.of( p1, p2 ), ids( standing.reportableProjects( ana() ) ) );
+    }
+
+    @Test
+    void aReporterCanSeeOnlyTheirOwnItem() throws SQLException {
+        member( p1, "ana", "user", WorkRole.REPORTER );
+        member( p1, "bob", "user", WorkRole.REPORTER );
+        final Item mine = reportedBy( p1, ana() );
+        final Item bobs = reportedBy( p1, Actor.human( "bob", Set.of(), false ) );
+        assertTrue( standing.canSee( ana(), mine ) );
+        assertFalse( standing.canSee( ana(), bobs ) );
+        final Item byAgent = store.createItem( store.projects().get( 0 ), JdbcWorkStoreItemsPostgresTest.draft( "agent" ),
+            Actor.agent( agentId, "ana" ) );
+        assertEquals( "ana", byAgent.reporter() );
+        assertFalse( standing.canSee( ana(), byAgent ), "an agent named ana reported it, not the person" );
+    }
+
+    @Test
+    void aRemovedReporterSeesNothing() throws SQLException {
+        member( p1, "ana", "user", WorkRole.REPORTER );
+        final Item mine = reportedBy( p1, ana() );
+        assertTrue( standing.mayFile( p1, ana() ) );
+        store.removeMember( p1, "ana", "user", ROOT );
+        assertFalse( standing.canSee( ana(), mine ) );
+        assertFalse( standing.mayFile( p1, ana() ) );
+        assertEquals( List.of(), standing.reportableProjects( ana() ) );
+    }
+
+    @Test
+    void aGroupMayHoldTheReporterRole() throws SQLException {
+        member( p1, "Customers", "group", WorkRole.REPORTER );
+        final Actor ana = ana( "Customers" );
+        final Item mine = reportedBy( p1, ana );
+        assertTrue( standing.mayFile( p1, ana ) );
+        assertTrue( standing.canSee( ana, mine ) );
+        assertEquals( Optional.empty(), role( ana ) );
+        assertTrue( standing.reportsOnly( p1, ana ) );
+        assertFalse( standing.mayFile( p1, ana() ), "a person outside the group may not file" );
+    }
+
+    @Test
+    void aViewerRowBeatsAReporterRow() throws SQLException {
+        member( p1, "ana", "user", WorkRole.REPORTER );
+        member( p1, "Customers", "group", WorkRole.VIEWER );
+        final Actor ana = ana( "Customers" );
+        assertEquals( Optional.of( WorkRole.VIEWER ), role( ana ) );
+        assertEquals( List.of( p1 ), ids( standing.visibleProjects( ana ) ) );
+        assertFalse( standing.reportsOnly( p1, ana ) );
+    }
+
+    /** M3: the other direction: a member by her own row and a reporter through a group is a member everywhere. */
+    @Test
+    void aDirectMemberRowBeatsAGroupReporterRow() throws SQLException {
+        member( p1, "ana", "user", WorkRole.MEMBER );
+        member( p1, "Customers", "group", WorkRole.REPORTER );
+        final Actor ana = ana( "Customers" );
+        assertEquals( Optional.of( WorkRole.MEMBER ), role( ana ) );
+        assertTrue( standing.seesProject( p1, ana ) );
+        assertEquals( List.of( p1 ), ids( standing.visibleProjects( ana ) ) );
+        assertFalse( standing.reportsOnly( p1, ana ) );
+        assertFalse( standing.followsAsReporter( ana, reportedBy( p1, ana ) ) );
+        assertEquals( Set.of(), standing.reportOnlyProjects( ana, Set.of( p1 ) ) );
+        assertEquals( Set.of(), standing.outsideReporters( p1, List.of( "ana" ),
+            login -> Optional.of( new WorkDirectory.Person( "ana", Set.of( "Customers" ), false ) ) ) );
+    }
+
+    /** The per-item reporter question: only her own report, only while the reporter row is all she holds. */
+    @Test
+    void followsAsReporterIsPerItemAndPersonOnly() throws SQLException {
+        member( p1, "ana", "user", WorkRole.REPORTER );
+        final Item hers = reportedBy( p1, ana() );
+        final Item other = reportedBy( p1, Actor.human( "bob", Set.of(), false ) );
+        assertTrue( standing.followsAsReporter( ana(), hers ) );
+        assertFalse( standing.followsAsReporter( ana(), other ) );
+        assertEquals( Set.of( p1 ), standing.reportOnlyProjects( ana(), Set.of() ) );
+        assertFalse( standing.followsAsReporter( agent( ana() ), hers ), "an agent is never a reporter" );
+        member( p1, "ana", "user", WorkRole.VIEWER );
+        assertFalse( standing.followsAsReporter( ana(), hers ), "a viewer follows it as a member does" );
+    }
+
+    @Test
+    void anAdminIsNeverReporterOnly() throws SQLException {
+        member( p1, "root", "user", WorkRole.REPORTER );
+        assertFalse( standing.reportsOnly( p1, ROOT ) );
+        assertTrue( standing.mayFile( p1, ROOT ) );
+        assertEquals( 3, standing.reportableProjects( ROOT ).size() );
+    }
+
+    @Test
+    void anAgentSponsoredByAReporterHasNothing() throws SQLException {
+        agentIs( p1, WorkRole.MEMBER );
+        member( p1, "ana", "user", WorkRole.REPORTER );
+        final Item byAna = reportedBy( p1, ana() );
+        final Actor agent = agent( ana() );
+        assertEquals( Optional.empty(), role( agent ) );
+        assertEquals( List.of(), standing.visibleProjects( agent ) );
+        assertFalse( standing.canSee( agent, byAna ) );
+        assertFalse( standing.mayFile( p1, agent ) );
+        assertEquals( List.of(), standing.reportableProjects( agent ) );
+    }
+
+    @Test
+    void aReporterSponsorDoesNotWidenAnAgentsCeilingEither() throws SQLException {
+        agentIs( p1, WorkRole.MEMBER );
+        member( p1, "ana", "user", WorkRole.REPORTER );
+        member( p1, "Crew", "group", WorkRole.VIEWER );
+        assertEquals( Optional.of( WorkRole.VIEWER ), role( agent( ana( "Crew" ) ) ), "the sponsor's viewer row is the ceiling" );
+    }
+
+    @Test
+    void anAgentNamedLikeTheReporterCannotSeeTheirItem() throws SQLException {
+        member( p1, "ana", "user", WorkRole.REPORTER );
+        final Item byAna = reportedBy( p1, ana() );
+        final long rita = store.registerAgent( "ana", "", "", List.of(), "ana" ).id();
+        member( p1, String.valueOf( rita ), "agent", WorkRole.MEMBER );
+        final Actor agent = Actor.agent( rita, "ana", ana() );
+        assertFalse( standing.canSee( agent, byAna ) );
+        assertFalse( standing.mayFile( p1, agent ) );
+        assertFalse( standing.reportsOnly( p1, agent ) );
+    }
+
+    @Test
+    void anAgentNeverFiles() throws SQLException {
+        agentIs( p1, WorkRole.MEMBER );
+        assertFalse( standing.mayFile( p1, agent( ROOT ) ) );
+        assertFalse( standing.mayFile( p1, Actor.system( "github" ) ) );
+        assertEquals( List.of(), standing.reportableProjects( agent( ROOT ) ) );
+    }
+
+    @Test
+    void outsideReportersNamesOnlyThoseHoldingOnlyTheReporterRole() throws SQLException {
+        final java.util.function.Function< String, Optional< WorkDirectory.Person > > people =
+            login -> "ghost".equals( login ) ? Optional.empty() : Optional.of( new WorkDirectory.Person( login, Set.of(), false ) );
+        assertEquals( Set.of(), standing.outsideReporters( p1, List.of( "rita" ), people ), "no reporter rows at all" );
+        member( p1, "rita", "user", WorkRole.REPORTER );
+        member( p1, "lena", "user", WorkRole.LEAD );
+        assertEquals( Set.of( "rita" ), standing.outsideReporters( p1, List.of( "rita", "lena", "ghost", "rita" ), people ) );
+        member( p1, "rita", "user", WorkRole.VIEWER );
+        assertEquals( Set.of(), standing.outsideReporters( p1, List.of( "rita" ), people ) );
+        store.removeMember( p1, "rita", "user", ROOT );
+        assertEquals( Set.of(), standing.outsideReporters( p1, List.of( "rita" ), people ) );
+    }
+
+    @Test
+    void outsideReportersOnlyResolvesTheGivenLogins() throws SQLException {
+        member( p1, "rita", "user", WorkRole.REPORTER );
+        member( p1, "gus", "user", WorkRole.REPORTER );
+        final java.util.List< String > asked = new java.util.ArrayList<>();
+        standing.outsideReporters( p1, List.of( "rita" ), login -> {
+            asked.add( login );
+            return Optional.of( new WorkDirectory.Person( login, Set.of(), false ) );
+        } );
+        assertEquals( List.of( "rita" ), asked );
+        asked.clear();
+        standing.outsideReporters( p2, List.of( "rita" ), login -> {
+            asked.add( login );
+            return Optional.empty();
+        } );
+        assertEquals( List.of(), asked, "a project with no reporter row resolves nobody" );
     }
 }

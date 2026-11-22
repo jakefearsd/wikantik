@@ -432,4 +432,27 @@ class WorkAttachmentRoutesTest {
         Mockito.verify( attachments ).remove( ALICE, "PLAT-1", 5L );
         assertNull( r.contentType() );
     }
+
+    @Test
+    void aReporterOnlyCallerSeesTheUploaderByDisplayNameNeverTheLogin() throws Exception {
+        final com.wikantik.work.Actor rita = com.wikantik.work.Actor.human( "rita", java.util.Set.of(), false );
+        final WorkService svc = Mockito.mock( WorkService.class );
+        final WorkFeatures features = Mockito.mock( WorkFeatures.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.attachments() ).thenReturn( attachments );
+        Mockito.when( attachments.listing( rita, "PLAT-4" ) ).thenReturn( listing( List.of(
+            attachment( 3, "a.png", "image/png", "lena.login" ), attachment( 4, "b.txt", "text/plain", "rita" ) ), true ) );
+        final WorkItemResource asRita = WorkHttp.wire( new WorkItemResource(), svc, rita );
+        Mockito.doAnswer( inv -> "Display " + inv.getArgument( 0 ).toString().toUpperCase() ).when( asRita )
+            .displayName( Mockito.anyString() );
+        final WorkAttachmentHttp.Result r = WorkAttachmentHttp.call( asRita, "GET", "/PLAT-4/attachments",
+            null, null, Map.of(), false );
+        assertEquals( 200, r.status() );
+        assertTrue( r.body().contains( "Display LENA.LOGIN" ) );
+        assertFalse( r.body().contains( "\"lena.login\"" ), "the uploader's login is not on the wire" );
+        assertFalse( r.body().contains( "\"rita\"" ), "nor the caller's own" );
+        final var list = r.json().getAsJsonObject().getAsJsonArray( "attachments" );
+        assertFalse( list.get( 0 ).getAsJsonObject().get( "mine" ).getAsBoolean() );
+        assertTrue( list.get( 1 ).getAsJsonObject().get( "mine" ).getAsBoolean() );
+    }
 }

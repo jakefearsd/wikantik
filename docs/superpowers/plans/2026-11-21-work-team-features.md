@@ -98,5 +98,10 @@ Each part plan proceeds on the choice marked "as planned". None blocks Part 1.
 
 ## After the last part
 
+Status (2026-11-22):
+
+- Part 1 (labels and type), Part 2 (sprints and estimates), Part 3 (notifications), Part 4 (find and saved filters), Part 5 (code-host integration), Part 6 (flow and DORA), Part 7 (attachments) and Part 8 (intake) are built and gate-passed. The controller records the commits and releases separately.
+- The two items below are still open.
+
 - [ ] A whole-branch review on the most capable model, with the six Review Focus lines as its brief.
 - [ ] Publish the design to the wiki's work-management hub (owner's standing preference).

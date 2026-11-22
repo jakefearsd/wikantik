@@ -38,6 +38,7 @@ class WorkMeResourceTest {
     private WorkService svc;
     private WorkMeResource servlet;
     private com.wikantik.work.WorkNotificationsService notifications;
+    private com.wikantik.work.WorkIntakeService intake;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -47,6 +48,8 @@ class WorkMeResourceTest {
         notifications = Mockito.mock( com.wikantik.work.WorkNotificationsService.class );
         Mockito.when( svc.features() ).thenReturn( features );
         Mockito.when( features.notifications() ).thenReturn( notifications );
+        intake = Mockito.mock( com.wikantik.work.WorkIntakeService.class );
+        Mockito.when( features.intake() ).thenReturn( intake );
         Mockito.when( notifications.preference( ALICE ) ).thenReturn(
             new com.wikantik.work.NotifyPreference( com.wikantik.work.EmailMode.OFF, false, false ) );
         servlet = WorkHttp.wire( new WorkMeResource(), svc, ALICE );
@@ -185,5 +188,29 @@ class WorkMeResourceTest {
         final var projects = get().json().getAsJsonObject().getAsJsonArray( "projects" );
         assertEquals( true, projects.get( 0 ).getAsJsonObject().get( "archived" ).getAsBoolean() );
         assertEquals( false, projects.get( 1 ).getAsJsonObject().get( "archived" ).getAsBoolean() );
+    }
+
+    @Test
+    void meListsReportableProjects() throws Exception {
+        Mockito.when( intake.reportableProjects( ALICE ) ).thenReturn( List.of(
+            new com.wikantik.work.ReportableProject( "PLAT", "Platform", WorkRole.REPORTER ),
+            new com.wikantik.work.ReportableProject( "WEB", "Website", WorkRole.MEMBER ) ) );
+        final com.google.gson.JsonArray r = get().json().getAsJsonObject().getAsJsonArray( "reportable" );
+        assertEquals( 2, r.size() );
+        final JsonObject first = r.get( 0 ).getAsJsonObject();
+        assertEquals( java.util.Set.of( "key", "name", "role" ), first.keySet(), "key, name and role only" );
+        assertEquals( "PLAT", first.get( "key" ).getAsString() );
+        assertEquals( "Platform", first.get( "name" ).getAsString() );
+        assertEquals( "reporter", first.get( "role" ).getAsString() );
+        assertEquals( "member", r.get( 1 ).getAsJsonObject().get( "role" ).getAsString() );
+    }
+
+    @Test
+    void aReporterOnlyCallerHasNoProjectsAndOneReportable() throws Exception {
+        Mockito.when( intake.reportableProjects( ALICE ) ).thenReturn( List.of(
+            new com.wikantik.work.ReportableProject( "PLAT", "Platform", WorkRole.REPORTER ) ) );
+        final JsonObject o = get().json().getAsJsonObject();
+        assertEquals( 0, o.getAsJsonArray( "projects" ).size() );
+        assertEquals( 1, o.getAsJsonArray( "reportable" ).size() );
     }
 }

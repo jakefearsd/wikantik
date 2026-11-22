@@ -510,7 +510,7 @@ The user-facing walkthrough (first product, project, board, change, deployment, 
 2. Migration `V074__work_management_core.sql` is applied by `bin/db/migrate.sh` like any other (`bin/redeploy.sh` runs it).
 3. An Admin creates the first product at `/work/products` and the first project at `/work` ("New project"), then adds members under the project's Settings tab. Only members and Admins see a project; everyone else gets "Not found".
 
-**Before deploying a release that adds the project key `DEPLOYMENTS` to the reserved keys,** check production has no such project: `SELECT key FROM work_project WHERE upper(key) = 'DEPLOYMENTS';` must return no rows (rename it first if it does). Migration `V084` (item type and labels) is applied by `bin/db/migrate.sh` as usual.
+**Before deploying the release that carries the small-team work features (V084 to V091),** run the checks in [section 1.22](#122-before-deploying-the-work-management-release): reserved project keys, agent roles, the `work_event` rewrite, open transactions, and what is on or off once deployed. Migration `V084` (item type and labels) is applied by `bin/db/migrate.sh` as usual.
 
 To turn it off, set the property back to `false` (or remove it) and restart: `/api/work/*` returns 404 and the navigation entry disappears. The data is kept, and returns when the flag is turned back on.
 
@@ -638,9 +638,7 @@ Metrics on `/metrics` (instance-wide, no project, item or agent labels): `wikant
 
 Work notifications fill each person's inbox (`/work/inbox`) from the event log, once every `wikantik.work.notify.intervalSeconds` (default 60). The inbox is on whenever work management is. Email and webhooks are separate switches, both off by default. Only the new assignee hears of an assignment, watchers hear of hand-offs, a mention beats a watch, and nobody hears of their own action. The first run starts from the newest existing event, so enabling notifications never notifies history.
 
-**Before deploying V086.** Check production has no project keyed `INBOX` (the key is now reserved, for the inbox route): `SELECT key FROM work_project WHERE upper(key) = 'INBOX';` must return no rows; rename any project it finds first. V086 also rewrites `work_event` once to add the `tx` column, so on a large event log expect a short table lock while it runs.
-
-**Before deploying V087 (find and saved filters).** Check production has no project keyed `FIND` (the key is now reserved, for the find route): `SELECT key FROM work_project WHERE upper(key) = 'FIND';` must return no rows; rename any project it finds first. The owner runs this; agents do not use production credentials. V087 adds one table (`work_saved_filter`) and is plain DDL applied by `bin/db/migrate.sh`.
+**Before deploying V086 and V087,** run the checks in [section 1.22](#122-before-deploying-the-work-management-release) (the reserved keys `INBOX` and `FIND`, and the one-time rewrite of `work_event` that V086 makes to add the `tx` column). V087 adds one table (`work_saved_filter`) and is plain DDL applied by `bin/db/migrate.sh`.
 
 **Keys** (all in `wikantik-custom.properties`; defaults and detail in the generated configuration reference):
 
@@ -662,20 +660,11 @@ Work notifications fill each person's inbox (`/work/inbox`) from the event log, 
 
 **Monitoring.** `wikantik_work_dispatcher_alive` is 1 while the dispatcher thread runs; 0 means notifications have stopped (the cause is in the log at ERROR). `wikantik_work_notifications_total{channel,outcome}` counts inbox, email and webhook outcomes.
 
+**Known limit: one bad event stalls the inbox and email for the whole wiki.** The dispatcher handles a batch of events in one transaction. If one event makes the notification planner throw every time (a bug, or data it does not expect), the batch rolls back and the next cycle retries the same events, forever: the inbox and email stop for every project, the log shows one WARN per cycle, and `wikantik_work_dispatcher_alive` still reads 1. Webhooks keep their own cursors and carry on. Watch for a `Work notification … step failed; the next cycle will try again` WARN that repeats every cycle and an inbox that stops filling; the fix (skip and report the one event) is tracked as issue #153.
+
 **A transaction left open delays dispatch.** The dispatcher only reads events older than the oldest open transaction anywhere in the database (`tx < pg_snapshot_xmin(pg_current_snapshot())`), so a long-running or `idle in transaction` session pauses notifications until it ends. Nothing is lost. Find it: `SELECT pid, state, xact_start, query FROM pg_stat_activity WHERE state = 'idle in transaction' ORDER BY xact_start;`.
 
-**After a dump and restore, reset the cursors.** The cursors store transaction ids. A restore into a new cluster can leave them ahead of the new ids, and dispatch then stalls silently (no error, the inbox simply stops filling). Reset them to the newest existing event:
-
-```sql
-UPDATE work_notify_cursor c
-   SET tx = e.tx, event_id = e.id
-  FROM (SELECT tx, id FROM work_event ORDER BY tx DESC, id DESC LIMIT 1) e;
-UPDATE work_webhook w
-   SET cursor_tx = e.tx, cursor_event_id = e.id
-  FROM (SELECT tx, id FROM work_event ORDER BY tx DESC, id DESC LIMIT 1) e;
-```
-
-The restore also copies `work_event.tx` from the old cluster, so the newest event by `tx` is the right place to resume. Events between the old cursor and that point are not notified.
+**After a restore.** A restore into the same PostgreSQL cluster (what `restore.sh` does on the instance's own database) needs nothing. A restore into a **new** cluster (`bin/dr-restore.sh` onto a fresh host, a cloud move, a dump-and-restore upgrade) stops all notifications silently until the restored transaction ids are rebased: follow [BackupAndRecovery section 5.3](BackupAndRecovery.md#53-work-notifications-after-a-restore-into-a-new-cluster) before starting the app. (An earlier version of this page reset the cursors to the newest restored event; that does not work for a new cluster.)
 
 ### 1.18 Work attachments
 
@@ -690,6 +679,7 @@ Items and comments take file attachments (`/api/work/items/{key}/attachments`; t
 - **Removal deletes the bytes** (the metadata row and the activity stay), but the disk space comes back through autovacuum (the data is TOAST storage), not at once.
 - **Memory and temp space.** An upload holds up to the per-file limit in JVM heap (a few copies while it is read and stored), and the container spools a multipart request to Tomcat's temp directory up to the 100 MB `<multipart-config>` ceiling on `WorkItemResource` in `web.xml`, so keep `maxBytes` well below it. A download holds the whole file in heap. Both are bounded by `maxBytes` and the per-credential rate limit.
 - **Serving.** Only PNG, JPEG, GIF and WebP are shown inline; everything else is forced to download. See [Security](Security.md#work-attachments).
+- **No total cap.** The limits are per file and per item only: there is no cap per person or for the whole wiki, and outside reporters (section 1.21) can attach up to the per-item limit to every item they file. Granting `reporter` to a broad group therefore also grants database (and backup) space; removing the reporter row stops it.
 
 ### 1.19 Work code-host hook
 
@@ -718,11 +708,58 @@ curl -sS -o /dev/null -w '%{http_code}\n' -X POST "https://wiki.example.com/api/
 
 **What it does and does not do.** The route is unauthenticated by design, protected by the signature and the per-IP rate limit (see [Security](Security.md#work-code-host-hook)). A delivery fills in or updates change records of items that target that product: one pull request is one change; lifecycle follows the code host's own timestamps; a merge is terminal; it **never changes an item's status, assignee or sprint**. People are matched by profile email (noreply addresses never), outside authors are named as they appear on the host. A merge nobody else approved, or a direct commit where direct commits are not allowed, is flagged for a lead to acknowledge (user guide: [WorkManagement](../user/WorkManagement.md)); a late approval can clear an unacknowledged flag.
 
-**Known limits.** Number reuse (the same pull request number on one item after a merge) is not revived. A dismissed review is not seen. A force-push back to an older commit is ignored (the commit keeps its first report time). A commit first pushed to a branch with no item key is never counted as direct. At most 200 head reports and 200 lifecycle events are kept per change. Order guarantees exclude the item's own status (a closed item ignores events that would open a change), a push stamped after a merge arriving before it, and a close or reopen stamped after a merge arriving before it. A flag raised before a late approval clears stays in the history and leads already told are not retracted. Deliveries of one product are applied one at a time.
+**Known limits.** Number reuse (the same pull request number on one item after a merge) is not revived. A dismissed review is not seen. A force-push back to an older commit is ignored (the commit keeps its first report time). A commit first pushed to a branch with no item key is never counted as direct. At most 200 head reports and 200 lifecycle events are kept per change. Order guarantees exclude the item's own status (a closed item ignores events that would open a change), a push stamped after a merge arriving before it, and a close or reopen stamped after a merge arriving before it. A flag raised before a late approval clears stays in the history; the leads' "merged outside policy" notices disappear from the inbox, the unread count and email as soon as the flag is cleared, superseded or acknowledged by any lead (nothing is deleted). Deliveries of one product are applied one at a time.
+
+**Not yet tried against GitHub.** The hook has never received real GitHub traffic: every payload in the tests is a hand-built fixture, signed by the test. GitHub sends push and pull-request events in no guaranteed order, and **does not resend a failed delivery by itself**: a 503 during a database blip is lost until an admin presses Redeliver in the repository's Recent Deliveries. Whether the production proxy passes GitHub's requests through the body limit, the rate limit and the Origin check unchanged is also untested. Try it on a staging wiki with a scratch repository before relying on it.
 
 ### 1.20 Work flow and delivery figures
 
-Nothing to configure and nothing to do beforehand: the figures on a project's Flow tab and a product's delivery page are computed from the work tables on each request; no table, cache or Prometheus series carries them (`WorkFlowNoStoreRuleTest` keeps it so). Migration V090 adds `work_deployment.remediates_id` and three partial indexes and is applied by `bin/db/migrate.sh` as usual. How to read each figure: [WorkManagement](../user/WorkManagement.md) section 11.
+Nothing to configure and nothing to do beforehand: the figures on a project's Flow tab and a product's delivery page are computed from the work tables on each request; no table, cache or Prometheus series carries them (`WorkFlowNoStoreRuleTest` keeps it so). A status move counts the same whichever way it happened (a status change, a hand-off, an agent's claim), so work an agent claims and hands off as done is in throughput, cycle and lead time. Migration V090 adds `work_deployment.remediates_id` and three partial indexes (`idx_work_event_moves`, `idx_work_deployment_verified`, `idx_work_change_merged`) and is applied by `bin/db/migrate.sh` as usual. How to read each figure: [WorkManagement](../user/WorkManagement.md) section 11.
+
+### 1.21 Work intake and the reporter role: checks before deploying
+
+Intake (the `reporter` role and `/work/submit`) needs no setting. Migration V091 is applied by `bin/db/migrate.sh` as usual, but **fails and rolls back whole** if an agent holds a project role other than `viewer` or `member`, and the project key `SUBMIT` is now reserved: both checks are in [section 1.22](#122-before-deploying-the-work-management-release). Re-applying V091 after a repair re-validates its two constraints and changes nothing else.
+
+A lead gives a person or a group the `reporter` role in the project's Settings. See [Security](Security.md#work-intake-reporters) for what a reporter reaches and the missing rate cap, and [Work management](../user/WorkManagement.md) for the lead's and the reporter's view.
+
+### 1.22 Before deploying the work-management release
+
+The small-team work features (migrations V084 to V091: types and labels, sprints, notifications, find, attachments, the code-host hook, flow figures, intake) reach production in one deploy. The owner runs these against the production database with `psql` before deploying; agents do not use production credentials.
+
+1. **No project uses a newly reserved key.** `DEPLOYMENTS`, `INBOX`, `FIND` and `SUBMIT` are now pages under `/work/` (and the router ignores case). This must return no row; rename any project it finds first:
+
+   ```sql
+   SELECT key FROM work_project WHERE upper(key) IN ('DEPLOYMENTS','INBOX','FIND','SUBMIT');
+   ```
+
+2. **No agent holds a role above `member`.** Otherwise migration V091 fails: it **rolls back whole** (each migration is one transaction), `bin/db/migrate.sh` stops with exit 1 and records nothing for it, and the release then runs without V091 (intake does not work) until the rows are repaired and the migration is run again. V084 to V090 stay applied. This must return no row:
+
+   ```sql
+   SELECT project_id, principal, role FROM work_member WHERE principal_kind='agent' AND role NOT IN ('viewer','member');
+   ```
+
+   Repair, then deploy: `UPDATE work_member SET role='member' WHERE principal_kind='agent' AND role='lead';` (the agents keep working as members; a person leads the project).
+
+3. **Size the `work_event` rewrite.** V086 adds `work_event.tx` with a default computed per row, which rewrites the whole table once under an exclusive lock: work reads and writes wait until it finishes. Check the size first and deploy when work writes can pause:
+
+   ```sql
+   SELECT pg_size_pretty(pg_total_relation_size('work_event')), count(*) FROM work_event;
+   ```
+
+4. **No long idle-in-transaction sessions.** They block the V086 rewrite and, afterwards, pause notification dispatch (it only reads events older than the oldest open transaction). This should return nothing old:
+
+   ```sql
+   SELECT pid, state, xact_start FROM pg_stat_activity WHERE state = 'idle in transaction' ORDER BY xact_start;
+   ```
+
+5. **Know what the deploy switches on.** With `wikantik.work.enabled=true` (already the case where work is in use), the release turns on at once, with no further setting: the `work-notify-dispatcher` thread (inbox dispatch every `wikantik.work.notify.intervalSeconds`, default 60; its first run starts from the newest event, so history is never notified), attachments for every member, agent and reporter (`wikantik.work.attachments.maxBytes` 10 MiB per file and `.maxItemBytes` 50 MiB per item, stored in the database; no total cap, section 1.18), intake (a lead may grant `reporter`), the flow and delivery figures, and sprints, find and saved filters. These stay **off** until you switch them on, each in `wikantik-custom.properties` with a restart:
+   - email: `wikantik.work.notify.email.enabled=true`, after mail and `wikantik.work.notify.baseUrl` (or `wikantik.baseURL`) are set (section 1.17);
+   - webhooks: `wikantik.work.notify.webhooks.enabled=true` (section 1.17);
+   - the code-host hook: `wikantik.work.codehost.enabled=true`, then a wiki admin turns the hook on per product (section 1.19).
+
+   Keep all three off on the first deploy. Afterwards, watch `wikantik_work_dispatcher_alive` and check that `/work/inbox` fills.
+
+Known limits to accept before switching things on: one bad event stalls the inbox and email wiki-wide (section 1.17, issue #153); outside reporters have no filing cap and their attachments count against no total (section 1.21, [Security](Security.md#work-intake-reporters)); the code-host hook has never received real GitHub traffic (section 1.19); and **no new screen of these features (sprint board and burndown, inbox, find and saved filters, attachments, flow and delivery charts, the hook dialog, the submit form and the reported view) has yet been looked at in a browser by a person** (the browser tests cover sprints only).
 
 ## 2. Backup & Disaster Recovery
 

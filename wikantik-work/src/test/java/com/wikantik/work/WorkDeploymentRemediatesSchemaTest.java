@@ -100,11 +100,32 @@ class WorkDeploymentRemediatesSchemaTest {
 
     @Test
     void theThreeReadIndexesArePartial() throws SQLException {
-        for ( final String index : List.of( "idx_work_event_status", "idx_work_deployment_verified",
+        for ( final String index : List.of( "idx_work_event_moves", "idx_work_deployment_verified",
             "idx_work_change_merged", "idx_work_deployment_remediates" ) ) {
             assertEquals( 1, scalar( "SELECT count(*) FROM pg_indexes WHERE indexname = '" + index
                 + "' AND indexdef LIKE '% WHERE %'" ), index );
         }
+    }
+
+    /** I-1: the flow reads status moves of every route, so the index covers exactly the types that can carry one. */
+    @Test
+    void theMovesIndexCoversEveryTypeThatCanMoveAStatus() throws SQLException {
+        assertEquals( 0, scalar( "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_work_event_status'" ),
+            "the status-only draft index is gone" );
+        for ( final String type : StatusMoves.TYPES ) {
+            assertEquals( 1, scalar( "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_work_event_moves' "
+                + "AND indexdef LIKE '%''" + type + "''%'" ), type );
+        }
+        assertEquals( 1, scalar( "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_work_event_moves' "
+            + "AND indexdef NOT LIKE '%commented%'" ) );
+    }
+
+    @Test
+    void v090ReplacesTheDraftIndexWhenReapplied() throws Exception {
+        final String before = schema();
+        exec( "CREATE INDEX IF NOT EXISTS idx_work_event_status ON work_event (item_id, at) WHERE type = 'status'" );
+        exec( v090().replace( ":app_user", "CURRENT_USER" ) );
+        assertEquals( before, schema() );
     }
 
     @Test

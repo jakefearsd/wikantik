@@ -15,13 +15,15 @@ vi.mock('../../api/work', () => ({
   listLabels: vi.fn(() => Promise.resolve([])), listSprints: vi.fn(() => Promise.resolve([])),
   markItemRead: vi.fn(() => Promise.resolve()), getWatch: vi.fn(() => Promise.resolve({ state: 'none' })), setWatch: vi.fn(),
   getItemPoints: vi.fn(() => Promise.resolve({ points: 0 })),
+  getReportedItem: vi.fn(() => Promise.reject(Object.assign(new Error('Not found.'), { status: 404 }))),
+  addReportedComment: vi.fn(),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { authenticated: true, loginPrincipal: 'ana-login' } }) }));
 
 import {
-  getItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
+  getItem, getReportedItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
   listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn, listLabels, listSprints, markItemRead, listAttachments,
 } from '../../api/work';
 import WorkItemView from './WorkItemView';
@@ -332,6 +334,62 @@ describe('WorkItemView', () => {
     expect(review.getByText('Sprint 13')).toBeInTheDocument();
   });
 
+  describe('the outside notice survives a replacement view', () => {
+    const NOTICE = 'Reported from outside the project: the reporter can read this discussion.';
+    const handOff = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Hand off' }));
+      fireEvent.change(screen.getByLabelText('Status after handoff'), { target: { value: 'review' } });
+      fireEvent.change(screen.getByLabelText('Hand off to'), { target: { value: 'ana-login' } });
+      fireEvent.change(screen.getByLabelText('Handoff note'), { target: { value: 'over to you' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Send handoff' }));
+    };
+    const handed = (over) => makeView({ ...over }, { status: 'review', assignee: 'ana-login', assigneeName: 'Ana Alvarez', version: 5 });
+
+    it('keeps the notice when the hand-off response omits the flag', async () => {
+      handoffItem.mockResolvedValue(handed({}));
+      renderView(makeView({ reportedFromOutside: true }));
+      await ready();
+      await handOff();
+      await waitFor(() => expect(handoffItem).toHaveBeenCalled());
+      await waitFor(() => expect(screen.queryByLabelText('Handoff note')).toBeNull());
+      expect(screen.getByText(NOTICE)).toBeInTheDocument();
+    });
+
+    it('keeps it when the response carries null, and uses the server value when present', async () => {
+      handoffItem.mockResolvedValue(handed({ reportedFromOutside: null }));
+      renderView(makeView({ reportedFromOutside: true }));
+      await ready();
+      await handOff();
+      await waitFor(() => expect(screen.queryByLabelText('Handoff note')).toBeNull());
+      expect(screen.getByText(NOTICE)).toBeInTheDocument();
+    });
+
+    it('follows the server when it says the reporter is no longer outside', async () => {
+      handoffItem.mockResolvedValue(handed({ reportedFromOutside: false }));
+      renderView(makeView({ reportedFromOutside: true }));
+      await ready();
+      await handOff();
+      await waitFor(() => expect(screen.queryByLabelText('Handoff note')).toBeNull());
+      expect(screen.queryByText(NOTICE)).toBeNull();
+    });
+
+    it('keeps the notice when a conflict replaces the page with their version', async () => {
+      handoffItem.mockRejectedValue(Object.assign(new Error('changed'), { status: 409, reason: 'stale', current: makeView({}, { version: 9, title: 'Theirs' }) }));
+      renderView(makeView({ reportedFromOutside: true }));
+      await ready();
+      await handOff();
+      fireEvent.click(await screen.findByRole('button', { name: 'Keep editing on top of theirs' }));
+      expect(await screen.findByRole('heading', { level: 1, name: 'Theirs' })).toBeInTheDocument();
+      expect(screen.getByText(NOTICE)).toBeInTheDocument();
+    });
+
+    it('shows no notice when the flag is missing from the first view (a find-shaped view)', async () => {
+      renderView(makeView({}));
+      await ready();
+      expect(screen.queryByText(NOTICE)).toBeNull();
+    });
+  });
+
   it('handoffRequiresNote', async () => {
     handoffItem.mockResolvedValue(makeView({}, { status: 'review', assignee: 'ana-login', assigneeName: 'Ana Alvarez', version: 5 }));
     renderView();
@@ -445,6 +503,46 @@ describe('WorkItemView', () => {
     fireEvent.change(screen.getByLabelText('Direct commits by agents'), { target: { value: 'false' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save Direct commits by agents' }));
     await waitFor(() => expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { allowDirect: false } }));
+  });
+
+  it('falls back to the reported view on 404', async () => {
+    getItem.mockRejectedValueOnce(Object.assign(new Error('Not found.'), { status: 404 }));
+    getReportedItem.mockResolvedValueOnce({
+      key: 'PLAT-4', projectKey: 'PLAT', projectName: 'Platform', level: 'story', type: 'bug', status: 'ready', title: 'Mine from outside',
+      body: 'x', bodyHtml: '<p>x</p>', reporterName: 'Rita R', createdAt: '2026-11-01T10:00:00Z', updatedAt: '2026-11-01T10:00:00Z',
+      comments: [], events: [], archived: false,
+    });
+    render(<MemoryRouter initialEntries={['/work/item/PLAT-4']}><Routes><Route path="/work/item/:key" element={<WorkItemView />} /></Routes></MemoryRouter>);
+    expect(await screen.findByRole('heading', { name: 'Mine from outside' })).toBeInTheDocument();
+    expect(getReportedItem).toHaveBeenCalledWith('PLAT-4');
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+    expect(listMembers).not.toHaveBeenCalled();
+  });
+
+  it('shows the not-found state when the reported view is a 404 too', async () => {
+    getItem.mockRejectedValueOnce(Object.assign(new Error('Not found.'), { status: 404 }));
+    render(<MemoryRouter initialEntries={['/work/item/PLAT-999']}><Routes><Route path="/work/item/:key" element={<WorkItemView />} /></Routes></MemoryRouter>);
+    expect(await screen.findByText('No such item')).toBeInTheDocument();
+    expect(getReportedItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not try the reported view when the full view fails with a 5xx', async () => {
+    getItem.mockRejectedValueOnce(Object.assign(new Error('Server went away'), { status: 500 }));
+    render(<MemoryRouter initialEntries={['/work/item/PLAT-7']}><Routes><Route path="/work/item/:key" element={<WorkItemView />} /></Routes></MemoryRouter>);
+    expect(await screen.findByText('Server went away')).toBeInTheDocument();
+    expect(getReportedItem).not.toHaveBeenCalled();
+  });
+
+  it('shows the outside notice to members', async () => {
+    renderView(makeView({ reportedFromOutside: true }));
+    await ready();
+    expect(screen.getByText('Reported from outside the project: the reporter can read this discussion.')).toBeInTheDocument();
+  });
+
+  it('does not show the outside notice for an ordinary item', async () => {
+    renderView(makeView({ reportedFromOutside: false }));
+    await ready();
+    expect(screen.queryByText(/Reported from outside the project/)).toBeNull();
   });
 
   it('notFoundShowsNeutralMessage', async () => {

@@ -103,6 +103,15 @@ final class SegmentRouteTable< H > {
         }
     }
 
+    /** Every registered route as {@code METHOD pattern}, in registration order (for tests that guard route coverage). */
+    List< String > describe() {
+        final List< String > out = new ArrayList<>();
+        for ( final Route< H > route : routes ) {
+            out.add( route.method() + " " + String.join( "/", route.pattern() ) );
+        }
+        return out;
+    }
+
     /** The non-empty segments of the request path, under this table's prefix if it has one. */
     String[] segments( final HttpServletRequest request ) {
         final String pathInfo = request.getPathInfo() == null ? "" : request.getPathInfo();

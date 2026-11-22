@@ -67,10 +67,17 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
              OR ( principal_kind = 'agent' AND principal = ? ) )
         """;
 
-    private static final String VISIBLE_PROJECTS_SQL = "SELECT " + PROJECT_COLUMNS + """
+    /**
+     * The projects whose rows give the actor standing: the roles are named one by one from {@link WorkRole#STANDING}
+     * (an allow-list), so a reporter row, or any role added later, counts for nothing here.
+     */
+    static final String VISIBLE_PROJECTS_SQL = "SELECT " + PROJECT_COLUMNS + """
          FROM work_project p
         WHERE EXISTS ( SELECT 1 FROM work_member m
                        WHERE m.project_id = p.id
+                         AND m.role IN (""" + WorkRole.STANDING.stream().map( r -> "'" + r.wire() + "'" ).sorted()
+            .collect( java.util.stream.Collectors.joining( "," ) ) + """
+        )
                          AND ( ( m.principal_kind = 'user' AND m.principal = ? )
                             OR ( m.principal_kind = 'group' AND m.principal = ANY( ? ) )
                             OR ( m.principal_kind = 'agent' AND m.principal = ? ) ) )

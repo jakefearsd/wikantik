@@ -27,6 +27,16 @@ beforeEach(() => {
 });
 
 describe('WorkInbox', () => {
+  it('reads an actor-less status move without inventing an actor', async () => {
+    getInbox.mockResolvedValue({
+      notices: [notice(5, { reason: 'watching', event: { type: 'status', actor: null, actorName: null, actorKind: null, fromValue: 'in_progress', toValue: 'ready' } })],
+      unread: 1,
+    });
+    renderInbox();
+    expect(await screen.findByText('This moved to Ready')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/Someone|The code host/);
+  });
+
   it('listsNoticesWithReasonAndLink', async () => {
     getInbox.mockResolvedValue({
       notices: [notice(9), notice(8, { reason: 'mentioned', readAt: '2026-11-20T11:00:00Z' }),

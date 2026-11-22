@@ -26,3 +26,7 @@ Module notes, loaded when working under this directory.
 3. Describe it in `src/main/resources/wikantik-work-mcp-instructions.txt`.
 
 Tests that then fail until you do: `WorkMcpInstructionsDriftTest` (instructions name every tool and no unregistered one), `WorkMcpInitializerTest.assembledToolNames` (the expected set), and, in the IT module, `WorkMcpIT.EXPECTED_TOOLS` (the full list: derive the current count from `assembleTools`, do not copy it). A write tool also needs the audit call (`WorkMcpLog.written` on success; refusals are logged by the base class for any tool that reports `writes()`) and a case in `WriteToolsAuditTest`; `McpAgents.md` lists the tools. The admin MCP's `EXPECTED_TOOLS` / `InstructionsRegistryDriftTest` are about `/wikantik-admin-mcp` and are unaffected by this module.
+
+## Reporters
+
+An agent can never be a reporter and no tool calls `intake()`: reporter standing is for people filing through `/work/submit`, and a person's `work` key is a person with the same standing as their session (a reporter-only key reaches nothing on `/work-mcp`).

@@ -23,6 +23,7 @@ public final class WorkPolicy {
 
     private static final String AGENT_ACKNOWLEDGE = "A person acknowledges work closed without one.";
     private static final String AGENT_SPRINT = "A person plans a sprint.";
+    private static final String AGENT_FILE = "A person files intake; an agent creates items in the projects it belongs to.";
     private static final String HUMAN_CLAIM = "People are assigned work; assign it to yourself instead.";
 
     /** Leaving refining for one of these approves nothing. */
@@ -107,7 +108,15 @@ public final class WorkPolicy {
      * draft for everyone.
      */
     static WorkStatus startStatus( final Actor actor, final WorkLevel level ) {
-        return actor.kind() == Actor.Kind.HUMAN && level != null && level != WorkLevel.EPIC
+        return startStatus( actor, level, false );
+    }
+
+    /**
+     * As {@link #startStatus(Actor, WorkLevel)}; an item filed through intake always starts as a draft, whoever files
+     * it: a person on the team refines and moves it forward, which the reporter's own say-so never does.
+     */
+    static WorkStatus startStatus( final Actor actor, final WorkLevel level, final boolean intake ) {
+        return !intake && actor.kind() == Actor.Kind.HUMAN && level != null && level != WorkLevel.EPIC
             ? WorkStatus.READY : WorkStatus.DRAFT;
     }
 
@@ -136,7 +145,7 @@ public final class WorkPolicy {
         if ( action == Action.MANAGE_SPRINT || action == Action.PLAN_SPRINT ) {
             return Decision.deny( AGENT_SPRINT );
         }
-        return null;
+        return action == Action.FILE_ITEM ? Decision.deny( AGENT_FILE ) : null;
     }
 
     private static boolean claimedByOther( final Actor actor, final Action action, final Item item ) {

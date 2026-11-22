@@ -142,6 +142,14 @@ class WorkSponsorStandingPostgresTest {
     }
 
     @Test
+    void aReporterSponsorIsNotAMember() throws SQLException {
+        assertEquals( WorkRegistryService.MemberStanding.EFFECTIVE, service.registry().agentStandings( pat, "PLAT" ).get( codex ) );
+        service.putMember( pat, "PLAT", "Dn lena", "user", WorkRole.REPORTER );
+        assertEquals( WorkRegistryService.MemberStanding.SPONSOR_NOT_MEMBER,
+            service.registry().agentStandings( pat, "PLAT" ).get( codex ) );
+    }
+
+    @Test
     void demotingTheSponsorToViewerReleasesButToMemberDoesNot() throws SQLException {
         final String key = claimIn( "PLAT" );
         service.putMember( pat, "PLAT", "Dn lena", "user", WorkRole.MEMBER );

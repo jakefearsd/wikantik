@@ -46,6 +46,10 @@ export default function WorkCard({ item, productKey, changes = null, draggable =
         <Link to={`/work/item/${item.key}`} className="work-card-key" draggable={false}>{item.key}</Link>
         {item.level !== 'task' && <span className="work-card-level">{item.level}</span>}
         {item.blocked && <Badge variant="danger" title="Blocked by an open item">Blocked</Badge>}
+        {item.reportedFromOutside === true && (
+          <span className="work-chip work-card-outside" title="Reported from outside the project"
+            aria-label="Reported from outside the project">From outside</span>
+        )}
         {item.type === 'bug' && <Badge variant="warning" title="Bug">Bug</Badge>}
       </div>
       <div className="work-card-title">{item.title}</div>

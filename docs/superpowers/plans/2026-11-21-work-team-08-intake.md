@@ -83,6 +83,19 @@ Decision P8-1 makes `roleIn` and `visibleProjects` mean "viewer or above". Under
 | 31 | Part 3 `sendEmail` per-row standing re-check | `roleIn` | Same predicate as 29. |
 | 32 | Part 3 `watch`/`mute`/`unwatch`/`markRead`; Part 7 upload/list/content/remove | `itemScope` | `ownItemScope` (Task 8.2c). |
 | 33 | Parts 1, 2, 4, 5, 6 and Part 3 webhooks | `scope`, `itemScope`, `visibleProjects` | Unchanged; each driven as a reporter in Task 8.2c. |
+| 34 | `WorkStanding.seesProject` (Part 3: `NoticePlanning`, `EmailSender`, `SavedFilters`) | `admin \|\| roleIn(...).filter(atLeast(VIEWER))` | Unchanged: false for a reporter. Pinned by `aReporterHasNoRoleAndSeesNoProject`. |
+| 35 | `WorkScopes.Scope.effectiveRole` | admin → `LEAD`, else raw | Reachable with `REPORTER` only from `intakeScope` / `ownItemScope`; `ItemViews.view` refuses a reporter scope (Task 8.2a). |
+| 36 | `WorkStanding.canSee`, `mayFile`, `reportsOnly`, `reportableProjects`, `outsideReporters` | new | Persons only (ruling 5): an agent, however named or sponsored, gets nothing; nothing else calls them (`WorkStandingSourceRuleTest`). |
+| 37 | `WorkRole` order users: `atLeast`, `highest`; no `ordinal()`, `values()` or other `compareTo` on roles in the four modules | order | `REPORTER` declared first is lowest; pinned by `reporterSortsBelowViewer` (ruling 15). |
+| 38 | SQL on role values: `ROLES_FOR_SQL`, `VISIBLE_PROJECTS_SQL`, `SPONSOR_LOCK_SQL ('member','lead')`, `MEMBER_LOCK_SQL 'member'`, dispatch `LEADS 'lead'`, `JdbcWorkMembers:72`, `JdbcWorkEventLog` (`type <> 'member'`) | name roles explicitly | Only `VISIBLE_PROJECTS_SQL` needed an edit (row 4); none uses `<> 'viewer'`, `NOT IN` or `!=`. |
+| 39 | Part 4 `find()` (`find`, `saved`, `save`, `rename`, `delete`), `labelsOf`, Part 2 `sprints()`, Part 6 `flow()` (`project`, `dora`, `doraForProduct`) | `visibleProjects` / `scope` | Unchanged: empty / not found for a reporter; `doraForProduct` resolves its product through visible projects, never a raw role. Driven in 8.2b/8.2c. |
+| 40 | Part 3 `notifications().watchState` and `markAllRead` | `itemScope`; `visibleIds` only | `ownItemScope`; `markAllRead` passes the reporter-only project ids too (ruling 4, Task 8.2c). |
+| 41 | Part 3 `NoticePlanning.mayWatch` and the `standing` / `visibleRows.sees` caches | `seesProject` keyed per project | Item-aware for a reporter-only person, cache keyed by project/login/item (ruling 2, Task 8.2c). |
+| 42 | `NoticeView.event` in the inbox | carries `note`, `agentId` whole | Stripped for a reporter-only project (ruling 1, Task 8.2c). |
+| 43 | Part 7 attachments `list`, `listing`, `content`, `upload`, `mayAttach`, `remove` | `require(VIEW/ATTACH)` | `ownItemScope`, policy skipped when `reporterOnly()` (ruling 3, Task 8.2c). |
+| 44 | REST `outsideReporters` marker on `GET items/{k}`, `PATCH items/{k}`, `GET items?project=`, `GET projects/{k}/board` | bounded by the logins in the response (ruling 9) | Single-project shapes only; the cross-project find shape carries no marker (Task 8.3a). |
+| 45 | `WorkProjectResource` members JSON; `WorkItemForm`, `WorkHandoff`, `WorkComments`, `WorkFind` pickers | viewers+ see reporter rows | Pickers filter `role !== 'reporter'` (ruling 11, Task 8.3b). |
+| 46 | `WikiWorkRenderer` (item body and comment HTML), `work-attachment:` tokens, comment mentions | text only, links as typed | No lookup, so no other item's title is revealed; a reporter's mention stores nothing (Task 8.2a). |
 
 Frontend role sites: `WorkItemView.jsx:181,193,307-308`, `WorkBoard.jsx:17`, `WorkAgents.jsx:147` are unchanged (a reporter never gets a project or full item). `WorkSettings.jsx:13,25,188-197,295` change in Task 8.3b.
 

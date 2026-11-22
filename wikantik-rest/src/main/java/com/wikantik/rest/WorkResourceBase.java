@@ -214,6 +214,11 @@ public abstract class WorkResourceBase extends RestServletBase {
         return t;
     }
 
+    /** The routes this servlet registered, as {@code METHOD pattern} (the pattern is relative to {@code /api/work/}). */
+    final List< String > registeredRoutes() {
+        return table().describe();
+    }
+
     @Override
     protected void service( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -274,13 +279,20 @@ public abstract class WorkResourceBase extends RestServletBase {
         body.addProperty( "reason", e.reason() );
         if ( WorkConflictException.STALE.equals( e.reason() ) && WorkCallers.mergesAgainstCurrent( request, segs ) ) {
             try {
-                body.add( "current", toTree( svc.item( actor, segs[ 1 ] ), actor ) );
+                body.add( "current", currentView( svc, actor, segs[ 1 ] ) );
             } catch ( final Exception inner ) {
                 LOG.warn( "Could not load the current item after a conflict on {}: {}", segs[ 1 ],
                     inner.getMessage(), inner );
             }
         }
         WorkJson.write( response, status, body );
+    }
+
+    /** The item as the plain item view shows it, with {@code reportedFromOutside}. */
+    private JsonObject currentView( final WorkService svc, final Actor actor, final String key ) throws Exception {
+        final WorkService.ItemView view = svc.item( actor, key );
+        final Call c = new Call( null, null, svc, actor, List.of() );
+        return WorkItemReads.markedView( this, c, view );
     }
 
     // ---- JSON with display names

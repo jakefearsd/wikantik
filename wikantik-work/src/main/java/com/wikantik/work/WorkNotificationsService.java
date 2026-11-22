@@ -23,6 +23,7 @@ import com.wikantik.work.WorkScopes.ItemScope;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -32,6 +33,12 @@ import java.util.stream.Collectors;
  * the dispatch the scheduler drives. A reader sees a notice only while they still see its project: the inbox, the
  * unread count and mark-all-read are filtered to the projects they can see now, and an item they cannot see is
  * "not found" to them. Agents are never notified: their inbox is empty and they cannot watch.
+ *
+ * <p>A person who only reports in a project (Part 8) follows the items they filed there and nothing else: their inbox,
+ * unread count and mark-all-read cover only those items' notices of the kinds {@link ReporterEvents} allows, each
+ * notice reshaped by it (no note, assignee, queue or agent; the reason "watching"), and they may read and set their
+ * watch on, and mark read, only their own items ({@link WorkScopes#ownItemScope}): any other item is the one
+ * "not found". Losing the reporter row takes their notices with it, as for a removed member.
  */
 public final class WorkNotificationsService {
 
@@ -64,7 +71,20 @@ public final class WorkNotificationsService {
             return List.of();
         }
         final int bounded = limit == 0 ? DEFAULT_LIMIT : Math.max( 1, Math.min( MAX_LIMIT, limit ) );
-        return store.notifyStores().notifications().inbox( a.login(), visibleIds( a ), beforeId, bounded );
+        final WorkNotificationStore.Readable readable = readable( a );
+        final List< NoticeView > rows = store.notifyStores().notifications().inbox( a.login(), readable, beforeId, bounded );
+        if ( readable.reportOnly().isEmpty() ) {
+            return rows;
+        }
+        final List< NoticeView > out = new ArrayList<>( rows.size() );
+        for ( final NoticeView v : rows ) {
+            if ( !readable.reportOnly().contains( v.event().projectId() ) ) {
+                out.add( v );
+            } else {
+                ReporterEvents.reshape( v ).ifPresent( out::add );
+            }
+        }
+        return out;
     }
 
     /** The caller's unread notices in projects they see now. */
@@ -72,38 +92,47 @@ public final class WorkNotificationsService {
         if ( a.kind() == Actor.Kind.AGENT ) {
             return 0;
         }
-        return store.notifyStores().notifications().unread( a.login(), visibleIds( a ) );
+        return store.notifyStores().notifications().unread( a.login(), readable( a ) );
     }
 
-    /** Marks the caller's notices about the item read; an item the caller cannot see is not found. */
+    /**
+     * Marks the caller's notices about the item read; an item the caller cannot see is not found (for a person who
+     * only reports, any item but their own).
+     */
     public void markRead( final Actor a, final String itemKey ) throws SQLException {
-        final ItemScope is = scopes.itemScope( a, itemKey );
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
         if ( a.kind() == Actor.Kind.AGENT ) {
             return;
         }
         store.notifyStores().notifications().markRead( a.login(), is.item().id(), clock.instant() );
     }
 
-    /** Marks every unread notice of the caller's, in projects they see now, read. */
+    /** Marks every unread notice of the caller's that {@link #unread} counts read. */
     public void markAllRead( final Actor a ) throws SQLException {
         if ( a.kind() == Actor.Kind.AGENT ) {
             return;
         }
-        store.notifyStores().notifications().markAllRead( a.login(), visibleIds( a ), clock.instant() );
+        store.notifyStores().notifications().markAllRead( a.login(), readable( a ), clock.instant() );
     }
 
-    /** The caller's watch state for the item; an agent's is always {@link WatchState#NONE}. */
+    /**
+     * The caller's watch state for the item; an agent's is always {@link WatchState#NONE}. A person who only reports
+     * reads it for their own items only.
+     */
     public WatchState watchState( final Actor a, final String itemKey ) throws SQLException {
-        final ItemScope is = scopes.itemScope( a, itemKey );
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
         if ( a.kind() == Actor.Kind.AGENT ) {
             return WatchState.NONE;
         }
         return store.notifyStores().watches().stateOf( is.item().id(), a.login() );
     }
 
-    /** Watch, mute or stop watching the item; returns the state now stored. Not recorded in any history. */
+    /**
+     * Watch, mute or stop watching the item; returns the state now stored. Not recorded in any history. A person who
+     * only reports may do this on their own items only (and may start watching again after stopping).
+     */
     public WatchState setWatch( final Actor a, final String itemKey, final WatchState state ) throws SQLException {
-        final ItemScope is = scopes.itemScope( a, itemKey );
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
         refuseAgent( a );
         is.scope().requireWritable();
         if ( state == null ) {
@@ -144,7 +173,7 @@ public final class WorkNotificationsService {
      * @return the number of events read
      */
     public int dispatch( final int maxEvents ) throws SQLException {
-        return store.notifyStores().notifications().dispatch( maxEvents, new NoticePlanning( scopes, people, listener ) );
+        return store.notifyStores().notifications().dispatch( maxEvents, new NoticePlanning( store, scopes, people, listener ) );
     }
 
     /** The notification tunables the host supplied. */
@@ -162,8 +191,11 @@ public final class WorkNotificationsService {
         return emailSender.send( now );
     }
 
-    private Set< Long > visibleIds( final Actor a ) throws SQLException {
-        return scopes.standing().visibleProjects( a ).stream().map( Project::id ).collect( Collectors.toSet() );
+    /** The projects the caller sees, and those where they only report (their own items' notices only). */
+    private WorkNotificationStore.Readable readable( final Actor a ) throws SQLException {
+        final Set< Long > visible = scopes.standing().visibleProjects( a ).stream().map( Project::id )
+            .collect( Collectors.toSet() );
+        return new WorkNotificationStore.Readable( visible, scopes.standing().reportOnlyProjects( a, visible ) );
     }
 
     private static void refuseAgent( final Actor a ) {

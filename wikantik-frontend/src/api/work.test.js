@@ -298,3 +298,20 @@ describe('attachment calls', () => {
     expect(collabRequest.mock.lastCall[1].method).toBe('DELETE');
   });
 });
+
+describe('intake client (Part 8)', () => {
+  it('the five client functions hit their URLs', async () => {
+    await work.listReportable();
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/intake/projects');
+    await work.submitIntake({ projectKey: 'PLAT', title: 'T' });
+    let [path, opts] = collabRequest.mock.lastCall;
+    expect([path, opts.method, JSON.parse(opts.body)]).toEqual(['/api/work/intake/items', 'POST', { projectKey: 'PLAT', title: 'T' }]);
+    await work.listReported();
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/intake/items');
+    await work.getReportedItem('PLAT-4');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/intake/items/PLAT-4');
+    await work.addReportedComment('PLAT-4', 'hello');
+    [path, opts] = collabRequest.mock.lastCall;
+    expect([path, opts.method, JSON.parse(opts.body)]).toEqual(['/api/work/intake/items/PLAT-4/comments', 'POST', { body: 'hello' }]);
+  });
+});

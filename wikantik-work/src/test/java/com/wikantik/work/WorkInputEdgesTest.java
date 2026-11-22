@@ -71,11 +71,37 @@ class WorkInputEdgesTest {
 
     @Test
     void aKeyThatIsAlsoARouteIsReserved() {
-        for ( final String reserved : List.of( "ITEM", "products", "Agents", "LOG", "DEPLOYMENTS", "Deployments", "INBOX", "find" ) ) {
+        for ( final String reserved : List.of( "ITEM", "products", "Agents", "LOG", "DEPLOYMENTS", "Deployments", "INBOX", "find", "submit", "SUBMIT" ) ) {
             assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( reserved ) ), reserved );
         }
         WorkInputs.requireUnreservedKey( null );
         WorkInputs.requireUnreservedKey( "PLAT" );
+    }
+
+    @Test
+    void submitIsAReservedProjectKey() {
+        assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( "submit" ) ) );
+        assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( "SUBMIT" ) ) );
+    }
+
+    @Test
+    void anAgentRoleIsViewerOrMember() {
+        assertEquals( "role", field( () -> WorkInputs.requireAgentRole( WorkRole.REPORTER ) ) );
+        assertEquals( "role", field( () -> WorkInputs.requireAgentRole( WorkRole.LEAD ) ) );
+        WorkInputs.requireAgentRole( WorkRole.VIEWER );
+        WorkInputs.requireAgentRole( WorkRole.MEMBER );
+    }
+
+    /** The new lowest role must not change any ordering decision (ruling 15). */
+    @Test
+    void reporterSortsBelowViewer() {
+        assertFalse( WorkRole.REPORTER.atLeast( WorkRole.VIEWER ) );
+        assertTrue( WorkRole.VIEWER.atLeast( WorkRole.REPORTER ) );
+        assertTrue( WorkRole.REPORTER.atLeast( WorkRole.REPORTER ) );
+        assertEquals( WorkRole.VIEWER, WorkRole.highest( List.of( WorkRole.REPORTER, WorkRole.VIEWER ) ) );
+        assertEquals( WorkRole.REPORTER, WorkRole.highest( List.of( WorkRole.REPORTER ) ) );
+        assertEquals( WorkRole.LEAD, WorkRole.highest( List.of( WorkRole.LEAD, WorkRole.REPORTER, WorkRole.MEMBER ) ) );
+        assertEquals( WorkRole.REPORTER, WorkRole.values()[ 0 ] );
     }
 
     // ---- members

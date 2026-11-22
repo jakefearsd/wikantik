@@ -297,7 +297,9 @@ tables populated, then restores the page tree. Lucene and in-memory caches rebui
 
 > **Restoring to a *fresh* host?** Skip the manual sequence below and use
 > `bin/dr-restore.sh` (§5.1) — it automates the whole stand-up. The manual sequence here is for
-> restoring in place on an existing instance.
+> restoring in place on an existing instance. A restore into a **new** PostgreSQL cluster (which
+> `bin/dr-restore.sh` always is) also needs the work-notification step in §5.3 before the app starts,
+> or work notifications stop silently.
 
 ### 5.1 Disaster recovery to a fresh host — `bin/dr-restore.sh`
 
@@ -324,6 +326,10 @@ or `--from-host` save|load) → transfer the snapshot from `--snapshot-host` at 
 (a dated snapshot dir, or a tier dir containing `LATEST`; the script's built-in defaults are the
 wikantik.com NAS, so always pass both for your own setup) and **verify checksums on the target** →
 `up -d db` → `restore.sh` in a one-off container → `up -d wikantik` → `bin/smoke-wiki.sh`.
+
+**Work notifications:** `bin/dr-restore.sh` does not yet run the §5.3 step. On a host where work
+management is in use, stop the app after the run (`docker compose … stop wikantik`), run §5.3 against
+the restored database, and start it again.
 
 Safety: it refuses to target the production host from `remote.env` (override with `--force`), and
 `--dry-run` prints the full plan without changing anything. Teardown is printed on completion
@@ -365,6 +371,59 @@ Restore in place on an existing instance (e.g. roll back bad data):
    ```
    The search index rebuilds automatically (~30–60s).
 5. **Verify:** browse the wiki; `GET /api/health` returns `status: UP`.
+
+### 5.3 Work notifications after a restore into a new cluster
+
+Work notifications (the inbox, email, webhooks) read the event log through cursors that compare transaction ids:
+`work_event.tx` holds the id of the transaction that wrote each event, and the inbox cursor
+(`work_notify_cursor`) and each webhook (`work_webhook.cursor_tx`, `cursor_event_id`) remember the last
+`(tx, event id)` they handled. A new event is picked up only when its `(tx, id)` is above the cursor.
+
+**A restore into the same PostgreSQL cluster needs nothing.** §5.2 (`restore.sh` into the instance's own,
+running database) is this case: transaction ids only grow within a cluster, so every event written after the
+restore has a higher `tx` than everything restored, and dispatch carries on (events in the dump that were not yet
+dispatched when it was taken are dispatched then).
+
+**A restore into a new cluster needs the step below.** §5.1 (`bin/dr-restore.sh` onto a fresh host) is this case,
+and so is any dump-and-restore into a newly created cluster (a cloud move, a dump-and-restore major-version
+upgrade, a recreated database volume). The dump copies `work_event.tx` and the cursors from the old cluster, whose
+transaction ids are far higher than the new cluster's. Every new event then gets a `tx` below the restored cursors
+and is never picked up: the inbox, email and every webhook stop, silently (no error, and
+`wikantik_work_dispatcher_alive` still reads 1). Moving the cursors to the newest *restored* event does not help
+(it leaves them up there), and moving them to the new cluster's current transaction id is worse: the restored
+events would then sit "ahead" of the cursors and be sent again, all of them, weeks later when the new cluster's
+ids catch up.
+
+The fix rebases every restored event to one transaction id below every future one, and plants every cursor after
+the newest restored event, so nothing old is sent again and nothing new is skipped. With the app **stopped**
+(after `restore.sh`, before the app starts; in `bin/dr-restore.sh` terms, between its restore step and
+`up -d wikantik`), run this as the database owner (the `POSTGRES_USER` of the compose stack: the app role may not
+update `work_event`, which is append-only for it), in one transaction:
+
+<!-- work-cursor-rebase:begin -->
+```sql
+BEGIN;
+-- Every restored event takes this transaction's own id: lower than every transaction that starts after it.
+UPDATE work_event SET tx = pg_current_xact_id();
+-- Every cursor resumes after the newest restored event.
+UPDATE work_notify_cursor
+   SET tx = pg_current_xact_id(), event_id = COALESCE((SELECT max(id) FROM work_event), 0);
+UPDATE work_webhook
+   SET cursor_tx = pg_current_xact_id(), cursor_event_id = COALESCE((SELECT max(id) FROM work_event), 0);
+COMMIT;
+```
+<!-- work-cursor-rebase:end -->
+
+What to expect: notices for events that were in the backup but not yet dispatched when it was taken (at most one
+dispatch interval, 60 s by default, plus any webhook backlog) are not sent. If `work_notify_cursor` is empty
+(notifications never ran), the first dispatch plants it itself. Then start the app, make one work change and check
+that it reaches `/work/inbox` of someone watching the item.
+
+The SQL itself is covered by `WorkRestoreCursorPostgresTest` (wikantik-work), which reads it from this section:
+it gives the restored events transaction ids above the database's current one, shows dispatch stalled, runs the
+block, and checks that a new event is delivered once to the inbox and a webhook and the restored events never.
+**It has not been run against a real restore into a fresh cluster.** Rehearse it once on a scratch restore
+(`bin/dr-restore.sh` to a spare host) before relying on it.
 
 ### Work attachments
 

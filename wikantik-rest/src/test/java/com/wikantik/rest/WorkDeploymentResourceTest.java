@@ -280,6 +280,7 @@ class WorkDeploymentResourceTest {
             Mockito.mock( com.wikantik.work.WorkNotificationsService.class );
         Mockito.when( svc.features() ).thenReturn( features );
         Mockito.when( features.notifications() ).thenReturn( notifications );
+        Mockito.when( features.intake() ).thenReturn( Mockito.mock( com.wikantik.work.WorkIntakeService.class ) );
         Mockito.when( notifications.preference( ALICE ) ).thenReturn(
             new com.wikantik.work.NotifyPreference( com.wikantik.work.EmailMode.OFF, false, false ) );
         final WorkMeResource me = WorkHttp.wire( new WorkMeResource(), svc, ALICE );

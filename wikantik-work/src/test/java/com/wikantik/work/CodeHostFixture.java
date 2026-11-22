@@ -79,6 +79,8 @@ final class CodeHostFixture {
     final Actor github = Actor.system( "github" );
     final TestClock clock = new TestClock( START );
     final Map< String, String > emails = new HashMap<>();
+    /** Profile addresses by login, for notification email (separate from {@link #emails}, the code-host lookup). */
+    final Map< String, String > addresses = new HashMap<>();
     final List< String[] > audits = new ArrayList<>();
     final DataSource ds;
     final JdbcWorkStore store;
@@ -90,6 +92,11 @@ final class CodeHostFixture {
     final String secret;
 
     CodeHostFixture() throws SQLException {
+        this( WorkNotifyPorts.NONE );
+    }
+
+    /** As above, with notification ports (a recording mailer for the email tests). */
+    CodeHostFixture( final WorkNotifyPorts ports ) throws SQLException {
         ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
         emails.put( "ana@example.com", "ana" );
@@ -104,8 +111,11 @@ final class CodeHostFixture {
             @Override public Optional< String > loginForEmail( final String email ) {
                 return Optional.ofNullable( emails.get( email.toLowerCase( java.util.Locale.ROOT ) ) );
             }
+            @Override public Optional< String > email( final String login ) {
+                return Optional.ofNullable( addresses.get( login ) );
+            }
         }, clock, WorkSettings.DEFAULTS, null, ( login, action, type, target, detail ) ->
-            audits.add( new String[] { login, action, type, target, detail } ) );
+            audits.add( new String[] { login, action, type, target, detail } ), ports );
         svc.createProject( admin, "PLAT", "Platform", "" );
         svc.putMember( admin, "PLAT", "lena", "user", WorkRole.LEAD );
         svc.putMember( admin, "PLAT", "mia", "user", WorkRole.MEMBER );

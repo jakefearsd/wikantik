@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,6 +45,15 @@ final class EmailDigest {
 
     static Email render( final List< PendingEmail > rows, final EmailDetail detail, final String baseUrl,
                          final Function< String, String > displayName ) {
+        return render( rows, detail, baseUrl, displayName, r -> false );
+    }
+
+    /**
+     * As above; a row {@code asReporter} accepts was reshaped by {@link ReporterEvents} for a person who only reports
+     * and is worded with {@link NoticeText#reporterLine}.
+     */
+    static Email render( final List< PendingEmail > rows, final EmailDetail detail, final String baseUrl,
+                         final Function< String, String > displayName, final Predicate< PendingEmail > asReporter ) {
         final List< PendingEmail > ordered = new ArrayList<>( rows );
         ordered.sort( ( a, b ) -> Long.compare( a.notice().id(), b.notice().id() ) );
         final Map< String, List< PendingEmail > > byItem = new LinkedHashMap<>();
@@ -60,12 +70,12 @@ final class EmailDigest {
         for ( final Map.Entry< String, List< PendingEmail > > item : byItem.entrySet() ) {
             final List< PendingEmail > list = item.getValue();
             text.append( item.getKey() ).append( ' ' ).append( oneLine( list.get( 0 ).notice().itemTitle() ) ).append( '\n' );
-            list.forEach( r -> appendNotice( text, r, detail, displayName ) );
+            list.forEach( r -> appendNotice( text, r, detail, displayName, asReporter.test( r ) ) );
             text.append( "  " ).append( baseUrl ).append( "/work/item/" ).append( item.getKey() ).append( "\n\n" );
         }
         if ( !projectLevel.isEmpty() ) {
             text.append( projectLevel.get( 0 ).notice().projectKey() ).append( '\n' );
-            projectLevel.forEach( r -> appendNotice( text, r, detail, displayName ) );
+            projectLevel.forEach( r -> appendNotice( text, r, detail, displayName, false ) );
             text.append( '\n' );
         }
         text.append( "You get these because you watch these items, were assigned them or were mentioned.\n" )
@@ -74,9 +84,10 @@ final class EmailDigest {
     }
 
     private static void appendNotice( final StringBuilder text, final PendingEmail r, final EmailDetail detail,
-                                      final Function< String, String > displayName ) {
-        text.append( "- " ).append( oneLine( NoticeText.line( r.notice().event(), r.notice().reason(), r.recipient(),
-            displayName ) ) ).append( '\n' );
+                                      final Function< String, String > displayName, final boolean asReporter ) {
+        final String said = asReporter ? NoticeText.reporterLine( r.notice().event(), displayName )
+            : NoticeText.line( r.notice().event(), r.notice().reason(), r.recipient(), displayName );
+        text.append( "- " ).append( oneLine( said ) ).append( '\n' );
         if ( detail == EmailDetail.FULL && r.commentText() != null && !r.commentText().isBlank() ) {
             for ( final String line : cut( names( r.commentText() ) ).split( "\\R", -1 ) ) {
                 text.append( "    > " ).append( line ).append( '\n' );

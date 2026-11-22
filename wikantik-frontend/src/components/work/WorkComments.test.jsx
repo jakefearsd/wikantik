@@ -43,6 +43,21 @@ describe('WorkComments', () => {
     expect(screen.queryByText(/ops/)).toBeNull();
   });
 
+  it('never offers a reporter in the mention picker', async () => {
+    setup({ members: [...MEMBERS, { principal: 'Rita R', principalKind: 'user', role: 'reporter', displayName: 'Rita R', mentionId: 'u-rita' }] });
+    const box = screen.getByLabelText('Add a comment');
+    box.focus();
+    fireEvent.change(box, { target: { value: '@' } });
+    const list = await screen.findByRole('listbox', { name: 'User mentions' });
+    expect(within(list).getAllByRole('option').map((o) => o.textContent)).toEqual(['@Ana Alvarez', '@Bob Brown']);
+  });
+
+  it('offers no edit or remove when editable is false', () => {
+    setup({ comments: [c(1, true, 'mine')], editable: false, isLead: true });
+    expect(screen.queryByRole('button', { name: /Edit comment/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Remove comment/ })).toBeNull();
+  });
+
   it('the picker inserts the wiki mention token and the text is sent as typed', async () => {
     const { onAdd } = setup();
     const box = screen.getByLabelText('Add a comment');

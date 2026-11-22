@@ -39,7 +39,8 @@ A *project* is a team's board. Only its members (and wiki administrators) know i
 1. On the Work home choose **New project**: a key (upper case, for example `PLAT`; it prefixes every item key,
    `PLAT-1`), a name and a description, then **Create project**.
 2. Open the project's **Settings** tab and add members by display name, each as `viewer` (reads), `member` (reads,
-   edits, comments, moves cards) or `lead` (also changes the project's policy and settings).
+   edits, comments, moves cards) or `lead` (also changes the project's policy and settings). A fourth role,
+   `reporter`, is for people who only file requests; see section 12.
 
 **You should see:** the project on the Work home and an empty board. A person you added sees it too the next time
 they open `/work`; a person you did not add gets "Not found". Wiki administrators see every project without being
@@ -116,8 +117,12 @@ in review when an approval arrives, merged when the pull request merges. Its his
   rewrite what was found: the change keeps its flag and shows who acknowledged it, and the item leaves the lane.
 - **A flag can clear by itself.** Code hosts can deliver an approval after the merge it belongs to. If an approval
   stamped before the merge for the merged commit arrives later, and no lead has acknowledged the flag yet, the change
-  becomes *merged after review* and the flag is removed. A lead who already got a notice is not told it cleared. An
-  acknowledged flag, or an approval stamped after the merge, never changes anything.
+  becomes *merged after review* and the flag is removed. An acknowledged flag, or an approval stamped after the merge,
+  never changes anything.
+- **A flag notice lasts as long as the flag.** The leads' "flagged a merge outside policy" notice shows in the inbox,
+  counts as unread and goes out by email only while the flag still waits. When a later delivery clears the flag, when
+  a pull request's merge replaces the direct commit that was flagged, or when any lead acknowledges it, the notice
+  disappears for every lead. Pressing **Acknowledge** on a flag that has just cleared says it was already cleared.
 
 ## 6. A deployment: from request to verified
 
@@ -178,7 +183,7 @@ The **Inbox** link on the Work home (`/work/inbox`) opens your inbox: a notice w
 
 ## 10. Attaching files
 
-Add files to an item, or to a comment on it, from the item page; you can also paste or drop a file into the item text or a comment box. An image shows in the text where you pasted it, and any other file becomes a link in the text. The item's attachment list shows every file with its size, who added it and when.
+Add files to an item, or to a comment on it, from the item page; you can also paste or drop a file into the item text or a comment box. An image shows in the text where you pasted it, and any other file becomes a link in the text. The item's attachment list shows every file with its size, who added it and when. A file attached to a comment that has been removed can no longer be listed, opened or removed; it answers not found. The file itself is kept.
 
 - **Who:** members and leads attach files, and agents that are members of the project do too. A viewer can see and download them but not add or remove. You remove a file you added; a project lead or an administrator can remove any file.
 - **Limits:** a file is at most 10 MB and an item holds at most 50 MB in all (your administrator may have set other limits; a too-large file is refused with a message). Removed files stop counting.
@@ -201,13 +206,16 @@ time zone the page names, which is the server's.
 
 ### Flow (per project)
 
+- **Throughout these figures, a move counts however it happened:** a status change on the item page, a hand-off that
+  changes the status, or an agent claiming an item (which moves it to In progress). An agent that claims an item and
+  hands it off as Done has started and finished it like anyone else.
 - **Throughput.** How many items were finished in each week, and how many points they were worth. An item counts in the
   week of its *last* move to Done, and only while it is still Done: one that was closed and then reopened is not
   counted until it is closed again, and an item closed twice is counted once. Points add up the estimates; an item
   with no estimate adds 0 points. Epics are not counted. This does not tell you whether the work was the right work or
   how big the items were. It is not the sprint velocity of the Sprints view: velocity counts what each sprint
   completed when it closed, throughput counts items in the week they were finished and ignores sprint boundaries, so
-  the two are not meant to match.
+  the two need not match. Filtered to one sprint whose items were all finished inside it, they agree.
 - **Cycle time.** For items finished in the window: the time from the first move to In progress until the last move to
   Done, shown as the median (half the items were quicker) and the 85th percentile (85 in 100 were quicker), in days
   and hours, with the number of items it is based on. Items that were never In progress are left out. It does not
@@ -273,6 +281,47 @@ flow of deployments therefore looks different from each project's: that is expec
 fewer than ten items they are single events. A window with nothing in it shows "0 of 0" and no figure, never a zero
 duration. DORA's published definitions are about a whole service in production; here a "deployment" is a record
 somebody made, and the figures say only what those records say.
+
+## 12. Intake: requests from people outside the project
+
+A project can take requests from people who are not on the team: a customer, a colleague in another group. Such a
+person is given the `reporter` role. A reporter is not a member. They can file a request and follow what they filed,
+and they cannot see anything else in the project.
+
+### For a project lead: letting someone file
+
+1. Open the project's **Settings** tab and add the person (or a whole group) with the role `reporter`. Giving the role
+   to a group lets every member of that group file, so choose the group with care.
+2. Tell them to open **File an item** on the Work home (`/work/submit`).
+3. Watch the board's **drafts**. A request always arrives as a `draft`, shown with a marker that it was reported from
+   outside, under the reporter's display name. **You are not notified when a request is filed or when the reporter
+   comments**; triage works from the board, so look at the drafts regularly. Moving a draft on (to `refining` or
+   `ready`, for example) is a status change the reporter is told about.
+4. To stop a reporter, or a group, remove their row in Settings. The request they filed stays, but they no longer see
+   it, hear about it or can add to it. There is no limit on how many requests a reporter may file, so removing the row
+   is how abuse is stopped.
+
+A reporter cannot be assigned work and cannot be mentioned. An agent can never be a reporter. People who are already
+viewers, members or leads of the project may file through the same form; their request also starts as a draft.
+
+### For a reporter: filing and following
+
+- **Filing.** Choose the project, give the request a title and describe it (up to 20,000 characters), then choose a
+  type. The form has no assignee, priority, labels, sprint, estimate or due date: the team sets those when it sorts
+  the request. You may choose files to attach on the same form.
+- **Attaching files.** The request is filed first and the files are uploaded after it, because a file needs an item to
+  belong to. If an upload fails, the request stays filed without that file and the page says which file failed; add it
+  again from the request's page.
+- **Following.** The request's page shows its title, text, status, the whole discussion (what the team writes to you is
+  what you read) and the files on it. You can comment and attach files to your own request, and remove files you added.
+  You see people by their display names only.
+- **What you are told.** You get a notice in your inbox (and an email, when email is on) when the status of your request
+  changes, however that happened, and when someone comments. The notice says who moved it and to which status, never why
+  or to whom it was assigned. You are not told about labels, assignments, estimates, sprints, files or anything the team
+  does around the item.
+- **What you cannot do or see.** Everything else in the project answers you as if it did not exist: the board, other
+  people's requests (even in the same project), links, parent items, changes, deployments, products, agents, find,
+  sprints and figures. You cannot change the status, edit or remove anyone else's comment, link, label or assignee.
 
 ## Autonomy in one paragraph
 

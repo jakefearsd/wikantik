@@ -32,7 +32,15 @@ import java.util.List;
  * another project or a removed attachment is the same "not found" as an unknown one. An item the caller cannot see
  * is "not found" for every call, so {@link #list} is also the cheap "may this caller see this item's attachments"
  * check. The stored type comes from the bytes ({@link FileKinds}), never from the client's claim; the file name is
- * data and never a path. Removal deletes the bytes and keeps the row and its events.
+ * data and never a path. Removal deletes the bytes and keeps the row and its events. A file on a comment that has been
+ * removed is no longer reachable by anyone (listed, counted, downloaded or removed: the same "not found"); its row and
+ * bytes stay.
+ *
+ * <p>A person who only reports (Part 8) reaches the attachments of the items they filed, and of no other item, through
+ * {@link WorkScopes#ownItemScope}: they list and download every live file on their item (members' too, as part of its
+ * discussion), upload within the same limits while the project is not archived, and remove only what they uploaded.
+ * Their scope already proved the item is theirs, so the policy (which gives a reporter nothing) is not asked for them;
+ * for everyone else every check is as before.
  */
 public final class WorkAttachmentsService {
 
@@ -52,8 +60,8 @@ public final class WorkAttachmentsService {
      */
     public Attachment upload( final Actor a, final String itemKey, final Long commentId, final String filename,
                               final byte[] content ) throws SQLException {
-        final ItemScope is = scopes.itemScope( a, itemKey );
-        is.scope().require( Action.ATTACH, is.item() );
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
+        requireAttach( is );
         is.scope().requireWritable();
         final String name = FileKinds.safeName( filename );
         if ( name.isEmpty() ) {
@@ -78,16 +86,16 @@ public final class WorkAttachmentsService {
      * policy refuses, archived). Read-only; the REST layer asks it before it reads a request body.
      */
     public boolean mayAttach( final Actor a, final String itemKey ) throws SQLException {
-        final ItemScope is = scopes.itemScope( a, itemKey );
-        is.scope().require( Action.ATTACH, is.item() );
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
+        requireAttach( is );
         is.scope().requireWritable();
         return true;
     }
 
     /** The item's live attachments, oldest first. */
     public List< Attachment > list( final Actor a, final String itemKey ) throws SQLException {
-        final ItemScope is = scopes.itemScope( a, itemKey );
-        is.scope().require( Action.VIEW, is.item() );
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
+        requireSee( is );
         return store.notifyStores().attachments().forItem( is.item().id() );
     }
 
@@ -97,11 +105,11 @@ public final class WorkAttachmentsService {
      * {@code mayAttach=false}; one who cannot see it gets the same "not found" as {@link #list}.
      */
     public AttachmentListing listing( final Actor a, final String itemKey ) throws SQLException {
-        final ItemScope is = scopes.itemScope( a, itemKey );
-        is.scope().require( Action.VIEW, is.item() );
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
+        requireSee( is );
         final List< Attachment > live = store.notifyStores().attachments().forItem( is.item().id() );
         final boolean may = is.scope().project().archivedAt() == null
-            && WorkPolicy.may( a, is.scope().role(), Action.ATTACH, is.item() ).allowed();
+            && ( is.scope().reporterOnly() || WorkPolicy.may( a, is.scope().role(), Action.ATTACH, is.item() ).allowed() );
         return new AttachmentListing( live, may, settings.maxAttachmentBytes(), settings.maxItemAttachmentBytes(),
             live.stream().mapToLong( Attachment::sizeBytes ).sum() );
     }
@@ -109,24 +117,46 @@ public final class WorkAttachmentsService {
     /** One attachment with its bytes; one that is not a live attachment of this item is "not found". */
     public AttachmentContent content( final Actor a, final String itemKey, final long attachmentId )
             throws SQLException {
-        final ItemScope is = scopes.itemScope( a, itemKey );
-        is.scope().require( Action.VIEW, is.item() );
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
+        requireSee( is );
         return store.notifyStores().attachments().content( is.item().id(), attachmentId )
             .orElseThrow( () -> new WorkNotFoundException( WorkScopes.NOT_FOUND ) );
     }
 
-    /** Removes the attachment: its uploader or a project lead (a wiki admin), never another member. */
+    /**
+     * Removes the attachment: its uploader or a project lead (a wiki admin), never another member; a person who only
+     * reports removes only what they uploaded.
+     */
     public Attachment remove( final Actor a, final String itemKey, final long attachmentId ) throws SQLException {
-        final ItemScope is = scopes.itemScope( a, itemKey );
-        is.scope().require( Action.ATTACH, is.item() );
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
+        requireAttach( is );
         is.scope().requireWritable();
         final Attachment att = store.notifyStores().attachments().attachment( is.item().id(), attachmentId )
             .orElseThrow( () -> new WorkNotFoundException( WorkScopes.NOT_FOUND ) );
-        if ( !WorkPolicy.may( a, is.scope().role(), Action.MANAGE_PROJECT, is.item() ).allowed() && !uploader( a, att ) ) {
+        if ( is.scope().reporterOnly() ) {
+            if ( !uploader( a, att ) ) {
+                scopes.denied( Action.ATTACH );
+                throw new WorkDeniedException( "Only the uploader may remove this file." );
+            }
+        } else if ( !WorkPolicy.may( a, is.scope().role(), Action.MANAGE_PROJECT, is.item() ).allowed() && !uploader( a, att ) ) {
             scopes.denied( Action.ATTACH );
             throw new WorkDeniedException( "Only the uploader or a project lead may remove an attachment." );
         }
         return fenced( () -> store.notifyStores().attachments().remove( is.item(), attachmentId, a ) );
+    }
+
+    /** VIEW, except for a person who only reports, whose scope already proved the item is theirs. */
+    private static void requireSee( final ItemScope is ) {
+        if ( !is.scope().reporterOnly() ) {
+            is.scope().require( Action.VIEW, is.item() );
+        }
+    }
+
+    /** ATTACH, except for a person who only reports, whose scope already proved the item is theirs. */
+    private static void requireAttach( final ItemScope is ) {
+        if ( !is.scope().reporterOnly() ) {
+            is.scope().require( Action.ATTACH, is.item() );
+        }
     }
 
     /** The per-file limit in bytes; takes no actor (the REST layer caps its read with it). */

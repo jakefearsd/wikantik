@@ -42,7 +42,7 @@ final class JdbcNotifyEmail {
         + "LEFT JOIN work_item i ON i.id = e.item_id LEFT JOIN work_notify_pref pr ON pr.login = n.recipient "
         + "LEFT JOIN work_comment c ON e.type IN ( 'commented', 'comment_edited' ) "
         + "AND c.id = CASE WHEN e.to_value ~ '^[0-9]{1,18}$' THEN e.to_value::bigint END AND c.removed_at IS NULL "
-        + "WHERE n.emailed_at IS NULL AND n.created_at >= ? "
+        + "WHERE n.emailed_at IS NULL AND n.created_at >= ? AND " + FlagNotices.liveNoticeSql( "n" ) + " "
         + "AND ( COALESCE( pr.email_mode, 'each' ) = 'each' OR ( pr.email_mode = 'daily' AND ? "
         + "AND ( pr.last_digest_on IS NULL OR pr.last_digest_on < ? ) ) ) "
         + "ORDER BY n.recipient, n.id LIMIT ?";

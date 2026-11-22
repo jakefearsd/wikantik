@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -36,22 +37,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class WorkStandingSourceRuleTest {
 
+    /**
+     * The intake store's reads of reporter rows ({@code reportableProjects}, {@code hasReporters}, and the retired
+     * {@code reporterCandidates}) are reached only through {@code WorkStanding}: a call on anything but {@code standing()}
+     * is an offender.
+     */
+    private static final Pattern REPORTER_READS =
+        Pattern.compile( "(?<!standing\\(\\))\\.(reportableProjects|hasReporters|reporterCandidates)\\(" );
+
     private static final Path MAIN = Path.of( "src", "main", "java", "com", "wikantik", "work" );
 
     @Test
     void onlyWorkStandingAsksAStoreForRolesOrVisibleProjects() throws IOException {
         final List< String > offenders = new ArrayList<>();
         int scanned = 0;
-        try ( Stream< Path > files = Files.list( MAIN ) ) {
+        try ( Stream< Path > files = Files.walk( MAIN ) ) {
             for ( final Path file : files.filter( f -> f.toString().endsWith( ".java" ) ).toList() ) {
                 final String name = file.getFileName().toString();
                 if ( name.equals( "WorkStanding.java" ) || name.startsWith( "Jdbc" )
-                        || name.equals( "WorkCatalogStore.java" ) ) {
+                        || name.equals( "WorkCatalogStore.java" ) || name.equals( "WorkIntakeStore.java" ) ) {
                     continue;
                 }
                 scanned++;
                 final String source = Files.readString( file );
-                if ( source.contains( "store.roleFor(" ) || source.contains( "store.visibleProjects(" ) ) {
+                if ( source.contains( "store.roleFor(" ) || source.contains( "store.visibleProjects(" )
+                        || REPORTER_READS.matcher( source ).find() ) {
                     offenders.add( name );
                 }
             }

@@ -403,7 +403,7 @@ class WorkServiceTest {
             WorkStatus.DRAFT, 3, 1, null, null, "x", null, null, null, 1, NOW, NOW, null, null, null, null, null, null, null, null, null, null );
         when( store.assignedOpen( "alice", Set.of( 1L ) ) ).thenReturn( List.of( older ) );
         when( store.mentioning( "alice", Set.of( 1L ) ) ).thenReturn( List.of( newer, older ) );
-        when( store.notifyStores() ).thenReturn( new WorkNotifyStores( null, null, null, null, null, null, mock( WorkCodeHostStore.class ), null ) );
+        when( store.notifyStores() ).thenReturn( new WorkNotifyStores( null, null, null, null, null, null, mock( WorkCodeHostStore.class ), null, null ) );
         assertEquals( List.of( "PLAT-4", "PLAT-3" ),
             service.waitingOn( alice ).stream().map( w -> w.item().key() ).toList() );
         verify( store, never() ).assignedOpen( eq( "alice" ), eq( Set.of( 1L, 2L ) ) );

@@ -21,6 +21,7 @@ package com.wikantik.work;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 /** Who hears of an event, and why: a pure function of the event and the facts about it. */
 final class Recipients {
@@ -51,6 +52,23 @@ final class Recipients {
             case WorkEvent.CLAIM_EXPIRED -> add( out, f.reporter(), NoticeReason.CLAIM_EXPIRED );
             default -> { }
         }
+        if ( e.actorKind() == Actor.Kind.HUMAN ) {
+            out.remove( e.actor() );
+        }
+        return out;
+    }
+
+    /**
+     * Who may hear of the event as a person who only reports: the item's watchers (they watch the item they filed),
+     * and only for an event {@link ReporterEvents#notifies} allows; the person who did it is left out. The planner
+     * keeps a login from this set only for a person who only reports and filed the item; everyone else is decided by
+     * {@link #of} alone, so this never adds a notice for a member.
+     */
+    static Set< String > forReporters( final WorkEvent e, final EventFacts f ) {
+        if ( !ReporterEvents.notifies( e ) || f.commentRemoved() ) {
+            return Set.of();
+        }
+        final Set< String > out = new TreeSet<>( f.watchers() );
         if ( e.actorKind() == Actor.Kind.HUMAN ) {
             out.remove( e.actor() );
         }

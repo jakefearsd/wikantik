@@ -8,7 +8,7 @@ import { useToast } from '../../hooks/useToast';
 import { announceUnread } from '../../hooks/useWorkUnread';
 import {
   addComment, addLink, editComment, getItem, handoffItem, listItems, listMembers, listProducts, listQueues, patchItem,
-  listLabels, listSprints, markItemRead, releaseItem, removeComment, removeLink,
+  getReportedItem, listLabels, listSprints, markItemRead, releaseItem, removeComment, removeLink,
 } from '../../api/work';
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS, TYPE_OPTIONS, labelRows } from './boardModel';
@@ -25,10 +25,18 @@ import WorkHandoff, { handoffShape } from './WorkHandoff';
 import WorkChanges from './WorkChanges';
 import WorkLinks from './WorkLinks';
 import WorkPolicyNote from './WorkPolicyNote';
+import WorkReportedItem from './WorkReportedItem';
 import WorkShippedIn from './WorkShippedIn';
 import WorkTimeline from './WorkTimeline';
 import WorkWatchButton from './WorkWatchButton';
 import { isPast, useExpiryClock } from './workTime';
+
+/**
+ * A view that replaces the one on screen (a hand-off, an edit conflict) may omit `reportedFromOutside`; the notice must
+ * not vanish until a reload, so the flag is carried over when the new view says nothing. A value the server sends wins.
+ */
+const carryOutside = (prev, next) => (next && next.reportedFromOutside == null && prev && prev.reportedFromOutside != null
+  ? { ...next, reportedFromOutside: prev.reportedFromOutside } : next);
 
 const EPIC_STATUSES = ['draft', 'in_progress', 'done', 'cancelled'];
 const KIND_OPTIONS = ['software', 'docs', 'admin'].map((k) => ({ value: k, label: k }));
@@ -145,6 +153,9 @@ function ItemPage({ itemKey }) {
   const [view, setView] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  // The reduced view of an item the viewer filed from outside the project (the full view is not theirs to read).
+  const [reported, setReported] = useState(null);
+  const reportedRef = useRef(false);
   const [members, setMembers] = useState([]);
   const [queues, setQueues] = useState([]);
   const [conflict, setConflict] = useState(null);
@@ -167,6 +178,20 @@ function ItemPage({ itemKey }) {
   // Only the latest request may write state.
   const load = useCallback(() => {
     const mine = ++seq.current;
+    const asReporter = () => getReportedItem(itemKey)
+      .then((v) => {
+        if (mine !== seq.current) return;
+        reportedRef.current = true;
+        setReported(v);
+        setNotFound(false);
+        setLoadError(null);
+      })
+      .catch((e) => {
+        if (mine !== seq.current) return;
+        if (e?.status === 404) setNotFound(true);
+        else setLoadError(e?.message || 'Could not load the item.');
+      });
+    if (reportedRef.current) return asReporter();
     return getItem(itemKey)
       .then((v) => {
         if (mine !== seq.current) return;
@@ -175,9 +200,11 @@ function ItemPage({ itemKey }) {
         setLoadError(null);
       })
       .catch((e) => {
-        if (mine !== seq.current) return;
-        if (e?.status === 404) setNotFound(true);
-        else setLoadError(e?.message || 'Could not load the item.');
+        if (mine !== seq.current) return undefined;
+        // Only a 404 means "not a member": a person who filed it from outside reads the reduced view instead.
+        if (e?.status === 404) return asReporter();
+        setLoadError(e?.message || 'Could not load the item.');
+        return undefined;
       });
   }, [itemKey]);
 
@@ -264,7 +291,7 @@ function ItemPage({ itemKey }) {
     return call(itemKey, body)
       .then((next) => {
         seq.current += 1; // a load that started before this save must not replace the newer view
-        setView(next);
+        setView((prev) => carryOutside(prev, next));
         setConflict(null);
         setActivity((a) => a + 1);
         // A person is never locked out of a claimed item, but changing it ends the claim: say so.
@@ -343,6 +370,7 @@ function ItemPage({ itemKey }) {
     () => (mayEdit ? { itemKey, toast, onUploaded: () => setActivity((n) => n + 1) } : null),
     [mayEdit, itemKey, toast]);
 
+  if (reported && !view) return <WorkReportedItem view={reported} onReload={load} />;
   if (notFound) return <EmptyState message="No such item" />;
   if (loadError && !view) return <EmptyState message={loadError} />;
   if (!view) return <Spinner label="Loading…" />;
@@ -418,10 +446,10 @@ function ItemPage({ itemKey }) {
           onKeep={() => {
             setConflict(null);
             const rebase = (v) => setOpen((o) => (o ? { ...o, base: v.item.version } : o));
-            if (conflict?.current) { setView(conflict.current); rebase(conflict.current); }
+            if (conflict?.current) { setView((prev) => carryOutside(prev, conflict.current)); rebase(conflict.current); }
             else if (conflict) {
               getItem(itemKey)
-                .then((v) => { seq.current += 1; setView(v); rebase(v); })
+                .then((v) => { seq.current += 1; setView((prev) => carryOutside(prev, v)); rebase(v); })
                 .catch((e) => fail(e, 'Could not reload the item.'));
             }
             else rebase(view);
@@ -447,6 +475,11 @@ function ItemPage({ itemKey }) {
           {!isEpic && (
             <WorkChanges itemKey={itemKey} canEdit={canEdit} canAcknowledge={isLead} refreshKey={activity}
               onChanged={() => setActivity((n) => n + 1)} />
+          )}
+          {view.reportedFromOutside && (
+            <p className="work-outside-note" role="note">
+              Reported from outside the project: the reporter can read this discussion.
+            </p>
           )}
           <WorkComments
             comments={view.comments} members={members} canComment={canEdit} isLead={isLead} attach={attach}

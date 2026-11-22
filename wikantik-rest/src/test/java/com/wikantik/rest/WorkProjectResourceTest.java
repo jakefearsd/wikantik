@@ -49,10 +49,15 @@ class WorkProjectResourceTest {
 
     private WorkService svc;
     private WorkProjectResource servlet;
+    private com.wikantik.work.WorkIntakeService intake;
 
     @BeforeEach
     void setUp() throws Exception {
         svc = Mockito.mock( WorkService.class );
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        intake = Mockito.mock( com.wikantik.work.WorkIntakeService.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.intake() ).thenReturn( intake );
         servlet = WorkHttp.wire( new WorkProjectResource(), svc, ALICE );
         Mockito.when( svc.roleIn( any(), anyString() ) ).thenReturn( WorkRole.MEMBER );
         Mockito.when( svc.project( any(), anyString() ) ).thenAnswer( inv -> WorkHttp.project( inv.getArgument( 1 ) ) );
@@ -520,5 +525,86 @@ class WorkProjectResourceTest {
         final WorkHttp.Result bad = call( "GET", "/PLAT/board", Map.of( "sprint", "x" ), null );
         assertEquals( 400, bad.status() );
         assertEquals( "sprint", bad.json().getAsJsonObject().get( "field" ).getAsString() );
+    }
+
+    private static WorkService.SummaryColumn column( final String key, final String reporter, final Long reporterAgentId ) {
+        final com.wikantik.work.Item base = WorkHttp.item( key, null, 1 );
+        final com.wikantik.work.Item item = new com.wikantik.work.Item( base.id(), base.projectId(), key, base.level(),
+            null, null, base.kind(), base.title(), base.body(), base.status(), base.priority(), base.rank(), null, null,
+            reporter, null, null, null, 1, base.createdAt(), base.updatedAt(), null, null, null, null, null,
+            reporterAgentId, null, null, null, null );
+        return new WorkService.SummaryColumn( WorkStatus.DRAFT, 1, List.of( WorkHttp.summary( item, 0, false, null, null ) ) );
+    }
+
+    @Test
+    void boardCardsCarryTheOutsideMarker() throws Exception {
+        Mockito.when( svc.registry() ).thenReturn( Mockito.mock( com.wikantik.work.WorkRegistryService.class ) );
+        Mockito.when( svc.boardSummaries( any(), anyString(), any() ) ).thenReturn( List.of(
+            column( "PLAT-1", "rita", null ), column( "PLAT-2", "bob", null ), column( "PLAT-3", "rita", 5L ) ) );
+        Mockito.when( intake.outsideReporters( eq( ALICE ), eq( "PLAT" ), any() ) ).thenReturn( java.util.Set.of( "rita" ) );
+        final var cols = call( "GET", "/PLAT/board", Map.of(), null ).json().getAsJsonArray();
+        assertEquals( true, cols.get( 0 ).getAsJsonObject().getAsJsonArray( "items" ).get( 0 ).getAsJsonObject()
+            .get( "reportedFromOutside" ).getAsBoolean(), "a reporter-only person's item is marked" );
+        assertEquals( false, cols.get( 1 ).getAsJsonObject().getAsJsonArray( "items" ).get( 0 ).getAsJsonObject()
+            .get( "reportedFromOutside" ).getAsBoolean() );
+        assertEquals( false, cols.get( 2 ).getAsJsonObject().getAsJsonArray( "items" ).get( 0 ).getAsJsonObject()
+            .get( "reportedFromOutside" ).getAsBoolean(), "an agent-reported item is never marked, whatever its name" );
+    }
+
+    @Test
+    void theBoardAsksOnceWithOnlyTheDistinctReportersOfTheResponse() throws Exception {
+        Mockito.when( svc.registry() ).thenReturn( Mockito.mock( com.wikantik.work.WorkRegistryService.class ) );
+        Mockito.when( svc.boardSummaries( any(), anyString(), any() ) ).thenReturn( List.of(
+            column( "PLAT-1", "rita", null ), column( "PLAT-2", "rita", null ), column( "PLAT-3", "bob", 5L ) ) );
+        call( "GET", "/PLAT/board", Map.of(), null );
+        final ArgumentCaptor< java.util.Collection< String > > asked = ArgumentCaptor.forClass( java.util.Collection.class );
+        Mockito.verify( intake, Mockito.times( 1 ) ).outsideReporters( eq( ALICE ), eq( "PLAT" ), asked.capture() );
+        assertEquals( java.util.List.of( "rita" ), List.copyOf( asked.getValue() ), "one login, and none of an agent's" );
+    }
+
+    @Test
+    void anEmptyBoardAsksNobody() throws Exception {
+        Mockito.when( svc.boardSummaries( any(), anyString(), any() ) ).thenReturn( List.of() );
+        call( "GET", "/PLAT/board", Map.of(), null );
+        Mockito.verifyNoInteractions( intake );
+    }
+
+    @Test
+    void aFailureToWorkOutTheMarkerStillShowsTheBoard() throws Exception {
+        Mockito.when( svc.boardSummaries( any(), anyString(), any() ) ).thenReturn( List.of( column( "PLAT-1", "rita", null ) ) );
+        Mockito.when( intake.outsideReporters( any(), anyString(), any() ) ).thenThrow( new java.sql.SQLException( "down" ) );
+        final WorkHttp.Result r = call( "GET", "/PLAT/board", Map.of(), null );
+        assertEquals( 200, r.status() );
+        assertEquals( false, r.json().getAsJsonArray().get( 0 ).getAsJsonObject().getAsJsonArray( "items" ).get( 0 )
+            .getAsJsonObject().get( "reportedFromOutside" ).getAsBoolean() );
+    }
+
+    @Test
+    void aReporterRoleIsAccepted() throws Exception {
+        assertEquals( 204, call( "PUT", "/PLAT/members", Map.of(),
+            "{\"principal\":\"rita\",\"principalKind\":\"user\",\"role\":\"reporter\"}" ).status() );
+        Mockito.verify( svc ).putMember( ALICE, "PLAT", "rita", "user", WorkRole.REPORTER );
+        assertEquals( 204, call( "PUT", "/PLAT/members", Map.of(),
+            "{\"principal\":\"Customers\",\"principalKind\":\"group\",\"role\":\"reporter\"}" ).status() );
+        Mockito.verify( svc ).putMember( ALICE, "PLAT", "Customers", "group", WorkRole.REPORTER );
+    }
+
+    @Test
+    void aReporterAgentIsRefusedWithTheServicesMessage() throws Exception {
+        Mockito.doThrow( new com.wikantik.work.WorkValidationException( "role", "An agent is a viewer or a member." ) )
+            .when( svc ).putMember( any(), anyString(), anyString(), eq( "agent" ), eq( WorkRole.REPORTER ) );
+        final WorkHttp.Result r = call( "PUT", "/PLAT/members", Map.of(),
+            "{\"principal\":\"5\",\"principalKind\":\"agent\",\"role\":\"reporter\"}" );
+        assertEquals( 400, r.status() );
+        assertEquals( "role", r.json().getAsJsonObject().get( "field" ).getAsString() );
+        assertEquals( "An agent is a viewer or a member.", r.json().getAsJsonObject().get( "message" ).getAsString() );
+    }
+
+    @Test
+    void aReporterRowShowsItsRoleInTheMemberList() throws Exception {
+        Mockito.when( svc.members( ALICE, "PLAT" ) ).thenReturn( List.of( new Member( 1, "rita", "user", WorkRole.REPORTER ) ) );
+        final JsonObject m = call( "GET", "/PLAT/members", Map.of(), null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertEquals( "reporter", m.get( "role" ).getAsString() );
+        assertEquals( "Name of rita", m.get( "displayName" ).getAsString() );
     }
 }

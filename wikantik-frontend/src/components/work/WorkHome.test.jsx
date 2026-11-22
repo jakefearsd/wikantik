@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-vi.mock('../../api/work', () => ({ getUnread: vi.fn(() => Promise.resolve({ unread: 4 })), getMe: vi.fn(), createProject: vi.fn(), acknowledgeItem: vi.fn(() => Promise.resolve({})), listFilters: vi.fn(() => Promise.resolve({ filters: [] })), renameFilter: vi.fn(), deleteFilter: vi.fn() }));
+vi.mock('../../api/work', () => ({ getUnread: vi.fn(() => Promise.resolve({ unread: 4 })), getMe: vi.fn(), createProject: vi.fn(), acknowledgeItem: vi.fn(() => Promise.resolve({})), listReported: vi.fn(() => Promise.resolve([])), listFilters: vi.fn(() => Promise.resolve({ filters: [] })), renameFilter: vi.fn(), deleteFilter: vi.fn() }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { getMe, createProject, acknowledgeItem, listFilters, renameFilter, deleteFilter } from '../../api/work';
+import { getMe, createProject, listReported, acknowledgeItem, listFilters, renameFilter, deleteFilter } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import WorkHome from './WorkHome';
@@ -36,6 +36,7 @@ function renderHome({ admin = false, me = ME, work = true } = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  listReported.mockResolvedValue([]);
   listFilters.mockResolvedValue({ filters: [] });
 });
 
@@ -45,6 +46,34 @@ const SAVED = [
 ];
 
 describe('WorkHome', () => {
+  it('lists items filed into other projects', async () => {
+    listReported.mockResolvedValue([{ key: 'DOCS-3', projectKey: 'DOCS', projectName: 'Documentation', title: 'Typo on page 2', status: 'ready' }]);
+    renderHome({ me: { ...ME, reportable: [{ key: 'DOCS', name: 'Documentation', role: 'reporter' }] } });
+    const link = await screen.findByRole('link', { name: 'DOCS-3 Typo on page 2' });
+    expect(link).toHaveAttribute('href', '/work/item/DOCS-3');
+    expect(screen.getByRole('heading', { name: 'Filed into other projects' })).toBeInTheDocument();
+    expect(screen.getByText(/Documentation · Ready/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Projects' })).toBeInTheDocument();
+  });
+
+  it('a reporter with no project still sees the file link', async () => {
+    listReported.mockResolvedValue([{ key: 'DOCS-3', projectKey: 'DOCS', projectName: 'Documentation', title: 'Typo', status: 'draft' }]);
+    renderHome({ me: { projects: [], waitingOn: [], reportable: [{ key: 'DOCS', name: 'Documentation', role: 'reporter' }] } });
+    const file = await screen.findByRole('link', { name: 'File a request' });
+    expect(file).toHaveAttribute('href', '/work/submit');
+    expect(await screen.findByRole('heading', { name: 'My requests' })).toBeInTheDocument();
+    expect(screen.queryByText('You are not a member of any project yet.')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Projects' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Agents & queues' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Deployments' })).toBeNull();
+  });
+
+  it('offers no file link when there is nowhere to file', async () => {
+    renderHome();
+    await screen.findByRole('link', { name: /^Inbox/ });
+    expect(screen.queryByRole('link', { name: 'File a request' })).toBeNull();
+  });
+
   it('linksToTheInboxWithTheCount', async () => {
     renderHome();
     const link = await screen.findByRole('link', { name: /^Inbox/ });

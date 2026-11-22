@@ -32,6 +32,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 
+import static com.wikantik.work.FlowFixtures.event;
 import static com.wikantik.work.FlowFixtures.item;
 import static com.wikantik.work.FlowFixtures.move;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -110,6 +111,98 @@ class WorkFlowPostgresTest {
         assertNull( r.cycleTime().p50() );
         assertEquals( 1, r.leadTime().n() );
         assertEquals( Duration.ofDays( 3 ), r.leadTime().p50() );
+    }
+
+    @Test
+    void aHandoffToDoneIsThroughput() throws SQLException {
+        final Item i = item( f, "handed off as done", t( "11-01T09:00" ) );
+        move( f, i, "ready", "in_progress", t( "11-02T09:00" ) );
+        event( f, i, WorkEvent.HANDOFF, "in_progress|queue:implementer", "done|lena", "finished", "done",
+            t( "11-05T09:00" ) );
+        final FlowReport r = report();
+        assertEquals( List.of( 1, 0 ), itemsPerWeek( r ), "a hand-off that closes the item is a close" );
+        assertEquals( Duration.ofDays( 3 ), r.cycleTime().p50() );
+        assertEquals( Duration.ofDays( 4 ), r.leadTime().p50() );
+    }
+
+    @Test
+    void aClaimStartsTheCycle() throws SQLException {
+        final Item i = item( f, "claimed then closed", t( "11-01T09:00" ) );
+        event( f, i, WorkEvent.CLAIMED, "ready", "in_progress", "2026-11-03T09:00:00Z", "in_progress",
+            t( "11-02T09:00" ) );
+        move( f, i, "in_progress", "done", t( "11-04T09:00" ) );
+        final FlowReport r = report();
+        assertEquals( 1, r.cycleTime().n(), "the claim is the first start" );
+        assertEquals( Duration.ofDays( 2 ), r.cycleTime().p50() );
+        final Item open = item( f, "claimed and open", t( "11-01T09:00" ) );
+        event( f, open, WorkEvent.CLAIMED, "ready", "in_progress", "2026-11-20T09:00:00Z", "in_progress",
+            t( "11-11T10:00" ) );
+        assertEquals( Duration.ofDays( 10 ), report().wip().get( 0 ).items().get( 0 ).age(),
+            "work in progress ages from the claim, not from creation" );
+    }
+
+    @Test
+    void anAgentsWholeRunByClaimAndHandoffIsCounted() throws SQLException {
+        final Item i = item( f, "agent work", t( "11-01T09:00" ) );
+        event( f, i, WorkEvent.CLAIMED, "ready", "in_progress", "2026-11-03T09:00:00Z", "in_progress",
+            t( "11-02T09:00" ) );
+        event( f, i, WorkEvent.HANDOFF, "in_progress|queue:implementer", "done|lena", "done", "done",
+            t( "11-03T09:00" ) );
+        final FlowReport r = report();
+        assertEquals( List.of( 1, 0 ), itemsPerWeek( r ) );
+        assertEquals( Duration.ofDays( 1 ), r.cycleTime().p50() );
+        assertEquals( Duration.ofDays( 2 ), r.leadTime().p50() );
+    }
+
+    @Test
+    void aLapsedClaimReturningAnItemToReadyIsNotAClose() throws SQLException {
+        final Item lapsed = item( f, "lapsed", t( "11-01T09:00" ) );
+        event( f, lapsed, WorkEvent.CLAIMED, "ready", "in_progress", "2026-11-03T09:00:00Z", "in_progress",
+            t( "11-02T09:00" ) );
+        event( f, lapsed, WorkEvent.CLAIM_EXPIRED, "in_progress", "ready", null, "ready", t( "11-03T09:00" ) );
+        final Item released = item( f, "released", t( "11-01T09:00" ) );
+        event( f, released, WorkEvent.CLAIMED, "ready", "in_progress", "2026-11-03T09:00:00Z", "in_progress",
+            t( "11-02T09:00" ) );
+        event( f, released, WorkEvent.RELEASED, "agent:1", "ready", "released", "ready", t( "11-03T09:00" ) );
+        final FlowReport r = report();
+        assertEquals( List.of( 0, 0 ), itemsPerWeek( r ) );
+        assertEquals( 0, r.cycleTime().n() );
+        assertEquals( 0, r.wip().get( 0 ).count(), "back in ready is not work in progress" );
+    }
+
+    @Test
+    void aHandoffToDoneOfAnItemNeverInProgressCountsInLeadTimeOnly() throws SQLException {
+        final Item i = item( f, "handed straight to done", t( "11-01T09:00" ) );
+        event( f, i, WorkEvent.HANDOFF, "ready|queue:implementer", "done|lena", "nothing to do", "done",
+            t( "11-04T09:00" ) );
+        final FlowReport r = report();
+        assertEquals( List.of( 1, 0 ), itemsPerWeek( r ) );
+        assertEquals( 0, r.cycleTime().n(), "the same rule as a plain status move: no start, no cycle time" );
+        assertEquals( Duration.ofDays( 3 ), r.leadTime().p50() );
+    }
+
+    @Test
+    void aHandoffThatReopensDropsTheCloseAndTheLastCloseCounts() throws SQLException {
+        final Item i = item( f, "reopened by hand-off", t( "10-30T09:00" ) );
+        move( f, i, "ready", "in_progress", t( "11-02T09:00" ) );
+        event( f, i, WorkEvent.HANDOFF, "in_progress|lena", "done|lena", "done", "done", t( "11-03T09:00" ) );
+        event( f, i, WorkEvent.HANDOFF, "done|lena", "in_progress|mia", "not done", "in_progress",
+            t( "11-04T09:00" ) );
+        assertEquals( List.of( 0, 0 ), itemsPerWeek( report() ), "reopened and still open counts nowhere" );
+        event( f, i, WorkEvent.HANDOFF, "in_progress|mia", "done|lena", "done now", "done", t( "11-10T09:00" ) );
+        final FlowReport r = report();
+        assertEquals( List.of( 0, 1 ), itemsPerWeek( r ), "counted once, in the week of the last close" );
+        assertEquals( Duration.ofDays( 8 ), r.cycleTime().p50() );
+    }
+
+    @Test
+    void aHandoffThatKeepsTheStatusIsNoMove() throws SQLException {
+        final Item i = item( f, "passed on in review", t( "11-01T10:00" ) );
+        event( f, i, WorkEvent.HANDOFF, "review|lena", "review|mia", "your turn", "review", t( "11-04T09:00" ) );
+        event( f, i, WorkEvent.CLAIMED, "review", "review", "2026-11-06T09:00:00Z", null, t( "11-05T09:00" ) );
+        final FlowReport r = report();
+        assertEquals( Duration.ofDays( 20 ), r.wip().get( 1 ).items().get( 0 ).age(),
+            "never in progress: aged from creation" );
     }
 
     @Test

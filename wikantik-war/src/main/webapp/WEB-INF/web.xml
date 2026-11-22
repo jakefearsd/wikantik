@@ -732,6 +732,10 @@
        <servlet-class>com.wikantik.rest.WorkInboxResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>WorkIntakeResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkIntakeResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>WorkHookResource</servlet-name>
        <servlet-class>com.wikantik.rest.WorkHookResource</servlet-class>
    </servlet>
@@ -1140,6 +1144,11 @@
        <servlet-name>WorkFilterResource</servlet-name>
        <url-pattern>/api/work/filters</url-pattern>
        <url-pattern>/api/work/filters/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkIntakeResource</servlet-name>
+       <url-pattern>/api/work/intake</url-pattern>
+       <url-pattern>/api/work/intake/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>WorkHookResource</servlet-name>

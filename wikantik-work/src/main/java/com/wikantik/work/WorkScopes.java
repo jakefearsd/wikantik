@@ -46,6 +46,14 @@ final class WorkScopes {
             return role;
         }
 
+        /**
+         * True for a person whose only standing here is the reporter row (and who is not a wiki admin): they act through
+         * intake alone. Set only by {@link WorkScopes#intakeScope} and {@link WorkScopes#ownItemScope}.
+         */
+        boolean reporterOnly() {
+            return role == WorkRole.REPORTER && !actor.instanceAdmin();
+        }
+
         void require( final Action action, final Item item ) {
             final Decision d = WorkPolicy.may( actor, role, action, item );
             if ( !d.allowed() ) {
@@ -176,6 +184,52 @@ final class WorkScopes {
             throw new WorkNotFoundException( NOT_FOUND );
         }
         return new ItemScope( scope, item );
+    }
+
+    /**
+     * The project a person files into: the ordinary scope for anyone with standing (or a wiki admin), else, for a
+     * person holding any row in the project (a reporter's included), a scope with the reporter role. Anything else,
+     * an agent included, is not found.
+     */
+    Scope intakeScope( final Actor actor, final String projectKey ) throws SQLException {
+        final Project project = projectKey == null ? null
+            : store.project( projectKey.trim().toUpperCase( Locale.ROOT ) ).orElse( null );
+        if ( project == null ) {
+            throw new WorkNotFoundException( NOT_FOUND );
+        }
+        final WorkRole role = standing.roleIn( project.id(), actor ).orElse( null );
+        if ( role != null || actor.instanceAdmin() ) {
+            return new Scope( actor, project, role, this::denied );
+        }
+        if ( !standing.mayFile( project.id(), actor ) ) {
+            throw new WorkNotFoundException( NOT_FOUND );
+        }
+        return new Scope( actor, project, WorkRole.REPORTER, this::denied );
+    }
+
+    /**
+     * An item key resolved for someone who may follow it: the ordinary scope for anyone with standing (or a wiki
+     * admin), else, for a person who filed it, a scope with the reporter role. Every miss is the one not-found. The
+     * only way a reporter reaches an item. Never pass its scope to {@code ItemViews.view}.
+     */
+    ItemScope ownItemScope( final Actor actor, final String itemKey ) throws SQLException {
+        final Matcher m = itemKey == null ? null : ItemKeys.PATTERN.matcher( itemKey.trim() );
+        if ( m == null || !m.matches() ) {
+            throw new WorkNotFoundException( NOT_FOUND );
+        }
+        final Project project = store.project( m.group( 1 ).toUpperCase( Locale.ROOT ) ).orElse( null );
+        final Item item = project == null ? null : store.item( itemKey.trim() ).orElse( null );
+        if ( item == null || item.projectId() != project.id() ) {
+            throw new WorkNotFoundException( NOT_FOUND );
+        }
+        final WorkRole role = standing.roleIn( project.id(), actor ).orElse( null );
+        if ( role != null || actor.instanceAdmin() ) {
+            return new ItemScope( new Scope( actor, project, role, this::denied ), item );
+        }
+        if ( !standing.canSee( actor, item ) ) {
+            throw new WorkNotFoundException( NOT_FOUND );
+        }
+        return new ItemScope( new Scope( actor, project, WorkRole.REPORTER, this::denied ), item );
     }
 
     /** Resolves an item by numeric id (via a comment or link), again through project visibility. */

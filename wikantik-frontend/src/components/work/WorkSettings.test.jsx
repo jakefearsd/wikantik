@@ -141,6 +141,29 @@ describe('WorkSettings', () => {
     await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'Me Myself', principalKind: 'user', role: 'member' }));
   });
 
+  it('offers reporter for people and not for agents', async () => {
+    listMembers.mockResolvedValue([...MEMBERS, AGENT_MEMBER]);
+    renderSettings();
+    await screen.findByText('Bob B');
+    const opts = (el) => within(el).getAllByRole('option').map((o) => o.value);
+    expect(opts(screen.getByLabelText('Role of Bob B'))).toContain('reporter');
+    expect(opts(screen.getByLabelText('Role of build-bot'))).not.toContain('reporter');
+    expect(screen.getByText('Reporter: files items and sees only the ones they filed.')).toBeInTheDocument();
+    expect(screen.getByText(/or a reporter, also ends the claims/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Role for new member'), { target: { value: 'reporter' } });
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'agent' } });
+    expect(screen.getByLabelText('Role for new member')).toHaveValue('member');
+  });
+
+  it('demoting yourself to reporter leaves the project', async () => {
+    renderSettings();
+    await screen.findByText('Bob B');
+    fireEvent.change(screen.getByLabelText('Role of Me Myself'), { target: { value: 'reporter' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, change my role' }));
+    await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'Me Myself', principalKind: 'user', role: 'reporter' }));
+    expect(await screen.findByText('HOME')).toBeInTheDocument();
+  });
+
   it('asks before removing yourself', async () => {
     renderSettings();
     await screen.findByText('Bob B');
@@ -287,7 +310,7 @@ describe('WorkSettings', () => {
     const opts = (el) => within(el).getAllByRole('option').map((o) => o.value);
     expect(opts(screen.getByLabelText('Role for new member'))).toEqual(['viewer', 'member']);
     expect(opts(screen.getByLabelText('Role of build-bot'))).toEqual(['viewer', 'member']);
-    expect(opts(screen.getByLabelText('Role of Bob B'))).toEqual(['viewer', 'member', 'lead']);
+    expect(opts(screen.getByLabelText('Role of Bob B'))).toEqual(['reporter', 'viewer', 'member', 'lead']);
   });
 
   it('switching the new member to an agent resets a lead role choice', async () => {
@@ -329,7 +352,7 @@ describe('WorkSettings', () => {
     listMembers.mockResolvedValue([AGENT_MEMBER]);
     renderSettings();
     await screen.findByText('build-bot');
-    expect(screen.getByText('Removing a person, or making them a viewer, also ends the claims of the agents they sponsor in this project.')).toBeInTheDocument();
+    expect(screen.getByText('Removing a person, or making them a viewer or a reporter, also ends the claims of the agents they sponsor in this project.')).toBeInTheDocument();
   });
 
   it('removing an agent asks first and says its claims go back to the queue', async () => {

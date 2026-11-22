@@ -22,6 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -250,5 +251,53 @@ class WorkPolicyTest {
         final Actor alice = Actor.human( "alice", Set.of(), false );
         assertFalse( WorkPolicy.may( alice, WorkRole.VIEWER, Action.ACKNOWLEDGE, null ).allowed() );
         assertTrue( WorkPolicy.may( alice, WorkRole.MEMBER, Action.ACKNOWLEDGE, null ).allowed() );
+    }
+
+    // ---- intake: a reporter files, and that is all
+
+    @Test
+    void aReporterMayOnlyFile() {
+        final Actor alice = Actor.human( "alice", Set.of(), false );
+        for ( final Action action : Action.values() ) {
+            final Decision d = WorkPolicy.may( alice, WorkRole.REPORTER, action, null );
+            if ( action == Action.FILE_ITEM ) {
+                assertTrue( d.allowed() );
+            } else if ( action == Action.MANAGE_INSTANCE ) {
+                assertFalse( d.allowed(), action.name() );
+            } else {
+                assertFalse( d.allowed(), action.name() );
+                if ( action.minRole() != null && action != Action.CLAIM ) {
+                    assertEquals( "This action needs the " + action.minRole().wire() + " role; you hold reporter.", d.reason(),
+                        action.name() );
+                }
+            }
+        }
+    }
+
+    @Test
+    void filingTakesAPersonWithAnyRole() {
+        final Actor alice = Actor.human( "alice", Set.of(), false );
+        for ( final WorkRole r : WorkRole.values() ) {
+            assertTrue( WorkPolicy.may( alice, r, Action.FILE_ITEM, null ).allowed(), r.name() );
+        }
+        assertFalse( WorkPolicy.may( alice, null, Action.FILE_ITEM, null ).allowed() );
+        final Actor agent = Actor.agent( 7, "bot", Actor.human( "root", Set.of(), true ) );
+        final Decision d = WorkPolicy.may( agent, WorkRole.MEMBER, Action.FILE_ITEM, null );
+        assertFalse( d.allowed() );
+        assertEquals( "A person files intake; an agent creates items in the projects it belongs to.", d.reason() );
+        assertFalse( WorkPolicy.may( Actor.system( "github" ), WorkRole.MEMBER, Action.FILE_ITEM, null ).allowed() );
+    }
+
+    @Test
+    void anIntakeItemStartsDraftWhoeverFilesIt() {
+        final Actor member = Actor.human( "alice", Set.of(), false );
+        final Actor admin = Actor.human( "root", Set.of(), true );
+        for ( final Actor who : List.of( member, admin ) ) {
+            for ( final WorkLevel level : List.of( WorkLevel.STORY, WorkLevel.TASK, WorkLevel.EPIC ) ) {
+                assertEquals( WorkStatus.DRAFT, WorkPolicy.startStatus( who, level, true ), who.login() + " " + level );
+            }
+        }
+        assertEquals( WorkStatus.READY, WorkPolicy.startStatus( member, WorkLevel.TASK ), "the two-argument form is unchanged" );
+        assertEquals( WorkStatus.READY, WorkPolicy.startStatus( member, WorkLevel.STORY, false ) );
     }
 }

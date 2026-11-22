@@ -40,20 +40,27 @@ import static com.wikantik.jdbc.NullableColumns.getNullableLong;
  */
 final class JdbcWorkFlow implements WorkFlowStore {
 
-    private static final String FIRST_START = "( SELECT MIN( s.at ) FROM work_event s WHERE s.item_id = i.id "
-        + "AND s.type = 'status' AND s.to_value = 'in_progress' )";
+    /**
+     * The first move into in progress, by any route ({@link StatusMoves}: a plain status change, a hand-off, a claim).
+     * An item that was never in progress has none, and so no cycle time.
+     */
+    private static final String FIRST_START = "( SELECT MIN( s.at ) FROM work_event s WHERE s.item_id = i.id AND "
+        + StatusMoves.intoSql( "s", WorkStatus.IN_PROGRESS ) + " )";
 
-    /** An item counts at its LAST move to done, and only while it is still done. */
+    /**
+     * An item counts at its LAST move to done by any route ({@link StatusMoves}: a plain status change or a hand-off),
+     * and only while it is still done: a reopened item counts nowhere until it is closed again.
+     */
     private static final String CLOSED = """
         SELECT i.id, p.key || '-' || i.seq AS item_key, i.created_at, i.estimate, d.closed_at,
                %s AS first_in_progress_at
           FROM work_item i
           JOIN work_project p ON p.id = i.project_id
           JOIN LATERAL ( SELECT MAX( e.at ) AS closed_at FROM work_event e
-                          WHERE e.item_id = i.id AND e.type = 'status' AND e.to_value = 'done' ) d ON TRUE
+                          WHERE e.item_id = i.id AND %s ) d ON TRUE
          WHERE i.status = 'done' AND i.level <> 'epic'
            AND d.closed_at >= ? AND d.closed_at < ?
-        """.formatted( FIRST_START );
+        """.formatted( FIRST_START, StatusMoves.intoSql( "e", WorkStatus.DONE ) );
 
     private static final String OPEN = """
         SELECT p.key || '-' || i.seq AS item_key, i.title, i.status, i.created_at,

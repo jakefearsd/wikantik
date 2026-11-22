@@ -2,6 +2,10 @@ VIEW|human|none|none|false|You are not a member of this project.
 VIEW|human|none|unclaimed|false|You are not a member of this project.
 VIEW|human|none|other|false|You are not a member of this project.
 VIEW|human|none|self|false|You are not a member of this project.
+VIEW|human|reporter|none|false|This action needs the viewer role; you hold reporter.
+VIEW|human|reporter|unclaimed|false|This action needs the viewer role; you hold reporter.
+VIEW|human|reporter|other|false|This action needs the viewer role; you hold reporter.
+VIEW|human|reporter|self|false|This action needs the viewer role; you hold reporter.
 VIEW|human|viewer|none|true|null
 VIEW|human|viewer|unclaimed|true|null
 VIEW|human|viewer|other|true|null
@@ -18,6 +22,10 @@ VIEW|admin|none|none|true|null
 VIEW|admin|none|unclaimed|true|null
 VIEW|admin|none|other|true|null
 VIEW|admin|none|self|true|null
+VIEW|admin|reporter|none|true|null
+VIEW|admin|reporter|unclaimed|true|null
+VIEW|admin|reporter|other|true|null
+VIEW|admin|reporter|self|true|null
 VIEW|admin|viewer|none|true|null
 VIEW|admin|viewer|unclaimed|true|null
 VIEW|admin|viewer|other|true|null
@@ -34,6 +42,10 @@ VIEW|agent-admin-sponsor|none|none|false|You are not a member of this project.
 VIEW|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 VIEW|agent-admin-sponsor|none|other|false|You are not a member of this project.
 VIEW|agent-admin-sponsor|none|self|false|You are not a member of this project.
+VIEW|agent-admin-sponsor|reporter|none|false|This action needs the viewer role; you hold reporter.
+VIEW|agent-admin-sponsor|reporter|unclaimed|false|This action needs the viewer role; you hold reporter.
+VIEW|agent-admin-sponsor|reporter|other|false|This action needs the viewer role; you hold reporter.
+VIEW|agent-admin-sponsor|reporter|self|false|This action needs the viewer role; you hold reporter.
 VIEW|agent-admin-sponsor|viewer|none|true|null
 VIEW|agent-admin-sponsor|viewer|unclaimed|true|null
 VIEW|agent-admin-sponsor|viewer|other|true|null
@@ -50,6 +62,10 @@ VIEW|agent-member-sponsor|none|none|false|You are not a member of this project.
 VIEW|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 VIEW|agent-member-sponsor|none|other|false|You are not a member of this project.
 VIEW|agent-member-sponsor|none|self|false|You are not a member of this project.
+VIEW|agent-member-sponsor|reporter|none|false|This action needs the viewer role; you hold reporter.
+VIEW|agent-member-sponsor|reporter|unclaimed|false|This action needs the viewer role; you hold reporter.
+VIEW|agent-member-sponsor|reporter|other|false|This action needs the viewer role; you hold reporter.
+VIEW|agent-member-sponsor|reporter|self|false|This action needs the viewer role; you hold reporter.
 VIEW|agent-member-sponsor|viewer|none|true|null
 VIEW|agent-member-sponsor|viewer|unclaimed|true|null
 VIEW|agent-member-sponsor|viewer|other|true|null
@@ -66,6 +82,10 @@ CREATE_ITEM|human|none|none|false|You are not a member of this project.
 CREATE_ITEM|human|none|unclaimed|false|You are not a member of this project.
 CREATE_ITEM|human|none|other|false|You are not a member of this project.
 CREATE_ITEM|human|none|self|false|You are not a member of this project.
+CREATE_ITEM|human|reporter|none|false|This action needs the member role; you hold reporter.
+CREATE_ITEM|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+CREATE_ITEM|human|reporter|other|false|This action needs the member role; you hold reporter.
+CREATE_ITEM|human|reporter|self|false|This action needs the member role; you hold reporter.
 CREATE_ITEM|human|viewer|none|false|This action needs the member role; you hold viewer.
 CREATE_ITEM|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 CREATE_ITEM|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -82,6 +102,10 @@ CREATE_ITEM|admin|none|none|true|null
 CREATE_ITEM|admin|none|unclaimed|true|null
 CREATE_ITEM|admin|none|other|true|null
 CREATE_ITEM|admin|none|self|true|null
+CREATE_ITEM|admin|reporter|none|true|null
+CREATE_ITEM|admin|reporter|unclaimed|true|null
+CREATE_ITEM|admin|reporter|other|true|null
+CREATE_ITEM|admin|reporter|self|true|null
 CREATE_ITEM|admin|viewer|none|true|null
 CREATE_ITEM|admin|viewer|unclaimed|true|null
 CREATE_ITEM|admin|viewer|other|true|null
@@ -98,6 +122,10 @@ CREATE_ITEM|agent-admin-sponsor|none|none|false|You are not a member of this pro
 CREATE_ITEM|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 CREATE_ITEM|agent-admin-sponsor|none|other|false|You are not a member of this project.
 CREATE_ITEM|agent-admin-sponsor|none|self|false|You are not a member of this project.
+CREATE_ITEM|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+CREATE_ITEM|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+CREATE_ITEM|agent-admin-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+CREATE_ITEM|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 CREATE_ITEM|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 CREATE_ITEM|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 CREATE_ITEM|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -114,6 +142,10 @@ CREATE_ITEM|agent-member-sponsor|none|none|false|You are not a member of this pr
 CREATE_ITEM|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 CREATE_ITEM|agent-member-sponsor|none|other|false|You are not a member of this project.
 CREATE_ITEM|agent-member-sponsor|none|self|false|You are not a member of this project.
+CREATE_ITEM|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+CREATE_ITEM|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+CREATE_ITEM|agent-member-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+CREATE_ITEM|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 CREATE_ITEM|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 CREATE_ITEM|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 CREATE_ITEM|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -130,6 +162,10 @@ EDIT_ITEM|human|none|none|false|You are not a member of this project.
 EDIT_ITEM|human|none|unclaimed|false|You are not a member of this project.
 EDIT_ITEM|human|none|other|false|You are not a member of this project.
 EDIT_ITEM|human|none|self|false|You are not a member of this project.
+EDIT_ITEM|human|reporter|none|false|This action needs the member role; you hold reporter.
+EDIT_ITEM|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+EDIT_ITEM|human|reporter|other|false|This action needs the member role; you hold reporter.
+EDIT_ITEM|human|reporter|self|false|This action needs the member role; you hold reporter.
 EDIT_ITEM|human|viewer|none|false|This action needs the member role; you hold viewer.
 EDIT_ITEM|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 EDIT_ITEM|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -146,6 +182,10 @@ EDIT_ITEM|admin|none|none|true|null
 EDIT_ITEM|admin|none|unclaimed|true|null
 EDIT_ITEM|admin|none|other|true|null
 EDIT_ITEM|admin|none|self|true|null
+EDIT_ITEM|admin|reporter|none|true|null
+EDIT_ITEM|admin|reporter|unclaimed|true|null
+EDIT_ITEM|admin|reporter|other|true|null
+EDIT_ITEM|admin|reporter|self|true|null
 EDIT_ITEM|admin|viewer|none|true|null
 EDIT_ITEM|admin|viewer|unclaimed|true|null
 EDIT_ITEM|admin|viewer|other|true|null
@@ -162,6 +202,10 @@ EDIT_ITEM|agent-admin-sponsor|none|none|false|You are not a member of this proje
 EDIT_ITEM|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 EDIT_ITEM|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
 EDIT_ITEM|agent-admin-sponsor|none|self|false|You are not a member of this project.
+EDIT_ITEM|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+EDIT_ITEM|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+EDIT_ITEM|agent-admin-sponsor|reporter|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 EDIT_ITEM|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 EDIT_ITEM|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 EDIT_ITEM|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -178,6 +222,10 @@ EDIT_ITEM|agent-member-sponsor|none|none|false|You are not a member of this proj
 EDIT_ITEM|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 EDIT_ITEM|agent-member-sponsor|none|other|false|This item is claimed by another agent.
 EDIT_ITEM|agent-member-sponsor|none|self|false|You are not a member of this project.
+EDIT_ITEM|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+EDIT_ITEM|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+EDIT_ITEM|agent-member-sponsor|reporter|other|false|This item is claimed by another agent.
+EDIT_ITEM|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 EDIT_ITEM|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 EDIT_ITEM|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 EDIT_ITEM|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -194,6 +242,10 @@ MOVE|human|none|none|false|You are not a member of this project.
 MOVE|human|none|unclaimed|false|You are not a member of this project.
 MOVE|human|none|other|false|You are not a member of this project.
 MOVE|human|none|self|false|You are not a member of this project.
+MOVE|human|reporter|none|false|This action needs the member role; you hold reporter.
+MOVE|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+MOVE|human|reporter|other|false|This action needs the member role; you hold reporter.
+MOVE|human|reporter|self|false|This action needs the member role; you hold reporter.
 MOVE|human|viewer|none|false|This action needs the member role; you hold viewer.
 MOVE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 MOVE|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -210,6 +262,10 @@ MOVE|admin|none|none|true|null
 MOVE|admin|none|unclaimed|true|null
 MOVE|admin|none|other|true|null
 MOVE|admin|none|self|true|null
+MOVE|admin|reporter|none|true|null
+MOVE|admin|reporter|unclaimed|true|null
+MOVE|admin|reporter|other|true|null
+MOVE|admin|reporter|self|true|null
 MOVE|admin|viewer|none|true|null
 MOVE|admin|viewer|unclaimed|true|null
 MOVE|admin|viewer|other|true|null
@@ -226,6 +282,10 @@ MOVE|agent-admin-sponsor|none|none|false|You are not a member of this project.
 MOVE|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 MOVE|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
 MOVE|agent-admin-sponsor|none|self|false|You are not a member of this project.
+MOVE|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+MOVE|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+MOVE|agent-admin-sponsor|reporter|other|false|This item is claimed by another agent.
+MOVE|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 MOVE|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 MOVE|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 MOVE|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -242,6 +302,10 @@ MOVE|agent-member-sponsor|none|none|false|You are not a member of this project.
 MOVE|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 MOVE|agent-member-sponsor|none|other|false|This item is claimed by another agent.
 MOVE|agent-member-sponsor|none|self|false|You are not a member of this project.
+MOVE|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+MOVE|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+MOVE|agent-member-sponsor|reporter|other|false|This item is claimed by another agent.
+MOVE|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 MOVE|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 MOVE|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 MOVE|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -258,6 +322,10 @@ COMMENT|human|none|none|false|You are not a member of this project.
 COMMENT|human|none|unclaimed|false|You are not a member of this project.
 COMMENT|human|none|other|false|You are not a member of this project.
 COMMENT|human|none|self|false|You are not a member of this project.
+COMMENT|human|reporter|none|false|This action needs the member role; you hold reporter.
+COMMENT|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+COMMENT|human|reporter|other|false|This action needs the member role; you hold reporter.
+COMMENT|human|reporter|self|false|This action needs the member role; you hold reporter.
 COMMENT|human|viewer|none|false|This action needs the member role; you hold viewer.
 COMMENT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 COMMENT|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -274,6 +342,10 @@ COMMENT|admin|none|none|true|null
 COMMENT|admin|none|unclaimed|true|null
 COMMENT|admin|none|other|true|null
 COMMENT|admin|none|self|true|null
+COMMENT|admin|reporter|none|true|null
+COMMENT|admin|reporter|unclaimed|true|null
+COMMENT|admin|reporter|other|true|null
+COMMENT|admin|reporter|self|true|null
 COMMENT|admin|viewer|none|true|null
 COMMENT|admin|viewer|unclaimed|true|null
 COMMENT|admin|viewer|other|true|null
@@ -290,6 +362,10 @@ COMMENT|agent-admin-sponsor|none|none|false|You are not a member of this project
 COMMENT|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 COMMENT|agent-admin-sponsor|none|other|false|You are not a member of this project.
 COMMENT|agent-admin-sponsor|none|self|false|You are not a member of this project.
+COMMENT|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+COMMENT|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+COMMENT|agent-admin-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+COMMENT|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 COMMENT|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 COMMENT|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 COMMENT|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -306,6 +382,10 @@ COMMENT|agent-member-sponsor|none|none|false|You are not a member of this projec
 COMMENT|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 COMMENT|agent-member-sponsor|none|other|false|You are not a member of this project.
 COMMENT|agent-member-sponsor|none|self|false|You are not a member of this project.
+COMMENT|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+COMMENT|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+COMMENT|agent-member-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+COMMENT|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 COMMENT|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 COMMENT|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 COMMENT|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -322,6 +402,10 @@ LINK|human|none|none|false|You are not a member of this project.
 LINK|human|none|unclaimed|false|You are not a member of this project.
 LINK|human|none|other|false|You are not a member of this project.
 LINK|human|none|self|false|You are not a member of this project.
+LINK|human|reporter|none|false|This action needs the member role; you hold reporter.
+LINK|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+LINK|human|reporter|other|false|This action needs the member role; you hold reporter.
+LINK|human|reporter|self|false|This action needs the member role; you hold reporter.
 LINK|human|viewer|none|false|This action needs the member role; you hold viewer.
 LINK|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 LINK|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -338,6 +422,10 @@ LINK|admin|none|none|true|null
 LINK|admin|none|unclaimed|true|null
 LINK|admin|none|other|true|null
 LINK|admin|none|self|true|null
+LINK|admin|reporter|none|true|null
+LINK|admin|reporter|unclaimed|true|null
+LINK|admin|reporter|other|true|null
+LINK|admin|reporter|self|true|null
 LINK|admin|viewer|none|true|null
 LINK|admin|viewer|unclaimed|true|null
 LINK|admin|viewer|other|true|null
@@ -354,6 +442,10 @@ LINK|agent-admin-sponsor|none|none|false|You are not a member of this project.
 LINK|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 LINK|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
 LINK|agent-admin-sponsor|none|self|false|You are not a member of this project.
+LINK|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+LINK|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+LINK|agent-admin-sponsor|reporter|other|false|This item is claimed by another agent.
+LINK|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 LINK|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 LINK|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 LINK|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -370,6 +462,10 @@ LINK|agent-member-sponsor|none|none|false|You are not a member of this project.
 LINK|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 LINK|agent-member-sponsor|none|other|false|This item is claimed by another agent.
 LINK|agent-member-sponsor|none|self|false|You are not a member of this project.
+LINK|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+LINK|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+LINK|agent-member-sponsor|reporter|other|false|This item is claimed by another agent.
+LINK|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 LINK|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 LINK|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 LINK|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -386,6 +482,10 @@ MANAGE_PROJECT|human|none|none|false|You are not a member of this project.
 MANAGE_PROJECT|human|none|unclaimed|false|You are not a member of this project.
 MANAGE_PROJECT|human|none|other|false|You are not a member of this project.
 MANAGE_PROJECT|human|none|self|false|You are not a member of this project.
+MANAGE_PROJECT|human|reporter|none|false|This action needs the lead role; you hold reporter.
+MANAGE_PROJECT|human|reporter|unclaimed|false|This action needs the lead role; you hold reporter.
+MANAGE_PROJECT|human|reporter|other|false|This action needs the lead role; you hold reporter.
+MANAGE_PROJECT|human|reporter|self|false|This action needs the lead role; you hold reporter.
 MANAGE_PROJECT|human|viewer|none|false|This action needs the lead role; you hold viewer.
 MANAGE_PROJECT|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
 MANAGE_PROJECT|human|viewer|other|false|This action needs the lead role; you hold viewer.
@@ -402,6 +502,10 @@ MANAGE_PROJECT|admin|none|none|true|null
 MANAGE_PROJECT|admin|none|unclaimed|true|null
 MANAGE_PROJECT|admin|none|other|true|null
 MANAGE_PROJECT|admin|none|self|true|null
+MANAGE_PROJECT|admin|reporter|none|true|null
+MANAGE_PROJECT|admin|reporter|unclaimed|true|null
+MANAGE_PROJECT|admin|reporter|other|true|null
+MANAGE_PROJECT|admin|reporter|self|true|null
 MANAGE_PROJECT|admin|viewer|none|true|null
 MANAGE_PROJECT|admin|viewer|unclaimed|true|null
 MANAGE_PROJECT|admin|viewer|other|true|null
@@ -418,6 +522,10 @@ MANAGE_PROJECT|agent-admin-sponsor|none|none|false|An agent may not change polic
 MANAGE_PROJECT|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-admin-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -434,6 +542,10 @@ MANAGE_PROJECT|agent-member-sponsor|none|none|false|An agent may not change poli
 MANAGE_PROJECT|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_PROJECT|agent-member-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_PROJECT|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -450,6 +562,10 @@ SET_POLICY|human|none|none|false|You are not a member of this project.
 SET_POLICY|human|none|unclaimed|false|You are not a member of this project.
 SET_POLICY|human|none|other|false|You are not a member of this project.
 SET_POLICY|human|none|self|false|You are not a member of this project.
+SET_POLICY|human|reporter|none|false|This action needs the lead role; you hold reporter.
+SET_POLICY|human|reporter|unclaimed|false|This action needs the lead role; you hold reporter.
+SET_POLICY|human|reporter|other|false|This action needs the lead role; you hold reporter.
+SET_POLICY|human|reporter|self|false|This action needs the lead role; you hold reporter.
 SET_POLICY|human|viewer|none|false|This action needs the lead role; you hold viewer.
 SET_POLICY|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
 SET_POLICY|human|viewer|other|false|This action needs the lead role; you hold viewer.
@@ -466,6 +582,10 @@ SET_POLICY|admin|none|none|true|null
 SET_POLICY|admin|none|unclaimed|true|null
 SET_POLICY|admin|none|other|true|null
 SET_POLICY|admin|none|self|true|null
+SET_POLICY|admin|reporter|none|true|null
+SET_POLICY|admin|reporter|unclaimed|true|null
+SET_POLICY|admin|reporter|other|true|null
+SET_POLICY|admin|reporter|self|true|null
 SET_POLICY|admin|viewer|none|true|null
 SET_POLICY|admin|viewer|unclaimed|true|null
 SET_POLICY|admin|viewer|other|true|null
@@ -482,6 +602,10 @@ SET_POLICY|agent-admin-sponsor|none|none|false|An agent may not change policy, m
 SET_POLICY|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-admin-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -498,6 +622,10 @@ SET_POLICY|agent-member-sponsor|none|none|false|An agent may not change policy, 
 SET_POLICY|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+SET_POLICY|agent-member-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 SET_POLICY|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -514,6 +642,10 @@ MANAGE_INSTANCE|human|none|none|false|Only a wiki administrator may manage the w
 MANAGE_INSTANCE|human|none|unclaimed|false|Only a wiki administrator may manage the work instance.
 MANAGE_INSTANCE|human|none|other|false|Only a wiki administrator may manage the work instance.
 MANAGE_INSTANCE|human|none|self|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|reporter|none|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|reporter|unclaimed|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|reporter|other|false|Only a wiki administrator may manage the work instance.
+MANAGE_INSTANCE|human|reporter|self|false|Only a wiki administrator may manage the work instance.
 MANAGE_INSTANCE|human|viewer|none|false|Only a wiki administrator may manage the work instance.
 MANAGE_INSTANCE|human|viewer|unclaimed|false|Only a wiki administrator may manage the work instance.
 MANAGE_INSTANCE|human|viewer|other|false|Only a wiki administrator may manage the work instance.
@@ -530,6 +662,10 @@ MANAGE_INSTANCE|admin|none|none|true|null
 MANAGE_INSTANCE|admin|none|unclaimed|true|null
 MANAGE_INSTANCE|admin|none|other|true|null
 MANAGE_INSTANCE|admin|none|self|true|null
+MANAGE_INSTANCE|admin|reporter|none|true|null
+MANAGE_INSTANCE|admin|reporter|unclaimed|true|null
+MANAGE_INSTANCE|admin|reporter|other|true|null
+MANAGE_INSTANCE|admin|reporter|self|true|null
 MANAGE_INSTANCE|admin|viewer|none|true|null
 MANAGE_INSTANCE|admin|viewer|unclaimed|true|null
 MANAGE_INSTANCE|admin|viewer|other|true|null
@@ -546,6 +682,10 @@ MANAGE_INSTANCE|agent-admin-sponsor|none|none|false|An agent may not change poli
 MANAGE_INSTANCE|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-admin-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -562,6 +702,10 @@ MANAGE_INSTANCE|agent-member-sponsor|none|none|false|An agent may not change pol
 MANAGE_INSTANCE|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_INSTANCE|agent-member-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_INSTANCE|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -578,6 +722,10 @@ MANAGE_AGENT|human|none|none|false|You are not a member of this project.
 MANAGE_AGENT|human|none|unclaimed|false|You are not a member of this project.
 MANAGE_AGENT|human|none|other|false|You are not a member of this project.
 MANAGE_AGENT|human|none|self|false|You are not a member of this project.
+MANAGE_AGENT|human|reporter|none|false|This action needs the lead role; you hold reporter.
+MANAGE_AGENT|human|reporter|unclaimed|false|This action needs the lead role; you hold reporter.
+MANAGE_AGENT|human|reporter|other|false|This action needs the lead role; you hold reporter.
+MANAGE_AGENT|human|reporter|self|false|This action needs the lead role; you hold reporter.
 MANAGE_AGENT|human|viewer|none|false|This action needs the lead role; you hold viewer.
 MANAGE_AGENT|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
 MANAGE_AGENT|human|viewer|other|false|This action needs the lead role; you hold viewer.
@@ -594,6 +742,10 @@ MANAGE_AGENT|admin|none|none|true|null
 MANAGE_AGENT|admin|none|unclaimed|true|null
 MANAGE_AGENT|admin|none|other|true|null
 MANAGE_AGENT|admin|none|self|true|null
+MANAGE_AGENT|admin|reporter|none|true|null
+MANAGE_AGENT|admin|reporter|unclaimed|true|null
+MANAGE_AGENT|admin|reporter|other|true|null
+MANAGE_AGENT|admin|reporter|self|true|null
 MANAGE_AGENT|admin|viewer|none|true|null
 MANAGE_AGENT|admin|viewer|unclaimed|true|null
 MANAGE_AGENT|admin|viewer|other|true|null
@@ -610,6 +762,10 @@ MANAGE_AGENT|agent-admin-sponsor|none|none|false|An agent may not change policy,
 MANAGE_AGENT|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-admin-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -626,6 +782,10 @@ MANAGE_AGENT|agent-member-sponsor|none|none|false|An agent may not change policy
 MANAGE_AGENT|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+MANAGE_AGENT|agent-member-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 MANAGE_AGENT|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -642,6 +802,10 @@ CLAIM|human|none|none|false|People are assigned work; assign it to yourself inst
 CLAIM|human|none|unclaimed|false|People are assigned work; assign it to yourself instead.
 CLAIM|human|none|other|false|People are assigned work; assign it to yourself instead.
 CLAIM|human|none|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|reporter|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|reporter|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|reporter|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|human|reporter|self|false|People are assigned work; assign it to yourself instead.
 CLAIM|human|viewer|none|false|People are assigned work; assign it to yourself instead.
 CLAIM|human|viewer|unclaimed|false|People are assigned work; assign it to yourself instead.
 CLAIM|human|viewer|other|false|People are assigned work; assign it to yourself instead.
@@ -658,6 +822,10 @@ CLAIM|admin|none|none|false|People are assigned work; assign it to yourself inst
 CLAIM|admin|none|unclaimed|false|People are assigned work; assign it to yourself instead.
 CLAIM|admin|none|other|false|People are assigned work; assign it to yourself instead.
 CLAIM|admin|none|self|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|reporter|none|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|reporter|unclaimed|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|reporter|other|false|People are assigned work; assign it to yourself instead.
+CLAIM|admin|reporter|self|false|People are assigned work; assign it to yourself instead.
 CLAIM|admin|viewer|none|false|People are assigned work; assign it to yourself instead.
 CLAIM|admin|viewer|unclaimed|false|People are assigned work; assign it to yourself instead.
 CLAIM|admin|viewer|other|false|People are assigned work; assign it to yourself instead.
@@ -674,6 +842,10 @@ CLAIM|agent-admin-sponsor|none|none|false|You are not a member of this project.
 CLAIM|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 CLAIM|agent-admin-sponsor|none|other|false|You are not a member of this project.
 CLAIM|agent-admin-sponsor|none|self|false|You are not a member of this project.
+CLAIM|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+CLAIM|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+CLAIM|agent-admin-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+CLAIM|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 CLAIM|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 CLAIM|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 CLAIM|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -690,6 +862,10 @@ CLAIM|agent-member-sponsor|none|none|false|You are not a member of this project.
 CLAIM|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 CLAIM|agent-member-sponsor|none|other|false|You are not a member of this project.
 CLAIM|agent-member-sponsor|none|self|false|You are not a member of this project.
+CLAIM|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+CLAIM|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+CLAIM|agent-member-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+CLAIM|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 CLAIM|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 CLAIM|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 CLAIM|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -706,6 +882,10 @@ OPEN_CHANGE|human|none|none|false|You are not a member of this project.
 OPEN_CHANGE|human|none|unclaimed|false|You are not a member of this project.
 OPEN_CHANGE|human|none|other|false|You are not a member of this project.
 OPEN_CHANGE|human|none|self|false|You are not a member of this project.
+OPEN_CHANGE|human|reporter|none|false|This action needs the member role; you hold reporter.
+OPEN_CHANGE|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+OPEN_CHANGE|human|reporter|other|false|This action needs the member role; you hold reporter.
+OPEN_CHANGE|human|reporter|self|false|This action needs the member role; you hold reporter.
 OPEN_CHANGE|human|viewer|none|false|This action needs the member role; you hold viewer.
 OPEN_CHANGE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 OPEN_CHANGE|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -722,6 +902,10 @@ OPEN_CHANGE|admin|none|none|true|null
 OPEN_CHANGE|admin|none|unclaimed|true|null
 OPEN_CHANGE|admin|none|other|true|null
 OPEN_CHANGE|admin|none|self|true|null
+OPEN_CHANGE|admin|reporter|none|true|null
+OPEN_CHANGE|admin|reporter|unclaimed|true|null
+OPEN_CHANGE|admin|reporter|other|true|null
+OPEN_CHANGE|admin|reporter|self|true|null
 OPEN_CHANGE|admin|viewer|none|true|null
 OPEN_CHANGE|admin|viewer|unclaimed|true|null
 OPEN_CHANGE|admin|viewer|other|true|null
@@ -738,6 +922,10 @@ OPEN_CHANGE|agent-admin-sponsor|none|none|false|You are not a member of this pro
 OPEN_CHANGE|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 OPEN_CHANGE|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
 OPEN_CHANGE|agent-admin-sponsor|none|self|false|You are not a member of this project.
+OPEN_CHANGE|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+OPEN_CHANGE|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+OPEN_CHANGE|agent-admin-sponsor|reporter|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 OPEN_CHANGE|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 OPEN_CHANGE|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 OPEN_CHANGE|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -754,6 +942,10 @@ OPEN_CHANGE|agent-member-sponsor|none|none|false|You are not a member of this pr
 OPEN_CHANGE|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 OPEN_CHANGE|agent-member-sponsor|none|other|false|This item is claimed by another agent.
 OPEN_CHANGE|agent-member-sponsor|none|self|false|You are not a member of this project.
+OPEN_CHANGE|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+OPEN_CHANGE|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+OPEN_CHANGE|agent-member-sponsor|reporter|other|false|This item is claimed by another agent.
+OPEN_CHANGE|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 OPEN_CHANGE|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 OPEN_CHANGE|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 OPEN_CHANGE|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -770,6 +962,10 @@ REVIEW_CHANGE|human|none|none|false|You are not a member of this project.
 REVIEW_CHANGE|human|none|unclaimed|false|You are not a member of this project.
 REVIEW_CHANGE|human|none|other|false|You are not a member of this project.
 REVIEW_CHANGE|human|none|self|false|You are not a member of this project.
+REVIEW_CHANGE|human|reporter|none|false|This action needs the member role; you hold reporter.
+REVIEW_CHANGE|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+REVIEW_CHANGE|human|reporter|other|false|This action needs the member role; you hold reporter.
+REVIEW_CHANGE|human|reporter|self|false|This action needs the member role; you hold reporter.
 REVIEW_CHANGE|human|viewer|none|false|This action needs the member role; you hold viewer.
 REVIEW_CHANGE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 REVIEW_CHANGE|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -786,6 +982,10 @@ REVIEW_CHANGE|admin|none|none|true|null
 REVIEW_CHANGE|admin|none|unclaimed|true|null
 REVIEW_CHANGE|admin|none|other|true|null
 REVIEW_CHANGE|admin|none|self|true|null
+REVIEW_CHANGE|admin|reporter|none|true|null
+REVIEW_CHANGE|admin|reporter|unclaimed|true|null
+REVIEW_CHANGE|admin|reporter|other|true|null
+REVIEW_CHANGE|admin|reporter|self|true|null
 REVIEW_CHANGE|admin|viewer|none|true|null
 REVIEW_CHANGE|admin|viewer|unclaimed|true|null
 REVIEW_CHANGE|admin|viewer|other|true|null
@@ -802,6 +1002,10 @@ REVIEW_CHANGE|agent-admin-sponsor|none|none|false|You are not a member of this p
 REVIEW_CHANGE|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 REVIEW_CHANGE|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
 REVIEW_CHANGE|agent-admin-sponsor|none|self|false|You are not a member of this project.
+REVIEW_CHANGE|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+REVIEW_CHANGE|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+REVIEW_CHANGE|agent-admin-sponsor|reporter|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 REVIEW_CHANGE|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 REVIEW_CHANGE|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 REVIEW_CHANGE|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -818,6 +1022,10 @@ REVIEW_CHANGE|agent-member-sponsor|none|none|false|You are not a member of this 
 REVIEW_CHANGE|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 REVIEW_CHANGE|agent-member-sponsor|none|other|false|This item is claimed by another agent.
 REVIEW_CHANGE|agent-member-sponsor|none|self|false|You are not a member of this project.
+REVIEW_CHANGE|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+REVIEW_CHANGE|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+REVIEW_CHANGE|agent-member-sponsor|reporter|other|false|This item is claimed by another agent.
+REVIEW_CHANGE|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 REVIEW_CHANGE|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 REVIEW_CHANGE|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 REVIEW_CHANGE|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -834,6 +1042,10 @@ MERGE_CHANGE|human|none|none|false|You are not a member of this project.
 MERGE_CHANGE|human|none|unclaimed|false|You are not a member of this project.
 MERGE_CHANGE|human|none|other|false|You are not a member of this project.
 MERGE_CHANGE|human|none|self|false|You are not a member of this project.
+MERGE_CHANGE|human|reporter|none|false|This action needs the member role; you hold reporter.
+MERGE_CHANGE|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+MERGE_CHANGE|human|reporter|other|false|This action needs the member role; you hold reporter.
+MERGE_CHANGE|human|reporter|self|false|This action needs the member role; you hold reporter.
 MERGE_CHANGE|human|viewer|none|false|This action needs the member role; you hold viewer.
 MERGE_CHANGE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 MERGE_CHANGE|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -850,6 +1062,10 @@ MERGE_CHANGE|admin|none|none|true|null
 MERGE_CHANGE|admin|none|unclaimed|true|null
 MERGE_CHANGE|admin|none|other|true|null
 MERGE_CHANGE|admin|none|self|true|null
+MERGE_CHANGE|admin|reporter|none|true|null
+MERGE_CHANGE|admin|reporter|unclaimed|true|null
+MERGE_CHANGE|admin|reporter|other|true|null
+MERGE_CHANGE|admin|reporter|self|true|null
 MERGE_CHANGE|admin|viewer|none|true|null
 MERGE_CHANGE|admin|viewer|unclaimed|true|null
 MERGE_CHANGE|admin|viewer|other|true|null
@@ -866,6 +1082,10 @@ MERGE_CHANGE|agent-admin-sponsor|none|none|false|You are not a member of this pr
 MERGE_CHANGE|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 MERGE_CHANGE|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
 MERGE_CHANGE|agent-admin-sponsor|none|self|false|You are not a member of this project.
+MERGE_CHANGE|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+MERGE_CHANGE|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+MERGE_CHANGE|agent-admin-sponsor|reporter|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 MERGE_CHANGE|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 MERGE_CHANGE|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 MERGE_CHANGE|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -882,6 +1102,10 @@ MERGE_CHANGE|agent-member-sponsor|none|none|false|You are not a member of this p
 MERGE_CHANGE|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 MERGE_CHANGE|agent-member-sponsor|none|other|false|This item is claimed by another agent.
 MERGE_CHANGE|agent-member-sponsor|none|self|false|You are not a member of this project.
+MERGE_CHANGE|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+MERGE_CHANGE|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+MERGE_CHANGE|agent-member-sponsor|reporter|other|false|This item is claimed by another agent.
+MERGE_CHANGE|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 MERGE_CHANGE|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 MERGE_CHANGE|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 MERGE_CHANGE|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -898,6 +1122,10 @@ ACKNOWLEDGE|human|none|none|false|You are not a member of this project.
 ACKNOWLEDGE|human|none|unclaimed|false|You are not a member of this project.
 ACKNOWLEDGE|human|none|other|false|You are not a member of this project.
 ACKNOWLEDGE|human|none|self|false|You are not a member of this project.
+ACKNOWLEDGE|human|reporter|none|false|This action needs the member role; you hold reporter.
+ACKNOWLEDGE|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+ACKNOWLEDGE|human|reporter|other|false|This action needs the member role; you hold reporter.
+ACKNOWLEDGE|human|reporter|self|false|This action needs the member role; you hold reporter.
 ACKNOWLEDGE|human|viewer|none|false|This action needs the member role; you hold viewer.
 ACKNOWLEDGE|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 ACKNOWLEDGE|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -914,6 +1142,10 @@ ACKNOWLEDGE|admin|none|none|true|null
 ACKNOWLEDGE|admin|none|unclaimed|true|null
 ACKNOWLEDGE|admin|none|other|true|null
 ACKNOWLEDGE|admin|none|self|true|null
+ACKNOWLEDGE|admin|reporter|none|true|null
+ACKNOWLEDGE|admin|reporter|unclaimed|true|null
+ACKNOWLEDGE|admin|reporter|other|true|null
+ACKNOWLEDGE|admin|reporter|self|true|null
 ACKNOWLEDGE|admin|viewer|none|true|null
 ACKNOWLEDGE|admin|viewer|unclaimed|true|null
 ACKNOWLEDGE|admin|viewer|other|true|null
@@ -930,6 +1162,10 @@ ACKNOWLEDGE|agent-admin-sponsor|none|none|false|A person acknowledges work close
 ACKNOWLEDGE|agent-admin-sponsor|none|unclaimed|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-admin-sponsor|none|other|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-admin-sponsor|none|self|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|reporter|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|reporter|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|reporter|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-admin-sponsor|reporter|self|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-admin-sponsor|viewer|none|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-admin-sponsor|viewer|unclaimed|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-admin-sponsor|viewer|other|false|A person acknowledges work closed without one.
@@ -946,6 +1182,10 @@ ACKNOWLEDGE|agent-member-sponsor|none|none|false|A person acknowledges work clos
 ACKNOWLEDGE|agent-member-sponsor|none|unclaimed|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-member-sponsor|none|other|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-member-sponsor|none|self|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|reporter|none|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|reporter|unclaimed|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|reporter|other|false|A person acknowledges work closed without one.
+ACKNOWLEDGE|agent-member-sponsor|reporter|self|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-member-sponsor|viewer|none|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-member-sponsor|viewer|unclaimed|false|A person acknowledges work closed without one.
 ACKNOWLEDGE|agent-member-sponsor|viewer|other|false|A person acknowledges work closed without one.
@@ -962,6 +1202,10 @@ REQUEST_DEPLOYMENT|human|none|none|false|You are not a member of this project.
 REQUEST_DEPLOYMENT|human|none|unclaimed|false|You are not a member of this project.
 REQUEST_DEPLOYMENT|human|none|other|false|You are not a member of this project.
 REQUEST_DEPLOYMENT|human|none|self|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|human|reporter|none|false|This action needs the member role; you hold reporter.
+REQUEST_DEPLOYMENT|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+REQUEST_DEPLOYMENT|human|reporter|other|false|This action needs the member role; you hold reporter.
+REQUEST_DEPLOYMENT|human|reporter|self|false|This action needs the member role; you hold reporter.
 REQUEST_DEPLOYMENT|human|viewer|none|false|This action needs the member role; you hold viewer.
 REQUEST_DEPLOYMENT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 REQUEST_DEPLOYMENT|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -978,6 +1222,10 @@ REQUEST_DEPLOYMENT|admin|none|none|true|null
 REQUEST_DEPLOYMENT|admin|none|unclaimed|true|null
 REQUEST_DEPLOYMENT|admin|none|other|true|null
 REQUEST_DEPLOYMENT|admin|none|self|true|null
+REQUEST_DEPLOYMENT|admin|reporter|none|true|null
+REQUEST_DEPLOYMENT|admin|reporter|unclaimed|true|null
+REQUEST_DEPLOYMENT|admin|reporter|other|true|null
+REQUEST_DEPLOYMENT|admin|reporter|self|true|null
 REQUEST_DEPLOYMENT|admin|viewer|none|true|null
 REQUEST_DEPLOYMENT|admin|viewer|unclaimed|true|null
 REQUEST_DEPLOYMENT|admin|viewer|other|true|null
@@ -994,6 +1242,10 @@ REQUEST_DEPLOYMENT|agent-admin-sponsor|none|none|false|You are not a member of t
 REQUEST_DEPLOYMENT|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 REQUEST_DEPLOYMENT|agent-admin-sponsor|none|other|false|You are not a member of this project.
 REQUEST_DEPLOYMENT|agent-admin-sponsor|none|self|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+REQUEST_DEPLOYMENT|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 REQUEST_DEPLOYMENT|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 REQUEST_DEPLOYMENT|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 REQUEST_DEPLOYMENT|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1010,6 +1262,10 @@ REQUEST_DEPLOYMENT|agent-member-sponsor|none|none|false|You are not a member of 
 REQUEST_DEPLOYMENT|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 REQUEST_DEPLOYMENT|agent-member-sponsor|none|other|false|You are not a member of this project.
 REQUEST_DEPLOYMENT|agent-member-sponsor|none|self|false|You are not a member of this project.
+REQUEST_DEPLOYMENT|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+REQUEST_DEPLOYMENT|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+REQUEST_DEPLOYMENT|agent-member-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+REQUEST_DEPLOYMENT|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 REQUEST_DEPLOYMENT|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 REQUEST_DEPLOYMENT|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 REQUEST_DEPLOYMENT|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1026,6 +1282,10 @@ APPROVE_DEPLOYMENT|human|none|none|false|You are not a member of this project.
 APPROVE_DEPLOYMENT|human|none|unclaimed|false|You are not a member of this project.
 APPROVE_DEPLOYMENT|human|none|other|false|You are not a member of this project.
 APPROVE_DEPLOYMENT|human|none|self|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|human|reporter|none|false|This action needs the member role; you hold reporter.
+APPROVE_DEPLOYMENT|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+APPROVE_DEPLOYMENT|human|reporter|other|false|This action needs the member role; you hold reporter.
+APPROVE_DEPLOYMENT|human|reporter|self|false|This action needs the member role; you hold reporter.
 APPROVE_DEPLOYMENT|human|viewer|none|false|This action needs the member role; you hold viewer.
 APPROVE_DEPLOYMENT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 APPROVE_DEPLOYMENT|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1042,6 +1302,10 @@ APPROVE_DEPLOYMENT|admin|none|none|true|null
 APPROVE_DEPLOYMENT|admin|none|unclaimed|true|null
 APPROVE_DEPLOYMENT|admin|none|other|true|null
 APPROVE_DEPLOYMENT|admin|none|self|true|null
+APPROVE_DEPLOYMENT|admin|reporter|none|true|null
+APPROVE_DEPLOYMENT|admin|reporter|unclaimed|true|null
+APPROVE_DEPLOYMENT|admin|reporter|other|true|null
+APPROVE_DEPLOYMENT|admin|reporter|self|true|null
 APPROVE_DEPLOYMENT|admin|viewer|none|true|null
 APPROVE_DEPLOYMENT|admin|viewer|unclaimed|true|null
 APPROVE_DEPLOYMENT|admin|viewer|other|true|null
@@ -1058,6 +1322,10 @@ APPROVE_DEPLOYMENT|agent-admin-sponsor|none|none|false|You are not a member of t
 APPROVE_DEPLOYMENT|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 APPROVE_DEPLOYMENT|agent-admin-sponsor|none|other|false|You are not a member of this project.
 APPROVE_DEPLOYMENT|agent-admin-sponsor|none|self|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+APPROVE_DEPLOYMENT|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 APPROVE_DEPLOYMENT|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 APPROVE_DEPLOYMENT|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 APPROVE_DEPLOYMENT|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1074,6 +1342,10 @@ APPROVE_DEPLOYMENT|agent-member-sponsor|none|none|false|You are not a member of 
 APPROVE_DEPLOYMENT|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 APPROVE_DEPLOYMENT|agent-member-sponsor|none|other|false|You are not a member of this project.
 APPROVE_DEPLOYMENT|agent-member-sponsor|none|self|false|You are not a member of this project.
+APPROVE_DEPLOYMENT|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+APPROVE_DEPLOYMENT|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+APPROVE_DEPLOYMENT|agent-member-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+APPROVE_DEPLOYMENT|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 APPROVE_DEPLOYMENT|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 APPROVE_DEPLOYMENT|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 APPROVE_DEPLOYMENT|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1090,6 +1362,10 @@ RUN_DEPLOYMENT|human|none|none|false|You are not a member of this project.
 RUN_DEPLOYMENT|human|none|unclaimed|false|You are not a member of this project.
 RUN_DEPLOYMENT|human|none|other|false|You are not a member of this project.
 RUN_DEPLOYMENT|human|none|self|false|You are not a member of this project.
+RUN_DEPLOYMENT|human|reporter|none|false|This action needs the member role; you hold reporter.
+RUN_DEPLOYMENT|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+RUN_DEPLOYMENT|human|reporter|other|false|This action needs the member role; you hold reporter.
+RUN_DEPLOYMENT|human|reporter|self|false|This action needs the member role; you hold reporter.
 RUN_DEPLOYMENT|human|viewer|none|false|This action needs the member role; you hold viewer.
 RUN_DEPLOYMENT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 RUN_DEPLOYMENT|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1106,6 +1382,10 @@ RUN_DEPLOYMENT|admin|none|none|true|null
 RUN_DEPLOYMENT|admin|none|unclaimed|true|null
 RUN_DEPLOYMENT|admin|none|other|true|null
 RUN_DEPLOYMENT|admin|none|self|true|null
+RUN_DEPLOYMENT|admin|reporter|none|true|null
+RUN_DEPLOYMENT|admin|reporter|unclaimed|true|null
+RUN_DEPLOYMENT|admin|reporter|other|true|null
+RUN_DEPLOYMENT|admin|reporter|self|true|null
 RUN_DEPLOYMENT|admin|viewer|none|true|null
 RUN_DEPLOYMENT|admin|viewer|unclaimed|true|null
 RUN_DEPLOYMENT|admin|viewer|other|true|null
@@ -1122,6 +1402,10 @@ RUN_DEPLOYMENT|agent-admin-sponsor|none|none|false|You are not a member of this 
 RUN_DEPLOYMENT|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 RUN_DEPLOYMENT|agent-admin-sponsor|none|other|false|You are not a member of this project.
 RUN_DEPLOYMENT|agent-admin-sponsor|none|self|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+RUN_DEPLOYMENT|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+RUN_DEPLOYMENT|agent-admin-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+RUN_DEPLOYMENT|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 RUN_DEPLOYMENT|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 RUN_DEPLOYMENT|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 RUN_DEPLOYMENT|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1138,6 +1422,10 @@ RUN_DEPLOYMENT|agent-member-sponsor|none|none|false|You are not a member of this
 RUN_DEPLOYMENT|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 RUN_DEPLOYMENT|agent-member-sponsor|none|other|false|You are not a member of this project.
 RUN_DEPLOYMENT|agent-member-sponsor|none|self|false|You are not a member of this project.
+RUN_DEPLOYMENT|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+RUN_DEPLOYMENT|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+RUN_DEPLOYMENT|agent-member-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+RUN_DEPLOYMENT|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 RUN_DEPLOYMENT|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 RUN_DEPLOYMENT|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 RUN_DEPLOYMENT|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1154,6 +1442,10 @@ MANAGE_SPRINT|human|none|none|false|You are not a member of this project.
 MANAGE_SPRINT|human|none|unclaimed|false|You are not a member of this project.
 MANAGE_SPRINT|human|none|other|false|You are not a member of this project.
 MANAGE_SPRINT|human|none|self|false|You are not a member of this project.
+MANAGE_SPRINT|human|reporter|none|false|This action needs the lead role; you hold reporter.
+MANAGE_SPRINT|human|reporter|unclaimed|false|This action needs the lead role; you hold reporter.
+MANAGE_SPRINT|human|reporter|other|false|This action needs the lead role; you hold reporter.
+MANAGE_SPRINT|human|reporter|self|false|This action needs the lead role; you hold reporter.
 MANAGE_SPRINT|human|viewer|none|false|This action needs the lead role; you hold viewer.
 MANAGE_SPRINT|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
 MANAGE_SPRINT|human|viewer|other|false|This action needs the lead role; you hold viewer.
@@ -1170,6 +1462,10 @@ MANAGE_SPRINT|admin|none|none|true|null
 MANAGE_SPRINT|admin|none|unclaimed|true|null
 MANAGE_SPRINT|admin|none|other|true|null
 MANAGE_SPRINT|admin|none|self|true|null
+MANAGE_SPRINT|admin|reporter|none|true|null
+MANAGE_SPRINT|admin|reporter|unclaimed|true|null
+MANAGE_SPRINT|admin|reporter|other|true|null
+MANAGE_SPRINT|admin|reporter|self|true|null
 MANAGE_SPRINT|admin|viewer|none|true|null
 MANAGE_SPRINT|admin|viewer|unclaimed|true|null
 MANAGE_SPRINT|admin|viewer|other|true|null
@@ -1186,6 +1482,10 @@ MANAGE_SPRINT|agent-admin-sponsor|none|none|false|A person plans a sprint.
 MANAGE_SPRINT|agent-admin-sponsor|none|unclaimed|false|A person plans a sprint.
 MANAGE_SPRINT|agent-admin-sponsor|none|other|false|A person plans a sprint.
 MANAGE_SPRINT|agent-admin-sponsor|none|self|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|reporter|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|reporter|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|reporter|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-admin-sponsor|reporter|self|false|A person plans a sprint.
 MANAGE_SPRINT|agent-admin-sponsor|viewer|none|false|A person plans a sprint.
 MANAGE_SPRINT|agent-admin-sponsor|viewer|unclaimed|false|A person plans a sprint.
 MANAGE_SPRINT|agent-admin-sponsor|viewer|other|false|A person plans a sprint.
@@ -1202,6 +1502,10 @@ MANAGE_SPRINT|agent-member-sponsor|none|none|false|A person plans a sprint.
 MANAGE_SPRINT|agent-member-sponsor|none|unclaimed|false|A person plans a sprint.
 MANAGE_SPRINT|agent-member-sponsor|none|other|false|A person plans a sprint.
 MANAGE_SPRINT|agent-member-sponsor|none|self|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|reporter|none|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|reporter|unclaimed|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|reporter|other|false|A person plans a sprint.
+MANAGE_SPRINT|agent-member-sponsor|reporter|self|false|A person plans a sprint.
 MANAGE_SPRINT|agent-member-sponsor|viewer|none|false|A person plans a sprint.
 MANAGE_SPRINT|agent-member-sponsor|viewer|unclaimed|false|A person plans a sprint.
 MANAGE_SPRINT|agent-member-sponsor|viewer|other|false|A person plans a sprint.
@@ -1218,6 +1522,10 @@ PLAN_SPRINT|human|none|none|false|You are not a member of this project.
 PLAN_SPRINT|human|none|unclaimed|false|You are not a member of this project.
 PLAN_SPRINT|human|none|other|false|You are not a member of this project.
 PLAN_SPRINT|human|none|self|false|You are not a member of this project.
+PLAN_SPRINT|human|reporter|none|false|This action needs the member role; you hold reporter.
+PLAN_SPRINT|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+PLAN_SPRINT|human|reporter|other|false|This action needs the member role; you hold reporter.
+PLAN_SPRINT|human|reporter|self|false|This action needs the member role; you hold reporter.
 PLAN_SPRINT|human|viewer|none|false|This action needs the member role; you hold viewer.
 PLAN_SPRINT|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 PLAN_SPRINT|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1234,6 +1542,10 @@ PLAN_SPRINT|admin|none|none|true|null
 PLAN_SPRINT|admin|none|unclaimed|true|null
 PLAN_SPRINT|admin|none|other|true|null
 PLAN_SPRINT|admin|none|self|true|null
+PLAN_SPRINT|admin|reporter|none|true|null
+PLAN_SPRINT|admin|reporter|unclaimed|true|null
+PLAN_SPRINT|admin|reporter|other|true|null
+PLAN_SPRINT|admin|reporter|self|true|null
 PLAN_SPRINT|admin|viewer|none|true|null
 PLAN_SPRINT|admin|viewer|unclaimed|true|null
 PLAN_SPRINT|admin|viewer|other|true|null
@@ -1250,6 +1562,10 @@ PLAN_SPRINT|agent-admin-sponsor|none|none|false|A person plans a sprint.
 PLAN_SPRINT|agent-admin-sponsor|none|unclaimed|false|A person plans a sprint.
 PLAN_SPRINT|agent-admin-sponsor|none|other|false|A person plans a sprint.
 PLAN_SPRINT|agent-admin-sponsor|none|self|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|reporter|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|reporter|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|reporter|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-admin-sponsor|reporter|self|false|A person plans a sprint.
 PLAN_SPRINT|agent-admin-sponsor|viewer|none|false|A person plans a sprint.
 PLAN_SPRINT|agent-admin-sponsor|viewer|unclaimed|false|A person plans a sprint.
 PLAN_SPRINT|agent-admin-sponsor|viewer|other|false|A person plans a sprint.
@@ -1266,6 +1582,10 @@ PLAN_SPRINT|agent-member-sponsor|none|none|false|A person plans a sprint.
 PLAN_SPRINT|agent-member-sponsor|none|unclaimed|false|A person plans a sprint.
 PLAN_SPRINT|agent-member-sponsor|none|other|false|A person plans a sprint.
 PLAN_SPRINT|agent-member-sponsor|none|self|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|reporter|none|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|reporter|unclaimed|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|reporter|other|false|A person plans a sprint.
+PLAN_SPRINT|agent-member-sponsor|reporter|self|false|A person plans a sprint.
 PLAN_SPRINT|agent-member-sponsor|viewer|none|false|A person plans a sprint.
 PLAN_SPRINT|agent-member-sponsor|viewer|unclaimed|false|A person plans a sprint.
 PLAN_SPRINT|agent-member-sponsor|viewer|other|false|A person plans a sprint.
@@ -1282,6 +1602,10 @@ SHARE_FILTER|human|none|none|false|You are not a member of this project.
 SHARE_FILTER|human|none|unclaimed|false|You are not a member of this project.
 SHARE_FILTER|human|none|other|false|You are not a member of this project.
 SHARE_FILTER|human|none|self|false|You are not a member of this project.
+SHARE_FILTER|human|reporter|none|false|This action needs the member role; you hold reporter.
+SHARE_FILTER|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+SHARE_FILTER|human|reporter|other|false|This action needs the member role; you hold reporter.
+SHARE_FILTER|human|reporter|self|false|This action needs the member role; you hold reporter.
 SHARE_FILTER|human|viewer|none|false|This action needs the member role; you hold viewer.
 SHARE_FILTER|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 SHARE_FILTER|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1298,6 +1622,10 @@ SHARE_FILTER|admin|none|none|true|null
 SHARE_FILTER|admin|none|unclaimed|true|null
 SHARE_FILTER|admin|none|other|true|null
 SHARE_FILTER|admin|none|self|true|null
+SHARE_FILTER|admin|reporter|none|true|null
+SHARE_FILTER|admin|reporter|unclaimed|true|null
+SHARE_FILTER|admin|reporter|other|true|null
+SHARE_FILTER|admin|reporter|self|true|null
 SHARE_FILTER|admin|viewer|none|true|null
 SHARE_FILTER|admin|viewer|unclaimed|true|null
 SHARE_FILTER|admin|viewer|other|true|null
@@ -1314,6 +1642,10 @@ SHARE_FILTER|agent-admin-sponsor|none|none|false|You are not a member of this pr
 SHARE_FILTER|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 SHARE_FILTER|agent-admin-sponsor|none|other|false|You are not a member of this project.
 SHARE_FILTER|agent-admin-sponsor|none|self|false|You are not a member of this project.
+SHARE_FILTER|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+SHARE_FILTER|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+SHARE_FILTER|agent-admin-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+SHARE_FILTER|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 SHARE_FILTER|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 SHARE_FILTER|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 SHARE_FILTER|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1330,6 +1662,10 @@ SHARE_FILTER|agent-member-sponsor|none|none|false|You are not a member of this p
 SHARE_FILTER|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 SHARE_FILTER|agent-member-sponsor|none|other|false|You are not a member of this project.
 SHARE_FILTER|agent-member-sponsor|none|self|false|You are not a member of this project.
+SHARE_FILTER|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+SHARE_FILTER|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+SHARE_FILTER|agent-member-sponsor|reporter|other|false|This action needs the member role; you hold reporter.
+SHARE_FILTER|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 SHARE_FILTER|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 SHARE_FILTER|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 SHARE_FILTER|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1346,6 +1682,10 @@ ATTACH|human|none|none|false|You are not a member of this project.
 ATTACH|human|none|unclaimed|false|You are not a member of this project.
 ATTACH|human|none|other|false|You are not a member of this project.
 ATTACH|human|none|self|false|You are not a member of this project.
+ATTACH|human|reporter|none|false|This action needs the member role; you hold reporter.
+ATTACH|human|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+ATTACH|human|reporter|other|false|This action needs the member role; you hold reporter.
+ATTACH|human|reporter|self|false|This action needs the member role; you hold reporter.
 ATTACH|human|viewer|none|false|This action needs the member role; you hold viewer.
 ATTACH|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 ATTACH|human|viewer|other|false|This action needs the member role; you hold viewer.
@@ -1362,6 +1702,10 @@ ATTACH|admin|none|none|true|null
 ATTACH|admin|none|unclaimed|true|null
 ATTACH|admin|none|other|true|null
 ATTACH|admin|none|self|true|null
+ATTACH|admin|reporter|none|true|null
+ATTACH|admin|reporter|unclaimed|true|null
+ATTACH|admin|reporter|other|true|null
+ATTACH|admin|reporter|self|true|null
 ATTACH|admin|viewer|none|true|null
 ATTACH|admin|viewer|unclaimed|true|null
 ATTACH|admin|viewer|other|true|null
@@ -1378,6 +1722,10 @@ ATTACH|agent-admin-sponsor|none|none|false|You are not a member of this project.
 ATTACH|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
 ATTACH|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
 ATTACH|agent-admin-sponsor|none|self|false|You are not a member of this project.
+ATTACH|agent-admin-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+ATTACH|agent-admin-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+ATTACH|agent-admin-sponsor|reporter|other|false|This item is claimed by another agent.
+ATTACH|agent-admin-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 ATTACH|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 ATTACH|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 ATTACH|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -1394,6 +1742,10 @@ ATTACH|agent-member-sponsor|none|none|false|You are not a member of this project
 ATTACH|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
 ATTACH|agent-member-sponsor|none|other|false|This item is claimed by another agent.
 ATTACH|agent-member-sponsor|none|self|false|You are not a member of this project.
+ATTACH|agent-member-sponsor|reporter|none|false|This action needs the member role; you hold reporter.
+ATTACH|agent-member-sponsor|reporter|unclaimed|false|This action needs the member role; you hold reporter.
+ATTACH|agent-member-sponsor|reporter|other|false|This item is claimed by another agent.
+ATTACH|agent-member-sponsor|reporter|self|false|This action needs the member role; you hold reporter.
 ATTACH|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
 ATTACH|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
 ATTACH|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
@@ -1410,6 +1762,10 @@ ACKNOWLEDGE_FLAG|human|none|none|false|You are not a member of this project.
 ACKNOWLEDGE_FLAG|human|none|unclaimed|false|You are not a member of this project.
 ACKNOWLEDGE_FLAG|human|none|other|false|You are not a member of this project.
 ACKNOWLEDGE_FLAG|human|none|self|false|You are not a member of this project.
+ACKNOWLEDGE_FLAG|human|reporter|none|false|This action needs the lead role; you hold reporter.
+ACKNOWLEDGE_FLAG|human|reporter|unclaimed|false|This action needs the lead role; you hold reporter.
+ACKNOWLEDGE_FLAG|human|reporter|other|false|This action needs the lead role; you hold reporter.
+ACKNOWLEDGE_FLAG|human|reporter|self|false|This action needs the lead role; you hold reporter.
 ACKNOWLEDGE_FLAG|human|viewer|none|false|This action needs the lead role; you hold viewer.
 ACKNOWLEDGE_FLAG|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
 ACKNOWLEDGE_FLAG|human|viewer|other|false|This action needs the lead role; you hold viewer.
@@ -1426,6 +1782,10 @@ ACKNOWLEDGE_FLAG|admin|none|none|true|null
 ACKNOWLEDGE_FLAG|admin|none|unclaimed|true|null
 ACKNOWLEDGE_FLAG|admin|none|other|true|null
 ACKNOWLEDGE_FLAG|admin|none|self|true|null
+ACKNOWLEDGE_FLAG|admin|reporter|none|true|null
+ACKNOWLEDGE_FLAG|admin|reporter|unclaimed|true|null
+ACKNOWLEDGE_FLAG|admin|reporter|other|true|null
+ACKNOWLEDGE_FLAG|admin|reporter|self|true|null
 ACKNOWLEDGE_FLAG|admin|viewer|none|true|null
 ACKNOWLEDGE_FLAG|admin|viewer|unclaimed|true|null
 ACKNOWLEDGE_FLAG|admin|viewer|other|true|null
@@ -1442,6 +1802,10 @@ ACKNOWLEDGE_FLAG|agent-admin-sponsor|none|none|false|An agent may not change pol
 ACKNOWLEDGE_FLAG|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -1458,6 +1822,10 @@ ACKNOWLEDGE_FLAG|agent-member-sponsor|none|none|false|An agent may not change po
 ACKNOWLEDGE_FLAG|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|reporter|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|reporter|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|reporter|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|reporter|self|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
@@ -1470,3 +1838,83 @@ ACKNOWLEDGE_FLAG|agent-member-sponsor|lead|none|false|An agent may not change po
 ACKNOWLEDGE_FLAG|agent-member-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-member-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
 ACKNOWLEDGE_FLAG|agent-member-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+FILE_ITEM|human|none|none|false|You are not a member of this project.
+FILE_ITEM|human|none|unclaimed|false|You are not a member of this project.
+FILE_ITEM|human|none|other|false|You are not a member of this project.
+FILE_ITEM|human|none|self|false|You are not a member of this project.
+FILE_ITEM|human|reporter|none|true|null
+FILE_ITEM|human|reporter|unclaimed|true|null
+FILE_ITEM|human|reporter|other|true|null
+FILE_ITEM|human|reporter|self|true|null
+FILE_ITEM|human|viewer|none|true|null
+FILE_ITEM|human|viewer|unclaimed|true|null
+FILE_ITEM|human|viewer|other|true|null
+FILE_ITEM|human|viewer|self|true|null
+FILE_ITEM|human|member|none|true|null
+FILE_ITEM|human|member|unclaimed|true|null
+FILE_ITEM|human|member|other|true|null
+FILE_ITEM|human|member|self|true|null
+FILE_ITEM|human|lead|none|true|null
+FILE_ITEM|human|lead|unclaimed|true|null
+FILE_ITEM|human|lead|other|true|null
+FILE_ITEM|human|lead|self|true|null
+FILE_ITEM|admin|none|none|true|null
+FILE_ITEM|admin|none|unclaimed|true|null
+FILE_ITEM|admin|none|other|true|null
+FILE_ITEM|admin|none|self|true|null
+FILE_ITEM|admin|reporter|none|true|null
+FILE_ITEM|admin|reporter|unclaimed|true|null
+FILE_ITEM|admin|reporter|other|true|null
+FILE_ITEM|admin|reporter|self|true|null
+FILE_ITEM|admin|viewer|none|true|null
+FILE_ITEM|admin|viewer|unclaimed|true|null
+FILE_ITEM|admin|viewer|other|true|null
+FILE_ITEM|admin|viewer|self|true|null
+FILE_ITEM|admin|member|none|true|null
+FILE_ITEM|admin|member|unclaimed|true|null
+FILE_ITEM|admin|member|other|true|null
+FILE_ITEM|admin|member|self|true|null
+FILE_ITEM|admin|lead|none|true|null
+FILE_ITEM|admin|lead|unclaimed|true|null
+FILE_ITEM|admin|lead|other|true|null
+FILE_ITEM|admin|lead|self|true|null
+FILE_ITEM|agent-admin-sponsor|none|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|none|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|none|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|none|self|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|reporter|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|reporter|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|reporter|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|reporter|self|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|viewer|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|viewer|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|viewer|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|viewer|self|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|member|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|member|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|member|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|member|self|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|lead|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|lead|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|lead|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-admin-sponsor|lead|self|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|none|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|none|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|none|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|none|self|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|reporter|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|reporter|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|reporter|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|reporter|self|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|viewer|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|viewer|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|viewer|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|viewer|self|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|member|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|member|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|member|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|member|self|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|lead|none|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|lead|unclaimed|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|lead|other|false|A person files intake; an agent creates items in the projects it belongs to.
+FILE_ITEM|agent-member-sponsor|lead|self|false|A person files intake; an agent creates items in the projects it belongs to.

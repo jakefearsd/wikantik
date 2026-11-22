@@ -18,11 +18,25 @@
  */
 package com.wikantik.work;
 
-/** Project role; declaration order is privilege order, lowest first. */
+/**
+ * Project role; declaration order is privilege order, lowest first.
+ *
+ * <p>{@link #REPORTER} files items and sees only the ones they reported; it gives no standing in the project (see
+ * {@code WorkStanding}). It sorts below every role that does.
+ */
 public enum WorkRole implements WireEnum {
+    REPORTER("reporter"),
     VIEWER("viewer"),
     MEMBER("member"),
     LEAD("lead");
+
+    /**
+     * The roles that give standing in a project (seeing it, and acting by the policy), named one by one: a role added
+     * later gives none until it is listed here. {@code WorkStanding} filters on it and the visible-projects SQL is
+     * built from it ({@code JdbcWorkCatalog.VISIBLE_PROJECTS_SQL}), so the two cannot disagree.
+     */
+    public static final java.util.Set< WorkRole > STANDING = java.util.Collections.unmodifiableSet(
+        java.util.EnumSet.of( VIEWER, MEMBER, LEAD ) );
 
     private final String wire;
 

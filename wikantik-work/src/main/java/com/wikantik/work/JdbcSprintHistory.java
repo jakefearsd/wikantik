@@ -38,9 +38,10 @@ final class JdbcSprintHistory {
         + "SELECT item_id FROM work_event WHERE project_id = ? AND type = 'field' AND note = 'sprint' "
         + "AND ( from_value = ? OR to_value = ? )";
 
-    private static final String EVENTS = "SELECT id, item_id, at, type, to_value, note FROM work_event "
-        + "WHERE item_id = ANY( ? ) AND ( type IN ('status','handoff') OR ( type = 'field' "
-        + "AND note IN ('sprint','estimate') ) ) ORDER BY id";
+    /** Sprint and estimate edits, and every status move by any route ({@link StatusMoves}, the one definition). */
+    private static final String EVENTS = "SELECT e.id, e.item_id, e.at, e.type, e.from_value, e.to_value, e.note "
+        + "FROM work_event e WHERE e.item_id = ANY( ? ) AND ( ( e.type = 'field' AND e.note IN ('sprint','estimate') ) "
+        + "OR " + StatusMoves.movedSql( "e" ) + " ) ORDER BY e.id";
 
     private static final String CHILD_POINTS = "SELECT COALESCE( SUM( COALESCE( s.estimate, ( SELECT SUM( t.estimate ) "
         + "FROM work_item t WHERE t.parent_id = s.id AND t.status <> 'cancelled' ) ) ), 0 ) "
@@ -75,7 +76,8 @@ final class JdbcSprintHistory {
                 events.addAll( jdbc.query( conn, EVENTS, ps -> ps.setArray( 1, ids ), rs -> new SprintEvent(
                     rs.getLong( "id" ), rs.getLong( "item_id" ), getInstant( rs, "at" ),
                     kind( rs.getString( "type" ), rs.getString( "note" ) ),
-                    value( rs.getString( "type" ), rs.getString( "to_value" ) ) ) ) );
+                    value( rs.getString( "type" ), rs.getString( "from_value" ), rs.getString( "to_value" ),
+                        rs.getString( "note" ) ) ) ) );
                 return null;
             } );
         }
@@ -89,12 +91,13 @@ final class JdbcSprintHistory {
         return SprintEvent.Kind.STATUS;
     }
 
-    /** A hand-off's {@code to_value} is {@code status|target}: only the status part matters here. */
-    private static String value( final String type, final String toValue ) {
-        if ( WorkEvent.HANDOFF.equals( type ) && toValue != null && toValue.indexOf( '|' ) >= 0 ) {
-            return toValue.substring( 0, toValue.indexOf( '|' ) );
+    /** A field edit's value as stored; a status move's value is the status it went to ({@link StatusMoves}). */
+    private static String value( final String type, final String fromValue, final String toValue,
+                                 final String note ) {
+        if ( WorkEvent.FIELD.equals( type ) ) {
+            return toValue;
         }
-        return toValue;
+        return StatusMoves.of( type, fromValue, toValue, note ).map( StatusMoves.Move::to ).orElse( toValue );
     }
 
     BigDecimal childPoints( final long itemId ) throws SQLException {

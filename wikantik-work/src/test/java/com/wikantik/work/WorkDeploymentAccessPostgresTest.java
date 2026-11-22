@@ -132,6 +132,29 @@ class WorkDeploymentAccessPostgresTest {
         }
     }
 
+    @Test
+    void aReporterDoesNotSeeADeploymentCarryingTheirProjectsItems() throws SQLException {
+        final Actor rita = Actor.human( "rita", Set.of(), false );
+        f.svc.putMember( f.admin, "PLAT", "rita", "user", WorkRole.REPORTER );
+        final JdbcWorkStore store = new JdbcWorkStore( f.ds );
+        final Project platProject = store.project( "PLAT" ).orElseThrow();
+        final Item draft = JdbcWorkStoreItemsPostgresTest.draft( "rita's report" );
+        final Item filed = store.createItem( platProject, new Item( 0, 0, null, draft.level(), null,
+            store.product( "wikantik" ).orElseThrow().id(), draft.kind(), draft.title(), draft.body(), WorkStatus.DRAFT, 3, 0,
+            null, null, null, null, null, null, 0, null, null, null, null, null, null, null, null, null, null, null, null ), rita );
+        final Item ready = f.status( f.lena, filed, "ready" );
+        assertEquals( "rita", ready.reporter() );
+        final long id = deployments.request( f.mia, new DeploymentDraft( "wikantik", null, "2.5.26",
+            List.of( plat.key(), ready.key() ) ) ).deployment().id();
+        assertThrows( WorkNotFoundException.class, () -> deployments.deployment( rita, id ) );
+        assertThrows( WorkNotFoundException.class, () -> deployments.history( rita, id ) );
+        assertThrows( WorkNotFoundException.class, () -> deployments.forProduct( rita, "wikantik", 10 ) );
+        assertThrows( WorkNotFoundException.class, () -> deployments.shippedIn( rita, ready.key() ) );
+        assertTrue( deployments.awaitingMyApproval( rita ).isEmpty() );
+        assertThrows( WorkNotFoundException.class, () -> deployments.request( rita, new DeploymentDraft( "wikantik", null,
+            "2.5.27", List.of( ready.key() ) ) ) );
+    }
+
     // ---- requesting
 
     @Test

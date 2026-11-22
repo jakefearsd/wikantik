@@ -5,11 +5,14 @@ import Spinner from '../ui/Spinner';
 import { getInbox, markAllRead } from '../../api/work';
 import { announceUnread } from '../../hooks/useWorkUnread';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
-import { eventSentence } from './eventText';
+import { eventSentence, reporterEventLine } from './eventText';
 import WorkLoadError from './WorkLoadError';
 import WorkNotifyPrefs from './WorkNotifyPrefs';
 
 const PAGE = 30;
+/** A status move with no acting person (a lapsed claim) reads without an invented actor; every other line is as before. */
+const inboxLine = (event) => (event.type === 'status' && !event.actorName && event.actorKind !== 'agent'
+  ? reporterEventLine(event) : eventSentence(event));
 const REASONS = {
   mentioned: 'Mentioned',
   assigned: 'Assigned',
@@ -36,7 +39,7 @@ function Notice({ n }) {
           : n.projectKey && <Link to={`/work/${n.projectKey}`}>{n.projectKey}</Link>}
         <span className="work-muted work-notice-when">{when(n.createdAt)}</span>
       </div>
-      <p className="work-notice-text">{n.event ? eventSentence(n.event) : ''}</p>
+      <p className="work-notice-text">{n.event ? inboxLine(n.event) : ''}</p>
     </li>
   );
 }

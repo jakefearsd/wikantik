@@ -11,7 +11,7 @@ import WorkConfirm from './WorkConfirm';
 import WorkLoadError from './WorkLoadError';
 import WorkWebhooks from './WorkWebhooks';
 
-const ROLES = ['viewer', 'member', 'lead'];
+const ROLES = ['reporter', 'viewer', 'member', 'lead'];
 const AGENT_ROLES = ['viewer', 'member'];
 const KINDS = [{ value: 'user', label: 'User' }, { value: 'group', label: 'Group' }, { value: 'agent', label: 'Agent' }];
 const RELEASES = 'Any work this agent has claimed in this project goes back to its queue.';
@@ -23,7 +23,8 @@ const NO_EFFECT = {
   sponsor_not_member: 'No effect: its sponsor is not a member of this project',
   sponsor_viewer: 'Read-only: its sponsor is a viewer here',
 };
-const SPONSOR_NOTE = 'Removing a person, or making them a viewer, also ends the claims of the agents they sponsor in this project.';
+const SPONSOR_NOTE = 'Removing a person, or making them a viewer or a reporter, also ends the claims of the agents they sponsor in this project.';
+const REPORTER_HELP = 'Reporter: files items and sees only the ones they filed.';
 const LEVELS = [{ value: 'supervised', label: 'Supervised' }, { value: 'delegated', label: 'Delegated' }, { value: 'autonomous', label: 'Autonomous' }];
 const LEVEL_TEXT = {
   supervised: 'A person approves work as ready, merges and closes it.',
@@ -200,7 +201,7 @@ function Members({ project, reloadProject, readOnly }) {
   function doRole(m, role) {
     setPending(null);
     return run(() => putMember(project.key, { principal: m.principal, principalKind: m.principalKind, role }),
-      { member: m, self: isMe(m), afterSelf: afterOwnRoleChange });
+      { member: m, self: isMe(m), afterSelf: role === 'reporter' ? afterOwnRemoval : afterOwnRoleChange });
   }
   function askRemove(m) {
     setPendingError(null);
@@ -293,9 +294,10 @@ function Members({ project, reloadProject, readOnly }) {
           )}
         <p className="work-muted work-add-help">{NAME_HELP[adding.kind]}</p>
         <Select ariaLabel="Kind" value={adding.kind} options={KINDS} disabled={busy}
-          onChange={(kind) => { setAddError(null); setAdding({ principal: (kind === 'agent') !== (adding.kind === 'agent') ? '' : adding.principal, kind, role: kind === 'agent' && adding.role === 'lead' ? 'member' : adding.role }); }} />
+          onChange={(kind) => { setAddError(null); setAdding({ principal: (kind === 'agent') !== (adding.kind === 'agent') ? '' : adding.principal, kind, role: kind === 'agent' && (adding.role === 'lead' || adding.role === 'reporter') ? 'member' : adding.role }); }} />
         <Select ariaLabel="Role for new member" value={adding.role} options={adding.kind === 'agent' ? AGENT_ROLES : ROLES}
           onChange={(role) => setAdding({ ...adding, role })} />
+        <p className="work-muted work-add-help">{REPORTER_HELP}</p>
         <button type="submit" className="btn btn-sm" disabled={busy}>Add member</button>
         {addError && <span className="work-field-error" role="alert">{addError}</span>}
       </form>}

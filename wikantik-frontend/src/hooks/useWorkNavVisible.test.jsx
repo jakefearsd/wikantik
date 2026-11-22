@@ -50,6 +50,13 @@ describe('useWorkNavVisible', () => {
     await waitFor(() => expect(result.current).toBe(true));
   });
 
+  it('shows for a reporter who has no project but may file into one', async () => {
+    getMe.mockResolvedValue({ waitingOn: [], projects: [], reportable: [{ key: 'DOCS', name: 'Documentation', role: 'reporter' }] });
+    as({ authenticated: true, roles: [] }, true);
+    const { result } = renderHook(() => useWorkNavVisible());
+    await waitFor(() => expect(result.current).toBe(true));
+  });
+
   it('hides for a non-admin whose only project is archived', async () => {
     getMe.mockResolvedValue({ waitingOn: [], projects: [{ key: 'OLD', archived: true }] });
     as({ authenticated: true, roles: [] }, true);

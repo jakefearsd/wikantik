@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
-import { acknowledgeItem, createProject, getMe } from '../../api/work';
+import { acknowledgeItem, createProject, getMe, listReported } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useUnreadCount } from '../../hooks/useWorkUnread';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import { useToast } from '../../hooks/useToast';
+import { reporterStatusWords } from './eventText';
 import WaitingLane from './WaitingLane';
 import WorkFindSection from './WorkFindSection';
 import WorkLoadError from './WorkLoadError';
@@ -62,6 +63,7 @@ export default function WorkHome() {
   const enabled = !loading && !!capabilities?.work;
   const isAdmin = !!user?.roles?.includes('Admin');
   const [state, setState] = useState({ me: null, error: null });
+  const [reported, setReported] = useState([]);
   const [creating, setCreating] = useState(false);
   const [ackError, setAckError] = useState(null);
   const unread = useUnreadCount(enabled);
@@ -79,11 +81,24 @@ export default function WorkHome() {
 
   useEffect(() => { if (enabled) load(); }, [enabled, load]);
 
+  // The items this person filed into projects where they are only a reporter. Nothing waits on it; a failure is
+  // logged and the list stays as it was.
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let live = true;
+    listReported()
+      .then((rows) => { if (live) setReported(rows || []); })
+      .catch((e) => console.warn('WorkHome: could not load the items you filed', e));
+    return () => { live = false; };
+  }, [enabled]);
+
   if (loading || authLoading) return <Spinner label="Loading…" />;
   if (!capabilities?.work) return <EmptyState message="Work management is not enabled" />;
   if (state.error) return <WorkLoadError error={state.error} fallback="Could not load your projects." onRetry={load} />;
   if (!state.me) return <Spinner label="Loading…" />;
-  const { projects = [], waitingOn = [], deploymentsAwaiting = [] } = state.me;
+  const { projects = [], waitingOn = [], deploymentsAwaiting = [], reportable = [] } = state.me;
+  // A person with standing only as a reporter has no projects: show where they file and what they filed instead.
+  const reporterOnly = projects.length === 0 && (reportable.length > 0 || reported.length > 0);
   const keyOf = new Map(projects.map((p) => [p.id, p.key]));
   const active = projects.filter((p) => !p.archived);
   const archived = projects.filter((p) => p.archived);
@@ -113,6 +128,12 @@ export default function WorkHome() {
         <Link to="/work/inbox" className="btn btn-sm">Inbox{unread > 0 ? ` (${unread})` : ''}</Link>
         <span className="work-muted"> What happened on the work you watch, are assigned or are mentioned on.</span>
       </p>
+      {reportable.length > 0 && (
+        <p className="work-log-link">
+          <Link to="/work/submit" className="btn btn-sm">File a request</Link>
+          <span className="work-muted"> Ask a project for something; its members will see it and take it from there.</span>
+        </p>
+      )}
       {(isAdmin || projects.length > 0) && (
         <div className="work-actions">
           {isAdmin && <Link to="/work/products">Products</Link>}
@@ -147,10 +168,22 @@ export default function WorkHome() {
         </section>
       )}
       {projects.length > 0 && <WorkFindSection />}
-      <h2 className="work-subheading">Projects</h2>
-      {active.length === 0
+      {reported.length > 0 && (
+        <section aria-label={reporterOnly ? 'My requests' : 'Filed into other projects'}>
+          <h2 className="work-subheading">{reporterOnly ? 'My requests' : 'Filed into other projects'}</h2>
+          <ul className="work-project-list">
+            {reported.map((r) => (
+              <li key={r.key}><Link to={`/work/item/${r.key}`}>{r.key} {r.title}</Link>
+                <span className="work-muted"> · {r.projectName || r.projectKey} · {reporterStatusWords(r.status)}</span></li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {reporterOnly && reported.length === 0 && <EmptyState message="You have not filed any requests yet." />}
+      {!reporterOnly && <h2 className="work-subheading">Projects</h2>}
+      {!reporterOnly && (active.length === 0
         ? <EmptyState message={archived.length ? 'You have no active projects.' : 'You are not a member of any project yet.'} />
-        : projectList(active)}
+        : projectList(active))}
       {archived.length > 0 && (
         <section aria-label="Archived projects">
           <h2 className="work-subheading">Archived</h2>

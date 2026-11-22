@@ -11,6 +11,26 @@ const renderCard = (props = {}) => render(
   <MemoryRouter><WorkCard item={ITEM} productKey="wikantik" {...props} /></MemoryRouter>);
 
 describe('WorkCard', () => {
+  it('marks an item reported from outside', () => {
+    const { container } = renderCard({ item: { ...ITEM, reportedFromOutside: true } });
+    const mark = container.querySelector('.work-card-outside');
+    expect(mark).not.toBeNull();
+    expect(mark).toHaveAttribute('title', 'Reported from outside the project');
+  });
+
+  it('renders a find-shaped item that omits the flag, or sends null, without a mark or a crash', () => {
+    const { reportedFromOutside, ...findShaped } = { ...ITEM, reportedFromOutside: undefined };
+    expect(reportedFromOutside).toBeUndefined();
+    expect(renderCard({ item: findShaped }).container.querySelector('.work-card-outside')).toBeNull();
+    expect(renderCard({ item: { ...ITEM, reportedFromOutside: null } }).container.querySelector('.work-card-outside')).toBeNull();
+  });
+
+  it('marks an ordinary item with nothing', () => {
+    const { container } = renderCard({ item: { ...ITEM, reportedFromOutside: false } });
+    expect(container.querySelector('.work-card-outside')).toBeNull();
+    expect(renderCard().container.querySelector('.work-card-outside')).toBeNull();
+  });
+
   it('shows the estimate', () => {
     renderCard({ item: { ...ITEM, estimate: 3 } });
     expect(screen.getByText('3 pts')).toBeInTheDocument();

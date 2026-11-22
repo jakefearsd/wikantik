@@ -66,8 +66,16 @@ final class ItemViews {
             renderer.toHtml( d.markdown(), itemKey ), d.names(), c.authorAgentId() );
     }
 
+    /** The item's body rendered like any item text (links as typed, no lookups); empty for no body. */
+    String bodyHtml( final Item item ) {
+        return item.body() == null || item.body().isBlank() ? "" : renderer.toHtml( item.body(), item.key() );
+    }
+
     ItemView view( final Scope s, final Item item ) throws SQLException {
-        final String html = item.body() == null || item.body().isBlank() ? "" : renderer.toHtml( item.body(), item.key() );
+        if ( s.reporterOnly() ) {
+            throw new IllegalStateException( "A reporter is shown ReportedItemView, never the full view." );
+        }
+        final String html = bodyHtml( item );
         final List< Product > products = store.products();
         final Item parent = item.parentId() == null ? null : store.itemById( item.parentId() ).orElse( null );
         final String productKey = item.productId() == null ? null : productKey( products, item.productId() );

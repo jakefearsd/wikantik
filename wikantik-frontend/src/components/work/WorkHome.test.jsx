@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-vi.mock('../../api/work', () => ({ getUnread: vi.fn(() => Promise.resolve({ unread: 4 })), getMe: vi.fn(), createProject: vi.fn(), acknowledgeItem: vi.fn(() => Promise.resolve({})) }));
+vi.mock('../../api/work', () => ({ getUnread: vi.fn(() => Promise.resolve({ unread: 4 })), getMe: vi.fn(), createProject: vi.fn(), acknowledgeItem: vi.fn(() => Promise.resolve({})), listFilters: vi.fn(() => Promise.resolve({ filters: [] })), renameFilter: vi.fn(), deleteFilter: vi.fn() }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { getMe, createProject, acknowledgeItem } from '../../api/work';
+import { getMe, createProject, acknowledgeItem, listFilters, renameFilter, deleteFilter } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import WorkHome from './WorkHome';
@@ -21,19 +21,28 @@ function renderHome({ admin = false, me = ME, work = true } = {}) {
   useAuth.mockReturnValue({ user: { authenticated: true, roles: admin ? ['Admin'] : [] } });
   useCapabilities.mockReturnValue({ capabilities: { work }, loading: false });
   getMe.mockResolvedValue(me);
-  render(
+  return render(
     <MemoryRouter initialEntries={['/work']}>
       <Routes>
         <Route path="/work" element={<WorkHome />} />
         <Route path="/work/log" element={<div>LOG PAGE</div>} />
         <Route path="/work/inbox" element={<div>INBOX PAGE</div>} />
+        <Route path="/work/find" element={<div>FIND PAGE</div>} />
         <Route path="/work/:project" element={<div>BOARD</div>} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  listFilters.mockResolvedValue({ filters: [] });
+});
+
+const SAVED = [
+  { id: 4, name: 'My bugs', project: null, shared: false, mine: true, mayDelete: true, ownerName: 'Me', filter: { type: 'bug', assignee: 'Ada Lovelace', status: 'ready,review' } },
+  { id: 5, name: 'Team ready', project: 'PLAT', shared: true, mine: false, mayDelete: false, ownerName: 'Jane Doe', filter: { projects: 'PLAT', status: 'ready' } },
+];
 
 describe('WorkHome', () => {
   it('linksToTheInboxWithTheCount', async () => {
@@ -289,5 +298,101 @@ describe('WorkHome', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Acknowledge ZZ-9' }));
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
     warn.mockRestore();
+  });
+  describe('find work', () => {
+    it('built-in views link to find', async () => {
+      renderHome();
+      const section = await screen.findByRole('region', { name: 'Find work' });
+      const s = 'status=draft%2Crefining%2Cready%2Cin_progress%2Creview';
+      expect(within(section).getByRole('link', { name: 'Assigned to me' })).toHaveAttribute('href', `/work/find?${s}&assignee=me&sort=updated`);
+      expect(within(section).getByRole('link', { name: 'Reported by me' })).toHaveAttribute('href', `/work/find?${s}&reporter=me&sort=updated`);
+      expect(within(section).getByRole('link', { name: 'Watching' })).toHaveAttribute('href', `/work/find?${s}&watching=true&sort=updated`);
+      const all = within(section).getByRole('link', { name: 'Search all work' });
+      expect(all).toHaveAttribute('href', '/work/find');
+      fireEvent.click(all);
+      expect(await screen.findByText('FIND PAGE')).toBeInTheDocument();
+    });
+
+    it('saved filters are listed with their links', async () => {
+      listFilters.mockResolvedValue({ filters: SAVED });
+      renderHome();
+      const mine = await screen.findByRole('link', { name: 'My bugs' });
+      expect(mine).toHaveAttribute('href', '/work/find?status=ready%2Creview&type=bug&assignee=Ada%20Lovelace');
+      expect(screen.getByRole('link', { name: 'Team ready' })).toHaveAttribute('href', '/work/find?projects=PLAT&status=ready');
+      expect(screen.getByText(/shared in PLAT by Jane Doe/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Rename My bugs' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Rename Team ready' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Delete Team ready' })).not.toBeInTheDocument();
+    });
+
+    it('saving then reloading home lists it', async () => {
+      listFilters.mockResolvedValueOnce({ filters: [] }).mockResolvedValueOnce({ filters: [SAVED[0]] });
+      const first = renderHome();
+      await screen.findByRole('region', { name: 'Find work' });
+      expect(screen.queryByRole('link', { name: 'My bugs' })).not.toBeInTheDocument();
+      first.unmount();
+      renderHome();
+      expect(await screen.findByRole('link', { name: 'My bugs' })).toBeInTheDocument();
+      expect(listFilters).toHaveBeenCalledTimes(2);
+    });
+
+    it('delete asks, deletes and reloads', async () => {
+      listFilters.mockResolvedValueOnce({ filters: SAVED }).mockResolvedValueOnce({ filters: [SAVED[1]] });
+      deleteFilter.mockResolvedValue(null);
+      renderHome();
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete My bugs' }));
+      expect(deleteFilter).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, delete' }));
+      await waitFor(() => expect(deleteFilter).toHaveBeenCalledWith(4));
+      await waitFor(() => expect(screen.queryByRole('link', { name: 'My bugs' })).not.toBeInTheDocument());
+      expect(screen.getByRole('link', { name: 'Team ready' })).toBeInTheDocument();
+      expect(listFilters).toHaveBeenCalledTimes(2);
+    });
+
+    it('rename saves on Enter', async () => {
+      listFilters.mockResolvedValueOnce({ filters: SAVED }).mockResolvedValueOnce({ filters: [{ ...SAVED[0], name: 'Bugs' }, SAVED[1]] });
+      renameFilter.mockResolvedValue({});
+      renderHome();
+      fireEvent.click(await screen.findByRole('button', { name: 'Rename My bugs' }));
+      const input = screen.getByRole('textbox', { name: 'New name for My bugs' });
+      fireEvent.change(input, { target: { value: 'Bugs' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      await waitFor(() => expect(renameFilter).toHaveBeenCalledWith(4, 'Bugs'));
+      expect(await screen.findByRole('link', { name: 'Bugs' })).toBeInTheDocument();
+    });
+
+    it('a failed filter load leaves the projects shown and can be retried', async () => {
+      listFilters.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce({ filters: SAVED });
+      renderHome();
+      expect(await screen.findByText(/Could not load your saved filters\./)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /PLAT Platform/ })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(await screen.findByRole('link', { name: 'My bugs' })).toBeInTheDocument();
+    });
+
+    it('a failed reload keeps the filters already shown', async () => {
+      listFilters.mockResolvedValueOnce({ filters: SAVED }).mockRejectedValueOnce(new Error('down'));
+      deleteFilter.mockResolvedValue(null);
+      renderHome();
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete My bugs' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, delete' }));
+      expect(await screen.findByText(/Could not load your saved filters\./)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Team ready' })).toBeInTheDocument();
+    });
+
+    it('homeRendersBeforeTheFiltersArrive', async () => {
+      listFilters.mockReturnValue(new Promise(() => {}));
+      renderHome();
+      expect(await screen.findByRole('link', { name: /PLAT Platform/ })).toBeInTheDocument();
+      expect(screen.getByText('Loading your saved filters')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Search all work' })).toBeInTheDocument();
+    });
+
+    it('no find section without a project', async () => {
+      renderHome({ me: { projects: [], waitingOn: [] } });
+      await screen.findByText('You are not a member of any project yet.');
+      expect(screen.queryByRole('region', { name: 'Find work' })).not.toBeInTheDocument();
+      expect(listFilters).not.toHaveBeenCalled();
+    });
   });
 });

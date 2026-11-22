@@ -57,13 +57,19 @@ class WorkItemResourceTest {
 
     private WorkService svc;
     private WorkClaimsService claims;
+    private com.wikantik.work.WorkFindService find;
     private WorkItemResource servlet;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         svc = Mockito.mock( WorkService.class );
         claims = Mockito.mock( WorkClaimsService.class );
         Mockito.when( svc.claims() ).thenReturn( claims );
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        find = Mockito.mock( com.wikantik.work.WorkFindService.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.find() ).thenReturn( find );
+        Mockito.when( find.find( any(), any() ) ).thenReturn( com.wikantik.work.FindPage.EMPTY );
         servlet = WorkHttp.wire( new WorkItemResource(), svc, ALICE );
     }
 
@@ -177,11 +183,137 @@ class WorkItemResourceTest {
         assertEquals( java.util.Set.of( "api", "billing", "ui" ), f.getValue().labels() );
     }
 
+    private com.wikantik.work.FindFilter captured() throws Exception {
+        final ArgumentCaptor< com.wikantik.work.FindFilter > f = ArgumentCaptor.forClass( com.wikantik.work.FindFilter.class );
+        Mockito.verify( find ).find( eq( ALICE ), f.capture() );
+        return f.getValue();
+    }
+
+    private static String message( final WorkHttp.Result r ) {
+        return r.json().getAsJsonObject().get( "message" ).getAsString();
+    }
+
+    private static String field( final WorkHttp.Result r ) {
+        return r.json().getAsJsonObject().get( "field" ).getAsString();
+    }
+
     @Test
-    void projectIsRequiredForTheList() throws Exception {
+    void withoutAProjectTheListIsAFind() throws Exception {
         final WorkHttp.Result r = get( null, Map.of() );
+        assertEquals( 200, r.status() );
+        assertEquals( 0, r.json().getAsJsonObject().getAsJsonArray( "items" ).size() );
+        assertTrue( r.json().getAsJsonObject().get( "next" ).isJsonNull() );
+        assertEquals( com.wikantik.work.FindFilter.all().page( null, 0 ), captured() );
+        Mockito.verify( svc, Mockito.never() ).itemSummaries( any(), any(), any() );
+    }
+
+    @Test
+    void aFindPassesItsParametersThrough() throws Exception {
+        assertEquals( 200, get( null, Map.of( "projects", "plat,ops", "status", "ready,review", "priority", "1,2",
+            "assignee", "me", "sort", "due", "cursor", "abc", "limit", "20" ) ).status() );
+        final com.wikantik.work.FindFilter f = captured();
+        assertEquals( java.util.Set.of( "PLAT", "OPS" ), f.projectKeys() );
+        assertEquals( java.util.Set.of( WorkStatus.READY, WorkStatus.REVIEW ), f.statuses() );
+        assertEquals( java.util.Set.of( 1, 2 ), f.priorities() );
+        assertEquals( "me", f.assignee() );
+        assertEquals( com.wikantik.work.FindFilter.Sort.DUE, f.sort() );
+        assertEquals( "abc", f.cursor() );
+        assertEquals( 20, f.limit() );
+    }
+
+    @Test
+    void aFindAnswersItemsWithCardExtrasAndTheNextCursor() throws Exception {
+        Mockito.when( find.find( eq( ALICE ), any() ) ).thenReturn( new com.wikantik.work.FindPage( List.of(
+            WorkHttp.summary( WorkHttp.item( "PLAT-1", null, 1 ), 4, true, "web", "PLAT-0" ) ), "next-cursor" ) );
+        final JsonObject body = get( null, Map.of() ).json().getAsJsonObject();
+        final JsonObject first = body.getAsJsonArray( "items" ).get( 0 ).getAsJsonObject();
+        assertEquals( "PLAT-1", first.get( "key" ).getAsString() );
+        assertEquals( 4, first.get( "commentCount" ).getAsInt() );
+        assertEquals( "web", first.get( "productKey" ).getAsString() );
+        assertEquals( "next-cursor", body.get( "next" ).getAsString() );
+    }
+
+    @Test
+    void aFindShowsDisplayNamesNotLogins() throws Exception {
+        Mockito.when( find.find( eq( ALICE ), any() ) ).thenReturn( new com.wikantik.work.FindPage( List.of(
+            WorkHttp.summary( WorkHttp.item( "PLAT-1", "carol", 1 ), 0, false, null, null ) ), null ) );
+        final JsonObject first = get( null, Map.of() ).json().getAsJsonObject().getAsJsonArray( "items" ).get( 0 )
+            .getAsJsonObject();
+        assertEquals( "Name of carol", first.get( "assigneeName" ).getAsString() );
+        assertEquals( "Name of carol", first.get( "assignee" ).getAsString() );
+        assertEquals( "Name of bob", first.get( "reporter" ).getAsString() );
+    }
+
+    @Test
+    void repeatedAndCommaSeparatedValuesAreTheSame() throws Exception {
+        get( null, Map.of( "status", "ready,review" ) );
+        final com.wikantik.work.FindFilter commas = captured();
+        Mockito.clearInvocations( find );
+        WorkHttp.call( servlet, "GET", "/api/work/items", null, Map.of(), null,
+            req -> Mockito.doReturn( new String[] { "ready", "review" } ).when( req ).getParameterValues( "status" ) );
+        assertEquals( commas, captured() );
+        assertEquals( java.util.Set.of( WorkStatus.READY, WorkStatus.REVIEW ), commas.statuses() );
+    }
+
+    @Test
+    void aFindKeepsCommasInTextAndNames() throws Exception {
+        get( null, Map.of( "q", "a, b", "assignee", "Smith, Jo", "reporter", "Lee, Al" ) );
+        final com.wikantik.work.FindFilter f = captured();
+        assertEquals( "a, b", f.text() );
+        assertEquals( "Smith, Jo", f.assignee() );
+        assertEquals( "Lee, Al", f.reporter() );
+    }
+
+    @Test
+    void aFindRefusesParentAndOrderByName() throws Exception {
+        for ( final String name : List.of( "parent", "order" ) ) {
+            final WorkHttp.Result r = get( null, Map.of( name, "x" ) );
+            assertEquals( 400, r.status(), name );
+            assertEquals( name, field( r ) );
+            assertEquals( name + " applies to one project's list.", message( r ) );
+        }
+        Mockito.verify( find, Mockito.never() ).find( any(), any() );
+    }
+
+    @Test
+    void theProjectListRefusesFindParametersByName() throws Exception {
+        for ( final String name : List.of( "sort", "projects", "priority", "reporter", "watching", "updatedSince",
+            "cursor" ) ) {
+            final WorkHttp.Result r = get( null, Map.of( "project", "PLAT", name, "x" ) );
+            assertEquals( 400, r.status(), name );
+            assertEquals( name, field( r ) );
+            assertEquals( name + " is a find parameter; leave out project= to search across projects.", message( r ) );
+        }
+        Mockito.verify( svc, Mockito.never() ).itemSummaries( any(), any(), any() );
+    }
+
+    @Test
+    void badFindValuesAre400() throws Exception {
+        for ( final Map.Entry< String, String > bad : Map.of( "status", "bogus", "sort", "x", "limit", "ten",
+            "priority", "9", "projects", "not a key!" ).entrySet() ) {
+            final WorkHttp.Result r = get( null, Map.of( bad.getKey(), bad.getValue() ) );
+            assertEquals( 400, r.status(), bad.getKey() );
+            assertEquals( bad.getKey(), field( r ) );
+        }
+    }
+
+    @Test
+    void aFindLimitIsPassedRawForTheServiceToClamp() throws Exception {
+        get( null, Map.of( "limit", "5000" ) );
+        assertEquals( 5000, captured().limit() );
+    }
+
+    @Test
+    void aBadCursorIs400NamingCursor() throws Exception {
+        Mockito.when( find.find( any(), any() ) ).thenThrow( new WorkValidationException( "cursor", "Not a cursor." ) );
+        final WorkHttp.Result r = get( null, Map.of( "cursor", "%%%" ) );
         assertEquals( 400, r.status() );
-        assertEquals( "project", r.json().getAsJsonObject().get( "field" ).getAsString() );
+        assertEquals( "cursor", field( r ) );
+    }
+
+    @Test
+    void unknownQueryParametersAreIgnoredAsOnTheItemList() throws Exception {
+        assertEquals( 200, get( null, Map.of( "bogus", "1" ) ).status() );
     }
 
     @Test

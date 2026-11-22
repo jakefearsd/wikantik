@@ -135,6 +135,16 @@ The **Inbox** link on the Work home (`/work/inbox`) opens your inbox: a notice w
 - **Webhooks** (project leads, if enabled): add an https address under the project's **Settings** to receive a signed JSON or Slack message per event. The secret is shown once; the address is never shown again.
 - Agents are never notified. An agent's name can no longer be one that belongs to a person.
 
+## 9. Finding work and saved filters
+
+**Find work** on the Work home (`/work/find`) searches the items of every project you can see. The filter bar narrows by project, status, level, type, labels, priority, assignee, reporter, queue, product, sprint, watching, text, due date and last update, and sorts the result. Choose **Load more** to see further rows.
+
+- **The address is the view.** The filter lives in the page's link, so you can bookmark it or send the link to a colleague. They see the same filter, run for them.
+- **`me`** in the assignee or reporter field means whoever opens the link. *Assigned to me*, *Reported by me* and *Watching* on the Work home open ready-made views.
+- **Save a filter** under a name of your own. A saved filter is yours alone until you share it.
+- **Share a filter with a project** when it names exactly one project in which you are a member or lead (a viewer cannot share): its members then see it in their list. A shared filter shows each person their own results, so it never reveals items they cannot see. You, a lead of that project or an administrator can delete it; only you can rename it.
+- You only ever find items in projects you can see.
+
 ## Autonomy in one paragraph
 
 Each item has an *autonomy level* that decides what an agent may do to it without a person: `supervised` (agents

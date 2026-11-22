@@ -47,7 +47,9 @@ public enum Action {
     RUN_DEPLOYMENT( WorkRole.MEMBER, false, false ),
     // Sprints are planned by people: an agent is refused both (WorkPolicy), though it may estimate (EDIT_ITEM).
     MANAGE_SPRINT( WorkRole.LEAD, true, false ),
-    PLAN_SPRINT( WorkRole.MEMBER, false, false );
+    PLAN_SPRINT( WorkRole.MEMBER, false, false ),
+    // Sharing a saved filter with a project's members (Part 4); an agent has no saved filters (SavedFilters).
+    SHARE_FILTER( WorkRole.MEMBER, false, false );
 
     private final WorkRole minRole;
     private final boolean management;

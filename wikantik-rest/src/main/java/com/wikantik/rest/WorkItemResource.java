@@ -20,6 +20,9 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.wikantik.work.FindFilter;
+import com.wikantik.work.FindPage;
+import com.wikantik.work.FindParams;
 import com.wikantik.work.ItemDraft;
 import com.wikantik.work.ItemPatch;
 import com.wikantik.work.WorkClaimsService;
@@ -50,13 +53,7 @@ public class WorkItemResource extends WorkResourceBase {
 
     @Override
     protected void routes( final SegmentRouteTable.Builder< Handler > r ) {
-        route( r, "GET", "items", c -> {
-            final String project = c.query( "project" );
-            if ( project == null ) {
-                throw new WorkValidationException( "project", "project is required." );
-            }
-            c.tree( summariesTree( c.svc.itemSummaries( c.actor, project, filter( c, true ) ), c.actor ) );
-        } );
+        route( r, "GET", "items", this::list );
         route( r, "POST", "items", this::create );
         route( r, "GET", "items/{}", c -> c.json( c.svc.item( c.actor, c.pathParam( 0 ) ) ) );
         route( r, "PATCH", "items/{}", this::patch );
@@ -108,6 +105,20 @@ public class WorkItemResource extends WorkResourceBase {
             c.svc.removeLink( c.actor, c.idParam( 0 ) );
             c.noContent();
         } );
+    }
+
+    /** One project's list (as ever) with {@code project}; without it, a find across the projects the caller can see. */
+    private void list( final Call c ) throws Exception {
+        final String project = c.query( "project" );
+        if ( project != null ) {
+            WorkFilters.refuseFindOnly( c );
+            c.tree( summariesTree( c.svc.itemSummaries( c.actor, project, filter( c, true ) ), c.actor ) );
+            return;
+        }
+        WorkFilters.refuseListOnly( c );
+        final FindFilter wanted = FindParams.parse( WorkFilters.findParams( c ) );
+        final FindPage page = c.svc.features().find().find( c.actor, wanted );
+        c.tree( WorkFindJson.page( summariesTree( page.items(), c.actor ), page.next() ) );
     }
 
     private void create( final Call c ) throws Exception {

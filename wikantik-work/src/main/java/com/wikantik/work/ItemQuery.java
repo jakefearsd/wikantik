@@ -60,7 +60,8 @@ final class ItemQuery {
             : " ORDER BY i.rank, i.id";
     }
 
-    private static void sprint( final SprintRef ref, final StringBuilder where, final List< Object > params ) {
+    /** The sprint clause, shared with the cross-project find. */
+    static void sprint( final SprintRef ref, final StringBuilder where, final List< Object > params ) {
         if ( ref == null ) {
             return;
         }
@@ -87,7 +88,8 @@ final class ItemQuery {
         }
     }
 
-    private static void text( final StringBuilder where, final List< Object > params, final String text ) {
+    /** The escaped title-and-body text clause, shared with the cross-project find. */
+    static void text( final StringBuilder where, final List< Object > params, final String text ) {
         if ( text != null && !text.isBlank() ) {
             where.append( " AND ( i.title ILIKE ? ESCAPE '\\' OR i.body ILIKE ? ESCAPE '\\' )" );
             final String like = "%" + text.replace( "\\", "\\\\" ).replace( "%", "\\%" ).replace( "_", "\\_" ) + "%";

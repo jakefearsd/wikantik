@@ -57,7 +57,8 @@ class WorkServiceVisibilityPostgresTest {
         "addComment", "editComment", "removeComment", "addLink", "removeLink", "createQueue", "updateQueue",
         "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge", "open", "update",
         "requestReview", "review", "merge", "abandon", "request", "approve", "start", "verify", "fail", "rollBack", "reject",
-        "create", "close", "markRead", "setWatch", "add", "remove" );
+        "create", "close", "markRead", "setWatch", "add", "remove",
+        "save", "rename", "delete" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
@@ -93,7 +94,7 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
 
@@ -110,6 +111,7 @@ class WorkServiceVisibilityPostgresTest {
     private WorkService service;
     private long commentId;
     private long linkId;
+    private long filterId;
 
     @BeforeEach
     void setUp() throws SQLException {
@@ -157,6 +159,8 @@ class WorkServiceVisibilityPostgresTest {
         store.deployments().move( shipped, DeploymentState.APPROVED, null, null, lena );
         store.deployments().move( shipped, DeploymentState.RUNNING, null, null, lena );
         store.deployments().move( shipped, DeploymentState.VERIFIED, "ok", null, lena );
+        filterId = store.notifyStores().filters().insert( "lena", "Team view", plat.id(), true,
+            new java.util.TreeMap<>( java.util.Map.of( "projects", "PLAT" ) ) ).id();
         commentId = store.addComment( item, Actor.human( "lena", java.util.Set.of(), false ), "secret comment", List.of() ).id();
         linkId = store.addLink( item, "url", "https://example.com/secret", Actor.human( "lena", java.util.Set.of(), false ) ).id();
         // a webhook on PLAT, so the webhook list returns real data to prove against
@@ -263,6 +267,7 @@ class WorkServiceVisibilityPostgresTest {
                 // a numeric id: the one change of the fixture (ids restart with each truncate) and one that is not there
                 : type == long.class ? List.of( 1L, 999_999L )
                 : type == AssignmentLogQuery.class ? List.of( AssignmentLogQuery.all() )
+                : type == FindFilter.class ? List.of( FindFilter.all() )
                 : Arrays.asList( new Object[] { null } );
             final List< Object[] > next = new ArrayList<>();
             for ( final Object[] prefix : sets ) {
@@ -289,7 +294,7 @@ class WorkServiceVisibilityPostgresTest {
     }
 
     private static boolean isEmptyResult( final Object result ) {
-        return result instanceof Collection< ? > c && c.isEmpty();
+        return result instanceof Collection< ? > c && c.isEmpty() || result instanceof FindPage p && p.items().isEmpty();
     }
 
     @Test
@@ -385,6 +390,18 @@ class WorkServiceVisibilityPostgresTest {
             () -> sprints.start( mallory, 1, 1 ), () -> sprints.close( mallory, 1, 1, null ) );
         for ( final var attempt : sprintAttempts ) {
             assertThrows( WorkNotFoundException.class, attempt );
+        }
+        for ( final Actor stranger : strangers() ) {
+            final var find = service.features().find();
+            final List< org.junit.jupiter.api.function.Executable > filterWrites = List.of(
+                () -> find.save( stranger, new SavedFilterDraft( "x", "PLAT", true, java.util.Map.of() ) ),
+                () -> find.save( stranger, new SavedFilterDraft( "x", "PLAT", false, java.util.Map.of() ) ),
+                () -> find.rename( stranger, filterId, "y" ), () -> find.delete( stranger, filterId ) );
+            final Class< ? extends Exception > expected = stranger.kind() == Actor.Kind.AGENT
+                ? WorkDeniedException.class : WorkNotFoundException.class;
+            for ( final var attempt : filterWrites ) {
+                assertThrows( expected, attempt, stranger.login() );
+            }
         }
         final WorkClaimsService.Handoff handoff = new WorkClaimsService.Handoff( 1, null, null, "implementer", "n" );
         for ( final Actor stranger : strangers() ) {

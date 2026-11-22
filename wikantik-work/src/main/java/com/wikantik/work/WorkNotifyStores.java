@@ -18,7 +18,11 @@
  */
 package com.wikantik.work;
 
-/** The notification-side stores; Task 3.5 added the webhooks (edit {@link JdbcNotifyStores#create}). */
+/**
+ * The stores behind the feature facades (notifications, find, saved filters), reached through
+ * {@link WorkStore#notifyStores()}; all are stateless. Add a store here and in {@link JdbcNotifyStores#create}.
+ */
 public record WorkNotifyStores( WorkWatchStore watches, WorkNotificationStore notifications,
-                                WorkWebhookStore webhooks ) {
+                                WorkWebhookStore webhooks, WorkFindStore finder,
+                                WorkFilterStore filters ) {
 }

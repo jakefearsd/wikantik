@@ -1278,3 +1278,67 @@ PLAN_SPRINT|agent-member-sponsor|lead|none|false|A person plans a sprint.
 PLAN_SPRINT|agent-member-sponsor|lead|unclaimed|false|A person plans a sprint.
 PLAN_SPRINT|agent-member-sponsor|lead|other|false|A person plans a sprint.
 PLAN_SPRINT|agent-member-sponsor|lead|self|false|A person plans a sprint.
+SHARE_FILTER|human|none|none|false|You are not a member of this project.
+SHARE_FILTER|human|none|unclaimed|false|You are not a member of this project.
+SHARE_FILTER|human|none|other|false|You are not a member of this project.
+SHARE_FILTER|human|none|self|false|You are not a member of this project.
+SHARE_FILTER|human|viewer|none|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|human|viewer|other|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|human|viewer|self|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|human|member|none|true|null
+SHARE_FILTER|human|member|unclaimed|true|null
+SHARE_FILTER|human|member|other|true|null
+SHARE_FILTER|human|member|self|true|null
+SHARE_FILTER|human|lead|none|true|null
+SHARE_FILTER|human|lead|unclaimed|true|null
+SHARE_FILTER|human|lead|other|true|null
+SHARE_FILTER|human|lead|self|true|null
+SHARE_FILTER|admin|none|none|true|null
+SHARE_FILTER|admin|none|unclaimed|true|null
+SHARE_FILTER|admin|none|other|true|null
+SHARE_FILTER|admin|none|self|true|null
+SHARE_FILTER|admin|viewer|none|true|null
+SHARE_FILTER|admin|viewer|unclaimed|true|null
+SHARE_FILTER|admin|viewer|other|true|null
+SHARE_FILTER|admin|viewer|self|true|null
+SHARE_FILTER|admin|member|none|true|null
+SHARE_FILTER|admin|member|unclaimed|true|null
+SHARE_FILTER|admin|member|other|true|null
+SHARE_FILTER|admin|member|self|true|null
+SHARE_FILTER|admin|lead|none|true|null
+SHARE_FILTER|admin|lead|unclaimed|true|null
+SHARE_FILTER|admin|lead|other|true|null
+SHARE_FILTER|admin|lead|self|true|null
+SHARE_FILTER|agent-admin-sponsor|none|none|false|You are not a member of this project.
+SHARE_FILTER|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+SHARE_FILTER|agent-admin-sponsor|none|other|false|You are not a member of this project.
+SHARE_FILTER|agent-admin-sponsor|none|self|false|You are not a member of this project.
+SHARE_FILTER|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|agent-admin-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|agent-admin-sponsor|member|none|true|null
+SHARE_FILTER|agent-admin-sponsor|member|unclaimed|true|null
+SHARE_FILTER|agent-admin-sponsor|member|other|true|null
+SHARE_FILTER|agent-admin-sponsor|member|self|true|null
+SHARE_FILTER|agent-admin-sponsor|lead|none|true|null
+SHARE_FILTER|agent-admin-sponsor|lead|unclaimed|true|null
+SHARE_FILTER|agent-admin-sponsor|lead|other|true|null
+SHARE_FILTER|agent-admin-sponsor|lead|self|true|null
+SHARE_FILTER|agent-member-sponsor|none|none|false|You are not a member of this project.
+SHARE_FILTER|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+SHARE_FILTER|agent-member-sponsor|none|other|false|You are not a member of this project.
+SHARE_FILTER|agent-member-sponsor|none|self|false|You are not a member of this project.
+SHARE_FILTER|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|agent-member-sponsor|viewer|other|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+SHARE_FILTER|agent-member-sponsor|member|none|true|null
+SHARE_FILTER|agent-member-sponsor|member|unclaimed|true|null
+SHARE_FILTER|agent-member-sponsor|member|other|true|null
+SHARE_FILTER|agent-member-sponsor|member|self|true|null
+SHARE_FILTER|agent-member-sponsor|lead|none|true|null
+SHARE_FILTER|agent-member-sponsor|lead|unclaimed|true|null
+SHARE_FILTER|agent-member-sponsor|lead|other|true|null
+SHARE_FILTER|agent-member-sponsor|lead|self|true|null

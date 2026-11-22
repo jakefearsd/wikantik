@@ -37,6 +37,8 @@ export const updateProduct = (key, changes) => request(`${base}/products/${enc(k
 
 // Items
 export const listItems = (params) => request(`${base}/items${query(params)}`);
+/** A find across projects: params as findParams.js's filter plus limit and cursor; never pass `project`. */
+export const findItems = (params) => request(`${base}/items${query(params)}`);
 export const createItem = (draft) => request(`${base}/items`, json('POST', draft));
 export const getItem = (key) => request(`${base}/items/${enc(key)}`);
 
@@ -181,3 +183,9 @@ export const updateWebhook = (projectKey, id, body) =>
   request(`${base}/projects/${enc(projectKey)}/webhooks/${enc(id)}`, json('PATCH', body));
 export const removeWebhook = (projectKey, id) =>
   request(`${base}/projects/${enc(projectKey)}/webhooks/${enc(id)}`, { method: 'DELETE' });
+
+// Saved filters (find views)
+export const listFilters = () => request(`${base}/filters`);
+export const saveFilter = (body) => request(`${base}/filters`, json('POST', body));
+export const renameFilter = (id, name) => request(`${base}/filters/${enc(id)}`, json('PATCH', { name }));
+export const deleteFilter = (id) => request(`${base}/filters/${enc(id)}`, { method: 'DELETE' });

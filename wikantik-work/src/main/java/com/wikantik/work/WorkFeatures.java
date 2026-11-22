@@ -35,6 +35,7 @@ public final class WorkFeatures {
     private final WorkSprintsService sprints;
     private final WorkNotificationsService notifications;
     private final WorkWebhooksService webhooks;
+    private final WorkFindService find;
 
     WorkFeatures( final WorkStore store, final WorkScopes scopes, final ItemViews views, final Clock clock,
                   final FeatureDeps deps ) {
@@ -44,6 +45,7 @@ public final class WorkFeatures {
         this.notifications = new WorkNotificationsService( store, scopes, deps.people(), clock, deps.listener(),
             deps.ports() );
         this.webhooks = new WorkWebhooksService( store, scopes, deps.listener(), deps.audit(), deps.ports(), clock );
+        this.find = new WorkFindService( store, scopes, deps.people(), views );
     }
 
     /** Notifications: the inbox, watching, the email preference and the dispatch. */
@@ -54,6 +56,11 @@ public final class WorkFeatures {
     /** Webhooks: a project's outbound event feeds, managed by its leads. */
     public WorkWebhooksService webhooks() {
         return webhooks;
+    }
+
+    /** Find: the cross-project item search and the saved filters. */
+    public WorkFindService find() {
+        return find;
     }
 
     /** Sprints: the sprint service. */

@@ -101,6 +101,19 @@ final class ItemViews {
         } ).toList();
     }
 
+    /** Summaries of items from several projects, in the input order; one extras lookup per project. */
+    List< ItemSummary > summariseAcross( final List< Item > items ) throws SQLException {
+        final Map< Long, List< Item > > byProject = new java.util.LinkedHashMap<>();
+        for ( final Item i : items ) {
+            byProject.computeIfAbsent( i.projectId(), k -> new ArrayList<>() ).add( i );
+        }
+        final Map< Long, ItemSummary > byId = new HashMap<>();
+        for ( final Map.Entry< Long, List< Item > > e : byProject.entrySet() ) {
+            summarise( e.getKey(), e.getValue() ).forEach( x -> byId.put( x.item().id(), x ) );
+        }
+        return items.stream().map( i -> byId.get( i.id() ) ).toList();
+    }
+
     /** The board's columns with card extras, computed for every column's items in one batch. */
     List< SummaryColumn > summaryColumns( final long projectId, final List< BoardColumn > columns )
             throws SQLException {

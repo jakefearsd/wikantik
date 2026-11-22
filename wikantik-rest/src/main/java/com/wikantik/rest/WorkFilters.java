@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.work.FindParams;
 import com.wikantik.work.ItemFilter;
 import com.wikantik.work.Product;
 import com.wikantik.work.SprintRef;
@@ -30,7 +31,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** Reads the list-query parameters of the work API into an {@link ItemFilter}. */
@@ -98,5 +101,52 @@ final class WorkFilters {
             }
         }
         throw new WorkValidationException( "order", "order must be key or due." );
+    }
+
+    /** The find parameters that take several values: repeats and commas mean the same thing. */
+    private static final Set< String > MULTI = Set.of( "projects", "status", "level", "label", "priority" );
+
+    /**
+     * The find-mode parameters, name to text, ready for {@link FindParams#parse}. Only {@link FindParams#NAMES} are
+     * read, so any other query parameter is ignored (as the project list ignores unknown ones). Only the multi-valued
+     * names are split on commas; {@code q} and display names such as "Smith, Jo" reach the parser as typed.
+     */
+    static Map< String, String > findParams( final WorkResourceBase.Call c ) {
+        final Map< String, String > out = new LinkedHashMap<>();
+        for ( final String name : FindParams.NAMES ) {
+            final String value = MULTI.contains( name ) ? joined( c, name ) : c.query( name );
+            if ( value != null ) {
+                out.put( name, value );
+            }
+        }
+        return out;
+    }
+
+    private static String joined( final WorkResourceBase.Call c, final String name ) {
+        List< String > values = c.queryValues( name );
+        if ( values.isEmpty() && c.query( name ) != null ) {
+            values = List.of( c.query( name ).split( "," ) );
+        }
+        final List< String > kept = values.stream().map( String::trim ).filter( v -> !v.isEmpty() ).toList();
+        return kept.isEmpty() ? null : String.join( ",", kept );
+    }
+
+    /** With a project: a find-only parameter is a 400 naming it. */
+    static void refuseFindOnly( final WorkResourceBase.Call c ) {
+        for ( final String name : FindParams.FIND_ONLY ) {
+            if ( c.query( name ) != null ) {
+                throw new WorkValidationException( name,
+                    name + " is a find parameter; leave out project= to search across projects." );
+            }
+        }
+    }
+
+    /** Without a project: a list-only parameter is a 400 naming it. */
+    static void refuseListOnly( final WorkResourceBase.Call c ) {
+        for ( final String name : List.of( "parent", "order" ) ) {
+            if ( c.query( name ) != null ) {
+                throw new WorkValidationException( name, name + " applies to one project's list." );
+            }
+        }
     }
 }

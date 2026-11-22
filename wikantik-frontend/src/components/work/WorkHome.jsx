@@ -8,6 +8,7 @@ import { useUnreadCount } from '../../hooks/useWorkUnread';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import { useToast } from '../../hooks/useToast';
 import WaitingLane from './WaitingLane';
+import WorkFindSection from './WorkFindSection';
 import WorkLoadError from './WorkLoadError';
 
 const KEY_PATTERN = /^[A-Z][A-Z0-9]{1,9}$/;
@@ -145,6 +146,7 @@ export default function WorkHome() {
           </ul>
         </section>
       )}
+      {projects.length > 0 && <WorkFindSection />}
       <h2 className="work-subheading">Projects</h2>
       {active.length === 0
         ? <EmptyState message={archived.length ? 'You have no active projects.' : 'You are not a member of any project yet.'} />

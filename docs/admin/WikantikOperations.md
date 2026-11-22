@@ -640,6 +640,8 @@ Work notifications fill each person's inbox (`/work/inbox`) from the event log, 
 
 **Before deploying V086.** Check production has no project keyed `INBOX` (the key is now reserved, for the inbox route): `SELECT key FROM work_project WHERE upper(key) = 'INBOX';` must return no rows; rename any project it finds first. V086 also rewrites `work_event` once to add the `tx` column, so on a large event log expect a short table lock while it runs.
 
+**Before deploying V087 (find and saved filters).** Check production has no project keyed `FIND` (the key is now reserved, for the find route): `SELECT key FROM work_project WHERE upper(key) = 'FIND';` must return no rows; rename any project it finds first. The owner runs this; agents do not use production credentials. V087 adds one table (`work_saved_filter`) and is plain DDL applied by `bin/db/migrate.sh`.
+
 **Keys** (all in `wikantik-custom.properties`; defaults and detail in the generated configuration reference):
 
 | Key | Default | Meaning |

@@ -41,11 +41,27 @@ describe('work api client', () => {
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-1/points');
   });
 
+  it('finds across projects and manages saved filters', async () => {
+    await work.findItems({ label: ['ui'], assignee: 'me' });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items?label=ui&assignee=me');
+    await work.listFilters();
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/filters');
+    await work.saveFilter({ name: 'Mine', filter: { assignee: 'me' } });
+    let [path, opts] = collabRequest.mock.lastCall;
+    expect([path, opts.method, JSON.parse(opts.body)]).toEqual(['/api/work/filters', 'POST', { name: 'Mine', filter: { assignee: 'me' } }]);
+    await work.renameFilter(4, 'New');
+    [path, opts] = collabRequest.mock.lastCall;
+    expect([path, opts.method, JSON.parse(opts.body)]).toEqual(['/api/work/filters/4', 'PATCH', { name: 'New' }]);
+    await work.deleteFilter(4);
+    [path, opts] = collabRequest.mock.lastCall;
+    expect([path, opts.method]).toEqual(['/api/work/filters/4', 'DELETE']);
+  });
+
   it('exports one function per endpoint', () => {
     for (const name of ['listProjects', 'getProject', 'createProject', 'updateProject', 'archiveProject',
       'listMembers', 'putMember', 'removeMember', 'getBoard', 'listProducts', 'createProduct', 'updateProduct',
       'listItems', 'createItem', 'getItem', 'patchItem', 'listRevisions', 'listEvents', 'addComment',
-      'editComment', 'removeComment', 'addLink', 'removeLink', 'getActivity', 'getAssignmentLog', 'getMe']) {
+      'editComment', 'removeComment', 'addLink', 'removeLink', 'getActivity', 'getAssignmentLog', 'getMe', 'findItems', 'listFilters', 'saveFilter', 'renameFilter', 'deleteFilter']) {
       expect(typeof work[name], name).toBe('function');
     }
   });

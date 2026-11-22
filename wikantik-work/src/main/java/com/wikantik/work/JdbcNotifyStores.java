@@ -29,6 +29,7 @@ final class JdbcNotifyStores {
     static WorkNotifyStores create( final Jdbc jdbc, final JdbcWorkCatalog catalog ) {
         final JdbcWorkWatches watches = new JdbcWorkWatches( jdbc );
         return new WorkNotifyStores( watches, new JdbcWorkNotifications( jdbc, watches ),
-            new JdbcWorkWebhooks( jdbc, catalog ) );
+            new JdbcWorkWebhooks( jdbc, catalog ), new JdbcWorkFind( jdbc ),
+            new JdbcWorkFilters( jdbc ) );
     }
 }

@@ -20,7 +20,21 @@ package com.wikantik.work;
 
 import java.time.Duration;
 
-/** Tunables of the work service. */
-public record WorkSettings( Duration claimExpiry ) {
-    public static final WorkSettings DEFAULTS = new WorkSettings( Duration.ofMinutes( 240 ) );
+/**
+ * Tunables of the work service: how long a claim lasts, the largest attachment and the most attachment bytes an item
+ * may hold (live ones only).
+ */
+public record WorkSettings( Duration claimExpiry, long maxAttachmentBytes, long maxItemAttachmentBytes ) {
+    /** Default per-file limit: 10 MB. */
+    public static final long DEFAULT_MAX_ATTACHMENT_BYTES = 10_485_760L;
+    /** Default per-item limit: 50 MB. */
+    public static final long DEFAULT_MAX_ITEM_ATTACHMENT_BYTES = 52_428_800L;
+
+    public static final WorkSettings DEFAULTS = new WorkSettings( Duration.ofMinutes( 240 ),
+        DEFAULT_MAX_ATTACHMENT_BYTES, DEFAULT_MAX_ITEM_ATTACHMENT_BYTES );
+
+    /** The claim expiry given and the default attachment limits. */
+    public WorkSettings( final Duration claimExpiry ) {
+        this( claimExpiry, DEFAULT_MAX_ATTACHMENT_BYTES, DEFAULT_MAX_ITEM_ATTACHMENT_BYTES );
+    }
 }

@@ -118,4 +118,36 @@ class WorkWiringTest {
             }
         }
     }
+
+    private static Properties limits( final String file, final String item ) {
+        final Properties p = new Properties();
+        if ( file != null ) {
+            p.setProperty( WorkWiring.PROP_ATTACH_MAX_BYTES, file );
+        }
+        if ( item != null ) {
+            p.setProperty( WorkWiring.PROP_ATTACH_MAX_ITEM_BYTES, item );
+        }
+        return p;
+    }
+
+    @Test
+    void attachmentLimitsDefaultTo10And50Megabytes() {
+        final com.wikantik.work.WorkSettings s = WorkWiring.settings( new Properties() );
+        assertEquals( 10_485_760L, s.maxAttachmentBytes() );
+        assertEquals( 52_428_800L, s.maxItemAttachmentBytes() );
+    }
+
+    @Test
+    void aFileLimitOutsideTheRangeFallsBack() {
+        assertEquals( 10_485_760L, WorkWiring.settings( limits( "0", null ) ).maxAttachmentBytes() );
+        assertEquals( 10_485_760L, WorkWiring.settings( limits( "104857601", null ) ).maxAttachmentBytes() );
+        assertEquals( 104_857_600L, WorkWiring.settings( limits( "104857600", "104857600" ) ).maxAttachmentBytes() );
+    }
+
+    @Test
+    void anItemLimitBelowTheFileLimitIsRaisedToIt() {
+        final com.wikantik.work.WorkSettings s = WorkWiring.settings( limits( "2000000", "1000" ) );
+        assertEquals( 2_000_000L, s.maxAttachmentBytes() );
+        assertEquals( 2_000_000L, s.maxItemAttachmentBytes() );
+    }
 }

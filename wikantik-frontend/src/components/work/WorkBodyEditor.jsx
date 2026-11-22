@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import WorkBody from './WorkBody';
 import { LOCKED_HINT } from './WorkFieldRow';
+import { useWorkPaste } from './useWorkPaste';
 
 const grow = (el) => {
   if (!el) return;
@@ -15,9 +16,10 @@ const grow = (el) => {
  *
  * The page allows one versioned editor at a time and owns the version it was opened against: this editor reports
  * `onOpen(orig)`, `onDraft(text)` and `onClose()` and is `locked` while another editor is open. `onSave(body)`
- * resolves true on success (anything else keeps the text).
+ * resolves true on success (anything else keeps the text). With `attach` ({ itemKey, toast, onUploaded }) a pasted or
+ * dropped file uploads as an attachment and its token lands at the caret.
  */
-export default function WorkBodyEditor({ html, body, canEdit, error, onSave, locked = false, onOpen, onDraft, onClose }) {
+export default function WorkBodyEditor({ html, body, canEdit, error, onSave, locked = false, onOpen, onDraft, onClose, attach = null }) {
   const [edit, setEdit] = useState(null); // { draft, base, orig }
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -26,13 +28,25 @@ export default function WorkBodyEditor({ html, body, canEdit, error, onSave, loc
   const refocus = useRef(false);
   const hintId = useId();
   const editing = edit !== null;
+  // The latest draft (null while closed): an upload finishing later edits it functionally, and nothing once closed.
+  const draftRef = useRef(null);
+  const apply = useCallback((next) => {
+    draftRef.current = next;
+    setEdit((cur) => (cur ? { ...cur, draft: next } : cur));
+    onDraft?.(next);
+  }, [onDraft]);
+  const setText = useCallback((fn) => {
+    if (draftRef.current === null) return;
+    apply(fn(draftRef.current));
+  }, [apply]);
+  const paste = useWorkPaste({ attach, setText });
 
   useEffect(() => {
     if (editing) ref.current?.focus();
     else if (refocus.current) { refocus.current = false; openRef.current?.focus(); }
   }, [editing]);
 
-  const close = () => { refocus.current = true; setEdit(null); setPreview(false); onClose?.(); };
+  const close = () => { draftRef.current = null; refocus.current = true; setEdit(null); setPreview(false); onClose?.(); };
 
   function save() {
     if (saving) return;
@@ -53,7 +67,7 @@ export default function WorkBodyEditor({ html, body, canEdit, error, onSave, loc
             <button
               ref={openRef} type="button" className="btn btn-ghost btn-sm" aria-label="Edit text" disabled={locked}
               aria-describedby={locked ? hintId : undefined} title={locked ? LOCKED_HINT : undefined}
-              onClick={() => { setEdit({ draft: body ?? '', orig: body ?? '' }); onOpen?.(body ?? ''); }}
+              onClick={() => { draftRef.current = body ?? ''; setEdit({ draft: body ?? '', orig: body ?? '' }); onOpen?.(body ?? ''); }}
             >Edit text</button>
             {locked && <span id={hintId} className="work-visually-hidden">{LOCKED_HINT}</span>}
           </>
@@ -76,7 +90,7 @@ export default function WorkBodyEditor({ html, body, canEdit, error, onSave, loc
         <textarea
           ref={(el) => { ref.current = el; grow(el); }}
           className="work-body-input" aria-label="Item text" rows={6} value={edit.draft} disabled={saving}
-          onChange={(e) => { setEdit({ ...edit, draft: e.target.value }); onDraft?.(e.target.value); grow(e.target); }}
+          onChange={(e) => { apply(e.target.value); grow(e.target); }} {...paste}
         />
       )}
       {error && <p className="work-field-error" role="alert">{error}</p>}

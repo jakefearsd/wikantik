@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import MentionPicker from '../MentionPicker';
 import { useMentionPicker } from '../../hooks/useMentionPicker';
 import WorkBody from './WorkBody';
+import { useWorkPaste } from './useWorkPaste';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString() : '');
 const messageOf = (e, fallback) => e?.message || e?.body?.message || fallback;
@@ -16,7 +17,7 @@ const grow = (el) => {
  * It reuses the wiki's comment picker and its token: choosing a member inserts `@[Display Name](user:<id>)`, which
  * the server resolves by id. No login is ever typed, shown or sent.
  */
-function MentionTextarea({ label, value, onChange, users, onSubmit, rows = 3 }) {
+function MentionTextarea({ label, value, onChange, users, onSubmit, rows = 3, pasteHandlers }) {
   const ref = useRef(null);
   const picker = useMentionPicker({
     textareaRef: ref,
@@ -45,7 +46,7 @@ function MentionTextarea({ label, value, onChange, users, onSubmit, rows = 3 }) 
       <textarea
         ref={ref} className="work-comment-input" aria-label={label} rows={rows} value={value}
         onChange={(e) => { onChange(e.target.value); grow(e.target); picker.onChange(e); }}
-        onBlur={() => picker.close()}
+        onBlur={() => picker.close()} {...pasteHandlers}
         onKeyDown={(e) => {
           if (picker.onKeyDown(e)) {
             if (e.key === 'Enter' || e.key === 'Tab') {
@@ -62,8 +63,11 @@ function MentionTextarea({ label, value, onChange, users, onSubmit, rows = 3 }) 
   );
 }
 
-function Comment({ comment, users, canEdit, canRemove, onEdit, onRemove }) {
+function Comment({ comment, users, canEdit, canRemove, onEdit, onRemove, attach }) {
   const [draft, setDraft] = useState(null);
+  // An upload finishing after the edit was cancelled must not reopen it.
+  const editText = useCallback((fn) => setDraft((d) => (d === null ? d : fn(d))), []);
+  const paste = useWorkPaste({ attach, commentId: comment.id, setText: editText });
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -99,7 +103,7 @@ function Comment({ comment, users, canEdit, canRemove, onEdit, onRemove }) {
         <WorkBody html={comment.bodyHtml} mentions={comment.mentions} className="article-prose work-comment-body" empty={null} />
       ) : (
         <div className="work-comment-edit">
-          <MentionTextarea label="Edit your comment" value={draft} onChange={(v) => { setError(null); setDraft(v); }} users={users} onSubmit={save} />
+          <MentionTextarea label="Edit your comment" value={draft} onChange={(v) => { setError(null); setDraft(v); }} users={users} onSubmit={save} pasteHandlers={paste} />
           {error && <div className="work-form-error" role="alert">{error}</div>}
           <div className="work-actions">
             <button type="button" className="btn btn-primary btn-sm" aria-label="Save comment" disabled={busy} onClick={save}>Save</button>
@@ -136,13 +140,15 @@ function Comment({ comment, users, canEdit, canRemove, onEdit, onRemove }) {
  * The discussion. `members` are the project's own members (listMembers); only user rows are offered in the picker.
  * Each comment arrives rendered (`bodyHtml`, with `mentions` to mark) and says whether it is the viewer's (`mine`).
  * Authors edit their own comments; authors and leads remove; viewers (`canComment` false) get no controls.
- * `onAdd(body)`, `onEdit(id, body)` and `onRemove(id)` resolve true on success.
+ * `onAdd(body)`, `onEdit(id, body)` and `onRemove(id)` resolve true on success. With `attach` ({ itemKey, toast, onUploaded })
+ * a file pasted or dropped into a comment box uploads as an attachment of the item (and of the comment, when editing one).
  */
-export default function WorkComments({ comments = [], members = [], canComment, isLead, onAdd, onEdit, onRemove }) {
+export default function WorkComments({ comments = [], members = [], canComment, isLead, onAdd, onEdit, onRemove, attach = null }) {
   const users = members.filter((m) => m.principalKind === 'user');
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState(null);
+  const paste = useWorkPaste({ attach, setText });
 
   function post() {
     const body = text.trim();
@@ -168,14 +174,14 @@ export default function WorkComments({ comments = [], members = [], canComment, 
             return (
               <Comment key={c.id} comment={c} users={users}
                 canEdit={canComment && mine} canRemove={canComment && (mine || !!isLead)}
-                onEdit={onEdit} onRemove={onRemove} />
+                onEdit={onEdit} onRemove={onRemove} attach={attach} />
             );
           })}
         </ul>
       )}
       {canComment && (
         <div className="work-comment-new">
-          <MentionTextarea label="Add a comment" value={text} onChange={(v) => { setPostError(null); setText(v); }} users={users} onSubmit={post} />
+          <MentionTextarea label="Add a comment" value={text} onChange={(v) => { setPostError(null); setText(v); }} users={users} onSubmit={post} pasteHandlers={paste} />
           {postError && <div className="work-form-error" role="alert">{postError}</div>}
           <div className="work-actions">
             <button type="button" className="btn btn-primary btn-sm" disabled={posting} onClick={post}>Comment</button>

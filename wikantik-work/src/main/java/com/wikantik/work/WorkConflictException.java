@@ -58,6 +58,11 @@ public class WorkConflictException extends RuntimeException {
     /** The target of the request is not one the operation can use. */
     public static final String BAD_TARGET = "bad_target";
 
+    /** An attachment is larger than the per-file size limit. */
+    public static final String TOO_LARGE = "too_large";
+    /** An attachment would take the item's attachments past the per-item size limit. */
+    public static final String ITEM_FULL = "item_full";
+
     /** Webhooks are turned off on this wiki. */
     public static final String WEBHOOKS_OFF = "webhooks_off";
 

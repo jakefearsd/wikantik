@@ -149,7 +149,7 @@ public class WorkService {
         this.changes = new WorkChangesService( store, scopes );
         this.deployments = new WorkDeploymentsService( store, scopes );
         this.features = new WorkFeatures( store, scopes, views, clock,
-            new FeatureDeps( people, observer, auditor, ports ) );
+            new FeatureDeps( people, observer, auditor, ports, settings ) );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
         this.listener = observer;
@@ -474,7 +474,7 @@ public class WorkService {
         final WorkPeople.Mentions m = people.mentions( actor, body );
         final long projectId = is.scope().project().id();
         return views.comment( store.addComment( is.item(), actor, m.body(),
-            WorkInputs.ofMembers( m.logins(), login -> scopes.isMember( projectId, login ) ) ) );
+            WorkInputs.ofMembers( m.logins(), login -> scopes.isMember( projectId, login ) ) ), is.item().key() );
     }
 
     /** The mentions are worked out again from the new text: added names wait on it, removed ones stop. */
@@ -488,7 +488,7 @@ public class WorkService {
         final WorkPeople.Mentions m = people.mentions( actor, body );
         final long projectId = is.scope().project().id();
         return views.comment( store.editComment( commentId, m.body(), actor,
-            WorkInputs.ofMembers( m.logins(), login -> scopes.isMember( projectId, login ) ) ) );
+            WorkInputs.ofMembers( m.logins(), login -> scopes.isMember( projectId, login ) ) ), is.item().key() );
     }
 
     public void removeComment( final Actor actor, final long commentId ) throws SQLException {

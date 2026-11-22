@@ -448,4 +448,20 @@ class JdbcWorkStoreAttributionPostgresTest {
         assertEquals( "role", e.field() );
         assertTrue( store.members( plat.id() ).stream().noneMatch( m -> "agent".equals( m.principalKind() ) ) );
     }
+
+    @Test
+    void anAttachmentWriteNeedsTheAgentsId() throws SQLException {
+        final Item item = create( "x" );
+        final WorkAttachmentStore attachments = store.notifyStores().attachments();
+        final WorkAttachmentStore.NewAttachment file = JdbcWorkAttachmentsPostgresTest.file( "a.png",
+            JdbcWorkAttachmentsPostgresTest.PNG );
+        final Attachment mine = attachments.add( item, null, file, Long.MAX_VALUE, LENA );
+        final Actor ghost = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null, null );
+        final Actor mixed = new Actor( "lena", Set.of(), false, Actor.Kind.HUMAN, 7L, null );
+        for ( final Actor bad : List.of( ghost, mixed ) ) {
+            assertThrows( IllegalArgumentException.class, () -> attachments.add( item, null, file, Long.MAX_VALUE, bad ) );
+            assertThrows( IllegalArgumentException.class, () -> attachments.remove( item, mine.id(), bad ) );
+        }
+        assertEquals( 1, attachments.forItem( item.id() ).size() );
+    }
 }

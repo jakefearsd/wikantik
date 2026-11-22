@@ -53,6 +53,7 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
 
     protected final Context context;
     protected final LinkParsingOperations linkOperations;
+    private final LinkTargetRewrite targetRewrite;
     private final boolean isImageInlining;
     private final List< Pattern > inlineImagePatterns;
     protected boolean useOutlinkImage = true;
@@ -68,6 +69,7 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
         this.context = context;
         this.document = document;
         linkOperations = new LinkParsingOperations( context );
+        targetRewrite = new LinkTargetRewrite( context );
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
         useOutlinkImage = context.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, useOutlinkImage );
@@ -80,6 +82,9 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
      */
     @Override
     public void process( final NodeTracker state, final Node node ) {
+        if( targetRewrite.rewrite( node ) ) {
+            return;   // a host-rewritten target: an image or a plain link, no classification and no lookup
+        }
         if( node instanceof Image imageNode ) {
             processImageNode( state, imageNode );
         } else if( node instanceof AutoLink autoLink

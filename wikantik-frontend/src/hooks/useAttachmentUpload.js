@@ -17,10 +17,13 @@ const isImage = (file) => /^image\//.test(file.type || '');
  *        optional editor adapter: edits are applied as editor transactions so typing cannot clobber them.
  *        A `false` return (no editor view) falls back to `updateBody`.
  * @param {{ error: (msg: string) => void }} o.toast
+ * @param {(name: string, isImage: boolean, uploaded: unknown) => string} [o.markup]  the text that replaces a placeholder;
+ *        `uploaded` is what `upload` resolved (default: the page-attachment markup for the name). Keep it stable
+ *        (memoised) or the plan callbacks are rebuilt each render.
  * @returns {{ uploadFiles: Function, uploadPlaced: Function }} `uploadFiles(files, pos, opts)` is the stacked path;
  *          `uploadPlaced(images, text)` is the placed-image path for a converted paste.
  */
-export function useAttachmentUpload({ existingNames, upload, updateBody, toast, editor }) {
+export function useAttachmentUpload({ existingNames, upload, updateBody, toast, editor, markup = (name, image) => attachmentMarkup(name, image) }) {
   const namesRef = useRef(existingNames);
   useEffect(() => { namesRef.current = existingNames; });
   // Names claimed by uploads this hook started. The attachment list only learns them after a refresh,
@@ -42,14 +45,14 @@ export function useAttachmentUpload({ existingNames, upload, updateBody, toast, 
     for (const { file, name, placeholder } of plan) {
       try {
         // The multipart filename must carry the chosen name's extension (server checks they match).
-        await upload(new File([file], name, { type: file.type }), name);
-        replaceOnce(placeholder, attachmentMarkup(name, isImage(file)));
+        const uploaded = await upload(new File([file], name, { type: file.type }), name);
+        replaceOnce(placeholder, markup(name, isImage(file), uploaded));
       } catch (err) {
         replaceOnce(placeholder, '');
         toast.error(`Upload of ${name} failed: ${err?.message || err}`);
       }
     }
-  }, [upload, replaceOnce, toast]);
+  }, [upload, replaceOnce, toast, markup]);
   const cancelPlan = useCallback((plan) => {
     for (const { name, placeholder } of plan) {
       reservedRef.current.delete(name);

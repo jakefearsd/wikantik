@@ -58,12 +58,12 @@ class WorkServiceVisibilityPostgresTest {
         "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge", "open", "update",
         "requestReview", "review", "merge", "abandon", "request", "approve", "start", "verify", "fail", "rollBack", "reject",
         "create", "close", "markRead", "setWatch", "add", "remove",
-        "save", "rename", "delete" );
+        "save", "rename", "delete", "upload" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
         "agentForToken", "actorForAgent", "describe",
-        "sweepExpiredClaims", "sweepStanding", "claimExpiry", "dispatch", "sendEmail", "settings", "deliver" );
+        "sweepExpiredClaims", "sweepStanding", "claimExpiry", "dispatch", "sendEmail", "settings", "deliver", "maxFileBytes" );
 
     /**
      * Methods that touch only the caller's own record, or the caller's own notifications and settings, never project
@@ -94,7 +94,7 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "mayAttach", "listing" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
 
@@ -161,6 +161,9 @@ class WorkServiceVisibilityPostgresTest {
         store.deployments().move( shipped, DeploymentState.VERIFIED, "ok", null, lena );
         filterId = store.notifyStores().filters().insert( "lena", "Team view", plat.id(), true,
             new java.util.TreeMap<>( java.util.Map.of( "projects", "PLAT" ) ) ).id();
+        // an attachment on PLAT-1 (id 1), so list and content return real data to prove against
+        store.notifyStores().attachments().add( item, null,
+            new WorkAttachmentStore.NewAttachment( "secret.png", "image/png", PNG, "0000000000000000000000000000000000000000000000000000000000000000" ), Long.MAX_VALUE, lena );
         commentId = store.addComment( item, Actor.human( "lena", java.util.Set.of(), false ), "secret comment", List.of() ).id();
         linkId = store.addLink( item, "url", "https://example.com/secret", Actor.human( "lena", java.util.Set.of(), false ) ).id();
         // a webhook on PLAT, so the webhook list returns real data to prove against
@@ -172,6 +175,8 @@ class WorkServiceVisibilityPostgresTest {
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC() );
     }
+
+    private static final byte[] PNG = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1 };
 
     private static Item queued( final String title ) {
         return new Item( 0, 0, null, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, title, "body", WorkStatus.READY, 3,
@@ -378,9 +383,17 @@ class WorkServiceVisibilityPostgresTest {
             () -> service.features().notifications().setWatch( mallory, "PLAT-1", WatchState.WATCHING ),
             () -> service.features().webhooks().add( mallory, "PLAT", new WebhookDraft( "https://a.example.com/x", "generic", List.of() ) ),
             () -> service.features().webhooks().update( mallory, "PLAT", 1, new WebhookPatch( null, null, false ) ),
-            () -> service.features().webhooks().remove( mallory, "PLAT", 1 ) );
+            () -> service.features().webhooks().remove( mallory, "PLAT", 1 ),
+            () -> service.features().attachments().upload( mallory, "PLAT-1", null, "x.png", PNG ),
+            () -> service.features().attachments().remove( mallory, "PLAT-1", 1L ) );
         for ( final var attempt : attempts ) {
             assertThrows( WorkNotFoundException.class, attempt );
+        }
+        for ( final Actor stranger : strangers() ) {
+            assertThrows( WorkNotFoundException.class,
+                () -> service.features().attachments().upload( stranger, "PLAT-1", null, "x.png", PNG ) );
+            assertThrows( WorkNotFoundException.class,
+                () -> service.features().attachments().remove( stranger, "PLAT-1", 1L ) );
         }
         final WorkSprintsService sprints = service.features().sprints();
         final SprintDraft sprintDraft = new SprintDraft( "S2", "", java.time.LocalDate.now(),
@@ -490,5 +503,11 @@ class WorkServiceVisibilityPostgresTest {
         assertTrue( service.listProjects( mallory ).isEmpty() );
         assertTrue( service.listProducts( mallory ).isEmpty() );
         assertTrue( new HashSet<>( service.waitingOn( mallory ) ).isEmpty() );
+    }
+
+    @Test
+    void maxFileBytesIsTheConfiguredSettingAndTakesNoActor() throws Exception {
+        assertEquals( WorkSettings.DEFAULTS.maxAttachmentBytes(), service.features().attachments().maxFileBytes() );
+        assertEquals( 0, WorkAttachmentsService.class.getMethod( "maxFileBytes" ).getParameterCount() );
     }
 }

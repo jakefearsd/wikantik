@@ -10,6 +10,8 @@ vi.mock('../../api/work', () => ({
   listChanges: vi.fn(() => Promise.resolve({ changes: [] })), getItemPolicy: vi.fn(() => Promise.resolve(null)),
   openChange: vi.fn(), requestReview: vi.fn(), reviewChange: vi.fn(), mergeChange: vi.fn(), abandonChange: vi.fn(),
   acknowledgeItem: vi.fn(), getShippedIn: vi.fn(() => Promise.resolve({ shippedIn: [] })),
+  listAttachments: vi.fn(() => Promise.resolve({ attachments: [], mayAttach: true, maxFileBytes: 10485760, maxItemBytes: 52428800, usedBytes: 0 })), uploadAttachment: vi.fn(), removeAttachment: vi.fn(),
+  attachmentUrl: (k, id) => '/a/' + id,
   listLabels: vi.fn(() => Promise.resolve([])), listSprints: vi.fn(() => Promise.resolve([])),
   markItemRead: vi.fn(() => Promise.resolve()), getWatch: vi.fn(() => Promise.resolve({ state: 'none' })), setWatch: vi.fn(),
   getItemPoints: vi.fn(() => Promise.resolve({ points: 0 })),
@@ -20,7 +22,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { authenticated:
 
 import {
   getItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
-  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn, listLabels, listSprints, markItemRead,
+  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn, listLabels, listSprints, markItemRead, listAttachments,
 } from '../../api/work';
 import WorkItemView from './WorkItemView';
 
@@ -85,6 +87,17 @@ const PLAN_SPRINTS = [
 ];
 
 describe('WorkItemView estimate and sprint', () => {
+  it('theAttachmentListLoadsForTheItem', async () => {
+    listAttachments.mockResolvedValueOnce({ attachments: [{
+      id: 3, filename: 'spec.pdf', contentType: 'application/pdf', sizeBytes: 1024, uploadedByName: 'Bob Brown', mine: false,
+      uploadedAt: '2026-11-01T10:00:00Z', inline: false,
+    }], mayAttach: true, maxFileBytes: 10485760, maxItemBytes: 52428800, usedBytes: 1024 });
+    renderView();
+    await ready();
+    expect(await screen.findByRole('link', { name: 'spec.pdf' })).toHaveAttribute('href', '/a/3');
+    expect(listAttachments).toHaveBeenCalledWith('PLAT-7', undefined);
+  });
+
   it('openingAnItemMarksItsNoticesRead', async () => {
     renderView();
     await screen.findByRole('heading', { level: 1, name: 'Fix the flux capacitor' });

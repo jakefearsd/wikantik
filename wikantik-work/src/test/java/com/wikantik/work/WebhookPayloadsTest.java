@@ -132,4 +132,10 @@ class WebhookPayloadsTest {
             assertFalse( WebhookPayloads.SENDABLE.contains( type ), type );
         }
     }
+
+    @Test
+    void attachmentEventsAreNotSendable() {
+        assertFalse( WebhookPayloads.SENDABLE.contains( WorkEvent.ATTACHED ) );
+        assertFalse( WebhookPayloads.SENDABLE.contains( WorkEvent.ATTACHMENT_REMOVED ) );
+    }
 }

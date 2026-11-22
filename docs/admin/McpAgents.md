@@ -294,6 +294,19 @@ Registered in `WorkMcpInitializer.assembleTools` and verified against `WorkMcpIT
 
 Refusals come back as tool errors with a stable prefix (`denied:`, `stale:`, `not_claimable:`, `not_claimed:`, `archived:`, `open_changes:`, `not_approved:`, `not_in_review:`, `change_closed:`, `awaiting_deployment:`, `bad_transition:`, or the name of the field at fault); an unknown or hidden item is always `Not found.`
 
+### Work attachments for agents
+
+`get_item` lists an item's attachments (name, size, type and REST path), but no MCP tool carries file bytes: an agent uploads and downloads over REST with its own `wka_` token. The agent must be a member of the project, and the limits are in [WikantikOperations](WikantikOperations.md) section 1.18.
+
+```bash
+curl -H "Authorization: Bearer $WKA_TOKEN" -F "file=@screenshot.png" \
+  https://wiki.example.com/api/work/items/PLAT-12/attachments     # 201 {..., "markdown": "![screenshot.png](work-attachment:7)"}
+curl -H "Authorization: Bearer $WKA_TOKEN" -o out.png \
+  https://wiki.example.com/api/work/items/PLAT-12/attachments/7
+```
+
+Put the returned `markdown` in the item's text or a comment to show it there.
+
 ## Where to go next
 
 - [ApiKeys.md](ApiKeys.md): issue, scope and revoke keys.

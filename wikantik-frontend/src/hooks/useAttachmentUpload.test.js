@@ -219,4 +219,15 @@ describe('useAttachmentUpload placed images (paste with embedded data: images)',
     const second = h.place([images[0]], T1).text;
     expect(second).not.toBe(first);
   });
+
+  it('aMarkupOptionBuildsTheTextFromWhatTheUploadResolved', async () => {
+    let body = 'Hi';
+    const updateBody = (fn) => { body = fn(body); };
+    const upload = vi.fn(async () => ({ markdown: '![a.png](work-attachment:4)' }));
+    const markup = vi.fn((name, image, uploaded) => uploaded.markdown);
+    const { result } = renderHook(() => useAttachmentUpload({ existingNames: [], upload, updateBody, toast: { error: vi.fn() }, markup }));
+    await act(() => result.current.uploadFiles([img('a.png')], 2, { pasted: false }));
+    expect(body).toBe('Hi![a.png](work-attachment:4)');
+    expect(markup).toHaveBeenCalledWith('a.png', true, { markdown: '![a.png](work-attachment:4)' });
+  });
 });

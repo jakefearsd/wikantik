@@ -20,6 +20,7 @@ package com.wikantik.work.mcp;
 
 import com.wikantik.work.Actor;
 import com.wikantik.work.Agent;
+import com.wikantik.work.Attachment;
 import com.wikantik.work.CommentView;
 import com.wikantik.work.Item;
 import com.wikantik.work.Link;
@@ -36,6 +37,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -89,7 +91,29 @@ final class WorkMcpJson {
         o.put( "changes", WorkMcpChanges.list( names, svc.changes().views( actor, view.item().key() ) ) );
         o.put( "shipped_in", WorkMcpDeployments.briefs( svc.deployments().shippedIn( actor, view.item().key() ) ) );
         putSprint( svc, actor, view, o );
+        putAttachments( svc, actor, view.item().key(), o );
         return o;
+    }
+
+    /** Adds {@code attachments}: each live file of the item as {id, name, size, contentType, path}; never bytes. */
+    static void putAttachments( final WorkService svc, final Actor actor, final String itemKey,
+                                final Map< String, Object > into ) throws SQLException {
+        into.put( "attachments", attachments( itemKey, svc.features().attachments().list( actor, itemKey ) ) );
+    }
+
+    /** {id, name, size, contentType, path} per attachment; the path is the REST route the caller fetches it from. */
+    static List< Map< String, Object > > attachments( final String itemKey, final List< Attachment > list ) {
+        final List< Map< String, Object > > out = new ArrayList<>();
+        for ( final Attachment a : list ) {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "id", a.id() );
+            m.put( "name", a.filename() );
+            m.put( "size", a.sizeBytes() );
+            m.put( "contentType", a.contentType() );
+            m.put( "path", "/api/work/items/" + itemKey + "/attachments/" + a.id() );
+            out.add( m );
+        }
+        return out;
     }
 
     /** Adds {@code sprint}: {name, state, endsOn} of the item's sprint, or null; one lookup, only for an item in one. */

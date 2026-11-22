@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import EmptyState from '../ui/EmptyState';
@@ -14,6 +14,7 @@ import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS, TYPE_OPTIONS, labelRows } from './boardModel';
 import { formatPoints, isHalfPoint, openSprints } from './sprintModel';
 import WorkLabels from './WorkLabels';
+import WorkAttachments from './WorkAttachments';
 import WorkBodyEditor from './WorkBodyEditor';
 import WorkComments from './WorkComments';
 import WorkEpicView from './WorkEpicView';
@@ -335,6 +336,13 @@ function ItemPage({ itemKey }) {
       });
   }, [view, itemKey, mutate, toast, load]);
 
+  // Members may attach: files pasted or dropped into the text and comments, and the attachment list's own input.
+  // (The item payload carries no may-attach answer; the server refuses anyone else and the list says so.)
+  const mayEdit = (view?.viewerRole === 'member' || view?.viewerRole === 'lead') && !view?.archived;
+  const attach = useMemo(
+    () => (mayEdit ? { itemKey, toast, onUploaded: () => setActivity((n) => n + 1) } : null),
+    [mayEdit, itemKey, toast]);
+
   if (notFound) return <EmptyState message="No such item" />;
   if (loadError && !view) return <EmptyState message={loadError} />;
   if (!view) return <Spinner label="Loading…" />;
@@ -423,7 +431,7 @@ function ItemPage({ itemKey }) {
       <div className="work-item-layout">
         <div className="work-item-main">
           <WorkBodyEditor
-            key={epoch} html={view.bodyHtml} body={item.body} canEdit={canEdit} error={err('body')}
+            key={epoch} html={view.bodyHtml} body={item.body} canEdit={canEdit} error={err('body')} attach={attach}
             {...editor('body')}
             onSave={(body) => save({ body })}
           />
@@ -433,13 +441,15 @@ function ItemPage({ itemKey }) {
             onAdd={(kind, target) => mutate(() => addLink(itemKey, { kind, target }), 'Could not add the link.')}
             onRemove={(id) => mutate(() => removeLink(id), 'Could not remove the link.')}
           />
+          <WorkAttachments itemKey={itemKey} canAttach={canEdit} isLead={isLead} refreshKey={activity}
+            onChanged={() => setActivity((n) => n + 1)} />
           {!isEpic && <WorkShippedIn itemKey={itemKey} refreshKey={activity} />}
           {!isEpic && (
             <WorkChanges itemKey={itemKey} canEdit={canEdit} refreshKey={activity}
               onChanged={() => setActivity((n) => n + 1)} />
           )}
           <WorkComments
-            comments={view.comments} members={members} canComment={canEdit} isLead={isLead}
+            comments={view.comments} members={members} canComment={canEdit} isLead={isLead} attach={attach}
             onAdd={(body) => mutateComment(() => addComment(itemKey, body))}
             onEdit={(id, body) => mutateComment(() => editComment(id, body))}
             onRemove={(id) => mutateComment(() => removeComment(id))}

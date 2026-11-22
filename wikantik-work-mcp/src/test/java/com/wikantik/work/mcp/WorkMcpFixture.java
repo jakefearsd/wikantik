@@ -60,7 +60,7 @@ import java.util.UUID;
  */
 final class WorkMcpFixture {
 
-    static final String[] TABLES = { "work_agent_credential", "work_agent_sponsor_history", "work_agent_queue", "work_agent", "work_queue",
+    static final String[] TABLES = { "work_attachment_blob", "work_attachment", "work_agent_credential", "work_agent_sponsor_history", "work_agent_queue", "work_agent", "work_queue",
         "work_link", "work_mention", "work_comment", "work_event", "work_item_revision", "work_item", "work_member",
         "work_product", "work_project" };
 

@@ -105,6 +105,7 @@ public class WorkItemResource extends WorkResourceBase {
             c.svc.removeLink( c.actor, c.idParam( 0 ) );
             c.noContent();
         } );
+        new WorkAttachmentRoutes( this ).register( r );
     }
 
     /** One project's list (as ever) with {@code project}; without it, a find across the projects the caller can see. */

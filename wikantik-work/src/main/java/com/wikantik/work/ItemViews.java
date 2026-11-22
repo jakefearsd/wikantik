@@ -56,23 +56,23 @@ final class ItemViews {
     }
 
     /** A comment as shown: its text rendered like an item's, with mentions as display names. */
-    CommentView comment( final Comment c ) {
+    CommentView comment( final Comment c, final String itemKey ) {
         if ( c.removedAt() != null || c.body() == null || c.body().isBlank() ) {
             return new CommentView( c.id(), c.itemId(), c.author(), c.removedAt() != null ? "" : c.body(),
                 c.createdAt(), c.editedAt(), c.removedAt(), "", List.of(), c.authorAgentId() );
         }
         final WorkPeople.Display d = people.display( c.body() );
         return new CommentView( c.id(), c.itemId(), c.author(), c.body(), c.createdAt(), c.editedAt(), c.removedAt(),
-            renderer.toHtml( d.markdown() ), d.names(), c.authorAgentId() );
+            renderer.toHtml( d.markdown(), itemKey ), d.names(), c.authorAgentId() );
     }
 
     ItemView view( final Scope s, final Item item ) throws SQLException {
-        final String html = item.body() == null || item.body().isBlank() ? "" : renderer.toHtml( item.body() );
+        final String html = item.body() == null || item.body().isBlank() ? "" : renderer.toHtml( item.body(), item.key() );
         final List< Product > products = store.products();
         final Item parent = item.parentId() == null ? null : store.itemById( item.parentId() ).orElse( null );
         final String productKey = item.productId() == null ? null : productKey( products, item.productId() );
         return new ItemView( item, html, s.project().key(), parent == null ? null : parent.key(), productKey,
-            derivedProductKeys( item, products ), store.comments( item.id() ).stream().map( this::comment ).toList(),
+            derivedProductKeys( item, products ), store.comments( item.id() ).stream().map( c -> comment( c, item.key() ) ).toList(),
             store.links( item.id() ), store.isBlocked( item.id() ), s.effectiveRole(), s.project().archivedAt() != null,
             wikiCluster( products, item.productId() ) );
     }

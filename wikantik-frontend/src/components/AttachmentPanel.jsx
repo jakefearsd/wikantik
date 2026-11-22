@@ -1,12 +1,8 @@
 import { useState, useRef } from 'react';
 import { isValidAttachmentName, getExtension } from '../utils/attachmentNameValidator';
 import { api } from '../api/client';
+import { formatSize } from '../utils/formatSize';
 
-function formatSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
 
 function AttachmentUploadForm({ onUpload }) {
   const [file, setFile] = useState(null);

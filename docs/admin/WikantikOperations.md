@@ -677,6 +677,20 @@ UPDATE work_webhook w
 
 The restore also copies `work_event.tx` from the old cluster, so the newest event by `tx` is the right place to resume. Events between the old cursor and that point are not notified.
 
+### 1.18 Work attachments
+
+Items and comments take file attachments (`/api/work/items/{key}/attachments`; the upload is `multipart/form-data`, the file in the part `file`). Schema V088 (`work_attachment`, `work_attachment_blob`); apply it with `bin/db/migrate.sh` as usual.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `wikantik.work.attachments.maxBytes` | `10485760` | Largest single file, in bytes (1 to 104857600; outside that range is logged and replaced by the default). Larger uploads get 413. |
+| `wikantik.work.attachments.maxItemBytes` | `52428800` | Largest total of live attachments on one item; a value below the file limit is raised to it (logged). Over it is 413. |
+
+- **The bytes live in PostgreSQL**, so they are in every database backup and the database grows with attachments. `SELECT pg_size_pretty(pg_total_relation_size('work_attachment_blob'));` shows their size.
+- **Removal deletes the bytes** (the metadata row and the activity stay), but the disk space comes back through autovacuum (the data is TOAST storage), not at once.
+- **Memory and temp space.** An upload holds up to the per-file limit in JVM heap (a few copies while it is read and stored), and the container spools a multipart request to Tomcat's temp directory up to the 100 MB `<multipart-config>` ceiling on `WorkItemResource` in `web.xml`, so keep `maxBytes` well below it. A download holds the whole file in heap. Both are bounded by `maxBytes` and the per-credential rate limit.
+- **Serving.** Only PNG, JPEG, GIF and WebP are shown inline; everything else is forced to download. See [Security](Security.md#work-attachments).
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

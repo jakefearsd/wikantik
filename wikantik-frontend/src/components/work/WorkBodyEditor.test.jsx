@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('../../utils/math', () => ({ renderMath: vi.fn(() => Promise.resolve()) }));
 vi.mock('../../utils/fences/renderFences', () => ({ renderFences: vi.fn(() => Promise.resolve()) }));
+vi.mock('../../api/work', () => ({ uploadAttachment: vi.fn() }));
+import { uploadAttachment } from '../../api/work';
 import WorkBodyEditor from './WorkBodyEditor';
 
 const HTML = '<p>Saved <strong>text</strong></p>';
@@ -142,5 +144,32 @@ describe('WorkBodyEditor', () => {
     expect(screen.getByRole('button', { name: 'Saved version' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Write' }));
     expect(box()).toHaveValue('Unsaved draft');
+  });
+
+  it('pastingAnImageReportsTheNewDraft', async () => {
+    uploadAttachment.mockResolvedValue({ id: 4, markdown: '![shot](work-attachment:4)' });
+    const attach = { itemKey: 'PLAT-1', toast: { error: vi.fn() }, onUploaded: vi.fn() };
+    const { onDraft } = setup({ attach });
+    openEditor();
+    box().setSelectionRange(5, 5);
+    const file = new File(['x'], 'image.png', { type: 'image/png' });
+    fireEvent.paste(box(), { clipboardData: { files: [file], getData: () => '' } });
+    await waitFor(() => expect(box()).toHaveValue('Saved![shot](work-attachment:4) **text**'));
+    expect(onDraft).toHaveBeenLastCalledWith('Saved![shot](work-attachment:4) **text**');
+    expect(attach.onUploaded).toHaveBeenCalled();
+  });
+
+  it('anUploadThatFinishesAfterTheEditorClosedChangesNothing', async () => {
+    let finish;
+    uploadAttachment.mockReturnValue(new Promise((r) => { finish = r; }));
+    const { onDraft } = setup({ attach: { itemKey: 'PLAT-1', toast: { error: vi.fn() } } });
+    openEditor();
+    const file = new File(['x'], 'image.png', { type: 'image/png' });
+    fireEvent.paste(box(), { clipboardData: { files: [file], getData: () => '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    onDraft.mockClear();
+    finish({ id: 4, markdown: '![shot](work-attachment:4)' });
+    await Promise.resolve(); await Promise.resolve();
+    expect(onDraft).not.toHaveBeenCalled();
   });
 });

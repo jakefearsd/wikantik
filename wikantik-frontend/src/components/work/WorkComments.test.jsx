@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 vi.mock('../../api/client', () => ({ api: { listMentionableUsers: vi.fn() } }));
+vi.mock('../../api/work', () => ({ uploadAttachment: vi.fn() }));
 import { api } from '../../api/client';
+import { uploadAttachment } from '../../api/work';
 import WorkComments from './WorkComments';
 
 const MEMBERS = [
@@ -340,5 +342,32 @@ describe('WorkComments', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Yes, remove' }));
       expect(await screen.findByRole('alert')).toHaveTextContent('Only a lead may remove this.');
     });
+  });
+
+  const ATTACH = { itemKey: 'PLAT-1', toast: { error: vi.fn() } };
+  const imageClip = () => ({ files: [new File(['x'], 'image.png', { type: 'image/png' })], getData: () => '' });
+
+  it('pastingIntoTheNewCommentUploadsToTheItemOnly', async () => {
+    uploadAttachment.mockResolvedValue({ id: 4, markdown: '![s](work-attachment:4)' });
+    setup({ attach: ATTACH });
+    fireEvent.paste(screen.getByLabelText('Add a comment'), { clipboardData: imageClip() });
+    await waitFor(() => expect(screen.getByLabelText('Add a comment')).toHaveValue('![s](work-attachment:4)'));
+    expect(uploadAttachment.mock.calls[0][0]).toBe('PLAT-1');
+    expect(uploadAttachment.mock.calls[0][2]).toBeNull();
+  });
+
+  it('pastingWhileEditingACommentSendsItsId', async () => {
+    uploadAttachment.mockResolvedValue({ id: 4, markdown: '![s](work-attachment:4)' });
+    setup({ attach: ATTACH, comments: [c(12, true, 'hello')] });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit comment by Ana Alvarez' }));
+    fireEvent.paste(screen.getByLabelText('Edit your comment'), { clipboardData: imageClip() });
+    await waitFor(() => expect(screen.getByLabelText('Edit your comment').value).toContain('![s](work-attachment:4)'));
+    expect(uploadAttachment.mock.calls[0][2]).toBe(12);
+  });
+
+  it('withoutAttachAPasteIsNotIntercepted', () => {
+    setup();
+    fireEvent.paste(screen.getByLabelText('Add a comment'), { clipboardData: imageClip() });
+    expect(uploadAttachment).not.toHaveBeenCalled();
   });
 });

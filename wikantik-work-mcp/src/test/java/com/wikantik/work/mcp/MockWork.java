@@ -59,6 +59,7 @@ final class MockWork {
         when( svc.events( any(), any() ) ).thenReturn( List.of() );
         when( svc.changes() ).thenReturn( changes );
         when( svc.features() ).thenReturn( features );
+        when( features.attachments() ).thenReturn( mock( com.wikantik.work.WorkAttachmentsService.class ) );
         when( features.sprints() ).thenReturn( sprints );
         when( sprints.list( any(), any() ) ).thenReturn( List.of() );
         when( svc.deployments() ).thenReturn( deployments );

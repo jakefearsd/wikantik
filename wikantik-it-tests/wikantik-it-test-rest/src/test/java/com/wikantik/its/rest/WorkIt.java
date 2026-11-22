@@ -30,8 +30,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -67,6 +70,26 @@ final class WorkIt {
                 .header( "Content-Type", "application/json" ).header( "Accept", "application/json" )
                 .method( method, HttpRequest.BodyPublishers.ofString( json ) ).build(),
                 HttpResponse.BodyHandlers.ofString() );
+        }
+
+        /** A multipart/form-data upload: the file in the part {@code file}, plus any text fields. */
+        HttpResponse< String > multipart( final String path, final String filename, final String claimedType,
+                                          final byte[] bytes, final Map< String, String > fields ) throws Exception {
+            final String boundary = "----wikantik" + UUID.randomUUID().toString().replace( "-", "" );
+            return client.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
+                .header( "Content-Type", "multipart/form-data; boundary=" + boundary ).header( "Accept", "application/json" )
+                .POST( HttpRequest.BodyPublishers.ofByteArray( multipartBody( boundary, filename, claimedType, bytes, fields ) ) )
+                .build(), HttpResponse.BodyHandlers.ofString() );
+        }
+
+        HttpResponse< String > multipart( final String path, final String filename, final byte[] bytes ) throws Exception {
+            return multipart( path, filename, "application/octet-stream", bytes, Map.of() );
+        }
+
+        /** A GET whose body is read as bytes, headers intact. */
+        HttpResponse< byte[] > bytes( final String path ) throws Exception {
+            return client.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) ).GET().build(),
+                HttpResponse.BodyHandlers.ofByteArray() );
         }
 
         Caller login( final String user, final String password ) throws Exception {
@@ -115,6 +138,37 @@ final class WorkIt {
             b.setHeader( extraHeaders[ i ], extraHeaders[ i + 1 ] );
         }
         return PLAIN.send( b.build(), HttpResponse.BodyHandlers.ofString() );
+    }
+
+    /** A multipart upload carrying only {@code Authorization: Bearer <token>}. */
+    static HttpResponse< String > bearerMultipart( final String token, final String path, final String filename,
+                                                   final byte[] bytes ) throws Exception {
+        final String boundary = "----wikantik" + UUID.randomUUID().toString().replace( "-", "" );
+        return PLAIN.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
+            .header( "Content-Type", "multipart/form-data; boundary=" + boundary ).header( "Accept", "application/json" )
+            .header( "Authorization", "Bearer " + token )
+            .POST( HttpRequest.BodyPublishers.ofByteArray( multipartBody( boundary, filename,
+                "application/octet-stream", bytes, Map.of() ) ) ).build(), HttpResponse.BodyHandlers.ofString() );
+    }
+
+    /** A GET carrying only {@code Authorization: Bearer <token>}, body as bytes. */
+    static HttpResponse< byte[] > bearerBytes( final String token, final String path ) throws Exception {
+        return PLAIN.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
+            .header( "Authorization", "Bearer " + token ).GET().build(), HttpResponse.BodyHandlers.ofByteArray() );
+    }
+
+    private static byte[] multipartBody( final String boundary, final String filename, final String claimedType,
+                                         final byte[] bytes, final Map< String, String > fields ) throws IOException {
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        for ( final Map.Entry< String, String > f : fields.entrySet() ) {
+            out.write( ( "--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + f.getKey() + "\"\r\n\r\n"
+                + f.getValue() + "\r\n" ).getBytes( StandardCharsets.UTF_8 ) );
+        }
+        out.write( ( "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + filename
+            + "\"\r\nContent-Type: " + claimedType + "\r\n\r\n" ).getBytes( StandardCharsets.UTF_8 ) );
+        out.write( bytes );
+        out.write( ( "\r\n--" + boundary + "--\r\n" ).getBytes( StandardCharsets.UTF_8 ) );
+        return out.toByteArray();
     }
 
     /** Every {@code Set-Cookie} header of the response, as sent. */

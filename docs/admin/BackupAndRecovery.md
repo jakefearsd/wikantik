@@ -366,6 +366,10 @@ Restore in place on an existing instance (e.g. roll back bad data):
    The search index rebuilds automatically (~30–60s).
 5. **Verify:** browse the wiki; `GET /api/health` returns `status: UP`.
 
+### Work attachments
+
+Work item attachments are stored in the database (`work_attachment_blob`), so every database backup contains them and backups grow with them; there is no separate file store to back up.
+
 ### Schema note
 
 `restore.sh` issues `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` with grants, then ensures

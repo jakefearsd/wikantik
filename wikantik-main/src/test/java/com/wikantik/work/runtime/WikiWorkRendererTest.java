@@ -322,6 +322,7 @@ class WikiWorkRendererTest {
         try {
             final String html = new WikiWorkRenderer( spied ).toHtml( CORPUS );
             assertTrue( html.contains( "alias text" ), "the corpus really rendered: " + html );
+            new WikiWorkRenderer( spied ).toHtml( CORPUS + "\n![s](work-attachment:5)\n[l](work-attachment:6)\n", "PLAT-7" );
 
             org.mockito.Mockito.verify( spied, org.mockito.Mockito.never() ).getFinalPageName( org.mockito.ArgumentMatchers.any() );
             org.mockito.Mockito.verifyNoInteractions( index );
@@ -415,5 +416,61 @@ class WikiWorkRendererTest {
     @Test
     void textThatIsAbsentRendersAsNothing() {
         assertEquals( "", renderer.toHtml( null ).trim() );
+    }
+
+    private String base() {
+        return engine.getBaseURL();
+    }
+
+    @Test
+    void anAttachmentImageBecomesTheDownloadRoute() {
+        final String html = renderer.toHtml( "![shot.png](work-attachment:5)", "PLAT-7" );
+        assertTrue( html.contains( "src=\"" + base() + "/api/work/items/PLAT-7/attachments/5\"" ), html );
+        assertTrue( html.contains( "alt=\"shot.png\"" ), html );
+    }
+
+    @Test
+    void anAttachmentLinkBecomesAPlainLinkToTheRoute() {
+        final String html = renderer.toHtml( "[log.txt](work-attachment:6)", "PLAT-7" );
+        assertTrue( html.contains( "<a href=\"" + base() + "/api/work/items/PLAT-7/attachments/6\">log.txt</a>" ), html );
+        assertFalse( html.contains( "error" ), html );
+        assertFalse( html.contains( "interwiki" ), html );
+    }
+
+    @Test
+    void aTraversalTailIsLeftAsTyped() {
+        final String html = renderer.toHtml( "[a](work-attachment:5/../6) ![b](work-attachment:../../x)", "PLAT-7" );
+        assertFalse( html.contains( "/api/work/" ), html );
+    }
+
+    @Test
+    void aTokenInCodeIsNotRewritten() {
+        final String html = renderer.toHtml( "`work-attachment:5`\n\n```\nwork-attachment:5\n```\n", "PLAT-7" );
+        assertTrue( html.contains( "work-attachment:5" ), html );
+        assertFalse( html.contains( "/api/work/" ), html );
+    }
+
+    @Test
+    void theSameTextRendersForEachItemsOwnKey() {
+        final String text = "[f](work-attachment:5)";
+        final String one = renderer.toHtml( text, "PLAT-7" );
+        final String two = renderer.toHtml( text, "OPS-2" );
+        assertTrue( one.contains( "/items/PLAT-7/attachments/5" ) && !one.contains( "OPS-2" ), one );
+        assertTrue( two.contains( "/items/OPS-2/attachments/5" ) && !two.contains( "PLAT-7" ), two );
+    }
+
+    @Test
+    void withoutAKeyNothingIsRewritten() {
+        assertFalse( renderer.toHtml( "[f](work-attachment:5)" ).contains( "/api/work/" ) );
+        assertFalse( renderer.toHtml( "[f](work-attachment:5)", null ).contains( "/api/work/" ) );
+        assertFalse( renderer.toHtml( "[f](work-attachment:5)", "not a key" ).contains( "/api/work/" ) );
+    }
+
+    @Test
+    void anotherUrlCannotBeSmuggledThroughTheToken() {
+        final String html = renderer.toHtml( "[f](work-attachment:5\" onmouseover=\"x) [g](https://evil.example/work-attachment:5)",
+            "PLAT-7" );
+        assertFalse( html.contains( "onmouseover=\"x" ), html );
+        assertFalse( html.contains( "/items/PLAT-7/attachments/5\" o" ), html );
     }
 }

@@ -145,6 +145,16 @@ The **Inbox** link on the Work home (`/work/inbox`) opens your inbox: a notice w
 - **Share a filter with a project** when it names exactly one project in which you are a member or lead (a viewer cannot share): its members then see it in their list. A shared filter shows each person their own results, so it never reveals items they cannot see. You, a lead of that project or an administrator can delete it; only you can rename it.
 - You only ever find items in projects you can see.
 
+## 10. Attaching files
+
+Add files to an item, or to a comment on it, from the item page; you can also paste or drop a file into the item text or a comment box. An image shows in the text where you pasted it, and any other file becomes a link in the text. The item's attachment list shows every file with its size, who added it and when.
+
+- **Who:** members and leads attach files, and agents that are members of the project do too. A viewer can see and download them but not add or remove. You remove a file you added; a project lead or an administrator can remove any file.
+- **Limits:** a file is at most 10 MB and an item holds at most 50 MB in all (your administrator may have set other limits; a too-large file is refused with a message). Removed files stop counting.
+- **Images in text:** PNG, JPEG, GIF and WebP are shown in the text. Everything else, HTML and SVG included, downloads instead of opening in the browser.
+- **Removing** a file deletes its content. The activity still records that it was attached and removed, with its name.
+- Anyone who can see the item can open its files; nobody else can, not even with the link.
+
 ## Autonomy in one paragraph
 
 Each item has an *autonomy level* that decides what an agent may do to it without a person: `supervised` (agents

@@ -45,6 +45,7 @@ final class WorkNames {
             case "mergedBy" -> "mergedByAgentId";
             case "requestedBy" -> "requestedByAgentId";
             case "approvedBy" -> "approvedByAgentId";
+            case "uploadedBy" -> "uploadedByAgentId";
             case "actor" -> "agent".equals( WorkJson.str( o, "actorKind" ) ) ? "agentId" : null;
             default -> null;
         };
@@ -57,7 +58,7 @@ final class WorkNames {
         final JsonPrimitive name = new JsonPrimitive( names.apply( login ) );
         changes.put( key + "Name", name );
         kind( changes, key, "human" );
-        if ( "author".equals( key ) ) {
+        if ( "author".equals( key ) || "uploadedBy".equals( key ) ) {
             changes.put( "mine", new JsonPrimitive( viewer.isPerson( login ) ) );
         }
         if ( !viewer.admin() ) {
@@ -72,7 +73,7 @@ final class WorkNames {
         final JsonPrimitive name = new JsonPrimitive( resolved != null ? resolved : stored );
         changes.put( key + "Name", name );
         kind( changes, key, "agent" );
-        if ( "author".equals( key ) ) {
+        if ( "author".equals( key ) || "uploadedBy".equals( key ) ) {
             changes.put( "mine", new JsonPrimitive( viewer.isAgent( agentId ) ) );
         }
         if ( !viewer.admin() ) {

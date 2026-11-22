@@ -49,7 +49,9 @@ public enum Action {
     MANAGE_SPRINT( WorkRole.LEAD, true, false ),
     PLAN_SPRINT( WorkRole.MEMBER, false, false ),
     // Sharing a saved filter with a project's members (Part 4); an agent has no saved filters (SavedFilters).
-    SHARE_FILTER( WorkRole.MEMBER, false, false );
+    SHARE_FILTER( WorkRole.MEMBER, false, false ),
+    // Attaching a file (and removing one; the uploader-or-lead rule is WorkAttachmentsService's), fenced like an edit.
+    ATTACH( WorkRole.MEMBER, false, true );
 
     private final WorkRole minRole;
     private final boolean management;

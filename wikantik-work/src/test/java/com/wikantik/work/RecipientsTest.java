@@ -212,4 +212,14 @@ class RecipientsTest {
         assertEquals( Set.of( "lena", "marc" ), f.leads() );
         assertTrue( f.leadGroups().isEmpty() );
     }
+
+    @Test
+    void attachmentEventsReachNobodyYet() {
+        final EventFacts f = facts( Set.of( "bob" ), Set.of( "carl" ), Set.of( "lena" ), true );
+        for ( final String type : List.of( WorkEvent.ATTACHED, WorkEvent.ATTACHMENT_REMOVED ) ) {
+            final WorkEvent e = new WorkEvent( 1, 1, 1L, "PLAT-1", Instant.parse( "2026-01-01T00:00:00Z" ), "lena",
+                Actor.Kind.HUMAN, null, type, "attachment:3", "shot.png", null );
+            assertTrue( Recipients.of( e, f ).isEmpty(), type );
+        }
+    }
 }

@@ -59,6 +59,16 @@ public final class WikiWorkRenderer implements WorkRenderer {
      */
     @Override
     public String toHtml( final String markdown ) {
+        return toHtml( markdown, null );
+    }
+
+    /**
+     * As {@link #toHtml(String)}, and the text's {@code work-attachment:<id>} tokens become the download route of
+     * <em>this</em> item's attachment (a rewrite of the URL text, no lookup; see {@link WorkAttachmentLinks}). With
+     * no usable key nothing is rewritten.
+     */
+    @Override
+    public String toHtml( final String markdown, final String itemKey ) {
         final RenderingManager rm = RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager();
         final Page scratch = Wiki.contents().page( engine, SCRATCH_PAGE );
         final Context ctx = Wiki.context().create( engine, scratch );
@@ -68,6 +78,7 @@ public final class WikiWorkRenderer implements WorkRenderer {
         ctx.setVariable( Context.VAR_VIEWER_SENSITIVE, Boolean.TRUE );
         // Links as typed: no page, title, alias, heading or attachment lookup, so output never reveals what exists.
         ctx.setVariable( Context.VAR_LINKS_AS_TYPED, Boolean.TRUE );
+        ctx.setVariable( Context.VAR_LINK_TARGET_REWRITE, WorkAttachmentLinks.rewriter( engine.getBaseURL(), itemKey ) );
         // No page filters: the citation filter rewrites cite:// links to a page's current slug without any access check.
         ctx.setVariable( VariableManager.VAR_RUNFILTERS, Boolean.FALSE );
         return rm.textToHTML( ctx, markdown == null ? "" : markdown );

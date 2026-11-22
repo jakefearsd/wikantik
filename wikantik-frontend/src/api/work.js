@@ -2,7 +2,7 @@
 // helper (session, error envelope, build-version detection). Errors carry { status, body }; the server's
 // reason is the Error message. People are named by display name both ways: responses show display names (a login
 // reaches only a wiki admin) and requests may name a person by display name.
-import { collabRequest as request } from './client';
+import { apiUrl, collabRequest as request, multipartRequest } from './client';
 
 const enc = encodeURIComponent;
 const json = (method, body) => ({ method, body: JSON.stringify(body ?? {}) });
@@ -189,3 +189,20 @@ export const listFilters = () => request(`${base}/filters`);
 export const saveFilter = (body) => request(`${base}/filters`, json('POST', body));
 export const renameFilter = (id, name) => request(`${base}/filters/${enc(id)}`, json('PATCH', { name }));
 export const deleteFilter = (id) => request(`${base}/filters/${enc(id)}`, { method: 'DELETE' });
+
+// Attachments
+/** { attachments: [{ id, commentId?, filename, contentType, sizeBytes, uploadedByName, uploadedByKind, mine, uploadedAt, url, inline, markdown }], mayAttach, maxFileBytes, maxItemBytes, usedBytes }, attachments oldest first; the limits are the server's, usedBytes counts toward maxItemBytes. */
+/** `silent` marks a background refresh (a lapsed session then never starts the login flow). */
+export const listAttachments = (key, { silent } = {}) => (silent
+  ? request(`${base}/items/${enc(key)}/attachments`, { silent: true })
+  : request(`${base}/items/${enc(key)}/attachments`));
+/** Multipart: part `file`, and `comment` (a comment id of the item) when the file belongs to a comment. Answers the attachment, with its `markdown`. */
+export function uploadAttachment(key, file, commentId) {
+  const form = new FormData();
+  form.append('file', file);
+  if (commentId != null) form.append('comment', String(commentId));
+  return multipartRequest(`${base}/items/${enc(key)}/attachments`, form);
+}
+export const removeAttachment = (key, id) => request(`${base}/items/${enc(key)}/attachments/${enc(id)}`, { method: 'DELETE' });
+/** The download address (same origin; only png, jpeg, gif and webp open inline, everything else downloads). */
+export const attachmentUrl = (key, id) => apiUrl(`${base}/items/${enc(key)}/attachments/${enc(id)}`);

@@ -1342,3 +1342,67 @@ SHARE_FILTER|agent-member-sponsor|lead|none|true|null
 SHARE_FILTER|agent-member-sponsor|lead|unclaimed|true|null
 SHARE_FILTER|agent-member-sponsor|lead|other|true|null
 SHARE_FILTER|agent-member-sponsor|lead|self|true|null
+ATTACH|human|none|none|false|You are not a member of this project.
+ATTACH|human|none|unclaimed|false|You are not a member of this project.
+ATTACH|human|none|other|false|You are not a member of this project.
+ATTACH|human|none|self|false|You are not a member of this project.
+ATTACH|human|viewer|none|false|This action needs the member role; you hold viewer.
+ATTACH|human|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+ATTACH|human|viewer|other|false|This action needs the member role; you hold viewer.
+ATTACH|human|viewer|self|false|This action needs the member role; you hold viewer.
+ATTACH|human|member|none|true|null
+ATTACH|human|member|unclaimed|true|null
+ATTACH|human|member|other|true|null
+ATTACH|human|member|self|true|null
+ATTACH|human|lead|none|true|null
+ATTACH|human|lead|unclaimed|true|null
+ATTACH|human|lead|other|true|null
+ATTACH|human|lead|self|true|null
+ATTACH|admin|none|none|true|null
+ATTACH|admin|none|unclaimed|true|null
+ATTACH|admin|none|other|true|null
+ATTACH|admin|none|self|true|null
+ATTACH|admin|viewer|none|true|null
+ATTACH|admin|viewer|unclaimed|true|null
+ATTACH|admin|viewer|other|true|null
+ATTACH|admin|viewer|self|true|null
+ATTACH|admin|member|none|true|null
+ATTACH|admin|member|unclaimed|true|null
+ATTACH|admin|member|other|true|null
+ATTACH|admin|member|self|true|null
+ATTACH|admin|lead|none|true|null
+ATTACH|admin|lead|unclaimed|true|null
+ATTACH|admin|lead|other|true|null
+ATTACH|admin|lead|self|true|null
+ATTACH|agent-admin-sponsor|none|none|false|You are not a member of this project.
+ATTACH|agent-admin-sponsor|none|unclaimed|false|You are not a member of this project.
+ATTACH|agent-admin-sponsor|none|other|false|This item is claimed by another agent.
+ATTACH|agent-admin-sponsor|none|self|false|You are not a member of this project.
+ATTACH|agent-admin-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+ATTACH|agent-admin-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+ATTACH|agent-admin-sponsor|viewer|other|false|This item is claimed by another agent.
+ATTACH|agent-admin-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+ATTACH|agent-admin-sponsor|member|none|true|null
+ATTACH|agent-admin-sponsor|member|unclaimed|true|null
+ATTACH|agent-admin-sponsor|member|other|false|This item is claimed by another agent.
+ATTACH|agent-admin-sponsor|member|self|true|null
+ATTACH|agent-admin-sponsor|lead|none|true|null
+ATTACH|agent-admin-sponsor|lead|unclaimed|true|null
+ATTACH|agent-admin-sponsor|lead|other|false|This item is claimed by another agent.
+ATTACH|agent-admin-sponsor|lead|self|true|null
+ATTACH|agent-member-sponsor|none|none|false|You are not a member of this project.
+ATTACH|agent-member-sponsor|none|unclaimed|false|You are not a member of this project.
+ATTACH|agent-member-sponsor|none|other|false|This item is claimed by another agent.
+ATTACH|agent-member-sponsor|none|self|false|You are not a member of this project.
+ATTACH|agent-member-sponsor|viewer|none|false|This action needs the member role; you hold viewer.
+ATTACH|agent-member-sponsor|viewer|unclaimed|false|This action needs the member role; you hold viewer.
+ATTACH|agent-member-sponsor|viewer|other|false|This item is claimed by another agent.
+ATTACH|agent-member-sponsor|viewer|self|false|This action needs the member role; you hold viewer.
+ATTACH|agent-member-sponsor|member|none|true|null
+ATTACH|agent-member-sponsor|member|unclaimed|true|null
+ATTACH|agent-member-sponsor|member|other|false|This item is claimed by another agent.
+ATTACH|agent-member-sponsor|member|self|true|null
+ATTACH|agent-member-sponsor|lead|none|true|null
+ATTACH|agent-member-sponsor|lead|unclaimed|true|null
+ATTACH|agent-member-sponsor|lead|other|false|This item is claimed by another agent.
+ATTACH|agent-member-sponsor|lead|self|true|null

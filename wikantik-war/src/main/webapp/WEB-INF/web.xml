@@ -687,6 +687,13 @@
    <servlet>
        <servlet-name>WorkItemResource</servlet-name>
        <servlet-class>com.wikantik.rest.WorkItemResource</servlet-class>
+       <!-- Attachments: the multipart ceiling is 100 MB; wikantik.work.attachments.maxBytes (default 10 MB) is the real limit.
+            The request ceiling leaves 1 MB for the other form fields; parts over 1 MB are spooled to disk, smaller ones stay in memory. -->
+       <multipart-config>
+           <max-file-size>104857600</max-file-size>
+           <max-request-size>105906176</max-request-size>
+           <file-size-threshold>1048576</file-size-threshold>
+       </multipart-config>
    </servlet>
    <servlet>
        <servlet-name>WorkDeploymentResource</servlet-name>

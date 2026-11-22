@@ -307,11 +307,18 @@ describe('eventText labels and type', () => {
   });
 });
 
+describe('eventText attachments', () => {
+  it('says what was attached and what was removed', () => {
+    expect(eventText(ev('attached', { toValue: 'shot.png' })).text).toBe('attached shot.png');
+    expect(eventText(ev('attachment_removed', { toValue: 'shot.png' })).text).toBe('removed the attachment shot.png');
+  });
+});
+
 describe('eventText with empty values', () => {
   const TYPES = ['created', 'edited', 'status', 'assigned', 'handoff', 'claimed', 'claim_renewed', 'released', 'claim_expired',
     'field', 'commented', 'comment_edited', 'comment_removed', 'linked', 'unlinked', 'change_opened', 'change_updated',
     'review_requested', 'change_reviewed', 'change_merged', 'change_abandoned', 'deployment_requested', 'shipped',
-    'rolled_back', 'acknowledged', 'member', 'settings', 'some_future_type'];
+    'rolled_back', 'acknowledged', 'member', 'settings', 'attached', 'attachment_removed', 'some_future_type'];
   it('never ends a sentence in a space or holds a doubled space', () => {
     for (const type of TYPES) {
       for (const empty of [null, '', undefined]) {

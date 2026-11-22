@@ -223,4 +223,28 @@ class GetItemToolTest {
         assertTrue( p.get( "estimate" ).isJsonNull() );
         assertTrue( p.get( "sprint" ).isJsonNull() );
     }
+
+    @Test
+    void listsAttachmentNamesSizesAndThePathToFetch() throws Exception {
+        final Item item = f.ready( "PLAT", "With a file" );
+        final byte[] png = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5 };
+        final long id = f.svc.features().attachments().upload( f.lena, item.key(), null, "shot.png", png ).id();
+        final String text = ( (McpSchema.TextContent) asAgent( item.key() ).content().get( 0 ) ).text();
+        final JsonObject entry = WorkMcpFixture.json( asAgent( item.key() ) ).getAsJsonArray( "attachments" )
+            .get( 0 ).getAsJsonObject();
+        assertEquals( id, entry.get( "id" ).getAsLong() );
+        assertEquals( "shot.png", entry.get( "name" ).getAsString() );
+        assertEquals( png.length, entry.get( "size" ).getAsLong() );
+        assertEquals( "image/png", entry.get( "contentType" ).getAsString() );
+        assertEquals( "/api/work/items/" + item.key() + "/attachments/" + id, entry.get( "path" ).getAsString() );
+        assertEquals( 5, entry.size() );
+        assertFalse( text.contains( java.util.Base64.getEncoder().encodeToString( png ) ) );
+        assertFalse( text.contains( "\"lena\"" ) );
+    }
+
+    @Test
+    void anItemWithoutFilesHasAnEmptyList() throws SQLException {
+        final Item item = f.ready( "PLAT", "Bare" );
+        assertEquals( 0, WorkMcpFixture.json( asAgent( item.key() ) ).getAsJsonArray( "attachments" ).size() );
+    }
 }

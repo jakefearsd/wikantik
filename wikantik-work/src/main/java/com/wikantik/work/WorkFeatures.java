@@ -36,6 +36,7 @@ public final class WorkFeatures {
     private final WorkNotificationsService notifications;
     private final WorkWebhooksService webhooks;
     private final WorkFindService find;
+    private final WorkAttachmentsService attachments;
 
     WorkFeatures( final WorkStore store, final WorkScopes scopes, final ItemViews views, final Clock clock,
                   final FeatureDeps deps ) {
@@ -46,6 +47,7 @@ public final class WorkFeatures {
             deps.ports() );
         this.webhooks = new WorkWebhooksService( store, scopes, deps.listener(), deps.audit(), deps.ports(), clock );
         this.find = new WorkFindService( store, scopes, deps.people(), views );
+        this.attachments = new WorkAttachmentsService( store, scopes, deps.settings() );
     }
 
     /** Notifications: the inbox, watching, the email preference and the dispatch. */
@@ -73,5 +75,10 @@ public final class WorkFeatures {
         final Scope s = scopes.scope( actor, projectKey );
         s.require( Action.VIEW, null );
         return store.labelCounts( s.project().id() );
+    }
+
+    /** Attachments: files on an item (Part 7). */
+    public WorkAttachmentsService attachments() {
+        return attachments;
     }
 }

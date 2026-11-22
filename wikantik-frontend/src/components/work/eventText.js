@@ -193,6 +193,9 @@ export function eventText(e) {
     case 'comment_removed': return { text: 'removed a comment', note };
     case 'linked': return { text: ev.toValue ? `linked ${splitLink(ev.toValue)}` : 'added a link', note };
     case 'unlinked': return { text: ev.fromValue ? `removed link ${splitLink(ev.fromValue)}` : 'removed a link', note };
+    case 'attached': return { text: ev.toValue ? `attached ${ev.toValue}` : 'attached a file', note: null };
+    case 'attachment_removed':
+      return { text: ev.toValue ? `removed the attachment ${ev.toValue}` : 'removed an attachment', note: null };
     case 'change_opened': return { text: `opened a change on ${orNone(ev.toValue)}${commit(ev.note)}`, note: null };
     case 'change_updated': return { text: `updated a change${commit(ev.toValue)}`, note: null };
     case 'review_requested': return { text: `asked for a review of ${orNone(ev.toValue)}${commit(ev.note)}`, note: null };

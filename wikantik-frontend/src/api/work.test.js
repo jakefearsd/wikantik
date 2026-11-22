@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('./client', () => ({ collabRequest: vi.fn() }));
-import { collabRequest } from './client';
+vi.mock('./client', () => ({ collabRequest: vi.fn(), multipartRequest: vi.fn(), apiUrl: (p) => p }));
+import { collabRequest, multipartRequest } from './client';
 import * as work from './work';
 import { isArchivedRefusal } from '../components/work/archived';
 
@@ -259,5 +259,30 @@ describe('work api client', () => {
     expect(last()).toEqual(['/api/work/projects/PLAT/webhooks/4', 'PATCH', { enabled: false }]);
     await work.removeWebhook('PLAT', 4);
     expect(last()).toEqual(['/api/work/projects/PLAT/webhooks/4', 'DELETE', undefined]);
+  });
+});
+
+describe('attachment calls', () => {
+  it('lists, removes and links with the key and id encoded', async () => {
+    await work.listAttachments('PLAT-1');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-1/attachments');
+    await work.removeAttachment('PLAT-1', 4);
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/items/PLAT-1/attachments/4', { method: 'DELETE' });
+    expect(work.attachmentUrl('P L/1', 'a b')).toBe('/api/work/items/P%20L%2F1/attachments/a%20b');
+  });
+
+  it('uploads a FormData with the file and, when given, the comment id', async () => {
+    const file = new File(['x'], 'a.png', { type: 'image/png' });
+    await work.uploadAttachment('PLAT-1', file, 9);
+    let [path, form] = multipartRequest.mock.lastCall;
+    expect(path).toBe('/api/work/items/PLAT-1/attachments');
+    expect(form).toBeInstanceOf(FormData);
+    expect(form.get('file').name).toBe('a.png');
+    expect(form.get('comment')).toBe('9');
+    await work.uploadAttachment('PLAT-1', file);
+    [, form] = multipartRequest.mock.lastCall;
+    expect(form.has('comment')).toBe(false);
+    await work.uploadAttachment('PLAT-1', file, null);
+    expect(multipartRequest.mock.lastCall[1].has('comment')).toBe(false);
   });
 });

@@ -522,6 +522,10 @@ published as that account's display name, never as the login. See
 
 Webhooks (`wikantik.work.notify.webhooks.enabled`, off by default) are an outbound path. Every address, and every redirect hop, passes the connector egress guard and must be https. The generic format carries an `X-Wikantik-Signature: sha256=<HMAC-SHA256 of the body>` header; the URL and secret are never returned after creation. Deliveries send only what the owning lead could see and pause when that person stops being a lead. Notification email carries the item key, title and action only by default (`wikantik.work.notify.email.detail`); the inbox and email re-check the reader's standing each time.
 
+### Work attachments
+
+Files attached to work items (`wikantik.work.enabled`) are served from the item's own route, `/api/work/items/{key}/attachments/{id}`, and are as visible as the item: a caller who cannot see the item, or asks for another item's attachment id, gets the same 404. The stored type is decided from the file's bytes, never from the name or the uploader's claim. Only PNG, JPEG, GIF and WebP are shown inline (`Cache-Control: private, max-age=300`); every other type, including HTML and SVG, is sent as `application/octet-stream` with `Content-Disposition: attachment` and `Cache-Control: private, no-store`. Every download carries `X-Content-Type-Options: nosniff` and a `Content-Security-Policy: sandbox; default-src 'none'` header in addition to the site policy. The file name is cleaned on upload and encoded in the header (RFC 5987), so it cannot break out of it. A page can never make the renderer look an attachment up: the `work-attachment:<id>` token in item text is rewritten to its own item's download route only. Viewers may not upload; a member or agent may upload and remove their own, a lead or administrator may remove any. Per-file and per-item limits are in [WikantikOperations](WikantikOperations.md) section 1.18.
+
 ### Connector egress guard
 
 Connector HTTP fetches (web crawler, sitemap, feed, GitHub, Confluence) pass through

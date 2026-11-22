@@ -59,6 +59,14 @@ public record WorkEvent( long id, long projectId, Long itemId, String itemKey, I
     public static final String SPRINT_UPDATED = "sprint_updated";
     public static final String SPRINT_STARTED = "sprint_started";
     public static final String SPRINT_CLOSED = "sprint_closed";
+    /**
+     * A file was attached to an item ({@code from_value} {@code attachment:<id>}, {@code to_value} the file name,
+     * {@code note} {@code comment:<id>} or null). Like the change events, not in {@link #ALL_TYPES}: the activity
+     * {@code types} filter cannot select it, and it notifies nobody and is not sendable to webhooks for now.
+     */
+    public static final String ATTACHED = "attached";
+    /** An attachment was removed (same value layout as {@link #ATTACHED}; also not in {@link #ALL_TYPES}). */
+    public static final String ATTACHMENT_REMOVED = "attachment_removed";
 
     /**
      * What the assignment log shows, in the order its filters list them: assignments, hand-offs, status changes and

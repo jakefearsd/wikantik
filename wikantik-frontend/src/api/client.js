@@ -81,6 +81,11 @@ async function postMultipart(path, form) {
   return body;
 }
 
+/** Multipart POST (a FormData body) with the error contract of request(): `status` and `body` on the thrown Error. */
+export function multipartRequest(path, form) {
+  return postMultipart(path, form);
+}
+
 function vaultForm(file, { clusterMode = 'folders', cluster = '' } = {}, planHash) {
   const form = new FormData();
   form.append('file', file);

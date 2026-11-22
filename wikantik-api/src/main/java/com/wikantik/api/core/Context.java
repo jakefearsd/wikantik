@@ -68,6 +68,15 @@ public interface Context extends Cloneable, Command {
      */
     String VAR_LINKS_AS_TYPED = "_Render.linksAsTyped";
 
+    /**
+     * A {@link java.util.function.UnaryOperator UnaryOperator&lt;String&gt;} that maps the URL of a Markdown image or
+     * link to the URL it should be drawn with, or returns null to leave it alone. Set only by a host that renders
+     * text of its own (work management maps its attachment tokens to download routes); the rewrite is a pure function
+     * of the text, so it performs no lookup. Absent, or holding anything that is not an operator, it has no effect
+     * and page rendering is unchanged.
+     */
+    String VAR_LINK_TARGET_REWRITE = "_Render.linkTargetRewrite";
+
     /** Name of the variable which is set to Boolean.TRUE or Boolean.FALSE depending on whether WYSIWYG is currently in effect. */
     String VAR_WYSIWYG_EDITOR_MODE = "WYSIWYG_EDITOR_MODE";
 

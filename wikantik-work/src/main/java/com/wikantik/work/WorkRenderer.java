@@ -22,4 +22,12 @@ package com.wikantik.work;
 public interface WorkRenderer {
 
     String toHtml( String markdown );
+
+    /**
+     * As {@link #toHtml(String)} for text that belongs to the item with this key, so a renderer can resolve what the
+     * text says about that item (an attachment token) and nothing about any other. The default ignores the key.
+     */
+    default String toHtml( final String markdown, final String itemKey ) {
+        return toHtml( markdown );
+    }
 }

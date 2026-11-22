@@ -39,7 +39,7 @@ final class WorkAgentFixtures {
         return login != null && !login.contains( "@" ) && !AGENT_NAMES.contains( login.toLowerCase( java.util.Locale.ROOT ) );
     }
 
-    static final String[] TABLES = { "work_saved_filter", "work_agent_credential", "work_agent_sponsor_history", "work_agent_queue", "work_agent", "work_queue", "work_link", "work_mention",
+    static final String[] TABLES = { "work_attachment_blob", "work_attachment", "work_saved_filter", "work_agent_credential", "work_agent_sponsor_history", "work_agent_queue", "work_agent", "work_queue", "work_link", "work_mention",
         "work_comment", "work_notification", "work_watch", "work_webhook", "work_notify_cursor", "work_notify_pref", "work_event", "work_item_revision", "work_sprint", "work_item", "work_member", "work_product_event", "work_product",
         "work_project" };
 

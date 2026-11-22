@@ -24,5 +24,5 @@ package com.wikantik.work;
  */
 public record WorkNotifyStores( WorkWatchStore watches, WorkNotificationStore notifications,
                                 WorkWebhookStore webhooks, WorkFindStore finder,
-                                WorkFilterStore filters ) {
+                                WorkFilterStore filters, WorkAttachmentStore attachments ) {
 }

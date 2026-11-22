@@ -238,3 +238,12 @@
 .work-find-table th, .work-find-table td { text-align: left; padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--border); }
 .work-find-views { list-style: none; padding: 0; margin: 0 0 var(--space-sm); }
 .work-find-views li { padding: var(--space-xs) 0; }
+
+/* Attachments */
+.work-attachment-list, .work-attachment-uploads { list-style: none; margin: 0; padding: 0; }
+.work-attachment-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); }
+.work-attachment-name { display: inline-flex; align-items: center; gap: var(--space-sm); min-width: 0; max-width: 24rem; }
+.work-attachment-filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work-attachment-thumb { width: 2.5rem; height: 2.5rem; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.work-attachment-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); margin-top: var(--space-sm); }
+.work-attachment-uploads { flex-basis: 100%; }

@@ -49,6 +49,14 @@ public final class WorkWiring {
     /** Minutes a claim lasts before it lapses; 1 to 10080, default 240. */
     public static final String PROP_CLAIM_EXPIRY = "wikantik.work.claim.expiryMinutes";
 
+    /** Largest single attachment in bytes; 1 to 104857600, default 10485760. */
+    public static final String PROP_ATTACH_MAX_BYTES = "wikantik.work.attachments.maxBytes";
+
+    /** Most live attachment bytes one item may hold; raised to the file limit when lower, default 52428800. */
+    public static final String PROP_ATTACH_MAX_ITEM_BYTES = "wikantik.work.attachments.maxItemBytes";
+
+    private static final int MULTIPART_CEILING = 104_857_600;
+
     private static final int DEFAULT_EXPIRY_MINUTES = 240;
     private static final int MAX_EXPIRY_MINUTES = 7 * 24 * 60;
 
@@ -72,7 +80,7 @@ public final class WorkWiring {
         final WorkListener listener = registry != null ? new WorkMetrics( registry, store ) : new WorkListener() { };
         final WorkService service = new WorkService( store, new WikiWorkRenderer( engine ),
             new WikiWorkDirectory( engine ), Clock.systemDefaultZone(),
-            new WorkSettings( claimExpiry( props ) ), listener, new WikiWorkAudit( engine ),
+            settings( props ), listener, new WikiWorkAudit( engine ),
             WorkNotifyWiring.ports( props, engine ) );
         LOG.info( "Work management started ({}=true, metrics {})", PROP_ENABLED, registry != null ? "on" : "off" );
         return service;
@@ -87,5 +95,28 @@ public final class WorkWiring {
             return Duration.ofMinutes( DEFAULT_EXPIRY_MINUTES );
         }
         return Duration.ofMinutes( minutes );
+    }
+
+    /** The claim expiry plus both attachment limits, each validated as its key's description says. */
+    static WorkSettings settings( final Properties props ) {
+        final int file = TextUtil.getIntegerProperty( props, PROP_ATTACH_MAX_BYTES,
+            (int) WorkSettings.DEFAULT_MAX_ATTACHMENT_BYTES );
+        final int fileLimit;
+        if ( file < 1 || file > MULTIPART_CEILING ) {
+            LOG.warn( "{}={} is outside 1..{}; using {} bytes", PROP_ATTACH_MAX_BYTES, file, MULTIPART_CEILING,
+                WorkSettings.DEFAULT_MAX_ATTACHMENT_BYTES );
+            fileLimit = (int) WorkSettings.DEFAULT_MAX_ATTACHMENT_BYTES;
+        } else {
+            fileLimit = file;
+        }
+        final int item = TextUtil.getIntegerProperty( props, PROP_ATTACH_MAX_ITEM_BYTES,
+            (int) WorkSettings.DEFAULT_MAX_ITEM_ATTACHMENT_BYTES );
+        long itemLimit = item;
+        if ( item < fileLimit ) {
+            LOG.warn( "{}={} is below {}={}; using {}", PROP_ATTACH_MAX_ITEM_BYTES, item, PROP_ATTACH_MAX_BYTES,
+                fileLimit, fileLimit );
+            itemLimit = fileLimit;
+        }
+        return new WorkSettings( claimExpiry( props ), fileLimit, itemLimit );
     }
 }

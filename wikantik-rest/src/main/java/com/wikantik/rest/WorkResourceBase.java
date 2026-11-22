@@ -263,12 +263,14 @@ public abstract class WorkResourceBase extends RestServletBase {
     /**
      * A 409 with its {@code reason}: {@code stale} (and, for an item PATCH, the {@code current} item to merge against),
      * {@code archived} (the project is read-only; no {@code current}, there is nothing to merge), {@code exists},
-     * {@code not_claimable} or {@code not_claimed}. A stale hand-off carries {@code current} too.
+     * {@code not_claimable}, {@code not_claimed}, or a 413 with {@code too_large} (one file over the limit) or {@code item_full} (the item's files would pass their total). A stale hand-off carries {@code current} too.
      */
     protected void conflict( final HttpServletRequest request, final HttpServletResponse response,
                              final WorkService svc, final Actor actor, final String[] segs,
                              final WorkConflictException e ) throws IOException {
-        final JsonObject body = WorkJson.errorBody( HttpServletResponse.SC_CONFLICT, e.getMessage() );
+        final int status = WorkConflictException.TOO_LARGE.equals( e.reason() ) || WorkConflictException.ITEM_FULL.equals( e.reason() )
+            ? 413 : HttpServletResponse.SC_CONFLICT;
+        final JsonObject body = WorkJson.errorBody( status, e.getMessage() );
         body.addProperty( "reason", e.reason() );
         if ( WorkConflictException.STALE.equals( e.reason() ) && WorkCallers.mergesAgainstCurrent( request, segs ) ) {
             try {
@@ -278,7 +280,7 @@ public abstract class WorkResourceBase extends RestServletBase {
                     inner.getMessage(), inner );
             }
         }
-        WorkJson.write( response, HttpServletResponse.SC_CONFLICT, body );
+        WorkJson.write( response, status, body );
     }
 
     // ---- JSON with display names

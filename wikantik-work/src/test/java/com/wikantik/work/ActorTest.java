@@ -61,6 +61,17 @@ class ActorTest {
     }
 
     @Test
+    void aSystemActorIsNeverAdminAndHasNoAgentIdOrGroups() {
+        assertFalse( new Actor( "x", Set.of(), true, Actor.Kind.SYSTEM, null, null ).admin() );
+        assertThrows( IllegalArgumentException.class,
+            () -> new Actor( "x", Set.of( "g" ), false, Actor.Kind.SYSTEM, null, null ) );
+        assertThrows( IllegalArgumentException.class,
+            () -> new Actor( "x", Set.of(), false, Actor.Kind.SYSTEM, 3L, null ) );
+        assertEquals( "codehost:github", Actor.system( "github" ).login() );
+        assertEquals( Actor.Kind.SYSTEM, Actor.system( "github" ).kind() );
+    }
+
+    @Test
     void aSponsorMustBeAPerson() {
         assertThrows( IllegalArgumentException.class, () -> Actor.agent( 7, "codex", Actor.agent( 8, "other" ) ) );
     }

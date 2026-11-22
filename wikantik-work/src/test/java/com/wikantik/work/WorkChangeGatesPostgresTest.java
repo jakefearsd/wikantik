@@ -478,13 +478,13 @@ class WorkChangeGatesPostgresTest {
         final Item stale = f.fresh( item );
         f.claimedBy( f.reviewer, item );
         final WorkChangeStore store = new JdbcWorkStore( f.ds ).changes();
-        assertThrows( ClaimFenceException.class, () -> store.update( stale, c.id(), B, null, locked -> { }, f.author ),
+        assertThrows( ClaimFenceException.class, () -> store.update( stale, c.id(), B, null, null, locked -> { }, f.author ),
             "the service's read was before the claim; the store reads the holder under lock" );
         assertThrows( ClaimFenceException.class, () -> store.abandon( stale, c.id(), null, locked -> { }, f.author ) );
         assertThrows( ClaimFenceException.class, () -> store.open( stale, c.productId(),
             new ChangeDraft( "work/PLAT-1-y", "main", A, null, null ), f.author ) );
         assertEquals( A, store.change( c.id() ).orElseThrow().headSha(), "nothing was written" );
-        assertEquals( B, store.update( stale, c.id(), B, null, locked -> { }, f.reviewer ).headSha(), "the holder may" );
+        assertEquals( B, store.update( stale, c.id(), B, null, null, locked -> { }, f.reviewer ).headSha(), "the holder may" );
         assertEquals( ChangeState.ABANDONED, store.abandon( stale, c.id(), null, locked -> { }, f.mia ).state(),
             "and a person is never fenced" );
     }

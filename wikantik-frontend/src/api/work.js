@@ -206,3 +206,19 @@ export function uploadAttachment(key, file, commentId) {
 export const removeAttachment = (key, id) => request(`${base}/items/${enc(key)}/attachments/${enc(id)}`, { method: 'DELETE' });
 /** The download address (same origin; only png, jpeg, gif and webp open inline, everything else downloads). */
 export const attachmentUrl = (key, id) => apiUrl(`${base}/items/${enc(key)}/attachments/${enc(id)}`);
+
+// Code host (Part 5)
+/** A lead acknowledges a merge flagged outside policy; answers the change. */
+export const acknowledgeFlag = (id) => request(`${base}/changes/${enc(id)}/acknowledge-flag`, { method: 'POST' });
+/** Wiki admin: turns a product's code-host hook on, or rotates its secret. Answers { secret, githubUrl, genericUrl }; the secret is shown once and never stored. */
+export const enableHook = (key) => request(`${base}/products/${enc(key)}/hook`, { method: 'POST' });
+export const disableHook = (key) => request(`${base}/products/${enc(key)}/hook`, { method: 'DELETE' });
+
+// Flow and delivery figures (Part 6). Every figure is per project; params are from, to (yyyy-MM-dd, at most 366 days),
+// and for the project flow also sprint, label, type, assignee; for the project dora also product.
+/** { from, to, zone, throughput: [{ weekStart, items, points }], cycleTime, leadTime: { n, p50Seconds, p85Seconds }, wip: [{ status, count, items: [{ key, title, ageSeconds }] }] }. */
+export const getProjectFlow = (key, params) => request(`${base}/projects/${enc(key)}/flow${query(params)}`);
+/** The DORA figures of one project: see DoraPanel for the fields. */
+export const getProjectDora = (key, params) => request(`${base}/projects/${enc(key)}/dora${query(params)}`);
+/** Wiki admins only: the same figures over every project of a product. */
+export const getProductDora = (key, params) => request(`${base}/products/${enc(key)}/dora${query(params)}`);

@@ -34,10 +34,13 @@ public record Actor( String login, Set<String> groups, boolean admin, Kind kind,
         if ( sponsor != null && ( kind != Kind.AGENT || sponsor.kind() != Kind.HUMAN ) ) {
             throw new IllegalArgumentException( "Only an agent has a sponsor, and a sponsor is a person." );
         }
+        if ( kind == Kind.SYSTEM && ( agentId != null || groups != null && !groups.isEmpty() ) ) {
+            throw new IllegalArgumentException( "A system actor has no agent id and no groups." );
+        }
     }
 
     /** Whether the actor is a person or an agent. */
-    public enum Kind { HUMAN, AGENT }
+    public enum Kind { HUMAN, AGENT, SYSTEM }
 
     /**
      * An agent actor with no sponsor resolved: enough for the store, which attributes writes by id, and for tests of
@@ -57,8 +60,30 @@ public record Actor( String login, Set<String> groups, boolean admin, Kind kind,
         return admin;
     }
 
+    /** The code host acting through its webhook: never admin, no groups, no agent id; its login is {@code codehost:<host>}. */
+    public static Actor system( final String host ) {
+        return new Actor( "codehost:" + host, Set.of(), false, Kind.SYSTEM, null, null );
+    }
+
     /** A human actor. */
     public static Actor human( final String login, final Set<String> groups, final boolean admin ) {
         return new Actor( login, groups, admin, Kind.HUMAN, null, null );
+    }
+
+    /**
+     * How a stored actor of kind {@link Kind#SYSTEM} is shown: {@code codehost:github} is "GitHub", any other code
+     * host "Code host". Never a lookup in the user directory: the stored text is not a login.
+     */
+    public static String label( final String storedActor ) {
+        return "codehost:github".equals( storedActor ) ? "GitHub" : "Code host";
+    }
+
+    /** The shown name of an event's actor: an agent by its name, a system actor by {@link #label}, a person by the lookup. */
+    static String shown( final Kind kind, final String stored, final java.util.function.Function< String, String > names ) {
+        return switch ( kind ) {
+            case AGENT -> stored;
+            case SYSTEM -> label( stored );
+            default -> names.apply( stored );
+        };
     }
 }

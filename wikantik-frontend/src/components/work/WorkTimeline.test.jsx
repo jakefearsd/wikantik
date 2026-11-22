@@ -130,6 +130,16 @@ describe('WorkTimeline', () => {
       expect(row).not.toHaveTextContent('Someone');
     });
 
+    it('the code host shows by its label with a code host badge, never as a login or Someone', async () => {
+      listEvents.mockResolvedValue([ev(1, 'change_merged', { actorKind: 'system', actorName: 'GitHub', actor: 'GitHub', toValue: 'unreviewed', note: '9b01c77' })]);
+      render(<WorkTimeline itemKey="PLAT-7" />);
+      const row = (await screen.findAllByRole('listitem'))[0];
+      expect(within(row).getByText('GitHub')).toBeInTheDocument();
+      expect(within(row).getByText('code host')).toBeInTheDocument();
+      expect(row).not.toHaveTextContent('Someone');
+      expect(row).not.toHaveTextContent('Unknown');
+    });
+
     it('a person actor carries no agent badge', async () => {
       listEvents.mockResolvedValue([ev(1, 'created', { actorKind: 'human' })]);
       render(<WorkTimeline itemKey="PLAT-7" />);

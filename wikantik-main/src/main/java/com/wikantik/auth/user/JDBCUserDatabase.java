@@ -226,6 +226,12 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         }
     }
 
+    /** {@inheritDoc} One narrow query on the lower-cased address; at most two rows are read. */
+    @Override
+    public List< String > loginsForEmailIgnoreCase( final String email ) throws WikiSecurityException {
+        return LoginsForEmail.find( jdbc, email );
+    }
+
     /** {@inheritDoc} One query; the interface default would deserialize every account row. */
     @Override
     public boolean isLoginNameTakenIgnoreCase( final String loginName, final String excludingLogin ) throws WikiSecurityException {

@@ -56,17 +56,27 @@ final class Acknowledgements {
         return views.view( is.scope(), is.item() );
     }
 
-    /** What waits for an acknowledgement in the projects {@code actor} leads; everything for a wiki admin. */
-    List< WaitingItem > awaiting( final Actor actor, final List< Project > visible ) throws SQLException {
+    /** The unarchived projects {@code actor} leads; all of them for a wiki admin. Nothing in an archived one can be acknowledged. */
+    private Set< Long > ledProjects( final Actor actor, final List< Project > visible ) throws SQLException {
         final Set< Long > led = new LinkedHashSet<>();
         for ( final Project p : visible ) {
-            // an archived project is read-only: nothing in it can be acknowledged, so nothing is asked for
             if ( p.archivedAt() == null && ( actor.instanceAdmin()
                 || scopes.standing().roleIn( p.id(), actor ).filter( r -> r == WorkRole.LEAD ).isPresent() ) ) {
                 led.add( p.id() );
             }
         }
-        return store.acks().awaiting( led ).stream()
+        return led;
+    }
+
+    /** What waits for an acknowledgement in the projects {@code actor} leads; everything for a wiki admin. */
+    List< WaitingItem > awaiting( final Actor actor, final List< Project > visible ) throws SQLException {
+        return store.acks().awaiting( ledProjects( actor, visible ) ).stream()
             .map( i -> new WaitingItem( i, WaitingItem.ACKNOWLEDGE, null ) ).toList();
+    }
+
+    /** Items with a merge outside policy no lead has acknowledged yet, in the projects {@code actor} leads. */
+    List< WaitingItem > outsidePolicy( final Actor actor, final List< Project > visible ) throws SQLException {
+        return store.notifyStores().codeHost().flagged( ledProjects( actor, visible ) ).stream()
+            .map( i -> new WaitingItem( i, WaitingItem.CHANGE_OUTSIDE_POLICY, null ) ).toList();
     }
 }

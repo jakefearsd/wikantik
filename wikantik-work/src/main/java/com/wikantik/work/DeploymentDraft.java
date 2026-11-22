@@ -21,5 +21,12 @@ package com.wikantik.work;
 import java.util.List;
 
 /** What a caller says when requesting a deployment. A null environment means {@code production}. */
-public record DeploymentDraft( String productKey, String environment, String version, List< String > itemKeys ) {
+public record DeploymentDraft( String productKey, String environment, String version, List< String > itemKeys,
+                               Long remediatesId ) {
+
+    /** A draft that remediates nothing. */
+    public DeploymentDraft( final String productKey, final String environment, final String version,
+                            final List< String > itemKeys ) {
+        this( productKey, environment, version, itemKeys, null );
+    }
 }

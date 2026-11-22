@@ -1,0 +1,15 @@
+{
+  "ref": "refs/heads/PLAT-1-fix-login",
+  "before": "1111111111111111111111111111111111111111",
+  "after": "0000000000000000000000000000000000000000",
+  "repository": {
+    "full_name": "octo/plat",
+    "default_branch": "main"
+  },
+  "commits": [],
+  "head_commit": {
+    "id": "0000000000000000000000000000000000000000",
+    "timestamp": "2026-01-07T08:00:00Z"
+  },
+  "deleted": true
+}

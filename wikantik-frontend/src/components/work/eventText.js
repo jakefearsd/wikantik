@@ -40,6 +40,7 @@ function splitHandoff(value) {
 export function actorLabel(e) {
   const ev = e || {};
   if (ev.actorName) return ev.actorName;
+  if (ev.actorKind === 'system') return 'The code host';
   return ev.actorKind === 'agent' ? 'An agent' : 'Someone';
 }
 
@@ -48,6 +49,7 @@ const commit = (sha) => (sha ? ` at ${String(sha).slice(0, 8)}` : '');
 const MERGED = {
   reviewed: 'merged a reviewed change', unreviewed: 'merged a change without review', direct: 'merged directly',
 };
+const FLAG_WORDS = { unreviewed: 'without review', direct: 'a direct commit where direct commits are not allowed' };
 const until = (iso, at) => (clockText(iso, at) ? ` · until ${clockText(iso, at)}` : '');
 const statusWords = (v) => words(orNone(v));
 
@@ -197,13 +199,18 @@ export function eventText(e) {
     case 'attachment_removed':
       return { text: ev.toValue ? `removed the attachment ${ev.toValue}` : 'removed an attachment', note: null };
     case 'change_opened': return { text: `opened a change on ${orNone(ev.toValue)}${commit(ev.note)}`, note: null };
-    case 'change_updated': return { text: `updated a change${commit(ev.toValue)}`, note: null };
+    case 'change_updated':
+      if (!ev.toValue && ev.note === 'reopened on the code host') return { text: 'reopened a change on the code host', note: null };
+      return { text: `updated a change${commit(ev.toValue)}`, note: null };
     case 'review_requested': return { text: `asked for a review of ${orNone(ev.toValue)}${commit(ev.note)}`, note: null };
     case 'change_reviewed': return {
       text: ev.toValue === 'approved' ? 'approved a change' : 'sent a change back for more work', note, prominentNote: !!note,
     };
     case 'change_merged': return { text: `${MERGED[ev.toValue] || 'merged a change'}${commit(ev.note)}`, note: null };
     case 'change_abandoned': return { text: `abandoned the change on ${orNone(ev.toValue)}`, note };
+    case 'change_flagged': return { text: `flagged a merge outside policy: ${FLAG_WORDS[ev.toValue] || 'outside the project policy'}`, note: null };
+    case 'change_superseded': return { text: "recorded a direct commit again as the pull request's merge", note: null };
+    case 'change_flag_acknowledged': return { text: 'acknowledged a merge outside policy', note: null };
     case 'deployment_requested': return { text: `asked for this to be deployed in ${orNone(ev.toValue)}${env(ev.note)}`, note: null };
     case 'shipped': return { text: `shipped this in ${orNone(ev.toValue)}${env(ev.note)}`, note: null };
     case 'rolled_back': return { text: `rolled back ${orNone(ev.toValue)}${env(ev.note)}, which carried this`, note: null };

@@ -37,6 +37,8 @@ public final class WorkFeatures {
     private final WorkWebhooksService webhooks;
     private final WorkFindService find;
     private final WorkAttachmentsService attachments;
+    private final WorkCodeHostService codeHost;
+    private final WorkFlowService flow;
 
     WorkFeatures( final WorkStore store, final WorkScopes scopes, final ItemViews views, final Clock clock,
                   final FeatureDeps deps ) {
@@ -48,6 +50,8 @@ public final class WorkFeatures {
         this.webhooks = new WorkWebhooksService( store, scopes, deps.listener(), deps.audit(), deps.ports(), clock );
         this.find = new WorkFindService( store, scopes, deps.people(), views );
         this.attachments = new WorkAttachmentsService( store, scopes, deps.settings() );
+        this.codeHost = new WorkCodeHostService( store, scopes, clock, deps );
+        this.flow = new WorkFlowService( store, scopes, views, clock );
     }
 
     /** Notifications: the inbox, watching, the email preference and the dispatch. */
@@ -80,5 +84,15 @@ public final class WorkFeatures {
     /** Attachments: files on an item (Part 7). */
     public WorkAttachmentsService attachments() {
         return attachments;
+    }
+
+    /** Flow and DORA figures, computed at read time (Part 6). */
+    public WorkFlowService flow() {
+        return flow;
+    }
+
+    /** The code host: signed-hook check, enabling the hook, and applying what the host reports. */
+    public WorkCodeHostService codeHost() {
+        return codeHost;
     }
 }

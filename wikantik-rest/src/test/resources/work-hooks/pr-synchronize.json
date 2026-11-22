@@ -1,0 +1,27 @@
+{
+  "action": "synchronize",
+  "number": 12,
+  "pull_request": {
+    "number": 12,
+    "html_url": "https://github.com/octo/plat/pull/12",
+    "title": "PLAT-1 fix login",
+    "draft": false,
+    "user": {
+      "login": "ana-gh"
+    },
+    "head": {
+      "ref": "PLAT-1-fix-login",
+      "sha": "bbbbbbb2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "base": {
+      "ref": "main"
+    },
+    "merged": false,
+    "merge_commit_sha": null,
+    "updated_at": "2026-01-05T12:00:00Z"
+  },
+  "repository": {
+    "full_name": "octo/plat",
+    "default_branch": "main"
+  }
+}

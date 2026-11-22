@@ -1,0 +1,14 @@
+{
+  "ref": "refs/tags/v1.0",
+  "before": "1111111111111111111111111111111111111111",
+  "after": "aaaaaaa1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "repository": {
+    "full_name": "octo/plat",
+    "default_branch": "main"
+  },
+  "commits": [],
+  "head_commit": {
+    "id": "aaaaaaa1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "2026-01-07T08:00:00Z"
+  }
+}

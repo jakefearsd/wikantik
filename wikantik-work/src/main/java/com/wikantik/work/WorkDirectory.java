@@ -91,4 +91,13 @@ public interface WorkDirectory {
     default Optional< String > mentionId( final String login ) {
         return Optional.empty();
     }
+
+    /**
+     * The login of the one account whose profile mail address equals {@code email} ignoring letter case; empty when
+     * there is none or more than one. Throws {@link WorkUnavailableException} when the directory cannot be read. The
+     * default knows no addresses; the host overrides it.
+     */
+    default Optional< String > loginForEmail( final String email ) {
+        return Optional.empty();
+    }
 }

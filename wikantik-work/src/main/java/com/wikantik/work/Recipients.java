@@ -47,6 +47,7 @@ final class Recipients {
             }
             case WorkEvent.REVIEW_REQUESTED, WorkEvent.CHANGE_MERGED, WorkEvent.SHIPPED, WorkEvent.ROLLED_BACK ->
                 addAll( out, f.watchers(), NoticeReason.WATCHING );
+            case WorkEvent.CHANGE_FLAGGED -> addAll( out, f.leads(), NoticeReason.ACKNOWLEDGE );
             case WorkEvent.CLAIM_EXPIRED -> add( out, f.reporter(), NoticeReason.CLAIM_EXPIRED );
             default -> { }
         }

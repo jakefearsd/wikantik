@@ -59,6 +59,8 @@ public class WorkProductResource extends WorkResourceBase {
             c.svc.archiveProduct( c.actor, c.pathParam( 0 ) );
             c.noContent();
         } );
+        WorkHookRoutes.register( r );
+        WorkFlowRoutes.registerProduct( r );
     }
 
     /**
@@ -67,10 +69,13 @@ public class WorkProductResource extends WorkResourceBase {
      */
     private JsonArray productsTree( final Call c ) throws Exception {
         final JsonArray out = new JsonArray();
+        final java.util.Map< String, com.wikantik.work.HookStatus > hooks =
+            c.actor.admin() ? WorkHookRoutes.hooksOf( c ) : java.util.Map.of();
         for ( final Product p : c.svc.listProducts( c.actor ) ) {
             final JsonObject o;
             if ( c.actor.admin() ) {
                 o = toTree( p, c.actor ).getAsJsonObject();
+                WorkHookRoutes.attach( o, hooks );
             } else {
                 o = new JsonObject();
                 o.addProperty( "key", p.key() );

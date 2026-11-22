@@ -24,6 +24,7 @@ import com.wikantik.work.Agent;
 import com.wikantik.work.AgentDraft;
 import com.wikantik.work.Autonomy;
 import com.wikantik.work.DeployGate;
+import com.wikantik.work.DeploymentDraft;
 import com.wikantik.work.Item;
 import com.wikantik.work.ItemDraft;
 import com.wikantik.work.ItemPatch;
@@ -165,6 +166,32 @@ class DeploymentToolsPostgresTest {
         assertEquals( "done", closed.get( "status" ).getAsString() );
         assertEquals( "2.5.26", closed.getAsJsonArray( "shipped_in" ).get( 0 ).getAsJsonObject().get( "version" ).getAsString() );
         assertTrue( f.svc.policyOf( f.lena, key ).ack().waiting(), "no person was in the path: one must acknowledge it" );
+
+        final JsonObject fix = ok( call( reviewer, "request_deployment", "product", "wikantik", "version", "2.5.27",
+            "items", List.of( key ), "remediates", id ) );
+        assertEquals( id, fix.get( "remediates" ).getAsInt() );
+        assertEquals( id, ok( call( f.builder, "get_deployment", "deployment", fix.get( "id" ).getAsInt() ) )
+            .get( "remediates" ).getAsInt(), "get_deployment shows what it fixes" );
+        assertTrue( ok( call( f.builder, "get_deployment", "deployment", id ) ).get( "remediates" ).isJsonNull() );
+    }
+
+    @Test
+    void aFixForwardOfADeploymentThePlatAgentCannotSeeNamesNoId() throws SQLException {
+        f.svc.createProject( f.admin, "OPS", "Operations", "" );
+        final Item ops = f.svc.createItem( f.admin, new ItemDraft( "OPS", WorkLevel.TASK, null, "wikantik",
+            WorkKind.SOFTWARE, "Ops work", "", null, null, null, null, null, null ) ).item();
+        final Item plat = f.svc.createItem( f.admin, new ItemDraft( "PLAT", WorkLevel.TASK, null, "wikantik",
+            WorkKind.SOFTWARE, "Plat work", "", null, null, null, null, null, null ) ).item();
+        final long target = f.svc.deployments().request( f.admin, new DeploymentDraft( "wikantik", "production",
+            "3.0.0", List.of( ops.key() ), null ) ).deployment().id();
+        f.svc.deployments().approve( f.admin, target, null );
+        f.svc.deployments().start( f.admin, target );
+        f.svc.deployments().verify( f.admin, target, "health 200" );
+        final long fix = f.svc.deployments().request( f.admin, new DeploymentDraft( "wikantik", "production", "3.0.1",
+            List.of( plat.key() ), target ) ).deployment().id();
+        assertTrue( ok( call( f.builder, "get_deployment", "deployment", ( int ) fix ) ).get( "remediates" ).isJsonNull(),
+            "the target carries only OPS's work: the agent is not shown its number" );
+        assertEquals( target, f.svc.deployments().deployment( f.admin, fix ).deployment().remediatesId() );
     }
 
     @Test

@@ -1406,3 +1406,67 @@ ATTACH|agent-member-sponsor|lead|none|true|null
 ATTACH|agent-member-sponsor|lead|unclaimed|true|null
 ATTACH|agent-member-sponsor|lead|other|false|This item is claimed by another agent.
 ATTACH|agent-member-sponsor|lead|self|true|null
+ACKNOWLEDGE_FLAG|human|none|none|false|You are not a member of this project.
+ACKNOWLEDGE_FLAG|human|none|unclaimed|false|You are not a member of this project.
+ACKNOWLEDGE_FLAG|human|none|other|false|You are not a member of this project.
+ACKNOWLEDGE_FLAG|human|none|self|false|You are not a member of this project.
+ACKNOWLEDGE_FLAG|human|viewer|none|false|This action needs the lead role; you hold viewer.
+ACKNOWLEDGE_FLAG|human|viewer|unclaimed|false|This action needs the lead role; you hold viewer.
+ACKNOWLEDGE_FLAG|human|viewer|other|false|This action needs the lead role; you hold viewer.
+ACKNOWLEDGE_FLAG|human|viewer|self|false|This action needs the lead role; you hold viewer.
+ACKNOWLEDGE_FLAG|human|member|none|false|This action needs the lead role; you hold member.
+ACKNOWLEDGE_FLAG|human|member|unclaimed|false|This action needs the lead role; you hold member.
+ACKNOWLEDGE_FLAG|human|member|other|false|This action needs the lead role; you hold member.
+ACKNOWLEDGE_FLAG|human|member|self|false|This action needs the lead role; you hold member.
+ACKNOWLEDGE_FLAG|human|lead|none|true|null
+ACKNOWLEDGE_FLAG|human|lead|unclaimed|true|null
+ACKNOWLEDGE_FLAG|human|lead|other|true|null
+ACKNOWLEDGE_FLAG|human|lead|self|true|null
+ACKNOWLEDGE_FLAG|admin|none|none|true|null
+ACKNOWLEDGE_FLAG|admin|none|unclaimed|true|null
+ACKNOWLEDGE_FLAG|admin|none|other|true|null
+ACKNOWLEDGE_FLAG|admin|none|self|true|null
+ACKNOWLEDGE_FLAG|admin|viewer|none|true|null
+ACKNOWLEDGE_FLAG|admin|viewer|unclaimed|true|null
+ACKNOWLEDGE_FLAG|admin|viewer|other|true|null
+ACKNOWLEDGE_FLAG|admin|viewer|self|true|null
+ACKNOWLEDGE_FLAG|admin|member|none|true|null
+ACKNOWLEDGE_FLAG|admin|member|unclaimed|true|null
+ACKNOWLEDGE_FLAG|admin|member|other|true|null
+ACKNOWLEDGE_FLAG|admin|member|self|true|null
+ACKNOWLEDGE_FLAG|admin|lead|none|true|null
+ACKNOWLEDGE_FLAG|admin|lead|unclaimed|true|null
+ACKNOWLEDGE_FLAG|admin|lead|other|true|null
+ACKNOWLEDGE_FLAG|admin|lead|self|true|null
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-admin-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|none|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|none|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|none|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|none|self|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|viewer|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|viewer|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|viewer|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|viewer|self|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|member|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|member|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|member|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|member|self|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|lead|none|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|lead|unclaimed|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|lead|other|false|An agent may not change policy, manage a project or manage the work instance.
+ACKNOWLEDGE_FLAG|agent-member-sponsor|lead|self|false|An agent may not change policy, manage a project or manage the work instance.

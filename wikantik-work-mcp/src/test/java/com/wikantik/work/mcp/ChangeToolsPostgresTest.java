@@ -128,6 +128,31 @@ class ChangeToolsPostgresTest {
     }
 
     @Test
+    void firstCommitAtIsAccepted() {
+        ok( call( f.builder, "claim_item", "key", key ) );
+        final JsonObject opened = ok( call( f.builder, "open_change", "key", key, "branch", "work/" + key + "-thing",
+            "head_sha", A, "first_commit_at", "2020-01-01T10:00:00Z" ) );
+        assertEquals( "2020-01-01T10:00:00Z", opened.get( "first_commit_at" ).getAsString() );
+        final JsonObject moved = ok( call( f.builder, "update_change", "change", opened.get( "id" ).getAsInt(),
+            "first_commit_at", "2020-01-01T09:00:00Z" ) );
+        assertEquals( "2020-01-01T09:00:00Z", moved.get( "first_commit_at" ).getAsString() );
+        assertEquals( "reported", opened.get( "source" ).getAsString() );
+    }
+
+    @Test
+    void anOutsideOpenerIsNamedAsOutsideTheWiki() throws SQLException {
+        ok( call( f.builder, "claim_item", "key", key ) );
+        final JsonObject opened = ok( call( f.builder, "open_change", "key", key, "branch", "work/" + key + "-thing",
+            "head_sha", A ) );
+        f.scalar( "WITH u AS ( UPDATE work_change SET opened_by = NULL, opened_by_agent_id = NULL, "
+            + "external_opened_by = 'octocat' WHERE id = " + opened.get( "id" ).getAsInt() + " RETURNING id ) "
+            + "SELECT count(*) FROM u" );
+        final JsonObject shown = ok( call( f.builder, "update_change", "change", opened.get( "id" ).getAsInt(),
+            "head_sha", A ) );
+        assertEquals( "octocat (outside the wiki)", shown.get( "opened_by" ).getAsString() );
+    }
+
+    @Test
     void twoAgentsTakeAnItemFromOpenToMergedToDone() {
         final int id = changeInReview();
         ok( call( f.builder, "handoff_item", "key", key, "expectedVersion", version( f.builder ), "status", "review",

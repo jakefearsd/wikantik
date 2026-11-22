@@ -20,5 +20,5 @@ package com.wikantik.work;
 
 /** What the notification and webhook facades need beyond the store, scopes and clock, bundled so {@link WorkFeatures} keeps a short constructor. */
 record FeatureDeps( WorkPeople people, GuardedListener listener, WorkAudit audit, WorkNotifyPorts ports,
-                  WorkSettings settings ) {
+                  WorkSettings settings, WorkDirectory directory ) {
 }

@@ -207,6 +207,40 @@ class WikiWorkDirectoryTest {
     }
 
     @Test
+    void loginForEmailAnswersOnlyAUniqueMatch() throws Exception {
+        assertEquals( java.util.Optional.of( "janne" ), directory.loginForEmail( "JANNE@ecyrd.com" ) );
+        assertEquals( java.util.Optional.empty(), directory.loginForEmail( "nobody@ecyrd.com" ) );
+        assertEquals( java.util.Optional.empty(), directory.loginForEmail( " " ) );
+        final com.wikantik.auth.user.UserDatabase db = com.wikantik.auth.subsystem.AuthSubsystemBridge
+            .fromLegacyEngine( engine ).users().getUserDatabase();
+        final com.wikantik.auth.user.UserProfile twin = db.newProfile();
+        twin.setLoginName( "emailtwin" );
+        twin.setFullname( "Email Twin" );
+        twin.setEmail( "janne@ecyrd.com" );
+        db.save( twin );
+        try {
+            assertEquals( java.util.Optional.empty(), directory.loginForEmail( "janne@ecyrd.com" ),
+                "two accounts share the address: ambiguous is no match" );
+        } finally {
+            db.deleteByLoginName( "emailtwin" );
+        }
+    }
+
+    @Test
+    void loginForEmailIsUnavailableWhenTheDatabaseFails() throws Exception {
+        final com.wikantik.WikiEngine broken = org.mockito.Mockito.mock( com.wikantik.WikiEngine.class );
+        final com.wikantik.auth.UserManager users = org.mockito.Mockito.mock( com.wikantik.auth.UserManager.class );
+        final com.wikantik.auth.user.UserDatabase db = org.mockito.Mockito.mock( com.wikantik.auth.user.UserDatabase.class );
+        org.mockito.Mockito.when( users.getUserDatabase() ).thenReturn( db );
+        org.mockito.Mockito.when( db.loginsForEmailIgnoreCase( org.mockito.ArgumentMatchers.anyString() ) )
+            .thenThrow( new IllegalStateException( "test: user database unreachable" ) );
+        org.mockito.Mockito.when( broken.getAuthSubsystem() ).thenReturn( new com.wikantik.auth.subsystem.AuthSubsystem
+            .Services( null, null, users, null, null, null, null, null, null ) );
+        org.junit.jupiter.api.Assertions.assertThrows( com.wikantik.work.WorkUnavailableException.class,
+            () -> new WikiWorkDirectory( broken ).loginForEmail( "ana@example.com" ) );
+    }
+
+    @Test
     void emailIsTheProfilesAddress() {
         assertEquals( java.util.Optional.of( "janne@ecyrd.com" ), directory.email( "janne" ) );
     }

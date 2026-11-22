@@ -95,6 +95,30 @@ never talks to your code host, so keep using branch protection there.
 **You should see:** the change marked *merged after review* (or *merged without review*, or *merged directly*).
 An item cannot be closed while one of its changes is still open or in review.
 
+### Changes that arrive from your code host
+
+If an administrator has connected the product's code host (see the administrator guide), you do not have to record
+anything by hand. Name the item key in the branch, the pull request title or the commit message, and the change
+appears on the item by itself, marked **via GitHub**: opened when the branch is pushed or the pull request is opened,
+in review when an approval arrives, merged when the pull request merges. Its history shows the code host as **GitHub**.
+
+- **Who opened it.** If the commit's email address is the one on a wiki account's profile, the change names that
+  person (by display name). Anyone else is shown by their code-host name with *(outside the wiki)* after it, and is
+  never linked to a profile.
+- **One pull request is one change.** Closing a pull request marks its change abandoned; reopening it brings the same
+  change back, so the history stays on one row.
+- **The code host never changes your item.** Its status, assignee, sprint and version stay exactly as they were. A
+  merge shows on the change; closing the item is still yours (or your agent's, at the right autonomy level).
+- **Merged outside policy.** A merge is *flagged* when nobody other than the author approved the merged commit
+  (*unreviewed*), or when someone committed straight to the default branch where direct commits are not allowed
+  (*direct*). Project leads see flagged items under **Merged outside policy** on the Work home and get a notice;
+  other members do not. A lead chooses **Acknowledge** on the change to say it has been seen. Acknowledging does not
+  rewrite what was found: the change keeps its flag and shows who acknowledged it, and the item leaves the lane.
+- **A flag can clear by itself.** Code hosts can deliver an approval after the merge it belongs to. If an approval
+  stamped before the merge for the merged commit arrives later, and no lead has acknowledged the flag yet, the change
+  becomes *merged after review* and the flag is removed. A lead who already got a notice is not told it cleared. An
+  acknowledged flag, or an approval stamped after the merge, never changes anything.
+
 ## 6. A deployment: from request to verified
 
 A *deployment* is one product version going to an environment (production unless you name another), carrying the
@@ -110,6 +134,13 @@ items it ships.
 
 **You should see:** "Shipped in" on each carried item's page once the deployment is verified, and approvals waiting
 for you listed on the Work home.
+
+**Fixing a failed deployment by deploying again.** When a deployment fails, or is rolled back, the usual repair is a
+new deployment with the fix. Choose the earlier one in **Remediates** when you request the new deployment (REST and
+the work MCP: `remediates`, the earlier deployment's number). It must be a deployment of the same product and
+environment that was verified, failed or rolled back. Naming it is what lets the delivery figures in section 11 know
+the failure was repaired, and how long that took. Leave it empty for an ordinary release. You can only name a
+deployment you can see; a number you cannot see is answered exactly like one that does not exist.
 
 ## 7. Agents (a project lead or administrator)
 
@@ -154,6 +185,94 @@ Add files to an item, or to a comment on it, from the item page; you can also pa
 - **Images in text:** PNG, JPEG, GIF and WebP are shown in the text. Everything else, HTML and SVG included, downloads instead of opening in the browser.
 - **Removing** a file deletes its content. The activity still records that it was attached and removed, with its name.
 - Anyone who can see the item can open its files; nobody else can, not even with the link.
+
+## 11. Flow and delivery figures
+
+Each project has a **Flow** tab (`/work/<project>/flow`): how fast work moves through the project, and how well it
+is delivered. Wiki administrators also get **Delivery figures** for a whole product from the Products page. Nothing
+here is stored: every figure is worked out from the item, change and deployment records when you open the page, so it
+is always the current truth and there is nothing to refresh. The figures are for talking about how the team works,
+not for ranking people; with a handful of items in the window every one of them is one or two events and can swing
+a lot.
+
+**The window.** Both views show a window of dates, by default the last 90 days ending today; change **From** and
+**To**, or choose a sprint to show its own dates. A window is at most 366 days. Weeks start on Monday at 00:00, in the
+time zone the page names, which is the server's.
+
+### Flow (per project)
+
+- **Throughput.** How many items were finished in each week, and how many points they were worth. An item counts in the
+  week of its *last* move to Done, and only while it is still Done: one that was closed and then reopened is not
+  counted until it is closed again, and an item closed twice is counted once. Points add up the estimates; an item
+  with no estimate adds 0 points. Epics are not counted. This does not tell you whether the work was the right work or
+  how big the items were. It is not the sprint velocity of the Sprints view: velocity counts what each sprint
+  completed when it closed, throughput counts items in the week they were finished and ignores sprint boundaries, so
+  the two are not meant to match.
+- **Cycle time.** For items finished in the window: the time from the first move to In progress until the last move to
+  Done, shown as the median (half the items were quicker) and the 85th percentile (85 in 100 were quicker), in days
+  and hours, with the number of items it is based on. Items that were never In progress are left out. It does not
+  include time spent waiting before someone started.
+- **Lead time.** The same finished items, measured from when the item was created until it was last closed. It
+  includes waiting in the backlog, so it is always at least the cycle time of the same item and says more about the
+  queue than about the work.
+- **Work in progress.** Right now (not limited by the window): how many items are In progress and how many are in
+  Review, and the oldest of each with its age since it was first started. Many old items is the usual sign that work
+  is being started faster than it is finished. It lists at most 50 items per status.
+
+The Flow tab can be narrowed by sprint, label, type and assignee. These filters use the items' *current* values, as the
+board does, so an item that has since changed label or owner moves with the change.
+
+### Delivery (DORA-style figures)
+
+These follow the four well-known DORA delivery measures, plus rework and a look at how merges happened. They count only
+**production** deployments; a deployment to another environment appears in no figure. They are computed from
+the deployment, change and event records, and they are only as complete as those records: a team that deploys by hand
+and never records it here will see zeros.
+
+- **Deployment frequency.** For each week, how many production deployments were verified. A deployment that was
+  verified and later rolled back still counts, because it did go out. Deployments that failed, were rejected or are
+  still waiting are not counted. It does not say how big a deployment was.
+- **Lead time for changes.** For each merged change that was shipped in the window: the time from its first commit until
+  the first verified production deployment (of the same product) that carries its item and went live at or after the
+  merge. A deployment that was verified and then rolled back ships nothing. Shown as the median and the 85th percentile
+  with the number of changes. A change with no recorded first commit time starts at the moment the change was opened,
+  and is counted in "changes with no commit time", so its figure is shorter than the real one. **A first commit more
+  than 30 days before the change was opened is treated as 30 days before opening**: after a rebase or a cherry-pick
+  the commit's date can be months or years old, and one such change would otherwise dominate the percentile. Such
+  changes are counted separately ("had a first commit more than 30 days before they were opened"). One pull request is
+  one change however often it was closed and reopened, so a reopened pull request is not counted twice. A change that
+  never reaches a verified production deployment has no lead time and is left out. This differs from DORA's own
+  wording (commit to *running in production*) only in that "running" here is the deployment record's verified state,
+  and in the 30-day cap.
+- **Change failure rate.** Of the production deployments that started in the window and have finished (verified,
+  failed or rolled back), how many failed, shown as "N of M" and not as a percentage, so a small sample cannot look
+  precise. A deployment counts as failed when it failed, when it was rolled back (even after it was verified), or when
+  a later deployment that was not rejected names it in **Remediates**. A deployment still running or waiting is not in
+  the figure yet. It does not say how bad a failure was.
+- **Time to recover.** For each failed deployment, the time from when it went live (or, if it never ran, when it
+  failed) until the earliest of: it was rolled back; a deployment that **Remediates** it was verified; or, only for a
+  deployment that never went live, the next verified production deployment of the product. Shown as the median and the
+  85th percentile with the count. A failure that has not ended yet is not in the median, because it has no duration;
+  it is shown as "not yet recovered" instead, so a bad week cannot hide by being unfinished. **The fix may belong to a
+  different project.** A fix-forward filed under another project of the same product ends the clock and is counted,
+  and a member of this project sees only the duration, never that project's name, items or deployments. The same
+  holds the other way round.
+- **Rework rate.** Of the same finished deployments, how many were themselves a fix, that is, ran and named an earlier
+  deployment in **Remediates**. A high figure means fixes are being shipped as new deployments rather than avoided.
+- **How changes were merged.** For changes merged in the window: how many were reviewed, merged without a standing
+  approval, or committed directly, and how many were flagged as outside policy (see section 5) and how many of those
+  have not been acknowledged yet. This is a count for the *window*; the "Merged outside policy" lane on the Work home
+  shows every flagged merge that is still waiting, however old. A direct commit that a pull request's merge replaced
+  is not counted twice.
+
+**Who sees what.** A member of a project sees the deployments that carry at least one item of that project, and the
+changes of its items. A wiki administrator can open the product view, which covers every project. A product's own
+flow of deployments therefore looks different from each project's: that is expected.
+
+**Reading them honestly.** The medians and percentiles are *nearest rank* values taken from the actual items, so with
+fewer than ten items they are single events. A window with nothing in it shows "0 of 0" and no figure, never a zero
+duration. DORA's published definitions are about a whole service in production; here a "deployment" is a record
+somebody made, and the figures say only what those records say.
 
 ## Autonomy in one paragraph
 

@@ -146,10 +146,10 @@ public class WorkService {
         this.registry = new WorkRegistryService( store, scopes, people, clock, observer, auditor );
         this.views = new ItemViews( store, renderer, people );
         this.acknowledgements = new Acknowledgements( store, scopes, views );
-        this.changes = new WorkChangesService( store, scopes );
+        this.changes = new WorkChangesService( store, scopes, clock );
         this.deployments = new WorkDeploymentsService( store, scopes );
         this.features = new WorkFeatures( store, scopes, views, clock,
-            new FeatureDeps( people, observer, auditor, ports, settings ) );
+            new FeatureDeps( people, observer, auditor, ports, settings, directory ) );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
         this.listener = observer;
@@ -552,6 +552,7 @@ public class WorkService {
             ? new WaitingItem( i, WaitingItem.ASSIGNED, handoffs.get( i.id() ) )
             : new WaitingItem( i, WaitingItem.MENTIONED, null ) ).toList() );
         waiting.addAll( acknowledgements.awaiting( actor, visible ) );
+        waiting.addAll( acknowledgements.outsidePolicy( actor, visible ) );
         return waiting;
     }
 }

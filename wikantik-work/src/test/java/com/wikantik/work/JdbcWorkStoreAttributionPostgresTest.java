@@ -159,6 +159,29 @@ class JdbcWorkStoreAttributionPostgresTest {
     }
 
     @Test
+    void aSystemActorIsRefusedByEveryExistingWriter() throws SQLException {
+        final Item item = create( "x" );
+        final Actor system = Actor.system( "github" );
+        final Product product = store.createProduct( new Product( 0, "wk", "Wk", null, "main", null, Autonomy.AUTONOMOUS, DeployGate.HUMAN, null ) );
+        final long before = WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" );
+        assertThrows( IllegalArgumentException.class, () -> store.createItem( plat,
+            JdbcWorkStoreItemsPostgresTest.draft( "y" ), system ) );
+        assertThrows( IllegalArgumentException.class, () -> store.updateItem( item,
+            with( item, "z", item.body(), item.status(), null, null ), system, null ) );
+        assertThrows( IllegalArgumentException.class, () -> store.addComment( item, system, "hi", List.of() ) );
+        assertThrows( IllegalArgumentException.class, () -> store.addLink( item, "url", "https://example.com", system ) );
+        assertThrows( IllegalArgumentException.class, () -> store.claims().claim( item, system,
+            java.time.Duration.ofHours( 1 ) ) );
+        assertThrows( IllegalArgumentException.class, () -> store.changes().open( item, product.id(),
+            new ChangeDraft( "b", "main", "abc1234", null, null ), system ) );
+        assertThrows( IllegalArgumentException.class, () -> store.putMember( plat.id(), "bob", "user",
+            WorkRole.MEMBER, system ) );
+        assertThrows( IllegalArgumentException.class, () -> store.deployments().request( product, "staging", "1.0",
+            List.of(), system ) );
+        assertEquals( before, WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM work_event" ) );
+    }
+
+    @Test
     void humanWritesLeaveAgentColumnsNull() throws SQLException {
         final Item item = create( "x" );
         final Comment c = store.addComment( item, LENA, "hi", List.of() );

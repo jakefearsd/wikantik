@@ -223,6 +223,23 @@ public final class WikiWorkDirectory implements WorkDirectory {
         }
     }
 
+    /** The one account with this mail address (any letter case); none or several is empty, a failed read is unavailable. */
+    @Override
+    public Optional< String > loginForEmail( final String email ) {
+        if ( email == null || email.isBlank() ) {
+            return Optional.empty();
+        }
+        try {
+            final List< String > logins = AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase()
+                .loginsForEmailIgnoreCase( email );
+            return logins.size() == 1 ? Optional.ofNullable( logins.get( 0 ) ) : Optional.empty();
+        } catch ( final WikiSecurityException | RuntimeException e ) {
+            LOG.warn( "The user database could not be searched by mail address; answering unavailable: {}",
+                e.getMessage(), e );
+            throw new WorkUnavailableException( "The user database could not be read.", e );
+        }
+    }
+
     /** The logins of the group's members (the wiki stores logins); an unknown group is empty. */
     @Override
     public Set< String > groupMembers( final String group ) {

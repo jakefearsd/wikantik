@@ -79,12 +79,18 @@ final class WorkMcpChanges {
         o.put( "head_sha", c.headSha() );
         o.put( "review_url", c.reviewUrl() );
         o.put( "state", c.state().wire() );
-        o.put( "opened_by", who( names, c.openedBy(), c.openedByAgentId() ) );
-        o.put( "reviewed_by", who( names, c.reviewedBy(), c.reviewedByAgentId() ) );
+        o.put( "first_commit_at", c.firstCommitAt() == null ? null : c.firstCommitAt().toString() );
+        o.put( "source", c.source() );
+        o.put( "review_number", c.reviewNumber() );
+        o.put( "policy_flag", c.policyFlag() );
+        o.put( "flag_acknowledged", c.flagAcknowledgedAt() != null );
+        o.put( "superseded_by", c.supersededBy() );
+        o.put( "opened_by", who( names, c.openedBy(), c.openedByAgentId(), c.externalOpenedBy() ) );
+        o.put( "reviewed_by", who( names, c.reviewedBy(), c.reviewedByAgentId(), c.externalReviewedBy() ) );
         o.put( "approved_for_head", c.approvedForHead() );
         o.put( "merge_kind", c.mergeKind() == null ? null : c.mergeKind().wire() );
         o.put( "merged_sha", c.mergedSha() );
-        o.put( "merged_by", who( names, c.mergedBy(), c.mergedByAgentId() ) );
+        o.put( "merged_by", who( names, c.mergedBy(), c.mergedByAgentId(), c.externalMergedBy() ) );
         return o;
     }
 
@@ -96,9 +102,10 @@ final class WorkMcpChanges {
         return o;
     }
 
-    private static String who( final WorkMcpJson names, final String stored, final Long agentId ) {
+    private static String who( final WorkMcpJson names, final String stored, final Long agentId,
+                               final String external ) {
         if ( stored == null ) {
-            return null;
+            return external == null ? null : external + " (outside the wiki)";
         }
         return agentId == null ? names.person( stored ) : names.agent( agentId, stored );
     }

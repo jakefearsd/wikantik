@@ -1,0 +1,20 @@
+{
+  "kind": "review_merged",
+  "repo": "octo/plat",
+  "defaultBranch": "main",
+  "branch": "PLAT-3-x",
+  "baseBranch": "main",
+  "at": "2026-02-02T10:00:00Z",
+  "review": {
+    "number": "7",
+    "url": "https://git.example.com/mr/7",
+    "title": "PLAT-3 x",
+    "headSha": "bbbbbbb2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "draft": false,
+    "author": "ana-gh"
+  },
+  "actor": {
+    "username": "lena-gh"
+  },
+  "mergedSha": "cccccccccccccccccccccccccccccccccccccc12"
+}

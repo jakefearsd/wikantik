@@ -58,12 +58,13 @@ class WorkServiceVisibilityPostgresTest {
         "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge", "open", "update",
         "requestReview", "review", "merge", "abandon", "request", "approve", "start", "verify", "fail", "rollBack", "reject",
         "create", "close", "markRead", "setWatch", "add", "remove",
-        "save", "rename", "delete", "upload" );
+        "save", "rename", "delete", "upload", "enableHook", "disableHook", "acknowledgeFlag" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
         "agentForToken", "actorForAgent", "describe",
-        "sweepExpiredClaims", "sweepStanding", "claimExpiry", "dispatch", "sendEmail", "settings", "deliver", "maxFileBytes" );
+        "sweepExpiredClaims", "sweepStanding", "claimExpiry", "dispatch", "sendEmail", "settings", "deliver", "maxFileBytes",
+        "authenticate", "apply", "rejected" );
 
     /**
      * Methods that touch only the caller's own record, or the caller's own notifications and settings, never project
@@ -82,7 +83,7 @@ class WorkServiceVisibilityPostgresTest {
      * Reads that are wiki-admin only ({@code MANAGE_INSTANCE}): they are not about a project, so a stranger is refused
      * rather than hidden from it. Each is driven as a person with no standing and must refuse.
      */
-    private static final Set< String > INSTANCE_READS = Set.of( "productHistory" );
+    private static final Set< String > INSTANCE_READS = Set.of( "productHistory", "hooks", "doraForProduct" );
 
     /**
      * Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. A
@@ -94,7 +95,7 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "mayAttach", "listing" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "mayAttach", "listing", "dora" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
 
@@ -184,7 +185,7 @@ class WorkServiceVisibilityPostgresTest {
     }
 
     private List< Actor > strangers() {
-        return List.of( mallory, rogueAgent, flaggedAgent, codexUnderAStranger, codexWithNoSponsor );
+        return List.of( mallory, rogueAgent, flaggedAgent, codexUnderAStranger, codexWithNoSponsor, Actor.system( "github" ) );
     }
 
     /** A public method and the object to call it on: the service itself, or the facade an accessor returns. */
@@ -241,6 +242,8 @@ class WorkServiceVisibilityPostgresTest {
         }
         assertTrue( ops().stream().anyMatch( op -> op.target() instanceof WorkSprintsService ),
             "the sprint service, reached through features(), is walked" );
+        assertTrue( ops().stream().anyMatch( op -> op.target() instanceof WorkFlowService ),
+            "the flow service, reached through features(), is walked" );
     }
 
     @Test
@@ -358,7 +361,13 @@ class WorkServiceVisibilityPostgresTest {
                         op.name() + " answered " + who.login() );
                 }
             }
-            assertDoesNotThrow( () -> invoke( op.method(), op.target(), new Object[] { admin, "web" } ) );
+            // the admin positive control: the admin and "web" first, null for any other parameter
+            final Object[] control = new Object[ op.method().getParameterCount() ];
+            control[ 0 ] = admin;
+            if ( control.length > 1 ) {
+                control[ 1 ] = "web";
+            }
+            assertDoesNotThrow( () -> invoke( op.method(), op.target(), control ) );
         }
     }
 

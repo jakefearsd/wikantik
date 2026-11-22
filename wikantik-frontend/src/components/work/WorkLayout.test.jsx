@@ -208,4 +208,11 @@ describe('WorkLayout edges', () => {
     expect(screen.queryByTestId('probe')).not.toBeInTheDocument();
     expect(getProject).toHaveBeenLastCalledWith('OPS');
   });
+
+  it('shows the Flow tab to a plain member', async () => {
+    getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'member' });
+    renderAt('/work/PLAT');
+    await screen.findByTestId('probe');
+    expect(screen.getByRole('tab', { name: 'Flow' })).toBeInTheDocument();
+  });
 });

@@ -35,19 +35,22 @@ create_item        project, level (epic, story or task), title, and optionally b
                    type (feature, bug or chore), labels (a list), priority, queue. Returns {key, version,
                    status}. A new item is always a draft with no assignee, for a person to refine; status and assignee are refused by name. You cannot
                    move a draft out of draft: hand it to a person (status draft) with a note.
-open_change        key, branch, and optionally base_branch, head_sha, review_url. Records a branch of work on the
+open_change        key, branch, and optionally base_branch, head_sha, review_url, first_commit_at. Records a branch of work on the
                    item and returns the change with its id. Name the branch work/<ITEM-KEY>-<slug>. With
                    merged_sha instead (work already on the base branch) the change is recorded as merged
                    directly, which is refused unless a lead allowed direct commits on the item or its epic.
-update_change      change (the id), and any of head_sha, review_url, state. state is in_review (ask for a review)
+update_change      change (the id), and any of head_sha, review_url, first_commit_at, state. state is in_review (ask for a review)
                    or abandoned (give the change up; add a note). A new head_sha clears any approval.
+                   first_commit_at is the time of the branch's first commit (ISO-8601, never in the future); it only moves earlier.
+                   When the code host reports changes, merge_change on a change it already merged answers change_closed:; read the change with get_item.
 review_change      change, approved (true or false), and a note. Approves the change at its current commit, or
                    sends it back to open. You may not review a change you opened or put a commit on.
 merge_change       change, merged_sha. Report the change merged after you merged it on the code host. Only the
                    agent whose approval stands on the current commit may; the merged commit may be a squash or merge commit.
 request_deployment product, version, items (a list of item keys), and optionally environment (production when
-                   omitted). Asks for that version to be deployed, carrying the items it ships. Returns the
-                   deployment with its id.
+                   omitted) and remediates (the id of an earlier deployment of the same product and environment
+                   that was verified, failed or rolled back, which this one fixes forward). Asks for that version
+                   to be deployed, carrying the items it ships. Returns the deployment with its id.
 get_deployment     deployment (the id). The deployment's state, the items of it you can see, its evidence.
 update_deployment  deployment, state (approved, rejected, running, verified, failed or rolled_back), evidence with
                    verified, and a note with approved, rejected, failed or rolled_back. A deployment only moves

@@ -433,4 +433,48 @@ class CsrfProtectionFilterTest {
         Mockito.verify( response ).sendRedirect( "/error/Forbidden.html" );
         Mockito.verify( chain, Mockito.never() ).doFilter( request, response );
     }
+
+    /** The code-host hook is a server-to-server POST: no Origin, no token, and it must not need an exemption. */
+    @Test
+    void aHookPostWithNoOriginPassesUntouched() throws Exception {
+        final Engine engine = Mockito.mock( Engine.class );
+        Mockito.doReturn( new Properties() ).when( engine ).getWikiProperties();
+        final EngineSPI engineSpi = Mockito.mock( EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( Mockito.nullable( ServletContext.class ), Mockito.any() );
+        try( final MockedStatic< Wiki > wiki = Mockito.mockStatic( Wiki.class, Mockito.CALLS_REAL_METHODS ) ) {
+            wiki.when( Wiki::engine ).thenReturn( engineSpi );
+            final HttpServletRequest hook = Mockito.mock( HttpServletRequest.class );
+            Mockito.doReturn( "POST" ).when( hook ).getMethod();
+            Mockito.doReturn( "/api/work/hooks" ).when( hook ).getServletPath();
+            Mockito.doReturn( "/plat/github" ).when( hook ).getPathInfo();
+            Mockito.doReturn( null ).when( hook ).getHeader( "Origin" );
+            final jakarta.servlet.http.HttpServletResponse response = Mockito.mock( jakarta.servlet.http.HttpServletResponse.class );
+            final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+            new CsrfProtectionFilter().doFilter( hook, response, chain );
+            Mockito.verify( chain ).doFilter( hook, response );
+            Mockito.verify( response, Mockito.never() ).sendError( Mockito.anyInt(), Mockito.anyString() );
+        }
+    }
+
+    @Test
+    void aHookPostFromAForeignBrowserOriginIsRefused() throws Exception {
+        final Engine engine = Mockito.mock( Engine.class );
+        Mockito.doReturn( new Properties() ).when( engine ).getWikiProperties();
+        final EngineSPI engineSpi = Mockito.mock( EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( Mockito.nullable( ServletContext.class ), Mockito.any() );
+        try( final MockedStatic< Wiki > wiki = Mockito.mockStatic( Wiki.class, Mockito.CALLS_REAL_METHODS ) ) {
+            wiki.when( Wiki::engine ).thenReturn( engineSpi );
+            final HttpServletRequest hook = Mockito.mock( HttpServletRequest.class );
+            Mockito.doReturn( "POST" ).when( hook ).getMethod();
+            Mockito.doReturn( "/api/work/hooks" ).when( hook ).getServletPath();
+            Mockito.doReturn( "https://evil.example" ).when( hook ).getHeader( "Origin" );
+            Mockito.doReturn( "wiki.example" ).when( hook ).getHeader( "Host" );
+            Mockito.doReturn( "https" ).when( hook ).getScheme();
+            final jakarta.servlet.http.HttpServletResponse response = Mockito.mock( jakarta.servlet.http.HttpServletResponse.class );
+            final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+            new CsrfProtectionFilter().doFilter( hook, response, chain );
+            Mockito.verify( response ).sendError( Mockito.eq( 403 ), Mockito.anyString() );
+            Mockito.verify( chain, Mockito.never() ).doFilter( hook, response );
+        }
+    }
 }

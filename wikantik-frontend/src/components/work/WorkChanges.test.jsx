@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 
 vi.mock('../../api/work', () => ({
   listChanges: vi.fn(), openChange: vi.fn(), requestReview: vi.fn(), reviewChange: vi.fn(), mergeChange: vi.fn(),
-  abandonChange: vi.fn(),
+  abandonChange: vi.fn(), acknowledgeFlag: vi.fn(),
 }));
-import { listChanges, openChange, requestReview, reviewChange, mergeChange, abandonChange } from '../../api/work';
+import { acknowledgeFlag, listChanges, openChange, requestReview, reviewChange, mergeChange, abandonChange } from '../../api/work';
 import WorkChanges from './WorkChanges';
 
 const change = (id, state, extra = {}) => ({
@@ -159,11 +159,29 @@ describe('WorkChanges', () => {
     expect(screen.getByLabelText('Merged commit for work/PLAT-7-2')).toHaveValue('aaaaaaa1bbbb');
   });
 
-  it('a failed load shows an empty list, not an error page', async () => {
-    listChanges.mockRejectedValue(new Error('boom'));
+  it('a failed first load shows an inline error with Retry, never an empty list', async () => {
+    listChanges.mockRejectedValueOnce(new Error('boom'));
+    listChanges.mockResolvedValue({ changes: [change(1, 'open')] });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<WorkChanges itemKey="PLAT-7" canEdit />);
-    expect(await screen.findByText('No changes.')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('boom');
+    expect(screen.queryByText('No changes.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('work/PLAT-7-1')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    warn.mockRestore();
+  });
+
+  it('a failed reload keeps the last good list', async () => {
+    listChanges.mockResolvedValueOnce({ changes: [change(1, 'open')] });
+    listChanges.mockRejectedValue(new Error('down'));
+    requestReview.mockResolvedValue({});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('work/PLAT-7-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Ask for review' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('down');
+    expect(screen.getByText('work/PLAT-7-1')).toBeInTheDocument();
     warn.mockRestore();
   });
 
@@ -269,5 +287,129 @@ describe('WorkChanges', () => {
     await screen.findByText('work/PLAT-7-2');
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Send back' })).toBeInTheDocument();
+  });
+
+  describe('code host', () => {
+    const hosted = (id, extra = {}) => change(id, 'merged', {
+      source: 'codehost', mergeKind: 'unreviewed', mergedSha: 'abcdef123456', openedByName: null, openedByKind: null,
+      externalOpenedBy: 'octocat', mergedByName: null, externalMergedBy: 'octocat', policyFlag: 'unreviewed',
+      firstCommitAt: '2026-01-01T00:00:00Z', ...extra,
+    });
+
+    it('shows the host chip, the outside author (not a link), the first commit and the flag', async () => {
+      listChanges.mockResolvedValue({ changes: [hosted(1)] });
+      render(<WorkChanges itemKey="PLAT-7" canEdit />);
+      await screen.findByText('work/PLAT-7-1');
+      const row = rowOf('work/PLAT-7-1');
+      expect(within(row).getByText('via GitHub')).toBeInTheDocument();
+      expect(row).toHaveTextContent('opened by octocat (outside the wiki)');
+      expect(row).toHaveTextContent('merged by octocat (outside the wiki)');
+      expect(row).toHaveTextContent(/first commit /);
+      expect(row.querySelectorAll('.work-outside-author')).toHaveLength(2);
+      expect(within(row).queryByRole('link')).toBeNull();
+      expect(within(row).getByText('outside policy: without review')).toBeInTheDocument();
+      expect(row).not.toHaveTextContent('someone');
+    });
+
+    it('omits the arrow when there is no base branch', async () => {
+      listChanges.mockResolvedValue({ changes: [hosted(1, { baseBranch: null })] });
+      render(<WorkChanges itemKey="PLAT-7" />);
+      await screen.findByText('work/PLAT-7-1');
+      expect(rowOf('work/PLAT-7-1')).not.toHaveTextContent('→');
+    });
+
+    it('labels a direct flag', async () => {
+      listChanges.mockResolvedValue({ changes: [hosted(1, { mergeKind: 'direct', policyFlag: 'direct' })] });
+      render(<WorkChanges itemKey="PLAT-7" />);
+      expect(await screen.findByText('outside policy: direct commit')).toBeInTheDocument();
+    });
+
+    it('acknowledges: disabled in flight, flag leaves only after the server confirms, then reloads', async () => {
+      let resolve;
+      acknowledgeFlag.mockReturnValue(new Promise((r) => { resolve = r; }));
+      listChanges.mockResolvedValueOnce({ changes: [hosted(1)] });
+      listChanges.mockResolvedValue({ changes: [hosted(1, { flagAcknowledgedByName: 'Ana Alvarez', flagAcknowledgedAt: '2026-01-02T00:00:00Z' })] });
+      const onChanged = vi.fn();
+      render(<WorkChanges itemKey="PLAT-7" canAcknowledge onChanged={onChanged} />);
+      const btn = await screen.findByRole('button', { name: /Acknowledge the flag/ });
+      fireEvent.click(btn);
+      expect(acknowledgeFlag).toHaveBeenCalledWith(1);
+      expect(btn).toBeDisabled();
+      expect(screen.getByText('outside policy: without review')).toBeInTheDocument();
+      resolve({});
+      expect(await screen.findByText('acknowledged by Ana Alvarez')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Acknowledge the flag/ })).toBeNull();
+      expect(onChanged).toHaveBeenCalled();
+    });
+
+    it('a refused acknowledgement says so in words and keeps the flag and button', async () => {
+      acknowledgeFlag.mockRejectedValue(new Error('That flag is already acknowledged.'));
+      listChanges.mockResolvedValue({ changes: [hosted(1)] });
+      render(<WorkChanges itemKey="PLAT-7" canAcknowledge />);
+      fireEvent.click(await screen.findByRole('button', { name: /Acknowledge the flag/ }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('already acknowledged');
+      expect(screen.getByRole('button', { name: /Acknowledge the flag/ })).toBeEnabled();
+      expect(screen.getByText('outside policy: without review')).toBeInTheDocument();
+    });
+
+    it('offers no acknowledge control without canAcknowledge', async () => {
+      listChanges.mockResolvedValue({ changes: [hosted(1)] });
+      render(<WorkChanges itemKey="PLAT-7" canEdit />);
+      await screen.findByText('outside policy: without review');
+      expect(screen.queryByRole('button', { name: /Acknowledge/ })).toBeNull();
+    });
+
+    it('a superseded row shows no flag, only where it was recorded again', async () => {
+      listChanges.mockResolvedValue({ changes: [hosted(1, { mergeKind: 'direct', policyFlag: 'direct', supersededBy: 5 })] });
+      render(<WorkChanges itemKey="PLAT-7" canAcknowledge />);
+      await screen.findByText('work/PLAT-7-1');
+      const row = rowOf('work/PLAT-7-1');
+      expect(row).toHaveTextContent('recorded again as change 5');
+      expect(within(row).queryByText(/outside policy/)).toBeNull();
+      expect(within(row).queryByRole('button')).toBeNull();
+    });
+
+    it('a flag that clears on its own is gone after the next load', async () => {
+      listChanges.mockResolvedValueOnce({ changes: [hosted(1)] });
+      listChanges.mockResolvedValue({ changes: [hosted(1, { policyFlag: null, mergeKind: 'reviewed' })] });
+      const { rerender } = render(<WorkChanges itemKey="PLAT-7" refreshKey={0} />);
+      await screen.findByText('outside policy: without review');
+      rerender(<WorkChanges itemKey="PLAT-7" refreshKey={1} />);
+      await waitFor(() => expect(screen.queryByText(/outside policy/)).toBeNull());
+    });
+  });
+
+  it('sends firstCommitAt as an ISO instant when given', async () => {
+    listChanges.mockResolvedValue({ changes: [] });
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('No changes.');
+    fireEvent.click(screen.getByRole('button', { name: 'Open a change' }));
+    fireEvent.change(screen.getByLabelText('Branch'), { target: { value: 'work/x' } });
+    fireEvent.change(screen.getByLabelText('First commit (optional)'), { target: { value: '2026-11-02T09:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open change' }));
+    await waitFor(() => expect(openChange).toHaveBeenCalledWith('PLAT-7',
+      { branch: 'work/x', headSha: null, reviewUrl: null, firstCommitAt: new Date('2026-11-02T09:30').toISOString() }));
+  });
+
+  it('omits firstCommitAt when blank', async () => {
+    listChanges.mockResolvedValue({ changes: [] });
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('No changes.');
+    fireEvent.click(screen.getByRole('button', { name: 'Open a change' }));
+    fireEvent.change(screen.getByLabelText('Branch'), { target: { value: 'work/x' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open change' }));
+    await waitFor(() => expect(openChange).toHaveBeenCalledWith('PLAT-7', { branch: 'work/x', headSha: null, reviewUrl: null }));
+  });
+
+  it('refuses a first commit year outside 1970-9999 without sending it', async () => {
+    listChanges.mockResolvedValue({ changes: [] });
+    render(<WorkChanges itemKey="PLAT-7" canEdit />);
+    await screen.findByText('No changes.');
+    fireEvent.click(screen.getByRole('button', { name: 'Open a change' }));
+    fireEvent.change(screen.getByLabelText('Branch'), { target: { value: 'work/x' } });
+    fireEvent.change(screen.getByLabelText('First commit (optional)'), { target: { value: '1901-01-01T00:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open change' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('between 1970 and 9999');
+    expect(openChange).not.toHaveBeenCalled();
   });
 });

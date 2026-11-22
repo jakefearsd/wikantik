@@ -50,3 +50,12 @@ export function useExpiryClock(expiry, injected) {
   }, [expiry, injected, now]);
   return injected || now;
 }
+
+/** "Nov 16 2026" for a plain date ("2026-11-16"), read as the calendar day it names (no zone shift). Empty for a bad date. */
+export function dayText(isoDate) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
+  if (!m) return '';
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} ${m[1]}`;
+}

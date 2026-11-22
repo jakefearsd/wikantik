@@ -87,8 +87,7 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     static final RowMapper< WorkEvent > EVENT_ROW = rs -> new WorkEvent(
         rs.getLong( "id" ), rs.getLong( "project_id" ), getNullableLong( rs, "item_id" ), rs.getString( "item_key" ),
-        getInstant( rs, "at" ), rs.getString( "actor" ), "agent".equals( rs.getString( "actor_kind" ) )
-            ? Actor.Kind.AGENT : Actor.Kind.HUMAN,
+        getInstant( rs, "at" ), rs.getString( "actor" ), SqlValues.actorKind( rs.getString( "actor_kind" ) ),
         getNullableLong( rs, "agent_id" ), rs.getString( "type" ), rs.getString( "from_value" ),
         rs.getString( "to_value" ), rs.getString( "note" ) );
 

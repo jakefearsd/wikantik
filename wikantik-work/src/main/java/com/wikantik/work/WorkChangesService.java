@@ -44,10 +44,12 @@ public final class WorkChangesService {
 
     private final WorkStore store;
     private final WorkScopes scopes;
+    private final java.time.Clock clock;
 
-    WorkChangesService( final WorkStore store, final WorkScopes scopes ) {
+    WorkChangesService( final WorkStore store, final WorkScopes scopes, final java.time.Clock clock ) {
         this.store = store;
         this.scopes = scopes;
+        this.clock = clock;
     }
 
     public List< Change > list( final Actor a, final String itemKey ) throws SQLException {
@@ -108,20 +110,27 @@ public final class WorkChangesService {
         if ( merged != null ) {
             scopes.decide( is.scope(), "direct", Action.OPEN_CHANGE, WorkGates.mayOpenDirect( a, WorkAutonomy.resolve( chain ) ) );
         }
+        final java.time.Instant firstCommit = ChangeInputs.firstCommitAt( d.firstCommitAt(), clock.instant() );
         final String base = d.baseBranch() == null || d.baseBranch().isBlank() ? product.defaultBranch()
             : d.baseBranch();
         final ChangeDraft clean = new ChangeDraft( ChangeInputs.branch( "branch", d.branch() ),
             ChangeInputs.branch( "baseBranch", base ), ChangeInputs.sha( "headSha", d.headSha() ),
-            ChangeInputs.url( d.reviewUrl() ), merged );
+            ChangeInputs.url( d.reviewUrl() ), merged, firstCommit == null ? null : firstCommit.toString() );
         return fenced( () -> store.changes().open( is.item(), product.id(), clean, a ) );
     }
 
     public Change update( final Actor a, final long changeId, final String headSha, final String reviewUrl )
             throws SQLException {
+        return update( a, changeId, headSha, reviewUrl, null );
+    }
+
+    /** As the four-argument form, and records an earlier first commit time (ISO-8601) when it is earlier. */
+    public Change update( final Actor a, final long changeId, final String headSha, final String reviewUrl,
+                          final String firstCommitAt ) throws SQLException {
         final ItemScope is = writable( scopeOf( a, changeId ), Action.OPEN_CHANGE );
         final String url = reviewUrl != null && reviewUrl.isBlank() ? "" : ChangeInputs.url( reviewUrl );
         return fenced( () -> store.changes().update( is.item(), changeId, ChangeInputs.sha( "headSha", headSha ),
-            url, locked -> { }, a ) );
+            url, ChangeInputs.firstCommitAt( firstCommitAt, clock.instant() ), locked -> { }, a ) );
     }
 
     public Change requestReview( final Actor a, final long changeId ) throws SQLException {
@@ -168,6 +177,15 @@ public final class WorkChangesService {
         final ItemScope is = writable( scopeOf( a, changeId ), Action.OPEN_CHANGE );
         final String clean = ChangeInputs.note( note );
         return fenced( () -> store.changes().abandon( is.item(), changeId, clean, locked -> { }, a ) );
+    }
+
+    /**
+     * A lead (or wiki admin) acknowledges a merge the code host reported outside policy. An agent is refused: the
+     * action is management. An unknown or unseen change is the same "not found"; an archived project is read-only.
+     */
+    public Change acknowledgeFlag( final Actor a, final long changeId ) throws SQLException {
+        final ItemScope is = writable( scopeOf( a, changeId ), Action.ACKNOWLEDGE_FLAG );
+        return store.notifyStores().codeHost().acknowledgeFlag( is.item(), changeId, a );
     }
 
     /** The scope of a change's item; an unknown change and one on an unseen item are the same "not found". */

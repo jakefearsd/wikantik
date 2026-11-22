@@ -64,6 +64,7 @@ public class WorkProjectResource extends WorkResourceBase {
         route( r, "DELETE", "projects/{}/members", this::removeMember );
         route( r, "GET", "projects/{}/change-counts", c -> c.tree(
             WorkChangeJson.counts( c.svc.changes().counts( c.actor, c.pathParam( 0 ) ) ) ) );
+        WorkFlowRoutes.registerProject( r );
         route( r, "GET", "projects/{}/labels", c -> c.json( c.svc.features().labelsOf( c.actor, c.pathParam( 0 ) ) ) );
         route( r, "GET", "projects/{}/sprints", c -> c.tree( WorkSprintJson.list(
             c.svc.features().sprints().list( c.actor, c.pathParam( 0 ) ) ) ) );

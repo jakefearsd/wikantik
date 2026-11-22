@@ -53,6 +53,7 @@ public final class WorkMetrics implements WorkListener {
     static final String GATES = "wikantik_work_gates_total";
     static final String NOTIFICATIONS = "wikantik_work_notifications_total";
     static final String DEPLOYMENTS = "wikantik_work_deployments_total";
+    static final String CODEHOST_EVENTS = "wikantik_work_codehost_events_total";
     private static final long DEFAULT_TTL_NANOS = 5_000_000_000L;
 
     private record Key( WorkStatus status, WorkLevel level, WorkKind kind ) {
@@ -150,6 +151,17 @@ public final class WorkMetrics implements WorkListener {
         Counter.builder( NOTIFICATIONS )
             .description( "Notifications by channel and outcome" )
             .tag( "channel", channel )
+            .tag( "outcome", outcome )
+            .register( registry )
+            .increment();
+    }
+
+    /** Counts code-host events by kind and outcome only, never by product, project or item. */
+    @Override
+    public void codeHost( final String kind, final String outcome ) {
+        Counter.builder( CODEHOST_EVENTS )
+            .description( "Code-host events by kind and outcome" )
+            .tag( "kind", kind )
             .tag( "outcome", outcome )
             .register( registry )
             .increment();

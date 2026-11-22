@@ -9,16 +9,20 @@ function reasonText(w) {
 }
 
 const needsAck = (i) => i.waiting?.reason === 'acknowledge';
+const outsidePolicy = (i) => i.waiting?.reason === 'change_outside_policy';
 
 /**
  * The "Waiting on you" lane. Each item says who handed it over (display name only; the server sends a login to admins
  * as `by`, which is never shown) and the hand-off note. `suffix(item)` adds a trailing element, e.g. the project key.
  * Items an agent closed with no person in the path form their own group, "Done without you", each with an
- * Acknowledge button when `onAcknowledge(item)` is given.
+ * Acknowledge button when `onAcknowledge(item)` is given. Items whose waiting reason is `change_outside_policy` (a
+ * merge on the code host outside the project's policy) are a third group that links to the item: the flag is
+ * acknowledged on the change itself, by a lead.
  */
 export default function WaitingLane({ items, suffix, as: Tag = 'div', onAcknowledge, error = null }) {
-  const waiting = items.filter((i) => !needsAck(i));
+  const waiting = items.filter((i) => !needsAck(i) && !outsidePolicy(i));
   const unattended = items.filter(needsAck);
+  const flagged = items.filter(outsidePolicy);
   return (
     <Tag className="work-waiting" data-testid="waiting-lane">
       {waiting.length > 0 && (
@@ -38,6 +42,20 @@ export default function WaitingLane({ items, suffix, as: Tag = 'div', onAcknowle
             })}
           </ul>
         </>
+      )}
+      {flagged.length > 0 && (
+        <div data-testid="outside-policy">
+          <strong>Merged outside policy ({flagged.length})</strong>
+          <span className="work-muted"> · merged on the code host without review, or committed directly where that is not allowed</span>
+          <ul className="work-waiting-list">
+            {flagged.map((i) => (
+              <li key={`flag-${i.id}`}>
+                <Link to={`/work/item/${i.key}`}>{i.key}</Link> {i.title}
+                {suffix?.(i)}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {unattended.length > 0 && (
         <div data-testid="done-without-you">

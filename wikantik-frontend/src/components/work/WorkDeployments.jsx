@@ -13,23 +13,39 @@ export const STATE_LABEL = {
   failed: 'failed', rolled_back: 'rolled back', rejected: 'rejected',
 };
 export const stateLabel = (s) => STATE_LABEL[s] || String(s).replace(/_/g, ' ');
-const BLANK = { version: '', environment: '', items: '' };
+const BLANK = { version: '', environment: '', items: '', remediates: '' };
+const REMEDIABLE = ['verified', 'failed', 'rolled_back'];
+const envOf = (text) => (text || '').trim().toLowerCase() || 'production';
+
+/** The loaded deployments a new one may fix: verified, failed or rolled back, in the environment the form names. */
+export function remediationTargets(deployments, environment) {
+  const env = envOf(environment);
+  return (deployments || [])
+    .filter((d) => REMEDIABLE.includes(d.state) && envOf(d.environment) === env)
+    .map((d) => ({ value: String(d.id), label: `#${d.id} ${d.version} (${stateLabel(d.state)})` }));
+}
 const who = (name, kind) => (name ? `${name}${kind === 'agent' ? ' (agent)' : ''}` : 'someone');
 
-function RequestForm({ product, onDone, onCancel }) {
+function RequestForm({ product, deployments, onDone, onCancel }) {
   const [f, setF] = useState(BLANK);
   const { run, busy, error, setError } = useAsyncAction(requestDeployment, {
     fallbackMessage: 'Could not request the deployment.',
     onSuccess: (d) => onDone(d),
   });
   const set = (name) => (e) => setF((s) => ({ ...s, [name]: e.target.value }));
+  const targets = remediationTargets(deployments, f.environment);
+  // A choice the environment no longer allows is dropped rather than sent.
+  const remediates = targets.some((t) => t.value === f.remediates) ? f.remediates : '';
 
   function submit(e) {
     e.preventDefault();
     const items = f.items.split(/[\s,]+/).map((k) => k.trim()).filter(Boolean);
     if (!f.version.trim()) { setError('Enter the version.'); return; }
     if (items.length === 0) { setError('Name the items this version ships.'); return; }
-    run({ product, version: f.version.trim(), environment: f.environment.trim() || null, items });
+    run({
+      product, version: f.version.trim(), environment: f.environment.trim() || null, items,
+      ...(remediates ? { remediates: Number(remediates) } : {}),
+    });
   }
 
   return (
@@ -40,6 +56,10 @@ function RequestForm({ product, onDone, onCancel }) {
       <input id="work-dep-env" className="work-field-input" value={f.environment} onChange={set('environment')} placeholder="production" />
       <label className="work-form-field" htmlFor="work-dep-items">Items it ships</label>
       <input id="work-dep-items" className="work-field-input" value={f.items} onChange={set('items')} placeholder="PLAT-12, PLAT-15" />
+      <label className="work-form-field" htmlFor="work-dep-remediates">Remediates</label>
+      <Select id="work-dep-remediates" value={remediates} placeholder="Nothing" options={targets}
+        onChange={(v) => setF((s) => ({ ...s, remediates: v }))} />
+      <p className="work-muted">Name the failed deployment this one fixes (a fix-forward). Only verified, failed or rolled back deployments of this environment are listed.</p>
       {error && <div className="work-form-error" role="alert">{error}</div>}
       <div className="work-actions">
         <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>Request deployment</button>
@@ -90,7 +110,7 @@ export default function WorkDeployments() {
         {!requesting && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRequesting(true)}>Request a deployment</button>}
       </div>
       {requesting && (
-        <RequestForm product={product} onCancel={() => setRequesting(false)}
+        <RequestForm product={product} deployments={deployments} onCancel={() => setRequesting(false)}
           onDone={() => { setRequesting(false); load(); }} />
       )}
       {deployments === null ? <Spinner label="Loading…" />

@@ -37,6 +37,13 @@
         "examples": [
           "production"
         ]
+      },
+      "remediates": {
+        "type": "integer",
+        "description": "The deployment this one fixes (fix-forward): an earlier deployment of the same product and environment that was verified, failed or rolled back.",
+        "examples": [
+          4
+        ]
       }
     },
     "required": [

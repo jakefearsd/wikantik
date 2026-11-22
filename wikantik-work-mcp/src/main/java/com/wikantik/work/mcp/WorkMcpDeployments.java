@@ -77,6 +77,7 @@ final class WorkMcpDeployments {
         }
         o.put( "items", items );
         o.put( "evidence", d.evidence() );
+        o.put( "remediates", d.remediatesId() );
         o.put( "may_approve", v.mayApprove() );
         o.put( "may_run", v.mayRun() );
         return o;

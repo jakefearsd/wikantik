@@ -1,0 +1,8 @@
+{
+  "zen": "Keep it logically awesome.",
+  "hook_id": 1,
+  "repository": {
+    "full_name": "octo/plat",
+    "default_branch": "main"
+  }
+}

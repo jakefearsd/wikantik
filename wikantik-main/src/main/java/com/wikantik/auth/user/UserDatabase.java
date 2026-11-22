@@ -162,6 +162,31 @@ public interface UserDatabase {
     }
 
     /**
+     * The logins of the accounts whose mail address equals {@code email} ignoring letter case (surrounding whitespace
+     * ignored), at most two: more than one means the address is ambiguous. A blank address matches nobody. This default
+     * scans {@link #findAllProfiles()}; a relational store should override it with a single query
+     * ({@code JDBCUserDatabase} does).
+     *
+     * @throws WikiSecurityException if the profiles cannot be enumerated
+     */
+    default List< String > loginsForEmailIgnoreCase( final String email ) throws WikiSecurityException {
+        final List< String > out = new ArrayList<>();
+        if ( email == null || email.isBlank() ) {
+            return out;
+        }
+        for ( final UserProfile profile : findAllProfiles() ) {
+            final String other = profile.getEmail();
+            if ( other != null && other.trim().equalsIgnoreCase( email.trim() ) ) {
+                out.add( profile.getLoginName() );
+                if ( out.size() == 2 ) {
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
      * True if an account <em>other than</em> {@code excludingLogin} has {@code loginName} as its login name, comparing
      * case-insensitively (surrounding whitespace ignored). A {@code null}/blank {@code loginName} is never taken. Pass
      * {@code excludingLogin = null} to ask about every account.

@@ -285,4 +285,16 @@ describe('attachment calls', () => {
     await work.uploadAttachment('PLAT-1', file, null);
     expect(multipartRequest.mock.lastCall[1].has('comment')).toBe(false);
   });
+
+  it('the code-host calls hit the documented routes', async () => {
+    await work.acknowledgeFlag(9);
+    expect(collabRequest.mock.lastCall[0]).toBe('/api/work/changes/9/acknowledge-flag');
+    expect(collabRequest.mock.lastCall[1].method).toBe('POST');
+    await work.enableHook('plat');
+    expect(collabRequest.mock.lastCall[0]).toBe('/api/work/products/plat/hook');
+    expect(collabRequest.mock.lastCall[1].method).toBe('POST');
+    await work.disableHook('plat');
+    expect(collabRequest.mock.lastCall[0]).toBe('/api/work/products/plat/hook');
+    expect(collabRequest.mock.lastCall[1].method).toBe('DELETE');
+  });
 });

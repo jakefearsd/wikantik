@@ -67,6 +67,8 @@ class WorkAccessArchTest {
         .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkCredentialStore" )
         .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkFindStore" )
         .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkFilterStore" )
+        .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkAttachmentStore" )
+        .orShould().dependOnClassesThat().haveFullyQualifiedName( "com.wikantik.work.WorkCodeHostStore" )
         .because( "WorkService is the only door to work data; the store and its sub-stores have no visibility check" );
 
     /**

@@ -83,6 +83,26 @@ final class ChangeInputs {
         throw new WorkValidationException( "reviewUrl", "A review link is an http or https address." );
     }
 
+    /** The time of a branch's first commit; null when none was given. Not in the future. */
+    static java.time.Instant firstCommitAt( final String raw, final java.time.Instant now ) {
+        if ( raw == null || raw.isBlank() ) {
+            return null;
+        }
+        final java.time.Instant at;
+        try {
+            at = java.time.Instant.parse( raw.trim() );
+        } catch ( final java.time.format.DateTimeParseException e ) {
+            throw new WorkValidationException( "firstCommitAt", "Give the first commit time as an ISO-8601 instant." );
+        }
+        if ( at.isAfter( now ) ) {
+            throw new WorkValidationException( "firstCommitAt", "A first commit cannot be in the future." );
+        }
+        if ( at.isBefore( CodeHostTimes.FLOOR ) ) {
+            throw new WorkValidationException( "firstCommitAt", "A first commit cannot be before 1970." );
+        }
+        return at;
+    }
+
     static String note( final String value ) {
         if ( value == null || value.isBlank() ) {
             return null;

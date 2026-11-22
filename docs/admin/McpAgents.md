@@ -282,15 +282,15 @@ Registered in `WorkMcpInitializer.assembleTools` and verified against `WorkMcpIT
 | `handoff_item` | Give the item to a queue or a person with a status and a note; ends the agent's claim | write |
 | `release_item` | Give up the agent's claim so someone else can take it | write |
 | `create_item` | Create a draft item (with an optional type and labels) for a person to refine | write |
-| `open_change` | Record a branch of work on an item; with a merged commit, record a change merged directly (needs a lead to have allowed direct commits) | write |
-| `update_change` | A change's newest commit or review link; ask for a review; abandon it | write |
+| `open_change` | Record a branch of work on an item (optionally `first_commit_at`, the time of its first commit); with a merged commit, record a change merged directly (needs a lead to have allowed direct commits) | write |
+| `update_change` | A change's newest commit, review link or `first_commit_at`; ask for a review; abandon it | write |
 | `review_change` | Approve a change at its current commit, or send it back. Never an agent that opened it or put a commit on it | write |
 | `merge_change` | Report a change merged. Only the agent whose approval stands on the current commit, and only above the supervised level | write |
-| `request_deployment` | Ask for a product version to be deployed, carrying the items it ships | write |
-| `get_deployment` | One deployment: its state, the carried items the caller can see, its evidence | read |
+| `request_deployment` | Ask for a product version to be deployed, carrying the items it ships; optionally `remediates`, the number of the earlier failed (or verified, or rolled-back) deployment of the same product and environment that this one fixes | write |
+| `get_deployment` | One deployment: its state, the carried items the caller can see, its evidence, and the deployment it remediates (if any) | read |
 | `update_deployment` | Move a deployment on: approved (only where the product lets an agent), rejected (withdraw one not yet running), running, verified (evidence required), failed, rolled back | write |
 
-`get_item` and `claim_item` also show the item's changes and its `effective` autonomy level (`supervised`, `delegated` or `autonomous`), which decides what an agent may do without a person: approve work as ready (autonomous only), merge what it reviewed and close the item (delegated and autonomous). An approval is for one commit, an agent never reviews or merges a change it opened or put a commit on, and an item cannot be done while one of its changes is open or in review.
+`get_item` and `claim_item` also show the item's changes and its `effective` autonomy level (`supervised`, `delegated` or `autonomous`), which decides what an agent may do without a person: approve work as ready (autonomous only), merge what it reviewed and close the item (delegated and autonomous). An approval is for one commit, an agent never reviews or merges a change it opened or put a commit on, and an item cannot be done while one of its changes is open or in review. A change the code host recorded (see [WikantikOperations](WikantikOperations.md) section 1.19) also shows `first_commit_at`, `source`, `review_number`, `policy_flag`, `flag_acknowledged` and `superseded_by`; people with no wiki account appear as `<name> (outside the wiki)`, and the code host's events appear with actor `GitHub` and `actorKind: system`. A pull request the code host has already merged answers `change_closed:` to an agent's merge report.
 
 Refusals come back as tool errors with a stable prefix (`denied:`, `stale:`, `not_claimable:`, `not_claimed:`, `archived:`, `open_changes:`, `not_approved:`, `not_in_review:`, `change_closed:`, `awaiting_deployment:`, `bad_transition:`, or the name of the field at fault); an unknown or hidden item is always `Not found.`
 

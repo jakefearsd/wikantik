@@ -125,7 +125,7 @@ class WriteToolsAuditTest {
         final MockWork w = new MockWork();
         final com.wikantik.work.Change open = new com.wikantik.work.Change( 5, 1, 1, "work/PLAT-1-x", "main",
             "aaaaaaa1", null, com.wikantik.work.ChangeState.OPEN, null, null, "builder", 7L, null, null, null, null,
-            null, null, Instant.EPOCH, null, null );
+            null, null, Instant.EPOCH, null, null, null, "reported", null, null, null, null, null, null, null, null );
         when( w.changes.open( any(), any(), any() ) ).thenReturn( open );
         when( w.changes.view( any(), org.mockito.ArgumentMatchers.anyLong() ) )
             .thenReturn( new com.wikantik.work.WorkChangesService.ChangeView( open, "PLAT-1", "wikantik" ) );
@@ -159,7 +159,7 @@ class WriteToolsAuditTest {
         final com.wikantik.work.WorkDeploymentsService.DeploymentView view =
             new com.wikantik.work.WorkDeploymentsService.DeploymentView( new com.wikantik.work.Deployment( 4, 1,
                 "production", "2.5.26", com.wikantik.work.DeploymentState.REQUESTED, "builder", 7L, null, null,
-                Instant.EPOCH, null, null, null, null, null, List.of() ), "wikantik", List.of(), false, true );
+                Instant.EPOCH, null, null, null, null, null, null, List.of() ), "wikantik", List.of(), false, true );
         when( w.deployments.request( any(), any() ) ).thenReturn( view );
         when( w.deployments.deployment( any(), org.mockito.ArgumentMatchers.anyLong() ) ).thenReturn( view );
         when( w.deployments.start( any(), org.mockito.ArgumentMatchers.anyLong() ) ).thenReturn( view );

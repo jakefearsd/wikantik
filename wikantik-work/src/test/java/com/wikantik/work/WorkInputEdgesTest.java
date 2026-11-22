@@ -348,7 +348,7 @@ class WorkInputEdgesTest {
 
     private static Deployment deployment( final List< Long > ids ) {
         return new Deployment( 1, 2, "production", "2.6.0", DeploymentState.REQUESTED, "mia", null, null, null,
-            Instant.now(), null, null, null, null, null, ids );
+            Instant.now(), null, null, null, null, null, null, ids );
     }
 
     // ---- the directory's defaults

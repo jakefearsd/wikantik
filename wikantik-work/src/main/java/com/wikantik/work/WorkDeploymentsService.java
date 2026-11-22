@@ -91,8 +91,11 @@ public final class WorkDeploymentsService {
         if ( items.isEmpty() ) {
             throw new WorkValidationException( "items", "A deployment carries at least one item." );
         }
+        if ( d.remediatesId() != null ) {
+            Remediation.check( seen( a, d.remediatesId() ).deployment(), product, environment );
+        }
         final Deployment requested = store.deployments().request( product, environment, version,
-            new ArrayList<>( items.values() ), a );
+            new ArrayList<>( items.values() ), d.remediatesId(), a );
         scopes.deploymentReached( DeploymentState.REQUESTED );
         return view( a, requested );
     }
@@ -268,10 +271,19 @@ public final class WorkDeploymentsService {
         final Deployment shown = new Deployment( d.id(), d.productId(), d.environment(), d.version(), d.state(),
             d.requestedBy(), d.requestedByAgentId(), d.approvedBy(), d.approvedByAgentId(), d.requestedAt(),
             d.approvedAt(), d.startedAt(), d.verifiedAt(), d.closedAt(), d.evidence(),
-            visible.stream().map( Item::id ).toList() );
+            visibleRemediates( a, d ), visible.stream().map( Item::id ).toList() );
         return new DeploymentView( shown, productOf( d ).key(), visible,
             d.state() == DeploymentState.REQUESTED && mayApprove( a, d, access ).allowed(),
             access.memberOfEvery() || a.instanceAdmin() );
+    }
+
+    /** The id of the deployment this one fixes, only when the caller may see that deployment; else null. */
+    private Long visibleRemediates( final Actor a, final Deployment d ) throws SQLException {
+        if ( d.remediatesId() == null ) {
+            return null;
+        }
+        final java.util.Optional< Deployment > target = store.deployments().deployment( d.remediatesId() );
+        return target.isPresent() && access( a, target.get() ).seesAny() ? d.remediatesId() : null;
     }
 
     private Product productOf( final Deployment d ) throws SQLException {

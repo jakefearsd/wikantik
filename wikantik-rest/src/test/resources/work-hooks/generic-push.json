@@ -1,0 +1,27 @@
+{
+  "kind": "push",
+  "repo": "octo/plat",
+  "defaultBranch": "main",
+  "branch": "PLAT-3-x",
+  "before": "1111111111111111111111111111111111111111",
+  "after": "bbbbbbb2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "at": "2026-02-01T10:00:00Z",
+  "commits": [
+    {
+      "sha": "aaaaaaa1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "message": "PLAT-3 one",
+      "at": "2026-02-01T09:00:00Z",
+      "author": {
+        "username": "ana-gh",
+        "name": "Ana A",
+        "email": "ana@example.com"
+      }
+    },
+    {
+      "sha": "bbbbbbb2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "message": "PLAT-3 two",
+      "at": "2026-02-01T10:00:00Z",
+      "distinct": false
+    }
+  ]
+}

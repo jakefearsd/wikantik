@@ -25,6 +25,13 @@
           "https://example.com/pull/7"
         ]
       },
+      "first_commit_at": {
+        "type": "string",
+        "description": "The time of the branch\u0027s first commit, ISO-8601; only moves earlier.",
+        "examples": [
+          "2026-03-01T09:30:00Z"
+        ]
+      },
       "state": {
         "type": "string",
         "description": "in_review to ask for a review, abandoned to give the change up.",

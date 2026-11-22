@@ -36,7 +36,7 @@ public class WorkChangeResource extends WorkResourceBase {
             final JsonObject b = c.body();
             if ( b != null ) {
                 c.svc.changes().update( c.actor, c.idParam( 0 ), WorkChangeJson.text( b, "headSha" ),
-                    WorkChangeJson.text( b, "reviewUrl" ) );
+                    WorkChangeJson.text( b, "reviewUrl" ), WorkChangeJson.text( b, "firstCommitAt" ) );
                 reply( c );
             }
         } );
@@ -58,6 +58,10 @@ public class WorkChangeResource extends WorkResourceBase {
                 c.svc.changes().merge( c.actor, c.idParam( 0 ), WorkChangeJson.text( b, "mergedSha" ) );
                 reply( c );
             }
+        } );
+        route( r, "POST", "changes/{}/acknowledge-flag", c -> {
+            c.svc.changes().acknowledgeFlag( c.actor, c.idParam( 0 ) );
+            reply( c );
         } );
         route( r, "POST", "changes/{}/abandon", c -> {
             final JsonObject b = c.optionalBody();

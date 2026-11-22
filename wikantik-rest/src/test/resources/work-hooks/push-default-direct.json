@@ -1,0 +1,26 @@
+{
+  "ref": "refs/heads/main",
+  "before": "1111111111111111111111111111111111111111",
+  "after": "aaaaaaa1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "repository": {
+    "full_name": "octo/plat",
+    "default_branch": "main"
+  },
+  "commits": [
+    {
+      "id": "aaaaaaa1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "message": "PLAT-2 hotfix",
+      "timestamp": "2026-01-06T12:00:00Z",
+      "distinct": true,
+      "author": {
+        "name": "Ana A",
+        "email": "ana@example.com",
+        "username": "ana-gh"
+      }
+    }
+  ],
+  "head_commit": {
+    "id": "aaaaaaa1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "timestamp": "2026-01-06T12:00:00Z"
+  }
+}

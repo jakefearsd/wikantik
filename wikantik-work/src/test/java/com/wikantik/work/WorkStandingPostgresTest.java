@@ -70,6 +70,15 @@ class WorkStandingPostgresTest {
         return Actor.human( "ana", Set.of( groups ), false );
     }
 
+    @org.junit.jupiter.api.Test
+    void aSystemActorHasNoStanding() throws SQLException {
+        member( p1, "codehost:github", "user", WorkRole.LEAD );
+        final Actor system = Actor.system( "github" );
+        assertEquals( Optional.empty(), standing.roleIn( p1, system ) );
+        assertEquals( List.of(), standing.visibleProjects( system ) );
+        assertEquals( false, standing.seesProject( p1, system ) );
+    }
+
     private Optional< WorkRole > role( final Actor actor ) throws SQLException {
         return standing.roleIn( p1, actor );
     }

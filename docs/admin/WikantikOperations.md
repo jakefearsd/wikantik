@@ -691,6 +691,39 @@ Items and comments take file attachments (`/api/work/items/{key}/attachments`; t
 - **Memory and temp space.** An upload holds up to the per-file limit in JVM heap (a few copies while it is read and stored), and the container spools a multipart request to Tomcat's temp directory up to the 100 MB `<multipart-config>` ceiling on `WorkItemResource` in `web.xml`, so keep `maxBytes` well below it. A download holds the whole file in heap. Both are bounded by `maxBytes` and the per-credential rate limit.
 - **Serving.** Only PNG, JPEG, GIF and WebP are shown inline; everything else is forced to download. See [Security](Security.md#work-attachments).
 
+### 1.19 Work code-host hook
+
+Lets a product's code host (GitHub, or anything that can post the generic format) tell the wiki about pushes, pull requests and approvals, so change records fill themselves in. Receive only: the wiki never calls the code host and holds no token for it. Schema V089 (`work_product_hook`, `work_codehost_*`, columns on `work_change`); apply it with `bin/db/migrate.sh` as usual.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `wikantik.work.codehost.enabled` | `false` | Master switch for the inbound endpoint. Off, `/api/work/hooks/*` answers the same 404 as an unknown hook. `/api/capabilities` reports `workCodeHost` (work and this flag). |
+| `wikantik.work.codehost.maxBodyBytes` | `1048576` | Largest body accepted (clamped to at least 1024), checked before the signature. A larger delivery is 413. |
+
+**Turn it on.** 1. Set `wikantik.work.enabled` and `wikantik.work.codehost.enabled` to `true` and restart. 2. As a **wiki admin**, open `/work/products`, choose **Turn on** next to the product's code-host line (or `POST /api/work/products/{key}/hook`). The dialog (or the response) gives the **URL** and the **secret** once: copy both now, they are not shown again. Only a wiki admin can do this; a project lead cannot. 3. In GitHub, add a webhook to the repository: **Payload URL** `https://<wiki host>/api/work/hooks/<product key>/github`, **Content type `application/json`** (a form-encoded hook shows red at GitHub with 415), **Secret** the secret, and under individual events choose **Pushes**, **Pull requests** and **Pull request reviews**. GitHub sends a `ping` straight away: the wiki answers 204 and the product's line shows it as the last delivery. If the product has a repository URL (`repoUrl`) it should end in `owner/name`: a delivery for another repository is ignored (a product with none accepts any). Items need to target the product, and the item key goes in the branch name, pull request title or commit message.
+
+**Rotate and turn off.** **New secret** (or `POST` again) issues a new secret and the old one stops working at once; update the hook at GitHub. **Turn off** (`DELETE`) refuses every delivery with the identical 404 until it is turned on again. Both are audited (`work.product.hook.*`) and appear in the product's history, without the secret.
+
+**Read the signals.** One INFO line per delivery from `com.wikantik.rest.WorkHookResource`: `work codehost delivery product=<key> format=<f> event=<e> delivery=<id> outcome=<accepted|rejected|ignored> applied=<n> duplicate=<n> ignored=<n>`; never a body, signature or secret. The counter `wikantik_work_codehost_events_total{kind,outcome}` (outcome `rejected`, kind `delivery`, counts refused deliveries). Status codes at the code host: **204** accepted (also a ping, an event that does nothing, and a body that is not an event object); **404** the signature, secret, URL or switch is wrong (deliberately never more specific); **413** the body is over `maxBodyBytes` (a very large push can be: raise the key, the body is held in memory before it is checked); **415** a verified delivery was form-encoded (set the content type to JSON); **503** work or the database was unavailable (redeliver from GitHub's Recent Deliveries: re-applying a delivery changes nothing).
+
+**The generic format** (`/api/work/hooks/<product>/generic`, header `X-Wikantik-Signature: sha256=<hex HMAC-SHA256 of the exact body>`) takes one event object or an array of up to 100. Fields: `kind` (`push`, `review_opened`, `review_reopened`, `review_ready`, `review_updated`, `review_approved`, `review_merged`, `review_closed`), `branch`, `at` (**required**, ISO-8601 with an offset: a delivery holding any event without a usable `at` is rejected whole, because arrival time is never used as event time), and as the kind needs: `repo` (`owner/name`), `defaultBranch`, `baseBranch`, `before`, `after`, `mergedSha`, `actor` (a username string or `{username,name,email}`), `commits` (`[{sha, message, at, distinct, author}]`) and `review` (`{number, url, title, headSha, draft, author}`).
+
+```bash
+SECRET=...    # the one shown when the hook was turned on
+BODY='{"kind":"push","repo":"acme/app","branch":"main","after":"<40 hex>","at":"2026-01-10T10:00:00Z","commits":[{"sha":"<40 hex>","message":"PLAT-12 fix","author":{"name":"Ana","email":"ana@example.com"}}]}'
+SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/^.* //')
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST "https://wiki.example.com/api/work/hooks/plat/generic" \
+  -H 'Content-Type: application/json' -H "X-Wikantik-Signature: sha256=$SIG" --data-binary "$BODY"
+```
+
+**What it does and does not do.** The route is unauthenticated by design, protected by the signature and the per-IP rate limit (see [Security](Security.md#work-code-host-hook)). A delivery fills in or updates change records of items that target that product: one pull request is one change; lifecycle follows the code host's own timestamps; a merge is terminal; it **never changes an item's status, assignee or sprint**. People are matched by profile email (noreply addresses never), outside authors are named as they appear on the host. A merge nobody else approved, or a direct commit where direct commits are not allowed, is flagged for a lead to acknowledge (user guide: [WorkManagement](../user/WorkManagement.md)); a late approval can clear an unacknowledged flag.
+
+**Known limits.** Number reuse (the same pull request number on one item after a merge) is not revived. A dismissed review is not seen. A force-push back to an older commit is ignored (the commit keeps its first report time). A commit first pushed to a branch with no item key is never counted as direct. At most 200 head reports and 200 lifecycle events are kept per change. Order guarantees exclude the item's own status (a closed item ignores events that would open a change), a push stamped after a merge arriving before it, and a close or reopen stamped after a merge arriving before it. A flag raised before a late approval clears stays in the history and leads already told are not retracted. Deliveries of one product are applied one at a time.
+
+### 1.20 Work flow and delivery figures
+
+Nothing to configure and nothing to do beforehand: the figures on a project's Flow tab and a product's delivery page are computed from the work tables on each request; no table, cache or Prometheus series carries them (`WorkFlowNoStoreRuleTest` keeps it so). Migration V090 adds `work_deployment.remediates_id` and three partial indexes and is applied by `bin/db/migrate.sh` as usual. How to read each figure: [WorkManagement](../user/WorkManagement.md) section 11.
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

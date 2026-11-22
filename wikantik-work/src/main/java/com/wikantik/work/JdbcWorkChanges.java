@@ -37,15 +37,17 @@ import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 /** The PostgreSQL {@link WorkChangeStore}. */
 final class JdbcWorkChanges implements WorkChangeStore {
 
-    private static final String COLUMNS = "id, item_id, product_id, branch, base_branch, head_sha, review_url, state, "
+    static final String COLUMNS = "id, item_id, product_id, branch, base_branch, head_sha, review_url, state, "
         + "merged_sha, merge_kind, opened_by, opened_by_agent_id, reviewed_by, reviewed_by_agent_id, "
-        + "reviewed_head_sha, reviewed_at, merged_by, merged_by_agent_id, opened_at, closed_at, head_agent_ids";
+        + "reviewed_head_sha, reviewed_at, merged_by, merged_by_agent_id, opened_at, closed_at, head_agent_ids, "
+        + "first_commit_at, source, external_opened_by, external_reviewed_by, external_merged_by, review_number, "
+        + "policy_flag, flag_acknowledged_by, flag_acknowledged_at, superseded_by";
 
-    private static final String SELECT = "SELECT " + COLUMNS + " FROM work_change";
+    static final String SELECT = "SELECT " + COLUMNS + " FROM work_change";
 
     private static final String UNIQUE_VIOLATION = "23505";
 
-    private static final RowMapper< Change > ROW = rs -> new Change( rs.getLong( "id" ), rs.getLong( "item_id" ),
+    static final RowMapper< Change > ROW = rs -> new Change( rs.getLong( "id" ), rs.getLong( "item_id" ),
         rs.getLong( "product_id" ), rs.getString( "branch" ), rs.getString( "base_branch" ),
         rs.getString( "head_sha" ), rs.getString( "review_url" ), ChangeState.fromWire( rs.getString( "state" ) ),
         rs.getString( "merged_sha" ),
@@ -54,7 +56,11 @@ final class JdbcWorkChanges implements WorkChangeStore {
         rs.getString( "reviewed_by" ), NullableColumns.getNullableLong( rs, "reviewed_by_agent_id" ),
         rs.getString( "reviewed_head_sha" ), getInstant( rs, "reviewed_at" ), rs.getString( "merged_by" ),
         NullableColumns.getNullableLong( rs, "merged_by_agent_id" ), getInstant( rs, "opened_at" ), getInstant( rs, "closed_at" ),
-        agentIds( rs.getArray( "head_agent_ids" ) ) );
+        agentIds( rs.getArray( "head_agent_ids" ) ), getInstant( rs, "first_commit_at" ), rs.getString( "source" ),
+        rs.getString( "external_opened_by" ), rs.getString( "external_reviewed_by" ),
+        rs.getString( "external_merged_by" ), rs.getString( "review_number" ), rs.getString( "policy_flag" ),
+        rs.getString( "flag_acknowledged_by" ), getInstant( rs, "flag_acknowledged_at" ),
+        NullableColumns.getNullableLong( rs, "superseded_by" ) );
 
     private static List< Long > agentIds( final java.sql.Array array ) throws SQLException {
         if ( array == null ) {
@@ -91,7 +97,13 @@ final class JdbcWorkChanges implements WorkChangeStore {
         JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         try {
             return jdbc.inTransaction( conn -> {
+                // the code host's lock first (lock order: JdbcCodeHostRows), so a delivery cannot open a change on
+                // this branch between the check below and the insert
+                JdbcCodeHostRows.lockProduct( jdbc, conn, productId );
                 requireOpenItem( conn, item, productId, by );
+                if ( d.mergedSha() == null && liveOnBranch( conn, item.id(), d.branch() ) ) {
+                    throw new WorkValidationException( "branch", "This item already has an open change on that branch." );
+                }
                 final long id = insert( conn, item, productId, d, by );
                 if ( d.mergedSha() == null ) {
                     event( conn, item, id, by, WorkEvent.CHANGE_OPENED, d.branch(), d.headSha() );
@@ -106,6 +118,18 @@ final class JdbcWorkChanges implements WorkChangeStore {
             }
             throw e;
         }
+    }
+
+    /**
+     * Whether a live change of the item is on the branch, whatever pull request the code host linked it to: an agent
+     * or a person opens at most one change per branch (the unique index now covers only unlinked changes).
+     */
+    private boolean liveOnBranch( final Connection conn, final long itemId, final String branch ) throws SQLException {
+        return jdbc.queryOne( conn, "SELECT 1 FROM work_change WHERE item_id = ? AND branch = ? "
+            + "AND state IN ('open','in_review') LIMIT 1", ps -> {
+                ps.setLong( 1, itemId );
+                ps.setString( 2, branch );
+            }, rs -> Boolean.TRUE ).isPresent();
     }
 
     /** The item as its row is under a share lock: what a change write must not decide from an earlier read. */
@@ -149,9 +173,9 @@ final class JdbcWorkChanges implements WorkChangeStore {
         return jdbc.queryOne( conn, """
             INSERT INTO work_change (item_id, product_id, branch, base_branch, head_sha, review_url, state,
                 merged_sha, merge_kind, opened_by, opened_by_agent_id, merged_by, merged_by_agent_id, closed_at,
-                head_agent_ids)
+                head_agent_ids, first_commit_at)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, CASE WHEN ? THEN NOW() ELSE NULL END,
-                CASE WHEN ?::bigint IS NULL THEN '{}'::bigint[] ELSE ARRAY[ ?::bigint ] END) RETURNING id
+                CASE WHEN ?::bigint IS NULL THEN '{}'::bigint[] ELSE ARRAY[ ?::bigint ] END, ?) RETURNING id
             """, ps -> {
                 ps.setLong( 1, item.id() );
                 ps.setLong( 2, productId );
@@ -171,6 +195,8 @@ final class JdbcWorkChanges implements WorkChangeStore {
                 final Long author = direct || d.headSha() != null ? by.agentId() : null;
                 setNullableLong( ps, 15, author );
                 setNullableLong( ps, 16, author );
+                ps.setTimestamp( 17, d.firstCommitAt() == null ? null
+                    : java.sql.Timestamp.from( java.time.Instant.parse( d.firstCommitAt() ) ) );
             }, rs -> rs.getLong( 1 ) )
             .orElseThrow( () -> new SQLException( "INSERT work_change returned no row" ) );
     }
@@ -187,14 +213,24 @@ final class JdbcWorkChanges implements WorkChangeStore {
 
     @Override
     public Change update( final Item item, final long id, final String headSha, final String reviewUrl,
-                          final Check check, final Actor by ) throws SQLException {
+                          final java.time.Instant firstCommitAt, final Check check, final Actor by )
+            throws SQLException {
         return write( item, id, by, ( conn, locked ) -> {
             check.on( locked );
+            final java.time.Instant firstCommit = earlierFirstCommit( locked, firstCommitAt );
             final String head = headSha == null ? locked.headSha() : headSha;
             final boolean moved = !Objects.equals( head, locked.headSha() );
             final String url = reviewUrl == null ? locked.reviewUrl() : reviewUrl.isEmpty() ? null : reviewUrl;
+            final boolean firstMoved = !Objects.equals( firstCommit, locked.firstCommitAt() );
             if ( !moved && Objects.equals( url, locked.reviewUrl() ) ) {
+                if ( firstMoved ) {
+                    setFirstCommit( conn, id, firstCommit );
+                    event( conn, item, id, by, WorkEvent.CHANGE_UPDATED, null, "first commit" );
+                }
                 return;
+            }
+            if ( firstMoved ) {
+                setFirstCommit( conn, id, firstCommit );
             }
             jdbc.update( conn, """
                 UPDATE work_change SET head_sha = ?, review_url = ?,
@@ -220,6 +256,25 @@ final class JdbcWorkChanges implements WorkChangeStore {
                     ps.setLong( 10, id );
                 } );
             event( conn, item, id, by, WorkEvent.CHANGE_UPDATED, head, null );
+        } );
+    }
+
+    /** The recorded first commit once {@code reported} is considered: it only ever moves earlier. */
+    private static java.time.Instant earlierFirstCommit( final Change locked, final java.time.Instant reported ) {
+        if ( reported == null ) {
+            return locked.firstCommitAt();
+        }
+        final java.time.Instant best = locked.firstCommitAt() == null || reported.isBefore( locked.firstCommitAt() )
+            ? reported : locked.firstCommitAt();
+        // never after the change opened: a commit reported later than that was not its first
+        return locked.openedAt() != null && best.isAfter( locked.openedAt() ) ? locked.openedAt() : best;
+    }
+
+    private void setFirstCommit( final Connection conn, final long id, final java.time.Instant at )
+            throws SQLException {
+        jdbc.update( conn, "UPDATE work_change SET first_commit_at = ? WHERE id = ?", ps -> {
+            ps.setTimestamp( 1, java.sql.Timestamp.from( at ) );
+            ps.setLong( 2, id );
         } );
     }
 

@@ -273,6 +273,24 @@ public class JDBCUserDatabaseTest {
     }
 
     @Test
+    public void loginsForEmailIgnoresCase() throws Exception {
+        // janne@ecyrd.com is seeded in setUp
+        Assertions.assertEquals( java.util.List.of( "janne" ), m_db.loginsForEmailIgnoreCase( "Janne@ECYRD.com" ) );
+        Assertions.assertEquals( java.util.List.of( "janne" ), m_db.loginsForEmailIgnoreCase( "  janne@ecyrd.com " ) );
+        Assertions.assertEquals( java.util.List.of(), m_db.loginsForEmailIgnoreCase( "nobody@ecyrd.com" ) );
+        Assertions.assertEquals( java.util.List.of(), m_db.loginsForEmailIgnoreCase( " " ) );
+        Assertions.assertEquals( java.util.List.of(), m_db.loginsForEmailIgnoreCase( null ) );
+        final UserProfile twin = m_db.newProfile();
+        twin.setLoginName( "janne-email-twin" );
+        twin.setFullname( "Janne Email Twin" );
+        twin.setEmail( "JANNE@ecyrd.com" );
+        twin.setPassword( Users.ALICE_PASS );
+        m_db.save( twin );
+        Assertions.assertEquals( java.util.List.of( "janne", "janne-email-twin" ),
+            m_db.loginsForEmailIgnoreCase( "janne@ecyrd.com" ), "two accounts sharing an address are both reported" );
+    }
+
+    @Test
     public void testIsLoginNameTakenIgnoreCase() throws Exception {
         // logins "janne" and "user" are seeded in setUp
         Assertions.assertTrue( m_db.isLoginNameTakenIgnoreCase( "janne", null ) );

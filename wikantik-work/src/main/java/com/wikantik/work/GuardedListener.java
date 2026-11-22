@@ -45,6 +45,15 @@ final class GuardedListener implements WorkListener {
     }
 
     @Override
+    public void codeHost( final String kind, final String outcome ) {
+        try {
+            delegate.codeHost( kind, outcome );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Work listener failed on code-host event {} {}: {}", kind, outcome, e.toString(), e );
+        }
+    }
+
+    @Override
     public void gate( final String gate, final boolean allowed ) {
         try {
             delegate.gate( gate, allowed );

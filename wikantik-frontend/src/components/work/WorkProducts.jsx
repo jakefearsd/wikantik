@@ -4,11 +4,13 @@ import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { archiveProduct, createProduct, listProducts, productHistory, updateProduct } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
+import { useCapabilities } from '../../hooks/useCapabilities';
 import useAsyncAction from '../../hooks/useAsyncAction';
 import { useToast } from '../../hooks/useToast';
 import { formatRelative } from '../../utils/datetime';
 import WorkConfirm from './WorkConfirm';
 import WorkLoadError from './WorkLoadError';
+import WorkProductHook from './WorkProductHook';
 
 const KEY_PATTERN = /^[a-z][a-z0-9-]{1,39}$/;
 const KEY_MESSAGE = 'Key must start with a lowercase letter and use only lowercase letters, digits and hyphens (2 to 40 characters).';
@@ -126,6 +128,8 @@ function ProductForm({ product, onDone, onCancel }) {
 export default function WorkProducts() {
   const { user, loading: authLoading } = useAuth();
   const toast = useToast();
+  const { capabilities } = useCapabilities();
+  const hooksOn = !!capabilities?.workCodeHost;
   const isAdmin = !!user?.roles?.includes('Admin');
   const [state, setState] = useState({ products: null, error: null });
   const [mode, setMode] = useState(null); // null | 'new' | product key being edited
@@ -138,7 +142,8 @@ export default function WorkProducts() {
       .then((products) => { if (mine === seq.current) setState({ products: products || [], error: null }); })
       .catch((error) => {
         console.warn('WorkProducts: could not load products', error);
-        if (mine === seq.current) setState({ products: null, error });
+        // A failed reload keeps the last good list.
+        if (mine === seq.current) setState((s) => ({ products: s.products, error }));
       });
   }, []);
 
@@ -152,7 +157,7 @@ export default function WorkProducts() {
   // Until /api/auth/user resolves the user is null: deciding now would bounce a signed-in admin.
   if (authLoading) return <Spinner label="Loading…" />;
   if (!isAdmin) return <Navigate to="/work" replace />;
-  if (state.error) return <WorkLoadError error={state.error} fallback="Could not load the products." onRetry={load} />;
+  if (state.error && !state.products) return <WorkLoadError error={state.error} fallback="Could not load the products." onRetry={load} />;
   if (!state.products) return <Spinner label="Loading products…" />;
 
   const done = () => { setMode(null); load(); };
@@ -161,6 +166,11 @@ export default function WorkProducts() {
   return (
     <div className="work-products">
       <h1 className="work-heading"><Link to="/work">Work</Link> <span aria-hidden="true">▸</span> Products</h1>
+      {state.error && (
+        <div className="work-form-error" role="alert">
+          {state.error.message || 'Could not refresh the products.'} <button type="button" className="btn btn-sm" onClick={load}>Retry</button>
+        </div>
+      )}
       <p className="work-muted">A product is something you build and ship: a repository and its default branch. Items target a product, and deployments ship its versions.</p>
       {mode === 'new'
         ? <ProductForm onDone={done} onCancel={() => setMode(null)} />
@@ -184,6 +194,7 @@ export default function WorkProducts() {
                         <div className="work-muted">
                           Agents may do at most: {cap(p.autonomyCeiling || 'delegated')}. Deployments are approved by {p.deployGate === 'agent' ? 'an agent or a person' : 'a person'}.
                         </div>
+                        {hooksOn && p.hook && <WorkProductHook productKey={p.key} hook={p.hook} onChanged={load} />}
                       </div>
                       {archiving === p.key
                         ? (
@@ -194,6 +205,7 @@ export default function WorkProducts() {
                         )
                         : (
                           <div className="work-actions">
+                            <Link className="btn btn-sm" to={`/work/products/${p.key}/dora`} aria-label={`Delivery figures for ${p.key}`}>Delivery figures</Link>
                             <button type="button" className="btn btn-sm" aria-label={`Edit ${p.key}`} onClick={() => setMode(p.key)}>Edit</button>
                             <button type="button" className="btn btn-sm btn-ghost" aria-label={`Archive ${p.key}`} onClick={() => { resetArchiveError(); setArchiving(p.key); }}>Archive</button>
                           </div>

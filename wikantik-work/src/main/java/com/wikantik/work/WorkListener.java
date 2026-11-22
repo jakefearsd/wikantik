@@ -34,6 +34,10 @@ public interface WorkListener {
     default void notified( final String channel, final String outcome ) {
     }
 
+    /** A code-host event of {@code kind} (the lower-case event kind) ended as {@code outcome} (applied, duplicate, ignored). */
+    default void codeHost( final String kind, final String outcome ) {
+    }
+
     /** An agent met a gate ({@code approve}, {@code close}, {@code review}, {@code merge}, {@code direct}). */
     default void gate( final String gate, final boolean allowed ) {
     }

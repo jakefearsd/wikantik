@@ -30,8 +30,14 @@ import java.util.Optional;
 public interface WorkDeploymentStore {
 
     /** Records the request: the deployment, the items it carries, its first history row and an event per item. */
-    Deployment request( Product product, String environment, String version, List< Item > items, Actor by )
-        throws SQLException;
+    Deployment request( Product product, String environment, String version, List< Item > items,
+                        Long remediatesId, Actor by ) throws SQLException;
+
+    /** A request that remediates nothing. */
+    default Deployment request( final Product product, final String environment, final String version,
+                                final List< Item > items, final Actor by ) throws SQLException {
+        return request( product, environment, version, items, null, by );
+    }
 
     Optional< Deployment > deployment( long id ) throws SQLException;
 

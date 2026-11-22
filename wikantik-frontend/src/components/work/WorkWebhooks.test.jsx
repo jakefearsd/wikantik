@@ -34,7 +34,7 @@ describe('WorkWebhooks', () => {
     await waitFor(() => expect(addWebhook).toHaveBeenCalledWith('PLAT',
       { url: 'https://hooks.example.com/x', format: 'generic', eventTypes: ['status'] }));
     expect(await screen.findByText('s3cr3t-value')).toBeInTheDocument();
-    expect(screen.getByText(/Copy this secret now. It is not shown again./)).toBeInTheDocument();
+    expect(screen.getByText(/Copy this secret now. It cannot be shown again./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.queryByText('s3cr3t-value')).toBeNull();
     expect(document.body.textContent).not.toContain('s3cr3t-value');

@@ -44,6 +44,7 @@ wiki pages and is not an add-on glued to them.
 - Release planning (target versions, milestones) ahead of a deployment.
 - Push notifications to agents. (Email, inbox and webhooks for people: see section 3 of `2026-11-21-work-team-features-design.md`.)
 - Enforcing merges on the code host. See Constraints.
+- Status (2026-11-22): receive-only code-host integration (small-teams part 5) and flow and DORA figures computed at read time (part 6) now exist. Issue sync, enforcement on the code host and taking deployments from the code host remain non-goals.
 
 ## Anti-goals
 

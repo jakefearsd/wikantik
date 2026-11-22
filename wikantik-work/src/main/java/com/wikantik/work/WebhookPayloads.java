@@ -110,7 +110,7 @@ final class WebhookPayloads {
     }
 
     private static String actor( final WorkEvent e, final Function< String, String > displayName ) {
-        return e.actorKind() == Actor.Kind.AGENT ? e.actor() : displayName.apply( e.actor() );
+        return Actor.shown( e.actorKind(), e.actor(), displayName );
     }
 
     private static String url( final String baseUrl, final String key ) {

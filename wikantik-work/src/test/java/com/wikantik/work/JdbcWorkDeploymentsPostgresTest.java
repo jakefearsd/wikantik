@@ -171,6 +171,15 @@ class JdbcWorkDeploymentsPostgresTest {
     }
 
     @Test
+    void aRequestRecordsWhatItRemediates() throws SQLException {
+        final Deployment first = verified( requested() );
+        final Deployment fix = deployments.request( product, "production", "2.5.27", List.of( one ), first.id(), alice );
+        assertEquals( first.id(), deployments.deployment( fix.id() ).orElseThrow().remediatesId() );
+        assertEquals( first.id(), fix.remediatesId() );
+        assertNull( deployments.deployment( first.id() ).orElseThrow().remediatesId() );
+    }
+
+    @Test
     void anUnknownDeploymentIsEmpty() throws SQLException {
         assertTrue( deployments.deployment( 999_999 ).isEmpty() );
         assertTrue( deployments.history( 999_999 ).isEmpty() );
@@ -193,6 +202,16 @@ class JdbcWorkDeploymentsPostgresTest {
         assertEquals( 0, count( "SELECT count(*) FROM work_deployment_item" ) );
         assertEquals( 0, count( "SELECT count(*) FROM work_deployment_event" ) );
         assertEquals( 0, count( "SELECT count(*) FROM work_event WHERE type = 'deployment_requested'" ) );
+    }
+
+    @Test
+    void aFailedRequestWithARemediationLeavesNothing() throws SQLException {
+        final Deployment first = verified( requested() );
+        final long before = count( "SELECT count(*) FROM work_deployment" );
+        assertThrows( RuntimeException.class, () -> failingOn( 5 ).request( product, "production", "2.5.27",
+            List.of( one, two ), first.id(), alice ) );
+        assertEquals( before, count( "SELECT count(*) FROM work_deployment" ) );
+        assertEquals( 0, count( "SELECT count(*) FROM work_deployment WHERE remediates_id IS NOT NULL" ) );
     }
 
     @Test

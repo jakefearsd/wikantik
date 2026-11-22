@@ -247,3 +247,17 @@
 .work-attachment-thumb { width: 2.5rem; height: 2.5rem; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); }
 .work-attachment-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); margin-top: var(--space-sm); }
 .work-attachment-uploads { flex-basis: 100%; }
+.work-outside-author { font-style: italic; border-bottom: 1px dotted var(--border-strong); }
+.work-chip-warn { border: 1px solid var(--danger); color: var(--danger); background: transparent; }
+.work-chart-figure { margin: var(--space-md) 0; }
+.work-chart { display: block; }
+.work-chart text { font-family: inherit; }
+.work-stat { display: flex; flex-direction: column; gap: 0.15rem; padding: var(--space-sm) var(--space-md); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 8rem; }
+.work-stat-label { font-size: 0.8rem; color: var(--text-secondary); }
+.work-stat-value { font-size: 1.75rem; font-weight: 600; color: var(--text); line-height: 1.2; }
+.work-stat-note { font-size: 0.75rem; color: var(--text-muted); }
+.work-figure { margin: var(--space-lg) 0; }
+.work-figure-def { margin: var(--space-xs) 0 var(--space-sm); color: var(--text-secondary); }
+.work-stat-row { display: flex; flex-wrap: wrap; gap: var(--space-md); margin: var(--space-sm) 0; }
+.work-flow-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-sm); margin: var(--space-sm) 0; }
+.work-flow-filters label { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.8rem; color: var(--text-secondary); }

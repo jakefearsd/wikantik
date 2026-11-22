@@ -69,7 +69,7 @@ class WorkDeploymentResourceTest {
     /** Requested by agent 7, approved by bob, carrying the one item the caller can see. */
     private static DeploymentView view( final DeploymentState state, final String evidence ) {
         final Deployment d = new Deployment( 4, 9, "production", "2.5.26", state, "codex", 7L, "bob", null, T0, T0,
-            null, null, null, evidence, List.of( 1L ) );
+            null, null, null, evidence, null, List.of( 1L ) );
         return new DeploymentView( d, "wikantik", List.of( WorkHttp.item( "PLAT-1", null, 1 ) ), true, false );
     }
 
@@ -87,6 +87,45 @@ class WorkDeploymentResourceTest {
         final ArgumentCaptor< DeploymentDraft > d = ArgumentCaptor.forClass( DeploymentDraft.class );
         Mockito.verify( deployments ).request( eq( ALICE ), d.capture() );
         assertEquals( new DeploymentDraft( "wikantik", "staging", "2.5.26", List.of( "PLAT-1", "PLAT-2" ) ), d.getValue() );
+    }
+
+    @Test
+    void passesRemediatesToTheDraft() throws Exception {
+        Mockito.when( deployments.request( eq( ALICE ), any() ) ).thenReturn( view( DeploymentState.REQUESTED, null ) );
+        final WorkHttp.Result r = call( "POST", null, Map.of(),
+            "{\"product\":\"wikantik\",\"version\":\"2.5.27\",\"items\":[\"PLAT-1\"],\"remediates\":4}" );
+        assertEquals( 201, r.status() );
+        final ArgumentCaptor< DeploymentDraft > d = ArgumentCaptor.forClass( DeploymentDraft.class );
+        Mockito.verify( deployments ).request( eq( ALICE ), d.capture() );
+        assertEquals( 4L, d.getValue().remediatesId() );
+    }
+
+    @Test
+    void aNonNumericRemediatesIs400() throws Exception {
+        for ( final String bad : List.of( "\"four\"", "4.5", "-1", "0", "true", "[4]", "99999999999999999999" ) ) {
+            final WorkHttp.Result r = call( "POST", null, Map.of(),
+                "{\"product\":\"wikantik\",\"version\":\"1\",\"items\":[\"PLAT-1\"],\"remediates\":" + bad + "}" );
+            assertEquals( 400, r.status(), bad );
+            assertEquals( "remediates", r.json().getAsJsonObject().get( "field" ).getAsString(), bad );
+            assertEquals( "remediates must be a deployment number.",
+                r.json().getAsJsonObject().get( "message" ).getAsString(), bad );
+        }
+        Mockito.verifyNoInteractions( deployments );
+    }
+
+    @Test
+    void theDeploymentCarriesWhatItRemediates() throws Exception {
+        final Deployment base = view( DeploymentState.VERIFIED, "ok" ).deployment();
+        final Deployment fix = new Deployment( base.id(), base.productId(), base.environment(), base.version(),
+            base.state(), base.requestedBy(), base.requestedByAgentId(), base.approvedBy(), base.approvedByAgentId(),
+            base.requestedAt(), base.approvedAt(), base.startedAt(), base.verifiedAt(), base.closedAt(), base.evidence(),
+            3L, base.itemIds() );
+        Mockito.when( deployments.deployment( ALICE, 4L ) ).thenReturn( new DeploymentView( fix, "wikantik",
+            List.of( WorkHttp.item( "PLAT-1", null, 1 ) ), true, false ) );
+        assertEquals( 3, call( "GET", "/4", Map.of(), null ).json().getAsJsonObject().get( "remediatesId" ).getAsLong() );
+        Mockito.when( deployments.deployment( ALICE, 5L ) ).thenReturn( view( DeploymentState.VERIFIED, "ok" ) );
+        final JsonObject none = call( "GET", "/5", Map.of(), null ).json().getAsJsonObject();
+        assertTrue( !none.has( "remediatesId" ) || none.get( "remediatesId" ).isJsonNull(), "null when it remediates nothing" );
     }
 
     @Test

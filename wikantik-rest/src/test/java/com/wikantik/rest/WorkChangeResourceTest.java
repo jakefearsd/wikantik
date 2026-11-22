@@ -81,12 +81,12 @@ class WorkChangeResourceTest {
     private static Change merged( final long id ) {
         return new Change( id, 3, 9, "work/PLAT-1-x", "main", "aaaaaaa1", "https://example.test/pr/1",
             ChangeState.MERGED, "aaaaaaa1", MergeKind.REVIEWED, "codex", 7L, "bob", null, "aaaaaaa1", T0, "bob", null,
-            T0, T0, null );
+            T0, T0, null, null, "reported", null, null, null, null, null, null, null, null );
     }
 
     private static Change open( final long id ) {
         return new Change( id, 3, 9, "work/PLAT-1-x", "main", "aaaaaaa1", null, ChangeState.OPEN, null, null,
-            "alice", null, null, null, null, null, null, null, T0, null, null );
+            "alice", null, null, null, null, null, null, null, T0, null, null, null, "reported", null, null, null, null, null, null, null, null );
     }
 
     private void viewIs( final Change c ) throws Exception {
@@ -149,6 +149,19 @@ class WorkChangeResourceTest {
     }
 
     @Test
+    void firstCommitAtRoundTripsOnOpenAndPatch() throws Exception {
+        Mockito.when( changes.open( eq( ALICE ), eq( "PLAT-1" ), any() ) ).thenReturn( open( 6 ) );
+        viewIs( open( 6 ) );
+        assertEquals( 201, item( "POST", "/PLAT-1/changes",
+            "{\"branch\":\"work/PLAT-1-x\",\"firstCommitAt\":\"2026-11-17T09:00:00Z\"}" ).status() );
+        final ArgumentCaptor< ChangeDraft > d = ArgumentCaptor.forClass( ChangeDraft.class );
+        Mockito.verify( changes ).open( eq( ALICE ), eq( "PLAT-1" ), d.capture() );
+        assertEquals( "2026-11-17T09:00:00Z", d.getValue().firstCommitAt() );
+        assertEquals( 200, change( "PATCH", "/6", "{\"firstCommitAt\":\"2026-11-17T08:00:00Z\"}" ).status() );
+        Mockito.verify( changes ).update( ALICE, 6L, null, null, "2026-11-17T08:00:00Z" );
+    }
+
+    @Test
     void anUnknownFieldWhenOpeningIs400() throws Exception {
         final WorkHttp.Result r = item( "POST", "/PLAT-1/changes", "{\"branch\":\"b\",\"state\":\"merged\"}" );
         assertEquals( 400, r.status() );
@@ -206,7 +219,7 @@ class WorkChangeResourceTest {
     void updatesAChange() throws Exception {
         viewIs( open( 6 ) );
         assertEquals( 200, change( "PATCH", "/6", "{\"headSha\":\"bbbbbbb2\"}" ).status() );
-        Mockito.verify( changes ).update( ALICE, 6L, "bbbbbbb2", null );
+        Mockito.verify( changes ).update( ALICE, 6L, "bbbbbbb2", null, null );
     }
 
     @Test
@@ -247,6 +260,37 @@ class WorkChangeResourceTest {
         Mockito.verify( changes ).abandon( ALICE, 6L, "wrong approach" );
         assertEquals( 200, change( "POST", "/6/abandon", null ).status() );
         Mockito.verify( changes ).abandon( ALICE, 6L, null );
+    }
+
+    @Test
+    void acknowledgesAFlaggedMerge() throws Exception {
+        viewIs( merged( 6 ) );
+        final WorkHttp.Result r = change( "POST", "/6/acknowledge-flag", null );
+        assertEquals( 200, r.status() );
+        assertEquals( "merged", r.json().getAsJsonObject().get( "state" ).getAsString() );
+        Mockito.verify( changes ).acknowledgeFlag( ALICE, 6L );
+    }
+
+    @Test
+    void aFlagAcknowledgementConflictCarriesItsReason() throws Exception {
+        for ( final String reason : List.of( WorkConflictException.ALREADY_ACKNOWLEDGED, WorkConflictException.NOT_FLAGGED,
+            WorkConflictException.ARCHIVED ) ) {
+            Mockito.when( changes.acknowledgeFlag( ALICE, 6L ) ).thenThrow( new WorkConflictException( "no", reason ) );
+            final WorkHttp.Result r = change( "POST", "/6/acknowledge-flag", null );
+            assertEquals( 409, r.status() );
+            assertEquals( reason, r.json().getAsJsonObject().get( "reason" ).getAsString() );
+            Mockito.reset( changes );
+        }
+    }
+
+    @Test
+    void aFlagAcknowledgementIsDeniedTo403AndHiddenFromAStranger() throws Exception {
+        Mockito.when( changes.acknowledgeFlag( ALICE, 6L ) )
+            .thenThrow( new WorkDeniedException( "You do not have a high enough role in this project." ) );
+        assertEquals( 403, change( "POST", "/6/acknowledge-flag", null ).status() );
+        Mockito.reset( changes );
+        Mockito.when( changes.acknowledgeFlag( ALICE, 6L ) ).thenThrow( new WorkNotFoundException( "Not found." ) );
+        assertEquals( 404, change( "POST", "/6/acknowledge-flag", null ).status() );
     }
 
     @Test

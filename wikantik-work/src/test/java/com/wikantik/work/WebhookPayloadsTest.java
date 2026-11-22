@@ -138,4 +138,21 @@ class WebhookPayloadsTest {
         assertFalse( WebhookPayloads.SENDABLE.contains( WorkEvent.ATTACHED ) );
         assertFalse( WebhookPayloads.SENDABLE.contains( WorkEvent.ATTACHMENT_REMOVED ) );
     }
+
+    @Test
+    void aSystemActorIsNamedForItsHostAndNeverLookedUp() {
+        final Function< String, String > failing = login -> {
+            throw new AssertionError( "the directory was asked for " + login );
+        };
+        final WebhookEvent w = new WebhookEvent( new WorkEvent( 5, 1L, 7L, "WIKI-7", AT, "codehost:github",
+            Actor.Kind.SYSTEM, null, WorkEvent.CHANGE_MERGED, null, null, null ), "9", "WIKI", "t", WorkStatus.READY, "task" );
+        final String body = WebhookPayloads.generic( w, "https://wiki.example.com", failing );
+        assertTrue( body.contains( "\"actor\":\"GitHub\"" ), body );
+        assertFalse( body.contains( "codehost" ), body );
+    }
+
+    @Test
+    void aFlagIsNotSendable() {
+        assertFalse( WebhookPayloads.SENDABLE.contains( WorkEvent.CHANGE_FLAGGED ), "a lead lane, not a channel feed" );
+    }
 }

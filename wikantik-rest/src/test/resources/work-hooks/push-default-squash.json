@@ -1,0 +1,26 @@
+{
+  "ref": "refs/heads/main",
+  "before": "1111111111111111111111111111111111111111",
+  "after": "cccccccccccccccccccccccccccccccccccccc12",
+  "repository": {
+    "full_name": "octo/plat",
+    "default_branch": "main"
+  },
+  "commits": [
+    {
+      "id": "cccccccccccccccccccccccccccccccccccccc12",
+      "message": "PLAT-1 fix login (#12)",
+      "timestamp": "2026-01-07T08:00:00Z",
+      "distinct": true,
+      "author": {
+        "name": "Ana A",
+        "email": "ana@example.com",
+        "username": "ana-gh"
+      }
+    }
+  ],
+  "head_commit": {
+    "id": "cccccccccccccccccccccccccccccccccccccc12",
+    "timestamp": "2026-01-07T08:00:00Z"
+  }
+}

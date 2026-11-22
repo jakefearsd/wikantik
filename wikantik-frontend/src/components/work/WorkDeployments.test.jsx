@@ -160,4 +160,55 @@ describe('WorkDeployments', () => {
     render(<MemoryRouter><WorkDeployments /></MemoryRouter>);
     expect(await screen.findByText('half done')).toBeInTheDocument();
   });
+
+  it('offers only verified, failed or rolled back deployments of the same environment as remediation targets', async () => {
+    listDeployments.mockResolvedValue({ deployments: [
+      dep(30, 'requested'), dep(29, 'failed'), dep(28, 'rolled_back'), dep(27, 'verified'), dep(26, 'running'),
+      dep(25, 'verified', { environment: 'staging' }), dep(24, 'rejected'),
+    ] });
+    renderPage();
+    await screen.findByRole('link', { name: 'wikantik 2.5.30' });
+    fireEvent.click(screen.getByRole('button', { name: 'Request a deployment' }));
+    const select = screen.getByLabelText('Remediates');
+    const options = within(select).getAllByRole('option').map((o) => o.textContent);
+    expect(options).toEqual(['Nothing', '#29 2.5.29 (failed)', '#28 2.5.28 (rolled back)', '#27 2.5.27 (verified)']);
+    fireEvent.change(screen.getByLabelText('Environment'), { target: { value: 'Staging' } });
+    expect(within(screen.getByLabelText('Remediates')).getAllByRole('option').map((o) => o.textContent))
+      .toEqual(['Nothing', '#25 2.5.25 (verified)']);
+  });
+
+  it('sends remediates when one is chosen, and omits it otherwise', async () => {
+    requestDeployment.mockResolvedValue(dep(31, 'requested'));
+    listDeployments.mockResolvedValue({ deployments: [dep(29, 'failed')] });
+    renderPage();
+    await screen.findByRole('link', { name: 'wikantik 2.5.29' });
+    fireEvent.click(screen.getByRole('button', { name: 'Request a deployment' }));
+    fireEvent.change(screen.getByLabelText('Version'), { target: { value: '2.5.31' } });
+    fireEvent.change(screen.getByLabelText('Items it ships'), { target: { value: 'PLAT-12' } });
+    fireEvent.change(screen.getByLabelText('Remediates'), { target: { value: '29' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Request deployment' }));
+    await waitFor(() => expect(requestDeployment).toHaveBeenCalledWith(
+      { product: 'wikantik', version: '2.5.31', environment: null, items: ['PLAT-12'], remediates: 29 }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Request a deployment' }));
+    fireEvent.change(screen.getByLabelText('Version'), { target: { value: '2.5.32' } });
+    fireEvent.change(screen.getByLabelText('Items it ships'), { target: { value: 'PLAT-12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Request deployment' }));
+    await waitFor(() => expect(requestDeployment).toHaveBeenLastCalledWith(
+      { product: 'wikantik', version: '2.5.32', environment: null, items: ['PLAT-12'] }));
+  });
+
+  it('drops a chosen target when the environment changes to one that does not list it', async () => {
+    requestDeployment.mockResolvedValue(dep(31, 'requested'));
+    listDeployments.mockResolvedValue({ deployments: [dep(29, 'failed')] });
+    renderPage();
+    await screen.findByRole('link', { name: 'wikantik 2.5.29' });
+    fireEvent.click(screen.getByRole('button', { name: 'Request a deployment' }));
+    fireEvent.change(screen.getByLabelText('Version'), { target: { value: '2.5.31' } });
+    fireEvent.change(screen.getByLabelText('Items it ships'), { target: { value: 'PLAT-12' } });
+    fireEvent.change(screen.getByLabelText('Remediates'), { target: { value: '29' } });
+    fireEvent.change(screen.getByLabelText('Environment'), { target: { value: 'staging' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Request deployment' }));
+    await waitFor(() => expect(requestDeployment).toHaveBeenCalledWith(
+      { product: 'wikantik', version: '2.5.31', environment: 'staging', items: ['PLAT-12'] }));
+  });
 });

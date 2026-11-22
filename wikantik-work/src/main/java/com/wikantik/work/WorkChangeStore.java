@@ -56,9 +56,11 @@ public interface WorkChangeStore {
 
     /**
      * Sets the head commit and/or the review URL: a null leaves the field alone, an empty URL clears it. A new head
-     * clears the approval. A call that changes neither writes nothing, not even an event.
+     * clears the approval. A non-null {@code firstCommitAt} only ever moves the recorded first commit earlier (and is
+     * refused after a merged change's merge). A call that changes nothing writes nothing, not even an event.
      */
-    Change update( Item item, long id, String headSha, String reviewUrl, Check check, Actor by ) throws SQLException;
+    Change update( Item item, long id, String headSha, String reviewUrl, java.time.Instant firstCommitAt, Check check,
+                   Actor by ) throws SQLException;
 
     /** Open to in review; a change already in review is returned as it is. */
     Change requestReview( Item item, long id, Check check, Actor by ) throws SQLException;

@@ -48,6 +48,8 @@ public final class OpenChangeTool extends WorkMcpTool {
         .arg( "head_sha", "string", "The branch's newest commit.", "4f2a9c1" )
         .arg( "review_url", "string", "A link to the review, when there is one.",
             "https://example.com/pull/7" )
+        .arg( "first_commit_at", "string", "The time of the branch's first commit, ISO-8601; only moves earlier.",
+            "2026-03-01T09:30:00Z" )
         .arg( "merged_sha", "string", "Only when the work is already on the base branch: its commit. The "
             + "change is then recorded as merged directly, which needs a lead to have allowed direct commits.",
             "9b01c77" );
@@ -67,7 +69,7 @@ public final class OpenChangeTool extends WorkMcpTool {
         final String key = itemKey( args );
         final Change c = svc.changes().open( actor, key, new ChangeDraft( requiredString( args, "branch" ),
             stringArg( args, "base_branch" ), stringArg( args, "head_sha" ), stringArg( args, "review_url" ),
-            stringArg( args, "merged_sha" ) ) );
+            stringArg( args, "merged_sha" ), stringArg( args, "first_commit_at" ) ) );
         WorkMcpLog.written( TOOL_NAME, c.mergedSha() == null ? "change-opened" : "change-merged-directly", key, actor );
         return ok( WorkMcpChanges.one( svc, directory, actor, c.id() ) );
     }

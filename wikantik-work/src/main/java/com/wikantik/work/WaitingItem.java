@@ -24,4 +24,6 @@ public record WaitingItem( Item item, String reason, WorkEvent handoff ) {
     public static final String MENTIONED = "mentioned";
     /** Closed by an agent with no person in its path: a lead acknowledges it. */
     public static final String ACKNOWLEDGE = "acknowledge";
+    /** A merge the code host reported outside policy: a lead acknowledges it. */
+    public static final String CHANGE_OUTSIDE_POLICY = "change_outside_policy";
 }

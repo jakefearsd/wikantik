@@ -149,7 +149,8 @@ class RecipientsTest {
     /** Event types that notify somebody; every other type in {@link WorkEvent} must reach nobody. */
     private static final Set< String > NOTIFYING = Set.of( WorkEvent.STATUS, WorkEvent.ASSIGNED, WorkEvent.HANDOFF,
         WorkEvent.COMMENTED, WorkEvent.COMMENT_EDITED, WorkEvent.SETTINGS, WorkEvent.REVIEW_REQUESTED,
-        WorkEvent.CHANGE_MERGED, WorkEvent.SHIPPED, WorkEvent.ROLLED_BACK, WorkEvent.CLAIM_EXPIRED );
+        WorkEvent.CHANGE_MERGED, WorkEvent.SHIPPED, WorkEvent.ROLLED_BACK, WorkEvent.CLAIM_EXPIRED,
+        WorkEvent.CHANGE_FLAGGED );
 
     private static Set< String > allEventTypes() {
         final Set< String > out = new java.util.TreeSet<>();
@@ -220,6 +221,16 @@ class RecipientsTest {
             final WorkEvent e = new WorkEvent( 1, 1, 1L, "PLAT-1", Instant.parse( "2026-01-01T00:00:00Z" ), "lena",
                 Actor.Kind.HUMAN, null, type, "attachment:3", "shot.png", null );
             assertTrue( Recipients.of( e, f ).isEmpty(), type );
+        }
+    }
+
+    @Test
+    void aFlaggedMergeReachesTheLeads() {
+        final WorkEvent flag = ev( WorkEvent.CHANGE_FLAGGED, "codehost:github", Actor.Kind.SYSTEM, null, null, null );
+        final EventFacts f = facts( Set.of( "ana" ), NONE, Set.of( "lena", "leo" ), false );
+        assertEquals( Map.of( "lena", NoticeReason.ACKNOWLEDGE, "leo", NoticeReason.ACKNOWLEDGE ), Recipients.of( flag, f ) );
+        for ( final String quiet : List.of( WorkEvent.CHANGE_SUPERSEDED, WorkEvent.CHANGE_FLAG_ACKNOWLEDGED ) ) {
+            assertTrue( Recipients.of( ev( quiet, "codehost:github", Actor.Kind.SYSTEM, null, null, null ), f ).isEmpty(), quiet );
         }
     }
 }

@@ -36,6 +36,9 @@ final class WorkDeploymentJson {
         tree.remove( "productId" );
         tree.remove( "itemIds" );
         tree.addProperty( "product", v.productKey() );
+        if ( v.deployment().remediatesId() != null ) {
+            tree.addProperty( "remediatesId", v.deployment().remediatesId() );
+        }
         final JsonArray items = new JsonArray();
         for ( final Item i : v.visibleItems() ) {
             items.add( WorkDeploymentResource.item( i ) );

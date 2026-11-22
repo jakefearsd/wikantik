@@ -28,6 +28,8 @@ const WorkLog = React.lazy(() => import('./components/work/WorkLog'));
 const WorkAgents = React.lazy(() => import('./components/work/WorkAgents'));
 const WorkDeployments = React.lazy(() => import('./components/work/WorkDeployments'));
 const WorkDeploymentView = React.lazy(() => import('./components/work/WorkDeploymentView'));
+const WorkFlow = React.lazy(() => import('./components/work/WorkFlow'));
+const WorkProductDora = React.lazy(() => import('./components/work/WorkProductDora'));
 const WorkSprints = React.lazy(() => import('./components/work/WorkSprints'));
 const WorkSprintReport = React.lazy(() => import('./components/work/WorkSprintReport'));
 const WorkInbox = React.lazy(() => import('./components/work/WorkInbox'));
@@ -79,6 +81,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/work" element={<WorkGate />}>
               <Route index element={<WorkHome />} />
               <Route path="products" element={<WorkProducts />} />
+              <Route path="products/:product/dora" element={<WorkProductDora />} />
               <Route path="agents" element={<WorkAgents />} />
               <Route path="log" element={<WorkLog />} />
               <Route path="inbox" element={<WorkInbox />} />
@@ -89,6 +92,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path=":project" element={<WorkLayout />}>
                 <Route index element={<WorkBoard />} />
                 <Route path="dates" element={<WorkDates />} />
+                <Route path="flow" element={<WorkFlow />} />
                 <Route path="sprints" element={<WorkSprints />} />
                 <Route path="sprints/:id" element={<WorkSprintReport />} />
                 <Route path="activity" element={<WorkActivity />} />

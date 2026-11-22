@@ -67,6 +67,18 @@ class WorkPolicyTest {
     }
 
     @Test
+    void aSystemActorMayDoNothing() {
+        final Actor system = Actor.system( "github" );
+        for ( final Action action : Action.values() ) {
+            for ( final String role : new String[] { "none", "viewer", "member", "lead" } ) {
+                final Decision d = WorkPolicy.may( system, role( role ), action, null );
+                assertFalse( d.allowed(), action + " " + role );
+                assertEquals( "The code host acts only through its webhook.", d.reason() );
+            }
+        }
+    }
+
+    @Test
     void deniedDecisionCarriesReason() {
         final Decision d = WorkPolicy.may( Actor.human( "alice", Set.of(), false ), WorkRole.VIEWER, Action.EDIT_ITEM, null );
         assertFalse( d.allowed() );

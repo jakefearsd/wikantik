@@ -28,7 +28,8 @@ import java.util.List;
 public record Deployment( long id, long productId, String environment, String version, DeploymentState state,
                           String requestedBy, Long requestedByAgentId, String approvedBy, Long approvedByAgentId,
                           Instant requestedAt, Instant approvedAt, Instant startedAt, Instant verifiedAt,
-                          Instant closedAt, String evidence, List< Long > itemIds ) {
+                          Instant closedAt, String evidence, Long remediatesId,
+                          List< Long > itemIds ) {
 
     public Deployment {
         itemIds = itemIds == null ? List.of() : List.copyOf( itemIds );

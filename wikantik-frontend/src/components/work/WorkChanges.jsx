@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import WorkConfirm from './WorkConfirm';
+import { formatRelative } from '../../utils/datetime';
 import {
-  abandonChange, listChanges, mergeChange, openChange, requestReview, reviewChange,
+  abandonChange, acknowledgeFlag, listChanges, mergeChange, openChange, requestReview, reviewChange,
 } from '../../api/work';
 
 const STATE_LABEL = { open: 'open', in_review: 'in review', merged: 'merged', abandoned: 'abandoned' };
 const KIND_LABEL = { reviewed: 'merged after review', unreviewed: 'merged without review', direct: 'merged directly' };
-const BLANK = { branch: '', headSha: '', reviewUrl: '', mergedSha: '' };
+const BLANK = { branch: '', headSha: '', reviewUrl: '', mergedSha: '', firstCommit: '' };
+const MIN_YEAR = 1970;
+const MAX_YEAR = 9999;
+
+/** The ISO instant for a datetime-local value, or null when blank or not a real time in 1970-9999. */
+function firstCommitInstant(value) {
+  if (!value || !value.trim()) return null;
+  const d = new Date(value);
+  const y = d.getFullYear();
+  if (Number.isNaN(d.getTime()) || y < MIN_YEAR || y > MAX_YEAR) return undefined;
+  return d.toISOString();
+}
 const short = (sha) => (sha ? String(sha).slice(0, 8) : '');
 
 /** Only http(s) targets become anchors; anything else stays text. */
@@ -19,12 +31,60 @@ function httpHref(target) {
   }
 }
 
+const FLAG_LABEL = { unreviewed: 'without review', direct: 'direct commit' };
+
 function who(name, kind) {
   if (!name) return null;
   return kind === 'agent' ? `${name} (agent)` : name;
 }
 
-function ChangeRow({ change: c, canEdit, busy, act }) {
+/**
+ * A wiki member by display name, or an author the code host named who is not a wiki user: shown by that name, marked
+ * "(outside the wiki)", set apart in style, and never a link to a profile.
+ */
+function Person({ name, kind, external }) {
+  const member = who(name, kind);
+  if (member) return member;
+  if (external) return <span className="work-outside-author">{external} (outside the wiki)</span>;
+  return 'someone';
+}
+
+function Flag({ change: c, canAcknowledge, busy, acking, onAcknowledge, error }) {
+  if (c.supersededBy != null) {
+    return <div className="work-muted">recorded again as change {c.supersededBy}</div>;
+  }
+  if (!c.policyFlag) return null;
+  return (
+    <div className="work-change-flag">
+      <span className="work-chip work-chip-warn">outside policy: {FLAG_LABEL[c.policyFlag] || c.policyFlag}</span>{' '}
+      {c.flagAcknowledgedAt || c.flagAcknowledgedByName
+        ? <span className="work-muted">acknowledged by {c.flagAcknowledgedByName || 'a lead'}</span>
+        : canAcknowledge && (
+          <button type="button" className="btn btn-sm" disabled={busy || acking}
+            aria-label={`Acknowledge the flag on ${c.branch}`} onClick={onAcknowledge}>Acknowledge</button>
+        )}
+      {error && <div className="work-form-error" role="alert">{error}</div>}
+    </div>
+  );
+}
+
+function details(c, href) {
+  const parts = [
+    <>opened by <Person name={c.openedByName} kind={c.openedByKind} external={c.externalOpenedBy} /></>,
+    c.headSha && `head ${short(c.headSha)}`,
+    c.firstCommitAt && `first commit ${formatRelative(c.firstCommitAt)}`,
+    c.approvedForHead && <>approved by <Person name={c.reviewedByName} kind={c.reviewedByKind} external={c.externalReviewedBy} /></>,
+    c.state === 'merged' && <>merged by <Person name={c.mergedByName} kind={c.mergedByKind} external={c.externalMergedBy} /> · {short(c.mergedSha)}</>,
+  ].filter(Boolean);
+  const nodes = [];
+  parts.forEach((p, i) => { if (i > 0) nodes.push(' · '); nodes.push(<span key={i}>{p}</span>); });
+  if (href) nodes.push(' · ', <a key="review" href={href} target="_blank" rel="noopener noreferrer">review</a>);
+  return nodes;
+}
+
+function ChangeRow({ change: c, canEdit, canAcknowledge, busy, act }) {
+  const [acking, setAcking] = useState(false);
+  const [ackError, setAckError] = useState(null);
   const [sha, setSha] = useState(c.headSha || '');
   const [note, setNote] = useState('');
   const [abandoning, setAbandoning] = useState(false);
@@ -36,17 +96,17 @@ function ChangeRow({ change: c, canEdit, busy, act }) {
   return (
     <li className="work-change" data-change-id={c.id}>
       <div className="work-change-head">
-        <code>{c.branch}</code> <span className="work-muted">→ {c.baseBranch}</span>{' '}
+        <code>{c.branch}</code> {c.baseBranch && <span className="work-muted">→ {c.baseBranch}</span>}{' '}
         <span className="work-chip">{stateText}</span>
+        {c.source === 'codehost' && <>{' '}<span className="work-chip">via GitHub</span></>}
       </div>
-      <div className="work-muted">
-        {[`opened by ${who(c.openedByName, c.openedByKind) || 'someone'}`,
-          c.headSha && `head ${short(c.headSha)}`,
-          c.approvedForHead && `approved by ${who(c.reviewedByName, c.reviewedByKind) || 'someone'}`,
-          c.state === 'merged' && `merged by ${who(c.mergedByName, c.mergedByKind) || 'someone'} · ${short(c.mergedSha)}`,
-        ].filter(Boolean).join(' · ')}
-        {href && <> · <a href={href} target="_blank" rel="noopener noreferrer">review</a></>}
-      </div>
+      <div className="work-muted">{details(c, href)}</div>
+      <Flag change={c} canAcknowledge={canAcknowledge} busy={busy} acking={acking} error={ackError}
+        onAcknowledge={() => {
+          setAcking(true); setAckError(null);
+          act(() => acknowledgeFlag(c.id), null, (e) => setAckError(e?.message || 'Could not acknowledge the flag.'))
+            .finally(() => setAcking(false));
+        }} />
       {canEdit && live && (
         <div className="work-change-actions">
           {c.state === 'open' && (
@@ -100,23 +160,30 @@ function ChangeRow({ change: c, canEdit, busy, act }) {
  * a refusal from the server is shown in place and nothing typed is lost. `onChanged` tells the item view to
  * refresh its timeline.
  */
-export default function WorkChanges({ itemKey, canEdit = false, refreshKey = 0, onChanged }) {
+export default function WorkChanges({ itemKey, canEdit = false, canAcknowledge = false, refreshKey = 0, onChanged }) {
   const [changes, setChanges] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState(null); // null | 'open' | 'merged'
   const [f, setF] = useState(BLANK);
 
+  const [loadError, setLoadError] = useState(null);
+
+  // A flag can clear on its own (a late approval): always show what the server says now, and keep the last good list
+  // when a reload fails.
   const load = useCallback(() => listChanges(itemKey)
-    .then((r) => setChanges(r?.changes || []))
-    .catch((e) => { console.warn('WorkChanges: could not load the changes', e); setChanges([]); }), [itemKey]);
+    .then((r) => { setChanges(r?.changes || []); setLoadError(null); })
+    .catch((e) => {
+      console.warn('WorkChanges: could not load the changes', e);
+      setLoadError(e?.message || 'Could not load the changes.');
+    }), [itemKey]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
   function act(call, after, onError) {
-    if (busy) return;
+    if (busy) return Promise.resolve();
     setBusy(true); setError(null);
-    call()
+    return call()
       .then(() => { after?.(); onChanged?.(); return load(); })
       .catch((e) => (onError ? onError(e) : setError(e?.message || 'That did not work.')))
       .finally(() => setBusy(false));
@@ -126,9 +193,12 @@ export default function WorkChanges({ itemKey, canEdit = false, refreshKey = 0, 
     e.preventDefault();
     if (!f.branch.trim()) { setError('Name the branch.'); return; }
     if (mode === 'merged' && !f.mergedSha.trim()) { setError('Name the merged commit.'); return; }
+    const first = firstCommitInstant(f.firstCommit);
+    if (first === undefined) { setError('Give the first commit as a real date and time between 1970 and 9999, or leave it blank.'); return; }
     const body = mode === 'merged'
       ? { branch: f.branch.trim(), mergedSha: f.mergedSha.trim() }
       : { branch: f.branch.trim(), headSha: f.headSha.trim() || null, reviewUrl: f.reviewUrl.trim() || null };
+    if (first) body.firstCommitAt = first;
     act(() => openChange(itemKey, body), () => { setF(BLANK); setMode(null); });
   }
 
@@ -137,10 +207,15 @@ export default function WorkChanges({ itemKey, canEdit = false, refreshKey = 0, 
   return (
     <section className="work-section" aria-label="Changes">
       <h2 className="work-subheading">Changes</h2>
-      {changes === null ? <p className="work-muted">Loading…</p>
+      {loadError && (
+        <div className="work-form-error" role="alert">
+          {loadError} <button type="button" className="btn btn-sm" onClick={load}>Retry</button>
+        </div>
+      )}
+      {changes === null ? (loadError ? null : <p className="work-muted">Loading…</p>)
         : changes.length === 0 ? <p className="work-muted">No changes.</p> : (
           <ul className="work-change-list">
-            {changes.map((c) => <ChangeRow key={c.id} change={c} canEdit={canEdit} busy={busy} act={act} />)}
+            {changes.map((c) => <ChangeRow key={c.id} change={c} canEdit={canEdit} canAcknowledge={canAcknowledge} busy={busy} act={act} />)}
           </ul>
         )}
       {error && <div className="work-form-error" role="alert">{error}</div>}
@@ -168,6 +243,10 @@ export default function WorkChanges({ itemKey, canEdit = false, refreshKey = 0, 
               <input id="work-change-merged" className="work-field-input" value={f.mergedSha} onChange={set('mergedSha')} />
             </>
           )}
+          <label className="work-form-field" htmlFor="work-change-first">First commit (optional)</label>
+          <input id="work-change-first" type="datetime-local" className="work-field-input" value={f.firstCommit}
+            onChange={set('firstCommit')} />
+          <p className="work-muted">When work on this change began. It starts the lead-time clock, which never starts more than 30 days before the change was opened.</p>
           <div className="work-actions">
             <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
               {mode === 'open' ? 'Open change' : 'Record merged change'}

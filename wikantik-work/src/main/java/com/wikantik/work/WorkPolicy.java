@@ -124,6 +124,9 @@ public final class WorkPolicy {
 
     /** The refusals that name an action an agent never takes, whatever its role; null when there is none. */
     private static Decision agentRefusal( final Actor actor, final Action action ) {
+        if ( actor.kind() == Actor.Kind.SYSTEM ) {
+            return Decision.deny( "The code host acts only through its webhook." );
+        }
         if ( actor.kind() != Actor.Kind.AGENT ) {
             return null;
         }

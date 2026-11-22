@@ -38,7 +38,19 @@ export default function WorkDeploymentView() {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(null); // null | 'reject' | 'fail' | 'rollback'
   const [confirmError, setConfirmError] = useState(null);
+  const [target, setTarget] = useState(null); // the deployment this one fixes, once looked up
   useDocumentTitle(d ? `${d.product} ${d.version}` : 'Deployment');
+
+  const remediatesId = d?.remediatesId ?? null;
+  const shownTarget = target && target.id === remediatesId ? target : null;
+  useEffect(() => {
+    if (remediatesId == null) return undefined;
+    let live = true;
+    getDeployment(remediatesId)
+      .then((t) => { if (live) setTarget({ ...t, id: remediatesId }); })
+      .catch((e) => { console.warn('WorkDeploymentView: could not load the deployment it remediates', remediatesId, e); });
+    return () => { live = false; };
+  }, [remediatesId]);
 
   const load = useCallback(() => getDeployment(id)
     .then((dep) => {
@@ -81,6 +93,14 @@ export default function WorkDeploymentView() {
         {d.environment} · requested by {who(d.requestedByName, d.requestedByKind)} {when(d.requestedAt)}
         {d.approvedByName && <> · approved by {who(d.approvedByName, d.approvedByKind)} {when(d.approvedAt)}</>}
       </p>
+
+      {remediatesId != null && (
+        <p className="work-remediates">
+          Remediates{' '}
+          <Link to={`/work/deployments/${remediatesId}`}>{shownTarget ? `${shownTarget.product} ${shownTarget.version}` : 'an earlier deployment'}</Link>
+          {shownTarget && <span className="work-muted"> · {stateText(shownTarget.state)}</span>}
+        </p>
+      )}
 
       <h2 className="work-subheading">Items it carries</h2>
       <ul className="work-link-list">

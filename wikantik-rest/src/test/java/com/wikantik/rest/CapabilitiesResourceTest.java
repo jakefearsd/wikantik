@@ -324,4 +324,22 @@ class CapabilitiesResourceTest {
         servlet.doGet( req, resp );
         return sw.toString();
     }
+
+    @Test
+    void testWorkCodeHostNeedsWorkAndItsOwnFlag() throws Exception {
+        engine.getWikiProperties().remove( "wikantik.work.enabled" );
+        engine.getWikiProperties().setProperty( "wikantik.work.codehost.enabled", "true" );
+        try {
+            assertFalse( doGetAsJson().get( "workCodeHost" ).getAsBoolean(), "work off" );
+            engine.getWikiProperties().setProperty( "wikantik.work.enabled", "true" );
+            engine.setWorkService( org.mockito.Mockito.mock( com.wikantik.work.WorkService.class ) );
+            assertTrue( doGetAsJson().get( "workCodeHost" ).getAsBoolean(), "both on" );
+            engine.getWikiProperties().remove( "wikantik.work.codehost.enabled" );
+            assertFalse( doGetAsJson().get( "workCodeHost" ).getAsBoolean(), "own flag off" );
+        } finally {
+            engine.setWorkService( null );
+            engine.getWikiProperties().remove( "wikantik.work.enabled" );
+            engine.getWikiProperties().remove( "wikantik.work.codehost.enabled" );
+        }
+    }
 }

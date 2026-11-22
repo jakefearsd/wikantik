@@ -47,6 +47,9 @@ final class WorkStanding {
 
     /** The actor's effective role in the project; empty when it has none (the project is then hidden from it). */
     Optional< WorkRole > roleIn( final long projectId, final Actor actor ) throws SQLException {
+        if ( actor.kind() == Actor.Kind.SYSTEM ) {
+            return Optional.empty();
+        }
         if ( actor.kind() != Actor.Kind.AGENT ) {
             return store.roleFor( projectId, actor );
         }
@@ -73,6 +76,9 @@ final class WorkStanding {
 
     /** The projects the actor can see: for an agent, those it is a member of that its sponsor can see too. */
     List< Project > visibleProjects( final Actor actor ) throws SQLException {
+        if ( actor.kind() == Actor.Kind.SYSTEM ) {
+            return List.of();
+        }
         if ( actor.kind() != Actor.Kind.AGENT ) {
             return store.visibleProjects( actor );
         }

@@ -1,0 +1,48 @@
+{
+  "ref": "refs/heads/main",
+  "before": "1111111111111111111111111111111111111111",
+  "after": "cccccccccccccccccccccccccccccccccccccc12",
+  "repository": {
+    "full_name": "octo/plat",
+    "default_branch": "main"
+  },
+  "commits": [
+    {
+      "id": "aaaaaaa1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "message": "PLAT-1 start",
+      "timestamp": "2026-01-05T09:00:00Z",
+      "distinct": false,
+      "author": {
+        "name": "Ana A",
+        "email": "ana@example.com",
+        "username": "ana-gh"
+      }
+    },
+    {
+      "id": "bbbbbbb2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "message": "PLAT-1 finish",
+      "timestamp": "2026-01-05T10:30:00Z",
+      "distinct": false,
+      "author": {
+        "name": "Ana A",
+        "email": "ana@example.com",
+        "username": "ana-gh"
+      }
+    },
+    {
+      "id": "cccccccccccccccccccccccccccccccccccccc12",
+      "message": "Merge pull request #12 from octo/PLAT-1-fix-login",
+      "timestamp": "2026-01-07T08:00:00Z",
+      "distinct": true,
+      "author": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "username": "web-flow"
+      }
+    }
+  ],
+  "head_commit": {
+    "id": "cccccccccccccccccccccccccccccccccccccc12",
+    "timestamp": "2026-01-07T08:00:00Z"
+  }
+}

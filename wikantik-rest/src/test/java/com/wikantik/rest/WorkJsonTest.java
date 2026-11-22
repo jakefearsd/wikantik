@@ -285,4 +285,21 @@ class WorkJsonTest {
         assertEquals( 2.5, o.get( "estimate" ).getAsDouble() );
         assertEquals( true, WorkJson.GSON.toJsonTree( base ).getAsJsonObject().get( "sprintId" ).isJsonNull() );
     }
+
+    @Test
+    void aSystemEventIsNamedForItsHostAndNeverLookedUp() {
+        final Function< String, String > forbidden = login -> {
+            throw new AssertionError( "the code host must not go through the people directory: " + login );
+        };
+        for ( final WorkViewer viewer : List.of( MEMBER, ADMIN ) ) {
+            final JsonObject o = WorkJson.enrich( WorkJson.GSON.toJsonTree( event( "codehost:github", Actor.Kind.SYSTEM,
+                null, "change_merged", null, null, null ) ), forbidden, viewer, LOOKUP ).getAsJsonObject();
+            assertEquals( "GitHub", text( o, "actorName" ) );
+            assertEquals( "GitHub", text( o, "actor" ) );
+            assertEquals( "system", text( o, "actorKind" ) );
+        }
+        final JsonObject other = enriched( event( "codehost:gitea", Actor.Kind.SYSTEM, null, "change_merged", null, null,
+            null ), ADMIN );
+        assertEquals( "Code host", text( other, "actor" ) );
+    }
 }

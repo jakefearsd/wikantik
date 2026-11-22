@@ -66,7 +66,8 @@ final class WorkJson {
     }
 
     private static final Set< String > NAME_KEYS = Set.of( "assignee", "reporter", "author", "actor", "editedBy",
-        "openedBy", "reviewedBy", "mergedBy", "acknowledgedBy", "requestedBy", "approvedBy", "uploadedBy" );
+        "openedBy", "reviewedBy", "mergedBy", "acknowledgedBy", "requestedBy", "approvedBy", "uploadedBy",
+        "flagAcknowledgedBy" );
 
     static final String UNKNOWN_AGENT = "Unknown agent";
 
@@ -155,7 +156,9 @@ final class WorkJson {
             final Map< String, JsonElement > changes = new LinkedHashMap<>();
             for ( final Map.Entry< String, JsonElement > entry : o.entrySet() ) {
                 final JsonElement v = entry.getValue();
-                if ( NAME_KEYS.contains( entry.getKey() ) && v.isJsonPrimitive() ) {
+                if ( NAME_KEYS.contains( entry.getKey() ) && v.isJsonPrimitive() && WorkNames.isSystem( o, entry.getKey() ) ) {
+                    WorkNames.system( changes, entry.getKey(), v.getAsString() );
+                } else if ( NAME_KEYS.contains( entry.getKey() ) && v.isJsonPrimitive() ) {
                     final Long agentId = WorkNames.agentIdBehind( o, entry.getKey() );
                     if ( agentId == null ) {
                         WorkNames.person( changes, entry.getKey(), v.getAsString(), names, viewer );

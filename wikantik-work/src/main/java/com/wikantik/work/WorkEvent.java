@@ -52,6 +52,12 @@ public record WorkEvent( long id, long projectId, Long itemId, String itemKey, I
     public static final String CHANGE_REVIEWED = "change_reviewed";
     public static final String CHANGE_MERGED = "change_merged";
     public static final String CHANGE_ABANDONED = "change_abandoned";
+    /** A merge outside policy was recorded (to: {@code unreviewed} or {@code direct}); written with the merge. */
+    public static final String CHANGE_FLAGGED = "change_flagged";
+    /** A direct change was recognised as a pull request's merge (from: the direct change, to: the pull request's). */
+    public static final String CHANGE_SUPERSEDED = "change_superseded";
+    /** A lead acknowledged a flagged merge (from: the change, to: the flag). The flag itself is never cleared. */
+    public static final String CHANGE_FLAG_ACKNOWLEDGED = "change_flag_acknowledged";
     public static final String DEPLOYMENT_REQUESTED = "deployment_requested";
     public static final String SHIPPED = "shipped";
     public static final String ROLLED_BACK = "rolled_back";

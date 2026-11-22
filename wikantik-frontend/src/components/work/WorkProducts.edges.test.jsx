@@ -6,6 +6,7 @@ vi.mock('../../api/work', () => ({
   listProducts: vi.fn(), createProduct: vi.fn(), updateProduct: vi.fn(), archiveProduct: vi.fn(), productHistory: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
+vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn(() => ({ capabilities: { work: true }, loading: false })) }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 import { listProducts, createProduct, updateProduct, archiveProduct, productHistory } from '../../api/work';

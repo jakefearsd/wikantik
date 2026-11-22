@@ -53,7 +53,7 @@ class WorkGatesTest {
     private static Change change( final String head, final String approvedHead ) {
         return new Change( 1, 1, 1, "work/PLAT-1-x", "main", head, null, ChangeState.IN_REVIEW, null, null,
             "author-bot", OPENER, approvedHead == null ? null : "review-bot", approvedHead == null ? null : REVIEWER,
-            approvedHead, approvedHead == null ? null : Instant.EPOCH, null, null, Instant.EPOCH, null, null );
+            approvedHead, approvedHead == null ? null : Instant.EPOCH, null, null, Instant.EPOCH, null, null, null, "reported", null, null, null, null, null, null, null, null );
     }
 
     private static String outcome( final Decision d ) {
@@ -134,7 +134,7 @@ class WorkGatesTest {
     void anAgentThatPutACommitOnAChangeIsOneOfItsAuthors() {
         final Change c = new Change( 1, 1, 1, "b", "main", "aaa1111", null, ChangeState.IN_REVIEW, null, null,
             "author-bot", OPENER, "other-bot", THIRD, "aaa1111", Instant.EPOCH, null, null, Instant.EPOCH, null,
-            java.util.List.of( REVIEWER ) );
+            java.util.List.of( REVIEWER ), null, "reported", null, null, null, null, null, null, null, null );
         assertEquals( "An agent may not review its own change.", WorkGates.mayReview( who( "reviewer" ), c ).reason() );
         assertEquals( "An agent may not merge its own change.",
             WorkGates.mayMerge( who( "reviewer" ), c, policy( Autonomy.DELEGATED, false ) ).reason() );
@@ -144,14 +144,14 @@ class WorkGatesTest {
     @Test
     void aChangeAPersonOpenedMayBeReviewedByAnyAgent() {
         final Change byPerson = new Change( 1, 1, 1, "b", "main", "aaa1111", null, ChangeState.IN_REVIEW, null, null,
-            "alice", null, null, null, null, null, null, null, Instant.EPOCH, null, null );
+            "alice", null, null, null, null, null, null, null, Instant.EPOCH, null, null, null, "reported", null, null, null, null, null, null, null, null );
         assertTrue( WorkGates.mayReview( who( "opener" ), byPerson ).allowed() );
     }
 
     @Test
     void aPersonIsNeverRefused() {
         final Change own = new Change( 1, 1, 1, "b", "main", "aaa1111", null, ChangeState.OPEN, null, null,
-            "alice", null, null, null, null, null, null, null, Instant.EPOCH, null, null );
+            "alice", null, null, null, null, null, null, null, Instant.EPOCH, null, null, null, "reported", null, null, null, null, null, null, null, null );
         for ( final Autonomy level : Autonomy.values() ) {
             final EffectivePolicy p = policy( level, false );
             assertTrue( WorkGates.mayApprove( PERSON, p ).allowed() );

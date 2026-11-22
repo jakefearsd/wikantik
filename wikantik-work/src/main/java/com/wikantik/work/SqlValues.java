@@ -44,7 +44,20 @@ final class SqlValues {
     }
 
     static String actorKindWire( final Actor.Kind kind ) {
-        return kind == Actor.Kind.AGENT ? "agent" : "user";
+        return switch ( kind ) {
+            case AGENT -> "agent";
+            case SYSTEM -> "system";
+            default -> "user";
+        };
+    }
+
+    /** The actor kind a stored {@code actor_kind} column names; anything unknown is a person. */
+    static Actor.Kind actorKind( final String wire ) {
+        return switch ( wire == null ? "" : wire ) {
+            case "agent" -> Actor.Kind.AGENT;
+            case "system" -> Actor.Kind.SYSTEM;
+            default -> Actor.Kind.HUMAN;
+        };
     }
 
     static String text( final Object o ) {

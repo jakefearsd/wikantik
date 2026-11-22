@@ -144,6 +144,22 @@ class WorkMetricsTest {
     }
 
     @Test
+    void codeHostEventsAreCountedByKindAndOutcomeOnly() {
+        final WorkMetrics metrics = metrics();
+        metrics.codeHost( "push", "applied" );
+        metrics.codeHost( "push", "applied" );
+        metrics.codeHost( "review_merged", "duplicate" );
+        assertEquals( 2.0, registry.find( "wikantik_work_codehost_events_total" ).tag( "kind", "push" )
+            .tag( "outcome", "applied" ).counter().count() );
+        assertEquals( 1.0, registry.find( "wikantik_work_codehost_events_total" ).tag( "kind", "review_merged" )
+            .tag( "outcome", "duplicate" ).counter().count() );
+        for ( final Meter m : registry.find( "wikantik_work_codehost_events_total" ).meters() ) {
+            assertEquals( Set.of( "kind", "outcome" ), m.getId().getTags().stream().map( Tag::getKey )
+                .collect( java.util.stream.Collectors.toSet() ), "no product, project or item label" );
+        }
+    }
+
+    @Test
     void deploymentTransitionsAreCountedWithNoProductLabel() {
         final WorkMetrics metrics = metrics();
         metrics.deployment( "requested" );

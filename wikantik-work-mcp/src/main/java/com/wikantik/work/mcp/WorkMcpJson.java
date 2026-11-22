@@ -245,8 +245,9 @@ final class WorkMcpJson {
         final boolean byAgent = e.actorKind() == Actor.Kind.AGENT;
         final Map< String, Object > o = new LinkedHashMap<>();
         o.put( "type", e.type() );
-        o.put( "actor", byAgent ? agent( e.agentId(), e.actor() ) : person( e.actor() ) );
-        o.put( "actorKind", byAgent ? "agent" : "human" );
+        final boolean bySystem = e.actorKind() == Actor.Kind.SYSTEM;
+        o.put( "actor", bySystem ? Actor.label( e.actor() ) : byAgent ? agent( e.agentId(), e.actor() ) : person( e.actor() ) );
+        o.put( "actorKind", bySystem ? "system" : byAgent ? "agent" : "human" );
         o.put( "from", eventValue( e.type(), e.fromValue() ) );
         o.put( "to", eventValue( e.type(), e.toValue() ) );
         o.put( "note", e.note() );

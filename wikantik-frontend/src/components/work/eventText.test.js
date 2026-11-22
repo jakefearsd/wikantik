@@ -318,7 +318,7 @@ describe('eventText with empty values', () => {
   const TYPES = ['created', 'edited', 'status', 'assigned', 'handoff', 'claimed', 'claim_renewed', 'released', 'claim_expired',
     'field', 'commented', 'comment_edited', 'comment_removed', 'linked', 'unlinked', 'change_opened', 'change_updated',
     'review_requested', 'change_reviewed', 'change_merged', 'change_abandoned', 'deployment_requested', 'shipped',
-    'rolled_back', 'acknowledged', 'member', 'settings', 'attached', 'attachment_removed', 'some_future_type'];
+    'rolled_back', 'acknowledged', 'change_flagged', 'change_superseded', 'change_flag_acknowledged', 'member', 'settings', 'attached', 'attachment_removed', 'some_future_type'];
   it('never ends a sentence in a space or holds a doubled space', () => {
     for (const type of TYPES) {
       for (const empty of [null, '', undefined]) {
@@ -352,5 +352,37 @@ describe('webhook settings events', () => {
     expect(t.standalone).toBe(true);
     expect(t.text).toBe('The webhook to hooks.example.com was switched off after failing for 24 hours.');
     expect(eventSentence(hook('failed'))).not.toContain('Ana Alvarez');
+  });
+});
+
+describe('code host events', () => {
+  it('names the system actor by its label and never as someone', () => {
+    const e = { type: 'change_merged', toValue: 'unreviewed', note: '9b01c77aaaa', actorKind: 'system', actorName: 'GitHub' };
+    expect(eventSentence(e)).toBe('GitHub merged a change without review at 9b01c77a');
+    expect(actorLabel({ actorKind: 'system' })).toBe('The code host');
+  });
+  it.each([
+    ['unreviewed', 'flagged a merge outside policy: without review'],
+    ['direct', 'flagged a merge outside policy: a direct commit where direct commits are not allowed'],
+  ])('change_flagged %s', (toValue, text) => {
+    expect(eventText({ type: 'change_flagged', toValue }).text).toBe(text);
+  });
+  it('superseded and acknowledged lines', () => {
+    expect(eventText({ type: 'change_superseded' }).text).toBe("recorded a direct commit again as the pull request's merge");
+    expect(eventText({ type: 'change_flag_acknowledged' }).text).toBe('acknowledged a merge outside policy');
+  });
+  it('a reopen is told from a head push, with nulls as the server sends them', () => {
+    const base = { type: 'change_updated', actorKind: 'system', actorName: 'GitHub', fromValue: 'change:4', toValue: null, note: null };
+    expect(eventSentence({ ...base, note: 'reopened on the code host' })).toBe('GitHub reopened a change on the code host');
+    expect(eventSentence(base)).toBe('GitHub updated a change');
+    expect(eventSentence({ ...base, toValue: '9b01c77aaaa' })).toBe('GitHub updated a change at 9b01c77a');
+  });
+  it('renders a code-host open with a null note and a late approval with its note', () => {
+    expect(eventSentence({ type: 'change_opened', actorKind: 'system', actorName: 'GitHub', toValue: 'work/PLAT-1-x', note: null, fromValue: null }))
+      .toBe('GitHub opened a change on work/PLAT-1-x');
+    const t = eventText({ type: 'change_reviewed', toValue: 'approved', note: 'approved before the merge; no longer outside policy', actorKind: 'system', actorName: 'GitHub' });
+    expect(t.text).toBe('approved a change');
+    expect(t.note).toBe('approved before the merge; no longer outside policy');
+    expect(t.prominentNote).toBe(true);
   });
 });

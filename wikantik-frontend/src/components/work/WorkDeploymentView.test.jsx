@@ -232,4 +232,39 @@ describe('WorkDeploymentView', () => {
     await screen.findByRole('heading', { name: /wikantik 2\.5\.26/ });
     expect(screen.queryByText('Only the items in projects you belong to are listed.')).toBeNull();
   });
+
+  it('links the deployment it remediates, by its product and version', async () => {
+    getDeployment.mockImplementation((id) => Promise.resolve(String(id) === '4'
+      ? dep('approved', { remediatesId: 3 })
+      : dep('failed', { id: 3, version: '2.5.25' })));
+    renderView();
+    const link = await screen.findByRole('link', { name: 'wikantik 2.5.25' });
+    expect(link).toHaveAttribute('href', '/work/deployments/3');
+    expect(link.closest('p')).toHaveTextContent('Remediates wikantik 2.5.25 · failed');
+  });
+
+  it('still links a remediated deployment it cannot read, without showing a bare id', async () => {
+    getDeployment.mockImplementation((id) => (String(id) === '4'
+      ? Promise.resolve(dep('approved', { remediatesId: 3 }))
+      : Promise.reject(Object.assign(new Error('nope'), { status: 404 }))));
+    renderView();
+    const link = await screen.findByRole('link', { name: 'an earlier deployment' });
+    expect(link).toHaveAttribute('href', '/work/deployments/3');
+  });
+
+  it('shows no remediation line for an ordinary deployment', async () => {
+    getDeployment.mockResolvedValue(dep('approved'));
+    renderView();
+    await screen.findByRole('heading', { name: /wikantik 2\.5\.26/ });
+    expect(screen.queryByText(/Remediates/)).toBeNull();
+  });
+
+  it('shows no Remediates line and no link when the server hides the target (remediatesId null)', async () => {
+    getDeployment.mockResolvedValue(dep('approved', { remediatesId: null }));
+    renderView();
+    await screen.findByRole('heading', { name: /wikantik 2\.5\.26/ });
+    expect(screen.queryByText(/Remediates/)).toBeNull();
+    expect(document.querySelector('a[href="/work/deployments/null"]')).toBeNull();
+    expect(getDeployment).toHaveBeenCalledTimes(1);
+  });
 });

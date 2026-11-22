@@ -121,6 +121,9 @@ public class CapabilitiesResource extends RestServletBase {
             // the flag AND a wired service: a wiring failure at startup leaves work off (its endpoints answer 404)
             result.put( "work", TextUtil.getBooleanProperty( props, PROP_WORK_ENABLED, false )
                     && getEngine() instanceof com.wikantik.WikiEngine we && we.workService() != null );
+            // code-host webhooks need work AND their own flag; the UI shows the hook controls only when true
+            result.put( "workCodeHost", Boolean.TRUE.equals( result.get( "work" ) )
+                    && TextUtil.getBooleanProperty( props, "wikantik.work.codehost.enabled", false ) );
             // the live kill switch, not the property: the registry's flag can change at runtime (ruling P8)
             result.put( "collab", Map.of( "enabled", collabRegistry.apply( getEngine() )
                     .map( CollabSessionRegistry::isEnabled ).orElse( false ) ) );

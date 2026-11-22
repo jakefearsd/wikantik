@@ -41,7 +41,7 @@ import java.util.function.Function;
 final class WorkChangeJson {
 
     private static final Set< String > DRAFT_FIELDS = Set.of( "branch", "baseBranch", "headSha", "reviewUrl",
-        "mergedSha" );
+        "mergedSha", "firstCommitAt" );
 
     private WorkChangeJson() {
     }
@@ -73,7 +73,7 @@ final class WorkChangeJson {
             }
         }
         return new ChangeDraft( text( b, "branch" ), text( b, "baseBranch" ), text( b, "headSha" ),
-            text( b, "reviewUrl" ), text( b, "mergedSha" ) );
+            text( b, "reviewUrl" ), text( b, "mergedSha" ), text( b, "firstCommitAt" ) );
     }
 
     /**

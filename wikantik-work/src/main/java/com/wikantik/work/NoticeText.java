@@ -30,7 +30,7 @@ final class NoticeText {
 
     static String line( final WorkEvent e, final NoticeReason reasonOrNull, final String recipientOrNull,
                         final Function< String, String > displayName ) {
-        final String a = e.actorKind() == Actor.Kind.AGENT ? e.actor() : displayName.apply( e.actor() );
+        final String a = Actor.shown( e.actorKind(), e.actor(), displayName );
         return switch ( e.type() ) {
             case WorkEvent.ASSIGNED -> {
                 final String target = target( e.toValue(), recipientOrNull, displayName );
@@ -53,6 +53,7 @@ final class NoticeText {
         return switch ( type ) {
             case WorkEvent.REVIEW_REQUESTED -> a + " asked for a review";
             case WorkEvent.CHANGE_MERGED -> a + " merged a change";
+            case WorkEvent.CHANGE_FLAGGED -> a + " flagged a merge outside policy";
             case WorkEvent.SHIPPED -> a + " shipped this";
             case WorkEvent.ROLLED_BACK -> a + " rolled back a deployment that carried this";
             case WorkEvent.CLAIM_EXPIRED -> a + "'s claim lapsed and the item went back to its queue";

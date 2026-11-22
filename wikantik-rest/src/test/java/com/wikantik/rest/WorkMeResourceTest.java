@@ -77,6 +77,14 @@ class WorkMeResourceTest {
     }
 
     @Test
+    void aMergeOutsidePolicyWaitsWithItsOwnReason() throws Exception {
+        Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem(
+            WorkHttp.item( "PLAT-1", "alice", 1 ), com.wikantik.work.WaitingItem.CHANGE_OUTSIDE_POLICY, null ) ) );
+        final JsonObject item = get().json().getAsJsonObject().getAsJsonArray( "waitingOn" ).get( 0 ).getAsJsonObject();
+        assertEquals( "change_outside_policy", item.getAsJsonObject( "waiting" ).get( "reason" ).getAsString() );
+    }
+
+    @Test
     void responseShowsDisplayNameNotLogin() throws Exception {
         Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem( WorkHttp.item( "PLAT-1", "alice", 1 ), "assigned", null ) ) );
         final JsonObject item = get().json().getAsJsonObject().getAsJsonArray( "waitingOn" ).get( 0 ).getAsJsonObject();

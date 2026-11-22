@@ -51,7 +51,9 @@ public enum Action {
     // Sharing a saved filter with a project's members (Part 4); an agent has no saved filters (SavedFilters).
     SHARE_FILTER( WorkRole.MEMBER, false, false ),
     // Attaching a file (and removing one; the uploader-or-lead rule is WorkAttachmentsService's), fenced like an edit.
-    ATTACH( WorkRole.MEMBER, false, true );
+    ATTACH( WorkRole.MEMBER, false, true ),
+    // A lead acknowledges a merge outside policy (flagged by the code-host service); an agent never does.
+    ACKNOWLEDGE_FLAG( WorkRole.LEAD, true, false );
 
     private final WorkRole minRole;
     private final boolean management;

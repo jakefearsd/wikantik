@@ -328,6 +328,51 @@ public class WorkMcpIT {
         assertTrue( all.contains( PERSON_NAME ), "positive control: the display name is there" );
     }
 
+    /**
+     * Fix-forward over the wire (Part 6): {@code request_deployment} takes {@code remediates} and every deployment map
+     * carries it. The failed deployment is driven over REST (the deployment tools cannot fail one); the agent files the
+     * fix. A made-up target is refused. Product and version carry a per-run tag; every id is the server's.
+     */
+    @Test
+    void requestDeploymentTakesRemediatesAndEveryDeploymentCarriesIt() throws Exception {
+        final String tag = Long.toString( System.nanoTime(), 36 );
+        final String product = "mcpdep" + tag;
+        assertEquals( 201, admin.send( "POST", "/api/work/products", Map.of( "key", product, "name", "Mcp dep " + tag,
+            "defaultBranch", "main" ) ).statusCode() );
+        final String first = shippableItem( product, "Mcp first " + tag );
+        final String second = shippableItem( product, "Mcp second " + tag );
+
+        final JsonObject broken = ok( clientA, "request_deployment", Map.of( "product", product, "version", "1.0." + tag,
+            "items", List.of( first ) ) );
+        final long brokenId = broken.get( "id" ).getAsLong();
+        assertTrue( broken.get( "remediates" ) == null || broken.get( "remediates" ).isJsonNull(),
+            "an ordinary request remediates nothing: " + broken );
+        assertEquals( 200, admin.send( "POST", "/api/work/deployments/" + brokenId + "/approve", Map.of( "note", "go" ) ).statusCode() );
+        assertEquals( 200, admin.send( "POST", "/api/work/deployments/" + brokenId + "/start", null ).statusCode() );
+        assertEquals( 200, admin.send( "POST", "/api/work/deployments/" + brokenId + "/fail", Map.of( "note", "boom" ) ).statusCode() );
+
+        final JsonObject fix = ok( clientA, "request_deployment", Map.of( "product", product, "version", "1.0." + tag + "-fix",
+            "items", List.of( second ), "remediates", brokenId ) );
+        assertEquals( brokenId, fix.get( "remediates" ).getAsLong(), "the fix names what it fixes: " + fix );
+        final JsonObject read = ok( clientA, "get_deployment", Map.of( "deployment", fix.get( "id" ).getAsLong() ) );
+        assertEquals( brokenId, read.get( "remediates" ).getAsLong() );
+        final JsonObject original = ok( clientA, "get_deployment", Map.of( "deployment", brokenId ) );
+        assertTrue( original.get( "remediates" ) == null || original.get( "remediates" ).isJsonNull() );
+
+        // a target that does not exist is refused, and the refusal does not say which part was wrong beyond "not found"
+        final String unknown = refused( clientA, "request_deployment", Map.of( "product", product, "version", "1.0." + tag + "-x",
+            "items", List.of( second ), "remediates", 987654321 ) );
+        assertFalse( unknown.isBlank() );
+    }
+
+    /** A ready task of project MCP that targets the product; the person-made item starts ready. */
+    private static String shippableItem( final String product, final String title ) throws Exception {
+        final HttpResponse< String > made = admin.send( "POST", "/api/work/items", Map.of( "project", "MCP", "level", "task",
+            "title", title, "productKey", product ) );
+        assertEquals( 201, made.statusCode(), made.body() );
+        return json( made ).getAsJsonObject().getAsJsonObject( "item" ).get( "key" ).getAsString();
+    }
+
     // ---- visibility
 
     @Test

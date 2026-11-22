@@ -893,6 +893,8 @@ Full descriptions (truncated above to keep the table scannable):
 | `wikantik.work.notify.email.intervalMinutes` | `int` | `5` | `wikantik_work_notify_email_intervalMinutes` | Minutes between email runs; each run sends one message per person holding everything new for them. … |
 | `wikantik.work.notify.email.dailyHour` | `int` | `8` | `wikantik_work_notify_email_dailyHour` | The hour of the day (0-23, in the server's time zone) after which a person who chose daily mail gets their digest, once a day. … |
 | `wikantik.work.notify.webhooks.enabled` | `boolean` | `false` | `wikantik_work_notify_webhooks_enabled` | Whether project leads may add webhooks (a signed JSON or Slack message per work event, sent to an https address) and whether they are delivered. … |
+| `wikantik.work.codehost.enabled` | `boolean` | `false` | `wikantik_work_codehost_enabled` | Receive signed webhook deliveries from a product's code host at /api/work/hooks/<product>/<github\|generic> and record pushes, pull requests and reviews as … |
+| `wikantik.work.codehost.maxBodyBytes` | `int` | `1048576` | `wikantik_work_codehost_maxBodyBytes` | The largest code-host webhook body accepted, in bytes. A larger one is answered 413 before its signature is checked. Values below 1024 are raised to 1024. |
 
 Full descriptions (truncated above to keep the table scannable):
 
@@ -908,6 +910,7 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.work.notify.email.intervalMinutes`** — Minutes between email runs; each run sends one message per person holding everything new for them. Accepts 1 to 60; any other value is logged and replaced by 5.
 - **`wikantik.work.notify.email.dailyHour`** — The hour of the day (0-23, in the server's time zone) after which a person who chose daily mail gets their digest, once a day. Any other value is logged and replaced by 8.
 - **`wikantik.work.notify.webhooks.enabled`** — Whether project leads may add webhooks (a signed JSON or Slack message per work event, sent to an https address) and whether they are delivered. Off by default. A webhook address is held to the same egress rule as the connectors: an address that resolves to a loopback, private, link-local, multicast or unique-local address is refused when it is saved and again at every delivery and every redirect, unless -Dwikantik.connectors.egress.allowPrivate=true is set, which also lets webhooks reach private addresses. Webhooks send only what the lead who last saved them could see, and pause while that person is not a lead. Run notifications on one node: each node would otherwise send each event.
+- **`wikantik.work.codehost.enabled`** — Receive signed webhook deliveries from a product's code host at /api/work/hooks/<product>/<github|generic> and record pushes, pull requests and reviews as change records. Receive only: the wiki never calls the code host and stores no token for it. Needs wikantik.work.enabled, and a wiki admin must also turn the hook on for each product (which issues its secret). When false the endpoint answers 404 to everything.
 
 ## Connectors
 

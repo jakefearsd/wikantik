@@ -39,6 +39,13 @@
           "https://example.com/pull/7"
         ]
       },
+      "first_commit_at": {
+        "type": "string",
+        "description": "The time of the branch\u0027s first commit, ISO-8601; only moves earlier.",
+        "examples": [
+          "2026-03-01T09:30:00Z"
+        ]
+      },
       "merged_sha": {
         "type": "string",
         "description": "Only when the work is already on the base branch: its commit. The change is then recorded as merged directly, which needs a lead to have allowed direct commits.",

@@ -114,4 +114,21 @@ class NoticeTextTest {
     void aNoteIsNeverPrinted() {
         assertFalse( line( e( "status", "todo", "done", "secret note" ), null, null ).contains( "secret" ) );
     }
+
+    @Test
+    void aSystemActorIsNamedForItsHostAndNeverLookedUp() {
+        final Function< String, String > failing = login -> {
+            throw new AssertionError( "the directory was asked for " + login );
+        };
+        final WorkEvent merged = RecipientsTest.ev( "change_merged", "codehost:github", Actor.Kind.SYSTEM, null, null, null );
+        assertEquals( "GitHub merged a change", NoticeText.line( merged, null, null, failing ) );
+        final WorkEvent other = RecipientsTest.ev( "change_merged", "codehost:gitea", Actor.Kind.SYSTEM, null, null, null );
+        assertEquals( "Code host merged a change", NoticeText.line( other, null, null, failing ) );
+    }
+
+    @Test
+    void aFlagLineNamesNoReader() {
+        final WorkEvent flag = RecipientsTest.ev( "change_flagged", "codehost:github", Actor.Kind.SYSTEM, null, null, null );
+        assertEquals( "GitHub flagged a merge outside policy", line( flag, NoticeReason.ACKNOWLEDGE, "lena" ) );
+    }
 }

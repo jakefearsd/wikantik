@@ -1,0 +1,37 @@
+{
+  "ref": "refs/heads/main",
+  "before": "1111111111111111111111111111111111111111",
+  "after": "bbbbbbb2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "repository": {
+    "full_name": "octo/plat",
+    "default_branch": "main"
+  },
+  "commits": [
+    {
+      "id": "aaaaaaa1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "message": "PLAT-1 start",
+      "timestamp": "2026-01-07T08:00:00Z",
+      "distinct": true,
+      "author": {
+        "name": "Ana A",
+        "email": "ana@example.com",
+        "username": "ana-gh"
+      }
+    },
+    {
+      "id": "bbbbbbb2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "message": "PLAT-1 finish",
+      "timestamp": "2026-01-07T08:00:01Z",
+      "distinct": true,
+      "author": {
+        "name": "Ana A",
+        "email": "ana@example.com",
+        "username": "ana-gh"
+      }
+    }
+  ],
+  "head_commit": {
+    "id": "bbbbbbb2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "timestamp": "2026-01-07T08:00:01Z"
+  }
+}

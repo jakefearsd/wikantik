@@ -45,6 +45,8 @@ public final class UpdateChangeTool extends WorkMcpTool {
         .arg( "head_sha", "string", "The branch's newest commit. A new commit clears any approval.",
             "4f2a9c1" )
         .arg( "review_url", "string", "A link to the review.", "https://example.com/pull/7" )
+        .arg( "first_commit_at", "string", "The time of the branch's first commit, ISO-8601; only moves earlier.",
+            "2026-03-01T09:30:00Z" )
         .arg( "state", "string", "in_review to ask for a review, abandoned to give the change up.",
             IN_REVIEW )
         .arg( "note", "string", "With abandoned: why.", "Superseded by a smaller change." );
@@ -65,10 +67,11 @@ public final class UpdateChangeTool extends WorkMcpTool {
         final String head = stringArg( args, "head_sha" );
         final String url = stringArg( args, "review_url" );
         final String state = stringArg( args, "state" );
-        requireFitting( head, url, state, stringArg( args, "note" ) );
+        final String first = stringArg( args, "first_commit_at" );
+        requireFitting( head != null || url != null || first != null, state, stringArg( args, "note" ) );
         String action = "change-updated";
-        if ( head != null || url != null ) {
-            svc.changes().update( actor, id, head, url );
+        if ( head != null || url != null || first != null ) {
+            svc.changes().update( actor, id, head, url, first );
         }
         if ( IN_REVIEW.equals( state ) ) {
             svc.changes().requestReview( actor, id );
@@ -82,8 +85,8 @@ public final class UpdateChangeTool extends WorkMcpTool {
     }
 
     /** What the call names must make sense together, said by name before anything is written. */
-    private static void requireFitting( final String head, final String url, final String state, final String note ) {
-        if ( head == null && url == null && state == null ) {
+    private static void requireFitting( final boolean names, final String state, final String note ) {
+        if ( !names && state == null ) {
             throw new WorkValidationException( "change", "Say what to change: head_sha, review_url or state." );
         }
         if ( state != null && !IN_REVIEW.equals( state ) && !ABANDONED.equals( state ) ) {

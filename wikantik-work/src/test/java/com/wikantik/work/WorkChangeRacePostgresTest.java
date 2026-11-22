@@ -87,7 +87,7 @@ class WorkChangeRacePostgresTest {
         f.svc.changes().review( f.reviewer, change.id(), true, null );
         final CommitGate gate = new CommitGate( f.ds );
         final Future< Change > push = pool.submit( () -> new JdbcWorkStore( gate ).changes().update( item,
-            change.id(), B, null, locked -> { }, f.author ) );
+            change.id(), B, null, null, locked -> { }, f.author ) );
         assertTrue( gate.reached.await( 30, TimeUnit.SECONDS ) );
         final Future< Change > merge = pool.submit( () -> f.svc.changes().merge( f.reviewer, change.id(), A ) );
         WorkClaimFixtures.awaitBlockedBy( f.ds, gate.pid );
@@ -127,8 +127,8 @@ class WorkChangeRacePostgresTest {
 
     @Test
     void aFailedOpenLeavesNoChange() throws SQLException {
-        // statements: 1 lock the item, 2 insert the change, 3 insert the event
-        assertThrows( RuntimeException.class, () -> failingOn( 3 ).changes().open( item, change.productId(),
+        // statements: 1 the product lock, 2 lock the item, 3 the branch check, 4 insert the change, 5 insert the event
+        assertThrows( RuntimeException.class, () -> failingOn( 5 ).changes().open( item, change.productId(),
             new ChangeDraft( "work/PLAT-1-z", "main", A, null, null ), f.mia ) );
         assertEquals( 1, f.count( "SELECT count(*) FROM work_change" ) );
         assertEquals( 1, count( "change_opened" ) );

@@ -41,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 
 class WorkProductResourceTest {
 
@@ -49,16 +50,69 @@ class WorkProductResourceTest {
 
     private WorkService svc;
     private WorkProductResource servlet;
+    private com.wikantik.work.WorkCodeHostService codeHost;
 
     @BeforeEach
     void setUp() throws Exception {
         svc = Mockito.mock( WorkService.class );
         servlet = WorkHttp.wire( new WorkProductResource(), svc, ALICE );
         Mockito.when( svc.listProducts( ALICE ) ).thenReturn( List.of( WIKI ) );
+        codeHost = Mockito.mock( com.wikantik.work.WorkCodeHostService.class );
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.codeHost() ).thenReturn( codeHost );
+        Mockito.when( codeHost.hooks( any() ) ).thenReturn( Map.of() );
     }
 
     private WorkHttp.Result call( final String method, final String path, final String body ) throws Exception {
         return WorkHttp.call( servlet, method, "/api/work/products", path, Map.of(), body );
+    }
+
+    private com.wikantik.work.WorkFlowService flowService() {
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        final com.wikantik.work.WorkFlowService flow = Mockito.mock( com.wikantik.work.WorkFlowService.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.flow() ).thenReturn( flow );
+        return flow;
+    }
+
+    private static com.wikantik.work.DoraReport emptyDora() {
+        return new com.wikantik.work.DoraReport( java.time.LocalDate.parse( "2026-11-02" ),
+            java.time.LocalDate.parse( "2026-11-15" ), "UTC", "wikantik", List.of(), com.wikantik.work.Durations.NONE, 0, 0, 0,
+            new com.wikantik.work.DoraReport.Rate( 0, 0 ), com.wikantik.work.Durations.NONE, 0,
+            new com.wikantik.work.DoraReport.Rate( 0, 0 ), new com.wikantik.work.DoraReport.MergeMix( 0, 0, 0, 0, 0 ) );
+    }
+
+    @Test
+    void productDoraForANonAdminIs403() throws Exception {
+        final com.wikantik.work.WorkFlowService flow = flowService();
+        Mockito.when( flow.doraForProduct( any(), anyString(), any(), any() ) ).thenThrow(
+            new WorkDeniedException( "Only a wiki administrator may read a product's figures." ) );
+        assertEquals( 403, call( "GET", "/wikantik/dora", null ).status() );
+    }
+
+    @Test
+    void productDoraForAnAdminIs200() throws Exception {
+        final com.wikantik.work.WorkFlowService flow = flowService();
+        Mockito.when( flow.doraForProduct( any(), anyString(), any(), any() ) ).thenReturn( emptyDora() );
+        final WorkHttp.Result r = WorkHttp.call( servlet, "GET", "/api/work/products", "/wikantik/dora",
+            Map.of( "from", "2026-11-02", "to", "2026-11-15" ), null );
+        assertEquals( 200, r.status() );
+        assertEquals( "wikantik", r.json().getAsJsonObject().get( "product" ).getAsString() );
+        Mockito.verify( flow ).doraForProduct( ALICE, "wikantik", java.time.LocalDate.parse( "2026-11-02" ),
+            java.time.LocalDate.parse( "2026-11-15" ) );
+    }
+
+    @Test
+    void productDoraForAnUnknownProductIs404AndABadDateIs400() throws Exception {
+        final com.wikantik.work.WorkFlowService flow = flowService();
+        Mockito.when( flow.doraForProduct( any(), anyString(), any(), any() ) ).thenThrow(
+            new WorkNotFoundException( "No such product: nope" ) );
+        assertEquals( 404, call( "GET", "/nope/dora", null ).status() );
+        final WorkHttp.Result bad = WorkHttp.call( servlet, "GET", "/api/work/products", "/wikantik/dora",
+            Map.of( "from", "soon" ), null );
+        assertEquals( 400, bad.status() );
+        assertEquals( "from", bad.json().getAsJsonObject().get( "field" ).getAsString() );
     }
 
     @Test
@@ -188,5 +242,103 @@ class WorkProductResourceTest {
         final int patch = call( "PATCH", "/wikantik", "{\"name\":\"x\"}" ).status();
         assertEquals( 403, patch );
         assertEquals( patch, call( "GET", "/wikantik/history", null ).status() );
+    }
+
+    private static final com.wikantik.work.Actor ROOT = com.wikantik.work.Actor.human( "root", java.util.Set.of(), true );
+    private static final String SECRET = "ab12".repeat( 16 );
+
+    private void asRoot() throws Exception {
+        servlet = WorkHttp.wire( new WorkProductResource(), svc, ROOT );
+        Mockito.when( svc.listProducts( ROOT ) ).thenReturn( List.of( WIKI ) );
+    }
+
+    private void issued() throws Exception {
+        final java.time.Instant on = java.time.Instant.parse( "2026-11-20T10:00:00Z" );
+        Mockito.when( codeHost.enableHook( ROOT, "wikantik" ) ).thenReturn( new com.wikantik.work.HookCreated(
+            new com.wikantik.work.HookStatus( "wikantik", true, on, null ), SECRET ) );
+        Mockito.when( codeHost.hooks( ROOT ) ).thenReturn( Map.of( "wikantik",
+            new com.wikantik.work.HookStatus( "wikantik", true, on, on.plusSeconds( 60 ) ) ) );
+    }
+
+    @Test
+    void turningTheHookOnReturnsTheSecretAndTheUrlsOnce() throws Exception {
+        asRoot();
+        issued();
+        final WorkHttp.Result r = call( "POST", "/wikantik/hook", null );
+        assertEquals( 200, r.status() );
+        final JsonObject o = r.json().getAsJsonObject();
+        assertEquals( SECRET, o.get( "secret" ).getAsString() );
+        assertEquals( "/api/work/hooks/wikantik/github", o.get( "githubUrl" ).getAsString() );
+        assertEquals( "/api/work/hooks/wikantik/generic", o.get( "genericUrl" ).getAsString() );
+        assertEquals( java.util.Set.of( "secret", "githubUrl", "genericUrl" ), o.keySet() );
+        assertEquals( "no-store", r.headers().get( "Cache-Control" ), "the response carrying the secret is never cached" );
+        assertFalse( o.get( "githubUrl" ).getAsString().contains( SECRET ) );
+    }
+
+    @Test
+    void theSecretIsInNoOtherResponse() throws Exception {
+        asRoot();
+        issued();
+        Mockito.when( svc.productHistory( ROOT, "wikantik" ) ).thenReturn( List.of( new com.wikantik.work.ProductEvent( 1,
+            java.time.Instant.parse( "2026-11-20T10:00:00Z" ), "root", com.wikantik.work.Actor.Kind.HUMAN, null, "hook",
+            null, "enabled" ) ) );
+        call( "POST", "/wikantik/hook", null );
+        final WorkHttp.Result list = call( "GET", null, null );
+        final WorkHttp.Result history = call( "GET", "/wikantik/history", null );
+        assertEquals( 200, list.status() );
+        assertEquals( 200, history.status() );
+        assertFalse( list.body().contains( SECRET ), list.body() );
+        assertFalse( history.body().contains( SECRET ), history.body() );
+    }
+
+    @Test
+    void anAdminsProductRowsCarryTheHookState() throws Exception {
+        asRoot();
+        issued();
+        final JsonObject hook = call( "GET", null, null ).json().getAsJsonArray().get( 0 ).getAsJsonObject()
+            .getAsJsonObject( "hook" );
+        assertEquals( java.util.Set.of( "enabled", "enabledAt", "lastReceivedAt" ), hook.keySet() );
+        assertEquals( true, hook.get( "enabled" ).getAsBoolean() );
+        assertEquals( "2026-11-20T10:00:00Z", hook.get( "enabledAt" ).getAsString() );
+        assertEquals( "2026-11-20T10:01:00Z", hook.get( "lastReceivedAt" ).getAsString() );
+    }
+
+    @Test
+    void aProductWithNoHookIsOffWithNullTimes() throws Exception {
+        asRoot();
+        final JsonObject hook = call( "GET", null, null ).json().getAsJsonArray().get( 0 ).getAsJsonObject()
+            .getAsJsonObject( "hook" );
+        assertEquals( false, hook.get( "enabled" ).getAsBoolean() );
+        assertEquals( true, hook.get( "enabledAt" ).isJsonNull() );
+        assertEquals( true, hook.get( "lastReceivedAt" ).isJsonNull() );
+    }
+
+    @Test
+    void aMemberSeesNoHookAndTheServiceIsNotAskedForOne() throws Exception {
+        final JsonObject p = call( "GET", null, null ).json().getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertFalse( p.has( "hook" ) );
+        Mockito.verify( codeHost, Mockito.never() ).hooks( any() );
+    }
+
+    @Test
+    void turningTheHookOffIs204() throws Exception {
+        asRoot();
+        assertEquals( 204, call( "DELETE", "/wikantik/hook", null ).status() );
+        Mockito.verify( codeHost ).disableHook( ROOT, "wikantik" );
+    }
+
+    @Test
+    void theHookRoutesMapRefusalsLikeProductEdits() throws Exception {
+        Mockito.when( codeHost.enableHook( any(), anyString() ) ).thenThrow( new WorkDeniedException( "Only wiki admins." ) );
+        assertEquals( 403, call( "POST", "/wikantik/hook", null ).status() );
+        Mockito.doThrow( new WorkDeniedException( "Only wiki admins." ) ).when( codeHost ).disableHook( any(), anyString() );
+        assertEquals( 403, call( "DELETE", "/wikantik/hook", null ).status() );
+        Mockito.when( codeHost.enableHook( any(), eq( "ghost" ) ) ).thenThrow( new WorkNotFoundException( "No such product: ghost" ) );
+        final WorkHttp.Result missing = call( "POST", "/ghost/hook", null );
+        assertEquals( 404, missing.status() );
+        assertFalse( missing.body().contains( "ghost" ), missing.body() );
+        Mockito.when( codeHost.enableHook( any(), eq( "old" ) ) ).thenThrow(
+            new WorkConflictException( "The product is archived.", WorkConflictException.ARCHIVED ) );
+        assertEquals( 409, call( "POST", "/old/hook", null ).status() );
     }
 }

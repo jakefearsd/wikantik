@@ -30,7 +30,11 @@ function EventTypeChecks({ idPrefix, value, onChange, disabled }) {
   );
 }
 
-function SecretPanel({ secret, onDone }) {
+/**
+ * Shows a secret once. `label` names the dialog; `children` is extra content (e.g. an address) above the secret.
+ * The holder drops the secret on Done; it is never logged.
+ */
+export function SecretPanel({ secret, onDone, label = 'Webhook secret', children = null }) {
   const [copied, setCopied] = useState(null);
   const panel = useRef(null);
   useEffect(() => { panel.current?.focus(); }, []);
@@ -49,12 +53,13 @@ function SecretPanel({ secret, onDone }) {
     });
   }
   return (
-    <section ref={panel} tabIndex={-1} className="work-token-panel" role="dialog" aria-modal="false" aria-label="Webhook secret">
+    <section ref={panel} tabIndex={-1} className="work-token-panel" role="dialog" aria-modal="false" aria-label={label}>
       <p role="status" aria-live="polite">
-        Copy this secret now. It is not shown again.
+        Copy this secret now. It cannot be shown again.
         {copied === true && ' Copied.'}
         {copied === false && ' Copying failed — select the secret and copy it by hand.'}
       </p>
+      {children}
       <code className="work-token-value">{secret}</code>
       <div className="work-actions">
         <button type="button" className="btn btn-sm" onClick={copy}>Copy</button>

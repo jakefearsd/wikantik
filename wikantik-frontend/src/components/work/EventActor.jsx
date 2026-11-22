@@ -6,6 +6,7 @@ export default function EventActor({ event }) {
   return (
     <>
       <strong className="work-event-actor">{actorLabel(event)}</strong>
+      {event?.actorKind === 'system' && <>{' '}<span className="work-agent-badge">code host</span></>}
       {event?.actorKind === 'agent' && <>{' '}<span className="work-agent-badge">agent</span></>}
       {' '}
     </>

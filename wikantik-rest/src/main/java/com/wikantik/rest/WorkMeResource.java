@@ -29,7 +29,8 @@ import com.wikantik.work.WorkEvent;
 
 /**
  * {@code /api/work/me}: what is waiting on the caller, and the projects they can see. Each waiting item says why it is
- * there ({@code waiting.reason}: {@code assigned} or {@code mentioned}) and, for an assignment that came with a
+ * there ({@code waiting.reason}: {@code assigned}, {@code mentioned}, {@code acknowledge} or
+ * {@code change_outside_policy}, a merge the code host reported outside policy) and, for an assignment that came with a
  * hand-off, who handed it over and their note.
  */
 public class WorkMeResource extends WorkResourceBase {

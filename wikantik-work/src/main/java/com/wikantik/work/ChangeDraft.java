@@ -22,5 +22,12 @@ package com.wikantik.work;
  * What a caller says when opening a change. A null {@code baseBranch} means the product's default branch; a
  * non-null {@code mergedSha} means the work is already on that branch: the change is opened and merged in one step.
  */
-public record ChangeDraft( String branch, String baseBranch, String headSha, String reviewUrl, String mergedSha ) {
+public record ChangeDraft( String branch, String baseBranch, String headSha, String reviewUrl, String mergedSha,
+                           String firstCommitAt ) {
+
+    /** A draft with no first commit time. */
+    public ChangeDraft( final String branch, final String baseBranch, final String headSha, final String reviewUrl,
+                        final String mergedSha ) {
+        this( branch, baseBranch, headSha, reviewUrl, mergedSha, null );
+    }
 }

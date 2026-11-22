@@ -10,6 +10,7 @@ import { ARCHIVED_TEXT } from './archived';
 const TABS = [
   { id: 'board', label: 'Board' },
   { id: 'dates', label: 'Dates' },
+  { id: 'flow', label: 'Flow' },
   { id: 'sprints', label: 'Sprints' },
   { id: 'activity', label: 'Activity' },
   { id: 'log', label: 'Assignments and claims' },

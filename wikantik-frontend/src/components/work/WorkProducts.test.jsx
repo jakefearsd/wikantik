@@ -1,14 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
   listProducts: vi.fn(), createProduct: vi.fn(), updateProduct: vi.fn(), archiveProduct: vi.fn(), productHistory: vi.fn(),
+  enableHook: vi.fn(), disableHook: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
+vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn(() => ({ capabilities: { work: true }, loading: false })) }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { listProducts, createProduct, updateProduct, archiveProduct, productHistory } from '../../api/work';
+import { listProducts, createProduct, updateProduct, archiveProduct, productHistory, enableHook, disableHook } from '../../api/work';
+import { useCapabilities } from '../../hooks/useCapabilities';
 import { useAuth } from '../../hooks/useAuth';
 import WorkProducts from './WorkProducts';
 
@@ -213,5 +216,117 @@ describe('WorkProducts', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     expect(screen.queryByRole('button', { name: 'New product' })).toBeNull();
+  });
+
+  describe('code-host hook', () => {
+    const SECRET = 'a'.repeat(64);
+    const withHook = (hook) => ({ ...PRODUCT, hook });
+    const on = (extra = {}) => withHook({ enabled: true, enabledAt: '2026-01-01T00:00:00Z', lastReceivedAt: '2026-01-02T00:00:00Z', ...extra });
+    const off = withHook({ enabled: false, enabledAt: null, lastReceivedAt: null });
+    beforeEach(() => {
+      useCapabilities.mockReturnValue({ capabilities: { work: true, workCodeHost: true }, loading: false });
+      enableHook.mockResolvedValue({ secret: SECRET, githubUrl: '/api/work/hooks/wikantik/github', genericUrl: '/api/work/hooks/wikantik/generic' });
+      disableHook.mockResolvedValue(undefined);
+    });
+    afterEach(() => useCapabilities.mockReturnValue({ capabilities: { work: true }, loading: false }));
+
+    it('shows no hook controls when the wiki has code-host hooks off or the row carries no hook', async () => {
+      useCapabilities.mockReturnValue({ capabilities: { work: true, workCodeHost: false }, loading: false });
+      listProducts.mockResolvedValue([off]);
+      renderProducts();
+      await screen.findByText('Wikantik');
+      expect(screen.queryByText(/Code host:/)).toBeNull();
+      expect(screen.queryByRole('button', { name: /hook/i })).toBeNull();
+    });
+
+    it('shows nothing for a product whose JSON has no hook', async () => {
+      listProducts.mockResolvedValue([PRODUCT]);
+      renderProducts();
+      await screen.findByText('Wikantik');
+      expect(screen.queryByText(/Code host:/)).toBeNull();
+    });
+
+    it('says off, then turning on is confirmed and shows the address and the secret once', async () => {
+      listProducts.mockResolvedValue([off]);
+      renderProducts();
+      expect(await screen.findByText('Code host: off')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Turn on the hook for wikantik' }));
+      expect(enableHook).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, turn on' }));
+      const panel = await screen.findByRole('dialog', { name: 'Code-host hook secret' });
+      expect(enableHook).toHaveBeenCalledWith('wikantik');
+      expect(panel).toHaveTextContent(SECRET);
+      expect(panel).toHaveTextContent(`${window.location.origin}/api/work/hooks/wikantik/github`);
+      expect(panel).toHaveTextContent('cannot be shown again');
+      expect(panel).toHaveTextContent('Shown once. In GitHub: Settings → Webhooks → Add webhook; content type application/json; events: Pushes, Pull requests, Pull request reviews.');
+      expect(panel).toHaveTextContent(`${window.location.origin}/api/work/hooks/wikantik/generic`);
+      expect(within(panel).getByRole('button', { name: 'Copy GitHub address' })).toBeInTheDocument();
+      expect(within(panel).getByRole('button', { name: 'Copy generic address' })).toBeInTheDocument();
+      expect(listProducts).toHaveBeenCalledTimes(2);
+      fireEvent.click(within(panel).getByRole('button', { name: 'Done' }));
+      expect(screen.queryByText(SECRET, { exact: false })).toBeNull();
+      expect(document.body.textContent).not.toContain(SECRET);
+    });
+
+    it('never logs the secret', async () => {
+      const spies = ['log', 'warn', 'error', 'info'].map((m) => vi.spyOn(console, m).mockImplementation(() => {}));
+      listProducts.mockResolvedValue([off]);
+      renderProducts();
+      fireEvent.click(await screen.findByRole('button', { name: 'Turn on the hook for wikantik' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, turn on' }));
+      await screen.findByRole('dialog', { name: 'Code-host hook secret' });
+      for (const s of spies) { expect(JSON.stringify(s.mock.calls)).not.toContain(SECRET); s.mockRestore(); }
+    });
+
+    it('an enabled hook shows its last delivery, and a new secret is confirmed then shown once', async () => {
+      listProducts.mockResolvedValue([on()]);
+      renderProducts();
+      expect(await screen.findByText(/Code host: on · last delivery /)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'New secret for wikantik' }));
+      expect(screen.getByRole('alertdialog')).toHaveTextContent('The old secret stops working at once');
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, make a new secret' }));
+      expect(await screen.findByRole('dialog', { name: 'Code-host hook secret' })).toHaveTextContent(SECRET);
+    });
+
+    it('turning off asks first, can be cancelled, and then reloads', async () => {
+      listProducts.mockResolvedValue([on()]);
+      renderProducts();
+      fireEvent.click(await screen.findByRole('button', { name: 'Turn off the hook for wikantik' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(disableHook).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Turn off the hook for wikantik' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, turn off' }));
+      await waitFor(() => expect(disableHook).toHaveBeenCalledWith('wikantik'));
+      await waitFor(() => expect(listProducts).toHaveBeenCalledTimes(2));
+    });
+
+    it('a refusal is said in words, shows no secret and keeps the confirmation open', async () => {
+      enableHook.mockRejectedValue(new Error('Only a wiki administrator may do that.'));
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      listProducts.mockResolvedValue([off]);
+      renderProducts();
+      fireEvent.click(await screen.findByRole('button', { name: 'Turn on the hook for wikantik' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, turn on' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Only a wiki administrator');
+      expect(screen.queryByRole('dialog', { name: 'Code-host hook secret' })).toBeNull();
+      warn.mockRestore();
+    });
+
+    it('a failed reload keeps the products on screen with an inline error', async () => {
+      listProducts.mockResolvedValueOnce([off]).mockRejectedValue(new Error('down'));
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      renderProducts();
+      fireEvent.click(await screen.findByRole('button', { name: 'Turn on the hook for wikantik' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, turn on' }));
+      expect(await screen.findByText('down')).toBeInTheDocument();
+      expect(screen.getByText('Wikantik')).toBeInTheDocument();
+      warn.mockRestore();
+    });
+  });
+
+  it('links each product to its delivery figures', async () => {
+    renderProducts();
+    await screen.findByText('Wikantik');
+    expect(screen.getByRole('link', { name: 'Delivery figures for wikantik' })).toHaveAttribute('href', '/work/products/wikantik/dora');
   });
 });

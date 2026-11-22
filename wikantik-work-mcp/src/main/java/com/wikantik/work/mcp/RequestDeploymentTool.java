@@ -46,7 +46,9 @@ public final class RequestDeploymentTool extends WorkMcpTool {
         .requiredArg( "product", "string", "The product key.", "wikantik" )
         .requiredArg( "version", "string", "The version to deploy.", "2.5.26" )
         .arg( "items", itemKeys(), true )
-        .arg( "environment", "string", "Where it goes; production when omitted.", "production" );
+        .arg( "environment", "string", "Where it goes; production when omitted.", "production" )
+        .arg( "remediates", "integer", "The deployment this one fixes (fix-forward): an earlier deployment of the "
+            + "same product and environment that was verified, failed or rolled back.", 4 );
 
     private final WorkService svc;
     private final WorkDirectory directory;
@@ -68,12 +70,18 @@ public final class RequestDeploymentTool extends WorkMcpTool {
         return items;
     }
 
+    /** The optional {@code remediates} argument: a deployment number. */
+    private static Long remediates( final Map< String, Object > args ) {
+        final Integer id = intArg( args, "remediates" );
+        return id == null ? null : id.longValue();
+    }
+
     @Override
     protected McpSchema.CallToolResult run( final Actor actor, final Map< String, Object > args ) throws SQLException {
         rejectOthers( args, allowed(), Map.of() );
         final DeploymentView v = svc.deployments().request( actor, new DeploymentDraft(
             requiredString( args, "product" ), stringArg( args, "environment" ), requiredString( args, "version" ),
-            WorkMcpDeployments.itemKeys( args ) ) );
+            WorkMcpDeployments.itemKeys( args ), remediates( args ) ) );
         WorkMcpLog.written( TOOL_NAME, "deployment-requested", "deployment:" + v.deployment().id(), actor );
         return ok( WorkMcpDeployments.deployment( svc, directory, actor, v ) );
     }

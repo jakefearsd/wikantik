@@ -336,6 +336,123 @@ class WorkProjectResourceTest {
         assertEquals( true, body.contains( "Name of bob" ) );
     }
 
+    private com.wikantik.work.WorkFlowService flowService() {
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        final com.wikantik.work.WorkFlowService flow = Mockito.mock( com.wikantik.work.WorkFlowService.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.flow() ).thenReturn( flow );
+        return flow;
+    }
+
+    private static com.wikantik.work.FlowReport emptyFlow() {
+        return new com.wikantik.work.FlowReport( java.time.LocalDate.parse( "2026-11-02" ),
+            java.time.LocalDate.parse( "2026-11-15" ), "UTC", List.of(), com.wikantik.work.Durations.NONE,
+            com.wikantik.work.Durations.NONE, List.of() );
+    }
+
+    private static com.wikantik.work.DoraReport emptyDora( final String product ) {
+        return new com.wikantik.work.DoraReport( java.time.LocalDate.parse( "2026-11-02" ),
+            java.time.LocalDate.parse( "2026-11-15" ), "UTC", product, List.of(), com.wikantik.work.Durations.NONE, 0, 0, 0,
+            new com.wikantik.work.DoraReport.Rate( 0, 0 ), com.wikantik.work.Durations.NONE, 0,
+            new com.wikantik.work.DoraReport.Rate( 0, 0 ), new com.wikantik.work.DoraReport.MergeMix( 0, 0, 0, 0, 0 ) );
+    }
+
+    @Test
+    void flowPassesEveryFilter() throws Exception {
+        final com.wikantik.work.WorkFlowService flow = flowService();
+        Mockito.when( flow.project( any(), anyString(), any() ) ).thenReturn( emptyFlow() );
+        final WorkHttp.Result r = call( "GET", "/PLAT/flow", Map.of( "from", "2026-11-02", "to", "2026-11-15",
+            "sprint", "7", "label", "backend", "type", "bug", "assignee", "Mia Jones" ), null );
+        assertEquals( 200, r.status() );
+        final ArgumentCaptor< com.wikantik.work.FlowQuery > q = ArgumentCaptor.forClass( com.wikantik.work.FlowQuery.class );
+        Mockito.verify( flow ).project( eq( ALICE ), eq( "PLAT" ), q.capture() );
+        assertEquals( new com.wikantik.work.FlowQuery( java.time.LocalDate.parse( "2026-11-02" ),
+            java.time.LocalDate.parse( "2026-11-15" ), 7L, "backend", com.wikantik.work.WorkType.BUG, "Mia Jones" ),
+            q.getValue() );
+        assertEquals( "UTC", r.json().getAsJsonObject().get( "zone" ).getAsString() );
+    }
+
+    @Test
+    void flowWithNoParametersAsksForAllDefaults() throws Exception {
+        final com.wikantik.work.WorkFlowService flow = flowService();
+        Mockito.when( flow.project( any(), anyString(), any() ) ).thenReturn( emptyFlow() );
+        assertEquals( 200, call( "GET", "/PLAT/flow", Map.of(), null ).status() );
+        final ArgumentCaptor< com.wikantik.work.FlowQuery > q = ArgumentCaptor.forClass( com.wikantik.work.FlowQuery.class );
+        Mockito.verify( flow ).project( eq( ALICE ), eq( "PLAT" ), q.capture() );
+        assertEquals( new com.wikantik.work.FlowQuery( null, null, null, null, null, null ), q.getValue() );
+    }
+
+    @Test
+    void aBadDateIs400NamingIt() throws Exception {
+        flowService();
+        for ( final String path : List.of( "/PLAT/flow", "/PLAT/dora" ) ) {
+            final WorkHttp.Result from = call( "GET", path, Map.of( "from", "11/02/2026" ), null );
+            assertEquals( 400, from.status() );
+            assertEquals( "from", from.json().getAsJsonObject().get( "field" ).getAsString() );
+            assertEquals( "Use a date like 2026-11-21.", from.json().getAsJsonObject().get( "message" ).getAsString() );
+            final WorkHttp.Result to = call( "GET", path, Map.of( "to", "10000-01-01" ), null );
+            assertEquals( 400, to.status() );
+            assertEquals( "to", to.json().getAsJsonObject().get( "field" ).getAsString() );
+        }
+    }
+
+    @Test
+    void aWindowTheServiceRefusesIs400NamingTheField() throws Exception {
+        final com.wikantik.work.WorkFlowService flow = flowService();
+        Mockito.when( flow.project( any(), anyString(), any() ) ).thenThrow(
+            new WorkValidationException( "to", "A report covers at most 366 days." ) );
+        final WorkHttp.Result r = call( "GET", "/PLAT/flow", Map.of( "from", "2020-01-01", "to", "2026-01-01" ), null );
+        assertEquals( 400, r.status() );
+        assertEquals( "to", r.json().getAsJsonObject().get( "field" ).getAsString() );
+    }
+
+    @Test
+    void aBadSprintIs400() throws Exception {
+        flowService();
+        final WorkHttp.Result r = call( "GET", "/PLAT/flow", Map.of( "sprint", "next" ), null );
+        assertEquals( 400, r.status() );
+        assertEquals( "sprint", r.json().getAsJsonObject().get( "field" ).getAsString() );
+        assertEquals( "A sprint is named by its number.", r.json().getAsJsonObject().get( "message" ).getAsString() );
+        final WorkHttp.Result type = call( "GET", "/PLAT/flow", Map.of( "type", "nonsense" ), null );
+        assertEquals( 400, type.status() );
+        assertEquals( "type", type.json().getAsJsonObject().get( "field" ).getAsString() );
+    }
+
+    @Test
+    void flowForAStrangerIs404() throws Exception {
+        final com.wikantik.work.WorkFlowService flow = flowService();
+        Mockito.when( flow.project( any(), anyString(), any() ) ).thenThrow( new WorkNotFoundException( "No such project." ) );
+        assertEquals( 404, call( "GET", "/PLAT/flow", Map.of(), null ).status() );
+        Mockito.when( flow.dora( any(), anyString(), any() ) ).thenThrow( new WorkNotFoundException( "No such project." ) );
+        assertEquals( 404, call( "GET", "/PLAT/dora", Map.of(), null ).status() );
+    }
+
+    @Test
+    void doraPassesTheProduct() throws Exception {
+        final com.wikantik.work.WorkFlowService flow = flowService();
+        Mockito.when( flow.dora( any(), anyString(), any() ) ).thenReturn( emptyDora( "wikantik" ) );
+        final WorkHttp.Result r = call( "GET", "/PLAT/dora", Map.of( "from", "2026-11-02", "to", "2026-11-15",
+            "product", "wikantik" ), null );
+        assertEquals( 200, r.status() );
+        final ArgumentCaptor< com.wikantik.work.DoraQuery > q = ArgumentCaptor.forClass( com.wikantik.work.DoraQuery.class );
+        Mockito.verify( flow ).dora( eq( ALICE ), eq( "PLAT" ), q.capture() );
+        assertEquals( new com.wikantik.work.DoraQuery( java.time.LocalDate.parse( "2026-11-02" ),
+            java.time.LocalDate.parse( "2026-11-15" ), "wikantik" ), q.getValue() );
+        assertEquals( "wikantik", r.json().getAsJsonObject().get( "product" ).getAsString() );
+    }
+
+    @Test
+    void anEmptyDoraWindowSerialisesAsZerosAndNulls() throws Exception {
+        final com.wikantik.work.WorkFlowService flow = flowService();
+        Mockito.when( flow.dora( any(), anyString(), any() ) ).thenReturn( emptyDora( null ) );
+        final WorkHttp.Result r = call( "GET", "/PLAT/dora", Map.of(), null );
+        assertFalse( r.body().contains( "NaN" ) || r.body().contains( "Infinity" ), r.body() );
+        final JsonObject o = r.json().getAsJsonObject();
+        assertEquals( 0, o.getAsJsonObject( "changeFailureRate" ).get( "denominator" ).getAsInt() );
+        assertTrue( o.getAsJsonObject( "recoveryTime" ).get( "p50Seconds" ).isJsonNull() );
+        assertTrue( o.get( "product" ).isJsonNull() );
+    }
+
     @Test
     void unknownPathIs404() throws Exception {
         assertEquals( 404, call( "GET", "/PLAT/nothing", Map.of(), null ).status() );

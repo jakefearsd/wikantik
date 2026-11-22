@@ -242,4 +242,132 @@ public class WorkDeploymentApiIT {
         assertEquals( 409, back.statusCode(), back.body() );
         assertEquals( "bad_transition", json( back ).getAsJsonObject().get( "reason" ).getAsString() );
     }
+
+    // ---- fix-forward (Part 6): the "remediates" field
+
+    /** A ready task of {@code project} that targets {@code product}; returns its key. */
+    private static String itemFor( final String project, final String product, final String title ) throws Exception {
+        final HttpResponse< String > r = admin.send( "POST", "/api/work/items", Map.of( "project", project, "level", "task",
+            "title", title, "productKey", product ) );
+        assertEquals( 201, r.statusCode(), r.body() );
+        return itemOf( json( r ).getAsJsonObject() ).get( "key" ).getAsString();
+    }
+
+    /** Requests (as the admin), approves and starts a deployment of one new item; returns its id, running. */
+    private static long running( final String project, final String product, final String environment, final String version )
+            throws Exception {
+        final Map< String, Object > body = new java.util.HashMap<>( Map.of( "product", product, "version", version,
+            "items", List.of( itemFor( project, product, "Fix-forward " + version ) ) ) );
+        if ( environment != null ) {
+            body.put( "environment", environment );
+        }
+        final long id = request( admin.send( "POST", "/api/work/deployments", body ) );
+        ok( admin.send( "POST", "/api/work/deployments/" + id + "/approve", Map.of( "note", "go" ) ) );
+        ok( admin.send( "POST", "/api/work/deployments/" + id + "/start", null ) );
+        return id;
+    }
+
+    /** A deployment that ran and failed; returns its id. */
+    private static long failed( final String project, final String product, final String environment, final String version )
+            throws Exception {
+        final long id = running( project, product, environment, version );
+        assertEquals( "failed", ok( admin.send( "POST", "/api/work/deployments/" + id + "/fail", Map.of( "note", "boom" ) ) )
+            .get( "state" ).getAsString() );
+        return id;
+    }
+
+    private static HttpResponse< String > requestFix( final Caller who, final String product, final String version,
+                                                      final String itemKey, final Object remediates ) throws Exception {
+        final Map< String, Object > body = new java.util.HashMap<>( Map.of( "product", product, "version", version,
+            "items", List.of( itemKey ) ) );
+        body.put( "remediates", remediates );
+        return who.send( "POST", "/api/work/deployments", body );
+    }
+
+    private static boolean remediatesNothing( final JsonObject deployment ) {
+        return !deployment.has( "remediatesId" ) || deployment.get( "remediatesId" ).isJsonNull();
+    }
+
+    private static String fieldOf( final HttpResponse< String > r ) {
+        return json( r ).getAsJsonObject().get( "field" ).getAsString();
+    }
+
+    private static String messageOf( final HttpResponse< String > r ) {
+        return json( r ).getAsJsonObject().get( "message" ).getAsString();
+    }
+
+    @Test
+    void aFailedOrVerifiedDeploymentCanBeRemediatedAndTheFixNamesIt() throws Exception {
+        final String tag = Long.toString( System.nanoTime(), 36 );
+        final long broken = failed( "DPA", "depprod", null, "6.0." + tag );
+        final HttpResponse< String > fixed = requestFix( admin, "depprod", "6.0." + tag + "-fix",
+            itemFor( "DPA", "depprod", "Fix " + tag ), broken );
+        final long fixId = request( fixed );
+        assertEquals( broken, json( fixed ).getAsJsonObject().get( "remediatesId" ).getAsLong() );
+        assertEquals( broken, ok( admin.get( "/api/work/deployments/" + fixId ) ).get( "remediatesId" ).getAsLong(),
+            "a read of the fix names it too" );
+        assertTrue( remediatesNothing( ok( admin.get( "/api/work/deployments/" + broken ) ) ),
+            "the failed deployment itself remediates nothing" );
+
+        // the message says verified deployments can be remediated as well (a verified one that is then rolled back)
+        ok( admin.send( "POST", "/api/work/deployments/" + fixId + "/approve", Map.of( "note", "go" ) ) );
+        ok( admin.send( "POST", "/api/work/deployments/" + fixId + "/start", null ) );
+        ok( admin.send( "POST", "/api/work/deployments/" + fixId + "/verify", Map.of( "evidence", "health 200" ) ) );
+        final HttpResponse< String > again = requestFix( admin, "depprod", "6.0." + tag + "-fix2",
+            itemFor( "DPA", "depprod", "Fix again " + tag ), fixId );
+        assertEquals( fixId, json( again ).getAsJsonObject().get( "remediatesId" ).getAsLong() );
+        assertEquals( 201, again.statusCode(), again.body() );
+    }
+
+    @Test
+    void remediatesRefusalsNameTheFieldAndAHiddenTargetIsOneAnswerWithAnUnknownOne() throws Exception {
+        final String tag = Long.toString( System.nanoTime(), 36 );
+        final String other = "depother" + tag;
+        assertEquals( 201, admin.send( "POST", "/api/work/products", Map.of( "key", other, "name", "Other " + tag,
+            "defaultBranch", "main" ) ).statusCode() );
+        final long broken = failed( "DPA", "depprod", null, "6.1." + tag );
+        final String fixItem = itemFor( "DPA", "depprod", "Refused fix " + tag );
+
+        // not a deployment number
+        for ( final Object bad : new Object[] { "abc", 0, -3, 1.5 } ) {
+            final HttpResponse< String > r = requestFix( admin, "depprod", "6.1." + tag + "-a", fixItem, bad );
+            assertEquals( 400, r.statusCode(), bad + ": " + r.body() );
+            assertEquals( "remediates", fieldOf( r ), bad + ": " + r.body() );
+        }
+
+        // a deployment that has not ended cannot be remediated
+        final long waiting = request( admin.send( "POST", "/api/work/deployments", Map.of( "product", "depprod",
+            "version", "6.1." + tag + "-w", "items", List.of( itemFor( "DPA", "depprod", "Still waiting " + tag ) ) ) ) );
+        final HttpResponse< String > notEnded = requestFix( admin, "depprod", "6.1." + tag + "-b", fixItem, waiting );
+        assertEquals( 400, notEnded.statusCode(), notEnded.body() );
+        assertEquals( "remediates", fieldOf( notEnded ) );
+        assertEquals( "Only a deployment that was verified, failed or rolled back can be remediated.", messageOf( notEnded ) );
+
+        // another product's failure
+        final long otherFailed = failed( "DPA", other, null, "6.1." + tag + "-o" );
+        final HttpResponse< String > wrongProduct = requestFix( admin, "depprod", "6.1." + tag + "-c", fixItem, otherFailed );
+        assertEquals( 400, wrongProduct.statusCode(), wrongProduct.body() );
+        assertEquals( "remediates", fieldOf( wrongProduct ) );
+        assertEquals( "A remediating deployment fixes an earlier deployment of the same product and environment.",
+            messageOf( wrongProduct ) );
+
+        // the same product's failure in another environment (the new request is production)
+        final long staging = failed( "DPA", "depprod", "staging", "6.1." + tag + "-s" );
+        final HttpResponse< String > wrongEnvironment = requestFix( admin, "depprod", "6.1." + tag + "-d", fixItem, staging );
+        assertEquals( 400, wrongEnvironment.statusCode(), wrongEnvironment.body() );
+        assertEquals( "remediates", fieldOf( wrongEnvironment ) );
+        assertEquals( messageOf( wrongProduct ), messageOf( wrongEnvironment ) );
+
+        // a failure carrying only DPB items, asked about by a member of DPA only, is the answer for an unknown id
+        final long hidden = failed( "DPB", "depprod", null, "6.1." + tag + "-h" );
+        final String visibleItem = itemFor( "DPA", "depprod", "Visible to A " + tag );
+        final HttpResponse< String > seenAsHidden = requestFix( onlyA, "depprod", "6.1." + tag + "-e", visibleItem, hidden );
+        final HttpResponse< String > seenAsGhost = requestFix( onlyA, "depprod", "6.1." + tag + "-e", visibleItem, 987654321L );
+        assertEquals( 404, seenAsGhost.statusCode(), seenAsGhost.body() );
+        assertEquals( seenAsGhost.statusCode(), seenAsHidden.statusCode(), "same status: " + seenAsHidden.body() );
+        assertEquals( seenAsGhost.body(), seenAsHidden.body(), "same message: a hidden deployment is not confirmed" );
+        // and a visible failure is accepted for the same caller, so the refusal above was about the target
+        assertEquals( 201, requestFix( onlyA, "depprod", "6.1." + tag + "-f", visibleItem, broken ).statusCode() );
+        // ASSUMED: a request cannot name itself (it has no id yet); the table CHECK is covered by the Java schema test
+    }
 }

@@ -41,7 +41,7 @@ import java.util.Set;
 public class WorkDeploymentResource extends WorkResourceBase {
 
     private static final long serialVersionUID = 1L;
-    private static final Set< String > REQUEST_FIELDS = Set.of( "product", "environment", "version", "items" );
+    private static final Set< String > REQUEST_FIELDS = Set.of( "product", "environment", "version", "items", "remediates" );
     private static final int LIST_DEFAULT = 20;
 
     @Override
@@ -96,8 +96,23 @@ public class WorkDeploymentResource extends WorkResourceBase {
         }
         final DeploymentView v = c.svc.deployments().request( c.actor, new DeploymentDraft(
             WorkChangeJson.text( b, "product" ), WorkChangeJson.text( b, "environment" ),
-            WorkChangeJson.text( b, "version" ), itemKeys( b ) ) );
+            WorkChangeJson.text( b, "version" ), itemKeys( b ), remediates( b ) ) );
         WorkJson.write( c.resp, jakarta.servlet.http.HttpServletResponse.SC_CREATED, view( c, v ) );
+    }
+
+    private static Long remediates( final JsonObject b ) {
+        final JsonElement raw = b.get( "remediates" );
+        if ( raw == null || raw.isJsonNull() ) {
+            return null;
+        }
+        if ( !raw.isJsonPrimitive() || !raw.getAsJsonPrimitive().isNumber() ) {
+            throw new WorkValidationException( "remediates", "remediates must be a deployment number." );
+        }
+        final java.math.BigDecimal n = raw.getAsBigDecimal();
+        if ( n.signum() <= 0 || n.stripTrailingZeros().scale() > 0 || n.compareTo( java.math.BigDecimal.valueOf( Long.MAX_VALUE ) ) > 0 ) {
+            throw new WorkValidationException( "remediates", "remediates must be a deployment number." );
+        }
+        return n.longValueExact();
     }
 
     private static List< String > itemKeys( final JsonObject b ) {

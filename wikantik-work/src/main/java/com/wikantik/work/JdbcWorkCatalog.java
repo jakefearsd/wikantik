@@ -242,6 +242,9 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
 
     /** An agent write without the agent's registry id is a programming error: refuse it, never record it. */
     static void requireAttributed( final Actor.Kind kind, final Long agentId ) {
+        if ( kind == Actor.Kind.SYSTEM ) {
+            throw new IllegalArgumentException( "a system actor records only code-host changes" );
+        }
         if ( kind == Actor.Kind.AGENT && agentId == null ) {
             throw new IllegalArgumentException( "an agent write must carry its work_agent id" );
         }
@@ -257,7 +260,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
 
     /** Appends one event on the caller's connection; the event's id, itemKey and timestamp are assigned by the store. */
     void appendEvent( final Connection conn, final WorkEvent e ) throws SQLException {
-        requireAttributed( e.actorKind(), e.agentId() );
+        ActorRules.requireEventAttribution( e.actorKind(), e.agentId() );
         jdbc.update( conn, "INSERT INTO work_event (project_id, item_id, actor, actor_kind, agent_id, type, "
                 + "from_value, to_value, note) VALUES (?,?,?,?,?,?,?,?,?)",
             ps -> {
@@ -403,7 +406,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
         return value == null ? null : URL_USERINFO.matcher( value ).replaceFirst( "$1***@" );
     }
 
-    private void appendProductEvent( final Connection conn, final long productId, final Actor by, final String field,
+    void appendProductEvent( final Connection conn, final long productId, final Actor by, final String field,
                                      final String from, final String to ) throws SQLException {
         jdbc.update( conn, "INSERT INTO work_product_event (product_id, actor, actor_kind, agent_id, field, "
                 + "from_value, to_value) VALUES (?,?,?,?,?,?,?)",
@@ -424,7 +427,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
                 + "FROM work_product_event WHERE product_id = ? ORDER BY at DESC, id DESC LIMIT ?",
             ps -> { ps.setLong( 1, productId ); ps.setInt( 2, limit ); },
             rs -> new ProductEvent( rs.getLong( "id" ), getInstant( rs, "at" ), rs.getString( "actor" ),
-                "agent".equals( rs.getString( "actor_kind" ) ) ? Actor.Kind.AGENT : Actor.Kind.HUMAN,
+                SqlValues.actorKind( rs.getString( "actor_kind" ) ),
                 NullableColumns.getNullableLong( rs, "agent_id" ), rs.getString( "field" ),
                 rs.getString( "from_value" ), rs.getString( "to_value" ) ) ) );
     }

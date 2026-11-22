@@ -39,7 +39,7 @@ final class JdbcWorkDeployments implements WorkDeploymentStore {
     private static final String SELECT = """
         SELECT d.id, d.product_id, d.environment, d.version, d.state, d.requested_by, d.requested_by_agent_id,
                d.approved_by, d.approved_by_agent_id, d.requested_at, d.approved_at, d.started_at, d.verified_at,
-               d.closed_at, d.evidence,
+               d.closed_at, d.evidence, d.remediates_id,
                ARRAY( SELECT di.item_id FROM work_deployment_item di WHERE di.deployment_id = d.id
                        ORDER BY di.item_id ) AS item_ids
           FROM work_deployment d
@@ -53,11 +53,11 @@ final class JdbcWorkDeployments implements WorkDeploymentStore {
         getNullableLong( rs, "requested_by_agent_id" ), rs.getString( "approved_by" ),
         getNullableLong( rs, "approved_by_agent_id" ), getInstant( rs, "requested_at" ), getInstant( rs, "approved_at" ),
         getInstant( rs, "started_at" ), getInstant( rs, "verified_at" ), getInstant( rs, "closed_at" ),
-        rs.getString( "evidence" ), ids( rs.getArray( "item_ids" ) ) );
+        rs.getString( "evidence" ), getNullableLong( rs, "remediates_id" ), ids( rs.getArray( "item_ids" ) ) );
 
     private static final RowMapper< DeploymentEvent > EVENT_ROW = rs -> new DeploymentEvent( rs.getLong( "id" ),
         rs.getLong( "deployment_id" ), getInstant( rs, "at" ), rs.getString( "actor" ),
-        "agent".equals( rs.getString( "actor_kind" ) ) ? Actor.Kind.AGENT : Actor.Kind.HUMAN,
+        SqlValues.actorKind( rs.getString( "actor_kind" ) ),
         getNullableLong( rs, "agent_id" ),
         rs.getString( "from_state" ) == null ? null : DeploymentState.fromWire( rs.getString( "from_state" ) ),
         DeploymentState.fromWire( rs.getString( "to_state" ) ), rs.getString( "note" ) );
@@ -108,17 +108,19 @@ final class JdbcWorkDeployments implements WorkDeploymentStore {
 
     @Override
     public Deployment request( final Product product, final String environment, final String version,
-                               final List< Item > items, final Actor by ) throws SQLException {
+                               final List< Item > items, final Long remediatesId, final Actor by )
+        throws SQLException {
         JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         return jdbc.inTransaction( conn -> {
             final long id = jdbc.queryOne( conn, "INSERT INTO work_deployment (product_id, environment, version, "
-                    + "requested_by, requested_by_agent_id) VALUES (?,?,?,?,?) RETURNING id",
+                    + "requested_by, requested_by_agent_id, remediates_id) VALUES (?,?,?,?,?,?) RETURNING id",
                 ps -> {
                     ps.setLong( 1, product.id() );
                     ps.setString( 2, environment );
                     ps.setString( 3, version );
                     ps.setString( 4, by.login() );
                     setNullableLong( ps, 5, by.agentId() );
+                    setNullableLong( ps, 6, remediatesId );
                 }, rs -> rs.getLong( 1 ) )
                 .orElseThrow( () -> new SQLException( "INSERT work_deployment returned no row" ) );
             jdbc.update( conn, "INSERT INTO work_deployment_item (deployment_id, item_id) "

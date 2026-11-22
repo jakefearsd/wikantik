@@ -43,6 +43,10 @@ public class WorkConflictException extends RuntimeException {
     public static final String NOT_APPROVED = "not_approved";
     /** The change is already merged or abandoned. */
     public static final String CHANGE_CLOSED = "change_closed";
+    /** A flagged merge was already acknowledged by a lead. */
+    public static final String ALREADY_ACKNOWLEDGED = "already_acknowledged";
+    /** The change was not merged outside policy, so there is no flag to acknowledge. */
+    public static final String NOT_FLAGGED = "not_flagged";
     /** The change has not been put up for review. */
     public static final String NOT_IN_REVIEW = "not_in_review";
 

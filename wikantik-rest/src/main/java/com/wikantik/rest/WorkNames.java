@@ -22,6 +22,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
+import com.wikantik.work.Actor;
+
 import java.util.Map;
 import java.util.function.Function;
 
@@ -128,5 +130,22 @@ final class WorkNames {
         if ( queue != null ) {
             changes.put( "queueName", new JsonPrimitive( WorkEventNames.queueLabel( lookup, queue ) ) );
         }
+    }
+
+    /** An event's {@code actor} that is the code host: its stored text is not a login and is never looked up. */
+    static boolean isSystem( final JsonObject o, final String key ) {
+        return "actor".equals( key ) && "system".equals( WorkJson.str( o, "actorKind" ) );
+    }
+
+    /** {@code codehost:github} is "GitHub", any other code host "Code host" (see {@link Actor#label}). */
+    static String systemLabel( final String stored ) {
+        return Actor.label( stored );
+    }
+
+    /** The code host as {@code actor}: the label replaces the stored text for every viewer, admins included. */
+    static void system( final Map< String, JsonElement > changes, final String key, final String stored ) {
+        final JsonPrimitive label = new JsonPrimitive( systemLabel( stored ) );
+        changes.put( key + "Name", label );
+        changes.put( key, label );
     }
 }

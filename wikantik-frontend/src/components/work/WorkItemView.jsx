@@ -445,7 +445,7 @@ function ItemPage({ itemKey }) {
             onChanged={() => setActivity((n) => n + 1)} />
           {!isEpic && <WorkShippedIn itemKey={itemKey} refreshKey={activity} />}
           {!isEpic && (
-            <WorkChanges itemKey={itemKey} canEdit={canEdit} refreshKey={activity}
+            <WorkChanges itemKey={itemKey} canEdit={canEdit} canAcknowledge={isLead} refreshKey={activity}
               onChanged={() => setActivity((n) => n + 1)} />
           )}
           <WorkComments

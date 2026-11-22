@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-11-22
+
 ### Added
 
 - Work items have a type (feature, bug or chore) and up to ten labels. Both can be set from the board's new-item form, the item page, REST (`type`, `labels`; `GET /api/work/projects/{key}/labels`) and the work MCP (`create_item`, `update_item`), and the board and dates views filter by them. Schema `V084`.

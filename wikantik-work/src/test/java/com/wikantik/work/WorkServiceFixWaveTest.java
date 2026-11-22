@@ -287,7 +287,7 @@ class WorkServiceFixWaveTest {
     @Test
     void activityNarrowsToAnItemOfTheProjectOnly() throws SQLException {
         service.activity( ana, "PLAT", null, null, "PLAT-3", null, 10 );
-        verify( store ).projectEvents( 1, null, null, 12L, null, 10 );
+        verify( store ).projectEvents( 1, null, null, 12L, null, false, 10 );
         final Project ops = new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, null );
         when( store.project( "OPS" ) ).thenReturn( Optional.of( ops ) );
         assertThrows( WorkNotFoundException.class, () -> service.activity( ana, "PLAT", null, null, "OPS-1", null, 10 ) );

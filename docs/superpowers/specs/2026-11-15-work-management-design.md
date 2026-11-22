@@ -42,7 +42,7 @@ wiki pages and is not an add-on glued to them.
 - Launching or scheduling agents. Agents pull work; the system never starts one.
 - Two-way sync with GitHub issues. An item can link to an issue; nothing more.
 - Release planning (target versions, milestones) ahead of a deployment.
-- Email or push notifications. (My call for now; the board and mentions page carry it.)
+- Push notifications to agents. (Email, inbox and webhooks for people: see section 3 of `2026-11-21-work-team-features-design.md`.)
 - Enforcing merges on the code host. See Constraints.
 
 ## Anti-goals

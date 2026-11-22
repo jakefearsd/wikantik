@@ -56,6 +56,12 @@ class WorkInputsAgentTest {
     }
 
     @Test
+    void inboxIsAReservedProjectKeyInAnyCase() {
+        assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( "INBOX" ) ), "/work/inbox is the inbox" );
+        assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( "inbox" ) ) );
+    }
+
+    @Test
     void agentsProjectKeyIsReserved() {
         assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( "AGENTS" ) ) );
         assertEquals( "key", field( () -> WorkInputs.requireUnreservedKey( "log" ) ), "/work/log is the assignment log" );

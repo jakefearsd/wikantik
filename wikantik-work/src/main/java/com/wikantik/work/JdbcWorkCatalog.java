@@ -250,6 +250,11 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
         }
     }
 
+    /** The notification-side stores (implements {@link WorkStore#notifyStores()}; kept here to keep the store class small). */
+    public WorkNotifyStores notifyStores() {
+        return JdbcNotifyStores.create( jdbc, this );
+    }
+
     /** Appends one event on the caller's connection; the event's id, itemKey and timestamp are assigned by the store. */
     void appendEvent( final Connection conn, final WorkEvent e ) throws SQLException {
         requireAttributed( e.actorKind(), e.agentId() );

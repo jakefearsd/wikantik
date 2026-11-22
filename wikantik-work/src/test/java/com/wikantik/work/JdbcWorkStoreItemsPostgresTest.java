@@ -666,8 +666,8 @@ class JdbcWorkStoreItemsPostgresTest {
         WorkEvent last = null;
         for ( int guard = 0; guard < 50; guard++ ) {
             final List< WorkEvent > page = last == null
-                ? store.projectEvents( plat.id(), null, null, null, null, pageSize )
-                : store.projectEvents( plat.id(), last.at(), compound ? last.id() : null, null, null, pageSize );
+                ? store.projectEvents( plat.id(), null, null, null, null, true, pageSize )
+                : store.projectEvents( plat.id(), last.at(), compound ? last.id() : null, null, null, true, pageSize );
             if ( page.isEmpty() ) {
                 break;
             }
@@ -707,12 +707,12 @@ class JdbcWorkStoreItemsPostgresTest {
         create( "a" );
         final Item b = create( "b" );
         store.updateItem( b, withPriority( b, 1 ), Actor.human( "alice", java.util.Set.of(), false ), null );
-        final List< WorkEvent > page = store.projectEvents( plat.id(), null, null, null, null, 2 );
+        final List< WorkEvent > page = store.projectEvents( plat.id(), null, null, null, null, true, 2 );
         assertEquals( 2, page.size() );
         assertEquals( WorkEvent.FIELD, page.get( 0 ).type() );
         assertEquals( "PLAT-2", page.get( 0 ).itemKey() );
-        assertEquals( 3, store.projectEvents( plat.id(), java.time.Instant.now().plusSeconds( 60 ), null, null, null, 10 ).size() );
-        assertEquals( 0, store.projectEvents( plat.id(), java.time.Instant.EPOCH, null, null, null, 10 ).size() );
+        assertEquals( 3, store.projectEvents( plat.id(), java.time.Instant.now().plusSeconds( 60 ), null, null, null, true, 10 ).size() );
+        assertEquals( 0, store.projectEvents( plat.id(), java.time.Instant.EPOCH, null, null, null, true, 10 ).size() );
     }
 
     @Test

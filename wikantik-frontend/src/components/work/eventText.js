@@ -117,6 +117,24 @@ function memberText(ev) {
   return `changed ${who}'s role ${from.role} → ${to.role}`;
 }
 
+const WEBHOOK_ACTIONS = {
+  added: (host) => `added a webhook to ${host}`,
+  changed: (host) => `changed the webhook to ${host}`,
+  removed: (host) => `removed the webhook to ${host}`,
+  disabled: (host) => `turned off the webhook to ${host}`,
+  enabled: (host) => `turned on the webhook to ${host}`,
+};
+
+/** A webhook event: `fromValue` is the host and `toValue` what happened. Only the host is ever shown, never an address. */
+function webhookText(ev) {
+  const host = ev.fromValue || 'a webhook target';
+  if (ev.toValue === 'failed') {
+    return { text: `The webhook to ${host} was switched off after failing for 24 hours.`, note: null, standalone: true };
+  }
+  const say = WEBHOOK_ACTIONS[ev.toValue];
+  return { text: say ? say(host) : `changed the webhook to ${host}`, note: null };
+}
+
 function settingsText(ev) {
   switch (ev.note) {
     case 'archived': return 'archived the project';
@@ -192,7 +210,7 @@ export function eventText(e) {
     case 'sprint_started': return { text: `started sprint ${orNone(ev.note)}`, note: null };
     case 'sprint_closed': return { text: `closed sprint ${orNone(ev.note)}`, note: null };
     case 'member': return { text: memberText(ev), note: null };
-    case 'settings': return { text: settingsText(ev), note: null };
+    case 'settings': return ev.note === 'webhook' ? webhookText(ev) : { text: settingsText(ev), note: null };
     default: {
       if (!ev.type) return { text: 'did something', note };
       const label = words(ev.type);

@@ -58,6 +58,9 @@ public class WorkConflictException extends RuntimeException {
     /** The target of the request is not one the operation can use. */
     public static final String BAD_TARGET = "bad_target";
 
+    /** Webhooks are turned off on this wiki. */
+    public static final String WEBHOOKS_OFF = "webhooks_off";
+
     private final String reason;
 
     /** A stale-version conflict. */

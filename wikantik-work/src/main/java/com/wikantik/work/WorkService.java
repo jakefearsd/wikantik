@@ -128,6 +128,13 @@ public class WorkService {
     public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
                         final Clock clock, final WorkSettings settings, final WorkListener listener,
                         final WorkAudit audit ) {
+        this( store, renderer, directory, clock, settings, listener, audit, WorkNotifyPorts.NONE );
+    }
+
+    /** @param ports mail, outbound HTTP and the notification tunables; null means none wired */
+    public WorkService( final WorkStore store, final WorkRenderer renderer, final WorkDirectory directory,
+                        final Clock clock, final WorkSettings settings, final WorkListener listener,
+                        final WorkAudit audit, final WorkNotifyPorts ports ) {
         final GuardedListener observer = new GuardedListener( listener );
         this.store = store;
         this.boardOrder = new BoardOrder( store );
@@ -135,13 +142,14 @@ public class WorkService {
         this.scopes.onDeployment( observer::deployment );
         this.people = new WorkPeople( directory );
         this.applier = new ItemPatchApplier( store, scopes::isMember );
-        this.registry = new WorkRegistryService( store, scopes, people, clock, observer,
-            audit == null ? WorkAudit.NONE : audit );
+        final WorkAudit auditor = audit == null ? WorkAudit.NONE : audit;
+        this.registry = new WorkRegistryService( store, scopes, people, clock, observer, auditor );
         this.views = new ItemViews( store, renderer, people );
         this.acknowledgements = new Acknowledgements( store, scopes, views );
         this.changes = new WorkChangesService( store, scopes );
         this.deployments = new WorkDeploymentsService( store, scopes );
-        this.features = new WorkFeatures( store, scopes, views, clock );
+        this.features = new WorkFeatures( store, scopes, views, clock,
+            new FeatureDeps( people, observer, auditor, ports ) );
         this.claims = new WorkClaimsService( store, scopes, people, views, applier, settings, observer );
         this.clock = clock;
         this.listener = observer;
@@ -437,8 +445,10 @@ public class WorkService {
             }
             itemId = is.item().id();
         }
+        // Webhook settings events are for leads and admins only (P3-10): left out in the query, so paging stays full.
+        final boolean leads = WorkPolicy.may( s.actor(), s.role(), Action.MANAGE_PROJECT, null ).allowed();
         return EventKeys.resolve( store, s.project().id(), store.projectEvents( s.project().id(), before, beforeId,
-            itemId, types, WorkInputs.activityLimit( limit ) ) );
+            itemId, types, leads, WorkInputs.activityLimit( limit ) ) );
     }
 
     /**

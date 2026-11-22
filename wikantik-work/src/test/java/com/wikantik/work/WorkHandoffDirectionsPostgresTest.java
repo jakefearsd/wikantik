@@ -56,13 +56,16 @@ class WorkHandoffDirectionsPostgresTest {
     private Actor agentJake;
     private long ordinal;
 
+    /** The agent "jake" shares a person's name; the registry refuses that now, so it is registered while the person is not in the directory. */
+    private boolean jakeIsAPerson = true;
+
     @BeforeEach
     void setUp() throws SQLException {
         ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
         svc = new WorkService( new JdbcWorkStore( ds ), md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ) && ( jakeIsAPerson || !"jake".equals( login ) ); }
             @Override public String displayName( final String login ) { return login; }
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return Optional.ofNullable( LOGINS.get( name ) );
@@ -76,7 +79,9 @@ class WorkHandoffDirectionsPostgresTest {
         svc.registry().createQueue( admin, "reviewer", "Reviewer", "" );
         a = admit( "agent-a", "implementer" );
         b = admit( "agent-b", "reviewer" );
+        jakeIsAPerson = false;
         agentJake = admit( "jake", "implementer" );
+        jakeIsAPerson = true;
     }
 
     private Actor admit( final String name, final String queue ) throws SQLException {

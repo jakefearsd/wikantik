@@ -76,6 +76,7 @@ public class WorkProjectResource extends WorkResourceBase {
         } );
         route( r, "GET", "projects/{}/velocity", c -> c.tree( WorkSprintJson.velocity(
             c.svc.features().sprints().velocity( c.actor, c.pathParam( 0 ) ) ) ) );
+        WorkWebhookRoutes.register( r );
         route( r, "GET", "projects/{}/board", c -> c.tree( boardTree( c.svc.boardSummaries( c.actor, c.pathParam( 0 ), filter( c, false ) ), c.actor ) ) );
     }
 

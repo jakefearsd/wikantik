@@ -11,6 +11,7 @@ vi.mock('../../api/work', () => ({
   openChange: vi.fn(), requestReview: vi.fn(), reviewChange: vi.fn(), mergeChange: vi.fn(), abandonChange: vi.fn(),
   acknowledgeItem: vi.fn(), getShippedIn: vi.fn(() => Promise.resolve({ shippedIn: [] })),
   listLabels: vi.fn(() => Promise.resolve([])), listSprints: vi.fn(() => Promise.resolve([])),
+  markItemRead: vi.fn(() => Promise.resolve()), getWatch: vi.fn(() => Promise.resolve({ state: 'none' })), setWatch: vi.fn(),
   getItemPoints: vi.fn(() => Promise.resolve({ points: 0 })),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };

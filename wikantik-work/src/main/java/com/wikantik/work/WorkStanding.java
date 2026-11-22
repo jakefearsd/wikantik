@@ -65,6 +65,12 @@ final class WorkStanding {
         return ceiling.get().atLeast( own.get() ) ? own : ceiling;
     }
 
+    /** Whether the actor stands in the project: a wiki admin, or viewer or above. */
+    boolean seesProject( final long projectId, final Actor actor ) throws SQLException {
+        return actor.instanceAdmin()
+            || roleIn( projectId, actor ).filter( r -> r.atLeast( WorkRole.VIEWER ) ).isPresent();
+    }
+
     /** The projects the actor can see: for an agent, those it is a member of that its sponsor can see too. */
     List< Project > visibleProjects( final Actor actor ) throws SQLException {
         if ( actor.kind() != Actor.Kind.AGENT ) {

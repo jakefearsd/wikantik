@@ -9,6 +9,7 @@ vi.mock('../api/client', () => ({
   },
 }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
+vi.mock('../hooks/useWorkUnread', () => ({ useWorkUnread: vi.fn(() => ({ unread: 0, visible: false })) }));
 
 // useDarkMode is a module-level mock so individual tests can override it.
 const mockToggleDark = vi.fn();
@@ -25,6 +26,7 @@ vi.mock('../newpage/NewPageProvider', () => ({ useNewPage: () => ({ openNewPage:
 import Sidebar from './Sidebar';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { useWorkUnread } from '../hooks/useWorkUnread';
 import { useDarkMode } from '../hooks/useDarkMode';
 
 const renderSidebar = (initialEntry = '/', extraProps = {}) =>
@@ -50,6 +52,21 @@ beforeEach(() => {
 });
 
 describe('Sidebar', () => {
+  it('theWorkEntryShowsTheUnreadCount', () => {
+    useWorkUnread.mockReturnValue({ unread: 3, visible: true });
+    renderSidebar('/');
+    const link = screen.getByRole('link', { name: /Work/ });
+    expect(link).toHaveAttribute('href', '/work');
+    expect(screen.getByLabelText('3 unread notifications')).toHaveTextContent('3');
+  });
+
+  it('theWorkEntryShowsNoBadgeWhenNothingIsUnread', () => {
+    useWorkUnread.mockReturnValue({ unread: 0, visible: true });
+    renderSidebar('/');
+    expect(screen.getByRole('link', { name: 'Work' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/unread notifications/)).toBeNull();
+  });
+
   it('opens the new-page dialog through the provider', () => {
     renderSidebar('/');
     fireEvent.click(screen.getByTestId('pz-new'));

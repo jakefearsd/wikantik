@@ -219,6 +219,7 @@ public final class WorkRegistryService {
     public WorkService.AgentWithToken registerAgent( final Actor actor, final AgentDraft draft ) throws SQLException {
         sponsorship.requireMayRegister( actor );
         final String name = agentName( draft.name() );
+        sponsorship.requireNameFree( name, null );
         final List< String > queues = servedQueues( draft.queues(), Set.of() );
         if ( store.agentByName( name ).isPresent() ) {
             throw RegistryChanges.exists( "Agent " + name + " already exists." );
@@ -245,6 +246,7 @@ public final class WorkRegistryService {
         sponsorship.requireMayEdit( actor, existing );
         final AgentDraft draft = RegistryChanges.merged( patch, existing );
         final String name = agentName( draft.name() );
+        sponsorship.requireNameFree( name, existing.name() );
         final List< String > queues = servedQueues( draft.queues(), new LinkedHashSet<>( existing.queues() ) );
         final Agent sameName = store.agentByName( name ).orElse( null );
         if ( sameName != null && sameName.id() != agentId ) {

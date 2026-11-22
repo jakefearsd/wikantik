@@ -157,3 +157,27 @@ export const getSprintReport = (id) => request(`${base}/sprints/${enc(id)}/repor
 export const getVelocity = (projectKey) => request(`${base}/projects/${enc(projectKey)}/velocity`);
 /** { points }: what an epic or story adds up to. */
 export const getItemPoints = (key) => request(`${base}/items/${enc(key)}/points`);
+
+// Notifications: the inbox, watching an item, the email choice, and a project's webhooks.
+/** { notices: [{ id, reason, createdAt, readAt, projectKey, itemKey, itemTitle, event }], unread }; `before` is a notice id. */
+export const getInbox = (params) => request(`${base}/inbox${query(params)}`);
+/** { unread }: how many notices are unread. */
+/** A background poll: silent, so a lapsed session never triggers the global login flow from an idle tab. */
+export const getUnread = () => request(`${base}/inbox/unread`, { silent: true });
+export const markItemRead = (key) => request(`${base}/inbox/read/${enc(key)}`, { method: 'POST' });
+export const markAllRead = () => request(`${base}/inbox/read-all`, { method: 'POST' });
+/** { state: 'watching' | 'muted' | 'none' }. */
+export const getWatch = (key) => request(`${base}/watch/${enc(key)}`);
+export const setWatch = (key, state) => request(`${base}/watch/${enc(key)}`, json('PUT', { state }));
+/** { email: 'each' | 'daily' | 'off', emailAvailable, webhooksAvailable }. */
+export const getNotifyPrefs = () => request(`${base}/notify-prefs`);
+export const setNotifyPrefs = (email) => request(`${base}/notify-prefs`, json('PUT', { email }));
+/** [{ id, format, target, eventTypes, ownerName, createdAt, lastDeliveredAt, failingSince, lastError, disabledAt, paused }]. */
+export const listWebhooks = (projectKey) => request(`${base}/projects/${enc(projectKey)}/webhooks`);
+/** body is { url, format, eventTypes }; answers { webhook, secret }, the secret (null for Slack) being shown once. */
+export const addWebhook = (projectKey, body) => request(`${base}/projects/${enc(projectKey)}/webhooks`, json('POST', body));
+/** body is { url?, eventTypes?, enabled? }; saving a paused webhook makes the saver its owner. */
+export const updateWebhook = (projectKey, id, body) =>
+  request(`${base}/projects/${enc(projectKey)}/webhooks/${enc(id)}`, json('PATCH', body));
+export const removeWebhook = (projectKey, id) =>
+  request(`${base}/projects/${enc(projectKey)}/webhooks/${enc(id)}`, { method: 'DELETE' });

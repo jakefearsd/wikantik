@@ -88,7 +88,7 @@ class WorkServiceTest {
         org.mockito.Mockito.when( store.claims() ).thenReturn( org.mockito.Mockito.mock( WorkClaimStore.class ) );
         final WorkDirectory directory = new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return KNOWN.contains( name ) ? Optional.of( name ) : Optional.empty();

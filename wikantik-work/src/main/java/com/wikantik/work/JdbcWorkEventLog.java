@@ -48,10 +48,13 @@ final class JdbcWorkEventLog {
     }
 
     List< WorkEvent > projectEvents( final long projectId, final Instant before, final Long beforeId,
-                                     final Long itemId, final Set< String > types, final int limit )
-            throws SQLException {
+                                     final Long itemId, final Set< String > types, final boolean withWebhookEvents,
+                                     final int limit ) throws SQLException {
         return jdbc.withConnection( conn -> {
             final Query q = new Query( List.of( projectId ), before, beforeId, limit );
+            if ( !withWebhookEvents ) {
+                q.and( " AND NOT ( e.type = '" + WorkEvent.SETTINGS + "' AND e.note = 'webhook' )" );
+            }
             if ( itemId != null ) {
                 q.and( " AND e.item_id = ?", itemId );
             }

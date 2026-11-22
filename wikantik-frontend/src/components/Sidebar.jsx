@@ -4,7 +4,7 @@ import { HOME_PAGE, HOME_PATH } from '../utils/homePage';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { useWorkNavVisible } from '../hooks/useWorkNavVisible';
+import { useWorkUnread } from '../hooks/useWorkUnread';
 import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
 import { useNewPage } from '../newpage/NewPageProvider';
@@ -37,7 +37,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [dark, toggleDark] = useDarkMode();
   const { user } = useAuth();
-  const showWork = useWorkNavVisible();
+  const { unread, visible: showWork } = useWorkUnread();
   const importCommands = useMemo(() => (user?.canCreatePages
     ? [{ id: 'import-vault', title: 'Import Obsidian vault…', section: 'Page', run: () => setImportOpen(true) }]
     : []), [user?.canCreatePages]);
@@ -153,7 +153,12 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
           {navLink('/wiki/News', 'News')}
           {showWork && (
             <Link to="/work" className={`sidebar-link ${pathname === '/work' || pathname.startsWith('/work/') ? 'active' : ''}`}
-              onClick={onMobileClose}>Work</Link>
+              onClick={onMobileClose}>
+              Work
+              {unread > 0 && (
+                <span className="work-unread-badge" aria-label={`${unread} unread notifications`}>{unread}</span>
+              )}
+            </Link>
           )}
           {navLink('/wiki/RecentChanges', 'Recent Changes')}
         </div>

@@ -22,6 +22,7 @@ import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
+import com.wikantik.work.WorkUnavailableException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -57,6 +58,25 @@ final class WikiWorkGroups {
                 LOG.warn( "Group '{}' vanished while resolving the groups of a login; skipping it: {}",
                     role.getName(), e.getMessage() );
             }
+        }
+        return names;
+    }
+
+    /** The member names of the named group; an unknown group is the empty set, with a DEBUG line. */
+    static Set< String > membersOf( final GroupManager groups, final String groupName ) {
+        final Set< String > names = new TreeSet<>();
+        try {
+            final Group group = groups.getGroup( groupName );
+            if ( group != null ) {
+                for ( final Principal p : group.members() ) {
+                    names.add( p.getName() );
+                }
+            }
+        } catch ( final NoSuchPrincipalException e ) {
+            LOG.debug( "Work management: group '{}' is unknown, so it has no members: {}", groupName, e.getMessage() );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "The group manager could not be read for group '{}': {}", groupName, e.getMessage(), e );
+            throw new WorkUnavailableException( "The group database could not be read.", e );
         }
         return names;
     }

@@ -1148,6 +1148,7 @@ public class WikiEngine implements Engine {
 
             // Runs whether or not work management wired (a null service starts no sweeper).
             BootStep.abortRestOnFailure( "work-claim-sweeper", env -> startWorkClaimSweeper() ),
+            BootStep.abortRestOnFailure( "work-notify-dispatcher", env -> startWorkNotifyDispatcher() ),
 
             // S3 telemetry for session-start context briefings; default on.
             BootStep.abortRestOnFailure( "briefing-log", env ->
@@ -1798,6 +1799,7 @@ public class WikiEngine implements Engine {
         closeQuietly( com.wikantik.search.hybrid.QueryEmbedder.class );
         closeQuietly( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
         closeQuietly( com.wikantik.work.runtime.WorkClaimSweeper.class );
+        closeQuietly( com.wikantik.work.runtime.WorkNotifyDispatcher.class );
         final var aw = auditWired;
         if ( aw != null && aw.writer() != null ) {
             aw.writer().shutdownWriter();
@@ -1841,6 +1843,43 @@ public class WikiEngine implements Engine {
         } catch ( final RuntimeException e ) {
             LOG.error( "work claim sweeper failed to start; work management continues but claims will not expire: {}",
                 e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Starts the background notification dispatcher when work management is wired. A start failure leaves work
+     * management running without it (no notifications are made), which is logged loudly, and never stops the wiki.
+     */
+    void startWorkNotifyDispatcher() {
+        startWorkNotifyDispatcher( service -> com.wikantik.work.runtime.WorkNotifyDispatcher.start( service,
+            java.time.Clock.systemDefaultZone() ) );
+    }
+
+    /** As {@link #startWorkNotifyDispatcher()}, starting the dispatcher through {@code starter} (tests). */
+    void startWorkNotifyDispatcher( final java.util.function.Function< com.wikantik.work.WorkService,
+            com.wikantik.work.runtime.WorkNotifyDispatcher > starter ) {
+        final com.wikantik.work.WorkService service = this.workService;
+        closeQuietly( com.wikantik.work.runtime.WorkNotifyDispatcher.class );   // never two dispatchers per engine
+        if ( service == null ) {
+            return;
+        }
+        final io.micrometer.core.instrument.MeterRegistry meters =
+            com.wikantik.api.observability.MeterRegistryHolder.get();
+        if ( meters != null ) {
+            io.micrometer.core.instrument.Gauge.builder( com.wikantik.work.runtime.WorkNotifyDispatcher.ALIVE_GAUGE,
+                    this, e -> {
+                        final com.wikantik.work.runtime.WorkNotifyDispatcher d =
+                            e.serviceRegistry.get( com.wikantik.work.runtime.WorkNotifyDispatcher.class );
+                        return d != null && d.alive() ? 1d : 0d;
+                    } )
+                .description( "1 while the work notification dispatcher runs, 0 when it never started or has stopped" )
+                .register( meters );
+        }
+        try {
+            this.setManager( com.wikantik.work.runtime.WorkNotifyDispatcher.class, starter.apply( service ) );
+        } catch ( final RuntimeException e ) {
+            LOG.error( "work notify dispatcher failed to start; work management continues but notifications will "
+                + "not be made: {}", e.getMessage(), e );
         }
     }
 

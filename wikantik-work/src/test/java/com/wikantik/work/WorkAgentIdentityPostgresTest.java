@@ -59,13 +59,13 @@ class WorkAgentIdentityPostgresTest {
         store = new JdbcWorkStore( ds );
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return groups.getOrDefault( login, Set.of() ); }
-            @Override public boolean exists( final String login ) { return !gone.contains( login ); }
+            @Override public boolean exists( final String login ) { return !gone.contains( login ) && WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
             @Override public java.util.Optional< Person > person( final String login ) {
                 if ( outage ) {
                     throw new WorkUnavailableException( "directory down", null );
                 }
-                return gone.contains( login ) ? java.util.Optional.empty()
+                return gone.contains( login ) || !WorkAgentFixtures.isPerson( login ) ? java.util.Optional.empty()
                     : java.util.Optional.of( new Person( login, groupsOf( login ), admins.contains( login ) ) );
             }
         }, Clock.systemUTC(), WorkSettings.DEFAULTS, null );
@@ -81,6 +81,16 @@ class WorkAgentIdentityPostgresTest {
     private static ItemDraft draft( final String project ) {
         return new ItemDraft( project, WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", null, null, null,
             null, null, null );
+    }
+
+    /** An agent that shares a person's name: the registry refuses a new one, so it is registered before the account exists. */
+    private WorkService.AgentWithToken registerBeforeThePersonExists( final String name ) throws SQLException {
+        gone.add( name );
+        try {
+            return register( name );
+        } finally {
+            gone.remove( name );
+        }
     }
 
     private WorkService.AgentWithToken register( final String name ) throws SQLException {
@@ -139,7 +149,7 @@ class WorkAgentIdentityPostgresTest {
         service.updateItem( admin, item.key(), new ItemPatch( item.version(),
             java.util.Map.of( "assignee", "jake" ), null ) );
         assertEquals( 1, service.waitingOn( Actor.human( "jake", Set.of(), false ) ).size() );
-        final WorkService.AgentWithToken r = register( "jake" );
+        final WorkService.AgentWithToken r = registerBeforeThePersonExists( "jake" );
         final Actor agent = actorFor( r );
         assertEquals( "jake", agent.login() );
         assertTrue( service.listProjects( agent ).isEmpty() );
@@ -156,7 +166,7 @@ class WorkAgentIdentityPostgresTest {
         service.addComment( admin, mentioned.key(), "over to @jake please" );
         final Actor person = Actor.human( "jake", Set.of(), false );
         assertEquals( 2, service.waitingOn( person ).size(), "the person has an assignment and a mention" );
-        final Actor agent = actorFor( register( "jake" ) );
+        final Actor agent = actorFor( registerBeforeThePersonExists( "jake" ) );
         service.putMember( admin, "PLAT", "jake", "agent", WorkRole.MEMBER );
         assertEquals( List.of( "PLAT" ), service.listProjects( agent ).stream().map( Project::key ).toList() );
         assertTrue( service.waitingOn( agent ).isEmpty(), "an agent never receives a person's lane by name" );

@@ -3,12 +3,14 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
+  getMe: vi.fn(() => Promise.resolve({ projects: [], notify: { webhooksAvailable: false } })), listWebhooks: vi.fn(() => Promise.resolve([])),
+  addWebhook: vi.fn(), updateWebhook: vi.fn(), removeWebhook: vi.fn(),
   listMembers: vi.fn(), listAgents: vi.fn(), putMember: vi.fn(), removeMember: vi.fn(), updateProject: vi.fn(), archiveProject: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { listMembers, listAgents, putMember, removeMember, updateProject, archiveProject } from '../../api/work';
+import { getMe, listWebhooks, listMembers, listAgents, putMember, removeMember, updateProject, archiveProject } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { WorkProjectContext } from './useWorkProject';
 import WorkSettings from './WorkSettings';
@@ -56,6 +58,21 @@ beforeEach(() => {
 });
 
 describe('WorkSettings', () => {
+  it('showsWebhooksToALeadWhenTheWikiHasThem', async () => {
+    getMe.mockResolvedValue({ projects: [], notify: { webhooksAvailable: true } });
+    renderSettings();
+    expect(await screen.findByRole('heading', { name: 'Webhooks' })).toBeInTheDocument();
+    await waitFor(() => expect(listWebhooks).toHaveBeenCalledWith('PLAT'));
+  });
+
+  it('showsNoWebhooksWhenTheWikiHasThemOff', async () => {
+    getMe.mockResolvedValue({ projects: [], notify: { webhooksAvailable: false } });
+    renderSettings();
+    await screen.findByText('Members');
+    await waitFor(() => expect(getMe).toHaveBeenCalled());
+    expect(screen.queryByRole('heading', { name: 'Webhooks' })).toBeNull();
+  });
+
   it.each(['member', 'viewer'])('hiddenFromNonLeads (%s is sent to the board)', async (role) => {
     renderSettings({ role });
     expect(await screen.findByText('BOARD')).toBeInTheDocument();

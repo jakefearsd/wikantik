@@ -37,12 +37,29 @@ class WorkMeResourceTest {
 
     private WorkService svc;
     private WorkMeResource servlet;
+    private com.wikantik.work.WorkNotificationsService notifications;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         svc = Mockito.mock( WorkService.class );
         Mockito.when( svc.deployments() ).thenReturn( Mockito.mock( com.wikantik.work.WorkDeploymentsService.class ) );
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        notifications = Mockito.mock( com.wikantik.work.WorkNotificationsService.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.notifications() ).thenReturn( notifications );
+        Mockito.when( notifications.preference( ALICE ) ).thenReturn(
+            new com.wikantik.work.NotifyPreference( com.wikantik.work.EmailMode.OFF, false, false ) );
         servlet = WorkHttp.wire( new WorkMeResource(), svc, ALICE );
+    }
+
+    @Test
+    void meCarriesTheNotifyFlags() throws Exception {
+        Mockito.when( notifications.preference( ALICE ) ).thenReturn(
+            new com.wikantik.work.NotifyPreference( com.wikantik.work.EmailMode.DAILY, true, false ) );
+        final JsonObject n = get().json().getAsJsonObject().getAsJsonObject( "notify" );
+        assertEquals( true, n.get( "emailAvailable" ).getAsBoolean() );
+        assertEquals( false, n.get( "webhooksAvailable" ).getAsBoolean() );
+        assertEquals( 2, n.size(), "the caller's email choice is on notify-prefs, not here" );
     }
 
     private WorkHttp.Result get() throws Exception {
@@ -91,6 +108,8 @@ class WorkMeResourceTest {
     void anAdminAlsoGetsTheLoginInBy() throws Exception {
         final com.wikantik.work.Actor admin = com.wikantik.work.Actor.human( "root", java.util.Set.of(), true );
         servlet = WorkHttp.wire( new WorkMeResource(), svc, admin );
+        Mockito.when( notifications.preference( admin ) ).thenReturn(
+            new com.wikantik.work.NotifyPreference( com.wikantik.work.EmailMode.OFF, false, false ) );
         Mockito.when( svc.waitingOn( admin ) ).thenReturn( List.of( new com.wikantik.work.WaitingItem(
             WorkHttp.item( "PLAT-1", "root", 1 ), "assigned", handoff( "carol", com.wikantik.work.Actor.Kind.HUMAN, null ) ) ) );
         Mockito.when( svc.listProjectsWithRoles( admin ) ).thenReturn( List.of() );

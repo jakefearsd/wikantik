@@ -53,6 +53,15 @@ final class GuardedListener implements WorkListener {
         }
     }
 
+    @Override
+    public void notified( final String channel, final String outcome ) {
+        try {
+            delegate.notified( channel, outcome );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Work listener failed on notification {}/{}: {}", channel, outcome, e.toString(), e );
+        }
+    }
+
     /** Reports {@code n} claims ended by something other than an explicit release or the sweep. */
     void released( final int n ) {
         for ( int i = 0; i < n; i++ ) {

@@ -23,6 +23,8 @@ import com.wikantik.api.identity.PublicIdentity;
 import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
+import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.user.AccountSummary;
 import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.subsystem.AuthSubsystem;
@@ -111,6 +113,26 @@ public final class WikiWorkDirectory implements WorkDirectory {
         }
     }
 
+    @Override
+    public Optional< String > loginIgnoringCase( final String name ) {
+        if ( name == null || name.isBlank() ) {
+            return Optional.empty();
+        }
+        try {
+            for ( final AccountSummary account : AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase()
+                    .accountSummaries() ) {
+                if ( account.login() != null && account.login().equalsIgnoreCase( name.trim() ) ) {
+                    return Optional.of( account.login() );
+                }
+            }
+            return Optional.empty();
+        } catch ( final RuntimeException | WikiSecurityException e ) {
+            LOG.warn( "The user directory could not be read while checking an agent name against logins; "
+                + "answering unavailable: {}", e.getMessage(), e );
+            throw new WorkUnavailableException( "The user directory could not be read.", e );
+        }
+    }
+
     private boolean isAdmin( final AuthSubsystem.Services auth, final String login, final Set< String > groups ) {
         final List< Principal > roles = new ArrayList<>();
         roles.add( Role.ALL );
@@ -175,6 +197,39 @@ public final class WikiWorkDirectory implements WorkDirectory {
     @Override
     public Optional< String > mentionId( final String login ) {
         return identity().userIdForLogin( login );
+    }
+
+    /** The profile's mail address; blank, locked or no account is empty; a user database that cannot be read is unavailable. */
+    @Override
+    public Optional< String > email( final String login ) {
+        if ( login == null || login.isBlank() ) {
+            return Optional.empty();
+        }
+        try {
+            final com.wikantik.auth.user.UserProfile profile = AuthSubsystemBridge.fromLegacyEngine( engine ).users()
+                .getUserDatabase().findByLoginName( login );
+            if ( profile.isLocked() ) {
+                LOG.debug( "Work management: account {} is locked, so it is not mailed", login );
+                return Optional.empty();
+            }
+            final String email = profile.getEmail();
+            return email == null || email.isBlank() ? Optional.empty() : Optional.of( email.strip() );
+        } catch ( final NoSuchPrincipalException e ) {
+            LOG.debug( "Work management: no account {} to mail: {}", login, e.getMessage() );
+            return Optional.empty();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "The user database could not be read for a mail address: {}", e.getMessage(), e );
+            throw new WorkUnavailableException( "The user database could not be read.", e );
+        }
+    }
+
+    /** The logins of the group's members (the wiki stores logins); an unknown group is empty. */
+    @Override
+    public Set< String > groupMembers( final String group ) {
+        if ( group == null || group.isBlank() ) {
+            return Set.of();
+        }
+        return WikiWorkGroups.membersOf( AuthSubsystemBridge.fromLegacyEngine( engine ).groups(), group );
     }
 
     private PublicIdentity identity() {

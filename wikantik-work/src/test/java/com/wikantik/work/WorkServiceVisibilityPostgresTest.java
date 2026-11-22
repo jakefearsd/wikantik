@@ -57,18 +57,19 @@ class WorkServiceVisibilityPostgresTest {
         "addComment", "editComment", "removeComment", "addLink", "removeLink", "createQueue", "updateQueue",
         "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge", "open", "update",
         "requestReview", "review", "merge", "abandon", "request", "approve", "start", "verify", "fail", "rollBack", "reject",
-        "create", "close" );
+        "create", "close", "markRead", "setWatch", "add", "remove" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
         "agentForToken", "actorForAgent", "describe",
-        "sweepExpiredClaims", "sweepStanding", "claimExpiry" );
+        "sweepExpiredClaims", "sweepStanding", "claimExpiry", "dispatch", "sendEmail", "settings", "deliver" );
 
     /**
-     * Methods that return only the caller's own record, never project data: an agent's own agent row. They are not
+     * Methods that touch only the caller's own record, or the caller's own notifications and settings, never project
+     * data: an agent's own agent row, a person's inbox (filtered to the projects they see). They are not
      * reads in the hiding sense (an agent with no project still gets its own row), so each has its own test.
      */
-    private static final Set< String > OWN = Set.of( "self" );
+    private static final Set< String > OWN = Set.of( "self", "inbox", "unread", "markAllRead", "preference", "setPreference" );
 
     /**
      * Reads that answer yes or no, so "returned real data" has no meaning for them: each is driven as a stranger
@@ -92,7 +93,7 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState" );
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
 
@@ -158,9 +159,12 @@ class WorkServiceVisibilityPostgresTest {
         store.deployments().move( shipped, DeploymentState.VERIFIED, "ok", null, lena );
         commentId = store.addComment( item, Actor.human( "lena", java.util.Set.of(), false ), "secret comment", List.of() ).id();
         linkId = store.addLink( item, "url", "https://example.com/secret", Actor.human( "lena", java.util.Set.of(), false ) ).id();
+        // a webhook on PLAT, so the webhook list returns real data to prove against
+        store.notifyStores().webhooks().add( plat, java.net.URI.create( "https://hooks.example.com/secret" ),
+            WebhookFormat.GENERIC, "s3cret", List.of(), lena );
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC() );
     }
@@ -364,7 +368,12 @@ class WorkServiceVisibilityPostgresTest {
             () -> service.editComment( mallory, commentId, "x" ),
             () -> service.removeComment( mallory, commentId ),
             () -> service.addLink( mallory, "PLAT-1", "url", "https://a.example" ),
-            () -> service.removeLink( mallory, linkId ) );
+            () -> service.removeLink( mallory, linkId ),
+            () -> service.features().notifications().markRead( mallory, "PLAT-1" ),
+            () -> service.features().notifications().setWatch( mallory, "PLAT-1", WatchState.WATCHING ),
+            () -> service.features().webhooks().add( mallory, "PLAT", new WebhookDraft( "https://a.example.com/x", "generic", List.of() ) ),
+            () -> service.features().webhooks().update( mallory, "PLAT", 1, new WebhookPatch( null, null, false ) ),
+            () -> service.features().webhooks().remove( mallory, "PLAT", 1 ) );
         for ( final var attempt : attempts ) {
             assertThrows( WorkNotFoundException.class, attempt );
         }

@@ -236,6 +236,13 @@ class WorkDeploymentResourceTest {
         Mockito.when( deployments.awaitingMyApproval( ALICE ) ).thenReturn( List.of( view( DeploymentState.REQUESTED, null ) ) );
         Mockito.when( svc.waitingOn( ALICE ) ).thenReturn( List.of() );
         Mockito.when( svc.listProjectsWithRoles( ALICE ) ).thenReturn( List.of() );
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        final com.wikantik.work.WorkNotificationsService notifications =
+            Mockito.mock( com.wikantik.work.WorkNotificationsService.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.notifications() ).thenReturn( notifications );
+        Mockito.when( notifications.preference( ALICE ) ).thenReturn(
+            new com.wikantik.work.NotifyPreference( com.wikantik.work.EmailMode.OFF, false, false ) );
         final WorkMeResource me = WorkHttp.wire( new WorkMeResource(), svc, ALICE );
         final JsonObject waiting = WorkHttp.call( me, "GET", "/api/work/me", null, Map.of(), null )
             .json().getAsJsonObject().getAsJsonArray( "deploymentsAwaiting" ).get( 0 ).getAsJsonObject();

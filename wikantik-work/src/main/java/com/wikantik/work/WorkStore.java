@@ -50,6 +50,9 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
     /** Sprints: named date ranges of a project that items are planned into. */
     WorkSprintStore sprints();
 
+    /** Watches (and, in later tasks, notifications and webhooks). */
+    WorkNotifyStores notifyStores();
+
     // ---- items
 
     /**
@@ -157,10 +160,11 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
      * {@code (at, id)} order, so a page boundary inside a group of events sharing one timestamp loses nothing.
      * Without it the cursor is the timestamp alone ({@code at < before}); {@code before} null means no cursor.
      * {@code itemId}, when set, keeps only that item's events; {@code types}, when not null or empty, only events of
-     * those types.
+     * those types. {@code withWebhookEvents} false leaves out the {@code settings} events noted {@code webhook} in
+     * the query itself (so a page is never short): the events only a project's leads may see.
      */
     List< WorkEvent > projectEvents( long projectId, Instant before, Long beforeId, Long itemId, Set< String > types,
-                                     int limit ) throws SQLException;
+                                     boolean withWebhookEvents, int limit ) throws SQLException;
 
     /**
      * The assignment log over all the given projects in one query, newest first on the compound {@code (at, id)}

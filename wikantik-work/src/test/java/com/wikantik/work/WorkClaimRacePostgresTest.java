@@ -75,7 +75,7 @@ class WorkClaimRacePostgresTest {
         fx.store.putMember( fx.plat.id(), "lena", "user", WorkRole.LEAD, WorkClaimFixtures.LENA );
         svc = new WorkService( racing( fx.store ), md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
             @Override public void claim( final ClaimOutcome o ) { heard.add( o ); }
@@ -300,7 +300,7 @@ class WorkClaimRacePostgresTest {
     private WorkService node( final java.util.concurrent.atomic.AtomicInteger expired ) {
         return new WorkService( new JdbcWorkStore( fx.ds ), md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
             @Override public void claim( final ClaimOutcome o ) {

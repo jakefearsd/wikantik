@@ -216,4 +216,32 @@ describe('work api client', () => {
     collabRequest.mockRejectedValue({ status: 409 });
     await expect(work.patchItem('PLAT-1', {})).rejects.toMatchObject({ reason: 'stale', current: undefined });
   });
+
+  it('the notification calls hit the documented routes', async () => {
+    const last = () => { const [path, opts] = collabRequest.mock.lastCall; return [path, opts?.method, opts?.body ? JSON.parse(opts.body) : undefined]; };
+    await work.getInbox({ before: 9, limit: 30 });
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/inbox?before=9&limit=30');
+    await work.getUnread();
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/inbox/unread', { silent: true });
+    await work.markItemRead('PLAT-1');
+    expect(last()).toEqual(['/api/work/inbox/read/PLAT-1', 'POST', undefined]);
+    await work.markAllRead();
+    expect(last()).toEqual(['/api/work/inbox/read-all', 'POST', undefined]);
+    await work.getWatch('PLAT-1');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/watch/PLAT-1');
+    await work.setWatch('PLAT-1', 'muted');
+    expect(last()).toEqual(['/api/work/watch/PLAT-1', 'PUT', { state: 'muted' }]);
+    await work.getNotifyPrefs();
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/notify-prefs');
+    await work.setNotifyPrefs('daily');
+    expect(last()).toEqual(['/api/work/notify-prefs', 'PUT', { email: 'daily' }]);
+    await work.listWebhooks('PLAT');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/projects/PLAT/webhooks');
+    await work.addWebhook('PLAT', { url: 'https://x.test/h', format: 'slack', eventTypes: [] });
+    expect(last()).toEqual(['/api/work/projects/PLAT/webhooks', 'POST', { url: 'https://x.test/h', format: 'slack', eventTypes: [] }]);
+    await work.updateWebhook('PLAT', 4, { enabled: false });
+    expect(last()).toEqual(['/api/work/projects/PLAT/webhooks/4', 'PATCH', { enabled: false }]);
+    await work.removeWebhook('PLAT', 4);
+    expect(last()).toEqual(['/api/work/projects/PLAT/webhooks/4', 'DELETE', undefined]);
+  });
 });

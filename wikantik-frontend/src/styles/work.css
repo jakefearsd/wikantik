@@ -205,3 +205,26 @@
 .work-sprint-points { color: var(--text-secondary); font-size: 0.85rem; min-width: 3.5rem; text-align: right; }
 .work-card-estimate { font-variant-numeric: tabular-nums; }
 .work-burndown { margin: var(--space-md) 0; }
+
+/* Notifications */
+.work-unread-badge {
+  display: inline-block; margin-left: var(--space-xs); min-width: 1.2em; padding: 0 var(--space-xs); border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--bg-elevated); font-size: 0.75rem; text-align: center;
+}
+.work-notice-list { list-style: none; margin: var(--space-md) 0 0; padding: 0; }
+.work-notice { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); }
+.work-notice-unread { border-left: 3px solid var(--accent); font-weight: 600; }
+.work-notice-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+.work-notice-dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--accent); }
+.work-notice-when { margin-left: auto; font-weight: 400; font-size: 0.8rem; }
+.work-notice-text { margin: var(--space-xs) 0 0; font-weight: 400; }
+.work-notify-prefs { border: 0; padding: 0; margin: var(--space-md) 0; }
+.work-notify-choice { display: block; padding: var(--space-xs) 0; }
+.work-watch { position: relative; display: inline-block; }
+.work-watch-menu { position: absolute; z-index: 5; list-style: none; margin: var(--space-xs) 0 0; padding: var(--space-xs); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); min-width: 11rem; }
+.work-item-watch { margin: var(--space-xs) 0; }
+.work-webhook-list { list-style: none; margin: var(--space-sm) 0; padding: 0; }
+.work-webhook { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); }
+.work-webhook-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+.work-webhook-types { border: 0; padding: 0; margin: var(--space-sm) 0; display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-md); }
+.work-webhook-type { font-size: 0.85rem; }

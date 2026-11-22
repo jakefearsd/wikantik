@@ -230,7 +230,7 @@ class WorkServiceEdgesPostgresTest {
     void aServiceBuiltWithNoListenerOrAuditStillWorks() throws SQLException {
         final WorkDirectory directory = new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return null; }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
         };
         final WorkService bare = new WorkService( new JdbcWorkStore( f.ds ), md -> md, directory, Clock.systemUTC(),

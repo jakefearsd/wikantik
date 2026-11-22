@@ -327,3 +327,23 @@ describe('eventText with empty values', () => {
     }
   });
 });
+
+describe('webhook settings events', () => {
+  const hook = (toValue) => ({ type: 'settings', note: 'webhook', fromValue: 'hooks.example.com', toValue, actorName: 'Ana Alvarez' });
+  it.each([
+    ['added', 'added a webhook to hooks.example.com'],
+    ['changed', 'changed the webhook to hooks.example.com'],
+    ['removed', 'removed the webhook to hooks.example.com'],
+    ['disabled', 'turned off the webhook to hooks.example.com'],
+    ['enabled', 'turned on the webhook to hooks.example.com'],
+  ])('webhook %s', (action, text) => {
+    expect(eventText(hook(action)).text).toBe(text);
+    expect(eventSentence(hook(action))).toBe(`Ana Alvarez ${text}`);
+  });
+  it('webhookFailedIsStandaloneAndDoesNotNameTheActor', () => {
+    const t = eventText(hook('failed'));
+    expect(t.standalone).toBe(true);
+    expect(t.text).toBe('The webhook to hooks.example.com was switched off after failing for 24 hours.');
+    expect(eventSentence(hook('failed'))).not.toContain('Ana Alvarez');
+  });
+});

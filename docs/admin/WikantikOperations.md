@@ -634,6 +634,47 @@ Metrics on `/metrics` (instance-wide, no project, item or agent labels): `wikant
 
 **Running the integration tests after a change.** The IT modules resolve the WAR from `~/.m2`, not from `target/`. After changing code, run `mvn install -DskipTests` before `bin/run-tests.sh --module <m>`, or the suite runs the old WAR and fails in confusing ways. (`bin/run-tests.sh --parallel 4` builds first.)
 
+### 1.17 Work notifications: email and webhooks
+
+Work notifications fill each person's inbox (`/work/inbox`) from the event log, once every `wikantik.work.notify.intervalSeconds` (default 60). The inbox is on whenever work management is. Email and webhooks are separate switches, both off by default. Only the new assignee hears of an assignment, watchers hear of hand-offs, a mention beats a watch, and nobody hears of their own action. The first run starts from the newest existing event, so enabling notifications never notifies history.
+
+**Before deploying V086.** Check production has no project keyed `INBOX` (the key is now reserved, for the inbox route): `SELECT key FROM work_project WHERE upper(key) = 'INBOX';` must return no rows; rename any project it finds first. V086 also rewrites `work_event` once to add the `tx` column, so on a large event log expect a short table lock while it runs.
+
+**Keys** (all in `wikantik-custom.properties`; defaults and detail in the generated configuration reference):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `wikantik.work.notify.intervalSeconds` | `60` | Seconds between dispatcher runs (1 to 3600). |
+| `wikantik.work.notify.baseUrl` | blank | Absolute base URL for links; blank falls back to `wikantik.baseURL`. Email stays off (with a WARN) when both are blank. |
+| `wikantik.work.notify.email.enabled` | `false` | Mail notifications through the wiki's existing mail settings. |
+| `wikantik.work.notify.email.detail` | `summary` | `summary` sends key, title, who did what and a link; `full` adds comment text (cut at 500 characters) to mail. |
+| `wikantik.work.notify.email.intervalMinutes` | `5` | Minutes between email runs. |
+| `wikantik.work.notify.email.dailyHour` | `8` | Hour (server time zone) after which a daily digest is sent. |
+| `wikantik.work.notify.webhooks.enabled` | `false` | Whether leads may add webhooks and whether they are delivered. |
+
+**Email.** Configure mail first ([SendingEmailFromTheWiki](SendingEmailFromTheWiki.md)), set `wikantik.work.notify.baseUrl` or `wikantik.baseURL`, then set `wikantik.work.notify.email.enabled=true`. Each person chooses each, daily or off in their inbox preferences; agents are never mailed. Only notices from the last 48 hours are mailed, so turning it on sends no history. Delivery is at least once: a crash between sending and recording can repeat one message. `summary` is the default because the relay is outside the wiki's control.
+
+**Webhooks.** Set `wikantik.work.notify.webhooks.enabled=true`. A webhook address must be https and passes the egress guard on save, at every delivery and at every redirect hop: addresses that resolve to loopback, private, link-local, multicast or unique-local ranges are refused unless `-Dwikantik.connectors.egress.allowPrivate=true` is set (which also opens connectors to private addresses). The host is resolved once by the check and again at connect, the same posture as connector fetches. A webhook that fails for 24 hours is switched off and its lead is told in the inbox. A webhook pauses while its owner is not a lead of the project. When a webhook resumes (flag back on, re-enabled, owner a lead again, taken over) it starts from the newest event and sends no backlog.
+
+**Run notifications on one node.** With more than one node, each would send each event.
+
+**Monitoring.** `wikantik_work_dispatcher_alive` is 1 while the dispatcher thread runs; 0 means notifications have stopped (the cause is in the log at ERROR). `wikantik_work_notifications_total{channel,outcome}` counts inbox, email and webhook outcomes.
+
+**A transaction left open delays dispatch.** The dispatcher only reads events older than the oldest open transaction anywhere in the database (`tx < pg_snapshot_xmin(pg_current_snapshot())`), so a long-running or `idle in transaction` session pauses notifications until it ends. Nothing is lost. Find it: `SELECT pid, state, xact_start, query FROM pg_stat_activity WHERE state = 'idle in transaction' ORDER BY xact_start;`.
+
+**After a dump and restore, reset the cursors.** The cursors store transaction ids. A restore into a new cluster can leave them ahead of the new ids, and dispatch then stalls silently (no error, the inbox simply stops filling). Reset them to the newest existing event:
+
+```sql
+UPDATE work_notify_cursor c
+   SET tx = e.tx, event_id = e.id
+  FROM (SELECT tx, id FROM work_event ORDER BY tx DESC, id DESC LIMIT 1) e;
+UPDATE work_webhook w
+   SET cursor_tx = e.tx, cursor_event_id = e.id
+  FROM (SELECT tx, id FROM work_event ORDER BY tx DESC, id DESC LIMIT 1) e;
+```
+
+The restore also copies `work_event.tx` from the old cluster, so the newest event by `tx` is the right place to resume. Events between the old cursor and that point are not notified.
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

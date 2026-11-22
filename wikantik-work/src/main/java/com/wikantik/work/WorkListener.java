@@ -30,6 +30,10 @@ public interface WorkListener {
     default void deployment( final String state ) {
     }
 
+    /** A notification left through {@code channel} (inbox, email, webhook) with {@code outcome} (delivered, dropped, failed). */
+    default void notified( final String channel, final String outcome ) {
+    }
+
     /** An agent met a gate ({@code approve}, {@code close}, {@code review}, {@code merge}, {@code direct}). */
     default void gate( final String gate, final boolean allowed ) {
     }

@@ -76,10 +76,10 @@ class JdbcWorkStoreAssignmentLogPostgresTest {
         event( plat, null, T0.plusSeconds( 2 ), "claimed", "a", "agent", "ready", "in_progress" );
         event( plat, null, T0.plusSeconds( 3 ), "created", "lena", "user", null, null );
 
-        final List< WorkEvent > claims = store.projectEvents( plat.id(), null, null, null, Set.of( "claimed" ), 50 );
+        final List< WorkEvent > claims = store.projectEvents( plat.id(), null, null, null, Set.of( "claimed" ), true, 50 );
         assertEquals( List.of( "claimed" ), claims.stream().map( WorkEvent::type ).toList() );
-        assertEquals( 4, store.projectEvents( plat.id(), null, null, null, null, 50 ).size() );
-        assertEquals( 4, store.projectEvents( plat.id(), null, null, null, Set.of(), 50 ).size(), "empty means all" );
+        assertEquals( 4, store.projectEvents( plat.id(), null, null, null, null, true, 50 ).size() );
+        assertEquals( 4, store.projectEvents( plat.id(), null, null, null, Set.of(), true, 50 ).size(), "empty means all" );
         final List< LogEntry > log = store.eventsAcross( List.of( plat.id() ), null, null, null, null, null, 50 );
         assertEquals( List.of( "claimed", "assigned" ), log.stream().map( e -> e.event().type() ).toList(),
             "null types in the log means the log's types, never comments or creations" );
@@ -143,7 +143,7 @@ class JdbcWorkStoreAssignmentLogPostgresTest {
             null, 50 );
         assertEquals( List.of( "agent:7:member", "agent:7:member" ),
             log.stream().map( e -> e.event().toValue() == null ? e.event().fromValue() : e.event().toValue() ).toList() );
-        assertEquals( 4, store.projectEvents( plat.id(), null, null, null, Set.of( "member" ), 50 ).size(),
+        assertEquals( 4, store.projectEvents( plat.id(), null, null, null, Set.of( "member" ), true, 50 ).size(),
             "the project feed's type filter is not narrowed" );
     }
 

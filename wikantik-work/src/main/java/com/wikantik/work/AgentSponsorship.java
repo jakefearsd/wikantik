@@ -195,4 +195,23 @@ final class AgentSponsorship {
         return scopes.person( agent.sponsor() ).isPresent() ? WorkRegistryService.AgentStatus.ACTIVE
             : WorkRegistryService.AgentStatus.SPONSOR_GONE;
     }
+
+    /**
+     * An agent may not take the name of a person: notices and mail go to whoever the directory says a name is, and an
+     * agent of the same name must never be mistaken for, or stand in the way of, that person. Checked on registering
+     * and on a rename ({@code currentName} is the agent's present name, or null when new; keeping it is not a rename). A
+     * directory that cannot answer ({@link WorkUnavailableException}) refuses the change: it fails closed.
+     */
+    /** The directory matches logins exactly, so a case variant of an account's login is looked up separately. */
+    private boolean namesAPerson( final String name ) {
+        return scopes.person( name ).isPresent()
+            || scopes.loginIgnoringCase( name ).flatMap( scopes::person ).isPresent();
+    }
+
+    void requireNameFree( final String name, final String currentName ) {
+        if ( !name.equals( currentName ) && namesAPerson( name ) ) {
+            throw new WorkValidationException( "name", "That name belongs to a person on this wiki; choose another "
+                + "name for the agent." );
+        }
+    }
 }

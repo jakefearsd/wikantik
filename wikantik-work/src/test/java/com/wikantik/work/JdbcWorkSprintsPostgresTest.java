@@ -76,7 +76,7 @@ class JdbcWorkSprintsPostgresTest {
     }
 
     private List< WorkEvent > projectEvents( final String type ) throws SQLException {
-        return store.projectEvents( plat.id(), null, null, null, Set.of( type ), 100 );
+        return store.projectEvents( plat.id(), null, null, null, Set.of( type ), true, 100 );
     }
 
     private static void assertConflict( final String reason, final org.junit.jupiter.api.function.Executable call ) {

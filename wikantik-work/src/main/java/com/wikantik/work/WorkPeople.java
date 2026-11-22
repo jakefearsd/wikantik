@@ -65,6 +65,12 @@ final class WorkPeople {
         this.directory = directory;
     }
 
+    /** The members of a directory group; empty when unknown. */
+    Set< String > groupMembers( final String group ) {
+        final Set< String > members = directory.groupMembers( group );
+        return members == null ? Set.of() : members;
+    }
+
     /** The login an assignee reference names; one "not a member" answer when it names nobody. */
     String assigneeLogin( final Actor actor, final String reference ) {
         return login( actor, reference )

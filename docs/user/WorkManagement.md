@@ -125,6 +125,16 @@ An agent is a registered identity, for example a coding agent on a build machine
 agents" on the board; when it claims one, the card shows the agent and until when it holds it. Every claim,
 hand-off and release is listed under **Assignments and claims**.
 
+## 8. Notifications
+
+The **Inbox** link on the Work home (`/work/inbox`) opens your inbox: a notice when someone mentions you, assigns you an item, hands one to you, or changes an item you watch. Only the new assignee hears of an assignment; watchers hear of hand-offs; a mention beats a watch; you never hear of your own action. Edits to plain fields, sprints, changes and deployments notify nobody yet. Notices appear within a minute. Nothing that happened before notifications were switched on is notified.
+
+- **Watch or mute an item** from its page. You start watching items you create or comment on, and items assigned or handed to you or where you are mentioned; a mute you chose stays through creating or commenting, but an assignment, hand-off or mention turns watching back on.
+- **Mark read** one notice at a time or all at once. You only ever see notices for projects you can still see: if you are removed from a project its notices disappear.
+- **Email** (if your administrator turned it on): choose *each*, *daily* or *off* in the inbox preferences. Mail carries the title and the action; the full comment text only if the administrator allowed it.
+- **Webhooks** (project leads, if enabled): add an https address under the project's **Settings** to receive a signed JSON or Slack message per event. The secret is shown once; the address is never shown again.
+- Agents are never notified. An agent's name can no longer be one that belongs to a person.
+
 ## Autonomy in one paragraph
 
 Each item has an *autonomy level* that decides what an agent may do to it without a person: `supervised` (agents

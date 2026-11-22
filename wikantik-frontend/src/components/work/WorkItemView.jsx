@@ -5,9 +5,10 @@ import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useToast } from '../../hooks/useToast';
+import { announceUnread } from '../../hooks/useWorkUnread';
 import {
   addComment, addLink, editComment, getItem, handoffItem, listItems, listMembers, listProducts, listQueues, patchItem,
-  listLabels, listSprints, releaseItem, removeComment, removeLink,
+  listLabels, listSprints, markItemRead, releaseItem, removeComment, removeLink,
 } from '../../api/work';
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS, TYPE_OPTIONS, labelRows } from './boardModel';
@@ -25,6 +26,7 @@ import WorkLinks from './WorkLinks';
 import WorkPolicyNote from './WorkPolicyNote';
 import WorkShippedIn from './WorkShippedIn';
 import WorkTimeline from './WorkTimeline';
+import WorkWatchButton from './WorkWatchButton';
 import { isPast, useExpiryClock } from './workTime';
 
 const EPIC_STATUSES = ['draft', 'in_progress', 'done', 'cancelled'];
@@ -179,6 +181,15 @@ function ItemPage({ itemKey }) {
   }, [itemKey]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Opening an item reads its notices, once per item. Nothing waits on it and a failure shows nothing.
+  const readKey = view?.item?.key;
+  useEffect(() => {
+    if (!readKey) return;
+    markItemRead(readKey)
+      .then(() => announceUnread())
+      .catch((e) => console.warn('WorkItemView: could not mark the notices read', e));
+  }, [readKey]);
 
   useEffect(() => {
     if (!projectKey) return undefined;
@@ -390,6 +401,7 @@ function ItemPage({ itemKey }) {
         <h1 className="work-heading">{item.title}</h1>
       </header>
       {archived && <p className="work-archived-banner" role="status">{ARCHIVED_TEXT}. It is read-only.</p>}
+      <div className="work-item-watch"><WorkWatchButton itemKey={item.key} archived={archived} /></div>
       <WorkClaim item={item} canRelease={canEdit} onRelease={release} />
       {banner && (
         <ConflictBanner

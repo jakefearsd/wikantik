@@ -113,6 +113,8 @@ mail.smtp.timeout = 5000
 mail.smtp.connectiontimeout = 5000
 ```
 
+Work-management notifications ([WikantikOperations](WikantikOperations.md) section 1.17) use this same mail session and have their own switch, `wikantik.work.notify.email.enabled`, off by default.
+
 ### Step 6: Test Email
 
 1. Restart Tomcat

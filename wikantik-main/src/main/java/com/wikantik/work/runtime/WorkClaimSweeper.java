@@ -43,57 +43,28 @@ public final class WorkClaimSweeper implements AutoCloseable {
     /** The most passes in one cycle, so an endless backlog cannot monopolise the thread. */
     static final int MAX_PASSES_PER_CYCLE = 10;
 
-    private static final long JOIN_MILLIS = 5_000L;
-
     private final WorkService service;
-    private final long intervalNanos;
-    private final Object lock = new Object();
-    private final Thread thread;
-    private boolean closed;
+    private final WorkDaemon daemon;
 
     /** The gauge that reads 1 while the sweeper thread runs and 0 once it has stopped, for whatever reason. */
     public static final String ALIVE_GAUGE = "wikantik_work_sweeper_alive";
 
     private WorkClaimSweeper( final WorkService service, final Duration interval ) {
         this.service = service;
-        this.intervalNanos = interval.toNanos();
-        this.thread = new Thread( this::run, "work-claim-sweeper" );
-        this.thread.setDaemon( true );
-        this.thread.setUncaughtExceptionHandler( WorkClaimSweeper::stopped );
-    }
-
-    /**
-     * Anything that escapes the loop (an {@link Error}; exceptions are caught per pass) ends the thread: say so loudly,
-     * because claims then never lapse, and hand it on to the JVM's default handler as an uncaught throwable would be.
-     */
-    private static void stopped( final Thread t, final Throwable e ) {
-        // LOG.error justified: claims stop expiring until a restart, which an operator must see and act on.
-        LOG.error( "work claim sweeper stopped — claims will not expire until restart: {}", e.toString(), e );
-        final Thread.UncaughtExceptionHandler fallback = Thread.getDefaultUncaughtExceptionHandler();
-        if ( fallback != null ) {
-            fallback.uncaughtException( t, e );
-        }
+        this.daemon = new WorkDaemon( "work-claim-sweeper", interval, this::cycle,
+            "work claim sweeper stopped — claims will not expire until restart", LOG );
     }
 
     /** Whether the sweeper thread is running (false once closed or stopped by an uncaught throwable). */
     public boolean alive() {
-        return thread.isAlive();
+        return daemon.alive();
     }
 
     /** Starts the sweeper thread. */
     public static WorkClaimSweeper start( final WorkService service, final Duration interval ) {
         final WorkClaimSweeper sweeper = new WorkClaimSweeper( service, interval );
-        sweeper.thread.start();
+        sweeper.daemon.start();
         return sweeper;
-    }
-
-    private void run() {
-        while ( !isClosed() ) {
-            cycle();
-            if ( !pause() ) {
-                return;
-            }
-        }
     }
 
     /**
@@ -102,13 +73,13 @@ public final class WorkClaimSweeper implements AutoCloseable {
      */
     private void cycle() {
         sweepExpired();
-        if ( !isClosed() ) {
+        if ( !daemon.closed() ) {
             attempt( "standing", () -> service.claims().sweepStanding() );
         }
     }
 
     private void sweepExpired() {
-        for ( int pass = 0; pass < MAX_PASSES_PER_CYCLE && !isClosed(); pass++ ) {
+        for ( int pass = 0; pass < MAX_PASSES_PER_CYCLE && !daemon.closed(); pass++ ) {
             final Integer swept = attempt( "expiry", () -> service.claims().sweepExpiredClaims() );
             if ( swept == null || swept < FULL_BATCH ) {
                 return;
@@ -121,7 +92,7 @@ public final class WorkClaimSweeper implements AutoCloseable {
         try {
             return sweep.run();
         } catch ( final SQLException | RuntimeException e ) {
-            if ( isClosed() ) {
+            if ( daemon.closed() ) {
                 // Interrupted by close(): shutting down, not a failure.
                 LOG.debug( "Work claim {} sweep interrupted by shutdown: {}", what, e.getMessage() );
             } else {
@@ -136,54 +107,9 @@ public final class WorkClaimSweeper implements AutoCloseable {
         int run() throws SQLException;
     }
 
-    /** Sleeps one interval; false when the sweeper was closed meanwhile. */
-    private boolean pause() {
-        final long deadline = System.nanoTime() + intervalNanos;
-        synchronized ( lock ) {
-            while ( !closed ) {
-                final long remaining = deadline - System.nanoTime();
-                if ( remaining <= 0 ) {
-                    return true;
-                }
-                try {
-                    java.util.concurrent.TimeUnit.NANOSECONDS.timedWait( lock, remaining );
-                } catch ( final InterruptedException e ) {
-                    Thread.currentThread().interrupt();
-                    return false;
-                }
-            }
-            return false;
-        }
-    }
-
-    private boolean isClosed() {
-        synchronized ( lock ) {
-            return closed;
-        }
-    }
-
     /** Stops the thread and waits briefly for it; safe to call more than once. */
     @Override
     public void close() {
-        synchronized ( lock ) {
-            closed = true;
-            lock.notifyAll();
-        }
-        if ( Thread.currentThread() == thread ) {
-            return;
-        }
-        try {
-            thread.join( JOIN_MILLIS );
-            if ( thread.isAlive() ) {
-                // A pass stuck in the database: interrupt it rather than leave the thread behind.
-                thread.interrupt();
-                thread.join( JOIN_MILLIS );
-            }
-            if ( thread.isAlive() ) {
-                LOG.warn( "The work claim sweeper thread did not stop within {} ms", 2 * JOIN_MILLIS );
-            }
-        } catch ( final InterruptedException e ) {
-            Thread.currentThread().interrupt();
-        }
+        daemon.close();
     }
 }

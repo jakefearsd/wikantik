@@ -43,7 +43,7 @@ class WorkServiceDenialListenerTest {
     private final WorkStore store = mock( WorkStore.class );
     private static final WorkDirectory DIRECTORY = new WorkDirectory() {
         @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-        @Override public boolean exists( final String login ) { return true; }
+        @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
         @Override public String displayName( final String login ) { return login; }
     };
     private final List< Action > seen = new ArrayList<>();

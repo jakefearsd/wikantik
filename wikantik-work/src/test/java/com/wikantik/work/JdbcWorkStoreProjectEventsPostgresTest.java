@@ -48,7 +48,7 @@ class JdbcWorkStoreProjectEventsPostgresTest {
 
     /** Oldest first. */
     private List< WorkEvent > events() throws SQLException {
-        return store.projectEvents( plat.id(), null, null, null, null, 200 ).reversed();
+        return store.projectEvents( plat.id(), null, null, null, null, true, 200 ).reversed();
     }
 
     @Test
@@ -122,8 +122,8 @@ class JdbcWorkStoreProjectEventsPostgresTest {
         final Item a = store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "a" ), Actor.human( "lena", java.util.Set.of(), false ) );
         store.createItem( plat, JdbcWorkStoreItemsPostgresTest.draft( "b" ), Actor.human( "lena", java.util.Set.of(), false ) );
         store.putMember( plat.id(), "bob", "user", WorkRole.MEMBER, Actor.human( "lena", java.util.Set.of(), false ) );
-        assertEquals( 3, store.projectEvents( plat.id(), null, null, null, null, 50 ).size() );
-        final List< WorkEvent > onlyA = store.projectEvents( plat.id(), null, null, a.id(), null, 50 );
+        assertEquals( 3, store.projectEvents( plat.id(), null, null, null, null, true, 50 ).size() );
+        final List< WorkEvent > onlyA = store.projectEvents( plat.id(), null, null, a.id(), null, true, 50 );
         assertEquals( 1, onlyA.size() );
         assertEquals( "PLAT-1", onlyA.get( 0 ).itemKey() );
     }
@@ -135,7 +135,7 @@ class JdbcWorkStoreProjectEventsPostgresTest {
               var ps = c.prepareStatement( "UPDATE work_event SET at = NOW() + INTERVAL '1 hour'" ) ) {
             ps.executeUpdate();
         }
-        assertEquals( 1, store.projectEvents( plat.id(), null, null, null, null, 50 ).size(),
+        assertEquals( 1, store.projectEvents( plat.id(), null, null, null, null, true, 50 ).size(),
             "an event stamped ahead of this clock still shows on the first page" );
     }
 

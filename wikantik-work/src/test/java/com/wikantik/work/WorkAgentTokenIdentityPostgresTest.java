@@ -52,13 +52,13 @@ class WorkAgentTokenIdentityPostgresTest {
         store = new JdbcWorkStore( PostgresTestDb.createDataSource() );
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of( "Crew" ); }
-            @Override public boolean exists( final String login ) { return !gone.contains( login ); }
+            @Override public boolean exists( final String login ) { return !gone.contains( login ) && WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
             @Override public Optional< Person > person( final String login ) {
                 if ( outage ) {
                     throw new WorkUnavailableException( "directory down" );
                 }
-                return gone.contains( login ) ? Optional.empty()
+                return gone.contains( login ) || !WorkAgentFixtures.isPerson( login ) ? Optional.empty()
                     : Optional.of( new Person( login, groupsOf( login ), false ) );
             }
         }, Clock.systemUTC() );
@@ -115,7 +115,7 @@ class WorkAgentTokenIdentityPostgresTest {
         final WorkStore spy = org.mockito.Mockito.spy( store );
         final WorkService svc = new WorkService( spy, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC() );
         assertTrue( svc.registry().agentForToken( "wkk_" + "x".repeat( 43 ) ).isEmpty() );

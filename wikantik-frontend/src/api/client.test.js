@@ -415,6 +415,19 @@ describe('request() core behaviour', () => {
     }
   });
 
+  it('a silent request never dispatches wikantik:auth-required', async () => {
+    const listener = vi.fn();
+    window.addEventListener('wikantik:auth-required', listener);
+    try {
+      global.fetch.mockResolvedValue(mockFetchResponse({ status: 401, body: { message: 'expired' } }));
+      const { collabRequest } = await import('./client');
+      await expect(collabRequest('/api/work/inbox/unread', { silent: true })).rejects.toMatchObject({ status: 401 });
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('wikantik:auth-required', listener);
+    }
+  });
+
   it('dispatches wikantik:auth-required on a 403 for a non-auth-probe path', async () => {
     const listener = vi.fn();
     window.addEventListener('wikantik:auth-required', listener);

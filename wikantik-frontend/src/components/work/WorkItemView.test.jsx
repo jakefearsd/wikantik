@@ -11,6 +11,7 @@ vi.mock('../../api/work', () => ({
   openChange: vi.fn(), requestReview: vi.fn(), reviewChange: vi.fn(), mergeChange: vi.fn(), abandonChange: vi.fn(),
   acknowledgeItem: vi.fn(), getShippedIn: vi.fn(() => Promise.resolve({ shippedIn: [] })),
   listLabels: vi.fn(() => Promise.resolve([])), listSprints: vi.fn(() => Promise.resolve([])),
+  markItemRead: vi.fn(() => Promise.resolve()), getWatch: vi.fn(() => Promise.resolve({ state: 'none' })), setWatch: vi.fn(),
   getItemPoints: vi.fn(() => Promise.resolve({ points: 0 })),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
@@ -19,7 +20,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { authenticated:
 
 import {
   getItem, patchItem, listMembers, listProducts, listEvents, listRevisions, addComment, addLink, listItems,
-  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn, listLabels, listSprints,
+  listQueues, handoffItem, releaseItem, listChanges, getItemPolicy, getShippedIn, listLabels, listSprints, markItemRead,
 } from '../../api/work';
 import WorkItemView from './WorkItemView';
 
@@ -84,6 +85,24 @@ const PLAN_SPRINTS = [
 ];
 
 describe('WorkItemView estimate and sprint', () => {
+  it('openingAnItemMarksItsNoticesRead', async () => {
+    renderView();
+    await screen.findByRole('heading', { level: 1, name: 'Fix the flux capacitor' });
+    await waitFor(() => expect(markItemRead).toHaveBeenCalledWith('PLAT-7'));
+    expect(markItemRead).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('button', { name: 'Watch' })).toBeInTheDocument();
+  });
+
+  it('aFailedMarkReadShowsNothing', async () => {
+    markItemRead.mockRejectedValueOnce(new Error('down'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderView();
+    await screen.findByRole('heading', { level: 1, name: 'Fix the flux capacitor' });
+    await waitFor(() => expect(warn).toHaveBeenCalled());
+    expect(screen.queryByRole('alert')).toBeNull();
+    warn.mockRestore();
+  });
+
   beforeEach(() => { listSprints.mockResolvedValue(PLAN_SPRINTS); });
 
   it('an estimate of 1.25 is refused', async () => {

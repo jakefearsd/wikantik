@@ -518,6 +518,10 @@ published as that account's display name, never as the login. See
 
 ## Reduce risk from risky features
 
+### Work notification webhooks
+
+Webhooks (`wikantik.work.notify.webhooks.enabled`, off by default) are an outbound path. Every address, and every redirect hop, passes the connector egress guard and must be https. The generic format carries an `X-Wikantik-Signature: sha256=<HMAC-SHA256 of the body>` header; the URL and secret are never returned after creation. Deliveries send only what the owning lead could see and pause when that person stops being a lead. Notification email carries the item key, title and action only by default (`wikantik.work.notify.email.detail`); the inbox and email re-check the reader's standing each time.
+
 ### Connector egress guard
 
 Connector HTTP fetches (web crawler, sitemap, feed, GitHub, Confluence) pass through

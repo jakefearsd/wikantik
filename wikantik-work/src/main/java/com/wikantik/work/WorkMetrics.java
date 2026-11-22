@@ -51,6 +51,7 @@ public final class WorkMetrics implements WorkListener {
     static final String CLAIMS_ACTIVE = "wikantik_work_claims_active";
     static final String DENIED = "wikantik_work_denied_total";
     static final String GATES = "wikantik_work_gates_total";
+    static final String NOTIFICATIONS = "wikantik_work_notifications_total";
     static final String DEPLOYMENTS = "wikantik_work_deployments_total";
     private static final long DEFAULT_TTL_NANOS = 5_000_000_000L;
 
@@ -139,6 +140,17 @@ public final class WorkMetrics implements WorkListener {
             .description( "Autonomy gates agents met, by gate and outcome" )
             .tag( "gate", gate )
             .tag( "outcome", allowed ? "allowed" : "refused" )
+            .register( registry )
+            .increment();
+    }
+
+    /** Counts notifications by channel and outcome only, never by project or item. */
+    @Override
+    public void notified( final String channel, final String outcome ) {
+        Counter.builder( NOTIFICATIONS )
+            .description( "Notifications by channel and outcome" )
+            .tag( "channel", channel )
+            .tag( "outcome", outcome )
             .register( registry )
             .increment();
     }

@@ -70,13 +70,13 @@ class WorkAgentRegistryPostgresTest {
         store = new JdbcWorkStore( ds );
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return !gone.contains( login ); }
+            @Override public boolean exists( final String login ) { return !gone.contains( login ) && WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return "Dn " + login; }
             @Override public Optional< Person > person( final String login ) {
                 if ( outage ) {
                     throw new WorkUnavailableException( "directory down" );
                 }
-                return gone.contains( login ) ? Optional.empty()
+                return gone.contains( login ) || !WorkAgentFixtures.isPerson( login ) ? Optional.empty()
                     : Optional.of( new Person( login, Set.of(), "root".equals( login ) ) );
             }
         }, Clock.systemUTC(), WorkSettings.DEFAULTS, null, ( actor, action, type, target, detail ) -> {
@@ -470,7 +470,7 @@ class WorkAgentRegistryPostgresTest {
         org.mockito.Mockito.doReturn( failing ).when( spied ).credentials();
         final WorkService flaky = new WorkService( spied, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC() );
         assertEquals( made.agent().id(), flaky.registry().agentForToken( made.token() ).orElseThrow().agentId(),
@@ -485,7 +485,7 @@ class WorkAgentRegistryPostgresTest {
         org.mockito.Mockito.doReturn( Optional.empty() ).when( racing ).product( "wikantik" );
         final WorkService second = new WorkService( racing, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC() );
         assertEquals( WorkConflictException.EXISTS, assertThrows( WorkConflictException.class,

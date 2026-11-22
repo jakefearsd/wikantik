@@ -61,6 +61,7 @@ class WikiEngineDataSourceBootStepsTest {
                 "insights" + abort,
                 "work-management" + cont,
                 "work-claim-sweeper" + abort,
+                "work-notify-dispatcher" + abort,
                 "briefing-log" + abort,
                 "save-filters" + abort ), declared );
         } finally {

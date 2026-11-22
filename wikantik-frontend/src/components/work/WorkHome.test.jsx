@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-vi.mock('../../api/work', () => ({ getMe: vi.fn(), createProject: vi.fn(), acknowledgeItem: vi.fn(() => Promise.resolve({})) }));
+vi.mock('../../api/work', () => ({ getUnread: vi.fn(() => Promise.resolve({ unread: 4 })), getMe: vi.fn(), createProject: vi.fn(), acknowledgeItem: vi.fn(() => Promise.resolve({})) }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
@@ -26,6 +26,7 @@ function renderHome({ admin = false, me = ME, work = true } = {}) {
       <Routes>
         <Route path="/work" element={<WorkHome />} />
         <Route path="/work/log" element={<div>LOG PAGE</div>} />
+        <Route path="/work/inbox" element={<div>INBOX PAGE</div>} />
         <Route path="/work/:project" element={<div>BOARD</div>} />
       </Routes>
     </MemoryRouter>,
@@ -35,6 +36,15 @@ function renderHome({ admin = false, me = ME, work = true } = {}) {
 beforeEach(() => vi.clearAllMocks());
 
 describe('WorkHome', () => {
+  it('linksToTheInboxWithTheCount', async () => {
+    renderHome();
+    const link = await screen.findByRole('link', { name: /^Inbox/ });
+    expect(link).toHaveAttribute('href', '/work/inbox');
+    await waitFor(() => expect(link).toHaveTextContent('Inbox (4)'));
+    fireEvent.click(link);
+    expect(await screen.findByText('INBOX PAGE')).toBeInTheDocument();
+  });
+
   it('linksToTheAssignmentLog', async () => {
     renderHome();
     const link = await screen.findByRole('link', { name: 'Assignments and claims' });

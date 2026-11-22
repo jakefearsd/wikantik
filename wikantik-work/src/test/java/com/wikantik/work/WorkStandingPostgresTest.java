@@ -152,6 +152,30 @@ class WorkStandingPostgresTest {
         assertEquals( List.of( "PB", "PC" ), keys( standing.visibleProjects( ana() ) ) );
     }
 
+    @Test
+    void seesProjectIsTrueForAViewer() throws SQLException {
+        member( p1, "ana", "user", WorkRole.VIEWER );
+        assertEquals( true, standing.seesProject( p1, ana() ) );
+    }
+
+    @Test
+    void seesProjectIsFalseForAStranger() throws SQLException {
+        assertEquals( false, standing.seesProject( p1, ana() ) );
+    }
+
+    @Test
+    void seesProjectIsTrueForAWikiAdminWithNoRow() throws SQLException {
+        assertEquals( true, standing.seesProject( p1, Actor.human( "root", Set.of(), true ) ) );
+    }
+
+    @Test
+    void seesProjectIsFalseForAMemberAgentUnderAStrangerSponsor() throws SQLException {
+        agentIs( p1, WorkRole.MEMBER );
+        assertEquals( false, standing.seesProject( p1, agent( ana() ) ) );
+        member( p1, "ana", "user", WorkRole.VIEWER );
+        assertEquals( true, standing.seesProject( p1, agent( ana() ) ) );
+    }
+
     private static List< String > keys( final List< Project > projects ) {
         return projects.stream().map( Project::key ).sorted().toList();
     }

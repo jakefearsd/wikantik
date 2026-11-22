@@ -717,6 +717,10 @@
        <servlet-class>com.wikantik.rest.WorkMeResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>WorkInboxResource</servlet-name>
+       <servlet-class>com.wikantik.rest.WorkInboxResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>CommentThreadResource</servlet-name>
        <servlet-class>com.wikantik.rest.CommentThreadResource</servlet-class>
    </servlet>
@@ -1109,6 +1113,13 @@
    <servlet-mapping>
        <servlet-name>WorkMeResource</servlet-name>
        <url-pattern>/api/work/me</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>WorkInboxResource</servlet-name>
+       <url-pattern>/api/work/inbox</url-pattern>
+       <url-pattern>/api/work/inbox/*</url-pattern>
+       <url-pattern>/api/work/watch/*</url-pattern>
+       <url-pattern>/api/work/notify-prefs</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>CommentThreadResource</servlet-name>

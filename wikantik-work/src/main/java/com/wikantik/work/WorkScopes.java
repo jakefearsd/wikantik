@@ -201,9 +201,19 @@ final class WorkScopes {
         return store.comment( commentId ).orElseThrow( () -> new WorkNotFoundException( NOT_FOUND ) );
     }
 
+    /** The mail address on the login's profile; see {@link WorkDirectory#email}. */
+    java.util.Optional< String > email( final String login ) {
+        return directory.email( login );
+    }
+
     /** The account behind a login as the sponsor rule needs it; see {@link WorkDirectory#person}. */
     java.util.Optional< WorkDirectory.Person > person( final String login ) {
         return directory.person( login );
+    }
+
+    /** A login that differs from the name at most in letter case; see {@link WorkDirectory#loginIgnoringCase}. */
+    java.util.Optional< String > loginIgnoringCase( final String name ) {
+        return directory.loginIgnoringCase( name );
     }
 
     /** The public display name of a login. */

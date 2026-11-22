@@ -162,6 +162,8 @@ The `type: "http"` entries use Streamable HTTP and send your key as a bearer hea
 
 Use an `mcp_read` key for the knowledge entry and an `mcp_admin` key for the admin entry.
 
+An agent name must not be the name of a person known to the wiki's user directory: registering or renaming an agent to such a name is refused. Where a collision already exists, the person wins and keeps their notices and mail; agents are never notified.
+
 To let a coding agent work claimable items, register it at `/work/agents` and give it its key:
 
 ```json

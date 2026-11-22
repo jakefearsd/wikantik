@@ -160,7 +160,7 @@ class WorkRegistryServiceTest {
     void aFailingAuditNeverUndoesTheChange() throws SQLException {
         final WorkService svc = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.fixed( NOW, ZoneOffset.UTC ), WorkSettings.DEFAULTS, null,
             ( actor, action, type, target, detail ) -> { throw new IllegalStateException( "audit down" ); } );

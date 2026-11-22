@@ -72,7 +72,8 @@ public final class WorkWiring {
         final WorkListener listener = registry != null ? new WorkMetrics( registry, store ) : new WorkListener() { };
         final WorkService service = new WorkService( store, new WikiWorkRenderer( engine ),
             new WikiWorkDirectory( engine ), Clock.systemDefaultZone(),
-            new WorkSettings( claimExpiry( props ) ), listener, new WikiWorkAudit( engine ) );
+            new WorkSettings( claimExpiry( props ) ), listener, new WikiWorkAudit( engine ),
+            WorkNotifyWiring.ports( props, engine ) );
         LOG.info( "Work management started ({}=true, metrics {})", PROP_ENABLED, registry != null ? "on" : "off" );
         return service;
     }

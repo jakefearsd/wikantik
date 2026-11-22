@@ -310,7 +310,17 @@ public class WorkApiIT {
             new Probe( "POST", "/api/work/sprints/" + sprintId + "/start", "/api/work/sprints/" + ghostId + "/start",
                 Map.of( "version", 1 ), 404 ),
             new Probe( "POST", "/api/work/sprints/" + sprintId + "/close", "/api/work/sprints/" + ghostId + "/close",
-                Map.of( "version", 1 ), 404 ) );
+                Map.of( "version", 1 ), 404 ),
+            // notifications: the watch route, marking a foreign item read, and the project webhook routes
+            new Probe( "GET", "/api/work/watch/PLAT-1", "/api/work/watch/GHOST-1", null, 404 ),
+            new Probe( "PUT", "/api/work/watch/PLAT-1", "/api/work/watch/GHOST-1", Map.of( "state", "watching" ), 404 ),
+            new Probe( "POST", "/api/work/inbox/read/PLAT-1", "/api/work/inbox/read/GHOST-1", null, 404 ),
+            new Probe( "GET", "/api/work/projects/PLAT/webhooks", "/api/work/projects/GHOST/webhooks", null, 404 ),
+            new Probe( "POST", "/api/work/projects/PLAT/webhooks", "/api/work/projects/GHOST/webhooks",
+                Map.of( "url", "https://example.com/hook" ), 404 ),
+            new Probe( "PATCH", "/api/work/projects/PLAT/webhooks/1", "/api/work/projects/GHOST/webhooks/1",
+                Map.of( "enabled", false ), 404 ),
+            new Probe( "DELETE", "/api/work/projects/PLAT/webhooks/1", "/api/work/projects/GHOST/webhooks/1", null, 404 ) );
 
         for ( final Probe p : probes ) {
             final HttpResponse< String > real = outsider.send( p.method, p.real, p.body );

@@ -4,6 +4,7 @@ import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
 import { acknowledgeItem, createProject, getMe } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
+import { useUnreadCount } from '../../hooks/useWorkUnread';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import { useToast } from '../../hooks/useToast';
 import WaitingLane from './WaitingLane';
@@ -62,6 +63,7 @@ export default function WorkHome() {
   const [state, setState] = useState({ me: null, error: null });
   const [creating, setCreating] = useState(false);
   const [ackError, setAckError] = useState(null);
+  const unread = useUnreadCount(enabled);
   const seq = useRef(0);
 
   const load = useCallback(() => {
@@ -106,6 +108,10 @@ export default function WorkHome() {
           <span className="work-muted"> Who took what, and what happened next.</span>
         </p>
       )}
+      <p className="work-log-link">
+        <Link to="/work/inbox" className="btn btn-sm">Inbox{unread > 0 ? ` (${unread})` : ''}</Link>
+        <span className="work-muted"> What happened on the work you watch, are assigned or are mentioned on.</span>
+      </p>
       {(isAdmin || projects.length > 0) && (
         <div className="work-actions">
           {isAdmin && <Link to="/work/products">Products</Link>}

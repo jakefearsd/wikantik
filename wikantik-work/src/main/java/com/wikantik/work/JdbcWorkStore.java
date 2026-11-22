@@ -327,9 +327,9 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     @Override
     public List< WorkEvent > projectEvents( final long projectId, final Instant before, final Long beforeId,
-                                            final Long itemId, final Set< String > types, final int limit )
-            throws SQLException {
-        return eventLog.projectEvents( projectId, before, beforeId, itemId, types, limit );
+                                            final Long itemId, final Set< String > types,
+                                            final boolean withWebhookEvents, final int limit ) throws SQLException {
+        return eventLog.projectEvents( projectId, before, beforeId, itemId, types, withWebhookEvents, limit );
     }
 
     @Override

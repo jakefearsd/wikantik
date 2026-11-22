@@ -98,7 +98,7 @@ class WorkClaimsServiceTest {
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( project ) );
         return new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return Optional.of( name.toLowerCase( java.util.Locale.ROOT ) );

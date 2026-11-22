@@ -20,7 +20,7 @@ function signalAuthRequired(status, path) {
 }
 
 async function request(path, options = {}) {
-  const { signal, extraErrorCodes, ...rest } = options;
+  const { signal, extraErrorCodes, silent, ...rest } = options;
   const resp = await fetch(`${BASE}${path}`, {
     credentials: 'same-origin',
     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...rest.headers },
@@ -39,7 +39,8 @@ async function request(path, options = {}) {
 
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({ message: resp.statusText }));
-    signalAuthRequired(resp.status, path);
+    // A silent (background) request never raises the auth-required event: only a user action may send someone to log in.
+    if (!silent) signalAuthRequired(resp.status, path);
     // Caller-supplied custom status → app-level code mapping. Lets callers
     // surface domain errors (rebuild_in_flight, hybrid_disabled, …) without
     // duplicating the entire fetch/error-envelope dance.

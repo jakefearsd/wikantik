@@ -33,11 +33,27 @@ public final class WorkFeatures {
     private final WorkStore store;
     private final WorkScopes scopes;
     private final WorkSprintsService sprints;
+    private final WorkNotificationsService notifications;
+    private final WorkWebhooksService webhooks;
 
-    WorkFeatures( final WorkStore store, final WorkScopes scopes, final ItemViews views, final Clock clock ) {
+    WorkFeatures( final WorkStore store, final WorkScopes scopes, final ItemViews views, final Clock clock,
+                  final FeatureDeps deps ) {
         this.store = store;
         this.scopes = scopes;
         this.sprints = new WorkSprintsService( store, scopes, views, clock );
+        this.notifications = new WorkNotificationsService( store, scopes, deps.people(), clock, deps.listener(),
+            deps.ports() );
+        this.webhooks = new WorkWebhooksService( store, scopes, deps.listener(), deps.audit(), deps.ports(), clock );
+    }
+
+    /** Notifications: the inbox, watching, the email preference and the dispatch. */
+    public WorkNotificationsService notifications() {
+        return notifications;
+    }
+
+    /** Webhooks: a project's outbound event feeds, managed by its leads. */
+    public WorkWebhooksService webhooks() {
+        return webhooks;
     }
 
     /** Sprints: the sprint service. */

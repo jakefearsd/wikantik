@@ -58,7 +58,7 @@ class WorkDraftRulePostgresTest {
         PostgresTestDb.truncate( WorkAgentFixtures.TABLES );
         svc = new WorkService( new JdbcWorkStore( ds ), md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return login; }
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return "Lena Lead".equals( name ) ? Optional.of( "lena" ) : Optional.empty();

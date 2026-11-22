@@ -22,6 +22,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.wikantik.work.Actor;
+import com.wikantik.work.NotifyPreference;
 import com.wikantik.work.WaitingItem;
 import com.wikantik.work.WorkEvent;
 
@@ -42,8 +43,18 @@ public class WorkMeResource extends WorkResourceBase {
             out.add( "waitingOn", waitingOn( c ) );
             out.add( "projects", visibleProjects( c ) );
             out.add( "deploymentsAwaiting", WorkDeploymentJson.brief( c.svc.deployments().awaitingMyApproval( c.actor ) ) );
+            out.add( "notify", notify( c ) );
             c.json( out );
         } );
+    }
+
+    /** {@code {emailAvailable, webhooksAvailable}}: whether the wiki offers mail and webhooks to this caller. */
+    private static JsonObject notify( final Call c ) throws Exception {
+        final NotifyPreference p = c.svc.features().notifications().preference( c.actor );
+        final JsonObject o = new JsonObject();
+        o.addProperty( "emailAvailable", p.emailAvailable() );
+        o.addProperty( "webhooksAvailable", p.webhooksAvailable() );
+        return o;
     }
 
     private JsonArray waitingOn( final Call c ) throws Exception {

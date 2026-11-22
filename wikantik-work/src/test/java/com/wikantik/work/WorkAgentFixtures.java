@@ -29,8 +29,18 @@ import java.util.UUID;
 final class WorkAgentFixtures {
 
     /** Tables a test that writes as an agent truncates, in one call. */
+    /** Names the tests register as agents; a directory stub that says "everyone exists" must not claim them (an agent never takes a person's name). */
+    private static final java.util.Set< String > AGENT_NAMES = java.util.Set.of( "codex", "ghost", "plain", "outsider",
+        "orphan", "spare", "old", "third", "third-bot", "second", "author", "builder", "agent-a", "agent-b",
+        "ops-bot", "scribe-bot", "bot", "other", "deployer", "lead-hopeful", "reviewer-bot", "codex-2", "claude" );
+
+    /** Whether a stub directory that accepts every login should treat it as a person: not an agent name, no {@code @host}. */
+    static boolean isPerson( final String login ) {
+        return login != null && !login.contains( "@" ) && !AGENT_NAMES.contains( login.toLowerCase( java.util.Locale.ROOT ) );
+    }
+
     static final String[] TABLES = { "work_agent_credential", "work_agent_sponsor_history", "work_agent_queue", "work_agent", "work_queue", "work_link", "work_mention",
-        "work_comment", "work_event", "work_item_revision", "work_sprint", "work_item", "work_member", "work_product_event", "work_product",
+        "work_comment", "work_notification", "work_watch", "work_webhook", "work_notify_cursor", "work_notify_pref", "work_event", "work_item_revision", "work_sprint", "work_item", "work_member", "work_product_event", "work_product",
         "work_project" };
 
     private WorkAgentFixtures() {

@@ -205,4 +205,83 @@ class WikiWorkDirectoryTest {
         org.junit.jupiter.api.Assertions.assertThrows( com.wikantik.work.WorkUnavailableException.class,
             () -> new WikiWorkDirectory( broken ).person( "lena" ) );
     }
+
+    @Test
+    void emailIsTheProfilesAddress() {
+        assertEquals( java.util.Optional.of( "janne@ecyrd.com" ), directory.email( "janne" ) );
+    }
+
+    @Test
+    void anUnknownLoginHasNoEmail() {
+        assertEquals( java.util.Optional.empty(), directory.email( "nobody-here" ) );
+        assertEquals( java.util.Optional.empty(), directory.email( null ) );
+    }
+
+    @Test
+    void aBlankAddressIsNoEmail() throws Exception {
+        final com.wikantik.auth.user.UserDatabase db = com.wikantik.auth.subsystem.AuthSubsystemBridge
+            .fromLegacyEngine( engine ).users().getUserDatabase();
+        final com.wikantik.auth.user.UserProfile profile = db.newProfile();
+        profile.setLoginName( "nomailuser" );
+        profile.setFullname( "No Mail User" );
+        profile.setEmail( "" );
+        db.save( profile );
+        try {
+            assertEquals( java.util.Optional.empty(), directory.email( "nomailuser" ) );
+        } finally {
+            db.deleteByLoginName( "nomailuser" );
+        }
+    }
+
+    @Test
+    void aLockedAccountHasNoEmail() throws Exception {
+        final com.wikantik.auth.user.UserDatabase db = com.wikantik.auth.subsystem.AuthSubsystemBridge
+            .fromLegacyEngine( engine ).users().getUserDatabase();
+        final com.wikantik.auth.user.UserProfile profile = db.newProfile();
+        profile.setLoginName( "lockeduser" );
+        profile.setFullname( "Locked User" );
+        profile.setEmail( "locked@example.com" );
+        profile.setLockExpiry( new java.util.Date( System.currentTimeMillis() + 3_600_000L ) );
+        db.save( profile );
+        try {
+            assertEquals( java.util.Optional.empty(), directory.email( "lockeduser" ) );
+            profile.setLockExpiry( null );
+            db.save( profile );
+            assertEquals( java.util.Optional.of( "locked@example.com" ), directory.email( "lockeduser" ) );
+        } finally {
+            db.deleteByLoginName( "lockeduser" );
+        }
+    }
+
+    @Test
+    void aGroupManagerFailureIsUnavailableNotARawException() {
+        final com.wikantik.auth.authorize.GroupManager broken = org.mockito.Mockito.mock(
+            com.wikantik.auth.authorize.GroupManager.class );
+        try {
+            org.mockito.Mockito.when( broken.getGroup( "Crew" ) ).thenThrow( new IllegalStateException( "db down" ) );
+        } catch ( final com.wikantik.auth.NoSuchPrincipalException e ) {
+            throw new AssertionError( e );
+        }
+        org.junit.jupiter.api.Assertions.assertThrows( com.wikantik.work.WorkUnavailableException.class,
+            () -> WikiWorkGroups.membersOf( broken, "Crew" ) );
+    }
+
+    @Test
+    void groupMembersListsTheGroup() throws Exception {
+        setMembers( "janne\nother" );
+        assertEquals( java.util.Set.of( "janne", "other" ), directory.groupMembers( "DirCrew" ) );
+        assertEquals( java.util.Set.of(), directory.groupMembers( "NoSuchCrew" ) );
+        assertEquals( java.util.Set.of(), directory.groupMembers( null ) );
+    }
+
+    @Test
+    void aCaseVariantOfARealLoginIsFoundIgnoringCaseButNotByTheExactLookups() {
+        assertTrue( directory.exists( "janne" ) );
+        assertFalse( directory.exists( "JANNE" ), "the directory matches logins exactly" );
+        assertTrue( directory.person( "JANNE" ).isEmpty() );
+        assertEquals( java.util.Optional.of( "janne" ), directory.loginIgnoringCase( "JANNE" ) );
+        assertEquals( java.util.Optional.of( "janne" ), directory.loginIgnoringCase( " Janne " ) );
+        assertTrue( directory.loginIgnoringCase( "nobody-here" ).isEmpty() );
+        assertTrue( directory.loginIgnoringCase( null ).isEmpty() );
+    }
 }

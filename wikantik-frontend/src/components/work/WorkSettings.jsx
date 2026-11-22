@@ -9,6 +9,7 @@ import { useToast } from '../../hooks/useToast';
 import { useWorkProject } from './useWorkProject';
 import WorkConfirm from './WorkConfirm';
 import WorkLoadError from './WorkLoadError';
+import WorkWebhooks from './WorkWebhooks';
 
 const ROLES = ['viewer', 'member', 'lead'];
 const AGENT_ROLES = ['viewer', 'member'];
@@ -355,6 +356,7 @@ export default function WorkSettings() {
         <h2 className="work-subheading">Default autonomy</h2>
         <Autonomy key={project.defaultAutonomy || 'supervised'} project={project} onSaved={reload} readOnly={readOnly} />
       </section>
+      <WorkWebhooks projectKey={project.key} role={role} isAdmin={isAdmin} archived={readOnly} />
       {isAdmin && !readOnly && <ArchiveSection project={project} />}
     </div>
   );

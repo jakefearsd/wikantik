@@ -51,6 +51,29 @@ public interface WorkDirectory {
         return Optional.of( new Person( login, groups == null ? Set.of() : groups, false ) );
     }
 
+    /**
+     * The login of an account whose login differs from {@code name} at most in letter case, or empty when there is
+     * none. {@link #exists} and {@link #person} match exactly; this is how an agent name is kept from shadowing a
+     * person's ({@code Jake} against {@code jake}). Throws {@link WorkUnavailableException} when the directory cannot be
+     * read. The default knows only the exact match; the host overrides it.
+     */
+    default Optional< String > loginIgnoringCase( final String name ) {
+        return name != null && exists( name ) ? Optional.of( name ) : Optional.empty();
+    }
+
+    /**
+     * The mail address on the login's profile; empty when it has none or no such account. Throws
+     * {@link WorkUnavailableException} when the directory cannot be read.
+     */
+    default Optional< String > email( final String login ) {
+        return Optional.empty();
+    }
+
+    /** The logins of the members of a group; empty when the group is unknown. */
+    default Set< String > groupMembers( final String group ) {
+        return Set.of();
+    }
+
     /** The public display name for the login; a neutral placeholder, never the login, when it has none. */
     String displayName( String login );
 

@@ -128,6 +128,22 @@ class WorkMetricsTest {
     }
 
     @Test
+    void notificationsAreCountedByChannelAndOutcome() {
+        final WorkMetrics metrics = metrics();
+        metrics.notified( "inbox", "delivered" );
+        metrics.notified( "inbox", "delivered" );
+        metrics.notified( "email", "failed" );
+        assertEquals( 2.0, registry.find( "wikantik_work_notifications_total" ).tag( "channel", "inbox" )
+            .tag( "outcome", "delivered" ).counter().count() );
+        assertEquals( 1.0, registry.find( "wikantik_work_notifications_total" ).tag( "channel", "email" )
+            .tag( "outcome", "failed" ).counter().count() );
+        registry.find( "wikantik_work_notifications_total" ).counters().forEach( c ->
+            assertEquals( java.util.Set.of( "channel", "outcome" ), c.getId().getTags().stream()
+                .map( io.micrometer.core.instrument.Tag::getKey ).collect( java.util.stream.Collectors.toSet() ),
+                "no project or item label" ) );
+    }
+
+    @Test
     void deploymentTransitionsAreCountedWithNoProductLabel() {
         final WorkMetrics metrics = metrics();
         metrics.deployment( "requested" );

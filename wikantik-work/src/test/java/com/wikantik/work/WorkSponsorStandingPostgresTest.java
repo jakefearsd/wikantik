@@ -69,7 +69,7 @@ class WorkSponsorStandingPostgresTest {
         store = new JdbcWorkStore( ds );
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return groups.getOrDefault( login, Set.of() ); }
-            @Override public boolean exists( final String login ) { return !gone.contains( login ); }
+            @Override public boolean exists( final String login ) { return !gone.contains( login ) && WorkAgentFixtures.isPerson( login ); }
             @Override public String displayName( final String login ) { return "Dn " + login; }
             @Override public Optional< String > loginForDisplayName( final String name ) {
                 return name.startsWith( "Dn " ) ? Optional.of( name.substring( 3 ) ) : Optional.empty();
@@ -78,7 +78,7 @@ class WorkSponsorStandingPostgresTest {
                 if ( outageFor.contains( login ) ) {
                     throw new WorkUnavailableException( "directory down" );
                 }
-                return gone.contains( login ) ? Optional.empty()
+                return gone.contains( login ) || !WorkAgentFixtures.isPerson( login ) ? Optional.empty()
                     : Optional.of( new Person( login, groupsOf( login ), "root".equals( login ) ) );
             }
         }, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {

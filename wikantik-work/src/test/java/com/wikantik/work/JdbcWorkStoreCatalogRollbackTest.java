@@ -60,7 +60,7 @@ class JdbcWorkStoreCatalogRollbackTest {
     }
 
     private int events() throws SQLException {
-        return store.projectEvents( plat.id(), null, null, null, null, 200 ).size();
+        return store.projectEvents( plat.id(), null, null, null, null, true, 200 ).size();
     }
 
     @Test

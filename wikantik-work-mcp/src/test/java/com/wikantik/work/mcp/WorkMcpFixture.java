@@ -99,12 +99,12 @@ final class WorkMcpFixture {
     WorkDirectory directory() {
         return new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
-            @Override public boolean exists( final String login ) { return true; }
+            @Override public boolean exists( final String login ) { return !login.contains( "@" ) && !java.util.Set.of( "codex", "claude", "builder", "reviewer-bot", "worker", "loner", "outsider", "second" ).contains( login ); }
             @Override public Optional< Person > person( final String login ) {
                 if ( directoryDown ) {
                     throw new com.wikantik.work.WorkUnavailableException( "test: directory down" );
                 }
-                return Optional.of( new Person( login, Set.of(), "admin".equals( login ) ) );
+                return exists( login ) ? Optional.of( new Person( login, Set.of(), "admin".equals( login ) ) ) : Optional.empty();
             }
             @Override public String displayName( final String login ) {
                 return displayNames.getOrDefault( login, "Someone" );

@@ -148,6 +148,16 @@ class WorkDoraPostgresTest {
     }
 
     @Test
+    void aNegativeLeadTimeIsExcludedAndCounted() throws SQLException {
+        // a backfilled change: opened 11-10 but merged 11-04 and shipped 11-05, so measured from opening it is negative
+        d.merged( d.change( f, a1, "work/PLAT-1-x" ), "reviewed", t( "11-10T00:00" ), t( "11-04T00:00" ), null );
+        d.live( "wikantik", List.of( a1 ), t( "11-05T00:00" ) );
+        final DoraReport r = a();
+        assertEquals( 0, r.leadTimeForChanges().n() );
+        assertEquals( 1, r.excluded() );
+    }
+
+    @Test
     void aRebasedChangeIsClampedAndCounted() throws SQLException {
         d.merged( d.change( f, a1, "work/PLAT-1-x" ), "reviewed", t( "11-03T00:00" ), t( "11-04T00:00" ),
             Instant.parse( "2025-01-01T00:00:00Z" ) );

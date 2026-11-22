@@ -50,14 +50,16 @@ public final class WorkIntakeService {
     private final ItemViews views;
     private final WorkPeople people;
     private final ItemPatchApplier applier;
+    private final WorkSettings settings;
 
     WorkIntakeService( final WorkStore store, final WorkScopes scopes, final ItemViews views,
-                       final WorkPeople people, final ItemPatchApplier applier ) {
+                       final WorkPeople people, final ItemPatchApplier applier, final WorkSettings settings ) {
         this.store = store;
         this.scopes = scopes;
         this.views = views;
         this.people = people;
         this.applier = applier;
+        this.settings = settings;
     }
 
     /**
@@ -90,7 +92,13 @@ public final class WorkIntakeService {
         final Item next = applier.forCreate( s.project(), new ItemDraft( draft.projectKey(), level, null, null, null,
             draft.title(), draft.body(), null, null, null, null,
             draft.type() == null ? WorkType.FEATURE : draft.type(), null ), WorkPolicy.startStatus( actor, level, true ) );
-        return reportedView( s, store.createItem( s.project(), next, actor ) );
+        // A person who only reports may file wikantik.work.intake.maxPerDay requests in a rolling 24 hours (0: no cap;
+        // refusal = conflict intake_limit, REST 429); the count and the insert are one transaction under an advisory
+        // lock on the person, so a parallel burst cannot pass it. People with a role in the project are not capped.
+        final int cap = settings.intakeMaxPerDay();
+        return reportedView( s, cap > 0 && s.reporterOnly()
+            ? store.notifyStores().intake().createWithinDailyCap( s.project(), next, actor, cap )
+            : store.createItem( s.project(), next, actor ) );
     }
 
     /** An item the caller filed (or any item, for a person with a role in its project), as a reporter is shown it. */
@@ -149,11 +157,11 @@ public final class WorkIntakeService {
         WorkInputs.requireBody( body );
         requireLength( body );
         if ( s.reporterOnly() ) {
-            return reported( views.comment( store.addComment( is.item(), actor, body, List.of() ), is.item().key() ) );
+            return reported( views.reporterComment( store.addComment( is.item(), actor, body, List.of() ), is.item().key() ) );
         }
         final WorkPeople.Mentions m = people.mentions( actor, body );
         final long projectId = s.project().id();
-        return reported( views.comment( store.addComment( is.item(), actor, m.body(),
+        return reported( views.reporterComment( store.addComment( is.item(), actor, m.body(),
             WorkInputs.ofMembers( m.logins(), login -> scopes.isMember( projectId, login ) ) ), is.item().key() ) );
     }
 
@@ -183,7 +191,7 @@ public final class WorkIntakeService {
     private ReportedItemView reportedView( final Scope s, final Item item ) throws SQLException {
         final List< ReportedComment > comments = new ArrayList<>();
         for ( final Comment c : store.comments( item.id() ) ) {
-            comments.add( reported( views.comment( c, item.key() ) ) );
+            comments.add( reported( views.reporterComment( c, item.key() ) ) );
         }
         final Set< String > liveFiles = new java.util.HashSet<>();
         for ( final Attachment a : store.notifyStores().attachments().forItem( item.id() ) ) {
@@ -198,8 +206,10 @@ public final class WorkIntakeService {
             events.add( new ReportedEvent( e.id(), e.type(), e.at(), shown( e.actorKind(), e.actor() ), e.actorKind(),
                 e.fromValue(), e.toValue() ) );
         }
+        // Both the text and its HTML come from the reshaped Markdown, never from the stored body.
+        final String shownBody = item.body() == null ? null : views.reporterBody( item ).markdown();
         return new ReportedItemView( item.key(), s.project().key(), s.project().name(), item.level(), item.type(),
-            item.status(), item.title(), item.body(), views.bodyHtml( item ),
+            item.status(), item.title(), shownBody, views.htmlOf( shownBody, item.key() ),
             item.reporter() == null ? null : shown( item.reporterAgentId() == null ? Actor.Kind.HUMAN : Actor.Kind.AGENT,
                 item.reporter() ),
             item.createdAt(), item.updatedAt(), comments, events, s.project().archivedAt() != null );
@@ -208,7 +218,8 @@ public final class WorkIntakeService {
     /** A comment as a reporter is shown it: the author by public name, no login, item id or agent id. */
     private ReportedComment reported( final CommentView v ) {
         final Actor.Kind kind = v.authorAgentId() != null ? Actor.Kind.AGENT : Actor.Kind.HUMAN;
-        return new ReportedComment( v.id(), shown( kind, v.author() ), kind, v.body(), v.bodyHtml(), v.mentions(),
+        return new ReportedComment( v.id(), shown( kind, v.author() ), kind, v.body(),
+            v.bodyHtml(), v.mentions(),
             v.createdAt(), v.editedAt(), v.removedAt() );
     }
 

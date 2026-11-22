@@ -13,6 +13,10 @@ export const clampText = (n, days) => (n === 1
   ? `1 change had a first commit more than ${days} days before it was opened; its lead time starts ${days} days before opening.`
   : `${n} changes had a first commit more than ${days} days before they were opened; their lead time starts ${days} days before opening.`);
 
+export const excludedText = (n) => (n === 1
+  ? '1 change was left out because its lead time was negative.'
+  : `${n} changes were left out because their lead time was negative.`);
+
 function Rate({ title, definition, rate, noun, none, win }) {
   const d = Number(rate?.denominator) || 0;
   return (
@@ -86,6 +90,7 @@ export default function DoraPanel({ report, wholeProduct = false, today = todayI
         <PercentileFigure durations={report.leadTimeForChanges} subject="changes" sampleOne="change" sampleMany="changes"
           empty="No changes shipped in this period." window={win} />
         {unusable > 0 && <p className="work-muted">{noCommitText(unusable)}</p>}
+        {report.excluded > 0 && <p className="work-muted">{excludedText(report.excluded)}</p>}
         {report.changesWithClampedCommitTime > 0 && <p className="work-muted">{clampText(report.changesWithClampedCommitTime, days)}</p>}
       </Figure>
 

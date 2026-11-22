@@ -24,6 +24,7 @@ import com.wikantik.jdbc.RowMapper;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +73,7 @@ final class JdbcWorkFlow implements WorkFlowStore {
 
     private static final RowMapper< ClosedItem > CLOSED_ROW = rs -> new ClosedItem( rs.getLong( "id" ),
         rs.getString( "item_key" ), getInstant( rs, "created_at" ), getInstant( rs, "first_in_progress_at" ),
-        getInstant( rs, "closed_at" ), rs.getBigDecimal( "estimate" ) );
+        getInstant( rs, "closed_at" ), rs.getBigDecimal( "estimate" ), Duration.ZERO );
 
     private static final RowMapper< OpenItem > OPEN_ROW = rs -> new OpenItem( rs.getString( "item_key" ),
         rs.getString( "title" ), WorkStatus.fromWire( rs.getString( "status" ) ), getInstant( rs, "created_at" ),
@@ -85,7 +86,8 @@ final class JdbcWorkFlow implements WorkFlowStore {
                ( SELECT MIN( e.at ) FROM work_deployment_event e
                   WHERE e.deployment_id = d.id AND e.to_state = 'rolled_back' ) AS rolled_back_at,
                EXISTS ( SELECT 1 FROM work_deployment r
-                         WHERE r.remediates_id = d.id AND r.state <> 'rejected' ) AS remediated
+                         WHERE r.remediates_id = d.id AND r.remediates_id IS NOT NULL
+                           AND r.state <> 'rejected' ) AS remediated
           FROM work_deployment d
          WHERE d.environment = 'production'
            AND ( ( d.started_at >= ? AND d.started_at < ? ) OR ( d.verified_at >= ? AND d.verified_at < ? ) )
@@ -160,8 +162,8 @@ final class JdbcWorkFlow implements WorkFlowStore {
         final StringBuilder where = new StringBuilder();
         final List< Object > params = new ArrayList<>( List.of( Timestamp.from( from ), Timestamp.from( to ) ) );
         ItemQuery.conditions( pinned, false, where, params );
-        return jdbc.query( CLOSED + where + " ORDER BY d.closed_at, i.id", SqlBinder.positional( params ),
-            CLOSED_ROW );
+        return ReopenedTime.withGaps( jdbc, jdbc.query( CLOSED + where + " ORDER BY d.closed_at, i.id",
+            SqlBinder.positional( params ), CLOSED_ROW ) );
     }
 
     @Override

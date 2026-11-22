@@ -21,6 +21,7 @@ package com.wikantik.work.runtime;
 import com.wikantik.work.EmailDetail;
 import com.wikantik.work.NotifySettings;
 import com.wikantik.work.WorkFeatures;
+import com.wikantik.work.WorkNotificationStore;
 import com.wikantik.work.WorkNotificationsService;
 import com.wikantik.work.WorkService;
 import com.wikantik.work.WorkWebhooksService;
@@ -260,6 +261,26 @@ class WorkNotifyDispatcherTest {
             assertFalse( d.alive(), "the thread is dead and says so" );
         } finally {
             Thread.setDefaultUncaughtExceptionHandler( previous );
+        }
+    }
+
+    @Test
+    void retentionRunsOnceADayAndAgainAtOnceWhenAPassWasFull() throws Exception {
+        settings( Duration.ofMillis( 20 ), Duration.ofHours( 1 ) );
+        final AtomicInteger prunes = new AtomicInteger();
+        final CountDownLatch first = new CountDownLatch( 1 );
+        final CountDownLatch second = new CountDownLatch( 2 );
+        when( notices.prune( any() ) ).thenAnswer( inv -> {
+            final int n = prunes.incrementAndGet();
+            first.countDown();
+            second.countDown();
+            return new WorkNotificationStore.Pruned( n == 1 ? 20000 : 0, n == 1 );
+        } );
+        try ( WorkNotifyDispatcher d = WorkNotifyDispatcher.start( service, clock ) ) {
+            await( first );
+            await( second );   // the full first pass is followed by another on the next cycle
+            TimeUnit.MILLISECONDS.sleep( 200 );
+            assertEquals( 2, prunes.get(), "then once a day: nothing more while the clock stands still" );
         }
     }
 }

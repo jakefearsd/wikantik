@@ -71,7 +71,7 @@ class JdbcWorkNotificationsRollbackTest {
         int exercised = 0;
         for ( int n = 1; n <= MAX_POINTS; n++ ) {
             faulty.reset();
-            faulty.failOn( n, new RuntimeException( "boom " + n ) );
+            faulty.failOn( n, new WorkUnavailableException( "boom " + n ) );
             try {
                 assertEquals( 1, store.dispatch( 10, MENTIONS ) );
             } catch ( final RuntimeException expected ) {
@@ -97,8 +97,8 @@ class JdbcWorkNotificationsRollbackTest {
         assertEquals( 0, store.dispatch( 10, MENTIONS ) );
         DispatchAwait.windowPast( fx.ds, fx.event( WorkEvent.EDITED, "bob", null ) );
         final String before = cursor();
-        assertThrows( IllegalStateException.class, () -> store.dispatch( 10, ( e, f ) -> {
-            throw new IllegalStateException( "planner" );
+        assertThrows( WorkUnavailableException.class, () -> store.dispatch( 10, ( e, f ) -> {
+            throw new WorkUnavailableException( "planner" );
         } ) );
         assertEquals( before, cursor() );
         assertEquals( 1, DispatchAwait.events( () -> store.dispatch( 10, MENTIONS ), 1 ) );

@@ -38,9 +38,11 @@ final class JdbcWorkIntake implements WorkIntakeStore {
         """;
 
     private final Jdbc jdbc;
+    private final JdbcItemCreate creator;
 
-    JdbcWorkIntake( final Jdbc jdbc ) {
+    JdbcWorkIntake( final Jdbc jdbc, final JdbcItemCreate creator ) {
         this.jdbc = jdbc;
+        this.creator = creator;
     }
 
     @Override
@@ -57,6 +59,26 @@ final class JdbcWorkIntake implements WorkIntakeStore {
             ps.setString( 1, JdbcWorkMembers.userPrincipal( actor ) );
             ps.setArray( 2, conn.createArrayOf( "text", groups ) );
         }, JdbcWorkCatalog.PROJECT_ROW ) );
+    }
+
+    @Override
+    public Item createWithinDailyCap( final Project project, final Item draft, final Actor by, final int cap )
+            throws SQLException {
+        return creator.create( project, draft, by, dailyCap( by.login(), cap ) );
+    }
+
+    private ItemGuard dailyCap( final String login, final int cap ) {
+        return conn -> {
+            jdbc.queryOne( conn, "SELECT pg_advisory_xact_lock( hashtextextended( ?, 0 ) )",
+                ps -> ps.setString( 1, "work-intake:" + login ), rs -> Boolean.TRUE );
+            final int filed = jdbc.queryOne( conn, "SELECT COUNT(*) FROM work_item WHERE reporter = ? "
+                    + "AND reporter_agent_id IS NULL AND created_at > NOW() - INTERVAL '24 hours'",
+                ps -> ps.setString( 1, login ), rs -> rs.getInt( 1 ) ).orElse( 0 );
+            if ( filed >= cap ) {
+                throw new WorkConflictException( "You have filed " + cap + " requests in the last 24 hours, the most "
+                    + "allowed. Try again later.", WorkConflictException.INTAKE_LIMIT );
+            }
+        };
     }
 
     @Override

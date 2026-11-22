@@ -42,6 +42,15 @@ public interface WorkIntakeStore {
      */
     List< Item > reportedBy( String login, Set< Long > projectIds, int limit ) throws SQLException;
 
+    /**
+     * Creates the item as {@code by} like {@link WorkStore#createItem}, but first, in the same transaction, takes a
+     * transaction-scoped advisory lock on the person (so two filings by one person queue), counts the items they filed
+     * in the last 24 hours by the database clock, in every project (never an agent of the same name), and throws
+     * {@link WorkConflictException#INTAKE_LIMIT} when the count has reached {@code cap}. Count and insert are therefore
+     * atomic per person.
+     */
+    Item createWithinDailyCap( Project project, Item draft, Actor by, int cap ) throws SQLException;
+
     /** Whether the project holds any reporter row: the outside-reporter read exits on this before touching anything else. */
     boolean hasReporters( long projectId ) throws SQLException;
 }

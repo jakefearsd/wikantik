@@ -19,6 +19,14 @@
       }
     }
   ],
+  "pusher": {
+    "name": "Mallory M",
+    "email": "ana@example.com"
+  },
+  "sender": {
+    "login": "mallory-gh",
+    "id": 99
+  },
   "head_commit": {
     "id": "aaaaaaa1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "timestamp": "2026-01-06T12:00:00Z"

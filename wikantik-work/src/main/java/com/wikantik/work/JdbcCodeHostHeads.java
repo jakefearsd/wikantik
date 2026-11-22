@@ -41,8 +41,14 @@ import static com.wikantik.work.JdbcCodeHostRows.ts;
  * commit), the first time it is reported, unless an event of the change already names it; the head moving writes
  * nothing, so the log does not depend on the order reports arrive in.
  *
- * <p>Only the {@link #KEPT} most recent reports of a change (by host time) are kept, plus the row of its current head:
- * a report older than all of those is dropped, so a sender cannot grow the table without bound.
+ * <p>Each head report prunes the change's rows to the {@link #KEPT} most recent reports and approvals (by host time),
+ * plus the row of its current head and the row of the host's newest head report, so a sender cannot grow the table
+ * without bound through head reports, and the newest head is never lost to later approvals of older commits. An
+ * approval prunes nothing: an approval of a commit not yet reported as a head is kept until the next head report,
+ * so it still stands when that commit's push arrives. The limit that remains (outside the order guarantee): more
+ * than {@code KEPT} later-stamped head reports or approvals arriving, interleaved with head reports, before a
+ * commit becomes the head can drop that commit's approval; its redelivery then logs a second
+ * {@code change_reviewed}. Only a sender holding the hook secret can produce that many.
  *
  * <p>An approval belongs to the commit it approved. The earliest the host reported for each commit is kept (ties: the
  * smaller name); it stands on the change only while that commit is the head, so an approval that arrives before the
@@ -95,18 +101,26 @@ final class JdbcCodeHostHeads {
         return true;
     }
 
-    /** Drops every report of the change but the {@link #KEPT} most recent and its current head's row. */
+    /**
+     * Drops every report and approval of the change but the {@link #KEPT} most recent, its current head's row and the
+     * row of the host's newest head report (the host's view of the head), so that later approvals of older commits
+     * can never crowd the newest head out before it becomes the head. At most {@code KEPT + 2} rows stay. Called by
+     * head reports only.
+     */
     private void prune( final Connection conn, final long changeId ) throws SQLException {
         rows.jdbc().update( conn, """
             DELETE FROM work_codehost_head h WHERE h.change_id = ?
                AND h.sha IS DISTINCT FROM ( SELECT head_sha FROM work_change WHERE id = ? )
+               AND h.sha IS DISTINCT FROM ( SELECT l.sha FROM work_codehost_head l WHERE l.change_id = ?
+                                             AND l.seen_at IS NOT NULL ORDER BY l.seen_at DESC, l.sha DESC LIMIT 1 )
                AND h.sha NOT IN ( SELECT k.sha FROM work_codehost_head k WHERE k.change_id = ?
                                    ORDER BY GREATEST( k.seen_at, k.approved_at ) DESC NULLS LAST, k.sha DESC LIMIT ? )
             """, ps -> {
                 ps.setLong( 1, changeId );
                 ps.setLong( 2, changeId );
                 ps.setLong( 3, changeId );
-                ps.setInt( 4, KEPT );
+                ps.setLong( 4, changeId );
+                ps.setInt( 5, KEPT );
             } );
     }
 
@@ -214,6 +228,8 @@ final class JdbcCodeHostHeads {
                 ps.setString( 4, reviewer.login() == null ? reviewer.external() : null );
                 ps.setTimestamp( 5, ts( at ) );
             } );
+        // never pruned here: an approval of a commit whose head report has not arrived yet must still be there when
+        // it does, however many later-stamped approvals of other commits come first (review I-1)
     }
 
     /** The approval the host reported for {@code sha} on the change; empty when none. */

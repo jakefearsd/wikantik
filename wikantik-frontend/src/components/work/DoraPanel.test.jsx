@@ -21,6 +21,15 @@ const EMPTY = report({
 const section = (name) => screen.getByRole('region', { name });
 
 describe('DoraPanel', () => {
+  it('notes the changes left out of lead time for a negative duration, only when there are some', () => {
+    const { rerender } = render(<DoraPanel report={report({ excluded: 2 })} today="2026-12-01" />);
+    expect(section('Lead time for changes')).toHaveTextContent('2 changes were left out because their lead time was negative.');
+    rerender(<DoraPanel report={report({ excluded: 1 })} today="2026-12-01" />);
+    expect(section('Lead time for changes')).toHaveTextContent('1 change was left out because its lead time was negative.');
+    rerender(<DoraPanel report={report({ excluded: 0 })} today="2026-12-01" />);
+    expect(section('Lead time for changes')).not.toHaveTextContent('left out because');
+  });
+
   it('states each figure with its definition, sample size, window and unit', () => {
     const { container } = render(<DoraPanel report={report()} today="2026-12-01" />);
     const lead = section('Lead time for changes');

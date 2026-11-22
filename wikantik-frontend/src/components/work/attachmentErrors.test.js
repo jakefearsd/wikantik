@@ -38,6 +38,13 @@ describe('attachmentErrors', () => {
     expect(uploadErrorText({ message: 'x' }, 'a.txt')).toMatch(/could not reach the server/);
   });
 
+  it('wordsTheReportersOwnShareByReasonNotByTheServersWords', () => {
+    expect(uploadErrorText(err(413, 'reporter_full', 'Your files on this request would pass the limit of 10485760 bytes.'), 'a.txt', 'PLAT-1'))
+      .toBe('a.txt: you have attached as much to this request as you may; remove one of your files to make room.');
+    expect(uploadErrorText(err(413, 'reporter_full'), null, 'PLAT-9'))
+      .toBe('you have attached as much to this request as you may; remove one of your files to make room.');
+  });
+
   it('wordsTheLimitsGenericallyWhenTheyAreUnknown', () => {
     expect(uploadErrorText(err(413, 'too_large'), 'a.txt', 'PLAT-9')).toBe('a.txt: too large for one file.');
     expect(uploadErrorText(err(413, 'item_full'), 'a.txt', 'PLAT-9')).toBe('a.txt: this item is full; remove a file to make room.');

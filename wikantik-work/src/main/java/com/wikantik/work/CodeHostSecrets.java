@@ -54,10 +54,15 @@ final class CodeHostSecrets {
      */
     static boolean matches( final String secret, final byte[] body, final String header ) {
         final byte[] expected = hmac( secret, body == null ? new byte[ 0 ] : body );
-        final boolean shaped = header != null && HEADER.matcher( header ).matches();
+        final boolean shaped = shaped( header );
         final byte[] given = shaped ? HexFormat.of().parseHex( header.substring( "sha256=".length() )
             .toLowerCase( Locale.ROOT ) ) : new byte[ expected.length ];
         return MessageDigest.isEqual( expected, given ) && shaped;
+    }
+
+    /** Whether {@code header} has the one shape a signature can have: {@code sha256=} and 64 hex digits. */
+    static boolean shaped( final String header ) {
+        return header != null && HEADER.matcher( header ).matches();
     }
 
     private static byte[] hmac( final String secret, final byte[] body ) {

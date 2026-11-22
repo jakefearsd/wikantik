@@ -58,6 +58,11 @@ final class NoticePlanning implements WorkNotificationStore.NoticePlanner {
     }
 
     @Override
+    public void skipped( final WorkEvent e, final Throwable cause ) {
+        listener.notifySkipped();
+    }
+
+    @Override
     public Map< String, NoticeReason > plan( final WorkEvent e, final EventFacts facts ) throws SQLException {
         final Map< String, NoticeReason > wanted = Recipients.of( e, withLeadGroups( facts ) );
         final Set< String > asReporters = Recipients.forReporters( e, facts );

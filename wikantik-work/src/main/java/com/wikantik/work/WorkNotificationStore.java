@@ -42,6 +42,10 @@ public interface WorkNotificationStore {
         default boolean mayWatch( final WorkEvent e, final String login ) throws SQLException {
             return true;
         }
+
+        /** Called after an event that could not be planned, even alone, was skipped (its row is already kept). */
+        default void skipped( final WorkEvent e, final Throwable cause ) {
+        }
     }
 
     /**
@@ -50,9 +54,30 @@ public interface WorkNotificationStore {
      * ends at the snapshot's xmin, so an event whose transaction commits late is never skipped and never repeated.
      * The first ever call only plants the cursor at the current end of the log and returns 0.
      *
+     * <p>When a batch fails for a reason that repeats, its events are tried one per transaction and an event that still
+     * fails is skipped (recorded in {@code work_notify_skipped}, the planner told). A failure that goes away by itself
+     * (see {@code TransientFailure}) skips nothing and is retried by the next call.</p>
+     *
      * @return the number of events read
      */
     int dispatch( int maxEvents, NoticePlanner planner ) throws SQLException;
+
+    /**
+     * Deletes notifications and skipped-event rows created before {@code before}, read or unread, at most
+     * {@code batchSize} per statement and {@code maxBatches} statements per table.
+     *
+     * @return what was deleted and whether more may remain
+     */
+    Pruned prune( Instant before, int batchSize, int maxBatches ) throws SQLException;
+
+    /**
+     * What a prune did.
+     *
+     * @param deleted rows deleted
+     * @param more    whether a table ended its run on a full batch at the cap, so more old rows may remain
+     */
+    record Pruned( int deleted, boolean more ) {
+    }
 
     /**
      * Which of a reader's notices they may read now: every notice in a project they see, and, in a project where they

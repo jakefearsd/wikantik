@@ -45,11 +45,24 @@ final class CodeEvents {
         return new CodeEvent.Commit( sha, message, at, distinct, author );
     }
 
-    /** A push to {@code branch}; {@code after} is the new head. */
+    /**
+     * A push to {@code branch}; {@code after} is the new head. The usual case: pushed by the account of its first
+     * commit's author, so the pusher is that author's host login only, as GitHub's {@code sender} carries it (no name,
+     * no address). Use {@link #pushBy} for any other pusher, or none.
+     */
     static CodeEvent push( final String branch, final String after, final Instant at,
                            final CodeEvent.Commit... commits ) {
+        final CodeEvent.Person author = commits.length == 0 ? null : commits[ 0 ].author();
+        final CodeEvent.Person pusher = author == null || author.username() == null ? null
+            : new CodeEvent.Person( author.username(), null, null );
+        return pushBy( branch, after, at, pusher, commits );
+    }
+
+    /** A push to {@code branch} by the host-asserted {@code pusher}. */
+    static CodeEvent pushBy( final String branch, final String after, final Instant at, final CodeEvent.Person pusher,
+                             final CodeEvent.Commit... commits ) {
         return new CodeEvent( CodeEvent.Kind.PUSH, "acme/wk", "main", branch, null, "0000000", after, at,
-            List.of( commits ), null, null, null );
+            List.of( commits ), null, pusher, null );
     }
 
     static CodeEvent review( final CodeEvent.Kind kind, final String branch, final String number, final String head,

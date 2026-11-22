@@ -54,7 +54,7 @@ final class DoraReports {
             lead.durations(), lead.withoutCommitTime(), lead.clamped(),
             lead.withoutUsableCommitTime(), Dora.changeFailureRate( deployments, w ),
             recovery.durations(), recovery.unrecovered(), Dora.rework( deployments, w ),
-            flow.merges( projectId, productId, w.start(), w.end() ) );
+            flow.merges( projectId, productId, w.start(), w.end() ), lead.excluded() );
     }
 
     private List< RecoveryEnd > endsOf( final List< DeploymentFact > failing ) throws SQLException {

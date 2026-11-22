@@ -20,7 +20,6 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.wikantik.work.Attachment;
-import com.wikantik.work.AttachmentContent;
 import com.wikantik.work.AttachmentListing;
 import com.wikantik.work.WorkAttachmentsService;
 import com.wikantik.work.WorkConflictException;
@@ -89,7 +88,20 @@ class WorkAttachmentRoutesTest {
     }
 
     private void stored( final Attachment a, final byte[] bytes ) throws Exception {
-        Mockito.when( attachments.content( ALICE, "PLAT-1", a.id() ) ).thenReturn( new AttachmentContent( a, bytes ) );
+        // Two pieces, as the service hands them over: the route must write each one and no more than its length.
+        Mockito.doAnswer( inv -> {
+            final WorkAttachmentsService.Download out = inv.getArgument( 3 );
+            out.begin( new Attachment( a.id(), a.itemId(), a.commentId(), a.filename(), a.contentType(), bytes.length,
+                a.sha256(), a.uploadedBy(), a.uploadedByAgentId(), a.uploadedAt(), a.removedAt() ) );
+            final int half = bytes.length / 2;
+            final byte[] first = new byte[ half + 2 ];
+            System.arraycopy( bytes, 0, first, 0, half );
+            out.chunk( first, half );
+            final byte[] second = new byte[ bytes.length - half + 2 ];
+            System.arraycopy( bytes, half, second, 0, bytes.length - half );
+            out.chunk( second, bytes.length - half );
+            return null;
+        } ).when( attachments ).download( eq( ALICE ), eq( "PLAT-1" ), eq( a.id() ), any() );
     }
 
     @Test
@@ -377,7 +389,7 @@ class WorkAttachmentRoutesTest {
         final WorkNotFoundException nf = new WorkNotFoundException( "PLAT-1 #5 does not exist" );
         Mockito.when( attachments.upload( any(), any(), any(), any(), any() ) ).thenThrow( nf );
         Mockito.when( attachments.listing( any(), any() ) ).thenThrow( nf );
-        Mockito.when( attachments.content( any(), any(), anyLong() ) ).thenThrow( nf );
+        Mockito.doThrow( nf ).when( attachments ).download( any(), any(), anyLong(), any() );
         Mockito.when( attachments.remove( any(), any(), anyLong() ) ).thenThrow( nf );
         final String[] bodies = {
             upload( WorkAttachmentHttp.part( "a.png", PNG, PNG.length ), Map.of() ).body(),
@@ -401,8 +413,8 @@ class WorkAttachmentRoutesTest {
     @Test
     void anAttachmentOfAnotherItemIsAskedForThroughThisItemsKeyOnly() throws Exception {
         get( "/OPS-2/attachments/5" );
-        Mockito.verify( attachments ).content( ALICE, "OPS-2", 5L );
-        Mockito.verify( attachments, Mockito.never() ).content( ALICE, "PLAT-1", 5L );
+        Mockito.verify( attachments ).download( eq( ALICE ), eq( "OPS-2" ), eq( 5L ), any() );
+        Mockito.verify( attachments, Mockito.never() ).download( eq( ALICE ), eq( "PLAT-1" ), eq( 5L ), any() );
     }
 
     @Test
@@ -412,6 +424,26 @@ class WorkAttachmentRoutesTest {
         final WorkAttachmentHttp.Result r = upload( WorkAttachmentHttp.part( "a.png", PNG, PNG.length ), Map.of() );
         assertEquals( 409, r.status() );
         assertEquals( "archived", r.json().getAsJsonObject().get( "reason" ).getAsString() );
+    }
+
+    @Test
+    void aReportersShareRefusalIs413ReporterFullWithTheServicesWords() throws Exception {
+        Mockito.when( attachments.upload( any(), any(), any(), any(), any() ) ).thenThrow(
+            new WorkConflictException( "Your files on this request would pass the limit of 100 bytes.",
+                WorkConflictException.REPORTER_FULL ) );
+        final WorkAttachmentHttp.Result r = upload( WorkAttachmentHttp.part( "a.png", PNG, PNG.length ), Map.of() );
+        assertEquals( 413, r.status() );
+        assertEquals( "reporter_full", r.json().getAsJsonObject().get( "reason" ).getAsString() );
+        assertTrue( r.body().contains( "would pass the limit of 100 bytes" ) );
+    }
+
+    @Test
+    void theFilingCapIs429AndEveryOtherConflictKeepsItsStatus() {
+        assertEquals( 429, WorkConflictStatus.of( WorkConflictException.INTAKE_LIMIT ) );
+        assertEquals( 413, WorkConflictStatus.of( WorkConflictException.TOO_LARGE ) );
+        assertEquals( 413, WorkConflictStatus.of( WorkConflictException.ITEM_FULL ) );
+        assertEquals( 409, WorkConflictStatus.of( WorkConflictException.STALE ) );
+        assertEquals( 409, WorkConflictStatus.of( WorkConflictException.ARCHIVED ) );
     }
 
     @Test

@@ -47,10 +47,14 @@ public final class WorkNotifyDispatcher implements AutoCloseable {
     /** The most dispatch passes in one cycle, so an endless backlog cannot monopolise the thread. */
     static final int MAX_PASSES_PER_CYCLE = 10;
 
+    /** How often retention runs. */
+    static final Duration PRUNE_INTERVAL = Duration.ofDays( 1 );
+
     private final WorkService service;
     private final Clock clock;
     private final WorkDaemon daemon;
     private Instant lastEmail;
+    private Instant lastPrune;
 
     private WorkNotifyDispatcher( final WorkService service, final Clock clock, final Duration interval ) {
         this.service = service;
@@ -80,6 +84,9 @@ public final class WorkNotifyDispatcher implements AutoCloseable {
         if ( !daemon.closed() ) {
             attempt( "webhooks", () -> service.features().webhooks().deliver( now ) );
         }
+        if ( !daemon.closed() && pruneDue( now ) ) {
+            prune( notifications, now );
+        }
         if ( !daemon.closed() && emailDue( notifications, now ) ) {
             lastEmail = now;
             attempt( "email", () -> notifications.sendEmail( now ) );
@@ -92,6 +99,19 @@ public final class WorkNotifyDispatcher implements AutoCloseable {
             if ( read == null || read < FULL_BATCH ) {
                 return;
             }
+        }
+    }
+
+    private boolean pruneDue( final Instant now ) {
+        return lastPrune == null || !now.isBefore( lastPrune.plus( PRUNE_INTERVAL ) );
+    }
+
+    /** Retention, about once a day; a pass that hit its limit is followed by another next cycle. */
+    private void prune( final WorkNotificationsService notifications, final Instant now ) {
+        lastPrune = now;
+        final Integer more = attempt( "retention", () -> notifications.prune( now ).more() ? 1 : 0 );
+        if ( more == null || more == 1 ) {
+            lastPrune = null;   // failed, or the pass was full: try again next cycle rather than tomorrow
         }
     }
 

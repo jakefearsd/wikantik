@@ -83,6 +83,13 @@ class GithubHookAdapterTest {
     }
 
     @Test
+    void aPushNamesThePusherByTheSendersLoginOnly() {
+        // the pusher object's name and address are not bound to an account; the sender's login is (M-1)
+        assertEquals( new CodeEvent.Person( "mallory-gh", null, null ), only( "push", "push-default-direct" ).actor() );
+        assertNull( only( "push", "push-branch" ).actor(), "a push with no sender has no pusher" );
+    }
+
+    @Test
     void aMergeCommitPushMarksThePullRequestsCommitsNotDistinct() {
         final CodeEvent e = only( "push", "push-default-merge-commit" );
         assertEquals( M, e.after() );

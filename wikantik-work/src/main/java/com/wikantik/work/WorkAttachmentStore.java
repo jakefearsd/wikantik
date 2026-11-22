@@ -39,7 +39,33 @@ public interface WorkAttachmentStore {
      * item), checks the live total plus this file against {@code maxItemBytes} ({@link WorkConflictException#TOO_LARGE}),
      * inserts the row and the bytes, and writes one {@code attached} event.
      */
-    Attachment add( Item item, Long commentId, NewAttachment file, long maxItemBytes, Actor by ) throws SQLException;
+    default Attachment add( final Item item, final Long commentId, final NewAttachment file, final long maxItemBytes,
+                            final Actor by ) throws SQLException {
+        return addCapped( item, commentId, file, maxItemBytes, null, by );
+    }
+
+    /**
+     * {@link #add} with one more limit: when {@code uploaderBytes} is not null, the files this same uploader, removed ones included, (a
+     * person by login, an agent by id) has on the item, plus this one, may not pass it
+     * ({@link WorkConflictException#REPORTER_FULL}); checked under the same item lock, after the item total.
+     */
+    Attachment addCapped( Item item, Long commentId, NewAttachment file, long maxItemBytes, Long uploaderBytes, Actor by )
+        throws SQLException;
+
+    /**
+     * Passes the stored bytes of a live attachment of {@code itemId} to {@code sink} in pieces of at most
+     * {@code chunkBytes}, each read on its own, so the heap held is one piece whatever the file's size. Returns false
+     * (nothing passed) when it is not a live attachment of this item; a file removed (soft: the row is
+     * stamped and the bytes are deleted) between pieces ends the read with an {@link SQLException}; one that is
+     * removed before the first piece is read gives {@code false}.
+     */
+    boolean stream( long itemId, long attachmentId, int chunkBytes, ChunkSink sink ) throws SQLException, java.io.IOException;
+
+    /** Receives the pieces of {@link #stream}. */
+    @FunctionalInterface
+    interface ChunkSink {
+        void accept( byte[] buffer, int length ) throws java.io.IOException;
+    }
 
     /** The live attachment {@code attachmentId} of item {@code itemId}. */
     Optional< Attachment > attachment( long itemId, long attachmentId ) throws SQLException;

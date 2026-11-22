@@ -38,7 +38,15 @@ public interface WorkListener {
     default void codeHost( final String kind, final String outcome ) {
     }
 
+    /** An inbound code-host delivery was refused for {@code reason}. */
+    default void codeHostRejected( final HookRejection reason ) {
+    }
+
     /** An agent met a gate ({@code approve}, {@code close}, {@code review}, {@code merge}, {@code direct}). */
     default void gate( final String gate, final boolean allowed ) {
+    }
+
+    /** The dispatcher skipped an event it could not turn into notifications (it is recorded in work_notify_skipped). */
+    default void notifySkipped() {
     }
 }

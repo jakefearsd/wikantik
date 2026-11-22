@@ -67,6 +67,11 @@ public class WorkConflictException extends RuntimeException {
     /** An attachment would take the item's attachments past the per-item size limit. */
     public static final String ITEM_FULL = "item_full";
 
+    /** A person who only reports has attached as much to this item as they may. */
+    public static final String REPORTER_FULL = "reporter_full";
+    /** A person who only reports has filed as many requests in the last 24 hours as they may. */
+    public static final String INTAKE_LIMIT = "intake_limit";
+
     /** Webhooks are turned off on this wiki. */
     public static final String WEBHOOKS_OFF = "webhooks_off";
 

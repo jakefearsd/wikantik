@@ -58,6 +58,9 @@ export function uploadErrorText(err, name, itemKey) {
     return `${label}${lim ? `this item is full; its files may total at most ${formatSize(lim.maxItemBytes)}.`
       : 'this item is full; remove a file to make room.'}`;
   }
+  if (reason === 'reporter_full') {
+    return `${label}you have attached as much to this request as you may; remove one of your files to make room.`;
+  }
   if (reason === 'archived' || (status === 409 && !reason)) return `${label}this project is archived; nothing was attached.`;
   if (status === 413) return `${label}too large.`;
   if (status === 403) return `${label}you are not allowed to attach files here.`;

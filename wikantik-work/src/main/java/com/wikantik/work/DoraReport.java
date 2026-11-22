@@ -24,13 +24,14 @@ import java.util.List;
 /**
  * The DORA figures over a window, computed at read time: deployment frequency, lead time for changes, change failure
  * rate, failed deployment recovery time, and rework rate. {@code productKey} is null when every product is counted.
+ * {@code excluded} counts the shipped changes whose lead time was negative (kept out of the lead-time figure).
  * A rate is a numerator and a denominator, never a quotient: an empty window has 0 of 0, not NaN.
  */
 public record DoraReport( LocalDate from, LocalDate to, String zone, String productKey,
                           List< WeekCount > deploymentFrequency, Durations leadTimeForChanges,
                           int changesWithoutCommitTime, int changesWithClampedCommitTime,
                           int changesWithoutUsableCommitTime, Rate changeFailureRate,
-                          Durations recoveryTime, int unrecovered, Rate reworkRate, MergeMix merges ) {
+                          Durations recoveryTime, int unrecovered, Rate reworkRate, MergeMix merges, int excluded ) {
 
     /**
      * A first commit older than this before a change was opened is not believed: the lead time of such a change

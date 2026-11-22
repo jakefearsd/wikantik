@@ -40,6 +40,9 @@ final class WorkNotifyWiring {
 
     private static final Logger LOG = LogManager.getLogger( WorkNotifyWiring.class );
 
+    /** Days a notification is kept; 0 keeps them for ever, default 180. */
+    static final String PROP_RETENTION_DAYS = "wikantik.work.notify.retentionDays";
+
     /** Seconds between dispatcher runs; 1 to 3600, default 60. */
     static final String PROP_INTERVAL = "wikantik.work.notify.intervalSeconds";
 
@@ -61,6 +64,7 @@ final class WorkNotifyWiring {
     private static final String PROP_WIKI_BASE_URL = "wikantik.baseURL";
     private static final int DEFAULT_INTERVAL_SECONDS = 60;
     private static final int MAX_INTERVAL_SECONDS = 3600;
+    private static final int MAX_RETENTION_DAYS = 36500;
 
     private static final java.util.regex.Pattern HTTP_URL =
         java.util.regex.Pattern.compile( "https?://[^\\s/?#]+[^\\s]*", java.util.regex.Pattern.CASE_INSENSITIVE );
@@ -74,7 +78,8 @@ final class WorkNotifyWiring {
             Duration.ofMinutes( boundedInt( props, PROP_EMAIL_INTERVAL, DEFAULT_EMAIL_INTERVAL_MINUTES, 1,
                 MAX_EMAIL_INTERVAL_MINUTES ) ),
             boundedInt( props, PROP_EMAIL_DAILY_HOUR, DEFAULT_DAILY_HOUR, 0, LAST_HOUR ), baseUrl,
-            TextUtil.getBooleanProperty( props, PROP_WEBHOOKS_ENABLED, false ) );
+            TextUtil.getBooleanProperty( props, PROP_WEBHOOKS_ENABLED, false ),
+            boundedInt( props, PROP_RETENTION_DAYS, NotifySettings.DEFAULT_RETENTION_DAYS, 0, MAX_RETENTION_DAYS ) );
     }
 
     static WorkNotifyPorts ports( final Properties props, final Engine engine ) {

@@ -35,6 +35,8 @@ import java.util.Set;
 public final class WorkCodeHostService {
 
     private static final Set< String > HOSTS = Set.of( "github", "generic" );
+    /** A product id no product has (ids are positive): the hook lookup of an unknown product. */
+    private static final long NO_PRODUCT = -1L;
 
     private final WorkStore store;
     private final WorkScopes scopes;
@@ -79,9 +81,13 @@ public final class WorkCodeHostService {
         return new Applied( applied, duplicate, ignored );
     }
 
-    /** Counts one refused delivery (an unsigned, unknown or tampered one); records nothing else. For the REST hook. */
-    public void rejected() {
+    /**
+     * Counts one refused delivery, as {@code delivery/rejected} and by its reason; records nothing else. For the REST
+     * hook.
+     */
+    public void rejected( final HookRejection reason ) {
         listener.codeHost( "delivery", "rejected" );
+        listener.codeHostRejected( reason );
     }
 
     /**
@@ -92,8 +98,12 @@ public final class WorkCodeHostService {
     public Optional< HookDelivery > authenticate( final String productKey, final String host, final byte[] body,
                                                   final String signatureHeader ) throws SQLException {
         final Product product = productKey == null ? null : store.product( productKey ).orElse( null );
+        // the hook is looked up even for an unknown product (under an id no product has), so an unknown product and a
+        // wrong signature cost the same two reads and one HMAC
+        final Optional< WorkCodeHostStore.Hook > found = store.notifyStores().codeHost()
+            .hook( product == null ? NO_PRODUCT : product.id() );
         final WorkCodeHostStore.Hook hook = product == null || product.archivedAt() != null ? null
-            : store.notifyStores().codeHost().hook( product.id() ).filter( WorkCodeHostStore.Hook::live ).orElse( null );
+            : found.filter( WorkCodeHostStore.Hook::live ).orElse( null );
         final String secret = hook == null ? CodeHostSecrets.DUMMY_KEY : hook.secret();
         final boolean signed = CodeHostSecrets.matches( secret, body, signatureHeader );
         final String wireHost = host == null ? "" : host.toLowerCase( Locale.ROOT );

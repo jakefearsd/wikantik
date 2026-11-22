@@ -144,6 +144,22 @@ class WorkMetricsTest {
     }
 
     @Test
+    void codeHostRejectionsAreCountedByReasonOnly() {
+        final WorkMetrics metrics = metrics();
+        metrics.codeHostRejected( HookRejection.SIGNATURE );
+        metrics.codeHostRejected( HookRejection.SIGNATURE );
+        metrics.codeHostRejected( HookRejection.TOO_LARGE );
+        assertEquals( 2.0, registry.find( "wikantik_work_codehost_rejected_total" ).tag( "reason", "signature" )
+            .counter().count() );
+        assertEquals( 1.0, registry.find( "wikantik_work_codehost_rejected_total" ).tag( "reason", "too_large" )
+            .counter().count() );
+        for ( final Meter m : registry.find( "wikantik_work_codehost_rejected_total" ).meters() ) {
+            assertEquals( Set.of( "reason" ), m.getId().getTags().stream().map( Tag::getKey )
+                .collect( java.util.stream.Collectors.toSet() ), "no product label: an unknown product is not a label" );
+        }
+    }
+
+    @Test
     void codeHostEventsAreCountedByKindAndOutcomeOnly() {
         final WorkMetrics metrics = metrics();
         metrics.codeHost( "push", "applied" );
@@ -302,5 +318,15 @@ class WorkMetricsTest {
         } );
         assertEquals( 1, again.stream().filter( e -> e.getMessage().getFormattedMessage().contains( "claim" ) ).count(),
             again.toString() );
+    }
+
+    @Test
+    void skippedNotificationsAreCountedWithNoLabels() {
+        final WorkMetrics metrics = metrics();
+        metrics.notifySkipped();
+        metrics.notifySkipped();
+        final io.micrometer.core.instrument.Counter c = registry.find( "wikantik_work_notify_skipped_total" ).counter();
+        assertEquals( 2.0, c.count() );
+        assertEquals( 0, c.getId().getTags().size() );
     }
 }

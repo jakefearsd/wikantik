@@ -131,6 +131,7 @@ final class WorkFlowJson {
         o.addProperty( "changesWithoutCommitTime", r.changesWithoutCommitTime() );
         o.addProperty( "changesWithClampedCommitTime", r.changesWithClampedCommitTime() );
         o.addProperty( "changesWithoutUsableCommitTime", r.changesWithoutUsableCommitTime() );
+        o.addProperty( "excluded", r.excluded() );
         o.addProperty( "maxCommitLeadDays", maxCommitLeadDays() );
         o.add( "changeFailureRate", rate( r.changeFailureRate() ) );
         o.add( "recoveryTime", durations( r.recoveryTime() ) );

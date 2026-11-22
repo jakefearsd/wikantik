@@ -110,6 +110,18 @@ describe('WorkSubmit', () => {
     expect(screen.getByRole('button', { name: 'File request' })).not.toBeDisabled();
   });
 
+  it('says so, in the server\'s words, when the daily filing cap is reached, and keeps what was typed', async () => {
+    const words = 'You have filed 20 requests in the last 24 hours, the most allowed. Try again later.';
+    submitIntake.mockRejectedValue(Object.assign(new Error(words), { status: 429, body: { reason: 'intake_limit', message: words } }));
+    setup();
+    await screen.findByRole('option', { name: 'Platform' });
+    type('Title', 'T'); type('Details', 'Body text');
+    send();
+    expect(await screen.findByRole('alert')).toHaveTextContent(words);
+    expect(screen.getByLabelText('Title')).toHaveValue('T');
+    expect(screen.getByRole('button', { name: 'File request' })).not.toBeDisabled();
+  });
+
   it('blocks a title over 200 characters with a plain message and shows a count near the limit', async () => {
     setup();
     await screen.findByRole('option', { name: 'Platform' });

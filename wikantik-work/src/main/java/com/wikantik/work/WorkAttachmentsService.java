@@ -76,8 +76,9 @@ public final class WorkAttachmentsService {
         }
         final WorkAttachmentStore.NewAttachment file = new WorkAttachmentStore.NewAttachment( name,
             FileKinds.detect( content ).orElse( FileKinds.OCTET_STREAM ), content, sha256( content ) );
-        return fenced( () -> store.notifyStores().attachments().add( is.item(), commentId, file,
-            settings.maxItemAttachmentBytes(), a ) );
+        final Long own = is.scope().reporterOnly() ? Long.valueOf( settings.reporterItemAttachmentBytes() ) : null;
+        return fenced( () -> store.notifyStores().attachments().addCapped( is.item(), commentId, file,
+            settings.maxItemAttachmentBytes(), own, a ) );
     }
 
     /**
@@ -121,6 +122,36 @@ public final class WorkAttachmentsService {
         requireSee( is );
         return store.notifyStores().attachments().content( is.item().id(), attachmentId )
             .orElseThrow( () -> new WorkNotFoundException( WorkScopes.NOT_FOUND ) );
+    }
+
+    /** How much of a file is read, and held in heap, at a time when it is downloaded. */
+    static final int CHUNK_BYTES = 256 * 1024;
+
+    /** What a download is handed: the file's details first, then its bytes in pieces. */
+    public interface Download {
+        /** Called once, before any bytes, with the attachment being sent. */
+        void begin( Attachment attachment ) throws java.io.IOException;
+
+        /** Called for each piece, in order. */
+        void chunk( byte[] buffer, int length ) throws java.io.IOException;
+    }
+
+    /**
+     * Streams one attachment to {@code out}: the same visibility and "not found" as {@link #content}, but the bytes are
+     * read {@value #CHUNK_BYTES} at a time so a large file is never held whole in heap. {@code begin} runs once before
+     * the first piece, while nothing has been sent.
+     */
+    public void download( final Actor a, final String itemKey, final long attachmentId, final Download out )
+            throws SQLException, java.io.IOException {
+        final ItemScope is = scopes.ownItemScope( a, itemKey );
+        requireSee( is );
+        final WorkAttachmentStore attachments = store.notifyStores().attachments();
+        final Attachment att = attachments.attachment( is.item().id(), attachmentId )
+            .orElseThrow( () -> new WorkNotFoundException( WorkScopes.NOT_FOUND ) );
+        out.begin( att );
+        if ( !attachments.stream( is.item().id(), attachmentId, CHUNK_BYTES, out::chunk ) ) {
+            throw new WorkNotFoundException( WorkScopes.NOT_FOUND );
+        }
     }
 
     /**

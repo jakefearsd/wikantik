@@ -244,10 +244,10 @@ final class JdbcWorkClaims implements WorkClaimStore {
         if ( sponsor == null || sponsor.instanceAdmin() ) {
             return true;
         }
-        final String[] groups = sponsor.groups() == null ? new String[ 0 ] : sponsor.groups().toArray( new String[ 0 ] );
+        final String[] groups = JdbcWorkMembers.groupArray( sponsor );
         return holdsRow( conn, SPONSOR_LOCK_SQL, ps -> {
             ps.setLong( 1, projectId );
-            ps.setString( 2, sponsor.login() );
+            ps.setString( 2, JdbcWorkMembers.userPrincipal( sponsor ) );
             ps.setArray( 3, conn.createArrayOf( "text", groups ) );
         } );
     }

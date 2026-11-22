@@ -273,8 +273,7 @@ public abstract class WorkResourceBase extends RestServletBase {
     protected void conflict( final HttpServletRequest request, final HttpServletResponse response,
                              final WorkService svc, final Actor actor, final String[] segs,
                              final WorkConflictException e ) throws IOException {
-        final int status = WorkConflictException.TOO_LARGE.equals( e.reason() ) || WorkConflictException.ITEM_FULL.equals( e.reason() )
-            ? 413 : HttpServletResponse.SC_CONFLICT;
+        final int status = WorkConflictStatus.of( e.reason() );
         final JsonObject body = WorkJson.errorBody( status, e.getMessage() );
         body.addProperty( "reason", e.reason() );
         if ( WorkConflictException.STALE.equals( e.reason() ) && WorkCallers.mergesAgainstCurrent( request, segs ) ) {

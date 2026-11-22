@@ -52,8 +52,10 @@ public final class WorkMetrics implements WorkListener {
     static final String DENIED = "wikantik_work_denied_total";
     static final String GATES = "wikantik_work_gates_total";
     static final String NOTIFICATIONS = "wikantik_work_notifications_total";
+    static final String NOTIFY_SKIPPED = "wikantik_work_notify_skipped_total";
     static final String DEPLOYMENTS = "wikantik_work_deployments_total";
     static final String CODEHOST_EVENTS = "wikantik_work_codehost_events_total";
+    static final String CODEHOST_REJECTED = "wikantik_work_codehost_rejected_total";
     private static final long DEFAULT_TTL_NANOS = 5_000_000_000L;
 
     private record Key( WorkStatus status, WorkLevel level, WorkKind kind ) {
@@ -156,6 +158,15 @@ public final class WorkMetrics implements WorkListener {
             .increment();
     }
 
+    /** Counts events the notification dispatcher skipped; no labels. */
+    @Override
+    public void notifySkipped() {
+        Counter.builder( NOTIFY_SKIPPED )
+            .description( "Work events the notification dispatcher skipped because they could not be planned" )
+            .register( registry )
+            .increment();
+    }
+
     /** Counts code-host events by kind and outcome only, never by product, project or item. */
     @Override
     public void codeHost( final String kind, final String outcome ) {
@@ -163,6 +174,16 @@ public final class WorkMetrics implements WorkListener {
             .description( "Code-host events by kind and outcome" )
             .tag( "kind", kind )
             .tag( "outcome", outcome )
+            .register( registry )
+            .increment();
+    }
+
+    /** Counts refused inbound deliveries by reason only (a fixed set), never by product. */
+    @Override
+    public void codeHostRejected( final HookRejection reason ) {
+        Counter.builder( CODEHOST_REJECTED )
+            .description( "Inbound code-host deliveries refused, by reason" )
+            .tag( "reason", reason.wire() )
             .register( registry )
             .increment();
     }

@@ -53,7 +53,7 @@ public final class WorkFeatures {
         this.attachments = new WorkAttachmentsService( store, scopes, deps.settings() );
         this.codeHost = new WorkCodeHostService( store, scopes, clock, deps );
         this.flow = new WorkFlowService( store, scopes, views, clock );
-        this.intake = new WorkIntakeService( store, scopes, views, deps.people(), deps.applier() );
+        this.intake = new WorkIntakeService( store, scopes, views, deps.people(), deps.applier(), deps.settings() );
     }
 
     /** Notifications: the inbox, watching, the email preference and the dispatch. */

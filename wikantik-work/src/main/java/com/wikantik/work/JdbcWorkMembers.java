@@ -45,6 +45,9 @@ final class JdbcWorkMembers {
     int put( final long projectId, final String principal, final String principalKind, final WorkRole role,
              final Actor by, final Collection< Actor > sponsorsToRecheck ) throws SQLException {
         JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
+        if ( principal == null || principal.isBlank() ) {
+            throw new WorkValidationException( "principal", "A member needs a name." );
+        }
         if ( "agent".equals( principalKind ) ) {
             WorkInputs.requireAgentRole( role );
         }
@@ -98,19 +101,23 @@ final class JdbcWorkMembers {
         } );
     }
 
-    /** The agent id as the text stored in an {@code agent} member row, or a never-matching empty string. */
+    /**
+     * The agent id as the text stored in an {@code agent} member row, or {@code null}, which binds as SQL NULL and so
+     * equals nothing. Never an empty string: a stored blank principal (the table refuses one since V095) would match it.
+     */
     static String agentPrincipal( final Actor actor ) {
-        return actor.kind() == Actor.Kind.AGENT && actor.agentId() != null ? String.valueOf( actor.agentId() ) : "";
+        return actor.kind() == Actor.Kind.AGENT && actor.agentId() != null ? String.valueOf( actor.agentId() ) : null;
     }
 
-    /** Groups only count for people: an agent never inherits a person's or a group's access. */
+    /** Groups only count for people: an agent never inherits a person's or a group's access. Blank names are dropped. */
     static String[] groupArray( final Actor actor ) {
         return actor.kind() != Actor.Kind.HUMAN || actor.groups() == null
-            ? new String[ 0 ] : actor.groups().toArray( new String[ 0 ] );
+            ? new String[ 0 ] : actor.groups().stream().filter( g -> g != null && !g.isBlank() ).toArray( String[]::new );
     }
 
-    /** The login as matched against {@code user} rows: people only, a never-matching empty string for agents. */
+    /** The login as matched against {@code user} rows: people only; {@code null} (matches nothing) otherwise or when blank. */
     static String userPrincipal( final Actor actor ) {
-        return actor.kind() == Actor.Kind.HUMAN && actor.login() != null ? actor.login() : "";
+        return actor.kind() == Actor.Kind.HUMAN && actor.login() != null && !actor.login().isBlank()
+            ? actor.login() : null;
     }
 }

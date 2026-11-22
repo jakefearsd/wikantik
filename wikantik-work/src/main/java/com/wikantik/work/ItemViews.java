@@ -66,6 +66,30 @@ final class ItemViews {
             renderer.toHtml( d.markdown(), itemKey ), d.names(), c.authorAgentId() );
     }
 
+    /**
+     * A comment as a person who only reports is shown it: the {@code body} is the display Markdown
+     * ({@link WorkPeople#displayForReporter}) and the HTML is rendered from that same text, so no user id, however
+     * many mentions the comment holds or however a token is shaped, reaches the reader in either field.
+     */
+    CommentView reporterComment( final Comment c, final String itemKey ) {
+        if ( c.removedAt() != null || c.body() == null || c.body().isBlank() ) {
+            return comment( c, itemKey );
+        }
+        final WorkPeople.Display d = people.displayForReporter( c.body() );
+        return new CommentView( c.id(), c.itemId(), c.author(), d.markdown(), c.createdAt(), c.editedAt(), c.removedAt(),
+            renderer.toHtml( d.markdown(), itemKey ), d.names(), c.authorAgentId() );
+    }
+
+    /** The item's body as a reporter is shown it: the display Markdown (see {@link #reporterComment}) and its HTML. */
+    WorkPeople.Display reporterBody( final Item item ) {
+        return people.displayForReporter( item.body() );
+    }
+
+    /** The HTML of text already reshaped for a reporter. */
+    String htmlOf( final String markdown, final String itemKey ) {
+        return markdown == null || markdown.isBlank() ? "" : renderer.toHtml( markdown, itemKey );
+    }
+
     /** The item's body rendered like any item text (links as typed, no lookups); empty for no body. */
     String bodyHtml( final Item item ) {
         return item.body() == null || item.body().isBlank() ? "" : renderer.toHtml( item.body(), item.key() );

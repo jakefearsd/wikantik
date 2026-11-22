@@ -100,7 +100,15 @@ final class GithubHookAdapter {
         return List.of( new CodeEvent( CodeEvent.Kind.PUSH, repo, HookJson.str( repository, "default_branch", HookJson.BRANCH ),
             ref.substring( BRANCH_PREFIX.length() ), null, HookJson.str( b, "before", HookJson.SHA ), after,
             pushedAt( b, repository ), commits( HookJson.arr( b, "commits" ) ), null,
-            null, null ) );
+            pusher( b ), null ) );
+    }
+
+    /**
+     * The pusher: the {@code sender}'s {@code login}, the account GitHub authenticated for the push. Never the
+     * {@code pusher} object or a commit author, whose name and address are not bound to an account (M-1).
+     */
+    private static CodeEvent.Person pusher( final JsonObject b ) {
+        return HookJson.login( HookJson.str( HookJson.obj( b, "sender" ), "login", HookJson.NAME ) );
     }
 
     private static List< CodeEvent.Commit > commits( final JsonArray array ) {

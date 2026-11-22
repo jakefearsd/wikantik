@@ -238,15 +238,29 @@ public class WorkCodeHostIT {
             "author", obj( "name", name, "email", email, "username", username ) );
     }
 
+    /** A push by the account of its first commit's author (the usual case): GitHub names it in {@code sender}. */
     private static String push( final String branch, final String before, final String after, final String at,
                                 final JsonObject... commits ) {
+        final JsonObject author = commits.length == 0 ? null : commits[ 0 ].getAsJsonObject( "author" );
+        final String pusher = author == null || !author.has( "username" ) || author.get( "username" ).isJsonNull() ? null
+            : author.get( "username" ).getAsString();
+        return pushBy( pusher, branch, before, after, at, commits );
+    }
+
+    /** A push GitHub says {@code sender} made (null: no sender); a push is attributed to it, never to a commit (M-1). */
+    private static String pushBy( final String sender, final String branch, final String before, final String after,
+                                  final String at, final JsonObject... commits ) {
         final JsonArray list = new JsonArray();
         for ( final JsonObject c : commits ) {
             list.add( c );
         }
-        return obj( "ref", "refs/heads/" + branch, "before", before, "after", after, "commits", list,
+        final JsonObject body = obj( "ref", "refs/heads/" + branch, "before", before, "after", after, "commits", list,
             "repository", obj( "full_name", REPO, "default_branch", "main", "pushed_at", Instant.parse( at ).getEpochSecond() ),
-            "head_commit", obj( "timestamp", at ) ).toString();
+            "head_commit", obj( "timestamp", at ) );
+        if ( sender != null ) {
+            body.add( "sender", obj( "login", sender ) );
+        }
+        return body.toString();
     }
 
     /** One pull request as the adapters read it. */
@@ -705,6 +719,20 @@ public class WorkCodeHostIT {
         assertEquals( 200, e.lead.send( "POST", "/api/work/changes/" + c.get( "id" ).getAsLong() + "/acknowledge-flag", null ).statusCode() );
         assertFalse( inLane( e.lead, key ) );
         assertEquals( before, itemState( key ) );
+    }
+
+    @Test
+    void aDirectPushIsAttributedToTheSenderNeverToTheCommitAddress() throws Exception {
+        final Env e = env( true );
+        final String key = item( e );
+        final String outsider = "push" + e.tag;
+        // the commit carries the author's wiki address, but someone else's account pushed it
+        accepted( github( e, "push", pushBy( outsider, "main", sha(), sha(), t( 1 ),
+            commit( sha(), key + " hotfix", t( 1 ), "Someone", e.authorEmail, null, true ) ) ) );
+        final JsonObject c = theChange( key );
+        assertEquals( "direct", str( c, "mergeKind" ) );
+        assertFalse( c.has( "mergedBy" ) && !c.get( "mergedBy" ).isJsonNull(), "the address's owner did not push it" );
+        assertEquals( outsider, str( c, "externalMergedBy" ) );
     }
 
     @Test

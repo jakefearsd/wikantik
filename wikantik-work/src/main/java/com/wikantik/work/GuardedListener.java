@@ -54,6 +54,15 @@ final class GuardedListener implements WorkListener {
     }
 
     @Override
+    public void codeHostRejected( final HookRejection reason ) {
+        try {
+            delegate.codeHostRejected( reason );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Work listener failed on code-host rejection {}: {}", reason, e.toString(), e );
+        }
+    }
+
+    @Override
     public void gate( final String gate, final boolean allowed ) {
         try {
             delegate.gate( gate, allowed );
@@ -68,6 +77,15 @@ final class GuardedListener implements WorkListener {
             delegate.notified( channel, outcome );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Work listener failed on notification {}/{}: {}", channel, outcome, e.toString(), e );
+        }
+    }
+
+    @Override
+    public void notifySkipped() {
+        try {
+            delegate.notifySkipped();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Work listener failed on a skipped notification: {}", e.toString(), e );
         }
     }
 

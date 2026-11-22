@@ -47,7 +47,14 @@ class FlowTest {
     private static ClosedItem closed( final String key, final String created, final String started, final String done,
                                       final String estimate ) {
         return new ClosedItem( key.hashCode(), key, t( created ), started == null ? null : t( started ), t( done ),
-            estimate == null ? null : new BigDecimal( estimate ) );
+            estimate == null ? null : new BigDecimal( estimate ), Duration.ZERO );
+    }
+
+    @Test
+    void cycleTimeExcludesTheTimeAReopenedItemSatDone() {
+        final ClosedItem c = new ClosedItem( 1, "A-1", t( "11-01T09:00" ), t( "11-02T09:00" ), t( "11-10T09:00" ), null,
+            Duration.ofDays( 1 ) );
+        assertEquals( Duration.ofDays( 7 ), Flow.cycleTime( List.of( c ) ).p50() );
     }
 
     @Test

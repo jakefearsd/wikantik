@@ -150,4 +150,33 @@ class WorkWiringTest {
         assertEquals( 2_000_000L, s.maxAttachmentBytes() );
         assertEquals( 2_000_000L, s.maxItemAttachmentBytes() );
     }
+
+    @Test
+    void theReporterLimitsDefaultTo10MegabytesAndTwentyAFilingsADay() {
+        final com.wikantik.work.WorkSettings s = WorkWiring.settings( new Properties() );
+        assertEquals( 10_485_760L, s.reporterItemAttachmentBytes() );
+        assertEquals( 20, s.intakeMaxPerDay() );
+    }
+
+    @Test
+    void theReporterLimitsAreReadAndKeptInRange() {
+        final Properties p = new Properties();
+        p.setProperty( WorkWiring.PROP_ATTACH_REPORTER_ITEM_BYTES, "2048" );
+        p.setProperty( WorkWiring.PROP_INTAKE_MAX_PER_DAY, "0" );
+        com.wikantik.work.WorkSettings s = WorkWiring.settings( p );
+        assertEquals( 2048L, s.reporterItemAttachmentBytes() );
+        assertEquals( 0, s.intakeMaxPerDay(), "0 is the switch-off, not an error" );
+
+        p.setProperty( WorkWiring.PROP_ATTACH_REPORTER_ITEM_BYTES, "-5" );
+        p.setProperty( WorkWiring.PROP_INTAKE_MAX_PER_DAY, "-1" );
+        s = WorkWiring.settings( p );
+        assertEquals( 10_485_760L, s.reporterItemAttachmentBytes() );
+        assertEquals( 20, s.intakeMaxPerDay() );
+
+        p.setProperty( WorkWiring.PROP_ATTACH_REPORTER_ITEM_BYTES, "999999999" );
+        p.setProperty( WorkWiring.PROP_ATTACH_MAX_BYTES, "1000000" );
+        p.setProperty( WorkWiring.PROP_ATTACH_MAX_ITEM_BYTES, "5000000" );
+        assertEquals( 5_000_000L, WorkWiring.settings( p ).reporterItemAttachmentBytes(),
+            "a reporter's share is never above the item's room" );
+    }
 }

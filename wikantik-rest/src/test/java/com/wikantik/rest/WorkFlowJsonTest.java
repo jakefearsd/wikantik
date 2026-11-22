@@ -53,7 +53,7 @@ class WorkFlowJsonTest {
 
     private static DoraReport dora( final Durations lead, final DoraReport.Rate rate ) {
         return new DoraReport( FROM, TO, "UTC", null, List.of( new DoraReport.WeekCount( FROM, 4 ) ), lead, 1, 2, 6, rate,
-            Durations.NONE, 3, new DoraReport.Rate( 0, 0 ), new DoraReport.MergeMix( 1, 2, 3, 4, 5 ) );
+            Durations.NONE, 3, new DoraReport.Rate( 0, 0 ), new DoraReport.MergeMix( 1, 2, 3, 4, 5 ), 7 );
     }
 
     @Test
@@ -92,6 +92,7 @@ class WorkFlowJsonTest {
         assertEquals( 1, o.get( "changesWithoutCommitTime" ).getAsInt() );
         assertEquals( 2, o.get( "changesWithClampedCommitTime" ).getAsInt() );
         assertEquals( 6, o.get( "changesWithoutUsableCommitTime" ).getAsInt() );
+        assertEquals( 7, o.get( "excluded" ).getAsInt() );
         assertEquals( 30, o.get( "maxCommitLeadDays" ).getAsInt() );
         assertEquals( 3, o.get( "unrecovered" ).getAsInt() );
         assertEquals( 5, o.getAsJsonObject( "merges" ).get( "flaggedUnacknowledged" ).getAsInt() );
@@ -102,7 +103,7 @@ class WorkFlowJsonTest {
     void anEmptyWindowSerialisesWithoutNaNOrInfinity() {
         final DoraReport empty = new DoraReport( FROM, TO, "UTC", "web", List.of(), Durations.NONE, 0, 0, 0,
             new DoraReport.Rate( 0, 0 ), Durations.NONE, 0, new DoraReport.Rate( 0, 0 ),
-            new DoraReport.MergeMix( 0, 0, 0, 0, 0 ) );
+            new DoraReport.MergeMix( 0, 0, 0, 0, 0 ), 0 );
         final String text = WorkJson.GSON.toJson( WorkFlowJson.dora( empty ) );
         assertFalse( text.contains( "NaN" ) || text.contains( "Infinity" ), text );
         assertTrue( WorkFlowJson.dora( empty ).getAsJsonObject( "leadTimeForChanges" ).get( "p50Seconds" ).isJsonNull() );

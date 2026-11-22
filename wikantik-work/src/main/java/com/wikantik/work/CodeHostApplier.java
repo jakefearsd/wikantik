@@ -150,12 +150,24 @@ final class CodeHostApplier {
             : sha( naming.get( naming.size() - 1 ).sha() );
         final Instant first = naming.stream().map( CodeEvent.Commit::at ).filter( java.util.Objects::nonNull )
             .min( Comparator.naturalOrder() ).orElse( null );
-        final CodeEvent.Person who = naming.isEmpty() || naming.get( 0 ).author() == null ? e.actor()
-            : naming.get( 0 ).author();
-        final CodeHostWho author = identities.resolve( d.host(), who );
+        final CodeHostWho author = pusher( d, e, naming );
         final DirectFacts facts = new DirectFacts( e.branch(), after, head, first, shas, numbers, author, at );
         return hostStore.direct( d.productId(), t.item(), facts, CodeHostFlags.forMerge( MergeKind.DIRECT, t.policy() ),
             by );
+    }
+
+    /**
+     * Who a push is attributed to: the pusher the host asserts ({@code e.actor()}), through the identity mapping, and
+     * never a commit's author, whose address anyone with push rights can write (M-1). An unmapped pusher is no wiki
+     * user (shown by their host login); no pusher is {@link CodeHostWho#UNKNOWN}. The commits' authors only teach the
+     * username mapping, first, so a pusher whose own commits are in this push is recognised.
+     */
+    private CodeHostWho pusher( final HookDelivery d, final CodeEvent e, final List< CodeEvent.Commit > commits )
+            throws SQLException {
+        for ( final CodeEvent.Commit c : commits ) {
+            identities.teach( d.host(), c.author() );
+        }
+        return identities.resolve( d.host(), e.actor() );
     }
 
     /** A pull request's merge; the merge commit is the one the host reports, else the head that was merged. */
@@ -182,9 +194,7 @@ final class CodeHostApplier {
         final List< CodeEvent.Commit > distinct = e.commits().stream().filter( CodeEvent.Commit::distinct ).toList();
         final Instant first = distinct.stream().map( CodeEvent.Commit::at ).filter( java.util.Objects::nonNull )
             .min( Comparator.naturalOrder() ).map( c -> c.isAfter( at ) ? at : c ).orElse( null );
-        final CodeEvent.Person pusher = distinct.isEmpty() || distinct.get( 0 ).author() == null ? e.actor()
-            : distinct.get( 0 ).author();
-        final CodeHostWho opener = identities.resolve( d.host(), pusher );
+        final CodeHostWho opener = pusher( d, e, distinct );
         final String base = CodeHostTargets.defaultBranch( d, e );
         return hostStore.branchPush( d.productId(), t.item(),
             new BranchFacts( e.branch(), base == null ? "main" : base, head, first, opener, at ), by );

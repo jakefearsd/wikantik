@@ -186,7 +186,7 @@ The **Inbox** link on the Work home (`/work/inbox`) opens your inbox: a notice w
 Add files to an item, or to a comment on it, from the item page; you can also paste or drop a file into the item text or a comment box. An image shows in the text where you pasted it, and any other file becomes a link in the text. The item's attachment list shows every file with its size, who added it and when. A file attached to a comment that has been removed can no longer be listed, opened or removed; it answers not found. The file itself is kept.
 
 - **Who:** members and leads attach files, and agents that are members of the project do too. A viewer can see and download them but not add or remove. You remove a file you added; a project lead or an administrator can remove any file.
-- **Limits:** a file is at most 10 MB and an item holds at most 50 MB in all (your administrator may have set other limits; a too-large file is refused with a message). Removed files stop counting.
+- **Limits:** a file is at most 10 MB and an item holds at most 50 MB in all (your administrator may have set other limits; a too-large file is refused with a message). Removed files stop counting toward the item's 50 MB (but see the reporter limit in section 12).
 - **Images in text:** PNG, JPEG, GIF and WebP are shown in the text. Everything else, HTML and SVG included, downloads instead of opening in the browser.
 - **Removing** a file deletes its content. The activity still records that it was attached and removed, with its name.
 - Anyone who can see the item can open its files; nobody else can, not even with the link.
@@ -216,12 +216,14 @@ time zone the page names, which is the server's.
   how big the items were. It is not the sprint velocity of the Sprints view: velocity counts what each sprint
   completed when it closed, throughput counts items in the week they were finished and ignores sprint boundaries, so
   the two need not match. Filtered to one sprint whose items were all finished inside it, they agree.
+- **As of now.** Every figure here is computed when you open the page from the records as they stand, so the same window can read differently later (an item reopened, a change superseded, a deployment rolled back). Nothing is a saved snapshot.
 - **Cycle time.** For items finished in the window: the time from the first move to In progress until the last move to
   Done, shown as the median (half the items were quicker) and the 85th percentile (85 in 100 were quicker), in days
   and hours, with the number of items it is based on. Items that were never In progress are left out. It does not
-  include time spent waiting before someone started.
+  include time spent waiting before someone started. If an item was reopened after Done, the time it sat in Done is
+  not counted either (reopening it to Ready rather than In progress still counts the wait before work restarts).
 - **Lead time.** The same finished items, measured from when the item was created until it was last closed. It
-  includes waiting in the backlog, so it is always at least the cycle time of the same item and says more about the
+  includes waiting in the backlog (and, for a reopened item, the time it sat in Done), so it is always at least the cycle time of the same item and says more about the
   queue than about the work.
 - **Work in progress.** Right now (not limited by the window): how many items are In progress and how many are in
   Review, and the oldest of each with its age since it was first started. Many old items is the usual sign that work
@@ -257,11 +259,12 @@ and never records it here will see zeros.
   precise. A deployment counts as failed when it failed, when it was rolled back (even after it was verified), or when
   a later deployment that was not rejected names it in **Remediates**. A deployment still running or waiting is not in
   the figure yet. It does not say how bad a failure was.
+- **A note on excluded changes.** If a change's lead time came out negative (for example a merge recorded before its first commit), it is left out of the figure and the page says how many were left out.
 - **Time to recover.** For each failed deployment, the time from when it went live (or, if it never ran, when it
   failed) until the earliest of: it was rolled back; a deployment that **Remediates** it was verified; or, only for a
   deployment that never went live, the next verified production deployment of the product. Shown as the median and the
   85th percentile with the count. A failure that has not ended yet is not in the median, because it has no duration;
-  it is shown as "not yet recovered" instead, so a bad week cannot hide by being unfinished. **The fix may belong to a
+  it is shown as "not yet recovered" instead, so a bad week cannot hide by being unfinished. **A deployment that failed before it ever went live counts as recovered at the next verified production deployment of the product**, which is looser than DORA's time to restore: it measures the time to the next successful release. **The fix may belong to a
   different project.** A fix-forward filed under another project of the same product ends the clock and is counted,
   and a member of this project sees only the duration, never that project's name, items or deployments. The same
   holds the other way round.
@@ -298,8 +301,8 @@ and they cannot see anything else in the project.
    comments**; triage works from the board, so look at the drafts regularly. Moving a draft on (to `refining` or
    `ready`, for example) is a status change the reporter is told about.
 4. To stop a reporter, or a group, remove their row in Settings. The request they filed stays, but they no longer see
-   it, hear about it or can add to it. There is no limit on how many requests a reporter may file, so removing the row
-   is how abuse is stopped.
+   it, hear about it or can add to it. A reporter may file 20 requests in any 24 hours by default (your administrator can change it),
+   and removing the row stops them at once.
 
 A reporter cannot be assigned work and cannot be mentioned. An agent can never be a reporter. People who are already
 viewers, members or leads of the project may file through the same form; their request also starts as a draft.
@@ -312,6 +315,7 @@ viewers, members or leads of the project may file through the same form; their r
 - **Attaching files.** The request is filed first and the files are uploaded after it, because a file needs an item to
   belong to. If an upload fails, the request stays filed without that file and the page says which file failed; add it
   again from the request's page.
+- **Limits.** You may file only so many requests in 24 hours across the wiki (20 by default); past it the form says "You have filed N requests in the last 24 hours, the most allowed. Try again later." Your own files on one request are limited too (10 MB by default, counting files you removed): past it the page says "you have attached as much to this request as you may; remove one of your files to make room", although removing a file does not give the room back.
 - **Following.** The request's page shows its title, text, status, the whole discussion (what the team writes to you is
   what you read) and the files on it. You can comment and attach files to your own request, and remove files you added.
   You see people by their display names only.

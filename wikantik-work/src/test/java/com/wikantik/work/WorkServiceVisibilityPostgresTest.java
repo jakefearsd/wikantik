@@ -63,7 +63,7 @@ class WorkServiceVisibilityPostgresTest {
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
         "agentForToken", "actorForAgent", "describe",
-        "sweepExpiredClaims", "sweepStanding", "claimExpiry", "dispatch", "sendEmail", "settings", "deliver", "maxFileBytes",
+        "sweepExpiredClaims", "sweepStanding", "claimExpiry", "dispatch", "prune", "sendEmail", "settings", "deliver", "maxFileBytes",
         "authenticate", "apply", "rejected" );
 
     /**
@@ -131,7 +131,13 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "mayAttach", "listing", "dora", "outsideReporters" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "download", "mayAttach", "listing", "dora", "outsideReporters" );
+
+    /** A download sink that keeps nothing, for the reflective drivers. */
+    private static final WorkAttachmentsService.Download DISCARD = new WorkAttachmentsService.Download() {
+        @Override public void begin( final Attachment attachment ) { }
+        @Override public void chunk( final byte[] buffer, final int length ) { }
+    };
 
     private static final List< String > STRING_FIXTURES = List.of( "PLAT", "PLAT-1", "implementer", "web" );
 
@@ -335,6 +341,7 @@ class WorkServiceVisibilityPostgresTest {
                 : type == AssignmentLogQuery.class ? List.of( AssignmentLogQuery.all() )
                 : type == FindFilter.class ? List.of( FindFilter.all() )
                 : type == Collection.class ? List.of( List.of( "rita", "lena" ) )
+                : type == WorkAttachmentsService.Download.class ? List.of( DISCARD )
                 : Arrays.asList( new Object[] { null } );
             final List< Object[] > next = new ArrayList<>();
             for ( final Object[] prefix : sets ) {
@@ -380,7 +387,8 @@ class WorkServiceVisibilityPostgresTest {
                     } catch ( final WorkNotFoundException e ) {
                         continue;  // this fixture combination does not address the project; try the next
                     }
-                    if ( seen == null || isEmptyResult( seen ) ) {
+                    // a void read (a streamed download) proves itself by not being refused
+                    if ( seen == null && m.getReturnType() != void.class || isEmptyResult( seen ) ) {
                         continue;
                     }
                     provedAgainstRealData++;
@@ -622,6 +630,7 @@ class WorkServiceVisibilityPostgresTest {
             java.util.Map.entry( java.time.Instant.class, java.time.Instant.parse( "2026-01-05T00:00:00Z" ) ),
             java.util.Map.entry( java.time.LocalDate.class, day ),
             java.util.Map.entry( byte[].class, PNG ),
+            java.util.Map.entry( WorkAttachmentsService.Download.class, DISCARD ),
             java.util.Map.entry( WatchState.class, WatchState.WATCHING ),
             java.util.Map.entry( WorkRole.class, WorkRole.LEAD ),
             java.util.Map.entry( ItemDraft.class, new ItemDraft( "PLAT", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "",

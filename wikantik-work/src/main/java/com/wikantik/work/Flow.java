@@ -61,10 +61,10 @@ final class Flow {
         return out;
     }
 
-    /** Close minus first start, for the items that were ever started. */
+    /** Last close minus first start, less the time the item sat done while reopened, for the items ever started. */
     static Durations cycleTime( final List< ClosedItem > closed ) {
         return Percentiles.of( closed.stream().filter( c -> c.firstInProgressAt() != null )
-            .map( c -> Duration.between( c.firstInProgressAt(), c.closedAt() ) ).toList() );
+            .map( c -> Duration.between( c.firstInProgressAt(), c.closedAt() ).minus( c.reopenedGap() ) ).toList() );
     }
 
     /** Close minus creation, for every closed item. */

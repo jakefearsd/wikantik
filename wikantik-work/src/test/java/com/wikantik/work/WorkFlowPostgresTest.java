@@ -82,7 +82,7 @@ class WorkFlowPostgresTest {
         final FlowReport r = report();
         assertEquals( List.of( 0, 1 ), itemsPerWeek( r ) );
         assertEquals( LocalDate.parse( "2026-11-09" ), r.throughput().get( 1 ).weekStart() );
-        assertEquals( Duration.ofDays( 8 ), r.cycleTime().p50(), "from the first start to the last close" );
+        assertEquals( Duration.ofDays( 7 ), r.cycleTime().p50(), "first start to last close, less the day it sat done" );
         assertEquals( Duration.ofDays( 11 ), r.leadTime().p50() );
         assertEquals( 1, r.leadTime().n() );
     }
@@ -123,6 +123,17 @@ class WorkFlowPostgresTest {
         assertEquals( List.of( 1, 0 ), itemsPerWeek( r ), "a hand-off that closes the item is a close" );
         assertEquals( Duration.ofDays( 3 ), r.cycleTime().p50() );
         assertEquals( Duration.ofDays( 4 ), r.leadTime().p50() );
+    }
+
+    @Test
+    void aClaimStartedItemReopenedAndClosedAgainExcludesTheDoneInterval() throws SQLException {
+        final Item i = item( f, "claimed, closed, reopened", t( "11-01T09:00" ) );
+        event( f, i, WorkEvent.CLAIMED, "ready", "in_progress", "2026-11-03T09:00:00Z", "in_progress",
+            t( "11-02T09:00" ) );
+        move( f, i, "in_progress", "done", t( "11-03T09:00" ) );
+        move( f, i, "done", "in_progress", t( "11-05T09:00" ) );
+        move( f, i, "in_progress", "done", t( "11-10T09:00" ) );
+        assertEquals( Duration.ofDays( 6 ), report().cycleTime().p50(), "8 days from the claim, less 2 done" );
     }
 
     @Test
@@ -192,7 +203,7 @@ class WorkFlowPostgresTest {
         event( f, i, WorkEvent.HANDOFF, "in_progress|mia", "done|lena", "done now", "done", t( "11-10T09:00" ) );
         final FlowReport r = report();
         assertEquals( List.of( 0, 1 ), itemsPerWeek( r ), "counted once, in the week of the last close" );
-        assertEquals( Duration.ofDays( 8 ), r.cycleTime().p50() );
+        assertEquals( Duration.ofDays( 7 ), r.cycleTime().p50(), "the day it sat done is not cycle time" );
     }
 
     @Test

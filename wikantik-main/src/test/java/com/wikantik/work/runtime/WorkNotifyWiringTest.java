@@ -146,4 +146,16 @@ class WorkNotifyWiringTest {
         p.setProperty( WorkNotifyWiring.PROP_EMAIL_INTERVAL, "10" );
         assertEquals( Duration.ofMinutes( 10 ), WorkNotifyWiring.settings( p ).emailInterval() );
     }
+
+    @Test
+    void retentionDefaultsTo180DaysAndRefusesNonsense() {
+        assertEquals( 180, WorkNotifyWiring.settings( new Properties() ).retentionDays() );
+        final Properties p = new Properties();
+        p.setProperty( WorkNotifyWiring.PROP_RETENTION_DAYS, "0" );
+        assertEquals( 0, WorkNotifyWiring.settings( p ).retentionDays(), "0 keeps for ever" );
+        p.setProperty( WorkNotifyWiring.PROP_RETENTION_DAYS, "30" );
+        assertEquals( 30, WorkNotifyWiring.settings( p ).retentionDays() );
+        p.setProperty( WorkNotifyWiring.PROP_RETENTION_DAYS, "-5" );
+        assertEquals( 180, WorkNotifyWiring.settings( p ).retentionDays() );
+    }
 }

@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.wikantik.work.CodeEvent;
 import com.wikantik.work.HookDelivery;
+import com.wikantik.work.HookRejection;
 import com.wikantik.work.WorkCodeHostService;
 import com.wikantik.work.WorkFeatures;
 import com.wikantik.work.WorkService;
@@ -217,17 +218,19 @@ class WorkHookResourceTest {
     void aRejectedDeliveryIsCounted() throws Exception {
         when( host.authenticate( any(), any(), any(), any() ) ).thenReturn( Optional.empty() );
         post( "/plat/github", PUSH, GITHUB_PUSH );
-        verify( host ).rejected();
+        verify( host ).rejected( HookRejection.SIGNATURE );
     }
 
     @Test
     void theSignatureHeaderIsPerFormat() throws Exception {
         signedAs( "github" );
         signedAs( "generic" );
-        post( "/plat/github", PUSH, Map.of( "X-Hub-Signature-256", "sha256=aa", "X-Wikantik-Signature", "sha256=bb" ) );
-        verify( host ).authenticate( eq( "plat" ), eq( "github" ), any(), eq( "sha256=aa" ) );
-        post( "/plat/generic", "{}", Map.of( "X-Hub-Signature-256", "sha256=aa", "X-Wikantik-Signature", "sha256=bb" ) );
-        verify( host ).authenticate( eq( "plat" ), eq( "generic" ), any(), eq( "sha256=bb" ) );
+        final String aa = "sha256=" + "aa".repeat( 32 );
+        final String bb = "sha256=" + "bb".repeat( 32 );
+        post( "/plat/github", PUSH, Map.of( "X-Hub-Signature-256", aa, "X-Wikantik-Signature", bb ) );
+        verify( host ).authenticate( eq( "plat" ), eq( "github" ), any(), eq( aa ) );
+        post( "/plat/generic", "{}", Map.of( "X-Hub-Signature-256", aa, "X-Wikantik-Signature", bb ) );
+        verify( host ).authenticate( eq( "plat" ), eq( "generic" ), any(), eq( bb ) );
     }
 
     @Test
@@ -280,13 +283,13 @@ class WorkHookResourceTest {
         for ( final String bad : List.of( "hello", "true" ) ) {
             assertEquals( 204, post( "/plat/generic", bad, generic ).status(), bad );
         }
-        verify( host, Mockito.times( 8 ) ).rejected();
+        verify( host, Mockito.times( 8 ) ).rejected( HookRejection.UNPARSEABLE );
         final ArgumentCaptor< List< CodeEvent > > events = ArgumentCaptor.captor();
         verify( host, Mockito.times( 8 ) ).apply( any(), events.capture() );
         assertTrue( events.getAllValues().stream().allMatch( List::isEmpty ), "nothing is translated from it" );
         post( "/plat/generic", "[{\"kind\":\"push\",\"branch\":\"b\",\"at\":\"2026-03-01T10:00:00Z\"}]", generic );
         post( "/plat/github", "{\"zen\":\"x\"}", Map.of( "X-GitHub-Event", "ping", "X-Hub-Signature-256", SECRET_HEADER ) );
-        verify( host, Mockito.times( 8 ) ).rejected();
+        verify( host, Mockito.times( 8 ) ).rejected( HookRejection.UNPARSEABLE );
     }
 
     @Test
@@ -307,7 +310,7 @@ class WorkHookResourceTest {
                 throw new IllegalStateException( e );
             }
         } );
-        verify( host, Mockito.times( 3 ) ).rejected();
+        verify( host, Mockito.times( 3 ) ).rejected( HookRejection.UNTIMED );
         final ArgumentCaptor< List< CodeEvent > > events = ArgumentCaptor.captor();
         verify( host, Mockito.times( 3 ) ).apply( any(), events.capture() );
         assertTrue( events.getAllValues().stream().allMatch( List::isEmpty ), "nothing of such a delivery is applied" );
@@ -349,6 +352,77 @@ class WorkHookResourceTest {
         assertTrue( stream.served <= maxBody + 1, "read " + stream.served );
         verify( host, never() ).authenticate( any(), any(), any(), any() );
         verify( host, never() ).apply( any(), any() );
+    }
+
+    @Test
+    void aMissingOrMalformedSignatureIsThe404BeforeTheBodyIsReadOrAProductLookedUp() throws Exception {
+        signedAs( "github" );
+        final Out reference = post( "/plat/github", PUSH, GITHUB_PUSH );
+        when( host.authenticate( any(), any(), any(), any() ) ).thenReturn( Optional.empty() );
+        final Out wrong = post( "/plat/github", PUSH, GITHUB_PUSH );
+        Mockito.clearInvocations( host );
+        for ( final Map< String, String > headers : List.of( Map.< String, String >of(),
+                Map.of( "X-Hub-Signature-256", "sha1=" + "ab".repeat( 20 ) ),
+                Map.of( "X-Hub-Signature-256", "sha256=short" ),
+                Map.of( "X-Wikantik-Signature", SECRET_HEADER ) ) ) {
+            final HttpServletRequest req = request( "POST", "/plat/github", PUSH.getBytes( StandardCharsets.UTF_8 ),
+                headers, "application/json" );
+            final Body stream = new Body( PUSH.getBytes( StandardCharsets.UTF_8 ) );
+            when( req.getInputStream() ).thenReturn( stream );
+            final Out o = run( req );
+            assertEquals( 404, o.status(), headers.toString() );
+            assertEquals( wrong.body(), o.body(), "the same bytes as a wrong signature" );
+            assertEquals( wrong.headers(), o.headers() );
+            assertEquals( 0, stream.served, "the body is never read" );
+        }
+        verify( host, never() ).authenticate( any(), any(), any(), any() );
+        verify( host, Mockito.times( 4 ) ).rejected( HookRejection.NO_SIGNATURE );
+        assertEquals( 204, reference.status() );
+    }
+
+    @Test
+    void aDeclaredOversizeBodyIsRefusedUnreadAndCounted() throws Exception {
+        maxBody = 2048;
+        final HttpServletRequest req = request( "POST", "/plat/github", new byte[ 5000 ], Map.of(), "application/json" );
+        final Body stream = new Body( new byte[ 5000 ] );
+        when( req.getInputStream() ).thenReturn( stream );
+        assertEquals( 413, run( req ).status(), "the size is refused even before the signature header is looked at" );
+        assertEquals( 0, stream.served );
+        verify( host ).rejected( HookRejection.TOO_LARGE );
+    }
+
+    @Test
+    void everyRefusalBeforeVerificationIsDebugOnlyAndEchoesNothingRaw() throws Exception {
+        maxBody = 2048;
+        when( host.authenticate( any(), any(), any(), any() ) ).thenReturn( Optional.empty() );
+        final List< LogEvent > lines = logged( null, () -> {
+            try {
+                post( "/pl\nat%0aFORGED/github", PUSH, GITHUB_PUSH );                                  // wrong signature
+                post( "/plat/github", PUSH, Map.of( "X-Hub-Signature-256", "garbage\nFORGED" ) );     // malformed
+                run( request( "POST", "/plat/github", new byte[ 5000 ], GITHUB_PUSH, "application/json" ) ); // too large
+            } catch ( final Exception e ) {
+                throw new IllegalStateException( e );
+            }
+        } );
+        assertEquals( 3, lines.size(), lines.toString() );
+        for ( final LogEvent e : lines ) {
+            final String line = e.getMessage().getFormattedMessage();
+            assertEquals( Level.DEBUG, e.getLevel(), line );
+            assertFalse( line.contains( "\n" ) || line.contains( "\r" ) || line.contains( "%" ), line );
+        }
+        assertTrue( lines.get( 0 ).getMessage().getFormattedMessage().contains( "product=plat0aFORGED " ),
+            "the hostile product key is logged only in its sanitised form" );
+        verify( host ).rejected( HookRejection.SIGNATURE );
+        verify( host ).rejected( HookRejection.NO_SIGNATURE );
+        verify( host ).rejected( HookRejection.TOO_LARGE );
+    }
+
+    @Test
+    void aVerifiedFormIsCountedAsFormEncoded() throws Exception {
+        signedAs( "github" );
+        run( request( "POST", "/plat/github", "payload=%7B%7D".getBytes( StandardCharsets.UTF_8 ), GITHUB_PUSH,
+            "application/x-www-form-urlencoded" ) );
+        verify( host ).rejected( HookRejection.FORM_ENCODED );
     }
 
     @Test

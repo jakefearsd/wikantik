@@ -136,21 +136,24 @@ final class Dora {
 
     /**
      * Lead times, how many changes had no first-commit time, how many had one too old to be believed, and how many
-     * were measured from opening because the commit time was missing or later than opening.
+     * were measured from opening because the commit time was missing or later than opening. {@code excluded} counts
+     * the changes whose lead time came out negative: they are kept out of the percentiles, and counted here.
      */
-    record LeadTime( Durations durations, int withoutCommitTime, int clamped, int withoutUsableCommitTime ) {
+    record LeadTime( Durations durations, int withoutCommitTime, int clamped, int withoutUsableCommitTime,
+                     int excluded ) {
     }
 
     /**
      * For each change that shipped: from its first commit (else when it was opened) to the verification of the
      * deployment that shipped it. A first commit more than {@link #MAX_COMMIT_LEAD} before opening, or after it, is
-     * moved to the nearest believable time; a negative duration is dropped.
+     * moved to the nearest believable time; a negative duration is kept out of the figure and counted as excluded.
      */
     static LeadTime leadTime( final List< ChangeFact > changes ) {
         final List< Duration > lead = new ArrayList<>();
         int without = 0;
         int clamped = 0;
         int unusable = 0;
+        int excluded = 0;
         for ( final ChangeFact c : changes ) {
             if ( c.shippedAt() == null ) {
                 continue;
@@ -168,8 +171,13 @@ final class Dora {
             } else if ( c.firstCommitAt().isAfter( c.openedAt() ) ) {
                 unusable++;
             }
-            lead.add( Duration.between( start, c.shippedAt() ) );
+            final Duration d = Duration.between( start, c.shippedAt() );
+            if ( d.isNegative() ) {
+                excluded++;
+            } else {
+                lead.add( d );
+            }
         }
-        return new LeadTime( Percentiles.of( lead ), without, clamped, unusable );
+        return new LeadTime( Percentiles.of( lead ), without, clamped, unusable, excluded );
     }
 }

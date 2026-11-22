@@ -24,6 +24,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 import com.wikantik.work.CodeEvent;
 import com.wikantik.work.HookDelivery;
+import com.wikantik.work.HookRejection;
 import com.wikantik.work.WorkCodeHostService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.Level;
@@ -60,7 +61,7 @@ final class HookIntake {
         if ( !usable ) {
             // malformed, empty, a bare word or number: a rejected delivery, never a quiet success (ruling 11); its one
             // delivery line below is a WARN
-            host.rejected();
+            host.rejected( HookRejection.UNPARSEABLE );
         }
         final List< CodeEvent > translated = usable ? translate( format, eventHeader, tree ) : List.of();
         final boolean accepted = usable && allTimed( host, delivery, format, translated );
@@ -86,7 +87,7 @@ final class HookIntake {
         }
         LOG.warn( "work codehost delivery product={} format={} rejected: a {} event has no usable time",
             delivery.productKey(), format, untimed.kind().name().toLowerCase( Locale.ROOT ) );
-        host.rejected();
+        host.rejected( HookRejection.UNTIMED );
         return false;
     }
 

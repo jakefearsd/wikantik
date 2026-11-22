@@ -81,6 +81,14 @@ final class NotifyFixtures {
             + commentId + ",'" + login + "')" );
     }
 
+    /** The inbox cursor's event id as text, or "none". */
+    String cursorEventId() throws SQLException {
+        try ( var c = ds.getConnection(); var st = c.createStatement();
+              var rs = st.executeQuery( "SELECT event_id FROM work_notify_cursor WHERE name = 'inbox'" ) ) {
+            return rs.next() ? rs.getString( 1 ) : "none";
+        }
+    }
+
     long count( final String table ) throws SQLException {
         return WorkAgentFixtures.scalar( ds, "SELECT COUNT(*) FROM " + table );
     }

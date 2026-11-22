@@ -25,37 +25,15 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static com.wikantik.jdbc.NullableColumns.getInstant;
-import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 
 /** The PostgreSQL {@link WorkNotificationStore}: the dispatch transaction, the inbox and the email preference. */
 final class JdbcWorkNotifications implements WorkNotificationStore {
 
-    /**
-     * The first dispatch plants the cursor at the newest event that exists at that moment, (tx, id), or at (xmin, 0)
-     * when the log is empty. Nothing that exists then is ever notified, whatever transactions are open; an event in
-     * flight at that instant with a lower transaction id is knowingly skipped (once, at enablement).
-     */
-    private static final String PLANT_CURSOR = "INSERT INTO work_notify_cursor (name, tx, event_id) "
-        + "SELECT 'inbox', COALESCE( newest.tx, pg_snapshot_xmin(pg_current_snapshot()) ), COALESCE( newest.id, 0 ) "
-        + "FROM ( SELECT 1 ) one LEFT JOIN LATERAL ( SELECT tx, id FROM work_event ORDER BY tx DESC, id DESC LIMIT 1 ) "
-        + "newest ON true ON CONFLICT (name) DO NOTHING";
-    private static final String LOCK_CURSOR = "SELECT tx::text, event_id FROM work_notify_cursor "
-        + "WHERE name = 'inbox' FOR UPDATE";
-    private static final String NEW_EVENTS = "SELECT " + JdbcWorkStore.EVENT_COLUMNS + ", e.tx::text AS tx "
-        + JdbcWorkStore.EVENT_FROM + " WHERE (e.tx, e.id) > (?::xid8, ?) "
-        + "AND e.tx < pg_snapshot_xmin(pg_current_snapshot()) ORDER BY e.tx, e.id LIMIT ?";
-    private static final String MOVE_CURSOR = "UPDATE work_notify_cursor SET tx = ?::xid8, event_id = ? "
-        + "WHERE name = 'inbox'";
-    private static final String INSERT_NOTICE = "INSERT INTO work_notification "
-        + "(recipient, event_id, project_id, item_id, reason) VALUES (?,?,?,?,?) ON CONFLICT (recipient, event_id) DO NOTHING";
     private static final String INBOX_SELECT = "SELECT n.id AS notice_id, n.reason, n.created_at AS notice_at, "
         + "n.read_at, p.key AS project_key, i.title AS item_title, " + JdbcWorkStore.EVENT_COLUMNS
         + " FROM work_notification n JOIN work_event e ON e.id = n.event_id JOIN work_project p ON p.id = e.project_id "
@@ -72,19 +50,15 @@ final class JdbcWorkNotifications implements WorkNotificationStore {
         + "AND ri.id IS NOT NULL AND ri.reporter = n.recipient AND ri.reporter_agent_id IS NULL AND "
         + ReporterEvents.notifiedSql( "re" ) + " ) ) ) AND " + FlagNotices.liveNoticeSql( "n" ) + " )";
 
-    private record Cursor( String tx, long eventId ) {
-    }
-
-    private record Fetched( WorkEvent event, String tx ) {
-    }
-
     private final Jdbc jdbc;
-    private final JdbcDispatchFacts facts;
+    private final JdbcNotifyDispatch dispatcher;
+    private final JdbcNotifyRetention retention;
     private final JdbcNotifyEmail email;
 
     JdbcWorkNotifications( final Jdbc jdbc, final JdbcWorkWatches watches ) {
         this.jdbc = jdbc;
-        this.facts = new JdbcDispatchFacts( jdbc, watches );
+        this.dispatcher = new JdbcNotifyDispatch( jdbc, new JdbcDispatchFacts( jdbc, watches ) );
+        this.retention = new JdbcNotifyRetention( jdbc );
         this.email = new JdbcNotifyEmail( jdbc );
     }
 
@@ -93,50 +67,12 @@ final class JdbcWorkNotifications implements WorkNotificationStore {
         if ( maxEvents < 1 ) {
             throw new IllegalArgumentException( "maxEvents must be at least 1, not " + maxEvents );
         }
-        return jdbc.inTransaction( conn -> {
-            if ( jdbc.update( conn, PLANT_CURSOR, ps -> { } ) > 0 ) {
-                return 0;
-            }
-            final Cursor cursor = jdbc.queryOne( conn, LOCK_CURSOR, ps -> { },
-                rs -> new Cursor( rs.getString( 1 ), rs.getLong( 2 ) ) )
-                .orElseThrow( () -> new SQLException( "work_notify_cursor has no inbox row" ) );
-            final List< Fetched > fetched = jdbc.query( conn, NEW_EVENTS, ps -> {
-                ps.setString( 1, cursor.tx() );
-                ps.setLong( 2, cursor.eventId() );
-                ps.setInt( 3, maxEvents );
-            }, rs -> new Fetched( JdbcWorkStore.EVENT_ROW.map( rs ), rs.getString( "tx" ) ) );
-            if ( fetched.isEmpty() ) {
-                return 0;
-            }
-            final Fetched last = fetched.get( fetched.size() - 1 );
-            final List< WorkEvent > byId = new ArrayList<>();
-            fetched.forEach( f -> byId.add( f.event() ) );
-            byId.sort( Comparator.comparingLong( WorkEvent::id ) );
-            for ( final WorkEvent e : byId ) {
-                notify( conn, e, planner );
-            }
-            jdbc.update( conn, MOVE_CURSOR, ps -> {
-                ps.setString( 1, last.tx() );
-                ps.setLong( 2, last.event().id() );
-            } );
-            return fetched.size();
-        } );
+        return dispatcher.dispatch( maxEvents, planner );
     }
 
-    private void notify( final Connection conn, final WorkEvent e, final NoticePlanner planner ) throws SQLException {
-        final EventFacts f = facts.read( conn, e, planner );
-        if ( f == null ) {
-            return;
-        }
-        for ( final Map.Entry< String, NoticeReason > row : planner.plan( e, f ).entrySet() ) {
-            jdbc.update( conn, INSERT_NOTICE, ps -> {
-                ps.setString( 1, row.getKey() );
-                ps.setLong( 2, e.id() );
-                ps.setLong( 3, e.projectId() );
-                setNullableLong( ps, 4, e.itemId() );
-                ps.setString( 5, row.getValue().wire() );
-            } );
-        }
+    @Override
+    public Pruned prune( final Instant before, final int batchSize, final int maxBatches ) throws SQLException {
+        return retention.prune( before, batchSize, maxBatches );
     }
 
     @Override

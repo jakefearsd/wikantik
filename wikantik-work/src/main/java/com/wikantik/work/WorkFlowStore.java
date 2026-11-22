@@ -20,6 +20,7 @@ package com.wikantik.work;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -63,7 +64,7 @@ public interface WorkFlowStore {
     DoraReport.MergeMix merges( Long projectId, Long productId, Instant from, Instant to ) throws SQLException;
 
     /** How far before a window a merge may lie and still be a lead-time sample of it. */
-    java.time.Duration LOOKBACK = java.time.Duration.ofDays( 366 );
+    Duration LOOKBACK = Duration.ofDays( 366 );
 
     /**
      * A production deployment as the DORA figures see it. {@code failedAt} and {@code rolledBackAt} are the times of
@@ -82,9 +83,15 @@ public interface WorkFlowStore {
     record ChangeFact( long id, Instant firstCommitAt, Instant openedAt, Instant mergedAt, Instant shippedAt ) {
     }
 
-    /** An item that is {@code done} now, with the time of its last move to done and of its first move to in progress. */
+    /** An item that is {@code done} now, with the time of its last move to done and of its first move to in progress, and the time it sat done between
+     * them while reopened ({@code reopenedGap}, zero until the store fills it in). */
     record ClosedItem( long id, String key, Instant createdAt, Instant firstInProgressAt, Instant closedAt,
-                       BigDecimal estimate ) {
+                       BigDecimal estimate, Duration reopenedGap ) {
+
+        /** The same item with the time it sat done while reopened (taken off its cycle time). */
+        ClosedItem withReopenedGap( final Duration gap ) {
+            return new ClosedItem( id, key, createdAt, firstInProgressAt, closedAt, estimate, gap );
+        }
     }
 
     /** An item that is in progress or in review now. */

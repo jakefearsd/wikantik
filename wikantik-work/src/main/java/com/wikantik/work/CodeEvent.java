@@ -24,7 +24,8 @@ import java.util.List;
 /**
  * One thing the code host reported, in a form that does not depend on the host: a push, or a step in a pull
  * request's life. The adapters (GitHub, generic JSON) translate into this; the applier never sees a host's payload.
- * {@code actor} is the reviewer for {@code REVIEW_APPROVED} and the merger for {@code REVIEW_MERGED}; {@code at} is
+ * {@code actor} is the reviewer for {@code REVIEW_APPROVED}, the merger for {@code REVIEW_MERGED} and the pusher the
+ * host asserts for {@code PUSH} (a push is attributed to it, never to a commit's author); {@code at} is
  * the host's time of the event, taken from the event's own field (the GitHub adapter's Javadoc has the table). Every
  * event needs one: a delivery holding an event with a null {@code at} is rejected, and the applier ignores one.
  */

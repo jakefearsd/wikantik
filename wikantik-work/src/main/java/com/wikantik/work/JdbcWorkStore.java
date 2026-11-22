@@ -34,14 +34,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.wikantik.work.SqlValues.autonomyWire;
-import static com.wikantik.work.SqlValues.doneMeansWire;
 import static com.wikantik.jdbc.NullableColumns.getInstant;
 import static com.wikantik.work.SqlValues.isClosed;
 import static com.wikantik.jdbc.NullableColumns.getLocalDate;
 import static com.wikantik.jdbc.NullableColumns.getNullableLong;
-import static com.wikantik.jdbc.NullableColumns.setNullableBoolean;
-import static com.wikantik.jdbc.NullableColumns.setNullableDate;
 import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 
 /** PostgreSQL implementation of {@link WorkStore}; all access goes through {@link Jdbc}. */
@@ -93,7 +89,6 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     private static final int DEFAULT_ITEM_LIMIT = 200;
     private static final int CLOSED_COLUMN_CAP = 50;
-    private static final double RANK_STEP = 1024.0;
 
     private final JdbcWorkDiscussion discussion;
     private final JdbcWorkEventLog eventLog;
@@ -140,63 +135,9 @@ public class JdbcWorkStore extends JdbcWorkCatalog implements WorkStore {
 
     @Override
     public Item createItem( final Project project, final Item draft, final Actor by ) throws SQLException {
-        requireAttributed( by.kind(), by.agentId() );
-        requireOneTarget( draft );
-        final WorkStatus status = draft.status() == null ? WorkStatus.DRAFT : draft.status();
-        final String body = draft.body() == null ? "" : draft.body();
-        return jdbc.inTransaction( conn -> {
-            final int seq = jdbc.queryOne( conn,
-                "UPDATE work_project SET next_seq = next_seq + 1 WHERE id = ? RETURNING next_seq - 1",
-                ps -> ps.setLong( 1, project.id() ), rs -> rs.getInt( 1 ) )
-                .orElseThrow( () -> new SQLException( "work_project " + project.id() + " not found" ) );
-            final double rank = jdbc.queryOne( conn,
-                "SELECT COALESCE( MAX( rank ), 0 ) FROM work_item WHERE project_id = ? AND status = ?",
-                ps -> { ps.setLong( 1, project.id() ); ps.setString( 2, status.wire() ); },
-                rs -> rs.getDouble( 1 ) ).orElse( 0.0 ) + RANK_STEP;
-            final long id = jdbc.queryOne( conn, """
-                INSERT INTO work_item (project_id, seq, level, parent_id, product_id, kind, title, body, status,
-                    priority, rank, due_on, assignee, reporter, autonomy, done_means, allow_direct, closed_at,
-                    assignee_queue, reporter_agent_id, type, labels)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, CASE WHEN ? THEN NOW() END, ?, ?, ?, ?)
-                RETURNING id
-                """,
-                ps -> {
-                    ps.setLong( 1, project.id() );
-                    ps.setInt( 2, seq );
-                    ps.setString( 3, draft.level().wire() );
-                    setNullableLong( ps, 4, draft.parentId() );
-                    setNullableLong( ps, 5, draft.productId() );
-                    ps.setString( 6, draft.kind().wire() );
-                    ps.setString( 7, draft.title() );
-                    ps.setString( 8, body );
-                    ps.setString( 9, status.wire() );
-                    ps.setInt( 10, draft.priority() );
-                    ps.setDouble( 11, rank );
-                    setNullableDate( ps, 12, draft.dueOn() );
-                    ps.setString( 13, draft.assignee() );
-                    ps.setString( 14, by.login() );
-                    ps.setString( 15, autonomyWire( draft.autonomy() ) );
-                    ps.setString( 16, doneMeansWire( draft.doneMeans() ) );
-                    setNullableBoolean( ps, 17, draft.allowDirect() );
-                    ps.setBoolean( 18, isClosed( status ) );
-                    ps.setString( 19, draft.queue() );
-                    setNullableLong( ps, 20, by.agentId() );
-                    ps.setString( 21, draft.type().wire() );
-                    ps.setArray( 22, conn.createArrayOf( "text", draft.labels().toArray( new String[ 0 ] ) ) );
-                }, rs -> rs.getLong( 1 ) )
-                .orElseThrow( () -> new SQLException( "INSERT work_item returned no row" ) );
-            insertRevision( conn, id, 1, draft.title(), body, by );
-            appendEvent( conn, new WorkEvent( 0, project.id(), id, null, null, by.login(), by.kind(), by.agentId(),
-                WorkEvent.CREATED, null, null, null ) );
-            final String assignedTo = draft.queue() != null ? "queue:" + draft.queue() : draft.assignee();
-            if ( assignedTo != null ) {
-                // An item created with a person or queue is assigned from that moment: the log must say so.
-                appendEvent( conn, new WorkEvent( 0, project.id(), id, null, null, by.login(), by.kind(),
-                    by.agentId(), WorkEvent.ASSIGNED, null, assignedTo, null ) );
-            }
-            return itemById( conn, id );
-        } );
+        return new JdbcItemCreate( jdbc, this ).create( project, draft, by, ItemGuard.NONE );
     }
+
 
     Item itemById( final Connection conn, final long id ) throws SQLException {
         return jdbc.queryOne( conn, ITEM_SELECT + " WHERE i.id = ?", ps -> ps.setLong( 1, id ), ITEM_ROW )

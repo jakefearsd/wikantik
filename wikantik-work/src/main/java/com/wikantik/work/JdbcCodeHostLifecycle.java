@@ -140,14 +140,34 @@ final class JdbcCodeHostLifecycle {
             }
             return logged( conn, item, c, key, by ) ? CodeHostOutcome.APPLIED : CodeHostOutcome.DUPLICATE;
         }
-        boolean wrote = logged( conn, item, c, key, by );
+        final boolean fresh = logged( conn, item, c, key, by );
+        boolean wrote = fresh;
         final Optional< Key > reg = register( conn, c.id() );
         if ( reg.isEmpty() || key.compareTo( reg.get() ) > 0 ) {
             setRegister( conn, c.id(), key );
             settle( conn, c, kind, at, itemClosed );
             wrote = true;
+        } else if ( fresh && kind == Kind.CLOSED && itemClosed ) {
+            // a close that loses the register to a later reopen still dates the abandonment when the change stayed
+            // abandoned (its item is closed): closed_at is the latest close the host reported, in any order. Only a
+            // close this delivery logged moves it: past the lifecycle bound nothing is logged, so nothing moves.
+            wrote |= laterClose( conn, c, at );
         }
         return wrote ? CodeHostOutcome.APPLIED : CodeHostOutcome.DUPLICATE;
+    }
+
+    /** Moves an abandoned change's {@code closed_at} up to {@code at} when that is later; true when it wrote. */
+    private boolean laterClose( final Connection conn, final Change c, final Instant at ) throws SQLException {
+        if ( c.state() != ChangeState.ABANDONED ) {
+            return false;
+        }
+        final long changeId = c.id();
+        return rows.jdbc().update( conn, "UPDATE work_change SET closed_at = GREATEST( ?, opened_at ) WHERE id = ? "
+            + "AND state = 'abandoned' AND ( closed_at IS NULL OR closed_at < GREATEST( ?, opened_at ) )", ps -> {
+                ps.setTimestamp( 1, ts( at ) );
+                ps.setLong( 2, changeId );
+                ps.setTimestamp( 3, ts( at ) );
+            } ) > 0;
     }
 
     /** The log row of a lifecycle event the first time it is reported; true when written. */

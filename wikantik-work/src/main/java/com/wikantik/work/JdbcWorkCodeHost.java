@@ -45,8 +45,12 @@ import java.util.List;
  * moves a change from abandoned back to open, and only through this store; agents and people still may not.</li>
  * <li><b>Everything else is monotone or keyed</b>: {@code opened_at} of a code-host change is the earliest host time
  * of any event recorded for it; {@code closed_at} is the winning close's or merge's time and null while the
- * register says open; heads go by host time, latest wins, ties by sha, and only the 200 most recent reports of a
- * change are kept ({@link JdbcCodeHostHeads}); an approval stays with the commit it approved; {@code first_commit_at}
+ * register says open (on a closed item, where the change stays abandoned whatever the register says, it is the latest
+ * close reported); heads go by host time, latest wins, ties by sha, and each head report prunes a change to its 200
+ * most recent reports and approvals plus its head and the host's newest head report (an approval prunes nothing, so
+ * one that arrives before its commit's push still stands when the push arrives; the limit left is in
+ * {@link JdbcCodeHostHeads}); an approval stays
+ * with the commit it approved, the earliest by host time when several approve it; {@code first_commit_at}
  * is the earliest commit reported, never later than the opening and bounded by {@link CodeHostTimes}.</li>
  * <li><b>Precedence</b>: the code host never overwrites what an agent or a person reported: {@code opened_by*},
  * {@code head_agent_ids}, an agent's or a person's approval, a first commit typed by hand, and the opening time of a
@@ -69,7 +73,10 @@ import java.util.List;
  * <p>Every method is one transaction under the product's advisory lock, taking its locks in the order
  * {@link JdbcCodeHostRows} writes down. Nothing here moves an item's status. On a closed item nothing opens or
  * revives a change: an event that would is ignored when no change exists, and a reopen leaves the change abandoned.
- * The item's status is outside the order guarantee.
+ * The item's status is outside the order guarantee: a person reopening the item later does not revive a change the
+ * host reopened while it was closed. So is a push stamped after a merge that arrives before it: the still-live change
+ * takes it as a head report (the merge then sets the head back to the merged commit), where in the host's order it
+ * would have opened a change of its own; a change is never split ({@code WorkCodeHostOrderLimitsPostgresTest}).
  */
 final class JdbcWorkCodeHost {
 

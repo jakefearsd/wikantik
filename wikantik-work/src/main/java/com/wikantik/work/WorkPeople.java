@@ -45,6 +45,9 @@ final class WorkPeople {
 
     /** Same shape as the page comments' token (wikantik-main {@code MentionExtractor.TOKEN}). */
     private static final Pattern TOKEN = Pattern.compile( "@\\[([^\\]\\n]{1,64})\\]\\(user:([A-Za-z0-9-]{1,64})\\)" );
+    /** Any {@code @[name](user:<anything>)}: what a reporter must never be shown whole, however it is malformed. */
+    private static final Pattern LOOSE_TOKEN = Pattern.compile( "@?\\[([^\\]\\n]{0,64})\\]\\(user:([^)\\n]*+)\\)" );
+    private static final Pattern WELL_FORMED_ID = Pattern.compile( "[A-Za-z0-9-]{1,64}" );
     private static final Pattern BARE = Pattern.compile( "(?<![\\w@.])@([A-Za-z0-9][A-Za-z0-9._-]*)" );
     private static final Pattern ANY = Pattern.compile( TOKEN.pattern() + "|" + BARE.pattern() );
     private static final Pattern TRAILING = Pattern.compile( "[._-]+$" );
@@ -156,16 +159,35 @@ final class WorkPeople {
      * (the token's snapshot when the id no longer resolves), escaped so a name can never become markup.
      */
     Display display( final String body ) {
+        return display( body, false );
+    }
+
+    /**
+     * {@link #display} for a person who only reports: <em>every</em> token of any shape ({@link #LOOSE_TOKEN}) becomes
+     * {@code @Name}, so no user id survives in the text. Past {@value #MAX_MENTIONS} distinct ids, or for an id that is
+     * not well formed, nothing is looked up and the token's own snapshot name is shown.
+     */
+    Display displayForReporter( final String body ) {
+        return display( body, true );
+    }
+
+    private Display display( final String body, final boolean everyToken ) {
         if ( body == null || body.isEmpty() ) {
             return new Display( "", List.of() );
         }
         final Map< String, String > names = new LinkedHashMap<>();
         final StringBuilder out = new StringBuilder();
-        final Matcher m = TOKEN.matcher( body );
+        final Matcher m = ( everyToken ? LOOSE_TOKEN : TOKEN ).matcher( body );
         int last = 0;
         while ( m.find() ) {
             final String id = m.group( 2 );
-            if ( !names.containsKey( id ) && names.size() >= MAX_MENTIONS ) {
+            final boolean lookup = !everyToken || WELL_FORMED_ID.matcher( id ).matches();
+            if ( !names.containsKey( id ) && names.size() >= MAX_MENTIONS || !lookup ) {
+                if ( everyToken ) {
+                    out.append( body, last, m.start() ).append( '@' ).append( MARKDOWN_SPECIAL.matcher( m.group( 1 ) )
+                        .replaceAll( "\\\\$1" ) );
+                    last = m.end();
+                }
                 continue;
             }
             final String name = names.computeIfAbsent( id, k -> directory.loginForMentionId( k )

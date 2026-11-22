@@ -80,7 +80,7 @@ class WorkProductResourceTest {
         return new com.wikantik.work.DoraReport( java.time.LocalDate.parse( "2026-11-02" ),
             java.time.LocalDate.parse( "2026-11-15" ), "UTC", "wikantik", List.of(), com.wikantik.work.Durations.NONE, 0, 0, 0,
             new com.wikantik.work.DoraReport.Rate( 0, 0 ), com.wikantik.work.Durations.NONE, 0,
-            new com.wikantik.work.DoraReport.Rate( 0, 0 ), new com.wikantik.work.DoraReport.MergeMix( 0, 0, 0, 0, 0 ) );
+            new com.wikantik.work.DoraReport.Rate( 0, 0 ), new com.wikantik.work.DoraReport.MergeMix( 0, 0, 0, 0, 0 ), 0 );
     }
 
     @Test

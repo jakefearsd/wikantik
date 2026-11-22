@@ -66,6 +66,17 @@ final class CodeHostIdentities {
         return made;
     }
 
+    /**
+     * Learns the username of a commit author the host matched to an account (its host-asserted username with an
+     * address that names exactly one wiki account), and nothing else: a commit author is never who anything is
+     * attributed to, because its address is whatever the committer typed.
+     */
+    void teach( final String host, final CodeEvent.Person p ) throws SQLException {
+        if ( p != null && p.username() != null && !p.username().isBlank() && usable( p.email() ) ) {
+            resolve( host, p );
+        }
+    }
+
     private CodeHostWho lookup( final String host, final CodeEvent.Person p ) throws SQLException {
         final String external = external( p );
         final boolean hasUsername = p.username() != null && !p.username().isBlank();

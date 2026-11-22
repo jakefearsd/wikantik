@@ -42,6 +42,10 @@ import java.util.stream.Collectors;
  */
 public final class WorkNotificationsService {
 
+    private static final int PRUNE_BATCH = 1000;
+    private static final int PRUNE_MAX_BATCHES = 20;
+    /** The shortest retention applied: longer than the 48 hour email window. */
+    static final int MIN_RETENTION_DAYS = 3;
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 100;
     private static final String AGENTS_REFUSED = "Agents are not notified.";
@@ -174,6 +178,22 @@ public final class WorkNotificationsService {
      */
     public int dispatch( final int maxEvents ) throws SQLException {
         return store.notifyStores().notifications().dispatch( maxEvents, new NoticePlanning( store, scopes, people, listener ) );
+    }
+
+    /**
+     * Deletes notifications (and skipped-event rows) older than {@code wikantik.work.notify.retentionDays}; 0 days
+     * keeps everything. Never touches a row younger than {@link #MIN_RETENTION_DAYS}, which is longer than the email
+     * window, so a notice still waiting to be mailed is never pruned. Not a work record: nothing here is history.
+     *
+     * @return what was deleted, and whether more old rows may remain (call again soon)
+     */
+    public WorkNotificationStore.Pruned prune( final Instant now ) throws SQLException {
+        final int days = ports.settings().retentionDays();
+        if ( days <= 0 ) {
+            return new WorkNotificationStore.Pruned( 0, false );
+        }
+        final Instant before = now.minus( java.time.Duration.ofDays( Math.max( days, MIN_RETENTION_DAYS ) ) );
+        return store.notifyStores().notifications().prune( before, PRUNE_BATCH, PRUNE_MAX_BATCHES );
     }
 
     /** The notification tunables the host supplied. */

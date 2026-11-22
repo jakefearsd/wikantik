@@ -60,8 +60,8 @@ final class JdbcWorkAttachments implements WorkAttachmentStore {
     }
 
     @Override
-    public Attachment add( final Item item, final Long commentId, final NewAttachment file, final long maxItemBytes,
-                           final Actor by ) throws SQLException {
+    public Attachment addCapped( final Item item, final Long commentId, final NewAttachment file,
+                                 final long maxItemBytes, final Long uploaderBytes, final Actor by ) throws SQLException {
         JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
         return jdbc.inTransaction( conn -> {
             lockItem( conn, item, by );
@@ -74,6 +74,9 @@ final class JdbcWorkAttachments implements WorkAttachmentStore {
             if ( live + file.content().length > maxItemBytes ) {
                 throw new WorkConflictException( "This item's attachments would pass the limit of " + maxItemBytes
                     + " bytes.", WorkConflictException.ITEM_FULL );
+            }
+            if ( uploaderBytes != null ) {
+                requireUploaderRoom( conn, item, by, file.content().length, uploaderBytes );
             }
             final Attachment added = jdbc.queryOne( conn, "INSERT INTO work_attachment (item_id, comment_id, filename, "
                     + "content_type, size_bytes, sha256, uploaded_by, uploaded_by_agent_id) VALUES (?,?,?,?,?,?,?,?) "
@@ -112,6 +115,46 @@ final class JdbcWorkAttachments implements WorkAttachmentStore {
                 ps.setLong( 1, attachmentId );
                 ps.setLong( 2, itemId );
             }, rs -> new AttachmentContent( ROW.map( rs ), rs.getBytes( "content" ) ) );
+    }
+
+    /**
+     * Everything the uploader has ever put on the item, removed files and files of removed comments included, plus the
+     * new one, may not pass {@code cap}: removing a file gives no room back, so upload/remove/upload cannot churn past it.
+     */
+    private void requireUploaderRoom( final Connection conn, final Item item, final Actor by, final long adding,
+                                      final long cap ) throws SQLException {
+        final long mine = jdbc.queryOne( conn, "SELECT COALESCE(SUM(a.size_bytes), 0) FROM work_attachment a "
+                + "WHERE a.item_id = ? AND a.uploaded_by = ? AND a.uploaded_by_agent_id IS NOT DISTINCT FROM ?", ps -> {
+                    ps.setLong( 1, item.id() );
+                    ps.setString( 2, by.login() );
+                    setNullableLong( ps, 3, by.agentId() );
+                }, rs -> rs.getLong( 1 ) ).orElse( 0L );
+        if ( mine + adding > cap ) {
+            throw new WorkConflictException( "Your files on this request would pass the limit of " + cap + " bytes.",
+                WorkConflictException.REPORTER_FULL );
+        }
+    }
+
+    @Override
+    public boolean stream( final long itemId, final long attachmentId, final int chunkBytes, final ChunkSink sink )
+            throws SQLException, java.io.IOException {
+        final Optional< Attachment > live = attachment( itemId, attachmentId );
+        if ( live.isEmpty() ) {
+            return false;
+        }
+        final long size = live.get().sizeBytes();
+        for ( long from = 1; from <= size; from += chunkBytes ) {
+            final long start = from;
+            final byte[] piece = jdbc.queryOne( "SELECT substring(content from ?::int for ?::int) FROM work_attachment_blob "
+                    + "WHERE attachment_id = ?", ps -> {
+                        ps.setLong( 1, start );
+                        ps.setInt( 2, chunkBytes );
+                        ps.setLong( 3, attachmentId );
+                    }, rs -> rs.getBytes( 1 ) )
+                .orElseThrow( () -> new SQLException( "attachment " + attachmentId + " was removed while being read" ) );
+            sink.accept( piece, piece.length );
+        }
+        return true;
     }
 
     @Override

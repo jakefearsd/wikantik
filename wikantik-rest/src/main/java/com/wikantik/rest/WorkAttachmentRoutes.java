@@ -20,7 +20,7 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.wikantik.work.Attachment;
-import com.wikantik.work.AttachmentContent;
+import com.wikantik.work.WorkAttachmentsService;
 import com.wikantik.work.FileKinds;
 import com.wikantik.work.WorkValidationException;
 import jakarta.servlet.ServletException;
@@ -152,17 +152,26 @@ final class WorkAttachmentRoutes {
 
     private void download( final WorkResourceBase.Call c ) throws Exception {
         final long id = c.idParam( 1 );
-        final AttachmentContent file = c.svc.features().attachments().content( c.actor, c.pathParam( 0 ), id );
-        final Attachment a = file.attachment();
-        final boolean inline = FileKinds.inline( a.contentType() );
         final HttpServletResponse resp = c.resp;
-        resp.setStatus( HttpServletResponse.SC_OK );
-        resp.setContentType( inline ? a.contentType() : FileKinds.OCTET_STREAM );
-        resp.setHeader( "Content-Disposition", WorkDownloadHeaders.disposition( inline, a.filename() ) );
-        resp.setHeader( "X-Content-Type-Options", "nosniff" );
-        resp.addHeader( "Content-Security-Policy", "sandbox; default-src 'none'" );
-        resp.setHeader( "Cache-Control", inline ? "private, max-age=300" : "private, no-store" );
-        resp.setContentLengthLong( file.content().length );
-        resp.getOutputStream().write( file.content() );
+        // The service reads the bytes a piece at a time, so a large file is never held whole in heap; the headers go
+        // out from begin(), before the first piece, and a refusal (not found) happens before begin().
+        c.svc.features().attachments().download( c.actor, c.pathParam( 0 ), id, new WorkAttachmentsService.Download() {
+            @Override
+            public void begin( final Attachment a ) {
+                final boolean inline = FileKinds.inline( a.contentType() );
+                resp.setStatus( HttpServletResponse.SC_OK );
+                resp.setContentType( inline ? a.contentType() : FileKinds.OCTET_STREAM );
+                resp.setHeader( "Content-Disposition", WorkDownloadHeaders.disposition( inline, a.filename() ) );
+                resp.setHeader( "X-Content-Type-Options", "nosniff" );
+                resp.addHeader( "Content-Security-Policy", "sandbox; default-src 'none'" );
+                resp.setHeader( "Cache-Control", inline ? "private, max-age=300" : "private, no-store" );
+                resp.setContentLengthLong( a.sizeBytes() );
+            }
+
+            @Override
+            public void chunk( final byte[] buffer, final int length ) throws IOException {
+                resp.getOutputStream().write( buffer, 0, length );
+            }
+        } );
     }
 }

@@ -26,6 +26,8 @@ import com.wikantik.WikiEngine;
 import com.wikantik.util.TextUtil;
 import com.wikantik.work.CodeEvent;
 import com.wikantik.work.HookDelivery;
+import com.wikantik.work.HookRejection;
+import com.wikantik.work.HookSignature;
 import com.wikantik.work.WorkCodeHostService;
 import com.wikantik.work.WorkService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,8 +48,11 @@ import java.util.Properties;
  * The inbound code-host webhook: {@code POST /api/work/hooks/{productKey}/{github|generic}}. It has no session, no API
  * key and no principal: the only credential is the HMAC of the raw body under the product's hook secret. Every refusal
  * (work off, endpoint off, wrong method or path, unknown product, no or disabled hook, missing or wrong signature) is
- * the same 404 with the same bytes, so a caller learns nothing about which hooks exist. Order of checks: body size
- * (413, before anything is checked), the hook and its signature over the raw bytes, content type (415), then parse.
+ * the same 404 with the same bytes, so a caller learns nothing about which hooks exist. Order of checks: the declared
+ * body size (413, before anything is read), the signature header's shape (a missing or malformed one is the 404
+ * before the body is read or a product looked up), the body read capped at the limit (413), the hook and its
+ * signature over the raw bytes, content type (415), then parse. A refusal before the signature verifies is logged at
+ * DEBUG only and counted by reason ({@link HookRejection}).
  * Once a delivery verifies it is always applied, even a ping or an unparseable body, so the hook's "last delivery"
  * moves; the answer is 204 whatever the body held. Receive only: the wiki never calls the code host. The secret, the
  * signature header and the body are never logged.
@@ -107,17 +112,40 @@ public class WorkHookResource extends RestServletBase {
             reply( response, HttpServletResponse.SC_NOT_FOUND, NOT_FOUND_BODY );
             return;
         }
+        final WorkCodeHostService host = svc.features().codeHost();
         final long max = maxBodyBytes();
         if ( request.getContentLengthLong() > max ) {
-            reply( response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, TOO_LARGE_BODY );
+            refuse( host, route, HookRejection.TOO_LARGE, response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
+                TOO_LARGE_BODY );
             return;
         }
+        final String signature = request.getHeader( GITHUB.equals( route[ 1 ] ) ? SIGNATURE_GITHUB : SIGNATURE_GENERIC );
+        if ( !HookSignature.wellFormed( signature ) ) {
+            // it can never verify: the same 404 as a wrong signature, without reading the body or touching a product
+            refuse( host, route, HookRejection.NO_SIGNATURE, response, HttpServletResponse.SC_NOT_FOUND, NOT_FOUND_BODY );
+            return;
+        }
+        // no declared length (chunked): read at most one byte past the limit
         final byte[] body = request.getInputStream().readNBytes( (int) Math.min( max + 1, Integer.MAX_VALUE ) );
         if ( body.length > max ) {
-            reply( response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, TOO_LARGE_BODY );
+            refuse( host, route, HookRejection.TOO_LARGE, response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
+                TOO_LARGE_BODY );
             return;
         }
-        deliver( svc, route[ 0 ], route[ 1 ], body, request, response );
+        deliver( host, route[ 0 ], route[ 1 ], body, signature, request, response );
+    }
+
+    /**
+     * A refusal before the signature verified: counted by reason and logged at DEBUG only (anyone can cause one, so
+     * it must not fill the log), with nothing the caller sent but the sanitised product key.
+     */
+    private static void refuse( final WorkCodeHostService host, final String[] route, final HookRejection reason,
+                                final HttpServletResponse response, final int status, final String body )
+            throws IOException {
+        host.rejected( reason );
+        LOG.debug( "work codehost delivery product={} format={} event=- delivery=- outcome=rejected reason={}",
+            HookIntake.safe( route[ 0 ] ), route[ 1 ], reason.wire() );
+        reply( response, status, body );
     }
 
     /** {@code {product, format}} for {@code /<product>/<github|generic>}, else null. */
@@ -134,21 +162,19 @@ public class WorkHookResource extends RestServletBase {
         return GITHUB.equals( format ) || GENERIC.equals( format ) ? new String[] { parts[ 0 ], format } : null;
     }
 
-    private void deliver( final WorkService svc, final String product, final String format, final byte[] body,
-                          final HttpServletRequest request, final HttpServletResponse response ) throws IOException {
-        final WorkCodeHostService host = svc.features().codeHost();
+    private void deliver( final WorkCodeHostService host, final String product, final String format, final byte[] body,
+                          final String signature, final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
         try {
-            final String signature = request.getHeader( GITHUB.equals( format ) ? SIGNATURE_GITHUB : SIGNATURE_GENERIC );
             final Optional< HookDelivery > verified = host.authenticate( product, format, body, signature );
             if ( verified.isEmpty() ) {
-                host.rejected();
-                LOG.info( "work codehost delivery product={} format={} event=- delivery=- outcome=rejected applied=0 duplicate=0 ignored=0",
-                    HookIntake.safe( product ), format );
-                reply( response, HttpServletResponse.SC_NOT_FOUND, NOT_FOUND_BODY );
+                refuse( host, new String[] { product, format }, HookRejection.SIGNATURE, response,
+                    HttpServletResponse.SC_NOT_FOUND, NOT_FOUND_BODY );
                 return;
             }
             final String type = request.getContentType();
             if ( type != null && type.toLowerCase( Locale.ROOT ).startsWith( "application/x-www-form-urlencoded" ) ) {
+                host.rejected( HookRejection.FORM_ENCODED );
                 LOG.info( "work codehost delivery product={} format={} event=- delivery=- outcome=ignored applied=0 duplicate=0 ignored=0 reason=form-encoded",
                     HookIntake.safe( product ), format );
                 reply( response, HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE, UNSUPPORTED_BODY );

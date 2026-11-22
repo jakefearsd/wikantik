@@ -178,6 +178,12 @@ class DoraTest {
     void aNegativeLeadTimeIsDropped() {
         final Dora.LeadTime lt = Dora.leadTime( List.of( change( 1, "11-05T09:00", "11-05T10:00", "11-04T11:00" ) ) );
         assertEquals( Durations.NONE, lt.durations() );
+        assertEquals( 1, lt.excluded(), "a dropped sample is counted, never silent" );
+    }
+
+    @Test
+    void anOrdinaryLeadTimeExcludesNothing() {
+        assertEquals( 0, Dora.leadTime( List.of( change( 1, "11-01T09:00", "11-01T10:00", "11-02T11:00" ) ) ).excluded() );
     }
 
     @Test

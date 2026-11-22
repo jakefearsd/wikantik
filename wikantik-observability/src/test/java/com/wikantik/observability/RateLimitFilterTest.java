@@ -306,6 +306,39 @@ class RateLimitFilterTest {
         verify( blocked ).setStatus( 429 );
     }
 
+    /**
+     * The inbound code-host hook ({@code /api/work/hooks/*}) is unauthenticated until its HMAC verifies, so it must be
+     * limited like any other public path, per client. The client is {@code getRemoteAddr()} only: behind the reverse
+     * proxy Tomcat's RemoteIpValve has already replaced it with the real client from the one configured header, and
+     * this filter never reads a forwarding header itself, so a caller rotating {@code X-Forwarded-For} or
+     * {@code CF-Connecting-IP} values still spends one bucket.
+     */
+    @Test
+    void theCodeHostHookIsLimitedPerRemoteAddressWhateverForwardingHeadersSay() throws Exception {
+        final RateLimitFilter f = new RateLimitFilter( config( 2, 100, 0, List.of(), ticker ) );
+        f.init( null );
+        final FilterChain chain = mock( FilterChain.class );
+        for ( int i = 0; i < 2; i++ ) {
+            f.doFilter( hook( "203.0.113.7", "10.0.0." + i ), response(), chain );
+        }
+        verify( chain, times( 2 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+        final HttpServletResponse blocked = response();
+        f.doFilter( hook( "203.0.113.7", "198.51.100.99" ), blocked, chain );
+        verify( blocked ).setStatus( 429 );
+        verify( chain, times( 2 ) ).doFilter( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any() );
+        // another client has its own bucket
+        final HttpServletResponse other = response();
+        f.doFilter( hook( "198.51.100.1", "203.0.113.7" ), other, chain );
+        verify( other, never() ).setStatus( 429 );
+    }
+
+    private static HttpServletRequest hook( final String remoteAddr, final String forwardedFor ) {
+        final HttpServletRequest req = request( "/api/work/hooks/wk/github", "/api/work/hooks", "/wk/github", remoteAddr );
+        when( req.getHeader( "X-Forwarded-For" ) ).thenReturn( forwardedFor );
+        when( req.getHeader( "CF-Connecting-IP" ) ).thenReturn( forwardedFor );
+        return req;
+    }
+
     @Test
     void windowSlidesAndClientRecovers() throws Exception {
         final RateLimitFilter f = new RateLimitFilter( config( 100, 1, 0, List.of(), ticker ) );

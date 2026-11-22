@@ -31,6 +31,7 @@ final class JdbcNotifyStores {
         return new WorkNotifyStores( watches, new JdbcWorkNotifications( jdbc, watches ),
             new JdbcWorkWebhooks( jdbc, catalog ), new JdbcWorkFind( jdbc ),
             new JdbcWorkFilters( jdbc ), new JdbcWorkAttachments( jdbc, catalog ),
-            new JdbcWorkCodeHostStore( jdbc, catalog ), new JdbcWorkFlow( jdbc ), new JdbcWorkIntake( jdbc ) );
+            new JdbcWorkCodeHostStore( jdbc, catalog ), new JdbcWorkFlow( jdbc ),
+            new JdbcWorkIntake( jdbc, catalog instanceof JdbcWorkStore s ? new JdbcItemCreate( jdbc, s ) : null ) );
     }
 }

@@ -55,6 +55,12 @@ public final class WorkWiring {
     /** Most live attachment bytes one item may hold; raised to the file limit when lower, default 52428800. */
     public static final String PROP_ATTACH_MAX_ITEM_BYTES = "wikantik.work.attachments.maxItemBytes";
 
+    /** Most bytes a person who only reports may upload to one of their items; capped at the item limit, default 10485760. */
+    public static final String PROP_ATTACH_REPORTER_ITEM_BYTES = "wikantik.work.attachments.reporterItemBytes";
+
+    /** Requests one reporter may file in a rolling 24 hours; 0 for no cap, default 20. */
+    public static final String PROP_INTAKE_MAX_PER_DAY = "wikantik.work.intake.maxPerDay";
+
     private static final int MULTIPART_CEILING = 104_857_600;
 
     private static final int DEFAULT_EXPIRY_MINUTES = 240;
@@ -117,6 +123,35 @@ public final class WorkWiring {
                 fileLimit, fileLimit );
             itemLimit = fileLimit;
         }
-        return new WorkSettings( claimExpiry( props ), fileLimit, itemLimit );
+        return new WorkSettings( claimExpiry( props ), fileLimit, itemLimit, reporterItemBytes( props, itemLimit ),
+            intakeMaxPerDay( props ) );
+    }
+
+    /** The reporter's share of an item's attachment room: at least 1, at most the item limit; else the default (also capped). */
+    static long reporterItemBytes( final Properties props, final long itemLimit ) {
+        final int v = TextUtil.getIntegerProperty( props, PROP_ATTACH_REPORTER_ITEM_BYTES,
+            (int) WorkSettings.DEFAULT_REPORTER_ITEM_ATTACHMENT_BYTES );
+        long out = v;
+        if ( v < 1 ) {
+            LOG.warn( "{}={} is below 1; using {} bytes", PROP_ATTACH_REPORTER_ITEM_BYTES, v,
+                WorkSettings.DEFAULT_REPORTER_ITEM_ATTACHMENT_BYTES );
+            out = WorkSettings.DEFAULT_REPORTER_ITEM_ATTACHMENT_BYTES;
+        }
+        if ( out > itemLimit ) {
+            LOG.warn( "{}={} is above {}={}; using {}", PROP_ATTACH_REPORTER_ITEM_BYTES, out,
+                PROP_ATTACH_MAX_ITEM_BYTES, itemLimit, itemLimit );
+            out = itemLimit;
+        }
+        return out;
+    }
+
+    /** The daily filing cap: 0 or more, else the default of 20 with a warning. */
+    static int intakeMaxPerDay( final Properties props ) {
+        final int v = TextUtil.getIntegerProperty( props, PROP_INTAKE_MAX_PER_DAY, WorkSettings.DEFAULT_INTAKE_MAX_PER_DAY );
+        if ( v < 0 ) {
+            LOG.warn( "{}={} is negative; using {}", PROP_INTAKE_MAX_PER_DAY, v, WorkSettings.DEFAULT_INTAKE_MAX_PER_DAY );
+            return WorkSettings.DEFAULT_INTAKE_MAX_PER_DAY;
+        }
+        return v;
     }
 }

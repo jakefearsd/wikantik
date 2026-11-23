@@ -65,6 +65,7 @@ class PageDirectoryWatcherTest {
     private TestEngine buildEngine() {
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
+        props.setProperty( CachingProvider.PROP_WATCHER_ENABLED, "true" );   // off in the default test configuration
         props.setProperty( CachingProvider.PROP_WATCHER_INTERVAL, "1" );
         // 500 ms guard instead of 5000 ms — tests that need to outlast the guard use Thread.sleep(700)
         props.setProperty( PageDirectoryWatcher.PROP_INTERNAL_SAVE_GUARD_MILLIS, "500" );
@@ -333,6 +334,17 @@ class PageDirectoryWatcherTest {
                 .atMost( 5, TimeUnit.SECONDS )
                 .pollInterval( 100, TimeUnit.MILLISECONDS )
                 .until( watcher::isAlive );
+    }
+
+    /**
+     * The default test configuration starts no watcher. Most tests never stop their engine, so a watcher per
+     * engine left hundreds of inotify instances open in each test JVM; a CI runner allows fewer per user and
+     * the suite failed there with "User limit of inotify instances reached".
+     */
+    @Test
+    void testWatcherIsOffInTheDefaultTestConfiguration() {
+        engine = TestEngine.build();
+        Assertions.assertNull( getWatcher(), "a test engine must not hold a directory watcher unless the test asks for one" );
     }
 
     /**

@@ -608,10 +608,20 @@ class QueryEmbedderTest {
         @Override public String modelName() { return "explode"; }
     }
 
-    /** Sleeps longer than the timeout window to drive TimeoutException. */
+    /** Answers after longer than the timeout window, to drive TimeoutException. */
     static final class SlowClient implements TextEmbeddingClient {
         private final long sleepMs;
         SlowClient( final long sleepMs ) { this.sleepMs = sleepMs; }
+
+        /**
+         * Answers late without holding a thread. The inherited version would park a worker of the JVM-wide
+         * common pool for the whole delay, long after the test that asked has finished; on a machine with few
+         * cores (pool size = cores - 1) three such tests used every worker and the tests that ran next timed out.
+         */
+        @Override public CompletableFuture< List< float[] > > embedAsync( final List< String > t, final EmbeddingKind k ) {
+            return new CompletableFuture< List< float[] > >()
+                    .completeOnTimeout( List.of( new float[]{ 0.0f } ), sleepMs, TimeUnit.MILLISECONDS );
+        }
         @Override public List< float[] > embed( final List< String > t, final EmbeddingKind k ) {
             try {
                 Thread.sleep( sleepMs );

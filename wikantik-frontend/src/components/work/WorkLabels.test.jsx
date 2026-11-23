@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import WorkLabels from './WorkLabels';
+import WorkLabels, { withPending } from './WorkLabels';
 
 const type = (text) => {
   const input = screen.getByLabelText('Add a label');
@@ -26,6 +26,37 @@ describe('WorkLabels', () => {
     const input = type('api');
     expect(onChange).toHaveBeenCalledWith(['api', 'ui']);
     expect(input.value).toBe('');
+  });
+  it('reports text typed but not added, clears it once added, and withPending merges it for a Save', () => {
+    const onPending = vi.fn();
+    render(<WorkLabels labels={['ui']} editable onChange={vi.fn()} onPending={onPending} />);
+    const input = screen.getByLabelText('Add a label');
+    fireEvent.change(input, { target: { value: 'Api, db' } });
+    expect(onPending).toHaveBeenLastCalledWith('Api, db');
+    expect(withPending(['ui'], 'Api, db')).toEqual(['api', 'db', 'ui']);
+    expect(withPending(['ui'], '')).toEqual(['ui']);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onPending).toHaveBeenLastCalledWith('');
+  });
+  it('forgets the typed text when the editor goes away, so a later Save cannot pick it up', () => {
+    const onPending = vi.fn();
+    const { unmount } = render(<WorkLabels labels={[]} editable onChange={vi.fn()} onPending={onPending} />);
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'stale' } });
+    unmount();
+    expect(onPending).toHaveBeenLastCalledWith('');
+  });
+  it('several labels typed with commas are all added', () => {
+    const onChange = vi.fn();
+    render(<WorkLabels labels={[]} editable onChange={onChange} />);
+    expect(type('testing, intake').value).toBe('');
+    expect(onChange).toHaveBeenCalledWith(['intake', 'testing']);
+  });
+  it('one bad label among several adds none and keeps the text', () => {
+    const onChange = vi.fn();
+    render(<WorkLabels labels={[]} editable onChange={onChange} />);
+    expect(type('ok, not ok').value).toBe('ok, not ok');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
   });
   it('upper case is lower-cased', () => {
     const onChange = vi.fn();

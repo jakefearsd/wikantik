@@ -120,7 +120,13 @@ describe('WorkLayout', () => {
     expect(await screen.findByText('log view')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Assignments and claims' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Board' })).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByRole('tab', { name: 'Settings' })).toBeInTheDocument();
+  });
+
+  it('shows the Settings tab to a lead only: the page turns everyone else back to the board', async () => {
+    getProject.mockResolvedValue({ id: 1, key: 'PLAT', name: 'Platform', role: 'member' });
+    renderAt('/work/PLAT');
+    await screen.findByTestId('probe');
+    expect(screen.queryByRole('tab', { name: 'Settings' })).toBeNull();
   });
 
   it('shows one neutral state on 404', async () => {

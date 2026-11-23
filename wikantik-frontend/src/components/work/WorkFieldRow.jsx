@@ -9,13 +9,14 @@ import Select from '../ui/Select';
  * `onOpen(orig)`, `onDraft(draft)` and `onClose()`, and is `locked` (Edit disabled, with a hint) while another
  * editor is open. `onSave(value)` resolves true when the server accepted the value, 'restore' when it refused
  * it and the previous value should show (the editor closes), and false to keep the draft. `value` is the
- * control's string; `parse` turns the draft into what is sent. `renderControl({ value, onChange, disabled })` supplies a
+ * control's string; `parse` turns the draft into what is sent. `beforeSave(draft)` may complete the draft first (a control
+ * holding text it has not yet put in the draft), before the unchanged check. `renderControl({ value, onChange, disabled })` supplies a
  * custom control (the assignee picker) in place of the built-in select or input.
  */
 export const LOCKED_HINT = 'Finish or cancel the open edit first';
 
 export default function WorkFieldRow({
-  label, value = '', display, type = 'text', options = [], canEdit = false, helper, error, parse, onSave, renderControl,
+  label, value = '', display, type = 'text', options = [], canEdit = false, helper, error, parse, beforeSave, onSave, renderControl,
   locked = false, onOpen, onDraft, onClose,
 }) {
   const [edit, setEdit] = useState(null); // { draft, orig } while editing
@@ -40,9 +41,10 @@ export default function WorkFieldRow({
 
   function save() {
     if (saving) return;
-    if (edit.draft === edit.orig) { close(); return; }
+    const draft = beforeSave ? beforeSave(edit.draft) : edit.draft;
+    if (draft === edit.orig) { close(); return; }
     setSaving(true);
-    onSave(parse ? parse(edit.draft) : edit.draft)
+    onSave(parse ? parse(draft) : draft)
       .then((ok) => { if (ok) close(); })
       .catch((e) => console.warn(`WorkFieldRow: saving ${label} failed`, e))
       .finally(() => setSaving(false));

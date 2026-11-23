@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { labelColor } from './labelColor';
 import { LABEL_PATTERN, MAX_LABELS } from './boardModel';
 
@@ -10,23 +10,39 @@ function chipStyle(name) {
   return { color, borderColor: color, background: `color-mix(in srgb, ${color} 12%, transparent)` };
 }
 
-/** Label chips; with `editable`, each can be removed and a new one typed (Enter adds, never submits a form). */
-export default function WorkLabels({ labels = [], suggestions = [], editable = false, max, onChange }) {
+const typedNames = (text) => [...new Set((text || '').split(',').map((n) => n.trim().toLowerCase()).filter(Boolean))];
+
+/** `labels` plus whatever is still typed in the box (see `onPending`): what a Save beside the editor must send. */
+export function withPending(labels, text) {
+  return [...new Set([...(labels || []), ...typedNames(text)])].sort();
+}
+
+/**
+ * Label chips; with `editable`, each can be removed and new ones typed (Enter adds, commas separate several; Enter
+ * never submits a form). Text typed but not yet added is reported through `onPending(text)` ('' once added or when the
+ * editor goes away), so the owner's Save can include it with `withPending` instead of losing it.
+ */
+export default function WorkLabels({ labels = [], suggestions = [], editable = false, max, onChange, onPending }) {
   const listId = useId();
-  const [text, setText] = useState('');
+  const [text, setTextState] = useState('');
+  const pendingRef = useRef(onPending);
+  useEffect(() => { pendingRef.current = onPending; }, [onPending]);
+  useEffect(() => () => pendingRef.current?.(''), []);
+  const setText = (value) => { setTextState(value); pendingRef.current?.(value); };
   const [error, setError] = useState('');
   const shown = max != null ? labels.slice(0, max) : labels;
   const hidden = labels.length - shown.length;
 
+  // Adds everything typed (commas separate several). All or nothing: one bad name keeps the text and says why.
   const add = () => {
-    const name = text.trim().toLowerCase();
-    if (!name) return;
-    if (!LABEL_PATTERN.test(name)) { setError(RULE); return; }
-    if (labels.includes(name)) { setError(''); return; }
-    if (labels.length >= MAX_LABELS) { setError(TOO_MANY); return; }
+    const names = typedNames(text);
+    if (names.length === 0) return;
+    if (names.some((n) => !LABEL_PATTERN.test(n))) { setError(RULE); return; }
+    const fresh = names.filter((n) => !labels.includes(n));
+    if (labels.length + fresh.length > MAX_LABELS) { setError(TOO_MANY); return; }
     setError('');
     setText('');
-    onChange?.([...labels, name].sort());
+    if (fresh.length > 0) onChange?.([...labels, ...fresh].sort());
   };
   const onKeyDown = (e) => {
     if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); add(); } // not a save of the field row around it

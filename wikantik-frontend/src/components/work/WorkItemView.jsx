@@ -13,7 +13,7 @@ import {
 import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { PRIORITY_OPTIONS, STATUSES, STATUS_LABELS, TYPE_OPTIONS, labelRows } from './boardModel';
 import { formatPoints, isHalfPoint, openSprints } from './sprintModel';
-import WorkLabels from './WorkLabels';
+import WorkLabels, { withPending } from './WorkLabels';
 import WorkAttachments from './WorkAttachments';
 import WorkBodyEditor from './WorkBodyEditor';
 import WorkComments from './WorkComments';
@@ -156,6 +156,7 @@ function ItemPage({ itemKey }) {
   // The reduced view of an item the viewer filed from outside the project (the full view is not theirs to read).
   const [reported, setReported] = useState(null);
   const reportedRef = useRef(false);
+  const typedLabel = useRef(''); // text in the label box not yet turned into a chip; Save includes it
   const [members, setMembers] = useState([]);
   const [queues, setQueues] = useState([]);
   const [conflict, setConflict] = useState(null);
@@ -520,8 +521,9 @@ function ItemPage({ itemKey }) {
             display={(item.labels || []).length > 0 ? <WorkLabels labels={item.labels} /> : 'None'}
             renderControl={({ value, onChange }) => (
               <WorkLabels editable labels={value ? value.split(',') : []} suggestions={labelNames}
-                onChange={(next) => onChange(next.join(','))} />)}
+                onChange={(next) => onChange(next.join(','))} onPending={(t) => { typedLabel.current = t; }} />)}
             parse={(v) => (v ? v.split(',') : [])} canEdit={canEdit}
+            beforeSave={(d) => withPending(d ? d.split(',') : [], typedLabel.current).join(',')}
             onSave={(v) => field('labels')(v).then((ok) => { if (ok === true) loadLabels(); return ok; })} />
           {!isEpic && (
             <WorkFieldRow label="Estimate" error={err('estimate')} {...editor('estimate')} type="number" value={formatPoints(item.estimate)}

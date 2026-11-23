@@ -1,11 +1,11 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import Modal from '../ui/Modal';
 import Select from '../ui/Select';
 import { listItems, createItem } from '../../api/work';
 import useAsyncAction from '../../hooks/useAsyncAction';
 import AssigneePicker from './AssigneePicker';
 import { PRIORITY_OPTIONS, TYPE_OPTIONS } from './boardModel';
-import WorkLabels from './WorkLabels';
+import WorkLabels, { withPending } from './WorkLabels';
 
 const LEVELS = [
   { value: 'task', label: 'Task', parentLevel: 'story' },
@@ -25,6 +25,7 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
   const [kind, setKind] = useState('software');
   const [type, setType] = useState('feature');
   const [labels, setLabels] = useState([]);
+  const typedLabel = useRef(''); // text in the label box not yet turned into a chip; submit includes it
   const [priority, setPriority] = useState('3');
   const [dueOn, setDueOn] = useState('');
   const [target, setTarget] = useState({});
@@ -65,7 +66,8 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
     if (productKey && level !== 'epic') draft.productKey = productKey;
     if (dueOn) draft.dueOn = dueOn;
     if (level !== 'epic') draft.type = type;
-    if (labels.length > 0) draft.labels = labels;
+    const allLabels = withPending(labels, typedLabel.current);
+    if (allLabels.length > 0) draft.labels = allLabels;
     if (target.queue) draft.queue = target.queue;
     else if (target.assignee) draft.assignee = target.assignee;
     create(draft);
@@ -133,7 +135,8 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
         </div>
       </div>
       <span className="work-form-field">Labels</span>
-      <WorkLabels labels={labels} suggestions={labelSuggestions} editable onChange={setLabels} />
+      <WorkLabels labels={labels} suggestions={labelSuggestions} editable onChange={setLabels}
+        onPending={(t) => { typedLabel.current = t; }} />
       {error && <div role="alert" className="work-form-error">{error}</div>}
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>

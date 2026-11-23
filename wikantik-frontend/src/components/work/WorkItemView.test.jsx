@@ -1239,6 +1239,32 @@ describe('WorkItemView', () => {
     expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { labels: ['api', 'ui'] } });
   });
 
+  it('saving labels includes a label typed but not yet added', async () => {
+    patchItem.mockResolvedValue(makeView({}, { labels: ['api', 'db', 'ui'], version: 5 }));
+    renderView(makeView({}, { labels: ['ui'] }));
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Labels' }));
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'api, db' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Labels' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledTimes(1));
+    expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { labels: ['api', 'db', 'ui'] } });
+  });
+
+  it('text typed in a cancelled labels edit is not saved by the next one', async () => {
+    patchItem.mockResolvedValue(makeView({}, { labels: ['ui', 'web'], version: 5 }));
+    renderView(makeView({}, { labels: ['ui'] }));
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Labels' }));
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'stale' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel editing Labels' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Labels' }));
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'web' } });
+    fireEvent.keyDown(screen.getByLabelText('Add a label'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Labels' }));
+    await waitFor(() => expect(patchItem).toHaveBeenCalledTimes(1));
+    expect(patchItem).toHaveBeenCalledWith('PLAT-7', { expectedVersion: 4, changes: { labels: ['ui', 'web'] } });
+  });
+
   it('saving type patches type', async () => {
     patchItem.mockResolvedValue(makeView({}, { type: 'bug', version: 5 }));
     renderView();

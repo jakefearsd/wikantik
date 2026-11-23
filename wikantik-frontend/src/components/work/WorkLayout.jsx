@@ -64,7 +64,9 @@ export default function WorkLayout() {
   }
   if (!current.project) return <Spinner label="Loading project…" />;
 
-  const tabs = TABS.filter((t) => t.id !== 'sprints' || sprints.length > 0 || current.project.role === 'lead');
+  const lead = current.project.role === 'lead';
+  // Settings is the lead's page (it turns anyone else back to the board), so only a lead gets its tab.
+  const tabs = TABS.filter((t) => (t.id !== 'sprints' || sprints.length > 0 || lead) && (t.id !== 'settings' || lead));
   const rest = pathname.split('/').filter(Boolean).slice(2)[0];
   const active = tabs.some((t) => t.id === rest) ? rest : 'board';
 

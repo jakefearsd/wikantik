@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Work: a label typed into the label box but not yet added (no Enter) is now saved with the item instead of being dropped, in the item view and the new-item form; several labels can be typed with commas.
+- Work: the project Settings tab is shown only to a lead (it turned everyone else back to the board).
+- Tests: integration tests for the intake daily cap (429 `intake_limit`) and the reporter upload share (413 `reporter_full`).
+
 ## [2.8.0] - 2026-11-22
 
 ### Added

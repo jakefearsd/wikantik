@@ -328,6 +328,17 @@ describe('WorkItemForm', () => {
     await waitFor(() => expect(listItems).toHaveBeenCalled());
   });
 
+  it('sends a label typed but not yet added', async () => {
+    createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } });
+    setup();
+    fillTitle();
+    addLabel('ui');
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'api' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(createItem).toHaveBeenCalled());
+    expect(createItem).toHaveBeenCalledWith(expect.objectContaining({ labels: ['api', 'ui'] }));
+  });
+
   it('an epic has no type control and sends no type', async () => {
     createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } });
     setup();

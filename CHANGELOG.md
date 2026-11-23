@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Sidebar and front page: the blog link goes to `https://blog.wikantik.com/wikantik/` (it went to the blog root).
+
 ## [2.8.1] - 2026-11-23
 
 - Work: a label typed into the label box but not yet added (no Enter) is now saved with the item instead of being dropped, in the item view and the new-item form; several labels can be typed with commas.

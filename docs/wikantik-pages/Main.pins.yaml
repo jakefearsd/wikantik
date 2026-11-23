@@ -162,9 +162,6 @@ sections:
 - label: Finance, Leadership & Other Subjects
   cluster: quantitative-finance
   pages:
-  - id: 01KQ0P44S4DQQ8WSQWKXG457QA
-    title: Low-Cost Index Fund Investing
-    summary: A 2026 guide to the cheapest index funds and building a simple portfolio
   - id: 01KRPQA9HZRK5M9QBES7CA1WSK
     title: Quantitative Finance
     summary: Machine learning in investment management, risk parity and factor investing

@@ -34,6 +34,7 @@ import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.ui.SemanticHeadRenderer;
+import com.wikantik.ui.SeoPolicy;
 import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.util.BaseUrlResolver;
@@ -105,6 +106,8 @@ public class SpaRoutingFilter implements Filter {
     private volatile Engine engine;
     private ServletContext servletContext;
     private volatile String shellFingerprint;
+    private volatile SeoPolicy seoPolicy;
+    private volatile Engine seoPolicyEngine;
 
     @Override
     public void init( final FilterConfig filterConfig ) throws ServletException {
@@ -184,6 +187,15 @@ public class SpaRoutingFilter implements Filter {
             }
         }
         return e;
+    }
+
+    /** The SEO policy (noindex clusters, gone pages) for {@code eng}, parsed once per engine. */
+    private SeoPolicy seoPolicy( final Engine eng ) {
+        if ( seoPolicyEngine != eng || seoPolicy == null ) {
+            seoPolicy = SeoPolicy.fromProperties( eng.getWikiProperties() );
+            seoPolicyEngine = eng;
+        }
+        return seoPolicy;
     }
 
     /** Test seam: inject a resolved engine so unit tests can exercise the
@@ -351,7 +363,9 @@ public class SpaRoutingFilter implements Filter {
             // before any body read, render, or injection work.
             final long lm = cacheablePage.getLastModified() == null
                     ? 0L : cacheablePage.getLastModified().getTime();
-            final String etag = etagFor( shellFingerprint( req.getServletContext() ),
+            final Engine policyEngine = resolveEngine();
+            final String policyFp = policyEngine == null ? "" : seoPolicy( policyEngine ).noindexFingerprint();
+            final String etag = etagFor( shellFingerprint( req.getServletContext() ) + policyFp,
                     Math.max( cacheablePage.getVersion(), 1 ), lm, viewAllowed, viewerDependent );
             resp.setHeader( "ETag", etag );
             resp.setHeader( "Cache-Control", "private, no-cache" );
@@ -599,7 +613,9 @@ public class SpaRoutingFilter implements Filter {
             // Missing page: still serve the SPA shell (React renders its NotFound
             // view) but with a 404 status, so crawlers drop the URL instead of
             // treating a 200 "page not found" screen as a Soft 404.
-            resp.setStatus( HttpServletResponse.SC_NOT_FOUND );
+            // A slug the operator listed in wikantik.seo.gonePages answers 410 Gone, so crawlers drop it faster.
+            resp.setStatus( seoPolicy( eng ).isGone( pageName )
+                    ? HttpServletResponse.SC_GONE : HttpServletResponse.SC_NOT_FOUND );
             return indexHtml;
         }
         final Page page;
@@ -627,8 +643,13 @@ public class SpaRoutingFilter implements Filter {
         final ParsedPage parsed = FrontmatterParser.parse( visibleText );
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
         final String appName = eng.getApplicationName();
+        final boolean noindex = seoPolicy( eng ).isNoindexMetadata( parsed.metadata() );
+        if ( noindex ) {
+            resp.setHeader( "X-Robots-Tag", "noindex" );
+        }
         final String head = SemanticHeadRenderer.renderHead( pageName, parsed, baseUrl, appName, modified,
-                                                              hubMembers( eng, viewer, pageName, parsed, req ), frontPageName );
+                                                              hubMembers( eng, viewer, pageName, parsed, req ), frontPageName,
+                                                              noindex );
         // Full flexmark render of the body, reused for BOTH the no-JS #root body
         // and the JSON data island (rendered once). Falls back to the lightweight
         // no-JS fragment if the full render is unavailable. Putting real rendered

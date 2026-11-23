@@ -78,7 +78,6 @@ summary: 'A technical knowledge wiki for human reading and AI agent retrieval: 1
 
 ### Finance, Leadership & Other Subjects
 
-- [Low-Cost Index Fund Investing](LowCostIndexFundInvesting) — A 2026 guide to the cheapest index funds and building a simple portfolio
 - [Quantitative Finance](QuantitativeFinanceResearchHub) — Machine learning in investment management, risk parity and factor investing
 - [Engineering Leadership](EngineeringLeadershipHub) — Technical strategy, team structure, engineering metrics and governance
 - [Programming Language Evolution](ProgrammingLanguageEvolution) — How languages changed from 1950 to 2026

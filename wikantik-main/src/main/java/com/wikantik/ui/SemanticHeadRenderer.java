@@ -131,12 +131,25 @@ public final class SemanticHeadRenderer {
                                       final String baseUrl, final String appName,
                                       final Date modified, final java.util.List< String > hubMembers,
                                       final String frontPageName ) {
+        return renderHead( pageName, parsed, baseUrl, appName, modified, hubMembers, frontPageName, false );
+    }
+
+    /**
+     * As the front-page overload, additionally marking the page noindex: the robots meta becomes
+     * {@code noindex, follow} (see {@link SeoPolicy}).
+     *
+     * @param noindex whether to emit {@code <meta name="robots" content="noindex, follow">}
+     */
+    public static String renderHead( final String pageName, final ParsedPage parsed,
+                                      final String baseUrl, final String appName,
+                                      final Date modified, final java.util.List< String > hubMembers,
+                                      final String frontPageName, final boolean noindex ) {
         final PageSeoModel model =
                 PageSeoModel.from( pageName, parsed, baseUrl, appName, modified, hubMembers, frontPageName );
 
         final StringBuilder sb = new StringBuilder( 2048 );
 
-        HeadTagWriter.write( sb, model );
+        HeadTagWriter.write( sb, model, noindex );
 
         // Main JSON-LD
         sb.append( "<script type=\"application/ld+json\">" ).append( NL );

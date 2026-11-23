@@ -296,6 +296,15 @@ class SemanticHeadRendererTest {
         assertEquals( "max-image-preview:large, max-snippet:-1, max-video-preview:-1", robots );
     }
 
+    @Test
+    void noindexPageEmitsNoindexFollowInsteadOfSnippetCaps() {
+        final String html = SemanticHeadRenderer.renderHead( "SemanticArticle",
+                com.wikantik.api.frontmatter.FrontmatterParser.parse( ARTICLE_BODY ), BASE_URL, APP_NAME, null,
+                java.util.List.of(), null, true );
+        assertEquals( "noindex, follow", extractMetaContent( html, "name", "robots" ) );
+        assertEquals( 1, html.split( "name=\"robots\"", -1 ).length - 1, "exactly one robots meta" );
+    }
+
     // ---- og:image / twitter:image ----
 
     @Test

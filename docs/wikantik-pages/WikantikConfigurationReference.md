@@ -4,7 +4,7 @@ cluster: wikantik-development
 canonical_id: 01M1S6EHZHT62VAB8JK3ZWM5BX
 type: article
 status: active
-date: '2026-11-22'
+date: '2026-11-23'
 summary: Every configuration key Wikantik reads, with its shipped default, type, override name and description. Generated from ini/wikantik.properties.
 tags:
 - configuration
@@ -445,12 +445,16 @@ Sitemap Configuration
 | `wikantik.feed.baseURL` | `url` | *(blank: the same request-derived 3-tier fallback as wikantik.baseURL.)* | `wikantik_feed_baseURL` | Explicit base URL for Atom feed (<link>, entry permalinks) generation, mirroring wikantik.sitemap.baseURL above for the same reverse-proxy case. |
 | `wikantik.seo.contentChange.minPercent` | `int` | `5` | `wikantik_seo_contentChange_minPercent` | A save moves a page's content-changed date (sitemap lastmod, JSON-LD dateModified) only when the body changes substantially: at least this percentage of … |
 | `wikantik.seo.contentChange.minWords` | `int` | `100` | `wikantik_seo_contentChange_minWords` | Cap on the changed-word count a substantial edit needs, so large pages are not held to a huge threshold. A new heading always counts regardless. |
+| `wikantik.seo.noindexClusters` | `list` | *(blank: no cluster is noindexed.)* | `wikantik_seo_noindexClusters` | Comma-separated cluster paths whose pages are kept out of search engines. … |
+| `wikantik.seo.gonePages` | `list` | *(blank: no slug is treated as gone; every missing page answers 404.)* | `wikantik_seo_gonePages` | Comma-separated page slugs that were removed on purpose. … |
 
 Full descriptions (truncated above to keep the table scannable):
 
 - **`wikantik.sitemap.baseURL`** — When Wikantik runs behind a reverse proxy that terminates SSL (like cloudflared, nginx, or a load balancer), the sitemap.xml URLs may incorrectly use http:// instead of https://. Use this property to explicitly set the base URL for sitemap generation, e.g. https://wiki.example.com or https://wiki.example.com/Wikantik.
 - **`wikantik.public.baseURL`** — Public base URL used to build absolute citation links in wikantik-tools (OpenAPI, /tools/*) responses. The /tools server does not read this file at all - it reads its own copy of this same key from wikantik-tools.properties (ToolsConfig.publicBaseUrl()); declared here too because every wikantik.* key belongs in this file's inventory regardless of which module reads it.
 - **`wikantik.seo.contentChange.minPercent`** — A save moves a page's content-changed date (sitemap lastmod, JSON-LD dateModified) only when the body changes substantially: at least this percentage of the previous word count must differ, capped by wikantik.seo.contentChange.minWords. Frontmatter-only edits never count. Small edits accumulate against the last baseline until together they cross the threshold.
+- **`wikantik.seo.noindexClusters`** — Comma-separated cluster paths whose pages are kept out of search engines. A page is noindexed when its PRIMARY cluster (the cluster: value, or the first entry of a list) is one of these clusters or a sub-cluster of one. Noindexed pages are left out of sitemap.xml (news entries included) and the Atom feed, carry <meta name="robots" content="noindex, follow"> in their server-rendered head, and answer /wiki/{slug} with an X-Robots-Tag: noindex header. This is NOT access control: the pages stay fully readable to people, the REST API and MCP. Restart required after changing it. `Example: wikantik.seo.noindexClusters = scratch, drafts/internal`
+- **`wikantik.seo.gonePages`** — Comma-separated page slugs that were removed on purpose. A /wiki/{slug} request for one of these that does not exist answers 410 Gone instead of 404, so search engines drop the URL faster. A page that exists under a listed slug still renders normally. Restart required after changing it. `Example: wikantik.seo.gonePages = OldPageName, RetiredGuide`
 
 ## Recent articles
 

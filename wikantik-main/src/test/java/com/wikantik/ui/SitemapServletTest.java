@@ -877,7 +877,7 @@ class SitemapServletTest {
         Assertions.assertTrue( sitemap.contains( "<news:news>" ),
             "Sitemap should contain news:news element for frontmatter page" );
         Assertions.assertTrue( sitemap.contains( "<news:title>NewsTestPage</news:title>" ),
-            "Sitemap should contain news:title for the test page" );
+            "Sitemap should contain news:title for the test page (no frontmatter title: falls back to the name)" );
         Assertions.assertTrue( sitemap.contains( "<news:keywords>ai, testing</news:keywords>" ),
             "Sitemap should contain news:keywords from frontmatter tags" );
         Assertions.assertTrue( sitemap.contains( "<news:language>en</news:language>" ),
@@ -887,6 +887,52 @@ class SitemapServletTest {
 
         // Cleanup
         m_engine.getManager( PageManager.class ).deletePage( "NewsTestPage" );
+    }
+
+    private String fetchSitemap( final SitemapServlet s ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        Mockito.when( request.getScheme() ).thenReturn( "http" );
+        Mockito.when( request.getServerName() ).thenReturn( "localhost" );
+        Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+        Mockito.when( request.getContextPath() ).thenReturn( "" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        Mockito.when( response.getWriter() ).thenReturn( new PrintWriter( stringWriter ) );
+        s.doGet( request, response );
+        return stringWriter.toString();
+    }
+
+    @Test
+    void testNewsTitleUsesFrontmatterTitleXmlEscaped() throws Exception {
+        m_engine.saveText( "NewsTitledPage",
+            "---\ntitle: Tom & Jerry <Live>\ntags: [ai]\n---\n# Body\nText." );
+        try {
+            final String sitemap = fetchSitemap( servlet );
+            Assertions.assertTrue( sitemap.contains( "<news:title>Tom &amp; Jerry &lt;Live&gt;</news:title>" ),
+                "news:title must be the escaped frontmatter title, not the CamelCase slug: " + sitemap );
+            Assertions.assertFalse( sitemap.contains( "<news:title>NewsTitledPage</news:title>" ) );
+        } finally {
+            m_engine.deleteQuietly( "NewsTitledPage" );
+        }
+    }
+
+    @Test
+    void testNoindexClusterPagesAreExcludedFromSitemap() throws Exception {
+        m_engine.saveText( "NoindexedPage", "---\ncluster: hidden/sub\ntags: [a]\n---\nBody." );
+        m_engine.saveText( "SiblingPrefixPage", "---\ncluster: hidden-other\ntags: [a]\n---\nBody." );
+        m_engine.saveText( "SecondaryOnlyPage", "---\ncluster: [visible, hidden]\n---\nBody." );
+        try {
+            final java.util.Properties props = new java.util.Properties();
+            props.setProperty( SeoPolicy.PROP_NOINDEX_CLUSTERS, "hidden" );
+            final SitemapServlet s = new SitemapServlet( m_engine, null, null, SeoPolicy.fromProperties( props ) );
+            final String sitemap = fetchSitemap( s );
+            Assertions.assertFalse( sitemap.contains( "/NoindexedPage<" ), "sub-cluster of listed cluster is excluded" );
+            Assertions.assertTrue( sitemap.contains( "/SiblingPrefixPage<" ), "string-prefix sibling stays" );
+            Assertions.assertTrue( sitemap.contains( "/SecondaryOnlyPage<" ), "only the primary cluster counts" );
+            Assertions.assertFalse( sitemap.contains( "<news:title>NoindexedPage" ) );
+        } finally {
+            m_engine.deleteQuietly( "NoindexedPage", "SiblingPrefixPage", "SecondaryOnlyPage" );
+        }
     }
 
     @Test

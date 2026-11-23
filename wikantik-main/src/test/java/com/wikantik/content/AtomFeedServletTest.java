@@ -103,6 +103,20 @@ class AtomFeedServletTest {
     }
 
     @Test
+    void testFeedOmitsNoindexClusterPages() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.seo.noindexClusters", "lifestyle" );
+        final ServletConfig config = Mockito.mock( ServletConfig.class );
+        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
+        servlet.init( config );
+        engine.getManager( RecentArticlesManager.class ).clearCache();
+
+        final String feed = doGetFeed( null, null );
+
+        assertFalse( feed.contains( "FeedTestOther" ), "noindexed cluster page must not be in the feed: " + feed );
+        assertTrue( feed.contains( "FeedTestArticle" ) );
+    }
+
+    @Test
     void testFeedGeneratesValidAtomXml() throws Exception {
         final String feed = doGetFeed( null, null );
 

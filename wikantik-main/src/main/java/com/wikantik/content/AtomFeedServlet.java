@@ -74,6 +74,7 @@ public class AtomFeedServlet extends HttpServlet {
 
     private transient Engine engine;
     private String configuredBaseUrl;
+    private transient com.wikantik.ui.SeoPolicy seoPolicy = com.wikantik.ui.SeoPolicy.none();
 
     @Override
     public void init( final ServletConfig config ) throws ServletException {
@@ -82,6 +83,7 @@ public class AtomFeedServlet extends HttpServlet {
 
         final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
         configuredBaseUrl = TextUtil.getStringProperty( props, PROP_FEED_BASE_URL, null );
+        seoPolicy = com.wikantik.ui.SeoPolicy.fromProperties( props );
 
         LOG.info( "AtomFeedServlet initialized" );
     }
@@ -126,6 +128,10 @@ public class AtomFeedServlet extends HttpServlet {
         int emitted = 0;
         for ( final ArticleSummary article : articles ) {
             final Map< String, Object > metadata = resolveMetadata( pageManager, article );
+
+            if ( seoPolicy.isNoindexMetadata( metadata ) ) {
+                continue;
+            }
 
             if ( cluster != null && !cluster.isEmpty() ) {
                 final Object articleCluster = metadata.get( "cluster" );

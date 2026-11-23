@@ -31,6 +31,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 import com.wikantik.TestEngine;
+import com.wikantik.ui.SeoPolicy;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystem;
@@ -861,6 +862,37 @@ class SpaRoutingFilterTest {
     }
 
     @Test
+    void etagIssuedBeforeANoindexPolicyChangeDoesNotRevalidate() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        final TestEngine engine = new TestEngine( props );
+        try {
+            engine.saveText( "SpaEtagNoindex", "---\ncluster: ml\n---\nBody for the noindex ETag test." );
+            filter.setEngineForTest( engine );
+            filter.doFilter( mockRequest( "/wiki/SpaEtagNoindex" ), response, chain );
+            final ArgumentCaptor< String > etagCaptor = ArgumentCaptor.forClass( String.class );
+            verify( response ).setHeader( eq( "ETag" ), etagCaptor.capture() );
+            final String staleEtag = etagCaptor.getValue();
+
+            // The operator lists the page's cluster as noindex and restarts: page and shell are unchanged.
+            engine.getWikiProperties().setProperty( SeoPolicy.PROP_NOINDEX_CLUSTERS, "ml" );
+            final SpaRoutingFilter restarted = new SpaRoutingFilter();
+            restarted.init( null );
+            restarted.setEngineForTest( engine );
+            final HttpServletResponse response2 = mock( HttpServletResponse.class );
+            when( response2.getOutputStream() ).thenReturn( new CapturingServletOutputStream() );
+            final HttpServletRequest request2 = mockRequest( "/wiki/SpaEtagNoindex" );
+            when( request2.getHeader( "If-None-Match" ) ).thenReturn( staleEtag );
+
+            restarted.doFilter( request2, response2, chain );
+
+            verify( response2, never() ).setStatus( HttpServletResponse.SC_NOT_MODIFIED );
+            verify( response2 ).setHeader( "X-Robots-Tag", "noindex" );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
     void pageWithNativeEmbedIsCachedOnlyForTheAnonymousAudience() throws Exception {
         assertViewerDependentPageNotCacheable( "SpaEmbedPage", "intro\n\n![[SpaEmbedRestricted]]\n" );
     }
@@ -1207,6 +1239,76 @@ class SpaRoutingFilterTest {
         // Body is still served (the SPA shell) so React can render its NotFound view.
         assertTrue( capturedOutput.asString().contains( "<div id=\"root\">" ),
                 "404 response should still carry the SPA shell body" );
+    }
+
+    @Test
+    void testGonePageReturns410WhenMissing() throws Exception {
+        final Engine eng = mock( Engine.class );
+        final Properties wp = new Properties();
+        wp.setProperty( "wikantik.seo.gonePages", "RetiredPage, Other" );
+        when( eng.getWikiProperties() ).thenReturn( wp );
+        final PageManager pm = mock( PageManager.class );
+        when( pm.wikiPageExists( "RetiredPage" ) ).thenReturn( false );
+        when( pm.wikiPageExists( "ZZZNoSuchPage" ) ).thenReturn( false );
+        final PageSubsystem.Services services = mock( PageSubsystem.Services.class );
+        when( services.pages() ).thenReturn( pm );
+        filter.setEngineForTest( eng );
+
+        try ( MockedStatic< PageSubsystemBridge > bridge = mockStatic( PageSubsystemBridge.class ) ) {
+            bridge.when( () -> PageSubsystemBridge.fromLegacyEngine( eng ) ).thenReturn( services );
+            filter.doFilter( mockRequest( "/wiki/RetiredPage" ), response, chain );
+            verify( response ).setStatus( HttpServletResponse.SC_GONE );
+            verify( response, never() ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+
+            final HttpServletResponse other = mock( HttpServletResponse.class );
+            when( other.getOutputStream() ).thenReturn( new CapturingServletOutputStream() );
+            filter.doFilter( mockRequest( "/wiki/ZZZNoSuchPage" ), other, chain );
+            verify( other ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+        }
+    }
+
+    @Test
+    void testExistingPageWithGoneSlugStillRenders() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        final TestEngine engine = new TestEngine( props );
+        try {
+            engine.getWikiProperties().setProperty( "wikantik.seo.gonePages", "SpaGoneButPresent" );
+            engine.saveText( "SpaGoneButPresent", "Still here." );
+            filter.setEngineForTest( engine );
+            filter.doFilter( mockRequest( "/wiki/SpaGoneButPresent" ), response, chain );
+            verify( response, never() ).setStatus( HttpServletResponse.SC_GONE );
+            verify( response, never() ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+            assertTrue( capturedOutput.asString().contains( "Still here." ) );
+        } finally {
+            engine.stop();
+        }
+    }
+
+    @Test
+    void testNoindexClusterPageGetsRobotsMetaAndHeader() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        final TestEngine engine = new TestEngine( props );
+        try {
+            engine.getWikiProperties().setProperty( "wikantik.seo.noindexClusters", "hidden" );
+            engine.saveText( "SpaNoindexPage", "---\ncluster: hidden/sub\n---\nBody text." );
+            engine.saveText( "SpaIndexedPage", "---\ncluster: visible\n---\nBody text." );
+            filter.setEngineForTest( engine );
+
+            filter.doFilter( mockRequest( "/wiki/SpaNoindexPage" ), response, chain );
+            verify( response ).setHeader( "X-Robots-Tag", "noindex" );
+            final String html = capturedOutput.asString();
+            assertTrue( html.contains( "<meta name=\"robots\" content=\"noindex, follow\" />" ), html );
+            assertFalse( html.contains( "max-image-preview" ) );
+
+            final HttpServletResponse r2 = mock( HttpServletResponse.class );
+            final CapturingServletOutputStream out2 = new CapturingServletOutputStream();
+            when( r2.getOutputStream() ).thenReturn( out2 );
+            filter.doFilter( mockRequest( "/wiki/SpaIndexedPage" ), r2, chain );
+            verify( r2, never() ).setHeader( eq( "X-Robots-Tag" ), anyString() );
+            assertTrue( out2.asString().contains( "max-image-preview" ) );
+        } finally {
+            engine.stop();
+        }
     }
 
     @Test

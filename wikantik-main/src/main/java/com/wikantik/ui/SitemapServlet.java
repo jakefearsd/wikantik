@@ -124,6 +124,7 @@ public class SitemapServlet extends HttpServlet {
     private transient Engine engine;
     private transient SystemPageRegistry systemPageRegistry;
     private String configuredBaseUrl;
+    private transient SeoPolicy seoPolicy = SeoPolicy.none();
 
     /** Default constructor used by the servlet container. */
     public SitemapServlet() {
@@ -139,6 +140,13 @@ public class SitemapServlet extends HttpServlet {
         this.configuredBaseUrl = configuredBaseUrl;
     }
 
+    /** Package-private constructor for tests that need an explicit {@link SeoPolicy}. */
+    SitemapServlet( final Engine engine, final SystemPageRegistry systemPageRegistry, final String configuredBaseUrl,
+                    final SeoPolicy seoPolicy ) {
+        this( engine, systemPageRegistry, configuredBaseUrl );
+        this.seoPolicy = seoPolicy;
+    }
+
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
@@ -148,6 +156,7 @@ public class SitemapServlet extends HttpServlet {
         // Check for configured sitemap base URL
         final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
         configuredBaseUrl = TextUtil.getStringProperty( props, PROP_SITEMAP_BASE_URL, null );
+        seoPolicy = SeoPolicy.fromProperties( props );
 
         if ( configuredBaseUrl != null && !configuredBaseUrl.isBlank() ) {
             LOG.info( "SitemapServlet initialized with configured baseURL: {}", configuredBaseUrl );
@@ -194,6 +203,7 @@ public class SitemapServlet extends HttpServlet {
                     return false;
                 }
             } )
+            .filter( page -> !seoPolicy.isNoindexed( pageManager, page ) )
             .toList();
 
         LOG.info( "Filtered {} public pages from {} total pages", publicPages.size(), allPages.size() );
@@ -389,7 +399,9 @@ public class SitemapServlet extends HttpServlet {
         out.println( "        <news:language>en</news:language>" );
         out.println( "      </news:publication>" );
         out.println( "      <news:publication_date>" + pubDate + "</news:publication_date>" );
-        out.println( "      <news:title>" + escapeXml( page.getName() ) + "</news:title>" );
+        final Object fmTitle = parsed.metadata().get( "title" );
+        final String newsTitle = fmTitle != null && !fmTitle.toString().isBlank() ? fmTitle.toString().trim() : page.getName();
+        out.println( "      <news:title>" + escapeXml( newsTitle ) + "</news:title>" );
         if ( keywords != null ) {
             out.println( "      <news:keywords>" + escapeXml( keywords ) + "</news:keywords>" );
         }

@@ -40,6 +40,14 @@ final class HeadTagWriter {
      * @param model the derived page SEO model
      */
     static void write( final StringBuilder sb, final PageSeoModel model ) {
+        write( sb, model, false );
+    }
+
+    /**
+     * As {@link #write(StringBuilder, PageSeoModel)}; {@code noindex} swaps the robots meta for
+     * {@code noindex, follow}.
+     */
+    static void write( final StringBuilder sb, final PageSeoModel model, final boolean noindex ) {
         sb.append( "<title>" ).append( SemanticHeadRenderer.escAttr( model.documentTitle() ) ).append( "</title>" ).append( NL );
 
         sb.append( "<link rel=\"canonical\" href=\"" ).append( SemanticHeadRenderer.escAttr( model.canonical() ) ).append( "\" />" ).append( NL );
@@ -53,7 +61,11 @@ final class HeadTagWriter {
         }
 
         // meta robots — lift Google snippet/preview caps (does NOT noindex)
-        sb.append( "<meta name=\"robots\" content=\"max-image-preview:large, max-snippet:-1, max-video-preview:-1\" />" ).append( NL );
+        if ( noindex ) {
+            sb.append( "<meta name=\"robots\" content=\"noindex, follow\" />" ).append( NL );
+        } else {
+            sb.append( "<meta name=\"robots\" content=\"max-image-preview:large, max-snippet:-1, max-video-preview:-1\" />" ).append( NL );
+        }
 
         writeOpenGraph( sb, model );
         writeTwitterCard( sb, model );

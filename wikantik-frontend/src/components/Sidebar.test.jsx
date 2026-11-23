@@ -235,7 +235,7 @@ describe('Sidebar', () => {
   describe('navigation links', () => {
     it('links to the blog and no longer to the unmaintained News page', () => {
       renderSidebar('/wiki/Main');
-      expect(screen.getByRole('link', { name: 'Blog' })).toHaveAttribute('href', 'https://blog.wikantik.com/');
+      expect(screen.getByRole('link', { name: 'Blog' })).toHaveAttribute('href', 'https://blog.wikantik.com/wikantik/');
       expect(screen.queryByRole('link', { name: 'News' })).not.toBeInTheDocument();
     });
 

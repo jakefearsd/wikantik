@@ -25,7 +25,7 @@ intro: |-
 
   - **Read.** Pick a subject from the list below, search from the sidebar, or open the Page Graph there to see how pages link to each other.
   - **Connect an agent.** The wiki serves its content over MCP: an agent can search it, pull cited passages for a question, and start a session with its project's context already assembled. The [Agent Cookbook](AgentCookbook) has the recipes, and [Hybrid Retrieval](HybridRetrieval) explains how search works.
-  - **See how it is built.** [About](About) gives the reasoning behind the platform, the [Wikantik Platform Hub](WikantikPlatformHub) covers its internals, and the [Simple Agility Stack Hub](SimpleAgilityStackHub) shows how it is used to coordinate work across several software projects. News and longer pieces are on the [Wikantik blog](https://blog.wikantik.com/).
+  - **See how it is built.** [About](About) gives the reasoning behind the platform, the [Wikantik Platform Hub](WikantikPlatformHub) covers its internals, and the [Simple Agility Stack Hub](SimpleAgilityStackHub) shows how it is used to coordinate work across several software projects. News and longer pieces are on the [Wikantik blog](https://blog.wikantik.com/wikantik/).
 sections:
 - label: Wikantik Platform & Agent Workflows
   cluster: wikantik-development

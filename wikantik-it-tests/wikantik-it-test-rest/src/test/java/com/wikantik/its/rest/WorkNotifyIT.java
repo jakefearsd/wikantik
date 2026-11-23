@@ -18,6 +18,7 @@
  */
 package com.wikantik.its.rest;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wikantik.its.rest.WorkIt.Caller;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,6 +30,7 @@ import java.util.Map;
 import static com.wikantik.its.rest.WorkIt.json;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -84,6 +86,75 @@ public class WorkNotifyIT {
         assertEquals( 0, after.get( "unread" ).getAsInt() );
         assertEquals( 0, json( otto.get( "/api/work/inbox/unread" ) ).getAsJsonObject().get( "unread" ).getAsInt() );
         assertEquals( 404, otto.get( "/api/work/projects/NOTE/webhooks" ).statusCode() );
+    }
+
+    @Test
+    void aLeadHearsOfAReportersRequestAndOfTheirCommentsUntilSomeoneHoldsIt() throws Exception {
+        final Caller rita = WorkIt.account( admin, "noterita", "Note Rita Reporter" );
+        assertEquals( 204, admin.send( "PUT", "/api/work/projects/NOTE/members", Map.of( "principal", "noterita",
+            "principalKind", "user", "role", "reporter" ) ).statusCode() );
+        // Her own member: the other test of this class takes otto out of the project, and tests run in no fixed order.
+        final Caller mia = WorkIt.account( admin, "notemia", "Note Mia Member" );
+        assertEquals( 204, admin.send( "PUT", "/api/work/projects/NOTE/members", Map.of( "principal", "notemia",
+            "principalKind", "user", "role", "member" ) ).statusCode() );
+        final HttpResponse< String > filed = rita.send( "POST", "/api/work/intake/items",
+            Map.of( "projectKey", "NOTE", "title", "Please look at this", "body", "it broke" ) );
+        assertEquals( 201, filed.statusCode(), filed.body() );
+        final String key = json( filed ).getAsJsonObject().get( "key" ).getAsString();
+
+        WorkIt.await( "the lead's inbox", lena, "/api/work/inbox", b -> b.contains( key ) );
+        final JsonObject request = noticeFor( lena, key, "created" );
+        assertEquals( "requested", request.get( "reason" ).getAsString() );
+        assertEquals( "Note Rita Reporter", request.getAsJsonObject( "event" ).get( "actorName" ).getAsString() );
+        assertNull( noticeFor( mia, key, "created" ), "a member who is not a lead is not told" );
+        assertNull( noticeFor( rita, key, "created" ), "the reporter is not told of their own filing" );
+
+        assertEquals( 201, rita.send( "POST", "/api/work/intake/items/" + key + "/comments",
+            Map.of( "body", "any news?" ) ).statusCode() );
+        WorkIt.await( "the lead's inbox", lena, "/api/work/inbox", b -> b.contains( "\"commented\"" ) );
+        assertEquals( "requested", noticeFor( lena, key, "commented" ).get( "reason" ).getAsString() );
+
+        // Once the lead assigns it (by editing the field), the member is named the lead as the one who assigned it,
+        // and the reporter's next comment goes to the assignee, not to the lead.
+        final JsonObject item = json( lena.get( "/api/work/items/" + key ) ).getAsJsonObject().getAsJsonObject( "item" );
+        final HttpResponse< String > assigned = lena.send( "PATCH", "/api/work/items/" + key, Map.of(
+            "expectedVersion", item.get( "version" ).getAsLong(), "changes", Map.of( "assignee", "Note Mia Member" ) ) );
+        assertEquals( 200, assigned.statusCode(), assigned.body() );
+        JsonObject waiting = null;
+        for ( final JsonElement w : json( mia.get( "/api/work/me" ) ).getAsJsonObject().getAsJsonArray( "waitingOn" ) ) {
+            if ( key.equals( w.getAsJsonObject().get( "key" ).getAsString() ) ) {
+                waiting = w.getAsJsonObject().getAsJsonObject( "waiting" );
+            }
+        }
+        assertNotNull( waiting, "the item waits on the member" );
+        assertEquals( "assigned", waiting.get( "reason" ).getAsString() );
+        assertEquals( "Note Lena Lead", waiting.get( "byName" ).getAsString(), "an assignment made by editing the field names who made it" );
+
+        WorkIt.await( "the member's inbox", mia, "/api/work/inbox", b -> b.contains( key ) );
+        assertEquals( 201, rita.send( "POST", "/api/work/intake/items/" + key + "/comments",
+            Map.of( "body", "thank you" ) ).statusCode() );
+        WorkIt.await( "the member's inbox", mia, "/api/work/inbox", b -> b.contains( "\"commented\"" ) );
+        assertEquals( "watching", noticeFor( mia, key, "commented" ).get( "reason" ).getAsString() );
+        int toLead = 0;
+        for ( final JsonElement n : json( lena.get( "/api/work/inbox" ) ).getAsJsonObject().getAsJsonArray( "notices" ) ) {
+            final JsonObject o = n.getAsJsonObject();
+            if ( key.equals( o.get( "itemKey" ).getAsString() ) && "requested".equals( o.get( "reason" ).getAsString() ) ) {
+                toLead++;
+            }
+        }
+        assertEquals( 2, toLead, "the filing and the first comment, not the comment after the assignment" );
+    }
+
+    /** The newest notice in the caller's inbox for the item and event type, or null. */
+    private static JsonObject noticeFor( final Caller who, final String key, final String type ) throws Exception {
+        for ( final JsonElement n : json( who.get( "/api/work/inbox" ) ).getAsJsonObject().getAsJsonArray( "notices" ) ) {
+            final JsonObject o = n.getAsJsonObject();
+            if ( !o.get( "itemKey" ).isJsonNull() && key.equals( o.get( "itemKey" ).getAsString() )
+                && type.equals( o.getAsJsonObject( "event" ).get( "type" ).getAsString() ) ) {
+                return o;
+            }
+        }
+        return null;
     }
 
     @Test

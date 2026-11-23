@@ -13,6 +13,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Work: sprint dates read the same in the sprint list and the sprint report ("Nov 23 – Dec 6 2026"); the burndown chart is larger, names its first and last day and has a legend.
 - Work: a webhook's Slack text and an email line for a new item say "created this" instead of "updated this".
 - Tests: integration tests for the intake daily cap (429 `intake_limit`) and the reporter upload share (413 `reporter_full`).
+- Tests: a browser integration test walks a request from the reporter through the lead (labels, assignee, status) to the member and back (`WorkJourneyIT`); an API integration test covers the request notice to leads and the name on a field-edit assignment.
 
 ## [2.8.0] - 2026-11-22
 

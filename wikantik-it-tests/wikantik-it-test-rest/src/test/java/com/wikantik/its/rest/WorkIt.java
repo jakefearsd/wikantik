@@ -45,7 +45,7 @@ final class WorkIt {
 
     static final Gson GSON = new Gson();
     private static final String INITIAL_PASSWORD = "WorkIt-Init1!";
-    private static final String PASSWORD = "WorkIt-Final2!";
+    static final String PASSWORD = "WorkIt-Final2!";
 
     private WorkIt() {
     }

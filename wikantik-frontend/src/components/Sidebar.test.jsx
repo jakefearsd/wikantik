@@ -5,6 +5,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 vi.mock('../api/client', () => ({
   api: {
     listPages: vi.fn(() => Promise.resolve({ pages: [] })),
+    listClusters: vi.fn(() => Promise.resolve({ clusters: [] })),
+    listClusterPages: vi.fn(() => Promise.resolve({ pages: [] })),
     getRecentChanges: vi.fn(() => Promise.resolve({ changes: [] })),
   },
 }));
@@ -46,6 +48,8 @@ beforeEach(() => {
   localStorage.clear(); // CollapsibleSection persists open/closed state here.
   useAuth.mockReturnValue({ user: { authenticated: false, roles: [] } });
   api.listPages.mockResolvedValue({ pages: [] });
+  api.listClusters.mockResolvedValue({ clusters: [] });
+  api.listClusterPages.mockResolvedValue({ pages: [] });
   api.getRecentChanges.mockResolvedValue({ changes: [] });
   // Default: light mode
   useDarkMode.mockReturnValue([false, mockToggleDark]);
@@ -156,90 +160,92 @@ describe('Sidebar', () => {
     });
   });
 
-  describe('collapsible cluster tree (#5)', () => {
-    const clusteredPages = [
-      { name: 'AclModel', cluster: 'Security' },
-      { name: 'PolicyGrants', cluster: 'Security' },
-      { name: 'DeployGuide', cluster: 'Operations' },
+  describe('cluster tree', () => {
+    const clusters = [
+      { name: 'security', article_count: 3, hub_page: { slug: 'SecurityHub', title: 'Security Hub' } },
+      { name: 'security/containers', article_count: 1, hub_page: { slug: 'ContainersHub', title: 'Containers Hub' } },
+      { name: 'operations', article_count: 1, hub_page: null },
     ];
+    const members = {
+      security: [
+        { slug: 'SecurityHub', title: 'Security Hub', cluster: 'security' },
+        { slug: 'PolicyGrants', title: 'Policy Grants', cluster: 'security' },
+        { slug: 'AclModel', title: 'ACL Model', cluster: 'security' },
+        { slug: 'Seccomp', title: 'Seccomp Profiles', cluster: 'security/containers' },
+      ],
+      operations: [{ slug: 'DeployGuide', title: 'Deploy Guide', cluster: 'operations' }],
+    };
+    beforeEach(() => {
+      api.listClusters.mockResolvedValue({ clusters });
+      api.listClusterPages.mockImplementation((c) => Promise.resolve({ pages: members[c] || [] }));
+    });
+    const expandClusters = () => fireEvent.click(screen.getByRole('button', { name: /Browse Clusters/ }));
 
-    // Clusters now live under one top-level "Clusters" section that is collapsed
-    // by default (so the sidebar stays compact); expand it to reach the
-    // per-cluster sections.
-    const expandClusters = async () =>
-      fireEvent.click( await screen.findByRole( 'button', { name: /Clusters/ } ) );
-
-    it('keeps cluster sections behind a single collapsed "Clusters" header by default', async () => {
-      api.listPages.mockResolvedValue({ pages: clusteredPages });
+    it('asks the server for nothing until Browse Clusters is opened', async () => {
       renderSidebar('/wiki/Main');
-      // The top-level wrapper is present, but the individual cluster headers are
-      // not rendered until it is expanded.
-      expect(await screen.findByRole('button', { name: /Clusters/ })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Security/ })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Operations/ })).not.toBeInTheDocument();
+      await screen.findByRole('button', { name: /Browse Clusters/ });
+      expect(api.listClusters).not.toHaveBeenCalled();
+      expect(api.listClusterPages).not.toHaveBeenCalled();
+      // The old sidebar pulled the first 500 pages on every view and built a partial tree from them.
+      expect(api.listPages).not.toHaveBeenCalled();
     });
 
-    it('reveals each cluster as a collapsible header button once expanded', async () => {
-      api.listPages.mockResolvedValue({ pages: clusteredPages });
+    it('lists every declared cluster with the server\'s count, and loads a cluster\'s pages when it is opened', async () => {
       renderSidebar('/wiki/Main');
-      await expandClusters();
-      expect(screen.getByRole('button', { name: /Security/ })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Operations/ })).toBeInTheDocument();
+      expandClusters();
+      const ops = await screen.findByRole('button', { name: /operations/ });
+      expect(screen.getByRole('button', { name: /^security\s*3/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /security\/containers/ })).toBeInTheDocument();
+      expect(api.listClusterPages).not.toHaveBeenCalled();
+      fireEvent.click(ops);
+      expect(await screen.findByRole('link', { name: 'Deploy Guide' })).toHaveAttribute('href', '/wiki/DeployGuide');
+      expect(api.listClusterPages).toHaveBeenCalledWith('operations');
     });
 
-    it('auto-expands the cluster containing the active page once Clusters is open', async () => {
-      api.listPages.mockResolvedValue({ pages: clusteredPages });
+    it('shows titles, puts the hub first, and leaves a sub-cluster\'s pages to its own section', async () => {
+      renderSidebar('/wiki/Main');
+      expandClusters();
+      fireEvent.click(await screen.findByRole('button', { name: /^security\s*3/ }));
+      await screen.findByRole('link', { name: 'ACL Model' });
+      const body = screen.getByRole('button', { name: /^security\s*3/ }).parentElement;
+      const names = [...body.querySelectorAll('a')].map((a) => a.textContent);
+      expect(names).toEqual(['Security Hub', 'ACL Model', 'Policy Grants']);
+    });
+
+    it('opens the cluster that holds the page being read', async () => {
+      api.listPages.mockResolvedValue({ pages: [{ name: 'AclModel', title: 'ACL Model', cluster: 'security' }] });
       renderSidebar('/wiki/AclModel');
-      await expandClusters();
-      // Security contains the active page → open, so its links are rendered.
-      expect(screen.getByRole('link', { name: 'AclModel' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'PolicyGrants' })).toBeInTheDocument();
+      expandClusters();
+      const link = await screen.findByRole('link', { name: 'ACL Model' });
+      expect(link).toHaveAttribute('aria-current', 'page');
+      expect(screen.queryByRole('link', { name: 'Deploy Guide' })).not.toBeInTheDocument();
     });
 
-    it('collapses clusters that do not contain the active page', async () => {
-      api.listPages.mockResolvedValue({ pages: clusteredPages });
-      renderSidebar('/wiki/AclModel');
-      await expandClusters();
-      // Operations is not the active cluster → collapsed, link not rendered.
-      expect(screen.queryByRole('link', { name: 'DeployGuide' })).not.toBeInTheDocument();
-      // Expanding it reveals the page.
-      fireEvent.click(screen.getByRole('button', { name: /Operations/ }));
-      expect(screen.getByRole('link', { name: 'DeployGuide' })).toBeInTheDocument();
-    });
-
-    it('places clusterless pages under Uncategorized, excluding system nav pages', async () => {
-      api.listPages.mockResolvedValue({
-        pages: [
-          { name: 'Main' },        // system nav page → must not appear under Uncategorized
-          { name: 'LoosePage' },   // genuinely uncategorized
-        ],
-      });
-      renderSidebar('/wiki/LoosePage');
-      await expandClusters();
-      expect(screen.getByRole('button', { name: /Uncategorized/ })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'LoosePage' })).toBeInTheDocument();
-      // 'Main' is already a primary-nav link; it should not be duplicated here.
-      expect(screen.queryByRole('link', { name: 'Main' })).not.toBeInTheDocument();
-    });
-
-    it('does not render an Uncategorized section when every page is clustered', async () => {
-      api.listPages.mockResolvedValue({ pages: clusteredPages });
-      renderSidebar('/wiki/AclModel');
-      await expandClusters();
-      expect(screen.getByRole('button', { name: /Security/ })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Uncategorized/ })).not.toBeInTheDocument();
+    it('says so when a cluster\'s pages cannot be loaded', async () => {
+      api.listClusterPages.mockRejectedValue(new Error('boom'));
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      renderSidebar('/wiki/Main');
+      expandClusters();
+      fireEvent.click(await screen.findByRole('button', { name: /operations/ }));
+      expect(await screen.findByText(/couldn't load this cluster/i)).toBeInTheDocument();
+      warnSpy.mockRestore();
     });
   });
 
-  describe('derived-page badge (#18)', () => {
-    it('renders exactly one derived badge for the page flagged derived:true', async () => {
-      api.listPages.mockResolvedValue({ pages: [{ name: 'A', derived: true }, { name: 'B' }] });
-      renderSidebar('/wiki/A');
-      // Both pages are clusterless — expand the top-level "Clusters" wrapper
-      // (which hosts Uncategorized) to reach their links.
-      fireEvent.click(await screen.findByRole('button', { name: /Clusters/ }));
-      const badges = screen.getAllByTitle('Synced from an external source');
-      expect(badges).toHaveLength(1);
+  describe('navigation links', () => {
+    it('links to the blog and no longer to the unmaintained News page', () => {
+      renderSidebar('/wiki/Main');
+      expect(screen.getByRole('link', { name: 'Blog' })).toHaveAttribute('href', 'https://blog.wikantik.com/');
+      expect(screen.queryByRole('link', { name: 'News' })).not.toBeInTheDocument();
+    });
+
+    it('shows Recently Modified pages by title', async () => {
+      api.getRecentChanges.mockResolvedValue({ changes: [{ name: 'LlmsSinceTwentyTwenty' }, { name: 'Untitled' }] });
+      api.listPages.mockResolvedValue({ pages: [{ name: 'LlmsSinceTwentyTwenty', title: 'Large Language Models Since 2020' }] });
+      renderSidebar('/wiki/Main');
+      expect(await screen.findByRole('link', { name: 'Large Language Models Since 2020' })).toHaveAttribute('href', '/wiki/LlmsSinceTwentyTwenty');
+      expect(screen.getByRole('link', { name: 'Untitled' })).toBeInTheDocument();
+      expect(api.listPages).toHaveBeenCalledWith({ names: ['LlmsSinceTwentyTwenty', 'Untitled'], limit: 2 });
     });
   });
 
@@ -301,12 +307,13 @@ describe('Sidebar', () => {
   });
 
   describe('fetch-failure hints', () => {
-    it('shows an unobtrusive hint (not a banner) when the page list fails to load', async () => {
-      api.listPages.mockRejectedValue(new Error('boom'));
+    it('shows an unobtrusive hint (not a banner) when the clusters fail to load', async () => {
+      api.listClusters.mockRejectedValue(new Error('boom'));
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       renderSidebar('/wiki/Main');
-      await screen.findByText(/couldn't load the page list/i);
-      expect(warnSpy).toHaveBeenCalledWith('Sidebar: failed to load page list', expect.any(Error));
+      fireEvent.click(screen.getByRole('button', { name: /Browse Clusters/ }));
+      await screen.findByText(/couldn't load the clusters/i);
+      expect(warnSpy).toHaveBeenCalledWith('Sidebar: failed to load clusters', expect.any(Error));
       warnSpy.mockRestore();
     });
 

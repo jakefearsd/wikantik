@@ -190,6 +190,9 @@ export const api = {
 
   getPageTemplates: () => request('/api/page-templates'),
   listClusters: () => request('/api/structure/clusters'),
+  // 1000 is the server's page ceiling; no cluster comes near it.
+  listClusterPages: (cluster, { signal } = {}) =>
+    request(`/api/structure/pages?cluster=${encodeURIComponent(cluster)}&limit=1000`, { signal }),
 
   // The tag view (/search?tag=x): pages carrying a tag, frontmatter or inline, compared by normalised form.
   // Paged: `total` counts every page the caller may view; `next_cursor` is present while more remain.

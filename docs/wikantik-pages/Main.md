@@ -12,78 +12,77 @@ summary: 'A technical knowledge wiki for human reading and AI agent retrieval: 1
 
 # Wikantik: Agent-Grade Technical Knowledge Wiki
 
-**Wikantik is an agent-grade technical knowledge platform — engineered simultaneously for human deep reading and native AI agent retrieval, graph traversal, and software engineering coordination.** Every page is stored as structured Markdown with validated YAML frontmatter, rename-safe ULIDs (`canonical_id`), and explicit cluster declarations.
+**Wikantik is a technical wiki written to be read by people and queried by AI agents.** It holds over a thousand articles on software, AI, mathematics and engineering. Articles are grouped into topic clusters, and each cluster starts from a hub page that maps it.
 
-### Core Platform Capabilities
+### Three ways in
 
-- **Page Graph & Linked-Data Ontology:** Browse **60+ topic clusters and sub-clusters** anchored by curated Hub pages ([Cluster Declaration Architecture](ClusterDeclarationDesign)). Explore structural relationships through the [Page Graph](PageGraphVsKnowledgeGraph) of bidirectional wikilinks and cluster membership, section-pinned citations between pages, and a public read-only RDF/SKOS ontology of pages and concepts you can query with SPARQL. Similar pages come from page embeddings.
-- **Hybrid Contextual Retrieval (`/knowledge-mcp` — 16 read-only tools):** Queries execute across BM25 lexical and dense vector indices fused via Reciprocal Rank Fusion ([Hybrid Retrieval](HybridRetrieval)), with contextual chunk headers (`Cluster + Title + Summary + Heading Path`). Agents assemble version-pinned, citation-bearing bundles via `assemble_bundle` and inspect provenance-scored projections (`AUTHORITATIVE` / `PROVISIONAL` / `STALE`) via `get_page_for_agent`.
-- **Closed-Loop Content Intelligence (`/wikantik-admin-mcp` — 22 read/write tools):** Curators and agents author pages with optimistic locking (`update_page`), run structural/SEO/retrieval verification (`verify_pages`), rename clusters in bulk (`rename_cluster`), and act on search-telemetry demand signals (`list_content_opportunities` via [Content Intelligence](ContentIntelligenceDesign)).
-
-### Software Engineering & Multi-Agent Development Workflows
-
-Beyond serving as a reference library, Wikantik acts as the **active architectural control plane** for ongoing software development across multiple repositories ([Simple Agility Stack Hub](SimpleAgilityStackHub)):
-
-1. **Tiered Session-Start Briefings (`get_briefing` / SA-13):** Rather than relying on static repo-local prompt files that silently drift out of date, coding agents start every session by calling `get_briefing(clusters=["<project>"], prompt="<task>")` ([Project Context Separation Design](ProjectContextSeparationDesign)). The wiki dynamically assembles three tiers of context: the project's core architecture pages (ranked by intra-cluster in-degree), the **cross-project contracts that project cites** ([Architectural Decision Log](SimpleAgilityDecisionLog), [Telemetry Contract](SimpleAgilityTelemetryContract), [Agent Coordination](SimpleAgilityAgentCoordination)), and task-matched sections — while isolating operational incident runbooks from standing coding context.
-2. **Design-First RFCs & Cross-Repository Contract Propagation:** System designs (`type: design`), RFCs, and cross-repo API/telemetry contracts live in the wiki as versioned, link-verified specifications ([Context Engineering for Coding Agents](ContextEngineeringForCodingAgents)). When a shared contract is updated, every downstream repository whose Hub cites that contract automatically receives the updated specification on its next session briefing.
-3. **Scenario-Keyed Engineering & Incident Runbooks (`type: runbook`):** Recurring engineering playbooks — exploring module API surfaces, running parallel integration test reactors, planning schema migrations, or triaging production alerts — are encoded as structured runbooks (`when_to_use`, `steps`, `pitfalls`) in the [Agent Cookbook](AgentCookbook), ready for on-demand agent execution.
-4. **Living Documentation & Verification Loops:** As code changes land or incidents are resolved, coding agents update the corresponding architecture pages and runbooks in the same workflow (`update_page` → `verify_pages` → `mark_page_verified`), keeping design documentation and production implementation continuously aligned ([Agentic Coding Hub](AgenticCodingHub)).
-
-New here? Start with [About](About) for the platform manifesto, the [Wikantik Platform Hub](WikantikPlatformHub) for system internals, the [Agent Cookbook](AgentCookbook) for operational agent runbooks, or the [Simple Agility Stack Hub](SimpleAgilityStackHub) for cross-project engineering workflows. You can also read the [site blog](https://wiki.wikantik.com/blog/).
+- **Read.** Pick a subject from the list below, search from the sidebar, or open the Page Graph there to see how pages link to each other.
+- **Connect an agent.** The wiki serves its content over MCP: an agent can search it, pull cited passages for a question, and start a session with its project's context already assembled. The [Agent Cookbook](AgentCookbook) has the recipes, and [Hybrid Retrieval](HybridRetrieval) explains how search works.
+- **See how it is built.** [About](About) gives the reasoning behind the platform, the [Wikantik Platform Hub](WikantikPlatformHub) covers its internals, and the [Simple Agility Stack Hub](SimpleAgilityStackHub) shows how it is used to coordinate work across several software projects. News and longer pieces are on the [Wikantik blog](https://blog.wikantik.com/).
 
 ## Article Clusters
 
-### Wikantik Platform, Agent Workflows & Architecture
+### Wikantik Platform & Agent Workflows
 
-- [Wikantik Platform Hub](WikantikPlatformHub) — Master index for the Wikantik platform: hybrid BM25 + vector search, the Page Graph and ontology, MCP servers, and React SPA architecture
-- [Wikantik System Architecture](WikantikArchitecture) — End-to-end engineering architecture: multi-module reactor, hybrid file + PostgreSQL/pgvector storage, retrieval pipeline, and MCP agent surface
-- [Wikantik Platform Development Hub](WikantikDevelopmentHub) — Active engineering specifications, ADRs, MCP authoring conventions, observability, and release/deployment runbooks
-- [Agent Cookbook](AgentCookbook) — Scenario-keyed operational runbooks for AI coding agents: retrieval gating, session briefings, content authoring, testing, and codebase navigation
-- [Simple Agility Stack Hub](SimpleAgilityStackHub) — Cross-project architectural spine connecting Wikantik, JakeMon observability, Roller, Stockroom, and multi-agent coordination contracts
-- [Page Graph vs. Knowledge Graph](PageGraphVsKnowledgeGraph) — The Page Graph of human-authored wikilinks and Hub-declared clusters, citations and the ontology, and the retired entity-extraction Knowledge Graph it was contrasted with
-- [Hybrid Retrieval & Contextual Chunking](HybridRetrieval) — Operator and architectural reference for BM25 + dense vector retrieval, Reciprocal Rank Fusion, and contextual embedding headers
-- [Tiered Agent Session Briefings (SA-13)](ProjectContextSeparationDesign) — How get_briefing assembles standing project context, cross-cluster contract citations, and prompt-refined sections while preventing incident noise
+- [Wikantik Platform](WikantikPlatformHub) — What the platform does, from search and the Page Graph to its agent tools
+- [System Architecture](WikantikArchitecture) — How the modules, storage and retrieval pipeline fit together
+- [Platform Development](WikantikDevelopmentHub) — Current designs, decisions and release runbooks
+- [Agent Cookbook](AgentCookbook) — Step-by-step runbooks for AI coding agents
+- [Simple Agility Stack](SimpleAgilityStackHub) — How Wikantik and its sibling projects share contracts and coordinate
+- [Hybrid Retrieval](HybridRetrieval) — Keyword and vector search combined, and how to operate it
+- [Agent Session Briefings](ProjectContextSeparationDesign) — How an agent gets its project context at the start of a session
 
-### Agentic AI, Foundation Models & Machine Learning
+### AI & Machine Learning
 
-- [Agentic AI Hub](AgenticAiHub) — Cognitive architectures, perceive-reason-act control loops, MCP tool protocols, episodic/semantic memory, and multi-agent orchestration
-- [Agentic Coding Hub](AgenticCodingHub) — Autonomous software engineering workflows: context engineering, verification loops, mutation testing, worktree isolation, and failure guardrails
-- [Generative AI Hub](GenerativeAIHub) — Foundation model internals, Transformer attention mechanics, Retrieval-Augmented Generation (RAG), multimodal embeddings, and alignment
-- [AI Infrastructure Hub](AIInfrastructureHub) — GPU cluster interconnects, PagedAttention inference serving, vLLM/Triton engines, INT4/FP8 quantization, and distributed training
-- [Machine Learning Hub](MLHub) — Classical and modern ML engineering: supervised/unsupervised learning, gradient-boosted trees, anomaly detection, and MLOps pipelines
-- [Large Language Models Since 2020](LlmsSinceTwentyTwenty) — From GPT-3 and Chinchilla scaling laws to o1/R1 reasoning models, DeepSeek MoE/MLA, frontier multimodal agents, and test-time compute
-- [Generative AI Adoption Guide](GenerativeAiAdoptionGuide) — Practitioner roadmap for adopting LLMs: model evaluation, structured prompting, local inference, and production workflow integration
-- [Embedded AI on Edge & Limited Hardware](EmbeddedAiOnLimitedHardware) — Running quantized models on microcontrollers, edge NPUs, and workstations: TinyML, GGUF/llama.cpp, and on-device inference economics
+- [Agentic AI](AgenticAiHub) — Agent architectures, tool protocols, memory and multi-agent orchestration
+- [Agentic Coding](AgenticCodingHub) — Working with coding agents, from context and verification to guardrails
+- [Generative AI](GenerativeAIHub) — How foundation models work, retrieval-augmented generation and alignment
+- [AI Infrastructure](AIInfrastructureHub) — GPU clusters, inference serving, quantization and distributed training
+- [Machine Learning](MLHub) — Classical and modern machine learning, from boosted trees to MLOps
+- [Large Language Models Since 2020](LlmsSinceTwentyTwenty) — From GPT-3 to reasoning models and test-time compute
+- [Generative AI Adoption Guide](GenerativeAiAdoptionGuide) — A practical route to using language models in real work
+- [Embedded AI on Limited Hardware](EmbeddedAiOnLimitedHardware) — Running models on microcontrollers, edge devices and workstations
 
-### Software Architecture, Distributed Systems & Computer Science
+### Software Architecture & Computer Science
 
-- [Software Architecture Hub](ArchitectureHub) — Distributed systems topology, Domain-Driven Design (DDD), event sourcing, CQRS, cell-based architecture, and evolutionary trade-offs
-- [Distributed Systems Hub](DistributedSystemsHub) — Consensus protocols (Paxos, Raft), replication topologies, logical clocks, two-phase commit, saga patterns, and fault tolerance
-- [Software Engineering Practices Hub](SoftwareEngineeringPracticesHub) — Trunk-based development, code review rigor, testing pyramids, static analysis, refactoring discipline, and backwards compatibility
-- [Design Patterns Hub](DesignPatternsHub) — Gang-of-Four creational, structural, and behavioral patterns evaluated for modern multi-paradigm and concurrent systems
-- [Programming Languages Hub](ProgrammingLanguagesHub) — Comparative language architecture across Rust, C++, Go, Java, Python, Lisp, Smalltalk, Haskell, Erlang, and type-system evolution
-- [Computer Science Foundations Hub](ComputerScienceFoundationsHub) — Automata theory, formal grammars, compiler construction, operating system internals, and computational complexity (P vs. NP)
-- [Data Structures & Algorithms Hub](DataStructuresHub) — Cache-conscious trees (B+Trees, LSM-Trees), probabilistic structures (Bloom filters, HyperLogLog), graph algorithms, and amortized analysis
-- [Java Platform & JVM Internals Hub](JavaHub) — Modern Java (21+), virtual threads (Project Loom), ZGC/G1GC garbage collection, JIT compilation, and enterprise build tooling
-- [Frontend Engineering Hub](FrontendDevelopmentHub) — Browser rendering pipelines, Web Components and Shadow DOM, state management, SSR/hydration, TypeScript, and Core Web Vitals
-- [Web Services & API Architecture Hub](WebServicesAndApisHub) — REST, GraphQL, gRPC, WebSockets, API gateway rate limiting, idempotency keys, and schema evolution
-- [Foundational Algorithms Reference](FoundationalAlgorithmsForComputerScientists) — Deep dive into sorting, shortest-path and network-flow graph algorithms, dynamic programming, and cryptographic primitives
-- [Thirty Years of Distributed Computing](DistributedComputingEvolution) — From RPC and CORBA to cloud-native service meshes, durable execution engines, and modern observability
+- [Software Architecture](ArchitectureHub) — Domain-driven design, event sourcing, CQRS and architectural trade-offs
+- [Distributed Systems](DistributedSystemsHub) — Consensus, replication, clocks, sagas and fault tolerance
+- [Software Engineering Practices](SoftwareEngineeringPracticesHub) — Trunk-based development, code review, testing and refactoring
+- [Design Patterns](DesignPatternsHub) — The Gang-of-Four patterns, judged for modern code
+- [Programming Languages](ProgrammingLanguagesHub) — Rust, C++, Go, Java, Python, Lisp, Haskell and Erlang compared
+- [Computer Science Foundations](ComputerScienceFoundationsHub) — Automata, grammars, compilers, operating systems and complexity
+- [Data Structures & Algorithms](DataStructuresHub) — Trees, probabilistic structures, graph algorithms and amortized analysis
+- [Java & the JVM](JavaHub) — Modern Java, virtual threads, garbage collection and JIT compilation
+- [Frontend Engineering](FrontendDevelopmentHub) — Browser rendering, state management, server-side rendering and web performance
+- [Web Services & APIs](WebServicesAndApisHub) — REST, GraphQL, gRPC, rate limiting, idempotency and schema evolution
+- [Foundational Algorithms](FoundationalAlgorithmsForComputerScientists) — Sorting, shortest paths, network flow, dynamic programming and cryptographic primitives
+- [Thirty Years of Distributed Computing](DistributedComputingEvolution) — From RPC and CORBA to service meshes and durable execution
 
-### Cloud, DevOps, Security, Data Engineering & Infrastructure
+### Cloud, DevOps, Security & Data
 
-- [DevOps & Site Reliability Engineering Hub](DevOpsAndSreHub) — SLIs/SLOs and error budgets, CI/CD deployment gates, OpenTelemetry observability, incident response, and chaos engineering
-- [Cloud Platforms & Architecture Hub](CloudPlatformsHub) — AWS, GCP, and Azure foundational primitives, VPC networking, serverless execution, FinOps cost optimization, and multi-region DR
-- [Cybersecurity, AuthN/AuthZ & Container Security Hub](AuthenticationAndAuthorizationHub) — OAuth 2.1/OIDC, Passkeys/WebAuthn, Zero-Trust mTLS, Linux container isolation (seccomp/eBPF), and cryptographic key management
-- [Computer Networking & Protocols Hub](NetworkingHub) — OSI/TCP-IP stack, BGP routing, TLS 1.3 handshakes, HTTP/3 QUIC, high-performance kernel bypass (DPDK/XDP), and DNS architecture
-- [Data Engineering & Lakehouse Hub](DataEngineeringHub) — Idempotent batch/streaming pipelines, Apache Kafka/Pulsar, Iceberg/Delta lakehouses, dbt transformations, and dimensional modeling
-- [Database Internals & Performance Hub](DatabasePerformanceMonitoringHub) — ACID isolation levels, MVCC lock contention, query planner optimization, connection pooling, and declarative partitioning
-- [Linux Systems & Command-Line Guide](LinuxForWindowsUsers) — Linux kernel and filesystem hierarchy, POSIX permissions, systemd service management, package managers, and Bash scripting
+- [DevOps & Site Reliability](DevOpsAndSreHub) — Service-level objectives, deployment gates, observability and incident response
+- [Cloud Platforms](CloudPlatformsHub) — AWS, GCP and Azure building blocks, networking, serverless and cost control
+- [Security & Authentication](AuthenticationAndAuthorizationHub) — OAuth and OIDC, passkeys, zero trust and container isolation
+- [Networking & Protocols](NetworkingHub) — TCP/IP, BGP, TLS 1.3, HTTP/3 and DNS
+- [Data Engineering](DataEngineeringHub) — Batch and streaming pipelines, Kafka, lakehouses and dimensional modeling
+- [Databases](DatabasePerformanceMonitoringHub) — Isolation levels, MVCC, query planning, connection pooling and partitioning
+- [Linux for Windows Users](LinuxForWindowsUsers) — The filesystem, permissions, systemd, package managers and Bash
 
-### Mathematics, Operations Research & Applied Engineering
+### Mathematics & Applied Engineering
 
-- [Mathematics for Computer Science & ML Hub](MathematicsHub) — Linear algebra, multivariable calculus, measure-theoretic probability, abstract algebra, topology, and formal predicate/modal logic
-- [Operations Research & Mathematical Optimization Hub](OperationsResearchHub) — Linear and mixed-integer programming (MILP), convex optimization, vehicle routing (VRP), queuing theory, and stochastic inventory models
-- [Warehouse Automation & Industrial Robotics Hub](WarehouseAutomationHub) — High-density AS/RS kinematics, autonomous mobile robots (AMRs), WMS/WCS orchestration, sortation mechanics, and Lean/Six Sigma flow
-- [Physics & Mechanical Engineering Hub](PhysicsHub) — Classical and Lagrangian mechanics, thermodynamics, differential geometry, general relativity, and non-destructive physical metrology
-- [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — Matrix factorizations, automatic differentiation, information-theoretic divergence, and non-convex optimization landscapes
+- [Mathematics](MathematicsHub) — Linear algebra, calculus, probability, abstract algebra, topology and logic
+- [Operations Research](OperationsResearchHub) — Linear and integer programming, routing, queuing and inventory models
+- [Warehouse Automation](WarehouseAutomationHub) — Automated storage, mobile robots, warehouse software and sortation
+- [Physics](PhysicsHub) — Mechanics, thermodynamics, differential geometry and relativity
+- [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — Matrix factorizations, automatic differentiation and optimization
+
+### Finance, Leadership & Other Subjects
+
+- [Low-Cost Index Fund Investing](LowCostIndexFundInvesting) — A 2026 guide to the cheapest index funds and building a simple portfolio
+- [Quantitative Finance](QuantitativeFinanceResearchHub) — Machine learning in investment management, risk parity and factor investing
+- [Engineering Leadership](EngineeringLeadershipHub) — Technical strategy, team structure, engineering metrics and governance
+- [Programming Language Evolution](ProgrammingLanguageEvolution) — How languages changed from 1950 to 2026
+- [Philosophy](PhilosophyHub) — Logic, epistemology of science, ethics, metaphysics and philosophy of mind
+- [Mechanical Engineering](MechanicalEngineeringHub) — Bearings, gearing, fasteners, couplings, hydraulics and vibration
+- [Materials Science](MaterialsScience) — Crystal structures, dislocations, phase diagrams and fracture mechanics
+- [Life Sciences](LifeSciencesHub) — Bioprocess engineering and industrial microbiology

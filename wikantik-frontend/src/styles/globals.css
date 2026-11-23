@@ -315,6 +315,16 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline-offset: 2px;
 }
 
+/* A sidebar entry that acts rather than navigates (export, import). */
+button.sidebar-link {
+  width: 100%;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .sidebar-link:hover {
   color: var(--text);
   background: var(--border);
@@ -1793,23 +1803,6 @@ a[data-attachment-missing] {
   padding: var(--space-sm);
   margin: var(--space-md) 0;
 }
-.personal-identity {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--border);
-}
-.personal-avatar {
-  width: 34px; height: 34px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 600; font-family: var(--font-ui);
-}
-.personal-name { font-weight: 600; color: var(--text); text-decoration: none; }
-.personal-sub { font-size: 0.72rem; color: var(--text-muted); }
 .personal-new-article { margin: var(--space-sm) 0; }
 .personal-mentions { display: flex; align-items: center; gap: var(--space-xs); }
 

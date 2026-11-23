@@ -34,6 +34,7 @@ import static com.codeborne.selenide.Selenide.$$;
  * <p>Uses the pre-seeded {@code SemanticArticle}/{@code SemanticHub} fixtures,
  * both in cluster {@code test-cluster} (indexed from frontmatter at startup, so
  * the assertion is provider-agnostic and free of save-time indexing races).
+ * The tree is built from the declared clusters, and each cluster's pages load when its section opens.
  * Opening the article must render its cluster as a collapsible section header
  * whose body — auto-expanded because it holds the active page — links to the
  * page; collapsing the header removes the link from that section.</p>
@@ -42,15 +43,17 @@ public class ClusterTreeIT extends WithIntegrationTestSetup {
 
     private static final String CLUSTER = "test-cluster";
     private static final String PAGE = "SemanticArticle";
+    /** By address: the tree shows titles, not page names. */
+    private static final String PAGE_LINK = "a[href$='/wiki/" + PAGE + "']";
 
     @Test
     void sidebarGroupsPagesUnderCollapsibleClusterHeaders() {
         ViewWikiPage.open( PAGE );
 
-        // Clusters live under one top-level "Clusters" section, collapsed by
-        // default — expand it to reach the per-cluster headers.
+        // Clusters live under one top-level "Browse Clusters" section, collapsed by
+        // default; the tree is fetched when it opens.
         $$( ".app-sidebar .personal-section-header" )
-            .findBy( Condition.text( "Clusters" ) )
+            .findBy( Condition.text( "Browse Clusters" ) )
             .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) )
             .click();
 
@@ -65,20 +68,19 @@ public class ClusterTreeIT extends WithIntegrationTestSetup {
         final SelenideElement section = header.closest( ".personal-section" );
 
         // The active page's cluster is open by default, so the page link shows.
-        section.$$( "a" )
-            .findBy( Condition.text( PAGE ) )
+        section.$$( PAGE_LINK )
+            .first()
             .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
 
         // Collapsing the header removes the body (CollapsibleSection unmounts it).
         header.click();
-        section.$$( "a" )
-            .filterBy( Condition.text( PAGE ) )
+        section.$$( PAGE_LINK )
             .shouldHave( CollectionCondition.size( 0 ), Duration.ofSeconds( 5 ) );
 
         // Re-expanding brings the page link back.
         header.click();
-        section.$$( "a" )
-            .findBy( Condition.text( PAGE ) )
+        section.$$( PAGE_LINK )
+            .first()
             .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) );
     }
 }

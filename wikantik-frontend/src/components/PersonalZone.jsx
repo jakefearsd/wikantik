@@ -27,7 +27,7 @@ function PreviewList({ items, render, emptyLabel }) {
 }
 
 export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = () => {}, onExport = () => {}, onImport = () => {} }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const authed = !!user?.authenticated;
   const login = authed ? user.loginPrincipal : null;
 
@@ -38,47 +38,14 @@ export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = 
 
   if (!authed) return null;
 
-  const initials = (user.username || '?').slice(0, 2).toUpperCase();
-
   return (
     <div className="personal-zone">
-      <div className="personal-identity">
-        <div className="personal-avatar" aria-hidden="true">{initials}</div>
-        <div className="personal-identity-text">
-          <Link to="/preferences" className="personal-name" onClick={onMobileClose}>{user.username}</Link>
-          <div className="personal-sub">
-            {user.roles?.includes('Admin') ? 'Admin · ' : ''}
-            <Link to="/preferences" onClick={onMobileClose}>Profile</Link>
-            {' · '}
-            <button type="button" className="btn-link" onClick={logout}>Sign out</button>
-          </div>
-        </div>
-      </div>
-
       <button
         className="btn btn-primary personal-new-article btn-block"
         onClick={onNewArticle}
       >
         + New Article
       </button>
-
-      <button
-        className="btn btn-ghost btn-block"
-        data-testid="personal-export"
-        onClick={onExport}
-      >
-        Export to Obsidian…
-      </button>
-
-      {user.canCreatePages && (
-        <button
-          className="btn btn-ghost btn-block"
-          data-testid="personal-import"
-          onClick={onImport}
-        >
-          Import Obsidian vault…
-        </button>
-      )}
 
       {/* Everything below the New Article control collapses under one toggle,
           default collapsed, so the personal zone stays out of the way until
@@ -119,6 +86,15 @@ export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = 
             )}
           />
         </CollapsibleSection>
+
+        <button type="button" className="sidebar-link btn-link" data-testid="personal-export" onClick={onExport}>
+          Export to Obsidian…
+        </button>
+        {user.canCreatePages && (
+          <button type="button" className="sidebar-link btn-link" data-testid="personal-import" onClick={onImport}>
+            Import Obsidian vault…
+          </button>
+        )}
 
         {drafts.length > 0 && (
           <CollapsibleSection id="drafts" icon="📝" title="Resume editing" count={drafts.length}>

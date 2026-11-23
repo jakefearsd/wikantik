@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import ClusterTree from './ClusterTree';
+import { BLOG_URL } from '../utils/siteLinks';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { HOME_PAGE, HOME_PATH } from '../utils/homePage';
 import { api } from '../api/client';
@@ -14,21 +16,12 @@ import { useRegisterCommands } from '../commands/useCommands';
 import CollapsibleSection from './CollapsibleSection';
 import Icon from './ui/Icon';
 
-// Pages that already have a dedicated link in the Navigation / Wiki Tools /
-// Admin sections. They are excluded from the "Uncategorized" bucket so a
-// clusterless system page isn't listed twice.
-const KNOWN_NAV_PAGES = new Set([
-  HOME_PAGE, 'About', 'News', 'RecentChanges', 'PageIndex', 'SystemInfo',
-  'UnusedPages', 'UndefinedPages',
-]);
-
 export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {}, onOpenSearch = () => {} }) {
   const { name: routeName } = useParams();
   // The front page is served at "/", which carries no :name param.
   const { pathname } = useLocation();
   const activePage = routeName ?? (pathname === HOME_PATH ? HOME_PAGE : undefined);
-  const [pages, setPages] = useState([]);
-  const [pagesError, setPagesError] = useState(false);
+  const [titles, setTitles] = useState({});
   const [recentChanges, setRecentChanges] = useState([]);
   const [recentChangesError, setRecentChangesError] = useState(false);
   const { openNewPage } = useNewPage();
@@ -43,53 +36,19 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
     : []), [user?.canCreatePages]);
   useRegisterCommands(importCommands, [importCommands]);
   useEffect(() => {
-    api.listPages({ limit: 500 }).then(d => setPages(d.pages || [])).catch((e) => {
-      console.warn('Sidebar: failed to load page list', e);
-      setPagesError(true);
-    });
-    api.getRecentChanges(20).then(d => setRecentChanges(d.changes || [])).catch((e) => {
+    api.getRecentChanges(20).then(d => {
+      const changes = d.changes || [];
+      setRecentChanges(changes);
+      if (changes.length === 0) return undefined;
+      // The change feed carries page names only; readers are shown titles.
+      return api.listPages({ names: changes.map(c => c.name), limit: changes.length })
+        .then(t => setTitles(Object.fromEntries((t.pages || []).map(p => [p.name, p.title]))))
+        .catch((e) => console.warn('Sidebar: failed to load recent page titles', e));
+    }).catch((e) => {
       console.warn('Sidebar: failed to load recent changes', e);
       setRecentChangesError(true);
     });
   }, []);
-
-  // Group pages by cluster; clusterless pages (minus system nav pages) fall
-  // into an "Uncategorized" bucket.
-  const clusters = {};
-  const uncategorized = [];
-  pages.forEach(p => {
-    const cluster = p.cluster || p.metadata?.cluster;
-    if (cluster) {
-      (clusters[cluster] = clusters[cluster] || []).push(p);
-    } else if (!KNOWN_NAV_PAGES.has(p.name)) {
-      uncategorized.push(p);
-    }
-  });
-
-  const existingClusters = Object.keys(clusters).sort();
-
-  // The cluster (or the Uncategorized bucket) holding the active page opens by
-  // default so a reader always sees where the current page sits in the tree.
-  const isActiveCluster = (clusterPages) => clusterPages.some(p => p.name === activePage);
-
-  const clusterLinks = (clusterPages) =>
-    clusterPages
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(p => (
-        <Link
-          key={p.name}
-          to={`/wiki/${p.name}`}
-          className={`sidebar-link ${activePage === p.name ? 'active' : ''}`}
-          onClick={onMobileClose}
-          {...(activePage === p.name ? { 'aria-current': 'page' } : {})}
-        >
-          {p.name}
-          {p.derived && (
-            <span className="derived-badge" title="Synced from an external source" aria-label="Synced from an external source">↯</span>
-          )}
-        </Link>
-      ));
 
   const navLink = (to, label) => {
     const isActive = activePage === (to === HOME_PATH ? HOME_PAGE : to.replace('/wiki/', ''));
@@ -150,7 +109,6 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
           <div className="sidebar-section-title">Navigation</div>
           {navLink(HOME_PATH, 'Main page')}
           {navLink('/wiki/About', 'About')}
-          {navLink('/wiki/News', 'News')}
           {showWork && (
             <Link to="/work" className={`sidebar-link ${pathname === '/work' || pathname.startsWith('/work/') ? 'active' : ''}`}
               onClick={onMobileClose}>
@@ -161,6 +119,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
             </Link>
           )}
           {navLink('/wiki/RecentChanges', 'Recent Changes')}
+          <a href={BLOG_URL} className="sidebar-link" onClick={onMobileClose}>Blog</a>
         </div>
 
         <div className="sidebar-section">
@@ -196,7 +155,7 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
                   onClick={onMobileClose}
                   {...(isActive ? { 'aria-current': 'page' } : {})}
                 >
-                  {c.name}
+                  {titles[c.name] || c.name}
                 </Link>
               );
             })}
@@ -242,48 +201,15 @@ export default function Sidebar({ collapsed, mobileOpen = false, onMobileClose =
           </div>
         )}
 
-        {pagesError && pages.length === 0 && (
-          <div className="sidebar-section">
-            <div className="personal-empty">Couldn't load the page list.</div>
-          </div>
-        )}
-
-        {/* Clusters — one top-level collapsible wrapper (collapsed by default so it
-            stays a single line) holding the per-cluster collapsible tree. The active
-            page's cluster still auto-expands inside, so opening this lands on it. */}
-        {(existingClusters.length > 0 || uncategorized.length > 0) && (
-          <CollapsibleSection
-            id="clusters-root"
-            title="Browse Clusters"
-            headerClassName="personal-section-header--title"
-            count={existingClusters.length + (uncategorized.length > 0 ? 1 : 0)}
-            defaultOpen={false}
-          >
-            {existingClusters.map(cluster => (
-              <CollapsibleSection
-                key={cluster}
-                id={`cluster-${cluster}`}
-                title={cluster}
-                count={clusters[cluster].length}
-                defaultOpen={isActiveCluster(clusters[cluster])}
-              >
-                {clusterLinks(clusters[cluster])}
-              </CollapsibleSection>
-            ))}
-
-            {/* Clusterless pages */}
-            {uncategorized.length > 0 && (
-              <CollapsibleSection
-                id="cluster-__uncategorized__"
-                title="Uncategorized"
-                count={uncategorized.length}
-                defaultOpen={isActiveCluster(uncategorized)}
-              >
-                {clusterLinks(uncategorized)}
-              </CollapsibleSection>
-            )}
-          </CollapsibleSection>
-        )}
+        {/* Clusters — one collapsed section. Its tree mounts, and so fetches, only once it is opened. */}
+        <CollapsibleSection
+          id="clusters-root"
+          title="Browse Clusters"
+          headerClassName="personal-section-header--title"
+          defaultOpen={false}
+        >
+          <ClusterTree activePage={activePage} onNavigate={onMobileClose} />
+        </CollapsibleSection>
 
       </aside>
 

@@ -23,11 +23,12 @@ describe('PersonalZone', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('shows identity always and surfaces the mentions badge on the collapsed Me header', () => {
+  it('leaves identity to the user badge and surfaces the mentions badge on the collapsed Me header', () => {
     useAuth.mockReturnValue({ user: { authenticated: true, username: 'Alice', loginPrincipal: 'alice', roles: [] }, logout: () => {} });
     renderZone();
-    // Identity + New Article stay visible above the collapse.
-    expect(screen.getByText('Alice')).toBeInTheDocument();
+    // The badge above this zone already names the user and signs them out; saying it twice was noise.
+    expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sign out')).not.toBeInTheDocument();
     expect(screen.getByText('+ New Article')).toBeInTheDocument();
     // Unread-mentions badge is surfaced on the Me header even while collapsed.
     expect(screen.getByText('2')).toBeInTheDocument();
@@ -56,6 +57,9 @@ describe('PersonalZone', () => {
     useAuth.mockReturnValue({ user: { authenticated: true, username: 'Alice', loginPrincipal: 'alice', roles: [] }, logout: () => {} });
     const onExport = vi.fn();
     renderZone({ onExport });
+    // Export and import are rare: they live inside the collapsed Me section, not above the navigation.
+    expect(screen.queryByTestId('personal-export')).toBeNull();
+    fireEvent.click(screen.getByText('Me'));
     fireEvent.click(screen.getByTestId('personal-export'));
     expect(onExport).toHaveBeenCalledTimes(1);
   });
@@ -65,11 +69,13 @@ describe('PersonalZone import button', () => {
   it('shows only when canCreatePages', () => {
     useAuth.mockReturnValue({ user: { authenticated: true, username: 'A', loginPrincipal: 'a', roles: [], canCreatePages: false }, logout: () => {} });
     const { unmount } = renderZone();
+    fireEvent.click(screen.getByText('Me'));
     expect(screen.queryByTestId('personal-import')).toBeNull();
     unmount();
     useAuth.mockReturnValue({ user: { authenticated: true, username: 'A', loginPrincipal: 'a', roles: [], canCreatePages: true }, logout: () => {} });
     const onImport = vi.fn();
     renderZone({ onImport });
+    if (!screen.queryByTestId('personal-import')) fireEvent.click(screen.getByText('Me'));
     fireEvent.click(screen.getByTestId('personal-import'));
     expect(onImport).toHaveBeenCalled();
   });

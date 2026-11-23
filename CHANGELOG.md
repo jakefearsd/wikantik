@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Work: a label typed into the label box but not yet added (no Enter) is now saved with the item instead of being dropped, in the item view and the new-item form; several labels can be typed with commas.
 - Work: the project Settings tab is shown only to a lead (it turned everyone else back to the board).
+- Work: a lead is now told (inbox reason `requested`, shown as "Request", and by email when it is on) when a person who only reports files a request, and when that person comments on a request nobody is assigned to yet (V096).
+- Work: "Waiting on you" names who assigned an item when the assignee was set by editing the field (it said "Assigned by someone"); with no name to give it says "Assigned to you" or "Mentioned in a comment".
+- Work: sprint dates read the same in the sprint list and the sprint report ("Nov 23 – Dec 6 2026"); the burndown chart is larger, names its first and last day and has a legend.
+- Work: a webhook's Slack text and an email line for a new item say "created this" instead of "updated this".
 - Tests: integration tests for the intake daily cap (429 `intake_limit`) and the reporter upload share (413 `reporter_full`).
 
 ## [2.8.0] - 2026-11-22

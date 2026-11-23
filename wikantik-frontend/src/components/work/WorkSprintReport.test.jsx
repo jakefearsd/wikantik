@@ -27,6 +27,7 @@ describe('WorkSprintReport', () => {
     expect(container.querySelectorAll('circle[data-series="remaining"]')).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Sprints' })).toHaveAttribute('href', '/work/PLAT/sprints');
     expect(screen.getByText('Nothing was added.')).toBeInTheDocument();
+    expect(screen.getByText(/· closed · Nov 23 – Nov 25 2026/)).toBeInTheDocument();
   });
 
   it('lists added and removed items', async () => {

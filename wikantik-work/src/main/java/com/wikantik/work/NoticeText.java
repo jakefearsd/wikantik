@@ -38,6 +38,8 @@ final class NoticeText {
             }
             case WorkEvent.HANDOFF -> handoff( e, a, recipientOrNull, displayName );
             case WorkEvent.STATUS -> a + " moved this from " + words( e.fromValue() ) + " to " + words( e.toValue() );
+            case WorkEvent.CREATED -> reasonOrNull == NoticeReason.REQUESTED
+                ? a + " filed a request" : a + " created this";
             case WorkEvent.COMMENTED -> reasonOrNull == NoticeReason.MENTIONED
                 ? a + " mentioned you in a comment" : a + " commented";
             case WorkEvent.COMMENT_EDITED -> a + " mentioned you in an edited comment";

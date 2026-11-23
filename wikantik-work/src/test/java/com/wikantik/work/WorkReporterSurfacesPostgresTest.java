@@ -588,4 +588,26 @@ class WorkReporterSurfacesPostgresTest {
         }
         assertEquals( new BigDecimal( "3" ).compareTo( item( ritas ).estimate() ), 0, "the estimate is there to hide" );
     }
+
+    // ---- a request reaches the leads
+
+    @Test
+    void aFiledRequestReachesTheLeadsAndNobodyElse() throws SQLException {
+        assertEquals( 1, fx.rows( "recipient = 'lena' AND reason = 'requested' AND item_id = " + item( ritas ).id() ) );
+        assertEquals( 1, fx.rows( "reason = 'requested'" ), "otto, a member, and rita herself are not told" );
+        assertEquals( 0, fx.rows( "item_id = " + lenas.id() ), "a member's own new item is no request" );
+    }
+
+    @Test
+    void aReportersCommentReachesTheLeadsUntilSomeoneHoldsTheItem() throws SQLException {
+        intake.comment( RITA, ritas, "any news?" );
+        fx.dispatchAll();
+        assertEquals( 2, fx.rows( "recipient = 'lena' AND reason = 'requested'" ), "the filing and the comment" );
+        fx.patch( LENA, item( ritas ), "assignee", "otto" );
+        fx.dispatchAll();
+        intake.comment( RITA, ritas, "thank you" );
+        fx.dispatchAll();
+        assertEquals( 2, fx.rows( "recipient = 'lena' AND reason = 'requested'" ), "otto holds it now" );
+        assertEquals( 1, fx.rows( "recipient = 'otto' AND reason = 'watching'" ), "the assignee hears of it instead" );
+    }
 }

@@ -233,4 +233,42 @@ class RecipientsTest {
             assertTrue( Recipients.of( ev( quiet, "codehost:github", Actor.Kind.SYSTEM, null, null, null ), f ).isEmpty(), quiet );
         }
     }
+
+    // ---- a request from a person who only reports (the planner decides who that is)
+
+    @Test
+    void aReportersFilingReachesEveryLead() {
+        final EventFacts f = facts( NONE, NONE, Set.of( "lena", "marc" ), false );
+        final WorkEvent filed = ev( WorkEvent.CREATED, "rita", Actor.Kind.HUMAN, null, null, null );
+        assertEquals( Set.of( "lena", "marc" ), Recipients.forRequest( filed, f, false ) );
+    }
+
+    @Test
+    void aReportersCommentReachesTheLeadsOnlyWhileNobodyHoldsTheItem() {
+        final EventFacts f = facts( NONE, NONE, Set.of( "lena" ), false );
+        final WorkEvent said = ev( WorkEvent.COMMENTED, "rita", Actor.Kind.HUMAN, null, "5", null );
+        assertEquals( Set.of( "lena" ), Recipients.forRequest( said, f, false ) );
+        assertTrue( Recipients.forRequest( said, f, true ).isEmpty(), "an assigned item has its own listeners" );
+    }
+
+    @Test
+    void aRemovedCommentAndEveryOtherTypeAreNoRequest() {
+        final EventFacts removed = new EventFacts( "rita", NONE, NONE, Set.of( "lena" ), NONE, false, true );
+        assertTrue( Recipients.forRequest( ev( WorkEvent.COMMENTED, "rita", Actor.Kind.HUMAN, null, "5", null ),
+            removed, false ).isEmpty() );
+        final EventFacts f = facts( NONE, NONE, Set.of( "lena" ), false );
+        for ( final String type : allEventTypes() ) {
+            if ( !WorkEvent.CREATED.equals( type ) && !WorkEvent.COMMENTED.equals( type ) ) {
+                assertTrue( Recipients.forRequest( ev( type, "rita", Actor.Kind.HUMAN, null, null, null ), f, false )
+                    .isEmpty(), type );
+            }
+        }
+    }
+
+    @Test
+    void aLeadWhoFilesTheirOwnRequestIsNotTold() {
+        final EventFacts f = facts( NONE, NONE, Set.of( "lena", "rita" ), false );
+        assertEquals( Set.of( "lena" ),
+            Recipients.forRequest( ev( WorkEvent.CREATED, "rita", Actor.Kind.HUMAN, null, null, null ), f, false ) );
+    }
 }

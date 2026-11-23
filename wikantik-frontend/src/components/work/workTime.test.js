@@ -30,4 +30,12 @@ describe('workTime', () => {
     expect(whenText(null)).toBe('');
     expect(whenText('nonsense')).toBe('');
   });
+
+  it('writes a sprint range once, with the year on the first day only when the years differ', async () => {
+    const { dayRangeText } = await import('./workTime');
+    expect(dayRangeText('2026-11-23', '2026-12-06')).toBe('Nov 23 – Dec 6 2026');
+    expect(dayRangeText('2026-12-28', '2027-01-10')).toBe('Dec 28 2026 – Jan 10 2027');
+    expect(dayRangeText('soon', '2026-12-06')).toBe('soon – Dec 6 2026');
+    expect(dayRangeText(null, null)).toBe(' – ');
+  });
 });

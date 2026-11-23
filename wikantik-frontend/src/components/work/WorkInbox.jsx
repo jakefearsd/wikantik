@@ -16,6 +16,7 @@ const inboxLine = (event) => (event.type === 'status' && !event.actorName && eve
 const REASONS = {
   mentioned: 'Mentioned',
   assigned: 'Assigned',
+  requested: 'Request',
   acknowledge: 'Needs acknowledging',
   claim_expired: 'Claim lapsed',
   webhook_disabled: 'Webhook switched off',

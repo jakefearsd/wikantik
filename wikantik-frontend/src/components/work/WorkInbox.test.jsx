@@ -99,4 +99,11 @@ describe('WorkInbox', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('link', { name: 'PLAT-1 Item 1' })).toBeInTheDocument();
   });
+
+  it('labels a reporter\'s request for a lead', async () => {
+    getInbox.mockResolvedValue({ notices: [notice(4, { reason: 'requested' })], unread: 1 });
+    renderInbox();
+    const row = (await screen.findByRole('link', { name: 'PLAT-4 Item 4' })).closest('li');
+    expect(within(row).getByText('Request')).toBeInTheDocument();
+  });
 });

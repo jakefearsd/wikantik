@@ -97,7 +97,7 @@ class WebhookPayloadsTest {
         final String json = WebhookPayloads.slack( event( WorkEvent.CREATED, null, null, null, "<!channel> & co" ),
             "https://wiki.example.com", NAMES );
         assertEquals( "{\"text\":\"<https://wiki.example.com/work/item/WIKI-7|WIKI-7> &lt;!channel&gt; &amp; co: "
-            + "Lena Lead updated this\"}", json );
+            + "Lena Lead created this\"}", json );
     }
 
     @Test

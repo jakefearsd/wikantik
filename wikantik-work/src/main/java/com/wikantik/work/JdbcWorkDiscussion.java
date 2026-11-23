@@ -228,7 +228,7 @@ final class JdbcWorkDiscussion {
         final Map< Long, WorkEvent > out = new HashMap<>();
         jdbc.withConnection( conn -> jdbc.query( conn, "SELECT DISTINCT ON (e.item_id) "
                 + JdbcWorkStore.EVENT_COLUMNS + JdbcWorkStore.EVENT_FROM
-                + " WHERE e.type = 'handoff' AND e.item_id = ANY( ? ) ORDER BY e.item_id, e.at DESC, e.id DESC",
+                + " WHERE e.type IN ('handoff', 'assigned') AND e.item_id = ANY( ? ) ORDER BY e.item_id, e.at DESC, e.id DESC",
             ps -> ps.setArray( 1, projectArray( conn, new java.util.HashSet<>( itemIds ) ) ),
             rs -> {
                 final WorkEvent e = JdbcWorkStore.EVENT_ROW.map( rs );

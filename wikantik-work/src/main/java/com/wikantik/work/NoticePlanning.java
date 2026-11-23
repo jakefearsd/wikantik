@@ -34,7 +34,8 @@ import java.util.TreeMap;
  * wins: a name with no account, such as an agent's, is never kept, and an account that shares its name with an agent
  * is still a person. The same check guards the auto-watch rows. Person, project and item answers are cached for the
  * call; a reporter's answer is cached per item, never per project, so their standing on one item is never reused for
- * another. A directory failure ({@link WorkUnavailableException}) propagates and rolls the batch back.
+ * another. The leads are also told, as a request, when a person who only reports files an item or comments on one
+ * nobody holds ({@link Recipients#forRequest}). A directory failure ({@link WorkUnavailableException}) propagates and rolls the batch back.
  */
 final class NoticePlanning implements WorkNotificationStore.NoticePlanner {
 
@@ -64,7 +65,11 @@ final class NoticePlanning implements WorkNotificationStore.NoticePlanner {
 
     @Override
     public Map< String, NoticeReason > plan( final WorkEvent e, final EventFacts facts ) throws SQLException {
-        final Map< String, NoticeReason > wanted = Recipients.of( e, withLeadGroups( facts ) );
+        final EventFacts resolved = withLeadGroups( facts );
+        final Map< String, NoticeReason > wanted = new TreeMap<>( Recipients.of( e, resolved ) );
+        for ( final String lead : requestLeads( e, resolved ) ) {
+            wanted.merge( lead, NoticeReason.REQUESTED, ( a, b ) -> a.compareTo( b ) <= 0 ? a : b );
+        }
         final Set< String > asReporters = Recipients.forReporters( e, facts );
         final Map< String, NoticeReason > kept = new TreeMap<>();
         for ( final Map.Entry< String, NoticeReason > row : wanted.entrySet() ) {
@@ -110,6 +115,23 @@ final class NoticePlanning implements WorkNotificationStore.NoticePlanner {
             return ruleReason;
         }
         return asReporters.contains( login ) && followsAsReporter( person.get(), e ) ? NoticeReason.WATCHING : null;
+    }
+
+    /**
+     * The leads told of a request: the event is a filing or a comment by a person who has no standing in the project
+     * and follows this very item as its reporter. A member's own new item or comment is no request.
+     */
+    private Set< String > requestLeads( final WorkEvent e, final EventFacts facts ) throws SQLException {
+        if ( e.actorKind() != Actor.Kind.HUMAN || e.actor() == null || e.itemId() == null
+            || !WorkEvent.CREATED.equals( e.type() ) && !WorkEvent.COMMENTED.equals( e.type() ) ) {
+            return Set.of();
+        }
+        final Optional< Actor > by = person( e.actor() );
+        if ( by.isEmpty() || seesProject( e.projectId(), by.get() ) || !followsAsReporter( by.get(), e ) ) {
+            return Set.of();
+        }
+        final boolean assigned = item( e.itemId() ).map( i -> i.assignee() != null ).orElse( false );
+        return Recipients.forRequest( e, facts, assigned );
     }
 
     private EventFacts withLeadGroups( final EventFacts facts ) {

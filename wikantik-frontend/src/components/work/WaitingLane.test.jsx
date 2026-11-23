@@ -60,4 +60,14 @@ describe('WaitingLane', () => {
     expect(warn.mock.calls.flat().join(' ')).not.toMatch(/same key/);
     warn.mockRestore();
   });
+
+  it('never says "by someone": with no name it says only what happened', () => {
+    render(<MemoryRouter><WaitingLane items={[
+      { id: 1, key: 'PLAT-1', title: 'Old assignment', waiting: { reason: 'assigned', byName: null } },
+      { id: 2, key: 'PLAT-2', title: 'A mention', waiting: { reason: 'mentioned', byName: null } },
+    ]} /></MemoryRouter>);
+    expect(screen.getByText(/Assigned to you/)).toBeInTheDocument();
+    expect(screen.getByText(/Mentioned in a comment/)).toBeInTheDocument();
+    expect(screen.queryByText(/someone/)).toBeNull();
+  });
 });

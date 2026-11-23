@@ -59,3 +59,15 @@ export function dayText(isoDate) {
   if (Number.isNaN(d.getTime())) return '';
   return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} ${m[1]}`;
 }
+
+/**
+ * "Nov 23 – Dec 6 2026" for two plain dates; the first keeps its year only when the years differ
+ * ("Dec 28 2026 – Jan 10 2027"). A side that is not a date is shown as it came.
+ */
+export function dayRangeText(fromIso, toIso) {
+  const from = dayText(fromIso);
+  const to = dayText(toIso);
+  if (!from || !to) return `${from || fromIso || ''} – ${to || toIso || ''}`;
+  const sameYear = fromIso.slice(0, 4) === toIso.slice(0, 4);
+  return `${sameYear ? from.slice(0, -5) : from} – ${to}`;
+}

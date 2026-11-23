@@ -140,7 +140,7 @@ public interface WorkStore extends WorkCatalogStore, WorkRegistryStore {
         return writeItem( current, next, by, note, true ).item();
     }
 
-    /** The newest {@code handoff} event of each given item; items with none are absent. */
+    /** The newest {@code handoff} or {@code assigned} event of each given item (who last passed it on); items with neither are absent. */
     Map< Long, WorkEvent > lastHandoffs( Collection< Long > itemIds ) throws SQLException;
 
     List< Item > items( ItemFilter filter ) throws SQLException;

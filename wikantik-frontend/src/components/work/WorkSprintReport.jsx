@@ -5,6 +5,7 @@ import Spinner from '../ui/Spinner';
 import { getSprintReport } from '../../api/work';
 import BurndownChart from './charts/BurndownChart';
 import { formatPoints } from './sprintModel';
+import { dayRangeText } from './workTime';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -55,7 +56,7 @@ export default function WorkSprintReport() {
   return (
     <div className="work-sprint-report">
       <p><Link to={`/work/${projectKey}/sprints`}>Sprints</Link></p>
-      <h2 className="work-subheading">{sprint.name} <span className="work-muted">· {sprint.state} · {sprint.startsOn} – {sprint.endsOn}</span></h2>
+      <h2 className="work-subheading">{sprint.name} <span className="work-muted">· {sprint.state} · {dayRangeText(sprint.startsOn, sprint.endsOn)}</span></h2>
       {sprint.goal && <p className="work-sprint-goal">{sprint.goal}</p>}
       {committed && (
         <p className="work-sprint-committed">

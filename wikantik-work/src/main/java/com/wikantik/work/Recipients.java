@@ -75,6 +75,24 @@ final class Recipients {
         return out;
     }
 
+    /**
+     * The leads who hear of a request: the filing itself, or a comment on an item nobody holds yet ({@code assigned}
+     * false). The planner calls this only for an event a person who only reports made on their own item, and gives
+     * each lead the reason {@link NoticeReason#REQUESTED} unless {@link #of} already found a stronger one.
+     */
+    static Set< String > forRequest( final WorkEvent e, final EventFacts f, final boolean assigned ) {
+        final boolean filed = WorkEvent.CREATED.equals( e.type() );
+        final boolean asked = WorkEvent.COMMENTED.equals( e.type() ) && !f.commentRemoved() && !assigned;
+        if ( !filed && !asked ) {
+            return Set.of();
+        }
+        final Set< String > out = new TreeSet<>( f.leads() );
+        if ( e.actorKind() == Actor.Kind.HUMAN ) {
+            out.remove( e.actor() );
+        }
+        return out;
+    }
+
     private static void comment( final Map< String, NoticeReason > out, final WorkEvent e, final EventFacts f ) {
         if ( f.commentRemoved() ) {
             return;

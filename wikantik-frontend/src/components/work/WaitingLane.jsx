@@ -1,11 +1,15 @@
 import { Link } from 'react-router-dom';
 
-/** "Assigned by codex@docker2 (agent)" / "Mentioned by Jane Doe": who put the item on the viewer's plate. */
+/**
+ * "Assigned by codex@docker2 (agent)" / "Mentioned by Jane Doe": who put the item on the viewer's plate. With no name
+ * to give (the server sends none for a mention, or for an assignment older than its record), it says only what
+ * happened, never "by someone".
+ */
 function reasonText(w) {
   if (!w) return null;
-  const verb = w.reason === 'mentioned' ? 'Mentioned' : 'Assigned';
-  const who = w.byName || 'someone';
-  return `${verb} by ${who}${w.byKind === 'agent' ? ' (agent)' : ''}`;
+  const mentioned = w.reason === 'mentioned';
+  if (!w.byName) return mentioned ? 'Mentioned in a comment' : 'Assigned to you';
+  return `${mentioned ? 'Mentioned' : 'Assigned'} by ${w.byName}${w.byKind === 'agent' ? ' (agent)' : ''}`;
 }
 
 const needsAck = (i) => i.waiting?.reason === 'acknowledge';

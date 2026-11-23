@@ -131,4 +131,10 @@ class NoticeTextTest {
         final WorkEvent flag = RecipientsTest.ev( "change_flagged", "codehost:github", Actor.Kind.SYSTEM, null, null, null );
         assertEquals( "GitHub flagged a merge outside policy", line( flag, NoticeReason.ACKNOWLEDGE, "lena" ) );
     }
+
+    @Test
+    void aFilingIsARequestToALeadAndACreationToAnyoneElse() {
+        assertEquals( "Alice A filed a request", line( e( "created", null, null, null ), NoticeReason.REQUESTED, "lena" ) );
+        assertEquals( "Alice A created this", line( e( "created", null, null, null ), null, null ) );
+    }
 }

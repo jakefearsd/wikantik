@@ -9,16 +9,13 @@ import { ARCHIVED_TEXT, isArchivedRefusal } from './archived';
 import { STATUS_LABELS } from './boardModel';
 import { activeSprint, formatPoints, openSprints } from './sprintModel';
 import { useWorkProject } from './useWorkProject';
+import { dayRangeText } from './workTime';
 import WorkSprintForm from './WorkSprintForm';
 
 const OPEN_STATUSES = 'draft,refining,ready,in_progress,review';
 const LIMIT = 200;
 const BACKLOG = 'none';
 
-const dayText = (iso) => {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 function summaryText(s) {
@@ -174,7 +171,7 @@ export default function WorkSprints() {
     return (
       <section key={s.id} className={`work-sprint${over === `sprint-${s.id}` ? ' work-column-over' : ''}`} aria-label={s.name} {...zone(s.id)}>
         <header className="work-sprint-head">
-          <h3 className="work-subheading">{s.name} <span className="work-muted">· {s.state} · {dayText(s.startsOn)} – {dayText(s.endsOn)}</span></h3>
+          <h3 className="work-subheading">{s.name} <span className="work-muted">· {s.state} · {dayRangeText(s.startsOn, s.endsOn)}</span></h3>
           <span className="work-sprint-summary">{summaryText(s)}</span>
         </header>
         {s.goal && <p className="work-sprint-goal">{s.goal}</p>}
@@ -220,7 +217,7 @@ export default function WorkSprints() {
             {closed.map((s) => (
               <li key={s.id} className="work-sprint-row">
                 <Link to={`/work/${project.key}/sprints/${s.id}`}>{s.name}</Link>
-                <span className="work-muted">{dayText(s.startsOn)} – {dayText(s.endsOn)}</span>
+                <span className="work-muted">{dayRangeText(s.startsOn, s.endsOn)}</span>
                 <span className="work-sprint-summary">{summaryText(s)}</span>
               </li>
             ))}

@@ -321,6 +321,16 @@ class JdbcWorkStoreAttributionPostgresTest {
     }
 
     @Test
+    void lastHandoffsCountsAPlainAssignment() throws SQLException {
+        final Item a = create( "a" );
+        store.updateItem( a, moved( a, a.status(), "otto", null ), LENA, null );
+        final WorkEvent last = store.lastHandoffs( List.of( a.id() ) ).get( a.id() );
+        assertNotNull( last, "an assignment made by editing the field names who made it" );
+        assertEquals( WorkEvent.ASSIGNED, last.type() );
+        assertEquals( "lena", last.actor() );
+    }
+
+    @Test
     void lastHandoffsPicksNewestPerItem() throws SQLException {
         final Item a = create( "a" );
         final Item b = create( "b" );

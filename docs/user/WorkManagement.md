@@ -323,6 +323,8 @@ viewers, members or leads of the project may file through the same form; their r
   changes, however that happened, and when someone comments. The notice says who moved it and to which status, never why
   or to whom it was assigned. You are not told about labels, assignments, estimates, sprints, files or anything the team
   does around the item.
+- **Who hears of your request.** The project's leads get a notice when you file a request, and when you comment on
+  it while nobody is assigned to it. Once someone is assigned, your comments reach the people following the request.
 - **What you cannot do or see.** Everything else in the project answers you as if it did not exist: the board, other
   people's requests (even in the same project), links, parent items, changes, deployments, products, agents, find,
   sprints and figures. You cannot change the status, edit or remove anyone else's comment, link, label or assignee.

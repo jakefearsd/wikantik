@@ -22,6 +22,8 @@ package com.wikantik.work;
 public enum NoticeReason implements WireEnum {
     MENTIONED("mentioned"),
     ASSIGNED("assigned"),
+    /** A person who only reports filed a request, or commented on one nobody holds: told to the leads. */
+    REQUESTED("requested"),
     ACKNOWLEDGE("acknowledge"),
     CLAIM_EXPIRED("claim_expired"),
     WEBHOOK_DISABLED("webhook_disabled"),

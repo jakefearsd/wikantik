@@ -69,6 +69,8 @@ describe('WorkSprints', () => {
       project: 'PLAT', sprint: 'none', status: 'draft,refining,ready,in_progress,review',
     }));
     expect(screen.getByRole('link', { name: 'Sprint 11' })).toHaveAttribute('href', '/work/PLAT/sprints/10');
+    expect(screen.getByText(/Nov 23 – Dec 6 2026/)).toBeInTheDocument();
+    expect(screen.getByText('Nov 9 – Nov 22 2026')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Report' })).toHaveAttribute('href', '/work/PLAT/sprints/11');
   });
 

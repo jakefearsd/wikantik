@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-11-23
+
 - Work: a label typed into the label box but not yet added (no Enter) is now saved with the item instead of being dropped, in the item view and the new-item form; several labels can be typed with commas.
 - Work: the project Settings tab is shown only to a lead (it turned everyone else back to the board).
 - Work: a lead is now told (inbox reason `requested`, shown as "Request", and by email when it is on) when a person who only reports files a request, and when that person comments on a request nobody is assigned to yet (V096).

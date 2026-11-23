@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.2] - 2026-11-23
+
 - Sidebar and front page: the blog link goes to `https://blog.wikantik.com/wikantik/` (it went to the blog root).
 
 ## [2.8.1] - 2026-11-23

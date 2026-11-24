@@ -46,6 +46,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -124,6 +125,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     /** Told when a true delete retires a canonical_id. */
     private final PageRetirementListeners retirementListeners = new PageRetirementListeners();
 
+    /** Bumped on every change to the projection (rebuild and incremental save/rename/delete). */
+    private final AtomicLong revision = new AtomicLong();
+
     @Override
     public synchronized void rebuild() {
         final Instant start = Instant.now();
@@ -183,6 +187,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         verifications.reload();
         final StructuralProjection projection = builder.build();
         current.set( projection );
+        revision.incrementAndGet();
         titles.onRebuilt( nextAliases );
         this.unclaimed = missing;
         // Per-page defects found while parsing, plus the taxonomy defects only visible
@@ -252,8 +257,11 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     @Override
     public StructuralProjectionSnapshot snapshot() {
+        // revision first: a bump lands after its projection swap, so this never pairs a new revision with an old projection
+        final long rev = revision.get();
         final StructuralProjection p = current.get();
         return new StructuralProjectionSnapshot() {
+            @Override public long revision()       { return rev; }
             @Override public int pageCount()       { return p.pageCount(); }
             @Override public int clusterCount()    { return p.clusterCount(); }
             @Override public int tagCount()        { return p.tagCount(); }
@@ -376,6 +384,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         }
         builder.addPage( next );
         current.set( builder.build() );
+        revision.incrementAndGet();
         titles.onSaved( canonicalId, fm );
 
         final List< StructuralConflict > nextConflicts = new ArrayList<>( conflicts );
@@ -483,6 +492,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             builder.addPage( existing );
         }
         current.set( builder.build() );
+        revision.incrementAndGet();
         titles.onDeleted( canonicalId );
 
         this.conflicts = conflicts.stream()

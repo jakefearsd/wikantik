@@ -144,5 +144,8 @@ public interface StructuralIndexService {
         int clusterCount();
         int tagCount();
         Instant generatedAt();
+
+        /** Strictly increases on every rebuild and every incremental page change; lets caches validate cheaply. */
+        long revision();
     }
 }

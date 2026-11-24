@@ -479,4 +479,20 @@ class DefaultStructuralIndexServiceTest {
         assertTrue( slugs.contains( "NewName" ), slugs.toString() );
         assertFalse( slugs.contains( "OldName" ), slugs.toString() );
     }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void revision_strictly_increases_after_onPageSaved() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
+        svc.rebuild();
+        final long afterRebuild = svc.snapshot().revision();
+        when( pageManager.getPage( "A" ) ).thenReturn( a );
+        svc.onPageSaved( "A" );
+        final long afterSave = svc.snapshot().revision();
+        assertTrue( afterSave > afterRebuild );
+        svc.onPageDeleted( "A" );
+        assertTrue( svc.snapshot().revision() > afterSave );
+    }
 }

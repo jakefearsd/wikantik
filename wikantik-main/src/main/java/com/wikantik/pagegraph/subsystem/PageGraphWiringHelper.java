@@ -91,6 +91,8 @@ public final class PageGraphWiringHelper {
         engine.setManager( TrustedAuthorsDao.class, trustedAuthorsDao );
         engine.setManager( com.wikantik.api.pagegraph.StructuralIndexService.class, structuralIndex );
 
+        wireLiveValues( props, coreSubsystem, structuralIndex, engine );
+
         // WikiEventManager holds listeners as WeakReferences — keep a strong
         // reference in the managers map so the listener is not GC'd between events.
         final StructuralIndexEventListener structuralIndexListener =
@@ -126,6 +128,40 @@ public final class PageGraphWiringHelper {
         LOG.info( "PageGraphService registered" );
 
         return structuralIndex;
+    }
+
+    /**
+     * Registers the live-values service ({@code {{wiki:…}}} tokens). "Public" means a guest may view the page, which
+     * applies the private-cluster gate and ACLs; the authorization manager is resolved lazily on first use because
+     * it is not guaranteed to be in the registry when this step runs. Silent {@code isPermitted} is used rather than
+     * {@code checkPermission} so a background recompute does not write an access-denied audit entry per private page.
+     */
+    static void wireLiveValues( final Properties props, final CoreSubsystem.Services coreSubsystem,
+                                final DefaultStructuralIndexService structuralIndex, final WikiEngine engine ) {
+        final boolean enabled = TextUtil.getBooleanProperty( props, "wikantik.liveValues.enabled", true );
+        final com.wikantik.livevalues.DefaultLiveValues liveValues =
+            new com.wikantik.livevalues.DefaultLiveValues( structuralIndex, enabled );
+        final java.util.concurrent.atomic.AtomicReference< com.wikantik.api.core.Session > guest =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        final java.util.function.Predicate< String > isPublic = name -> {
+            final com.wikantik.auth.AuthorizationManager auth =
+                engine.serviceRegistry().get( com.wikantik.auth.AuthorizationManager.class );
+            if ( auth == null ) {
+                return false;
+            }
+            try {
+                guest.compareAndSet( null, com.wikantik.WikiSession.guestSession( engine ) );
+                return auth.isPermitted( guest.get(),
+                    new com.wikantik.auth.permissions.PagePermission( name, com.wikantik.auth.permissions.PagePermission.VIEW_ACTION ) );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Live values: could not check guest view of '{}'; treating as not public: {}", name, e.getMessage(), e );
+                return false;
+            }
+        };
+        liveValues.register( new com.wikantik.livevalues.CorpusLiveValueSource(
+            structuralIndex, coreSubsystem.systemPageRegistry(), isPublic ) );
+        engine.serviceRegistry().put( com.wikantik.api.livevalues.LiveValues.class, liveValues );
+        LOG.info( "LiveValues registered (enabled={})", enabled );
     }
 
     /**

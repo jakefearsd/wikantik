@@ -47,6 +47,7 @@ class StructuralIndexHealthResourceTest {
             @Override public int clusterCount()    { return 24; }
             @Override public int tagCount()        { return 185; }
             @Override public Instant generatedAt() { return Instant.EPOCH; }
+            @Override public long revision()       { return 1L; }
         } );
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( svc );

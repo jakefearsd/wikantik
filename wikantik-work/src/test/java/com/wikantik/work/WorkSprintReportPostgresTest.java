@@ -48,8 +48,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class WorkSprintReportPostgresTest {
 
     private static final ZoneId BERLIN = ZoneId.of( "Europe/Berlin" );
-    /** A Monday; {@code -Dwikantik.test.sprintMonday=2027-11-22} shifts the whole class, to prove it ignores the wall clock. */
-    private static final LocalDate MON = LocalDate.parse( System.getProperty( "wikantik.test.sprintMonday", "2026-11-23" ) );
+    /**
+     * A Monday; {@code -Dwikantik.test.sprintMonday=2027-11-22} shifts the whole class, to prove it ignores the wall clock.
+     * The default is the next Monday after today, because rows get their {@code created_at} from the database's real
+     * clock: a fixed past Monday puts items' creation after their close and drops them from the lead-time sample.
+     */
+    private static final LocalDate MON = LocalDate.parse( System.getProperty( "wikantik.test.sprintMonday",
+        LocalDate.now().plusDays( 1 ).with( java.time.temporal.TemporalAdjusters.next( java.time.DayOfWeek.MONDAY ) ).toString() ) );
 
     /** A clock whose instant the test moves. */
     private static final class TestClock extends Clock {

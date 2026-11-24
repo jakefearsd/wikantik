@@ -86,7 +86,9 @@ public class AdminAgentGradeAuditServlet extends RestServletBase {
                 return null;
             }
 
-            final StructuralIndexService svc = pg.structuralIndexService();
+            // an audit of the authored summary: raw, not the live-values view
+            final StructuralIndexService svc =
+                com.wikantik.livevalues.LiveValuesStructuralIndexService.unwrap( pg.structuralIndexService() );
             if ( svc == null ) {
                 unavailable( resp, "structural index service unavailable" );
                 return null;

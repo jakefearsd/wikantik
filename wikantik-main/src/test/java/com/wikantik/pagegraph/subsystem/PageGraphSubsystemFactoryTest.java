@@ -65,7 +65,7 @@ final class PageGraphSubsystemFactoryTest {
                 engine ) );
 
         assertNotNull( services );
-        assertSame( structuralIndex,            services.structuralIndexService() );
+        assertSame( structuralIndex,            com.wikantik.livevalues.LiveValuesStructuralIndexService.unwrap( services.structuralIndexService() ) );
         assertSame( pageGraphService,           services.pageGraphService() );
         assertSame( referenceManager,           services.referenceManager() );
         assertSame( contentIndexRebuildService, services.contentIndexRebuildService() );

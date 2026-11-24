@@ -88,8 +88,11 @@ public final class PageGraphSubsystemFactory {
             structuralIndexService instanceof DefaultStructuralIndexService dsi
                 ? dsi.confidenceComputer() : null;
 
+        // Reader-facing consumers (REST, knowledge tools, bundle, briefing, export) get the live-values
+        // view; the confidenceComputer above was read from the raw index. Write paths and audits call
+        // LiveValuesStructuralIndexService.unwrap().
         return new PageGraphSubsystem.Services(
-            structuralIndexService,
+            com.wikantik.livevalues.LiveValuesStructuralIndexService.decorate( structuralIndexService, engine ),
             pageGraphService,
             referenceManager,
             contentIndexRebuildService,

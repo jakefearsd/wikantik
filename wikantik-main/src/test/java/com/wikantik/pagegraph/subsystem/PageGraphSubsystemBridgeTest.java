@@ -59,7 +59,7 @@ final class PageGraphSubsystemBridgeTest {
         final PageGraphSubsystem.Services services = PageGraphSubsystemBridge.rebuildFromManagers( engine );
 
         assertNotNull( services );
-        assertSame( structuralIndex, services.structuralIndexService() );
+        assertSame( structuralIndex, com.wikantik.livevalues.LiveValuesStructuralIndexService.unwrap( services.structuralIndexService() ) );
         assertSame( pageGraph,       services.pageGraphService() );
         assertSame( refMgr,          services.referenceManager() );
         assertSame( rebuildService,  services.contentIndexRebuildService() );

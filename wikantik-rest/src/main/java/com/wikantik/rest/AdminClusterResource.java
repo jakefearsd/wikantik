@@ -162,7 +162,9 @@ public class AdminClusterResource extends RestServletBase {
      *  @return the service, or {@code null} when cluster membership cannot be resolved
      */
     protected ClusterRenameService buildRenameService() {
-        final StructuralIndexService structuralIndex = getSubsystems().pageGraph().structuralIndexService();
+        // write path: the raw index, never the live-values view
+        final StructuralIndexService structuralIndex = com.wikantik.livevalues.LiveValuesStructuralIndexService
+            .unwrap( getSubsystems().pageGraph().structuralIndexService() );
         if ( structuralIndex == null ) {
             LOG.warn( "AdminClusterResource: structural index unavailable; cluster rename disabled" );
             return null;

@@ -1056,7 +1056,9 @@ public class WikiEngine implements Engine {
             // ForAgent + ContentIndexRebuild.
             BootStep.abortRestOnFailure( "content-services", env -> {
                 made.contentIndexRebuild = com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireContentServices(
-                    env.props(), made.structuralIndex, coreSubsystem,
+                    env.props(),
+                    com.wikantik.livevalues.LiveValuesStructuralIndexService.decorate( made.structuralIndex, this ),
+                    coreSubsystem,
                     made.knowledge,
                     new com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.ContentManagers(
                         env.searchManager(), env.meterRegistry(), env.pageManager(), env.cachingManager(),
@@ -1135,7 +1137,8 @@ public class WikiEngine implements Engine {
             // The content-opportunity engine (content-intelligence design §7.5.1; default on).
             BootStep.abortRestOnFailure( "insights", env ->
                 this.setContentOpportunityService(
-                    com.wikantik.insights.runtime.InsightsWiring.build( env.dataSource(), env.props(), made.structuralIndex ) ) ),
+                    com.wikantik.insights.runtime.InsightsWiring.build( env.dataSource(), env.props(),
+                        com.wikantik.livevalues.LiveValuesStructuralIndexService.decorate( made.structuralIndex, this ) ) ) ),
 
             // Default off: wikantik.work.enabled. Null when disabled; callers no-op. A wiring failure leaves work
             // unavailable (its endpoints answer 404, the capability reports false) instead of stopping the wiki.

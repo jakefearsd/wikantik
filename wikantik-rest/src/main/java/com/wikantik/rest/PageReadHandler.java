@@ -117,6 +117,12 @@ final class PageReadHandler {
         // (replaceMetadata), so a caller who can edit the page gets it exactly as stored.
         final PublicIdentity identity = servlet.getSubsystems().auth().publicIdentity();
         result.put( "metadata", canEdit ? parsed.metadata() : IdentityDisplay.frontmatter( identity, parsed.metadata() ) );
+        // content and metadata above stay raw (the editor saves them back, so an expanded value there would be stored
+        // permanently); readers take the live-value expansion of the summary from this separate block.
+        final Map< String, Object > resolved = resolvedBlock( parsed );
+        if ( resolved != null ) {
+            result.put( "resolved", resolved );
+        }
         result.put( "version", Math.max( page.getVersion(), 1 ) );
         result.put( "author", IdentityDisplay.ofAuthor( identity, page.getAuthor() ) );
         result.put( "lastModified", page.getLastModified() );
@@ -146,6 +152,13 @@ final class PageReadHandler {
         }
 
         servlet.sendJson( response, result );
+    }
+
+    /** {@code {summary: <expanded>}} for a page with a string summary; {@code null} (omit the block) otherwise. */
+    private Map< String, Object > resolvedBlock( final ParsedPage parsed ) {
+        final ParsedPage expanded = com.wikantik.livevalues.LiveFrontmatter.expandSummary( parsed,
+                com.wikantik.livevalues.LiveValuesLookup.of( servlet.getEngine() ) );
+        return expanded.metadata().get( "summary" ) instanceof String summary ? Map.of( "summary", summary ) : null;
     }
 
     /** A page as read: its handle and its raw stored text. */

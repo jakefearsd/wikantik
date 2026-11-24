@@ -1659,3 +1659,29 @@ describe('side pane: Preview | Source', () => {
     expect(preview()).not.toBeNull();
   });
 });
+
+// ── Live values: the editor works on the raw token, never the resolved value ─────────────────────
+describe('live values', () => {
+  const TOKEN = '{{wiki:articles|round=100}}';
+
+  it('shows the raw summary token and saves it back unchanged', async () => {
+    api.getPage.mockResolvedValue({
+      content: PAGE_CONTENT,
+      metadata: { summary: `We hold ${TOKEN} articles.` },
+      resolved: { summary: 'We hold 1,100+ articles.' },
+      version: 1,
+      markupSyntax: 'markdown',
+    });
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Raw YAML' }));
+    const yaml = screen.getByLabelText('Raw frontmatter YAML');
+    expect(yaml.value).toContain(TOKEN);
+    expect(yaml.value).not.toContain('1,100+');
+
+    fireEvent.keyDown(window, { key: 's', metaKey: true });
+    await waitFor(() => expect(api.savePage).toHaveBeenCalledTimes(1));
+    expect(api.savePage.mock.calls[0][1].metadata.summary).toBe(`We hold ${TOKEN} articles.`);
+  });
+});

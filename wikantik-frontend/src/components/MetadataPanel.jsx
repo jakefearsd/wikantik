@@ -15,7 +15,9 @@ function sortedEntries(metadata) {
   return [...ordered, ...rest];
 }
 
-export default function MetadataPanel({ metadata }) {
+// `resolved` is the live-value expansion of the summary (GET /api/pages `resolved`); `metadata` stays raw because
+// the editor saves it back. Readers show the resolved summary and fall back to the raw one.
+export default function MetadataPanel({ metadata, resolved }) {
   const [expanded, setExpanded] = useState(false);
 
   if (!metadata || typeof metadata !== 'object') return null;
@@ -99,7 +101,7 @@ export default function MetadataPanel({ metadata }) {
               >
                 Summary
               </div>
-              <div style={{ fontSize: '0.875rem' }}>{metadata.summary}</div>
+              <div style={{ fontSize: '0.875rem' }}>{resolved?.summary ?? metadata.summary}</div>
             </div>
           )}
         </div>

@@ -738,6 +738,10 @@ public class SpaRoutingFilter implements Filter {
             island.put( "content", parsed.body() );
             island.put( "contentHtml", contentHtml );
             island.put( "metadata", IdentityDisplay.frontmatter( identity, parsed.metadata() ) );
+            // Same shape as GET /api/pages: readers take the summary from resolved.summary, falling back to metadata.
+            if ( parsed.metadata().get( "summary" ) instanceof String summary ) {
+                island.put( "resolved", java.util.Map.of( "summary", summary ) );
+            }
             island.put( "exists", true );
             return "<script>window.__WIKANTIK_PAGE__=" + ISLAND_GSON.toJson( island ) + ";</script>";
         } catch ( final RuntimeException ex ) {

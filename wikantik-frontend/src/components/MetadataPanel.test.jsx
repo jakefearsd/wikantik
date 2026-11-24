@@ -3,10 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import MetadataPanel from './MetadataPanel';
 
-const renderPanel = (metadata) =>
+const renderPanel = (metadata, resolved) =>
   render(
     <MemoryRouter>
-      <MetadataPanel metadata={metadata} />
+      <MetadataPanel metadata={metadata} resolved={resolved} />
     </MemoryRouter>
   );
 
@@ -95,5 +95,18 @@ describe('MetadataPanel', () => {
     expect(screen.getByText('article')).toBeInTheDocument();
     fireEvent.click(toggle);
     expect(screen.queryByText('article')).not.toBeInTheDocument();
+  });
+
+  it('shows the resolved summary in place of the raw one', () => {
+    renderPanel({ summary: 'We hold {{wiki:articles|round=100}} articles.' }, { summary: 'We hold 1,100+ articles.' });
+    fireEvent.click(screen.getByText(/Properties/));
+    expect(screen.getByText('We hold 1,100+ articles.')).toBeInTheDocument();
+    expect(screen.queryByText(/\{\{wiki:/)).not.toBeInTheDocument();
+  });
+
+  it('falls back to the raw summary when resolved is absent', () => {
+    renderPanel({ summary: 'Plain summary' });
+    fireEvent.click(screen.getByText(/Properties/));
+    expect(screen.getByText('Plain summary')).toBeInTheDocument();
   });
 });

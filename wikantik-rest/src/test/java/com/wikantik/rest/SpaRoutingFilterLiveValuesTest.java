@@ -113,6 +113,8 @@ class SpaRoutingFilterLiveValuesTest {
         assertTrue( html.contains( "property=\"og:description\" content=\"" + expected + "\"" ), html );
         assertTrue( html.contains( "\"description\":\"" + expected + "\"" )
                 || html.contains( "\"description\": \"" + expected + "\"" ), "JSON-LD / island description: " + html );
+        assertTrue( html.contains( "\"resolved\":{\"summary\":\"" + expected + "\"}" ),
+                "the island carries resolved.summary like GET /api/pages: " + html );
         assertTrue( html.contains( FENCED ), "a token inside a code fence must stay verbatim: " + html );
         assertFalse( html.replace( FENCED, "" ).contains( "{{wiki:" ), "a raw token reached the response: " + html );
         assertTrue( html.contains( "Body has 1,100+ here." ), "island content / body shows the expanded body: " + html );

@@ -707,7 +707,7 @@ export default function PageView() {
       )}
       <LockedAccessRulesBanner accessRules={page.accessRules} />
       <DerivedProvenanceBanner metadata={page.metadata} lastModified={page.lastModified} />
-      <MetadataPanel metadata={page.metadata} />
+      <MetadataPanel metadata={page.metadata} resolved={page.resolved} />
       <ChangeNotesPanel pageName={name} canEdit={!!page?.permissions?.edit} />
 
       <div className="page-toc-wrapper">

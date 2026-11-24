@@ -63,12 +63,24 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
     private final ReferenceManager referenceManager;      // nullable: no cited tier, with a warning
     private final PageManager pageManager;
     private final BriefingLimits limits;
+    private final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues;
 
     public DefaultBriefingAssemblyService( final BundleAssemblyService bundleService,
                                            final StructuralIndexService structuralIndex,
                                            final ReferenceManager referenceManager,
                                            final PageManager pageManager,
                                            final BriefingLimits limits ) {
+        this( bundleService, structuralIndex, referenceManager, pageManager, limits, () -> null );
+    }
+
+    /** As above; {@code liveValues} is resolved per briefing (it registers after boot), null meaning tokens stay verbatim. */
+    public DefaultBriefingAssemblyService( final BundleAssemblyService bundleService,
+                                           final StructuralIndexService structuralIndex,
+                                           final ReferenceManager referenceManager,
+                                           final PageManager pageManager,
+                                           final BriefingLimits limits,
+                                           final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues ) {
+        this.liveValues = Objects.requireNonNull( liveValues, "liveValues" );
         this.bundleService = bundleService;
         this.structuralIndex = structuralIndex;
         this.referenceManager = referenceManager;
@@ -141,6 +153,7 @@ public final class DefaultBriefingAssemblyService implements BriefingAssemblySer
             this.scope = computeScope();
             this.itemAssembler = new ItemAssembler( LOG, pageManager, structuralIndex, ledger,
                 cappedPins, scope, limits.pointersMax(), warnings );
+            this.itemAssembler.liveValues = liveValues.get();
         }
 
         /**

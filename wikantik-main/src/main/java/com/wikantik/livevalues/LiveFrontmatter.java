@@ -18,6 +18,7 @@
  */
 package com.wikantik.livevalues;
 
+import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.livevalues.LiveValues;
 
@@ -62,5 +63,36 @@ public final class LiveFrontmatter {
             return withSummary;
         }
         return new ParsedPage( withSummary.metadata(), expandedBody );
+    }
+
+    /**
+     * Expands a whole page text (frontmatter block plus body) for a reader surface that hands out the text as
+     * written: tokens in the {@code summary} field and, code-aware, in the body; no other frontmatter field changes.
+     * Same string when {@code lv} is null.
+     */
+    public static String expandRawText( final String text, final LiveValues lv ) {
+        if( lv == null || text == null || text.isEmpty() ) {
+            return text;
+        }
+        final int offset = FrontmatterParser.bodyOffset( text );
+        return expandSummaryLines( text.substring( 0, offset ), lv ) + lv.expandBody( text.substring( offset ) );
+    }
+
+    /** The frontmatter block with the {@code summary:} field (and its indented continuation lines) expanded. */
+    private static String expandSummaryLines( final String header, final LiveValues lv ) {
+        if( header.isEmpty() ) {
+            return header;
+        }
+        final StringBuilder out = new StringBuilder( header.length() );
+        boolean inSummary = false;
+        for( final String line : header.split( "(?<=\\n)" ) ) {
+            if( line.startsWith( "summary:" ) ) {
+                inSummary = true;
+            } else if( !( inSummary && !line.isEmpty() && Character.isWhitespace( line.charAt( 0 ) ) ) ) {
+                inSummary = false;
+            }
+            out.append( inSummary ? lv.expandText( line ) : line );
+        }
+        return out.toString();
     }
 }

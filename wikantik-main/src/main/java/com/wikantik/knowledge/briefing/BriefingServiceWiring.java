@@ -68,6 +68,16 @@ public final class BriefingServiceWiring {
                                                  final ReferenceManager referenceManager,
                                                  final PageManager pageManager,
                                                  final Properties props ) {
+        return build( bundle, structuralIndex, referenceManager, pageManager, props, () -> null );
+    }
+
+    /** As above, with the live-values service (resolved per briefing; null means tokens stay verbatim). */
+    public static BriefingAssemblyService build( final BundleAssemblyService bundle,
+                                                 final StructuralIndexService structuralIndex,
+                                                 final ReferenceManager referenceManager,
+                                                 final PageManager pageManager,
+                                                 final Properties props,
+                                                 final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues ) {
         if ( pageManager == null ) {
             LOG.debug( "PageManager not available — briefing assembly service unavailable" );
             return null;
@@ -80,7 +90,7 @@ public final class BriefingServiceWiring {
         LOG.info( "Briefing assembly service wired (bundle={}, structuralIndex={}, referenceManager={})",
             bundle != null, structuralIndex != null, referenceManager != null );
         return new DefaultBriefingAssemblyService(
-            bundle, structuralIndex, referenceManager, pageManager, BriefingConfig.limits( props ) );
+            bundle, structuralIndex, referenceManager, pageManager, BriefingConfig.limits( props ), liveValues );
     }
 
     /** As {@link #build(BundleAssemblyService, StructuralIndexService, ReferenceManager, PageManager, Properties)}

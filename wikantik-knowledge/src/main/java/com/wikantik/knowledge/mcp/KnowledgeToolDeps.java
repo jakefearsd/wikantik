@@ -60,6 +60,7 @@ final class KnowledgeToolDeps {
     private final Supplier< PublicIdentity > publicIdentity;
     private final Supplier< ReferenceManager > referenceManager;
     private final Predicate< String > draftActive;
+    private final Supplier< com.wikantik.api.livevalues.LiveValues > liveValues;
 
     private KnowledgeToolDeps( final Builder b ) {
         this.ctxService = b.ctxService;
@@ -76,6 +77,7 @@ final class KnowledgeToolDeps {
         this.publicIdentity = b.publicIdentity != null ? b.publicIdentity : () -> null;
         this.referenceManager = b.referenceManager != null ? b.referenceManager : () -> null;
         this.draftActive = b.draftActive != null ? b.draftActive : p -> false;
+        this.liveValues = b.liveValues != null ? b.liveValues : () -> null;
     }
 
     static Builder builder() {
@@ -96,6 +98,7 @@ final class KnowledgeToolDeps {
     Supplier< PublicIdentity > publicIdentity() { return publicIdentity; }
     Supplier< ReferenceManager > referenceManager() { return referenceManager; }
     Predicate< String > draftActive() { return draftActive; }
+    Supplier< com.wikantik.api.livevalues.LiveValues > liveValues() { return liveValues; }
 
     static final class Builder {
         private ContextRetrievalService ctxService;
@@ -112,6 +115,7 @@ final class KnowledgeToolDeps {
         private Supplier< PublicIdentity > publicIdentity;
         private Supplier< ReferenceManager > referenceManager;
         private Predicate< String > draftActive;
+        private Supplier< com.wikantik.api.livevalues.LiveValues > liveValues;
 
         Builder ctxService( final ContextRetrievalService v ) { this.ctxService = v; return this; }
         Builder pageManager( final PageManager v ) { this.pageManager = v; return this; }
@@ -127,6 +131,8 @@ final class KnowledgeToolDeps {
         Builder publicIdentity( final Supplier< PublicIdentity > v ) { this.publicIdentity = v; return this; }
         Builder draftActive( final Predicate< String > v ) { this.draftActive = v; return this; }
         Builder referenceManager( final Supplier< ReferenceManager > v ) { this.referenceManager = v; return this; }
+
+        Builder liveValues( final Supplier< com.wikantik.api.livevalues.LiveValues > v ) { this.liveValues = v; return this; }
 
         KnowledgeToolDeps build() {
             return new KnowledgeToolDeps( this );

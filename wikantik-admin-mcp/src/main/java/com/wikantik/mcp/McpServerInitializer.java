@@ -116,7 +116,8 @@ public class McpServerInitializer implements ServletContextListener {
             final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
 
             final WikiResources wikiResources = new WikiResources(
-                    pageManager, referenceManager, attachmentManager, systemPageRegistry );
+                    pageManager, referenceManager, attachmentManager, systemPageRegistry,
+                    () -> com.wikantik.livevalues.LiveValuesLookup.of( engine ) );
 
             final var serverImpl = new McpSchema.Implementation(
                     config.serverName(), config.serverTitle(), config.serverVersion() );

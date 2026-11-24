@@ -25,6 +25,7 @@ import com.google.gson.JsonObject;
 import com.wikantik.api.content.ContentValidationException;
 import com.wikantik.api.content.ContentWarningSink;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.core.Session;
@@ -328,10 +329,12 @@ final class PageBlocksHandler {
     }
 
     /**
-     * The excerpt for {@code section=^id} on {@code /preview}: the block's plain text, or empty when the page holds no
+     * The excerpt for {@code section=^id} on {@code /preview}: the block's plain text (live-value tokens expanded when
+     * {@code liveValues} is non-null), or empty when the page holds no
      * such block (the caller then falls back to the page excerpt and flags {@code blockMissing}).
      */
-    static Optional< String > blockExcerpt( final String pageName, final String rawText, final String section ) {
+    static Optional< String > blockExcerpt( final String pageName, final String rawText, final String section,
+                                            final LiveValues liveValues ) {
         if ( !BlockIds.isBlockRef( section ) ) {
             return Optional.empty();
         }
@@ -344,7 +347,8 @@ final class PageBlocksHandler {
             return Optional.empty();
         }
         return block.map( b -> {
-            final String shown = shownText( b );
+            final String stripped = shownText( b );
+            final String shown = liveValues == null ? stripped : liveValues.expandBody( stripped ).trim();
             return shown.length() > PageExcerpts.MAX_CHARS ? shown.substring( 0, PageExcerpts.MAX_CHARS ).trim() + "\u2026" : shown;
         } );
     }

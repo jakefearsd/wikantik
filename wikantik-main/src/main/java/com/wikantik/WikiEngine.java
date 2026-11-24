@@ -1563,7 +1563,8 @@ public class WikiEngine implements Engine {
                 // violate the frozen R-2 ArchUnit rule. The snapshot is rebuilt when ReferenceManager registers.
                 pageSubsystem != null ? pageSubsystem.referenceManager() : null,
                 pageSubsystem != null ? pageSubsystem.pages() : null,
-                properties );
+                properties,
+                () -> com.wikantik.livevalues.LiveValuesLookup.of( this ) );
 
         // Set-once install: the trio lands atomically in the live Services record (and the
         // WikiSubsystems stash, which holds the same instance — no rebuild, no re-stash).

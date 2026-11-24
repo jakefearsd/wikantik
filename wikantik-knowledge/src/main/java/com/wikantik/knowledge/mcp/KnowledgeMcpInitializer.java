@@ -155,6 +155,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 .draftActive( page -> com.wikantik.collab.adapter.CollabEngineAccess.draftActive( engine, page ) )
                 .publicIdentity( () -> AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() )
                 .referenceManager( () -> PageSubsystemBridge.fromLegacyEngine( engine ).referenceManager() )
+                .liveValues( () -> com.wikantik.livevalues.LiveValuesLookup.of( engine ) )
                 .build() );
         } );
         if ( tools == null ) {
@@ -231,7 +232,8 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         tools.add( new GetPageTool( ctxService, viewGate ) );
         tools.add( new ListPagesTool( ctxService, viewGate ) );
         tools.add( new ListMetadataValuesTool( ctxService, viewGate ) );
-        tools.add( new ReadPagesTool( deps.pageManager(), ReadPagesMetrics.resolveAndBind(), viewGate ) );
+        tools.add( new ReadPagesTool( deps.pageManager(), ReadPagesMetrics.resolveAndBind(), viewGate,
+                deps.liveValues() ) );
     }
 
     private static void addStructuralSpineTools( final List< McpTool > tools, final KnowledgeToolDeps deps ) {

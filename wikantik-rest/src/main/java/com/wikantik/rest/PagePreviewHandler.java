@@ -20,6 +20,8 @@ package com.wikantik.rest;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.livevalues.LiveValues;
+import com.wikantik.livevalues.LiveValuesLookup;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.frontmatter.ParsedPage;
@@ -71,7 +73,9 @@ final class PagePreviewHandler {
         final String rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
         final ParsedPage parsed = AclDirectiveText.parseStripped( rawText, " " );
         final Map< String, Object > fm = parsed.metadata();
-        final PreviewExcerpt excerpt = previewExcerpt( pageName, rawText, parsed.body(), request.getParameter( "section" ) );
+        final LiveValues liveValues = LiveValuesLookup.of( servlet.getEngine() );
+        final PreviewExcerpt excerpt = previewExcerpt( pageName, rawText, parsed.body(), request.getParameter( "section" ),
+                liveValues );
         final Map< String, Object > out = new LinkedHashMap<>();
         out.put( "name", pageName );
         final Object title = fm.get( "title" );
@@ -80,7 +84,8 @@ final class PagePreviewHandler {
         putIfText( out, "type", fm.get( "type" ) );
         final Object cluster = fm.get( "cluster" );
         putIfText( out, "cluster", cluster instanceof List< ? > l && !l.isEmpty() ? l.get( 0 ) : cluster );
-        putIfText( out, "summary", fm.get( "summary" ) );
+        putIfText( out, "summary", fm.get( "summary" ) instanceof String summary && liveValues != null
+                ? liveValues.expandText( summary ) : fm.get( "summary" ) );
         out.put( "excerpt", excerpt.text() );
         if ( excerpt.blockMissing() ) {
             out.put( "blockMissing", true );
@@ -96,20 +101,20 @@ final class PagePreviewHandler {
 
     /** The excerpt for the requested {@code section} (a heading slug or a block reference), or the page's opening. */
     private static PreviewExcerpt previewExcerpt( final String pageName, final String rawText, final String strippedBody,
-                                                  final String section ) {
+                                                  final String section, final LiveValues liveValues ) {
         // Without its %%comments%% before a section is cut, so a comment crossing the section's end is never left open.
         String body = ReaderComments.strip( strippedBody );
         if ( section != null && BlockIds.isBlockRef( section ) ) {
-            final String blockExcerpt = PageBlocksHandler.blockExcerpt( pageName, rawText, section ).orElse( null );
+            final String blockExcerpt = PageBlocksHandler.blockExcerpt( pageName, rawText, section, liveValues ).orElse( null );
             if ( blockExcerpt != null ) {
                 return new PreviewExcerpt( blockExcerpt, false );
             }
-            return new PreviewExcerpt( PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ), true );
+            return new PreviewExcerpt( PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS, liveValues ), true );
         }
         if ( section != null && !section.isBlank() ) {
             body = HeadingSlugs.sectionBody( body, section ).orElse( body );
         }
-        return new PreviewExcerpt( PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS ), false );
+        return new PreviewExcerpt( PageExcerpts.excerpt( body, PageExcerpts.MAX_CHARS, liveValues ), false );
     }
 
     /** Placeholder host page that seeds the embed renderer's loop stack; never a real page name. */

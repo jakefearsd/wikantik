@@ -25,9 +25,6 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
-import com.wikantik.api.providers.PageProvider;
-import com.wikantik.auth.acl.AclDirectiveText;
-import com.wikantik.parser.markdown.ReaderText;
 import com.wikantik.util.TokenEstimator;
 
 import org.apache.logging.log4j.Logger;
@@ -69,6 +66,8 @@ final class ItemAssembler {
     private final BriefingScope scope;
     private final int pointersMax;
     private final List< String > warnings;
+    /** Serves page text with live-value tokens expanded; null (the default) leaves them verbatim. Set once, by the owner. */
+    com.wikantik.api.livevalues.LiveValues liveValues;
 
     final List< BriefingItem > items = new ArrayList<>();
     private final Set< String > includedSlugs = new LinkedHashSet<>(); // every item (full or pointer)
@@ -273,7 +272,7 @@ final class ItemAssembler {
      * login), {@code %%comments%%} and block markers are left out.
      */
     private String bodyOf( final String slug ) {
-        return ReaderText.derived( AclDirectiveText.strip( pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) ) );
+        return BriefingPageText.of( pageManager, slug, liveValues );
     }
 
     private String canonicalIdOf( final String slug ) {

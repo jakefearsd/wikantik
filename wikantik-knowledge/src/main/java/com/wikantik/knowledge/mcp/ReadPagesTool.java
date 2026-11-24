@@ -18,6 +18,9 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.wikantik.api.livevalues.LiveValues;
+import com.wikantik.livevalues.LiveFrontmatter;
+
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
@@ -54,12 +57,21 @@ public class ReadPagesTool extends AbstractMcpTool {
     private final ReadPagesMetrics metrics;
     private final PageViewGate viewGate;
 
+    private final java.util.function.Supplier< LiveValues > liveValues;
+
     public ReadPagesTool( final PageManager pageManager, final ReadPagesMetrics metrics ) {
         this( pageManager, metrics, PageViewGate.ALLOW_ALL );
     }
 
     public ReadPagesTool( final PageManager pageManager, final ReadPagesMetrics metrics,
                           final PageViewGate viewGate ) {
+        this( pageManager, metrics, viewGate, () -> null );
+    }
+
+    /** As above; {@code liveValues} is resolved per call (it registers after boot) and null means tokens stay verbatim. */
+    public ReadPagesTool( final PageManager pageManager, final ReadPagesMetrics metrics,
+                          final PageViewGate viewGate, final java.util.function.Supplier< LiveValues > liveValues ) {
+        this.liveValues = liveValues;
         this.pageManager = pageManager;
         this.metrics = metrics;
         this.viewGate = viewGate == null ? PageViewGate.ALLOW_ALL : viewGate;
@@ -167,7 +179,9 @@ public class ReadPagesTool extends AbstractMcpTool {
                 } else {
                     // Every caller here is a guest (see PageViewGate), so access-rule directives — which name people
                     // by login — are never returned, nor are comments (read-only keys never write the text back).
-                    final String text = ReaderText.withoutComments( AclDirectiveText.strip( pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) ) );
+                    final String text = LiveFrontmatter.expandRawText( ReaderText.withoutComments(
+                            AclDirectiveText.strip( pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) ) ),
+                            liveValues.get() );
                     entry.put( "content", text == null ? "" : text );
                 }
             } catch ( final Exception e ) {

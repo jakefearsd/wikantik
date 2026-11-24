@@ -65,4 +65,15 @@ class LiveFrontmatterTest {
         assertEquals( "B {{wiki:articles}}", in.body() );
         assertSame( in, LiveFrontmatter.expandForReaders( in, null ) );
     }
+
+    @Test
+    void expandRawTextExpandsSummaryAndBodyOnly() {
+        final StubLiveValues stub = new StubLiveValues();
+        final String t = StubLiveValues.TOKEN;
+        final String in = "---\ntitle: " + t + "\nsummary: Over " + t + " now\n---\nBody " + t + ".\n";
+        final String out = LiveFrontmatter.expandRawText( in, stub );
+        assertEquals( "---\ntitle: " + t + "\nsummary: Over " + StubLiveValues.VALUE + " now\n---\nBody "
+                + StubLiveValues.VALUE + ".\n", out );
+        assertSame( in, LiveFrontmatter.expandRawText( in, null ) );
+    }
 }

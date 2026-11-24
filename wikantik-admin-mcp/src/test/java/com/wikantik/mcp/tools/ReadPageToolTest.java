@@ -103,4 +103,18 @@ class ReadPageToolTest {
         verify( pageManager ).getPageWithoutMetadata( eq( "PageA" ), anyInt() );
         verify( pageManager, never() ).getPage( eq( "PageA" ), anyInt() );
     }
+
+    @Test
+    void readPageToolReturnsRawToken() {
+        // read_page is the authoring read: an editor must see (and save back) the token, never its value.
+        final Page page = pageStub( 2 );
+        when( pageManager.getPageWithoutMetadata( eq( "PageA" ), anyInt() ) ).thenReturn( page );
+        when( pageManager.getPureText( eq( "PageA" ), anyInt() ) )
+                .thenReturn( "---\nsummary: Over {{wiki:articles|round=100}}\n---\nWe hold {{wiki:articles}} pages" );
+
+        final String json = text( tool.execute( Map.of( "slug", "PageA" ) ) );
+
+        assertTrue( json.contains( "{{wiki:articles|round" ), json );
+        assertTrue( json.contains( "{{wiki:articles}}" ), json );
+    }
 }

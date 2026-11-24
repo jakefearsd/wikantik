@@ -34,6 +34,8 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.livevalues.LiveFrontmatter;
+import com.wikantik.livevalues.LiveValuesLookup;
 import com.wikantik.util.BaseUrlResolver;
 
 import jakarta.servlet.Filter;
@@ -182,7 +184,9 @@ public class WikiPageFormatFilter implements Filter {
         firePageRequested( eng, page.getName() );
 
         final String rawText = pm.getPureText( page );
-        final ParsedPage parsed = readableBy( eng, session, pageName, rawText );
+        // Reader copy: live-value tokens (summary and prose, never code) show their values, not the token.
+        final ParsedPage parsed = LiveFrontmatter.expandForReaders(
+                readableBy( eng, session, pageName, rawText ), LiveValuesLookup.of( eng ) );
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
 
         if ( "md".equalsIgnoreCase( format ) ) {

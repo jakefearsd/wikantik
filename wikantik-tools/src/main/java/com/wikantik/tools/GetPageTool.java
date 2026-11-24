@@ -27,7 +27,10 @@ import com.wikantik.auth.identity.PublicIdentities;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.permissions.PermissionFilter;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.auth.acl.AclDirectiveText;
+import com.wikantik.livevalues.LiveFrontmatter;
+import com.wikantik.livevalues.LiveValuesLookup;
 import com.wikantik.parser.markdown.ReaderText;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -99,7 +102,11 @@ class GetPageTool {
 
         // Access-rule directives name people by login: only a caller who may edit the page gets them.
         final boolean canEdit = canEdit( request, resolvedName );
-        final String body = ResultShaper.bodyOnly( ReaderText.forViewer( canEdit, AclDirectiveText.forViewer( canEdit, raw ) ) );
+        // Reader copy: live-value tokens show their values, in the summary and (code-aware) in the text.
+        final LiveValues liveValues = LiveValuesLookup.of( engine );
+        final String body = LiveFrontmatter.expandRawText(
+                ResultShaper.bodyOnly( ReaderText.forViewer( canEdit, AclDirectiveText.forViewer( canEdit, raw ) ) ),
+                liveValues );
         final int limit = resolveLimit( maxChars );
         final boolean truncated = ResultShaper.wasTruncated( body, limit );
         final String shown = ResultShaper.truncateBody( body, limit );
@@ -107,7 +114,7 @@ class GetPageTool {
         final Map< String, Object > out = ResultShaper.orderedMap();
         out.put( "name", page.getName() );
         out.put( "url", ResultShaper.citationUrl( page.getName(), request, config.publicBaseUrl() ) );
-        ResultShaper.applyFrontmatter( out, ResultShaper.frontmatter( raw ) );
+        ResultShaper.applyFrontmatter( out, expandedSummary( ResultShaper.frontmatter( raw ), liveValues ) );
         if ( page.getLastModified() != null ) {
             out.put( "lastModified", page.getLastModified().toInstant().toString() );
         }
@@ -121,6 +128,16 @@ class GetPageTool {
             out.put( "truncatedAt", limit );
         }
         return out;
+    }
+
+    private static Map< String, Object > expandedSummary( final Map< String, Object > frontmatter,
+                                                          final LiveValues liveValues ) {
+        if ( liveValues == null || frontmatter == null || !( frontmatter.get( "summary" ) instanceof String summary ) ) {
+            return frontmatter;
+        }
+        final Map< String, Object > copy = new java.util.LinkedHashMap<>( frontmatter );
+        copy.put( "summary", liveValues.expandText( summary ) );
+        return copy;
     }
 
     /**

@@ -136,4 +136,41 @@ class ContributingChunkAssemblerTest {
         assertEquals( java.util.Set.of( "Alpha" ), out.keySet() );
         assertEquals( 1, out.get( "Alpha" ).size() );
     }
+
+    @Test
+    void chunkRowsHoldTheTokenAndAreServedExpandedTextAndHeadings() {
+        final com.wikantik.api.livevalues.LiveValues lv = mock( com.wikantik.api.livevalues.LiveValues.class );
+        when( lv.expandBody( anyString() ) ).thenAnswer( inv -> inv.getArgument( 0, String.class ).replace( "{{wiki:articles|round=100}}", "1,100+" ) );
+        when( lv.expandText( anyString() ) ).thenAnswer( inv -> inv.getArgument( 0, String.class ).replace( "{{wiki:articles|round=100}}", "1,100+" ) );
+        final UUID chunkId = UUID.randomUUID();
+        final FakeChunkRepository chunkRepo = new FakeChunkRepository();
+        chunkRepo.addChunk( chunkId, "Alpha", 0, List.of( "Over {{wiki:articles|round=100}} articles" ),
+            "We hold {{wiki:articles|round=100}} articles." );
+        final FakeChunkVectorIndex chunkIndex = new FakeChunkVectorIndex();
+        chunkIndex.setEnabled( true );
+        final ContributingChunkAssembler assembler = new ContributingChunkAssembler(
+            chunkIndex, chunkRepo, mock( HybridSearchService.class ), () -> lv );
+
+        final RetrievedChunk served = assembler.fetchContributingChunks( "q", ONE_PAGE, 1,
+            Optional.of( List.of( new ScoredChunk( chunkId, "Alpha", 0.9 ) ) ) ).get( "Alpha" ).get( 0 );
+
+        assertEquals( "We hold 1,100+ articles.", served.text() );
+        assertEquals( List.of( "Over 1,100+ articles" ), served.headingPath() );
+        assertTrue( chunkRepo.findByIds( List.of( chunkId ) ).get( 0 ).text().contains( "{{wiki:" ),
+            "the stored row keeps the token" );
+    }
+
+    @Test
+    void noLiveValuesServiceServesChunksVerbatim() {
+        final UUID chunkId = UUID.randomUUID();
+        final FakeChunkRepository chunkRepo = new FakeChunkRepository();
+        chunkRepo.addChunk( chunkId, "Alpha", 0, List.of(), "We hold {{wiki:articles}} articles." );
+        final FakeChunkVectorIndex chunkIndex = new FakeChunkVectorIndex();
+        chunkIndex.setEnabled( true );
+        final ContributingChunkAssembler assembler = new ContributingChunkAssembler(
+            chunkIndex, chunkRepo, mock( HybridSearchService.class ), () -> null );
+
+        assertEquals( "We hold {{wiki:articles}} articles.", assembler.fetchContributingChunks( "q", ONE_PAGE, 1,
+            Optional.of( List.of( new ScoredChunk( chunkId, "Alpha", 0.9 ) ) ) ).get( "Alpha" ).get( 0 ).text() );
+    }
 }

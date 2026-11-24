@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.retrieval;
 
 import com.wikantik.api.knowledge.RetrievedChunk;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
@@ -37,6 +38,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Assembles the per-page contributing-chunk lists surfaced alongside each
@@ -58,14 +60,28 @@ public final class ContributingChunkAssembler {
     private final ChunkVectorIndex chunkIndex;
     private final ContentChunkRepository chunkRepo;
     private final HybridSearchService hybridSearch;
+    private final Supplier< LiveValues > liveValues;
 
     public ContributingChunkAssembler(
             final ChunkVectorIndex chunkIndex,
             final ContentChunkRepository chunkRepo,
             final HybridSearchService hybridSearch ) {
+        this( chunkIndex, chunkRepo, hybridSearch, () -> null );
+    }
+
+    /**
+     * @param liveValues resolved per call (the service registers after boot); chunk rows hold the raw token, so
+     *        text and heading path are expanded here on the way out. Null or a null result serves them verbatim.
+     */
+    public ContributingChunkAssembler(
+            final ChunkVectorIndex chunkIndex,
+            final ContentChunkRepository chunkRepo,
+            final HybridSearchService hybridSearch,
+            final Supplier< LiveValues > liveValues ) {
         this.chunkIndex = chunkIndex;
         this.chunkRepo = chunkRepo;
         this.hybridSearch = hybridSearch;
+        this.liveValues = liveValues == null ? () -> null : liveValues;
     }
 
     public Map< String, List< RetrievedChunk > > fetchContributingChunks(
@@ -146,6 +162,7 @@ public final class ContributingChunkAssembler {
         for ( final ContentChunkRepository.MentionableChunk mc : chunkRepo.findByIds( allIds ) ) {
             byId.put( mc.id(), mc );
         }
+        final LiveValues lv = liveValues.get();
         final Map< String, List< RetrievedChunk > > out = new LinkedHashMap<>();
         for ( final Map.Entry< String, List< ScoredChunk > > entry : grouped.entrySet() ) {
             final List< RetrievedChunk > pageChunks = new ArrayList<>( entry.getValue().size() );
@@ -153,11 +170,22 @@ public final class ContributingChunkAssembler {
                 final ContentChunkRepository.MentionableChunk mc = byId.get( sc.chunkId() );
                 if ( mc != null ) {
                     pageChunks.add( new RetrievedChunk(
-                        mc.headingPath(), mc.text(), sc.score(), List.of() ) );
+                        expandedPath( mc.headingPath(), lv ), expandedText( mc.text(), lv ), sc.score(), List.of() ) );
                 }
             }
             out.put( entry.getKey(), pageChunks );
         }
         return out;
+    }
+
+    private static String expandedText( final String text, final LiveValues lv ) {
+        return lv == null || text == null ? text : lv.expandBody( text );
+    }
+
+    private static List< String > expandedPath( final List< String > headingPath, final LiveValues lv ) {
+        if ( lv == null || headingPath == null ) {
+            return headingPath;
+        }
+        return headingPath.stream().map( h -> h == null ? null : lv.expandText( h ) ).toList();
     }
 }

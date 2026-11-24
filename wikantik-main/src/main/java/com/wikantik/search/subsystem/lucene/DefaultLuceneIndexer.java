@@ -26,6 +26,7 @@ import org.apache.lucene.document.BinaryDocValuesField;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
+import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
@@ -38,6 +39,7 @@ import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
@@ -118,6 +120,9 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
      */
     private volatile Supplier< PublicIdentity > publicIdentitySource = () -> null;
 
+    /** Live-values service for the analysed text; {@code () -> null} (or a null result) analyses tokens verbatim. */
+    private volatile Supplier< LiveValues > liveValuesSource = () -> null;
+
     /**
      * Pending reindex queue — (Page, String) pairs awaiting drain.
      * Injected at construction time so the facade and indexer share the same list
@@ -185,6 +190,29 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
      */
     public void setPublicIdentitySource( final Supplier< PublicIdentity > source ) {
         this.publicIdentitySource = source == null ? () -> null : source;
+    }
+
+    /**
+     * Supplies the live-values service (resolved on every page indexed: it registers after boot). The analysed
+     * body and summary are built from expanded text so a search for {@code 1,100} finds a page whose text says
+     * {@code {{wiki:articles|round=100}}}; the stored copies keep the token, and the searcher expands on the way out.
+     */
+    public void setLiveValuesSource( final Supplier< LiveValues > source ) {
+        this.liveValuesSource = source == null ? () -> null : source;
+    }
+
+    /**
+     * Adds a field whose analysed text may differ from its stored text. With no token in play this is the plain
+     * stored+analysed field; otherwise it is two fields of the same name, one stored-only holding the raw token
+     * and one analysed-only holding the expanded value, so no reindex is needed when the value changes.
+     */
+    private static void addLiveField( final Document doc, final String name, final String raw, final String expanded ) {
+        if( expanded == null || expanded.equals( raw ) ) {
+            doc.add( new Field( name, raw, TextField.TYPE_STORED ) );
+            return;
+        }
+        doc.add( new StoredField( name, raw ) );
+        doc.add( new Field( name, expanded, TextField.TYPE_NOT_STORED ) );
     }
 
     /**
@@ -590,8 +618,9 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         // for the highlighting path and as a fallback for pre-DocValues segments.
         doc.add( new BinaryDocValuesField( LUCENE_ID, new BytesRef( page.getName() ) ) );
 
-        field = new Field( LUCENE_PAGE_CONTENTS, indexedText, TextField.TYPE_STORED );
-        doc.add( field );
+        final LiveValues liveValues = liveValuesSource.get();
+        addLiveField( doc, LUCENE_PAGE_CONTENTS, indexedText,
+                liveValues == null ? null : liveValues.expandBody( indexedText ) );
 
         final String unTokenizedTitle = StringUtils.replaceChars(
                 page.getName(), TextUtil.PUNCTUATION_CHARS_ALLOWED, PUNCTUATION_TO_SPACES );
@@ -646,7 +675,9 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
             final Object summary = metadata.get( "summary" );
             if ( summary != null ) {
-                doc.add( new Field( LUCENE_PAGE_SUMMARY, summary.toString(), TextField.TYPE_STORED ) );
+                final String rawSummary = summary.toString();
+                addLiveField( doc, LUCENE_PAGE_SUMMARY, rawSummary,
+                        liveValues == null ? null : liveValues.expandText( rawSummary ) );
             }
         } catch ( final Exception e ) {
             LOG.debug( "Could not parse frontmatter for indexing {}: {}", page.getName(), e.getMessage() );

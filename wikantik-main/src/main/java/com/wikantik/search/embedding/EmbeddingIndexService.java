@@ -182,8 +182,19 @@ public class EmbeddingIndexService {
     /** Rows read per short keyset-paged read in {@link #indexRows}; no connection is held while embedding. */
     private int readPageSize = DEFAULT_READ_PAGE_SIZE;
 
+    /** Live-values service resolved per batch (registers after boot); null result embeds tokens verbatim. */
+    private volatile java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValuesSource = () -> null;
+
     /** Sleeper used for exponential backoff between transient-retry attempts. Tests inject a no-op. */
     private Sleeper sleeper = Thread::sleep;
+
+    /**
+     * Embedding input is built from live-value-expanded text; the chunk rows keep the raw token. Resolved lazily
+     * because the service registers after boot.
+     */
+    public void setLiveValuesSource( final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > source ) {
+        this.liveValuesSource = source == null ? () -> null : source;
+    }
 
     public EmbeddingIndexService( final DataSource dataSource, final TextEmbeddingClient client ) {
         this( dataSource, client, DEFAULT_BATCH_SIZE );
@@ -525,7 +536,7 @@ public class EmbeddingIndexService {
                                      final List< UUID > pendingIds, final List< float[] > pendingVectors ) {
         batchIds.add( row.id() );
         final EmbeddingTextBuilder.PageContext ctx = ctxMemo.computeIfAbsent( row.pageName(), contextResolver );
-        batchTexts.add( EmbeddingTextBuilder.forDocument( ctx, row.headingPath(), row.text() ) );
+        batchTexts.add( EmbeddingTextBuilder.forDocument( ctx, row.headingPath(), row.text(), liveValuesSource.get() ) );
         if ( batchIds.size() < batchSize ) {
             return 0;
         }

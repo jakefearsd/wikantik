@@ -272,6 +272,7 @@ public class LuceneSearchProvider implements SearchProvider {
                             systemPageRegistry,
                             updates ); // share the facade's updates list
                     created.setPublicIdentitySource( this::publicIdentity );
+                    created.setLiveValuesSource( () -> com.wikantik.livevalues.LiveValuesLookup.of( engine ) );
                     indexer = created;
                 }
             }

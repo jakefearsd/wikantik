@@ -138,7 +138,8 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         this.pageListEngine = new PageListEngine( pageManager, fmCache,
             ( page, meta ) -> buildRetrievedPage( page, meta, 0.0, List.of(), List.of() ), this.publicIdentity,
             indexedInlineTags( engine ) );
-        this.contributingChunkAssembler = new ContributingChunkAssembler( chunkIndex, chunkRepo, hybridSearch );
+        this.contributingChunkAssembler = new ContributingChunkAssembler( chunkIndex, chunkRepo, hybridSearch,
+            () -> com.wikantik.livevalues.LiveValuesLookup.of( engine ) );
     }
 
     private static boolean pageStillExists( final PageManager pm, final String name ) {

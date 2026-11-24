@@ -42,6 +42,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.search.SearchResult;
@@ -105,6 +106,8 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
     private final PageManager pageManager;
     private final Engine engine;
     private final Executor searchExecutor;
+    /** Resolved per snippet: the live-values service registers after boot. */
+    private final java.util.function.Supplier< LiveValues > liveValuesSource;
     /**
      * When {@code false} (the default), the per-result snippet pass is skipped:
      * {@link Highlighter} is not constructed and {@code getBestFragments} is never
@@ -157,6 +160,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         this.pageManager = pageManager;
         this.engine = engine;
         this.searchExecutor = searchExecutor;
+        this.liveValuesSource = () -> com.wikantik.livevalues.LiveValuesLookup.of( engine );
         // Defensive: engine.getWikiProperties() can be null in test fixtures that
         // mock Engine. Treat that case as "default" (highlighting off).
         final java.util.Properties wikiProps = engine == null ? null : engine.getWikiProperties();
@@ -352,7 +356,8 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                 : LuceneHitSupport.recencyFactor( lastModified.getTime(), System.currentTimeMillis() );
         final int score = ( int ) ( hit.score() * recency * 100 );
 
-        final String text = hit.doc() != null ? hit.doc().get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS ) : null;
+        final String text = servedContents( hit.doc() != null ? hit.doc().get( DefaultLuceneIndexer.LUCENE_PAGE_CONTENTS ) : null,
+                liveValuesSource.get() );
         String[] fragments = new String[ 0 ];
         if ( text != null && highlighter != null ) {
             final TokenStream tokenStream = lifecycle.getAnalyzer().tokenStream(
@@ -360,6 +365,11 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
             fragments = highlighter.getBestFragments( tokenStream, text, MAX_FRAGMENTS );
         }
         return new SearchResultImpl( hit.page(), score, fragments );
+    }
+
+    /** The stored page text with live-value tokens expanded (it is stored raw), so a snippet shows the number. */
+    public static String servedContents( final String stored, final LiveValues liveValues ) {
+        return stored == null || liveValues == null ? stored : liveValues.expandBody( stored );
     }
 
     // -------------------------------------------------------------------------

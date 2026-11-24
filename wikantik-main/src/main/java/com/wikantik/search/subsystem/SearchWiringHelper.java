@@ -187,6 +187,7 @@ public final class SearchWiringHelper {
             };
         final EmbeddingIndexService indexService =
             new EmbeddingIndexService( ds, client, cfg.batchSize(), ctxResolver, cfg.commitBatchSize() );
+        indexService.setLiveValuesSource( () -> com.wikantik.livevalues.LiveValuesLookup.of( engine ) );
         engine.setManager( EmbeddingIndexService.class, indexService );
 
         // Pick the dense retrieval backend up front so DenseRetriever (constructed

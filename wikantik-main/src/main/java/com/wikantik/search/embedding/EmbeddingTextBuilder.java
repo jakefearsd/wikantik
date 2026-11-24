@@ -18,6 +18,8 @@
  */
 package com.wikantik.search.embedding;
 
+import com.wikantik.api.livevalues.LiveValues;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -75,6 +77,19 @@ public final class EmbeddingTextBuilder {
         header.append("\n\n");
         if (body != null) header.append(body);
         return header.toString();
+    }
+
+    /**
+     * As {@link #forDocument(PageContext, List, String)} but with live-value tokens in the headings and body
+     * expanded first, so the embedder sees the number a reader sees ({@code 1,100+}, not the token). The stored chunk
+     * keeps the token; nothing re-embeds when a value changes. A null {@code liveValues} embeds the text verbatim.
+     */
+    public static String forDocument(final PageContext ctx, final List<String> headingPath,
+                                     final String body, final LiveValues liveValues) {
+        if (liveValues == null) return forDocument(ctx, headingPath, body);
+        final List<String> headings = headingPath == null ? null
+            : headingPath.stream().map(h -> h == null ? null : liveValues.expandText(h)).toList();
+        return forDocument(ctx, headings, body == null ? null : liveValues.expandBody(body));
     }
 
     private static boolean notBlank(final String s) { return s != null && !s.isBlank(); }

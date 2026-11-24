@@ -170,7 +170,7 @@ public final class BundleServiceWiring {
         return new DefaultBundleAssemblyService(
             new RetrievalRouting( sources, RetrievalMode.HYBRID ), reranker,
             new CitationResolvers( canonicalIdOf, versionOf, sectionLinks( pageManager, props, liveValues ) ), MAX_SECTIONS,
-            coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ) );
+            coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ), liveValues );
     }
 
 

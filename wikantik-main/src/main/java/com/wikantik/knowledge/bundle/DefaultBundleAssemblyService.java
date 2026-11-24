@@ -25,6 +25,7 @@ import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.livevalues.LiveValues;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,6 +42,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** Orchestrates retrieve → per-page shortlist → rerank → dedup → top-N → cite (ADR-0001/0003/0005). */
 public final class DefaultBundleAssemblyService implements BundleAssemblyService {
@@ -56,6 +58,7 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
     private final int maxSections;
     private final BundleCoverageCalculator coverageCalc;
     private final KneeCutoff knee;
+    private final Supplier< LiveValues > liveValues;
 
     /**
      * Page-gated constructor (retained for back-compat): wraps hybrid retrieval +
@@ -147,6 +150,23 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
                                          final int maxSections,
                                          final BundleCoverageCalculator coverageCalc,
                                          final KneeCutoff knee ) {
+        this( routing, reranker, citations, maxSections, coverageCalc, knee, () -> null );
+    }
+
+    /**
+     * As above, plus the live-values service (resolved per assembly: it registers after boot). Chunk rows hold the
+     * raw token, so each kept section's text and heading path are expanded here, before anchoring, which also
+     * covers the briefing sections (they come straight from {@link #assemble}). The citation hash stays over the
+     * raw text, the span the page itself holds. Null or a null result serves sections verbatim.
+     */
+    public DefaultBundleAssemblyService( final RetrievalRouting routing,
+                                         final SectionReranker reranker,
+                                         final CitationResolvers citations,
+                                         final int maxSections,
+                                         final BundleCoverageCalculator coverageCalc,
+                                         final KneeCutoff knee,
+                                         final Supplier< LiveValues > liveValues ) {
+        this.liveValues = liveValues == null ? () -> null : liveValues;
         Objects.requireNonNull( routing.sources().get( routing.defaultMode() ),
             "defaultMode must be present in sources" );
         this.sources = Map.copyOf( routing.sources() );
@@ -194,12 +214,13 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         final int cut = cand.denseCosineScale()
             ? knee.effectiveN( cand.sections(), cand.topSimilarity(), effectiveMax )
             : effectiveMax;
-        final List< BundleSection > out = citeAndDedup( ranked, cut );
+        final List< BundleSection > out = citeAndDedup( ranked, cut, liveValues.get() );
         return new ContextBundle( query, out, coverageCalc.compute( cand.topSimilarity(), out ) );
     }
 
     /** Dedup by (slug, heading-path), drop un-citable sections, cite, link, and cap at {@code cut}. */
-    private List< BundleSection > citeAndDedup( final List< CandidateSection > ranked, final int cut ) {
+    private List< BundleSection > citeAndDedup( final List< CandidateSection > ranked, final int cut,
+                                                final LiveValues lv ) {
         final Set< SectionKey > seen = new LinkedHashSet<>();
         final Map< String, Function< List< String >, String > > pageLinks = new HashMap<>();  // one page read per bundle
         final List< BundleSection > out = new ArrayList<>();
@@ -207,13 +228,20 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             if ( !seen.add( new SectionKey( cs.slug(), cs.headingPath() ) ) ) continue;  // dedup by (slug, heading-path)
             final String canonical = canonicalIdOf.apply( cs.slug() ).orElse( null );
             if ( canonical == null ) continue;         // can't cite an un-versioned page; skip
+            // Chunks store the raw token; serve what a reader sees. Anchors are keyed by expanded headings.
+            final List< String > headingPath = expandedPath( cs.headingPath(), lv );
+            final String text = lv == null ? cs.text() : lv.expandBody( cs.text() );
             final CitationHandle cite = new CitationHandle(
-                canonical, versionOf.apply( cs.slug() ), cs.headingPath(), cs.text(), sha256( cs.text() ) );
-            final String url = pageLinks.computeIfAbsent( cs.slug(), sectionLinksOf ).apply( cs.headingPath() );
-            out.add( new BundleSection( canonical, cs.slug(), cs.headingPath(), cs.text(), cs.denseScore(), cite, url ) );
+                canonical, versionOf.apply( cs.slug() ), headingPath, text, sha256( cs.text() ) );
+            final String url = pageLinks.computeIfAbsent( cs.slug(), sectionLinksOf ).apply( headingPath );
+            out.add( new BundleSection( canonical, cs.slug(), headingPath, text, cs.denseScore(), cite, url ) );
             if ( out.size() >= cut ) break;             // top-N (dynamic when knee enabled)
         }
         return out;
+    }
+
+    private static List< String > expandedPath( final List< String > headingPath, final LiveValues lv ) {
+        return lv == null ? headingPath : headingPath.stream().map( lv::expandText ).toList();
     }
 
     static String sha256( final String text ) {

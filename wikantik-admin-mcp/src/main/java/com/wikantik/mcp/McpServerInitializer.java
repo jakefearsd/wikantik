@@ -160,6 +160,7 @@ public class McpServerInitializer implements ServletContextListener {
             subscriptionBridge.register( pageManager, RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager() );
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
+            publishToolCount( engine, toolRegistry );
             final int totalTools = toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size();
             // D12: warn loudly when the static instructions text mentions tools that are
             // not actually registered (or vice versa). The instructions are loaded from
@@ -173,6 +174,12 @@ public class McpServerInitializer implements ServletContextListener {
             }
             LOG.info( "MCP server started with {} tools, 6 resources, 8 prompts, and 3 completions at /wikantik-admin-mcp", totalTools );
         } );
+    }
+
+    /** Publishes the registered tool count (read-only plus author-configurable) as the {@code tools.admin} live value. */
+    static void publishToolCount( final Engine engine, final McpToolRegistry toolRegistry ) {
+        com.wikantik.livevalues.ToolCountLiveValue.register( engine, "tools.admin",
+                toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size() );
     }
 
     @Override

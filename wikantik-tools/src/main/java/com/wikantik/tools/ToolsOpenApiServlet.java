@@ -94,6 +94,11 @@ public class ToolsOpenApiServlet extends HttpServlet {
         this.getPageTool = getPageTool;
     }
 
+    /** Number of tools this servlet serves ({@code search_wiki}, {@code get_page}); zero for the placeholder. */
+    int toolCount() {
+        return ( searchTool != null ? 1 : 0 ) + ( getPageTool != null ? 1 : 0 );
+    }
+
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
         final String path = req.getPathInfo();

@@ -181,9 +181,15 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             }
 
             mcpServer = builder.build();
+            publishToolCount( engine, tools );
             servletContext.setAttribute( ATTR_KNOWLEDGE_MCP_SERVER, mcpServer );
             LOG.info( "Knowledge MCP server started successfully with {} tools at /knowledge-mcp", tools.size() );
         } );
+    }
+
+    /** Publishes the registered tool count as the {@code tools.knowledge} live value. */
+    static void publishToolCount( final Engine engine, final List< McpTool > tools ) {
+        com.wikantik.livevalues.ToolCountLiveValue.register( engine, "tools.knowledge", tools.size() );
     }
 
     /** Server display name advertised in the MCP {@code initialize} response. */

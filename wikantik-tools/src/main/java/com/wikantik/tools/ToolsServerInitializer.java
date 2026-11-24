@@ -92,10 +92,18 @@ public class ToolsServerInitializer implements ServletContextListener {
             registration.setAsyncSupported( true );
             registration.setLoadOnStartup( 2 );
 
+            publishToolCount( engine, servlet );
             LOG.info( "Tool server listening at /tools/ (engine={})", engine != null );
         } catch ( final Exception e ) {
             // Justified LOG.error: startup-time misconfiguration silently hides the tool server; operators must see it.
             LOG.error( "Failed to start tool server: {}", e.getMessage(), e );
+        }
+    }
+
+    /** Publishes the served tool count as the {@code tools.openapi} live value (skipped for the placeholder). */
+    static void publishToolCount( final Engine engine, final ToolsOpenApiServlet servlet ) {
+        if ( engine != null && servlet.toolCount() > 0 ) {
+            com.wikantik.livevalues.ToolCountLiveValue.register( engine, "tools.openapi", servlet.toolCount() );
         }
     }
 

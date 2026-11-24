@@ -69,6 +69,22 @@ class GenerateMainPageCliTest {
     }
 
     @Test
+    void tokensPassThroughVerbatim( @TempDir final Path tmp ) throws Exception {
+        Files.writeString( tmp.resolve( "Main.pins.yaml" ), """
+                summary: 'Wiki with {{wiki:articles|round=100}} articles.'
+                intro: It holds {{wiki:articles|round=100}} articles in {{wiki:clusters}} clusters.
+                sections:
+                  - label: "S"
+                    pages: []
+                """ );
+        assertEquals( 0, new GenerateMainPageCli().run( tmp, GenerateMainPageCli.Mode.WRITE ).exitCode() );
+        final String main = Files.readString( tmp.resolve( "Main.md" ), StandardCharsets.UTF_8 );
+        assertTrue( main.contains( "{{wiki:articles|round=100}} articles." ), main );
+        assertTrue( main.contains( "It holds {{wiki:articles|round=100}} articles in {{wiki:clusters}} clusters." ), main );
+        assertEquals( 0, new GenerateMainPageCli().run( tmp, GenerateMainPageCli.Mode.CHECK ).exitCode() );
+    }
+
+    @Test
     void check_mode_detects_hand_edit_drift( @TempDir final Path tmp ) throws Exception {
         writePage( tmp, "Alpha.md",
                 "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: Alpha\nsummary: x" );

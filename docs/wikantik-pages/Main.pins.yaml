@@ -16,10 +16,10 @@
 
 # The front page's <title>, its <h1> and its search-result description (keep the summary at 50-160 characters).
 title: 'Wikantik: Agent-Grade Technical Knowledge Wiki'
-summary: 'A technical knowledge wiki for human reading and AI agent retrieval: 1,100+ articles on software, AI, math and engineering, with MCP tools.'
+summary: 'A technical knowledge wiki for human reading and AI agent retrieval: {{wiki:articles|round=100}} articles on software, AI, math and engineering, with MCP tools.'
 
 intro: |-
-  **Wikantik is a technical wiki written to be read by people and queried by AI agents.** It holds over a thousand articles on software, AI, mathematics and engineering. Articles are grouped into topic clusters, and each cluster starts from a hub page that maps it.
+  **Wikantik is a technical wiki written to be read by people and queried by AI agents.** It holds {{wiki:articles|round=100}} articles on software, AI, mathematics and engineering. Articles are grouped into {{wiki:clusters}} topic clusters, and each cluster starts from a hub page that maps it.
 
   ### Three ways in
 

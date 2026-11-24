@@ -64,11 +64,7 @@ public final class CorpusLiveValueSource implements LiveValueSource {
 
     @Override
     public Map< String, Resolution > values() {
-        final IndexHealth health = index.health();
-        if( health != null && health.lastRebuildFinishedAt() == null ) {
-            // the initial rebuild runs on a background thread; an empty projection must not be served as real zeros
-            throw new NotReadyException( "structural index has not finished its first rebuild" );
-        }
+        requireFirstRebuild();
         long pages = 0;
         long articles = 0;
         final Map< String, Long > memberCounts = new HashMap<>();
@@ -110,6 +106,14 @@ public final class CorpusLiveValueSource implements LiveValueSource {
         out.put( "subclusters", new Resolution.Value( subclusters ) );
         out.put( "version", new Resolution.Text( Release.getVersionString() ) );
         return out;
+    }
+
+    /** The initial rebuild runs on a background thread: an empty projection must not be served as real zeros. */
+    private void requireFirstRebuild() {
+        final IndexHealth health = index.health();
+        if( health != null && health.lastRebuildFinishedAt() == null ) {
+            throw new NotReadyException( "structural index has not finished its first rebuild" );
+        }
     }
 
     @Override

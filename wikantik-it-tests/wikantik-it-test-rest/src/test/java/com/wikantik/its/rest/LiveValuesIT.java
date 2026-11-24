@@ -299,6 +299,32 @@ public class LiveValuesIT {
         assertTrue( SUMMARY_VALUE.matcher( html ).find() && BODY_VALUE.matcher( html ).find(), "still expanded: " + html );
     }
 
+    @Test
+    @Order( 11 )
+    void ontologyDescriptionCarriesTheValueNotTheToken() throws Exception {
+        final String query = "SELECT ?d WHERE { ?s <https://schema.org/url> ?u . ?s <http://purl.org/dc/terms/description> ?d . "
+                + "FILTER(CONTAINS(STR(?u), \"" + PAGE + "\")) }";
+        // The ontology syncs asynchronously after the save, so wait for the page's description to appear.
+        final String result = await( "sparql_query description of " + PAGE,
+                () -> tool( knowledge, "sparql_query", Map.of( "query", query ) ), b -> b.contains( "articles across" ) );
+        assertFalse( result.contains( "{{wiki:" ), "ontology description holds a raw token: " + result );
+        assertTrue( SUMMARY_VALUE.matcher( result ).find(), "ontology description carries the value: " + result );
+    }
+
+    @Test
+    @Order( 12 )
+    void anUpdateThatDropsATokenIsWarnedButSaved() {
+        final JsonObject read = JsonParser.parseString( tool( adminMcp, "read_page", Map.of( "slug", PAGE ) ) ).getAsJsonObject();
+        final String raw = read.get( "content" ).getAsString();
+        assertTrue( raw.contains( "holds " + TOKEN + " articles today" ), "precondition: " + raw );
+        final JsonObject upd = JsonParser.parseString( tool( adminMcp, "update_page", Map.of( "slug", PAGE,
+                "content", raw.replace( "holds " + TOKEN + " articles today", "holds 1,100 articles today" ),
+                "expectedContentHash", read.get( "contentHash" ).getAsString() ) ) ).getAsJsonObject();
+        assertTrue( upd.has( "updated" ) && upd.get( "updated" ).getAsBoolean(), "update_page: " + upd );
+        assertTrue( upd.toString().contains( "livevalues.lost" ) && upd.toString().contains( TOKEN ),
+                "update_page warns about the dropped token: " + upd );
+    }
+
     // ------------------------------------------------------------------ assertions
 
     private static void assertRaw( final String content, final String when ) {

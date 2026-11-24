@@ -70,6 +70,17 @@ class DefaultLiveValuesTest {
     }
 
     @Test
+    void tokenFreeTextNeverTouchesTheSources() {
+        final AtomicInteger calls = new AtomicInteger();
+        final DefaultLiveValues lv = new DefaultLiveValues( index, true );
+        lv.register( source( calls, Map.of( "articles", new Resolution.Value( 1 ) ), Set.of( "articles" ) ) );
+        assertEquals( "plain {text}", lv.expandText( "plain {text}" ) );
+        assertEquals( "# plain", lv.expandBody( "# plain" ) );
+        assertEquals( null, lv.expandText( null ) );
+        assertEquals( 0, calls.get() );
+    }
+
+    @Test
     void generationChangesWithValues() {
         final AtomicInteger calls = new AtomicInteger();
         final Map< String, Resolution > values = new java.util.HashMap<>( Map.of( "articles", new Resolution.Value( 1 ) ) );

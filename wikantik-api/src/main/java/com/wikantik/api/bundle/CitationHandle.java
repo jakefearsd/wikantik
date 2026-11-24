@@ -20,7 +20,13 @@ package com.wikantik.api.bundle;
 
 import java.util.List;
 
-/** A version-pinned, span-hashed grounding handle for a bundle section (ADR-0005). */
+/**
+ * A version-pinned, span-hashed grounding handle for a bundle section (ADR-0005).
+ *
+ * <p>{@code span} is the text as served (live-value tokens expanded); {@code spanSha256} hashes the span as
+ * <em>stored</em> in the page, token and all, so a live value changing never stales a citation. For a page with
+ * no token the two agree.</p>
+ */
 public record CitationHandle(
     String canonicalId, int version, List< String > headingPath, String span, String spanSha256
 ) {

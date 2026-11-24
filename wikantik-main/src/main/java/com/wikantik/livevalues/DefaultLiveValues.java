@@ -73,7 +73,7 @@ public final class DefaultLiveValues implements LiveValues {
 
     @Override
     public String expandText( final String text ) {
-        if( !enabled || text == null || text.isEmpty() ) {
+        if( !enabled || !LiveValueExpander.hasToken( text ) ) {
             return text;
         }
         final State s = current();
@@ -82,7 +82,7 @@ public final class DefaultLiveValues implements LiveValues {
 
     @Override
     public String expandBody( final String markdown ) {
-        if( !enabled || markdown == null || markdown.isEmpty() ) {
+        if( !enabled || !LiveValueExpander.hasToken( markdown ) ) {
             return markdown;
         }
         final State s = current();

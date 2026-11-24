@@ -39,6 +39,11 @@ public final class SummaryExtractor {
 
     private static final Pattern SENTENCE_SPLIT = Pattern.compile( "(?<=[.!?])\\s+" );
 
+    /** An inline code span (any backtick run length, one line); the stripper would unwrap it and free its text. */
+    private static final Pattern CODE_SPAN = Pattern.compile( "(`+)[^\\n]*?\\1" );
+
+    private static final String TOKEN_OPEN = "{{wiki:";
+
     private SummaryExtractor() {}
 
     /**
@@ -63,6 +68,8 @@ public final class SummaryExtractor {
         // either side of one apart), then every other plugin call, before markdown stripping. Callers pass the body
         // of the stripped FULL text (AclDirectiveText.parseStripped); this strip is the last line of defence.
         String text = blankPluginCalls( AclDirectiveText.strip( body, " " ) );
+        // A live-value token in a code span is a literal; stripping the backticks would turn it into a live token.
+        text = dropTokenCodeSpans( text );
 
         // Strip markdown (also strips frontmatter, headings, links, emphasis, etc.)
         text = MarkdownStripper.stripMarkdown( text );
@@ -84,7 +91,25 @@ public final class SummaryExtractor {
         // Fallback: truncate the first non-empty sentence
         if( firstNonEmpty == null ) return "";
         if( firstNonEmpty.length() <= MAX_LENGTH ) return firstNonEmpty;
-        return firstNonEmpty.substring( 0, MAX_LENGTH ) + "...";
+        return truncate( firstNonEmpty ) + "...";
+    }
+
+    /** The first {@value #MAX_LENGTH} characters, backing off before a live-value token the cut would split. */
+    private static String truncate( final String sentence ) {
+        final String cut = sentence.substring( 0, MAX_LENGTH );
+        final int open = cut.lastIndexOf( TOKEN_OPEN );
+        if( open >= 0 && cut.indexOf( "}}", open ) < 0 ) {
+            return cut.substring( 0, open ).stripTrailing();
+        }
+        return cut;
+    }
+
+    private static String dropTokenCodeSpans( final String text ) {
+        if( !text.contains( TOKEN_OPEN ) ) {
+            return text;
+        }
+        return CODE_SPAN.matcher( text ).replaceAll( m ->
+                m.group().contains( TOKEN_OPEN ) ? " " : java.util.regex.Matcher.quoteReplacement( m.group() ) );
     }
 
     /**

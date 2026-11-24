@@ -136,7 +136,7 @@ class LiveValuesBakeInRestTest {
     @Test
     void frontmatterBackfillKeepsBodyTokensByteIdentical() throws Exception {
         final PageManager pm = engine.getManager( PageManager.class );
-        engine.saveText( "BakeInBackfill", BODY );
+        engine.saveText( "BakeInBackfill", "Use `{{wiki:articles}}` for a count. " + "y".repeat( 190 ) + " {{wiki:pages}} tail.\n\n" + BODY );
         final FrontmatterBackfillAdminHandlers handlers =
                 new FrontmatterBackfillAdminHandlers( () -> pm, () -> null, () -> engine );
 
@@ -147,7 +147,10 @@ class LiveValuesBakeInRestTest {
 
         final ParsedPage p = stored( "BakeInBackfill" );
         assertEquals( Boolean.TRUE, p.metadata().get( "auto-generated" ), "backfill must have run on this page" );
-        assertEquals( BODY.strip(), p.body().replace( "\r\n", "\n" ).strip() );
+        assertTrue( p.body().replace( "\r\n", "\n" ).strip().endsWith( BODY.strip() ) );
+        final String summary = String.valueOf( p.metadata().get( "summary" ) );
+        assertTrue( !summary.contains( "{{wiki:articles}}" ) && !summary.matches( "(?s).*\\{\\{wiki:[^}]*" ),
+                "summary must hold neither a code-span token nor a half token: " + summary );
     }
 
     private static void awaitBackfill( final FrontmatterBackfillAdminHandlers handlers ) throws Exception {

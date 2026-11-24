@@ -90,4 +90,26 @@ class SummaryExtractorTest {
         assertFalse( result.contains( "alice" ), result );
         assertTrue( result.contains( "plugin system" ) );
     }
+
+    @Test
+    void truncationNeverLeavesAHalfToken() {
+        final String body = "x".repeat( 190 ) + " {{wiki:articles}} and then some more words follow here";
+        final String out = SummaryExtractor.extract( body );
+        org.junit.jupiter.api.Assertions.assertFalse( out.contains( "{{" ), out );
+        org.junit.jupiter.api.Assertions.assertTrue( out.endsWith( "..." ), out );
+    }
+
+    @Test
+    void aWholeTokenInProseIsKept() {
+        final String out = SummaryExtractor.extract( "This wiki holds {{wiki:articles|round=100}} articles about many practical engineering topics." );
+        org.junit.jupiter.api.Assertions.assertTrue( out.contains( "{{wiki:articles|round=100}}" ), out );
+    }
+
+    @Test
+    void aTokenInACodeSpanIsNotPromotedToALiveToken() {
+        final String out = SummaryExtractor.extract( "Write `{{wiki:articles}}` to show the live article count, for any page you like." );
+        org.junit.jupiter.api.Assertions.assertFalse( out.contains( "{{wiki:" ), out );
+        final String dbl = SummaryExtractor.extract( "Write ``{{wiki:articles}}`` to show the live article count, for any page you like." );
+        org.junit.jupiter.api.Assertions.assertFalse( dbl.contains( "{{wiki:" ), dbl );
+    }
 }

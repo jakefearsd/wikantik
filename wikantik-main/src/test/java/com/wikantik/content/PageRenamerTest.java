@@ -81,6 +81,13 @@ public class PageRenamerTest {
     public void renameKeepsLiveValueTokensByteIdentical() throws Exception {
         final String raw = "---\ntype: article\nsummary: \"{{wiki:articles|round=100}} articles, kept current\"\n---\n"
                 + "Body {{wiki:pages}} and {{wiki:cluster.a/b.pages|else=few}}.\n\n```\n{{wiki:articles}}\n```\n";
+        // TestEngine registers no live values; install one that expands every token so a leak would show.
+        final com.wikantik.api.livevalues.LiveValues lv = org.mockito.Mockito.mock( com.wikantik.api.livevalues.LiveValues.class );
+        org.mockito.Mockito.when( lv.expandText( org.mockito.ArgumentMatchers.anyString() ) ).thenAnswer( i ->
+                ( (String) i.getArgument( 0 ) ).replaceAll( "\\{\\{wiki:[^}]*\\}\\}", "EXPANDED" ) );
+        m_engine.serviceRegistry().put( com.wikantik.api.livevalues.LiveValues.class, lv );
+        Assertions.assertNotEquals( "{{wiki:version}}",
+                com.wikantik.livevalues.LiveValuesLookup.of( m_engine ).expandText( "{{wiki:version}}" ) );
         m_engine.saveText( "TestPage", raw );
         final PageManager pm = m_engine.getManager( PageManager.class );
         final String before = pm.getPureText( "TestPage", -1 );

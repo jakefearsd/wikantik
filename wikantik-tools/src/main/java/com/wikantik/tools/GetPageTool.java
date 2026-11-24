@@ -29,7 +29,6 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.permissions.PermissionFilter;
 import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.auth.acl.AclDirectiveText;
-import com.wikantik.livevalues.LiveFrontmatter;
 import com.wikantik.livevalues.LiveValuesLookup;
 import com.wikantik.parser.markdown.ReaderText;
 
@@ -104,9 +103,11 @@ class GetPageTool {
         final boolean canEdit = canEdit( request, resolvedName );
         // Reader copy: live-value tokens show their values, in the summary and (code-aware) in the text.
         final LiveValues liveValues = LiveValuesLookup.of( engine );
-        final String body = LiveFrontmatter.expandRawText(
-                ResultShaper.bodyOnly( ReaderText.forViewer( canEdit, AclDirectiveText.forViewer( canEdit, raw ) ) ),
-                liveValues );
+        // bodyOnly has already dropped the frontmatter, so expand it as a body: expandRawText would read a body that
+        // opens with a --- block as frontmatter.
+        final String bodyText =
+                ResultShaper.bodyOnly( ReaderText.forViewer( canEdit, AclDirectiveText.forViewer( canEdit, raw ) ) );
+        final String body = liveValues == null ? bodyText : liveValues.expandBody( bodyText );
         final int limit = resolveLimit( maxChars );
         final boolean truncated = ResultShaper.wasTruncated( body, limit );
         final String shown = ResultShaper.truncateBody( body, limit );

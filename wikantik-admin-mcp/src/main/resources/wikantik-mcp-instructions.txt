@@ -144,6 +144,21 @@ A block (paragraph, list item, table, quote) can carry an id written as ^id at t
 Link to one with [[Page#^id]] and embed it with ![[Page#^id]]. To give a block an id through update_page or
 write_pages, add the marker to the page text yourself, for example "The launch date is fixed. ^launch".
 
+== Live values ==
+
+A page body, and its frontmatter summary, may carry a live-value token such as {{wiki:articles}}. Readers see the
+current number in its place; the stored text keeps the token. Syntax: {{wiki:name}}, {{wiki:name|round=100}}
+(floor to a multiple of 100 and add "+" when the true value is higher, so 1142 shows as 1,100+) and
+{{wiki:name|round=100|else=several hundred}} (the text shown while no value is available). Names: articles, pages,
+clusters, subclusters, cluster.<path>.pages (for example cluster.agent-cookbook.pages), tools.knowledge,
+tools.admin, tools.openapi, version. Tokens inside code (fences, indented code, backtick spans) are never expanded,
+and an unknown name is shown as written. Only the summary expands in frontmatter. A summary that starts with a token
+must be quoted YAML (summary: "{{wiki:articles}} articles ...") because a bare { opens a YAML map.
+Other read surfaces (the knowledge endpoint, the tools server, ?format=md and ?format=json, rendered pages) show
+values, not tokens. Start every edit from this endpoint's read_page, which returns the stored text with the tokens;
+text copied from another surface has the numbers baked in, and saving it through update_page silently turns the
+live values into stale constants. update_page warns (code livevalues.lost) when a save drops tokens the page held.
+
 == Tool usage guide ==
 
 Read tools

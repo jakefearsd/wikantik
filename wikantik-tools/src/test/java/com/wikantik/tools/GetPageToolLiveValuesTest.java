@@ -42,6 +42,10 @@ import static org.mockito.Mockito.when;
 class GetPageToolLiveValuesTest {
 
     private static Map< String, Object > run( final LiveValues lv ) {
+        return run( lv, "---\nsummary: Holds " + TOKEN + " articles\n---\nBody " + TOKEN + " pages" );
+    }
+
+    private static Map< String, Object > run( final LiveValues lv, final String pageText ) {
         final WikiEngine engine = mock( WikiEngine.class );
         final PageManager pm = mock( PageManager.class );
         final Page page = mock( Page.class );
@@ -53,8 +57,7 @@ class GetPageToolLiveValuesTest {
         when( engine.getManager( PageManager.class ) ).thenReturn( pm );
         when( pm.getPage( "Main" ) ).thenReturn( page );
         when( page.getName() ).thenReturn( "Main" );
-        when( pm.getPureText( "Main", -1 ) ).thenReturn(
-            "---\nsummary: Holds " + TOKEN + " articles\n---\nBody " + TOKEN + " pages" );
+        when( pm.getPureText( "Main", -1 ) ).thenReturn( pageText );
         final GetPageTool tool = new GetPageTool( engine, new ToolsConfig( new Properties() ) ) {
             @Override boolean canView( final HttpServletRequest r, final String n ) { return true; }
             @Override boolean canEdit( final HttpServletRequest r, final String n ) { return false; }
@@ -68,6 +71,16 @@ class GetPageToolLiveValuesTest {
         final Map< String, Object > out = run( new StubLiveValues() );
         assertEquals( "Holds " + VALUE + " articles", out.get( "summary" ) );
         assertEquals( "Body " + VALUE + " pages", out.get( "text" ) );
+    }
+
+    @Test
+    void aBodyThatOpensWithADashBlockIsStillTheBody() {
+        // After the real frontmatter, the body itself opens with a --- block: it is body text, and its token expands.
+        final Map< String, Object > out = run( new StubLiveValues(),
+            "---\nsummary: s\n---\n---\nnote: " + TOKEN + "\n---\nTail" );
+        final String text = out.get( "text" ).toString();
+        assertTrue( text.contains( "note: " + VALUE ), text );
+        assertTrue( !text.contains( TOKEN ), text );
     }
 
     @Test

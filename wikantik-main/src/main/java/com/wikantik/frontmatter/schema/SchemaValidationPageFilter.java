@@ -78,7 +78,13 @@ public class SchemaValidationPageFilter implements PageFilter {
 
     /** Production constructor: builds the default schema + an engine-backed validation context. */
     public SchemaValidationPageFilter( final Properties props, final PageManager pageManager ) {
-        this( new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema() ),
+        this( props, pageManager, null );
+    }
+
+    /** As above, measuring summary length after live-value expansion ({@code null} expander = raw length). */
+    public SchemaValidationPageFilter( final Properties props, final PageManager pageManager,
+                                       final java.util.function.UnaryOperator< String > summaryExpander ) {
+        this( new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema(), summaryExpander ),
               engineBackedCtx( props, pageManager ),
               Boolean.parseBoolean( props.getProperty( PROP_ENFORCEMENT_ENABLED, "true" ) ) );
     }

@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -52,8 +53,18 @@ public final class SchemaDrivenFrontmatterValidator {
 
     private final FrontmatterSchema schema;
 
+    /** Expands live-value tokens in a summary so its length is judged as readers see it; identity when absent. */
+    private final UnaryOperator< String > summaryExpander;
+
     public SchemaDrivenFrontmatterValidator( final FrontmatterSchema schema ) {
+        this( schema, null );
+    }
+
+    /** @param summaryExpander measures the expanded summary for the length warning; {@code null} means identity */
+    public SchemaDrivenFrontmatterValidator( final FrontmatterSchema schema,
+                                             final UnaryOperator< String > summaryExpander ) {
         this.schema = schema;
+        this.summaryExpander = LiveValueFieldChecks.orIdentity( summaryExpander );
     }
 
     public List< FieldViolation > validate( final Map< String, Object > metadata, final ValidationCtx ctx ) {
@@ -87,6 +98,7 @@ public final class SchemaDrivenFrontmatterValidator {
                 validateVerifiedBy( raw, ctx, out );
             }
         }
+        LiveValueFieldChecks.check( metadata, out );
         return out;
     }
 
@@ -155,7 +167,7 @@ public final class SchemaDrivenFrontmatterValidator {
         }
         final String val = raw.toString();
         if ( spec.minLen() != null || spec.maxLen() != null ) {
-            final int len = val.trim().length();
+            final int len = measured( spec, val ).trim().length();
             final boolean tooShort = spec.minLen() != null && len < spec.minLen();
             final boolean tooLong = spec.maxLen() != null && len > spec.maxLen();
             if ( tooShort || tooLong ) {
@@ -165,6 +177,11 @@ public final class SchemaDrivenFrontmatterValidator {
             }
         }
         SlugPatternCheck.check( spec, val, out );
+    }
+
+    /** The text a length rule applies to: the expanded form for {@code summary}, else the raw value. */
+    private String measured( final FieldSpec spec, final String val ) {
+        return LiveValueFieldChecks.measured( summaryExpander, spec.key(), val );
     }
 
     private void validateDate( final FieldSpec spec, final Object raw,

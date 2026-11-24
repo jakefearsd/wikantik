@@ -29,6 +29,7 @@ import com.wikantik.drift.DriftSnapshotRepository;
 import com.wikantik.drift.DriftSweepRecord;
 import com.wikantik.drift.DriftSweepService;
 import com.wikantik.drift.PageViolation;
+import com.wikantik.page.subsystem.PageSubsystem;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystem;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -54,6 +55,7 @@ class AdminDriftResourceTest {
     private DriftSweepService service;
     private DriftSnapshotRepository repo;
     private CitationRepository citationRepo;
+    private com.wikantik.api.managers.PageManager pageManager;
     private AdminDriftResource servlet;
     private HttpServletRequest req;
     private HttpServletResponse resp;
@@ -66,6 +68,9 @@ class AdminDriftResourceTest {
             final PageGraphSubsystem.Services pg = new PageGraphSubsystem.Services(
                     null, null, null, null, null, service, citationRepo, null, null );
             when( subs.pageGraph() ).thenReturn( pg );
+            final PageSubsystem.Services page = mock( PageSubsystem.Services.class );
+            when( page.pages() ).thenReturn( pageManager );
+            when( subs.page() ).thenReturn( page );
             return subs;
         }
         @Override DriftSnapshotRepository repository( final DriftSweepService service ) { return repo; }
@@ -76,6 +81,7 @@ class AdminDriftResourceTest {
         service = mock( DriftSweepService.class );
         repo = mock( DriftSnapshotRepository.class );
         citationRepo = mock( CitationRepository.class );
+        pageManager = mock( com.wikantik.api.managers.PageManager.class );
         servlet = new Stub();
         req = mock( HttpServletRequest.class );
         resp = mock( HttpServletResponse.class );
@@ -358,5 +364,25 @@ class AdminDriftResourceTest {
         assertEquals( 0, counts.get( "target_missing" ).getAsInt() );
         assertEquals( 0, out.getAsJsonArray( "outbound" ).size() );
         assertEquals( 0, out.getAsJsonArray( "inbound" ).size() );
+    }
+
+    @Test
+    void liveValuesListsPagesWithNamesThatResolveToNothing() throws Exception {
+        final com.wikantik.api.core.Page good = mock( com.wikantik.api.core.Page.class );
+        final com.wikantik.api.core.Page bad = mock( com.wikantik.api.core.Page.class );
+        when( good.getName() ).thenReturn( "Good" );
+        when( bad.getName() ).thenReturn( "Bad" );
+        when( pageManager.getAllPages() ).thenReturn( List.of( good, bad ) );
+        when( pageManager.getPureText( good ) ).thenReturn( "---\nsummary: {{wiki:articles}}\n---\n{{wiki:pages}}" );
+        when( pageManager.getPureText( bad ) ).thenReturn(
+                "---\nsummary: {{wiki:nope}}\n---\n{{wiki:cluster.ghost.pages}} {{wiki:articles}}" );
+        when( req.getPathInfo() ).thenReturn( "/live-values" );
+        servlet.doGet( req, resp );
+        verify( resp ).setStatus( 200 );
+        final var pages = json().getAsJsonArray( "pages" );
+        assertEquals( 1, pages.size() );
+        assertEquals( "Bad", pages.get( 0 ).getAsJsonObject().get( "pageName" ).getAsString() );
+        assertEquals( 2, pages.get( 0 ).getAsJsonObject().getAsJsonArray( "names" ).size() );
+        assertTrue( json().get( "caveat" ).getAsString().contains( "private" ) );
     }
 }

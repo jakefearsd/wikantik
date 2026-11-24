@@ -23,6 +23,8 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.core.registry.EngineServiceRegistry;
 
+import java.util.function.UnaryOperator;
+
 /** Finds the registered {@link LiveValues} service on an engine, tolerating engines that have none (mocks, early init). */
 public final class LiveValuesLookup {
 
@@ -36,5 +38,16 @@ public final class LiveValuesLookup {
         }
         final EngineServiceRegistry registry = we.serviceRegistry();
         return registry == null ? null : registry.get( LiveValues.class );
+    }
+
+    /**
+     * A text expander that resolves the service on every call (it registers late in engine start-up) and
+     * returns its input unchanged while none is registered.
+     */
+    public static UnaryOperator< String > expander( final Engine engine ) {
+        return text -> {
+            final LiveValues lv = of( engine );
+            return lv == null ? text : lv.expandText( text );
+        };
     }
 }

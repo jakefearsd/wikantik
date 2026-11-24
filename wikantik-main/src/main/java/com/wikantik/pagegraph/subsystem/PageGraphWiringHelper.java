@@ -220,7 +220,8 @@ public final class PageGraphWiringHelper {
                 structuralIndex, pageManager, props ),
             SaveFilterPriority.RUNBOOK_VALIDATION );
         filterManager.addPageFilter(
-            new com.wikantik.frontmatter.schema.SchemaValidationPageFilter( props, pageManager ),
+            new com.wikantik.frontmatter.schema.SchemaValidationPageFilter( props, pageManager,
+                com.wikantik.livevalues.LiveValuesLookup.expander( engine ) ),
             SaveFilterPriority.SCHEMA_VALIDATION );
         filterManager.addPageFilter(
             new com.wikantik.markdown.extensions.math.MathValidationPageFilter( props, pageManager ),

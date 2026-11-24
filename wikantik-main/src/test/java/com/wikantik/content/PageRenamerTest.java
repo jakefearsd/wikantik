@@ -76,6 +76,22 @@ public class PageRenamerTest {
         m_engine.deleteQuietly( ALL_TEST_PAGES );
     }
 
+    /** Live values bake-in: a rename re-saves the raw text, so summary and body tokens must arrive untouched. */
+    @Test
+    public void renameKeepsLiveValueTokensByteIdentical() throws Exception {
+        final String raw = "---\ntype: article\nsummary: \"{{wiki:articles|round=100}} articles, kept current\"\n---\n"
+                + "Body {{wiki:pages}} and {{wiki:cluster.a/b.pages|else=few}}.\n\n```\n{{wiki:articles}}\n```\n";
+        m_engine.saveText( "TestPage", raw );
+        final PageManager pm = m_engine.getManager( PageManager.class );
+        final String before = pm.getPureText( "TestPage", -1 );
+        final Context context = Wiki.context().create( m_engine, pm.getPage( "TestPage" ) );
+
+        m_engine.getManager( PageRenamer.class ).renamePage( context, "TestPage", "FooTest", false );
+
+        Assertions.assertEquals( before, pm.getPureText( "FooTest", -1 ) );
+        Assertions.assertTrue( before.contains( "{{wiki:articles|round=100}}" ) && before.contains( "{{wiki:pages}}" ) );
+    }
+
     @Test
     public void testSimpleRename() throws Exception {
         // Count the number of existing references

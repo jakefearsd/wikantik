@@ -44,6 +44,7 @@ import java.util.Optional;
  * GET  /admin/drift/summary — latest sweep counts + deltas vs the previous sweep
  * GET  /admin/drift/trend?days=N — sweeps in the window, oldest first
  * GET  /admin/drift/pages?family=F&amp;code=C — live offender list (never persisted)
+ * GET  /admin/drift/live-values — pages whose {{wiki:...}} tokens name nothing that resolves (admin only)
  * GET  /admin/drift/status — live sweep progress
  * POST /admin/drift/sweep — manual async trigger (202 / 409)
  */
@@ -62,6 +63,11 @@ public class AdminDriftResource extends RestServletBase {
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
         final String action = extractPathParam( request );
+        // live-values and citations do not need the sweep service.
+        if ( "live-values".equals( action ) ) {
+            handleLiveValues( response );
+            return;
+        }
         // citations has its own null-repo guard and does not require driftSweepService.
         if ( "citations".equals( action ) ) {
             handleCitations( request, response );
@@ -189,6 +195,15 @@ public class AdminDriftResource extends RestServletBase {
             pages.add( row );
         }
         RestJson.sendJsonKeepingNulls( response, 200, Map.of( "pages", pages ) );
+    }
+
+    private void handleLiveValues( final HttpServletResponse response ) throws IOException {
+        final var rows = com.wikantik.livevalues.LiveValueDrift.scan( getSubsystems().page().pages(),
+                com.wikantik.livevalues.LiveValuesLookup.of( getEngine() ) );
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( "caveat", com.wikantik.livevalues.LiveValueDrift.CAVEAT );
+        out.put( "pages", rows );
+        RestJson.sendJsonKeepingNulls( response, 200, out );
     }
 
     private void handleStatus( final DriftSweepService service, final HttpServletResponse response )

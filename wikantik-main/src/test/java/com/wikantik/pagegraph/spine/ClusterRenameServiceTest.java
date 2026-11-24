@@ -145,6 +145,29 @@ class ClusterRenameServiceTest {
         verify( saveHelper ).saveText( eq( "InferenceServing" ), contains( "cluster: ml/mlops" ), any() );
     }
 
+    /** Live values bake-in: the rewrite re-saves the raw text, so summary and body tokens must survive. */
+    @Test
+    void apply_keeps_live_value_tokens_in_summary_and_body() throws Exception {
+        final String summary = "{{wiki:articles|round=100}} articles, {{wiki:clusters}} clusters, kept current";
+        final String body = "Body {{wiki:pages}} and {{wiki:cluster.a/b.pages|else=few}}.\n\n```\n{{wiki:articles}}\n```\n";
+        final PageDescriptor p = page( "InferenceServing", PageType.ARTICLE, "machine-learning/mlops" );
+        when( structural.listPagesByFilter( any( StructuralFilter.class ) ) ).thenReturn( List.of( p ) );
+        final Page mock = mock( Page.class );
+        when( pageManager.getPage( "InferenceServing" ) ).thenReturn( mock );
+        when( pageManager.getPureText( mock ) ).thenReturn( "---\ncanonical_id: " + p.canonicalId()
+                + "\ncluster: machine-learning/mlops\nsummary: \"" + summary + "\"\n---\n" + body );
+
+        service.apply( "machine-learning", "ml", "tester" );
+
+        final org.mockito.ArgumentCaptor< String > saved = org.mockito.ArgumentCaptor.forClass( String.class );
+        verify( saveHelper ).saveText( eq( "InferenceServing" ), saved.capture(), any() );
+        final com.wikantik.api.frontmatter.ParsedPage parsed =
+                com.wikantik.api.frontmatter.FrontmatterParser.parse( saved.getValue() );
+        assertEquals( summary, parsed.metadata().get( "summary" ) );
+        assertEquals( body.strip(), parsed.body().strip() );
+        assertEquals( "ml/mlops", parsed.metadata().get( "cluster" ) );
+    }
+
     /** A conflicting plan must not write anything — a half-applied rename splits the corpus. */
     @Test
     void apply_refuses_a_conflicting_plan_without_writing() {

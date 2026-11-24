@@ -54,7 +54,8 @@ public class FrontmatterValidateResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
 
     private final SchemaDrivenFrontmatterValidator validator =
-            new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema() );
+            new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema(),
+                    text -> com.wikantik.livevalues.LiveValuesLookup.expander( getEngine() ).apply( text ) );
 
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )

@@ -19,7 +19,9 @@
 package com.wikantik.api.livevalues;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
@@ -147,6 +149,47 @@ public final class LiveValueExpander {
             }
         }
         return names;
+    }
+
+    private static final Pattern WELL_FORMED_CLUSTER_NAME =
+            Pattern.compile( "cluster\\.[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)?\\.pages" );
+
+    /**
+     * True when {@code name} is a built-in name or a well-formed {@code cluster.<path>.pages}. A well-formed
+     * cluster name is "known" even when no such cluster exists yet: it may be created later.
+     */
+    public static boolean isKnownName( final String name ) {
+        return name != null && ( BUILT_IN_NAMES.contains( name ) || WELL_FORMED_CLUSTER_NAME.matcher( name ).matches() );
+    }
+
+    /**
+     * Raw text of every {@code {{wiki:} opening that would not expand: not a well-formed token, or one with an
+     * unknown, repeated or invalid argument such as {@code round=0}.
+     */
+    public static List< String > malformedTokens( final String text ) {
+        final List< String > bad = new ArrayList<>();
+        if( text == null || text.indexOf( "{{wiki:" ) < 0 ) {
+            return bad;
+        }
+        final Matcher m = TOKEN.matcher( text );
+        int from = 0;
+        while( m.find() ) {
+            collectStrayOpenings( text, from, m.start(), bad );
+            if( TokenArgs.parse( m.group( 2 ) ) == null ) {
+                bad.add( m.group() );
+            }
+            from = m.end();
+        }
+        collectStrayOpenings( text, from, text.length(), bad );
+        return bad;
+    }
+
+    private static void collectStrayOpenings( final String text, final int from, final int to, final List< String > bad ) {
+        int i = text.indexOf( "{{wiki:", from );
+        while( i >= 0 && i < to ) {
+            bad.add( text.substring( i, Math.min( text.length(), i + 40 ) ) );
+            i = text.indexOf( "{{wiki:", i + 1 );
+        }
     }
 
     /** True when {@code text} holds at least one well-formed token. */

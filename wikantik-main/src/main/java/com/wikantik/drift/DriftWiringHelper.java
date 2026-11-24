@@ -70,7 +70,8 @@ public final class DriftWiringHelper {
                                   final OntologyRebuildCoordinator coordinator ) {
         final DriftSweepService service = new DriftSweepService(
                 pageManager,
-                new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema() ),
+                new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema(),
+                        com.wikantik.livevalues.LiveValuesLookup.expander( engine ) ),
                 SchemaValidationPageFilter.engineBackedCtx( props, pageManager,
                                                             structuralIndexOrNull( engine ) ),
                 new DriftSnapshotRepository( dataSource ) );

@@ -19,6 +19,7 @@
 package com.wikantik.render;
 
 import com.wikantik.api.core.Context;
+import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.livevalues.LiveValueExpander;
 import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.auth.acl.AclDirectiveText;
@@ -59,7 +60,13 @@ final class DisplayText {
      * @return the text to parse for display
      */
     static String of( final Context context, final String pagedata, final LiveValues liveValues ) {
-        return expands( context, pagedata, liveValues ) ? liveValues.expandBody( of( context, pagedata ) ) : of( context, pagedata );
+        final String display = of( context, pagedata );
+        if( !expands( context, pagedata, liveValues ) ) {
+            return display;
+        }
+        // Only the body expands: the frontmatter stays raw (it becomes page attributes; the head owns its summary).
+        final int body = FrontmatterParser.bodyOffset( display );
+        return display.substring( 0, body ) + liveValues.expandBody( display.substring( body ) );
     }
 
     /**
@@ -77,7 +84,7 @@ final class DisplayText {
     }
 
     private static boolean expands( final Context context, final String pagedata, final LiveValues liveValues ) {
-        return liveValues != null && !wysiwyg( context ) && LiveValueExpander.hasToken( pagedata );
+        return liveValues != null && !wysiwyg( context ) && LiveValueExpander.hasToken( pagedata.substring( FrontmatterParser.bodyOffset( pagedata ) ) );
     }
 
     /**

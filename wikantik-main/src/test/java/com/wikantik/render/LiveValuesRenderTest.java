@@ -178,4 +178,17 @@ class LiveValuesRenderTest {
         assertFalse( html.contains( "{{wiki" ), html );
         assertEquals( 2, html.split( "1,142", -1 ).length - 1, html );
     }
+
+    @Test
+    void frontmatterTokensStayRawAndDoNotChurnTheCache() throws Exception {
+        final String text = "---\ntitle: T {{wiki:articles}}\nsummary: S {{wiki:articles}}\n---\nplain body\n";
+        engine.saveText( "LvFront", text );
+        final Context ctx = view( "LvFront" );
+        rm().textToHTML( ctx, text );
+        assertEquals( "T {{wiki:articles}}", ctx.getPage().getAttribute( "title" ) );
+        assertEquals( "S {{wiki:articles}}", ctx.getPage().getAttribute( "summary" ) );
+        articles.set( 5000 );
+        rm().textToHTML( view( "LvFront" ), text );
+        assertEquals( 1, postTranslates.get(), "a frontmatter token never invalidates the cache" );
+    }
 }

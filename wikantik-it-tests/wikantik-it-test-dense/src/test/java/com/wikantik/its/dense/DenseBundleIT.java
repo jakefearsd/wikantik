@@ -201,14 +201,8 @@ class DenseBundleIT {
                 "citation must pin a real page version: " + cite );
             // The citation is span-hashed (ADR-0005): the digest must actually be the
             // digest of the text handed back, or the handle cannot detect drift.
-            // The hash covers the span as STORED; a page carrying a {{wiki:...}} live value is served
-            // expanded, so its hash legitimately differs from the served text's. Equality is required
-            // for every other section; a token page must still carry a well-formed digest.
-            if ( sha256( str( s, "text" ) ).equals( str( cite, "spanSha256" ) ) ) {
-                continue;
-            }
-            assertTrue( str( cite, "spanSha256" ).matches( "[0-9a-f]{64}" ),
-                "spanSha256 must be the SHA-256 of the stored span (served text differs only for live-value pages): " + cite );
+            assertEquals( sha256( str( s, "text" ) ), str( cite, "spanSha256" ),
+                "spanSha256 must be the SHA-256 of the cited span: " + cite );
         }
     }
 

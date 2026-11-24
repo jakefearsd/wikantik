@@ -19,6 +19,8 @@
 package com.wikantik.render;
 
 import com.wikantik.api.core.Context;
+import com.wikantik.api.livevalues.LiveValueExpander;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.auth.acl.AclDirectiveText;
 
 /**
@@ -47,6 +49,38 @@ final class DisplayText {
     }
 
     /**
+     * The display text with live values expanded: {@link #of}, then {@code {{wiki:...}}} tokens expanded after the
+     * access rules are stripped (so an {@code else=} text can never smuggle a rule in). WYSIWYG renders keep the raw
+     * token. Render-only: never call this on a save path.
+     *
+     * @param context    the render context
+     * @param pagedata   the raw text
+     * @param liveValues the live-values service, or null for none
+     * @return the text to parse for display
+     */
+    static String of( final Context context, final String pagedata, final LiveValues liveValues ) {
+        return expands( context, pagedata, liveValues ) ? liveValues.expandBody( of( context, pagedata ) ) : of( context, pagedata );
+    }
+
+    /**
+     * What a render cache entry is validated against: the raw text when nothing expands (no service, WYSIWYG, no
+     * token: the hot path costs one scan), otherwise the expanded display text, so an entry goes stale exactly when a
+     * displayed value changes.
+     *
+     * @param context    the render context
+     * @param pagedata   the raw text
+     * @param liveValues the live-values service, or null for none
+     * @return the text whose hash validates a cache entry
+     */
+    static String validationText( final Context context, final String pagedata, final LiveValues liveValues ) {
+        return expands( context, pagedata, liveValues ) ? of( context, pagedata, liveValues ) : pagedata;
+    }
+
+    private static boolean expands( final Context context, final String pagedata, final LiveValues liveValues ) {
+        return liveValues != null && !wysiwyg( context ) && LiveValueExpander.hasToken( pagedata );
+    }
+
+    /**
      * For {@code textToHTML}'s explicit form: a render ({@code justParse == false}) shows the text, so it parses it as
      * {@link #of} says; a bare parse reads the raw text and honours its caller's access-rule switch.
      *
@@ -55,8 +89,9 @@ final class DisplayText {
      * @param justParse whether the caller only parses (for its link hooks) and renders nothing
      * @return the text to parse
      */
-    static String forParse( final Context context, final String pagedata, final boolean justParse ) {
-        return justParse ? pagedata : of( context, pagedata );
+    static String forParse( final Context context, final String pagedata, final boolean justParse,
+                            final LiveValues liveValues ) {
+        return justParse ? pagedata : of( context, pagedata, liveValues );
     }
 
     /** {@code ""}, or {@link #WYSIWYG_KEY} for a WYSIWYG render: what tells the two apart in the document cache. */

@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.StringTransmutator;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -61,6 +62,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 
 /**
@@ -124,6 +126,16 @@ public class DefaultRenderingManager implements RenderingManager {
      * seam: a test may replace it after {@code initialize} (for example with a resolver over a counting fake drawer).
      */
     volatile ServerFenceResolver serverFences = ServerFenceResolver.NONE;
+
+    /**
+     * Resolves {@link LiveValues} lazily: the rendering manager is built before the service is registered, so it is
+     * looked up on use. Null from the supplier means no expansion. Package-private as a test seam.
+     */
+    volatile Supplier< LiveValues > liveValuesSupplier = () -> LiveValuesLookup.of( engine );
+
+    private LiveValues liveValues() {
+        return liveValuesSupplier.get();
+    }
 
     /**
      * Constructor that accepts all dependencies directly for testability.
@@ -289,12 +301,14 @@ public class DefaultRenderingManager implements RenderingManager {
                               context.getRealPage().getVersion() + VERSION_DELIMITER +
                               context.getVariable( Context.VAR_EXECUTE_PLUGINS ) + DisplayText.cacheKeySuffix( context );
 
+        // Entries are validated against the display text: a displayed live value that moved makes the entry stale.
+        final String validation = DisplayText.validationText( context, pagedata, liveValues() );
         if( useCache( context ) ) {
             final WikiDocument doc = cachingManager.get( CachingManager.CACHE_DOCUMENTS, pageid, () -> null );
             if ( doc != null ) {
                 //  This check is needed in case the different filters have actually changed the page data.
                 //  Use hash-based comparison for efficiency instead of full string equality.
-                if( isPageDataUnchanged( pagedata, doc ) ) {
+                if( isPageDataUnchanged( validation, doc ) ) {
                     LOG.debug( "Using cached HTML for page {}", pageid );
                     return doc;
                 }
@@ -305,9 +319,9 @@ public class DefaultRenderingManager implements RenderingManager {
 
         // Refresh the data content
         try {
-            final String display = DisplayText.of( context, pagedata );
+            final String display = DisplayText.of( context, pagedata, liveValues() );
             final WikiDocument doc = getParser( context, display ).parse();
-            doc.setPageData( pagedata );
+            doc.setPageData( validation );
             // Skip the SHARED document cache when this render depended on the viewer
             // (a plugin executed or a session-dependent variable resolved) — plugin
             // output is baked into the parsed AST here, so caching it would serve one
@@ -325,24 +339,9 @@ public class DefaultRenderingManager implements RenderingManager {
         return null;
     }
 
-    /**
-     * Checks if the page data is unchanged by comparing hashes.
-     * This is much more efficient than full string comparison for large pages.
-     * Falls back to string comparison if hashing is not available.
-     *
-     * @param pagedata The current page data
-     * @param doc The cached WikiDocument
-     * @return true if the page data is unchanged
-     */
+    /** Whether {@code pagedata} is what the cached document was rendered from (see {@link WikiDocument#isPageDataUnchanged}). */
     private boolean isPageDataUnchanged( final String pagedata, final WikiDocument doc ) {
-        final String cachedHash = doc.getPageDataHash();
-        if( cachedHash != null ) {
-            // Use hash comparison (O(64) for SHA-256 hex string)
-            final String currentHash = WikiDocument.hashPageData( pagedata );
-            return cachedHash.equals( currentHash );
-        }
-        // Fall back to full string comparison if no hash available
-        return pagedata.equals( doc.getPageData() );
+        return doc.isPageDataUnchanged( pagedata );
     }
 
     boolean useCache( final Context context ) {
@@ -384,7 +383,7 @@ public class DefaultRenderingManager implements RenderingManager {
                     }
                 } ),
                 () -> evictRenderCache( context.getRealPage().getName() ),
-                pagedata -> getParser( context, DisplayText.of( context, pagedata ) ).parse() );
+                pagedata -> getParser( context, DisplayText.of( context, pagedata, liveValues() ) ).parse() );
     }
 
     /**
@@ -395,8 +394,9 @@ public class DefaultRenderingManager implements RenderingManager {
     @Override
     public String renderEmbedBody( final Context context, final String markdown ) throws IOException {
         return RenderDepth.nested( () -> EmbedBodyCache.render( cachingManager, useHtmlCache( context ),
-                htmlCacheId( context ), context, markdown,
-                () -> getHTML( context, getParser( context, DisplayText.of( context, markdown ) ).parse() ) ) );
+                htmlCacheId( context ), context,
+                DisplayText.validationText( context, markdown, liveValues() ),
+                () -> getHTML( context, getParser( context, DisplayText.of( context, markdown, liveValues() ) ).parse() ) ) );
     }
 
     /**
@@ -435,8 +435,10 @@ public class DefaultRenderingManager implements RenderingManager {
 
     /** The page view's final HTML with server-fence placeholders still unresolved, from the HTML cache when valid. */
     private String cachedOrRenderedHtml( final Context context, final String pagedata ) {
-        // The entry is validated against the RAW page data: the pre-translate filters may rewrite it.
-        final String rawHash = useHtmlCache( context ) ? WikiDocument.hashPageData( pagedata ) : null;
+        // The entry is validated against the page data BEFORE the pre-translate filters (they may rewrite it), with
+        // live values expanded, so it is re-rendered exactly when a displayed value changes.
+        final String rawHash = useHtmlCache( context )
+                ? WikiDocument.hashPageData( DisplayText.validationText( context, pagedata, liveValues() ) ) : null;
         final String locale = rawHash != null ? HtmlViewCache.viewerLocale( context ) : null;
         final String cached = rawHash == null ? null : HtmlViewCache.lookup( cachingManager, htmlCacheId( context ), rawHash, locale );
         if( cached != null ) {
@@ -497,7 +499,7 @@ public class DefaultRenderingManager implements RenderingManager {
                 pagedata = filterManager.doPreTranslateFiltering( context, pagedata );
             }
 
-            final String parsed = DisplayText.forParse( context, pagedata, justParse );
+            final String parsed = DisplayText.forParse( context, pagedata, justParse, liveValues() );
             final MarkupParser mp = getParser( context, parsed );
             mp.addLocalLinkHook( localLinkHook );
             mp.addExternalLinkHook( extLinkHook );

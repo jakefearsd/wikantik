@@ -90,6 +90,18 @@ public class WikiDocument extends Document {
     }
 
     /**
+     *  True when {@code data} is the markup this document was rendered from: a hash comparison, or a full string
+     *  comparison when no hash was stored.
+     *
+     *  @param data The current markup
+     *  @return true if unchanged
+     */
+    public boolean isPageDataUnchanged( final String data )
+    {
+        return pageDataHash != null ? pageDataHash.equals( hashPageData( data ) ) : data.equals( wikiText );
+    }
+
+    /**
      *  Computes a SHA-256 hash of the given data for cache validation.
      *  SHA-256 is used instead of MD5 for better collision resistance.
      *

@@ -39,7 +39,8 @@ import java.util.function.Predicate;
  *
  * <p>Only pages a guest may view are counted ({@code isPublic}), so a private cluster contributes nothing: it is
  * absent from every count and gets no {@code cluster.<path>.pages} entry, which makes it resolve exactly like a
- * cluster that does not exist. Cluster membership is exact (via {@link ClusterPath#memberships}); a hub is not a
+ * cluster that does not exist. Only clusters declared by a public hub exist; "clusters"/"subclusters" count declared
+ * clusters with at least one public non-hub member. Cluster membership is exact (via {@link ClusterPath#memberships}); a hub is not a
  * member of the cluster it declares.</p>
  */
 public final class CorpusLiveValueSource implements LiveValueSource {
@@ -65,19 +66,20 @@ public final class CorpusLiveValueSource implements LiveValueSource {
         long pages = 0;
         long articles = 0;
         final Map< String, Long > memberCounts = new HashMap<>();
-        final Set< String > clusterPaths = new HashSet<>();
+        final Set< String > declared = new HashSet<>();
         for( final PageDescriptor d : index.sitemap().pages() ) {
             if( !isPublic.test( d.slug() ) ) {
                 continue;
             }
             pages++;
             final boolean hub = d.type() == PageType.HUB;
-            if( !hub && !systemPages.isSystemPage( d.slug() ) ) {
-                articles++;
-            }
-            for( final String c : d.clusters() ) {
-                clusterPaths.add( c );
-                if( !hub ) {
+            if( hub ) {
+                declared.addAll( d.clusters() );
+            } else {
+                if( !systemPages.isSystemPage( d.slug() ) ) {
+                    articles++;
+                }
+                for( final String c : d.clusters() ) {
                     memberCounts.merge( c, 1L, Long::sum );
                 }
             }
@@ -85,20 +87,20 @@ public final class CorpusLiveValueSource implements LiveValueSource {
         final Map< String, Resolution > out = new HashMap<>();
         out.put( "pages", new Resolution.Value( pages ) );
         out.put( "articles", new Resolution.Value( articles ) );
-        final Set< String > topLevel = new HashSet<>();
+        long clusters = 0;
         long subclusters = 0;
-        for( final String c : clusterPaths ) {
-            final String parent = ClusterPath.parent( c );
-            if( parent == null ) {
-                topLevel.add( c );
-            } else {
-                subclusters++;
-                topLevel.add( parent );
+        for( final String c : declared ) {
+            final long members = memberCounts.getOrDefault( c, 0L );
+            out.put( LiveValueExpander.CLUSTER_PREFIX + c + CLUSTER_SUFFIX, new Resolution.Value( members ) );
+            if( members > 0 ) {
+                if( ClusterPath.parent( c ) == null ) {
+                    clusters++;
+                } else {
+                    subclusters++;
+                }
             }
-            out.put( LiveValueExpander.CLUSTER_PREFIX + c + CLUSTER_SUFFIX,
-                     new Resolution.Value( memberCounts.getOrDefault( c, 0L ) ) );
         }
-        out.put( "clusters", new Resolution.Value( topLevel.size() ) );
+        out.put( "clusters", new Resolution.Value( clusters ) );
         out.put( "subclusters", new Resolution.Value( subclusters ) );
         out.put( "version", new Resolution.Text( Release.getVersionString() ) );
         return out;

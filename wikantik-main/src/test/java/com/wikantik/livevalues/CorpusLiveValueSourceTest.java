@@ -58,6 +58,9 @@ class CorpusLiveValueSourceTest {
             page( "AHub", PageType.HUB, List.of( "a" ), false ),
             page( "SysPage", PageType.ARTICLE, List.of(), false ),
             page( "Hidden", PageType.ARTICLE, List.of( "secret" ), false ),
+            page( "BHub", PageType.HUB, List.of( "b" ), false ),
+            page( "BSubHub", PageType.HUB, List.of( "b/sub" ), false ),
+            page( "Ghost", PageType.ARTICLE, List.of( "ghost" ), false ),
             page( "Derived", PageType.ARTICLE, List.of( "a" ), true ) );
         final StructuralIndexService index = mock( StructuralIndexService.class );
         when( index.sitemap() ).thenReturn( new Sitemap( pages, pages.size(), Instant.EPOCH ) );
@@ -73,8 +76,8 @@ class CorpusLiveValueSourceTest {
 
     @Test
     void articlesAndPagesExcludePrivateAndSystemAndHubsAsSpecified() {
-        assertEquals( new Resolution.Value( 4 ), resolve( "articles" ) );   // A1 A2 B1 Derived
-        assertEquals( new Resolution.Value( 6 ), resolve( "pages" ) );      // + AHub + SysPage, no Hidden
+        assertEquals( new Resolution.Value( 5 ), resolve( "articles" ) );   // A1 A2 B1 Ghost Derived
+        assertEquals( new Resolution.Value( 9 ), resolve( "pages" ) );      // + 3 hubs + SysPage, no Hidden
     }
 
     @Test
@@ -84,6 +87,12 @@ class CorpusLiveValueSourceTest {
         assertEquals( new Resolution.Value( 1 ), resolve( "cluster.b/sub.pages" ) );
         assertEquals( new Resolution.Value( 2 ), resolve( "clusters" ) );            // a, b
         assertEquals( new Resolution.Value( 1 ), resolve( "subclusters" ) );         // b/sub
+    }
+
+    @Test
+    void undeclaredClusterPathIsNeitherCountedNorKnown() {
+        assertEquals( new Resolution.Unknown(), resolve( "cluster.ghost.pages" ) );
+        assertEquals( new Resolution.Value( 2 ), resolve( "clusters" ) );   // a, b -- not ghost
     }
 
     @Test

@@ -147,7 +147,8 @@ public final class PageGraphWiringHelper {
             final com.wikantik.auth.AuthorizationManager auth =
                 engine.serviceRegistry().get( com.wikantik.auth.AuthorizationManager.class );
             if ( auth == null ) {
-                return false;
+                // not ready (boot): signal it so DefaultLiveValues retries instead of freezing counts at zero
+                throw new IllegalStateException( "AuthorizationManager not yet available" );
             }
             try {
                 guest.compareAndSet( null, com.wikantik.WikiSession.guestSession( engine ) );

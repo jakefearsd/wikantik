@@ -97,7 +97,7 @@ class DefaultLiveValuesTest {
     void throwingSourceMakesItsNamesUnwiredAndOthersStillExpand() {
         final DefaultLiveValues lv = new DefaultLiveValues( index, true );
         lv.register( new LiveValueSource() {
-            @Override public Map< String, Resolution > values() { throw new IllegalStateException( "boom" ); }
+            @Override public Map< String, Resolution > values() { throw new UnsupportedOperationException( "boom" ); }
             @Override public Set< String > declaredNames() { return Set.of( "tools.admin" ); }
         } );
         lv.register( source( new AtomicInteger(), Map.of( "articles", new Resolution.Value( 7 ) ), Set.of( "articles" ) ) );
@@ -113,5 +113,27 @@ class DefaultLiveValuesTest {
         assertEquals( "", lv.expandText( "{{wiki:version}}" ) );
         assertEquals( "{{wiki:cluster.x.pages}}", lv.expandText( "{{wiki:cluster.x.pages}}" ) );
         assertEquals( "n/a", lv.expandText( "{{wiki:tools.openapi|else=n/a}}" ) );
+    }
+
+    @Test
+    void notReadySourceIsRetriedAtTheSameRevision() {
+        final boolean[] ready = { false };
+        final AtomicInteger calls = new AtomicInteger();
+        final DefaultLiveValues lv = new DefaultLiveValues( index, true );
+        lv.register( new LiveValueSource() {
+            @Override public Map< String, Resolution > values() {
+                calls.incrementAndGet();
+                if( !ready[ 0 ] ) {
+                    throw new IllegalStateException( "not ready" );
+                }
+                return Map.of( "articles", new Resolution.Value( 9 ) );
+            }
+            @Override public Set< String > declaredNames() { return Set.of( "articles" ); }
+        } );
+        assertEquals( "[none]", lv.expandText( "[{{wiki:articles|else=none}}]" ) );
+        ready[ 0 ] = true;
+        assertEquals( "[9]", lv.expandText( "[{{wiki:articles|else=none}}]" ) );
+        assertEquals( "[9]", lv.expandText( "[{{wiki:articles|else=none}}]" ) );
+        assertEquals( 2, calls.get() );
     }
 }

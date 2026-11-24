@@ -37,7 +37,14 @@ final class SaveWarnings {
 
     /** Drains both sinks into {@code entry} as {@code frontmatterWarnings} then {@code mathWarnings}, when non-empty. */
     static void attach( final Map< String, Object > entry, final String pageName ) {
-        final var fmWarnings = FrontmatterWarningSink.drain( pageName );
+        attach( entry, pageName, java.util.List.of() );
+    }
+
+    /** As {@link #attach(Map, String)}, with {@code extra} warnings (computed by the tool) listed after the sink's. */
+    static void attach( final Map< String, Object > entry, final String pageName,
+                        final java.util.List< com.wikantik.api.frontmatter.schema.FieldViolation > extra ) {
+        final var fmWarnings = new java.util.ArrayList<>( FrontmatterWarningSink.drain( pageName ) );
+        fmWarnings.addAll( extra );
         if ( !fmWarnings.isEmpty() ) {
             entry.put( "frontmatterWarnings", fmWarnings );
         }

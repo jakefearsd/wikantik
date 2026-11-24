@@ -480,6 +480,39 @@ class PageResourceTest {
     }
 
     @Test
+    void aPutThatDropsLiveValueTokensStillSavesAndWarns() throws Exception {
+        engine.saveText( "RestLostToken", "The wiki holds {{wiki:articles}} articles." );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "The wiki holds 1,100 articles." );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final String json = sendSaved( "RestLostToken", body, false, response );
+        try {
+            final JsonObject obj = gson.fromJson( json, JsonObject.class );
+            assertTrue( obj.get( "success" ).getAsBoolean(), json );
+            final JsonArray warnings = obj.getAsJsonArray( "warnings" );
+            assertEquals( 1, warnings.size(), json );
+            assertEquals( "livevalues.lost", warnings.get( 0 ).getAsJsonObject().get( "code" ).getAsString() );
+            assertTrue( warnings.get( 0 ).getAsJsonObject().get( "message" ).getAsString().contains( "{{wiki:articles}}" ), json );
+        } finally {
+            engine.deleteQuietly( "RestLostToken" );
+        }
+    }
+
+    @Test
+    void aPutThatKeepsItsLiveValueTokensDoesNotWarn() throws Exception {
+        engine.saveText( "RestKeptToken", "The wiki holds {{wiki:articles}} articles." );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "The wiki holds {{wiki:articles}} articles. More." );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final String json = sendSaved( "RestKeptToken", body, false, response );
+        try {
+            assertFalse( json.contains( "livevalues.lost" ), json );
+        } finally {
+            engine.deleteQuietly( "RestKeptToken" );
+        }
+    }
+
+    @Test
     void aPatchStoredButFailingAfterTheSaveAnswers200WithAGenericWarning() throws Exception {
         installFailingPostSaveFilter();
         engine.saveText( "RestPostFailPatch", "---\ntype: article\n---\nBody." );

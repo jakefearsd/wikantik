@@ -232,6 +232,8 @@ final class PageSaveHandler {
         // Also clear the math-content warning sink.
         FrontmatterWarningSink.clear();
         ContentWarningSink.clear();
+        final PageManager pm = servlet.getSubsystems().page().pages();
+        final String before = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
         final Saved outcome = saveReportingPostSaveFailure( helper, pageName, content, optionsBuilder.build() );
         final Page saved = outcome.page();
 
@@ -247,7 +249,11 @@ final class PageSaveHandler {
         result.put( "success", true );
         result.put( "name", pageName );
         result.put( "version", Math.max( saved.getVersion(), 1 ) );
-        result.put( "warnings", withPostSaveWarning( FrontmatterWarningSink.drain( pageName ), outcome ) );
+        final List< FieldViolation > warnings = new ArrayList<>( FrontmatterWarningSink.drain( pageName ) );
+        // An edit that started from a reader surface (which shows values) drops the page's {{wiki:...}} tokens: say so.
+        warnings.addAll( com.wikantik.livevalues.LiveValueLoss.warnings( before,
+                pm.getPureText( pageName, PageProvider.LATEST_VERSION ) ) );
+        result.put( "warnings", withPostSaveWarning( warnings, outcome ) );
         result.put( "mathWarnings", ContentWarningSink.drain() );
 
         servlet.sendJson( response, result );
@@ -379,8 +385,10 @@ final class PageSaveHandler {
             result.put( "success", true );
             result.put( "name", pageName );
             result.put( "version", Math.max( saved.getVersion(), 1 ) );
-            if ( outcome.postSaveFailed() ) {
-                result.put( "warnings", withPostSaveWarning( List.of(), outcome ) );
+            final List< FieldViolation > patchWarnings = withPostSaveWarning(
+                    com.wikantik.livevalues.LiveValueLoss.warnings( currentText, newText ), outcome );
+            if ( !patchWarnings.isEmpty() ) {
+                result.put( "warnings", patchWarnings );
             }
             final PublicIdentity identity = servlet.getSubsystems().auth().publicIdentity();
             result.put( "author", IdentityDisplay.ofAuthor( identity, saved.getAuthor() ) ); // D7

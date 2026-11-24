@@ -51,6 +51,7 @@ public final class OntologyPageSync {
     private final java.util.function.Predicate< String > isPublic;
     /** {@code null} = no identity service: frontmatter authors are projected exactly as written. */
     private final PublicIdentity publicIdentity;
+    private final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues;
     /** slug -> canonical_id, populated on save so deletes can resolve the page IRI after the row is gone. */
     private final ConcurrentHashMap< String, String > slugToCanonical = new ConcurrentHashMap<>();
 
@@ -62,6 +63,14 @@ public final class OntologyPageSync {
     public OntologyPageSync( final OntologyModelManager manager, final PageCanonicalIdsDao dao,
                              final PageManager pageManager, final java.util.function.Predicate< String > isPublic,
                              final PublicIdentity publicIdentity ) {
+        this( manager, dao, pageManager, isPublic, publicIdentity, () -> null );
+    }
+
+    public OntologyPageSync( final OntologyModelManager manager, final PageCanonicalIdsDao dao,
+                             final PageManager pageManager, final java.util.function.Predicate< String > isPublic,
+                             final PublicIdentity publicIdentity,
+                             final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues ) {
+        this.liveValues = liveValues;
         this.manager = manager;
         this.dao = dao;
         this.pageManager = pageManager;
@@ -79,7 +88,7 @@ public final class OntologyPageSync {
             LOG.warn( "onPageSaved: no canonical_id row for slug '{}'; skipping (nightly rebuild will reconcile)", slug );
             return;
         }
-        final PageRecord record = PageRecordBuilder.fromRow( row.get(), pageManager, publicIdentity );
+        final PageRecord record = PageRecordBuilder.fromRow( row.get(), pageManager, publicIdentity, liveValues );
         slugToCanonical.put( slug, record.canonicalId() );
         if ( !isPublic.test( slug ) ) {
             // Page is (now) ACL-restricted: ensure it is absent from the public dataset.

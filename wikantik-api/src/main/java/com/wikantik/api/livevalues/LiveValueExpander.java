@@ -151,6 +151,18 @@ public final class LiveValueExpander {
         return names;
     }
 
+    /** Every well-formed token in {@code text}, as written, in order and with repeats (code included). */
+    public static List< String > tokens( final String text ) {
+        final List< String > out = new java.util.ArrayList<>();
+        if( text != null ) {
+            final Matcher m = TOKEN.matcher( text );
+            while( m.find() ) {
+                out.add( m.group() );
+            }
+        }
+        return out;
+    }
+
     private static final Pattern WELL_FORMED_CLUSTER_NAME =
             Pattern.compile( "cluster\\.[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)?\\.pages" );
 

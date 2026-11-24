@@ -64,7 +64,10 @@ public final class OntologyWiringHelper {
         final PageCanonicalIdsDao pageDao = new PageCanonicalIdsDao( dataSource );
         // Frontmatter authors that are logins are published as display names (public dataset).
         final com.wikantik.api.identity.PublicIdentity publicIdentity = publicIdentityOf( engine );
-        final PageRecordBuilder pageBuilder = new PageRecordBuilder( pageManager, pageDao::findAll, publicIdentity );
+        final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues =
+                () -> com.wikantik.livevalues.LiveValuesLookup.of( engine );
+        final PageRecordBuilder pageBuilder =
+                new PageRecordBuilder( pageManager, pageDao::findAll, publicIdentity, liveValues );
 
         // ACL split: a page is PUBLIC iff a GUEST (anonymous) session may view it.
         // Reuse one guest session across the whole rebuild (stateless anonymous principal).
@@ -89,7 +92,7 @@ public final class OntologyWiringHelper {
         // writes run on the queue's worker thread, coalesced per page, never on the save request.
         final long coalesceMs = Long.parseLong(
                 props.getProperty( "wikantik.ontology.incremental.coalesce.ms", "500" ) );
-        final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager, isPublic, publicIdentity );
+        final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager, isPublic, publicIdentity, liveValues );
         final OntologyPageSyncQueue pageQueue = new OntologyPageSyncQueue( pageSync, coalesceMs );
         final OntologyEventListener pageListener = new OntologyEventListener( pageQueue );
         final com.wikantik.page.subsystem.PageSubsystem.Services pages = engine.getPageSubsystem();

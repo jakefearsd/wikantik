@@ -312,7 +312,8 @@ public class UpdatePageTool extends DefaultAuthorTool {
             ok.put( "updated", true );
             ok.put( "newContentHash", newHash );
             ok.put( "newVersion", McpToolUtils.normalizeVersion( existing.getVersion() + 1 ) );
-            SaveWarnings.attach( ok, pageName );
+            // Reader surfaces show values; an edit that started from one of them drops the tokens: say so.
+            SaveWarnings.attach( ok, pageName, com.wikantik.livevalues.LiveValueLoss.warnings( currentText, savedText ) );
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, ok );
         } catch ( final ContentValidationException | AccessRuleShapeException | FrontmatterValidationException e ) {
             // A save refusal: cite the violations (with excerpt/caret or shape/line) so the agent can fix and retry.

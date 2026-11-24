@@ -71,6 +71,19 @@ class PageRecordBuilderTest {
     }
 
     @Test
+    void summaryIsExpandedThroughLiveValues() {
+        final PageCanonicalIdsDao.Row row = new PageCanonicalIdsDao.Row(
+                "01CANON0000000000000000009", "Counted", "Counted", "article", null, Instant.EPOCH, Instant.EPOCH );
+        when( pageManager.getPureText( "Counted", -1 ) ).thenReturn(
+                "---\nsummary: \"Over {{wiki:articles|round=100}} articles\"\n---\nBody.\n" );
+        final com.wikantik.livevalues.StubLiveValues lv = new com.wikantik.livevalues.StubLiveValues();
+        final PageRecord r = new PageRecordBuilder( pageManager, () -> List.of( row ), null, () -> lv ).build().get( 0 );
+        assertEquals( "Over 1,100+ articles", r.summary() );
+        final PageRecord raw = new PageRecordBuilder( pageManager, () -> List.of( row ) ).build().get( 0 );
+        assertEquals( "Over {{wiki:articles|round=100}} articles", raw.summary(), "no service = as written" );
+    }
+
+    @Test
     void toleratesMissingFrontmatter() {
         final PageCanonicalIdsDao.Row row = new PageCanonicalIdsDao.Row(
                 "01CANON0000000000000000002", "Bare", "Bare", "article", null, Instant.EPOCH, Instant.EPOCH );

@@ -219,6 +219,46 @@ class UpdatePageToolTest {
     }
 
     @Test
+    void execute_warnsWhenTheEditDropsLiveValueTokens() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String before = "The wiki holds {{wiki:articles}} articles.";
+        final java.util.concurrent.atomic.AtomicBoolean saved = new java.util.concurrent.atomic.AtomicBoolean();
+        when( pm.getPureText( eq( "P" ), anyInt() ) )
+            .thenAnswer( inv -> saved.get() ? "The wiki holds 1,100 articles." : before );
+        doAnswer( inv -> { saved.set( true ); return null; } )
+            .when( helper ).saveText( eq( "P" ), any(), any( SaveOptions.class ) );
+
+        final McpSchema.CallToolResult result = new UpdatePageTool( helper, pm, null ).execute( Map.of(
+            "slug", "P", "content", "The wiki holds 1,100 articles.",
+            "expectedContentHash", McpToolUtils.computeContentHash( before ) ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"updated\":true" ), text );
+        assertTrue( text.contains( "livevalues.lost" ), text );
+        assertTrue( text.contains( "wiki:articles" ), text );
+    }
+
+    @Test
+    void execute_doesNotWarnWhenTokensSurvive() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String text0 = "The wiki holds {{wiki:articles}} articles.";
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( text0 );
+
+        final McpSchema.CallToolResult result = new UpdatePageTool( helper, pm, null ).execute( Map.of(
+            "slug", "P", "content", text0 + " More.", "expectedContentHash", McpToolUtils.computeContentHash( text0 ) ) );
+
+        assertFalse( ( (McpSchema.TextContent) result.content().get( 0 ) ).text().contains( "livevalues.lost" ) );
+    }
+
+    @Test
     void execute_doesNotSurfaceAnotherPagesFrontmatterWarnings() throws Exception {
         final PageManager pm = mock( PageManager.class );
         final PageSaveHelper helper = mock( PageSaveHelper.class );

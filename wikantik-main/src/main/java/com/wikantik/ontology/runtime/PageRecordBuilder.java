@@ -29,6 +29,7 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.identity.IdentityDisplay;
 import com.wikantik.api.identity.PublicIdentity;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.ontology.projection.PageRecord;
@@ -45,6 +46,8 @@ public final class PageRecordBuilder {
     private final Supplier< List< PageCanonicalIdsDao.Row > > rowSource;
     /** {@code null} = no identity service: frontmatter authors are projected exactly as written. */
     private final PublicIdentity publicIdentity;
+    /** Resolved per call; the service registers late. A null result leaves the summary exactly as written. */
+    private final Supplier< LiveValues > liveValues;
 
     public PageRecordBuilder( final PageManager pageManager,
                               final Supplier< List< PageCanonicalIdsDao.Row > > rowSource ) {
@@ -54,15 +57,23 @@ public final class PageRecordBuilder {
     public PageRecordBuilder( final PageManager pageManager,
                               final Supplier< List< PageCanonicalIdsDao.Row > > rowSource,
                               final PublicIdentity publicIdentity ) {
+        this( pageManager, rowSource, publicIdentity, () -> null );
+    }
+
+    public PageRecordBuilder( final PageManager pageManager,
+                              final Supplier< List< PageCanonicalIdsDao.Row > > rowSource,
+                              final PublicIdentity publicIdentity,
+                              final Supplier< LiveValues > liveValues ) {
         this.pageManager = pageManager;
         this.rowSource = rowSource;
         this.publicIdentity = publicIdentity;
+        this.liveValues = liveValues;
     }
 
     public List< PageRecord > build() {
         final List< PageRecord > out = new ArrayList<>();
         for ( final PageCanonicalIdsDao.Row row : rowSource.get() ) {
-            out.add( fromRow( row, pageManager, publicIdentity ) );
+            out.add( fromRow( row, pageManager, publicIdentity, liveValues ) );
         }
         return out;
     }
@@ -79,6 +90,16 @@ public final class PageRecordBuilder {
      */
     public static PageRecord fromRow( final PageCanonicalIdsDao.Row row, final PageManager pageManager,
                                       final PublicIdentity publicIdentity ) {
+        return fromRow( row, pageManager, publicIdentity, () -> null );
+    }
+
+    /**
+     * As above, with the frontmatter {@code summary} resolved through live values: the ontology serves
+     * {@code dct:description} to readers, so it stores the value they see, not the raw token. The stored page keeps
+     * the token; the projection refreshes on the next page sync or rebuild.
+     */
+    public static PageRecord fromRow( final PageCanonicalIdsDao.Row row, final PageManager pageManager,
+                                      final PublicIdentity publicIdentity, final Supplier< LiveValues > liveValues ) {
         Map< String, Object > md = Map.of();
         try {
             final String text = pageManager.getPureText( row.currentSlug(), PageProvider.LATEST_VERSION );
@@ -94,7 +115,7 @@ public final class PageRecordBuilder {
         return new PageRecord(
                 row.canonicalId(), row.currentSlug(), row.title(), row.type(), row.cluster(),
                 ClusterPath.memberships( md.get( "cluster" ) ),
-                tags( md.get( "tags" ) ), str( md.get( "summary" ) ), isoDate( md.get( "date" ) ),
+                tags( md.get( "tags" ) ), expanded( str( md.get( "summary" ) ), liveValues ), isoDate( md.get( "date" ) ),
                 IdentityDisplay.ofLoginOrText( publicIdentity, str( md.get( "author" ) ) ) );
     }
 
@@ -103,6 +124,11 @@ public final class PageRecordBuilder {
             return list.stream().map( Object::toString ).collect( Collectors.toList() );
         }
         return List.of();
+    }
+
+    private static String expanded( final String summary, final Supplier< LiveValues > liveValues ) {
+        final LiveValues lv = liveValues == null ? null : liveValues.get();
+        return lv == null || summary == null ? summary : lv.expandText( summary );
     }
 
     private static String str( final Object raw ) {

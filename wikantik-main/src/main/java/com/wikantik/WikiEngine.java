@@ -627,7 +627,9 @@ public class WikiEngine implements Engine {
      */
     private void initFrontmatterMetadataCache( final PageManager pageManager ) {
         final com.wikantik.search.FrontmatterMetadataCache fmCacheInstance =
-            new com.wikantik.search.FrontmatterMetadataCache( pageManager );
+            new com.wikantik.search.FrontmatterMetadataCache( pageManager,
+                com.wikantik.search.FrontmatterMetadataCache.DEFAULT_MAX_ENTRIES,
+                () -> com.wikantik.livevalues.LiveValuesLookup.of( this ) );
         setManager( com.wikantik.search.FrontmatterMetadataCache.class, fmCacheInstance );
         try {
             final io.micrometer.core.instrument.MeterRegistry meterReg =
@@ -1072,7 +1074,9 @@ public class WikiEngine implements Engine {
             BootStep.abortRestOnFailure( "hybrid-retrieval", env ->
                 com.wikantik.search.subsystem.SearchWiringHelper.wireHybridRetrieval(
                     env.props(), env.dataSource(), made.knowledge.chunkProjector(), made.knowledge.contentChunkRepository(),
-                    new com.wikantik.search.FrontmatterMetadataCache( env.pageManager() ),
+                    new com.wikantik.search.FrontmatterMetadataCache( env.pageManager(),
+                        com.wikantik.search.FrontmatterMetadataCache.DEFAULT_MAX_ENTRIES,
+                        () -> com.wikantik.livevalues.LiveValuesLookup.of( this ) ),
                     made.contentIndexRebuild, this ) ),
 
             // The RDF ontology runtime: builds the TDB2-backed OntologyModelManager + rebuild coordinator, registers

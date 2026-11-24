@@ -22,13 +22,17 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.livevalues.LiveValueExpander;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.api.managers.PageManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * Caches parsed page frontmatter keyed on {@code (pageName, lastModified)} so the
@@ -51,6 +55,7 @@ public final class FrontmatterMetadataCache {
     public static final int DEFAULT_MAX_ENTRIES = 2_000;
 
     private final PageManager pageManager;
+    private final Supplier< LiveValues > liveValues;
     private final Cache< Key, Map< String, Object > > cache;
 
     public FrontmatterMetadataCache( final PageManager pageManager ) {
@@ -58,6 +63,16 @@ public final class FrontmatterMetadataCache {
     }
 
     public FrontmatterMetadataCache( final PageManager pageManager, final long maxEntries ) {
+        this( pageManager, maxEntries, () -> null );
+    }
+
+    /**
+     * @param liveValues resolved on every read (the cache can be built before the service is registered);
+     *                   a null result means summaries are served verbatim
+     */
+    public FrontmatterMetadataCache( final PageManager pageManager, final long maxEntries,
+                                     final Supplier< LiveValues > liveValues ) {
+        this.liveValues = Objects.requireNonNull( liveValues, "liveValues" );
         this.pageManager = Objects.requireNonNull( pageManager, "pageManager" );
         this.cache = Caffeine.newBuilder()
             .maximumSize( maxEntries )
@@ -80,6 +95,14 @@ public final class FrontmatterMetadataCache {
      * block — callers can simply iterate over the result without null guards.
      */
     public Map< String, Object > get( final String pageName, final Date lastModified ) {
+        return expandSummary( getRaw( pageName, lastModified ) );
+    }
+
+    /**
+     * As {@link #get} but with {@code summary} exactly as stored, live-value tokens unexpanded. For anything
+     * that may write frontmatter back; reader-facing code uses {@link #get}.
+     */
+    public Map< String, Object > getRaw( final String pageName, final Date lastModified ) {
         if ( pageName == null || pageName.isEmpty() ) {
             return Map.of();
         }
@@ -89,6 +112,24 @@ public final class FrontmatterMetadataCache {
         }
         return cache.get( new Key( pageName, lastModified.getTime() ),
             k -> loadAndParse( k.pageName ) );
+    }
+
+    /** Copy with {@code summary} expanded when it holds a token; otherwise the same instance. Never mutates the cache. */
+    private Map< String, Object > expandSummary( final Map< String, Object > raw ) {
+        if ( !( raw.get( "summary" ) instanceof String summary ) || !LiveValueExpander.hasToken( summary ) ) {
+            return raw;
+        }
+        final LiveValues lv = liveValues.get();
+        if ( lv == null ) {
+            return raw;
+        }
+        final String expanded = lv.expandText( summary );
+        if ( summary.equals( expanded ) ) {
+            return raw;
+        }
+        final Map< String, Object > copy = new LinkedHashMap<>( raw );
+        copy.put( "summary", expanded );
+        return java.util.Collections.unmodifiableMap( copy );
     }
 
     /** Drop any cached entry for {@code pageName}. Safe to call with null. */

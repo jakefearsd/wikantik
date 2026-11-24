@@ -22,11 +22,13 @@ import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -152,5 +154,51 @@ class FrontmatterMetadataCacheTest {
         // Pages without frontmatter parse cleanly into an empty metadata map.
         assertNull( out.get( "summary" ) );
         assertEquals( Map.of(), out );
+    }
+
+    @Test
+    void summaryIsExpandedOnReadNotAtLoad() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final AtomicInteger calls = new AtomicInteger();
+        when( pm.getPureText( eq( PAGE ), anyInt() ) ).thenAnswer( inv -> {
+            calls.incrementAndGet();
+            return "---\nsummary: '{{wiki:articles}} articles'\ntags: [a]\n---\nBody\n";
+        } );
+        final AtomicInteger revision = new AtomicInteger( 1 );
+        final com.wikantik.api.livevalues.LiveValues lv = mock( com.wikantik.api.livevalues.LiveValues.class );
+        when( lv.expandText( org.mockito.ArgumentMatchers.anyString() ) )
+            .thenAnswer( inv -> ( ( String ) inv.getArgument( 0 ) ).replace( "{{wiki:articles}}", "r" + revision.get() ) );
+
+        final FrontmatterMetadataCache cache = new FrontmatterMetadataCache( pm, 100, () -> lv );
+        final Date ts = new Date( 1_000L );
+        assertEquals( "r1 articles", cache.get( PAGE, ts ).get( "summary" ) );
+        revision.set( 2 );
+        assertEquals( "r2 articles", cache.get( PAGE, ts ).get( "summary" ) );
+        assertEquals( 1, calls.get(), "loadAndParse must run once; expansion happens per read" );
+        assertEquals( "{{wiki:articles}} articles", cache.getRaw( PAGE, ts ).get( "summary" ),
+            "the cached map and raw accessor keep the token" );
+        assertEquals( List.of( "a" ), cache.get( PAGE, ts ).get( "tags" ) );
+    }
+
+    @Test
+    void noLiveValuesServesVerbatimAndSameInstance() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        when( pm.getPureText( eq( PAGE ), anyInt() ) )
+            .thenReturn( "---\nsummary: '{{wiki:articles}} articles'\n---\nBody\n" );
+        final FrontmatterMetadataCache cache = new FrontmatterMetadataCache( pm, 100, () -> null );
+        final Date ts = new Date( 1L );
+        assertEquals( "{{wiki:articles}} articles", cache.get( PAGE, ts ).get( "summary" ) );
+        assertSame( cache.getRaw( PAGE, ts ), cache.get( PAGE, ts ) );
+    }
+
+    @Test
+    void summaryWithoutTokenReturnsSameInstance() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        when( pm.getPureText( eq( PAGE ), anyInt() ) ).thenReturn( YAML_BODY );
+        final com.wikantik.api.livevalues.LiveValues lv = mock( com.wikantik.api.livevalues.LiveValues.class );
+        final FrontmatterMetadataCache cache = new FrontmatterMetadataCache( pm, 100, () -> lv );
+        final Date ts = new Date( 1L );
+        assertSame( cache.getRaw( PAGE, ts ), cache.get( PAGE, ts ) );
+        org.mockito.Mockito.verifyNoInteractions( lv );
     }
 }

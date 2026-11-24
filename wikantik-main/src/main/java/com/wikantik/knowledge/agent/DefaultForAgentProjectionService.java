@@ -153,7 +153,9 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         }
         final PageDescriptor d = maybe.get();
         final long updatedMs = d.updated() == null ? 0L : d.updated().toEpochMilli();
-        final Serializable key = canonicalId + ":" + updatedMs;
+        // d is already live-value expanded, so its summary hash keeps a changed value from serving a stale projection.
+        // Agent hints derived from OTHER pages' descriptors may lag a live value by up to the cache TTL: accepted.
+        final Serializable key = canonicalId + ":" + updatedMs + ":" + java.util.Objects.hashCode( d.summary() );
 
         final Shared cached = readFromCache( key );
         final Shared shared = cached != null ? cached : build( d );

@@ -162,6 +162,26 @@ class DefaultForAgentProjectionServiceTest {
         verify( pm, never() ).getVersionHistory( anyString() );
     }
 
+    @Test
+    void changed_live_value_with_same_page_version_builds_a_fresh_projection() {
+        final java.util.Map< java.io.Serializable, Object > store = new java.util.HashMap<>();
+        when( cache.enabled( CachingManager.CACHE_FOR_AGENT ) ).thenReturn( true );
+        when( cache.get( eq( CachingManager.CACHE_FOR_AGENT ), any(), any() ) )
+                .thenAnswer( i -> store.get( ( java.io.Serializable ) i.getArgument( 1 ) ) );
+        doAnswer( i -> store.put( ( java.io.Serializable ) i.getArgument( 1 ), i.getArgument( 2 ) ) )
+                .when( cache ).put( eq( CachingManager.CACHE_FOR_AGENT ), any(), any() );
+        when( pm.getPureText( "Live", -1 ) ).thenReturn( "---\ntitle: Live\n---\n\n## H\n" );
+        when( pm.getVersionHistory( "Live" ) ).thenReturn( List.of() );
+        final Instant updated = Instant.parse( "2026-04-22T11:10:00Z" );
+        final java.util.function.Function< String, PageDescriptor > desc = summary -> new PageDescriptor(
+                "01LIVE", "Live", "Live", PageType.ARTICLE, "c", List.of( "t" ), summary, updated, false );
+        when( idx.getByCanonicalId( "01LIVE" ) ).thenReturn( Optional.of( desc.apply( "Over 100 articles" ) ) );
+        assertEquals( "Over 100 articles", svc.project( "01LIVE" ).orElseThrow().summary() );
+
+        when( idx.getByCanonicalId( "01LIVE" ) ).thenReturn( Optional.of( desc.apply( "Over 200 articles" ) ) );
+        assertEquals( "Over 200 articles", svc.project( "01LIVE" ).orElseThrow().summary() );
+    }
+
     private static Page versionMock( final int v, final Instant when, final String author, final String note ) {
         final Page p = mock( Page.class );
         when( p.getVersion() ).thenReturn( v );

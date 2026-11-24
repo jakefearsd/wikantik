@@ -53,7 +53,9 @@ public final class DriftWiringHelper {
      */
     private static StructuralIndexService structuralIndexOrNull( final WikiEngine engine ) {
         try {
-            return PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService();
+            // drift is a check, not a reader surface: raw index
+            return com.wikantik.livevalues.LiveValuesStructuralIndexService.unwrap(
+                PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService() );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Structural index unavailable for drift wiring; "
                               + "undeclared-cluster drift will not be counted: {}", e.getMessage() );

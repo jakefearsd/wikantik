@@ -125,8 +125,10 @@ public class McpToolRegistry {
         // instructions finds a tool it was told about simply missing. Without a structural index
         // there is no way to resolve a cluster's members, so the tool refuses at call time with
         // that reason instead.
-        final var structuralIndex = com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge
-                .fromLegacyEngine( engine ).structuralIndexService();
+        // write path: the raw index, never the live-values view
+        final var structuralIndex = com.wikantik.livevalues.LiveValuesStructuralIndexService.unwrap(
+                com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge
+                        .fromLegacyEngine( engine ).structuralIndexService() );
         authorConfigurableList.add( new RenameClusterTool(
                 structuralIndex == null ? null
                         : new com.wikantik.pagegraph.spine.ClusterRenameService(

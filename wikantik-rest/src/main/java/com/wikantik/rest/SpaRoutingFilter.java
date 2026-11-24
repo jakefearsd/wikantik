@@ -640,9 +640,9 @@ public class SpaRoutingFilter implements Filter {
         // raw text through GET /api/pages, which keeps them for editors), so none gets them. Nor do they get
         // %%comments%%: this document is served to anonymous readers and crawlers and cached at the edge, so it is
         // always a reader's view. The render below still starts from rawText: the renderer consumes both itself.
-        // Only the summary expands here: it is the one frontmatter field that may carry live-value tokens, and the
-        // head, the body fallback and the island must all show the same text a crawler or reader should see.
-        final ParsedPage parsed = com.wikantik.livevalues.LiveFrontmatter.expandSummary(
+        // Summary and body expand here (the only places tokens live): the head, the body fallback and the island's
+        // content must all show what a crawler or reader should see. The editor re-fetches raw text via /api/pages.
+        final ParsedPage parsed = com.wikantik.livevalues.LiveFrontmatter.expandForReaders(
                 FrontmatterParser.parse( visibleText ), com.wikantik.livevalues.LiveValuesLookup.of( eng ) );
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
         final String appName = eng.getApplicationName();

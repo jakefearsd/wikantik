@@ -46,12 +46,20 @@ class SpaRoutingFilterLiveValuesTest {
 
     private static final String FAKE_INDEX_HTML = "<!DOCTYPE html>\n<html><head>\n<title>Wikantik</title>\n"
             + "</head><body><div id=\"root\"></div>\n</body></html>";
+    private static final String FENCED = "{{wiki:pages}}";
     private static final String TOKEN = "{{wiki:articles|round=100}}";
 
     /** Replaces the one token with a fixed value; the real service is covered by its own tests. */
     private static final class StubLiveValues implements LiveValues {
         @Override public String expandText( final String text ) { return text.replace( TOKEN, "1,100+" ); }
-        @Override public String expandBody( final String markdown ) { return expandText( markdown ); }
+        /** Code-aware enough for the test: only text outside ``` fences expands. */
+        @Override public String expandBody( final String markdown ) {
+            final String[] parts = markdown.split( "```", -1 );
+            for( int i = 0; i < parts.length; i += 2 ) {
+                parts[ i ] = parts[ i ].replace( TOKEN, "1,100+" );
+            }
+            return String.join( "```", parts );
+        }
         @Override public String generation() { return "g"; }
         @Override public Map< String, String > renderedValues() { return Map.of(); }
         @Override public void register( final LiveValueSource source ) { }
@@ -67,7 +75,8 @@ class SpaRoutingFilterLiveValuesTest {
         engine = TestEngine.build();
         engine.serviceRegistry().put( LiveValues.class, new StubLiveValues() );
         engine.saveText( "LiveSummaryPage", "---\nsummary: 'Over " + TOKEN
-                + " articles on software and maths for people and agents'\n---\nBody text.\n" );
+                + " articles on software and maths for people and agents'\n---\nBody has " + TOKEN
+                + " here.\n\n```\n" + FENCED + "\n```\n" );
         servletContext = mock( ServletContext.class );
         when( servletContext.getResourceAsStream( "/index.html" ) )
                 .thenAnswer( inv -> new ByteArrayInputStream( FAKE_INDEX_HTML.getBytes( StandardCharsets.UTF_8 ) ) );
@@ -104,6 +113,8 @@ class SpaRoutingFilterLiveValuesTest {
         assertTrue( html.contains( "property=\"og:description\" content=\"" + expected + "\"" ), html );
         assertTrue( html.contains( "\"description\":\"" + expected + "\"" )
                 || html.contains( "\"description\": \"" + expected + "\"" ), "JSON-LD / island description: " + html );
-        assertFalse( html.contains( "{{wiki:" ), "a raw token reached the response: " + html );
+        assertTrue( html.contains( FENCED ), "a token inside a code fence must stay verbatim: " + html );
+        assertFalse( html.replace( FENCED, "" ).contains( "{{wiki:" ), "a raw token reached the response: " + html );
+        assertTrue( html.contains( "Body has 1,100+ here." ), "island content / body shows the expanded body: " + html );
     }
 }

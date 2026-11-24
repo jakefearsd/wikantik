@@ -46,4 +46,21 @@ public final class LiveFrontmatter {
         copy.put( "summary", expanded );
         return new ParsedPage( copy, parsed.body() );
     }
+
+    /**
+     * Expands the summary and, code-aware, the body: for the reader-facing copies of a page (SSR head, no-JS
+     * fallback, data island), none of which may show a raw token. Same instance when {@code lv} is null.
+     */
+    public static ParsedPage expandForReaders( final ParsedPage parsed, final LiveValues lv ) {
+        if( lv == null || parsed == null ) {
+            return parsed;
+        }
+        final ParsedPage withSummary = expandSummary( parsed, lv );
+        final String body = withSummary.body();
+        final String expandedBody = body == null ? null : lv.expandBody( body );
+        if( expandedBody == null || expandedBody.equals( body ) ) {
+            return withSummary;
+        }
+        return new ParsedPage( withSummary.metadata(), expandedBody );
+    }
 }

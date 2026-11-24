@@ -53,4 +53,16 @@ class LiveFrontmatterTest {
         assertSame( withSummary, LiveFrontmatter.expandSummary( withSummary, null ) );
         assertSame( without, LiveFrontmatter.expandSummary( without, lv ) );
     }
+
+    @Test
+    void expandForReadersExpandsSummaryAndBody() {
+        when( lv.expandText( "S {{wiki:articles}}" ) ).thenReturn( "S 5" );
+        when( lv.expandBody( "B {{wiki:articles}}" ) ).thenReturn( "B 5" );
+        final ParsedPage in = new ParsedPage( Map.of( "summary", "S {{wiki:articles}}" ), "B {{wiki:articles}}" );
+        final ParsedPage out = LiveFrontmatter.expandForReaders( in, lv );
+        assertEquals( "S 5", out.metadata().get( "summary" ) );
+        assertEquals( "B 5", out.body() );
+        assertEquals( "B {{wiki:articles}}", in.body() );
+        assertSame( in, LiveFrontmatter.expandForReaders( in, null ) );
+    }
 }

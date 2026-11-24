@@ -53,9 +53,6 @@ public final class LiveValueExpander {
 
     private static final Pattern TOKEN =
             Pattern.compile( "\\{\\{wiki:([a-z][a-z0-9./-]*)((?:\\|[a-z]+=[^|}]*)*)\\}\\}" );
-    private static final Pattern FENCE = Pattern.compile( "^\\s*(`{3,}|~{3,})(.*)$" );
-    private static final Pattern PREFIX =
-            Pattern.compile( "^(?:\\s*>)*(?:\\s*(?:[-*+]|\\d+[.)])(?=\\s))*" );
 
     private LiveValueExpander() { }
 
@@ -76,34 +73,52 @@ public final class LiveValueExpander {
 
     private static String expandToken( final String raw, final String name, final String args,
                                        final Function< String, Resolution > resolve ) {
-        long round = 0;
-        String otherwise = null;
-        if( !args.isEmpty() ) {
-            for( final String arg : args.substring( 1 ).split( "\\|", -1 ) ) {
-                final int eq = arg.indexOf( '=' );
-                final String key = arg.substring( 0, eq );
-                final String val = arg.substring( eq + 1 );
-                if( "round".equals( key ) && round == 0 ) {
-                    round = parsePositive( val );
-                    if( round <= 0 ) {
-                        return raw;
-                    }
-                } else if( "else".equals( key ) && otherwise == null ) {
-                    otherwise = val;
-                } else {
-                    return raw;
-                }
-            }
+        final TokenArgs parsed = TokenArgs.parse( args );
+        if( parsed == null ) {
+            return raw;
         }
         final Resolution r = resolve.apply( name );
         if( r instanceof Resolution.Value v ) {
-            return format( v.number(), round );
+            return format( v.number(), parsed.round );
         } else if( r instanceof Resolution.Text t ) {
             return t.text();
         } else if( r instanceof Resolution.Unwired ) {
-            return otherwise == null ? "" : otherwise;
+            return parsed.otherwise == null ? "" : parsed.otherwise;
         }
         return raw;
+    }
+
+    /** Parsed {@code |key=value} arguments; {@code round} 0 means none. */
+    private static final class TokenArgs {
+        private long round;
+        private String otherwise;
+
+        /** Returns null when any argument is unknown, repeated or invalid. */
+        static TokenArgs parse( final String args ) {
+            final TokenArgs t = new TokenArgs();
+            if( args.isEmpty() ) {
+                return t;
+            }
+            for( final String arg : args.substring( 1 ).split( "\\|", -1 ) ) {
+                final int eq = arg.indexOf( '=' );
+                if( !t.accept( arg.substring( 0, eq ), arg.substring( eq + 1 ) ) ) {
+                    return null;
+                }
+            }
+            return t;
+        }
+
+        private boolean accept( final String key, final String val ) {
+            if( "round".equals( key ) && round == 0 ) {
+                round = parsePositive( val );
+                return round > 0;
+            }
+            if( "else".equals( key ) && otherwise == null ) {
+                otherwise = val;
+                return true;
+            }
+            return false;
+        }
     }
 
     private static long parsePositive( final String s ) {
@@ -139,112 +154,14 @@ public final class LiveValueExpander {
         return text != null && TOKEN.matcher( text ).find();
     }
 
-    /** Expands tokens in Markdown, skipping fenced code, indented code and inline code spans. */
+    /**
+     * Expands tokens in Markdown, skipping fenced code, indented code and inline code spans.
+     * Inline code spans are matched per line only.
+     */
     public static String expandBody( final String markdown, final Function< String, Resolution > resolve ) {
         if( markdown == null || markdown.indexOf( "{{wiki:" ) < 0 ) {
             return markdown;
         }
-        final String[] lines = markdown.split( "\n", -1 );
-        final StringBuilder out = new StringBuilder( markdown.length() );
-        char fenceChar = 0;
-        int fenceLen = 0;
-        boolean prevBlank = true;
-        boolean prevIndentedCode = false;
-        boolean listContext = false;
-        for( int i = 0; i < lines.length; i++ ) {
-            final String line = lines[ i ];
-            final String content = line.endsWith( "\r" ) ? line.substring( 0, line.length() - 1 ) : line;
-            final boolean blank = content.isBlank();
-            String result;
-            if( fenceChar != 0 ) {
-                result = line;
-                final Matcher pm = PREFIX.matcher( content );
-                final String rest = pm.find() ? content.substring( pm.end() ) : content;
-                final Matcher fm = FENCE.matcher( rest );
-                if( fm.matches() && fm.group( 1 ).charAt( 0 ) == fenceChar && fm.group( 1 ).length() >= fenceLen
-                        && fm.group( 2 ).isBlank() ) {
-                    fenceChar = 0;
-                }
-                prevIndentedCode = false;
-            } else {
-                final Matcher pm = PREFIX.matcher( content );
-                final int prefixEnd = pm.find() ? pm.end() : 0;
-                final Matcher fm = FENCE.matcher( content.substring( prefixEnd ) );
-                final boolean listItem = prefixEnd > 0 && content.substring( 0, prefixEnd ).matches( ".*(?:[-*+]|\\d+[.)])" );
-                if( fm.matches() && !( fm.group( 1 ).charAt( 0 ) == '`' && fm.group( 2 ).indexOf( '`' ) >= 0 ) ) {
-                    fenceChar = fm.group( 1 ).charAt( 0 );
-                    fenceLen = fm.group( 1 ).length();
-                    result = line;
-                    prevIndentedCode = false;
-                } else if( !blank && ( content.startsWith( "    " ) || content.startsWith( "\t" ) )
-                        && !listContext && ( prevBlank || prevIndentedCode ) ) {
-                    result = line;
-                    prevIndentedCode = true;
-                } else {
-                    result = expandOutsideInlineCode( line, resolve );
-                    prevIndentedCode = false;
-                }
-                if( listItem ) {
-                    listContext = true;
-                } else if( !blank && !Character.isWhitespace( content.charAt( 0 ) ) ) {
-                    listContext = false;
-                }
-            }
-            prevBlank = blank;
-            out.append( result );
-            if( i < lines.length - 1 ) {
-                out.append( '\n' );
-            }
-        }
-        return out.toString();
-    }
-
-    /** Expands a single line, skipping inline code spans (matching backtick runs of equal length). */
-    private static String expandOutsideInlineCode( final String line, final Function< String, Resolution > resolve ) {
-        if( line.indexOf( '`' ) < 0 ) {
-            return expandText( line, resolve );
-        }
-        final StringBuilder out = new StringBuilder();
-        int segStart = 0;
-        int i = 0;
-        final int n = line.length();
-        while( i < n ) {
-            if( line.charAt( i ) != '`' ) {
-                i++;
-                continue;
-            }
-            int j = i;
-            while( j < n && line.charAt( j ) == '`' ) {
-                j++;
-            }
-            final int runLen = j - i;
-            int k = j;
-            int close = -1;
-            while( k < n ) {
-                if( line.charAt( k ) == '`' ) {
-                    int e = k;
-                    while( e < n && line.charAt( e ) == '`' ) {
-                        e++;
-                    }
-                    if( e - k == runLen ) {
-                        close = e;
-                        break;
-                    }
-                    k = e;
-                } else {
-                    k++;
-                }
-            }
-            if( close < 0 ) {
-                i = j;
-            } else {
-                out.append( expandText( line.substring( segStart, i ), resolve ) );
-                out.append( line, i, close );
-                segStart = close;
-                i = close;
-            }
-        }
-        out.append( expandText( line.substring( segStart ), resolve ) );
-        return out.toString();
+        return new MarkdownCodeScanner( resolve ).expand( markdown );
     }
 }

@@ -117,6 +117,23 @@ class AtomFeedServletTest {
     }
 
     @Test
+    void testNoindexedRecentPagesDoNotShrinkTheFeedBelowCount() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.seo.noindexClusters", "lifestyle" );
+        final ServletConfig config = Mockito.mock( ServletConfig.class );
+        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
+        servlet.init( config );
+        // The noindexed page becomes the most recent article, so a count=1 query sees it first.
+        engine.saveText( "FeedTestOther",
+            "---\ntype: article\ntags: [cooking]\nsummary: A cooking article, revised\ncluster: lifestyle\n---\n# Cooking\nBody 2." );
+        engine.getManager( RecentArticlesManager.class ).clearCache();
+
+        final String feed = doGetFeed( "1", null );
+
+        assertFalse( feed.contains( "FeedTestOther" ), feed );
+        assertTrue( feed.contains( "<entry>" ), "count=1 must still yield one indexable entry: " + feed );
+    }
+
+    @Test
     void testFeedGeneratesValidAtomXml() throws Exception {
         final String feed = doGetFeed( null, null );
 

@@ -67,6 +67,8 @@ public class AtomFeedServlet extends HttpServlet {
 
     private static final int DEFAULT_COUNT = 20;
     private static final int MAX_COUNT = 100;
+    /** How many candidates to fetch per requested entry when post-query filters can drop entries. */
+    private static final int FILTER_OVERFETCH = 5;
     private static final int FEED_SINCE_DAYS = 90;
 
     /** Property for explicit feed base URL (mirrors sitemap property pattern). */
@@ -98,8 +100,11 @@ public class AtomFeedServlet extends HttpServlet {
         final int count = parseCount( req.getParameter( "count" ) );
         final String cluster = req.getParameter( "cluster" );
 
+        // Noindexed pages and the cluster filter are dropped after the query, so over-fetch when either applies;
+        // the loop below still stops at {@code count} emitted entries.
+        final boolean filtered = seoPolicy.hasNoindexClusters() || ( cluster != null && !cluster.isEmpty() );
         final RecentArticlesQuery query = new RecentArticlesQuery()
-            .count( count )
+            .count( filtered ? Math.max( count * FILTER_OVERFETCH, MAX_COUNT ) : count )
             .sinceDays( FEED_SINCE_DAYS )
             .includeExcerpt( false );
 

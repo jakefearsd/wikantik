@@ -140,14 +140,20 @@ public class LiveValuesIT {
         assertExpandedTools( html );
         assertTrue( count( html, "{{wiki:" ) <= 1, "SSR may keep only the fenced token: " + html );
         assertTrue( html.contains( FENCE_TOKEN ), "the fenced token stays literal in the SSR body" );
-        // The head carries the summary (meta description), the island carries it again: both expanded.
-        final Matcher m = SUMMARY_VALUE.matcher( html );
-        int summaries = 0;
-        while ( m.find() ) {
-            summaries++;
-        }
-        assertTrue( summaries >= 2, "summary expanded in head and island, found " + summaries + " in " + html );
-        assertFalse( html.contains( "articles across" + "{{" ), "sanity" );
+        // Head (meta description), island script and body are each checked on their own.
+        final int headEnd = html.indexOf( "</head>" );
+        final int islandAt = html.indexOf( "window.__WIKANTIK_PAGE__=" );
+        final int rootAt = html.indexOf( "id=\"root\"" );
+        assertTrue( headEnd > 0 && islandAt > 0 && rootAt > 0, "SSR has head, island and root: " + html );
+        final String head = html.substring( 0, headEnd );
+        final String island = html.substring( islandAt, html.indexOf( "</script>", islandAt ) );
+        final String body = html.substring( rootAt );
+        assertTrue( SUMMARY_VALUE.matcher( head ).find(), "head summary expanded: " + head );
+        assertTrue( SUMMARY_VALUE.matcher( island ).find(), "island summary expanded: " + island );
+        assertTrue( BODY_VALUE.matcher( body ).find(), "body expanded: " + body );
+        assertFalse( head.contains( "{{wiki:" ), "head has no token: " + head );
+        assertTrue( BODY_VALUE.matcher( island ).find(), "island body expanded: " + island );
+        assertTrue( count( island, "{{wiki:" ) <= 1, "island keeps only the fenced token: " + island );
         canonicalId = canonicalIdOf();
     }
 
@@ -184,6 +190,7 @@ public class LiveValuesIT {
     @Test
     @Order( 5 )
     void feedStructureByIdAndForAgentShowValues() throws Exception {
+        canonicalId = canonicalIdOf();
         final String feed = await( "/feed.xml", () -> get( anon, "/feed.xml", "application/atom+xml" ).body(),
                 b -> b.contains( PAGE ) );
         assertTrue( count( feed, "{{wiki:" ) == 0, "Atom feed carries no token: " + feed );
@@ -196,7 +203,8 @@ public class LiveValuesIT {
 
         final String byId = get( anon, "/api/pages/by-id/" + canonicalId, "application/json" ).body();
         assertNoLeak( "by-id", byId, 1 );
-        assertTrue( BODY_VALUE.matcher( byId ).find() || SUMMARY_VALUE.matcher( byId ).find(), "by-id expanded: " + byId );
+        // by-id is a descriptor: summary only, no body
+        assertTrue( SUMMARY_VALUE.matcher( byId ).find(), "by-id expanded: " + byId );
 
         final String forAgent = get( anon, "/api/pages/for-agent/" + canonicalId, "application/json" ).body();
         assertNoLeak( "for-agent", forAgent, 1 );
@@ -206,7 +214,8 @@ public class LiveValuesIT {
 
     @Test
     @Order( 6 )
-    void knowledgeMcpToolsShowValues() {
+    void knowledgeMcpToolsShowValues() throws Exception {
+        canonicalId = canonicalIdOf();
         final String page = tool( knowledge, "get_page", Map.of( "slug", PAGE ) );
         assertNoLeak( "get_page", page, 1 );
         assertTrue( BODY_VALUE.matcher( page ).find() || SUMMARY_VALUE.matcher( page ).find(), "get_page: " + page );
@@ -222,14 +231,14 @@ public class LiveValuesIT {
     @Order( 7 )
     void retrievalAndToolsServerShowValues() throws Exception {
         final String retrieved = await( "retrieve_context", () -> tool( knowledge, "retrieve_context",
-                Map.of( "query", "live values fixture articles wiki corpus" ) ), b -> b.contains( PAGE ) );
+                Map.of( "query", "live values fixture articles wiki corpus" ) ), b -> b.contains( PAGE ) && hasValue( b ) );
         assertNoLeak( "retrieve_context", retrieved, 1 );
 
         final String page = bearer( "GET", "/tools/page/" + PAGE, null ).body();
         assertNoLeak( "/tools/page", page, 1 );
         assertTrue( BODY_VALUE.matcher( page ).find(), "/tools/page body expanded: " + page );
         final String search = await( "/tools/search_wiki", () -> bearer( "POST", "/tools/search_wiki",
-                GSON.toJson( Map.of( "query", "live values fixture" ) ) ).body(), b -> b.contains( PAGE ) );
+                GSON.toJson( Map.of( "query", "live values fixture" ) ) ).body(), b -> b.contains( PAGE ) && hasValue( b ) );
         assertNoLeak( "/tools/search_wiki", search, 1 );
     }
 
@@ -254,11 +263,19 @@ public class LiveValuesIT {
     void noWritePathBakesAValueIn() throws Exception {
         // 1. The SPA editor round trip: GET /api/pages content, PUT it back unchanged.
         final JsonObject got = JsonParser.parseString( get( admin, "/api/pages/" + PAGE, "application/json" ).body() ).getAsJsonObject();
-        final String content = got.get( "content" ).getAsString();
+        // Content is what the editor loaded plus a trailing edit, so a new version is certain (an unchanged PUT could be skipped).
+        final String content = got.get( "content" ).getAsString() + "\nSPA editor closing line.\n";
         final HttpResponse< String > put = send( admin, "PUT", "/api/pages/" + PAGE,
                 GSON.toJson( Map.of( "content", content, "metadata", got.get( "metadata" ), "changeNote", "LiveValuesIT" ) ), null );
         assertTrue( put.statusCode() == 200 || put.statusCode() == 201, "SPA-style PUT: " + put.statusCode() + " " + put.body() );
         assertRaw( rawContentViaMcp(), "after the SPA-style PUT" );
+        assertTrue( rawContentViaMcp().contains( "SPA editor closing line." ), "the PUT was stored" );
+        final JsonObject back = JsonParser.parseString( get( admin, "/api/pages/" + PAGE, "application/json" ).body() ).getAsJsonObject();
+        // /api/pages content is the body only (the summary lives in metadata, checked next).
+        assertTrue( back.get( "content" ).getAsString().contains( "holds " + TOKEN + " articles today" ),
+                "/api/pages content raw after the PUT: " + back );
+        assertTrue( back.getAsJsonObject( "metadata" ).get( "summary" ).getAsString().contains( TOKEN ),
+                "/api/pages metadata.summary raw after the PUT: " + back );
 
         // 2. update_page with an unrelated body edit.
         final JsonObject read = JsonParser.parseString( tool( adminMcp, "read_page", Map.of( "slug", PAGE ) ) ).getAsJsonObject();
@@ -304,6 +321,10 @@ public class LiveValuesIT {
         assertFalse( text.contains( TOKEN ), surface + " leaks " + TOKEN + ": " + text );
         assertFalse( text.contains( "{{wiki:tools." ), surface + " leaks a tools token: " + text );
         assertFalse( text.contains( "\\u007b\\u007bwiki:" ), surface + " leaks an escaped token: " + text );
+    }
+
+    private static boolean hasValue( final String text ) {
+        return SUMMARY_VALUE.matcher( text ).find() || BODY_VALUE.matcher( text ).find();
     }
 
     private static int count( final String text, final String needle ) {

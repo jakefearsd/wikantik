@@ -41,7 +41,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Computes live values lazily, once per structural-index revision (never per request or per viewer), and expands
  * tokens against them. Expansion never throws: a source that fails on recompute is logged and its names resolve
- * unwired; an IllegalStateException means "not ready yet" and the revision is not recorded, so the next call retries. When disabled, every token is served verbatim.
+ * unwired; a NotReadyException means "not ready yet" and the revision is not recorded, so the next call retries. When disabled, every token is served verbatim.
  */
 public final class DefaultLiveValues implements LiveValues {
 
@@ -134,7 +134,7 @@ public final class DefaultLiveValues implements LiveValues {
                 return again;
             }
             final State fresh = compute( revision );
-            // a source that was not ready (IllegalStateException) is retried on the next expand
+            // a source that was not ready (NotReadyException) is retried on the next expand
             state = fresh.ready() ? fresh : null;
             return fresh;
         }
@@ -156,11 +156,14 @@ public final class DefaultLiveValues implements LiveValues {
                         values.put( e.getKey(), r );
                     }
                 }
+            } catch( final LiveValueSource.NotReadyException e ) {
+                LOG.debug( "Live value source {} not ready; will retry: {}", source.getClass().getName(), e.getMessage() );
+                failed.addAll( names );
+                ready = false;
             } catch( final RuntimeException e ) {
                 LOG.warn( "Live value source {} failed on recompute; its names resolve unwired: {}",
                           source.getClass().getName(), e.getMessage(), e );
                 failed.addAll( names );
-                ready &= !( e instanceof IllegalStateException );
             }
         }
         final Map< String, String > rendered = new TreeMap<>();

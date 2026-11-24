@@ -148,12 +148,14 @@ public final class PageGraphWiringHelper {
                 engine.serviceRegistry().get( com.wikantik.auth.AuthorizationManager.class );
             if ( auth == null ) {
                 // not ready (boot): signal it so DefaultLiveValues retries instead of freezing counts at zero
-                throw new IllegalStateException( "AuthorizationManager not yet available" );
+                throw new com.wikantik.api.livevalues.LiveValueSource.NotReadyException( "AuthorizationManager not yet available" );
             }
             try {
                 guest.compareAndSet( null, com.wikantik.WikiSession.guestSession( engine ) );
                 return auth.isPermitted( guest.get(),
-                    new com.wikantik.auth.permissions.PagePermission( name, com.wikantik.auth.permissions.PagePermission.VIEW_ACTION ) );
+                    new com.wikantik.auth.permissions.PagePermission(
+                        engine.getApplicationName() + ":" + name,
+                        com.wikantik.auth.permissions.PagePermission.VIEW_ACTION ) );
             } catch ( final RuntimeException e ) {
                 LOG.warn( "Live values: could not check guest view of '{}'; treating as not public: {}", name, e.getMessage(), e );
                 return false;

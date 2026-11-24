@@ -31,4 +31,17 @@ public interface LiveValueSource {
 
     /** Names this source owns even when {@link #values()} currently returns nothing for them. */
     Set< String > declaredNames();
+
+    /**
+     * Thrown by a source (or a collaborator it calls) that cannot compute yet, e.g. during boot. Its names resolve
+     * unwired and the revision is not recorded as computed, so the next expansion retries. Any other exception is
+     * cached for the revision.
+     */
+    final class NotReadyException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        public NotReadyException( final String message ) {
+            super( message );
+        }
+    }
 }

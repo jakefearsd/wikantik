@@ -124,7 +124,7 @@ class DefaultLiveValuesTest {
             @Override public Map< String, Resolution > values() {
                 calls.incrementAndGet();
                 if( !ready[ 0 ] ) {
-                    throw new IllegalStateException( "not ready" );
+                    throw new LiveValueSource.NotReadyException( "not ready" );
                 }
                 return Map.of( "articles", new Resolution.Value( 9 ) );
             }
@@ -134,6 +134,25 @@ class DefaultLiveValuesTest {
         ready[ 0 ] = true;
         assertEquals( "[9]", lv.expandText( "[{{wiki:articles|else=none}}]" ) );
         assertEquals( "[9]", lv.expandText( "[{{wiki:articles|else=none}}]" ) );
+        assertEquals( 2, calls.get() );
+    }
+
+    @Test
+    void plainIllegalStateExceptionIsCachedPerRevision() {
+        final AtomicInteger calls = new AtomicInteger();
+        final DefaultLiveValues lv = new DefaultLiveValues( index, true );
+        lv.register( new LiveValueSource() {
+            @Override public Map< String, Resolution > values() {
+                calls.incrementAndGet();
+                throw new IllegalStateException( "unrelated" );
+            }
+            @Override public Set< String > declaredNames() { return Set.of( "articles" ); }
+        } );
+        lv.expandText( "{{wiki:articles}}" );
+        lv.expandText( "{{wiki:articles}}" );
+        assertEquals( 1, calls.get() );
+        revision = 2;
+        lv.expandText( "{{wiki:articles}}" );
         assertEquals( 2, calls.get() );
     }
 }

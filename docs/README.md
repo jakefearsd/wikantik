@@ -24,11 +24,13 @@ For people who read, write and organise pages in the web UI.
 | [Frontmatter](user/Frontmatter.md) | The YAML metadata block at the top of every page and what each field drives. |
 | [ClustersAndHubs](user/ClustersAndHubs.md) | How pages are grouped into clusters, how a hub page declares a cluster, and how to give a page one or more memberships. |
 | [MathematicalNotation](user/MathematicalNotation.md) | The three LaTeX math syntaxes and how they render. |
-| [CommentsAndMentions](user/CommentsAndMentions.md) | Anchored comment threads, @-mentions and the mention inbox at `/me/mentions`. |
+| [CollaborativeEditing](user/CollaborativeEditing.md) | Editing a page with others in one shared draft: presence, cursors, publishing and attribution (when an administrator has turned it on). |
+| [CommentsAndMentions](user/CommentsAndMentions.md) | Anchored comment threads, @-mentions, the mention inbox at `/me/mentions`, and letting agents answer a thread. |
 | [Citations](user/Citations.md) | The `cite://` markup, how each citation is graded for staleness, and where stale ones appear. |
 | [PersonalZone](user/PersonalZone.md) | The signed-in sidebar panel and the Preferences page. |
 | [AccountAndLogin](user/AccountAndLogin.md) | Signing in (password or SSO), password reset, first-login password change, profile, personal API keys and signing out. |
 | [ObsidianImportExport](user/ObsidianImportExport.md) | Importing an Obsidian vault into the wiki and exporting pages as a vault. |
+| [WorkManagement](user/WorkManagement.md) | The project tracker at `/work`: projects, boards, sprints, agents and their sponsors, change records, deployments and intake, walked through in order. |
 
 ## Admins
 
@@ -53,7 +55,7 @@ For people who deploy, configure, secure and operate a wiki.
 | Guide | What it covers |
 |---|---|
 | [ConfigurationReference](ConfigurationReference.md) | Generated reference for every `wikantik.*` property. |
-| [CostTiers](admin/CostTiers.md) | Capping LLM and inference spend with `wikantik.genai.mode` and checking the effective tier. |
+| [CostTiers](admin/CostTiers.md) | Switching embeddings on or off with `wikantik.genai.mode` (`full` or `none`) and checking the effective tier. |
 | [LoggingConfig](admin/LoggingConfig.md) | Log4j2 setup, log locations, rotation and per-component levels. |
 | [SendingEmailFromTheWiki](admin/SendingEmailFromTheWiki.md) | Configuring outbound mail for account verification, password reset and notifications. |
 
@@ -61,7 +63,7 @@ For people who deploy, configure, secure and operate a wiki.
 
 | Guide | What it covers |
 |---|---|
-| [Security](admin/Security.md) | How authentication, authorization, policy grants and the other security controls work and how to configure them. |
+| [Security](admin/Security.md) | How authentication, authorization, policy grants, private clusters and the other security controls work and how to configure them. |
 | [SingleSignOn](admin/SingleSignOn.md) | OIDC and SAML sign-in through pac4j. |
 | [ScimProvisioning](admin/ScimProvisioning.md) | IdP-driven user and group provisioning at `/scim/v2/*`. |
 | [ApiKeys](admin/ApiKeys.md) | Issuing, scoping and revoking API keys for the MCP, OpenAPI and REST surfaces. |
@@ -72,7 +74,7 @@ For people who deploy, configure, secure and operate a wiki.
 
 | Guide | What it covers |
 |---|---|
-| [McpAgents](admin/McpAgents.md) | Connecting AI agents to the admin and knowledge MCP servers and the OpenAPI tool server; the only place tool counts are stated. |
+| [McpAgents](admin/McpAgents.md) | Connecting AI agents to the admin, knowledge and work MCP servers and the OpenAPI tool server; the only place tool counts are stated. |
 | [RagContextBundle](admin/RagContextBundle.md) | The context bundle and session briefing endpoints: what they return and how to tune them. |
 | [IndexingSupport](admin/IndexingSupport.md) | Raw content, server-rendered pages and the change feed for crawlers and RAG pipelines. |
 | [Connectors](admin/Connectors.md) | Syncing external sources into derived pages from the admin UI. |
@@ -82,14 +84,14 @@ For people who deploy, configure, secure and operate a wiki.
 
 | Guide | What it covers |
 |---|---|
-| [WikantikOperations](admin/WikantikOperations.md) | The operator handbook: deployment, tuning, health and metrics endpoints, backups, scripts under `bin/` and embeddings administration. |
+| [WikantikOperations](admin/WikantikOperations.md) | The operator handbook: deployment, tuning, private clusters, work management, search under load, health and metrics endpoints, backups, scripts under `bin/` and embeddings administration. |
 | [AdminPanel](admin/AdminPanel.md) | Every screen under `/admin`, what it does and which REST endpoint backs it. |
 | [IndexRebuild](admin/IndexRebuild.md) | Rebuilding the Lucene index, chunks and embeddings. |
 | [DriftDashboard](admin/DriftDashboard.md) | Finding and burning down metadata drift, including stale citations. |
 | [RetrievalQuality](admin/RetrievalQuality.md) | The nightly retrieval-quality run, its dashboard and metrics. |
 | [OntologyManagement](admin/OntologyManagement.md) | Curating the RDF/OWL ontology layer, its SPARQL surface and rebuilds. |
 | [ContentIntelligence](admin/ContentIntelligence.md) | Search-visibility data and the ranked backlog of content opportunities. |
-| [SeoAndCrawling](admin/SeoAndCrawling.md) | Getting a site indexed: sitemap, robots, structured data and crawler settings. |
+| [SeoAndCrawling](admin/SeoAndCrawling.md) | Getting a site indexed: sitemap, robots, structured data, noindexed clusters, 410 for retired pages and crawler settings. |
 
 ### Templates
 

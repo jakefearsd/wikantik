@@ -171,6 +171,16 @@ never matches an area grant. `AllPermission` implies every area grant, so existi
 administrators are unaffected. The content-intelligence shipper uses this; see
 [ContentIntelligence.md](ContentIntelligence.md).
 
+### Private clusters
+
+`wikantik.access.privateClusters` lists cluster paths whose pages only administrators and the groups in
+`wikantik.access.privateClusters.viewers` may see or touch, for every action and on every surface: pages, raw
+content, search, sitemap, feeds, the change feed, the Page Graph, ontology/SPARQL, bundles, briefings and the
+knowledge MCP. One gate (`PrivateClusterGate`, inside `DefaultAuthorizationManager`) enforces it, and a page's own
+ACL can only narrow access further. The admin MCP bypasses it by design. Both settings ship blank. Changing them
+needs a restart and an ontology rebuild; the runbook is
+[WikantikOperations section 1.12](WikantikOperations.md#112-private-clusters).
+
 ### Page ACLs
 
 A page can restrict itself with inline ACL markup in its body:

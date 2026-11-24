@@ -43,13 +43,13 @@ Coordinated disclosure is the norm. Once a fix is available:
 ## Supported versions
 
 Wikantik follows a single-track release model. `main` (development) and the
-latest released version (`2.4.18` as of this writing) receive security updates.
+latest released version (`2.8.3` as of this writing) receive security updates.
 Older releases are unsupported — please upgrade.
 
 | Version | Supported? |
 |---------|------------|
 | `main` (development) | Yes |
-| `2.4.x` (latest released) | Yes |
+| `2.8.x` (latest released) | Yes |
 | Older releases | No — please upgrade |
 
 ## Threat model in scope
@@ -58,7 +58,8 @@ Wikantik treats the following as in-scope:
 
 - Authentication bypass (JAAS, OAuth/SSO via pac4j, JDBC user database).
 - Authorisation bypass (page ACLs, policy_grants, group membership,
-  admin-only endpoints, MCP access filters).
+  private clusters, admin-only endpoints, MCP access filters, API-key
+  scopes, work-management agent tokens and roles).
 - CSRF / SSRF / XSS / injection (SQL, HTML, JNDI, expression-language).
 - Insecure deserialization. We use `ObjectInputFilter` whitelists on
   every `ObjectInputStream` use; bypasses are in scope.
@@ -66,7 +67,7 @@ Wikantik treats the following as in-scope:
 - Information disclosure via error responses, logs, or unauthenticated
   endpoints.
 - Rate-limit / DoS evasion against the MCP servers, login endpoints, or
-  the entity-extraction pipeline.
+  the embedding pipeline.
 
 ## Out of scope
 
@@ -96,11 +97,18 @@ For reference, current production defaults include:
 - `ObjectInputFilter` whitelists on every `ObjectInputStream`.
 - IP-restricted `/metrics` endpoint (Prometheus); IP-restricted `/api/health`
   detail.
-- Bearer-token / API-key auth on both MCP servers (`McpAccessFilter`,
-  `KnowledgeMcpAccessFilter`), with rank-based scopes — `mcp_read`
-  (read-only, `/knowledge-mcp` only) and `mcp_admin` (full admin,
-  `/wikantik-admin-mcp`) — so a leaked read-only agent token can't also
-  write content or curate the Knowledge Graph.
+- Bearer-token / API-key auth on every MCP server, with scopes:
+  `mcp_read` (read-only, `/knowledge-mcp` only) and `mcp_admin` (full
+  admin, `/wikantik-admin-mcp`), so a leaked read-only agent key can't
+  also write content. A `work` key reaches only `/api/work/*` and
+  `/work-mcp`; work agents carry their own `wka_` tokens, each capped by
+  a human sponsor. Key and agent-token requests never become sessions.
+- Private clusters (`wikantik.access.privateClusters`) hide whole
+  clusters from everyone but administrators and named groups on every
+  surface, through one gate.
+- Reader comments are data to agents, not instructions: an agent may
+  resolve a comment thread only when it holds a comment from a person
+  who could edit the page.
 - Database-backed policy grants — file-based `wikantik.policy` is a
   fallback only.
 - `JDBCPlugin` (page-authored SQL against the wiki datasource) is

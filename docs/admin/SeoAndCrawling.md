@@ -52,6 +52,28 @@ default to deriving the origin from the request: `wikantik.feed.baseURL` (Atom f
 links) and `wikantik.public.baseURL` (`/tools/*` citation links). There are no
 sitemap properties for change frequency or priority.
 
+`<lastmod>` (and JSON-LD `dateModified`) is the page's content-changed date, not its last save. A save moves it only
+when the body changes substantially (`wikantik.seo.contentChange.minPercent`, default 5% of the words, capped by
+`wikantik.seo.contentChange.minWords`, default 100); frontmatter-only edits never count. See
+[WikantikOperations](WikantikOperations.md#113-content-dates-backfill).
+
+### Keep clusters out of the index and retire pages
+
+Two settings, both blank by default and both read at startup (restart after changing them):
+
+| Property | Effect |
+|----------|--------|
+| `wikantik.seo.noindexClusters` | Cluster paths whose pages search engines should skip. A page whose primary cluster is listed (or a sub-cluster of one) is left out of `sitemap.xml`, the news entries and the Atom feed, gets `<meta name="robots" content="noindex, follow">` and answers `/wiki/{slug}` with `X-Robots-Tag: noindex`. This is not access control: people, the REST API and MCP still read the pages. To hide pages, use private clusters ([Security](Security.md#private-clusters)). |
+| `wikantik.seo.gonePages` | Slugs you removed on purpose. A request for one that no longer exists answers `410 Gone` instead of `404`, so search engines drop the URL sooner. A page that exists under a listed slug still renders normally. |
+
+Use `noindexClusters` for content that is useful to your team but thin or off-topic for search, and add a slug to
+`gonePages` whenever you delete or merge a page that was indexed.
+
+```bash
+curl -sI -H 'Accept: text/html' https://wiki.example.com/wiki/<NoindexedPage> | grep -i x-robots-tag  # noindex
+curl -s -o /dev/null -w '%{http_code}\n' -H 'Accept: text/html' https://wiki.example.com/wiki/<RetiredPage>  # 410
+```
+
 ### Per-page title and structured data
 
 `SemanticHeadRenderer` emits a unique `<title>` for each page (from the frontmatter

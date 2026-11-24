@@ -775,6 +775,32 @@ The small-team work features (migrations V084 to V092 and V094 to V095; there is
 
 Known limits to accept before switching things on: outside reporters are capped per day (`maxPerDay`) and per item share but their attachments count against no wiki-wide total (section 1.21, [Security](Security.md#work-intake-reporters)); the hook's per-IP limit can be bypassed from a private network until `internalProxies` is restricted (section 1.19); the code-host hook has never received real GitHub traffic (section 1.19); and **no new screen of these features (sprint board and burndown, inbox, find and saved filters, attachments, flow and delivery charts, the hook dialog, the submit form and the reported view) has yet been looked at in a browser by a person** (the browser tests cover sprints only).
 
+### 1.23 Search under load: query-embedding concurrency
+
+Hybrid search embeds each query before the dense half runs. The number of query embeddings in flight at once is
+capped. A search that would go over the cap falls back to BM25 at once (counted as `shed`) instead of queueing
+behind a busy embedder until it times out. Shedding never opens the circuit breaker; a down embedder does, and then
+every search is BM25-only until the breaker's probe succeeds.
+
+By default the cap is learned (`wikantik.search.hybrid.embedder.concurrency.mode = adaptive`). Per level of
+concurrency it measures the embedder's throughput and settles where one more parallel call stops buying
+`concurrency.min-gain` (default 10%) more. So it follows the hardware, `OLLAMA_NUM_PARALLEL` and the load from a
+background re-embed without a load test. It only raises the limit while calls are being shed, and halves it on a
+timeout. Bounds are `concurrency.initial` (4), `.min` (1) and `.max` (32). For an embedder you have measured, set
+`concurrency.mode = fixed` and `max-in-flight` to its parallelism.
+
+Watch it in `/metrics`:
+
+| Metric | What it tells you |
+|---|---|
+| `wikantik_search_hybrid_embedder_concurrency_limit` | The current cap |
+| `wikantik_search_hybrid_embedder_concurrency_in_flight` | Query embeddings running now |
+| `wikantik_search_hybrid_embedder_calls_total{result="shed"}` | Searches that fell back to BM25 because the cap was reached |
+| `wikantik_search_hybrid_embedder_circuit_state` | Whether the breaker is open (embedder down, BM25 only) |
+
+A steady shed rate means the embedder is the bottleneck: give it more parallelism or a faster device, not a higher
+cap.
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

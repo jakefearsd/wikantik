@@ -9,7 +9,7 @@ strengths-and-weaknesses self-review is kept at
 [`docs/archive/ArchitectureCritique.md`](docs/archive/ArchitectureCritique.md);
 it is not a description of current behaviour.
 
-## Now (2.4.x — live in production)
+## Now (2.8.x — live in production)
 
 Wikantik runs in production (`wiki.wikantik.com`, containerised on
 docker1, images published to `ghcr.io/jakefearsd/wikantik` and deployed
@@ -40,14 +40,37 @@ stream. The canonical record of what shipped is
   multi-membership and bulk `rename_cluster`
   ([ADR-0009](docs/adr/0009-cluster-taxonomy-is-frontmatter-projection-not-filesystem-hierarchy.md)).
 - **Cloud reference deployments** — single-VM Terraform modules for AWS
-  and GCP, and a `wikantik.genai.mode` cost ceiling so LLM spend is a
-  dial rather than an all-or-nothing bet.
+  and GCP, and a `wikantik.genai.mode` switch (`full` or `none`) for
+  embedding spend. Wikantik calls an embedding model only; the
+  LLM-extracted Knowledge Graph, the LLM reranker and query
+  decomposition were removed in 2.5.13–2.5.15 after measurement.
+- **Authoring** (2.5.x–2.7.x) — Mermaid and sandboxed server-side
+  PlantUML diagrams, paste as Markdown, the Obsidian dialect (block
+  references, highlights, hidden comments, inline tags), Rich and Source
+  editor modes with grid tables, and collaborative editing with shared
+  drafts and presence (on in production, off by default).
+- **The agent comment loop** (2.5.20) — readers anchor comments to
+  passages and can let agents answer; the admin MCP lists and answers
+  threads under a trust rule.
+- **Work management** (2.5.21–2.8.x) — projects, boards, sprints, change
+  records with autonomy gates, deployments with a deploy gate, flow
+  figures, inbox and webhooks, and intake for outside reporters. Coding
+  agents claim work from queues through `/work-mcp` with their own
+  tokens, each capped by a human sponsor. On in production, off by
+  default.
+- **Access and search operations** — private clusters (2.5.16),
+  noindexed clusters and 410 Gone for retired pages (2.8.3), and
+  adaptive query-embedding concurrency that sheds to BM25 instead of
+  queueing (2.7.6–2.7.8).
 
 ## Next (target: 2.x minors over the next quarter)
 
-- **Demo deployment.** A public read-only Wikantik instance, ideally
-  running the Wikantik project's own documentation, so evaluators can
-  click "try it" from the README.
+- **Demo deployment.** [wiki.wikantik.com](https://wiki.wikantik.com/)
+  is the public instance the README links to, and it carries the
+  project's own design pages under
+  [WikantikPlatformHub](https://wiki.wikantik.com/wiki/WikantikPlatformHub).
+  Still open: a place where evaluators can try editing and the agent
+  endpoints without an account on the production wiki.
 - **MCP write surface fits and finish.** Inline image upload via
   `write_pages`, attachment-aware diff, structured rollbacks.
 - **Hybrid retrieval tuning loop.** Currently the

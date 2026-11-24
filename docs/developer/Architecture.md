@@ -1,10 +1,10 @@
 # Wikantik Architecture
 
-This page is for developers who need a map of the code before changing it: which module owns what, which way dependencies point, how the core objects fit together, and where the three graph-like subsystems differ. It is the one place that states module and servlet counts. Counts below are as of 2.5.14 and are derived from the root `pom.xml` and `wikantik-war/src/main/webapp/WEB-INF/web.xml`.
+This page is for developers who need a map of the code before changing it: which module owns what, which way dependencies point, how the core objects fit together, and where the three graph-like subsystems differ. It is the one place that states module and servlet counts. Counts below are as of 2.8.3 and are derived from the root `pom.xml` and `wikantik-war/src/main/webapp/WEB-INF/web.xml`.
 
 ## Read the module map
 
-The root `pom.xml` declares 25 modules in its default `<modules>` list. A 26th, `wikantik-coverage-report`, is added only under the `coverage` profile. `wikantik-frontend` is not a Maven module: `wikantik-war` builds it with npm (see [Building.md](Building.md)).
+The root `pom.xml` declares 27 modules in its default `<modules>` list. A 28th, `wikantik-coverage-report`, is added only under the `coverage` profile. `wikantik-frontend` is not a Maven module: `wikantik-war` builds it with npm (see [Building.md](Building.md)).
 
 | Module | What it holds |
 |--------|---------------|
@@ -28,6 +28,8 @@ The root `pom.xml` declares 25 modules in its default `<modules>` list. A 26th, 
 | `wikantik-tools` | OpenAPI tool server at `/tools/*` |
 | `wikantik-scim` | SCIM 2.0 provisioning at `/scim/v2/*` |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
+| `wikantik-work` | Work management: projects, items, queues, agents (each capped by a sponsor, with its own `wka_` token), change records with autonomy gates, deployments and intake; ships dark behind `wikantik.work.enabled` (default `false`) |
+| `wikantik-work-mcp` | Key-only agent endpoint `/work-mcp`; its tools call `WorkService` and nothing else |
 | `wikantik-rest` | REST API (`/api/*`) and admin endpoints (`/admin/*`), plus `SpaRoutingFilter` |
 | `wikantik-extract-cli` | Standalone command-line tools: corpus divergence, ACL audit, chunker stats, `Main.md` and config-reference generators, derived-page ingest |
 | `wikantik-war` | WAR packaging; bundles the React build and wires servlets and filters; hosts the ArchUnit and config-drift tests |
@@ -41,9 +43,10 @@ Tool counts for the MCP servers are owned by the admin MCP documentation, not he
 These come from each module's `pom.xml`; break them and the build, or an architecture test, fails.
 
 - `wikantik-insights` depends only on `wikantik-jdbc`. It depends on neither `wikantik-api` nor `wikantik-main`, so the rule engine is a pure function of rows, page facts and config. Page state reaches it through a `PageFacts` port that an adapter in `wikantik-main` implements.
+- `wikantik-work` depends only on `wikantik-jdbc`. It depends on neither `wikantik-api` nor `wikantik-main`, and every caller goes through `WorkService`. `wikantik-work-mcp` sits on top of it (with `wikantik-api`, `wikantik-main` and `wikantik-mcp-core`).
 - `wikantik-jdbc` depends on no other Wikantik module. It is the only way to touch the database: `JdbcAccessArchTest` in `wikantik-war` forbids `DataSource.getConnection`, `DriverManager.getConnection` and the `Connection` statement and transaction methods outside `com.wikantik.jdbc..`. The one carve-out is `JDBCPlugin`. See [ADR-0010](../adr/0010-one-data-access-primitive.md).
 - `wikantik-ontology` depends only on `wikantik-api` plus Jena. Its runtime wiring (`OntologyRebuildCoordinator`) lives in `wikantik-main` under `com.wikantik.ontology.runtime`.
-- `wikantik-mcp-core` holds what both MCP servers share, so `wikantik-knowledge` depends on `wikantik-mcp-core` and not on `wikantik-admin-mcp`. That broke a module cycle.
+- `wikantik-mcp-core` holds what the MCP servers share, so `wikantik-knowledge` depends on `wikantik-mcp-core` and not on `wikantik-admin-mcp`. That broke a module cycle.
 - `wikantik-ingest` depends on no Wikantik module, which keeps the PDFBox and POI dependencies out of `wikantik-main`.
 - `wikantik-main` is not allowed to grow new `WikiEngine#getManager` callers or late-bound `mgr_*` fields. `DecompositionArchTest` enforces this; register services with `engine.setManager(Type.class, impl)` from the owning `*WiringHelper` ([ADR-0008](../adr/0008-late-bound-service-registration.md)). The test's ArchUnit freeze store changes even when the test fails, so restore it from git before you retry.
 
@@ -77,14 +80,15 @@ Do not use the bare word "graph" in identifiers; say Page Graph or `pagegraph`. 
 
 ## Count the HTTP surface
 
-Counted from `web.xml` as of 2.5.14:
+Counted from `web.xml` as of 2.8.3:
 
 | Prefix | url-patterns | Distinct servlet classes |
 |--------|--------------|--------------------------|
-| `/api/*` | 38 | 36 |
-| `/admin/*` | 33 | 27 |
+| `/api/*` | 68 | 50 |
+| `/admin/*` | 34 | 28 |
+| `/api/work/*` (subset of `/api/*`) | 30 | 14 |
 
-`web.xml` declares 76 servlets and 87 servlet mappings in total. Recount with a script when you change it; do not edit these numbers without recounting.
+`web.xml` declares 91 servlets and 103 servlet mappings in total (119 url-patterns). The `/work-mcp` endpoint is mapped here too (`/work-mcp`, `/work-mcp/*`). Recount with a script when you change it; do not edit these numbers without recounting.
 
 ## Find the design decisions
 

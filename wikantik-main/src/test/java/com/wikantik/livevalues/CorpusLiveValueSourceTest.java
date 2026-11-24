@@ -108,6 +108,20 @@ class CorpusLiveValueSourceTest {
     }
 
     @Test
+    void notReadyUntilTheFirstRebuildHasFinished() {
+        final StructuralIndexService booting = mock( StructuralIndexService.class );
+        when( booting.sitemap() ).thenReturn( new Sitemap( List.of(), 0, Instant.EPOCH ) );
+        when( booting.health() ).thenReturn( new com.wikantik.api.pagegraph.IndexHealth(
+                com.wikantik.api.pagegraph.IndexHealth.Status.DOWN, 0, 0, null, null, 0L, 0L ) );
+        final CorpusLiveValueSource early = new CorpusLiveValueSource( booting, mock( SystemPageRegistry.class ), n -> true );
+        org.junit.jupiter.api.Assertions.assertThrows( com.wikantik.api.livevalues.LiveValueSource.NotReadyException.class,
+                early::values );
+        when( booting.health() ).thenReturn( new com.wikantik.api.pagegraph.IndexHealth(
+                com.wikantik.api.pagegraph.IndexHealth.Status.UP, 0, 0, Instant.EPOCH, Instant.EPOCH, 0L, 0L ) );
+        assertEquals( new Resolution.Value( 0 ), early.values().get( "articles" ) );
+    }
+
+    @Test
     void declaresItsNames() {
         final Set< String > names = source.declaredNames();
         assertTrue( names.containsAll( Set.of( "articles", "pages", "clusters", "subclusters", "version",

@@ -188,13 +188,21 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         // Agent hints derived from OTHER pages' descriptors may lag a live value by up to the cache TTL: accepted.
         // The body is expanded before it is cached, so the live-values generation keys the entry too.
         final com.wikantik.api.livevalues.LiveValues lv = liveValues.get();
-        final Serializable key = canonicalId + ":" + updatedMs + ":" + java.util.Objects.hashCode( d.summary() )
-                + ":" + ( lv == null ? "" : lv.generation() );
+        // A token-free page does not depend on any value, so its entry is keyed without the generation and survives a
+        // count change; whether a page bears tokens is recorded on the cached entry (no extra read per hit).
+        final Serializable plainKey = canonicalId + ":" + updatedMs + ":" + java.util.Objects.hashCode( d.summary() );
+        final Serializable tokenKey = plainKey + ":" + ( lv == null ? "" : lv.generation() );
 
-        final Shared cached = readFromCache( key );
+        Shared cached = readFromCache( plainKey );
+        if ( cached != null && cached.tokenBearing() ) {
+            cached = null;    // defensive: only token-free entries are stored under the plain key
+        }
+        if ( cached == null ) {
+            cached = readFromCache( tokenKey );
+        }
         final Shared shared = cached != null ? cached : build( d );
         if ( cached == null ) {
-            writeToCache( key, shared );
+            writeToCache( shared.tokenBearing() ? tokenKey : plainKey, shared );
             recordMetric( shared.base() );
         }
         return Optional.of( forCaller( shared, viewable, cached == null ) );
@@ -205,7 +213,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
      * page with no cap, its summary is the authored one and its {@code stale_citations} name every target, whoever may
      * view them: {@link #forCaller} cuts all three down per call, so the cache never decides what a caller sees.
      */
-    private record Shared( ForAgentProjection base, boolean isHub ) {}
+    private record Shared( ForAgentProjection base, boolean isHub, boolean tokenBearing ) {}
 
     /**
      * The shared projection as one caller may see it: preferred pages they may view (best first, capped), a hub
@@ -301,17 +309,19 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 "/wiki/" + d.slug() + "?format=md",
                 !missing.isEmpty(),
                 missing,
-                staleCitations ), isHub );
+                staleCitations ), isHub, bf.tokenBearing() );
     }
 
     /** Page body + parsed frontmatter, as loaded by {@link #loadBodyAndFrontmatter}. */
-    private record BodyAndFrontmatter( Map< String, Object > frontmatter, String body ) {}
+    private record BodyAndFrontmatter( Map< String, Object > frontmatter, String body, boolean tokenBearing ) {}
 
     private BodyAndFrontmatter loadBodyAndFrontmatter( final PageDescriptor d, final List< String > missing ) {
         Map< String, Object > frontmatter = Map.of();
         String body = "";
+        boolean tokenBearing = false;
         try {
             final String raw = pageManager.getPureText( d.slug(), WikiProvider.LATEST_VERSION );
+            tokenBearing = com.wikantik.api.livevalues.LiveValueExpander.hasToken( raw );
             if ( raw != null && !raw.isEmpty() ) {
                 // key_facts and the heading outline are derived from the body's first paragraphs, so a directive
                 // on its first lines would surface in them: access rules (people, by login) never enter the body.
@@ -329,8 +339,9 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             LOG.warn( "for-agent: getPureText({}) failed — body & key_facts & headings will degrade: {}",
                     d.slug(), e.getMessage() );
             missing.add( "body" );
+            tokenBearing = true;    // unknown: keep it keyed on the generation
         }
-        return new BodyAndFrontmatter( frontmatter, body );
+        return new BodyAndFrontmatter( frontmatter, body, tokenBearing );
     }
 
     private List< HeadingOutline > extractHeadings( final String body, final PageDescriptor d,

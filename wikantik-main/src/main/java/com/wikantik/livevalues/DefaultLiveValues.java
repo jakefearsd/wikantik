@@ -66,7 +66,8 @@ public final class DefaultLiveValues implements LiveValues {
     }
 
     @Override
-    public void register( final LiveValueSource source ) {
+    public synchronized void register( final LiveValueSource source ) {
+        // synchronized with current()'s compute: a compute in progress cannot overwrite this invalidation
         sources.add( source );
         state = null;
     }

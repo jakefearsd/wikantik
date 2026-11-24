@@ -166,4 +166,29 @@ class DefaultLiveValuesTest {
         lv.expandText( "{{wiki:articles}}" );
         assertEquals( 2, calls.get() );
     }
+
+    @Test
+    void registerDuringComputeIsNotLost() throws Exception {
+        final DefaultLiveValues lv = new DefaultLiveValues( index, true );
+        final java.util.concurrent.CountDownLatch inCompute = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.CountDownLatch go = new java.util.concurrent.CountDownLatch( 1 );
+        lv.register( new LiveValueSource() {
+            @Override public Map< String, Resolution > values() {
+                inCompute.countDown();
+                try { go.await(); } catch( final InterruptedException e ) { Thread.currentThread().interrupt(); }
+                return Map.of( "articles", new Resolution.Value( 1 ) );
+            }
+            @Override public Set< String > declaredNames() { return Set.of( "articles" ); }
+        } );
+        final Thread t = new Thread( () -> lv.expandText( "{{wiki:articles}}" ) );
+        t.start();
+        inCompute.await();
+        final Thread reg = new Thread( () -> lv.register( source( new AtomicInteger(),
+                Map.of( "tools.admin", new Resolution.Value( 7 ) ), Set.of( "tools.admin" ) ) ) );
+        reg.start();
+        go.countDown();
+        t.join();
+        reg.join();
+        assertEquals( "7", lv.expandText( "{{wiki:tools.admin}}" ) );
+    }
 }

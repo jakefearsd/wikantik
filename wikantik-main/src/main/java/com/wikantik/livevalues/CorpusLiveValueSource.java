@@ -24,6 +24,7 @@ import com.wikantik.api.livevalues.LiveValueExpander.Resolution;
 import com.wikantik.api.livevalues.LiveValueSource;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pagegraph.ClusterPath;
+import com.wikantik.api.pagegraph.IndexHealth;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.StructuralIndexService;
@@ -63,6 +64,11 @@ public final class CorpusLiveValueSource implements LiveValueSource {
 
     @Override
     public Map< String, Resolution > values() {
+        final IndexHealth health = index.health();
+        if( health != null && health.lastRebuildFinishedAt() == null ) {
+            // the initial rebuild runs on a background thread; an empty projection must not be served as real zeros
+            throw new NotReadyException( "structural index has not finished its first rebuild" );
+        }
         long pages = 0;
         long articles = 0;
         final Map< String, Long > memberCounts = new HashMap<>();

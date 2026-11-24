@@ -182,6 +182,39 @@ class DefaultForAgentProjectionServiceTest {
         assertEquals( "Over 200 articles", svc.project( "01LIVE" ).orElseThrow().summary() );
     }
 
+    private int liveCacheScenario( final String raw ) {
+        final java.util.Map< java.io.Serializable, Object > store = new java.util.HashMap<>();
+        when( cache.enabled( CachingManager.CACHE_FOR_AGENT ) ).thenReturn( true );
+        when( cache.get( eq( CachingManager.CACHE_FOR_AGENT ), any(), any() ) )
+                .thenAnswer( i -> store.get( ( java.io.Serializable ) i.getArgument( 1 ) ) );
+        doAnswer( i -> store.put( ( java.io.Serializable ) i.getArgument( 1 ), i.getArgument( 2 ) ) )
+                .when( cache ).put( eq( CachingManager.CACHE_FOR_AGENT ), any(), any() );
+        when( pm.getPureText( "Live", -1 ) ).thenReturn( raw );
+        when( pm.getVersionHistory( "Live" ) ).thenReturn( List.of() );
+        final PageDescriptor d = new PageDescriptor( "01LIVE", "Live", "Live", PageType.ARTICLE, "c", List.of( "t" ),
+                "s", Instant.parse( "2026-04-22T11:10:00Z" ), false );
+        when( idx.getByCanonicalId( "01LIVE" ) ).thenReturn( Optional.of( d ) );
+        final com.wikantik.livevalues.StubLiveValues lv = new com.wikantik.livevalues.StubLiveValues();
+        final DefaultForAgentProjectionService withLv = new DefaultForAgentProjectionService( idx, pm, cache,
+                new ForAgentMetrics(), null, null, null, () -> lv );
+        withLv.project( "01LIVE" );
+        lv.value( "9,900+" );
+        lv.generation( "g2" );
+        withLv.project( "01LIVE" );
+        return mockingDetails( pm ).getInvocations().stream()
+                .filter( inv -> inv.getMethod().getName().equals( "getPureText" ) ).toList().size();
+    }
+
+    @Test
+    void token_free_page_stays_cached_across_a_value_change() {
+        assertEquals( 1, liveCacheScenario( "---\ntitle: Live\n---\n\n## H\n\nplain\n" ) );
+    }
+
+    @Test
+    void token_page_is_rebuilt_when_a_value_changes() {
+        assertEquals( 2, liveCacheScenario( "---\ntitle: Live\n---\n\n## H\n\nOver {{wiki:articles|round=100}}\n" ) );
+    }
+
     private static Page versionMock( final int v, final Instant when, final String author, final String note ) {
         final Page p = mock( Page.class );
         when( p.getVersion() ).thenReturn( v );

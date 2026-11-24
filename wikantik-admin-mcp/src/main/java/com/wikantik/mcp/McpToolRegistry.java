@@ -90,7 +90,7 @@ public class McpToolRegistry {
                     final com.wikantik.seo.ContentDateService dates =
                             com.wikantik.seo.ContentDateWiringHelper.serviceOf( engine );
                     return dates == null ? null : dates.contentDate( page );
-                } );
+                }, () -> com.wikantik.livevalues.LiveValuesLookup.of( engine ) );
         final String indexNowApiKey = mcpProps.getProperty( "wikantik.indexnow.apiKey" );
         final PingSearchEnginesTool pingSearchEngines = new PingSearchEnginesTool(
                 configuredBaseUrl, indexNowApiKey, java.net.http.HttpClient.newHttpClient() );

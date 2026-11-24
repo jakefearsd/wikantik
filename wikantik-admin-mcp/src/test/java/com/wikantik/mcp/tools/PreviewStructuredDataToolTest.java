@@ -51,6 +51,21 @@ class PreviewStructuredDataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
+    void testSummaryLiveValueTokenIsExpanded() {
+        pm.savePage( "PreviewLive", "---\nsummary: 'Over {{wiki:articles|round=100}} articles on software and maths for people and agents'\n---\nBody." );
+        final com.wikantik.api.livevalues.LiveValues lv = org.mockito.Mockito.mock( com.wikantik.api.livevalues.LiveValues.class );
+        org.mockito.Mockito.when( lv.expandText( org.mockito.ArgumentMatchers.anyString() ) )
+                .thenAnswer( inv -> ( ( String ) inv.getArgument( 0 ) ).replace( "{{wiki:articles|round=100}}", "1,100+" ) );
+        final PreviewStructuredDataTool live = new PreviewStructuredDataTool( pm, "TestWiki",
+                "http://localhost:8080", null, () -> lv );
+        final McpSchema.CallToolResult result = live.execute( new HashMap<>( Map.of( "slug", "PreviewLive" ) ) );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( json.contains( "Over 1,100+ articles" ), json );
+        assertFalse( json.contains( "{{wiki:" ), json );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
     void testArticleWithFullMetadata() {
         pm.savePage( "PreviewFull", "---\ntype: article\ntags:\n- ai\n- ml\ndate: 2026-03-15\n" +
                 "summary: A comprehensive guide to modern AI techniques and applications\n" +

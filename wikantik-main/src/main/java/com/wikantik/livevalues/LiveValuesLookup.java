@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.render;
+package com.wikantik.livevalues;
 
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
@@ -24,13 +24,13 @@ import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.core.registry.EngineServiceRegistry;
 
 /** Finds the registered {@link LiveValues} service on an engine, tolerating engines that have none (mocks, early init). */
-final class LiveValuesLookup {
+public final class LiveValuesLookup {
 
     private LiveValuesLookup() {
     }
 
     /** @return the service, or null when the engine has no registry or nothing is registered yet */
-    static LiveValues of( final Engine engine ) {
+    public static LiveValues of( final Engine engine ) {
         if( !( engine instanceof WikiEngine we ) ) {
             return null;
         }

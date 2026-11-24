@@ -54,10 +54,16 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
     private final String baseUrl;
 
     private final Function< Page, Instant > contentDates;
+    private final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues;
 
     public PreviewStructuredDataTool( final PageManager pageManager, final String applicationName,
                                       final String baseUrl ) {
         this( pageManager, applicationName, baseUrl, null );
+    }
+
+    public PreviewStructuredDataTool( final PageManager pageManager, final String applicationName,
+                                      final String baseUrl, final Function< Page, Instant > contentDates ) {
+        this( pageManager, applicationName, baseUrl, contentDates, null );
     }
 
     /**
@@ -66,7 +72,9 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
      *                     file modification time
      */
     public PreviewStructuredDataTool( final PageManager pageManager, final String applicationName,
-                                      final String baseUrl, final Function< Page, Instant > contentDates ) {
+                                      final String baseUrl, final Function< Page, Instant > contentDates,
+                                      final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues ) {
+        this.liveValues = liveValues;
         this.pageManager = pageManager;
         this.applicationName = applicationName;
         this.baseUrl = baseUrl;
@@ -144,7 +152,9 @@ public class PreviewStructuredDataTool extends AbstractMcpTool {
         }
 
         final String rawText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
-        final ParsedPage parsed = FrontmatterParser.parse( rawText != null ? rawText : "" );
+        final ParsedPage parsed = com.wikantik.livevalues.LiveFrontmatter.expandSummary(
+                FrontmatterParser.parse( rawText != null ? rawText : "" ),
+                liveValues == null ? null : liveValues.get() );
         final Map< String, Object > metadata = parsed.metadata();
 
         final String appName = applicationName;

@@ -12,10 +12,10 @@ instead of repeating the numbers.
 |---|---|---|---|---|
 | `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 22 read and write tools | `McpAccessFilter` | `mcp_admin` |
 | `/knowledge-mcp` | MCP (Streamable HTTP) | 16 read-only tools | `McpAccessFilter`, registered as `KnowledgeMcpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
-| `/work-mcp` | MCP (Streamable HTTP) | 9 work-management tools | API key only (see below) | `work` |
+| `/work-mcp` | MCP (Streamable HTTP) | 16 work-management tools | API key only (see below) | `work` |
 | `/tools/*` | OpenAPI 3.1 over plain HTTP | 2 | `ToolsAccessFilter` | `tools` |
 
-Counts are as of **2.5.14**. The URL patterns come from `web.xml` (`/tools/*`) and the
+Counts are as of **2.8.3**. The URL patterns come from `web.xml` (`/tools/*`) and the
 MCP bootstrapper (`/wikantik-admin-mcp`, `/knowledge-mcp`).
 
 ### The counts depend on wiring
@@ -23,9 +23,9 @@ MCP bootstrapper (`/wikantik-admin-mcp`, `/knowledge-mcp`).
 The numbers above are what a default deployment advertises; a deployment without an optional subsystem advertises fewer.
 
 **`/wikantik-admin-mcp`** (registered in `McpToolRegistry`, verified against
-`McpProtocolIT.EXPECTED_TOOLS`, which lists 20):
+`McpProtocolIT.EXPECTED_TOOLS`, which lists 22):
 
-- 19 tools are always registered.
+- 21 tools are always registered.
 - `list_retrieval_queries` needs a datasource-backed query-log reader.
 - `rename_cluster`, `list_content_opportunities` and `snooze_opportunity` are
   registered unconditionally, but refuse at call time with an explanation when the

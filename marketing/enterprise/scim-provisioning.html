@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "SCIM 2.0 provisioning for your wiki",
     "description": "Automate user lifecycle with SCIM 2.0: bearer-authed Users and Groups CRUD, PATCH active, soft-delete, and discovery — IdP-driven onboarding and offboarding for Wikantik.",
-    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
+    "datePublished": "2026-06-07", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/scim-provisioning.html" }
@@ -113,6 +113,8 @@
           <p>The full CRUD set plus soft-delete:</p>
           <ul>
             <li><strong>Create (<code>POST</code>)</strong> — provision a new account. If <code>externalId</code> is provided it is stored as the <code>sso.subject</code> link, making the account SSO-only (no password is revealed). If <code>active: false</code> is in the create body, the account is immediately deactivated.</li>
+            <li><strong>Names</strong> — <code>name.formatted</code> becomes the account's public display name, so it must pass the display-name rules (2 to 64 characters, no <code>@</code>, no control or invisible characters, not reserved, not another account's login or display name). A taken name returns HTTP 409 <code>uniqueness</code>; a malformed or reserved one returns HTTP 400 <code>invalidValue</code>; nothing is saved either way. A create with no name becomes "Member N". A login is never used as a display name.</li>
+            <li><strong>Deleted accounts</strong> — a create for a login that belonged to a deleted account is refused. Deactivation (below) is the normal offboarding path and keeps the account row.</li>
             <li><strong>Retrieve (<code>GET /scim/v2/Users/{uid}</code>)</strong> and <strong>list/filter (<code>GET /scim/v2/Users</code>)</strong> — filter by <code>userName</code> or <code>externalId</code>.</li>
             <li><strong>Replace (<code>PUT</code>)</strong> — full replacement of mutable attributes. <code>userName</code> is not replaced by PUT.</li>
             <li><strong>Partial update (<code>PATCH</code>)</strong> — update <code>active</code>, <code>displayName</code>, <code>name.formatted</code>, <code>emails[0].value</code>, or <code>externalId</code>. Active/inactive changes route through <code>UserLifecycleService</code>.</li>
@@ -224,6 +226,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

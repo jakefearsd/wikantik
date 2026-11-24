@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Structural spine: a machine-queryable wiki index",
     "description": "Wikantik's structural spine is a small set of first-class APIs, persistent canonical IDs, and cluster-hub membership that let agents navigate your wiki by shape, not just keywords.",
-    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
+    "datePublished": "2026-06-07", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/structural-spine.html" }
@@ -117,7 +117,7 @@
             <li><code>GET /api/structure/pages?type=hub&amp;cluster=X&amp;tag=Y&amp;updated_since=ISO</code> — filtered, paginated page listing</li>
             <li><code>GET /api/structure/sitemap</code> — compact machine-readable sitemap (id, slug, title, type, cluster, tags, summary per viewable page) suitable as an agent prelude payload</li>
           </ul>
-          <p>The same data is available via the <code>/knowledge-mcp</code> MCP server's structural spine tools (<code>list_clusters</code>, <code>list_tags</code>, <code>list_pages_by_filter</code>, <code>get_page_by_id</code>, plus <code>get_page_neighbors</code> for a page's one-hop wikilink neighborhood), so MCP-native and REST-native agents share one surface.</p>
+          <p>The same data, filtered to the pages the caller may view (a cluster with no viewable member is not listed, and private clusters are hidden from everyone but Admin and the configured viewer groups), is available via the <code>/knowledge-mcp</code> MCP server's structural spine tools (<code>list_clusters</code>, <code>list_tags</code>, <code>list_pages_by_filter</code>, <code>get_page_by_id</code>, plus <code>get_page_neighbors</code> for a page's one-hop wikilink neighborhood), so MCP-native and REST-native agents share one surface.</p>
 
           <h2>Canonical IDs: rename-stable page identity</h2>
           <p>Every page carries a <code>canonical_id</code>: a 26-character ULID assigned at first save by <code>StructuralSpinePageFilter</code> and stored in the page's YAML frontmatter and in the <code>page_canonical_ids</code> database table. The canonical ID is immutable — renaming the page does not change it.</p>
@@ -125,8 +125,12 @@
           <p>Canonical ID assignment is enforced at save time: if a page lacks a <code>canonical_id</code>, <code>StructuralSpinePageFilter</code> automatically assigns one before the save completes. You cannot accidentally save a page without a stable identity.</p>
 
           <h2>Cluster hubs: the entry points agents use</h2>
-          <p>Every page belongs to a cluster declared via <code>cluster:</code> in its frontmatter. Within each cluster, one page is the hub — the entry point that links to all cluster articles. The structural index tracks hub designation per cluster, so <code>list_clusters</code> returns not just cluster names but the hub page's canonical ID, slug, and title.</p>
-          <p>A cluster's existence is a declaration, not a folder: it exists once exactly one page carries <code>type: hub</code> with a matching <code>cluster:</code> path, and that hub is the single source of truth for the cluster — not just a landing page. Sub-clusters nest one level deep as <code>parent/child</code> paths, and an individual page can belong to more than one cluster at once, with its first listing as the primary that drives breadcrumbs and the article section.</p>
+          <p>A page joins a cluster by naming it in <code>cluster:</code> in its frontmatter. Within each cluster, one page is the hub — the entry point that links to all cluster articles. The structural index tracks hub designation per cluster, so <code>list_clusters</code> returns not just cluster names but the hub page's canonical ID, slug, and title.</p>
+          <p>A cluster's existence is a declaration, not a folder: it exists once exactly one page carries <code>type: hub</code> with a matching <code>cluster:</code> path, and that hub is the single source of truth for the cluster — not just a landing page. Sub-clusters nest one level deep as <code>parent/child</code> paths, and an individual page can belong to more than one cluster at once, with its first listing as the primary that drives breadcrumbs and the article section. A hub declares exactly one cluster; a hub with a list-valued <code>cluster:</code> is an error.</p>
+          <p>Clusters are compared as paths, never as string prefixes, so <code>machine-learning-ops</code> is never mistaken for a child of <code>machine-learning</code>. The checks are deliberately gentle: a page that names a cluster no hub declares, or a hub whose parent does not exist, raises a warning on the admin drift page and never blocks a save. The one blocking rule, a second hub declaring a cluster that already has one (HTTP 422), ships off by default (<code>wikantik.cluster_declaration.enforcement.enabled</code>). See the <a href="https://wiki.wikantik.com/wiki/ClusterDeclarationDesign">Cluster Declaration Design</a>.</p>
+
+          <h2>Renaming a cluster</h2>
+          <p>Because membership lives in each page's frontmatter, renaming a cluster means rewriting <code>cluster:</code> on every member. The <code>rename_cluster</code> tool on <code>/wikantik-admin-mcp</code> (and <code>POST /admin/clusters/rename</code>) does that in one operation and carries sub-clusters along: <code>machine-learning</code> to <code>ml</code> also moves <code>machine-learning/mlops</code> to <code>ml/mlops</code>. Without <code>confirm=true</code> it only returns the plan — page count and every change — and writes nothing. It refuses a target another hub already declares, and it edits frontmatter only: page names, canonical IDs and URLs do not change.</p>
           <p>For agents navigating a large wiki, the pattern is: call <code>list_clusters</code> to get a map of the wiki's topic areas; pick the relevant cluster; call <code>list_pages_by_filter</code> with that cluster to get its article list; then read specific articles via <code>read_pages</code> or <code>get_page_by_id</code>. This is three to four tool calls to fully orient an agent in any topic area, versus unbounded keyword search iterations.</p>
 
           <h2>Generated Main.md: structure that stays accurate</h2>
@@ -195,6 +199,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

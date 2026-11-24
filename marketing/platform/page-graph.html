@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Page graph: wikilinks, canonical IDs and clusters",
     "description": "Wikantik's page graph is the real wikilink graph of your content — rename-stable canonical IDs and cluster-hub membership — navigable by humans and agents alike.",
-    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
+    "datePublished": "2026-06-07", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/page-graph.html" }
@@ -123,11 +123,12 @@
           <p>Canonical ID assignment is enforced at save time: if a page lacks a <code>canonical_id</code> in its frontmatter, <code>StructuralSpinePageFilter</code> automatically assigns one and injects it before the page is saved.</p>
 
           <h2>Clusters and hubs</h2>
-          <p>Every page declares a <code>cluster:</code> in its frontmatter, assigning it to a logical topic area (non-hub pages may list more than one cluster). A cluster exists when exactly one hub page (<code>type: hub</code>) declares it — that page is the entry point that provides the overview. Sub-clusters are written <code>parent/child</code>, one level deep. The rest are articles.</p>
+          <p>A page declares a <code>cluster:</code> in its frontmatter to join a logical topic area (non-hub pages may list more than one cluster). A cluster exists when exactly one hub page (<code>type: hub</code>) declares it — that page is the entry point that provides the overview. Sub-clusters are written <code>parent/child</code>, one level deep. The rest are articles.</p>
           <p>Cluster membership is the primary navigation structure for agents: <code>list_clusters</code> on the <code>/knowledge-mcp</code> server returns all clusters with their hub page, article count, and last-updated timestamp. <code>list_pages_by_filter</code> lets agents filter by cluster, type, tag, or update time, and <code>get_page_neighbors</code> returns a page's one-hop neighborhood — wikilinks in and out plus cluster siblings, without page bodies. This is how an agent asks "what does this wiki contain?" without doing a full-text search.</p>
 
           <h2>The Page Graph and other relationships</h2>
-          <p>The Page Graph is the only graph: its nodes are pages and its edges are wikilinks authors wrote. Two neighboring signals are deliberately kept separate from it. <strong>Similar pages</strong> (and the related pages agents see) come from page-embedding centroids — the averaged dense embeddings of a page's chunks — not from any graph. <strong>Citation edges</strong> are inline <code>cite://</code> claims grounded in a specific section of a target page, version-pinned and span-hashed so staleness can be detected (<code>list_stale_citations</code>). Page Graph code lives in <code>com.wikantik.pagegraph.*</code>.</p>
+          <p>You can see the Page Graph for yourself: the viewer at <code>/page-graph</code> draws pages as nodes and wikilinks as edges, centred on the page you are reading, with filters by cluster, tag, type and status. Pages a reader may not view appear only as restricted placeholders, and pages in a private cluster are hidden from everyone but Admin and the configured viewer groups.</p>
+          <p>The Page Graph is the only graph: its nodes are pages and its edges are wikilinks authors wrote. Two neighboring signals are deliberately kept separate from it. <strong>Similar pages</strong> (and the related pages agents see in <code>get_page_for_agent</code>) come from page-embedding centroids — the averaged dense embeddings of a page's chunks — not from any graph, and not from any extracted entities. <strong>Citation edges</strong> are inline <code>cite://</code> claims grounded in a specific section of a target page, version-pinned and span-hashed so staleness can be detected: each is graded <code>current</code>, <code>stale</code> or <code>target_missing</code>, and the drifted ones are listed by <code>list_stale_citations</code>. Page Graph code lives in <code>com.wikantik.pagegraph.*</code>.</p>
 
           <section class="faq">
             <h2>Frequently asked questions</h2>
@@ -188,6 +189,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

@@ -45,7 +45,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "A Notion alternative for engineering teams",
     "description": "Wikantik is a Notion alternative built for engineering knowledge: plain markdown you own, git-friendly, with hybrid AI search and native MCP so your agents can use it too.",
-    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
+    "datePublished": "2026-06-07", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/compare/notion-alternative.html" }
@@ -64,7 +64,7 @@
       { "@type": "Question", "name": "Can Wikantik replace Notion for personal or non-technical use?",
         "acceptedAnswer": { "@type": "Answer", "text": "Wikantik is designed for team knowledge bases, primarily engineering and technical content. Notion's flexible block model and polished UI make it a strong choice for personal use, project tracking, and non-technical documentation. If your primary use case is personal notes or product management rather than engineering knowledge, Notion may remain the better fit." } },
       { "@type": "Question", "name": "Does Wikantik support databases and views like Notion?",
-        "acceptedAnswer": { "@type": "Answer", "text": "No. Wikantik is a wiki, not a database tool. It does not replicate Notion's database views, kanban boards, or calendar features. Wikantik's strength is structured, searchable, agent-readable documentation — not project management or relational data." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Not in the Notion sense. Wikantik is a wiki, not a database tool: it has no relational databases, linked views or calendar. It does have a built-in work tracker, off by default, with a board of epics, stories and tasks, sprints and deployments. Wikantik's strength is structured, searchable, agent-readable documentation and accountable agent work, not general-purpose relational data." } },
       { "@type": "Question", "name": "Can I self-host Wikantik when I cannot self-host Notion?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. Notion is a hosted SaaS with no self-host option. Wikantik is open software that runs on Docker and PostgreSQL on your own infrastructure. Your content stays on your servers, under your control, exportable as plain Markdown files at any time." } }
     ] }
@@ -106,7 +106,7 @@
 
           <h2>Where Notion stops for engineering teams</h2>
           <p>Notion's block model is powerful for flexible note-taking and project management, but it creates friction for teams whose primary workflow is writing technical documentation alongside code. Plain-text Markdown has a natural home in a code review, a pull request, or a git commit — Notion's internal block representation does not. And because Notion is hosted SaaS with no self-host option, your content lives on Notion's servers under Notion's terms, which is a real consideration for teams with data residency or compliance requirements.</p>
-          <p>The AI readiness gap is equally real: Notion does not ship a native Model Context Protocol server for your content, and it does not give agents version-pinned citations or a rename-stable graph of your pages. Your LLM assistant cannot ask your Notion workspace a question and get a cited, structured answer without a custom connector that you build and maintain.</p>
+          <p>The AI readiness gap is equally real: Notion does not ship a native Model Context Protocol server for your content, and it does not give agents version-pinned citations or a rename-stable graph of your pages. Notion offers its own hosted MCP connector for your workspace, but your assistant still gets pages as they are, not an assembled, cited context bundle, and nothing flags a citation when the cited text changes.</p>
 
           <h2>Wikantik's answer for engineering teams</h2>
 
@@ -117,7 +117,7 @@
           <p>Wikantik's search combines Lucene BM25 keyword matching with dense vector embeddings, fused via weighted Reciprocal Rank Fusion, fail-closed to BM25. Ask a question in plain English — "how does the payments service handle retries?" — and the retrieval pipeline finds the right page even if it does not contain the exact words you used. Notion's built-in search is keyword-based; semantic search over Notion content requires third-party tooling. See the <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a> page for the technical details.</p>
 
           <h3>Native MCP: your agents can read your wiki</h3>
-          <p>Wikantik ships native Model Context Protocol servers. The <code>/knowledge-mcp</code> endpoint exposes 16 read-only retrieval and navigation tools; the <code>/wikantik-admin-mcp</code> endpoint exposes 20 write and analytics tools. An MCP-compatible AI agent — Claude, a custom LLM assistant, any client that speaks MCP — can query your wiki directly, retrieve the relevant page, and cite it in its response. No middleware. No custom connector to maintain. Notion does not ship a native MCP server. Learn more on the <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a> page.</p>
+          <p>Wikantik ships native Model Context Protocol servers. The <code>/knowledge-mcp</code> endpoint exposes 16 read-only retrieval and navigation tools; the <code>/wikantik-admin-mcp</code> endpoint exposes 22 write and analytics tools. An MCP-compatible AI agent — Claude, a custom LLM assistant, any client that speaks MCP — can query your wiki directly, retrieve the relevant page, and cite it in its response. No middleware. No custom connector to maintain. Notion offers an MCP connector of its own for Notion content; Wikantik's differences are cited context bundles, pinned citations and a Page Graph. Learn more on the <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a> page.</p>
 
           <h3>A Page Graph and cited context</h3>
           <p>Wikantik keeps a Page Graph of the real wikilinks between your pages, with rename-stable canonical IDs, backlinks and one-hop neighbors, and surfaces semantically similar pages from dense embeddings. Agents can follow those connections and get version-pinned citations back. Notion does not give agents this structure natively. More detail on the <a href="/platform/page-graph.html">Page Graph</a> page.</p>
@@ -125,11 +125,20 @@
           <h3>Sync in the content you already have elsewhere</h3>
           <p>Teams migrating off Notion rarely have <em>all</em> their documentation in Notion — Google Drive folders and GitHub repos usually hold a chunk of it too. Wikantik ships native <a href="/platform/connectors.html">connectors</a> for both: point one at a Drive folder or a GitHub repo and it syncs continuously, landing provenance-marked pages that are searchable and citable alongside everything else. There is no direct Notion connector today, so Notion content itself still needs an export-and-convert pass, but it does not have to be a single all-or-nothing migration — Drive and GitHub sources can start flowing in immediately while you work through the Notion export separately.</p>
 
+          <h3>An editor that stays plain Markdown</h3>
+          <p>Notion's block editor stores your content as blocks. Wikantik's editor has a <strong>Rich</strong> mode and a <strong>Source</strong> mode over the same plain Markdown, and switching never changes the text. Rich mode has a toolbar, slash menu and grid tables; paste from Google Docs, Word, Confluence or GitHub arrives as Markdown. It reads Obsidian-style block references, highlights, <code>%%comments%%</code> and inline <code>#tags</code>, imports and exports an Obsidian vault, and draws Mermaid and PlantUML diagrams from fenced code. See <a href="/platform/rich-editor.html">Rich editor</a>.</p>
+
+          <h3>Shared drafts and reader comments that agents can answer</h3>
+          <p>Notion's real-time editing is excellent. Wikantik has it too when an administrator turns on collaborative editing: several people edit one shared draft with live cursors and publish it as one page version, with contributors named in the history. Readers can anchor comment threads to a passage, and an agent on the admin MCP can reply, resolve or dismiss them under a trust rule: it may resolve a thread only if a signed-in person who could edit the page commented in it. See <a href="/platform/collaboration-and-feedback.html">collaboration and feedback</a>.</p>
+
+          <h3>A work tracker where agents act under rules</h3>
+          <p>Wikantik has a small built-in tracker at <code>/work</code>: epics, stories and tasks on a board, sprints, change records and deployments. Agents take work from queues over a <code>/work-mcp</code> endpoint with 16 tools. Each agent has a sponsor who caps its authority and its own token; each item has an autonomy level that decides what an agent may approve, merge or close without a person, and deployments pass an approval gate. It ships off by default. It is a tracker for engineering work, not a database tool like Notion's. See <a href="/platform/work-management.html">work management</a>.</p>
+
           <h3>Enterprise-grade access control</h3>
           <p>For teams with real security requirements: Wikantik has SSO (SAML/OIDC via pac4j, Google live in production), SCIM 2.0 provisioning for automated onboarding and offboarding, a tamper-evident audit log, and RBAC with fine-grained page-level ACLs. Notion's permission model is less granular, and enterprise SSO/SCIM is a higher-tier feature. The full picture is on the <a href="/enterprise/">enterprise</a> page.</p>
 
           <h2>Honest trade-offs: where Notion is genuinely stronger</h2>
-          <p>Notion's UX polish is best-in-class. The block editor, inline databases, linked views, kanban boards, and calendar features are things Wikantik does not have and does not try to replicate. For non-technical contributors, product managers, and design teams, Notion's flexible canvas is more approachable than a Markdown editor. Notion also has a large and well-maintained third-party integration ecosystem that Wikantik, being newer, does not match.</p>
+          <p>Notion's UX polish is best-in-class. The block editor, inline databases, linked views and calendar features are things Wikantik does not have and does not try to replicate. Wikantik's board covers engineering work items, not Notion's general-purpose databases. For non-technical contributors, product managers, and design teams, Notion's flexible canvas is more approachable than a Markdown editor. Notion also has a large and well-maintained third-party integration ecosystem that Wikantik, being newer, does not match.</p>
           <p>Wikantik is strongest when the authors are engineers, the content is technical documentation, and the priorities are ownership, searchability, and machine-readability. It is not a Notion replacement for every use case — it is a focused tool for a specific job.</p>
 
           <section class="faq">
@@ -140,7 +149,7 @@
             </details>
             <details>
               <summary>Does Wikantik support databases and views like Notion?</summary>
-              <p>No. Wikantik is a wiki, not a database tool. It does not replicate Notion's database views, kanban boards, or calendar features. Wikantik's strength is structured, searchable, agent-readable documentation — not project management or relational data.</p>
+              <p>Not in the Notion sense. Wikantik is a wiki, not a database tool: it has no relational databases, linked views or calendar. It does have a built-in work tracker, off by default, with a board of epics, stories and tasks, sprints and deployments. Wikantik's strength is structured, searchable, agent-readable documentation and accountable agent work, not general-purpose relational data.</p>
             </details>
             <details>
               <summary>Can I self-host Wikantik when I cannot self-host Notion?</summary>
@@ -199,6 +208,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

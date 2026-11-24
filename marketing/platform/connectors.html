@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Connectors: sync external content into your wiki, with provenance",
     "description": "Seven connector types continuously sync external content into provenance-marked wiki pages that flow into hybrid search, RAG bundles, and the Page Graph.",
-    "datePublished": "2026-07-17", "dateModified": "2026-10-24",
+    "datePublished": "2026-07-17", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/connectors.html" }
@@ -128,9 +128,12 @@
           <h2>Synced content is first-class in retrieval and the Page Graph</h2>
           <p>A derived page is indexed exactly like any other page: it participates in <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a>, is eligible to appear in a <a href="/platform/rag-context-bundles.html">context bundle</a> with the same version-pinned citations as hand-written content, and takes part in the <a href="/platform/page-graph.html">Page Graph</a> and the <a href="/platform/ontology.html">ontology</a> the same as any other page. Connecting an external source is a way to widen what your agents and search can actually find, not a side channel that content has to "graduate" out of.</p>
 
+          <h2>Documents without a connector: batch ingest</h2>
+          <p>For files that are not behind a live source — a folder of PDF, Word, PowerPoint, Excel, text and Markdown files — the <code>IngestDocumentsCli</code> command-line tool walks a folder and posts each file to <code>POST /api/ingest</code>. Text is extracted with Apache Tika and converted to Markdown, and the result is a derived page like any other: provenance-marked, machine-owned body, curated frontmatter.</p>
+
           <h2>A guided admin experience</h2>
           <p>Setting up a connector is a stepped wizard in the admin panel, not a properties file and a restart: pick a source type — six of the seven are configurable this way, with the filesystem connector set up via properties file given the server-path access it requires — fill in its settings with inline guidance (down to the exact GitHub token scopes or the Confluence API-token walkthrough), authorize where needed (Google Drive is a real OAuth consent redirect), and run a <strong>dry-run connection test</strong> before saving anything. The test reuses the connector's own fetch path — so "success" means the real sync will work too — and reports what it found in plain language, not a raw API response.</p>
-          <p>Once saved, the connector's detail page shows its last runs, sync status, and the pages it has produced, with a one-click "Sync Now" alongside its schedule. A <code>wikantik.connectors.enabled</code> kill switch (on by default) lets an operator turn off all automatic syncing if something looks wrong. Outbound fetches also pass an SSRF egress guard that refuses non-HTTP(S) schemes and loopback, private and link-local addresses, re-checked on every redirect.</p>
+          <p>Once saved, the connector's detail page shows its last runs, sync status, and the pages it has produced, with a one-click "Sync Now" alongside its schedule. A <code>wikantik.connectors.enabled</code> kill switch (on by default) lets an operator turn off all automatic syncing if something looks wrong. Outbound fetches also pass an SSRF egress guard that refuses non-HTTP(S) schemes and loopback, private and link-local addresses, re-checked on every redirect; an operator can opt a deliberate internal crawl back in with <code>wikantik.connectors.egress.allowPrivate=true</code>. A connector's configuration is applied without a restart.</p>
 
           <h2>Credentials stay encrypted, never echoed</h2>
           <p>GitHub personal access tokens, Confluence API tokens, and Google Drive OAuth client secrets and refresh tokens are encrypted at rest (AES-256-GCM) in a dedicated credential store (enabled by setting a 32-byte <code>wikantik.connectors.crypto.key</code>; without one, credential storage stays off) — connector configuration rows themselves hold no secret fields. The admin UI shows only whether a credential is set, never its value, and the dry-run test endpoint can use a freshly entered credential without ever persisting or logging it. Filesystem connectors — the one type that reads arbitrary server paths — are deliberately not creatable from the web UI at all.</p>
@@ -201,6 +204,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

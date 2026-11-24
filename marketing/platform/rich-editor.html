@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Rich Markdown wiki editor with diagrams and Obsidian support | Wikantik</title>
+  <meta name="description" content="A Rich and Source Markdown editor with grid tables, paste as Markdown, Obsidian syntax and vault import, sandboxed Mermaid and PlantUML diagrams, and math.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/platform/rich-editor.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/platform/rich-editor.html">
+  <meta property="og:title" content="Rich Markdown wiki editor with diagrams and Obsidian support | Wikantik">
+  <meta property="og:description" content="A Rich and Source Markdown editor with grid tables, paste as Markdown, Obsidian syntax and vault import, sandboxed Mermaid and PlantUML diagrams, and math.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Rich Markdown wiki editor with diagrams and Obsidian support | Wikantik">
+  <meta name="twitter:description" content="A Rich and Source Markdown editor with grid tables, paste as Markdown, Obsidian syntax and vault import, sandboxed Mermaid and PlantUML diagrams, and math.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <!-- Page-specific structured data (TechArticle + BreadcrumbList [+ FAQPage]) -->
+  <script type="application/ld+json">
+  {
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "A Markdown wiki editor with Rich and Source modes, diagrams and Obsidian syntax",
+  "description": "A Rich and Source Markdown editor with grid tables, paste as Markdown, Obsidian syntax and vault import, sandboxed Mermaid and PlantUML diagrams, and math.",
+  "datePublished": "2026-11-23",
+  "dateModified": "2026-11-23",
+  "author": {
+    "@type": "Person",
+    "name": "Jacob Fear"
+  },
+  "publisher": {
+    "@id": "https://www.wikantik.com/#org"
+  },
+  "mainEntityOfPage": "https://www.wikantik.com/platform/rich-editor.html"
+}
+  </script>
+  <script type="application/ld+json">
+  {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://www.wikantik.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Platform",
+      "item": "https://www.wikantik.com/platform/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Rich editor",
+      "item": "https://www.wikantik.com/platform/rich-editor.html"
+    }
+  ]
+}
+  </script>
+  <script type="application/ld+json">
+  {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is the difference between Rich and Source mode?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Rich shows the page much as it will read and is built from the toolbar. Source shows the Markdown. Both edit the same plain Markdown text, so switching modes never changes the page. Press Mod+E to switch."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I paste from Google Docs or Word?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Rich clipboard content from Google Docs, Word, Confluence, GitHub and web pages converts to Markdown, and images embedded in the clipboard upload as attachments (up to 20 per paste). Mod+Shift+V pastes plain text instead."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are diagrams safe to render from user-written text?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Both renderers fail closed. Mermaid runs at the antiscript security level and refuses directives, javascript: links and click callbacks. PlantUML draws on the server in its SANDBOX profile with no Graphviz, file, URL or environment access, and its SVG output is scrubbed to an allow-list. Refused diagrams are shown as source with the reason."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are %%comments%% private?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "They are hidden from anyone who cannot edit the page, on every surface including search and agent projections, but they are not private from editors: people with edit rights see them in source and history. An access rule inside a comment is still enforced."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I bring an Obsidian vault in and take pages back out?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Import is a reviewed dry run that never overwrites existing pages; export builds a vault zip from the clusters, tags or types you choose, limited to pages you can view. Both are also available over REST for scripts."
+      }
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/platform/">Platform</a> ›
+        <span aria-current="page">Rich editor</span>
+      </div>
+    </nav>
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Platform</p>
+          <h1>A Markdown wiki editor with Rich and Source modes, diagrams and Obsidian syntax</h1>
+          <p class="doc-lede">Wikantik edits plain Markdown in two modes: Rich, which reads like the finished page, and Source, which shows the text. Underneath is one file. Around it are grid tables, paste from Google Docs and Word, Obsidian syntax and vault import, sandboxed Mermaid and PlantUML diagrams, and math.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>Two modes, one Markdown file</h2>
+          <p>The editor has two modes. <strong>Rich</strong> shows the page much as it will read and lets you build it from the toolbar without typing Markdown. <strong>Source</strong> shows the Markdown itself. The page text is plain Markdown in both, and switching modes never changes it. Opening a page in Rich and saving it changes nothing.</p>
+          <ul>
+            <li>Switch with the <strong>Rich / Source</strong> control at the end of the toolbar, or with <code>Mod+E</code> (Ctrl on Windows and Linux, Cmd on a Mac).</li>
+            <li>Rich is the default for new users. The choice is a per-user preference saved to the account (Preferences, Editor, Default editing mode).</li>
+            <li>In Rich, heading, list, task, quote and fence markers stay hidden, even on the line you are typing. Bold, italic and the other inline marks show on the cursor's line and hide again when it leaves. A diagram or math block is drawn until the cursor enters it, then you see its source.</li>
+            <li>A page still written in legacy wiki syntax opens in Source only, with a <strong>Convert to Markdown</strong> button.</li>
+          </ul>
+
+          <h2>Tables as a grid</h2>
+          <p>In Rich mode a Markdown table is a grid you edit cell by cell. <code>Tab</code> and <code>Shift+Tab</code> move between cells, <code>Enter</code> moves down, and <strong>+ row</strong>, <strong>+ col</strong> and a menu add, move, align and delete rows and columns (<code>Alt+T</code> reaches them from the keyboard). Each cell edit rewrites only that cell. That matters when two people edit different cells of one table in a <a href="/platform/collaboration-and-feedback.html">shared draft</a>: both edits survive.</p>
+          <p>Tables the grid cannot represent safely, such as rows with different cell counts or a table inside a list, stay editable as Markdown rows. For several cells at once, switch to Source.</p>
+
+          <h2>Link, embed and image cards</h2>
+          <p>Click a link, a page embed or an image in Rich mode and a small card opens with its details: the page, heading and text of a wiki link, the address and text of a web link, the source and alt text of an image. Change a field and press <code>Enter</code> to apply it; <code>Escape</code> changes nothing. <code>Mod+K</code> opens the same card, and nothing is written to the page until you confirm it. Typing <code>[[</code> completes page names, and <code>[[Page#</code> completes that page's headings.</p>
+
+          <h2>Toolbar, menus and the slash command</h2>
+          <p>Toolbar buttons, the <code>/</code> menu and the command palette all run commands from one registry, so they stay consistent. Buttons light up for the formatting at the cursor.</p>
+          <ul>
+            <li>A <strong>Heading</strong> menu (Heading 1 to 4, or Paragraph).</li>
+            <li>An <strong>Insert</strong> menu: code block, Mermaid and PlantUML diagrams, math block, callouts, image, page embed, footnote, highlight, comment, horizontal rule and access rule.</li>
+            <li>Numbered list, task list, quote and strikethrough, plus language and callout-type lists on code blocks and callouts, reachable from the keyboard.</li>
+          </ul>
+
+          <h2>A preview that stays level with you</h2>
+          <p>The rendered preview sits beside the editor and re-parses as you type. It stays level block by block: a heading, paragraph, formula, picture or table sits at the same height in both panes, and scrolling either pane scrolls the other. The preview lightly marks the block the cursor is in. A <strong>Preview</strong> button hides or shows the pane, and the browser remembers the choice. In Rich mode the pane can instead show a read-only Markdown source view that follows the cursor, so you can watch the Markdown your clicks produce.</p>
+
+          <h2>Paste as Markdown, including images</h2>
+          <p>Text copied from Google Docs, Word, Confluence, GitHub, a web page or another wiki page arrives as Markdown: headings, emphasis, links, nested and task lists, tables, quotes, code blocks (with their language when the source names one) and images. One undo removes the whole paste.</p>
+          <ul>
+            <li>Images that arrive embedded in the clipboard as <code>data:</code> URIs upload as page attachments, named <code>pasted-image-…</code> and linked where they appeared. A paste brings in at most 20 images, each at most 25 MiB decoded, and the whole paste at most 64 MiB. SVG, <code>blob:</code>, <code>file:</code> and <code>cid:</code> images are dropped, and a message says how many.</li>
+            <li><code>Mod+Shift+V</code> pastes plain text with no conversion. Pastes inside code are never converted, and neither are pastes on legacy-syntax pages.</li>
+            <li>Paste a URL over selected text to make it a link.</li>
+          </ul>
+
+          <h2>The Obsidian dialect</h2>
+          <p>Teams that keep notes in Obsidian can write the way they already do. The reader, the editor preview and the server agree on this syntax, because tags and comments are read from the same parse the page renders from.</p>
+          <ul>
+            <li><strong>Block references.</strong> End a paragraph or list item with <code>^id</code>. <code>[[Page#^id]]</code> links to that block and <code>![[Page#^id]]</code> embeds just that block. A gutter button on each block copies the link and adds an id if the block has none and you can edit the page. Block markers are stripped from excerpts, search, chunk text, embeddings, <code>?format=md|json</code> and the agent projection, and kept in page source.</li>
+            <li><strong>Highlights.</strong> <code>==text==</code> renders as a highlight (<code>Mod+Shift+H</code> toggles it on a selection).</li>
+            <li><strong>Comments.</strong> <code>%%text%%</code> is hidden from everyone who cannot edit the page, on every surface: the rendered page, search, excerpts and agent projections. A link inside a comment is not a Page Graph edge, and a <code>cite://</code> inside one is not a citation. Comments are hidden, not private: people with edit rights see them in the source and in history, and an access rule inside a comment is still enforced and locks the page.</li>
+            <li><strong>Inline tags.</strong> A <code>#tag</code> in prose counts as a tag for the tag dictionary and page filters, and renders as a link to the tag search. SEO keywords, feeds, the sitemap and JSON-LD stay frontmatter-only.</li>
+          </ul>
+
+          <h3>Vault import and export</h3>
+          <p><strong>Import</strong> a zipped vault from the sidebar. It is a dry run first: you review a per-page plan with warnings, and the apply step refuses if the vault or the wiki changed since you reviewed it. Folders can become clusters, a folder note becomes the cluster hub, and existing pages are never overwritten. Links, embeds, block ids, comments, aliases and tags carry over, and referenced attachments are imported. Size limits are configurable and a refusal names the setting.</p>
+          <p><strong>Export</strong> a selection (clusters, tags, type, status, optionally pages linked 0 to 2 hops away) as a vault zip with wikilinks, embeds, attachments, a manifest and a README. Only pages the exporter can view are included. Scripts can drive both directions over REST. Import and export need the <code>createPages</code> and <code>export</code> permissions respectively.</p>
+
+          <h2>Diagrams: Mermaid and PlantUML</h2>
+          <p>A <code>```mermaid</code> or <code>```plantuml</code> fence draws as a diagram in the reader, in server-rendered pages, in embeds and in both editor previews. Add the word <code>example</code> after the language to keep a fence as code. The diagram source stays in the page, in <code>?format=md</code> and in the agent view, with a Show source toggle. A <code>click Node "/wiki/Page"</code> in Mermaid, or a <code>[[/wiki/Page]]</code> link in PlantUML, makes a real page reference that counts in backlinks and the Page Graph.</p>
+          <ul>
+            <li><strong>Mermaid</strong> is drawn in the browser at <code>antiscript</code> security level, with forms and inline styles stripped from labels.</li>
+            <li><strong>PlantUML</strong> is drawn on the server in PlantUML's SANDBOX profile with Graphviz unreachable (Smetana layout only): no file, URL or environment access, and <code>!include</code> limited to the bundled C4 library. It handles class, object, component, deployment, sequence, activity, state, use case, timing, C4 and ArchiMate diagrams, plus <code>@startsalt</code> wireframes and <code>@startnwdiag</code> network diagrams, in light and dark variants.</li>
+          </ul>
+          <div class="callout">
+            <p><strong>Fail-closed validation.</strong> Both kinds are checked on the server and in the browser against one shared fixture. Mermaid <code>%%{…}%%</code> directives, front matter, <code>javascript:</code> links and click callbacks are refused. The unsafe source is shown as source with the reason. PlantUML output SVG is scrubbed to an allow-list and spliced in after the HTML sanitizer, so render caches hold only signed placeholders. Each diagram has a timeout, a bounded pool and per-page limits, and a kill switch (<code>wikantik.fences.plantuml.enabled</code>) turns server drawing off.</p>
+          </div>
+          <p>Two command-line checkers, <code>bin/check-plantuml.sh</code> and <code>check-mermaid.mjs</code>, validate every diagram in a file or folder, which is useful before a bulk content push.</p>
+
+          <h2>Math</h2>
+          <p>LaTeX math renders with KaTeX. Inline math is <code>$E = mc^2$</code> (no spaces just inside the dollars), and display math is a <code>$$</code> pair on their own lines. Math is checked when you save: glued or unterminated display blocks block the save with a Jump-to-error panel, while likely currency dollars and empty blocks are warnings. Write <code>\$5</code> for a dollar amount. Math copied from a KaTeX-rendered page pastes back as <code>$…$</code>.</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>What is the difference between Rich and Source mode?</summary>
+              <p>Rich shows the page much as it will read and is built from the toolbar. Source shows the Markdown. Both edit the same plain Markdown text, so switching modes never changes the page. Press <code>Mod+E</code> to switch.</p>
+            </details>
+            <details>
+              <summary>Can I paste from Google Docs or Word?</summary>
+              <p>Yes. Rich clipboard content from Google Docs, Word, Confluence, GitHub and web pages converts to Markdown, and images embedded in the clipboard upload as attachments (up to 20 per paste). <code>Mod+Shift+V</code> pastes plain text instead.</p>
+            </details>
+            <details>
+              <summary>Are diagrams safe to render from user-written text?</summary>
+              <p>Both renderers fail closed. Mermaid runs at the antiscript security level and refuses directives, javascript: links and click callbacks. PlantUML draws on the server in its SANDBOX profile with no Graphviz, file, URL or environment access, and its SVG output is scrubbed to an allow-list. Refused diagrams are shown as source with the reason.</p>
+            </details>
+            <details>
+              <summary>Are %%comments%% private?</summary>
+              <p>They are hidden from anyone who cannot edit the page, on every surface including search and agent projections, but they are not private from editors: people with edit rights see them in source and history. An access rule inside a comment is still enforced.</p>
+            </details>
+            <details>
+              <summary>Can I bring an Obsidian vault in and take pages back out?</summary>
+              <p>Yes. Import is a reviewed dry run that never overwrites existing pages; export builds a vault zip from the clusters, tags or types you choose, limited to pages you can view. Both are also available over REST for scripts.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/collaboration-and-feedback.html">
+              <strong>Collaboration and feedback</strong>
+              <span>Shared drafts, presence, reader comment threads and the agent feedback loop.</span>
+            </a>
+            <a class="related-card" href="/platform/mcp-for-ai-agents.html">
+              <strong>MCP for AI agents</strong>
+              <span>The same pages, read and written by agents through MCP tools.</span>
+            </a>
+            <a class="related-card" href="/platform/agent-grade-content.html">
+              <strong>Agent-grade content</strong>
+              <span>How block markers, comments and projections shape what agents read.</span>
+            </a>
+            <a class="related-card" href="/platform/work-management.html">
+              <strong>Work management</strong>
+              <span>Projects, boards and agents that work against the same wiki.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
+          <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+          <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

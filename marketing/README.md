@@ -6,9 +6,9 @@ and upload the bundle to the static host serving the `www` domain.
 ## Site structure
 - `index.html` — landing page (the centerpiece; hero, pillars, platform/enterprise
   teasers, compare table, hosting, lead form + inline JS).
-- `platform/` — hub + deep-dives on the AI engine (MCP, hybrid retrieval, RAG context
-  bundles, ontology/SPARQL, page graph, agent-grade content,
-  structural spine).
+- `platform/` — hub + deep-dives on the product (MCP, hybrid retrieval, RAG context
+  bundles, ontology/SPARQL, page graph, agent-grade content, structural spine,
+  connectors, the Rich editor, collaboration and the agent feedback loop, work management).
 - `enterprise/` — hub + deep-dives on security/identity/ops (SSO, SCIM, audit log,
   RBAC, security hardening, self-hosting & backup).
 - `compare/` — hub + comparison pages (vs Confluence, vs Notion, AI-native wiki).
@@ -70,8 +70,9 @@ Run the deploy script from the repo root:
 
     bin/deploy-marketing.sh
 
-It rsyncs the web bundle (`index.html`, `styles.css`, `favicon.svg`, `ads.txt`,
-`assets/`) to a staging dir on the marketing host, copies it into the nginx
+It rsyncs the web bundle (the `WEB_FILES` allowlist: `index.html`, `styles.css`,
+`favicon.svg`, `ads.txt`, `robots.txt`, `sitemap.xml`, the IndexNow key file, `assets/`,
+`platform/`, `enterprise/`, `compare/`) to a staging dir on the marketing host, copies it into the nginx
 docroot under sudo, restores `www-data` ownership, and verifies the key files
 serve 200 on-origin. The host's sudo is **not** passwordless, so it prompts for
 the sudo password — run it yourself (or `! bin/deploy-marketing.sh` inside a

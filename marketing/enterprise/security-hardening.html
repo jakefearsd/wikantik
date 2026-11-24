@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Security hardening: NIST passwords, CSP, safe deserialization",
     "description": "Wikantik ships hardened by default: NIST 800-63B password validation with a breach blocklist, CSRF/CORS/CSP and security headers, and deserialization filtering on every input stream.",
-    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
+    "datePublished": "2026-06-07", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/security-hardening.html" }
@@ -145,23 +145,40 @@
             <li><code>X-Frame-Options: DENY</code> — blocks clickjacking</li>
             <li><code>Referrer-Policy</code> — controls referrer leakage</li>
             <li><code>Strict-Transport-Security</code> — enforces HTTPS on compliant browsers</li>
+            <li><code>Cross-Origin-Embedder-Policy</code> and <code>Cross-Origin-Resource-Policy: same-origin</code> — keep other origins from embedding your resources</li>
           </ul>
 
           <h2>Session management</h2>
           <p>Wikantik rotates the HTTP session on every authentication event — both local password login and SSO callback. The old session ID is invalidated and a fresh one is issued before any privileged state is written. This closes the session fixation attack, where an attacker tricks a user into using a pre-seeded session token.</p>
+          <p>The session cookie is <code>HttpOnly</code>, cookie-only (no URL rewriting) and issued <code>SameSite=Lax</code>; the optional remember-me cookie is <code>HttpOnly</code>, <code>SameSite=Lax</code> and holds an opaque, server-validated token. Requests that authenticate with an API key or a work agent's token carry no principal and never become a session, so a credential cannot be turned into a browser login.</p>
           <p>Authentication is JAAS-based. Pluggable login modules support local database, SSO (pac4j), and container-managed authentication. All modules coexist and can be active simultaneously.</p>
 
           <h2>Access control enforced on the read path — including the agent surface</h2>
           <p>View ACLs are not just a UI concern. Wikantik enforces page view permissions on every read surface: the REST read endpoints (page fetch, diff, history, backlinks, recent-changes, search, and the agent projection) and — critically — the machine surfaces an AI agent uses. The <code>/knowledge-mcp</code> retrieval and navigation tools and the <code>/api/bundle</code> context bundle all run candidate results through the same session view gate.</p>
           <p>The practical guarantee: a page a caller is not permitted to see never appears in their search results, their retrieval, or an agent's assembled context bundle — restricted content cannot leak into a RAG pipeline through a side door. Restricted hub descriptors are likewise redacted from cluster listings.</p>
 
-          <h2>Recent hardening (2.4.12–2.4.18)</h2>
-          <p>Security hardening at Wikantik is ongoing, not a one-time checklist. Recent releases closed four gaps:</p>
+          <h2>Access rules you can trust</h2>
+          <p>Page access rules (<code>[{ALLOW view Admin}]</code>) have exactly one reader. The rules come only from the page text, read once per version, and a render never sets them, so what is enforced no longer depends on whether a page was rendered first. If the text contains directive-shaped content the reader cannot interpret with confidence (a <code>DENY</code>, a rule in frontmatter, math or an HTML block, a wrapped rule with an ambiguous name), the page <strong>locks to administrators</strong> until it is fixed. Commenting a rule out does not disable it. A save that would add such a rule is refused with a message saying how to write it, so an editor cannot lock a page by accident, and administrators see why any locked page is locked. Details are on the <a href="/enterprise/access-control-rbac.html">access control</a> page.</p>
+          <p>Whole clusters can be closed off with <code>wikantik.access.privateClusters</code>: one gate, inside the authorization manager, applied to every surface from pages and search to feeds, the Page Graph, SPARQL and context bundles. A page ACL can only narrow it further.</p>
+
+          <h2>Identity: display names and former members</h2>
+          <p>People are shown to each other by display name. Login names (an email address under Google sign-in) are visible only to their owner and to administrators, across the page, history, search, comment, feed, MCP, <code>/tools/*</code> and ontology surfaces. Access-rule text, which names people by login, is stripped from anything returned to a caller who cannot edit the page, and never reaches the search index, chunks, embeddings or agent projections. When an account is deleted, the login is recorded so old content shows "former member" and nobody can register that login again, whether by self-registration, an admin, SCIM, a rename or SSO.</p>
+
+          <h2>Bounded work on untrusted content</h2>
           <ul>
-            <li><strong>JDBC plugin disabled by default.</strong> The <code>[{JDBCPlugin}]</code> wiki-markup plugin — which lets a page run a configured SQL query — now ships off (<code>wikantik.plugin.jdbc.enabled</code>), so a compromised or careless editor can't turn page content into a database query surface without an operator opting in first.</li>
-            <li><strong>SSRF protection on connector fetches.</strong> An <code>EgressGuard</code> validates every outbound HTTP(S) request a connector makes: non-http(s) schemes are rejected, and any host resolving to loopback, private, link-local (including the <code>169.254.169.254</code> cloud metadata address), multicast, or IPv6 unique-local addresses is blocked by default — with every redirect hop re-validated, closing the classic "public URL that 302s to an internal address" bypass.</li>
-            <li><strong>Viewer-sensitive renders never shared across users.</strong> Rendered-page caches now skip content whose output depends on the viewer's own permissions, so an ACL-gated render for one user can never be served from cache to another.</li>
-            <li><strong>Scoped MCP API keys.</strong> API keys now carry a scope: <code>mcp_read</code> grants read-only knowledge-base access, while full admin/write access requires the separate <code>mcp_admin</code> scope (the older <code>mcp</code> name is still accepted as an alias, and its use is logged) — so a token meant only for retrieval can no longer be used to write or curate content if it leaks.</li>
+            <li><strong>Markdown render cost is bounded.</strong> A crafted run of braces could once make parsing quadratic or overflow the stack, and a very long paragraph could take minutes to parse. Parses now run under a budget; over budget, a page is re-parsed without attributes or shown as escaped text, and every parser is built through one class that an architecture test enforces.</li>
+            <li><strong>Diagrams are sandboxed.</strong> <code>```mermaid</code> fences are validated fail-closed on the server and in the browser and run at Mermaid's <code>antiscript</code> level. <code>```plantuml</code> fences are drawn server-side in PlantUML's SANDBOX profile with Graphviz unreachable: no file, URL or environment access, output SVG scrubbed to an allow-list and added after the HTML sanitizer, with a per-diagram timeout and per-page limits. A source that fails validation is shown as source, with the reason.</li>
+            <li><strong>Render caches skip viewer-dependent output.</strong> A render that consults the caller's session or permissions is flagged and excluded from the shared caches, so an ACL-gated render for one user is never served from cache to another.</li>
+            <li><strong>Rate limiting.</strong> Per-client sliding-window limits cover <code>/api/*</code>, <code>/export/*</code> and <code>/sparql</code>, with a tighter tier for the expensive search, bundle and SPARQL paths. <code>/metrics</code> and <code>/api/health</code> answer only on loopback and private networks.</li>
+          </ul>
+
+          <h2>Risky features ship off or fenced in</h2>
+          <ul>
+            <li><strong>JDBC plugin disabled by default.</strong> The <code>[{JDBCPlugin}]</code> plugin, which runs page-authored SQL against the wiki's datasource, is off (<code>wikantik.plugin.jdbc.enabled</code>) and is checked before anything else. Enable it only if you accept that a high-privilege database role will run editor-supplied SQL.</li>
+            <li><strong>SSRF protection on connector fetches.</strong> An <code>EgressGuard</code> validates every outbound HTTP(S) request a connector makes: non-http(s) schemes are rejected, and any host resolving to loopback, private, link-local (including the <code>169.254.169.254</code> cloud metadata address), multicast, or IPv6 unique-local addresses is blocked by default. Every redirect hop is re-validated. An operator can allow an internal crawl deliberately with a JVM system property.</li>
+            <li><strong>Scoped API keys.</strong> <code>mcp_read</code> reaches the knowledge MCP read-only, <code>mcp_admin</code> the full admin MCP, <code>tools</code> the OpenAPI endpoints, and <code>work</code> only work management. Self-service users can mint only the narrow ones, and every use of the legacy <code>mcp</code> alias is logged.</li>
+            <li><strong>Outbound and inbound work-management paths.</strong> Webhooks are off by default, https only, pass the same egress guard and are signed with HMAC-SHA256. The code-host hook accepts only a body signed with the product's secret, and every refusal is one identical 404, so it does not reveal which products exist.</li>
+            <li><strong>Admin areas can be granted one at a time.</strong> A scoped <code>admin</code> policy grant opens a single <code>/admin/*</code> area without making the holder a full administrator.</li>
           </ul>
 
           <h2>Defense in depth</h2>
@@ -169,7 +186,7 @@
           <ul>
             <li><a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a> — session rotation, fail-closed account binding, CSRF handling for SAML</li>
             <li><a href="/enterprise/access-control-rbac.html">RBAC &amp; access control</a> — JAAS permissions, policy grants, page ACLs</li>
-            <li><a href="/enterprise/audit-log.html">Tamper-evident audit log</a> — every authentication event, access denial, and admin action recorded and verifiable</li>
+            <li><a href="/enterprise/audit-log.html">Tamper-evident audit log</a> — authentication events, access denials, and admin actions recorded in a hash chain you can verify</li>
             <li><a href="/enterprise/scim-provisioning.html">SCIM provisioning</a> — deactivation enforced at every login path; SCIM can never write the Admin group</li>
           </ul>
 
@@ -240,6 +257,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

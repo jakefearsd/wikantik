@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Agent-grade content: runbooks, projections and verification",
     "description": "Wikantik serves every page to two readers — humans and machines: token-budgeted projections, runbook types, verification metadata, and derived agent hints for reliable AI answers.",
-    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
+    "datePublished": "2026-06-07", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/agent-grade-content.html" }
@@ -114,6 +114,9 @@
             <li>Structured YAML frontmatter fields (type, cluster, status, summary, tags)</li>
             <li>The canonical ID for rename-stable cross-referencing</li>
             <li>Verification metadata (see below)</li>
+            <li>Key facts and a headings outline, so an agent can decide what to read before it reads it</li>
+            <li>The parsed <code>runbook</code> block, when the page is a valid runbook</li>
+            <li>A <code>stale_citations</code> list: the page's version-pinned <code>cite://</code> claims that have drifted (graded <code>stale</code> or <code>target_missing</code>)</li>
             <li>Derived <code>agent_hints</code> computed at projection time</li>
           </ul>
           <p>The <code>agent_hints</code> field has two sub-fields computed by <code>AgentHintsDeriver</code> at request time with zero author burden:</p>
@@ -121,11 +124,13 @@
             <li><code>prefer_tools</code> — ranked list of MCP tools relevant to this page and its cluster, from <code>McpToolHintsResolver</code></li>
             <li><code>prefer_pages</code> — ranked list of cluster pages by intra-cluster wikilink centrality, with a 1.5× bonus for verified-authoritative pages</li>
           </ul>
+          <p>The projection is built for the caller: <code>prefer_pages</code>, a hub's synthesized summary and the targets of <code>stale_citations</code> name only pages the caller may view, so a private-cluster page is never recommended to someone who cannot open it. Text in <code>%%comments%%</code> is hidden from callers without edit rights, here as on every other surface. Agents reach the projection through <code>get_page_for_agent</code> on <code>/knowledge-mcp</code> or <code>GET /api/pages/for-agent/{id}</code>.</p>
           <p>An agent that calls <code>/for-agent</code> on a page gets not just the content but also a curated reading list and a ranked tool recommendation — without any author having to maintain those lists manually.</p>
 
           <h2>Runbooks and page types</h2>
           <p>Wikantik pages are typed. The <code>type:</code> frontmatter field declares what kind of content a page contains:</p>
           <ul>
+            <li><code>hub</code> — the entry page of a cluster</li>
             <li><code>article</code> — explanatory content on a topic</li>
             <li><code>design</code> — architectural or design documentation</li>
             <li><code>reference</code> — reference material (config keys, API docs, etc.)</li>
@@ -134,8 +139,10 @@
           <p>Runbook pages include a <code>runbook:</code> frontmatter block with structured fields:</p>
           <ul>
             <li><code>when_to_use</code> — specific triggers for the procedure</li>
+            <li><code>inputs</code> — what the procedure needs before it starts</li>
             <li><code>steps</code> — an ordered list of atomic actions</li>
             <li><code>pitfalls</code> — common failure modes and mitigations</li>
+            <li><code>related_tools</code> — the tools the procedure uses</li>
           </ul>
           <p>An agent retrieving a runbook page knows it is procedural, what triggers it, and can walk the steps — without having to parse prose to figure out "is this a how-to or an explanation?"</p>
           <p>For live examples of typed, retrieval-tuned content built this way, browse the wiki's practice clusters: <a href="https://wiki.wikantik.com/wiki/DataSciencePracticeHub">data science practice</a>, <a href="https://wiki.wikantik.com/wiki/OperationsResearchHub">operations research</a> (from <a href="https://wiki.wikantik.com/wiki/OpenSourceOptimizationSolvers">open-source solvers</a> to production optimization), and <a href="https://wiki.wikantik.com/wiki/SoftwareEngineeringPracticesHub">software engineering practices</a> (e.g. <a href="https://wiki.wikantik.com/wiki/PropertyBasedTesting">property-based testing</a>).</p>
@@ -145,8 +152,9 @@
           <ul>
             <li><code>verified_at</code> — ISO-8601 timestamp of the last manual audit</li>
             <li><code>verified_by</code> — the verifier (readers see their display name, not the stored login)</li>
-            <li><code>confidence</code> — one of <code>authoritative</code> (verified within the last 90 days by a trusted author), <code>provisional</code> (verified within 90 days but not by a trusted author), or <code>stale</code> (never verified, or over 90 days since the last verification)</li>
+            <li><code>confidence</code> — one of <code>authoritative</code> (verified within the last 90 days by a trusted author), <code>provisional</code> (verified within 90 days but not by a trusted author), or <code>stale</code> (never verified, or over 90 days since the last verification; the window is <code>wikantik.verification.stale_days</code>). An author can also pin the value explicitly in frontmatter</li>
           </ul>
+          <p>Curators stamp pages through the <code>mark_page_verified</code> tool on <code>/wikantik-admin-mcp</code>, and <code>verify_pages</code> checks several pages in one call (existence, broken links, backlinks, outbound links, metadata completeness).</p>
           <p>The <code>auto-generated</code> frontmatter flag acts as a technical debt marker: pages marked <code>true</code> are treated as low-confidence stubs. Setting it to <code>false</code> is a declaration that the content has been overhauled to meet the high-density, machine-readable standard.</p>
 
           <h2>Retrieval-quality CI and the agent-grade audit</h2>
@@ -220,6 +228,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

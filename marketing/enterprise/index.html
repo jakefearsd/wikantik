@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-adsense-account" content="ca-pub-5083997587716933">
   <title>Enterprise wiki: SSO, SCIM, audit &amp; RBAC | Wikantik</title>
-  <meta name="description" content="Wikantik is ready for the security review: SSO (SAML/OIDC), SCIM provisioning, a tamper-evident audit log, role-based access control, hardened auth, and self-hosting you control.">
+  <meta name="description" content="Wikantik is ready for the security review: SSO, SCIM, a tamper-evident audit log, access control down to private clusters, hardened defaults, and self-hosting you control.">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://www.wikantik.com/enterprise/">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -14,13 +14,13 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.wikantik.com/enterprise/">
   <meta property="og:title" content="Enterprise wiki: SSO, SCIM, audit &amp; RBAC | Wikantik">
-  <meta property="og:description" content="Wikantik is ready for the security review: SSO (SAML/OIDC), SCIM provisioning, a tamper-evident audit log, role-based access control, hardened auth, and self-hosting you control.">
+  <meta property="og:description" content="Wikantik is ready for the security review: SSO, SCIM, a tamper-evident audit log, access control down to private clusters, hardened defaults, and self-hosting you control.">
   <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Enterprise wiki: SSO, SCIM, audit &amp; RBAC | Wikantik">
-  <meta name="twitter:description" content="Wikantik is ready for the security review: SSO (SAML/OIDC), SCIM provisioning, a tamper-evident audit log, role-based access control, hardened auth, and self-hosting you control.">
+  <meta name="twitter:description" content="Wikantik is ready for the security review: SSO, SCIM, a tamper-evident audit log, access control down to private clusters, hardened defaults, and self-hosting you control.">
   <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <link rel="stylesheet" href="/styles.css">
@@ -82,32 +82,32 @@
           <a class="hub-card" href="/enterprise/sso-saml-oidc.html">
             <div class="hub-icon" aria-hidden="true">🔐</div>
             <h3>SSO (SAML / OIDC)</h3>
-            <p>Log in with your IdP — SAML 2.0, OIDC, Google. Session-fixation hardened. Fail-closed account binding.</p>
+            <p>Log in with your IdP — SAML 2.0, OIDC, Google. Session rotation, an immutable-subject binding by default, and no takeover of local accounts. Sign-in returns you to the page you started from.</p>
           </a>
           <a class="hub-card" href="/enterprise/scim-provisioning.html">
             <div class="hub-icon" aria-hidden="true">👤</div>
             <h3>SCIM provisioning</h3>
-            <p>Automate user and group lifecycle from your IdP. Bearer-authed SCIM 2.0 with soft-delete and discovery.</p>
+            <p>Automate user and group lifecycle from your IdP. Bearer-authed SCIM 2.0 with soft-delete and discovery, display-name rules, and no write path to the Admin group.</p>
           </a>
           <a class="hub-card" href="/enterprise/audit-log.html">
             <div class="hub-icon" aria-hidden="true">🧾</div>
             <h3>Tamper-evident audit log</h3>
-            <p>SHA-256 hash-chained audit trail. Query, verify, and export from the admin UI or REST API.</p>
+            <p>SHA-256 hash-chained audit trail covering logins, access denials, admin and agent-registry changes. Query, verify, and export from the admin UI or REST API.</p>
           </a>
           <a class="hub-card" href="/enterprise/access-control-rbac.html">
             <div class="hub-icon" aria-hidden="true">🛡️</div>
             <h3>RBAC &amp; access control</h3>
-            <p>Database-backed policy grants, page-level ACLs, and managed groups — enforced everywhere.</p>
+            <p>Database-backed policy grants, page ACLs, managed groups, private clusters, and scoped agent keys — enforced on every surface, agents included.</p>
           </a>
           <a class="hub-card" href="/enterprise/security-hardening.html">
             <div class="hub-icon" aria-hidden="true">🔒</div>
             <h3>Security hardening</h3>
-            <p>NIST 800-63B passwords, CSRF/CORS/CSP headers, and deserialization filtering on every stream.</p>
+            <p>NIST 800-63B passwords, CSRF/CORS/CSP headers, single-reader access rules, sandboxed diagrams, SSRF guard, and display names instead of logins.</p>
           </a>
           <a class="hub-card" href="/enterprise/self-hosting-and-backup.html">
             <div class="hub-icon" aria-hidden="true">🗄️</div>
             <h3>Self-hosting &amp; backup</h3>
-            <p>Docker + PostgreSQL, or one-command AWS/GCP. Plain markdown you own. 3-2-1 backup, tested disaster recovery, and a cost ceiling on LLM spend.</p>
+            <p>Docker + PostgreSQL 18, or one-command AWS/GCP. Plain markdown you own. 3-2-1 backup, tested disaster recovery, search-engine controls, and one switch that caps embedding use.</p>
           </a>
         </div>
       </div>
@@ -139,6 +139,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

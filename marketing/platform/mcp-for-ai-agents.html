@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "Knowledge base MCP server — your wiki as tools for AI agents",
     "description": "Wikantik exposes native Model Context Protocol servers so your AI agents query, retrieve, and cite your wiki directly — read-only retrieval plus admin curation tools.",
-    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
+    "datePublished": "2026-06-07", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/mcp-for-ai-agents.html" }
@@ -63,7 +63,7 @@
       { "@type": "Question", "name": "Which MCP clients work with Wikantik?",
         "acceptedAnswer": { "@type": "Answer", "text": "Any client that speaks the Model Context Protocol over Streamable HTTP will work — Claude Desktop, Claude Code, and compatible agent frameworks. For clients that use OpenAPI rather than MCP, the /tools/* endpoint exposes search_wiki and get_page as standard JSON tools." } },
       { "@type": "Question", "name": "Is the MCP server read-only?",
-        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp server is strictly read-only — 16 retrieval and navigation tools with no write surface. The /wikantik-admin-mcp server adds 20 write and analytics tools for curators who need to create, update, and audit content. You choose which server to expose to which agent." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp server is strictly read-only — 16 retrieval and navigation tools with no write surface. The /wikantik-admin-mcp server adds 22 write and analytics tools for curators who need to create, update, and audit content, including answering reader comment threads. A third endpoint, /work-mcp, carries 16 work-management tools. You choose which server to expose to which agent." } },
       { "@type": "Question", "name": "How is MCP access controlled?",
         "acceptedAnswer": { "@type": "Answer", "text": "Both MCP servers sit behind access filters that require a bearer token (a database-minted API key) or a source IP on a configured CIDR allowlist, and they fail closed when neither is configured. No credential, no tool calls. The same page-level ACLs that protect the web UI are enforced on retrieval results." } }
     ] }
@@ -99,7 +99,7 @@
         <header class="doc-head">
           <p class="eyebrow">Platform</p>
           <h1>A knowledge base MCP server: your wiki as a tool surface for AI agents</h1>
-          <p class="doc-lede">Wikantik exposes two native Model Context Protocol servers over Streamable HTTP — one for reading and retrieval, one for curation and analytics — so your AI agents can query, cite, and manage your knowledge base without scraping HTML or parsing sitemaps. If you are looking for a knowledge base MCP server your whole team can write to, this is the built-in kind: the wiki is the MCP server.</p>
+          <p class="doc-lede">Wikantik exposes native Model Context Protocol servers over Streamable HTTP — one for reading and retrieval, one for curation and analytics, and a third for work management — so your AI agents can query, cite, and manage your knowledge base without scraping HTML or parsing sitemaps. If you are looking for a knowledge base MCP server your whole team can write to, this is the built-in kind: the wiki is the MCP server.</p>
         </header>
         <div class="doc-body">
 
@@ -107,8 +107,8 @@
           <p>The Model Context Protocol is a standard that lets AI agents call tools on a server and get structured, actionable results — no web scraping, no parsing prose, no guessing at content structure. When your knowledge base exposes an MCP server, an agent can ask "what does this wiki say about hybrid retrieval?" and get a cited answer rather than a wall of search-result URLs to follow.</p>
           <p>Most wikis have no agent interface at all. Agents that need to cite knowledge have to scrape the rendered HTML, hope the layout is consistent, and strip the navigation from the content. Wikantik was designed with this problem in mind from the start.</p>
 
-          <h2>The two servers: read versus curate</h2>
-          <p>Wikantik ships two distinct MCP servers, each with a different trust boundary:</p>
+          <h2>The servers: read, curate, and work</h2>
+          <p>Wikantik ships distinct MCP servers, each with a different trust boundary. Two serve the knowledge base; a third, optional one serves work management:</p>
 
           <h3>/knowledge-mcp — 16 read-only tools</h3>
           <p>The <code>/knowledge-mcp</code> endpoint is the safe, read-only interface for retrieval agents, coding assistants, and any other tool that needs to find and cite your content. Its 16 tools cover:</p>
@@ -120,32 +120,41 @@
             <li>Agent-grade page projection — token-budgeted content with derived agent hints and related pages drawn from page-embedding similarity</li>
             <li>Batched markdown reads via <code>read_pages</code> (up to 20 pages per call) for cluster-spanning research</li>
             <li>Read-only ontology access — a SPARQL endpoint (<code>sparql_query</code>) and T-Box discovery (<code>get_ontology</code>) over the <code>wikantik:</code> RDF model</li>
-            <li>Stale-citation curation via <code>list_stale_citations</code> — surface version-pinned groundings that have drifted out of date</li>
+            <li>Stale-citation curation via <code>list_stale_citations</code> — inline <code>cite://</code> claims are version-pinned and graded <code>current</code>, <code>stale</code> or <code>target_missing</code> at save time, and this tool surfaces the ones that drifted</li>
+            <li>Session briefings, retrieval and every page listing respect private clusters (<code>wikantik.access.privateClusters</code>) — a cluster hidden from a caller is not listed, retrieved, or counted for that caller</li>
           </ul>
           <p>Access is controlled by the <code>KnowledgeMcpAccessFilter</code> filter (an <code>McpAccessFilter</code> requiring the <code>mcp_read</code> scope) — a bearer token (database-minted API key) or a source IP on a configured CIDR allowlist is required, and it fails closed when neither is configured. The same page-level ACLs that protect the web UI apply here.</p>
 
-          <h3>/wikantik-admin-mcp — 20 write and analytics tools</h3>
-          <p>The <code>/wikantik-admin-mcp</code> endpoint is for curator agents and admin workflows. Its 20 tools add:</p>
+          <h3>/wikantik-admin-mcp — 22 write and analytics tools</h3>
+          <p>The <code>/wikantik-admin-mcp</code> endpoint is for curator agents and admin workflows. Its 22 tools add:</p>
           <ul>
             <li>Page creation, update, and metadata management</li>
             <li>Page-graph and link hygiene — <code>get_backlinks</code>, <code>get_outbound_links</code>, <code>get_broken_links</code>, <code>get_orphaned_pages</code></li>
             <li><code>rename_page</code> and <code>rename_cluster</code> — rename with link and cluster rewrites</li>
             <li><code>list_retrieval_queries</code> — read the real-traffic query log</li>
             <li><code>list_content_opportunities</code> / <code>snooze_opportunity</code> — the search-visibility content-opportunity backlog and its decline path</li>
+            <li><code>list_comment_threads</code> / <code>respond_to_comment_thread</code> — the reader-comment inbox: see the section on the comment feedback loop below</li>
             <li>Verification, audit, and wiki health analytics</li>
           </ul>
-          <p>The same access scheme applies, with scoped keys: an <code>mcp_read</code> key is confined to the read-only <code>/knowledge-mcp</code> endpoint, while an <code>mcp_admin</code> key (formerly just <code>mcp</code>, which is still accepted as an alias) unlocks the admin surface. You decide which agents get admin access.</p>
+          <p>The same access scheme applies, with scoped keys: an <code>mcp_read</code> key is confined to the read-only <code>/knowledge-mcp</code> endpoint, while an <code>mcp_admin</code> key (formerly just <code>mcp</code>, which is still accepted as an alias) unlocks the admin surface. You decide which agents get admin access. Treat an <code>mcp_admin</code> key as an admin credential: the admin tools are fully privileged and are not filtered by page ACLs or private clusters.</p>
+
+          <h3>/work-mcp — 16 work-management tools</h3>
+          <p>The <code>/work-mcp</code> endpoint is the agent surface of <a href="/platform/work-management.html">work management</a>. Its 16 tools let an agent see its context, find claimable items, claim and hand off work, comment, update items, open and merge changes, and request deployments. It is key-only: it ignores the IP allowlist, and it accepts only a <code>work</code>-scoped API key or an agent's own <code>wka_</code> token. An agent never does more than its sponsor could. The endpoint exists only when work management is switched on (<code>wikantik.work.enabled</code>, off by default); otherwise it returns 404.</p>
 
           <div class="callout">
-            <p>These tool counts reflect a fully-configured deployment (as on the live Wikantik instance): <strong>16 tools</strong> on <code>/knowledge-mcp</code> and <strong>20 tools</strong> on <code>/wikantik-admin-mcp</code>; minimal installs with retrieval disabled register fewer. The design principle is compound operations — fewer, higher-level tool calls rather than chatty per-field round trips. See the <a href="https://wiki.wikantik.com/wiki/GoodMcpDesign">Good MCP Design</a> article for the reasoning.</p>
+            <p>These tool counts reflect a fully-configured deployment (as on the live Wikantik instance): <strong>16 tools</strong> on <code>/knowledge-mcp</code>, <strong>22 tools</strong> on <code>/wikantik-admin-mcp</code> and <strong>16 tools</strong> on <code>/work-mcp</code>; minimal installs with retrieval disabled register fewer. The design principle is compound operations — fewer, higher-level tool calls rather than chatty per-field round trips. See the <a href="https://wiki.wikantik.com/wiki/GoodMcpDesign">Good MCP Design</a> article for the reasoning.</p>
           </div>
 
           <h2>How an agent uses it</h2>
           <p>In a typical retrieval session, an agent receives a user question, calls the <code>/knowledge-mcp</code> search tool with a natural-language query, gets back a ranked list of pages with content snippets and metadata, selects the most relevant pages, fetches their full content via <code>read_pages</code> if needed, and returns a cited answer. The entire loop completes in a handful of tool calls rather than dozens of HTTP fetches.</p>
           <p>For a curator agent publishing a cluster of articles, the flow looks like: draft content, call <code>/wikantik-admin-mcp</code> batch write tools to create multiple pages in one call, verify the cluster with the <code>verify_pages</code> tool, and get a structured per-page report back without further round trips.</p>
 
+          <h2>Closing the loop on reader comments</h2>
+          <p>Readers anchor comment threads to passages of a page. A new comment carries an "Agents may respond to this comment" checkbox, ticked by default. A curator agent calls <code>list_comment_threads</code> (by page or by cluster) to read the threads open to it, and <code>respond_to_comment_thread</code> to reply, resolve or dismiss with a required written body. A thread closes once: the first agent to resolve or dismiss wins.</p>
+          <p>A trust rule keeps this safe. A comment counts as trusted only when its author was signed in and could edit the page when posting; an agent may resolve a thread only if it holds a trusted human comment, otherwise it can reply or dismiss. Comment bodies reach the agent as data, each marked trusted or not, and agent comments are badged and stored under an <code>agent:</code> name so a client cannot post as a member. See <a href="/platform/collaboration-and-feedback.html">collaboration and feedback</a>.</p>
+
           <h2>Retrieval as a tool call: bundles and briefings</h2>
-          <p>The highest-leverage tools on <code>/knowledge-mcp</code> do the assembly work a RAG pipeline normally leaves to the caller. <code>assemble_bundle</code> returns a ranked, de-duplicated set of the most relevant sections across the whole corpus, each pinned to a page version and carrying a coverage signal — so the agent gets citable context in one call and knows how well the wiki actually covered the question. <code>get_briefing</code> assembles a budgeted, injection-ready context block from pinned pages, clusters, and the task prompt, so a coding agent starts a session already grounded in your conventions. Wikantik never synthesizes the answer — that stays in your model. The full design is on the <a href="/platform/rag-context-bundles.html">RAG context bundles</a> page.</p>
+          <p>The highest-leverage tools on <code>/knowledge-mcp</code> do the assembly work a RAG pipeline normally leaves to the caller. <code>assemble_bundle</code> returns a ranked, de-duplicated set of the most relevant sections across the whole corpus, each pinned to a page version and carrying a coverage signal — so the agent gets citable context in one call and knows how well the wiki actually covered the question. <code>get_briefing</code> assembles a budgeted, injection-ready context block from pinned pages, clusters, and the task prompt, so a coding agent starts a session already grounded in your conventions; scoped to a cluster, it is tiered — the cluster's own pages first, then the shared pages they link to, then pointers elsewhere. Wikantik never synthesizes the answer — that stays in your model. The full design is on the <a href="/platform/rag-context-bundles.html">RAG context bundles</a> page.</p>
 
           <h2>Beyond MCP: OpenAPI tools and raw content</h2>
           <p>Not every client speaks MCP. For OpenWebUI-compatible or other non-MCP clients, Wikantik also exposes an <strong>OpenAPI 3.1 tool server</strong> at <code>/tools/*</code> with two tools: <code>search_wiki</code> and <code>get_page</code>. These cover the most common retrieval use case for clients that prefer REST-style JSON tool definitions.</p>
@@ -159,11 +168,11 @@
             </details>
             <details>
               <summary>Is the MCP server read-only?</summary>
-              <p>The <code>/knowledge-mcp</code> server is strictly read-only — 16 retrieval and navigation tools with no write surface. The <code>/wikantik-admin-mcp</code> server adds 20 write and analytics tools for curators who need to create, update, and audit content. You choose which server to expose to which agent.</p>
+              <p>The <code>/knowledge-mcp</code> server is strictly read-only — 16 retrieval and navigation tools with no write surface. The <code>/wikantik-admin-mcp</code> server adds 22 write and analytics tools for curators who need to create, update, and audit content, including answering reader comment threads. A third endpoint, <code>/work-mcp</code>, carries 16 work-management tools. You choose which server to expose to which agent.</p>
             </details>
             <details>
               <summary>How is MCP access controlled?</summary>
-              <p>Both MCP servers sit behind access filters (<code>KnowledgeMcpAccessFilter</code> and <code>McpAccessFilter</code>) that require a bearer token (a database-minted API key) or a source IP on a configured CIDR allowlist, and they fail closed when neither is configured. API keys are scoped: <code>mcp_read</code> is confined to <code>/knowledge-mcp</code>, <code>mcp_admin</code> unlocks the admin server. No credential, no tool calls. The same page-level ACLs that protect the web UI are enforced on retrieval results.</p>
+              <p>Both MCP servers sit behind access filters (<code>KnowledgeMcpAccessFilter</code> and <code>McpAccessFilter</code>) that require a bearer token (a database-minted API key) or a source IP on a configured CIDR allowlist, and they fail closed when neither is configured. API keys are scoped: <code>mcp_read</code> is confined to <code>/knowledge-mcp</code>, <code>mcp_admin</code> unlocks the admin server, and <code>work</code> unlocks only work management. <code>/work-mcp</code> is key-only and ignores the allowlist. No credential, no tool calls. The same page-level ACLs that protect the web UI are enforced on retrieval results.</p>
             </details>
             <details>
               <summary>How is this different from building a knowledge base MCP server myself?</summary>
@@ -186,6 +195,14 @@
             <a class="related-card" href="/platform/agent-grade-content.html">
               <strong>Agent-grade content</strong>
               <span>Token-budgeted projections and verification metadata for reliable agent answers.</span>
+            </a>
+            <a class="related-card" href="/platform/work-management.html">
+              <strong>Work management</strong>
+              <span>The 16-tool /work-mcp endpoint: agents with sponsors, claims, change records and deployments.</span>
+            </a>
+            <a class="related-card" href="/platform/collaboration-and-feedback.html">
+              <strong>Collaboration and feedback</strong>
+              <span>Reader comment threads and how agents answer them.</span>
             </a>
           </div>
         </aside>
@@ -218,6 +235,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

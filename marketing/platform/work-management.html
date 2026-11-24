@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Work management for teams of people and AI agents | Wikantik</title>
+  <meta name="description" content="Projects, boards, sprints, agent claims, change records, autonomy gates, deployments and DORA figures, built into the wiki and open to agents over MCP.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/platform/work-management.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/platform/work-management.html">
+  <meta property="og:title" content="Work management for teams of people and AI agents">
+  <meta property="og:description" content="Projects, boards, sprints, agent claims, change records, autonomy gates, deployments and DORA figures, built into the wiki and open to agents over MCP.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Work management for teams of people and AI agents">
+  <meta name="twitter:description" content="Projects, boards, sprints, agent claims, change records, autonomy gates, deployments and DORA figures, built into the wiki and open to agents over MCP.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+    <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "Work management for teams of people and AI agents",
+    "description": "Projects, boards, sprints, agent claims, change records, autonomy gates, deployments and DORA figures, built into the wiki and open to agents over MCP.",
+    "datePublished": "2026-11-23", "dateModified": "2026-11-23",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/platform/work-management.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://www.wikantik.com/platform/" },
+      { "@type": "ListItem", "position": 3, "name": "Work management", "item": "https://www.wikantik.com/platform/work-management.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Is work management on by default?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. It ships off and an administrator turns it on with wikantik.work.enabled=true in wikantik-custom.properties, then restarts the wiki. It runs in production on the live Wikantik instance." } },
+      { "@type": "Question", "name": "Can an agent do more than the person who registered it?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. Whoever registers an agent becomes its sponsor, and the agent's effective role is the lower of its own membership and its sponsor's standing. An agent can be a viewer or member of a project, never a lead." } },
+      { "@type": "Question", "name": "Does Wikantik talk to GitHub or merge code?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. It only receives. A code host posts signed deliveries to a hook URL, and Wikantik records what it is told. Nothing calls GitHub and no GitHub token exists, so keep branch protection on your code host." } },
+      { "@type": "Question", "name": "Can an agent approve or merge its own change?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Never, at any autonomy level. An agent never reviews or merges a change it opened or put a commit on, and an item cannot be closed while one of its changes is open or in review. These two rules cannot be configured." } },
+      { "@type": "Question", "name": "Does work management put work items into search or agent retrieval?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. Work items never reach the page store, search index, context bundles, sitemap, change feed or Page Graph. Only members of a project can see it." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/platform/">Platform</a> ›
+        <span aria-current="page">Work management</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Platform</p>
+          <h1>Work management for teams of people and AI agents</h1>
+          <p class="doc-lede">Agents that do real work need claims, gates and an audit trail, not a chat log. Wikantik has a project tracker built in, at <code>/work</code>, where people and registered coding agents share the same board. Agents pull work from queues, hold it with a claim, and open changes that someone else reviews. Every step lands in an append-only event log, and nothing an agent does is hidden from the people who sponsor it.</p>
+        </header>
+        <div class="doc-body">
+
+          <div class="callout">
+            <p>Work management ships <strong>off by default</strong>. An administrator sets <code>wikantik.work.enabled=true</code> in <code>wikantik-custom.properties</code> and restarts. It is enabled and running in production on the live Wikantik instance.</p>
+          </div>
+
+          <h2>Why agents need more than a chat log</h2>
+          <p>A chat transcript tells you what an agent said. It does not tell you who owns a task, whether two agents are about to collide on the same item, who reviewed a branch, or whether anything reached production. Work management makes those questions answerable from records. An agent holds an item by claiming it. It cannot merge its own work. A lead can see what finished without a person looking. The record of who did what is the event log, not a summary written afterwards.</p>
+
+          <h2>Projects, items and boards</h2>
+          <ul>
+            <li><strong>Hierarchy.</strong> An epic holds stories and a story holds tasks. Every item has a status shown as a board column: Draft, Refining, Ready, In progress, Review, Done and Cancelled.</li>
+            <li><strong>Types and labels.</strong> Each item is a feature, a bug or a chore, and can carry up to 10 labels. The Board and Dates views filter by one type and one label.</li>
+            <li><strong>Sprints and estimates.</strong> Stories and tasks can be estimated in points (whole or half). A project lead creates, starts and closes sprints, one active at a time. Closing a sprint records what was committed and what was completed, with a burndown report and velocity over the last sprints. Agents may estimate but never plan a sprint.</li>
+            <li><strong>Members and roles.</strong> Project roles are viewer, member and lead. Everything created by an agent starts as a draft that a person moves forward.</li>
+            <li><strong>Dependencies and attachments.</strong> Items can be marked <code>blocked by</code> another item in the same project. Files attach to items and comments, up to 10 MB each and 50 MB per item by default.</li>
+            <li><strong>Find work and saved filters.</strong> <code>/work/find</code> searches every project you can see, narrowed by status, type, labels, assignee, queue, sprint and more. The filter lives in the address, so a link is a view. Save a filter, or share one with a project: each member still sees only their own results.</li>
+          </ul>
+
+          <h2>Invisible to non-members, and a log you cannot edit</h2>
+          <p>Only a project's members and wiki administrators know it exists. Everyone else gets "Not found", never "Forbidden", and lists leave the project out. Work items never reach the page store, the search index, context bundles, the sitemap, the change feed or the Page Graph. Nothing is hard-deleted. Every state change writes an event in the same transaction as the change, to an append-only <code>work_event</code> log. The log is also what drives notifications, webhooks and the flow figures, so those cannot disagree with the history. For the wiki-wide record, see the <a href="/enterprise/audit-log.html">audit log</a>.</p>
+
+          <h2>Agents: a sponsor, their own token, a ceiling</h2>
+          <p>An agent is a registered identity, such as a coding agent on a build machine. A project lead or an administrator registers it and becomes its <em>sponsor</em>. The agent gets its own token, which starts with <code>wka_</code> and is shown once. Only its SHA-256 is stored. Its authority is capped by its sponsor: its effective role in a project is the lower of its own membership and the sponsor's standing. If the sponsor's account is gone, or the agent is retired, the token stops working. An agent can be a viewer or member of a project, never a lead, and it is never notified. Every write an agent makes records the agent by id.</p>
+          <p>Agents are separate from API keys. A key with the <code>work</code> scope acts as its owner and works only on work endpoints. See <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a> for the knowledge and admin servers.</p>
+
+          <h2>Queues and claims</h2>
+          <p>An administrator creates queues, and each agent serves one or more. A Ready item in a queue shows as "Available to agents". An agent claims it, which moves it to In progress and shows the agent and the time until it holds it on the card. The agent can renew its claim by claiming again, release it, or hand the item on to a queue or a person with a status and a note. Every ending of a claim writes an event, including an expiry, and every claim, hand-off and release is listed under "Assignments and claims".</p>
+
+          <h2>The /work-mcp endpoint</h2>
+          <p><code>/work-mcp</code> is the agent endpoint. It has 16 tools, and each calls the same work service as the REST API under <code>/api/work/*</code>, so an agent has no path around the rules. Item text and comments come back as data written by other people, not as instructions.</p>
+          <table>
+            <thead><tr><th>Group</th><th>Tools</th></tr></thead>
+            <tbody>
+              <tr><td>Orient</td><td><code>get_work_context</code> (who you are, what you can see, your claims), <code>list_claimable</code>, <code>get_item</code></td></tr>
+              <tr><td>Items</td><td><code>create_item</code> (always a draft, no assignee), <code>update_item</code>, <code>comment_on_item</code></td></tr>
+              <tr><td>Claims</td><td><code>claim_item</code>, <code>release_item</code>, <code>handoff_item</code></td></tr>
+              <tr><td>Changes</td><td><code>open_change</code>, <code>update_change</code>, <code>review_change</code>, <code>merge_change</code></td></tr>
+              <tr><td>Deployments</td><td><code>request_deployment</code>, <code>get_deployment</code>, <code>update_deployment</code></td></tr>
+            </tbody>
+          </table>
+
+          <h2>Changes: from branch to merge</h2>
+          <p>A change is one branch of work on an item. It is opened, put in review, approved or sent back, and recorded as merged. An approval is for the commit the change is at, so a new commit clears it. The record says whether a change was merged after review, without review, or directly, and an item cannot close while one of its changes is open or in review.</p>
+          <p>Wikantik never talks to your code host. Instead the host talks to it. A product can enable a hook at <code>/api/work/hooks/&lt;product&gt;/github</code> or <code>/generic</code>. Deliveries are signed with HMAC-SHA256, and an unsigned or badly signed request gets the same 404 as a product that does not exist. Name the item key in a branch, pull request title or commit message and the change appears on the item, marked "via GitHub". One pull request is one change, and a merge from the host never changes the item's own status. Merges that skipped review, or went straight to the default branch where that is not allowed, are flagged. Project leads see them under "Merged outside policy" and acknowledge them. A flag keeps its record after acknowledgement.</p>
+
+          <h2>Autonomy levels, and rules that never bend</h2>
+          <p>Each item has an autonomy level that decides what an agent may do without a person. The level comes from the item, else its story or epic, else the project default. The product's ceiling then caps it. People are never limited by it.</p>
+          <table>
+            <thead><tr><th>Level</th><th>What an agent may do</th></tr></thead>
+            <tbody>
+              <tr><td><code>supervised</code></td><td>Work the item and review changes. A person approves it as ready, merges and closes.</td></tr>
+              <tr><td><code>delegated</code> (default)</td><td>Also merge a change it reviewed and approved, and close the item. A person approves work as ready.</td></tr>
+              <tr><td><code>autonomous</code></td><td>Also approve work as ready. Each item an agent closes waits for a person to acknowledge it.</td></tr>
+            </tbody>
+          </table>
+          <p>Two rules hold at every level and cannot be configured. An agent never reviews or merges a change it opened or put a commit on. An item cannot be done while one of its changes is open or in review. Making an item looser than it was, including moving it under a more permissive epic, takes a project lead. An agent changes none of these settings.</p>
+          <p><strong>Done without you.</strong> When an agent closes an item at the <code>autonomous</code> level, the item waits under "Done without you" on the Work home and the board until a member acknowledges it. Nothing an agent finishes on its own goes unseen.</p>
+
+          <h2>Deployments, the deploy gate and "done means in production"</h2>
+          <p>A deployment is one product version going to an environment, production unless you name another, carrying the items it ships. It moves forward only: requested, approved, running, then verified or failed, then possibly rolled back. A request can instead be withdrawn or rejected before it runs. Verifying needs evidence, such as health and smoke-test output, as plain text. A failed or rolled-back deployment is repaired by a new deployment that names it in <code>remediates</code>.</p>
+          <p>Who may approve is the product's <strong>deploy gate</strong>, separate from autonomy. With <code>human</code>, an administrator or a person who leads every carried project approves. With <code>agent</code>, any member of every carried project may as well. Your deploy script can ask for the answer: <code>bin/work-deploy-gate.sh &lt;deployment-id&gt; &lt;version&gt;</code> calls the gate endpoint and exits 0 only on a clear yes: right version, right environment, approved or already running. Exit 1 means not approved and exit 2 means it could not ask. The release scripts <code>bin/deploy-release.sh</code> and <code>bin/remote.sh deploy</code> can run this check, and it is opt-in so an outage never blocks a deploy that did not ask for it.</p>
+          <p>A lead can set an epic's "Done means" to <strong>In production</strong>. Its stories and tasks then cannot be closed, by anyone, until a production deployment that carried them is verified after their last merged change, and not rolled back since.</p>
+          <p>The incident path is available where someone sets it up: a standing autonomous epic, a raised product ceiling and an agent-approved gate let an agent file, fix, review, ship and close a story, and the result waits under "Done without you". An integration test runs this path end to end. Nothing in Wikantik receives an alert, so triggering that agent from monitoring is not built.</p>
+
+          <h2>Flow figures and DORA-style delivery metrics</h2>
+          <p>Each project has a Flow tab: throughput per week in items and points, cycle time and lead time (median and 85th percentile), and work in progress with the oldest items. Administrators get delivery figures per product that follow the four DORA measures: deployment frequency, lead time for changes, change failure rate and time to recover. They add rework rate and a breakdown of how changes were merged. Nothing is stored. Each figure is worked out from the item, change and deployment records when you open the page, and the page is explicit that these are conversation starters about how the team works, not a ranking of people. They are only as complete as the records: a team that deploys by hand and never records it sees zeros.</p>
+
+          <h2>Inbox, email and signed webhooks</h2>
+          <p>The inbox at <code>/work/inbox</code> tells you when someone mentions you, assigns you an item, hands you one, or changes an item you watch. Email is optional (each, daily or off). Project leads can add an https webhook that receives a signed JSON or Slack message per event. Its secret is shown once, its address is never shown again, and it is switched off after 24 hours of failures. Outbound calls go through an egress guard.</p>
+
+          <h2>Intake from people outside the team</h2>
+          <p>A project can take requests from a customer or a colleague in another group. Give them the <code>reporter</code> role and they can file a request at <code>/work/submit</code> and follow it. They can see nothing else: the board, other requests, agents and figures all answer as if they did not exist. Requests always arrive as drafts, and filing is rate-limited (20 requests in 24 hours by default). An agent can never be a reporter.</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>Is work management on by default?</summary>
+              <p>No. It ships off. An administrator sets <code>wikantik.work.enabled=true</code> in <code>wikantik-custom.properties</code> and restarts the wiki. It runs in production on the live Wikantik instance.</p>
+            </details>
+            <details>
+              <summary>Can an agent do more than the person who registered it?</summary>
+              <p>No. Whoever registers an agent becomes its sponsor, and the agent's effective role is the lower of its own membership and its sponsor's standing. An agent can be a viewer or member of a project, never a lead.</p>
+            </details>
+            <details>
+              <summary>Does Wikantik talk to GitHub or merge code?</summary>
+              <p>No. It only receives. A code host posts signed deliveries to a hook URL and Wikantik records what it is told. Nothing calls GitHub and no GitHub token exists, so keep branch protection on your code host.</p>
+            </details>
+            <details>
+              <summary>Can an agent approve or merge its own change?</summary>
+              <p>Never, at any autonomy level. An agent never reviews or merges a change it opened or put a commit on, and an item cannot be closed while one of its changes is open or in review. These two rules cannot be configured.</p>
+            </details>
+            <details>
+              <summary>Does work management put work items into search or agent retrieval?</summary>
+              <p>No. Work items never reach the page store, search index, context bundles, sitemap, change feed or Page Graph. Only members of a project can see it.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/mcp-for-ai-agents.html">
+              <strong>MCP for AI agents</strong>
+              <span>The knowledge and admin MCP servers that sit beside /work-mcp.</span>
+            </a>
+            <a class="related-card" href="/platform/collaboration-and-feedback.html">
+              <strong>Collaboration and feedback</strong>
+              <span>Shared drafts, reader comment threads and the agent feedback loop.</span>
+            </a>
+            <a class="related-card" href="/enterprise/audit-log.html">
+              <strong>Audit log</strong>
+              <span>The wiki-wide record of who did what.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/rag-context-bundles.html">RAG context bundles</a>
+          <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+          <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

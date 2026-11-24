@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "SSO for your wiki: SAML, OIDC &amp; Google",
     "description": "Single sign-on for Wikantik via SAML and OIDC (pac4j), including Google. Configurable identity claim, session-fixation hardening, and fail-closed account binding.",
-    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
+    "datePublished": "2026-06-07", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/sso-saml-oidc.html" }
@@ -99,7 +99,7 @@
         <header class="doc-head">
           <p class="eyebrow">Enterprise</p>
           <h1>SSO for your wiki: SAML, OIDC &amp; Google</h1>
-          <p class="doc-lede">Wikantik delegates authentication to your identity provider — SAML 2.0, OpenID Connect, or Google — via the pac4j library. Every SSO login rotates the HTTP session, fails closed on account-name collisions, and coexists seamlessly with local password auth.</p>
+          <p class="doc-lede">Wikantik delegates authentication to your identity provider — SAML 2.0, OpenID Connect, or Google — via the pac4j library. Every SSO login rotates the HTTP session, fails closed on account-name collisions, and runs alongside local password auth.</p>
         </header>
         <div class="doc-body">
 
@@ -121,7 +121,7 @@ wikantik.sso.claimMapping.loginName = email</code></pre>
           <p>The redirect URI is <code>wikantik.baseURL</code> + <code>/sso/callback</code>. Google enforces an exact match — Wikantik deliberately uses a clean, parameter-free callback URL so strict IdPs don't reject it.</p>
 
           <h3>SAML 2.0</h3>
-          <p>Provide the IdP metadata XML path and your SP entity ID. Wikantik only supports HTTP-Redirect binding for the authentication request (not HTTP-POST), so set the binding accordingly in your IdP. The Assertion Consumer Service URL is the same <code>/sso/callback</code> path.</p>
+          <p>Provide the IdP metadata XML path and your SP entity ID. Wikantik supports only the HTTP-Redirect binding for the authentication request (not HTTP-POST), so set the binding accordingly in your IdP. With <code>type = saml</code> the Assertion Consumer Service URL is exactly <code>/sso/callback</code>; with <code>type = both</code> the two clients share that endpoint and the ACS URL carries <code>?client_name=SAML2Client</code>, which is the URL to register with the IdP.</p>
 
           <div class="callout">
             <p><strong>Google OIDC is live in production</strong> at <a href="https://wiki.wikantik.com/login">wiki.wikantik.com</a> using this exact configuration. It works cleanly behind Cloudflare Tunnel with no extra header gymnastics.</p>
@@ -146,6 +146,10 @@ wikantik.sso.claimMapping.loginName = email</code></pre>
 
           <h3>CSRF handling for SAML</h3>
           <p>The SAML HTTP-POST callback at <code>/sso/callback</code> is exempt from Wikantik's synchronizer-token CSRF filter. This is correct: the IdP-signed assertion is its own CSRF defense — the signature over the assertion timestamp and audience makes replaying the POST useless. OIDC uses the standard authorization-code flow, which is protected by the <code>state</code> parameter.</p>
+
+          <h2>Names, and where you land after sign-in</h2>
+          <p>People are shown to each other by display name, never by login. With <code>claimMapping.loginName = email</code> the login is an email address, and it stays private to its owner and administrators. When SSO creates an account it takes the display name from the IdP's name claim if that passes the display-name rules (2 to 64 characters, no <code>@</code>, not reserved, not already taken), adds a number if it is taken ("Jane Doe 2"), and falls back to "Member N". The email address is never used as a name, and provisioning never fails on a name conflict.</p>
+          <p>Signing in from a page returns you to that page rather than the front page. Only a page path on this wiki is accepted as the place to return to. If an account was deleted, its login cannot be re-registered: an SSO sign-in with that login is refused until an administrator releases the name.</p>
 
           <h2>How SSO pairs with SCIM provisioning</h2>
           <p>SSO handles the login flow and auto-provisions local profiles on first successful login. If your IdP also manages group membership or needs to create and deactivate accounts out-of-band, <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a> is the complementary path: SCIM-created accounts authenticate via SSO by default (a random password is generated at creation and never revealed).</p>
@@ -217,6 +221,9 @@ wikantik.sso.claimMapping.loginName = email</code></pre>
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

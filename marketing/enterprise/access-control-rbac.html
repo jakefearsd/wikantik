@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-adsense-account" content="ca-pub-5083997587716933">
   <title>RBAC &amp; access control: policy grants, ACLs, groups | Wikantik</title>
-  <meta name="description" content="Fine-grained access control in Wikantik: database-backed role policy grants, page-level ACLs, and managed groups — enforced across the UI, REST API, and admin surfaces.">
+  <meta name="description" content="Fine-grained access control in Wikantik: database-backed policy grants, page ACLs, groups, private clusters, and scoped agent keys, enforced on every surface.">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://www.wikantik.com/enterprise/access-control-rbac.html">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -14,13 +14,13 @@
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://www.wikantik.com/enterprise/access-control-rbac.html">
   <meta property="og:title" content="RBAC &amp; access control: policy grants, ACLs, groups | Wikantik">
-  <meta property="og:description" content="Fine-grained access control in Wikantik: database-backed role policy grants, page-level ACLs, and managed groups — enforced across the UI, REST API, and admin surfaces.">
+  <meta property="og:description" content="Fine-grained access control in Wikantik: database-backed policy grants, page ACLs, groups, private clusters, and scoped agent keys, enforced on every surface.">
   <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="RBAC &amp; access control: policy grants, ACLs, groups | Wikantik">
-  <meta name="twitter:description" content="Fine-grained access control in Wikantik: database-backed role policy grants, page-level ACLs, and managed groups — enforced across the UI, REST API, and admin surfaces.">
+  <meta name="twitter:description" content="Fine-grained access control in Wikantik: database-backed policy grants, page ACLs, groups, private clusters, and scoped agent keys, enforced on every surface.">
   <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <link rel="stylesheet" href="/styles.css">
@@ -43,8 +43,8 @@
   <script type="application/ld+json">
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "RBAC &amp; access control: policy grants, ACLs, groups",
-    "description": "Fine-grained access control in Wikantik: database-backed role policy grants, page-level ACLs, and managed groups — enforced across the UI, REST API, and admin surfaces.",
-    "datePublished": "2026-06-07", "dateModified": "2026-10-24",
+    "description": "Fine-grained access control in Wikantik: database-backed policy grants, page ACLs, groups, private clusters, and scoped agent keys, enforced on every surface.",
+    "datePublished": "2026-06-07", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/enterprise/access-control-rbac.html" }
@@ -61,9 +61,9 @@
   { "@context": "https://schema.org", "@type": "FAQPage",
     "mainEntity": [
       { "@type": "Question", "name": "How are default role permissions managed?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Default role permissions are stored in the policy_grants table in PostgreSQL and managed through the admin UI at /admin/security. This means changes to role defaults take effect immediately without redeploying the application, and the full grant history is auditable." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Default role permissions are stored in the policy_grants table in PostgreSQL and managed through the admin UI at /admin/security. This means changes to role defaults take effect immediately without redeploying the application, and the full grant configuration is auditable." } },
       { "@type": "Question", "name": "Can I restrict a single page to a specific group?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Inline ACL syntax in the page body controls per-page access: [{ALLOW view Admin}] restricts view permission to the Admin role. You can combine multiple ACL lines for different permissions. The REST API enforces these ACLs via RestServletBase.checkPagePermission() on every request." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Inline ACL syntax in the page body controls per-page access: [{ALLOW view Admin}] restricts view permission to the Admin role, and a group name works the same way. You can combine multiple ACL lines for different permissions. To restrict a whole topic area, list its cluster in wikantik.access.privateClusters instead. The REST API enforces these ACLs via RestServletBase.checkPagePermission() on every request." } },
       { "@type": "Question", "name": "How does Wikantik prevent privilege escalation through groups?",
         "acceptedAnswer": { "@type": "Answer", "text": "Groups (including SCIM-provisioned groups) route exclusively through GroupManager and the groups/group_members tables. The roles table is never modified by group operations. Administrator access is membership of the wiki group named Admin, and SCIM is refused (HTTP 403) any write to that group, so an IdP cannot grant or revoke it — only the admin UI can." } }
     ] }
@@ -99,13 +99,13 @@
         <header class="doc-head">
           <p class="eyebrow">Enterprise</p>
           <h1>RBAC &amp; access control: policy grants, ACLs, groups</h1>
-          <p class="doc-lede">Wikantik enforces access control at three layers — role-level policy grants stored in the database, page-level ACLs written inline in page content, and managed groups — all checked consistently across the UI, REST API, and every admin surface.</p>
+          <p class="doc-lede">Wikantik enforces access control at four layers — role-level policy grants stored in the database, page-level ACLs written inline in page content, managed groups, and private clusters that hide whole sections of the wiki — all checked consistently across the UI, REST API, search, agent endpoints, and every admin surface.</p>
         </header>
         <div class="doc-body">
 
           <h2>Layers of access control</h2>
           <p>Most wiki platforms have one or two access knobs: "can edit" and "can admin." Wikantik has a full permission model because the situations that enterprise teams actually face — restricting a sensitive runbook to a single team, granting an external user read-only access, letting a bot write without giving it delete rights — require genuine granularity.</p>
-          <p>The three layers compose cleanly: policy grants set the baseline for each role, page ACLs override the baseline for individual pages, and groups make it practical to assign permissions to teams rather than individuals.</p>
+          <p>The layers compose: policy grants set the baseline for each role, page ACLs narrow it for individual pages, groups make it practical to assign permissions to teams rather than individuals, and private clusters close off a whole topic area at once.</p>
 
           <h2>The permission model</h2>
           <p>Wikantik uses JAAS-based authorization with two sets of named permissions:</p>
@@ -131,30 +131,64 @@
           <h2>Policy grants — database-backed, UI-managed</h2>
           <p>Default role permissions are stored in the <code>policy_grants</code> table in PostgreSQL. The admin UI at <strong>Admin → Security</strong> (<code>/admin/security</code>) exposes a grid for managing these grants: which roles get which permissions by default.</p>
           <p>Because the grants live in the database rather than a config file, changes take effect immediately — no redeploy required. An admin can tighten or loosen role defaults at runtime, and every change is visible to any query on the <code>policy_grants</code> table. Database-backed grants are always active when a datasource is configured, which is the default for all production deployments.</p>
+          <p>Grants can also be scoped to one admin area. A grant of permission type <code>admin</code> with a target such as <code>insights</code> opens only <code>/admin/insights/*</code>; everything else under <code>/admin</code> keeps requiring <code>AllPermission</code>, so a shipper or service account does not need to be a full administrator.</p>
 
           <div class="callout">
             <p><strong>Bootstrap admin override.</strong> The <code>wikantik.admin.bootstrap</code> property gives the named user <code>AllPermission</code> for a limited window after startup (<code>wikantik.admin.bootstrap.maxAgeSeconds</code>, default 24 hours) so a fresh or locked-out installation can be recovered. Leave it blank once a real admin account is confirmed working.</p>
           </div>
 
           <h2>Page-level ACLs</h2>
-          <p>Individual pages can override the role-level defaults with inline ACL directives. The syntax is embedded directly in the page body:</p>
+          <p>Individual pages can restrict themselves with inline ACL directives. The syntax is embedded directly in the page body:</p>
           <pre><code>[{ALLOW view Admin}]
 [{ALLOW edit Engineering}]</code></pre>
-          <p>This approach makes page permissions visible to anyone who can read the page source — there are no hidden configuration files to audit. An ACL line restricting view to <code>Admin</code> means exactly what it says: only users with the Admin role can view that page.</p>
-          <p>The REST API enforces these ACLs on every request via <code>RestServletBase.checkPagePermission()</code>. There is no path through the REST layer that bypasses the ACL check.</p>
+          <p>When a page carries an ACL, a user needs both the matching role or group grant and an ACL entry that names one of their principals. Name groups rather than people: a user entry in an ACL matches only the session whose login is exactly that name, and a display name or wiki name grants nobody anything.</p>
+          <p>The REST API enforces these ACLs on every request via <code>RestServletBase.checkPagePermission()</code>, and <code>/wiki/{slug}?format=md|json</code> answers a restricted page with a 404.</p>
 
-          <h2>Groups</h2>
-          <p>Database-backed groups (stored in <code>groups</code> + <code>group_members</code> tables) let you assign permissions to teams. You can reference a group name in a page ACL the same way you reference a role. Groups are managed through the admin UI and can be provisioned via <a href="/enterprise/scim-provisioning.html">SCIM</a> from your IdP.</p>
+          <h3>One reader, and an unreadable rule locks the page</h3>
+          <p>A page's access rules are read from its text exactly once per version. A render never sets them, so what is enforced no longer depends on whether the page was rendered first. Plain rules are honoured as written: a one-line directive, a rule wrapped over several lines, <code>ALLOW</code> or the permission in any case. Directive-shaped text the reader cannot interpret with confidence (a <code>DENY</code>, a rule in frontmatter or in an HTML block, a wrapped rule where a line break falls inside a name) <strong>locks the page to administrators</strong> until it is fixed. Commenting a rule out with <code>%%comment%%</code> does not disable it.</p>
+          <p>A save cannot lock a page by accident: the save pipeline (editor, REST, MCP and the importer) refuses text that adds a rule the reader cannot read, with an <code>ACCESS_RULE_SHAPE</code> violation that says which line and how to write it instead. Administrators see a banner on a locked page listing each reason, and <code>GET /admin/content/locked-pages</code> lists every locked page.</p>
+          <p>The rules name people by login, so their text is removed from what readers without <code>edit</code> on the page can see: the page API, <code>?format=</code> output, diffs, vault exports and <code>/tools/get_page</code>. Chunks, embeddings, the search index and the agent projection never contain them.</p>
+
+          <h2>Private clusters</h2>
+          <p>Set <code>wikantik.access.privateClusters</code> to a list of cluster paths and every page in those clusters, sub-clusters and each cluster's hub page included, becomes visible only to administrators and to the groups named in <code>wikantik.access.privateClusters.viewers</code>. It applies to every page action, not just viewing.</p>
+          <ul>
+            <li><strong>One gate.</strong> The rule lives in a single class, <code>PrivateClusterGate</code>, inside the authorization manager, so it applies on every surface: pages, <code>?format=</code>, search, sitemap and feeds, <code>/api/changes</code>, the Page Graph, structure, ontology and SPARQL, context bundles and briefings.</li>
+            <li><strong>A page ACL can only narrow further.</strong> It cannot re-open a private page.</li>
+            <li><strong>New pages are private from the first save,</strong> because the cluster comes from the stored frontmatter.</li>
+            <li>The admin MCP bypasses page permissions by design, so administrator-equivalent tooling keeps working. Readers outside the viewer set get a 404 on a link to a private page.</li>
+            <li>Both lists are read at startup, so a change needs a restart followed by an ontology rebuild.</li>
+          </ul>
+
+<h2>Groups</h2>
+          <p>Database-backed groups (stored in <code>groups</code> + <code>group_members</code> tables) let you assign permissions to teams. You can reference a group name in a page ACL the same way you reference a role. Members are stored by login name, and the group editor rejects an entry that is not an existing login. Groups are managed through the admin UI and can be provisioned via <a href="/enterprise/scim-provisioning.html">SCIM</a> from your IdP.</p>
           <p>One explicit boundary: administrator access is membership of the wiki group named <code>Admin</code> (the default policy grants it <code>AllPermission</code>), and SCIM never writes that group — a SCIM create, replace, patch or delete aimed at <code>Admin</code> is refused with HTTP 403 and audited. All other groups, SCIM-provisioned or manual, route through <code>GroupManager</code> only and never modify the <code>roles</code> table; they carry only what policy grants and page ACLs give them. The Admin group is managed in the admin UI.</p>
 
           <h2>Enforced everywhere</h2>
           <p>The access control model is applied at every surface:</p>
           <ul>
             <li><strong>UI</strong> — the React SPA checks permissions before rendering edit controls; the server also enforces them independently.</li>
-            <li><strong>REST API (<code>/api/*</code>)</strong> — every endpoint calls <code>checkPagePermission()</code> with the authenticated principal before performing any operation.</li>
-            <li><strong>Admin surface (<code>/admin/*</code>)</strong> — protected by <code>AdminAuthFilter</code>, which requires <code>AllPermission</code> (the Admin role). No admin endpoint is reachable without it.</li>
-            <li><strong>MCP servers</strong> — write tools on <code>/wikantik-admin-mcp</code> need a bearer API key with the <code>mcp_admin</code> scope; <code>/knowledge-mcp</code> accepts a read-only <code>mcp_read</code> key that cannot reach the admin surface.</li>
+            <li><strong>REST API (<code>/api/*</code>)</strong> — every endpoint calls <code>checkPagePermission()</code> with the authenticated principal before performing any operation. The REST surface uses a session or HTTP Basic login; it does not accept API keys.</li>
+            <li><strong>Admin surface (<code>/admin/*</code>)</strong> — protected by <code>AdminAuthFilter</code>, which requires <code>AllPermission</code> (membership of the <code>Admin</code> group) or a scoped admin grant for that one area.</li>
+            <li><strong>Retrieval and agent surfaces</strong> — the knowledge MCP, <code>/api/bundle</code>, briefings and search run candidates through the same view gate, so a page a caller cannot see never reaches an agent's context.</li>
           </ul>
+
+          <h2>Keys and scopes for agents</h2>
+          <p>Programmatic callers use API keys, SHA-256 hashed at rest and shown once. Each key carries a scope, and the narrowest one that does the job is the right one:</p>
+          <ul>
+            <li><code>mcp_read</code> — <code>/knowledge-mcp</code> only, read-only.</li>
+            <li><code>mcp_admin</code> — the full admin MCP at <code>/wikantik-admin-mcp</code>, and <code>/knowledge-mcp</code> too. The MCP scopes are a hierarchy: <code>mcp_read</code> sits inside <code>mcp_admin</code>, never the reverse.</li>
+            <li><code>tools</code> — the OpenAPI <code>/tools/*</code> endpoints only.</li>
+            <li><code>work</code> — work management only (<code>/api/work/*</code> and <code>/work-mcp</code>). It matches only itself and <code>all</code>: a <code>work</code> key is useless on the other endpoints, and no other scope reaches work.</li>
+            <li><code>all</code> — every key-protected surface.</li>
+          </ul>
+          <p>Non-administrators can mint only <code>tools</code>, <code>mcp_read</code> and <code>work</code> keys; <code>mcp_admin</code> and <code>all</code> are issued by an administrator. Key issuance and revocation are written to the <a href="/enterprise/audit-log.html">audit log</a>. The older <code>mcp</code> scope name is still accepted as an alias for <code>mcp_admin</code>, and every use of it is logged as a warning.</p>
+
+          <h2>Work management roles</h2>
+          <p>When the optional work module is on, projects have their own roles, separate from wiki permissions: <code>viewer</code> (reads), <code>member</code> (reads, edits, comments, moves cards), <code>lead</code> (also changes the project's policy and settings) and <code>reporter</code> (files requests and follows only what they filed). People who are not in a project get a 404, never a 403, and wiki administrators see everything.</p>
+          <p>Agents are registered identities with their own token (it starts with <code>wka_</code>). Whoever registers an agent is its <em>sponsor</em>, and the agent can never do or see more than its sponsor can. An agent holds only <code>viewer</code> or <code>member</code> in a project and can never be a reporter. See <a href="/platform/work-management.html">work management</a>.</p>
+
+          <h2>People are shown by display name</h2>
+          <p>Public identity is the display name. Login names (an email address under Google sign-in) are shown only to their owner and to administrators, and authorship is stored by login but resolved to a display name on every reader surface, the public ontology included. Display names are unique and cannot impersonate a login, role or group. When an account is deleted its content shows "former member", and the login cannot be registered again.</p>
 
           <section class="faq">
             <h2>Frequently asked questions</h2>
@@ -164,7 +198,7 @@
             </details>
             <details>
               <summary>Can I restrict a single page to a specific group?</summary>
-              <p>Yes. Inline ACL syntax in the page body controls per-page access: <code>[{ALLOW view Admin}]</code> restricts view permission to the Admin role. You can combine multiple ACL lines for different permissions. The REST API enforces these ACLs via <code>RestServletBase.checkPagePermission()</code> on every request.</p>
+              <p>Yes. Inline ACL syntax in the page body controls per-page access: <code>[{ALLOW view Admin}]</code> restricts view permission to the Admin role, and a group name works the same way. You can combine multiple ACL lines for different permissions. To restrict a whole topic area, list its cluster in <code>wikantik.access.privateClusters</code> instead. The REST API enforces these ACLs via <code>RestServletBase.checkPagePermission()</code> on every request.</p>
             </details>
             <details>
               <summary>How does Wikantik prevent privilege escalation through groups?</summary>
@@ -223,6 +257,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

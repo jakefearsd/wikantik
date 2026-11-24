@@ -44,7 +44,7 @@
   { "@context": "https://schema.org", "@type": "TechArticle",
     "headline": "RAG as a Service — cited context bundles and agent briefings",
     "description": "Wikantik assembles retrieval into a ranked, de-duplicated, version-pinned-cited context bundle — and a session-start briefing for coding agents. Context, not synthesized answers.",
-    "datePublished": "2026-07-05", "dateModified": "2026-10-24",
+    "datePublished": "2026-07-05", "dateModified": "2026-11-23",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
     "mainEntityOfPage": "https://www.wikantik.com/platform/rag-context-bundles.html" }
@@ -67,7 +67,7 @@
       { "@type": "Question", "name": "What is a session briefing?",
         "acceptedAnswer": { "@type": "Answer", "text": "A session briefing is a budgeted, injection-ready block of context assembled at the start of an agent session from pinned pages, clusters, and the task prompt. Coding agents such as Claude Code and compatible assistants pull a briefing via the get_briefing MCP tool or the /api/briefing endpoint and inject it as opening context, so the agent starts the task already grounded in your wiki." } },
       { "@type": "Question", "name": "How do cited sections stay accurate as pages change?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Every citation is version-pinned and span-hashed. When a cited page is edited, Wikantik grades the citation's staleness at the span level and surfaces the drift through the list_stale_citations tool and the drift dashboard, so stale groundings are found and repaired instead of silently rotting. This is the self-healing loop behind Wikantik's RAG-as-a-Service." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "Every citation is version-pinned and span-hashed. When a cited page is edited, Wikantik grades the citation's staleness at the span level and surfaces the drift through the list_stale_citations tool and the admin drift report, so stale groundings are found and repaired instead of silently rotting. This is the self-healing loop behind Wikantik's RAG-as-a-Service." } }
     ] }
   </script>
 </head>
@@ -129,11 +129,11 @@
           <p>A coding agent — Claude Code, or any compatible assistant — requests a briefing at session start via the <code>get_briefing</code> MCP tool or <code>GET /api/briefing</code>, passing any combination of pinned pages, clusters, and the task prompt. Wikantik assembles a budgeted, de-duplicated block of the most relevant context and returns it as injection-ready Markdown (or structured JSON), which the agent drops in as opening context. When you scope a briefing to clusters, it is tiered: the cluster&rsquo;s own pages come first, then the shared pages those members link to (the ones the project has effectively adopted), then a short list of pointers elsewhere in the wiki; every briefing is logged to a <code>briefing_log</code> table for telemetry. The agent starts the task already knowing how your team does things — no "read these ten pages first" ritual, no blank-slate first draft that ignores your conventions. Small client shims make wiring it into an agent runtime a copy-paste.</p>
 
           <h2>Citations that repair themselves</h2>
-          <p>Grounding is only worth something if it stays true. In Wikantik, an author (or a curator agent) marks a claim's source inline in the page body, and at save time that becomes a first-class citation edge — version-pinned and span-hashed to the exact passage it grounds.</p>
-          <p>When a cited page is later edited, Wikantik does not just invalidate everything that pointed at it. It grades staleness at the span level — did the cited passage actually change, or just something elsewhere on the page? — and surfaces what genuinely drifted through the <code>list_stale_citations</code> tool and a drift dashboard. Stale groundings get found and fixed instead of quietly rotting. This is the self-healing half of RAG-as-a-Service: the same version pins that make a bundle citable also make the corpus tell you when a citation has gone out of date.</p>
+          <p>Grounding is only worth something if it stays true. In Wikantik, an author (or a curator agent) marks a claim's source inline in the page body as a Markdown link, <code>[the claim](cite://&lt;canonical_id&gt;/Heading/Path "quoted span")</code>, and at save time that becomes a first-class citation edge — version-pinned and span-hashed to the exact passage it grounds. The target is named by its rename-stable <code>canonical_id</code>, so renaming the cited page does not break the citation.</p>
+          <p>When a cited page is later edited, Wikantik does not just invalidate everything that pointed at it. It grades each citation at the span level — did the cited passage actually change, or just something elsewhere on the page? — as <code>current</code>, <code>stale</code> (the heading is gone or the quoted span no longer appears in it) or <code>target_missing</code>, re-grading whenever the target is saved and again after each search-index rebuild. It surfaces what genuinely drifted through the <code>list_stale_citations</code> tool, the <code>stale_citations</code> section of the for-agent page projection, and an admin drift report. Readers never see staleness; it is a curator signal. Stale groundings get found and fixed instead of quietly rotting. This is the self-healing half of RAG-as-a-Service: the same version pins that make a bundle citable also make the corpus tell you when a citation has gone out of date.</p>
 
           <h2>Access control comes along for free</h2>
-          <p>Bundles and briefings are assembled from the same retrieval candidates as the rest of the platform, so the same page-level ACLs apply. A section from a restricted page never appears in a bundle or briefing for an agent whose session cannot view it — grounding is filtered to what the caller is actually allowed to read, with no separate policy to keep in sync.</p>
+          <p>Bundles and briefings are assembled from the same retrieval candidates as the rest of the platform, so the same page-level ACLs apply. A section from a restricted page never appears in a bundle or briefing for an agent whose session cannot view it — grounding is filtered to what the caller is actually allowed to read, with no separate policy to keep in sync. Pages in a private cluster (<code>wikantik.access.privateClusters</code>) are hidden from everyone but Admin and the configured viewer groups, so they never reach a bundle or briefing for anyone else.</p>
 
           <section class="faq">
             <h2>Frequently asked questions</h2>
@@ -151,7 +151,7 @@
             </details>
             <details>
               <summary>How do cited sections stay accurate as pages change?</summary>
-              <p>Every citation is version-pinned and span-hashed. When a cited page is edited, Wikantik grades the citation's staleness at the span level and surfaces the drift through the <code>list_stale_citations</code> tool and the drift dashboard, so stale groundings are found and repaired instead of silently rotting. This is the self-healing loop behind Wikantik's RAG-as-a-Service.</p>
+              <p>Every citation is version-pinned and span-hashed. When a cited page is edited, Wikantik grades the citation's staleness at the span level and surfaces the drift through the <code>list_stale_citations</code> tool and the admin drift report, so stale groundings are found and repaired instead of silently rotting. This is the self-healing loop behind Wikantik's RAG-as-a-Service.</p>
             </details>
           </section>
         </div>
@@ -202,6 +202,9 @@
           <a href="/platform/agent-grade-content.html">Agent-grade content</a>
           <a href="/platform/structural-spine.html">Structural spine</a>
           <a href="/platform/connectors.html">Connectors</a>
+          <a href="/platform/rich-editor.html">Rich editor</a>
+          <a href="/platform/collaboration-and-feedback.html">Collaboration</a>
+          <a href="/platform/work-management.html">Work management</a>
         </div>
         <div class="footer-col">
           <h4>Enterprise</h4>

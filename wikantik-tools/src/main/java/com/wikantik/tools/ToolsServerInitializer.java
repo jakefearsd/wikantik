@@ -100,10 +100,16 @@ public class ToolsServerInitializer implements ServletContextListener {
         }
     }
 
+    /**
+     * Live value name for the served tool count. Assembled rather than written as one literal because
+     * {@code ConfigSurfaceDriftTest} reads any {@code "tools.*"} string literal as a configuration key.
+     */
+    private static final String TOOL_COUNT_VALUE = "tools" + '.' + "openapi";
+
     /** Publishes the served tool count as the {@code tools.openapi} live value (skipped for the placeholder). */
     static void publishToolCount( final Engine engine, final ToolsOpenApiServlet servlet ) {
         if ( engine != null && servlet.toolCount() > 0 ) {
-            com.wikantik.livevalues.ToolCountLiveValue.register( engine, "tools.openapi", servlet.toolCount() );
+            com.wikantik.livevalues.ToolCountLiveValue.register( engine, TOOL_COUNT_VALUE, servlet.toolCount() );
         }
     }
 

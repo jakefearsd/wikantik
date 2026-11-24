@@ -103,7 +103,7 @@ public class HubSetPlugin extends AbstractReferralPlugin {
             ? filtered.subList( 0, max ) : filtered;
 
         if ( "cards".equalsIgnoreCase( detail ) ) {
-            return renderCards( limited, pm );
+            return renderCards( limited, pm, com.wikantik.livevalues.LiveValuesLookup.of( context.getEngine() ) );
         }
 
         // Default: links mode — use inherited wikitizeCollection
@@ -111,7 +111,8 @@ public class HubSetPlugin extends AbstractReferralPlugin {
         return makeHTML( context, wikitext );
     }
 
-    private String renderCards( final List< String > pages, final PageManager pm ) {
+    private String renderCards( final List< String > pages, final PageManager pm,
+                                final com.wikantik.api.livevalues.LiveValues liveValues ) {
         final StringBuilder sb = new StringBuilder();
         sb.append( "<div class=\"hub-set-cards\">" );
 
@@ -119,7 +120,7 @@ public class HubSetPlugin extends AbstractReferralPlugin {
             sb.append( "<div class=\"hub-set-card\">" );
             sb.append( "<h4><a href=\"/" ).append( escapeHtml( pageName ) ).append( "\">" )
                 .append( escapeHtml( pageName ) ).append( "</a></h4>" );
-            appendCardBody( sb, pageName, pm );
+            appendCardBody( sb, pageName, pm, liveValues );
             sb.append( "</div>" );
         }
 
@@ -128,7 +129,8 @@ public class HubSetPlugin extends AbstractReferralPlugin {
     }
 
     /** Appends the summary paragraph and tag list for {@code pageName}, if the page and content exist. */
-    private static void appendCardBody( final StringBuilder sb, final String pageName, final PageManager pm ) {
+    private static void appendCardBody( final StringBuilder sb, final String pageName, final PageManager pm,
+                                        final com.wikantik.api.livevalues.LiveValues liveValues ) {
         final Page page = pm.getPage( pageName );
         if ( page == null ) {
             return;
@@ -137,7 +139,8 @@ public class HubSetPlugin extends AbstractReferralPlugin {
         if ( content == null ) {
             return;
         }
-        final ParsedPage parsed = FrontmatterParser.parse( content );
+        final ParsedPage parsed = com.wikantik.livevalues.LiveFrontmatter.expandSummary(
+                FrontmatterParser.parse( content ), liveValues );
         final Object summary = parsed.metadata().get( "summary" );
         if ( summary instanceof String s && !s.isBlank() ) {
             sb.append( "<p>" ).append( escapeHtml( s ) ).append( "</p>" );

@@ -427,4 +427,18 @@ class BundleServiceWiringTest {
 
         assertTrue( b.sections().isEmpty(), "an un-persisted id must not be cited" );
     }
+
+    @Test
+    void sectionAnchorsFollowTheExpandedHeadingOfALiveValuePage() {
+        final PageManager pm = mock( com.wikantik.api.managers.PageManager.class );
+        when( pm.getPureText( "LiveSurfaceOne", -1 ) ).thenReturn( "---\ntype: article\n---\n## Over " + com.wikantik.livevalues.StubLiveValues.TOKEN + " articles\n\nText.\n" );
+        final com.wikantik.livevalues.StubLiveValues stub = new com.wikantik.livevalues.StubLiveValues();
+        final var links = BundleServiceWiring.sectionLinks( pm, new Properties(), () -> stub );
+
+        final String url = links.apply( "LiveSurfaceOne" ).apply( List.of( "Over " + com.wikantik.livevalues.StubLiveValues.VALUE + " articles" ) );
+
+        assertTrue( url.contains( "#" ), "the section is anchored by its expanded heading: " + url );
+        org.junit.jupiter.api.Assertions.assertFalse( url.contains( "{" ), url );
+    }
+
 }

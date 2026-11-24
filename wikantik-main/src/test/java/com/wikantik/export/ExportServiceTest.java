@@ -257,6 +257,22 @@ class ExportServiceTest {
         assertTrue( page.contains( "leak-probe@example.test" ), "the editor branch must not strip: " + page );
     }
 
+    /** The vault is a round-trippable copy of the stored source: expanding a live value would bake it in on re-import. */
+    @Test
+    void exportKeepsTheRawLiveValueToken() throws Exception {
+        final com.wikantik.livevalues.StubLiveValues stub = new com.wikantik.livevalues.StubLiveValues();
+        engine.serviceRegistry().put( com.wikantik.api.livevalues.LiveValues.class, stub );
+        engine.saveText( "FinanceLive", "---\ntype: article\ncluster: finance\nsummary: Over "
+                + com.wikantik.livevalues.StubLiveValues.TOKEN + " articles\n---\n# Live\n\nHolds "
+                + com.wikantik.livevalues.StubLiveValues.TOKEN + " articles.\n" );
+        subs.pageGraph().structuralIndexService().rebuild();
+
+        final String page = exportedPage( finance( 0 ), "finance/FinanceLive.md" );
+
+        assertTrue( page.contains( com.wikantik.livevalues.StubLiveValues.TOKEN ), "the raw token survives export: " + page );
+        assertFalse( page.contains( com.wikantik.livevalues.StubLiveValues.VALUE ), page );
+    }
+
     @Test
     void liveUrlUsesPathSegmentEncoding() throws Exception {
         engine.saveText( "FinanceSpaceLink", "---\ntype: article\ncluster: finance\n---\n"

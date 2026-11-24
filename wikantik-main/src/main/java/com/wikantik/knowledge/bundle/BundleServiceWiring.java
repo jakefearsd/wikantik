@@ -21,7 +21,9 @@ package com.wikantik.knowledge.bundle;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.RetrievalMode;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.livevalues.LiveValues;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.Confidence;
 import com.wikantik.api.pagegraph.StructuralConflict;
@@ -38,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Single derivation point for the {@link BundleAssemblyService}, mirroring how
@@ -127,6 +130,21 @@ public final class BundleServiceWiring {
                                                final Properties props,
                                                final Function< String, Confidence > confidenceOf,
                                                final StructuralIndexService structuralIndex ) {
+        return build( retrieval, sourceMap, dao, pageManager, props, confidenceOf, structuralIndex, () -> null );
+    }
+
+    /**
+     * Overload that also takes the live-values service (resolved lazily, it registers after boot; null or a null
+     * result means tokens stay verbatim), so a section is anchored by the heading text readers see.
+     */
+    public static BundleAssemblyService build( final ContextRetrievalService retrieval,
+                                               final Map< RetrievalMode, SectionCandidateSource > sourceMap,
+                                               final PageCanonicalIdsDao dao,
+                                               final PageManager pageManager,
+                                               final Properties props,
+                                               final Function< String, Confidence > confidenceOf,
+                                               final StructuralIndexService structuralIndex,
+                                               final Supplier< LiveValues > liveValues ) {
         if ( retrieval == null ) {
             LOG.debug( "ContextRetrievalService not yet wired — bundle assembly service unavailable" );
             return null;
@@ -151,7 +169,7 @@ public final class BundleServiceWiring {
 
         return new DefaultBundleAssemblyService(
             new RetrievalRouting( sources, RetrievalMode.HYBRID ), reranker,
-            new CitationResolvers( canonicalIdOf, versionOf, sectionLinks( pageManager, props ) ), MAX_SECTIONS,
+            new CitationResolvers( canonicalIdOf, versionOf, sectionLinks( pageManager, props, liveValues ) ), MAX_SECTIONS,
             coverageCalcFrom( props ), KneeCutoff.of( kneeEnabled( props ), kneeRetainRatio( props ) ) );
     }
 
@@ -202,12 +220,13 @@ public final class BundleServiceWiring {
      * page link — a section link is a convenience and never fails a bundle.
      */
     static Function< String, Function< List< String >, String > > sectionLinks( final PageManager pageManager,
-                                                                               final Properties props ) {
+                                                                               final Properties props,
+                                                                               final Supplier< LiveValues > liveValues ) {
         final String base = WikiPageUrls.base( props, "" );
         final SectionAnchorCache anchorCache = new SectionAnchorCache( ANCHOR_CACHE_PAGES, SectionAnchors::byHeadingPath );
         return slug -> {
             final String pageUrl = WikiPageUrls.page( base, slug );
-            final Map< List< String >, String > anchors = sectionAnchors( pageManager, anchorCache, slug );
+            final Map< List< String >, String > anchors = sectionAnchors( pageManager, anchorCache, slug, liveValues.get() );
             return headingPath -> {
                 final String anchor = anchors.get( headingPath );
                 return anchor == null ? pageUrl : pageUrl + "#" + anchor;
@@ -216,17 +235,28 @@ public final class BundleServiceWiring {
     }
 
     private static Map< List< String >, String > sectionAnchors( final PageManager pageManager,
-                                                                final SectionAnchorCache anchorCache, final String slug ) {
+                                                                final SectionAnchorCache anchorCache, final String slug,
+                                                                final LiveValues liveValues ) {
         if ( pageManager == null ) {
             return Map.of();
         }
         try {
-            return anchorCache.anchorsFor( slug, pageManager.getPureText( slug, PageProvider.LATEST_VERSION ) );
+            return anchorCache.anchorsFor( slug,
+                    expandedBody( pageManager.getPureText( slug, PageProvider.LATEST_VERSION ), liveValues ) );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Could not read page '{}' to anchor its bundle sections; linking the page instead: {}",
                 slug, e.getMessage() );
             return Map.of();
         }
+    }
+
+    /** The page text with live-value tokens in its body expanded, so anchors match the headings a reader sees. */
+    private static String expandedBody( final String pageText, final LiveValues liveValues ) {
+        if( pageText == null || liveValues == null ) {
+            return pageText;
+        }
+        final int offset = FrontmatterParser.bodyOffset( pageText );
+        return pageText.substring( 0, offset ) + liveValues.expandBody( pageText.substring( offset ) );
     }
 
     /** Knee cutoff on/off, {@code wikantik.bundle.knee.enabled}, default false (fixed top-N). */

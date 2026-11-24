@@ -36,6 +36,7 @@ import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pagegraph.Verification;
 import com.wikantik.cache.CachingManager;
+import com.wikantik.livevalues.LiveFrontmatter;
 import com.wikantik.citation.CitationRepository;
 import com.wikantik.citation.CitationRow;
 import com.wikantik.auth.acl.AclDirectiveText;
@@ -88,6 +89,8 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
     private final KeyFactsExtractor        keyFacts;
     private final McpToolHintsResolver     toolHints;
     private final RecentChangesAdapter     recents;
+    /** Live values register after boot, so it is resolved per call; null result = tokens stay verbatim. */
+    private final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues;
 
     public DefaultForAgentProjectionService(
             final StructuralIndexService index,
@@ -97,9 +100,23 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             final AgentHintsDeriver hintsDeriver,
             final HubSummarySynthesizer hubSynth,
             final CitationRepository citationRepository ) {
+        this( index, pageManager, cache, metrics, hintsDeriver, hubSynth, citationRepository, () -> null );
+    }
+
+    /** As above, expanding live-value tokens in the body (and keying the cache on the live-values generation). */
+    public DefaultForAgentProjectionService(
+            final StructuralIndexService index,
+            final PageManager pageManager,
+            final CachingManager cache,
+            final ForAgentMetrics metrics,
+            final AgentHintsDeriver hintsDeriver,
+            final HubSummarySynthesizer hubSynth,
+            final CitationRepository citationRepository,
+            final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues ) {
         this( index, pageManager, cache, metrics, hintsDeriver, hubSynth, citationRepository,
               new Extractors( new HeadingsOutlineExtractor(), new KeyFactsExtractor(),
-                              new McpToolHintsResolver(), new RecentChangesAdapter( pageManager ) ) );
+                              new McpToolHintsResolver(), new RecentChangesAdapter( pageManager ) ),
+              liveValues );
     }
 
     /**
@@ -129,6 +146,20 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             final HubSummarySynthesizer hubSynth,
             final CitationRepository citationRepository,
             final Extractors extractors ) {
+        this( index, pageManager, cache, metrics, hintsDeriver, hubSynth, citationRepository, extractors, () -> null );
+    }
+
+    private DefaultForAgentProjectionService(
+            final StructuralIndexService index,
+            final PageManager pageManager,
+            final CachingManager cache,
+            final ForAgentMetrics metrics,
+            final AgentHintsDeriver hintsDeriver,
+            final HubSummarySynthesizer hubSynth,
+            final CitationRepository citationRepository,
+            final Extractors extractors,
+            final java.util.function.Supplier< com.wikantik.api.livevalues.LiveValues > liveValues ) {
+        this.liveValues = liveValues;
         this.index = index;
         this.pageManager = pageManager;
         this.cache = cache;
@@ -155,7 +186,10 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         final long updatedMs = d.updated() == null ? 0L : d.updated().toEpochMilli();
         // d is already live-value expanded, so its summary hash keeps a changed value from serving a stale projection.
         // Agent hints derived from OTHER pages' descriptors may lag a live value by up to the cache TTL: accepted.
-        final Serializable key = canonicalId + ":" + updatedMs + ":" + java.util.Objects.hashCode( d.summary() );
+        // The body is expanded before it is cached, so the live-values generation keys the entry too.
+        final com.wikantik.api.livevalues.LiveValues lv = liveValues.get();
+        final Serializable key = canonicalId + ":" + updatedMs + ":" + java.util.Objects.hashCode( d.summary() )
+                + ":" + ( lv == null ? "" : lv.generation() );
 
         final Shared cached = readFromCache( key );
         final Shared shared = cached != null ? cached : build( d );
@@ -282,7 +316,10 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 // key_facts and the heading outline are derived from the body's first paragraphs, so a directive
                 // on its first lines would surface in them: access rules (people, by login) never enter the body.
                 // Strip the FULL text and take the body of that: enforcement is judged on the full text.
-                final ParsedPage parsed = AclDirectiveText.parseStripped( raw );
+                // Expanded after the ACL strip and before the derived-text pass: a token never reaches key_facts or the
+                // outline raw (code spans keep theirs), and the stored page is not touched.
+                final ParsedPage parsed = LiveFrontmatter.expandForReaders( AclDirectiveText.parseStripped( raw ),
+                        liveValues.get() );
                 frontmatter = parsed.metadata();
                 // Derived text: block markers are source, not content (spec 1.11a). The runbook block is built from
                 // frontmatter only, so this single point covers key_facts and the heading outline.

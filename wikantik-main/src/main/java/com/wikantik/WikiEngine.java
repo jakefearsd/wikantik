@@ -1552,7 +1552,8 @@ public class WikiEngine implements Engine {
                 pageSubsystem != null ? pageSubsystem.pages() : null,
                 properties,
                 confidenceOf,
-                structuralIndex );
+                structuralIndex,
+                () -> com.wikantik.livevalues.LiveValuesLookup.of( this ) );
 
         final com.wikantik.api.briefing.BriefingAssemblyService briefingSvc =
             com.wikantik.knowledge.briefing.BriefingServiceWiring.build(

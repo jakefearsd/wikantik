@@ -103,6 +103,21 @@ class AtomFeedServletTest {
     }
 
     @Test
+    void testFeedSummaryExpandsLiveValues() throws Exception {
+        engine.serviceRegistry().put( com.wikantik.api.livevalues.LiveValues.class, new com.wikantik.livevalues.StubLiveValues() );
+        engine.saveText( "FeedTestLive", "---\ntype: article\ntags: [live]\nsummary: Over "
+                + com.wikantik.livevalues.StubLiveValues.TOKEN + " articles\n---\n# Live\nBody." );
+        engine.getManager( RecentArticlesManager.class ).clearCache();
+
+        final String feed = doGetFeed( null, null );
+
+        assertTrue( feed.contains( "FeedTestLive" ), "fixture is vacuous: " + feed );
+        assertTrue( feed.contains( "Over 1,100+ articles" ), feed );
+        assertFalse( feed.contains( "{{wiki:" ), feed );
+        engine.deleteQuietly( "FeedTestLive" );
+    }
+
+    @Test
     void testFeedOmitsNoindexClusterPages() throws Exception {
         engine.getWikiProperties().setProperty( "wikantik.seo.noindexClusters", "lifestyle" );
         final ServletConfig config = Mockito.mock( ServletConfig.class );

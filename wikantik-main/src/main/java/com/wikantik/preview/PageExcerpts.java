@@ -54,13 +54,23 @@ public final class PageExcerpts {
     private PageExcerpts() {}
 
     public static String excerpt( final String markdownBody, final int maxChars ) {
+        return excerpt( markdownBody, maxChars, null );
+    }
+
+    /**
+     * As {@link #excerpt(String, int)}, with live-value tokens in the prose expanded (code-aware) when {@code liveValues}
+     * is non-null; null leaves them verbatim.
+     */
+    public static String excerpt( final String markdownBody, final int maxChars,
+                                  final com.wikantik.api.livevalues.LiveValues liveValues ) {
         if ( markdownBody == null || markdownBody.isBlank() ) {
             return "";
         }
         // Access rules go first, through the one place that knows their syntax; PLUGIN then drops every other span.
         // The caller cuts the body (or a section) from the stripped FULL text (AclDirectiveText.parseStripped);
         // this strip is the last line of defence.
-        final String withoutRules = ReaderText.derivedBody( AclDirectiveText.strip( markdownBody, " " ) );
+        final String stripped = ReaderText.derivedBody( AclDirectiveText.strip( markdownBody, " " ) );
+        final String withoutRules = liveValues == null ? stripped : liveValues.expandBody( stripped );
         final String masked = WikiLinkSyntax.toPlainText(
                 CALLOUT_MARKER.matcher( PLUGIN.matcher( withoutRules ).replaceAll( " " ) ).replaceAll( "$1" ) );
         final StringBuilder text = new StringBuilder();

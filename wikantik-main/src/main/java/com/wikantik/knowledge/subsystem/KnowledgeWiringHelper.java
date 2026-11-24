@@ -109,7 +109,8 @@ public final class KnowledgeWiringHelper {
                 forAgentMetrics,
                 hintsDeriver,
                 new HubSummarySynthesizer(),
-                citationRepo );
+                citationRepo,
+                () -> com.wikantik.livevalues.LiveValuesLookup.of( engine ) );
         engine.setManager( ForAgentProjectionService.class, forAgentService );
         LOG.info( "ForAgentProjectionService registered" );
 

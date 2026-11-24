@@ -127,6 +127,8 @@ public class AtomFeedServlet extends HttpServlet {
         resp.setCharacterEncoding( "UTF-8" );
         resp.setHeader( "Cache-Control", "public, max-age=300" );
 
+        // Resolved per request: the service registers after servlets may be built. Absent means tokens stay verbatim.
+        final com.wikantik.api.livevalues.LiveValues liveValues = com.wikantik.livevalues.LiveValuesLookup.of( engine );
         final PrintWriter out = resp.getWriter();
         writeFeedHeader( out, baseUrl, engine.getApplicationName(), cluster, feedUpdated );
 
@@ -149,7 +151,7 @@ public class AtomFeedServlet extends HttpServlet {
                 break;
             }
 
-            writeEntry( out, article, metadata, baseUrl, feedUpdated, atomDate );
+            writeEntry( out, article, metadata, baseUrl, feedUpdated, atomDate, liveValues );
         }
 
         out.println( "</feed>" );
@@ -207,7 +209,8 @@ public class AtomFeedServlet extends HttpServlet {
 
     private static void writeEntry( final PrintWriter out, final ArticleSummary article,
                                      final Map< String, Object > metadata, final String baseUrl,
-                                     final String feedUpdated, final SimpleDateFormat atomDate ) {
+                                     final String feedUpdated, final SimpleDateFormat atomDate,
+                                     final com.wikantik.api.livevalues.LiveValues liveValues ) {
         final String articleUrl = baseUrl + "/wiki/" + article.getName();
         final String updated = article.getLastModified() != null
                 ? atomDate.format( article.getLastModified() )
@@ -225,7 +228,8 @@ public class AtomFeedServlet extends HttpServlet {
 
         final Object summary = metadata.get( "summary" );
         if ( summary != null && !summary.toString().isEmpty() ) {
-            out.println( "    <summary>" + escapeXml( summary.toString() ) + "</summary>" );
+            final String text = liveValues == null ? summary.toString() : liveValues.expandText( summary.toString() );
+            out.println( "    <summary>" + escapeXml( text ) + "</summary>" );
         } else if ( article.getExcerpt() != null && !article.getExcerpt().isEmpty() ) {
             out.println( "    <summary>" + escapeXml( article.getExcerpt() ) + "</summary>" );
         }

@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- SEO: `wikantik.seo.noindexClusters` marks listed clusters (and their sub-clusters) `noindex, follow`, sends `X-Robots-Tag: noindex`, and leaves their pages out of the sitemap and the Atom feed; pages stay readable to people, the API and MCP.
+- SEO: `wikantik.seo.gonePages` answers 410 Gone for listed pages that were deliberately removed.
+- SEO: news-sitemap entries use the page title instead of the page name; page ETags change when the noindex list changes.
+- Atom feed: noindexed pages or a cluster filter no longer leave the feed with fewer entries than requested.
+
 ## [2.8.2] - 2026-11-23
 
 - Sidebar and front page: the blog link goes to `https://blog.wikantik.com/wikantik/` (it went to the blog root).

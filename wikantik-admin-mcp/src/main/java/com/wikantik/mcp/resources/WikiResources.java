@@ -25,8 +25,6 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.mcp.tools.McpToolUtils;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.livevalues.LiveValues;
-import com.wikantik.livevalues.LiveFrontmatter;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -50,22 +48,11 @@ public class WikiResources {
     private final ReferenceManager referenceManager;
     private final AttachmentManager attachmentManager;
     private final SystemPageRegistry systemPageRegistry;
-    private final java.util.function.Supplier< LiveValues > liveValues;
 
     public WikiResources( final PageManager pageManager,
                           final ReferenceManager referenceManager,
                           final AttachmentManager attachmentManager,
                           final SystemPageRegistry systemPageRegistry ) {
-        this( pageManager, referenceManager, attachmentManager, systemPageRegistry, () -> null );
-    }
-
-    /** As above; {@code liveValues} is resolved per read (it registers after boot), null meaning tokens stay verbatim. */
-    public WikiResources( final PageManager pageManager,
-                          final ReferenceManager referenceManager,
-                          final AttachmentManager attachmentManager,
-                          final SystemPageRegistry systemPageRegistry,
-                          final java.util.function.Supplier< LiveValues > liveValues ) {
-        this.liveValues = liveValues;
         this.pageManager = pageManager;
         this.referenceManager = referenceManager;
         this.attachmentManager = attachmentManager;
@@ -227,8 +214,7 @@ public class WikiResources {
         }
 
         final String rawText = pageManager.getPureText( pageName, version );
-        // This resource is a reader view of the page (the authoring read is the read_page tool, which stays raw).
-        final ParsedPage parsed = LiveFrontmatter.expandForReaders( FrontmatterParser.parse( rawText ), liveValues.get() );
+        final ParsedPage parsed = FrontmatterParser.parse( rawText );
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "exists", true );

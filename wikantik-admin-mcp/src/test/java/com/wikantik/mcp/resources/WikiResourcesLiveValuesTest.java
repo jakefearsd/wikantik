@@ -23,7 +23,6 @@ import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.livevalues.StubLiveValues;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
@@ -38,19 +37,18 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** The {@code wiki://pages/{pageName}} resource is a reader surface: values, not tokens. */
+/** The admin-MCP page resources are authoring reads: they return the raw token, never its value. */
 class WikiResourcesLiveValuesTest {
 
-    private static String read( final WikiResources resources ) {
+    private static String read( final WikiResources resources, final String template, final String uri ) {
         final var spec = resources.resourceTemplates().stream()
-                .filter( s -> s.resourceTemplate().uriTemplate().equals( "wiki://pages/{pageName}" ) )
+                .filter( s -> s.resourceTemplate().uriTemplate().equals( template ) )
                 .findFirst().orElseThrow();
-        final var uri = "wiki://pages/Main";
         return ( ( McpSchema.TextResourceContents ) spec.readHandler()
                 .apply( null, new McpSchema.ReadResourceRequest( uri ) ).contents().get( 0 ) ).text();
     }
 
-    private static WikiResources resources( final StubLiveValues lv ) {
+    private static WikiResources resources() {
         final PageManager pm = mock( PageManager.class );
         final Page page = mock( Page.class );
         when( page.getName() ).thenReturn( "Main" );
@@ -59,19 +57,20 @@ class WikiResourcesLiveValuesTest {
         when( pm.getPureText( eq( "Main" ), anyInt() ) ).thenReturn(
             "---\nsummary: Has " + TOKEN + " articles\n---\nBody " + TOKEN + " pages" );
         return new WikiResources( pm, mock( ReferenceManager.class ), mock( AttachmentManager.class ),
-                mock( SystemPageRegistry.class ), () -> lv );
+                mock( SystemPageRegistry.class ) );
     }
 
     @Test
-    void pageResourceExpandsContentAndSummary() {
-        final String json = read( resources( new StubLiveValues() ) );
-        assertTrue( json.contains( "Body " + VALUE + " pages" ), json );
-        assertTrue( json.contains( "Has " + VALUE + " articles" ), json );
-        assertFalse( json.contains( "{{wiki:" ), json );
+    void currentVersionResourceReturnsRawToken() {
+        final String json = read( resources(), "wiki://pages/{pageName}", "wiki://pages/Main" );
+        assertTrue( json.contains( "{{wiki:articles|round" ), json );
+        assertFalse( json.contains( VALUE ), json );
     }
 
     @Test
-    void withoutLiveValuesTokensStayVerbatim() {
-        assertTrue( read( resources( null ) ).contains( "{{wiki:articles" ) );
+    void historicVersionResourceReturnsRawToken() {
+        final String json = read( resources(), "wiki://pages/{pageName}/version/{version}", "wiki://pages/Main/version/1" );
+        assertTrue( json.contains( "{{wiki:articles|round" ), json );
+        assertFalse( json.contains( VALUE ), json );
     }
 }

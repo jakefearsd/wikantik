@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.3] - 2026-11-23
+
 - SEO: `wikantik.seo.noindexClusters` marks listed clusters (and their sub-clusters) `noindex, follow`, sends `X-Robots-Tag: noindex`, and leaves their pages out of the sitemap and the Atom feed; pages stay readable to people, the API and MCP.
 - SEO: `wikantik.seo.gonePages` answers 410 Gone for listed pages that were deliberately removed.
 - SEO: news-sitemap entries use the page title instead of the page name; page ETags change when the noindex list changes.

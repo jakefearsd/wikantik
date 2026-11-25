@@ -40,7 +40,7 @@ import java.util.concurrent.TimeUnit;
  * <p>A tick never throws. Effect measurement is an offline bookkeeping pass; a failure in it must
  * never surface anywhere near a request path.</p>
  */
-public final class EffectEvaluationScheduler {
+public final class EffectEvaluationScheduler implements AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger( EffectEvaluationScheduler.class );
 
@@ -91,5 +91,10 @@ public final class EffectEvaluationScheduler {
         if ( executor != null ) {
             executor.shutdownNow();
         }
+    }
+
+    @Override
+    public void close() {
+        stop();
     }
 }

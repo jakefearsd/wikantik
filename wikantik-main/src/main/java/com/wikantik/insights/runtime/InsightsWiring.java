@@ -18,14 +18,23 @@
  */
 package com.wikantik.insights.runtime;
 
+import com.wikantik.analytics.AnalyticsSettings;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.insights.JdbcInsightsStore;
 import com.wikantik.insights.OpportunityEngine;
+import com.wikantik.insights.readers.JdbcReaderRollupStore;
+import com.wikantik.insights.readers.JdbcUmamiViews;
+import com.wikantik.insights.readers.ReaderAnalyticsReadback;
+import com.wikantik.jdbc.Jdbc;
+import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
+import java.time.Clock;
 import java.util.Properties;
+import java.util.UUID;
 
 /**
  * Builds the {@link ContentOpportunityService} at startup, following the same
@@ -53,7 +62,8 @@ public final class InsightsWiring {
      *         {@code null}, matching {@code queryLogReader}'s contract
      */
     public static ContentOpportunityService build( final DataSource ds, final Properties props,
-                                                    final StructuralIndexService structuralIndex ) {
+                                                    final StructuralIndexService structuralIndex,
+                                                    final InsightsBackground background ) {
         if ( ds == null ) {
             return null;
         }
@@ -71,7 +81,7 @@ public final class InsightsWiring {
         final WikiPageFacts pageFacts = new WikiPageFacts( structuralIndex );
         final OpportunityEngine engine = new OpportunityEngine();
 
-        startEffectEvaluation( store, settings );
+        startEffectEvaluation( store, settings, background );
 
         return new ContentOpportunityService( store, pageFacts, engine, settings );
     }
@@ -79,14 +89,14 @@ public final class InsightsWiring {
     /**
      * Starts the nightly effect-measurement pass (design §7.4.2).
      *
-     * <p>Fire-and-forget on a daemon thread, matching {@code OntologyWiringHelper}'s treatment of
-     * {@code OntologyRebuildScheduler}: no reference is retained and there is no stop hook, because
-     * the thread dies with the JVM and the pass holds no state between ticks. Nothing here is
-     * time-critical -- a change only becomes evaluable 28 days after it was applied -- so a missed
-     * tick costs at most one day's delay on a verdict.</p>
+     * <p>The scheduler is handed to {@code background}, which the engine closes at shutdown so the
+     * thread does not outlive an engine that is stopped and restarted in the same JVM. Nothing here
+     * is time-critical -- a change only becomes evaluable 28 days after it was applied -- so a
+     * missed tick costs at most one day's delay on a verdict.</p>
      */
     private static void startEffectEvaluation( final JdbcInsightsStore store,
-                                               final InsightsSettings settings ) {
+                                               final InsightsSettings settings,
+                                               final InsightsBackground background ) {
         final String site = settings.ruleSites().isEmpty() ? null : settings.ruleSites().get( 0 );
         if ( site == null ) {
             LOG.warn( "No configured rules site -- effect evaluation not started" );
@@ -95,7 +105,45 @@ public final class InsightsWiring {
         final com.wikantik.insights.EffectEvaluator evaluator = new com.wikantik.insights.EffectEvaluator(
                 store, site, settings.effectWindowDays(), settings.effectMinBaselineImpressions(),
                 EFFECT_SNAPSHOT_TOLERANCE_DAYS );
-        new EffectEvaluationScheduler( evaluator, EFFECT_INTERVAL_HOURS ).start();
+        final EffectEvaluationScheduler scheduler = new EffectEvaluationScheduler( evaluator, EFFECT_INTERVAL_HOURS );
+        scheduler.start();
+        background.add( scheduler );
+    }
+
+    /** What the reader read-back needs from the running engine. */
+    public record ReadbackEnv( PageCanonicalIdsDao canonicalIds, String frontPage, String baseUrl,
+                               MeterRegistry meters ) { }
+
+    /**
+     * Starts the Umami reader read-back when configured ({@link AnalyticsSettings#readbackEnabled()}); a
+     * no-op otherwise, or when there is no engine datasource to write rollups to or the configured website id
+     * is not a UUID. The rollup store writes to the engine's own {@code ds}; only the views are read from the
+     * separate Umami database.
+     */
+    public static void startReaderReadback( final DataSource ds, final Properties props, final ReadbackEnv env,
+                                            final InsightsBackground background ) {
+        final AnalyticsSettings settings = AnalyticsSettings.from( props );
+        if ( ds == null || !settings.readbackEnabled() ) {
+            return;
+        }
+        final UUID websiteId;
+        try {
+            websiteId = UUID.fromString( settings.websiteId() );
+        } catch ( final IllegalArgumentException e ) {
+            LOG.warn( "Reader read-back not started: {} is not a UUID ('{}')", AnalyticsSettings.PROP_WEBSITE_ID,
+                    settings.websiteId(), e );
+            return;
+        }
+        final String frontPage = env.frontPage();
+        final ReaderAnalyticsReadback readback = new ReaderAnalyticsReadback(
+                new JdbcUmamiViews( new Jdbc( UmamiDataSourceFactory.create( settings ) ), websiteId ),
+                new JdbcReaderRollupStore( new Jdbc( ds ) ),
+                () -> new WikiPathResolver( env.canonicalIds(), frontPage ),
+                settings.resolveSiteHost( env.baseUrl() ), settings.readbackDays(), Clock.systemUTC(),
+                env.meters() );
+        final ReaderAnalyticsScheduler scheduler = new ReaderAnalyticsScheduler( readback, settings.readbackHours() );
+        scheduler.start();
+        background.add( scheduler );
     }
 
     /**

@@ -1139,10 +1139,29 @@ public class WikiEngine implements Engine {
             } ),
 
             // The content-opportunity engine (content-intelligence design §7.5.1; default on).
-            BootStep.abortRestOnFailure( "insights", env ->
+            BootStep.abortRestOnFailure( "insights", env -> {
+                final com.wikantik.insights.runtime.InsightsBackground background =
+                    new com.wikantik.insights.runtime.InsightsBackground();
+                this.setManager( com.wikantik.insights.runtime.InsightsBackground.class, background );
                 this.setContentOpportunityService(
                     com.wikantik.insights.runtime.InsightsWiring.build( env.dataSource(), env.props(),
-                        com.wikantik.livevalues.LiveValuesStructuralIndexService.decorate( made.structuralIndex, this ) ) ) ),
+                        com.wikantik.livevalues.LiveValuesStructuralIndexService.decorate( made.structuralIndex, this ),
+                        background ) );
+            } ),
+
+            // Umami reader read-back; off unless wikantik.analytics.readback.url is set. A failure here
+            // must never stop the wiki.
+            BootStep.continueOnFailure( "reader-readback", env -> {
+                final io.micrometer.core.instrument.MeterRegistry meters =
+                    com.wikantik.api.observability.MeterRegistryHolder.get();
+                com.wikantik.insights.runtime.InsightsWiring.startReaderReadback( env.dataSource(), env.props(),
+                    new com.wikantik.insights.runtime.InsightsWiring.ReadbackEnv( pageCanonicalIdsDao(),
+                        getFrontPage(),
+                        env.props().getProperty( "wikantik.public.baseURL",
+                            env.props().getProperty( "wikantik.baseURL", "" ) ),
+                        meters != null ? meters : new io.micrometer.core.instrument.simple.SimpleMeterRegistry() ),
+                    serviceRegistry.get( com.wikantik.insights.runtime.InsightsBackground.class ) );
+            }, e -> LOG.warn( "reader read-back wiring failed (continuing without it): {}", e.getMessage(), e ) ),
 
             // Default off: wikantik.work.enabled. Null when disabled; callers no-op. A wiring failure leaves work
             // unavailable (its endpoints answer 404, the capability reports false) instead of stopping the wiki.
@@ -1809,6 +1828,7 @@ public class WikiEngine implements Engine {
         closeQuietly( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
         closeQuietly( com.wikantik.work.runtime.WorkClaimSweeper.class );
         closeQuietly( com.wikantik.work.runtime.WorkNotifyDispatcher.class );
+        closeQuietly( com.wikantik.insights.runtime.InsightsBackground.class );
         final var aw = auditWired;
         if ( aw != null && aw.writer() != null ) {
             aw.writer().shutdownWriter();

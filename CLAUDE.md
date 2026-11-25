@@ -1,5 +1,16 @@
 # CLAUDE.md
 
+<!-- SIMPLE-AGILITY-AGENT-HEADER-START -->
+## Simple Agility Architectural Context
+This repository is part of the **Simple Agility** small-business ecosystem:
+- **Architecture Hub:** Refer to `SimpleAgilityStackHub` on Wikantik (`https://wiki.wikantik.com/SimpleAgilityStackHub`).
+- **Architectural Decisions:** Consult `SimpleAgilityDecisionLog` before changing cross-repo APIs, logging, or telemetry.
+- **Active Initiatives & Coordination:** Check `SimpleAgilityAgentCoordination` before starting multi-repo work.
+- **Session start:** call `get_briefing(clusters=["wikantik-development"], prompt="<your first task>")` on the Wikantik knowledge MCP; the briefing carries this project's pages and the contracts it cites (`SA-13`).
+- **Role Boundary:** Optimize local product logic, but never break cross-product contracts or telemetry conventions.
+- **Record decisions:** when a change binds another repository (an API or event shape, a published port, a login or grant another product uses, a schema or view another product reads, a log or label name), add a new `SA-<n>` entry to `SimpleAgilityDecisionLog` (Decision, Why, Consequences) in the same piece of work, and link it from the normative page. Supersede, never rewrite.
+<!-- SIMPLE-AGILITY-AGENT-HEADER-END -->
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 The preferred development approach is test-driven development: put a test in place to demonstrate a
 defect before repairing it, so we know the test actually detects the issue.

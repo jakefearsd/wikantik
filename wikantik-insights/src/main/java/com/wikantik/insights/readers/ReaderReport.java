@@ -25,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
 import java.sql.Date;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
@@ -131,13 +132,7 @@ public final class ReaderReport {
         try {
             jdbc.query( ENGAGEMENT_SQL, ps -> bindWindow( ps, siteHost, from, to ), rs -> {
                 final Acc a = byPage.computeIfAbsent( rs.getString( "canonical_id" ).strip(), k -> new Acc() );
-                a.engagement( rs.getInt( "views" ), rs.getInt( "visitors" ), rs.getInt( "exits" ),
-                        getNullableDouble( rs, "active_median_s" ), rs.getInt( "exits_scroll75" ),
-                        rs.getInt( "code_copies" ) + rs.getInt( "wikilink_clicks" ) + rs.getInt( "outbound_clicks" )
-                                + rs.getInt( "diagram_interacts" ) + rs.getInt( "toc_clicks" )
-                                + rs.getInt( "sign_in_clicks" ),
-                        getNullableDouble( rs, "lcp_p75_ms" ), getNullableDouble( rs, "inp_p75_ms" ),
-                        getNullableDouble( rs, "cls_p75" ) );
+                a.engagement( rs );
                 return null;
             } );
             jdbc.query( ACQUISITION_SQL, ps -> bindWindow( ps, siteHost, from, to ), rs -> {
@@ -267,19 +262,23 @@ public final class ReaderReport {
         int lateLandings;
         int lateReturning;
 
-        void engagement( final int v, final int vis, final int ex, final Double median, final int s75,
-                         final int act, final Double l, final Double i, final Double c ) {
+        /** Folds one {@code reader_engagement_daily} row into the page's totals. */
+        void engagement( final ResultSet rs ) throws SQLException {
+            final int v = rs.getInt( "views" );
+            final int ex = rs.getInt( "exits" );
+            final Double median = getNullableDouble( rs, "active_median_s" );
             views += v;
-            visitors += vis;
+            visitors += rs.getInt( "visitors" );
             exits += ex;
-            scroll75 += s75;
-            actions += act;
+            scroll75 += rs.getInt( "exits_scroll75" );
+            actions += rs.getInt( "code_copies" ) + rs.getInt( "wikilink_clicks" ) + rs.getInt( "outbound_clicks" )
+                    + rs.getInt( "diagram_interacts" ) + rs.getInt( "toc_clicks" ) + rs.getInt( "sign_in_clicks" );
             if ( median != null && ex > 0 ) {
                 medians.add( new double[] { median, ex } );
             }
-            lcp.add( l, v );
-            inp.add( i, v );
-            cls.add( c, v );
+            lcp.add( getNullableDouble( rs, "lcp_p75_ms" ), v );
+            inp.add( getNullableDouble( rs, "inp_p75_ms" ), v );
+            cls.add( getNullableDouble( rs, "cls_p75" ), v );
         }
 
         void acquisition( final String channel, final LocalDate day, final int l, final int cont, final int ret ) {

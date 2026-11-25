@@ -27,14 +27,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -62,19 +58,11 @@ public class AnalyticsProxyServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AnalyticsProxyServlet.class );
 
-    static final String PROP_WEBSITE_ID = "wikantik.analytics.website.id";
-    static final String PROP_UPSTREAM = "wikantik.analytics.upstream";
-    static final String PROP_SCRIPT_NAME = "wikantik.analytics.script.name";
-    static final String PROP_TIMEOUT_MS = "wikantik.analytics.proxy.timeout.ms";
-    static final String PROP_MAX_INFLIGHT = "wikantik.analytics.proxy.max.inflight";
-
     private static final String SEND_PATH = "/api/send";
     private static final int MAX_BODY_BYTES = 64 * 1024;
     private static final Duration SCRIPT_TTL = Duration.ofHours( 1 );
     private static final long WARN_INTERVAL_MS = 60_000L;
     private static final long RETRY_BACKOFF_MS = 60_000L;
-    static final int DEFAULT_TIMEOUT_MS = 5000;
-    static final int DEFAULT_MAX_INFLIGHT = 16;
 
     /**
      * Proxy settings. {@code enabled()} needs both the upstream and the website id, so a half-configured
@@ -85,10 +73,10 @@ public class AnalyticsProxyServlet extends HttpServlet {
         /** Non-positive timeout or cap would make every request fail (HttpRequest rejects it), so use defaults. */
         public AnalyticsProxyConfig {
             if( timeout == null || timeout.isZero() || timeout.isNegative() ) {
-                timeout = Duration.ofMillis( DEFAULT_TIMEOUT_MS );
+                timeout = Duration.ofMillis( AnalyticsProxySettings.DEFAULT_TIMEOUT_MS );
             }
             if( maxInflight <= 0 ) {
-                maxInflight = DEFAULT_MAX_INFLIGHT;
+                maxInflight = AnalyticsProxySettings.DEFAULT_MAX_INFLIGHT;
             }
         }
 
@@ -102,7 +90,6 @@ public class AnalyticsProxyServlet extends HttpServlet {
     private final Supplier< AnalyticsProxyConfig > configSupplier;
     private final Clock clock;
     private final AtomicReference< CachedScript > script = new AtomicReference<>();
-    private static final int MAX_CACHE_TOKEN_CHARS = 4096;
 
     private final AtomicLong retryNotBeforeMs = new AtomicLong( Long.MIN_VALUE );
     private final AtomicLong lastWarnMs = new AtomicLong( Long.MIN_VALUE );
@@ -140,50 +127,7 @@ public class AnalyticsProxyServlet extends HttpServlet {
     }
 
     static AnalyticsProxyConfig parseConfig( final Properties p ) {
-        return new AnalyticsProxyConfig(
-                p.getProperty( PROP_UPSTREAM, "" ).trim(),
-                scriptName( p ),
-                Duration.ofMillis( intProp( p, PROP_TIMEOUT_MS, DEFAULT_TIMEOUT_MS ) ),
-                intProp( p, PROP_MAX_INFLIGHT, DEFAULT_MAX_INFLIGHT ),
-                p.getProperty( PROP_WEBSITE_ID, "" ).trim() );
-    }
-
-    /** A blank value means the default, matching AnalyticsSettings. */
-    private static String scriptName( final Properties p ) {
-        final String v = p.getProperty( PROP_SCRIPT_NAME, "script.js" ).trim();
-        return v.isEmpty() ? "script.js" : v;
-    }
-
-    /** True when the body is a JSON object whose {@code payload.website} is exactly {@code websiteId}. */
-    private static boolean carriesWebsite( final byte[] body, final String websiteId ) {
-        try {
-            final JsonElement root = JsonParser.parseString( new String( body, StandardCharsets.UTF_8 ) );
-            if( !root.isJsonObject() || !root.getAsJsonObject().has( "payload" ) ) {
-                return false;
-            }
-            final JsonElement payload = root.getAsJsonObject().get( "payload" );
-            if( !payload.isJsonObject() || !payload.getAsJsonObject().has( "website" ) ) {
-                return false;
-            }
-            final JsonElement w = payload.getAsJsonObject().get( "website" );
-            return w.isJsonPrimitive() && websiteId.equals( w.getAsString() );
-        } catch( final JsonParseException | IllegalStateException | UnsupportedOperationException e ) {
-            LOG.debug( "Rejecting malformed analytics beacon body: {}", e.toString() );
-            return false;
-        }
-    }
-
-    private static int intProp( final Properties p, final String key, final int dflt ) {
-        final String v = p.getProperty( key );
-        if( v == null || v.isBlank() ) {
-            return dflt;
-        }
-        try {
-            return Integer.parseInt( v.trim() );
-        } catch( final NumberFormatException e ) {
-            LOG.warn( "Ignoring non-numeric value '{}' for {}; using {}: {}", v, key, dflt, e.toString() );
-            return dflt;
-        }
+        return AnalyticsProxySettings.parse( p );
     }
 
     private HttpClient client( final AnalyticsProxyConfig cfg ) {
@@ -277,24 +221,8 @@ public class AnalyticsProxyServlet extends HttpServlet {
     @Override
     protected void doPost( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
         final AnalyticsProxyConfig cfg = configSupplier.get();
-        if( !cfg.enabled() || !SEND_PATH.equals( req.getPathInfo() ) ) {
-            resp.setStatus( HttpServletResponse.SC_NOT_FOUND );
-            return;
-        }
-        if( req.getContentLength() > MAX_BODY_BYTES ) {
-            resp.setStatus( HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE );
-            return;
-        }
-        final byte[] body;
-        try( InputStream in = req.getInputStream() ) {
-            body = in.readNBytes( MAX_BODY_BYTES + 1 );
-        }
-        if( body.length > MAX_BODY_BYTES ) {
-            resp.setStatus( HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE );
-            return;
-        }
-        if( !carriesWebsite( body, cfg.websiteId() ) ) {
-            resp.setStatus( HttpServletResponse.SC_BAD_REQUEST );
+        final byte[] body = acceptedBeacon( cfg, req, resp );
+        if( body == null ) {
             return;
         }
         final Semaphore gate = inflight( cfg );
@@ -304,23 +232,8 @@ public class AnalyticsProxyServlet extends HttpServlet {
             return;
         }
         try {
-            final String contentType = req.getContentType();
-            final HttpRequest.Builder builder = HttpRequest.newBuilder( upstreamUri( cfg, SEND_PATH ) )
-                    .timeout( cfg.timeout() )
-                    .header( "Content-Type", contentType != null ? contentType : "application/json" )
-                    .header( "X-Forwarded-For", req.getRemoteAddr() )
-                    .POST( HttpRequest.BodyPublishers.ofByteArray( body ) );
-            final String userAgent = req.getHeader( "User-Agent" );
-            if( userAgent != null ) {
-                builder.header( "User-Agent", userAgent );
-            }
-            // The tracker echoes the token from the previous /api/send response on every beacon; without it Umami
-            // re-derives the visit id from an hourly salt and splits visits at hour boundaries.
-            final String umamiCache = req.getHeader( "x-umami-cache" );
-            if( umamiCache != null && !umamiCache.isEmpty() && umamiCache.length() <= MAX_CACHE_TOKEN_CHARS ) {
-                builder.header( "x-umami-cache", umamiCache );
-            }
-            final HttpResponse< byte[] > r = client( cfg ).send( builder.build(), HttpResponse.BodyHandlers.ofByteArray() );
+            final HttpRequest request = AnalyticsBeacons.sendRequest( upstreamUri( cfg, SEND_PATH ), cfg.timeout(), req, body );
+            final HttpResponse< byte[] > r = client( cfg ).send( request, HttpResponse.BodyHandlers.ofByteArray() );
             resp.setStatus( r.statusCode() );
             r.headers().firstValue( "Content-Type" ).ifPresent( resp::setContentType );
             resp.getOutputStream().write( r.body() );
@@ -337,6 +250,35 @@ public class AnalyticsProxyServlet extends HttpServlet {
         } finally {
             gate.release();
         }
+    }
+
+    /**
+     * The beacon body when the request may be forwarded; otherwise sets the refusal status (404 off or wrong
+     * path, 413 too large, 400 not for this website) and returns {@code null}.
+     */
+    private static byte[] acceptedBeacon( final AnalyticsProxyConfig cfg, final HttpServletRequest req,
+                                          final HttpServletResponse resp ) throws IOException {
+        if( !cfg.enabled() || !SEND_PATH.equals( req.getPathInfo() ) ) {
+            resp.setStatus( HttpServletResponse.SC_NOT_FOUND );
+            return null;
+        }
+        if( req.getContentLength() > MAX_BODY_BYTES ) {
+            resp.setStatus( HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE );
+            return null;
+        }
+        final byte[] body;
+        try( InputStream in = req.getInputStream() ) {
+            body = in.readNBytes( MAX_BODY_BYTES + 1 );
+        }
+        if( body.length > MAX_BODY_BYTES ) {
+            resp.setStatus( HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE );
+            return null;
+        }
+        if( !AnalyticsBeacons.carriesWebsite( body, cfg.websiteId() ) ) {
+            resp.setStatus( HttpServletResponse.SC_BAD_REQUEST );
+            return null;
+        }
+        return body;
     }
 
     private static URI upstreamUri( final AnalyticsProxyConfig cfg, final String path ) {

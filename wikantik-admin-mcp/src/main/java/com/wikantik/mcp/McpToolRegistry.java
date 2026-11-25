@@ -152,12 +152,7 @@ public class McpToolRegistry {
 
         // Reader engagement (analytics rollups). Registered UNCONDITIONALLY like the tools above;
         // with no datasource it refuses at call time.
-        final var readerPersistence = engine instanceof com.wikantik.WikiEngine we4 ? we4.getPersistenceSubsystem() : null;
-        final javax.sql.DataSource readerDs = readerPersistence == null ? null : readerPersistence.dataSource();
-        readOnlyList.add( new ListReaderEngagementTool(
-                readerDs == null ? null
-                        : com.wikantik.insights.runtime.ReaderReports.create( readerDs, engine.getFrontPage() ),
-                com.wikantik.analytics.AnalyticsSettings.siteHostOf( engine.getWikiProperties() ) ) );
+        readOnlyList.add( readerEngagementTool( engine ) );
 
         // Reader comment threads (agent feedback loop). Registered UNCONDITIONALLY for the same
         // reason as the tools above: both refuse at call time when no datasource is wired.
@@ -170,6 +165,15 @@ public class McpToolRegistry {
 
         readOnly = List.copyOf( readOnlyList );
         authorConfigurable = List.copyOf( authorConfigurableList );
+    }
+
+    /** {@code list_reader_engagement}, given a null report (refuses at call time) when no datasource is wired. */
+    private static ListReaderEngagementTool readerEngagementTool( final Engine engine ) {
+        final var persistence = engine instanceof com.wikantik.WikiEngine we ? we.getPersistenceSubsystem() : null;
+        final javax.sql.DataSource ds = persistence == null ? null : persistence.dataSource();
+        return new ListReaderEngagementTool(
+                ds == null ? null : com.wikantik.insights.runtime.ReaderReports.create( ds, engine.getFrontPage() ),
+                com.wikantik.analytics.AnalyticsSettings.siteHostOf( engine.getWikiProperties() ) );
     }
 
     /** Returns tools that need no per-request author resolution. */

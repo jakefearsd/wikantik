@@ -150,7 +150,7 @@ public class AnalyticsProxyServlet extends HttpServlet {
 
     /** A blank value means the default, matching AnalyticsSettings. */
     private static String scriptName( final Properties p ) {
-        final String v = p.getProperty( PROP_SCRIPT_NAME, "" ).trim();
+        final String v = p.getProperty( PROP_SCRIPT_NAME, "script.js" ).trim();
         return v.isEmpty() ? "script.js" : v;
     }
 

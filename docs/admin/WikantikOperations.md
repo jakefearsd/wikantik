@@ -827,16 +827,17 @@ curl -s -X POST http://192.168.5.52:8085/api/websites \
 
 Umami honours a supplied `id`, so the UUID chosen here is the one the wiki uses.
 
-**Prod switch-on.** In docker1's `.env.prod`, add:
+**Prod switch-on.** The container entrypoint maps these environment variables onto the `wikantik.analytics.*` keys (no other env var reaches them). Put them in `.env.prod`, which `bin/remote.sh` / `bin/deploy-release.sh` rsync to docker1:
 
 ```
 WIKANTIK_ANALYTICS_WEBSITE_ID=<uuid from registration>
 WIKANTIK_ANALYTICS_UPSTREAM=http://192.168.5.52:8085
 WIKANTIK_ANALYTICS_READBACK_URL=jdbc:postgresql://192.168.5.52:8087/umami
+WIKANTIK_ANALYTICS_READBACK_USER=wikantik_ro
 WIKANTIK_ANALYTICS_READBACK_PASSWORD=<docker2:~/backoffice/secrets/wikantik-ro>
 ```
 
-The read-back user defaults to `wikantik_ro`. Then recreate the container (redeploy, see section 1.2).
+`WIKANTIK_ANALYTICS_WEBSITE_ID` switches the feature on (and writes the upstream); the three `READBACK_*` variables are applied only when `WIKANTIK_ANALYTICS_READBACK_URL` is non-empty. The user defaults to `wikantik_ro`; the password is never printed. Then recreate the container: a deploy does that, either `bin/deploy-release.sh X.Y.Z` or, for an env-only change, `bin/remote.sh deploy --skip-build` (section 1.2).
 
 **Verify:**
 

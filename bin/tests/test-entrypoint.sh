@@ -48,7 +48,7 @@ ok "all-unset and all-empty optional env render identical ${#OPTIONAL[@]}-var ou
 # Baseline must not carry any opt-in block.
 PROPS="${TMP}/unset/lib/wikantik-custom.properties"
 for key in 'embedding.batch-size' 'embedding.commit-batch-size' 'wikantik.sso.' \
-           'wikantik.search.dense.backend' 'mail.smtp.host'; do
+           'wikantik.search.dense.backend' 'mail.smtp.host' 'wikantik.analytics.'; do
     if grep -qF -- "${key}" "${PROPS}"; then fail "baseline properties unexpectedly contain ${key}"; fi
 done
 ok "baseline properties carry no opt-in blocks"
@@ -120,3 +120,39 @@ for ctx in "${TMP}/unset/conf/Catalina/localhost/ROOT.xml" "${TEMPLATE}"; do
     if grep -qi 'removeAbandoned="true"' "${ctx}"; then fail "${ctx} must not enable removeAbandoned"; fi
 done
 ok "container and bare-metal DataSource carry driver timeouts and idle-time validation"
+
+# Reader analytics: WIKANTIK_ANALYTICS_* map onto wikantik.analytics.* keys; website id
+# gates everything, read-back URL gates the read-back keys, password is never printed.
+analytics() { # analytics <name> [VAR=val ...] - sets ANALYTICS_PROPS; stdout/stderr kept in <out>
+    local out="${TMP}/$1"; shift
+    mkdir -p "${out}/lib" "${out}/conf" "${out}/webapps"
+    env -i PATH="${PATH}" CATALINA_HOME="${out}" \
+        POSTGRES_HOST=db POSTGRES_DB=w POSTGRES_USER=u POSTGRES_PASSWORD=p "$@" \
+        bash "${ENTRYPOINT}" true >"${out}/stdout" 2>"${out}/stderr" \
+        || fail "entrypoint failed: $(cat "${out}/stderr")"
+    ANALYTICS_PROPS="${out}/lib/wikantik-custom.properties"
+}
+analytics an-full WIKANTIK_ANALYTICS_WEBSITE_ID=site-uuid WIKANTIK_ANALYTICS_UPSTREAM=http://u:8085 \
+    WIKANTIK_ANALYTICS_READBACK_URL=jdbc:postgresql://h:8087/umami WIKANTIK_ANALYTICS_READBACK_USER=ro_user \
+    WIKANTIK_ANALYTICS_READBACK_PASSWORD=s3cr3t-pw
+for want in 'wikantik.analytics.website.id       = site-uuid' 'wikantik.analytics.upstream         = http://u:8085' \
+            'wikantik.analytics.readback.url      = jdbc:postgresql://h:8087/umami' \
+            'wikantik.analytics.readback.user     = ro_user' 'wikantik.analytics.readback.password = s3cr3t-pw'; do
+    grep -qxF -- "${want}" "${ANALYTICS_PROPS}" || fail "analytics properties lack: ${want}"
+done
+if grep -rqF 's3cr3t-pw' "${TMP}/an-full/stdout" "${TMP}/an-full/stderr"; then fail "analytics password was printed"; fi
+ok "WIKANTIK_ANALYTICS_* set -> keys present, password not printed"
+
+analytics an-site WIKANTIK_ANALYTICS_WEBSITE_ID=site-uuid WIKANTIK_ANALYTICS_READBACK_PASSWORD=s3cr3t-pw
+grep -qxF 'wikantik.analytics.website.id       = site-uuid' "${ANALYTICS_PROPS}" || fail "website id missing"
+grep -qE '^wikantik.analytics.upstream +=[[:space:]]*$' "${ANALYTICS_PROPS}" || fail "upstream should default to empty"
+if grep -qF 'wikantik.analytics.readback' "${ANALYTICS_PROPS}"; then fail "read-back keys written without a read-back URL"; fi
+ok "read-back keys absent without WIKANTIK_ANALYTICS_READBACK_URL"
+
+analytics an-user WIKANTIK_ANALYTICS_WEBSITE_ID=site-uuid WIKANTIK_ANALYTICS_READBACK_URL=jdbc:x
+grep -qE '^wikantik.analytics.readback.user +=[[:space:]]+wikantik_ro$' "${ANALYTICS_PROPS}" || fail "read-back user should default to wikantik_ro"
+ok "read-back user defaults to wikantik_ro"
+
+analytics an-nosite WIKANTIK_ANALYTICS_READBACK_URL=jdbc:x WIKANTIK_ANALYTICS_READBACK_PASSWORD=s3cr3t-pw
+if grep -qF 'wikantik.analytics.' "${ANALYTICS_PROPS}"; then fail "analytics keys written without a website id"; fi
+ok "no analytics keys without WIKANTIK_ANALYTICS_WEBSITE_ID"

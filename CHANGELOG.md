@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Docker: the entrypoint maps `WIKANTIK_ANALYTICS_*` environment variables onto the reader-analytics settings.
+
 ## [2.8.5] - 2026-11-24
 
 - Reader analytics (off by default): same-origin Umami tracker on reader pages via `/analytics/*`, page-exit reading time and scroll depth, and code-copy, wikilink, outbound, diagram, table-of-contents and sign-in events; campaign parameters leave the address bar after the landing is recorded.

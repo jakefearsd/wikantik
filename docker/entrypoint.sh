@@ -35,6 +35,20 @@
 #                                knobs (m / ef_construction / ef_search) use HnswParams defaults
 #                                unless set via wikantik.search.dense.lucene.* properties.
 #   WIKANTIK_LUCENE_DIRECTORY    Lucene Directory backend: nio | mmap (default: nio)
+#   WIKANTIK_ANALYTICS_WEBSITE_ID
+#                                reader-analytics (Umami) website id; when non-empty the
+#                                entrypoint writes wikantik.analytics.website.id and
+#                                .upstream. Unset/empty = reader analytics off.
+#   WIKANTIK_ANALYTICS_UPSTREAM  Umami base URL the /analytics proxy relays to
+#                                (e.g. http://192.168.5.52:8085; default empty)
+#   WIKANTIK_ANALYTICS_READBACK_URL
+#                                JDBC URL of the Umami read-only database; when non-empty the
+#                                nightly read-back is configured (.readback.url/.user/.password)
+#   WIKANTIK_ANALYTICS_READBACK_USER
+#                                read-back DB user (default wikantik_ro)
+#   WIKANTIK_ANALYTICS_READBACK_PASSWORD
+#                                read-back DB password (sensitive; written only to the
+#                                properties file, never printed)
 #   WIKANTIK_VERSIONING_CACHE_SIZE
 #                                VersioningFileProvider property cache size (default 100;
 #                                set 0 for single-entry, -1 to disable; properties are
@@ -199,6 +213,28 @@ if [ -n "${WIKANTIK_LUCENE_DIRECTORY:-}" ]; then
 # Lucene Directory backend override (entrypoint-injected from env).
 wikantik.search.lucene.directory.kind = ${WIKANTIK_LUCENE_DIRECTORY}
 EOF
+fi
+
+# Optional: reader analytics (Umami). Env vars are not otherwise mapped onto
+# wikantik.* keys, so these are the only way to set them in a container.
+#   WIKANTIK_ANALYTICS_WEBSITE_ID     - non-empty switches the feature on
+#   WIKANTIK_ANALYTICS_UPSTREAM       - Umami base URL for the /analytics proxy
+#   WIKANTIK_ANALYTICS_READBACK_URL   - non-empty configures the nightly read-back
+#   WIKANTIK_ANALYTICS_READBACK_USER / _PASSWORD - read-only login (password never echoed)
+if [ -n "${WIKANTIK_ANALYTICS_WEBSITE_ID:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Reader analytics (entrypoint-injected from env).
+wikantik.analytics.website.id       = ${WIKANTIK_ANALYTICS_WEBSITE_ID}
+wikantik.analytics.upstream         = ${WIKANTIK_ANALYTICS_UPSTREAM:-}
+EOF
+  if [ -n "${WIKANTIK_ANALYTICS_READBACK_URL:-}" ]; then
+    cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+wikantik.analytics.readback.url      = ${WIKANTIK_ANALYTICS_READBACK_URL}
+wikantik.analytics.readback.user     = ${WIKANTIK_ANALYTICS_READBACK_USER:-wikantik_ro}
+wikantik.analytics.readback.password = ${WIKANTIK_ANALYTICS_READBACK_PASSWORD:-}
+EOF
+  fi
 fi
 
 # Optional: VersioningFileProvider property cache size.

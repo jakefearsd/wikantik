@@ -62,6 +62,7 @@ There are no `jspwiki_*` environment variables any more. Compose passes `.env` t
 | `WIKANTIK_SSO_ENABLED` and the other `WIKANTIK_SSO_*` | off | OIDC single sign-on; see [Google SSO](GoogleSSO) |
 | `WIKANTIK_GENAI_MODE` | `full` | GenAI ceiling: `full` or `none` |
 | `WIKANTIK_DENSE_BACKEND` | `lucene-hnsw` | Dense retrieval backend: `lucene-hnsw`, `inmemory` or `pgvector` |
+| `WIKANTIK_ANALYTICS_WEBSITE_ID` and the other `WIKANTIK_ANALYTICS_*` | off | Reader analytics (Umami): website id, proxy upstream and the optional read-back login (`_READBACK_URL`, `_USER`, `_PASSWORD`) |
 | `WIKANTIK_EMBEDDING_BASE_URL` | `http://inference.jakefear.com:11434` | Embedding service. The shipped default does not resolve on every network, so set it to a name that resolves from the container (production uses the shared GPU inference host, e.g. `http://inference.lan:11434`); falls back to BM25 if unreachable |
 | `WIKANTIK_MAX_INFLIGHT_REQUESTS` | `390` | Concurrency cap; excess requests get 503 with `Retry-After: 1` |
 | `WIKANTIK_JVM_MAX_RAM_PERCENTAGE` | image default 70 | Heap share of the container memory limit (the production overlay sets 50 with a 3G limit) |

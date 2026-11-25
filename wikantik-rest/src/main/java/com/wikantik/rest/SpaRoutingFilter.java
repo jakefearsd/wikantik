@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.analytics.AnalyticsSettings;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -108,6 +109,7 @@ public class SpaRoutingFilter implements Filter {
     private volatile String shellFingerprint;
     private volatile SeoPolicy seoPolicy;
     private volatile Engine seoPolicyEngine;
+    private volatile AnalyticsSettings analytics;
 
     @Override
     public void init( final FilterConfig filterConfig ) throws ServletException {
@@ -202,6 +204,34 @@ public class SpaRoutingFilter implements Filter {
      *  semantic-injection / 404 path without a live servlet container. */
     void setEngineForTest( final Engine e ) {
         this.engine = e;
+    }
+
+    /** Test seam: fix the analytics settings instead of reading them from the engine properties. */
+    void setAnalyticsForTest( final AnalyticsSettings settings ) {
+        this.analytics = settings;
+    }
+
+    /** Engine properties do not change at runtime, so the settings are parsed once. */
+    private AnalyticsSettings analyticsSettings() {
+        AnalyticsSettings a = analytics;
+        if ( a == null ) {
+            final Engine eng = resolveEngine();
+            if ( eng == null ) {
+                return AnalyticsSettings.disabled();
+            }
+            a = AnalyticsSettings.from( eng.getWikiProperties() );
+            analytics = a;
+        }
+        return a;
+    }
+
+    /**
+     * Whether the SPA shell served for {@code path} is a reader page that carries the analytics tracker. Admin,
+     * editor, diff, work and account routes never do.
+     */
+    static boolean isReaderRoute( final String path ) {
+        return "".equals( path ) || "/".equals( path ) || "/index.html".equals( path )
+                || path.startsWith( "/wiki/" ) || "/search".equals( path ) || "/page-graph".equals( path );
     }
 
     @Override
@@ -344,6 +374,10 @@ public class SpaRoutingFilter implements Filter {
                                   final String frontPageName ) throws IOException {
         final Page cacheablePage = pageName != null && !pageName.isEmpty()
                 ? resolvePageForCaching( pageName ) : null;
+        // The tracker tag is part of the shell this caller gets, so it is part of the validator: a copy cached with
+        // the tag must not 304 once analytics is switched off, and vice versa.
+        final String trackerTag = readerRoute( req, contextPath ) ? analyticsSettings().trackerTag( contextPath ) : "";
+        final String trackerFp = trackerTag.isEmpty() ? "" : "-t" + Integer.toHexString( trackerTag.hashCode() );
         // The caller and their view permission are resolved ONCE per request and threaded into both the ETag
         // and the injection step: a denied caller must neither be server-rendered nor
         // share a validator with a permitted one.
@@ -365,7 +399,7 @@ public class SpaRoutingFilter implements Filter {
                     ? 0L : cacheablePage.getLastModified().getTime();
             final Engine policyEngine = resolveEngine();
             final String policyFp = policyEngine == null ? "" : seoPolicy( policyEngine ).noindexFingerprint();
-            final String etag = etagFor( shellFingerprint( req.getServletContext() ) + policyFp,
+            final String etag = etagFor( shellFingerprint( req.getServletContext() ) + policyFp + trackerFp,
                     Math.max( cacheablePage.getVersion(), 1 ), lm, viewAllowed, viewerDependent );
             resp.setHeader( "ETag", etag );
             resp.setHeader( "Cache-Control", "private, no-cache" );
@@ -396,12 +430,23 @@ public class SpaRoutingFilter implements Filter {
                     resp.setStatus( HttpServletResponse.SC_NOT_FOUND );
                 }
             }
+            if ( !trackerTag.isEmpty() ) {
+                final int headClose = rewritten.indexOf( "</head>" );
+                if ( headClose >= 0 ) {
+                    rewritten = rewritten.substring( 0, headClose ) + trackerTag + rewritten.substring( headClose );
+                }
+            }
             final byte[] bytes = rewritten.getBytes( StandardCharsets.UTF_8 );
             resp.setContentType( "text/html;charset=UTF-8" );
             resp.setCharacterEncoding( "UTF-8" );
             resp.setContentLength( bytes.length );
             resp.getOutputStream().write( bytes );
         }
+    }
+
+    private static boolean readerRoute( final HttpServletRequest req, final String contextPath ) {
+        final String uri = req.getRequestURI();
+        return uri != null && isReaderRoute( uri.startsWith( contextPath ) ? uri.substring( contextPath.length() ) : uri );
     }
 
     /** SHA-256-prefix fingerprint of the deployed index.html; stable per deployment. */

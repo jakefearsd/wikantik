@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.4] - 2026-11-24
+
 - Live values: pages can write `{{wiki:articles}}`, `{{wiki:clusters}}`, `{{wiki:cluster.<path>.pages}}`, `{{wiki:version}}` and similar tokens in the body or the frontmatter `summary`; readers, feeds, search, MCP read tools, bundles and the ontology see the current value, while editing surfaces (admin MCP `read_page`, export, `/api/pages` content) keep the token. Options `|round=N` and `|else=text`; switch off with `wikantik.liveValues.enabled`.
 - Live values: counts include only pages a guest may view; unknown tokens and malformed ones are WARNINGs on save and listed at `GET /admin/drift/live-values`; a save that drops a token returns a warning naming it.
 - Main: the summary and intro state the article and cluster counts as live values.

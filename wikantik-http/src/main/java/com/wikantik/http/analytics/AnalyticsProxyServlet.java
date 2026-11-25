@@ -67,6 +67,9 @@ public class AnalyticsProxyServlet extends HttpServlet {
     private static final int MAX_BODY_BYTES = 64 * 1024;
     private static final Duration SCRIPT_TTL = Duration.ofHours( 1 );
     private static final long WARN_INTERVAL_MS = 60_000L;
+    private static final long RETRY_BACKOFF_MS = 60_000L;
+    static final int DEFAULT_TIMEOUT_MS = 5000;
+    static final int DEFAULT_MAX_INFLIGHT = 16;
 
     /**
      * Proxy settings. {@code enabled()} needs both the upstream and the website id, so a half-configured
@@ -74,6 +77,16 @@ public class AnalyticsProxyServlet extends HttpServlet {
      */
     public record AnalyticsProxyConfig( String upstream, String scriptName, Duration timeout, int maxInflight,
                                         String websiteId ) {
+        /** Non-positive timeout or cap would make every request fail (HttpRequest rejects it), so use defaults. */
+        public AnalyticsProxyConfig {
+            if( timeout == null || timeout.isZero() || timeout.isNegative() ) {
+                timeout = Duration.ofMillis( DEFAULT_TIMEOUT_MS );
+            }
+            if( maxInflight <= 0 ) {
+                maxInflight = DEFAULT_MAX_INFLIGHT;
+            }
+        }
+
         public boolean enabled() {
             return upstream != null && !upstream.isBlank() && websiteId != null && !websiteId.isBlank();
         }
@@ -84,7 +97,9 @@ public class AnalyticsProxyServlet extends HttpServlet {
     private final Supplier< AnalyticsProxyConfig > configSupplier;
     private final Clock clock;
     private final AtomicReference< CachedScript > script = new AtomicReference<>();
+    private final AtomicLong retryNotBeforeMs = new AtomicLong( Long.MIN_VALUE );
     private final AtomicLong lastWarnMs = new AtomicLong( Long.MIN_VALUE );
+    private volatile AnalyticsProxyConfig engineConfig;
     private volatile HttpClient client;
     private volatile Semaphore inflight;
 
@@ -106,14 +121,23 @@ public class AnalyticsProxyServlet extends HttpServlet {
         this.clock = clock;
     }
 
+    /** Engine properties do not change at runtime, so they are parsed once. */
     private AnalyticsProxyConfig configFromEngine() {
-        final Engine engine = Wiki.engine().find( getServletContext(), null );
-        final Properties p = engine.getWikiProperties();
+        AnalyticsProxyConfig c = engineConfig;
+        if( c == null ) {
+            final Engine engine = Wiki.engine().find( getServletContext(), null );
+            c = parseConfig( engine.getWikiProperties() );
+            engineConfig = c;
+        }
+        return c;
+    }
+
+    static AnalyticsProxyConfig parseConfig( final Properties p ) {
         return new AnalyticsProxyConfig(
                 p.getProperty( PROP_UPSTREAM, "" ).trim(),
                 p.getProperty( PROP_SCRIPT_NAME, "script.js" ).trim(),
-                Duration.ofMillis( intProp( p, PROP_TIMEOUT_MS, 5000 ) ),
-                intProp( p, PROP_MAX_INFLIGHT, 16 ),
+                Duration.ofMillis( intProp( p, PROP_TIMEOUT_MS, DEFAULT_TIMEOUT_MS ) ),
+                intProp( p, PROP_MAX_INFLIGHT, DEFAULT_MAX_INFLIGHT ),
                 p.getProperty( PROP_WEBSITE_ID, "" ).trim() );
     }
 
@@ -125,7 +149,7 @@ public class AnalyticsProxyServlet extends HttpServlet {
         try {
             return Integer.parseInt( v.trim() );
         } catch( final NumberFormatException e ) {
-            LOG.warn( "Ignoring non-numeric value '{}' for {}; using {}", v, key, dflt, e );
+            LOG.warn( "Ignoring non-numeric value '{}' for {}; using {}: {}", v, key, dflt, e.toString() );
             return dflt;
         }
     }
@@ -151,7 +175,7 @@ public class AnalyticsProxyServlet extends HttpServlet {
             synchronized( this ) {
                 s = inflight;
                 if( s == null ) {
-                    s = new Semaphore( Math.max( 1, cfg.maxInflight() ) );
+                    s = new Semaphore( cfg.maxInflight() );
                     inflight = s;
                 }
             }
@@ -169,11 +193,15 @@ public class AnalyticsProxyServlet extends HttpServlet {
         }
         CachedScript cached = script.get();
         final Instant now = clock.instant();
-        if( cached == null || Duration.between( cached.fetchedAt(), now ).compareTo( SCRIPT_TTL ) >= 0 ) {
+        final boolean expired = cached == null || Duration.between( cached.fetchedAt(), now ).compareTo( SCRIPT_TTL ) >= 0;
+        if( expired && now.toEpochMilli() >= retryNotBeforeMs.get() ) {
             final CachedScript fetched = fetchScript( cfg, path );
             if( fetched != null ) {
                 script.set( fetched );
                 cached = fetched;
+            } else {
+                // Back off so a down or hung upstream costs one timeout a minute, not one per request.
+                retryNotBeforeMs.set( clock.millis() + RETRY_BACKOFF_MS );
             }
         }
         if( cached == null ) {

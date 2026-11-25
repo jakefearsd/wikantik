@@ -62,6 +62,7 @@ class AnalyticsProxyServletTest {
     private final AtomicReference< String > seenUserAgent = new AtomicReference<>();
     private final AtomicReference< String > seenBody = new AtomicReference<>();
     private volatile long sendDelayMs;
+    private volatile boolean scriptFails;
     private final CountDownLatch sendArrived = new CountDownLatch( 1 );
 
     @BeforeEach
@@ -70,6 +71,11 @@ class AnalyticsProxyServletTest {
         upstream.setExecutor( Executors.newCachedThreadPool() );
         upstream.createContext( "/script.js", ex -> {
             scriptHits.incrementAndGet();
+            if( scriptFails ) {
+                ex.sendResponseHeaders( 500, -1 );
+                ex.close();
+                return;
+            }
             final byte[] b = SCRIPT.getBytes( StandardCharsets.UTF_8 );
             ex.getResponseHeaders().add( "Content-Type", "text/javascript" );
             ex.sendResponseHeaders( 200, b.length );
@@ -112,7 +118,7 @@ class AnalyticsProxyServletTest {
                                            final Clock clock ) {
         final AnalyticsProxyServlet.AnalyticsProxyConfig cfg = new AnalyticsProxyServlet.AnalyticsProxyConfig(
                 upstreamUrl, "script.js", timeout, maxInflight, "site-id" );
-        return new AnalyticsProxyServlet( HttpClient.newBuilder().connectTimeout( timeout )
+        return new AnalyticsProxyServlet( HttpClient.newBuilder().connectTimeout( cfg.timeout() )
                 .followRedirects( HttpClient.Redirect.NEVER ).build(), () -> cfg, clock );
     }
 
@@ -200,6 +206,48 @@ class AnalyticsProxyServletTest {
         final Resp r = get( s, "/script.js" );
         assertEquals( 200, r.status );
         assertEquals( SCRIPT, r.body() );
+    }
+
+    @Test
+    void failedRefreshBacksOffForAMinute() throws Exception {
+        final MutableClock clock = new MutableClock();
+        final AnalyticsProxyServlet s = servlet( url(), Duration.ofSeconds( 1 ), 16, clock );
+        assertEquals( SCRIPT, get( s, "/script.js" ).body() );
+        scriptFails = true;
+        clock.advance( Duration.ofHours( 2 ) );
+        assertEquals( SCRIPT, get( s, "/script.js" ).body() );
+        assertEquals( 2, scriptHits.get() );
+        clock.advance( Duration.ofSeconds( 30 ) );
+        assertEquals( SCRIPT, get( s, "/script.js" ).body() );
+        assertEquals( 2, scriptHits.get(), "no upstream call inside the backoff window" );
+        clock.advance( Duration.ofSeconds( 31 ) );
+        assertEquals( SCRIPT, get( s, "/script.js" ).body() );
+        assertEquals( 3, scriptHits.get() );
+    }
+
+    @Test
+    void configParsingFallsBackToDefaults() {
+        final java.util.Properties p = new java.util.Properties();
+        p.setProperty( "wikantik.analytics.upstream", "http://u" );
+        p.setProperty( "wikantik.analytics.website.id", "w" );
+        p.setProperty( "wikantik.analytics.proxy.timeout.ms", "abc" );
+        p.setProperty( "wikantik.analytics.proxy.max.inflight", "0" );
+        AnalyticsProxyServlet.AnalyticsProxyConfig c = AnalyticsProxyServlet.parseConfig( p );
+        assertEquals( Duration.ofMillis( 5000 ), c.timeout() );
+        assertEquals( 16, c.maxInflight() );
+        p.setProperty( "wikantik.analytics.proxy.timeout.ms", "-5" );
+        assertEquals( Duration.ofMillis( 5000 ), AnalyticsProxyServlet.parseConfig( p ).timeout() );
+        p.setProperty( "wikantik.analytics.proxy.timeout.ms", "250" );
+        p.setProperty( "wikantik.analytics.proxy.max.inflight", "3" );
+        c = AnalyticsProxyServlet.parseConfig( p );
+        assertEquals( Duration.ofMillis( 250 ), c.timeout() );
+        assertEquals( 3, c.maxInflight() );
+    }
+
+    @Test
+    void nonPositiveTimeoutDoesNotBreakRequests() throws Exception {
+        final AnalyticsProxyServlet s = servlet( url(), Duration.ZERO, 0, Clock.systemUTC() );
+        assertEquals( 200, get( s, "/script.js" ).status );
     }
 
     @Test

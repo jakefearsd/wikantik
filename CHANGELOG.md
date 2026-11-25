@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Reader analytics (off by default): same-origin Umami tracker on reader pages via `/analytics/*`, page-exit reading time and scroll depth, and code-copy, wikilink, outbound, diagram, table-of-contents and sign-in events; campaign parameters leave the address bar after the landing is recorded.
+- Reader analytics: nightly read-back of the back-office suite's engagement, page-speed and acquisition views into `reader_engagement_daily` / `reader_acquisition_daily` (V097); traffic channels (search engine, AI assistant, social, referral, email, paid, direct) per landing page, continuation and returning-this-month share.
+- `/admin/insights` gains a reader panel (`GET /admin/insights/readers`) with a search-click coverage check; admin MCP tool `list_reader_engagement`.
+- Insights schedulers now stop on engine shutdown.
+
 ## [2.8.4] - 2026-11-24
 
 - Live values: pages can write `{{wiki:articles}}`, `{{wiki:clusters}}`, `{{wiki:cluster.<path>.pages}}`, `{{wiki:version}}` and similar tokens in the body or the frontmatter `summary`; readers, feeds, search, MCP read tools, bundles and the ontology see the current value, while editing surfaces (admin MCP `read_page`, export, `/api/pages` content) keep the token. Options `|round=N` and `|else=text`; switch off with `wikantik.liveValues.enabled`.

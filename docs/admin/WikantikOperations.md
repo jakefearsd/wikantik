@@ -801,6 +801,59 @@ Watch it in `/metrics`:
 A steady shed rate means the embedder is the bottleneck: give it more parallelism or a faster device, not a higher
 cap.
 
+### 1.24 Reader analytics (Umami)
+
+Reader analytics is off unless it is configured. With a blank `wikantik.analytics.website.id` there is no tracker tag, the proxy answers 404, and no read-back runs.
+
+What it does:
+
+- The wiki loads the Umami tracker same-origin at `/analytics/script.js`. Beacons go to `/analytics/api/send`, which `AnalyticsProxyServlet` relays to the back-office suite's Umami on docker2 (`http://192.168.5.52:8085`). Readers' browsers never contact the suite directly.
+- A nightly read-back (thread `wikantik-reader-readback`) reads four suite views over a read-only login, `wikantik_ro`, on `192.168.5.52:8087`, into `reader_engagement_daily` and `reader_acquisition_daily` (V097). The first run is 5 minutes after start, then every `wikantik.analytics.readback.hours` (default 24).
+- Results appear in the reader panel at `/admin/insights`, at `GET /admin/insights/readers`, and through the admin MCP tool `list_reader_engagement`.
+
+**One-time website registration.** Log in as the `wikantik` Umami account. Its password is in `docker2:~/backoffice/secrets/umami-accounts`; read it into a shell variable and never print it:
+
+```bash
+UMAMI_PW=...   # read from docker2:~/backoffice/secrets/umami-accounts, not echoed
+TOKEN=$(curl -s -X POST http://192.168.5.52:8085/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -n --arg p "$UMAMI_PW" '{username:"wikantik", password:$p}')" | jq -r .token)
+
+WEBSITE_ID=$(uuidgen)   # generate once and keep it: this is WIKANTIK_ANALYTICS_WEBSITE_ID
+curl -s -X POST http://192.168.5.52:8085/api/websites \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d "$(jq -n --arg id "$WEBSITE_ID" '{id:$id, name:"wiki.wikantik.com", domain:"wiki.wikantik.com"}')"
+```
+
+Umami honours a supplied `id`, so the UUID chosen here is the one the wiki uses.
+
+**Prod switch-on.** In docker1's `.env.prod`, add:
+
+```
+WIKANTIK_ANALYTICS_WEBSITE_ID=<uuid from registration>
+WIKANTIK_ANALYTICS_UPSTREAM=http://192.168.5.52:8085
+WIKANTIK_ANALYTICS_READBACK_URL=jdbc:postgresql://192.168.5.52:8087/umami
+WIKANTIK_ANALYTICS_READBACK_PASSWORD=<docker2:~/backoffice/secrets/wikantik-ro>
+```
+
+The read-back user defaults to `wikantik_ro`. Then recreate the container (redeploy, see section 1.2).
+
+**Verify:**
+
+- A wiki page view appears in Umami's `wiki.wikantik.com` website.
+- Leaving a page fires `page-exit` with `active_s` and `max_scroll_pct`.
+- A `?utm_source=test` parameter disappears from the address bar after load.
+- The CSP header is unchanged: `curl -sI http://docker1:8080/wiki/Main | grep -i content-security`.
+- After about 5 minutes, `bin/remote.sh psql -- -c "select max(day), count(*) from reader_engagement_daily"` returns rows.
+- `wikantik_reader_readback_runs_total{outcome="ok"}` increments on `/metrics`.
+
+**Troubleshooting:**
+
+- Read-back failing: look for WARN lines from `ReaderAnalyticsReadback`. Rows already stored are kept. On the docker2 side, check that `WIKANTIK_RO_CIDR=192.168.5.51/32` is set in `~/backoffice/.env`; `pg_hba` rejects every other source.
+- Proxy `503`: the in-flight cap (16) is full.
+- Proxy `504`: Umami is slow to answer.
+- Proxy `400`: the beacon is for a different website id than `WIKANTIK_ANALYTICS_WEBSITE_ID`.
+
 ## 2. Backup & Disaster Recovery
 
 See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology

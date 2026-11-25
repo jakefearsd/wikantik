@@ -242,6 +242,14 @@ are recorded; newsletter addresses are held in a self-hosted list with double op
   can't return percentiles or per-visit landing logic, so the API is not an alternative. Wikantik gets a second,
   optional DataSource with its own config keys (blank = read-back off), and timeouts on connect and statement.
   The `wikantik` Umami *account* is still needed to register the website and for Jake's dashboards.
+  **Suite rule amended (Jake, 2026-11-24, option 1):** the suite's rule *"a product never reaches a suite
+  database"* becomes *"a product never reaches a suite service's own tables; it may read suite-owned views
+  through a read-only, host-restricted login of its own"*. The suite's CLAUDE.md, invariant tests and the
+  `SimpleAgilityBackOfficeSuite` page change with it. Rejected alternatives: API-only (no medians, channel
+  rules duplicated per product) and a PostgREST service (same data, one more service to run).
+- **`/analytics/*` is an in-app proxy** (*my call*, forced by the deployment): nothing sits in front of Tomcat on
+  docker1 (Cloudflare's tunnel reaches `:8080` directly), so a small servlet in Wikantik relays exactly two paths
+  to Umami, sets `X-Forwarded-For` to the reader's address as Tomcat's `RemoteIpValve` resolved it, and fails fast.
 - **Website scope.** One Umami website per Wikantik instance. Its id is a Wikantik property, blank by default
   (blank = tracker and read-back off). Production is the only instance with an id; dev, test and the docker2
   instance stay off unless someone sets one. Tests run against a stub view in `PostgresTestDb`.

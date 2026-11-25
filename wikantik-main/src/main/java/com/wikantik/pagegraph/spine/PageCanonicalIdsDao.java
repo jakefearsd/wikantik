@@ -227,7 +227,7 @@ public class PageCanonicalIdsDao extends JdbcSupport {
     public Optional< String > findCanonicalIdByHistoricalSlug( final String slug ) {
         try {
             return queryOne( "SELECT canonical_id FROM page_slug_history WHERE previous_slug = ? " +
-                    "ORDER BY renamed_at DESC LIMIT 1",
+                    "ORDER BY renamed_at DESC, canonical_id LIMIT 1",
                     ps -> ps.setString( 1, slug ), rs -> rs.getString( 1 ) );
         } catch ( final SQLException e ) {
             LOG.warn( "findCanonicalIdByHistoricalSlug({}) failed: {}", slug, e.getMessage() );

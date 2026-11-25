@@ -85,11 +85,11 @@ public final class WikiPathResolver implements PathResolver {
             LOG.warn( "Cannot URL-decode analytics path '{}': {}", urlPath, e.getMessage() );
             return null;
         }
-        if ( path.length() > 1 && path.endsWith( "/" ) ) {
-            path = path.substring( 0, path.length() - 1 );
-        }
-        if ( "/".equals( path ) ) {
+        if ( path.isEmpty() || "/".equals( path ) ) {
             return frontPageName;
+        }
+        if ( path.endsWith( "/" ) ) {
+            path = path.substring( 0, path.length() - 1 ); // "//" becomes "/", which is no page path
         }
         if ( !path.startsWith( WIKI_PREFIX ) ) {
             return null;

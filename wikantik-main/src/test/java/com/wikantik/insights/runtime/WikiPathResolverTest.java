@@ -32,12 +32,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class WikiPathResolverTest {
 
     private WikiPathResolver resolver;
+    private PageCanonicalIdsDao dao;
 
     @BeforeEach
     void setUp() {
         final var ds = PostgresTestDb.createDataSource();
         PostgresTestDb.truncate( "page_canonical_ids", "page_slug_history" );
-        final PageCanonicalIdsDao dao = new PageCanonicalIdsDao( ds );
+        dao = new PageCanonicalIdsDao( ds );
         dao.upsert( "01MAIN", "Main", "Main", "hub", null );
         dao.upsert( "01IT", "OldTrees", "Interval Trees", "article", null );
         dao.upsert( "01IT", "IntervalTrees", "Interval Trees", "article", null ); // records OldTrees as history
@@ -76,5 +77,34 @@ class WikiPathResolverTest {
         assertEquals( Optional.empty(), resolve( "/wiki/Nope" ) );
         assertEquals( Optional.empty(), resolve( "/login" ) );
         assertEquals( Optional.empty(), resolve( null ) );
+    }
+
+    @Test
+    void reusedHistoricalSlugResolvesToTheMostRecentRename() {
+        dao.upsert( "01A", "Shared", "A", "article", null );
+        dao.upsert( "01A", "A2", "A", "article", null );
+        dao.upsert( "01B", "Shared", "B", "article", null );
+        dao.upsert( "01B", "B2", "B", "article", null );
+        assertEquals( Optional.of( "01B" ), resolve( "/wiki/Shared" ) );
+    }
+
+    @Test
+    void currentSlugBeatsAHistoryRow() {
+        dao.upsert( "01CUR", "OldTrees", "Reused", "article", null ); // 01IT also has OldTrees in history
+        assertEquals( Optional.of( "01CUR" ), resolve( "/wiki/OldTrees" ) );
+    }
+
+    @Test
+    void literalPlusIsKept() {
+        dao.upsert( "01CPP", "C+Plus", "C Plus", "article", null );
+        assertEquals( Optional.of( "01CPP" ), resolve( "/wiki/C+Plus" ) );
+    }
+
+    @Test
+    void malformedAndDegeneratePathsAreEmpty() {
+        assertEquals( Optional.empty(), resolve( "/wiki/%zz" ) );
+        assertEquals( Optional.empty(), resolve( "/wiki/" ) );
+        assertEquals( Optional.empty(), resolve( "//" ) );
+        assertEquals( Optional.empty(), resolve( "///" ) );
     }
 }

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.5] - 2026-11-24
+
 - Reader analytics (off by default): same-origin Umami tracker on reader pages via `/analytics/*`, page-exit reading time and scroll depth, and code-copy, wikilink, outbound, diagram, table-of-contents and sign-in events; campaign parameters leave the address bar after the landing is recorded.
 - Reader analytics: nightly read-back of the back-office suite's engagement, page-speed and acquisition views into `reader_engagement_daily` / `reader_acquisition_daily` (V097); traffic channels (search engine, AI assistant, social, referral, email, paid, direct) per landing page, continuation and returning-this-month share.
 - `/admin/insights` gains a reader panel (`GET /admin/insights/readers`) with a search-click coverage check; admin MCP tool `list_reader_engagement`.

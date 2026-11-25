@@ -10,6 +10,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Reader analytics: nightly read-back of the back-office suite's engagement, page-speed and acquisition views into `reader_engagement_daily` / `reader_acquisition_daily` (V097); traffic channels (search engine, AI assistant, social, referral, email, paid, direct) per landing page, continuation and returning-this-month share.
 - `/admin/insights` gains a reader panel (`GET /admin/insights/readers`) with a search-click coverage check; admin MCP tool `list_reader_engagement`.
 - Insights schedulers now stop on engine shutdown.
+- Dependencies: exec-maven-plugin 3.7.0, @vitejs/plugin-react 6.3.0 (releases under 14 days old held; see the dependency upgrade log).
 
 ## [2.8.4] - 2026-11-24
 

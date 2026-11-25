@@ -126,9 +126,8 @@ class AdminAuthFilterAreaTest {
     @Test
     void readerInsightsEndpointIsMappedAndCoveredByTheAdminFilter() throws IOException {
         final Path webXml = Path.of( "..", "wikantik-war", "src", "main", "webapp", "WEB-INF", "web.xml" );
-        if ( !Files.exists( webXml ) ) {
-            return;
-        }
+        assertTrue( Files.exists( webXml ), "web.xml not found at " + webXml.toAbsolutePath()
+                + " (tests run with the module directory as basedir)" );
         final String xml = Files.readString( webXml, StandardCharsets.UTF_8 );
         assertTrue( xml.contains( "<url-pattern>/admin/insights/readers</url-pattern>" ),
                 "/admin/insights/readers must be mapped" );

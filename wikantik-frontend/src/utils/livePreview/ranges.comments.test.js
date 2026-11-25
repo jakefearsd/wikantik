@@ -13,6 +13,7 @@ import { editorMarkdownConfig } from '../editorMarkdown';
 import { commentRanges } from '../obsidianComments';
 import { commentsOf } from './ranges';
 import { livePreview } from './index';
+import { fullyParsed } from '../../test/fullParse';
 
 const extensions = [markdown(editorMarkdownConfig), history(), livePreview()];
 
@@ -44,25 +45,25 @@ describe('commentsOf: ranges read off the tree equal those of a fresh parse', ()
     const pick = (list) => list[Math.floor(rand() * list.length)];
     const doc = Array.from({ length: 8 }, () => pick(PARTS)).join('\n\n');
     let state = EditorState.create({ doc, extensions });
-    ensureSyntaxTree(state, state.doc.length, 5000);
+    state = fullyParsed(state);
     expect(ranges(state)).toEqual(fresh(state));
     for (let step = 0; step < 150; step += 1) {
       const len = state.doc.length;
       const from = Math.floor(rand() * (len + 1));
       const del = rand() < 0.3 ? Math.min(len - from, Math.floor(rand() * 4)) : 0;
       state = state.update({ changes: { from, to: from + del, insert: rand() < 0.2 ? '' : pick(TYPED) } }).state;
-      ensureSyntaxTree(state, state.doc.length, 5000);
+      state = fullyParsed(state);
       expect(ranges(state), `seed ${seed} step ${step}: ${JSON.stringify(state.doc.toString())}`).toEqual(fresh(state));
     }
   });
 
   it('is memoised per document and tree: the same array comes back until either changes', () => {
     let state = EditorState.create({ doc: 'a %%x%% b\n', extensions });
-    ensureSyntaxTree(state, state.doc.length, 5000);
+    state = fullyParsed(state);
     const first = commentsOf(state);
     expect(commentsOf(state)).toBe(first);
     state = state.update({ changes: { from: 0, insert: 'z' } }).state;
-    ensureSyntaxTree(state, state.doc.length, 5000);
+    state = fullyParsed(state);
     expect(commentsOf(state)).not.toBe(first);
     expect(ranges(state)).toEqual([[3, 8]]);
   });

@@ -568,3 +568,27 @@ least two weeks old, before 2026-11-07).
   7.18.6, vite 8.3.8, vitest 5.1.1, @vitejs/plugin-react 6.3.0: under two weeks old.
 - `commons-lang3` 3.22.0 under pluginManagement: the Apache parent's RAT dependency, not ours (ours is already 3.22.0).
 - libthrift (held at 0.23.0, jena-arq) and Bouncy Castle: unchanged holds.
+
+## 2026-11-24 sweep (pre-release, 2.8.5)
+
+Three days after the last sweep, so almost everything newer is under the 14-day supply-chain floor
+(cutoff 2026-11-10). Scans: `versions:display-{dependency,plugin,property}-updates` (stable-only rules),
+`npm outdated`, `npm audit` (0 vulnerabilities); release dates from Maven Central `Last-Modified` and `npm view time`.
+
+- **Applied (Maven):** `exec-maven-plugin` 3.6.4 -> 3.7.0 (`wikantik-war/pom.xml`, released 2026-11-09).
+- **Applied (frontend):** `@vitejs/plugin-react` 6.2.1 -> 6.3.0 (2026-11-09; installed alone, no runtime dep moved).
+- **Verification:** `mvn clean install -T 1C -DskipITs` (full, then resumed from wikantik-http after the fix below; BUILD SUCCESS),
+  `npx vitest run` 7471 passed, `npx eslint src` 0 errors, `npm run build` OK. IT gate left to the release run.
+- **Unrelated fix found by the build:** `ConfigSurfaceDriftTest` failed with `DEFAULT_MISMATCH` on
+  `wikantik.analytics.script.name` (ini `script.js`, servlet literal `""`). `AnalyticsProxyServlet.scriptName` now reads
+  with default `script.js` (behaviour unchanged: blank still means `script.js`).
+
+### Not taken (2026-11-24)
+
+- Under 14 days old: jena 6.3.0 (11-17), postgresql 42.7.15 (11-23), selenium 4.54.0 (11-23), versions-maven-plugin 2.25.3 (11-22),
+  vite 8.3.8 (11-11, 13.8 days), cytoscape 3.35.0 (11-10, 13.6 days), eslint 10.15.0 (11-13), vitest / coverage-v8 5.1.1 (11-18),
+  eslint-plugin-testing-library 7.16.3, react-router-dom 7.18.7 and @uiw/react-codemirror 4.25.13 (published today).
+  pgjdbc 42.7.15: release notes not checked for security content; OSV not consulted for it. Revisit next sweep.
+- `@codemirror/view` 6.43.15: still held at 6.43.13. `@testing-library/jest-dom` 8.0.0: major.
+- `commons-lang3` 3.22.0 under pluginManagement: Apache parent's RAT dependency, not ours.
+- libthrift (0.23.0, jena-arq) and Bouncy Castle (1.87 shared property): unchanged holds. Jena 6.3.0 would need the libthrift check anyway.

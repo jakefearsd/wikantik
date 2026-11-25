@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Privacy policy (`/privacy-policy.html`) discloses reader analytics: what is recorded, retention, no cookies.
+- Analytics proxy and reader report refactored to clear the PMD complexity ratchet; no behaviour change.
+- `bin/apply-privacy-policy.sh` pushes a drafted PrivacyPolicy wiki page to prod and the repo mirror.
+
 ## [2.8.6] - 2026-11-25
 
 - Docker: the entrypoint maps `WIKANTIK_ANALYTICS_*` environment variables onto the reader-analytics settings.

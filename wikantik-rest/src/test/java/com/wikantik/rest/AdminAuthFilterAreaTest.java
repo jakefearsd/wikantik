@@ -121,4 +121,19 @@ class AdminAuthFilterAreaTest {
         assertTrue( areas.contains( "insights" ), "sanity: the insights area should be present" );
         assertFalse( areas.contains( "*" ), "a wildcard must never become an area name" );
     }
+
+    /** The reader-analytics endpoint must be mapped, and sit under the /admin/* mapping AdminAuthFilter guards. */
+    @Test
+    void readerInsightsEndpointIsMappedAndCoveredByTheAdminFilter() throws IOException {
+        final Path webXml = Path.of( "..", "wikantik-war", "src", "main", "webapp", "WEB-INF", "web.xml" );
+        if ( !Files.exists( webXml ) ) {
+            return;
+        }
+        final String xml = Files.readString( webXml, StandardCharsets.UTF_8 );
+        assertTrue( xml.contains( "<url-pattern>/admin/insights/readers</url-pattern>" ),
+                "/admin/insights/readers must be mapped" );
+        assertTrue( Pattern.compile( "<filter-name>AdminAuthFilter</filter-name>\\s*<url-pattern>/admin/\\*</url-pattern>" )
+                .matcher( xml ).find(), "AdminAuthFilter must be mapped to /admin/*" );
+        assertEquals( "insights", AdminAuthFilter.adminAreaOf( "/admin/insights/readers", "" ) );
+    }
 }

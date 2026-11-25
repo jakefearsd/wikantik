@@ -66,7 +66,7 @@ export default function ReaderEngagementPanel() {
               <tr>
                 <th>Page</th>
                 <th>Views</th>
-                <th>Visitors</th>
+                <th title="Visitor-days: sum of daily visitors; not unique">Visitor-days</th>
                 <th title="Exit-weighted median of the daily median active times">Typical active time</th>
                 <th>Scrolled 75%</th>
                 <th>Actions / view</th>
@@ -75,9 +75,9 @@ export default function ReaderEngagementPanel() {
                 <th title="Share of landings by returning readers, counted on days 8+ of each month">
                   Returning this month
                 </th>
-                <th>LCP</th>
-                <th>INP</th>
-                <th>CLS</th>
+                <th title="Views-weighted mean of daily p75">LCP</th>
+                <th title="Views-weighted mean of daily p75">INP</th>
+                <th title="Views-weighted mean of daily p75">CLS</th>
               </tr>
             </thead>
             <tbody>

@@ -104,6 +104,22 @@ class ReaderReportTest {
     }
 
     @Test
+    void vitalsAreTheViewsWeightedMeanOfDailyP75Values() {
+        // day 1: 10 views; day 2: 30 views; day 3: 100 views but no INP sample (excluded from INP only).
+        store( List.of(
+                new EngagementDay( LocalDate.of( 2026, 11, 17 ), "ID_A", 10, 10, 1, 10.0, null, 0, 0, 0, 0, 0, 0, 0,
+                        1000.0, 100.0, 0.10 ),
+                new EngagementDay( LocalDate.of( 2026, 11, 18 ), "ID_A", 30, 30, 1, 10.0, null, 0, 0, 0, 0, 0, 0, 0,
+                        2000.0, 300.0, 0.20 ),
+                new EngagementDay( LocalDate.of( 2026, 11, 19 ), "ID_A", 100, 100, 1, 10.0, null, 0, 0, 0, 0, 0, 0, 0,
+                        null, null, null ) ), List.of() );
+        final PageReaderStats a = report.pages( HOST, 28, 10 ).get( 0 );
+        assertEquals( ( 1000.0 * 10 + 2000.0 * 30 ) / 40.0, a.lcpP75Ms(), 1e-9 );
+        assertEquals( ( 100.0 * 10 + 300.0 * 30 ) / 40.0, a.inpP75Ms(), 1e-9 );
+        assertEquals( ( 0.10 * 10 + 0.20 * 30 ) / 40.0, a.clsP75(), 1e-9 );
+    }
+
+    @Test
     void returningShareIgnoresTheFirstSevenDaysOfAMonth() {
         // Nov 5: 10 landings, 10 returning (ignored). Nov 10 and Nov 12: 4 landings each, 1 returning on Nov 10.
         store( List.of( eng( LocalDate.of( 2026, 11, 5 ), "ID_A", 10, 1, 10.0, 0 ) ),

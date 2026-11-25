@@ -96,8 +96,8 @@ public class ListReaderEngagementTool extends AbstractMcpTool {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "List per-page reader engagement from the analytics rollups, most-viewed first: "
-                        + "views, visitors, typical_active_s (exit-weighted median of daily medians), scroll "
-                        + "depth, landings by channel, continuation and returning-this-month rates, web vitals. "
+                        + "views, visitors (visitor-days: sum of daily visitors, not unique), typical_active_s (exit-weighted median of daily medians), scroll "
+                        + "depth, landings by channel, continuation and returning-this-month rates, web vitals lcp_p75_ms/inp_p75_ms/cls_p75 (views-weighted mean of daily p75 values, not a true 75th percentile). "
                         + "A null value means no data, not zero. An empty list with refreshedAt null means "
                         + "analytics is off or has not been read back yet, not that nobody read the wiki." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )

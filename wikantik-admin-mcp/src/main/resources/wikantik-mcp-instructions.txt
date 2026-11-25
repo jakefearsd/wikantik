@@ -346,7 +346,10 @@ list_reader_engagement
                   returning_this_month_rate, lcp_p75_ms, inp_p75_ms,
                   cls_p75}], count, days, refreshedAt }.
                   typical_active_s is the exit-weighted median of daily
-                  median active times. A null value means no data, not zero.
+                  median active times.
+                  visitors is visitor-days: the sum of daily visitors, not
+                  unique visitors. lcp_p75_ms, inp_p75_ms and cls_p75 are the
+                  views-weighted mean of the daily p75 values. A null value means no data, not zero.
                   An empty list with refreshedAt null means analytics is off
                   or not yet read back, not that nobody read the wiki.
 

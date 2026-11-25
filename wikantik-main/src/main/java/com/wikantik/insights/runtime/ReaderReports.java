@@ -38,7 +38,9 @@ public final class ReaderReports {
         final PageCanonicalIdsDao dao = new PageCanonicalIdsDao( ds );
         final PageDirectory directory = id -> dao.findByCanonicalId( id )
                 .map( row -> new PageDirectory.Entry( row.currentSlug(), row.cluster() ) );
-        // A fresh resolver per report: renames made later must not be masked by a stale memo.
+        // The path resolver memoises per instance, so a long-lived report (the MCP tool keeps one) can
+        // serve a stale mapping after a rename until the process restarts; the REST endpoint builds a
+        // new report per request.
         return new ReaderReport( new Jdbc( ds ), new WikiPathResolver( dao, frontPageName ), directory,
                 Clock.systemUTC() );
     }

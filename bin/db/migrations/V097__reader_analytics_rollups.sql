@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS reader_acquisition_daily (
     source        TEXT        NOT NULL,
     landings      INTEGER     NOT NULL DEFAULT 0,
     continued     INTEGER     NOT NULL DEFAULT 0,
-    "returning"   INTEGER     NOT NULL DEFAULT 0,
+    returning_landings INTEGER NOT NULL DEFAULT 0,
     refreshed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (day, site_host, canonical_id, channel, source)
 );

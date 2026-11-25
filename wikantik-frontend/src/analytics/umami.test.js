@@ -24,7 +24,7 @@ describe('umami wrapper', () => {
   });
 
   it('trackPageview without window.umami resolves', async () => {
-    await expect(trackPageview()).resolves.toBeUndefined();
+    await expect(trackPageview()).resolves.toBe(false);
   });
 
   it('track swallows tracker errors with console.debug', () => {
@@ -89,5 +89,50 @@ describe('umami wrapper', () => {
     expect(getReaderPageContext('/wiki/B').canonicalId).toBeUndefined();
     expect(primaryCluster('solo')).toBe('solo');
     expect(primaryCluster(undefined)).toBeUndefined();
+  });
+
+  describe('late tracker and /search privacy', () => {
+    afterEach(() => { document.querySelectorAll('script[data-website-id]').forEach((n) => n.remove()); vi.useRealTimers(); });
+
+    function addTag() {
+      const tag = document.createElement('script');
+      tag.setAttribute('data-website-id', 'w');
+      document.head.appendChild(tag);
+      return tag;
+    }
+
+    it('waits for a deferred tracker tag, then sends the pageview with the utm query', async () => {
+      const tag = addTag();
+      window.history.replaceState(null, '', '/wiki/A?utm_source=x');
+      const pending = trackPageview();
+      const { sent } = fakeUmami();
+      tag.dispatchEvent(new Event('load'));
+      await expect(pending).resolves.toBe(true);
+      expect(sent[0].url).toBe('/wiki/A?utm_source=x');
+    });
+
+    it('gives up after the bounded wait when the tracker never arrives', async () => {
+      vi.useFakeTimers();
+      addTag();
+      const pending = trackPageview();
+      await vi.advanceTimersByTimeAsync(5001);
+      await expect(pending).resolves.toBe(false);
+    });
+
+    it('resolves false on a script error event', async () => {
+      const tag = addTag();
+      const pending = trackPageview();
+      tag.dispatchEvent(new Event('error'));
+      await expect(pending).resolves.toBe(false);
+    });
+
+    it('sends /search without the reader query string, pageviews and events alike', async () => {
+      const { sent } = fakeUmami();
+      window.history.replaceState(null, '', '/search?q=my+secret+terms');
+      await trackPageview();
+      track('x', {});
+      expect(sent[0].url).toBe('/search');
+      expect(sent[1].url).toBe('/search');
+    });
   });
 });

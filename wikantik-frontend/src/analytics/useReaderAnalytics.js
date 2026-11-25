@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { isTrackedRoute, currentPageUrl, track, trackPageview, stripCampaignParams, getReaderPageContext } from './umami';
+import { hasTracker, isTrackedRoute, currentPageUrl, track, trackPageview, stripCampaignParams, getReaderPageContext } from './umami';
 
 // After this long without a click/key/scroll/pointer move the reader counts as idle: time stops accruing.
 const IDLE_GRACE_MS = 30000;
@@ -25,7 +25,7 @@ export function useReaderAnalytics() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    if (!isTrackedRoute(pathname)) return undefined;
+    if (!isTrackedRoute(pathname) || !hasTracker()) return undefined;
 
     const view = {
       path: pathname, url: currentPageUrl(), activeMs: 0, lastTs: Date.now(), lastInteraction: Date.now(), maxScroll: 0, sent: false,
@@ -73,7 +73,7 @@ export function useReaderAnalytics() {
     view.maxScroll = scrollPct();
 
     // Strip campaign params only after the pageview (which carried them) has been handed to the tracker.
-    trackPageview().then(stripCampaignParams);
+    trackPageview().then((handed) => { if (handed) stripCampaignParams(); });
 
     return () => {
       INTERACTION_EVENTS.forEach((ev) => window.removeEventListener(ev, onInteraction, { capture: true }));

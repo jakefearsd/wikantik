@@ -144,4 +144,52 @@ describe('useReaderAnalytics', () => {
     });
     expect(exits()[0].data.max_scroll_pct).toBe(100);
   });
+
+  it('late tracker: pageview is sent with the utm query and only then stripped', async () => {
+    const real = window.umami;
+    delete window.umami;
+    const tag = document.createElement('script');
+    tag.setAttribute('data-website-id', 'w');
+    document.head.appendChild(tag);
+    window.history.replaceState(null, '', '/wiki/A?utm_source=x');
+    mount('/wiki/A');
+    expect(window.location.search).toBe('?utm_source=x');
+    window.umami = real;
+    await act(async () => { tag.dispatchEvent(new Event('load')); await Promise.resolve(); await Promise.resolve(); });
+    expect(pageviews()[0].url).toBe('/wiki/A?utm_source=x');
+    expect(window.location.search).toBe('');
+    tag.remove();
+  });
+
+  it('tracker never arrives: no pageview and the campaign params stay', async () => {
+    delete window.umami;
+    const tag = document.createElement('script');
+    tag.setAttribute('data-website-id', 'w');
+    document.head.appendChild(tag);
+    window.history.replaceState(null, '', '/wiki/A?utm_source=x');
+    mount('/wiki/A');
+    await act(async () => { await vi.advanceTimersByTimeAsync(5001); });
+    expect(sent).toHaveLength(0);
+    expect(window.location.search).toBe('?utm_source=x');
+    tag.remove();
+  });
+
+  it('no tracker tag on the page: attaches no listeners', () => {
+    delete window.umami;
+    const add = vi.spyOn(window, 'addEventListener');
+    const addDoc = vi.spyOn(document, 'addEventListener');
+    mount('/wiki/A');
+    const ours = (spy) => spy.mock.calls.filter(([ev]) => ['scroll', 'click', 'keydown', 'mousemove', 'touchstart', 'pagehide', 'visibilitychange'].includes(ev));
+    expect(ours(add)).toHaveLength(0);
+    expect(ours(addDoc)).toHaveLength(0);
+    add.mockRestore(); addDoc.mockRestore();
+  });
+
+  it('sends /search page-exit without the query string', async () => {
+    window.history.replaceState(null, '', '/search?q=private+words');
+    mount('/search');
+    await act(async () => { nav('/edit/x'); });
+    expect(pageviews()[0].url).toBe('/search');
+    expect(exits()[0].url).toBe('/search');
+  });
 });

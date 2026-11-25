@@ -36,8 +36,40 @@ function umami() {
   return u && typeof u.track === 'function' ? u : null;
 }
 
+// /search carries the reader's free-text query, which must never reach the analytics store: send the path only.
 function currentUrl() {
-  return window.location.pathname + window.location.search;
+  const { pathname, search } = window.location;
+  return routePath(pathname) === '/search' ? pathname : pathname + search;
+}
+
+const TRACKER_WAIT_MS = 5000;
+
+/** True when a tracker is, or is about to be, on the page: `window.umami` exists or its tag was injected. */
+export function hasTracker() {
+  return umami() !== null || (typeof document !== 'undefined' && document.querySelector('script[data-website-id]') !== null);
+}
+
+/**
+ * Resolves the tracker once usable. The injected tag is `defer`, so it can arrive after React's first render: wait for
+ * that tag's load/error (bounded) before giving up. Resolves null when there is no tracker or it never arrives.
+ */
+function whenTracker() {
+  const now = umami();
+  if (now) return Promise.resolve(now);
+  const tag = typeof document !== 'undefined' ? document.querySelector('script[data-website-id]') : null;
+  if (!tag) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    let timer;
+    const done = () => {
+      clearTimeout(timer);
+      tag.removeEventListener('load', done);
+      tag.removeEventListener('error', done);
+      resolve(umami());
+    };
+    tag.addEventListener('load', done);
+    tag.addEventListener('error', done);
+    timer = setTimeout(done, TRACKER_WAIT_MS);
+  });
 }
 
 // url of the previous tracked pageview; the referrer of the next one. null until the first pageview is sent.
@@ -60,11 +92,14 @@ export function track(name, props, url = currentUrl()) {
   }
 }
 
-/** Sends a pageview for the current URL (campaign params included, so Umami can attribute them). */
+/**
+ * Sends a pageview for the current URL (campaign params included, so Umami can attribute them). Resolves true once
+ * the pageview was handed to the tracker, false when there is no tracker (callers must then keep the params).
+ */
 export async function trackPageview() {
-  const u = umami();
-  if (!u) return;
   const url = currentUrl();
+  const u = umami() || await whenTracker();
+  if (!u) return false;
   const referrer = previousUrl;
   previousUrl = url;
   try {
@@ -72,13 +107,14 @@ export async function trackPageview() {
   } catch (e) {
     console.debug('[analytics] pageview failed', e?.message || e);
   }
+  return true;
 }
 
-/** Removes campaign/click-id params from the address bar (after the pageview carried them). */
 export function currentPageUrl() {
   return currentUrl();
 }
 
+/** Removes campaign/click-id params from the address bar (after the pageview carried them). */
 export function stripCampaignParams() {
   try {
     const params = new URLSearchParams(window.location.search);

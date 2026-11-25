@@ -670,8 +670,9 @@ public class WorkCodeHostIT {
         assertFalse( inLane( e.author, key ), "a member's lane does not" );
         assertTrue( hasEvent( key, "change_flagged" ) );
 
-        // the lead's inbox (the dispatcher runs every 2 s in this module)
-        final String inbox = WorkIt.await( "inbox", e.lead, "/api/work/inbox", b -> b.contains( key ) );
+        // the lead's inbox (the dispatcher runs every 2 s in this module). Wait for the flag notice itself: the
+        // lead also watches the item, so an earlier review_requested notice already contains the key.
+        final String inbox = WorkIt.await( "inbox", e.lead, "/api/work/inbox", b -> b.contains( "\"type\":\"change_flagged\"" ) );
         boolean flagged = false;
         for ( final JsonElement n : json( e.lead.get( "/api/work/inbox" ) ).getAsJsonObject().getAsJsonArray( "notices" ) ) {
             final JsonObject ev = n.getAsJsonObject().getAsJsonObject( "event" );

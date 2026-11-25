@@ -12,7 +12,7 @@ interactions route through MCP server tools directly.
 > bash — so this skill runs identically under Claude Code and Antigravity. The live bundle check is the
 > `assemble_bundle` MCP tool, never `GET /api/bundle`. Do not add client-specific mechanisms.
 
-> **Tool surface reconciled 2026-11-15 against the live servers** (admin-mcp = 22 tools, knowledge-mcp
+> **Tool surface reconciled 2026-11-15 against the live servers** (admin-mcp = 23 tools, knowledge-mcp
 > = 16 tools; the Knowledge Graph is retired and its tools — `propose_knowledge`, `curate_edges`,
 > `curate_nodes`, `list_proposals`, `inspect_proposals`, `review_proposals`, `query_nodes`,
 > `search_knowledge`, `list_orphaned_kg_nodes`, `discover_schema`, `get_node`, `traverse`,

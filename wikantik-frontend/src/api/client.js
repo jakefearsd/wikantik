@@ -650,6 +650,10 @@ export const api = {
       return request(`/admin/insights/backlog${qs ? '?' + qs : ''}`);
     },
 
+    // Reader engagement per page (Umami read-back rollups) + search coverage; days clamped to 90 server-side.
+    getInsightsReaders: (days = 28) =>
+      request(`/admin/insights/readers?days=${encodeURIComponent(String(days))}`),
+
     // Embeddings + Embedding activity (the retrieval index's operator surface)
     embeddings: {
       getStatus: () => request('/admin/embeddings/status'),

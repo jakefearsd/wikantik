@@ -59,6 +59,8 @@ public class McpProtocolIT extends WithMcpTestSetup {
             "list_retrieval_queries",
             // Content intelligence — the ranked opportunity backlog and its decline path
             "list_content_opportunities", "snooze_opportunity",
+            // Reader analytics — per-page engagement from the Umami rollups
+            "list_reader_engagement",
             // Agent comment feedback loop — answer reader comment threads
             "list_comment_threads", "respond_to_comment_thread"
     );

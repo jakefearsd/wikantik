@@ -150,6 +150,15 @@ public class McpToolRegistry {
         readOnlyList.add( new ListContentOpportunitiesTool( opportunityService ) );
         authorConfigurableList.add( new SnoozeOpportunityTool( opportunityService ) );
 
+        // Reader engagement (analytics rollups). Registered UNCONDITIONALLY like the tools above;
+        // with no datasource it refuses at call time.
+        final var readerPersistence = engine instanceof com.wikantik.WikiEngine we4 ? we4.getPersistenceSubsystem() : null;
+        final javax.sql.DataSource readerDs = readerPersistence == null ? null : readerPersistence.dataSource();
+        readOnlyList.add( new ListReaderEngagementTool(
+                readerDs == null ? null
+                        : com.wikantik.insights.runtime.ReaderReports.create( readerDs, engine.getFrontPage() ),
+                com.wikantik.analytics.AnalyticsSettings.siteHostOf( engine.getWikiProperties() ) ) );
+
         // Reader comment threads (agent feedback loop). Registered UNCONDITIONALLY for the same
         // reason as the tools above: both refuse at call time when no datasource is wired.
         final var persistence = engine instanceof com.wikantik.WikiEngine we3 ? we3.getPersistenceSubsystem() : null;

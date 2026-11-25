@@ -106,6 +106,9 @@ public record AnalyticsSettings( String websiteId, String upstream, String scrip
      * {@code wikantik.public.baseURL} (falling back to {@code wikantik.baseURL}).
      */
     public static String siteHostOf( final Properties properties ) {
+        if( properties == null ) {
+            return "";
+        }
         return from( properties ).resolveSiteHost(
                 properties.getProperty( "wikantik.public.baseURL", properties.getProperty( "wikantik.baseURL", "" ) ) );
     }

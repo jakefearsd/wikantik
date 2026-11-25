@@ -1069,6 +1069,14 @@ describe('admin retrieval/drift/insights/audit/ownership methods', () => {
     expect(url).toContain('includeSnoozed=true');
   });
 
+  it('getInsightsReaders defaults to 28 days and passes an explicit window', async () => {
+    await api.admin.getInsightsReaders();
+    expect(lastCall()[0]).toBe('/admin/insights/readers?days=28');
+
+    await api.admin.getInsightsReaders(7);
+    expect(lastCall()[0]).toBe('/admin/insights/readers?days=7');
+  });
+
   it('listAuditLog omits absent filters and converts from/to to ISO', async () => {
     await api.admin.listAuditLog();
     expect(lastCall()[0]).toBe('/admin/audit');

@@ -7,6 +7,7 @@ vi.mock('../../api/client', () => ({
     admin: {
       getInsightsAcquisition: vi.fn(),
       getInsightsBacklog: vi.fn(),
+      getInsightsReaders: vi.fn(),
     },
   },
 }));
@@ -39,6 +40,7 @@ beforeEach(() => {
     suppressed: [],
     uncalibratedTypes: [],
   });
+  api.admin.getInsightsReaders.mockResolvedValue({ pages: [], coverage: { site: {}, pages: [] }, refreshedAt: null });
 });
 
 describe('InsightsPanel', () => {

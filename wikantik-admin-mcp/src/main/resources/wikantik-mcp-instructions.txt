@@ -333,6 +333,23 @@ list_content_opportunities
                   "nothing to do". Weigh calibrated=false lower: that type's
                   priority weight is still a guess.
 
+list_reader_engagement
+                  Read-only. What readers did on each page over a window,
+                  from the analytics rollups, most-viewed first.
+                  Parameters (all optional):
+                    days            window in days (default 28, max 90)
+                    limit           max pages (default 25, max 200)
+                    cluster         only pages in exactly this cluster
+                  Output: { pages: [{canonical_id, slug, views, visitors,
+                  typical_active_s, scroll75_rate, actions_per_view,
+                  landings:{channel:n}, continuation_rate,
+                  returning_this_month_rate, lcp_p75_ms, inp_p75_ms,
+                  cls_p75}], count, days, refreshedAt }.
+                  typical_active_s is the exit-weighted median of daily
+                  median active times. A null value means no data, not zero.
+                  An empty list with refreshedAt null means analytics is off
+                  or not yet read back, not that nobody read the wiki.
+
 snooze_opportunity
                   Decline an opportunity so it stops being re-proposed.
                   Parameters (ALL required):

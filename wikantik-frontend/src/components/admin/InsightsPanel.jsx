@@ -11,6 +11,7 @@ import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
 import Sparkline from './Sparkline';
 import BacklogPanel from './BacklogPanel';
+import ReaderEngagementPanel from './ReaderEngagementPanel';
 import '../../styles/admin.css';
 
 const DEFAULT_SITE = 'wiki.wikantik.com';
@@ -103,6 +104,10 @@ export default function InsightsPanel() {
           stale search-visibility snapshot has no bearing on whether the backlog can load. */}
       <div className="page-enter">
         <BacklogPanel />
+      </div>
+
+      <div className="page-enter">
+        <ReaderEngagementPanel />
       </div>
     </>
   );

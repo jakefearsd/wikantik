@@ -9,19 +9,20 @@ summary: 'How wiki.wikantik.com handles your data: what it collects, which cooki
   it sets, who else sees it, and how to delete your account.'
 canonical_id: 01KQ0P44TRZS26YNJNHK32EFF1
 status: active
-date: '2026-10-14'
+date: '2026-11-25'
 type: reference
 cluster: wikantik-development
 ---
 # Privacy Policy
 
-**Effective:** 2026-10-14
+**Effective:** 2026-11-25
 
 This is the privacy policy for **wiki.wikantik.com**, the public Wikantik wiki. I run it: Jacob Fear, [jakefear@gmail.com](mailto:jakefear@gmail.com). Wikantik is the wiki software; this policy covers this site and the contact form on the www.wikantik.com marketing site. If you run your own copy of Wikantik, this policy says nothing about your copy.
 
 ## The short version
 
-- I do not sell your data. The wiki shows no ads and loads no analytics or advertising code.
+- I do not sell your data. The wiki shows no ads and loads no advertising code.
+- The wiki measures readership with self-hosted, cookieless analytics that run on my own servers. No analytics cookies or browser storage are used, and no third-party analytics service receives data. See "Reader analytics" below.
 - You can read most of the wiki without an account. Even then, your IP address and browser details pass through Cloudflare and are written to server logs.
 - An account holds the basics: login name, email address, display name and, for password accounts, a hashed password.
 - Edits and comments are public, along with the name they were made under. Page history is kept.
@@ -40,6 +41,22 @@ This is the privacy policy for **wiki.wikantik.com**, the public Wikantik wiki. 
 **Your login name is private.** Other people see your display name, never your login name. If you sign in with Google, your login name is your Google email address, and it is not shown in page history, comments, mentions, search results, feeds, the public data exports or the @mention box. Only you (on your preferences page) and the site administrator can see it. Signed-in users can look up other accounts by display name through the @mention box in comments; that lookup returns each person's display name and an anonymous account number, nothing else, and is not available to visitors who are not signed in. Display names are public and unique, so choose one you are happy to see next to your edits. Anything you type into a page yourself, such as an email address in the body, is shown as written; in a page's author or verified-by field, an account's login is shown as its display name and any other email address as "unknown contributor".
 
 **An audit log.** The wiki keeps an append-only record of security-relevant events: sign-ins and sign-outs (successful and failed), access denied, page saves, deletes and renames, group and profile changes, and API key events. Each entry records who did it, what happened, the IP address and the browser's user-agent. Page reads are not recorded unless a page is specifically flagged for it. Entries are not edited or removed when an account is deleted.
+
+## Reader analytics
+
+From 2026-11-25 the wiki measures how it is read, to understand which pages help readers, to improve content, and to see where readers come from. It does this with Umami, a cookieless analytics tool that I run on my own servers. The tracker script is served from the wiki's own address, no analytics cookies or local storage are used, and no third-party analytics service receives any of this data.
+
+What is recorded:
+
+- The pages you visit (the page address, including the address of search-results pages).
+- Where you came from: the referring site and any campaign tags on the address (`utm_*` parameters, advertising click identifiers), recorded when you arrive.
+- Your approximate country, worked out from your IP address. The analytics service does not store the IP address itself; it derives an anonymous session identifier that rotates every month.
+- Your browser, operating system and device type.
+- How long you spend reading a page and how far down you scroll.
+- A few on-page actions: copying a code block, following a wiki link or an outbound link (only the destination site is recorded), interacting with a diagram or formula, using the table of contents, and clicking "Sign in".
+- Page-speed timings (Core Web Vitals).
+
+I do not build a personal profile, and because the identifier rotates monthly, visitors are not recognised from one month to the next. The ordinary server logs described above are separate from this.
 
 ## Cookies and browser storage
 
@@ -75,6 +92,7 @@ There are no analytics, advertising or cross-site tracking cookies. The site als
 ## How long things are kept
 
 - **Logs:** weeks, not years. The central log store deletes entries after 30 days, the security log keeps at most 90 daily files, and the web server's own access log lives inside the application container and goes away when a new release replaces that container.
+- **Reader analytics:** raw analytics events are kept for 730 days. Per-page daily totals, which identify no one, are kept indefinitely.
 - **Audit log:** up to seven years.
 - **Search queries:** no automatic deletion.
 - **Account details:** until you delete the account.
@@ -98,7 +116,7 @@ This site is not directed at children under 13, and I do not knowingly collect t
 
 ## Changes
 
-When I change this policy I will update the effective date at the top, and the page history is public. 2026-10-13: rewritten from a generic template to describe what the wiki actually does. 2026-10-14: other people now see your display name instead of your login name, and display names are unique.
+When I change this policy I will update the effective date at the top, and the page history is public. 2026-10-13: rewritten from a generic template to describe what the wiki actually does. 2026-10-14: other people now see your display name instead of your login name, and display names are unique. 2026-11-25: added reader analytics (self-hosted, cookieless).
 
 ## Contact
 

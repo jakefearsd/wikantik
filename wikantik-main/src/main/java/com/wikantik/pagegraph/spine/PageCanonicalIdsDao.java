@@ -220,6 +220,21 @@ public class PageCanonicalIdsDao extends JdbcSupport {
         }
     }
 
+    /**
+     * The canonical_id of the page that once lived at {@code slug}. When a slug was reused and
+     * so appears in the history of several pages, the most recent rename wins.
+     */
+    public Optional< String > findCanonicalIdByHistoricalSlug( final String slug ) {
+        try {
+            return queryOne( "SELECT canonical_id FROM page_slug_history WHERE previous_slug = ? " +
+                    "ORDER BY renamed_at DESC LIMIT 1",
+                    ps -> ps.setString( 1, slug ), rs -> rs.getString( 1 ) );
+        } catch ( final SQLException e ) {
+            LOG.warn( "findCanonicalIdByHistoricalSlug({}) failed: {}", slug, e.getMessage() );
+            return Optional.empty();
+        }
+    }
+
     public List< Row > findAll() {
         try {
             return query( "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +

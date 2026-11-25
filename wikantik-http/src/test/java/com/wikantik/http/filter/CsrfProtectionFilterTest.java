@@ -329,6 +329,63 @@ class CsrfProtectionFilterTest {
         }
     }
 
+    private static HttpServletRequest analyticsPost( final String contentType ) {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "POST" ).when( request ).getMethod();
+        Mockito.doReturn( "/analytics" ).when( request ).getServletPath();
+        Mockito.doReturn( "/api/send" ).when( request ).getPathInfo();
+        Mockito.doReturn( contentType ).when( request ).getContentType();
+        return request;
+    }
+
+    @Test
+    void analyticsBeaconJsonPostPassesWithoutCsrfToken() throws Exception {
+        final Engine engine = Mockito.mock( Engine.class );
+        Mockito.doReturn( new Properties() ).when( engine ).getWikiProperties();
+        final EngineSPI engineSpi = Mockito.mock( EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( Mockito.nullable( ServletContext.class ), Mockito.any() );
+        try( final MockedStatic< Wiki > wiki = Mockito.mockStatic( Wiki.class, Mockito.CALLS_REAL_METHODS ) ) {
+            wiki.when( Wiki::engine ).thenReturn( engineSpi );
+            final HttpServletRequest request = analyticsPost( "application/json" );
+            final HttpServletResponse response = Mockito.mock( HttpServletResponse.class );
+            final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+            new CsrfProtectionFilter().doFilter( request, response, chain );
+            Mockito.verify( chain ).doFilter( request, response );
+        }
+    }
+
+    @Test
+    void analyticsBeaconIsOnlyExemptForJsonOnTheSendPath() {
+        assertTrue( CsrfProtectionFilter.isRestApiEndpoint( analyticsPost( "application/json; charset=UTF-8" ) ) );
+        assertFalse( CsrfProtectionFilter.isRestApiEndpoint( analyticsPost( "application/x-www-form-urlencoded" ) ) );
+        assertFalse( CsrfProtectionFilter.isRestApiEndpoint( analyticsPost( null ) ) );
+        final HttpServletRequest other = analyticsPost( "application/json" );
+        Mockito.doReturn( "/script.js" ).when( other ).getPathInfo();
+        assertFalse( CsrfProtectionFilter.isRestApiEndpoint( other ) );
+    }
+
+    @Test
+    void analyticsFormPostIsStillCsrfChecked() throws Exception {
+        final Engine engine = Mockito.mock( Engine.class );
+        Mockito.doReturn( new Properties() ).when( engine ).getWikiProperties();
+        final Session session = Mockito.mock( Session.class );
+        Mockito.doReturn( "real-token" ).when( session ).antiCsrfToken();
+        final EngineSPI engineSpi = Mockito.mock( EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( Mockito.nullable( ServletContext.class ), Mockito.any() );
+        final SessionSPI sessionSpi = Mockito.mock( SessionSPI.class );
+        Mockito.doReturn( session ).when( sessionSpi ).find( Mockito.any(), Mockito.any() );
+        try( final MockedStatic< Wiki > wiki = Mockito.mockStatic( Wiki.class, Mockito.CALLS_REAL_METHODS ) ) {
+            wiki.when( Wiki::engine ).thenReturn( engineSpi );
+            wiki.when( Wiki::session ).thenReturn( sessionSpi );
+            final HttpServletRequest request = analyticsPost( "application/x-www-form-urlencoded" );
+            final HttpServletResponse response = Mockito.mock( HttpServletResponse.class );
+            final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+            new CsrfProtectionFilter().doFilter( request, response, chain );
+            Mockito.verify( response ).sendRedirect( "/error/Forbidden.html" );
+            Mockito.verify( chain, Mockito.never() ).doFilter( request, response );
+        }
+    }
+
     @Test
     void initIsANoOpAndDoesNotThrow() {
         assertDoesNotThrow( () -> new CsrfProtectionFilter().init( null ) );

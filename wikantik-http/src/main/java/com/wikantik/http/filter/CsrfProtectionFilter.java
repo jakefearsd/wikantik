@@ -215,7 +215,21 @@ public class CsrfProtectionFilter implements Filter {
         // synchronizer token does not apply (a forged POST can only read public data).
         return servletPath != null
                 && ( servletPath.startsWith( "/api/" ) || servletPath.startsWith( "/admin/" )
-                     || "/sparql".equals( servletPath ) );
+                     || "/sparql".equals( servletPath ) || isAnalyticsBeacon( request ) );
+    }
+
+    /**
+     * The analytics beacon relay: {@code /analytics/api/send} carrying JSON. The {@code /analytics/*} servlet mapping
+     * puts {@code /analytics} in the servlet path and {@code /api/send} in the path info. Only a JSON content type
+     * qualifies (a form post cannot be forged cross-origin as JSON without a preflight); everything else under
+     * {@code /analytics} stays on the token path.
+     */
+    static boolean isAnalyticsBeacon( final HttpServletRequest request ) {
+        final String contentType = request.getContentType();
+        return "/analytics".equals( request.getServletPath() )
+                && "/api/send".equals( request.getPathInfo() )
+                && contentType != null
+                && contentType.toLowerCase( java.util.Locale.ROOT ).startsWith( "application/json" );
     }
 
     /** {@inheritDoc} */

@@ -822,6 +822,10 @@
        <servlet-class>com.wikantik.rest.InsightsBacklogResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AnalyticsProxyServlet</servlet-name>
+       <servlet-class>com.wikantik.http.analytics.AnalyticsProxyServlet</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>OntologySparqlResource</servlet-name>
        <servlet-class>com.wikantik.rest.OntologySparqlResource</servlet-class>
    </servlet>
@@ -1233,6 +1237,10 @@
    <servlet-mapping>
        <servlet-name>InsightsBacklogResource</servlet-name>
        <url-pattern>/admin/insights/backlog</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AnalyticsProxyServlet</servlet-name>
+       <url-pattern>/analytics/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>OntologySparqlResource</servlet-name>

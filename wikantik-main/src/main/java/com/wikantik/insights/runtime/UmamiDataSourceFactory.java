@@ -41,7 +41,7 @@ public final class UmamiDataSourceFactory {
         ds.setConnectTimeout( 5 );
         ds.setSocketTimeout( 120 );
         ds.setLoginTimeout( 5 );
-        ds.setOptions( "-c statement_timeout=60000" );
+        ds.setOptions( "-c statement_timeout=60000 -c TimeZone=UTC" );
         return ds;
     }
 }

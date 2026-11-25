@@ -61,6 +61,7 @@ class AnalyticsProxyServletTest {
     private final AtomicReference< String > seenXff = new AtomicReference<>();
     private final AtomicReference< String > seenUserAgent = new AtomicReference<>();
     private final AtomicReference< String > seenBody = new AtomicReference<>();
+    private final AtomicReference< String > seenCache = new AtomicReference<>();
     private volatile long sendDelayMs;
     private volatile boolean scriptFails;
     private final CountDownLatch sendArrived = new CountDownLatch( 1 );
@@ -87,6 +88,7 @@ class AnalyticsProxyServletTest {
             sendArrived.countDown();
             seenXff.set( ex.getRequestHeaders().getFirst( "X-Forwarded-For" ) );
             seenUserAgent.set( ex.getRequestHeaders().getFirst( "User-Agent" ) );
+            seenCache.set( ex.getRequestHeaders().getFirst( "x-umami-cache" ) );
             seenBody.set( new String( ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8 ) );
             if( sendDelayMs > 0 ) {
                 try {
@@ -151,7 +153,12 @@ class AnalyticsProxyServletTest {
     }
 
     private static HttpServletRequest request( final String pathInfo, final byte[] body ) throws IOException {
+        return request( pathInfo, body, null );
+    }
+
+    private static HttpServletRequest request( final String pathInfo, final byte[] body, final String umamiCache ) throws IOException {
         final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( umamiCache ).when( req ).getHeader( "x-umami-cache" );
         Mockito.doReturn( "/analytics" ).when( req ).getServletPath();
         Mockito.doReturn( pathInfo ).when( req ).getPathInfo();
         Mockito.doReturn( "203.0.113.7" ).when( req ).getRemoteAddr();
@@ -175,6 +182,16 @@ class AnalyticsProxyServletTest {
         final Resp r = new Resp();
         s.doGet( request( pathInfo, null ), r.mock );
         return r;
+    }
+
+    private Resp postWithCache( final AnalyticsProxyServlet s, final byte[] body, final String cache ) throws Exception {
+        final Resp r = new Resp();
+        s.doPost( request( "/api/send", body, cache ), r.mock );
+        return r;
+    }
+
+    private static byte[] payload( final String website ) {
+        return ( "{\"type\":\"event\",\"payload\":{\"website\":\"" + website + "\"}}" ).getBytes( StandardCharsets.UTF_8 );
     }
 
     private Resp post( final AnalyticsProxyServlet s, final String pathInfo, final byte[] body ) throws Exception {
@@ -258,13 +275,45 @@ class AnalyticsProxyServletTest {
 
     @Test
     void sendIsRelayedWithResolvedClientIp() throws Exception {
-        final byte[] body = "{\"type\":\"event\",\"payload\":{}}".getBytes( StandardCharsets.UTF_8 );
+        final byte[] body = payload( "site-id" );
         final Resp r = post( servlet(), "/api/send", body );
         assertEquals( 202, r.status );
         assertEquals( "{\"cache\":\"abc\"}", r.body() );
         assertEquals( "203.0.113.7", seenXff.get() );
         assertEquals( "Mozilla/5.0 TestBrowser", seenUserAgent.get() );
         assertEquals( new String( body, StandardCharsets.UTF_8 ), seenBody.get() );
+    }
+
+    @Test
+    void umamiCacheHeaderIsForwardedAndResponseTokenReturnedUnchanged() throws Exception {
+        final Resp r = postWithCache( servlet(), payload( "site-id" ), "tok.en-123" );
+        assertEquals( "tok.en-123", seenCache.get() );
+        assertEquals( "{\"cache\":\"abc\"}", r.body() );
+    }
+
+    @Test
+    void oversizedOrAbsentUmamiCacheHeaderIsNotForwarded() throws Exception {
+        postWithCache( servlet(), payload( "site-id" ), "x".repeat( 4097 ) );
+        assertEquals( null, seenCache.get() );
+        postWithCache( servlet(), payload( "site-id" ), null );
+        assertEquals( null, seenCache.get() );
+    }
+
+    @Test
+    void foreignOrMissingWebsiteIdAndMalformedJsonAre400() throws Exception {
+        final AnalyticsProxyServlet s = servlet();
+        assertEquals( 400, post( s, "/api/send", payload( "other-site" ) ).status );
+        assertEquals( 400, post( s, "/api/send", "{\"type\":\"event\",\"payload\":{}}".getBytes( StandardCharsets.UTF_8 ) ).status );
+        assertEquals( 400, post( s, "/api/send", "not json{".getBytes( StandardCharsets.UTF_8 ) ).status );
+        assertEquals( 400, post( s, "/api/send", "[1]".getBytes( StandardCharsets.UTF_8 ) ).status );
+        assertEquals( 0, sendHits.get() );
+    }
+
+    @Test
+    void blankScriptNameMeansDefault() {
+        final java.util.Properties p = new java.util.Properties();
+        p.setProperty( "wikantik.analytics.script.name", "   " );
+        assertEquals( "script.js", AnalyticsProxyServlet.parseConfig( p ).scriptName() );
     }
 
     @Test
@@ -298,7 +347,7 @@ class AnalyticsProxyServletTest {
     void slowUpstreamFailsFast() throws Exception {
         sendDelayMs = 30_000;
         final long t0 = System.nanoTime();
-        final Resp r = post( servlet( url(), Duration.ofMillis( 200 ), 16, Clock.systemUTC() ), "/api/send", new byte[ 2 ] );
+        final Resp r = post( servlet( url(), Duration.ofMillis( 200 ), 16, Clock.systemUTC() ), "/api/send", payload( "site-id" ) );
         assertEquals( 504, r.status );
         assertTrue( TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - t0 ) < 1000 );
     }
@@ -309,7 +358,7 @@ class AnalyticsProxyServletTest {
         final AnalyticsProxyServlet s = servlet( url(), Duration.ofSeconds( 10 ), 1, Clock.systemUTC() );
         final Thread stuck = new Thread( () -> {
             try {
-                post( s, "/api/send", new byte[ 2 ] );
+                post( s, "/api/send", payload( "site-id" ) );
             } catch( final Exception e ) {
                 throw new IllegalStateException( e );
             }
@@ -317,7 +366,7 @@ class AnalyticsProxyServletTest {
         stuck.start();
         assertTrue( sendArrived.await( 5, TimeUnit.SECONDS ) );
         final long t0 = System.nanoTime();
-        final Resp r = post( s, "/api/send", new byte[ 2 ] );
+        final Resp r = post( s, "/api/send", payload( "site-id" ) );
         assertEquals( 503, r.status );
         assertTrue( TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - t0 ) < 500 );
         stuck.join( 10_000 );

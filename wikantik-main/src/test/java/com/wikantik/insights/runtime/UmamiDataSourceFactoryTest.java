@@ -42,7 +42,7 @@ class UmamiDataSourceFactoryTest {
         assertEquals( 5, ds.getConnectTimeout() );
         assertEquals( 120, ds.getSocketTimeout() );
         assertEquals( 5, ds.getLoginTimeout() );
-        assertEquals( "-c statement_timeout=60000", ds.getOptions() );
+        assertEquals( "-c statement_timeout=60000 -c TimeZone=UTC", ds.getOptions() );
         assertEquals( "ro_user", ds.getUser() );
         assertEquals( "s3cret", ds.getPassword() );
         assertEquals( "umami.lan", ds.getServerNames()[0] );

@@ -27,9 +27,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -97,6 +102,8 @@ public class AnalyticsProxyServlet extends HttpServlet {
     private final Supplier< AnalyticsProxyConfig > configSupplier;
     private final Clock clock;
     private final AtomicReference< CachedScript > script = new AtomicReference<>();
+    private static final int MAX_CACHE_TOKEN_CHARS = 4096;
+
     private final AtomicLong retryNotBeforeMs = new AtomicLong( Long.MIN_VALUE );
     private final AtomicLong lastWarnMs = new AtomicLong( Long.MIN_VALUE );
     private volatile AnalyticsProxyConfig engineConfig;
@@ -135,10 +142,35 @@ public class AnalyticsProxyServlet extends HttpServlet {
     static AnalyticsProxyConfig parseConfig( final Properties p ) {
         return new AnalyticsProxyConfig(
                 p.getProperty( PROP_UPSTREAM, "" ).trim(),
-                p.getProperty( PROP_SCRIPT_NAME, "script.js" ).trim(),
+                scriptName( p ),
                 Duration.ofMillis( intProp( p, PROP_TIMEOUT_MS, DEFAULT_TIMEOUT_MS ) ),
                 intProp( p, PROP_MAX_INFLIGHT, DEFAULT_MAX_INFLIGHT ),
                 p.getProperty( PROP_WEBSITE_ID, "" ).trim() );
+    }
+
+    /** A blank value means the default, matching AnalyticsSettings. */
+    private static String scriptName( final Properties p ) {
+        final String v = p.getProperty( PROP_SCRIPT_NAME, "" ).trim();
+        return v.isEmpty() ? "script.js" : v;
+    }
+
+    /** True when the body is a JSON object whose {@code payload.website} is exactly {@code websiteId}. */
+    private static boolean carriesWebsite( final byte[] body, final String websiteId ) {
+        try {
+            final JsonElement root = JsonParser.parseString( new String( body, StandardCharsets.UTF_8 ) );
+            if( !root.isJsonObject() || !root.getAsJsonObject().has( "payload" ) ) {
+                return false;
+            }
+            final JsonElement payload = root.getAsJsonObject().get( "payload" );
+            if( !payload.isJsonObject() || !payload.getAsJsonObject().has( "website" ) ) {
+                return false;
+            }
+            final JsonElement w = payload.getAsJsonObject().get( "website" );
+            return w.isJsonPrimitive() && websiteId.equals( w.getAsString() );
+        } catch( final JsonParseException | IllegalStateException | UnsupportedOperationException e ) {
+            LOG.debug( "Rejecting malformed analytics beacon body: {}", e.toString() );
+            return false;
+        }
     }
 
     private static int intProp( final Properties p, final String key, final int dflt ) {
@@ -261,6 +293,10 @@ public class AnalyticsProxyServlet extends HttpServlet {
             resp.setStatus( HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE );
             return;
         }
+        if( !carriesWebsite( body, cfg.websiteId() ) ) {
+            resp.setStatus( HttpServletResponse.SC_BAD_REQUEST );
+            return;
+        }
         final Semaphore gate = inflight( cfg );
         if( !gate.tryAcquire() ) {
             warnLimited( SEND_PATH, "in-flight cap reached" );
@@ -277,6 +313,12 @@ public class AnalyticsProxyServlet extends HttpServlet {
             final String userAgent = req.getHeader( "User-Agent" );
             if( userAgent != null ) {
                 builder.header( "User-Agent", userAgent );
+            }
+            // The tracker echoes the token from the previous /api/send response on every beacon; without it Umami
+            // re-derives the visit id from an hourly salt and splits visits at hour boundaries.
+            final String umamiCache = req.getHeader( "x-umami-cache" );
+            if( umamiCache != null && !umamiCache.isEmpty() && umamiCache.length() <= MAX_CACHE_TOKEN_CHARS ) {
+                builder.header( "x-umami-cache", umamiCache );
             }
             final HttpResponse< byte[] > r = client( cfg ).send( builder.build(), HttpResponse.BodyHandlers.ofByteArray() );
             resp.setStatus( r.statusCode() );

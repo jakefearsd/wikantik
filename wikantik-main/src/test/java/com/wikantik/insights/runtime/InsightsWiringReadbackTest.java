@@ -19,6 +19,7 @@
 package com.wikantik.insights.runtime;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
@@ -34,6 +35,14 @@ class InsightsWiringReadbackTest {
             .anyMatch( t -> t.getName().equals( ReaderAnalyticsScheduler.THREAD_NAME ) && t.isAlive() );
     }
 
+    @AfterEach
+    void awaitNoReadbackThread() throws InterruptedException {
+        final long deadline = System.currentTimeMillis() + 5000;
+        while ( threadAlive() && System.currentTimeMillis() < deadline ) {
+            Thread.sleep( 20 );
+        }
+    }
+
     private static InsightsWiring.ReadbackEnv env() {
         return new InsightsWiring.ReadbackEnv( null, "Main", null, new SimpleMeterRegistry() );
     }
@@ -41,8 +50,30 @@ class InsightsWiringReadbackTest {
     @Test
     void notStartedWhenReadbackIsNotConfigured() {
         final InsightsBackground bg = new InsightsBackground();
-        InsightsWiring.startReaderReadback( null, new Properties(), env(), bg );
+        InsightsWiring.startReaderReadback( new org.postgresql.ds.PGSimpleDataSource(), new Properties(), env(), bg );
         assertFalse( threadAlive() );
+        assertTrue( bg.isEmpty() );
+    }
+
+    @Test
+    void notStartedWhenTrackerIsConfiguredButReadbackUrlIsBlank() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.analytics.website.id", "6f1c2b1e-0000-4000-8000-000000000001" );
+        p.setProperty( "wikantik.analytics.upstream", "http://umami" );
+        final InsightsBackground bg = new InsightsBackground();
+        InsightsWiring.startReaderReadback( new org.postgresql.ds.PGSimpleDataSource(), p, env(), bg );
+        assertFalse( threadAlive() );
+        assertTrue( bg.isEmpty() );
+    }
+
+    @Test
+    void notStartedWithoutAnEngineDataSource() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.analytics.website.id", "6f1c2b1e-0000-4000-8000-000000000001" );
+        p.setProperty( "wikantik.analytics.upstream", "http://umami" );
+        p.setProperty( "wikantik.analytics.readback.url", "jdbc:postgresql://h/db" );
+        final InsightsBackground bg = new InsightsBackground();
+        InsightsWiring.startReaderReadback( null, p, env(), bg );
         assertTrue( bg.isEmpty() );
     }
 
@@ -53,7 +84,7 @@ class InsightsWiringReadbackTest {
         p.setProperty( "wikantik.analytics.upstream", "http://umami" );
         p.setProperty( "wikantik.analytics.readback.url", "jdbc:postgresql://h/db" );
         final InsightsBackground bg = new InsightsBackground();
-        InsightsWiring.startReaderReadback( null, p, env(), bg );
+        InsightsWiring.startReaderReadback( new org.postgresql.ds.PGSimpleDataSource(), p, env(), bg );
         assertFalse( threadAlive() );
         assertTrue( bg.isEmpty() );
     }

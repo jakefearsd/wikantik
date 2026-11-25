@@ -85,4 +85,14 @@ class AnalyticsSettingsTest {
         p.setProperty( AnalyticsSettings.PROP_UPSTREAM, "http://u" );
         assertTrue( AnalyticsSettings.from( p ).trackerTag( "/w" ).contains( "data-website-id=\"a&quot;b\"" ) );
     }
+
+    @Test
+    void toStringRedactsTheReadbackPassword() {
+        final Properties p = new Properties();
+        p.setProperty( AnalyticsSettings.PROP_READBACK_PASSWORD, "hunter2-secret" );
+        p.setProperty( AnalyticsSettings.PROP_READBACK_USER, "ro_user" );
+        final String text = AnalyticsSettings.from( p ).toString();
+        assertFalse( text.contains( "hunter2-secret" ), text );
+        assertTrue( text.contains( "ro_user" ), text );
+    }
 }

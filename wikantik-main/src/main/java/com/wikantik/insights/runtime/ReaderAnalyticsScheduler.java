@@ -73,8 +73,8 @@ public final class ReaderAnalyticsScheduler implements AutoCloseable {
     private void tick() {
         try {
             task.run();
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "scheduled reader analytics read-back failed: {}", e.getMessage(), e );
+        } catch ( final Throwable t ) {   // an Error must not silently cancel the periodic task
+            LOG.warn( "scheduled reader analytics read-back failed: {}", t.toString(), t );
         }
     }
 

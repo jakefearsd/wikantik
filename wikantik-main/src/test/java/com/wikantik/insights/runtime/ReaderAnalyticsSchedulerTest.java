@@ -18,6 +18,7 @@
  */
 package com.wikantik.insights.runtime;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CountDownLatch;
@@ -33,6 +34,34 @@ class ReaderAnalyticsSchedulerTest {
     private static boolean threadAlive() {
         return Thread.getAllStackTraces().keySet().stream()
             .anyMatch( t -> t.getName().equals( ReaderAnalyticsScheduler.THREAD_NAME ) && t.isAlive() );
+    }
+
+    @AfterEach
+    void awaitNoReadbackThread() throws InterruptedException {
+        final long deadline = System.currentTimeMillis() + 5000;
+        while ( threadAlive() && System.currentTimeMillis() < deadline ) {
+            Thread.sleep( 20 );
+        }
+    }
+
+    private static long threadCount() {
+        return Thread.getAllStackTraces().keySet().stream()
+            .filter( t -> t.getName().equals( ReaderAnalyticsScheduler.THREAD_NAME ) && t.isAlive() ).count();
+    }
+
+    @Test
+    void anErrorInATickDoesNotKillTheScheduleEither() throws Exception {
+        final CountDownLatch twice = new CountDownLatch( 2 );
+        final ReaderAnalyticsScheduler s = new ReaderAnalyticsScheduler( () -> {
+            twice.countDown();
+            throw new AssertionError( "boom" );
+        }, 10, 20, TimeUnit.MILLISECONDS );
+        try {
+            s.start();
+            assertTrue( twice.await( 5, TimeUnit.SECONDS ) );
+        } finally {
+            s.stop();
+        }
     }
 
     @Test
@@ -74,12 +103,11 @@ class ReaderAnalyticsSchedulerTest {
     @Test
     void startTwiceDoesNotLeakASecondThread() {
         final ReaderAnalyticsScheduler s = new ReaderAnalyticsScheduler( () -> { }, 1, 1, TimeUnit.HOURS );
+        final long before = threadCount();
         try {
             s.start();
             s.start();
-            final long n = Thread.getAllStackTraces().keySet().stream()
-                .filter( t -> t.getName().equals( ReaderAnalyticsScheduler.THREAD_NAME ) && t.isAlive() ).count();
-            assertEquals( 1, n );
+            assertEquals( before + 1, threadCount() );
         } finally {
             s.stop();
         }

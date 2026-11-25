@@ -47,6 +47,17 @@ public record AnalyticsSettings( String websiteId, String upstream, String scrip
 
     private static final Logger LOG = LogManager.getLogger( AnalyticsSettings.class );
 
+    /** The record's default form with the read-back password redacted, so settings can be logged safely. */
+    @Override
+    public String toString() {
+        return "AnalyticsSettings[websiteId=" + websiteId + ", upstream=" + upstream + ", scriptName=" + scriptName
+                + ", proxyTimeout=" + proxyTimeout + ", proxyMaxInflight=" + proxyMaxInflight
+                + ", readbackUrl=" + readbackUrl + ", readbackUser=" + readbackUser
+                + ", readbackPassword=" + ( readbackPassword == null || readbackPassword.isEmpty() ? "" : "***" )
+                + ", readbackDays=" + readbackDays + ", readbackHours=" + readbackHours
+                + ", siteHost=" + siteHost + "]";
+    }
+
     public static final String PROP_WEBSITE_ID = "wikantik.analytics.website.id";
     public static final String PROP_UPSTREAM = "wikantik.analytics.upstream";
     public static final String PROP_SCRIPT_NAME = "wikantik.analytics.script.name";
@@ -88,6 +99,15 @@ public record AnalyticsSettings( String websiteId, String upstream, String scrip
 
     public boolean readbackEnabled() {
         return trackerEnabled() && !readbackUrl.isBlank();
+    }
+
+    /**
+     * The analytics site host for a wiki's properties: the configured host, else the host of
+     * {@code wikantik.public.baseURL} (falling back to {@code wikantik.baseURL}).
+     */
+    public static String siteHostOf( final Properties properties ) {
+        return from( properties ).resolveSiteHost(
+                properties.getProperty( "wikantik.public.baseURL", properties.getProperty( "wikantik.baseURL", "" ) ) );
     }
 
     /** The configured site host, or the host of {@code baseUrl} when blank; {@code ""} when neither is known. */

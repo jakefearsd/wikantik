@@ -136,13 +136,21 @@ public class AnalyticsProxyServlet extends HttpServlet {
             synchronized( this ) {
                 c = client;
                 if( c == null ) {
-                    c = HttpClient.newBuilder().connectTimeout( cfg.timeout() )
-                            .followRedirects( HttpClient.Redirect.NEVER ).build();
+                    c = newUpstreamClient( cfg.timeout() );
                     client = c;
                 }
             }
         }
         return c;
+    }
+
+    /**
+     * The client for Umami. Pinned to HTTP/1.1: on plain http the JDK client otherwise asks to upgrade to HTTP/2
+     * (h2c), and Umami's Node server drops such a request without answering.
+     */
+    static HttpClient newUpstreamClient( final Duration connectTimeout ) {
+        return HttpClient.newBuilder().version( HttpClient.Version.HTTP_1_1 ).connectTimeout( connectTimeout )
+                .followRedirects( HttpClient.Redirect.NEVER ).build();
     }
 
     private Semaphore inflight( final AnalyticsProxyConfig cfg ) {

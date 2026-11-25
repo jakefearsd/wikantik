@@ -380,4 +380,40 @@ class AnalyticsProxyServletTest {
         @Override public Clock withZone( final java.time.ZoneId z ) { return this; }
         @Override public Instant instant() { return now; }
     }
+
+    /**
+     * Umami (a Node server) drops the connection when a request asks to upgrade to HTTP/2 (h2c), which the JDK
+     * client does by default on plain http; prod saw "header parser received no bytes" on every script fetch.
+     */
+    @Test
+    void productionClientSpeaksPlainHttp11SoAnUpgradeRefusingUpstreamAnswers() throws Exception {
+        try( java.net.ServerSocket server = new java.net.ServerSocket( 0, 5, java.net.InetAddress.getLoopbackAddress() ) ) {
+            final Thread t = new Thread( () -> {
+                try( java.net.Socket s = server.accept() ) {
+                    final java.io.BufferedReader in = new java.io.BufferedReader(
+                            new java.io.InputStreamReader( s.getInputStream(), StandardCharsets.US_ASCII ) );
+                    boolean upgrade = false;
+                    for( String line = in.readLine(); line != null && !line.isEmpty(); line = in.readLine() ) {
+                        upgrade |= line.toLowerCase( java.util.Locale.ROOT ).startsWith( "upgrade:" );
+                    }
+                    if( !upgrade ) {
+                        s.getOutputStream().write( "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+                                .getBytes( StandardCharsets.US_ASCII ) );
+                    }
+                } catch( final IOException e ) {
+                    // the test's assertion reports the outcome
+                }
+            } );
+            t.start();
+            final HttpClient client = AnalyticsProxyServlet.newUpstreamClient( Duration.ofSeconds( 2 ) );
+            final java.net.http.HttpResponse< String > r = client.send(
+                    java.net.http.HttpRequest.newBuilder( java.net.URI.create(
+                            "http://127.0.0.1:" + server.getLocalPort() + "/script.js" ) )
+                            .timeout( Duration.ofSeconds( 2 ) ).GET().build(),
+                    java.net.http.HttpResponse.BodyHandlers.ofString() );
+            assertEquals( 200, r.statusCode() );
+            assertEquals( "ok", r.body() );
+            t.join( 2000 );
+        }
+    }
 }

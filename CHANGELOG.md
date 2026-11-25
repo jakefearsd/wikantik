@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Analytics proxy talks HTTP/1.1 to Umami; the default h2c upgrade made Umami drop every request (502 on `/analytics/script.js`).
+
 ## [2.8.7] - 2026-11-25
 
 - Privacy policy (`/privacy-policy.html`) discloses reader analytics: what is recorded, retention, no cookies.

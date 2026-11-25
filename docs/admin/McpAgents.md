@@ -25,7 +25,7 @@ The numbers above are what a default deployment advertises; a deployment without
 **`/wikantik-admin-mcp`** (registered in `McpToolRegistry`, verified against
 `McpProtocolIT.EXPECTED_TOOLS`, which lists 23):
 
-- 21 tools are always registered.
+- 22 tools are always registered (everything in `EXPECTED_TOOLS` except `list_retrieval_queries`, including `list_reader_engagement`, which refuses at call time without a datasource).
 - `list_retrieval_queries` needs a datasource-backed query-log reader.
 - `rename_cluster`, `list_content_opportunities` and `snooze_opportunity` are
   registered unconditionally, but refuse at call time with an explanation when the

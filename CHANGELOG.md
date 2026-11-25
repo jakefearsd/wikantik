@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.8] - 2026-11-25
+
 - Analytics proxy talks HTTP/1.1 to Umami; the default h2c upgrade made Umami drop every request (502 on `/analytics/script.js`).
 
 ## [2.8.7] - 2026-11-25

@@ -37,6 +37,7 @@ These keys are `secret`-typed. None of them ship with a value — provision ever
 | `wikantik.sso.saml.privateKeyPassword` | Wikantik core settings | [SSO](#sso) |
 | `wikantik.indexnow.apiKey` | Wikantik core settings | [REST API, MCP & agent surfaces](#rest-api-mcp--agent-surfaces) |
 | `wikantik.scim.token` | Wikantik core settings | [REST API, MCP & agent surfaces](#rest-api-mcp--agent-surfaces) |
+| `wikantik.analytics.readback.password` | Wikantik core settings | [Reader analytics](#reader-analytics) |
 | `wikantik.connectors.crypto.key` | Wikantik core settings | [Connectors](#connectors) |
 
 The following settings come from `wikantik-main/src/main/resources/ini/wikantik.properties` (the primary settings surface: bundled in the wikantik-main jar, overridden via the precedence chain described above).
@@ -77,6 +78,7 @@ The following settings come from `wikantik-main/src/main/resources/ini/wikantik.
 - [Observability & profiling](#observability--profiling)
 - [Context bundle & briefing](#context-bundle--briefing)
 - [Content Intelligence](#content-intelligence)
+- [Reader analytics](#reader-analytics)
 - [Citations](#citations)
 - [Work](#work)
 - [Connectors](#connectors)
@@ -872,6 +874,22 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.insights.calibration.min_verdicts`** — Self-calibration (Section 7.4.4): evaluated changes required before a type's weight is recalibrated (below this it stays at the configured default and reports as uncalibrated), and how far a recalibration moves from the default toward the observed ratio (0.0 = no movement, 1.0 = move all the way).
 - **`wikantik.insights.imported.max_age_days`** — Imported opportunities (jakemon's five detectors -- content-intelligence design Section 7.3 "Imported from jakemon", Section 12.1 item J3). The backlog reads only the single most recent as_of row set per site, and only when that as_of is within this many days of today -- past that, jakemon has stopped shipping (collector down, shipper broken) and the backlog must stop proposing the same stale detector output forever rather than repeat it.
 - **`wikantik.insights.ctr.deep`** — Expected-CTR curve tail (content-intelligence design Section 7.3 rule 2, V057). jakemon ships its real, measured EXPECTED_CTR table (positions 1-10) in every ingest payload, but NOT its tail-decay rule -- ship_visibility.py sends only the table, never jakemon's own _DEEP_CTR floor or decay formula. These two values mirror that unshipped tail so ExpectedCtrCurve.fromTable can still answer for positions beyond the table; they must be updated by hand if jakemon's own opportunities.py _DEEP_CTR / page-2-floor cutoff ever changes.
+
+## Reader analytics
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.analytics.website.id` | `string` | *(blank: all reader analytics off (no tracking script is injected).)* | `wikantik_analytics_website_id` | Umami website id (UUID) the tracking script reports to. |
+| `wikantik.analytics.upstream` | `url` | *(blank: proxy off; the tracking script is not served through this wiki.)* | `wikantik_analytics_upstream` | Base URL of the Umami instance the same-origin proxy forwards to (e.g. http://192.168.5.52:8085). |
+| `wikantik.analytics.script.name` | `string` | `script.js` | `wikantik_analytics_script_name` | File name the tracking script is served under. |
+| `wikantik.analytics.proxy.timeout.ms` | `int` | `5000` | `wikantik_analytics_proxy_timeout_ms` | Timeout, in milliseconds, for one request the analytics proxy forwards to the Umami upstream. |
+| `wikantik.analytics.proxy.max.inflight` | `int` | `16` | `wikantik_analytics_proxy_max_inflight` | Maximum number of proxied analytics requests in flight at once; excess requests are shed. |
+| `wikantik.analytics.readback.url` | `string` | *(blank: read-back off; the rollup tables are not refreshed.)* | `wikantik_analytics_readback_url` | JDBC URL of the read-only database the reader-engagement rollups are read from (Umami's own store). |
+| `wikantik.analytics.readback.user` | `string` | `wikantik_ro` | `wikantik_analytics_readback_user` | Database user for the read-back connection. Should be a read-only role. |
+| `wikantik.analytics.readback.password` | `secret` | *(blank)* | `wikantik_analytics_readback_password` | Password for the read-back database user. |
+| `wikantik.analytics.readback.days` | `int` | `3` | `wikantik_analytics_readback_days` | Number of trailing days the read-back recomputes on each run. |
+| `wikantik.analytics.readback.hours` | `int` | `24` | `wikantik_analytics_readback_hours` | Hours between read-back runs. |
+| `wikantik.analytics.site.host` | `string` | *(blank: the host of the configured base URL (wikantik.baseURL).)* | `wikantik_analytics_site_host` | Host name recorded as site_host on the rollup rows. |
 
 ## Citations
 

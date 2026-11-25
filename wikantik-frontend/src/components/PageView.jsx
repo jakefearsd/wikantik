@@ -40,6 +40,7 @@ import { useMentionPicker } from '../hooks/useMentionPicker';
 import { captureSelection } from '../utils/commentAnchor';
 import { anchorThreads, clearHighlights, anchorPendingHighlight, clearPendingHighlight } from '../utils/commentHighlight';
 import { tagViewHref } from '../utils/inlineTags';
+import { track, setReaderPageContext, primaryCluster } from '../analytics/umami';
 import '../styles/article.css';
 import '../styles/admin.css';
 import '../styles/fences.css';
@@ -144,7 +145,8 @@ const BLOCK_FLASH_MS = 2000;
 
 export default function PageView() {
   const { name = HOME_PAGE } = useParams();
-  const routerHash = useLocation().hash;
+  const routerLocation = useLocation();
+  const routerHash = routerLocation.hash;
   const { user } = useAuth();
   const toast = useToast();
   const recent = useRecentlyViewed({
@@ -175,6 +177,15 @@ export default function PageView() {
   );
 
   const articleRef = useRef(null);
+
+  // Analytics context: the loaded page's canonical_id and primary cluster (frontmatter keys, first entry when a
+  // list). Only the page that matches the route counts: while navigating, `page` is still the previous one.
+  const pageIsCurrent = !!page && page.name === name;
+  const canonicalId = pageIsCurrent ? page.metadata?.canonical_id : undefined;
+  const analyticsCluster = pageIsCurrent ? primaryCluster(page.metadata?.cluster) : undefined;
+  useEffect(() => {
+    if (pageIsCurrent) setReaderPageContext(routerLocation.pathname, canonicalId, analyticsCluster);
+  }, [pageIsCurrent, routerLocation.pathname, canonicalId, analyticsCluster]);
 
   const [threads, setThreads] = useState([]);
   // uid -> current display name for every @mention token in the loaded comments.
@@ -262,14 +273,15 @@ export default function PageView() {
   useEffect(() => {
     if (articleRef.current && page?.contentHtml) {
       addCopyButtons(articleRef.current, {
-        onCopy: () => { /* button label updates inline; no toast needed on success */ },
+        // The button label updates inline; the only side effect is the analytics event.
+        onCopy: ({ lang } = {}) => track('code-copy', { canonical_id: canonicalId, lang }),
         onError: (err) => {
           console.warn('[codeCopy] clipboard write failed', err?.message || err);
           toast.error("Couldn't copy to clipboard");
         },
       });
     }
-  }, [page, toast]);
+  }, [page, toast, canonicalId]);
 
   // Re-anchor comment highlights into the rendered article. Placed AFTER the
   // renderMath effect so it runs after KaTeX has settled the DOM. Depends on
@@ -535,6 +547,17 @@ export default function PageView() {
       return;
     }
 
+    // Rendered-diagram toolbar buttons (expand / show source) and KaTeX math count as diagram interaction.
+    const diagramBtn = e.target.closest('.wk-fence-btn');
+    if (diagramBtn) {
+      track('diagram-interact', {
+        canonical_id: canonicalId,
+        kind: diagramBtn.closest('figure.wk-fence')?.dataset.fence || 'diagram',
+      });
+    } else if (e.target.closest('.katex')) {
+      track('diagram-interact', { canonical_id: canonicalId, kind: 'math' });
+    }
+
     const anchor = e.target.closest('a');
     if (!anchor) return;
 
@@ -557,7 +580,21 @@ export default function PageView() {
     } else if (href.startsWith('/search')) {
       internalPath = href;
     } else {
-      return; // external or unrecognized link — let browser handle it
+      // External or unrecognized link — let the browser handle it; an off-site http(s) link is an outbound click.
+      try {
+        const url = new URL(href, window.location.href);
+        if ((url.protocol === 'http:' || url.protocol === 'https:') && url.host !== window.location.host) {
+          track('outbound-click', { canonical_id: canonicalId, dest: url.hostname });
+        }
+      } catch (err) {
+        console.debug('[analytics] unparseable link href', href, err?.message || err);
+      }
+      return;
+    }
+
+    if (href.startsWith('/wiki/')) {
+      const slug = href.slice('/wiki/'.length).split(/[?#]/)[0];
+      track('wikilink-click', { canonical_id: canonicalId, target: safeDecode(slug) });
     }
 
     // Ctrl/Cmd+click or middle-click: let browser open in new tab
@@ -565,7 +602,7 @@ export default function PageView() {
 
     e.preventDefault();
     navigate(internalPath);
-  }, [navigate]);
+  }, [navigate, canonicalId]);
 
   // Memoize the article element on the HTML string alone. React 19 re-applies
   // dangerouslySetInnerHTML on every re-render of the host element, which wipes

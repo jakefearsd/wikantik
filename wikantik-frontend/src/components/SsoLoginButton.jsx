@@ -1,4 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
+import { track, getReaderPageContext } from '../analytics/umami';
 
 /**
  * Renders a "Continue with <provider>" button that starts the server-side SSO
@@ -28,6 +29,7 @@ export default function SsoLoginButton({ returnTo }) {
     <div data-testid="sso-login">
       <a
         href={href}
+        onClick={() => track('sign-in-click', { canonical_id: getReaderPageContext().canonicalId })}
         className="btn btn-primary"
         data-testid="sso-login-button"
         style={{

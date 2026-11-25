@@ -1,3 +1,5 @@
+import { track, getReaderPageContext } from '../analytics/umami';
+
 /**
  * TableOfContents — sticky right-rail nav for h2/h3 headings.
  *
@@ -22,6 +24,7 @@ export default function TableOfContents({ headings = [], activeId }) {
               <a
                 href={`#${id}`}
                 className="page-toc-link"
+                onClick={() => track('toc-click', { canonical_id: getReaderPageContext().canonicalId })}
                 {...(isActive ? { 'aria-current': 'true' } : {})}
               >
                 {text}

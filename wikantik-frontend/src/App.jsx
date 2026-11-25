@@ -1,3 +1,4 @@
+import { useReaderAnalytics } from './analytics/useReaderAnalytics';
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -39,6 +40,7 @@ export default function App() {
   useGlobalHotkeys({ onOpenOverlay: openOverlay, onDailyNote: openDailyNoteCmd });
   const toggleSidebar = useCallback(() => setSidebarCollapsed((c) => !c), []);
   const location = useLocation();
+  useReaderAnalytics();
   const navigate = useNavigate();
   const isEditorRoute = location.pathname.startsWith('/edit/');
   const isAdminRoute = location.pathname.startsWith('/admin');

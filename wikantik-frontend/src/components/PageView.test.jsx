@@ -1389,3 +1389,59 @@ describe('PageView locked access rules banner (#104)', () => {
     expect(screen.queryByTestId('locked-access-rules-banner')).not.toBeInTheDocument();
   }, TEST_TIMEOUT);
 });
+
+describe('PageView reader analytics events', () => {
+  let sent;
+  beforeEach(() => {
+    sent = [];
+    window.umami = { track: vi.fn((arg) => { sent.push(typeof arg === 'function' ? arg({}) : arg); return Promise.resolve(); }) };
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn(() => Promise.resolve()) } });
+  });
+  afterEach(() => { delete window.umami; vi.unstubAllGlobals(); });
+
+  const events = (name) => sent.filter((p) => p.name === name);
+
+  async function mountWith(html, metadata = { canonical_id: 'cid-1', cluster: ['hubA', 'hubB'] }) {
+    api.getPage.mockImplementation(async () => ({ ...PAGE, contentHtml: html, metadata }));
+    return mountAndSettle();
+  }
+
+  it('wikilink-click carries the canonical_id and the target slug', async () => {
+    const { container } = await mountWith('<p><a href="/wiki/Other%20Page?x=1#h">o</a></p>');
+    fireEvent.click(container.querySelector('article a'));
+    expect(events('wikilink-click')[0].data).toEqual({ canonical_id: 'cid-1', target: 'Other Page' });
+  }, TEST_TIMEOUT);
+
+  it('outbound-click carries the destination host only', async () => {
+    const { container } = await mountWith('<p><a href="https://example.com:8443/a/b?q=1">x</a></p>');
+    fireEvent.click(container.querySelector('article a'));
+    expect(events('outbound-click')[0].data).toEqual({ canonical_id: 'cid-1', dest: 'example.com' });
+    expect(events('wikilink-click')).toHaveLength(0);
+  }, TEST_TIMEOUT);
+
+  it('a same-origin absolute link is not outbound', async () => {
+    const { container } = await mountWith(`<p><a href="${window.location.origin}/somewhere">x</a></p>`);
+    fireEvent.click(container.querySelector('article a'));
+    expect(events('outbound-click')).toHaveLength(0);
+  }, TEST_TIMEOUT);
+
+  it('diagram-interact reports the fence kind for a toolbar button', async () => {
+    const { container } = await mountWith('<figure class="wk-fence" data-fence="mermaid"><div class="wk-fence-toolbar"><button class="wk-fence-btn">Expand</button></div></figure>');
+    fireEvent.click(container.querySelector('.wk-fence-btn'));
+    expect(events('diagram-interact')[0].data).toEqual({ canonical_id: 'cid-1', kind: 'mermaid' });
+  }, TEST_TIMEOUT);
+
+  it('diagram-interact reports math for a click on rendered KaTeX', async () => {
+    const { container } = await mountWith('<p><span class="katex"><span id="k">x</span></span></p>');
+    fireEvent.click(container.querySelector('#k'));
+    expect(events('diagram-interact')[0].data).toEqual({ canonical_id: 'cid-1', kind: 'math' });
+  }, TEST_TIMEOUT);
+
+  it('code-copy carries the language', async () => {
+    const { container } = await mountWith('<pre><code class="language-java">int x;</code></pre>');
+    fireEvent.click(container.querySelector('.code-copy-btn'));
+    await waitFor(() => expect(events('code-copy')).toHaveLength(1));
+    expect(events('code-copy')[0].data).toEqual({ canonical_id: 'cid-1', lang: 'java' });
+  }, TEST_TIMEOUT);
+});
+

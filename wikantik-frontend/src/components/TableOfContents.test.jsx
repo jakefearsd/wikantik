@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { setReaderPageContext } from '../analytics/umami';
 import TableOfContents from './TableOfContents';
 
 const makeHeadings = (n) =>
@@ -52,5 +53,19 @@ describe('TableOfContents', () => {
     expect(screen.getByText('Intro')).toBeInTheDocument();
     expect(screen.getByText('Sub section')).toBeInTheDocument();
     expect(screen.getByText('Next')).toBeInTheDocument();
+  });
+
+  describe('analytics', () => {
+    afterEach(() => { delete window.umami; });
+
+    it('sends toc-click with the canonical_id of the current page', () => {
+      const sent = [];
+      window.umami = { track: vi.fn((fn) => { sent.push(fn({})); return Promise.resolve(); }) };
+      setReaderPageContext(window.location.pathname, 'cid-9', 'hub');
+      render(<TableOfContents headings={makeHeadings(3)} />);
+      fireEvent.click(screen.getByText('Heading 2'));
+      expect(sent).toHaveLength(1);
+      expect(sent[0]).toMatchObject({ name: 'toc-click', data: { canonical_id: 'cid-9' } });
+    });
   });
 });

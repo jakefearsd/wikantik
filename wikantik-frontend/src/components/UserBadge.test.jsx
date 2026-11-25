@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { setReaderPageContext } from '../analytics/umami';
 
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('./LoginForm', () => ({
@@ -80,5 +81,16 @@ describe('UserBadge', () => {
     });
     renderBadge();
     expect(screen.getByTestId('user-badge')).toHaveAttribute('data-login-name', 'bob');
+  });
+
+  it('sends sign-in-click with the canonical_id of the current page', () => {
+    const sent = [];
+    window.umami = { track: vi.fn((fn) => { sent.push(fn({})); return Promise.resolve(); }) };
+    setReaderPageContext(window.location.pathname, 'cid-7', undefined);
+    useAuth.mockReturnValue({ user: { authenticated: false }, logout: vi.fn() });
+    renderBadge();
+    fireEvent.click(screen.getByTestId('user-badge-signin'));
+    delete window.umami;
+    expect(sent[0]).toMatchObject({ name: 'sign-in-click', data: { canonical_id: 'cid-7' } });
   });
 });

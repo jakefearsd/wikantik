@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import LoginForm from './LoginForm';
+import { track, getReaderPageContext } from '../analytics/umami';
 
 export default function UserBadge() {
   const { user, logout } = useAuth();
@@ -16,7 +17,10 @@ export default function UserBadge() {
           <button
             className="btn btn-ghost"
             data-testid="user-badge-signin"
-            onClick={() => setShowLogin(true)}
+            onClick={() => {
+              track('sign-in-click', { canonical_id: getReaderPageContext().canonicalId });
+              setShowLogin(true);
+            }}
             style={{ fontSize: '0.8rem' }}
           >
             Sign in

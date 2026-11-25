@@ -6,8 +6,13 @@
  * function twice on the same DOM tree does not duplicate buttons.
  *
  * @param {Element} container - The DOM element to search for <pre> blocks.
- * @param {{ onCopy: () => void, onError: (err: Error) => void }} callbacks
+ * @param {{ onCopy: (info: { lang?: string }) => void, onError: (err: Error) => void }} callbacks
  */
+function languageOf(codeEl) {
+  const m = codeEl && /(?:^|\s)language-([\w+#.-]+)/.exec(codeEl.className || '');
+  return m ? m[1] : undefined;
+}
+
 export function addCopyButtons(container, { onCopy, onError } = {}) {
   if (!container) return;
 
@@ -30,7 +35,7 @@ export function addCopyButtons(container, { onCopy, onError } = {}) {
         () => {
           btn.textContent = 'Copied';
           setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-          if (typeof onCopy === 'function') onCopy();
+          if (typeof onCopy === 'function') onCopy({ lang: languageOf(codeEl) });
         },
         (err) => {
           if (typeof onError === 'function') {

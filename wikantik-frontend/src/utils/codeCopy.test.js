@@ -65,4 +65,15 @@ describe('addCopyButtons', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(onError).toHaveBeenCalled();
   });
+
+  it('passes the code language (from the language-* class) to onCopy', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    container.innerHTML = '<pre><code class="hljs language-python">x = 1</code></pre>';
+    const onCopy = vi.fn();
+    addCopyButtons(container, { onCopy, onError: vi.fn() });
+    container.querySelector('.code-copy-btn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(onCopy).toHaveBeenCalledWith({ lang: 'python' });
+  });
 });

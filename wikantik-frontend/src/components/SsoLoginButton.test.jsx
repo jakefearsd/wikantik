@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { setReaderPageContext } from '../analytics/umami';
 import { AuthProvider } from '../hooks/useAuth';
 import SsoLoginButton from './SsoLoginButton';
 
@@ -125,5 +126,18 @@ describe('SsoLoginButton', () => {
       const link = await screen.findByTestId('sso-login-button');
       expect(link.getAttribute('href')).toBe('/sso/login');
     });
+  });
+
+  it('sends sign-in-click with the canonical_id of the current page', async () => {
+    const sent = [];
+    window.umami = { track: vi.fn((fn) => { sent.push(fn({})); return Promise.resolve(); }) };
+    setReaderPageContext(window.location.pathname, 'cid-5', undefined);
+    api.getUser.mockResolvedValue(ENABLED_USER);
+    renderButton();
+    const link = await screen.findByTestId('sso-login-button');
+    link.addEventListener('click', (e) => e.preventDefault());
+    fireEvent.click(link);
+    delete window.umami;
+    expect(sent[0]).toMatchObject({ name: 'sign-in-click', data: { canonical_id: 'cid-5' } });
   });
 });

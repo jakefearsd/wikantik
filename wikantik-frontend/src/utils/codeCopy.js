@@ -8,9 +8,19 @@
  * @param {Element} container - The DOM element to search for <pre> blocks.
  * @param {{ onCopy: (info: { lang?: string }) => void, onError: (err: Error) => void }} callbacks
  */
+// Fixed set so a page author's arbitrary class name can never become an analytics dimension value.
+const KNOWN_LANGUAGES = new Set([
+  'bash', 'sh', 'shell', 'java', 'javascript', 'js', 'typescript', 'ts', 'jsx', 'tsx', 'python', 'py', 'sql',
+  'json', 'yaml', 'yml', 'xml', 'html', 'css', 'go', 'rust', 'c', 'cpp', 'csharp', 'kotlin', 'ruby', 'php',
+  'markdown', 'md', 'plantuml', 'mermaid', 'text', 'plaintext', 'diff', 'dockerfile', 'properties', 'toml', 'ini',
+]);
+
+/** The block's language when it is a known one, 'other' when tagged with anything else, undefined when untagged. */
 function languageOf(codeEl) {
   const m = codeEl && /(?:^|\s)language-([\w+#.-]+)/.exec(codeEl.className || '');
-  return m ? m[1] : undefined;
+  if (!m) return undefined;
+  const lang = m[1].toLowerCase();
+  return KNOWN_LANGUAGES.has(lang) ? lang : 'other';
 }
 
 export function addCopyButtons(container, { onCopy, onError } = {}) {

@@ -76,4 +76,15 @@ describe('addCopyButtons', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(onCopy).toHaveBeenCalledWith({ lang: 'python' });
   });
+
+  it('maps an unknown language class to "other"', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    container.innerHTML = '<pre><code class="language-my-secret-dsl">x</code></pre>';
+    const onCopy = vi.fn();
+    addCopyButtons(container, { onCopy, onError: vi.fn() });
+    container.querySelector('.code-copy-btn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(onCopy).toHaveBeenCalledWith({ lang: 'other' });
+  });
 });

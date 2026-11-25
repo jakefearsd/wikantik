@@ -114,4 +114,34 @@ describe('useReaderAnalytics', () => {
     unmount();
     expect(exits()).toHaveLength(1);
   });
+
+  it('stamps the exit with the page being left, even after the real URL has already changed', async () => {
+    window.history.replaceState(null, '', '/wiki/A?x=1');
+    mount('/wiki/A');
+    await act(async () => {
+      window.history.pushState(null, '', '/edit/A');
+      nav('/edit/A');
+    });
+    expect(exits()).toHaveLength(1);
+    expect(exits()[0].url).toBe('/wiki/A?x=1');
+  });
+
+  it('does not sample scroll depth at a route-change exit (the DOM is already the next page)', async () => {
+    mount('/wiki/A');
+    await act(async () => {
+      setScroll({ y: 500 }); window.dispatchEvent(new Event('scroll'));
+      setScroll({ y: 9000 }); // next page's layout, no scroll event for this view
+      nav('/search');
+    });
+    expect(exits()[0].data.max_scroll_pct).toBe(38);
+  });
+
+  it('does take a final scroll sample on a pagehide exit', async () => {
+    mount('/wiki/A');
+    await act(async () => {
+      setScroll({ y: 9000 });
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(exits()[0].data.max_scroll_pct).toBe(100);
+  });
 });

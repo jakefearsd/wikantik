@@ -43,12 +43,14 @@ function currentUrl() {
 // url of the previous tracked pageview; the referrer of the next one. null until the first pageview is sent.
 let previousUrl = null;
 
-/** Sends a custom event. No-op without the tracker; never throws. */
-export function track(name, props) {
+/**
+ * Sends a custom event. No-op without the tracker; never throws. `url` overrides the stamped URL (default: the
+ * current location); an exit sent during a route change must pass the page being left.
+ */
+export function track(name, props, url = currentUrl()) {
   const u = umami();
   if (!u) return;
   try {
-    const url = currentUrl();
     const result = u.track((p) => ({ ...p, url, name, data: props }));
     if (result && typeof result.catch === 'function') {
       result.catch((e) => console.debug('[analytics] event failed', name, e?.message || e));
@@ -73,6 +75,10 @@ export async function trackPageview() {
 }
 
 /** Removes campaign/click-id params from the address bar (after the pageview carried them). */
+export function currentPageUrl() {
+  return currentUrl();
+}
+
 export function stripCampaignParams() {
   try {
     const params = new URLSearchParams(window.location.search);

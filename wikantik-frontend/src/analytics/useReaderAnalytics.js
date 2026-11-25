@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { isTrackedRoute, track, trackPageview, stripCampaignParams, getReaderPageContext } from './umami';
+import { isTrackedRoute, currentPageUrl, track, trackPageview, stripCampaignParams, getReaderPageContext } from './umami';
 
 // After this long without a click/key/scroll/pointer move the reader counts as idle: time stops accruing.
 const IDLE_GRACE_MS = 30000;
@@ -28,7 +28,7 @@ export function useReaderAnalytics() {
     if (!isTrackedRoute(pathname)) return undefined;
 
     const view = {
-      path: pathname, activeMs: 0, lastTs: Date.now(), lastInteraction: Date.now(), maxScroll: 0, sent: false,
+      path: pathname, url: currentPageUrl(), activeMs: 0, lastTs: Date.now(), lastInteraction: Date.now(), maxScroll: 0, sent: false,
       visible: document.visibilityState !== 'hidden',
     };
 
@@ -45,28 +45,31 @@ export function useReaderAnalytics() {
       view.lastInteraction = view.lastTs;
       view.maxScroll = Math.max(view.maxScroll, scrollPct());
     };
-    const sendExit = () => {
+    // `sample` is false for a route-change exit: by then the DOM is already the next page's, so the scroll
+    // depth recorded by scroll events is all that is trustworthy.
+    const sendExit = (sample) => {
       if (view.sent) return;
       view.sent = true;
       accrue();
-      view.maxScroll = Math.max(view.maxScroll, scrollPct());
+      if (sample === true) view.maxScroll = Math.max(view.maxScroll, scrollPct());
       const ctx = getReaderPageContext(view.path);
       track('page-exit', {
         canonical_id: ctx.canonicalId,
         cluster: ctx.cluster,
         active_s: Math.round(view.activeMs / 1000),
         max_scroll_pct: view.maxScroll,
-      });
+      }, view.url);
     };
     const onVisibility = () => {
       accrue(); // closes the stretch that was running under the previous visibility state
       view.visible = document.visibilityState !== 'hidden';
-      if (!view.visible) sendExit();
+      if (!view.visible) sendExit(true);
     };
 
     INTERACTION_EVENTS.forEach((ev) => window.addEventListener(ev, onInteraction, { passive: true, capture: true }));
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pagehide', sendExit);
+    const onPageHide = () => sendExit(true);
+    window.addEventListener('pagehide', onPageHide);
     view.maxScroll = scrollPct();
 
     // Strip campaign params only after the pageview (which carried them) has been handed to the tracker.
@@ -75,8 +78,8 @@ export function useReaderAnalytics() {
     return () => {
       INTERACTION_EVENTS.forEach((ev) => window.removeEventListener(ev, onInteraction, { capture: true }));
       document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('pagehide', sendExit);
-      sendExit();
+      window.removeEventListener('pagehide', onPageHide);
+      sendExit(false);
     };
   }, [pathname]);
 }

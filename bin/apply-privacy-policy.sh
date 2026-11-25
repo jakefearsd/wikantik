@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Apply a drafted PrivacyPolicy wiki page to the repo mirror and to prod.
 #
-# Usage: bin/apply-privacy-policy.sh [--dry-run] DRAFT.md [CONTACT_EMAIL]
+# Usage: bin/apply-privacy-policy.sh [--dry-run] [--yes] DRAFT.md [CONTACT_EMAIL]
+#   --yes  skip the confirmation (needed when run without a terminal, e.g. via `!`)
 #
 # DRAFT.md is the full prod page (frontmatter + body + Cluster Hub footer) with
 # {{CONTACT_EMAIL}} placeholders and an optional leading <!-- ... --> note line.
@@ -16,9 +17,16 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-DRY=""
-if [[ "${1:-}" == "--dry-run" ]]; then DRY="--dry-run"; shift; fi
-DRAFT="${1:?usage: bin/apply-privacy-policy.sh [--dry-run] DRAFT.md [CONTACT_EMAIL]}"
+DRY=""; YES=""
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --dry-run) DRY="--dry-run" ;;
+    --yes) YES=1 ;;
+    *) echo "unknown flag: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+DRAFT="${1:?usage: bin/apply-privacy-policy.sh [--dry-run] [--yes] DRAFT.md [CONTACT_EMAIL]}"
 REPO_PAGE="docs/wikantik-pages/PrivacyPolicy.md"
 [[ -f "$DRAFT" ]] || { echo "no such draft: $DRAFT" >&2; exit 2; }
 
@@ -51,14 +59,19 @@ diff <(tr -d '\r' < "$BACKUP") <(tr -d '\r' < "$STAGE/push/PrivacyPolicy.md") ||
 echo
 
 # 2. Confirm.
-read -r -p "Push this to ${REMOTE_HOST} and update ${REPO_PAGE}? [y/N] " ans
-[[ "$ans" == [yY]* ]] || { echo "aborted"; exit 1; }
+if [[ -z "$YES" ]]; then
+  if ! read -r -p "Push this to ${REMOTE_HOST} and update ${REPO_PAGE}? [y/N] " ans; then
+    echo "no terminal to confirm on; review the diff above and re-run with --yes" >&2; exit 1
+  fi
+  [[ "$ans" == [yY]* ]] || { echo "aborted"; exit 1; }
+fi
 
 # 3. Push (touch so rsync --update sends it).
 touch "$STAGE/push/PrivacyPolicy.md"
 bin/remote.sh $DRY pages-push "$STAGE/push"
 
 # 4. Repo mirror: repo frontmatter with the draft's date, draft body minus footer.
+if [[ -n "$DRY" ]]; then echo "(dry run: ${REPO_PAGE} left unchanged)"; exit 0; fi
 python3 - "$REPO_PAGE" "$STAGE/push/PrivacyPolicy.md" <<'PY'
 import re, sys
 repo_path, new_path = sys.argv[1], sys.argv[2]

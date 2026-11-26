@@ -120,7 +120,7 @@ case "$cmd" in
     name="${1:?usage: status <name>}"
     log="$DIR/$name.log"; pidf="$DIR/$name.pid"
     [[ -f "$log" ]] || { echo "UNKNOWN: no build named '$name' (no $log)"; exit 2; }
-    exitline="$(grep -E '^EXIT=[0-9]+$' "$log" | tail -1 || true)"
+    exitline="$(grep -aE '^EXIT=[0-9]+$' "$log" | tail -1 || true)"
     if [[ -n "$exitline" ]]; then
       code="${exitline#EXIT=}"
       if [[ "$code" == "0" ]]; then

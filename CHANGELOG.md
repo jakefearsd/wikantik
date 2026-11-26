@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.9] - 2026-11-26
+
 - Every MCP tool call on the knowledge, admin and work servers writes one `mcp_tool_called` ECS event (tool, client, salted session hash, outcome, duration, response size; never arguments) for jakemon (SA-21).
 - Agent field reports: new module `wikantik-agent-reports` (migration V098), `file_agent_report` on `/knowledge-mcp` (its one write), `list_agent_reports` on the admin MCP and `/admin/agent-reports` (SA-22). New key `wikantik.agentReports.maxPerHourPerKey` (default 60).
 - Skills `agent-field-report` and `agent-activity-digest`.

@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import io.modelcontextprotocol.spec.McpSchema;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -175,5 +176,42 @@ class WorkMcpLoggingTest {
         assertEquals( "abc123def456", ctx.getValue( "mcp.session.hash" ) );
         assertEquals( "failure", ctx.getValue( "event.outcome" ), "an isError envelope is a failure" );
         assertFalse( ctx.toMap().toString().contains( "SECRET-ARG" ) );
+    }
+
+    private void assertThrowsAsFailureEvent( final Throwable toThrow, final Class< ? extends Throwable > type )
+        throws Exception {
+        final MockWork w = new MockWork();
+        when( w.registry.actorForApiKey( 9, "lena" ) ).thenReturn( w.agent );
+        when( w.svc.item( any(), any() ) ).thenAnswer( inv -> {
+            throw toThrow;
+        } );
+        final List< LogEvent > events = logged( "com.wikantik.mcp.events", () ->
+            org.junit.jupiter.api.Assertions.assertSame( toThrow, org.junit.jupiter.api.Assertions.assertThrows( type,
+                () -> WorkMcpInitializer.dispatch( new GetItemTool( w.svc, w.directory ), w.svc, keyed(),
+                    Map.of( "key", "P-1" ), "c", "none" ) ) ) );
+        assertEquals( 1, events.size(), events.toString() );
+        assertEquals( "failure", events.get( 0 ).getContextData().getValue( "event.outcome" ) );
+        assertEquals( type.getSimpleName(), events.get( 0 ).getContextData().getValue( "error.type" ) );
+    }
+
+    /** The tool's own contract turns a RuntimeException into an error envelope: one failure event, no rethrow. */
+    @Test
+    void aRuntimeExceptionInsideAToolBecomesAnErrorEnvelopeAndOneFailureEvent() throws Exception {
+        final MockWork w = new MockWork();
+        when( w.registry.actorForApiKey( 9, "lena" ) ).thenReturn( w.agent );
+        when( w.svc.item( any(), any() ) ).thenThrow( new IllegalStateException( "SECRET-ARG" ) );
+        final McpSchema.CallToolResult[] returned = new McpSchema.CallToolResult[ 1 ];
+        final List< LogEvent > events = logged( "com.wikantik.mcp.events", () -> returned[ 0 ] =
+            WorkMcpInitializer.dispatch( new GetItemTool( w.svc, w.directory ), w.svc, keyed(),
+                Map.of( "key", "P-1" ), "c", "none" ) );
+        assertTrue( Boolean.TRUE.equals( returned[ 0 ].isError() ) );
+        assertEquals( 1, events.size(), events.toString() );
+        assertEquals( "failure", events.get( 0 ).getContextData().getValue( "event.outcome" ) );
+        assertFalse( events.get( 0 ).getContextData().toMap().toString().contains( "SECRET-ARG" ) );
+    }
+
+    @Test
+    void aThrownErrorEmitsOneFailureEventAndPropagates() throws Exception {
+        assertThrowsAsFailureEvent( new StackOverflowError(), StackOverflowError.class );
     }
 }

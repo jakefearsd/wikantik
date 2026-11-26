@@ -49,7 +49,7 @@ public final class AuditedToolCall {
      * @param exchange       the session exchange, source of the client name; may be null
      * @param surfaceOrNull  {@code "read"}/{@code "write"} for the admin endpoint; null omits the
      *                       {@code surface=} field
-     * @param call           executes the tool; a runtime exception is logged ({@code threw=}) and rethrown
+     * @param call           executes the tool; a runtime exception or Error is logged ({@code threw=}) and rethrown
      */
     public static McpSchema.CallToolResult run( final String logTag, final String server,
                                                 final McpTool tool,
@@ -62,7 +62,7 @@ public final class AuditedToolCall {
         try {
             result = call.get();
             return result;
-        } catch ( final RuntimeException re ) {
+        } catch ( final RuntimeException | Error re ) {
             thrown = re;
             throw re;
         } finally {

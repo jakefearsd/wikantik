@@ -173,6 +173,18 @@ class AuditedToolCallTest {
     }
 
     @Test
+    void thrownErrorEmitsOneFailureEventAndPropagates() {
+        final List< JsonObject > out = events( () -> assertThrows( StackOverflowError.class,
+                () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange( "claude" ), "read",
+                        ( Supplier< McpSchema.CallToolResult > ) () -> {
+                            throw new StackOverflowError();
+                        } ) ) );
+        assertEquals( 1, out.size(), out.toString() );
+        assertEquals( "failure", out.get( 0 ).get( "event.outcome" ).getAsString() );
+        assertEquals( "StackOverflowError", out.get( 0 ).get( "error.type" ).getAsString() );
+    }
+
+    @Test
     void isErrorResultEmitsFailureEvent() {
         final List< JsonObject > out = events( () -> AuditedToolCall.run( "Knowledge MCP", "knowledge", tool(),
                 exchange( "cursor" ), null, () -> result( true ) ) );

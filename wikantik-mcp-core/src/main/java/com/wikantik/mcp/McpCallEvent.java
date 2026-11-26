@@ -64,7 +64,7 @@ public final class McpCallEvent {
         try ( CloseableThreadContext.Instance ignored = CloseableThreadContext.putAll( fields ) ) {
             EVENTS.info( "mcp tool called" );
         } catch ( final RuntimeException e ) {
-            LOG.warn( "Could not emit mcp_tool_called for {}: {}", tool, e.getClass().getSimpleName() );
+            LOG.warn( "Could not emit mcp_tool_called for {}: {}", tool, e.getClass().getSimpleName(), e );
         }
     }
 

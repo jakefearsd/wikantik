@@ -706,8 +706,10 @@ public class WorkFlowApiIT {
         final String strangerKey = mint( stranger );
         assertEquals( 404, WorkIt.bearer( strangerKey, "GET", "/api/work/projects/" + project + "/flow", null ).statusCode(),
             "a stranger's key is a stranger" );
-        // a work key acts as a person with no admin rights, even the admin's own (WorkKeySessionIT): the admin is no
-        // member of this project, so the key is a stranger here and is refused the product view
+        // a work key acts as a person with no admin rights, even the admin's own (WorkKeySessionIT). The admin created
+        // this project and so led it (WIKIENG-3); out of it, the key is a stranger here and is refused the product view
+        assertEquals( 204, admin.send( "DELETE", "/api/work/projects/" + project + "/members",
+            Map.of( "principal", "janne", "principalKind", "user" ) ).statusCode() );
         final String adminKey = mint( admin );
         assertEquals( 404, WorkIt.bearer( adminKey, "GET", "/api/work/projects/" + project + "/dora", null ).statusCode(),
             "the admin's key is not the admin's session" );

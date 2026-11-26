@@ -125,7 +125,10 @@ class WorkAgentIdentityPostgresTest {
         assertEquals( Actor.Kind.HUMAN, owner.kind() );
         assertEquals( "admin", owner.login() );
         assertEquals( false, owner.admin(), "a work key never carries admin rights, even for an admin owner" );
-        assertTrue( service.listProjects( owner ).isEmpty() );
+        // The admin created both projects and so leads both (WIKIENG-3); out of OPS, the key sees only PLAT.
+        service.removeMember( admin, "OPS", "admin", "user" );
+        assertEquals( 2, service.listProjects( admin ).size(), "as an admin they still see everything" );
+        assertEquals( List.of( "PLAT" ), service.listProjects( owner ).stream().map( Project::key ).toList() );
     }
 
     @Test

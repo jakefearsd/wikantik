@@ -219,8 +219,13 @@ public class WorkApiIT {
         // items list filters
         final JsonArray tasks = json( member.get( "/api/work/items?project=PLAT&level=task" ) ).getAsJsonArray();
         assertEquals( 1, tasks.size() );
+        // the member is shown by display name (the admin who created PLAT is listed too, as its lead: WIKIENG-3)
         final JsonArray members = json( member.get( "/api/work/projects/PLAT/members" ) ).getAsJsonArray();
-        assertEquals( "Wapi Member Name", members.get( 0 ).getAsJsonObject().get( "displayName" ).getAsString() );
+        final List< String > names = new ArrayList<>();
+        for ( final JsonElement m : members ) {
+            names.add( m.getAsJsonObject().get( "displayName" ).getAsString() );
+        }
+        assertTrue( names.contains( "Wapi Member Name" ), names.toString() );
     }
 
     @Test
@@ -497,7 +502,8 @@ public class WorkApiIT {
                 assertTrue( ev.get( "itemKey" ).isJsonNull(), ev.toString() );
             }
         }
-        assertEquals( 5, memberEvents, "lead added; member added, promoted; other added, removed: " + activity );
+        assertEquals( 6, memberEvents,
+            "creator made lead (WIKIENG-3); lead added; member added, promoted; other added, removed: " + activity );
         assertTrue( activity.toString().contains( "\"toValueName\":\"" + OTHER_NAME + "\"" ), activity.toString() );
 
         // the item filter narrows the feed to that item

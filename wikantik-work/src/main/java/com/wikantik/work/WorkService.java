@@ -188,7 +188,7 @@ public class WorkService {
         if ( store.project( key ).isPresent() ) {
             throw new WorkConflictException( "Project " + key + " already exists.", WorkConflictException.EXISTS );
         }
-        return store.createProject( key, name.trim(), description == null ? "" : description );
+        return store.createProject( key, name.trim(), description == null ? "" : description, actor );
     }
 
     public void updateProject( final Actor actor, final String key, final String name, final String description,

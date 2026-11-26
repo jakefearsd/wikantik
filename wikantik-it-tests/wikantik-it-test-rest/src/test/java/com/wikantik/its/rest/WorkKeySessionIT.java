@@ -57,6 +57,12 @@ public class WorkKeySessionIT {
         admin = WorkIt.admin();
         assertEquals( 201, admin.send( "POST", "/api/work/projects", Map.of( "key", PROJECT, "name", "Session probe" ) ).statusCode() );
         assertEquals( 201, admin.send( "POST", "/api/work/projects", Map.of( "key", "SEO", "name", "Session probe 2" ) ).statusCode() );
+        // The creator becomes each project's lead (WIKIENG-3); these probes need an owner with no standing in either,
+        // so that only admin rights could show them, and a key carries none.
+        for ( final String key : List.of( PROJECT, "SEO" ) ) {
+            assertEquals( 204, admin.send( "DELETE", "/api/work/projects/" + key + "/members",
+                Map.of( "principal", "janne", "principalKind", "user" ) ).statusCode(), "drop the creator from " + key );
+        }
         assertEquals( 201, admin.send( "POST", "/api/work/queues", Map.of( "key", "sesq", "name", "Session queue" ) ).statusCode() );
         agent = WorkIt.registerAgent( admin, "ses@it", "sesq" );
         assertEquals( 204, admin.send( "PUT", "/api/work/projects/SEO/members", Map.of( "principal", agent.name(),
@@ -154,6 +160,17 @@ public class WorkKeySessionIT {
             "Cookie", genuineRememberMeCookie() ).body();
         assertFalse( list.contains( "\"" + PROJECT + "\"" ), "the key acts as a person with no admin rights: " + list );
         assertFalse( list.contains( "\"SEO\"" ), list );
+    }
+
+    /** WIKIENG-3: the project an admin creates is visible at once to that admin's own work key, which is no admin. */
+    @Test
+    void theCreatorsWorkKeySeesTheirNewProjectAtOnce() throws Exception {
+        assertEquals( 201, admin.send( "POST", "/api/work/projects", Map.of( "key", "KEYLD", "name", "Creator lead" ) ).statusCode() );
+        final HttpResponse< String > list = WorkIt.bearer( workKey, "GET", "/api/work/projects", null );
+        assertEquals( 200, list.statusCode() );
+        assertTrue( list.body().contains( "\"KEYLD\"" ), "the creator's key lists the project: " + list.body() );
+        final String members = admin.get( "/api/work/projects/KEYLD/members" ).body();
+        assertTrue( members.contains( "janne" ) && members.contains( "\"lead\"" ), "the creator is its lead: " + members );
     }
 
     // ---- a work key is useless on the other key surfaces

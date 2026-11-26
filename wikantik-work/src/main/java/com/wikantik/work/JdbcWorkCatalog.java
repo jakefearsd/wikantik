@@ -109,14 +109,21 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     // ---- projects
 
     @Override
-    public Project createProject( final String key, final String name, final String description )
-            throws SQLException {
-        // Two creations of one key at once: the second inserts nothing, which is the "already exists" conflict.
-        return jdbc.queryOne( "INSERT INTO work_project (key, name, description) VALUES (?,?,?) "
-                + "ON CONFLICT DO NOTHING RETURNING " + PROJECT_COLUMNS,
-            ps -> { ps.setString( 1, key ); ps.setString( 2, name ); ps.setString( 3, description ); },
-            PROJECT_ROW ).orElseThrow( () -> new WorkConflictException( "Project " + key + " already exists.",
-                WorkConflictException.EXISTS ) );
+    public Project createProject( final String key, final String name, final String description,
+                                  final Actor creator ) throws SQLException {
+        final String lead = creator == null ? null : JdbcWorkMembers.userPrincipal( creator );
+        return jdbc.inTransaction( conn -> {
+            // Two creations of one key at once: the second inserts nothing, which is the "already exists" conflict.
+            final Project made = jdbc.queryOne( conn, "INSERT INTO work_project (key, name, description) VALUES (?,?,?) "
+                    + "ON CONFLICT DO NOTHING RETURNING " + PROJECT_COLUMNS,
+                ps -> { ps.setString( 1, key ); ps.setString( 2, name ); ps.setString( 3, description ); },
+                PROJECT_ROW ).orElseThrow( () -> new WorkConflictException( "Project " + key + " already exists.",
+                    WorkConflictException.EXISTS ) );
+            if ( lead != null ) {
+                members.addCreator( conn, made.id(), lead, creator );
+            }
+            return made;
+        } );
     }
 
     @Override

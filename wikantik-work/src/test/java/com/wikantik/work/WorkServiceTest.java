@@ -416,9 +416,10 @@ class WorkServiceTest {
     }
 
     @Test
-    void createProjectRequiresAdminAndAddsNoMembers() throws SQLException {
+    void createProjectRequiresAdminAndHandsTheCreatorToTheStore() throws SQLException {
         assertThrows( WorkDeniedException.class, () -> service.createProject( lead, "NEW", "New", "" ) );
-        when( store.createProject( "NEW", "New", "" ) )
+        // The creator becomes lead inside the store's creation transaction, never through a separate putMember.
+        when( store.createProject( "NEW", "New", "", admin ) )
             .thenReturn( new Project( 3, "NEW", "New", "", Autonomy.SUPERVISED, NOW, null ) );
         assertEquals( "NEW", service.createProject( admin, "NEW", "New", "" ).key() );
         verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), any( Actor.class ), any() );

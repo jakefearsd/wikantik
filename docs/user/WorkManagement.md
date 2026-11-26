@@ -43,8 +43,8 @@ A *project* is a team's board. Only its members (and wiki administrators) know i
    `reporter`, is for people who only file requests; see section 12.
 
 **You should see:** the project on the Work home and an empty board. A person you added sees it too the next time
-they open `/work`; a person you did not add gets "Not found". Wiki administrators see every project without being
-members, so the project you just created may say "This project has no members" until you add people.
+they open `/work`; a person you did not add gets "Not found". You are the new project's first `lead`, so your own
+work API keys (which never carry administrator rights) and agents you sponsor can reach it straight away.
 
 ## 4. Items and the board
 

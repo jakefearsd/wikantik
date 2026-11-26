@@ -28,8 +28,19 @@ public interface WorkCatalogStore {
 
     // ---- projects
 
-    /** Creates a project; the key must match {@code ^[A-Z][A-Z0-9]{1,9}$} and be unused. */
-    Project createProject( String key, String name, String description ) throws SQLException;
+    /** Creates a project with no members; the key must match {@code ^[A-Z][A-Z0-9]{1,9}$} and be unused. */
+    default Project createProject( final String key, final String name, final String description )
+            throws SQLException {
+        return createProject( key, name, description, null );
+    }
+
+    /**
+     * Creates a project as {@link #createProject(String, String, String)} does and, when {@code creator} is a person
+     * with a login, makes them its first lead with one {@code member} event, in the same transaction: the creator's
+     * keys (which never act as an admin) and later non-admin sessions see the project at once. A {@code null} creator,
+     * or one that is not a person, adds nobody.
+     */
+    Project createProject( String key, String name, String description, Actor creator ) throws SQLException;
 
     Optional< Project > project( String key ) throws SQLException;
 

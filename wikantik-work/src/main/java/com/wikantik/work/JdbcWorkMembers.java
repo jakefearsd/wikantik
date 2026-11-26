@@ -19,6 +19,7 @@
 package com.wikantik.work;
 
 import com.wikantik.jdbc.Jdbc;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Optional;
@@ -30,6 +31,9 @@ import java.util.Optional;
  * by anyone in {@code sponsorsToRecheck} whose standing in the project is now below {@code member}.
  */
 final class JdbcWorkMembers {
+
+    /** The principal kind of a person's grant. */
+    private static final String USER = "user";
 
     private final Jdbc jdbc;
     private final JdbcWorkCatalog catalog;
@@ -76,6 +80,24 @@ final class JdbcWorkMembers {
                 ? claims.releaseOnAccessLoss( conn, projectId, principal, by, JdbcWorkClaims.ACCESS_REMOVED ) : 0;
             return own + claims.releaseForSponsors( conn, projectId, sponsorsToRecheck, by );
         } );
+    }
+
+    /**
+     * Makes a new project's creator its first lead, on the creation transaction's connection: the grant and its
+     * {@code member} event. The project is new, so there is no earlier grant and no claim to end.
+     */
+    void addCreator( final Connection conn, final long projectId, final String login, final Actor by )
+            throws SQLException {
+        JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
+        jdbc.update( conn, "INSERT INTO work_member (project_id, principal_kind, principal, role) VALUES (?,?,?,?)",
+            ps -> {
+                ps.setLong( 1, projectId );
+                ps.setString( 2, USER );
+                ps.setString( 3, login );
+                ps.setString( 4, WorkRole.LEAD.wire() );
+            } );
+        catalog.appendEvent( conn, JdbcWorkCatalog.projectEvent( projectId, by, WorkEvent.MEMBER, null,
+            JdbcWorkCatalog.memberValue( USER, login, WorkRole.LEAD ), null ) );
     }
 
     /**

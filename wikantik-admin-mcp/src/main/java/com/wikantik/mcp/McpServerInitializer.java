@@ -136,7 +136,7 @@ public class McpServerInitializer implements ServletContextListener {
 
             for ( final McpTool tool : toolRegistry.readOnlyTools() ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) ->
-                        AuditedToolCall.run( "MCP", tool, exchange, "read",
+                        AuditedToolCall.run( "MCP", "admin", tool, exchange, "read",
                                 () -> tool.execute( request.arguments() ) ) );
             }
 
@@ -144,7 +144,7 @@ public class McpServerInitializer implements ServletContextListener {
                 builder.toolCall( tool.definition(), ( exchange, request ) -> {
                     resolveAuthor( exchange, tool );
                     return CallerIdentity.runAs( clientName( exchange ),
-                            () -> AuditedToolCall.run( "MCP", tool, exchange, "write",
+                            () -> AuditedToolCall.run( "MCP", "admin", tool, exchange, "write",
                                     () -> tool.execute( request.arguments() ) ) );
                 } );
             }

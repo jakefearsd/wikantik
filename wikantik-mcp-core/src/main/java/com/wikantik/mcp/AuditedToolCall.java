@@ -43,13 +43,16 @@ public final class AuditedToolCall {
      * Runs {@code call} and writes the audit line.
      *
      * @param logTag         line prefix, e.g. {@code "MCP"} or {@code "Knowledge MCP"}
+     * @param server         the {@code mcp.server} value of the {@code mcp_tool_called} event: {@code "admin"}
+     *                       or {@code "knowledge"}
      * @param tool           the tool being called (its name is logged)
      * @param exchange       the session exchange, source of the client name; may be null
      * @param surfaceOrNull  {@code "read"}/{@code "write"} for the admin endpoint; null omits the
      *                       {@code surface=} field
      * @param call           executes the tool; a runtime exception is logged ({@code threw=}) and rethrown
      */
-    public static McpSchema.CallToolResult run( final String logTag, final McpTool tool,
+    public static McpSchema.CallToolResult run( final String logTag, final String server,
+                                                final McpTool tool,
                                                 final McpSyncServerExchange exchange,
                                                 final String surfaceOrNull,
                                                 final Supplier< McpSchema.CallToolResult > call ) {
@@ -64,8 +67,12 @@ public final class AuditedToolCall {
             throw re;
         } finally {
             final long ms = ( System.nanoTime() - t0 ) / 1_000_000L;
-            final String client = clientName( exchange );
+            final String client = McpCallEvent.clientName( exchange );
             final String surface = surfaceOrNull == null ? "" : " surface=" + surfaceOrNull;
+            McpCallEvent.emit( server, tool.name(), client, McpCallEvent.sessionHash( exchange ),
+                    thrown == null && !( result != null && Boolean.TRUE.equals( result.isError() ) ),
+                    System.nanoTime() - t0, McpCallEvent.responseBytes( result ),
+                    thrown == null ? null : thrown.getClass().getSimpleName() );
             if ( thrown != null ) {
                 LOG.info( "{} tools/call name={} client={}{} durationMs={} threw={}",
                         logTag, tool.name(), client, surface, ms, thrown.getClass().getSimpleName() );
@@ -75,18 +82,5 @@ public final class AuditedToolCall {
                         logTag, tool.name(), client, surface, ms, isError );
             }
         }
-    }
-
-    private static String clientName( final McpSyncServerExchange exchange ) {
-        try {
-            final McpSchema.Implementation ci = exchange != null ? exchange.getClientInfo() : null;
-            if ( ci != null && ci.name() != null ) {
-                return ci.name();
-            }
-        } catch ( final RuntimeException e ) {
-            // exchange.getClientInfo can throw before initialize completes
-            LOG.debug( "Client info unavailable for MCP call telemetry; using '?': {}", e.getMessage() );
-        }
-        return "?";
     }
 }

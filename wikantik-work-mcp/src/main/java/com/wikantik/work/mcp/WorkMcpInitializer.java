@@ -23,8 +23,10 @@ import com.wikantik.api.Release;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.apikeys.ApiKeyService;
+import com.wikantik.mcp.McpCallEvent;
 import com.wikantik.mcp.McpEndpointBootstrapper;
 import com.wikantik.mcp.SdkSessionSweepers;
+import com.wikantik.mcp.SessionHash;
 import com.wikantik.work.Actor;
 import com.wikantik.work.WorkDirectory;
 import com.wikantik.work.WorkService;
@@ -162,7 +164,8 @@ public class WorkMcpInitializer implements ServletContextListener {
                                final WorkService svc ) {
         for ( final WorkMcpTool tool : tools ) {
             spec.toolCall( tool.definition(), ( exchange, request ) ->
-                    dispatch( tool, svc, exchange.transportContext(), request.arguments() ) );
+                    dispatch( tool, svc, exchange.transportContext(), request.arguments(),
+                        McpCallEvent.clientName( exchange ), McpCallEvent.sessionHash( exchange ) ) );
         }
     }
 
@@ -172,9 +175,17 @@ public class WorkMcpInitializer implements ServletContextListener {
      */
     static McpSchema.CallToolResult dispatch( final WorkMcpTool tool, final WorkService svc,
                                               final McpTransportContext context, final Map< String, Object > args ) {
+        return dispatch( tool, svc, context, args, "?", SessionHash.NONE );
+    }
+
+    /** As above, also emitting the {@code mcp_tool_called} event for the given client name and session hash. */
+    static McpSchema.CallToolResult dispatch( final WorkMcpTool tool, final WorkService svc,
+                                              final McpTransportContext context, final Map< String, Object > args,
+                                              final String clientName, final String sessionHash ) {
         final long t0 = System.nanoTime();
         Actor actor = null;
-        McpSchema.CallToolResult result;
+        McpSchema.CallToolResult result = null;
+        RuntimeException thrown = null;
         try {
             actor = WorkMcpActors.actorFor( context, svc );
             result = tool.call( actor, args );
@@ -186,6 +197,13 @@ public class WorkMcpInitializer implements ServletContextListener {
             // The agent's sponsor could not be looked up: retryable, and nothing about the agent has changed.
             LOG.warn( "Work MCP could not resolve the caller's sponsor for {}: {}", tool.name(), e.getMessage() );
             result = WorkMcpTool.error( WorkMcpTool.UNAVAILABLE );
+        } catch ( final RuntimeException e ) {
+            thrown = e;
+            throw e;
+        } finally {
+            McpCallEvent.emit( "work", tool.name(), clientName, sessionHash,
+                thrown == null && !Boolean.TRUE.equals( result.isError() ), System.nanoTime() - t0,
+                McpCallEvent.responseBytes( result ), thrown == null ? null : thrown.getClass().getSimpleName() );
         }
         // Writes at INFO (they change state); reads at DEBUG, or an agent polling the board floods the log.
         LOG.log( tool.writes() ? Level.INFO : Level.DEBUG, "Work MCP tools/call name={} caller={} durationMs={} "

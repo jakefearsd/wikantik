@@ -157,4 +157,23 @@ class WorkMcpLoggingTest {
         assertFalse( Boolean.TRUE.equals( up.isError() ), WorkMcpFixture.text( up ) );
         assertTrue( WorkMcpFixture.text( up ).contains( "PLAT-1" ) );
     }
+
+    @Test
+    void everyDispatchEmitsOneMcpToolCalledEventWithoutArguments() throws Exception {
+        final MockWork w = new MockWork();
+        when( w.registry.actorForApiKey( 9, "lena" ) ).thenReturn( w.agent );
+        when( w.svc.item( any(), any() ) ).thenThrow( new WorkNotFoundException( "SECRET-ARG" ) );
+        final List< LogEvent > events = logged( "com.wikantik.mcp.events", () ->
+            WorkMcpInitializer.dispatch( new GetItemTool( w.svc, w.directory ), w.svc, keyed(),
+                Map.of( "key", "SECRET-ARG" ), "claude-code", "abc123def456" ) );
+        assertEquals( 1, events.size(), events.toString() );
+        final var ctx = events.get( 0 ).getContextData();
+        assertEquals( "mcp_tool_called", ctx.getValue( "event.action" ) );
+        assertEquals( "work", ctx.getValue( "mcp.server" ) );
+        assertEquals( "get_item", ctx.getValue( "mcp.tool" ) );
+        assertEquals( "claude-code", ctx.getValue( "mcp.client.name" ) );
+        assertEquals( "abc123def456", ctx.getValue( "mcp.session.hash" ) );
+        assertEquals( "failure", ctx.getValue( "event.outcome" ), "an isError envelope is a failure" );
+        assertFalse( ctx.toMap().toString().contains( "SECRET-ARG" ) );
+    }
 }

@@ -29,12 +29,14 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.config.Property;
 import org.junit.jupiter.api.Test;
 
+import com.google.gson.JsonObject;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -100,7 +102,7 @@ class AuditedToolCallTest {
     void successfulCallWithSurface_logsAdminLine() {
         final McpSchema.CallToolResult ok = result( false );
         final McpSchema.CallToolResult[] returned = new McpSchema.CallToolResult[ 1 ];
-        final List< String > lines = logged( () -> returned[ 0 ] = AuditedToolCall.run( "MCP", tool(),
+        final List< String > lines = logged( () -> returned[ 0 ] = AuditedToolCall.run( "MCP", "admin", tool(),
                 exchange( "claude" ), "read", () -> ok ) );
         assertSame( ok, returned[ 0 ] );
         assertLine( "MCP tools/call name=read_page client=claude surface=read durationMs=\\d+ isError=false", lines );
@@ -108,7 +110,7 @@ class AuditedToolCallTest {
 
     @Test
     void errorResultWithoutSurface_logsKnowledgeLine() {
-        final List< String > lines = logged( () -> AuditedToolCall.run( "Knowledge MCP", tool(),
+        final List< String > lines = logged( () -> AuditedToolCall.run( "Knowledge MCP", "knowledge", tool(),
                 exchange( "cursor" ), null, () -> result( true ) ) );
         assertLine( "Knowledge MCP tools/call name=read_page client=cursor durationMs=\\d+ isError=true", lines );
     }
@@ -116,7 +118,7 @@ class AuditedToolCallTest {
     @Test
     void thrownExceptionWithSurface_logsThrewAndRethrows() {
         final List< String > lines = logged( () -> assertThrows( IllegalStateException.class,
-                () -> AuditedToolCall.run( "MCP", tool(), exchange( "claude" ), "write",
+                () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange( "claude" ), "write",
                         ( Supplier< McpSchema.CallToolResult > ) () -> {
                             throw new IllegalStateException( "boom" );
                         } ) ) );
@@ -127,7 +129,7 @@ class AuditedToolCallTest {
     @Test
     void thrownExceptionWithoutSurface_logsThrewAndRethrows() {
         final List< String > lines = logged( () -> assertThrows( IllegalArgumentException.class,
-                () -> AuditedToolCall.run( "Knowledge MCP", tool(), exchange( "cursor" ), null,
+                () -> AuditedToolCall.run( "Knowledge MCP", "knowledge", tool(), exchange( "cursor" ), null,
                         ( Supplier< McpSchema.CallToolResult > ) () -> {
                             throw new IllegalArgumentException( "boom" );
                         } ) ) );
@@ -139,15 +141,61 @@ class AuditedToolCallTest {
     void unavailableClientInfo_fallsBackToQuestionMark() {
         final McpSyncServerExchange exchange = mock( McpSyncServerExchange.class );
         when( exchange.getClientInfo() ).thenThrow( new IllegalStateException( "not initialized" ) );
-        final List< String > lines = logged( () -> AuditedToolCall.run( "MCP", tool(), exchange,
+        final List< String > lines = logged( () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange,
                 "read", () -> result( false ) ) );
         assertLine( "MCP tools/call name=read_page client=\\? surface=read durationMs=\\d+ isError=false", lines );
     }
 
     @Test
     void nullExchange_fallsBackToQuestionMark() {
-        final List< String > lines = logged( () -> AuditedToolCall.run( "Knowledge MCP", tool(), null,
+        final List< String > lines = logged( () -> AuditedToolCall.run( "Knowledge MCP", "knowledge", tool(), null,
                 null, () -> result( false ) ) );
         assertLine( "Knowledge MCP tools/call name=read_page client=\\? durationMs=\\d+ isError=false", lines );
+    }
+
+    private static List< JsonObject > events( final Runnable action ) {
+        return McpCallEventTest.rendered( action );
+    }
+
+    @Test
+    void throwingCallEmitsOneFailureEventAndRethrows() {
+        final List< JsonObject > out = events( () -> assertThrows( IllegalStateException.class,
+                () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange( "claude" ), "write",
+                        ( Supplier< McpSchema.CallToolResult > ) () -> {
+                            throw new IllegalStateException( "secret argument text" );
+                        } ) ) );
+        assertEquals( 1, out.size(), out.toString() );
+        assertEquals( "failure", out.get( 0 ).get( "event.outcome" ).getAsString() );
+        assertEquals( "IllegalStateException", out.get( 0 ).get( "error.type" ).getAsString() );
+        assertEquals( "admin", out.get( 0 ).get( "mcp.server" ).getAsString() );
+        assertEquals( "read_page", out.get( 0 ).get( "mcp.tool" ).getAsString() );
+        assertFalse( out.get( 0 ).toString().contains( "secret argument text" ) );
+    }
+
+    @Test
+    void isErrorResultEmitsFailureEvent() {
+        final List< JsonObject > out = events( () -> AuditedToolCall.run( "Knowledge MCP", "knowledge", tool(),
+                exchange( "cursor" ), null, () -> result( true ) ) );
+        assertEquals( 1, out.size() );
+        assertEquals( "failure", out.get( 0 ).get( "event.outcome" ).getAsString() );
+        assertEquals( "cursor", out.get( 0 ).get( "mcp.client.name" ).getAsString() );
+    }
+
+    @Test
+    void successEventCountsUtf8ResponseBytes() {
+        final McpSchema.CallToolResult r = McpSchema.CallToolResult.builder().addTextContent( "h\u00e9" )
+                .isError( false ).build();
+        final List< JsonObject > out = events( () -> AuditedToolCall.run( "MCP", "admin", tool(),
+                exchange( "c" ), "read", () -> r ) );
+        assertEquals( "success", out.get( 0 ).get( "event.outcome" ).getAsString() );
+        assertEquals( "3", out.get( 0 ).get( "mcp.response.bytes" ).getAsString() );
+    }
+
+    @Test
+    void nullExchangeEmitsQuestionMarkClientAndNoneHash() {
+        final List< JsonObject > out = events( () -> AuditedToolCall.run( "Knowledge MCP", "knowledge", tool(),
+                null, null, () -> result( false ) ) );
+        assertEquals( "?", out.get( 0 ).get( "mcp.client.name" ).getAsString() );
+        assertEquals( "none", out.get( 0 ).get( "mcp.session.hash" ).getAsString() );
     }
 }

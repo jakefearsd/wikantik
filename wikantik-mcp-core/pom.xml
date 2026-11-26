@@ -124,6 +124,13 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- McpCallEventTest renders the event through the production JSON layout (classpath:EcsLayout.json). -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-layout-template-json</artifactId>
+      <scope>test</scope>
+    </dependency>
+
     <!-- Required even when this module ships no Mockito-based tests: the parent
          surefire argLine references the mockito-core javaagent path, and a module
          lacking the dependency fails VM init. -->

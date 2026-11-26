@@ -177,7 +177,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
 
             for ( final McpTool tool : tools ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) ->
-                        AuditedToolCall.run( "Knowledge MCP", tool, exchange, null,
+                        AuditedToolCall.run( "Knowledge MCP", "knowledge", tool, exchange, null,
                                 () -> tool.execute( request.arguments() ) ) );
             }
 

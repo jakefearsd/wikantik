@@ -51,9 +51,17 @@ curl -sG http://192.168.5.52:3100/loki/api/v1/query \
   --data-urlencode 'time=2026-12-07T00:00:00Z'
 ```
 
-Also query distinct sessions per day (count distinct `mcp_session_hash` per day, e.g. one query per day
-with `[1d]` and `sum by (mcp_session_hash)`, then count the series) and the client mix (`sum by
-(mcp_client_name)`). If Loki is unreachable or returns nothing, say so in the digest under the MCP usage
+Distinct sessions for one day (run once per day of the week, `time` = that day's end):
+
+```
+count(sum by (service_instance, mcp_session_hash) (count_over_time({service_instance=~".+"} | json | event_action="mcp_tool_called" [1d])))
+```
+
+Client mix over the week:
+
+```
+sum by (service_instance, mcp_client_name) (count_over_time({service_instance=~".+"} | json | event_action="mcp_tool_called" [7d]))
+``` If Loki is unreachable or returns nothing, say so in the digest under the MCP usage
 heading and continue from the reports alone. Do not invent counts.
 
 ### Registry and previous digest

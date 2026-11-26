@@ -244,6 +244,7 @@
     <module>wikantik-ontology</module>
     <module>wikantik-observability</module>
     <module>wikantik-insights</module>
+    <module>wikantik-agent-reports</module>
     <module>wikantik-work</module>
     <module>wikantik-work-mcp</module>
     <module>wikantik-rest</module>

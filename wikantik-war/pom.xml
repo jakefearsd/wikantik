@@ -84,6 +84,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Agent field reports: reaches WEB-INF/lib only through this entry (see the insights note above). -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>wikantik-agent-reports</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>wikantik-work</artifactId>

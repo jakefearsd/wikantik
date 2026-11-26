@@ -71,8 +71,8 @@ tags:
 
 # Finding the Right MCP Tool
 
-There are up to 36 MCP tools across the two servers this wiki
-exposes (20 on the admin server and 16 on the knowledge server when every
+There are up to 41 MCP tools across the two servers this wiki
+exposes (24 on the admin server and 17 on the knowledge server when every
 optional subsystem is wired; see [MCP Integration](McpIntegration) for the
 inventory). Most agents only ever need five of them. This runbook is the
 decision tree.
@@ -81,13 +81,13 @@ decision tree.
 
 Any time you catch yourself reaching for `get_page` when you really only
 needed orientation, or trying to write through `/knowledge-mcp` (which
-is read-only). Re-read this when you start a new agent session.
+is read-only apart from `file_agent_report`). Re-read this when you start a new agent session.
 
 ## Context
 
 Two MCP endpoints, partitioned by trust level:
 
-- **`/knowledge-mcp`** — read-only, authenticated with an `mcp_read` (or
+- **`/knowledge-mcp`** — read-only except `file_agent_report` (agent field reports, never pages), authenticated with an `mcp_read` (or
   stronger) key, and limited to pages an anonymous visitor may view. Hosts
   grounding and retrieval (assemble_bundle, retrieve_context, get_briefing,
   read_pages, get_page, list_pages, list_metadata_values), navigation

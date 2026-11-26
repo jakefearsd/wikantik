@@ -11,7 +11,7 @@ instead of repeating the numbers.
 | Endpoint | Protocol | Tools | Access | Minimum key scope |
 |---|---|---|---|---|
 | `/wikantik-admin-mcp` | MCP (Streamable HTTP) | 23 read and write tools | `McpAccessFilter` | `mcp_admin` |
-| `/knowledge-mcp` | MCP (Streamable HTTP) | 16 read-only tools | `McpAccessFilter`, registered as `KnowledgeMcpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
+| `/knowledge-mcp` | MCP (Streamable HTTP) | 17 tools: 16 read-only plus `file_agent_report` | `McpAccessFilter`, registered as `KnowledgeMcpAccessFilter` (required scope `mcp_read`) | `mcp_read` |
 | `/work-mcp` | MCP (Streamable HTTP) | 16 work-management tools | API key only (see below) | `work` |
 | `/tools/*` | OpenAPI 3.1 over plain HTTP | 2 | `ToolsAccessFilter` | `tools` |
 
@@ -200,7 +200,9 @@ a bearer token.
 "Access" says what the tool can change: **read** tools never modify wiki content;
 **write** tools do.
 
-### /wikantik-admin-mcp (23 tools by default)
+### /wikantik-admin-mcp (24 tools by default)
+
+`list_agent_reports` lists agent field reports (window, kind of work, product, client, skill, outcome); the same data is at `GET /admin/agent-reports`.
 
 The authoritative per-tool descriptions are in
 `wikantik-admin-mcp/src/main/resources/wikantik-mcp-instructions.txt`, which the server
@@ -234,9 +236,9 @@ returns as its instructions on `initialize`. Every write tool refuses system pag
 | `list_comment_threads` | Reader comment threads the commenter made available to agents, by page or cluster; each comment is marked `trusted` or not | read |
 | `respond_to_comment_thread` | Reply to, resolve or dismiss a comment thread as an agent; `resolve` needs a trusted comment, `dismiss` needs a reason | write (comments only) |
 
-### /knowledge-mcp (16 tools by default)
+### /knowledge-mcp (17 tools by default)
 
-All 16 are read-only with respect to content. `assemble_bundle` and `get_briefing`
+`file_agent_report` is the endpoint's one write: it files an agent field report into the report store (never a page), under `mcp_read`, with client, session hash and key owner filled in by the server (SA-22). The other 16 are read-only with respect to content. `assemble_bundle` and `get_briefing`
 record query telemetry (`retrieval_query_log`, `briefing_log`), which does not change
 wiki content. Tools that take the guest view gate described under
 [Get a key](#get-a-key) do not return restricted pages: `assemble_bundle`, `get_briefing`,

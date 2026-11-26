@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.wikantik.agentreports.AgentReportService;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.briefing.BriefingAssemblyService;
 import com.wikantik.api.briefing.BriefingLogService;
@@ -61,6 +62,7 @@ final class KnowledgeToolDeps {
     private final Supplier< ReferenceManager > referenceManager;
     private final Predicate< String > draftActive;
     private final Supplier< com.wikantik.api.livevalues.LiveValues > liveValues;
+    private final Supplier< AgentReportService > agentReports;
 
     private KnowledgeToolDeps( final Builder b ) {
         this.ctxService = b.ctxService;
@@ -71,13 +73,14 @@ final class KnowledgeToolDeps {
         this.briefingService = b.briefingService;
         this.ontoMgr = b.ontoMgr;
         this.citationRepo = b.citationRepo;
-        this.queryLog = b.queryLog != null ? b.queryLog : () -> null;
-        this.briefingLog = b.briefingLog != null ? b.briefingLog : () -> null;
-        this.viewGate = b.viewGate != null ? b.viewGate : PageViewGate.ALLOW_ALL;
-        this.publicIdentity = b.publicIdentity != null ? b.publicIdentity : () -> null;
-        this.referenceManager = b.referenceManager != null ? b.referenceManager : () -> null;
-        this.draftActive = b.draftActive != null ? b.draftActive : p -> false;
-        this.liveValues = b.liveValues != null ? b.liveValues : () -> null;
+        this.queryLog = java.util.Objects.requireNonNullElse( b.queryLog, () -> null );
+        this.briefingLog = java.util.Objects.requireNonNullElse( b.briefingLog, () -> null );
+        this.viewGate = java.util.Objects.requireNonNullElse( b.viewGate, PageViewGate.ALLOW_ALL );
+        this.publicIdentity = java.util.Objects.requireNonNullElse( b.publicIdentity, () -> null );
+        this.referenceManager = java.util.Objects.requireNonNullElse( b.referenceManager, () -> null );
+        this.draftActive = java.util.Objects.requireNonNullElse( b.draftActive, p -> false );
+        this.liveValues = java.util.Objects.requireNonNullElse( b.liveValues, () -> null );
+        this.agentReports = java.util.Objects.requireNonNullElse( b.agentReports, () -> null );
     }
 
     static Builder builder() {
@@ -99,6 +102,7 @@ final class KnowledgeToolDeps {
     Supplier< ReferenceManager > referenceManager() { return referenceManager; }
     Predicate< String > draftActive() { return draftActive; }
     Supplier< com.wikantik.api.livevalues.LiveValues > liveValues() { return liveValues; }
+    Supplier< AgentReportService > agentReports() { return agentReports; }
 
     static final class Builder {
         private ContextRetrievalService ctxService;
@@ -116,7 +120,9 @@ final class KnowledgeToolDeps {
         private Supplier< ReferenceManager > referenceManager;
         private Predicate< String > draftActive;
         private Supplier< com.wikantik.api.livevalues.LiveValues > liveValues;
+        private Supplier< AgentReportService > agentReports;
 
+        Builder agentReports( final Supplier< AgentReportService > v ) { this.agentReports = v; return this; }
         Builder ctxService( final ContextRetrievalService v ) { this.ctxService = v; return this; }
         Builder pageManager( final PageManager v ) { this.pageManager = v; return this; }
         Builder structuralIndex( final StructuralIndexService v ) { this.structuralIndex = v; return this; }

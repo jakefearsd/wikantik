@@ -77,6 +77,7 @@ The following settings come from `wikantik-main/src/main/resources/ini/wikantik.
 - [Ontology](#ontology)
 - [Observability & profiling](#observability--profiling)
 - [Context bundle & briefing](#context-bundle--briefing)
+- [Agent Reports](#agent-reports)
 - [Content Intelligence](#content-intelligence)
 - [Reader analytics](#reader-analytics)
 - [Citations](#citations)
@@ -832,6 +833,16 @@ Full descriptions (truncated above to keep the table scannable):
 - **`wikantik.bundle.bm25.enabled`** — Chunk-level BM25 hybrid bundle source (default ON since 2026-06-18). Wraps the dense chunk source with a RAM Lucene BM25 chunk index + RRF fusion (the lexical half of "hybrid" at chunk granularity). The sweep found a STRICT improvement over dense-only with the tuned defaults below: similarity recall@12 0.711->0.737, overall 0.706->0.721, NO category regresses. Costs a second in-RAM index (~18.4k chunks, a few MB) built at startup; degrades to dense-only if that build fails. Set false to revert. See eval/bm25-chunk-spike/findings.md.
 - **`wikantik.bundle.bm25.bm25_weight`** — Bundle fusion weights (separate from the page-level wikantik.search.hybrid.rrf.* knobs). Tuned 2026-06-18: half the page-level BM25 weight + a tighter rrfK keep the similarity gain without the boundary@5 dip that the reused page weights (bm25=1.0) caused.
 - **`wikantik.bundle.bm25.analyzer`** — BM25 chunk-index analyzer: standard | code. The 2026-06-19 evaluation (eval/bm25-chunk-spike/analyzer-and-efsearch-findings.md) showed the code-aware analyzer (WordDelimiter: camelCase + snake_case splitting) lets BM25 match identifier/code-symbol queries - but only pays off under a BM25-heavy fusion, which collapses natural-language recall. So it stays 'standard' globally; 'code' is for a future query-adaptive routing path, not a global flip. (Pairs with the bm25_weight/truncate knobs above.)
+
+## Agent Reports
+
+| Key | Type | Default | Override | Description |
+|---|---|---|---|---|
+| `wikantik.agentReports.maxPerHourPerKey` | `int` | `60` | `wikantik_agentReports_maxPerHourPerKey` | Attempts one API key may make per hour at filing an agent field report (file_agent_report on the knowledge MCP endpoint). … |
+
+Full descriptions (truncated above to keep the table scannable):
+
+- **`wikantik.agentReports.maxPerHourPerKey`** — Attempts one API key may make per hour at filing an agent field report (file_agent_report on the knowledge MCP endpoint). Refused attempts count too. Zero or less disables the limit. The window is kept in memory per process, so a restart resets it.
 
 ## Content Intelligence
 

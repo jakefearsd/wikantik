@@ -39,6 +39,7 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.mcp.AuditedToolCall;
+import com.wikantik.mcp.tools.ExchangeAwareMcpTool;
 import com.wikantik.mcp.McpEndpointBootstrapper;
 import com.wikantik.mcp.StartupPhase;
 import com.wikantik.mcp.SdkSessionSweepers;
@@ -124,7 +125,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         final HttpServletStreamableServerTransportProvider transportProvider = StartupPhase.call( LOG,
                 "Knowledge MCP startup failed during transport servlet registration — " +
                         "access filter was registered but endpoint has no servlet: {}",
-                () -> bootstrapper.registerTransport( servletContext ) );
+                () -> bootstrapper.registerTransport( servletContext, FileAgentReportTool::extract ) );
         if ( transportProvider == null ) {
             return;
         }
@@ -156,6 +157,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 .publicIdentity( () -> AuthSubsystemBridge.fromLegacyEngine( engine ).publicIdentity() )
                 .referenceManager( () -> PageSubsystemBridge.fromLegacyEngine( engine ).referenceManager() )
                 .liveValues( () -> com.wikantik.livevalues.LiveValuesLookup.of( engine ) )
+                .agentReports( () -> agentReportService( engine ) )
                 .build() );
         } );
         if ( tools == null ) {
@@ -178,7 +180,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             for ( final McpTool tool : tools ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) ->
                         AuditedToolCall.run( "Knowledge MCP", "knowledge", tool, exchange, null,
-                                () -> tool.execute( request.arguments() ) ) );
+                                () -> invoke( tool, request.arguments(), exchange ) ) );
             }
 
             mcpServer = builder.build();
@@ -186,6 +188,16 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             servletContext.setAttribute( ATTR_KNOWLEDGE_MCP_SERVER, mcpServer );
             LOG.info( "Knowledge MCP server started successfully with {} tools at /knowledge-mcp", tools.size() );
         } );
+    }
+
+    /** Runs a tool; one that needs the session exchange (identity, key owner) gets it, every other does not. */
+    static McpSchema.CallToolResult invoke( final McpTool tool, final java.util.Map< String, Object > arguments,
+                                            final io.modelcontextprotocol.server.McpSyncServerExchange exchange ) {
+        return tool instanceof ExchangeAwareMcpTool aware ? aware.execute( arguments, exchange ) : tool.execute( arguments );
+    }
+
+    private static com.wikantik.agentreports.AgentReportService agentReportService( final Engine engine ) {
+        return engine instanceof com.wikantik.WikiEngine we ? we.agentReportService() : null;
     }
 
     /** Publishes the registered tool count as the {@code tools.knowledge} live value. */
@@ -205,7 +217,14 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             "(primary answer-grounding tool), retrieve_context (page/section discovery), " +
             "get_page (pinned fetch), read_pages (batched markdown fetch, max 20), " +
             "get_briefing (session-start briefing: your project's pages and the contracts it cites), " +
-            "list_pages (browse), or list_metadata_values (discovery).";
+            "list_pages (browse), or list_metadata_values (discovery). " +
+            "file_agent_report is this endpoint's only write: when you finish a piece of work, file one short field " +
+            "report (kind_of_work, task, outcome, plus what context helped or was missing and where tools got in " +
+            "your way); the agent-field-report skill describes when and how. It stores to the agent-report store, " +
+            "never to pages. Limits, none truncated (an over-limit report is refused with the field named): task " +
+            "300 characters, context_missing 1000, friction[].what 500, notes 2000, workspace 100, context_used[].ref " +
+            "500, products/skills/friction[].product/friction[].tool entries 100, at most 50 entries per list. " +
+            "Refused attempts count toward the hourly limit per key (60 by default).";
     }
 
     /**
@@ -219,6 +238,8 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         addStructuralSpineTools( tools, deps );
         addProjectionAndBundleTools( tools, deps );
         addOntologyAndCitationTools( tools, deps );
+        // The endpoint's one write; always registered, it answers "report store unavailable" while unwired.
+        tools.add( new FileAgentReportTool( deps.agentReports() ) );
         return tools;
     }
 

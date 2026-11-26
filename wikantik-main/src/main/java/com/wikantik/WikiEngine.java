@@ -1149,6 +1149,14 @@ public class WikiEngine implements Engine {
                         background ) );
             } ),
 
+            // Agent field reports (file_agent_report on /knowledge-mcp). Null without a datasource; the tool then
+            // answers "report store unavailable". A wiring failure must never stop the wiki.
+            BootStep.continueOnFailure( "agent-reports", env ->
+                this.agentReportService = com.wikantik.agentreports.runtime.AgentReportsWiring.build(
+                    env.dataSource(), env.props() ),
+                e -> LOG.warn( "agent-reports wiring failed (file_agent_report will answer unavailable): {}",
+                    e.getMessage(), e ) ),
+
             // Umami reader read-back; off unless wikantik.analytics.readback.url is set. A failure here
             // must never stop the wiki.
             BootStep.continueOnFailure( "reader-readback", env -> {
@@ -1396,6 +1404,15 @@ public class WikiEngine implements Engine {
     /** The content-opportunity engine facade, or {@code null} if it was not wired. */
     public com.wikantik.insights.runtime.ContentOpportunityService contentOpportunityService() {
         return contentOpportunityService;
+    }
+
+    /** Agent field-report service behind the knowledge endpoint's {@code file_agent_report}; null while no
+     *  datasource is wired. A plain field (DecompositionArchTest R-2: not a manager). */
+    private volatile com.wikantik.agentreports.AgentReportService agentReportService;
+
+    /** The agent field-report service, or {@code null} if it was not wired. */
+    public com.wikantik.agentreports.AgentReportService agentReportService() {
+        return agentReportService;
     }
 
     /** Work-management service; set at startup, null while {@code wikantik.work.enabled} is false (callers no-op).

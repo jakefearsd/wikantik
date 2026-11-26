@@ -87,7 +87,13 @@ class ConfigSurfaceDriftTest {
         // Task 10: ToolsAccessFilter.SURFACE label (same pattern as "mcp.access" above) - not a
         // config key, the real tools.access.* keys are declared separately.
         Map.entry( "tools.access", "access-surface label" ),
-        Map.entry( "wikantik.editor.mode", "user-profile attribute key (AuthResource.EDITOR_MODE_ATTRIBUTE)" )
+        Map.entry( "wikantik.editor.mode", "user-profile attribute key (AuthResource.EDITOR_MODE_ATTRIBUTE)" ),
+        // McpCallEvent: the ECS field names of the mcp_tool_called log event, not config
+        Map.entry( "mcp.server", "log-event field name (McpCallEvent)" ),
+        Map.entry( "mcp.tool", "log-event field name (McpCallEvent)" ),
+        Map.entry( "mcp.client.name", "log-event field name (McpCallEvent)" ),
+        Map.entry( "mcp.session.hash", "log-event field name (McpCallEvent)" ),
+        Map.entry( "mcp.response.bytes", "log-event field name (McpCallEvent)" )
     );
 
     /** Config keys physically declared in {@link #MCP_INI} even though the code reads them with a {@code wikantik.} prefix. */

@@ -871,6 +871,12 @@
        <servlet-class>com.wikantik.rest.AdminCollabResource</servlet-class>
    </servlet>
 
+   <!-- Agent field reports (/admin/agent-reports), behind AdminAuthFilter. -->
+   <servlet>
+       <servlet-name>AdminAgentReportsResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminAgentReportsResource</servlet-class>
+   </servlet>
+
    <!-- SCIM 2.0 -->
    <servlet>
        <servlet-name>ScimUserResource</servlet-name>
@@ -1305,6 +1311,11 @@
    <servlet-mapping>
        <servlet-name>AdminCollabResource</servlet-name>
        <url-pattern>/admin/collab/*</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>AdminAgentReportsResource</servlet-name>
+       <url-pattern>/admin/agent-reports</url-pattern>
    </servlet-mapping>
 
    <!-- SCIM 2.0 servlet mappings -->

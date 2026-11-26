@@ -224,7 +224,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             "never to pages. Limits, none truncated (an over-limit report is refused with the field named): task " +
             "300 characters, context_missing 1000, friction[].what 500, notes 2000, workspace 100, context_used[].ref " +
             "500, products/skills/friction[].product/friction[].tool entries 100, at most 50 entries per list. " +
-            "Refused attempts count toward the hourly limit per key (60 by default).";
+            "Every attempt the tool receives, refused or not, counts toward the hourly limit per key owner (60 by default).";
     }
 
     /**

@@ -129,7 +129,7 @@ class FileAgentReportToolTest {
     void descriptionStatesLimitsAndThatItIsTheOnlyWriteToTheReportStore() {
         final String d = tool.definition().description();
         for ( final String s : new String[] { "only write", "report store", "never creates or changes wiki pages",
-                "300", "1000", "500", "2000", "100", "50", "toward the hourly limit" } ) {
+                "300", "1000", "500", "2000", "100", "50", "every attempt the tool receives", "per key owner" } ) {
             assertTrue( d.contains( s ), "description missing '" + s + "': " + d );
         }
         assertFalse( Boolean.TRUE.equals( tool.definition().annotations().readOnlyHint() ) );
@@ -138,7 +138,7 @@ class FileAgentReportToolTest {
     @Test
     void instructionsStateTheLimitsAndTheHourlyCount() {
         final String i = KnowledgeMcpInitializer.serverInstructions();
-        assertTrue( i.contains( "file_agent_report" ) && i.contains( "only write" ) && i.contains( "hourly limit" ), i );
+        assertTrue( i.contains( "file_agent_report" ) && i.contains( "only write" ) && i.contains( "hourly limit" ) && i.contains( "per key owner" ), i );
     }
 
     @Test

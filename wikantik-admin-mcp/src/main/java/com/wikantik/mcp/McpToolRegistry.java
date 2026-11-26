@@ -154,6 +154,10 @@ public class McpToolRegistry {
         // with no datasource it refuses at call time.
         readOnlyList.add( readerEngagementTool( engine ) );
 
+        // Agent field reports (filed on /knowledge-mcp). Registered unconditionally; with no datasource it
+        // answers "report store unavailable".
+        readOnlyList.add( agentReportsTool( engine ) );
+
         // Reader comment threads (agent feedback loop). Registered UNCONDITIONALLY for the same
         // reason as the tools above: both refuse at call time when no datasource is wired.
         final var persistence = engine instanceof com.wikantik.WikiEngine we3 ? we3.getPersistenceSubsystem() : null;
@@ -165,6 +169,13 @@ public class McpToolRegistry {
 
         readOnly = List.copyOf( readOnlyList );
         authorConfigurable = List.copyOf( authorConfigurableList );
+    }
+
+    /** {@code list_agent_reports}; the service is resolved per call, as it is wired after the engine's own startup. */
+    private static ListAgentReportsTool agentReportsTool( final Engine engine ) {
+        return new ListAgentReportsTool(
+                () -> engine instanceof com.wikantik.WikiEngine we ? we.agentReportService() : null,
+                java.time.Clock.systemUTC() );
     }
 
     /** {@code list_reader_engagement}, given a null report (refuses at call time) when no datasource is wired. */

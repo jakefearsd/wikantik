@@ -353,6 +353,26 @@ list_reader_engagement
                   An empty list with refreshedAt null means analytics is off
                   or not yet read back, not that nobody read the wiki.
 
+list_agent_reports
+                  Read-only. The field reports agents filed through
+                  file_agent_report on the knowledge endpoint, newest first.
+                  Parameters (all optional):
+                    since           ISO date or instant (default: 7 days ago)
+                    until           ISO date or instant
+                    kind_of_work    only this kind of work
+                    product         only reports naming this product
+                    client          only this agent client
+                    skill           only reports naming this skill
+                    outcome         only this outcome
+                    limit           max reports (default 100, max 500)
+                  Output: { reports: [{id, filed_at, client, session_hash,
+                  filed_by, workspace, kind_of_work, products, skills,
+                  window_start, window_end, task, outcome,
+                  context_used:[{source, ref, helped}], context_missing,
+                  friction:[{product, tool, what, blocking}], notes}], count }.
+                  Errors with "report store unavailable" when no datasource
+                  is configured.
+
 snooze_opportunity
                   Decline an opportunity so it stops being re-proposed.
                   Parameters (ALL required):

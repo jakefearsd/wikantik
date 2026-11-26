@@ -104,7 +104,8 @@ public class AgentReportFilingIT {
     }
 
     @Test
-    void aMalformedCallIsRefusedBeforeItReachesTheStore() {
+    void aMalformedCallIsRejectedBySchemaValidation() {
+        // The MCP SDK's JSON-schema validation rejects this before the tool's own validator runs.
         final McpSchema.CallToolResult r = mcp.callTool( new McpSchema.CallToolRequest( "file_agent_report", Map.of(
             "kind_of_work", "build", "task", "x", "outcome", "completed",
             "friction", java.util.List.of( Map.of( "product", "wikantik", "what", "slow", "blocking", "yes" ) ) ) ) );

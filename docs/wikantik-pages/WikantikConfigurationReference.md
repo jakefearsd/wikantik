@@ -853,11 +853,11 @@ Full descriptions (truncated above to keep the table scannable):
 
 | Key | Type | Default | Override | Description |
 |---|---|---|---|---|
-| `wikantik.agentReports.maxPerHourPerKey` | `int` | `60` | `wikantik_agentReports_maxPerHourPerKey` | Attempts one API key may make per hour at filing an agent field report (file_agent_report on the knowledge MCP endpoint). … |
+| `wikantik.agentReports.maxPerHourPerKey` | `int` | `60` | `wikantik_agentReports_maxPerHourPerKey` | Attempts one API key owner may make per hour at filing an agent field report (file_agent_report on the knowledge MCP endpoint). … |
 
 Full descriptions (truncated above to keep the table scannable):
 
-- **`wikantik.agentReports.maxPerHourPerKey`** — Attempts one API key may make per hour at filing an agent field report (file_agent_report on the knowledge MCP endpoint). Refused attempts count too. Zero or less disables the limit. The window is kept in memory per process, so a restart resets it.
+- **`wikantik.agentReports.maxPerHourPerKey`** — Attempts one API key owner may make per hour at filing an agent field report (file_agent_report on the knowledge MCP endpoint). Every attempt the tool receives counts, refused or not. Zero or less disables the limit. The window is kept in memory per process, so a restart resets it.
 
 ## Content Intelligence
 

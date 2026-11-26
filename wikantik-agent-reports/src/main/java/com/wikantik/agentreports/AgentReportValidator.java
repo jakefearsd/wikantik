@@ -185,7 +185,11 @@ public final class AgentReportValidator {
             final String product = text( prefixed( e, "product", p ), p + "product", MAX_NAME, true, errors );
             final String tool = text( prefixed( e, "tool", p ), p + "tool", MAX_NAME, false, errors );
             final String what = text( prefixed( e, "what", p ), p + "what", MAX_WHAT, true, errors );
-            final boolean blocking = Boolean.TRUE.equals( e.get( "blocking" ) );
+            final Object rawBlocking = e.get( "blocking" );
+            if ( rawBlocking != null && !( rawBlocking instanceof Boolean ) ) {
+                errors.add( p + "blocking: must be a boolean" );
+            }
+            final boolean blocking = Boolean.TRUE.equals( rawBlocking );
             if ( errors.size() == before ) {
                 out.add( new Friction( product, tool, what, blocking ) );
             }

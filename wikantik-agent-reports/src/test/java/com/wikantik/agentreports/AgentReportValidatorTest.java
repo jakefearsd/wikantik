@@ -168,4 +168,11 @@ class AgentReportValidatorTest {
         n.put( "task", 5 );
         assertRefusedNaming( n, "task" );
     }
+
+    @Test
+    void nonBooleanBlockingIsRefusedNamingTheField() {
+        final Map< String, Object > m = minimal();
+        m.put( "friction", List.of( Map.of( "product", "wikantik", "what", "slow", "blocking", "yes" ) ) );
+        assertRefusedNaming( m, "friction[0].blocking" );
+    }
 }

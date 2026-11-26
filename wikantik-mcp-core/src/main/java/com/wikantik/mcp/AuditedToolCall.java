@@ -72,7 +72,8 @@ public final class AuditedToolCall {
             McpCallEvent.emit( server, tool.name(), client, McpCallEvent.sessionHash( exchange ),
                     thrown == null && !( result != null && Boolean.TRUE.equals( result.isError() ) ),
                     System.nanoTime() - t0, McpCallEvent.responseBytes( result ),
-                    thrown == null ? null : thrown.getClass().getSimpleName() );
+                    thrown != null ? thrown.getClass().getSimpleName()
+                            : result != null && Boolean.TRUE.equals( result.isError() ) ? "tool_error" : null );
             if ( thrown != null ) {
                 LOG.info( "{} tools/call name={} client={}{} durationMs={} threw={}",
                         logTag, tool.name(), client, surface, ms, thrown.getClass().getSimpleName() );

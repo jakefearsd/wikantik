@@ -53,6 +53,18 @@ class ReportQueryParserTest {
     }
 
     @Test
+    void integralLimitInAnyNumberFormIsAccepted() {
+        assertEquals( 50, ReportQueryParser.parse( Map.of( "limit", "50.0" )::get, CLOCK ).limit() );
+    }
+
+    @Test
+    void fractionalLimitIsRefusedNamingTheParameter() {
+        final IllegalArgumentException e = assertThrows( IllegalArgumentException.class,
+                () -> ReportQueryParser.parse( Map.of( "limit", "50.5" )::get, CLOCK ) );
+        assertTrue( e.getMessage().contains( "limit" ) );
+    }
+
+    @Test
     void badLimitNamesTheParameter() {
         final IllegalArgumentException e = assertThrows( IllegalArgumentException.class,
                 () -> ReportQueryParser.parse( Map.of( "limit", "lots" )::get, CLOCK ) );

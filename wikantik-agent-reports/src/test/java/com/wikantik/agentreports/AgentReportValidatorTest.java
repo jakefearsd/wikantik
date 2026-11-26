@@ -58,6 +58,22 @@ class AgentReportValidatorTest {
     }
 
     @Test
+    void nulInAnyTextFieldIsRefusedNamingTheField() {
+        final Map< String, Object > a = minimal();
+        a.put( "task", "bad\u0000task" );
+        assertRefusedNaming( a, "task" );
+        final Map< String, Object > b = minimal();
+        b.put( "notes", "x\u0000" );
+        assertRefusedNaming( b, "notes" );
+        final Map< String, Object > c = minimal();
+        c.put( "friction", List.of( Map.of( "product", "p", "what", "w\u0000" ) ) );
+        assertRefusedNaming( c, "friction[0].what" );
+        final Map< String, Object > d = minimal();
+        d.put( "skills", List.of( "s\u0000" ) );
+        assertRefusedNaming( d, "skills[0]" );
+    }
+
+    @Test
     void requiredFieldsMissing() {
         for ( final String f : List.of( "kind_of_work", "task", "outcome" ) ) {
             final Map< String, Object > m = minimal();

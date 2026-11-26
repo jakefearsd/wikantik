@@ -203,7 +203,8 @@ public class WorkMcpInitializer implements ServletContextListener {
         } finally {
             McpCallEvent.emit( "work", tool.name(), clientName, sessionHash,
                 thrown == null && !( result != null && Boolean.TRUE.equals( result.isError() ) ), System.nanoTime() - t0,
-                McpCallEvent.responseBytes( result ), thrown == null ? null : thrown.getClass().getSimpleName() );
+                McpCallEvent.responseBytes( result ), thrown != null ? thrown.getClass().getSimpleName()
+                    : result != null && Boolean.TRUE.equals( result.isError() ) ? "tool_error" : null );
         }
         // Writes at INFO (they change state); reads at DEBUG, or an agent polling the board floods the log.
         LOG.log( tool.writes() ? Level.INFO : Level.DEBUG, "Work MCP tools/call name={} caller={} durationMs={} "

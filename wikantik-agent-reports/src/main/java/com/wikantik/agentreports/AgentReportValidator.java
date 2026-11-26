@@ -74,6 +74,10 @@ public final class AgentReportValidator {
             errors.add( field + ": must be a string" );
             return null;
         }
+        if ( s.indexOf( '\u0000' ) >= 0 ) {
+            errors.add( field + ": must not contain NUL (U+0000) characters" );
+            return null;
+        }
         if ( chars( s ) > max ) {
             errors.add( field + ": at most " + max + " characters (got " + chars( s ) + ")" );
             return null;
@@ -113,7 +117,9 @@ public final class AgentReportValidator {
         final List< ? > l = list( m, field, errors );
         for ( int i = 0; i < l.size(); i++ ) {
             final Object v = l.get( i );
-            if ( v instanceof String s && !s.isBlank() && chars( s ) <= MAX_NAME ) {
+            if ( v instanceof String s && s.indexOf( '\u0000' ) >= 0 ) {
+                errors.add( field + "[" + i + "]: must not contain NUL (U+0000) characters" );
+            } else if ( v instanceof String s && !s.isBlank() && chars( s ) <= MAX_NAME ) {
                 out.add( s );
             } else {
                 errors.add( field + "[" + i + "]: must be a non-empty string of at most " + MAX_NAME + " characters" );

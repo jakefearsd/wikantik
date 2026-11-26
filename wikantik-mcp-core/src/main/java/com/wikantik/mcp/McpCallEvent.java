@@ -68,12 +68,12 @@ public final class McpCallEvent {
         }
     }
 
-    /** The client's self-reported name, or {@code "?"} when unavailable. Never throws. */
+    /** The client's self-reported name (cut to 64 characters, exactly as the event logs it), or {@code "?"} when unavailable. Never throws. */
     public static String clientName( final McpSyncServerExchange exchange ) {
         try {
             final McpSchema.Implementation ci = exchange != null ? exchange.getClientInfo() : null;
             if ( ci != null && ci.name() != null ) {
-                return ci.name();
+                return cut( ci.name() );
             }
         } catch ( final RuntimeException e ) {
             // exchange.getClientInfo can throw before initialize completes

@@ -1,6 +1,7 @@
 -- V098: agent field reports (agent activity transparency).
 --
--- Agents file one structured report per piece of work through the admin MCP tool. The store is
+-- Agents file one structured report per piece of work through `file_agent_report` on /knowledge-mcp (read through
+-- `list_agent_reports` on the admin MCP). The store is
 -- append-only: the application role is granted SELECT and INSERT and nothing else, so there is no
 -- update or delete path. client, session_hash and filed_by are filled by the server, never taken from
 -- the agent. Idempotent / DDL-only; the CHECKs are part of CREATE TABLE so a re-run changes nothing.

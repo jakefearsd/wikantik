@@ -103,6 +103,18 @@ class FileAgentReportToolTest {
     }
 
     @Test
+    void overlongClientNameIsCutToTheSameValueTheEventLogs() {
+        when( service.file( any(), any() ) ).thenReturn( new FileResult.Filed( 1 ) );
+        final String longName = "c".repeat( 65 );
+        final McpSyncServerExchange ex = exchange( longName, key( "jake" ) );
+        tool.execute( args(), ex );
+        final ArgumentCaptor< Filer > filer = ArgumentCaptor.forClass( Filer.class );
+        verify( service ).file( any(), filer.capture() );
+        assertEquals( 64, filer.getValue().client().length() );
+        assertEquals( com.wikantik.mcp.McpCallEvent.clientName( ex ), filer.getValue().client() );
+    }
+
+    @Test
     void noKeyOwnerIsRefusedAndNothingIsFiled() {
         final McpSchema.CallToolResult r = tool.execute( args(), exchange( "c", null ) );
         assertTrue( Boolean.TRUE.equals( r.isError() ) );

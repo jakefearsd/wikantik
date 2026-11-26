@@ -52,8 +52,10 @@ public final class JdbcAgentReportStore implements AgentReportStore {
                 return id;
             } );
         } catch ( final SQLException e ) {
-            LOG.warn( "Could not store agent report from '{}': {}", filer.filedBy(), e.getMessage(), e );
-            throw new ReportStoreException( "could not store agent report", e );
+            // No message or stack: a constraint failure's text can quote the report ("Failing row contains ...").
+            LOG.warn( "Could not store agent report from '{}': {} (SQLState {})", filer.filedBy(),
+                    e.getClass().getSimpleName(), e.getSQLState() );
+            throw new ReportStoreException( "could not store agent report", null );
         }
     }
 

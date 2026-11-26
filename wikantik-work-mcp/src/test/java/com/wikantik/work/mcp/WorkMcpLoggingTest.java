@@ -175,6 +175,7 @@ class WorkMcpLoggingTest {
         assertEquals( "claude-code", ctx.getValue( "mcp.client.name" ) );
         assertEquals( "abc123def456", ctx.getValue( "mcp.session.hash" ) );
         assertEquals( "failure", ctx.getValue( "event.outcome" ), "an isError envelope is a failure" );
+        assertEquals( "tool_error", ctx.getValue( "error.type" ) );
         assertFalse( ctx.toMap().toString().contains( "SECRET-ARG" ) );
     }
 

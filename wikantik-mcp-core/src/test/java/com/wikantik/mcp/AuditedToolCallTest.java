@@ -191,6 +191,7 @@ class AuditedToolCallTest {
         assertEquals( 1, out.size() );
         assertEquals( "failure", out.get( 0 ).get( "event.outcome" ).getAsString() );
         assertEquals( "cursor", out.get( 0 ).get( "mcp.client.name" ).getAsString() );
+        assertEquals( "tool_error", out.get( 0 ).get( "error.type" ).getAsString() );
     }
 
     @Test

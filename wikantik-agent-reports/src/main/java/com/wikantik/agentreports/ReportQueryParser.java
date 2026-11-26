@@ -43,8 +43,8 @@ public final class ReportQueryParser {
             return ReportQuery.DEFAULT_LIMIT;
         }
         try {
-            return Integer.parseInt( t );
-        } catch ( final NumberFormatException e ) {
+            return new java.math.BigDecimal( t ).intValueExact();
+        } catch ( final NumberFormatException | ArithmeticException e ) {
             throw new IllegalArgumentException( "limit must be an integer, got '" + t + "'", e );
         }
     }

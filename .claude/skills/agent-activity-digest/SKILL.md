@@ -61,7 +61,9 @@ Client mix over the week:
 
 ```
 sum by (service_instance, mcp_client_name) (count_over_time({service_instance=~".+"} | json | event_action="mcp_tool_called" [7d]))
-``` If Loki is unreachable or returns nothing, say so in the digest under the MCP usage
+```
+
+If Loki is unreachable or returns nothing, say so in the digest under the MCP usage
 heading and continue from the reports alone. Do not invent counts.
 
 ### Registry and previous digest

@@ -38,7 +38,7 @@ Wikantik exposes three separate agent-facing surfaces. Each is a distinct servle
 | Path | Module | Protocol | Tools | Capabilities | Auth filter | Default scope |
 |---|---|---|---|---|---|---|
 | `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 20 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp_admin` (or `all`) |
-| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 16 read-only retrieval + spine + projection + ontology + briefing | tools | `McpAccessFilter` (registered as `KnowledgeMcpAccessFilter`, required scope `mcp_read`) | `mcp_read` (or `mcp_admin`, `all`) |
+| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 17: 16 read-only retrieval + spine + projection + ontology + briefing, plus `file_agent_report` (its one write) | tools | `McpAccessFilter` (registered as `KnowledgeMcpAccessFilter`, required scope `mcp_read`) | `mcp_read` (or `mcp_admin`, `all`) |
 | `/tools/*` | `wikantik-tools` | OpenAPI 3.1 | 2 (`search_wiki`, `get_page`) | OpenAPI document at `/tools/openapi.json` | `ToolsAccessFilter` | `tools` (or `all`) |
 
 That is **36 MCP tools** (20 admin + 16 knowledge) plus **2 OpenAPI tools** (**38 tools in all**) when everything is wired. The counts are maxima; `docs/admin/McpAgents.md` in the repository is the one document that owns them.

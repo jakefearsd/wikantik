@@ -95,6 +95,7 @@ public class ListAgentReportsTool extends AbstractMcpTool {
                 return v == null ? null : v.toString();
             }, clock );
         } catch ( final IllegalArgumentException e ) {
+            LOG.debug( "list_agent_reports refused its arguments: {}", e.getMessage() );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "Invalid argument", e.getMessage() );
         }
         final List< AgentReport > reports;

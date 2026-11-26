@@ -59,6 +59,7 @@ class WikiEngineDataSourceBootStepsTest {
                 "retrieval-quality-runner" + abort,
                 "query-log" + abort,
                 "insights" + abort,
+                "agent-reports" + cont,
                 "reader-readback" + cont,
                 "work-management" + cont,
                 "work-claim-sweeper" + abort,

@@ -9,6 +9,7 @@ This repository is part of the **Simple Agility** small-business ecosystem:
 - **Session start:** call `get_briefing(clusters=["wikantik-development"], prompt="<your first task>")` on the Wikantik knowledge MCP; the briefing carries this project's pages and the contracts it cites (`SA-13`).
 - **Role Boundary:** Optimize local product logic, but never break cross-product contracts or telemetry conventions.
 - **Record decisions:** when a change binds another repository (an API or event shape, a published port, a login or grant another product uses, a schema or view another product reads, a log or label name), add a new `SA-<n>` entry to `SimpleAgilityDecisionLog` (Decision, Why, Consequences) in the same piece of work, and link it from the normative page. Supersede, never rewrite.
+- **Field report:** at the end of substantive work, file one field report with `file_agent_report` on the Wikantik knowledge MCP (skill `agent-field-report`, canonical text on `SimpleAgilityAgentFieldReportSkill`; `SA-22`).
 <!-- SIMPLE-AGILITY-AGENT-HEADER-END -->
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.

@@ -310,6 +310,9 @@ export function createFakeCollabServer({
     });
   }
   const hasNews = (s) => s.since < version || metaSeq > s.metaSince || presenceSeq > s.presenceSince || eventSeq > s.eventsSince;
+  // While held (holdDelivery), every pull parks even with news waiting: a test can make two edits cross for certain.
+  let held = false;
+  const deliverable = (s) => !held && hasNews(s);
   function pull(user, q) {
     const r = resolve(user, q.sessionId, q.participantId);
     if (r.error) return Promise.resolve(r.error);
@@ -317,9 +320,9 @@ export function createFakeCollabServer({
     const s = cursors(q);
     if (!(s.since >= 0) || s.since > version) return Promise.resolve(reply(400, { reason: 'bad-since' }));
     if (s.since < ringStart) return Promise.resolve(reply(410, { resync: true, reason: 'resync' }));
-    if (hasNews(s)) return Promise.resolve(buildPull(p, s));
+    if (deliverable(s)) return Promise.resolve(buildPull(p, s));
     return new Promise((resolve) => {
-      const w = { check() { if (p.evicted) done(reply(403, { reason: 'evicted', detail: p.evicted })); else if (hasNews(s)) done(buildPull(p, s)); } };
+      const w = { check() { if (p.evicted) done(reply(403, { reason: 'evicted', detail: p.evicted })); else if (deliverable(s)) done(buildPull(p, s)); } };
       const timer = setTimeout(() => done(reply(200, {
         updates: [], metaOps: [], metaSeq, presence: {}, presenceSeq, events: [], eventSeq,
       })), pollTimeoutMs);
@@ -474,6 +477,10 @@ export function createFakeCollabServer({
     handle, transportFor, config, calls,
     /** Changes the random per-request/response latency bound (set it after the editors joined under fake timers). */
     setLatency(ms) { maxLatency = ms; },
+    /** Parks every pull, news or not, until releaseDelivery(): pushes still land, but no client hears of another's. */
+    holdDelivery() { held = true; },
+    /** Ends holdDelivery() and answers every parked pull that now has news. */
+    releaseDelivery() { held = false; wake(); },
     get doc() { return text(); },
     get version() { return version; },
     get metadata() { return { ...metadata }; },

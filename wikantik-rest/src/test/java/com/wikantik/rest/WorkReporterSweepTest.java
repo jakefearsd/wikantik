@@ -99,6 +99,7 @@ class WorkReporterSweepTest {
         r.add( qreq( projects, P, "GET", "/PLAT/flow", Map.of() ) );
         r.add( qreq( projects, P, "GET", "/PLAT/dora", Map.of() ) );
         r.add( qreq( projects, P, "GET", "/PLAT/webhooks", Map.of() ) );
+        r.add( qreq( projects, P, "GET", "/PLAT/group-suggestions", Map.of( "q", "pl" ) ) );
         r.add( req( projects, P, "POST", "/PLAT/webhooks", "{\"url\":\"https://example.org/h\"}" ) );
         // items, comments, links, changes, attachments, find
         r.add( qreq( items, I, "GET", "/PLAT-1", Map.of() ) );

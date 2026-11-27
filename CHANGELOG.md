@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.11] - 2026-11-27
+
 - Build: seeded generator tests run a twentieth of their cases on fixed seeds in the gate and every case on fresh seeds under `bin/run-tests.sh --all` or `--deep` (`com.wikantik.testing.Fuzz`). wikantik-main's unit run no longer waits minutes on one 6,000-page test.
 - Work: the claim sweeper runs four times per claim expiry, at most once a minute (unchanged at the default 240-minute expiry), so a short claim no longer lapses up to a whole extra minute late.
 - Build: faster tests with no loss of coverage: `WorkClaimExpiryIT` backdates the claim instead of sleeping out the minute (103 s to 14 s); two render-oracle tests no longer save a page per fixture input (103 s to 17 s); wikantik-work runs its tests in three JVMs, each with its own database (117 s to 43 s).

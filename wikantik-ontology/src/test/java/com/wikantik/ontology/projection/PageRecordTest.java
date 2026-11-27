@@ -60,4 +60,19 @@ class PageRecordTest {
                 "graph-databases", List.of(), null, "summary", "2026-01-01", "author" );
         assertTrue( p.tags().isEmpty() );
     }
+
+    @Test
+    void emptyClustersListFallsBackToTheScalarCluster() {
+        final PageRecord p = new PageRecord( "cid", "Slug", "Title", "article",
+                "graph-databases", List.of(), List.of(), "summary", "2026-01-01", "author" );
+        assertEquals( List.of( "graph-databases" ), p.clusters() );
+        assertEquals( "graph-databases", p.cluster() );
+    }
+
+    @Test
+    void nullTagsBecomeAnEmptyImmutableList() {
+        final PageRecord p = new PageRecord( "cid", "Slug", "Title", "article",
+                null, List.of(), null, "summary", null, null );
+        assertEquals( List.of(), p.tags() );
+    }
 }

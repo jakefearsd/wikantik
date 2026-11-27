@@ -125,4 +125,36 @@ class JenaOntologyQueryServiceTest {
             """ ) );
         assertTrue( svc.expandQuery( "algorithm" ).isEmpty(), "a blank label must never match" );
     }
+
+    @Test
+    void aLabelThatNormalisesToNothingNeverMatchesAPunctuationOnlyQuery() {
+        // "***" and "???" both normalise to the empty string; without the blank-label guard the empty
+        // token would be "found" in the empty query and the concept's narrower terms would leak out.
+        final OntologyQueryService svc = new JenaOntologyQueryService( mgrWith( """
+            <urn:c:odd>   a skos:Concept ; skos:prefLabel "***" ; skos:narrower <urn:c:child> .
+            <urn:c:child> a skos:Concept ; skos:prefLabel "child term" .
+            """ ) );
+        assertEquals( List.of(), svc.expandQuery( "???" ) );
+    }
+
+    @Test
+    void everyTokenOfAMultiWordLabelMustAppearInTheQuery() {
+        final OntologyQueryService svc = new JenaOntologyQueryService( mgrWith( """
+            <urn:c:gdb>   a skos:Concept ; skos:prefLabel "graph databases" ; skos:narrower <urn:c:pg> .
+            <urn:c:pg>    a skos:Concept ; skos:prefLabel "property graph" .
+            """ ) );
+        assertEquals( List.of(), svc.expandQuery( "graph" ), "one of two tokens is not a match" );
+        assertEquals( List.of(), svc.expandQuery( "databases" ), "the other token alone is not a match either" );
+        assertEquals( List.of( "property graph" ), svc.expandQuery( "databases of graph" ) );
+    }
+
+    @Test
+    void tokensMatchWholeWordsOnly() {
+        final OntologyQueryService svc = new JenaOntologyQueryService( mgrWith( """
+            <urn:c:db>    a skos:Concept ; skos:prefLabel "db" ; skos:narrower <urn:c:pg> .
+            <urn:c:pg>    a skos:Concept ; skos:prefLabel "postgres" .
+            """ ) );
+        assertEquals( List.of(), svc.expandQuery( "dbase" ) );
+        assertEquals( List.of( "postgres" ), svc.expandQuery( "my db" ) );
+    }
 }

@@ -419,4 +419,147 @@ class IngestDocumentsCliTest {
         assertEquals( 1, capturedBodies.size() );
         assertTrue( capturedBodies.get( 0 ).contains( "name=\"force\"" ), capturedBodies.get( 0 ) );
     }
+
+    // ---- mutation follow-up: exact contracts ----
+
+    @Test
+    void multipartBodyHasExactLayoutWithoutForce() {
+        final byte[] body = IngestDocumentsCli.buildMultipartBody(
+            "B", "f.txt", "XY".getBytes( StandardCharsets.UTF_8 ), false );
+        assertEquals( "--B\r\n"
+            + "Content-Disposition: form-data; name=\"file\"; filename=\"f.txt\"\r\n"
+            + "Content-Type: application/octet-stream\r\n"
+            + "\r\n"
+            + "XY\r\n"
+            + "--B--\r\n", new String( body, StandardCharsets.UTF_8 ) );
+    }
+
+    @Test
+    void multipartBodyHasExactLayoutWithForce() {
+        final byte[] body = IngestDocumentsCli.buildMultipartBody(
+            "B", "f.txt", "XY".getBytes( StandardCharsets.UTF_8 ), true );
+        assertEquals( "--B\r\n"
+            + "Content-Disposition: form-data; name=\"file\"; filename=\"f.txt\"\r\n"
+            + "Content-Type: application/octet-stream\r\n"
+            + "\r\n"
+            + "XY\r\n"
+            + "--B\r\n"
+            + "Content-Disposition: form-data; name=\"force\"\r\n"
+            + "\r\n"
+            + "true\r\n"
+            + "--B--\r\n", new String( body, StandardCharsets.UTF_8 ) );
+    }
+
+    @Test
+    void multipartBodyPreservesBinaryFileBytes() {
+        final byte[] file = { 0, (byte) 0xFF, 10, 13, (byte) 0x80 };
+        final byte[] body = IngestDocumentsCli.buildMultipartBody( "B", "f.pdf", file, false );
+        final byte[] header = ( "--B\r\nContent-Disposition: form-data; name=\"file\"; filename=\"f.pdf\"\r\n"
+            + "Content-Type: application/octet-stream\r\n\r\n" ).getBytes( StandardCharsets.UTF_8 );
+        assertArrayEquals( file, java.util.Arrays.copyOfRange( body, header.length, header.length + file.length ) );
+    }
+
+    @Test
+    void aFileNamedOnlyByItsExtensionIsStillSupported() {
+        assertTrue( IngestDocumentsCli.isSupportedExtension( ".md" ) );
+    }
+
+    @Test
+    void aNullFileNameIsNotSupported() {
+        assertFalse( IngestDocumentsCli.isSupportedExtension( null ) );
+    }
+
+    @Test
+    void onlyTheLastExtensionCounts() {
+        assertTrue( IngestDocumentsCli.isSupportedExtension( "a.tar.pdf" ) );
+        assertFalse( IngestDocumentsCli.isSupportedExtension( "a.pdf.png" ) );
+    }
+
+    @Test
+    void aDirectoryWithASupportedExtensionIsNotPosted( @TempDir final Path dir ) throws Exception {
+        Files.createDirectory( dir.resolve( "folder.md" ) );
+        final List<String> visited = new ArrayList<>();
+        final IngestDocumentsCli.Tally tally = IngestDocumentsCli.runWalk( dir, path -> {
+            visited.add( path.toString() );
+            return "created";
+        } );
+        assertEquals( List.of(), visited );
+        assertEquals( 0, tally.total() );
+    }
+
+    @Test
+    void anUnrecognisedStatusCountsAsFailedAndIsPrinted( @TempDir final Path dir ) throws Exception {
+        Files.writeString( dir.resolve( "a.txt" ), "x" );
+        final PrintStream original = System.out;
+        final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        System.setOut( new PrintStream( captured, true, StandardCharsets.UTF_8 ) );
+        final IngestDocumentsCli.Tally tally;
+        try {
+            tally = IngestDocumentsCli.runWalk( dir, path -> "weird" );
+        } finally {
+            System.setOut( original );
+        }
+        assertEquals( new IngestDocumentsCli.Tally( 0, 0, 0, 1 ), tally );
+        assertTrue( captured.toString( StandardCharsets.UTF_8 ).contains( "[unknown:weird] a.txt" ) );
+    }
+
+    @Test
+    void statusMatchingIsCaseInsensitive( @TempDir final Path dir ) throws Exception {
+        Files.writeString( dir.resolve( "a.txt" ), "x" );
+        final IngestDocumentsCli.Tally tally = IngestDocumentsCli.runWalk( dir, path -> "CREATED" );
+        assertEquals( new IngestDocumentsCli.Tally( 1, 0, 0, 0 ), tally );
+    }
+
+    @Test
+    void extractStatusFindsAKeyAtTheVeryStartOfTheBody() {
+        assertEquals( "created", IngestDocumentsCli.extractStatus( "\"status\":\"created\"" ) );
+    }
+
+    @Test
+    void extractStatusReturnsAnEmptyValue() {
+        assertEquals( "", IngestDocumentsCli.extractStatus( "{\"status\":\"\"}" ) );
+    }
+
+    @Test
+    void extractStatusFallsBackWhenNoValueQuoteFollowsTheColon() {
+        assertEquals( "{\"status\":42}", IngestDocumentsCli.extractStatus( "{\"status\":42}" ) );
+    }
+
+    @Test
+    void runReportsAMissingDirectoryOnStderr( @TempDir final Path tmp ) {
+        final IngestDocumentsCli.Args a = new IngestDocumentsCli.Args();
+        a.baseUrl = "http://127.0.0.1:1";
+        a.dir = tmp.resolve( "missing" ).toString();
+        a.user = "u";
+        a.password = "p";
+        final PrintStream original = System.err;
+        final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        System.setErr( new PrintStream( captured, true, StandardCharsets.UTF_8 ) );
+        try {
+            assertEquals( 2, IngestDocumentsCli.run( a ) );
+        } finally {
+            System.setErr( original );
+        }
+        assertTrue( captured.toString( StandardCharsets.UTF_8 )
+            .contains( "error: --dir is not a directory: " + tmp.resolve( "missing" ) ) );
+    }
+
+    @Test
+    void httpStatusBoundaryDecidesSuccess( @TempDir final Path tmp ) throws Exception {
+        Files.writeString( tmp.resolve( "doc.md" ), "# hello" );
+        final int[][] cases = { { 200, 0 }, { 299, 0 }, { 300, 1 }, { 404, 1 } };
+        for ( final int[] c : cases ) {
+            final String baseUrl = startFixedResponseServer( c[ 0 ], "{\"status\":\"created\"}",
+                                                             new CopyOnWriteArrayList<>() );
+            final IngestDocumentsCli.Args a = new IngestDocumentsCli.Args();
+            a.baseUrl = baseUrl;
+            a.dir = tmp.toString();
+            a.user = "u";
+            a.password = "p";
+            final int[] rc = new int[ 1 ];
+            runCapturingStdout( a, rc );
+            assertEquals( c[ 1 ], rc[ 0 ], "http " + c[ 0 ] );
+            stopServer();
+        }
+    }
 }

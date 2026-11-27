@@ -18,6 +18,7 @@
  */
 package com.wikantik.ontology.projection;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -81,5 +82,43 @@ class PageProjectorTest {
         final var dctSubject = ResourceFactory.createProperty( "http://purl.org/dc/terms/subject" );
         assertTrue( g.contains( subj, dctSubject, ResourceFactory.createResource( Iris.concept( "graph-databases" ) ) ) );
         assertTrue( g.contains( subj, dctSubject, ResourceFactory.createResource( Iris.concept( "databases" ) ) ) );
+    }
+
+    private static final String DCT = "http://purl.org/dc/terms/";
+
+    @Test
+    void summaryDateAndAuthorBecomeDublinCoreLiterals() {
+        final Model g = PageProjector.project( page( "article", null, List.of() ) );
+        final var subj = ResourceFactory.createResource( Iris.page( CID ) );
+        assertTrue( g.contains( subj, ResourceFactory.createProperty( DCT + "description" ), g.createLiteral( "Intro to graph DBs" ) ) );
+        assertTrue( g.contains( subj, ResourceFactory.createProperty( DCT + "created" ), g.createLiteral( "2026-03-14" ) ) );
+        assertTrue( g.contains( subj, ResourceFactory.createProperty( DCT + "creator" ), g.createLiteral( "claude-code-researcher" ) ) );
+    }
+
+    @Test
+    void absentOptionalFieldsEmitNoTriplesForThem() {
+        final PageRecord bare = new PageRecord( CID, null, null, null, null, List.of(), null, null, null );
+        final Model g = PageProjector.project( bare );
+        // Only the rdf:type triple (defaulting to Article) remains.
+        assertEquals( 1L, g.size(), g.toString() );
+        assertTrue( g.contains( ResourceFactory.createResource( Iris.page( CID ) ), RDF.type,
+                ResourceFactory.createResource( Iris.term( "Article" ) ) ) );
+    }
+
+    @Test
+    void eachOptionalFieldIsIndependentlyOptional() {
+        final var subj = ResourceFactory.createResource( Iris.page( CID ) );
+        final Model onlySummary = PageProjector.project(
+                new PageRecord( CID, null, null, "article", null, List.of(), "S", null, null ) );
+        assertEquals( 2L, onlySummary.size() );
+        assertTrue( onlySummary.contains( subj, ResourceFactory.createProperty( DCT + "description" ), onlySummary.createLiteral( "S" ) ) );
+        final Model onlyDate = PageProjector.project(
+                new PageRecord( CID, null, null, "article", null, List.of(), null, "2026-01-01", null ) );
+        assertEquals( 2L, onlyDate.size() );
+        assertTrue( onlyDate.contains( subj, ResourceFactory.createProperty( DCT + "created" ), onlyDate.createLiteral( "2026-01-01" ) ) );
+        final Model onlyAuthor = PageProjector.project(
+                new PageRecord( CID, null, null, "article", null, List.of(), null, null, "me" ) );
+        assertEquals( 2L, onlyAuthor.size() );
+        assertTrue( onlyAuthor.contains( subj, ResourceFactory.createProperty( DCT + "creator" ), onlyAuthor.createLiteral( "me" ) ) );
     }
 }

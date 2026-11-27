@@ -19,6 +19,7 @@
 package com.wikantik.ontology.projection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -86,5 +87,15 @@ class ConceptProjectorTest {
                 ResourceFactory.createResource( Iris.concept( "tax-strategy/vat" ) ),
                 ResourceFactory.createProperty( SKOS + "broader" ),
                 ResourceFactory.createResource( Iris.concept( "tax-strategy" ) ) ) );
+    }
+
+    @Test
+    void aValueWithALeadingSlashHasNoParentAndAPlainValueHasNoBroader() {
+        final PageRecord p = new PageRecord( "C1", "Slug1", "T", "article", null, List.of(),
+                List.of( "/rooted", "plain" ), null, null, null );
+        final Map< String, Model > graphs = ConceptProjector.project( List.of( p ) );
+        final var broader = ResourceFactory.createProperty( SKOS + "broader" );
+        assertFalse( graphs.get( Iris.concept( "/rooted" ) ).contains( null, broader, (org.apache.jena.rdf.model.RDFNode) null ) );
+        assertFalse( graphs.get( Iris.concept( "plain" ) ).contains( null, broader, (org.apache.jena.rdf.model.RDFNode) null ) );
     }
 }

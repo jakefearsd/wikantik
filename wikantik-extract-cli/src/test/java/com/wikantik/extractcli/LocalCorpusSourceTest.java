@@ -119,4 +119,55 @@ class LocalCorpusSourceTest {
         assertTrue( snap.pages().containsKey( "Bad%ZZName" ),
                     "expected the literal (undecoded) stem, got: " + snap.pages().keySet() );
     }
+
+    @Test
+    void only_markdown_files_directly_in_the_directory_are_read( @TempDir final Path dir ) throws Exception {
+        write( dir, "Page.md", "---\ntype: article\n---\nBody.\n" );
+        write( dir, "notes.txt", "---\ntype: hub\n---\n" );
+        write( dir, "Page.md.bak", "x" );
+        Files.createDirectory( dir.resolve( "OLD" ) );
+        write( dir.resolve( "OLD" ), "Old.md", "---\ntype: hub\n---\n" );
+
+        final CorpusSnapshot snap = new LocalCorpusSource( dir ).load();
+
+        assertTrue( snap.complete(), snap.errors().toString() );
+        assertEquals( java.util.Set.of( "Page" ), snap.pages().keySet() );
+    }
+
+    @Test
+    void facts_are_trimmed_and_blank_values_become_null( @TempDir final Path dir ) throws Exception {
+        write( dir, "Padded.md", "---\ncanonical_id: '  01H8G3Z1K6Q5W7P9X2V4R0T8MN  '\ntype: '  hub '\ncluster: ' '\n---\nBody.\n" );
+        write( dir, "Empty.md", "---\ncanonical_id: ''\ntype: ''\n---\nBody.\n" );
+
+        final CorpusSnapshot snap = new LocalCorpusSource( dir ).load();
+
+        final PageFacts padded = snap.pages().get( "Padded" );
+        assertEquals( "01H8G3Z1K6Q5W7P9X2V4R0T8MN", padded.canonicalId() );
+        assertEquals( "hub", padded.type() );
+        assertEquals( null, padded.cluster() );
+        final PageFacts empty = snap.pages().get( "Empty" );
+        assertEquals( null, empty.canonicalId() );
+        assertEquals( null, empty.type() );
+    }
+
+    @Test
+    void a_list_valued_cluster_reports_its_primary( @TempDir final Path dir ) throws Exception {
+        write( dir, "Multi.md", "---\ncluster: [alpha, beta]\n---\nBody.\n" );
+        assertEquals( "alpha", new LocalCorpusSource( dir ).load().pages().get( "Multi" ).cluster() );
+    }
+
+    @Test
+    void the_unreadable_page_error_names_the_file_and_the_snapshot_is_incomplete( @TempDir final Path dir ) throws Exception {
+        Files.createDirectory( dir.resolve( "Bad.md" ) );
+        final CorpusSnapshot snap = new LocalCorpusSource( dir ).load();
+        assertTrue( !snap.complete() );
+        assertTrue( snap.errors().get( 0 ).startsWith( "failed to read Bad.md: " ), snap.errors().toString() );
+    }
+
+    @Test
+    void the_missing_directory_error_names_the_directory( @TempDir final Path dir ) {
+        final Path missing = dir.resolve( "gone" );
+        assertEquals( java.util.List.of( "corpus directory not readable: " + missing ),
+                      new LocalCorpusSource( missing ).load().errors() );
+    }
 }

@@ -225,4 +225,49 @@ class OntologyModelManagerCompactionTest {
             mgr.close();
         }
     }
+
+    @Test
+    void aDirectoryHoldingOnlyAStrayFileCountsAsAFreshStore( @TempDir final Path dir ) throws Exception {
+        Files.writeString( dir.resolve( "notes.txt" ), "stray" );
+        Files.createDirectory( dir.resolve( "other" ) );
+        final OntologyModelManager mgr = OntologyModelManager.tdb2( dir.toString() );
+        try {
+            assertTrue( mgr.lastCompactedAt().isPresent(),
+                    "no Data-NNNN generation directory means the store is new and is recorded as just compacted" );
+        } finally {
+            mgr.close();
+        }
+    }
+
+    @Test
+    void sizeIsTheSumOfTheRegularFilesInTheStore( @TempDir final Path dir ) throws Exception {
+        final OntologyModelManager mgr = OntologyModelManager.tdb2( dir.toString() );
+        try {
+            mgr.loadTBox();
+            long expected = 0;
+            try ( var walk = Files.walk( dir ) ) {
+                for ( final Path p : walk.filter( Files::isRegularFile ).toList() ) {
+                    expected += Files.size( p );
+                }
+            }
+            assertTrue( expected > 0 );
+            assertEquals( expected, mgr.tdb2SizeBytes(), "directories must not be counted as bytes" );
+        } finally {
+            mgr.close();
+        }
+    }
+
+    @Test
+    void tboxSnapshotIsADetachedCopyOfTheDefaultGraphOnly() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final org.apache.jena.rdf.model.Model before = mgr.tboxSnapshot();
+        assertTrue( before.size() > 0 );
+        final org.apache.jena.rdf.model.Model extra = org.apache.jena.rdf.model.ModelFactory.createDefaultModel();
+        extra.add( extra.createResource( "urn:x:a" ), org.apache.jena.vocabulary.RDF.type, extra.createResource( "urn:x:B" ) );
+        mgr.replaceNamedGraph( "urn:test:g", extra );
+        assertEquals( before.size(), mgr.tboxSnapshot().size(), "named graphs are not part of the T-Box" );
+        before.removeAll();
+        assertTrue( mgr.tboxSnapshot().size() > 0, "mutating a snapshot must not touch the store" );
+    }
 }

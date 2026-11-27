@@ -105,4 +105,39 @@ class SparqlQueryGuardTest {
         assertFalse( SparqlQueryGuard.safeContext().isTrue( ARQ.httpServiceAllowed ),
                 "safeContext() must have httpServiceAllowed disabled" );
     }
+
+    @Test
+    void javaFunctionNestedAsTheOnlyArgumentOfAnotherFunctionIsRejected() {
+        final Query q = QueryFactory.create(
+                "SELECT * WHERE { ?s ?p ?o FILTER ( STR( <java:java.lang.System.getProperty>(\"user.home\") ) = ?o ) }" );
+        assertThrows( IllegalArgumentException.class, () -> SparqlQueryGuard.rejectUnsafeConstructs( q ) );
+    }
+
+    @Test
+    void javaFunctionNestedAsTheLastArgumentIsRejected() {
+        final Query q = QueryFactory.create(
+                "SELECT * WHERE { ?s ?p ?o FILTER ( CONCAT( \"a\", \"b\", <java:java.lang.System.getProperty>(\"x\") ) = ?o ) }" );
+        assertThrows( IllegalArgumentException.class, () -> SparqlQueryGuard.rejectUnsafeConstructs( q ) );
+    }
+
+    @Test
+    void javaFunctionNestedAsTheFirstArgumentIsRejected() {
+        final Query q = QueryFactory.create(
+                "SELECT * WHERE { ?s ?p ?o FILTER ( CONCAT( <java:java.lang.System.getProperty>(\"x\"), \"b\" ) = ?o ) }" );
+        assertThrows( IllegalArgumentException.class, () -> SparqlQueryGuard.rejectUnsafeConstructs( q ) );
+    }
+
+    @Test
+    void javaSchemeIsMatchedCaseInsensitively() {
+        final Query q = QueryFactory.create(
+                "SELECT * WHERE { ?s ?p ?o FILTER ( <JAVA:java.lang.System.getProperty>(\"x\") = ?o ) }" );
+        assertThrows( IllegalArgumentException.class, () -> SparqlQueryGuard.rejectUnsafeConstructs( q ) );
+    }
+
+    @Test
+    void anExtensionFunctionWithAnotherSchemeIsAllowed() {
+        final Query q = QueryFactory.create(
+                "SELECT * WHERE { ?s ?p ?o FILTER ( <http://example.org/fn>(?o) ) }" );
+        assertDoesNotThrow( () -> SparqlQueryGuard.rejectUnsafeConstructs( q ) );
+    }
 }

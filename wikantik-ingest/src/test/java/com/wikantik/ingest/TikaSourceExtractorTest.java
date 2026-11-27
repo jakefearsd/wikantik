@@ -721,4 +721,43 @@ class TikaSourceExtractorTest {
             awaitStuckWorkersDrained();
         }
     }
+
+    // ------------------------------------------------------------------ metadata handed to the parser
+
+    /** Records the {@link Metadata} the extractor passes to the parser, then parses nothing. */
+    private static final class MetadataRecordingParser implements Parser {
+        final AtomicReference< Metadata > seen = new AtomicReference<>();
+
+        @Override
+        public Set< MediaType > getSupportedTypes( final ParseContext context ) {
+            return Set.of();
+        }
+
+        @Override
+        public void parse( final TikaInputStream stream, final ContentHandler handler,
+                            final Metadata metadata, final ParseContext context ) {
+            seen.set( metadata );
+        }
+    }
+
+    @Test
+    void filenameAndContentTypeAreHandedToTheParserAsDetectionHints() throws Exception {
+        final MetadataRecordingParser parser = new MetadataRecordingParser();
+        final TikaSourceExtractor extractor =
+            new InjectableExtractor( parser, TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
+        extractor.extract( new ByteArrayInputStream( new byte[ 0 ] ), "text/plain", "notes.txt" );
+        assertEquals( "notes.txt", parser.seen.get().get( org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY ) );
+        assertEquals( "text/plain", parser.seen.get().get( org.apache.tika.metadata.HttpHeaders.CONTENT_TYPE ) );
+    }
+
+    @Test
+    void aNullFilenameAndContentTypeAreNotSetOnTheMetadata() throws Exception {
+        final MetadataRecordingParser parser = new MetadataRecordingParser();
+        final TikaSourceExtractor extractor =
+            new InjectableExtractor( parser, TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 5 );
+        extractor.extract( new ByteArrayInputStream( new byte[ 0 ] ), null, null );
+        assertEquals( null, parser.seen.get().get( org.apache.tika.metadata.TikaCoreProperties.RESOURCE_NAME_KEY ) );
+        assertEquals( null, parser.seen.get().get( org.apache.tika.metadata.HttpHeaders.CONTENT_TYPE ) );
+        assertEquals( 0, parser.seen.get().size(), "no keys at all: " + java.util.Arrays.toString( parser.seen.get().names() ) );
+    }
 }

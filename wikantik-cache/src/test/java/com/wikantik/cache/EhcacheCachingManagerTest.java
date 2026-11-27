@@ -199,4 +199,71 @@ public class EhcacheCachingManagerTest {
         Assertions.assertNull( ecm.get( "trucutru", "key",  () -> retrieveFromBackend ) );
     }
 
+
+    @Test
+    void shutdownClosesTheCacheManagerAndForgetsEveryCacheItsStatsAndItsLimits() {
+        final org.ehcache.CacheManager manager = ecm.cacheManager;
+        Assertions.assertEquals( org.ehcache.Status.AVAILABLE, manager.getStatus() );
+
+        ecm.shutdown();
+
+        Assertions.assertEquals( org.ehcache.Status.UNINITIALIZED, manager.getStatus(), "the Ehcache manager must be closed" );
+        Assertions.assertTrue( ecm.cacheMap.isEmpty() );
+        Assertions.assertTrue( ecm.cacheStats.isEmpty(), "stale hit/miss counters must not survive a shutdown" );
+        Assertions.assertTrue( ecm.cacheMaxEntries.isEmpty() );
+        Assertions.assertFalse( ecm.enabled( CachingManager.CACHE_PAGES ) );
+        Assertions.assertNull( ecm.info( CachingManager.CACHE_PAGES ) );
+        Assertions.assertEquals( java.util.List.of(), ecm.keys( CachingManager.CACHE_PAGES ) );
+    }
+
+    @Test
+    void shutdownOfAManagerThatNeverInitialisedIsHarmless() {
+        final EhcacheCachingManager fresh = new EhcacheCachingManager();
+        fresh.shutdown();
+        Assertions.assertTrue( fresh.cacheMap.isEmpty() );
+    }
+
+    @Test
+    void maxEntriesComeFromTheBundledEhcacheConfiguration() {
+        Assertions.assertEquals( 10_000L, ecm.info( CachingManager.CACHE_PAGES ).getMaxElementsAllowed() );
+        Assertions.assertEquals( 10_000L, ecm.info( CachingManager.CACHE_HTML ).getMaxElementsAllowed() );
+        Assertions.assertEquals( 5_000L, ecm.info( CachingManager.CACHE_FOR_AGENT ).getMaxElementsAllowed() );
+        Assertions.assertEquals( 1_000L, ecm.info( CachingManager.CACHE_ATTACHMENTS ).getMaxElementsAllowed() );
+    }
+
+    @Test
+    void aCacheMissingFromTheConfigurationIsCreatedWithTheDefaultLimit() {
+        ecm.registerCache( "notInTheXml" );
+        Assertions.assertEquals( 1_000L, ecm.info( "notInTheXml" ).getMaxElementsAllowed() );
+        Assertions.assertEquals( "notInTheXml", ecm.info( "notInTheXml" ).getName() );
+        ecm.put( "notInTheXml", "k", "v" );
+        Assertions.assertEquals( java.util.List.of( "k" ), ecm.keys( "notInTheXml" ) );
+    }
+
+    @Test
+    void keysAreReturnedAsStringsForBothStringAndNonStringKeys() {
+        ecm.put( CachingManager.CACHE_PAGES, "a", "1" );
+        ecm.put( CachingManager.CACHE_PAGES, 7, "2" );
+        Assertions.assertEquals( java.util.Set.of( "a", "7" ), new java.util.HashSet<>( ecm.keys( CachingManager.CACHE_PAGES ) ) );
+    }
+
+    @Test
+    void aSupplierReturningNullIsNotCountedAsAMissOrCached() {
+        Assertions.assertNull( ecm.get( CachingManager.CACHE_PAGES, "absent", () -> null ) );
+        Assertions.assertEquals( 0, ecm.info( CachingManager.CACHE_PAGES ).getMisses() );
+        Assertions.assertEquals( 0, ecm.info( CachingManager.CACHE_PAGES ).getHits() );
+        Assertions.assertEquals( java.util.List.of(), ecm.keys( CachingManager.CACHE_PAGES ) );
+    }
+
+    @Test
+    void disabledCachingRegistersNothingAndRejectsEveryOperation() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "false" );
+        final EhcacheCachingManager off = new EhcacheCachingManager();
+        off.initialize( null, props );
+        Assertions.assertFalse( off.enabled( CachingManager.CACHE_PAGES ) );
+        Assertions.assertNull( off.get( CachingManager.CACHE_PAGES, "k", () -> "v" ) );
+        off.put( CachingManager.CACHE_PAGES, "k", "v" );
+        Assertions.assertEquals( java.util.List.of(), off.keys( CachingManager.CACHE_PAGES ) );
+    }
 }

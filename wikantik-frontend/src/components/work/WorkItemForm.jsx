@@ -15,13 +15,22 @@ const LEVELS = [
 const KINDS = ['software', 'docs', 'admin'];
 const OPEN_STATUSES = ['draft', 'refining', 'ready', 'in_progress', 'review'];
 
+/** The project default if that product is active, else the only active product, else none. */
+function initialProduct(project, products) {
+  const active = (products || []).filter((p) => !p.archived);
+  if (project.defaultProductKey && active.some((p) => p.key === project.defaultProductKey)) return project.defaultProductKey;
+  return active.length === 1 ? active[0].key : '';
+}
+
 function FormBody({ project, products, members, queues, labelSuggestions, onClose, onCreated }) {
   const uid = useId();
   const [level, setLevel] = useState('task');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [parentKey, setParentKey] = useState('');
-  const [productKey, setProductKey] = useState('');
+  const [initialKey] = useState(() => initialProduct(project, products));
+  const [productKey, setProductKey] = useState(initialKey);
+  const [showMore, setShowMore] = useState(false);
   const [kind, setKind] = useState('software');
   const [type, setType] = useState('feature');
   const [labels, setLabels] = useState([]);
@@ -55,7 +64,7 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
   function chooseLevel(next) {
     setLevel(next);
     setParentKey('');
-    if (next === 'epic') setProductKey('');
+    if (next === 'epic') setProductKey(initialKey);
   }
 
   function submit(e) {
@@ -63,7 +72,7 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
     if (!title.trim() || saving) return;
     const draft = { project: project.key, level, kind, title: title.trim(), body, priority: Number(priority) };
     if (parentKey && current.parentLevel) draft.parentKey = parentKey;
-    if (productKey && level !== 'epic') draft.productKey = productKey;
+    if (level !== 'epic') draft.productKey = productKey;
     if (dueOn) draft.dueOn = dueOn;
     if (level !== 'epic') draft.type = type;
     const allLabels = withPending(labels, typedLabel.current);
@@ -72,6 +81,22 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
     else if (target.assignee) draft.assignee = target.assignee;
     create(draft);
   }
+
+  const productField = (
+    <div>
+      <label className="work-form-field" htmlFor={`${uid}-product`}>Product</label>
+      <Select id={`${uid}-product`} ariaLabel="Product" placeholder="No product" value={productKey}
+        options={(products || []).filter((p) => !p.archived).map((p) => ({ value: p.key, label: p.name || p.key }))}
+        onChange={setProductKey} />
+    </div>
+  );
+  const productName = (products || []).find((p) => p.key === productKey);
+  const summary = [
+    level !== 'epic' && `Product: ${productKey ? (productName?.name || productKey) : 'none'}`,
+    level !== 'epic' && (TYPE_OPTIONS.find((o) => o.value === type)?.label || type),
+    kind.charAt(0).toUpperCase() + kind.slice(1),
+    `P${priority}`,
+  ].filter(Boolean).join(' · ');
 
   return (
     <form className="work-form" onSubmit={submit}>
@@ -100,43 +125,49 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
               onChange={setParentKey} />
           </div>
         )}
-        {level !== 'epic' && (
-          <div>
-            <label className="work-form-field" htmlFor={`${uid}-product`}>Product</label>
-            <Select id={`${uid}-product`} ariaLabel="Product" placeholder="No product" value={productKey}
-              options={(products || []).filter((p) => !p.archived).map((p) => ({ value: p.key, label: p.name || p.key }))}
-              onChange={setProductKey} />
-          </div>
-        )}
+        {level !== 'epic' && !initialKey && productField}
         <div>
           <label className="work-form-field" htmlFor={`${uid}-assignee`}>Assignee</label>
           <AssigneePicker id={`${uid}-assignee`} members={members} queues={queues} value={target}
             onChange={(t) => setTarget(t.queue ? { queue: t.queue } : t.assignee ? { assignee: t.assignee } : {})} />
         </div>
-        <div>
-          <label className="work-form-field" htmlFor={`${uid}-kind`}>Kind</label>
-          <Select id={`${uid}-kind`} ariaLabel="Kind" value={kind} options={KINDS} onChange={setKind} />
-        </div>
-        {level !== 'epic' && (
-          <div>
-            <label className="work-form-field" htmlFor={`${uid}-type`}>Type</label>
-            <Select id={`${uid}-type`} ariaLabel="Type" value={type} options={TYPE_OPTIONS} onChange={setType} />
-          </div>
-        )}
-        <div>
-          <label className="work-form-field" htmlFor={`${uid}-priority`}>Priority</label>
-          <Select id={`${uid}-priority`} ariaLabel="Priority" value={priority}
-            options={PRIORITY_OPTIONS} onChange={setPriority} />
-        </div>
-        <div>
-          <label className="work-form-field" htmlFor={`${uid}-due`}>Due date</label>
-          <input id={`${uid}-due`} type="date" className="form-input" value={dueOn}
-            onChange={(e) => setDueOn(e.target.value)} />
-        </div>
       </div>
-      <span className="work-form-field">Labels</span>
-      <WorkLabels labels={labels} suggestions={labelSuggestions} editable onChange={setLabels}
-        onPending={(t) => { typedLabel.current = t; }} />
+      <button type="button" className="btn btn-ghost btn-sm work-form-more" aria-expanded={showMore}
+        onClick={() => setShowMore((v) => !v)}>
+        More options ({summary})
+      </button>
+      {showMore && (
+        <div className="work-form-more-body">
+          <div className="work-form-row">
+            {level !== 'epic' && initialKey && productField}
+            {level !== 'epic' && (
+              <div>
+                <label className="work-form-field" htmlFor={`${uid}-type`}>Type</label>
+                <Select id={`${uid}-type`} ariaLabel="Type" value={type} options={TYPE_OPTIONS} onChange={setType} />
+                <p className="work-muted">What kind of work: feature, bug or chore</p>
+              </div>
+            )}
+            <div>
+              <label className="work-form-field" htmlFor={`${uid}-kind`}>Kind</label>
+              <Select id={`${uid}-kind`} ariaLabel="Kind" value={kind} options={KINDS} onChange={setKind} />
+              <p className="work-muted">Which area: software, docs or admin</p>
+            </div>
+            <div>
+              <label className="work-form-field" htmlFor={`${uid}-priority`}>Priority</label>
+              <Select id={`${uid}-priority`} ariaLabel="Priority" value={priority}
+                options={PRIORITY_OPTIONS} onChange={setPriority} />
+            </div>
+            <div>
+              <label className="work-form-field" htmlFor={`${uid}-due`}>Due date</label>
+              <input id={`${uid}-due`} type="date" className="form-input" value={dueOn}
+                onChange={(e) => setDueOn(e.target.value)} />
+            </div>
+          </div>
+          <span className="work-form-field">Labels</span>
+          <WorkLabels labels={labels} suggestions={labelSuggestions} editable onChange={setLabels}
+            onPending={(t) => { typedLabel.current = t; }} />
+        </div>
+      )}
       {error && <div role="alert" className="work-form-error">{error}</div>}
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>

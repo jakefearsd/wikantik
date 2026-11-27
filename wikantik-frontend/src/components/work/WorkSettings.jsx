@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import Select from '../ui/Select';
 import Spinner from '../ui/Spinner';
-import { archiveProject, listAgents, listMembers, putMember, removeMember, updateProject } from '../../api/work';
+import { archiveProject, listAgents, listMembers, listProducts, putMember, removeMember, updateProject } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useWorkProject } from './useWorkProject';
@@ -43,11 +43,29 @@ function Details({ project, onSaved, readOnly }) {
   const [description, setDescription] = useState(project.description || '');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const savedProduct = project.defaultProductKey || '';
+  const [productKey, setProductKey] = useState(savedProduct);
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listProducts()
+      .then((rows) => { if (!cancelled) setProducts(Array.isArray(rows) ? rows : []); })
+      .catch((err) => console.warn('WorkSettings: could not load products', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  // Active products, plus the current default when it has since been archived (labelled as such).
+  const productOptions = products
+    .filter((p) => !p.archived || p.key === savedProduct)
+    .map((p) => ({ value: p.key, label: `${p.name || p.key}${p.archived ? ' (archived)' : ''}` }));
 
   function save(e) {
     e.preventDefault();
     setBusy(true); setError(null);
-    updateProject(project.key, { name, description })
+    const changes = { name, description };
+    if (productKey !== savedProduct) changes.defaultProductKey = productKey;
+    updateProject(project.key, changes)
       .then(() => { toast.success('Project details saved'); onSaved(); })
       .catch((err) => {
         if (err?.status === 403) toast.error(err.message); else setError(err?.message || 'Could not save.');
@@ -62,6 +80,10 @@ function Details({ project, onSaved, readOnly }) {
       <label className="work-form-field" htmlFor="work-set-desc">Description</label>
       <textarea id="work-set-desc" className="work-field-input work-form-body" rows={3} value={description} readOnly={readOnly}
         onChange={(e) => setDescription(e.target.value)} />
+      <label className="work-form-field" htmlFor="work-set-product">Default product</label>
+      <Select id="work-set-product" ariaLabel="Default product" placeholder="No default product" value={productKey}
+        options={productOptions} disabled={readOnly} onChange={setProductKey} />
+      <p className="work-muted">New items in this project get this product unless the person filing them chooses another.</p>
       {error && <div className="work-form-error" role="alert">{error}</div>}
       {!readOnly && (
         <div className="work-actions">
@@ -73,7 +95,7 @@ function Details({ project, onSaved, readOnly }) {
 }
 
 function Autonomy({ project, onSaved, readOnly }) {
-  const saved = project.defaultAutonomy || 'supervised';
+  const saved = project.defaultAutonomy || 'delegated';
   const [value, setValue] = useState(saved);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -356,7 +378,7 @@ export default function WorkSettings() {
       </section>
       <section className="work-section">
         <h2 className="work-subheading">Default autonomy</h2>
-        <Autonomy key={project.defaultAutonomy || 'supervised'} project={project} onSaved={reload} readOnly={readOnly} />
+        <Autonomy key={project.defaultAutonomy || 'delegated'} project={project} onSaved={reload} readOnly={readOnly} />
       </section>
       <WorkWebhooks projectKey={project.key} role={role} isAdmin={isAdmin} archived={readOnly} />
       {isAdmin && !readOnly && <ArchiveSection project={project} />}

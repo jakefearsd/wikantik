@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import EmptyState from '../ui/EmptyState';
+import Select from '../ui/Select';
 import Spinner from '../ui/Spinner';
-import { acknowledgeItem, createProject, getMe, listReported } from '../../api/work';
+import { acknowledgeItem, createProject, getMe, listProducts, listReported, updateProject } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useUnreadCount } from '../../hooks/useWorkUnread';
 import { useCapabilities } from '../../hooks/useCapabilities';
@@ -21,7 +22,27 @@ function NewProjectForm({ onCancel }) {
   const [f, setF] = useState({ key: '', name: '', description: '' });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [defaultProduct, setDefaultProduct] = useState('');
   const set = (name) => (e) => setF((s) => ({ ...s, [name]: e.target.value }));
+
+  useEffect(() => {
+    let cancelled = false;
+    listProducts()
+      .then((rows) => {
+        if (cancelled) return;
+        const active = (Array.isArray(rows) ? rows : []).filter((p) => !p.archived);
+        setProducts(active);
+        if (active.length === 1) setDefaultProduct((cur) => cur || active[0].key);
+      })
+      .catch((err) => console.warn('WorkHome: could not load products', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  function opened(key) {
+    toast.success(`Created ${f.key}`);
+    navigate(`/work/${key}`);
+  }
 
   function submit(e) {
     e.preventDefault();
@@ -29,7 +50,16 @@ function NewProjectForm({ onCancel }) {
     if (!f.name.trim()) { setError('Enter a name.'); return; }
     setError(null); setBusy(true);
     createProject({ key: f.key, name: f.name.trim(), description: f.description.trim() })
-      .then((p) => { toast.success(`Created ${f.key}`); navigate(`/work/${p?.key || f.key}`); })
+      .then((p) => {
+        const key = p?.key || f.key;
+        if (!defaultProduct) { opened(key); return undefined; }
+        return updateProject(key, { defaultProductKey: defaultProduct })
+          .catch((err) => {
+            console.warn('WorkHome: could not set the default product', err);
+            toast.error('The project was created, but its default product was not set. Set it under the project settings.');
+          })
+          .then(() => opened(key));
+      })
       .catch((err) => {
         setBusy(false);
         if (err?.status === 403) toast.error(err.message); else setError(err?.message || 'Could not create the project.');
@@ -44,6 +74,9 @@ function NewProjectForm({ onCancel }) {
       <input id="work-new-name" className="work-field-input" value={f.name} onChange={set('name')} />
       <label className="work-form-field" htmlFor="work-new-desc">Description</label>
       <textarea id="work-new-desc" className="work-field-input work-form-body" rows={2} value={f.description} onChange={set('description')} />
+      <label className="work-form-field" htmlFor="work-new-product">Default product</label>
+      <Select id="work-new-product" ariaLabel="Default product" placeholder="No default product" value={defaultProduct}
+        options={products.map((p) => ({ value: p.key, label: p.name || p.key }))} onChange={setDefaultProduct} />
       {error && <div className="work-form-error" role="alert">{error}</div>}
       <div className="work-actions">
         <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>Create project</button>

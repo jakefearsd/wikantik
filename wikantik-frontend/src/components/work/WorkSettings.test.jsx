@@ -5,12 +5,12 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 vi.mock('../../api/work', () => ({
   getMe: vi.fn(() => Promise.resolve({ projects: [], notify: { webhooksAvailable: false } })), listWebhooks: vi.fn(() => Promise.resolve([])),
   addWebhook: vi.fn(), updateWebhook: vi.fn(), removeWebhook: vi.fn(),
-  listMembers: vi.fn(), listAgents: vi.fn(), putMember: vi.fn(), removeMember: vi.fn(), updateProject: vi.fn(), archiveProject: vi.fn(),
+  listMembers: vi.fn(), listAgents: vi.fn(), putMember: vi.fn(), removeMember: vi.fn(), updateProject: vi.fn(), archiveProject: vi.fn(), listProducts: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { getMe, listWebhooks, listMembers, listAgents, putMember, removeMember, updateProject, archiveProject } from '../../api/work';
+import { getMe, listWebhooks, listMembers, listAgents, putMember, removeMember, updateProject, archiveProject, listProducts } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { WorkProjectContext } from './useWorkProject';
 import WorkSettings from './WorkSettings';
@@ -30,12 +30,12 @@ const AGENT_MEMBER = { principal: 'build-bot', principalKind: 'agent', role: 'me
 const RELEASE_TEXT = 'Any work this agent has claimed in this project goes back to its queue.';
 const reload = vi.fn();
 
-function renderSettings({ role = 'lead', admin = false, authLoading = false } = {}) {
+function renderSettings({ role = 'lead', admin = false, authLoading = false, project = PROJECT } = {}) {
   useAuth.mockReturnValue(authLoading ? { user: null, loading: true }
     : { user: { authenticated: true, roles: admin ? ['Admin'] : [] }, loading: false });
   render(
     <MemoryRouter initialEntries={['/work/PLAT/settings']}>
-      <WorkProjectContext.Provider value={{ project: PROJECT, role, reload }}>
+      <WorkProjectContext.Provider value={{ project, role, reload }}>
         <Routes>
           <Route path="/work/PLAT/settings" element={<WorkSettings />} />
           <Route path="/work/PLAT" element={<div>BOARD</div>} />
@@ -53,6 +53,7 @@ beforeEach(() => {
   putMember.mockResolvedValue(undefined);
   removeMember.mockResolvedValue(undefined);
   updateProject.mockResolvedValue({});
+  listProducts.mockResolvedValue([{ key: 'web', name: 'Web', archived: false }, { key: 'api', name: 'Api', archived: false }, { key: 'old', name: 'Old', archived: true }]);
   archiveProject.mockResolvedValue(undefined);
   window.confirm = vi.fn();
 });
@@ -520,5 +521,34 @@ describe('WorkSettings usability', () => {
     expect(screen.getByText("Type the group's name.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'agent' } });
     expect(screen.getByText('Choose from the agents registered on the Agents page.')).toBeInTheDocument();
+  });
+});
+
+describe('WorkSettings default product and autonomy fallback', () => {
+  it('falls back to delegated autonomy', async () => {
+    renderSettings({ project: { id: 1, key: 'PLAT', name: 'Platform' } });
+    expect(await screen.findByLabelText('Default autonomy')).toHaveValue('delegated');
+  });
+
+  it('saves the default product and shows an archived current default', async () => {
+    renderSettings({ project: { ...PROJECT, defaultProductKey: 'old' } });
+    const select = await screen.findByLabelText('Default product');
+    await waitFor(() => expect(within(select).getByRole('option', { name: 'Old (archived)' })).toBeInTheDocument());
+    expect(within(select).queryAllByRole('option').map((o) => o.textContent)).not.toContain('Old');
+    expect(select).toHaveValue('old');
+    fireEvent.change(select, { target: { value: 'web' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    await waitFor(() => expect(updateProject).toHaveBeenCalledWith('PLAT',
+      { name: 'Platform', description: 'The platform', defaultProductKey: 'web' }));
+  });
+
+  it('clears the default product with an empty key', async () => {
+    renderSettings({ project: { ...PROJECT, defaultProductKey: 'web' } });
+    const select = await screen.findByLabelText('Default product');
+    await waitFor(() => expect(select).toHaveValue('web'));
+    fireEvent.change(select, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    await waitFor(() => expect(updateProject).toHaveBeenCalledWith('PLAT',
+      { name: 'Platform', description: 'The platform', defaultProductKey: '' }));
   });
 });

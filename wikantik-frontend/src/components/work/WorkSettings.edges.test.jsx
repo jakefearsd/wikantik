@@ -4,12 +4,12 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
   getMe: vi.fn(() => Promise.resolve({ projects: [], notify: { webhooksAvailable: false } })),
-  listMembers: vi.fn(), listAgents: vi.fn(), putMember: vi.fn(), removeMember: vi.fn(), updateProject: vi.fn(), archiveProject: vi.fn(),
+  listMembers: vi.fn(), listAgents: vi.fn(), putMember: vi.fn(), removeMember: vi.fn(), updateProject: vi.fn(), archiveProject: vi.fn(), listProducts: vi.fn(),
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { listMembers, listAgents, putMember, removeMember, updateProject, archiveProject } from '../../api/work';
+import { listMembers, listAgents, putMember, removeMember, updateProject, archiveProject, listProducts } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { WorkProjectContext } from './useWorkProject';
 import WorkSettings from './WorkSettings';
@@ -42,6 +42,7 @@ beforeEach(() => {
   putMember.mockResolvedValue(undefined);
   removeMember.mockResolvedValue(undefined);
   updateProject.mockResolvedValue({});
+  listProducts.mockResolvedValue([]);
   archiveProject.mockResolvedValue(undefined);
 });
 
@@ -52,11 +53,11 @@ describe('WorkSettings edges', () => {
     expect(listMembers).not.toHaveBeenCalled();
   });
 
-  it('a project with no name, description or default autonomy shows empty fields and the supervised default', async () => {
+  it('a project with no name, description or default autonomy shows empty fields and the delegated default', async () => {
     renderSettings({ project: { id: 1, key: 'PLAT' } });
     expect(await screen.findByLabelText('Project name')).toHaveValue('');
     expect(screen.getByLabelText('Description')).toHaveValue('');
-    expect(screen.getByLabelText('Default autonomy')).toHaveValue('supervised');
+    expect(screen.getByLabelText('Default autonomy')).toHaveValue('delegated');
     expect(screen.getByRole('button', { name: 'Save details' })).toBeDisabled();
   });
 

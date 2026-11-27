@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-vi.mock('../../api/work', () => ({ getUnread: vi.fn(() => Promise.resolve({ unread: 4 })), getMe: vi.fn(), createProject: vi.fn(), acknowledgeItem: vi.fn(() => Promise.resolve({})), listReported: vi.fn(() => Promise.resolve([])), listFilters: vi.fn(() => Promise.resolve({ filters: [] })), renameFilter: vi.fn(), deleteFilter: vi.fn() }));
+vi.mock('../../api/work', () => ({ getUnread: vi.fn(() => Promise.resolve({ unread: 4 })), getMe: vi.fn(), createProject: vi.fn(), updateProject: vi.fn(), listProducts: vi.fn(() => Promise.resolve([])), acknowledgeItem: vi.fn(() => Promise.resolve({})), listReported: vi.fn(() => Promise.resolve([])), listFilters: vi.fn(() => Promise.resolve({ filters: [] })), renameFilter: vi.fn(), deleteFilter: vi.fn() }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { getMe, createProject, listReported, acknowledgeItem, listFilters, renameFilter, deleteFilter } from '../../api/work';
+import { getMe, createProject, updateProject, listProducts, listReported, acknowledgeItem, listFilters, renameFilter, deleteFilter } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import WorkHome from './WorkHome';
@@ -37,6 +37,7 @@ function renderHome({ admin = false, me = ME, work = true } = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   listReported.mockResolvedValue([]);
+  listProducts.mockResolvedValue([]);
   listFilters.mockResolvedValue({ filters: [] });
 });
 
@@ -261,6 +262,52 @@ describe('WorkHome', () => {
     await waitFor(() => expect(createProject).toHaveBeenCalledWith({ key: 'NEW', name: 'Fresh', description: 'about it' }));
     expect(await screen.findByText('BOARD')).toBeInTheDocument();
     expect(toast.success).toHaveBeenCalledWith('Created NEW');
+  });
+
+  it('sets the chosen default product after creating a project', async () => {
+    listProducts.mockResolvedValue([{ key: 'web', name: 'Web', archived: false }, { key: 'api', name: 'Api', archived: false }]);
+    await openForm();
+    createProject.mockResolvedValue({ key: 'NEW' });
+    updateProject.mockResolvedValue({});
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'NEW' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Fresh' } });
+    const select = screen.getByLabelText('Default product');
+    await waitFor(() => expect(within(select).getByRole('option', { name: 'Web' })).toBeInTheDocument());
+    expect(select).toHaveValue('');
+    fireEvent.change(select, { target: { value: 'web' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await waitFor(() => expect(updateProject).toHaveBeenCalledWith('NEW', { defaultProductKey: 'web' }));
+    expect(await screen.findByText('BOARD')).toBeInTheDocument();
+  });
+
+  it('pre-selects the only active product', async () => {
+    listProducts.mockResolvedValue([{ key: 'web', name: 'Web', archived: false }, { key: 'old', name: 'Old', archived: true }]);
+    await openForm();
+    await waitFor(() => expect(screen.getByLabelText('Default product')).toHaveValue('web'));
+  });
+
+  it('does not call updateProject when no default product is chosen', async () => {
+    await openForm();
+    createProject.mockResolvedValue({ key: 'NEW' });
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'NEW' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Fresh' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByText('BOARD')).toBeInTheDocument();
+    expect(updateProject).not.toHaveBeenCalled();
+  });
+
+  it('still opens the new project when setting the default fails', async () => {
+    listProducts.mockResolvedValue([{ key: 'web', name: 'Web', archived: false }]);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await openForm();
+    await waitFor(() => expect(screen.getByLabelText('Default product')).toHaveValue('web'));
+    createProject.mockResolvedValue({ key: 'NEW' });
+    updateProject.mockRejectedValue(new Error('nope'));
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'NEW' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Fresh' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByText('BOARD')).toBeInTheDocument();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/default product was not set/i));
   });
 
   it('toasts a permission refusal and shows other failures in the form, re-enabling the button', async () => {

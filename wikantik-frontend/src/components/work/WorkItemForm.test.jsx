@@ -19,6 +19,7 @@ function setup(props = {}) {
   render(<WorkItemForm isOpen project={PROJECT} products={PRODUCTS} onCreated={onCreated} onClose={onClose} {...props} />);
   return { onCreated, onClose };
 }
+const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More options/ }));
 const parentOptions = () => within(screen.getByLabelText('Parent')).getAllByRole('option').map((o) => o.textContent);
 
 beforeEach(() => {
@@ -43,6 +44,7 @@ describe('WorkItemForm', () => {
 
   it('hides the product choice for an epic', async () => {
     setup();
+    openMore();
     expect(screen.getByLabelText('Product')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Epic'));
     expect(screen.queryByLabelText('Product')).not.toBeInTheDocument();
@@ -67,6 +69,7 @@ describe('WorkItemForm', () => {
     await waitFor(() => expect(parentOptions().join()).toContain('PLAT-2'));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: ' Ship it ' } });
     fireEvent.change(screen.getByLabelText('Parent'), { target: { value: 'PLAT-2' } });
+    openMore();
     fireEvent.change(screen.getByLabelText('Product'), { target: { value: 'wikantik' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(view.item, view));
@@ -88,6 +91,7 @@ describe('WorkItemForm', () => {
 
   it('does not offer an archived product', () => {
     setup({ products: [{ key: 'wikantik', name: 'Wikantik', archived: false }, { key: 'old', name: 'Old', archived: true }] });
+    openMore();
     const select = screen.getByLabelText('Product');
     expect(within(select).getByRole('option', { name: 'Wikantik' })).toBeInTheDocument();
     expect(within(select).queryByRole('option', { name: 'Old' })).toBeNull();
@@ -200,6 +204,7 @@ describe('WorkItemForm', () => {
       setup();
       await waitFor(() => expect(listItems).toHaveBeenCalled());
       const draft = await submitWith(() => {
+        openMore();
         fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2026-12-01' } });
         fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'docs' } });
         fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '1' } });
@@ -212,13 +217,14 @@ describe('WorkItemForm', () => {
       setup();
       await waitFor(() => expect(listItems).toHaveBeenCalled());
       const draft = await submitWith();
-      for (const k of ['dueOn', 'parentKey', 'productKey', 'queue', 'assignee']) expect(draft).not.toHaveProperty(k);
+      for (const k of ['dueOn', 'parentKey', 'queue', 'assignee']) expect(draft).not.toHaveProperty(k);
       expect(draft).toMatchObject({ kind: 'software', priority: 3, body: '' });
     });
 
     it('drops a chosen product and parent when the level is switched to epic', async () => {
       setup({ products: PRODUCTS });
       await waitFor(() => expect(parentOptions().join()).toContain('PLAT-2'));
+      openMore();
       fireEvent.change(screen.getByLabelText('Product'), { target: { value: 'wikantik' } });
       fireEvent.click(screen.getByLabelText('Epic'));
       const draft = await submitWith();
@@ -239,6 +245,7 @@ describe('WorkItemForm', () => {
 
     it('shows a product without a name by its key', () => {
       setup({ products: [{ key: 'bare' }] });
+      openMore();
       expect(within(screen.getByLabelText('Product')).getByRole('option', { name: 'bare' })).toBeInTheDocument();
     });
 
@@ -319,6 +326,7 @@ describe('WorkItemForm', () => {
     createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } });
     setup();
     fillTitle();
+    openMore();
     fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'bug' } });
     addLabel('UI');
     addLabel('api');
@@ -332,6 +340,7 @@ describe('WorkItemForm', () => {
     createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } });
     setup();
     fillTitle();
+    openMore();
     addLabel('ui');
     fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'api' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
@@ -343,6 +352,7 @@ describe('WorkItemForm', () => {
     createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } });
     setup();
     fireEvent.click(screen.getByLabelText('Epic'));
+    openMore();
     expect(screen.queryByLabelText('Type')).not.toBeInTheDocument();
     fillTitle();
     fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
@@ -360,5 +370,84 @@ describe('WorkItemForm', () => {
     expect(createItem.mock.calls[0][0]).not.toHaveProperty('labels');
     expect(createItem.mock.calls[0][0]).toHaveProperty('type', 'feature');
     await waitFor(() => expect(listItems).toHaveBeenCalled());
+  });
+});
+
+describe('WorkItemForm product default and More options', () => {
+  const TWO = [{ key: 'web', name: 'Web', archived: false }, { key: 'api', name: 'Api', archived: false }];
+  const submitted = async () => {
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Ship it' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
+    await waitFor(() => expect(createItem).toHaveBeenCalled());
+    return createItem.mock.calls[0][0];
+  };
+  beforeEach(() => createItem.mockResolvedValue({ item: { id: 9, key: 'PLAT-9' } }));
+
+  it('pre-selects the project default product', async () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: TWO });
+    expect((await submitted()).productKey).toBe('web');
+  });
+
+  it('pre-selects the only active product when there is no default', async () => {
+    setup({ products: [{ key: 'web', name: 'Web' }, { key: 'old', name: 'Old', archived: true }] });
+    expect((await submitted()).productKey).toBe('web');
+  });
+
+  it('does not pre-select an archived default or one of several products', async () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'old' }, products: [...TWO, { key: 'old', name: 'Old', archived: true }] });
+    expect((await submitted()).productKey).toBe('');
+  });
+
+  it('shows Product outside More options only when none was pre-selected', () => {
+    setup({ products: TWO });
+    expect(screen.getByLabelText('Product')).toBeInTheDocument();
+  });
+
+  it('sends an empty productKey when the user chooses No product', async () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: TWO });
+    openMore();
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: '' } });
+    expect((await submitted()).productKey).toBe('');
+  });
+
+  it('omits productKey for an epic', async () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: TWO });
+    fireEvent.click(screen.getByLabelText('Epic'));
+    expect(await submitted()).not.toHaveProperty('productKey');
+  });
+
+  it('keeps Type, Kind, Priority, Due date and Labels under More options, collapsed', () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: TWO });
+    const toggle = screen.getByRole('button', { name: /More options/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveTextContent('More options (Product: Web · Feature · Software · P3)');
+    for (const l of ['Priority', 'Kind', 'Type', 'Due date', 'Add a label']) expect(screen.queryByLabelText(l)).toBeNull();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    for (const l of ['Priority', 'Kind', 'Type', 'Due date', 'Add a label']) expect(screen.getByLabelText(l)).toBeInTheDocument();
+  });
+
+  it('updates the summary live', () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: TWO });
+    openMore();
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'bug' } });
+    fireEvent.change(screen.getByLabelText('Priority'), { target: { value: '1' } });
+    expect(screen.getByRole('button', { name: /More options/ })).toHaveTextContent('Product: Web · Bug · Software · P1');
+  });
+
+  it('explains Type and Kind', () => {
+    setup();
+    openMore();
+    expect(screen.getByText('What kind of work: feature, bug or chore')).toBeInTheDocument();
+    expect(screen.getByText('Which area: software, docs or admin')).toBeInTheDocument();
+  });
+
+  it('submits the same defaults whether More options was opened or not', async () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: TWO });
+    const closed = await submitted();
+    expect(closed).toMatchObject({ kind: 'software', type: 'feature', priority: 3, productKey: 'web' });
+    createItem.mockClear();
+    openMore();
+    expect(await submitted()).toEqual(closed);
   });
 });

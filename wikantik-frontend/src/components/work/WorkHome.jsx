@@ -9,6 +9,7 @@ import { useUnreadCount } from '../../hooks/useWorkUnread';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import { useToast } from '../../hooks/useToast';
 import { reporterStatusWords } from './eventText';
+import WorkGettingStarted from './WorkGettingStarted';
 import WaitingLane from './WaitingLane';
 import WorkFindSection from './WorkFindSection';
 import WorkLoadError from './WorkLoadError';
@@ -147,6 +148,7 @@ export default function WorkHome() {
   return (
     <div className="work-home">
       <h1 className="work-heading">Work</h1>
+      <WorkGettingStarted isAdmin={isAdmin} projects={projects} onCreateProject={() => setCreating(true)} />
       <p className="work-guide-link">
         <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer">Guide to work management</a>
         <span className="work-muted"> Products, projects, the board, changes, deployments and agents, step by step.</span>

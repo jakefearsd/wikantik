@@ -3,6 +3,7 @@ import EmptyState from '../ui/EmptyState';
 import { createQueue, retireQueue, updateQueue } from '../../api/work';
 import { useToast } from '../../hooks/useToast';
 import WorkConfirm from './WorkConfirm';
+import { createStarterQueues } from './starterQueues';
 
 const KEY_PATTERN = /^[a-z][a-z0-9-]{1,29}$/;
 const KEY_MESSAGE = 'Key must start with a lowercase letter and use only lowercase letters, digits and hyphens (2 to 30 characters).';
@@ -69,6 +70,18 @@ export default function WorkQueues({ queues, reload, canManage = true }) {
   const [busy, setBusy] = useState(false);
   const sorted = [...queues].sort((a, b) => (a.retiredAt ? 1 : 0) - (b.retiredAt ? 1 : 0));
 
+  function starter() {
+    if (busy) return;
+    setBusy(true);
+    createStarterQueues(queues.map((q) => q.key))
+      .then(({ created, failed }) => {
+        if (created.length) toast.success(`Created ${created.join(' and ')}`);
+        if (failed.length) toast.error(`Could not create ${failed.join(' and ')}.`);
+        reload();
+      })
+      .finally(() => setBusy(false));
+  }
+
   function retire(key) {
     if (busy) return;
     setBusy(true);
@@ -85,7 +98,15 @@ export default function WorkQueues({ queues, reload, canManage = true }) {
         ? <QueueForm onDone={() => { setCreating(false); reload(); }} onCancel={() => setCreating(false)} />
         : <p><button type="button" className="btn btn-sm"
           onClick={() => setCreating(true)}>New queue</button></p>)}
-      {sorted.length === 0 ? <EmptyState message="No queues yet." /> : (
+      {sorted.length === 0 ? (
+        <>
+          <EmptyState message="No queues yet." />
+          {canManage && (
+            <p><button type="button" className="btn btn-sm" disabled={busy} onClick={starter}>Create starter queues</button>
+              <span className="work-muted"> Adds Implementer and Review.</span></p>
+          )}
+        </>
+      ) : (
         <ul className="work-product-rows">
           {sorted.map((q) => (
             <li key={q.key} data-testid="queue-row" className={`work-product-row${q.retiredAt ? ' work-retired' : ''}`}>

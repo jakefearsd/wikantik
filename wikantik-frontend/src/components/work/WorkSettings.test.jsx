@@ -1,16 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('../../api/work', () => ({
   getMe: vi.fn(() => Promise.resolve({ projects: [], notify: { webhooksAvailable: false } })), listWebhooks: vi.fn(() => Promise.resolve([])),
   addWebhook: vi.fn(), updateWebhook: vi.fn(), removeWebhook: vi.fn(),
-  listMembers: vi.fn(), listAgents: vi.fn(), putMember: vi.fn(), removeMember: vi.fn(), updateProject: vi.fn(), archiveProject: vi.fn(), listProducts: vi.fn(),
+  listMembers: vi.fn(), listAgents: vi.fn(), putMember: vi.fn(), removeMember: vi.fn(), updateProject: vi.fn(), archiveProject: vi.fn(), listProducts: vi.fn(), suggestGroups: vi.fn(),
 }));
+vi.mock('../../api/client', () => ({ api: { listMentionableUsers: vi.fn() } }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
-import { getMe, listWebhooks, listMembers, listAgents, putMember, removeMember, updateProject, archiveProject, listProducts } from '../../api/work';
+import { getMe, listWebhooks, listMembers, listAgents, putMember, removeMember, updateProject, archiveProject, listProducts, suggestGroups } from '../../api/work';
+import { api } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
 import { WorkProjectContext } from './useWorkProject';
 import WorkSettings from './WorkSettings';
@@ -55,6 +57,8 @@ beforeEach(() => {
   updateProject.mockResolvedValue({});
   listProducts.mockResolvedValue([{ key: 'web', name: 'Web', archived: false }, { key: 'api', name: 'Api', archived: false }, { key: 'old', name: 'Old', archived: true }]);
   archiveProject.mockResolvedValue(undefined);
+  api.listMentionableUsers.mockResolvedValue({ users: [] });
+  suggestGroups.mockResolvedValue({ groups: [] });
   window.confirm = vi.fn();
 });
 
@@ -95,6 +99,81 @@ describe('WorkSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
     await waitFor(() => expect(updateProject).toHaveBeenCalledWith('PLAT', { name: 'Platform 2', description: 'The platform' }));
     expect(reload).toHaveBeenCalled();
+  });
+
+  describe('member suggestions', () => {
+    afterEach(() => vi.useRealTimers());
+    const optionValues = () => Array.from(document.querySelectorAll('#work-add-principal-suggestions option')).map((o) => o.value);
+    const type = (value) => fireEvent.change(screen.getByLabelText('Display name or group name'), { target: { value } });
+
+    it('suggests display names for a user after two characters', async () => {
+      api.listMentionableUsers.mockResolvedValue({ users: [{ id: 1, displayName: 'Carol Ng' }, { id: 2, displayName: 'Carl Ox' }] });
+      renderSettings();
+      await screen.findByText('Bob B');
+      expect(screen.getByLabelText('Display name or group name')).toHaveAttribute('list', 'work-add-principal-suggestions');
+      vi.useFakeTimers();
+      type('c');
+      await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+      expect(api.listMentionableUsers).not.toHaveBeenCalled();
+      type('ca');
+      await act(async () => { await vi.advanceTimersByTimeAsync(199); });
+      expect(api.listMentionableUsers).not.toHaveBeenCalled();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      expect(api.listMentionableUsers).toHaveBeenCalledWith('ca', 10);
+      expect(optionValues()).toEqual(['Carol Ng', 'Carl Ox']);
+    });
+
+    it('suggests groups from the project endpoint and clears when the kind changes', async () => {
+      suggestGroups.mockResolvedValue({ groups: ['Ops', 'Operators'] });
+      renderSettings();
+      await screen.findByText('Bob B');
+      fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'group' } });
+      vi.useFakeTimers();
+      type('op');
+      await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+      expect(suggestGroups).toHaveBeenCalledWith('PLAT', 'op');
+      expect(optionValues()).toEqual(['Ops', 'Operators']);
+      fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'user' } });
+      expect(optionValues()).toEqual([]);
+    });
+
+    it('lets a later keystroke win over a slower earlier response', async () => {
+      let first;
+      api.listMentionableUsers.mockImplementationOnce(() => new Promise((r) => { first = r; }))
+        .mockResolvedValueOnce({ users: [{ id: 2, displayName: 'Carol' }] });
+      renderSettings();
+      await screen.findByText('Bob B');
+      vi.useFakeTimers();
+      type('ca');
+      await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+      type('car');
+      await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+      expect(optionValues()).toEqual(['Carol']);
+      await act(async () => { first({ users: [{ id: 1, displayName: 'Stale' }] }); });
+      expect(optionValues()).toEqual(['Carol']);
+    });
+
+    it('shows no suggestions and keeps typing working when a lookup fails', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      api.listMentionableUsers.mockRejectedValue(new Error('down'));
+      renderSettings();
+      await screen.findByText('Bob B');
+      vi.useFakeTimers();
+      type('ca');
+      await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+      expect(optionValues()).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('WorkSettings'), expect.any(Error));
+      expect(screen.getByLabelText('Display name or group name')).toHaveValue('ca');
+      warn.mockRestore();
+    });
+
+    it('still adds a typed name that was never suggested', async () => {
+      renderSettings();
+      await screen.findByText('Bob B');
+      type('dana');
+      fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
+      await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'dana', principalKind: 'user', role: 'member' }));
+    });
   });
 
   it('addMemberByUserOrGroup', async () => {

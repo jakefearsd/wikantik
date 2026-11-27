@@ -3,7 +3,8 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import Badge from '../ui/Badge';
 import Select from '../ui/Select';
 import Spinner from '../ui/Spinner';
-import { archiveProject, listAgents, listMembers, listProducts, putMember, removeMember, updateProject } from '../../api/work';
+import { api } from '../../api/client';
+import { archiveProject, listAgents, listMembers, listProducts, putMember, removeMember, suggestGroups, updateProject } from '../../api/work';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useWorkProject } from './useWorkProject';
@@ -177,6 +178,28 @@ function Members({ project, reloadProject, readOnly }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Names for the datalist: a lookup 200 ms after the last keystroke, from 2 characters. Typing stays free; a stale
+  // response (the effect was cleaned up) is ignored.
+  const [suggestions, setSuggestions] = useState([]);
+  const lookupKind = adding.kind;
+  const lookupText = adding.principal.trim();
+  useEffect(() => {
+    if (lookupKind === 'agent' || lookupText.length < 2) return undefined;
+    let live = true;
+    const timer = setTimeout(() => {
+      const lookup = lookupKind === 'user'
+        ? api.listMentionableUsers(lookupText, 10).then((r) => (r?.users || []).map((u) => u.displayName))
+        : suggestGroups(project.key, lookupText).then((r) => r?.groups || []);
+      lookup
+        .then((names) => { if (live) setSuggestions(names.filter(Boolean)); })
+        .catch((err) => {
+          console.warn(`WorkSettings: could not look up ${lookupKind} suggestions`, err);
+          if (live) setSuggestions([]);
+        });
+    }, 200);
+    return () => { live = false; clearTimeout(timer); };
+  }, [lookupKind, lookupText, project.key]);
+
   const wantsAgents = adding.kind === 'agent';
   useEffect(() => {
     if (!wantsAgents || agents) return undefined;
@@ -311,12 +334,16 @@ function Members({ project, reloadProject, readOnly }) {
             <>
               <label className="work-visually-hidden" htmlFor="work-add-principal">Display name or group name</label>
               <input id="work-add-principal" className="work-field-input" placeholder={adding.kind === 'user' ? 'Display name' : 'Group name'} value={adding.principal}
+                list="work-add-principal-suggestions"
                 onChange={(e) => setAdding({ ...adding, principal: e.target.value })} aria-invalid={addError ? 'true' : undefined} />
+              <datalist id="work-add-principal-suggestions">
+                {(lookupText.length < 2 ? [] : suggestions).map((name) => <option key={name} value={name} />)}
+              </datalist>
             </>
           )}
         <p className="work-muted work-add-help">{NAME_HELP[adding.kind]}</p>
         <Select ariaLabel="Kind" value={adding.kind} options={KINDS} disabled={busy}
-          onChange={(kind) => { setAddError(null); setAdding({ principal: (kind === 'agent') !== (adding.kind === 'agent') ? '' : adding.principal, kind, role: kind === 'agent' && (adding.role === 'lead' || adding.role === 'reporter') ? 'member' : adding.role }); }} />
+          onChange={(kind) => { setAddError(null); setSuggestions([]); setAdding({ principal: (kind === 'agent') !== (adding.kind === 'agent') ? '' : adding.principal, kind, role: kind === 'agent' && (adding.role === 'lead' || adding.role === 'reporter') ? 'member' : adding.role }); }} />
         <Select ariaLabel="Role for new member" value={adding.role} options={adding.kind === 'agent' ? AGENT_ROLES : ROLES}
           onChange={(role) => setAdding({ ...adding, role })} />
         <p className="work-muted work-add-help">{REPORTER_HELP}</p>

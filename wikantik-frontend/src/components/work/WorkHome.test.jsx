@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
-vi.mock('../../api/work', () => ({ getUnread: vi.fn(() => Promise.resolve({ unread: 4 })), getMe: vi.fn(), createProject: vi.fn(), updateProject: vi.fn(), listProducts: vi.fn(() => Promise.resolve([])), acknowledgeItem: vi.fn(() => Promise.resolve({})), listReported: vi.fn(() => Promise.resolve([])), listFilters: vi.fn(() => Promise.resolve({ filters: [] })), renameFilter: vi.fn(), deleteFilter: vi.fn() }));
+vi.mock('../../api/work', () => ({ getUnread: vi.fn(() => Promise.resolve({ unread: 4 })), getMe: vi.fn(), createProject: vi.fn(), updateProject: vi.fn(), listProducts: vi.fn(() => Promise.resolve([])), listQueues: vi.fn(() => Promise.resolve([])), listAgents: vi.fn(() => Promise.resolve([])), createQueue: vi.fn(), acknowledgeItem: vi.fn(() => Promise.resolve({})), listReported: vi.fn(() => Promise.resolve([])), listFilters: vi.fn(() => Promise.resolve({ filters: [] })), renameFilter: vi.fn(), deleteFilter: vi.fn() }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('../../hooks/useCapabilities', () => ({ useCapabilities: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
@@ -47,6 +47,13 @@ const SAVED = [
 ];
 
 describe('WorkHome', () => {
+  it('shows the getting-started card to an admin with nothing set up, and opens the project form from it', async () => {
+    renderHome({ admin: true, me: { projects: [] } });
+    expect(await screen.findByText('Getting started')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Create a project' })[0]);
+    expect(await screen.findByLabelText('Key')).toBeInTheDocument();
+  });
+
   it('lists items filed into other projects', async () => {
     listReported.mockResolvedValue([{ key: 'DOCS-3', projectKey: 'DOCS', projectName: 'Documentation', title: 'Typo on page 2', status: 'ready' }]);
     renderHome({ me: { ...ME, reportable: [{ key: 'DOCS', name: 'Documentation', role: 'reporter' }] } });

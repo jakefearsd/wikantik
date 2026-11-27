@@ -231,4 +231,20 @@ describe('WorkQueues', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Yes, retire triage' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Could not retire the queue.'));
   });
+
+  it('offers starter queues to admins on the empty state only', async () => {
+    const first = renderQueues({ queues: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Create starter queues' }));
+    await waitFor(() => expect(createQueue).toHaveBeenCalledTimes(2));
+    expect(createQueue.mock.calls.map((c) => c[0].key)).toEqual(['implementer', 'review']);
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    first.unmount();
+    renderQueues({ queues: [], canManage: false });
+    expect(screen.queryByRole('button', { name: 'Create starter queues' })).toBeNull();
+  });
+
+  it('does not offer starter queues once a queue exists', () => {
+    renderQueues();
+    expect(screen.queryByRole('button', { name: 'Create starter queues' })).toBeNull();
+  });
 });

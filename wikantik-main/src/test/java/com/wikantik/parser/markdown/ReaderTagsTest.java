@@ -257,9 +257,25 @@ class ReaderTagsTest {
         } );
     }
 
+    private Page host;
+
+    /**
+     * The tags the render draws for {@code markdown}, rendered as given. Only a text carrying a {@code [{…}]} directive
+     * (an access rule the page's own permissions come from) is saved first; every other text renders on a host page
+     * saved once, since saving each of the 4,000 inputs cost about 15 ms apiece and changed nothing the render reads.
+     */
     private Set< String > renderedTags( final String markdown ) throws Exception {
-        testEngine.saveText( "ReaderTagsHost", markdown );
-        final Page p = Wiki.contents().page( testEngine, "ReaderTagsHost" );
+        final Page p;
+        if ( markdown.contains( "[{" ) ) {
+            testEngine.saveText( "ReaderTagsRuled", markdown );
+            p = Wiki.contents().page( testEngine, "ReaderTagsRuled" );
+        } else {
+            if ( host == null ) {
+                testEngine.saveText( "ReaderTagsHost", "host" );
+                host = Wiki.contents().page( testEngine, "ReaderTagsHost" );
+            }
+            p = host;
+        }
         final Context context = Wiki.context().create( testEngine, HttpMockFactory.createHttpRequest(), p );
         final String html = testEngine.getManager( RenderingManager.class ).textToHTML( context, markdown ).replace( "&#61;", "=" );
         final Set< String > tags = new LinkedHashSet<>();

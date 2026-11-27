@@ -226,9 +226,25 @@ class CommentsDifferentialTest {
         return "\"" + s.replace( "\\", "\\\\" ).replace( "\n", "\\n" ).replace( "\r", "\\r" ) + "\"";
     }
 
+    private Page host;
+
+    /**
+     * {@code markdown} rendered as given. Only a text carrying a {@code [{…}]} directive (an access rule decides whether
+     * the viewer sees comments) is saved first; every other text renders on a host page saved once, since saving each
+     * of the 4,000 variants cost about 15 ms apiece and changed nothing the render reads.
+     */
     private String render( final String markdown ) throws Exception {
-        testEngine.saveText( "DifferentialHost", markdown );
-        final Page p = Wiki.contents().page( testEngine, "DifferentialHost" );
+        final Page p;
+        if ( markdown.contains( "[{" ) ) {
+            testEngine.saveText( "DifferentialRuled", markdown );
+            p = Wiki.contents().page( testEngine, "DifferentialRuled" );
+        } else {
+            if ( host == null ) {
+                testEngine.saveText( "DifferentialHost", "host" );
+                host = Wiki.contents().page( testEngine, "DifferentialHost" );
+            }
+            p = host;
+        }
         final Context context = Wiki.context().create( testEngine, HttpMockFactory.createHttpRequest(), p );
         return testEngine.getManager( RenderingManager.class ).textToHTML( context, markdown );
     }

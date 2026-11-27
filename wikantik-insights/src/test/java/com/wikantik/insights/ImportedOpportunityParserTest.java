@@ -383,4 +383,33 @@ class ImportedOpportunityParserTest {
               "engine": "google", "site": "wiki.wikantik.com" }"""
                 .formatted( type, query, targetPage, expectedUplift );
     }
+
+    @Test
+    void anExplicitNullOpportunitiesKeyIsTreatedAsAbsent() {
+        final ImportedOpportunityParser.ParseResult r = ImportedOpportunityParser.parse( """
+            { "engine": "google", "site": "wiki.wikantik.com", "snapshot_date": "2026-08-14",
+              "opportunities": null }""", ENGINES, SITES );
+
+        assertFalse( r.present() );
+        assertEquals( 0, r.rejected() );
+        assertTrue( r.rows().isEmpty() );
+    }
+
+    @Test
+    void rowsMissingEngineSiteOrUpliftAreCountedIndividuallyAndGoodRowsSurvive() {
+        final ImportedOpportunityParser.ParseResult r = ImportedOpportunityParser.parse( payload( """
+            { "type": "ctr_gap", "query": "q1", "site": "wiki.wikantik.com", "expected_uplift": 1.0 },
+            { "type": "ctr_gap", "query": "q2", "engine": "google", "expected_uplift": 1.0 },
+            { "type": "ctr_gap", "query": "q3", "engine": "google", "site": "wiki.wikantik.com" },
+            { "type": "ctr_gap", "query": "q4", "engine": "google", "site": "wiki.wikantik.com",
+              "expected_uplift": null },
+            { "type": "ctr_gap", "query": "q5", "engine": "google", "site": "wiki.wikantik.com",
+              "expected_uplift": 2.5 } """ ), ENGINES, SITES );
+
+        assertTrue( r.present() );
+        assertEquals( 4, r.rejected() );
+        assertEquals( 1, r.rows().size() );
+        assertEquals( "q5", r.rows().get( 0 ).target() );
+        assertEquals( 2.5, r.rows().get( 0 ).expectedUplift(), 1e-9 );
+    }
 }

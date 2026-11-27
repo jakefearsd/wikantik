@@ -166,4 +166,141 @@ class ReaderAnalyticsReadbackTest {
         verify( views ).acquisition( from, TODAY );
         verify( store ).replace( "wiki.example.com", from, TODAY, List.of(), List.of() );
     }
+
+    @SuppressWarnings( "unchecked" )
+    private List< AcquisitionDay > capturedAcquisition() {
+        final ArgumentCaptor< List< AcquisitionDay > > c = ArgumentCaptor.forClass( List.class );
+        verify( store ).replace( anyString(), any(), any(), anyList(), c.capture() );
+        return c.getValue();
+    }
+
+    @Test
+    void engagementRowsForOneIdAreSummedFieldByFieldWithoutTraffic() {
+        when( views.engagement( any(), any() ) ).thenReturn( List.of(
+            new EngagementRow( TODAY, "01A", 2, 10.0, 30.0, 1, 2, 3, 4, 5, 6, 7 ),
+            new EngagementRow( TODAY, "01A", 3, 20.0, 50.0, 10, 20, 30, 40, 50, 60, 70 ) ) );
+
+        readback().runOnce();
+
+        final List< EngagementDay > rows = capturedEngagement();
+        assertEquals( 1, rows.size() );
+        assertEquals( new EngagementDay( TODAY, "01A", 0, 0, 5, 20.0, 50.0, 11, 22, 33, 44, 55, 66, 77,
+                null, null, null ), rows.get( 0 ) );
+    }
+
+    @Test
+    void percentilesComeFromTheRowWithTheMostExitsAndATieKeepsTheFirst() {
+        when( views.engagement( any(), any() ) ).thenReturn( List.of(
+            new EngagementRow( TODAY, "01A", 5, 10.0, 11.0, 0, 0, 0, 0, 0, 0, 0 ),
+            new EngagementRow( TODAY, "01A", 5, 99.0, 99.0, 0, 0, 0, 0, 0, 0, 0 ),     // tie: ignored
+            new EngagementRow( TODAY, "01A", 9, null, null, 0, 0, 0, 0, 0, 0, 0 ) ) ); // more exits, no median: ignored
+
+        readback().runOnce();
+
+        final EngagementDay a = capturedEngagement().get( 0 );
+        assertEquals( 10.0, a.activeMedianS() );
+        assertEquals( 11.0, a.activeP90S() );
+        assertEquals( 19, a.exits() );
+    }
+
+    @Test
+    void aRowWithZeroExitsStillSuppliesPercentilesWhenItIsTheOnlyOne() {
+        when( views.engagement( any(), any() ) ).thenReturn( List.of(
+            new EngagementRow( TODAY, "01A", 0, 4.0, 8.0, 0, 0, 0, 0, 0, 0, 0 ) ) );
+
+        readback().runOnce();
+
+        assertEquals( 4.0, capturedEngagement().get( 0 ).activeMedianS() );
+    }
+
+    @Test
+    void engagementWithoutACanonicalIdMergesIntoTheSiteRowWithUnresolvedTraffic() {
+        when( views.traffic( any(), any() ) ).thenReturn( List.of(
+            new TrafficRow( TODAY, null, 1, 4 ), new TrafficRow( TODAY, "/unknown", 1, 6 ) ) );
+        when( views.engagement( any(), any() ) ).thenReturn( List.of(
+            new EngagementRow( TODAY, null, 2, null, null, 0, 0, 0, 0, 0, 0, 0 ) ) );
+
+        readback().runOnce();
+
+        final List< EngagementDay > rows = capturedEngagement();
+        assertEquals( 1, rows.size() );
+        assertEquals( "", rows.get( 0 ).canonicalId() );
+        assertEquals( 10, rows.get( 0 ).views() );
+        assertEquals( 2, rows.get( 0 ).visitors() );
+        assertEquals( 2, rows.get( 0 ).exits() );
+    }
+
+    @Test
+    void vitalsWithEqualSamplesKeepTheFirstAndAVitalsOnlyPathStillGetsARow() {
+        when( views.vitals( any(), any() ) ).thenReturn( List.of(
+            new VitalsRow( TODAY, "/wiki/B", 10, 1000.0, 10.0, 0.1 ),
+            new VitalsRow( TODAY, "/wiki/B", 10, 9000.0, 90.0, 0.9 ) ) );
+
+        readback().runOnce();
+
+        final List< EngagementDay > rows = capturedEngagement();
+        assertEquals( 1, rows.size() );
+        assertEquals( "01B", rows.get( 0 ).canonicalId() );
+        assertEquals( 1000.0, rows.get( 0 ).lcpP75Ms() );
+        assertEquals( 10.0, rows.get( 0 ).inpP75Ms() );
+        assertEquals( 0.1, rows.get( 0 ).clsP75() );
+    }
+
+    @Test
+    void engagementDaysAreOrderedByDayThenId() {
+        when( views.traffic( any(), any() ) ).thenReturn( List.of(
+            new TrafficRow( TODAY, "/wiki/B", 1, 1 ), new TrafficRow( TODAY.minusDays( 1 ), "/wiki/B", 1, 1 ),
+            new TrafficRow( TODAY, "/wiki/A", 1, 1 ) ) );
+
+        readback().runOnce();
+
+        assertEquals( List.of( TODAY.minusDays( 1 ) + "/01B", TODAY + "/01A", TODAY + "/01B" ),
+                capturedEngagement().stream().map( r -> r.day() + "/" + r.canonicalId() ).toList() );
+    }
+
+    @Test
+    void acquisitionRowsMergeOnlyWhenDayIdChannelAndSourceAllMatch() {
+        when( views.acquisition( any(), any() ) ).thenReturn( List.of(
+            new AcquisitionRow( TODAY, "/wiki/A", "organic", "google", 1, 2, 3 ),
+            new AcquisitionRow( TODAY, "/wiki/A?x=1", "organic", "google", 10, 20, 30 ),
+            new AcquisitionRow( TODAY, "/wiki/A", "organic", "bing", 100, 0, 0 ),
+            new AcquisitionRow( TODAY, "/wiki/A", "direct", "google", 1000, 0, 0 ),
+            new AcquisitionRow( TODAY.minusDays( 1 ), "/wiki/A", "organic", "google", 5, 0, 0 ),
+            new AcquisitionRow( TODAY, "/wiki/B", "organic", "google", 7, 0, 0 ) ) );
+
+        readback().runOnce();
+
+        final List< AcquisitionDay > rows = capturedAcquisition();
+        assertEquals( 5, rows.size() );
+        final AcquisitionDay merged = rows.stream().filter( r -> r.day().equals( TODAY )
+                && r.canonicalId().equals( "01A" ) && r.channel().equals( "organic" )
+                && r.source().equals( "google" ) ).findFirst().orElseThrow();
+        assertEquals( 11, merged.landings() );
+        assertEquals( 22, merged.continued() );
+        assertEquals( 33, merged.returningLandings() );
+    }
+
+    @Test
+    void aNullChannelOrSourceBecomesTheEmptyString() {
+        when( views.acquisition( any(), any() ) ).thenReturn( List.of(
+            new AcquisitionRow( TODAY, null, null, null, 2, 1, 0 ),
+            new AcquisitionRow( TODAY, "/x", "", "", 3, 1, 0 ) ) );
+
+        readback().runOnce();
+
+        final List< AcquisitionDay > rows = capturedAcquisition();
+        assertEquals( 1, rows.size(), "null and empty are the same bucket" );
+        assertEquals( new AcquisitionDay( TODAY, "", "", "", 5, 2, 0 ), rows.get( 0 ) );
+    }
+
+    @Test
+    void countsBeyondIntRangeSaturateInsteadOfWrapping() {
+        when( views.traffic( any(), any() ) ).thenReturn( List.of(
+            new TrafficRow( TODAY, "/wiki/A", Long.MAX_VALUE, 3_000_000_000L ) ) );
+
+        readback().runOnce();
+
+        assertEquals( Integer.MAX_VALUE, capturedEngagement().get( 0 ).views() );
+        assertEquals( Integer.MAX_VALUE, capturedEngagement().get( 0 ).visitors() );
+    }
 }

@@ -125,6 +125,33 @@ class InsightsMetricsCardinalityTest {
 
         assertNull( reg.find( InsightsMetrics.LAST_SUCCESS_METRIC ).tag( "engine", "bing" ).gauge(),
                 "an error must never look like a recent success to the staleness alert" );
+        assertEquals( 0.0, reg.get( InsightsMetrics.ROWS_METRIC ).tag( "outcome", "error" ).counter().count() );
+    }
+
+    @Test
+    void aSuccessfulIngestStampsTheGaugeWithTheCurrentEpochSeconds() {
+        final SimpleMeterRegistry reg = new SimpleMeterRegistry();
+        final InsightsMetrics metrics = new InsightsMetrics( reg );
+        final long before = System.currentTimeMillis() / 1000L;
+
+        metrics.recordIngest( "bing", "ok", 3 );
+
+        final long after = System.currentTimeMillis() / 1000L;
+        final double stamped = gaugeValue( reg, "bing" );
+        assertTrue( stamped >= before && stamped <= after,
+                "gauge should hold epoch seconds between " + before + " and " + after + " but was " + stamped );
+    }
+
+    @Test
+    void aFailedIngestStillCountsItsOutcomeUnderItsOwnLabel() {
+        final SimpleMeterRegistry reg = new SimpleMeterRegistry();
+        final InsightsMetrics metrics = new InsightsMetrics( reg );
+
+        metrics.recordIngest( "bing", "error", 0 );
+        metrics.recordIngest( "bing", "ok", 5 );
+
+        assertEquals( 0.0, reg.get( InsightsMetrics.ROWS_METRIC ).tag( "outcome", "error" ).counter().count() );
+        assertEquals( 5.0, reg.get( InsightsMetrics.ROWS_METRIC ).tag( "outcome", "ok" ).counter().count() );
     }
 
     private static double gaugeValue( final SimpleMeterRegistry reg, final String engine ) {

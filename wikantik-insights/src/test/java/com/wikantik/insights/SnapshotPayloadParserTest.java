@@ -227,4 +227,109 @@ class SnapshotPayloadParserTest {
         assertEquals( 0, result.rejected() );
         assertEquals( 1, result.rows().size(), "existing payloads keep parsing unchanged" );
     }
+
+    @Test
+    void normalisePathHandlesNullBlankRootAndTrailingSlashes() {
+        assertEquals( "", SnapshotPayloadParser.normalisePath( null ) );
+        assertEquals( "", SnapshotPayloadParser.normalisePath( "" ) );
+        assertEquals( "", SnapshotPayloadParser.normalisePath( "   " ) );
+        assertEquals( "/", SnapshotPayloadParser.normalisePath( "/" ), "the root path keeps its slash" );
+        assertEquals( "/wiki/A", SnapshotPayloadParser.normalisePath( "/wiki/A/" ) );
+        assertEquals( "/wiki/A", SnapshotPayloadParser.normalisePath( "/wiki/A" ) );
+        assertEquals( "/wiki/A", SnapshotPayloadParser.normalisePath( "https://h.example/wiki/A/" ) );
+        assertEquals( "/wiki/A", SnapshotPayloadParser.normalisePath( "https://h.example/wiki/A#top" ) );
+    }
+
+    /** A key java.net.URI refuses (space) is used verbatim, but a fragment is still cut off it. */
+    @Test
+    void normalisePathCutsAFragmentOffAKeyTheUriParserRefuses() {
+        assertEquals( "/wiki/A b", SnapshotPayloadParser.normalisePath( "/wiki/A b#frag" ) );
+        assertEquals( "/wiki/A b", SnapshotPayloadParser.normalisePath( "/wiki/A b/#frag" ) );
+        assertEquals( "", SnapshotPayloadParser.normalisePath( "#top" ), "a fragment at index 0 is cut too" );
+    }
+
+    @Test
+    void anAllowedEngineOnADisallowedSiteIsRejectedWholesale() {
+        final String bad = PAYLOAD.replace( "wiki.wikantik.com", "evil.example" );
+        final SnapshotPayloadParser.ParseResult r = SnapshotPayloadParser.parse( bad, ENGINES, SITES );
+        assertTrue( r.rows().isEmpty() );
+        assertEquals( 1, r.rejected() );
+    }
+
+    @Test
+    void windowDaysIsReadFromThePayloadAndDefaultsTo28() {
+        final SnapshotPayloadParser.ParseResult explicit = SnapshotPayloadParser.parse(
+                PAYLOAD.replace( "\"window_days\": 28", "\"window_days\": 7" ), ENGINES, SITES );
+        assertEquals( 2, explicit.rows().size() );
+        explicit.rows().forEach( row -> assertEquals( 7, row.windowDays() ) );
+
+        final SnapshotPayloadParser.ParseResult absent = SnapshotPayloadParser.parse(
+                PAYLOAD.replace( "\"window_days\": 28,", "" ), ENGINES, SITES );
+        assertEquals( 2, absent.rows().size() );
+        absent.rows().forEach( row -> assertEquals( 28, row.windowDays() ) );
+    }
+
+    @Test
+    void positionsAndCountsAreCarriedThroughForPageAndQueryRows() {
+        final SnapshotPayloadParser.ParseResult r = SnapshotPayloadParser.parse( PAYLOAD, ENGINES, SITES );
+        final VisibilityRow page = r.rows().stream().filter( x -> x.queryText().isEmpty() ).findFirst().orElseThrow();
+        final VisibilityRow query = r.rows().stream().filter( x -> !x.queryText().isEmpty() ).findFirst().orElseThrow();
+        assertEquals( 9.0, page.position() );
+        assertEquals( 1, page.impressions() );
+        assertEquals( 0, page.clicks() );
+        assertEquals( 4.5, query.position() );
+        assertEquals( 3, query.impressions() );
+        assertEquals( 1, query.clicks() );
+    }
+
+    /** Every row dropped at the VisibilityRow guard is counted once, across all three arrays. */
+    @Test
+    void rowsDroppedForABlankEngineAreCountedAcrossAllThreeArrays() {
+        final String json = """
+            { "engine": " ", "site": "wiki.wikantik.com", "snapshot_date": "2026-08-14",
+              "by_page":  [ {"key":"/a","clicks":1,"impressions":2}, {"key":"/b","clicks":1,"impressions":2} ],
+              "by_query": [ {"key":"q1","clicks":1,"impressions":2} ],
+              "query_page": [ {"query":"q","page":"/a","clicks":1,"impressions":2},
+                              {"query":"q2","page":"/b","clicks":1,"impressions":2} ] }""";
+
+        final SnapshotPayloadParser.ParseResult r =
+                SnapshotPayloadParser.parse( json, Set.of( "*" ), SITES );
+
+        assertTrue( r.rows().isEmpty() );
+        assertEquals( 5, r.rejected() );
+    }
+
+    @Test
+    void queryPageRowsMissingAnIdentityAreDroppedWithoutLosingTheRestOfThePayload() {
+        final String json = """
+            { "engine": "bing", "site": "wiki.wikantik.com", "snapshot_date": "2026-08-14",
+              "by_page": [ {"key":"/a","clicks":1,"impressions":2,"position":3.0} ],
+              "query_page": [ {"page":"/a","clicks":1,"impressions":2},
+                              {"query":"q","clicks":1,"impressions":2},
+                              {"query":"  ","page":"/a"},
+                              {"query":"q","page":"  "},
+                              {"query":"good","page":"/a/","position":2.5} ] }""";
+
+        final SnapshotPayloadParser.ParseResult r = SnapshotPayloadParser.parse( json, ENGINES, SITES );
+
+        assertEquals( 2, r.rows().size(), "the by_page row and the one good query_page row survive" );
+        assertEquals( 4, r.rejected() );
+        final VisibilityRow good = r.rows().stream().filter( x -> "good".equals( x.queryText() ) )
+                .findFirst().orElseThrow();
+        assertEquals( "/a", good.pagePath() );
+        assertEquals( 2.5, good.position() );
+        assertEquals( 0, good.impressions(), "absent counts default to zero" );
+        assertEquals( 0, good.clicks() );
+    }
+
+    @Test
+    void queryPageRowWithoutAPositionHasANullPosition() {
+        final String json = """
+            { "engine": "bing", "site": "wiki.wikantik.com", "snapshot_date": "2026-08-14",
+              "query_page": [ {"query":"q","page":"/a","clicks":1,"impressions":2} ] }""";
+        final SnapshotPayloadParser.ParseResult r = SnapshotPayloadParser.parse( json, ENGINES, SITES );
+        assertEquals( 1, r.rows().size() );
+        assertNull( r.rows().get( 0 ).position() );
+        assertEquals( 2, r.rows().get( 0 ).impressions() );
+    }
 }

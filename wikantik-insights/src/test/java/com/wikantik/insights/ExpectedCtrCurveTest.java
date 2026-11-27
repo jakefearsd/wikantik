@@ -206,4 +206,15 @@ class ExpectedCtrCurveTest {
     void fromTablePosition2Point6RoundsToPosition3() {
         assertEquals( 0.11, imported.ctrAt( 2.6 ), 0.0001 );
     }
+
+    /** The flat floor is returned unrounded at the last floor position; only the decay tail is rounded to 4 places. */
+    @Test
+    void theDeepFloorAppliesAtDeepMaxPositionItselfWithoutRounding() {
+        final ExpectedCtrCurve curve = ExpectedCtrCurve.fromTable( java.util.Map.of( 1, 0.3 ), 0.01234567, 20 );
+
+        org.junit.jupiter.api.Assertions.assertEquals( 0.01234567, curve.ctrAt( 20.0 ), 0.0 );
+        org.junit.jupiter.api.Assertions.assertEquals( 0.01234567, curve.ctrAt( 5.0 ), 0.0 );
+        org.junit.jupiter.api.Assertions.assertEquals( 0.0118, curve.ctrAt( 21.0 ), 0.0,
+                "beyond the floor it decays as deepCtr * 20/21, rounded to 4 places" );
+    }
 }

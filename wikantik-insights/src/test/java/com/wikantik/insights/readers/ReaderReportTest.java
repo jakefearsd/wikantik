@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 @RequiresPostgres
@@ -167,9 +167,187 @@ class ReaderReportTest {
         assertEquals( 20, a.searchClicks() );
         assertEquals( 10, a.organicLandings() );
         // Site: clicks across resolvable pages 40 (unresolvable page excluded from the join, kept in the site total).
-        assertNotNull( c.site().get( "google" ) );
         assertEquals( 15.0 / 50.0, c.site().get( "google" ), 1e-9 );
         assertEquals( 0.0, c.site().get( "bing" ), 1e-9 );
         assertEquals( Map.of( "google", 15.0 / 50.0, "bing", 0.0 ), c.site() );
+    }
+
+    private static EngagementDay full( final LocalDate day, final String id, final int views, final int visitors,
+                                       final int exits, final Double median, final int scroll75 ) {
+        return new EngagementDay( day, id, views, visitors, exits, median, null, scroll75,
+                1, 2, 3, 4, 5, 6, null, null, null );
+    }
+
+    @Test
+    void everyEngagementCounterIsSummedAcrossDays() {
+        store( List.of( full( LocalDate.of( 2026, 11, 18 ), "ID_A", 7, 5, 3, 10.0, 2 ),
+                        full( LocalDate.of( 2026, 11, 19 ), "ID_A", 3, 2, 1, 10.0, 1 ) ), List.of() );
+
+        final PageReaderStats a = report.pages( HOST, 28, 10 ).get( 0 );
+
+        assertEquals( 10, a.views() );
+        assertEquals( 7, a.visitors() );
+        assertEquals( 3.0 / 4.0, a.scroll75Rate(), 1e-9 );
+        // six action counters 1+2+3+4+5+6 = 21 per day, two days, over 10 views
+        assertEquals( 42.0 / 10.0, a.actionsPerView(), 1e-9 );
+    }
+
+    @Test
+    void aDayWithNoExitsContributesNoActiveTimeSample() {
+        store( List.of( full( LocalDate.of( 2026, 11, 18 ), "ID_A", 7, 5, 0, 10.0, 0 ) ), List.of() );
+
+        final PageReaderStats a = report.pages( HOST, 28, 10 ).get( 0 );
+
+        assertNull( a.typicalActiveS() );
+        assertNull( a.scroll75Rate(), "no exits means no scroll rate, not 0/0" );
+    }
+
+    @Test
+    void ratesAreNullRatherThanNaNWhenTheirDenominatorIsZero() {
+        store( List.of( full( LocalDate.of( 2026, 11, 18 ), "ID_A", 0, 0, 0, null, 0 ) ), List.of() );
+
+        final PageReaderStats a = report.pages( HOST, 28, 10 ).get( 0 );
+
+        assertNull( a.actionsPerView() );
+        assertNull( a.continuationRate(), "no landings" );
+        assertNull( a.returningThisMonthRate(), "no late-month landings" );
+    }
+
+    @Test
+    void returningShareCountsFromTheEighthOfTheMonthNotTheSeventh() {
+        store( List.of( eng( LocalDate.of( 2026, 11, 8 ), "ID_A", 10, 1, 10.0, 0 ) ),
+                List.of( new AcquisitionDay( LocalDate.of( 2026, 11, 7 ), "ID_A", "direct", "", 10, 0, 10 ),
+                         new AcquisitionDay( LocalDate.of( 2026, 11, 8 ), "ID_A", "direct", "", 10, 0, 5 ) ) );
+
+        final PageReaderStats a = report.pages( HOST, 28, 10 ).get( 0 );
+
+        assertEquals( 5.0 / 10.0, a.returningThisMonthRate(), 1e-9 );
+    }
+
+    @Test
+    void windowStartsExactlyDaysMinusOneBeforeToday() {
+        store( List.of( eng( TODAY, "ID_A", 1, 1, 10.0, 0 ),
+                        eng( TODAY.minusDays( 1 ), "ID_B", 1, 1, 10.0, 0 ) ), List.of() );
+
+        assertEquals( List.of( "ID_A" ), report.pages( HOST, 1, 10 ).stream().map( PageReaderStats::canonicalId ).toList(),
+                "days=1 is today only" );
+        assertEquals( List.of( "ID_A" ), report.pages( HOST, 0, 10 ).stream().map( PageReaderStats::canonicalId ).toList(),
+                "days below 1 is treated as 1" );
+        assertEquals( 2, report.pages( HOST, 2, 10 ).size() );
+    }
+
+    @Test
+    void theOldestDayInTheWindowIsIncludedAndOneDayOlderIsNot() {
+        store( List.of( eng( TODAY.minusDays( 27 ), "ID_A", 1, 1, 10.0, 0 ),
+                        eng( TODAY.minusDays( 28 ), "ID_B", 1, 1, 10.0, 0 ) ), List.of() );
+
+        assertEquals( List.of( "ID_A" ), report.pages( HOST, 28, 10 ).stream().map( PageReaderStats::canonicalId ).toList() );
+    }
+
+    @Test
+    void anotherSitesRowsAreNeverReported() {
+        store.replace( "other.example.com", TODAY.minusDays( 60 ), TODAY,
+                List.of( eng( TODAY, "ID_A", 99, 1, 10.0, 0 ) ), List.of() );
+
+        assertTrue( report.pages( HOST, 28, 10 ).isEmpty() );
+        assertNull( report.refreshedAt( HOST ) );
+    }
+
+    @Test
+    void refreshedAtIsTheDatabaseTimeOfTheLastReadBack() {
+        store( List.of( eng( TODAY, "ID_A", 1, 1, 10.0, 0 ) ), List.of() );
+
+        final Instant refreshed = report.refreshedAt( HOST );
+
+        assertTrue( refreshed != null && Math.abs( refreshed.until( Instant.now(), java.time.temporal.ChronoUnit.SECONDS ) ) < 300,
+                "refreshedAt should be about now but was " + refreshed );
+    }
+
+    @Test
+    void weightedMedianIsTheSmallestValueReachingHalfTheWeight() {
+        assertNull( ReaderReport.weightedMedian( List.of() ) );
+        assertEquals( 7.0, ReaderReport.weightedMedian( List.<double[]>of( new double[] { 7, 3 } ) ), 1e-9 );
+        // unsorted input; weights 1+2 = 3, half 1.5: sorted 30(w2) reaches it first
+        assertEquals( 30.0, ReaderReport.weightedMedian(
+                List.of( new double[] { 60, 1 }, new double[] { 30, 2 } ) ), 1e-9 );
+        // exactly half: 10 (w1) of total 2 reaches 1 >= 1, so the lower value wins the tie
+        assertEquals( 10.0, ReaderReport.weightedMedian(
+                List.of( new double[] { 20, 1 }, new double[] { 10, 1 } ) ), 1e-9 );
+        // heavy tail: 90 carries 8 of 10, the median is 90 not the first value
+        assertEquals( 90.0, ReaderReport.weightedMedian(
+                List.of( new double[] { 90, 8 }, new double[] { 10, 1 }, new double[] { 20, 1 } ) ), 1e-9 );
+    }
+
+    @Test
+    void weightedMedianDoesNotReorderTheCallersList() {
+        final List< double[] > input = new java.util.ArrayList<>(
+                List.of( new double[] { 60, 1 }, new double[] { 30, 2 } ) );
+        ReaderReport.weightedMedian( input );
+        assertEquals( 60.0, input.get( 0 )[ 0 ], 1e-9 );
+    }
+
+    @Test
+    void coverageIgnoresAnEngineWithNoClicksAndOlderSnapshots() throws Exception {
+        snapshot( LocalDate.of( 2026, 11, 10 ), "google", "/wiki/Alpha", 500 );   // superseded by the later one
+        snapshot( LocalDate.of( 2026, 11, 19 ), "google", "/wiki/Alpha", 8 );
+        snapshot( LocalDate.of( 2026, 11, 19 ), "yandex", "/wiki/Alpha", 0 );
+        store( List.of(), List.of(
+                new AcquisitionDay( LocalDate.of( 2026, 11, 15 ), "ID_A", "organic-search", "google", 4, 0, 0 ) ) );
+
+        final ReaderReport.Coverage c = report.coverage( HOST, 28 );
+
+        assertEquals( Map.of( "google", 0.5 ), c.site(), "a zero-click engine has no ratio" );
+        assertEquals( 1, c.pages().stream().filter( r -> r.engine().equals( "google" ) ).count() );
+        assertEquals( 8, c.pages().stream().filter( r -> r.engine().equals( "google" ) )
+                .findFirst().orElseThrow().searchClicks() );
+    }
+
+    @Test
+    void coveragePairsPagesThatHaveOnlyClicksOrOnlyLandingsAndSortsTheRows() throws Exception {
+        snapshot( LocalDate.of( 2026, 11, 19 ), "google", "/wiki/Alpha", 20 );   // clicks, no landings
+        snapshot( LocalDate.of( 2026, 11, 19 ), "google", "/wiki/Beta", 30 );    // clicks, and landings below
+        snapshot( LocalDate.of( 2026, 11, 19 ), "bing", "/wiki/Beta", 5 );
+        store( List.of(), List.of(
+                new AcquisitionDay( LocalDate.of( 2026, 11, 15 ), "ID_B", "organic-search", "google", 6, 0, 0 ),
+                new AcquisitionDay( LocalDate.of( 2026, 11, 15 ), "ID_C", "organic-search", "google", 2, 0, 0 ),   // landings, no clicks
+                new AcquisitionDay( LocalDate.of( 2026, 11, 15 ), "ID_A", "organic-search", "ddg", 9, 0, 0 ) ) );    // engine with no snapshot
+
+        final List< ReaderReport.CoverageRow > rows = report.coverage( HOST, 28 ).pages();
+
+        assertEquals( List.of(
+                new ReaderReport.CoverageRow( "bing", "ID_B", 5, 0 ),
+                new ReaderReport.CoverageRow( "google", "ID_B", 30, 6 ),
+                new ReaderReport.CoverageRow( "google", "ID_A", 20, 0 ),
+                new ReaderReport.CoverageRow( "google", "ID_C", 0, 2 ) ), rows );
+    }
+
+    @Test
+    void coverageResolvesSnapshotPagesGivenAsFullUrlsAndSurvivesUnparseableOnes() throws Exception {
+        final PathResolver resolver = path -> switch ( path ) {
+            case "/wiki/Alpha" -> Optional.of( "ID_A" );
+            case "/" -> Optional.of( "ID_ROOT" );
+            default -> Optional.empty();
+        };
+        final ReaderReport urlReport = new ReaderReport( new Jdbc( ds ), resolver,
+                id -> Optional.empty(), CLOCK );
+        snapshot( LocalDate.of( 2026, 11, 19 ), "google", "https://wiki.example.com/wiki/Alpha", 7 );
+        snapshot( LocalDate.of( 2026, 11, 19 ), "google", "https://wiki.example.com", 3 );
+        snapshot( LocalDate.of( 2026, 11, 19 ), "google", "http://bad host/x", 2 );
+
+        final ReaderReport.Coverage c = urlReport.coverage( HOST, 28 );
+
+        assertEquals( List.of(
+                new ReaderReport.CoverageRow( "google", "ID_A", 7, 0 ),
+                new ReaderReport.CoverageRow( "google", "ID_ROOT", 3, 0 ) ), c.pages() );
+        assertEquals( Map.of( "google", 0.0 ), c.site(), "the unparseable row still counts in the engine's clicks" );
+    }
+
+    @Test
+    void coverageWindowStartsDaysMinusOneBeforeToday() throws Exception {
+        snapshot( TODAY.minusDays( 1 ), "google", "/wiki/Alpha", 9 );
+        store( List.of(), List.of() );
+
+        assertTrue( report.coverage( HOST, 1 ).pages().isEmpty(), "yesterday is outside a one-day window" );
+        assertEquals( 1, report.coverage( HOST, 2 ).pages().size() );
     }
 }

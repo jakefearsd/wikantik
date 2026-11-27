@@ -1130,4 +1130,81 @@ class JdbcInsightsStorePostgresTest {
         assertEquals( 10, snapshot.points().size() );
         assertEquals( 0.032, snapshot.points().get( 8 ), 0.00001 );
     }
+
+    // --- fail-soft writes, tie-breaks and read-back values -----------------
+
+    @Test
+    void aSnoozeThatCannotBeWrittenReportsFalseRatherThanThrowing() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( emptySchemaDataSource() );
+        assertFalse( store.snooze( new OpportunitySnooze( "agent_gap", "q",
+                LocalDate.parse( "2026-09-01" ), "reason", "jake" ) ) );
+    }
+
+    @Test
+    void anEffectThatCannotBeRecordedReportsFalseRatherThanThrowing() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( emptySchemaDataSource() );
+        assertFalse( store.recordEffect( 1L, "improved", 0.01, -1.0, 5.0, "page_rollup", "{}" ) );
+    }
+
+    @Test
+    void firstSeenBookkeepingThatCannotBeWrittenYieldsAnEmptyMapRatherThanThrowing() throws Exception {
+        final InsightsStore store = new JdbcInsightsStore( emptySchemaDataSource() );
+        final java.util.Map< String, LocalDate > seen = store.upsertSeen(
+                List.<String[]>of( new String[] { "agent_gap", "q" } ), LocalDate.parse( "2026-08-16" ) );
+        assertTrue( seen.isEmpty() );
+    }
+
+    @Test
+    void aCoverageTieIsBrokenAlphabeticallyWhicheverOrderTheRowsArrive() throws Exception {
+        insertQueryLogRow( "alpha query", "s1", 1, "weak" );
+        insertQueryLogRow( "alpha query", "s2", 1, "strong" );
+        insertQueryLogRow( "beta query", "s1", 1, "strong" );
+        insertQueryLogRow( "beta query", "s2", 1, "weak" );
+
+        final java.util.Map< String, String > coverage = new JdbcInsightsStore( ds ).demandRows( 28 ).stream()
+                .collect( java.util.stream.Collectors.toMap( DemandRow::queryText, DemandRow::coverage ) );
+
+        assertEquals( "strong", coverage.get( "alpha query" ) );
+        assertEquals( "strong", coverage.get( "beta query" ) );
+    }
+
+    @Test
+    void aQueryWithNoCoverageOrResultCountOrSessionReadsAsNullZeroZero() throws Exception {
+        insertQueryLogRow( "bare query", null, null, null );
+
+        final DemandRow row = new JdbcInsightsStore( ds ).demandRows( 28 ).get( 0 );
+
+        assertNull( row.coverage() );
+        assertEquals( 0, row.resultCount() );
+        assertEquals( 1, row.occurrences() );
+        assertEquals( 0, row.distinctSessions() );
+    }
+
+    @Test
+    void trendPointsCarryDateEngineAndSummedCounts() {
+        final JdbcInsightsStore store = new JdbcInsightsStore( ds );
+        store.upsert( List.of(
+                rollup( "google", "2026-08-14", 200, 8, 36.0 ),
+                rollup( "bing", "2026-08-14", 100, 2, 4.0 ) ) );
+
+        final List< TrendPoint > points = store.trend( "wiki.wikantik.com", LocalDate.parse( "2026-06-01" ) );
+
+        assertEquals( 2, points.size() );
+        final TrendPoint google = points.stream().filter( p -> p.engine().equals( "google" ) ).findFirst().orElseThrow();
+        assertEquals( new TrendPoint( LocalDate.parse( "2026-08-14" ), "google", 8, 200 ), google );
+        final TrendPoint bing = points.stream().filter( p -> p.engine().equals( "bing" ) ).findFirst().orElseThrow();
+        assertEquals( new TrendPoint( LocalDate.parse( "2026-08-14" ), "bing", 2, 100 ), bing );
+    }
+
+    @Test
+    void aSnapshotWindowWhoseOnlyPositionedRowHasNoImpressionsHasNoPositionNotNaN() {
+        final JdbcInsightsStore store = new JdbcInsightsStore( ds );
+        final LocalDate day = LocalDate.parse( "2026-08-14" );
+        store.upsert( List.of( rollup( "google", day.toString(), 0, 0, 7.0 ) ) );
+
+        final PageWindow window = store.pageWindowNear( "wiki.wikantik.com", "/wiki/A", day, 3 ).orElseThrow();
+
+        assertNull( window.position() );
+        assertEquals( 0, window.impressions() );
+    }
 }

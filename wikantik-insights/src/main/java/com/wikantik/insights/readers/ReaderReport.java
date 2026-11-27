@@ -110,10 +110,13 @@ public final class ReaderReport {
     /** The newest refresh of any rollup row for the site, or null when nothing has been read back. */
     public Instant refreshedAt( final String siteHost ) {
         try {
-            return jdbc.queryOne( "SELECT MAX(refreshed_at) AS r FROM reader_engagement_daily WHERE site_host = ?",
+            // MAX() over no rows is one row holding NULL; Jdbc.queryOne cannot carry a null mapping,
+            // so read it as a list.
+            final List< Instant > latest = jdbc.query(
+                    "SELECT MAX(refreshed_at) AS r FROM reader_engagement_daily WHERE site_host = ?",
                     ps -> ps.setString( 1, siteHost ),
-                    rs -> rs.getTimestamp( "r" ) == null ? null : rs.getTimestamp( "r" ).toInstant() )
-                    .orElse( null );
+                    rs -> rs.getTimestamp( "r" ) == null ? null : rs.getTimestamp( "r" ).toInstant() );
+            return latest.isEmpty() ? null : latest.get( 0 );
         } catch ( final SQLException e ) {
             throw new IllegalStateException( "Could not read reader refresh time: " + e.getMessage(), e );
         }

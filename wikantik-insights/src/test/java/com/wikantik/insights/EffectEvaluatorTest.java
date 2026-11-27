@@ -248,6 +248,185 @@ class EffectEvaluatorTest {
 
         verify( store ).recordEffect( anyLong(), anyString(), any(), any(), any(),
                 eq( EffectEvaluator.METHOD_PAGE_ROLLUP ), anyString() );
+        assertTrue( capturedDetail().contains( "\"method\":\"page_rollup\"" ) );
+    }
+
+    @Test
+    void baselineExactlyAtTheSupportFloorIsEvaluatedNotInsufficient() {
+        givenPending( change( MIN_BASELINE, 10, 0.10 ) );
+        givenAfterWindow( MIN_BASELINE, 20 );
+        givenFlatSiteTrend();
+
+        evaluator.evaluatePending( TODAY );
+
+        assertEquals( EffectEvaluator.IMPROVED, capturedVerdict() );
+    }
+
+    @Test
+    void aVerdictTheStoreRefusesToRecordIsNotCounted() {
+        when( store.recordEffect( anyLong(), anyString(), any(), any(), any(), anyString(), anyString() ) )
+                .thenReturn( false );
+        givenPending( change( 1_000, 100, 0.10 ) );
+        givenAfterWindow( 1_000, 120 );
+        givenFlatSiteTrend();
+
+        assertEquals( 0, evaluator.evaluatePending( TODAY ) );
+    }
+
+    @Test
+    void anInsufficientDataVerdictTheStoreRefusesToRecordIsNotCounted() {
+        when( store.recordEffect( anyLong(), anyString(), any(), any(), any(), anyString(), anyString() ) )
+                .thenReturn( false );
+        givenPending( change( MIN_BASELINE - 1, 5, 0.05 ) );
+        assertEquals( 0, evaluator.evaluatePending( TODAY ) );
+
+        givenPending( change( 1_000, 100, 0.10 ) );
+        when( store.pageWindowNear( eq( SITE ), eq( PAGE ), any( LocalDate.class ), anyInt() ) )
+                .thenReturn( Optional.empty() );
+        assertEquals( 0, evaluator.evaluatePending( TODAY ) );
+    }
+
+    @Test
+    void insufficientDataRecordsNoDeltas() {
+        givenPending( change( MIN_BASELINE - 1, 5, 0.05 ) );
+
+        evaluator.evaluatePending( TODAY );
+
+        verify( store ).recordEffect( eq( 42L ), eq( EffectEvaluator.INSUFFICIENT_DATA ),
+                eq( null ), eq( null ), eq( null ), anyString(), anyString() );
+        assertTrue( capturedDetail().contains( "below minimum 100" ) );
+    }
+
+    /** Exactly the 15% bar counts: the comparison is inclusive on both sides. */
+    @Test
+    void exactlyTheThresholdGainIsImprovedAndJustUnderIsNot() {
+        givenFlatSiteTrend();
+        givenPending( change( 1_000, 100, 0.10 ) );
+        givenAfterWindow( 1_000, 115 );
+        evaluator.evaluatePending( TODAY );
+        assertEquals( EffectEvaluator.IMPROVED, capturedVerdict() );
+
+        store = mock( InsightsStore.class );
+        evaluator = new EffectEvaluator( store, SITE, 28, MIN_BASELINE, 5 );
+        when( store.recordEffect( anyLong(), anyString(), any(), any(), any(), anyString(), anyString() ) )
+                .thenReturn( true );
+        givenFlatSiteTrend();
+        givenPending( change( 1_000, 100, 0.10 ) );
+        givenAfterWindow( 1_000, 114 );
+        evaluator.evaluatePending( TODAY );
+        assertEquals( EffectEvaluator.NO_EFFECT, capturedVerdict() );
+    }
+
+    @Test
+    void exactlyTheThresholdLossIsRegressedAndJustUnderIsNot() {
+        givenFlatSiteTrend();
+        givenPending( change( 1_000, 100, 0.10 ) );
+        givenAfterWindow( 1_000, 85 );
+        evaluator.evaluatePending( TODAY );
+        assertEquals( EffectEvaluator.REGRESSED, capturedVerdict() );
+
+        store = mock( InsightsStore.class );
+        evaluator = new EffectEvaluator( store, SITE, 28, MIN_BASELINE, 5 );
+        when( store.recordEffect( anyLong(), anyString(), any(), any(), any(), anyString(), anyString() ) )
+                .thenReturn( true );
+        givenFlatSiteTrend();
+        givenPending( change( 1_000, 100, 0.10 ) );
+        givenAfterWindow( 1_000, 86 );
+        evaluator.evaluatePending( TODAY );
+        assertEquals( EffectEvaluator.NO_EFFECT, capturedVerdict() );
+    }
+
+    @Test
+    void aMissingStoredBaselineCtrIsDerivedFromClicksOverImpressions() {
+        givenPending( change( 1_000, 100, null ) );   // derived 0.10
+        givenAfterWindow( 1_000, 120 );
+        givenFlatSiteTrend();
+
+        evaluator.evaluatePending( TODAY );
+
+        assertEquals( EffectEvaluator.IMPROVED, capturedVerdict() );
+        assertTrue( capturedDetail().contains( "\"baselineCtr\":0.1" ), capturedDetail() );
+    }
+
+    @Test
+    void aStoredBaselineCtrWinsOverClicksOverImpressions() {
+        // stored 0.20 although clicks/impressions says 0.10: after 0.12 is a LOSS against 0.20
+        givenPending( change( 1_000, 100, 0.20 ) );
+        givenAfterWindow( 1_000, 120 );
+        givenFlatSiteTrend();
+
+        evaluator.evaluatePending( TODAY );
+
+        assertEquals( EffectEvaluator.REGRESSED, capturedVerdict() );
+    }
+
+    @Test
+    void positionDeltaIsAfterMinusBaseline() {
+        givenPending( change( 1_000, 100, 0.10 ) );   // baseline position 20.0
+        givenAfterWindow( 1_000, 120 );                // after position 18.0
+        givenFlatSiteTrend();
+
+        evaluator.evaluatePending( TODAY );
+
+        final ArgumentCaptor< Double > position = ArgumentCaptor.forClass( Double.class );
+        verify( store ).recordEffect( anyLong(), anyString(), any(), position.capture(), any(),
+                anyString(), anyString() );
+        assertEquals( -2.0, position.getValue(), 1e-9 );
+    }
+
+    @Test
+    void positionDeltaIsNullWhenEitherSideLacksAPosition() {
+        final PendingChange noBaselinePosition = new PendingChange( 42L, PAGE, "title", null,
+                APPLIED.atStartOfDay( ZoneOffset.UTC ).toInstant(), "agent", null,
+                APPLIED.minusDays( 28 ), APPLIED, 1_000, 100, 0.10, null );
+        givenPending( noBaselinePosition );
+        givenAfterWindow( 1_000, 120 );
+        givenFlatSiteTrend();
+        evaluator.evaluatePending( TODAY );
+        verify( store ).recordEffect( anyLong(), anyString(), any(), eq( null ), any(),
+                anyString(), anyString() );
+
+        store = mock( InsightsStore.class );
+        evaluator = new EffectEvaluator( store, SITE, 28, MIN_BASELINE, 5 );
+        when( store.recordEffect( anyLong(), anyString(), any(), any(), any(), anyString(), anyString() ) )
+                .thenReturn( true );
+        givenFlatSiteTrend();
+        givenPending( change( 1_000, 100, 0.10 ) );
+        when( store.pageWindowNear( eq( SITE ), eq( PAGE ), any( LocalDate.class ), anyInt() ) )
+                .thenReturn( Optional.of( new PageWindow( APPLIED.plusDays( 28 ), 1_000, 120, null ) ) );
+        evaluator.evaluatePending( TODAY );
+        verify( store ).recordEffect( anyLong(), anyString(), any(), eq( null ), any(),
+                anyString(), anyString() );
+    }
+
+    /** An after-window with no impressions has a CTR of zero (not NaN), i.e. a total loss. */
+    @Test
+    void anAfterWindowWithNoImpressionsReadsAsAZeroCtrLoss() {
+        givenPending( change( 1_000, 100, 0.10 ) );
+        givenAfterWindow( 0, 0 );
+        givenFlatSiteTrend();
+
+        evaluator.evaluatePending( TODAY );
+
+        assertEquals( EffectEvaluator.REGRESSED, capturedVerdict() );
+        assertTrue( capturedDetail().contains( "\"afterCtr\":0.0" ), capturedDetail() );
+    }
+
+    @Test
+    void aPositiveAdjustedCtrDeltaIsRecordedAsTheDifferenceInDifferences() {
+        givenPending( change( 1_000, 100, 0.10 ) );
+        givenAfterWindow( 1_000, 200 );   // page +0.10
+        when( store.siteWindowNear( eq( SITE ), eq( APPLIED ), anyInt() ) )
+                .thenReturn( Optional.of( new PageWindow( APPLIED, 10_000, 1_000, 25.0 ) ) );
+        when( store.siteWindowNear( eq( SITE ), eq( APPLIED.plusDays( 28 ) ), anyInt() ) )
+                .thenReturn( Optional.of( new PageWindow( APPLIED.plusDays( 28 ), 10_000, 1_500, 25.0 ) ) ); // site +0.05
+
+        evaluator.evaluatePending( TODAY );
+
+        final ArgumentCaptor< Double > ctrDelta = ArgumentCaptor.forClass( Double.class );
+        verify( store ).recordEffect( anyLong(), anyString(), ctrDelta.capture(), any(), any(),
+                anyString(), anyString() );
+        assertEquals( 0.05, ctrDelta.getValue(), 1e-9 );
     }
 
     /** One unevaluatable row must not cost every other row its verdict. */

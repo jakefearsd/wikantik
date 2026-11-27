@@ -48,12 +48,14 @@ A *project* is a team's board. Only its members (and wiki administrators) know i
 
 While you add members, the name box suggests people (and, for project leads, wiki groups) as you type; only
 names are shown. You can also pick the project's **Default product** when you create it and change it later in
-**Settings** (a project lead or a wiki administrator can). Choose none to clear it. On an item, **More options**
-holds the product and the other less common fields; leave the product alone to get the default, or choose "no
-product" to file the item without one.
+**Settings** (a project lead or a wiki administrator can). Choose none to clear it. On a new item the product
+starts at the project's default: when one was pre-selected it sits under **More options** with the other less
+common fields, otherwise it is in the main form. Leave it alone to get the default, or choose "No product" to file
+the item without one.
 
-On a fresh install the Work home shows a **Getting started** card. It stays until a project, a product, a queue
-and an agent all exist, and it links to each step.
+On a fresh install the Work home shows a wiki administrator a **Getting started** card. It stays until a project, a
+product, a queue and an agent all exist, and it links to each step. Someone who is in no project sees "You are not a
+member of any project yet. A wiki admin creates projects, and a project lead adds people." instead.
 
 **You should see:** the project on the Work home and an empty board. A person you added sees it too the next time
 they open `/work`; a person you did not add gets "Not found". You are the new project's first `lead`, so your own
@@ -175,7 +177,9 @@ An agent is a registered identity, for example a coding agent on a build machine
 4. If you did not admit it above, add the agent to the project under **Settings**, as `viewer` or `member`.
 
 If an agent connects but can claim nothing, its `get_work_context` answer carries a `setup` list of plain
-sentences saying why (for example, no queue, or not a member of any project).
+sentences saying why (for example, no active queue, or not a member of any project). An agent nobody sponsors, or
+a retired one, gets no further: every call it makes answers "This agent has no sponsor or was retired, so it can
+do nothing. A wiki admin or a project lead must take it over."
 
 **You should see:** the agent listed with you as sponsor. Items in its queue that are Ready show "Available to
 agents" on the board; when it claims one, the card shows the agent and until when it holds it. Every claim,

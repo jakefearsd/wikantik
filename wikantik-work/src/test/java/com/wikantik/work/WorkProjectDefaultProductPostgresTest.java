@@ -157,8 +157,12 @@ class WorkProjectDefaultProductPostgresTest {
     @Test
     void archivingAnAlreadyArchivedProductWritesNoDefaultEvents() throws SQLException {
         store.setDefaultProduct( plat.id(), web, LENA );
+        final int afterSet = defaultEvents( plat ).size();
         store.archiveProduct( web, java.time.Instant.now(), ADMIN );
         final int before = defaultEvents( plat ).size();
+        assertTrue( before > afterSet, "the first archive clears the default and records it" );
+        assertTrue( defaultEvents( plat ).stream().anyMatch( e -> "web".equals( e.fromValue() ) && e.toValue() == null ),
+            "the clearing event names the archived product" );
         store.archiveProduct( web, java.time.Instant.now(), ADMIN );
         assertEquals( before, defaultEvents( plat ).size() );
     }

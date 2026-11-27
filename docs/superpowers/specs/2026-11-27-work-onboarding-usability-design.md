@@ -199,7 +199,12 @@ friction and leaves the rules alone.
   (non-epic, only when no product was pre-selected).
 - **"More options"** (collapsed by default) holds Product (non-epic, always editable here), Type
   (non-epic), Kind, Priority, Due date and Labels.
-  - The toggle shows a live summary, e.g. `More options (Product: web · Feature · Software · P3)`.
+  - The toggle shows a live summary, e.g. `More options (Product: web · Feature · Software · P3)`,
+    plus the number of labels (`2 labels`) and the due date (`Due 2026-12-01`) when set, so nothing
+    hidden submits unseen.
+  - Product follows the project default until the person touches it (re-derived if the products
+    load after the form opened); an untouched empty product is not sent, so the server applies its
+    default; "No product" chosen on purpose sends `""`. Switching to Epic and back keeps the choice.
   - Captions: Type is "What kind of work: feature, bug or chore"; Kind is "Which area: software,
     docs or admin".
 - **Submission is unchanged** whether the section is open or not (defaults: `kind=software`,
@@ -208,9 +213,9 @@ friction and leaves the rules alone.
 
 ### 4. Getting-started card (`WorkHome.jsx`)
 
-- **When it shows:** for a signed-in user with no active project, or an admin with no active product,
-  queue or agent. Admins load `listProducts`, `listQueues` and `listAgents`; others load only
-  projects. A failed load leaves the card out; it never blocks the page.
+- **When it shows:** for a wiki admin with no active project, product, queue or agent. Admins load
+  `listProducts`, `listQueues` and `listAgents`; others load nothing new. A failed load leaves the
+  card out; it never blocks the page.
 - **Steps for admins:**
 
   | Step | Done when | Action when not done |
@@ -220,8 +225,10 @@ friction and leaves the rules alone.
   | Create queues | an active queue exists | **Create starter queues** button |
   | Register an agent (optional) | an active agent exists | link to `/work/agents` |
 
-- **Non-admins with no project** see one line: "You are not in any project yet. A wiki admin
-  creates projects, and a project lead adds people."
+- **Non-admins get no card.** Where WorkHome already shows its empty project list ("You are not a
+  member of any project yet."), the message gains "A wiki admin creates projects, and a project lead
+  adds people." (changed in the final review: the separate non-admin card repeated that empty state
+  and showed above a reporter's "My requests").
 - **A note on drafts:** new epics and agent-created items start as drafts, and the board hides
   drafts until you choose Show.
 - **Dismissing:** a Dismiss button stores `wikantik.work.gettingStarted.dismissed` in `localStorage`
@@ -252,12 +259,14 @@ friction and leaves the rules alone.
 
 - `GetWorkContextTool` adds `setup`: a list of strings, always present, and empty for a person or a
   correctly set-up agent. For an agent it holds, in this order:
-  - **No sponsor** (`Agent.sponsor()` is null or blank): "Nobody sponsors you, so you can do nothing.
-    A wiki admin or a project lead must take you over."
+  - A sponsorless or retired agent is refused at the transport: every tool call made with its (still
+    valid) token answers "This agent has no sponsor or was retired, so it can do nothing. A wiki admin
+    or a project lead must take it over." (changed in the final review: the hint was unreachable,
+    because such an agent resolves to no actor and never reaches the tool).
   - **No visible project:** "You are not a member of any project you can see. Ask your sponsor to add
     you to a project (they must be a member of it too)."
   - **No queue:** "You serve no queue, so list_claimable is always empty. Ask your sponsor to add a
-    queue to you."
+    queue to you." Only active queues count: a retired queue the agent still lists takes no new work.
 - The hints describe only the agent itself and name no project, so they reveal nothing a stranger
   could not see.
 - The tool description and the instructions text name the `setup` field.

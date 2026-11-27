@@ -146,6 +146,10 @@
           <includes>
             <include>**/*Test.java</include>
           </includes>
+          <!-- Three JVMs: each starts its own PostgresTestDb container, so the forks share no database state.
+               117 s -> 43 s wall (2026-11-27), and this module sits ahead of wikantik-main in the reactor. -->
+          <forkCount>3</forkCount>
+          <reuseForks>true</reuseForks>
         </configuration>
       </plugin>
     </plugins>

@@ -272,4 +272,125 @@ class AdminAuthFilterTest {
         verify( chain, never() ).doFilter( any(), any() );
         verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
     }
+
+    // ---- mutation-testing follow-up: the allow path and the exact shape of each refusal
+
+    @Test
+    void anAuthenticatedAdminReachesTheServlet() throws Exception {
+        // saveText authenticates the shared mock session as admin; the request below resolves to that session.
+        engine.saveText( "AdminAuthProbe", "x" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/users" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( response, never() ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        engine.deleteQuietly( "AdminAuthProbe" );
+    }
+
+    @Test
+    void aBrowserThatIsRefusedOnANonNavigationRequestGetsTheHtmlDeniedPage() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/users/bulk-action" );
+        Mockito.doReturn( "POST" ).when( request ).getMethod();
+        Mockito.doReturn( "text/html" ).when( request ).getHeader( "Accept" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        filter.doFilter( request, response, Mockito.mock( FilterChain.class ) );
+
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        verify( response ).setContentType( "text/html" );
+        verify( response, never() ).setContentType( "application/json" );
+        assertTrue( sw.toString().contains( "<h1>Access Denied</h1>" ), sw.toString() );
+    }
+
+    @Test
+    void aClientWithNoAcceptHeaderIsRefusedWithJsonNotHtml() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/users" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( null ).when( request ).getHeader( "Accept" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setContentType( "application/json" );
+        assertEquals( "{\"error\":true,\"status\":403,\"message\":\"Forbidden\"}", sw.toString() );
+    }
+
+    @Test
+    void aBrowserNavigationToAnHtmlFilePassesThroughButAnyOtherDottedPathIsAuthChecked() throws Exception {
+        for ( final String path : new String[] { "/admin/page.html", "/admin/a.b", "/admin/x.json", "/admin/a.html.js" } ) {
+            final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( path );
+            Mockito.doReturn( "GET" ).when( request ).getMethod();
+            Mockito.doReturn( "text/html" ).when( request ).getHeader( "Accept" );
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+            final FilterChain chain = Mockito.mock( FilterChain.class );
+
+            filter.doFilter( request, response, chain );
+
+            if ( path.endsWith( ".html" ) ) {
+                verify( chain ).doFilter( request, response );
+            } else {
+                verify( chain, never() ).doFilter( any(), any() );
+                verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+            }
+        }
+    }
+
+    @Test
+    void aDotInTheContextPathDoesNotMakeAnAdminNavigationLookLikeAStaticAsset() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/wiki.v2/admin/connectors" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( "text/html" ).when( request ).getHeader( "Accept" );
+        Mockito.doReturn( "/wiki.v2" ).when( request ).getContextPath();
+        Mockito.doReturn( "/wiki.v2/admin/connectors" ).when( request ).getRequestURI();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+    }
+
+    @Test
+    void aDottedPathBehindAContextPathIsStillAuthChecked() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/wikantik/admin/apikeys/a.b" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( "text/html" ).when( request ).getHeader( "Accept" );
+        Mockito.doReturn( "/wikantik" ).when( request ).getContextPath();
+        Mockito.doReturn( "/wikantik/admin/apikeys/a.b" ).when( request ).getRequestURI();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    @Test
+    void aNullContextPathAndANullRequestUriAreTolerated() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createIsolatedHttpRequest( "/admin/x" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( "text/html" ).when( request ).getHeader( "Accept" );
+        Mockito.doReturn( null ).when( request ).getContextPath();
+        Mockito.doReturn( null ).when( request ).getRequestURI();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        // no path means nothing that looks like an asset, so the shell navigation rule applies
+        verify( chain ).doFilter( request, response );
+    }
 }

@@ -144,16 +144,30 @@ class ChangesResourceTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
-    @Test
-    void testParseIso8601ZuluForm() throws ParseException {
-        final Date d = ChangesResource.parseIso8601( "2026-04-11T12:00:00Z" );
-        assertNotNull( d );
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( {
+            "2026-04-11T12:00:00Z,2026-04-11T12:00:00Z",
+            "2026-04-11T12:00:00.250Z,2026-04-11T12:00:00.250Z",
+            "2026-04-11T12:00:00+02:00,2026-04-11T10:00:00Z",
+            "2026-04-11T12:00:00.500-05:00,2026-04-11T17:00:00.500Z",
+            "2026-04-11,2026-04-11T00:00:00Z" } )
+    void parseIso8601ReadsEachAcceptedFormInUtc( final String text, final String expected ) throws ParseException {
+        assertEquals( java.time.Instant.parse( expected ), ChangesResource.parseIso8601( text ).toInstant() );
+    }
+
+    /** A cursor that is not wholly a date is refused; reading its date-shaped prefix would resume the feed from the wrong time. */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource( strings = { "2026-04-11banana", "2026-04-11T99:00:00Z", "2026-04-11T12:00:00Zjunk",
+            "2026-04-11 12:00:00", "2026-04-11T12:00", "2026-13-01", "2026-02-30", "", "yesterday", "2026-04-11T12:00:00" } )
+    void parseIso8601RefusesAnythingButAWholeDate( final String text ) {
+        org.junit.jupiter.api.Assertions.assertThrows( ParseException.class, () -> ChangesResource.parseIso8601( text ), text );
     }
 
     @Test
-    void testParseIso8601DateOnly() throws ParseException {
-        final Date d = ChangesResource.parseIso8601( "2026-04-11" );
-        assertNotNull( d );
+    void aSinceWithTrailingGarbageIs400NotASilentlyShiftedFeed() throws Exception {
+        final JsonObject obj = gson.fromJson( doGet( "2026-04-11T99:00:00Z" ), JsonObject.class );
+
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
     @Test

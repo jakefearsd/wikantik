@@ -62,7 +62,10 @@ public class GoogleDriveAuthResource extends RestServletBase {
 
     private void handleAuthorize( final HttpServletRequest request, final HttpServletResponse response,
             final DriveAuthCoordinator coordinator, final String path ) throws IOException {
-        final String id = path.substring( 1, path.length() - "/authorize".length() );   // strip leading '/' and suffix
+        // "/authorize" alone has no connector id (and substring(1, 0) would throw), so it is a 404 like any bad id.
+        final String id = path.length() > "/authorize".length()
+            ? path.substring( 1, path.length() - "/authorize".length() )   // strip leading '/' and suffix
+            : "";
         if ( id.isEmpty() || id.contains( "/" ) ) {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "Bad connector id" );
             return;

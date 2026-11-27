@@ -204,6 +204,22 @@ class SpaRoutingFilterViewerAudienceTest {
         verify( admin.response() ).setHeader( "Cache-Control", "private, no-cache" );
     }
 
+    @Test
+    void aPageInAPrivateClusterIsNotServerRenderedForAnAnonymousCallerButIsForAnAdmin() throws Exception {
+        final Served guest = serve( anonymousRequest( "/wiki/SpaPrivMember" ) );
+        assertFalse( guest.body().asString().contains( "A private member." ),
+                "a private page's text was server-rendered into the shell for a guest: " + guest.body().asString() );
+
+        final Served admin = serve( adminRequest( "/wiki/SpaPrivMember" ) );
+        assertTrue( admin.body().asString().contains( "A private member." ),
+                "control: the admin's server-rendered copy carries the text" );
+    }
+
+    @Test
+    void aPublicPageIsServerRenderedForAnAnonymousCaller() throws Exception {
+        assertTrue( serve( anonymousRequest( "/wiki/SpaPlainPage" ) ).body().asString().contains( "Nothing per viewer here." ) );
+    }
+
     private static final class CapturingOutput extends ServletOutputStream {
         private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 

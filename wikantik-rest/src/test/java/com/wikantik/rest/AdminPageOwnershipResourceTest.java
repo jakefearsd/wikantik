@@ -431,6 +431,105 @@ class AdminPageOwnershipResourceTest {
         return gson.fromJson( sw.toString().isBlank() ? "{}" : sw.toString(), JsonObject.class );
     }
 
+    /* ---- mutation-testing follow-up ---- */
+
+    @Test
+    void ownershipIsNeverOfferedCrossOrigin() {
+        assertFalse( new AdminPageOwnershipResource().isCrossOriginAllowed() );
+    }
+
+    @Test
+    void get_passes_a_positive_limit_and_offset_through_to_the_listing() throws Exception {
+        Mockito.when( pageOwners.listOrphaned( 3, 7 ) ).thenReturn( List.of() );
+        Mockito.when( pageOwners.countOrphaned() ).thenReturn( 0 );
+
+        get( "?filter=orphaned&limit=3&offset=7" );
+
+        Mockito.verify( pageOwners ).listOrphaned( 3, 7 );
+    }
+
+    @Test
+    void get_with_a_negative_limit_falls_back_to_the_default_and_a_blank_one_too() throws Exception {
+        Mockito.when( pageOwners.listOrphaned( 50, 0 ) ).thenReturn( List.of() );
+        Mockito.when( pageOwners.countOrphaned() ).thenReturn( 0 );
+
+        get( "?filter=orphaned&limit=-5" );
+
+        Mockito.verify( pageOwners ).listOrphaned( 50, 0 );
+    }
+
+    @Test
+    void get_by_owner_with_a_blank_owner_is_400_and_lists_nothing() throws Exception {
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/admin/page-ownership" );
+        Mockito.doReturn( null ).when( req ).getPathInfo();
+        Mockito.doReturn( "by-owner" ).when( req ).getParameter( "filter" );
+        Mockito.doReturn( "  " ).when( req ).getParameter( "owner" );
+        Mockito.doReturn( "GET" ).when( req ).getMethod();
+        final JsonObject res = invoke( req, null );
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+        Mockito.verify( pageOwners, Mockito.never() )
+                .listByOwner( Mockito.eq( "  " ), Mockito.anyInt(), Mockito.anyInt() );
+    }
+
+    @Test
+    void a_row_without_an_assignment_time_has_no_assignedAt() throws Exception {
+        Mockito.when( pageOwners.listOrphaned( 50, 0 ) ).thenReturn( List.of(
+                new PageOwnership( "CID-N", null, "admin", null ) ) );
+        Mockito.when( pageOwners.countOrphaned() ).thenReturn( 1 );
+
+        final JsonObject row = get( "?filter=orphaned" ).getAsJsonArray( "pages" ).get( 0 ).getAsJsonObject();
+
+        assertTrue( !row.has( "assignedAt" ) || row.get( "assignedAt" ).isJsonNull(), row.toString() );
+    }
+
+    @Test
+    void a_page_name_lookup_that_throws_degrades_to_no_name_not_a_failed_listing() throws Exception {
+        final StructuralIndexService idx = Mockito.mock( StructuralIndexService.class );
+        Mockito.doReturn( idx ).when( servlet ).structuralIndex();
+        Mockito.when( idx.resolveSlugFromCanonicalId( "CID-1" ) ).thenThrow( new IllegalStateException( "index down" ) );
+        Mockito.when( pageOwners.listOrphaned( 50, 0 ) ).thenReturn( List.of(
+                new PageOwnership( "CID-1", null, "admin", Instant.parse( "2026-01-01T00:00:00Z" ) ) ) );
+        Mockito.when( pageOwners.countOrphaned() ).thenReturn( 1 );
+
+        final JsonObject row = get( "?filter=orphaned" ).getAsJsonArray( "pages" ).get( 0 ).getAsJsonObject();
+
+        assertEquals( "CID-1", row.get( "canonicalId" ).getAsString() );
+        assertTrue( !row.has( "pageName" ) || row.get( "pageName" ).isJsonNull(), row.toString() );
+    }
+
+    @Test
+    void post_reassign_with_a_blank_new_owner_is_400_and_changes_nothing() throws Exception {
+        final JsonObject body = new JsonObject();
+        final JsonArray pages = new JsonArray();
+        pages.add( "CID-1" );
+        body.add( "pages", pages );
+        body.addProperty( "newOwner", "   " );
+
+        final JsonObject res = post( "/reassign", body );
+
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+        Mockito.verifyNoInteractions( pageOwners );
+    }
+
+    @Test
+    void post_reassign_by_user_with_a_blank_side_is_400_and_changes_nothing() throws Exception {
+        for ( final String[] pair : new String[][] { { "  ", "bob" }, { "alice", "  " }, { "alice", null }, { null, "bob" } } ) {
+            final JsonObject body = new JsonObject();
+            if ( pair[ 0 ] != null ) body.addProperty( "fromOwner", pair[ 0 ] );
+            if ( pair[ 1 ] != null ) body.addProperty( "toOwner", pair[ 1 ] );
+            assertEquals( 400, post( "/reassign-by-user", body ).get( "status" ).getAsInt() );
+        }
+        Mockito.verifyNoInteractions( pageOwners );
+    }
+
+    @Test
+    void post_to_a_route_with_extra_segments_or_none_is_404() throws Exception {
+        assertEquals( 404, post( "/reassign/extra", new JsonObject() ).get( "status" ).getAsInt() );
+        assertEquals( 404, post( "/", new JsonObject() ).get( "status" ).getAsInt() );
+        assertEquals( 404, post( null, new JsonObject() ).get( "status" ).getAsInt() );
+        Mockito.verifyNoInteractions( pageOwners );
+    }
+
     /* ---- request helpers ---- */
 
     private JsonObject get( final String query ) throws Exception {

@@ -171,11 +171,14 @@ public class ChangesResource extends RestServletBase {
             final SimpleDateFormat f = new SimpleDateFormat( p, Locale.ROOT );
             f.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
             f.setLenient( false );
-            try {
-                return f.parse( s );
-            } catch ( final ParseException e ) {
-                last = e;
+            // parse( String ) stops at the first character it cannot use and succeeds on the prefix: "2026-04-11T99:00:00Z"
+            // would read as the date alone. The whole text must be the date.
+            final java.text.ParsePosition at = new java.text.ParsePosition( 0 );
+            final Date parsed = f.parse( s, at );
+            if ( parsed != null && at.getIndex() == s.length() ) {
+                return parsed;
             }
+            last = new ParseException( s, Math.max( at.getErrorIndex(), at.getIndex() ) );
         }
         throw last == null ? new ParseException( s, 0 ) : last;
     }

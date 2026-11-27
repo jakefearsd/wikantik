@@ -1077,12 +1077,9 @@ class PageResourceTest {
         final String json = doPut( "RestPutPage", body );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
 
-        // Should get a 409 Conflict if VersionConflictException is thrown,
-        // or success if the provider doesn't enforce version checks
-        if ( obj.has( "error" ) ) {
-            assertEquals( 409, obj.get( "status" ).getAsInt(),
-                    "Version mismatch should return 409 Conflict" );
-        }
+        assertEquals( 409, obj.get( "status" ).getAsInt(), "Version mismatch should return 409 Conflict: " + json );
+        assertEquals( "Original content", engine.getManager( com.wikantik.api.managers.PageManager.class )
+                .getPureText( "RestPutPage", -1 ).trim(), "a refused save must leave the page untouched" );
     }
 
     @Test

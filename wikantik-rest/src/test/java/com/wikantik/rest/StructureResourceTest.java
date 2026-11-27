@@ -327,6 +327,211 @@ class StructureResourceTest {
         assertEquals( List.of( "foo", "bar-baz" ), filter.getValue().tags() );
     }
 
+    /** Status, content type and parsed body of one call, for the tests that pin the wire contract. */
+    private record Reply( int status, String contentType, String raw ) {
+        JsonObject json() { return JsonParser.parseString( raw ).getAsJsonObject(); }
+        JsonObject data() { return json().getAsJsonObject( "data" ); }
+    }
+
+    private Reply reply( final String pathInfo, final java.util.Map< String, String > params ) throws Exception {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getPathInfo() ).thenReturn( pathInfo );
+        params.forEach( ( k, v ) -> when( req.getParameter( k ) ).thenReturn( v ) );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+        resource.doGet( req, resp );
+        final org.mockito.ArgumentCaptor< Integer > status = org.mockito.ArgumentCaptor.forClass( Integer.class );
+        verify( resp, atLeastOnce() ).setStatus( status.capture() );
+        final org.mockito.ArgumentCaptor< String > type = org.mockito.ArgumentCaptor.forClass( String.class );
+        verify( resp, atLeastOnce() ).setContentType( type.capture() );
+        return new Reply( status.getValue(), type.getValue(), sw.toString() );
+    }
+
+    @Test
+    void anUnavailableStructuralIndexIs503() throws Exception {
+        final WikiEngine bare = mock( WikiEngine.class );
+        resource.setEngineForTesting( bare );
+
+        final Reply r = reply( "/pages", java.util.Map.of() );
+
+        assertEquals( 503, r.status() );
+        assertEquals( "structural index unavailable", r.json().get( "message" ).getAsString() );
+    }
+
+    @Test
+    void aFailingServiceIs500WithTheErrorEnvelope() throws Exception {
+        when( svc.sitemap() ).thenThrow( new IllegalStateException( "index rebuilding" ) );
+
+        final Reply r = reply( "/sitemap", java.util.Map.of() );
+
+        assertEquals( 500, r.status() );
+        assertEquals( "index rebuilding", r.json().get( "message" ).getAsString() );
+    }
+
+    /** A client-supplied date that does not parse is the client's mistake: 400, not a 500 that pages an operator. */
+    @Test
+    void anUnparseableUpdatedSinceIs400NotAServerError() throws Exception {
+        final Reply r = reply( "/pages", java.util.Map.of( "updated_since", "yesterday" ) );
+
+        assertEquals( 400, r.status() );
+        verify( svc, never() ).listPagesByFilter( any() );
+    }
+
+    @Test
+    void clustersPathAcceptsATrailingSlashAndStampsGenerationTime() throws Exception {
+        when( svc.listClusters() ).thenReturn( List.of() );
+
+        final Reply r = reply( "/clusters/", java.util.Map.of() );
+
+        assertEquals( 200, r.status() );
+        assertEquals( "application/json; charset=UTF-8", r.contentType() );
+        assertEquals( 0, r.data().getAsJsonArray( "clusters" ).size() );
+        assertNotNull( Instant.parse( r.data().get( "generated_at" ).getAsString() ) );
+    }
+
+    @Test
+    void aClusterWhoseDetailsAreMissingIsSkippedFromTheListAndNotFoundByName() throws Exception {
+        final PageDescriptor hub = new PageDescriptor( "01H", "Hub", "Hub", PageType.HUB, "gone", List.of(), "s",
+                Instant.EPOCH, false );
+        when( svc.listClusters() ).thenReturn( List.of( new ClusterSummary( "gone", hub, 3, Instant.EPOCH ) ) );
+        when( svc.getCluster( "gone" ) ).thenReturn( Optional.empty() );
+
+        assertEquals( 0, reply( "/clusters", java.util.Map.of() ).data().getAsJsonArray( "clusters" ).size() );
+        final Reply byName = reply( "/clusters/gone", java.util.Map.of() );
+        assertEquals( 404, byName.status() );
+        assertEquals( "cluster not found: gone", byName.json().get( "message" ).getAsString() );
+    }
+
+    @Test
+    void tagEntriesCarryTheirTopPageIdsInOrder() throws Exception {
+        when( svc.sitemap() ).thenReturn( new Sitemap( List.of(), 0, Instant.EPOCH ) );
+        when( svc.listTags( eq( 2 ), any() ) ).thenReturn( List.of(
+                new TagSummary( "retrieval", 5, List.of( "01X", "01Y" ) ) ) );
+
+        final JsonObject tag = reply( "/tags", java.util.Map.of( "min_pages", "2" ) ).data()
+                .getAsJsonArray( "tags" ).get( 0 ).getAsJsonObject();
+
+        assertEquals( "retrieval", tag.get( "tag" ).getAsString() );
+        assertEquals( 5, tag.get( "count" ).getAsInt() );
+        assertEquals( List.of( "01X", "01Y" ), tag.getAsJsonArray( "top_pages" ).asList().stream()
+                .map( e -> e.getAsString() ).toList() );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource( strings = { "", "  ", "abc", "1.5" } )
+    void aNonIntegerMinPagesFallsBackToOne( final String raw ) throws Exception {
+        when( svc.sitemap() ).thenReturn( new Sitemap( List.of(), 0, Instant.EPOCH ) );
+        when( svc.listTags( eq( 1 ), any() ) ).thenReturn( List.of() );
+
+        assertEquals( 200, reply( "/tags", java.util.Map.of( "min_pages", raw ) ).status() );
+        verify( svc ).listTags( eq( 1 ), any() );
+    }
+
+    @Test
+    void aPageDescriptorIsDescribedInFull() throws Exception {
+        final PageDescriptor p = new PageDescriptor( "01A", "Slug", "The Title", PageType.REFERENCE, "clu",
+                List.of(), List.of( "t1", "t2" ), "the summary", Instant.parse( "2026-02-03T04:05:06Z" ), false, List.of() );
+        when( svc.sitemap() ).thenReturn( new Sitemap( List.of( p ), 1, Instant.parse( "2026-03-01T00:00:00Z" ) ) );
+
+        final Reply r = reply( "/sitemap", java.util.Map.of() );
+
+        final JsonObject o = r.data().getAsJsonArray( "pages" ).get( 0 ).getAsJsonObject();
+        assertEquals( "01A", o.get( "id" ).getAsString() );
+        assertEquals( "Slug", o.get( "slug" ).getAsString() );
+        assertEquals( "The Title", o.get( "title" ).getAsString() );
+        assertEquals( "reference", o.get( "type" ).getAsString() );
+        assertEquals( "clu", o.get( "cluster" ).getAsString() );
+        assertEquals( "the summary", o.get( "summary" ).getAsString() );
+        assertEquals( "2026-02-03T04:05:06Z", o.get( "updated" ).getAsString() );
+        assertEquals( List.of( "t1", "t2" ), o.getAsJsonArray( "tags" ).asList().stream().map( e -> e.getAsString() ).toList() );
+        assertEquals( "2026-03-01T00:00:00Z", r.data().get( "generated_at" ).getAsString() );
+        assertEquals( "application/json; charset=UTF-8", r.contentType() );
+    }
+
+    @Test
+    void optionalDescriptorFieldsAreOmittedWhenAbsent() throws Exception {
+        final PageDescriptor p = new PageDescriptor( "01A", "Slug", "T", PageType.ARTICLE, null, List.of(), List.of(),
+                null, null, false, List.of() );
+        when( svc.sitemap() ).thenReturn( new Sitemap( List.of( p ), 1, Instant.EPOCH ) );
+
+        final JsonObject o = reply( "/sitemap", java.util.Map.of() ).data().getAsJsonArray( "pages" ).get( 0 ).getAsJsonObject();
+
+        assertFalse( o.has( "cluster" ) );
+        assertFalse( o.has( "summary" ) );
+        assertFalse( o.has( "updated" ) );
+        assertEquals( 0, o.getAsJsonArray( "tags" ).size() );
+    }
+
+    @Test
+    void anEmptySitemapIsAnEmptyListNotAnError() throws Exception {
+        when( svc.sitemap() ).thenReturn( new Sitemap( List.of(), 0, Instant.EPOCH ) );
+
+        final Reply r = reply( "/sitemap", java.util.Map.of() );
+
+        assertEquals( 200, r.status() );
+        assertEquals( 0, r.data().get( "count" ).getAsInt() );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( { "0,1", "-5,1", "1,1", "2,2", "junk,5", ",5" } )
+    void pagesLimitIsClampedAndMalformedFallsBackToTheDefault( final String limit, final int expected ) throws Exception {
+        final List< PageDescriptor > all = new java.util.ArrayList<>();
+        for ( int i = 1; i <= 5; i++ ) {
+            all.add( tagged( "0" + i, "P" + i, List.of(), List.of() ) );
+        }
+        when( svc.listPagesByFilter( any() ) ).thenReturn( all );
+        final java.util.Map< String, String > params = limit == null ? java.util.Map.of() : java.util.Map.of( "limit", limit );
+
+        final JsonObject data = reply( "/pages", params ).data();
+
+        assertEquals( expected, data.getAsJsonArray( "pages" ).size() );
+        assertEquals( expected, data.get( "count" ).getAsInt() );
+        assertEquals( 5, data.get( "total" ).getAsInt() );
+    }
+
+    @Test
+    void aLimitEqualToTheRemainderHasNoNextCursor() throws Exception {
+        when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
+                tagged( "01", "P1", List.of(), List.of() ), tagged( "02", "P2", List.of(), List.of() ) ) );
+
+        final JsonObject data = reply( "/pages", java.util.Map.of( "limit", "2" ) ).data();
+
+        assertEquals( 2, data.getAsJsonArray( "pages" ).size() );
+        assertFalse( data.has( "next_cursor" ) );
+    }
+
+    @Test
+    void aBlankCursorStartsFromTheFirstPage() throws Exception {
+        when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
+                tagged( "01", "P1", List.of(), List.of() ), tagged( "02", "P2", List.of(), List.of() ) ) );
+
+        assertEquals( 2, reply( "/pages", java.util.Map.of( "cursor", "  " ) ).data().getAsJsonArray( "pages" ).size() );
+    }
+
+    /** The service clamps a call to its limit, so a full batch must be followed by one resuming after its last id. */
+    @Test
+    void aFullServiceBatchIsFollowedByTheNextBatchAfterItsLastId() throws Exception {
+        final List< PageDescriptor > first = new java.util.ArrayList<>();
+        for ( int i = 0; i < 1000; i++ ) {
+            first.add( tagged( String.format( "A%04d", i ), "P" + i, List.of(), List.of() ) );
+        }
+        final PageDescriptor last = tagged( "B0000", "Last", List.of(), List.of() );
+        when( svc.listPagesByFilter( any() ) ).thenAnswer( inv -> {
+            final com.wikantik.api.pagegraph.StructuralFilter f = inv.getArgument( 0 );
+            return f.cursor().isEmpty() ? first : List.of( last );
+        } );
+
+        final JsonObject data = reply( "/pages", java.util.Map.of( "limit", "1000" ) ).data();
+
+        assertEquals( 1001, data.get( "total" ).getAsInt(), "the walk did not stop after the first full batch" );
+        final org.mockito.ArgumentCaptor< com.wikantik.api.pagegraph.StructuralFilter > f =
+                org.mockito.ArgumentCaptor.forClass( com.wikantik.api.pagegraph.StructuralFilter.class );
+        verify( svc, times( 2 ) ).listPagesByFilter( f.capture() );
+        assertEquals( Optional.of( "A0999" ), f.getAllValues().get( 1 ).cursor() );
+        assertEquals( "A0999", data.get( "next_cursor" ).getAsString() );
+    }
+
     private JsonObject callGet( final String pathInfo ) throws Exception {
         final HttpServletRequest req = mock( HttpServletRequest.class );
         final HttpServletResponse resp = mock( HttpServletResponse.class );

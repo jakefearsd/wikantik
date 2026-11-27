@@ -1215,6 +1215,22 @@ class SpaRoutingFilterTest {
         assertEquals( "Foo%zzBar", SpaRoutingFilter.extractPageName( "/wiki/Foo%zzBar" ) );
     }
 
+    @Test
+    void extractPageNameKeepsASingleCharacterSegmentAndEmptiesAnEmptyOne() {
+        assertEquals( "F", SpaRoutingFilter.extractPageName( "/wiki/F" ) );
+        assertEquals( "", SpaRoutingFilter.extractPageName( "/wiki/?x=1" ) );
+        assertEquals( "", SpaRoutingFilter.extractPageName( "/wiki/#top" ) );
+        assertEquals( "", SpaRoutingFilter.extractPageName( "/wiki//Foo" ) );
+    }
+
+    @Test
+    void extractPageNameDecodesAfterCuttingSoAnEncodedSlashStaysInsideTheName() {
+        assertEquals( "A/B", SpaRoutingFilter.extractPageName( "/wiki/A%2FB" ) );
+        assertEquals( "A?B", SpaRoutingFilter.extractPageName( "/wiki/A%3FB" ) );
+        assertEquals( "A#B", SpaRoutingFilter.extractPageName( "/wiki/A%23B" ) );
+        assertEquals( "Caf\u00e9", SpaRoutingFilter.extractPageName( "/wiki/Caf%C3%A9?x" ) );
+    }
+
     // ---- helpers ----
 
     @Test

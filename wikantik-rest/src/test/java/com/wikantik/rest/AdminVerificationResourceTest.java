@@ -69,8 +69,7 @@ class AdminVerificationResourceTest {
 
     @Test
     void aggregates_per_confidence_counts() throws Exception {
-        when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
-                desc( "01A", "A" ), desc( "01B", "B" ), desc( "01C", "C" ) ) );
+        indexHolds( List.of( desc( "01A", "A" ), desc( "01B", "B" ), desc( "01C", "C" ) ) );
         when( svc.verificationOf( "01A" ) ).thenReturn( Optional.of(
                 new Verification( Instant.now(), "alice", Confidence.AUTHORITATIVE, Audience.HUMANS_AND_AGENTS ) ) );
         when( svc.verificationOf( "01B" ) ).thenReturn( Optional.of(
@@ -88,8 +87,7 @@ class AdminVerificationResourceTest {
 
     @Test
     void confidence_filter_narrows_rows_but_keeps_total() throws Exception {
-        when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
-                desc( "01A", "A" ), desc( "01B", "B" ) ) );
+        indexHolds( List.of( desc( "01A", "A" ), desc( "01B", "B" ) ) );
         when( svc.verificationOf( "01A" ) ).thenReturn( Optional.of(
                 new Verification( Instant.now(), "alice", Confidence.AUTHORITATIVE, Audience.HUMANS_AND_AGENTS ) ) );
         when( svc.verificationOf( "01B" ) ).thenReturn( Optional.of(
@@ -105,8 +103,7 @@ class AdminVerificationResourceTest {
 
     @Test
     void min_days_stale_filter_excludes_recent_verifications() throws Exception {
-        when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
-                desc( "01A", "A" ), desc( "01B", "B" ) ) );
+        indexHolds( List.of( desc( "01A", "A" ), desc( "01B", "B" ) ) );
         when( svc.verificationOf( "01A" ) ).thenReturn( Optional.of(
                 new Verification( Instant.now().minus( Duration.ofDays( 1 ) ), "alice",
                         Confidence.AUTHORITATIVE, Audience.HUMANS_AND_AGENTS ) ) );
@@ -116,6 +113,118 @@ class AdminVerificationResourceTest {
 
         final JsonObject body = call( "min_days_stale=30" );
         assertEquals( 1, body.getAsJsonObject( "data" ).get( "count" ).getAsInt() );
+    }
+
+    private void indexHolds( final List< PageDescriptor > all ) {
+        when( svc.sitemap() ).thenReturn( new com.wikantik.api.pagegraph.Sitemap( all, all.size(), Instant.EPOCH ) );
+        // what the real index does with StructuralFilter.none(): it caps one call at 100 pages
+        when( svc.listPagesByFilter( any() ) ).thenAnswer( inv -> {
+            final com.wikantik.api.pagegraph.StructuralFilter f = inv.getArgument( 0 );
+            return all.subList( 0, Math.min( f.limit(), all.size() ) );
+        } );
+    }
+
+    private static List< PageDescriptor > manyPages( final int n ) {
+        final java.util.List< PageDescriptor > out = new java.util.ArrayList<>();
+        for ( int i = 0; i < n; i++ ) {
+            out.add( desc( String.format( "01%04d", i ), "P" + i ) );
+        }
+        return out;
+    }
+
+    /** The report covers the whole corpus: a wiki of more than 100 pages is not silently cut to its first 100. */
+    @Test
+    void aCorpusOfMoreThanOneHundredPagesIsReportedInFull() throws Exception {
+        indexHolds( manyPages( 150 ) );
+
+        final JsonObject data = call( "limit=1000" ).getAsJsonObject( "data" );
+
+        assertEquals( 150, data.get( "total_pages" ).getAsInt() );
+        assertEquals( 150, data.get( "count" ).getAsInt() );
+        assertEquals( "P149", data.getAsJsonArray( "pages" ).get( 149 ).getAsJsonObject().get( "slug" ).getAsString() );
+    }
+
+    /**
+     * {@code StructuralIndexService.verificationCounts()} once tallied {@code listPagesByFilter(StructuralFilter.none())},
+     * which the index caps at 100 pages, so the confidence mix (this endpoint's {@code by_confidence} and the admin
+     * overview) covered only the first 100 pages of a larger wiki. It reads the sitemap now.
+     */
+    @Test
+    void theConfidenceMixCoversEveryPageNotTheFirstHundred() throws Exception {
+        indexHolds( manyPages( 150 ) );
+
+        final JsonObject data = call( "limit=1" ).getAsJsonObject( "data" );
+        final JsonObject mix = data.getAsJsonObject( "by_confidence" );
+
+        assertEquals( 150, mix.get( "authoritative" ).getAsInt() + mix.get( "provisional" ).getAsInt() + mix.get( "stale" ).getAsInt() );
+    }
+
+    @Test
+    void limitIsClampedToOneThroughOneThousandAndJunkMeansTwoHundred() throws Exception {
+        indexHolds( manyPages( 1200 ) );
+
+        assertEquals( 1, call( "limit=0" ).getAsJsonObject( "data" ).get( "count" ).getAsInt() );
+        assertEquals( 1, call( "limit=-7" ).getAsJsonObject( "data" ).get( "count" ).getAsInt() );
+        assertEquals( 7, call( "limit=7" ).getAsJsonObject( "data" ).get( "count" ).getAsInt() );
+        assertEquals( 1000, call( "limit=1000" ).getAsJsonObject( "data" ).get( "count" ).getAsInt() );
+        assertEquals( 1000, call( "limit=1001" ).getAsJsonObject( "data" ).get( "count" ).getAsInt() );
+        assertEquals( 200, call( "limit=junk" ).getAsJsonObject( "data" ).get( "count" ).getAsInt() );
+        assertEquals( 200, call( null ).getAsJsonObject( "data" ).get( "count" ).getAsInt() );
+        assertEquals( 1200, call( "limit=1001" ).getAsJsonObject( "data" ).get( "total_pages" ).getAsInt() );
+    }
+
+    @Test
+    void theMinDaysStaleBoundaryIsInclusiveAndAnUnverifiedPageAlwaysQualifies() throws Exception {
+        indexHolds( List.of( desc( "01A", "A" ), desc( "01B", "B" ), desc( "01C", "C" ) ) );
+        when( svc.verificationOf( "01A" ) ).thenReturn( Optional.of( new Verification(
+                Instant.now().minus( Duration.ofDays( 30 ) ).minusSeconds( 60 ), "alice", Confidence.AUTHORITATIVE, Audience.HUMANS_AND_AGENTS ) ) );
+        when( svc.verificationOf( "01B" ) ).thenReturn( Optional.of( new Verification(
+                Instant.now().minus( Duration.ofDays( 29 ) ), "alice", Confidence.AUTHORITATIVE, Audience.HUMANS_AND_AGENTS ) ) );
+        when( svc.verificationOf( "01C" ) ).thenReturn( Optional.empty() );
+
+        final var rows = call( "min_days_stale=30" ).getAsJsonObject( "data" ).getAsJsonArray( "pages" );
+
+        assertEquals( List.of( "A", "C" ), rows.asList().stream().map( e -> e.getAsJsonObject().get( "slug" ).getAsString() ).toList() );
+    }
+
+    @Test
+    void aRowCarriesItsVerificationOrExplicitNullWhenNeverVerified() throws Exception {
+        final Instant at = Instant.now().minus( Duration.ofDays( 10 ) );
+        indexHolds( List.of( desc( "01A", "A" ), desc( "01C", "C" ) ) );
+        when( svc.verificationOf( "01A" ) ).thenReturn( Optional.of( new Verification( at, "alice", Confidence.AUTHORITATIVE, Audience.AGENTS ) ) );
+        when( svc.verificationOf( "01C" ) ).thenReturn( Optional.empty() );
+
+        final var rows = call( null ).getAsJsonObject( "data" ).getAsJsonArray( "pages" );
+
+        final JsonObject a = rows.get( 0 ).getAsJsonObject();
+        assertEquals( "01A", a.get( "id" ).getAsString() );
+        assertEquals( "A", a.get( "title" ).getAsString() );
+        assertEquals( "authoritative", a.get( "confidence" ).getAsString() );
+        assertEquals( Audience.AGENTS.wireName(), a.get( "audience" ).getAsString() );
+        assertEquals( at.toString(), a.get( "verified_at" ).getAsString() );
+        assertEquals( 10, a.get( "days_since_verified" ).getAsLong() );
+        assertEquals( "alice", a.get( "verified_by" ).getAsString() );
+        final JsonObject c = rows.get( 1 ).getAsJsonObject();
+        assertTrue( c.has( "verified_at" ) && c.get( "verified_at" ).isJsonNull() || !c.has( "verified_at" ) );
+        assertTrue( !c.has( "days_since_verified" ) );
+        assertTrue( !c.has( "verified_by" ) );
+        assertEquals( "provisional", c.get( "confidence" ).getAsString() );
+    }
+
+    @Test
+    void anUnavailableIndexAnswersWithAJsonBody() throws Exception {
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getManager( StructuralIndexService.class ) ).thenReturn( null );
+        final var r = new AdminVerificationResource();
+        r.setEngineForTesting( engine );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        r.doGet( mock( HttpServletRequest.class ), resp );
+
+        verify( resp ).setContentType( "application/json; charset=UTF-8" );
+        assertEquals( "structural index unavailable", JsonParser.parseString( sw.toString() ).getAsJsonObject().get( "error" ).getAsString() );
     }
 
     @Test

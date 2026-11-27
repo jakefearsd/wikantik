@@ -23,7 +23,6 @@ import com.google.gson.JsonObject;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.pagegraph.Confidence;
 import com.wikantik.api.pagegraph.PageDescriptor;
-import com.wikantik.api.pagegraph.StructuralFilter;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pagegraph.Verification;
 import com.wikantik.api.pagegraph.VerificationCounts;
@@ -79,7 +78,9 @@ public class AdminVerificationResource extends RestServletBase {
         // Use the structural index's full page enumeration as the join driver — every
         // canonical_id with a descriptor is a row, augmented with verification when
         // the DAO has one for it.
-        final List< PageDescriptor > pages = svc.listPagesByFilter( StructuralFilter.none() );
+        // sitemap(), not listPagesByFilter( none() ): that call is capped at 100 pages, which would cut the report of a
+        // larger wiki to its first 100 pages and understate total_pages.
+        final List< PageDescriptor > pages = svc.sitemap().pages();
         int emitted = 0;
         for ( final PageDescriptor p : pages ) {
             final Verification v = svc.verificationOf( p.canonicalId() ).orElse( Verification.unverified() );

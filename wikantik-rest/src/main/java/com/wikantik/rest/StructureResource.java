@@ -69,7 +69,13 @@ public class StructureResource extends RestServletBase {
                 final int min = parseIntOr( req.getParameter( "min_pages" ), 1 );
                 writeTags( resp, svc, min, req );
             } else if ( "/pages".equals( pathInfo ) ) {
-                writePages( resp, svc, req );
+                try {
+                    writePages( resp, svc, req );
+                } catch ( final java.time.format.DateTimeParseException e ) {
+                    // updated_since is client input; a value that is not an ISO instant is a 400, not a server error.
+                    LOG.debug( "/api/structure/pages: bad updated_since: {}", e.getMessage() );
+                    RestJson.sendError( resp, 400, "updated_since must be an ISO-8601 instant" );
+                }
             } else if ( "/sitemap".equals( pathInfo ) ) {
                 writeSitemap( resp, svc, req );
             } else {

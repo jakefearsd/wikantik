@@ -415,6 +415,23 @@ class AdminUserResourceTest {
                 "Error message should mention expected date format" );
     }
 
+    /** A lock expiry that is not a real calendar date is refused, not silently rolled into another day. */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource( strings = { "2030-02-31", "2030-13-01", "2030-00-10", "2030-12-31junk",
+            "2030-1-1", "20301231", "12/31/2030", "2030-12-31T00:00:00Z" } )
+    void aLockExpiryThatIsNotAWholeIsoDateIs400AndDoesNotLock( final String expiry ) throws Exception {
+        final String login = "strictDate" + Math.abs( expiry.hashCode() );
+        createUser( login );
+        final JsonObject lockBody = new JsonObject();
+        lockBody.addProperty( "expiry", expiry );
+
+        final JsonObject obj = gson.fromJson( doPost( login + "/lock", lockBody ), JsonObject.class );
+
+        assertEquals( 400, obj.get( "status" ).getAsInt(), expiry );
+        assertFalse( engine.getManager( com.wikantik.auth.UserManager.class ).getUserDatabase()
+                .findByLoginName( login ).isLocked(), "a refused expiry must not lock the account" );
+    }
+
     @Test
     void testUnlockUserSuccess() throws Exception {
         // Create user (not locked — unlocking a non-locked user should still succeed
@@ -1486,5 +1503,135 @@ class AdminUserResourceTest {
             Mockito.doReturn( null ).when( request ).getPathInfo();
         }
         return request;
+    }
+
+    // ----- mutation-testing follow-up: effects the old tests never read back -----
+
+    private static com.wikantik.auth.user.UserDatabase userDb() {
+        return engine.getManager( com.wikantik.auth.UserManager.class ).getUserDatabase();
+    }
+
+    private static com.google.gson.JsonArray ids( final String... logins ) {
+        final com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+        for ( final String l : logins ) {
+            a.add( l );
+        }
+        return a;
+    }
+
+    @Test
+    void createdUserHasTheGivenPasswordAndIsReportedAs201() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "loginName", "pwCheckUser" );
+        body.addProperty( "fullName", "Pw Check User" );
+        body.addProperty( "password", "StrongPassword123!" );
+        final HttpServletRequest request = createRequest( null );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_CREATED );
+        assertTrue( userDb().validatePassword( "pwCheckUser", "StrongPassword123!" ), "the stored password is the one sent" );
+        assertFalse( userDb().validatePassword( "pwCheckUser", "StrongPassword123?" ) );
+    }
+
+    @Test
+    void anAdminPasswordChangeReplacesThePasswordTheUserCanLogInWith() throws Exception {
+        createUser( "pwChangeTarget" );
+        final JsonObject update = new JsonObject();
+        update.addProperty( "password", "NewStrongPass456!" );
+
+        final JsonObject obj = gson.fromJson( doPut( "pwChangeTarget", update ), JsonObject.class );
+
+        assertFalse( obj.has( "error" ), obj.toString() );
+        assertTrue( userDb().validatePassword( "pwChangeTarget", "NewStrongPass456!" ) );
+        assertFalse( userDb().validatePassword( "pwChangeTarget", "StrongPassword123!" ) );
+    }
+
+    @Test
+    void aBioOf1000CharactersIsAcceptedOnCreateAndUpdateAndOneMoreIsRefusedWithNothingSaved() throws Exception {
+        final JsonObject create = new JsonObject();
+        create.addProperty( "loginName", "bioBoundaryUser" );
+        create.addProperty( "fullName", "Bio Boundary User" );
+        create.addProperty( "password", "StrongPassword123!" );
+        create.addProperty( "bio", "b".repeat( 1000 ) );
+        final JsonObject created = gson.fromJson( doPost( null, create ), JsonObject.class );
+        assertFalse( created.has( "error" ), created.toString() );
+        assertEquals( "b".repeat( 1000 ), userDb().findByLoginName( "bioBoundaryUser" ).getBio() );
+
+        final JsonObject tooLongUpdate = new JsonObject();
+        tooLongUpdate.addProperty( "bio", "c".repeat( 1001 ) );
+        final JsonObject refused = gson.fromJson( doPut( "bioBoundaryUser", tooLongUpdate ), JsonObject.class );
+        assertEquals( 400, refused.get( "status" ).getAsInt() );
+        assertEquals( "b".repeat( 1000 ), userDb().findByLoginName( "bioBoundaryUser" ).getBio(), "a refused update changes nothing" );
+
+        final JsonObject okUpdate = new JsonObject();
+        okUpdate.addProperty( "bio", "d".repeat( 1000 ) );
+        assertFalse( gson.fromJson( doPut( "bioBoundaryUser", okUpdate ), JsonObject.class ).has( "error" ) );
+        assertEquals( "d".repeat( 1000 ), userDb().findByLoginName( "bioBoundaryUser" ).getBio() );
+
+        final JsonObject tooLongCreate = new JsonObject();
+        tooLongCreate.addProperty( "loginName", "bioTooLongUser" );
+        tooLongCreate.addProperty( "fullName", "Bio Too Long User" );
+        tooLongCreate.addProperty( "password", "StrongPassword123!" );
+        tooLongCreate.addProperty( "bio", "e".repeat( 1001 ) );
+        assertEquals( 400, gson.fromJson( doPost( null, tooLongCreate ), JsonObject.class ).get( "status" ).getAsInt() );
+        assertThrows( com.wikantik.auth.NoSuchPrincipalException.class, () -> userDb().findByLoginName( "bioTooLongUser" ),
+                "a refused create must not leave an account behind" );
+    }
+
+    @Test
+    void bulkLockActuallyLocksTheAccountsAndBulkUnlockActuallyFreesThem() throws Exception {
+        createUser( "bulkEffectA" );
+        createUser( "bulkEffectB" );
+        final JsonObject lock = new JsonObject();
+        lock.addProperty( "action", "lock" );
+        lock.add( "ids", ids( "bulkEffectA", "bulkEffectB" ) );
+        doBulkAction( lock );
+        assertTrue( userDb().findByLoginName( "bulkEffectA" ).getLockExpiry().after( new Date() ) );
+        assertTrue( userDb().findByLoginName( "bulkEffectB" ).getLockExpiry().after( new Date() ) );
+
+        final JsonObject unlock = new JsonObject();
+        unlock.addProperty( "action", "unlock" );
+        unlock.add( "ids", ids( "bulkEffectA" ) );
+        doBulkAction( unlock );
+        assertNull( userDb().findByLoginName( "bulkEffectA" ).getLockExpiry() );
+        assertNotNull( userDb().findByLoginName( "bulkEffectB" ).getLockExpiry(), "only the listed account is freed" );
+    }
+
+    @Test
+    void bulkAddToGroupAddsExistingUsersAndReportsAMissingOneAsFailed() throws Exception {
+        createUser( "grpMemberOne" );
+        createUser( "grpMemberTwo" );
+        putInNewGroup( "BulkAddGroup", "grpSeed" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "add-to-group" );
+        body.addProperty( "group", "BulkAddGroup" );
+        body.add( "ids", ids( "grpMemberOne", "ghost_user_zzz", "grpMemberTwo" ) );
+
+        final JsonObject obj = gson.fromJson( doBulkAction( body ), JsonObject.class );
+
+        assertEquals( 2, obj.getAsJsonArray( "succeeded" ).size(), obj.toString() );
+        assertEquals( 1, obj.getAsJsonArray( "failed" ).size(), obj.toString() );
+        assertTrue( isMember( "BulkAddGroup", "grpMemberOne" ) );
+        assertTrue( isMember( "BulkAddGroup", "grpMemberTwo" ) );
+        assertFalse( isMember( "BulkAddGroup", "ghost_user_zzz" ), "a user that does not exist is never added" );
+    }
+
+    @Test
+    void theUserListIsSortedByLoginName() throws Exception {
+        createUser( "sortUserZulu" );
+        createUser( "sortUserAlpha" );
+        final com.google.gson.JsonArray users = gson.fromJson( doGet( null ), JsonObject.class ).getAsJsonArray( "users" );
+        final java.util.List< String > names = new java.util.ArrayList<>();
+        for ( int n = 0; n < users.size(); n++ ) {
+            names.add( users.get( n ).getAsJsonObject().get( "loginName" ).getAsString() );
+        }
+        final java.util.List< String > sorted = new java.util.ArrayList<>( names );
+        java.util.Collections.sort( sorted );
+        assertEquals( sorted, names );
+        assertTrue( names.indexOf( "sortUserAlpha" ) < names.indexOf( "sortUserZulu" ) );
     }
 }

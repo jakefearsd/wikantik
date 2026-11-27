@@ -51,13 +51,24 @@ class AdminEmbeddingActivityResourceTest {
     }
 
     private static JsonObject doGet( final String limit ) throws Exception {
+        return doGet( limit, null, null, null );
+    }
+
+    private static JsonObject doGet( final String limit, final String subsystem, final String status,
+                                     final HttpServletResponse resp ) throws Exception {
         final HttpServletRequest req = mock( HttpServletRequest.class );
-        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final HttpServletResponse response = resp == null ? mock( HttpServletResponse.class ) : resp;
         when( req.getParameter( "limit" ) ).thenReturn( limit );
+        when( req.getParameter( "subsystem" ) ).thenReturn( subsystem );
+        when( req.getParameter( "status" ) ).thenReturn( status );
         final StringWriter sw = new StringWriter();
-        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
-        new AdminEmbeddingActivityResource().doGetForTesting( req, resp );
+        when( response.getWriter() ).thenReturn( new PrintWriter( sw ) );
+        new AdminEmbeddingActivityResource().doGetForTesting( req, response );
         return JsonParser.parseString( sw.toString() ).getAsJsonObject();
+    }
+
+    private static JsonObject callAt( final JsonObject body, final int i ) {
+        return body.getAsJsonObject( "data" ).getAsJsonArray( "calls" ).get( i ).getAsJsonObject();
     }
 
     @Test
@@ -89,5 +100,82 @@ class AdminEmbeddingActivityResourceTest {
         }
         installHolder( log );
         assertEquals( 2, doGet( "2" ).getAsJsonObject( "data" ).getAsJsonArray( "calls" ).size() );
+    }
+
+    @Test
+    void aCallIsDescribedInFullAndTheEnvelopeNamesItsContentTypeAndCapacity() throws Exception {
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
+        log.succeed( log.begin( Subsystem.EMBEDDING, "ollama", "qwen3", "embed", "the prompt" ), "the response" );
+        installHolder( log );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+
+        final JsonObject body = doGet( null, null, null, resp );
+
+        org.mockito.Mockito.verify( resp ).setContentType( "application/json; charset=UTF-8" );
+        org.mockito.Mockito.verify( resp ).setStatus( 200 );
+        assertEquals( 100, body.getAsJsonObject( "data" ).get( "capacity" ).getAsInt() );
+        final JsonObject call = callAt( body, 0 );
+        assertEquals( 1, call.get( "seq" ).getAsInt() );
+        assertEquals( "EMBEDDING", call.get( "subsystem" ).getAsString().toUpperCase( java.util.Locale.ROOT ) );
+        assertEquals( "ollama", call.get( "backend" ).getAsString() );
+        assertEquals( "qwen3", call.get( "model" ).getAsString() );
+        assertEquals( "embed", call.get( "operation" ).getAsString() );
+        assertEquals( "OK", call.get( "status" ).getAsString().toUpperCase( java.util.Locale.ROOT ) );
+        assertEquals( "the prompt", call.get( "promptPreview" ).getAsString() );
+        assertEquals( "the response", call.get( "responsePreview" ).getAsString() );
+        assertTrue( call.get( "durationMs" ).getAsLong() >= 0 );
+        assertTrue( !call.get( "startedAt" ).getAsString().isBlank() );
+        assertTrue( call.get( "inputTokens" ).isJsonNull() );
+        assertTrue( call.get( "outputTokens" ).isJsonNull() );
+    }
+
+    @Test
+    void aFailedCallCarriesItsErrorMessage() throws Exception {
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
+        log.fail( log.begin( Subsystem.EMBEDDING, "ollama", "m", "embed", "p" ), new IllegalStateException( "embedder down" ) );
+        installHolder( log );
+
+        final JsonObject call = callAt( doGet( null ), 0 );
+
+        assertEquals( "ERROR", call.get( "status" ).getAsString().toUpperCase( java.util.Locale.ROOT ) );
+        assertTrue( call.get( "errorMessage" ).getAsString().contains( "embedder down" ), call.toString() );
+    }
+
+    @Test
+    void theStatusFilterIsCaseInsensitiveAndAnUnknownOneIsIgnored() throws Exception {
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
+        log.succeed( log.begin( Subsystem.EMBEDDING, "o", "m", "embed", "ok-one" ), "r" );
+        log.fail( log.begin( Subsystem.EMBEDDING, "o", "m", "embed", "bad-one" ), new RuntimeException( "x" ) );
+        installHolder( log );
+
+        final var errors = doGet( null, null, " error ", null ).getAsJsonObject( "data" ).getAsJsonArray( "calls" );
+        assertEquals( 1, errors.size() );
+        assertEquals( "bad-one", errors.get( 0 ).getAsJsonObject().get( "promptPreview" ).getAsString() );
+        assertEquals( 1, doGet( null, null, "ok", null ).getAsJsonObject( "data" ).getAsJsonArray( "calls" ).size() );
+        assertEquals( 2, doGet( null, null, "bogus", null ).getAsJsonObject( "data" ).getAsJsonArray( "calls" ).size() );
+        assertEquals( 2, doGet( null, null, "  ", null ).getAsJsonObject( "data" ).getAsJsonArray( "calls" ).size() );
+    }
+
+    @Test
+    void theSubsystemFilterIsCaseInsensitiveAndAnUnknownOneIsIgnored() throws Exception {
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 100, 500 );
+        log.succeed( log.begin( Subsystem.EMBEDDING, "o", "m", "embed", "p" ), "r" );
+        installHolder( log );
+
+        assertEquals( 1, doGet( null, " embedding ", null, null ).getAsJsonObject( "data" ).getAsJsonArray( "calls" ).size() );
+        assertEquals( 1, doGet( null, "nonsense", null, null ).getAsJsonObject( "data" ).getAsJsonArray( "calls" ).size() );
+        assertEquals( 1, doGet( null, "", null, null ).getAsJsonObject( "data" ).getAsJsonArray( "calls" ).size() );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( { "-3,1", "0,1", "1,1", "3,3", "5,5", "6,5", "99999,5", "junk,5", "' 2 ',2" } )
+    void theLimitIsClampedToOneThroughTheLogCapacityAndJunkMeansDefault( final String asked, final int expected ) throws Exception {
+        final EmbeddingActivityLog log = new EmbeddingActivityLog( true, 60, 5, 500 );
+        for ( int i = 0; i < 5; i++ ) {
+            log.succeed( log.begin( Subsystem.EMBEDDING, "o", "m", "embed", "n" + i ), "r" );
+        }
+        installHolder( log );
+
+        assertEquals( expected, doGet( asked ).getAsJsonObject( "data" ).getAsJsonArray( "calls" ).size() );
     }
 }

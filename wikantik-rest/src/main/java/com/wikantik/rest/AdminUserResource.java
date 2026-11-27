@@ -19,7 +19,6 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
-import java.util.Locale;
 import java.util.Optional;
 
 import com.wikantik.api.core.Session;
@@ -46,8 +45,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.security.Principal;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Comparator;
@@ -620,8 +617,10 @@ public class AdminUserResource extends RestServletBase {
             // Timed lock with a specific expiry date — route through lifecycle service for audit.
             final Date expiry;
             try {
-                expiry = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).parse( expiryStr );
-            } catch ( final ParseException e ) {
+                // strict ISO date: the lenient SimpleDateFormat rolled 2030-02-31 into March and ignored trailing text
+                expiry = java.util.Date.from( java.time.LocalDate.parse( expiryStr.trim() )
+                        .atStartOfDay( java.time.ZoneId.systemDefault() ).toInstant() );
+            } catch ( final java.time.format.DateTimeParseException e ) {
                 sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid date format. Use yyyy-MM-dd" );
                 return;
             }

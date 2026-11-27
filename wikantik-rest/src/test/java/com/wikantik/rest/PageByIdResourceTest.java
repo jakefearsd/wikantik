@@ -125,4 +125,85 @@ class PageByIdResourceTest {
         assertFalse( sw.toString().contains( "SecretPage" ), "restricted slug must not leak" );
         assertFalse( sw.toString().contains( "secret summary" ), "restricted summary must not leak" );
     }
+
+    // ---- mutation-testing follow-up
+
+    private StringWriter call( final String pathInfo, final HttpServletResponse resp ) throws Exception {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getPathInfo() ).thenReturn( pathInfo );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+        resource.doGet( req, resp );
+        return sw;
+    }
+
+    @Test
+    void aMissingOrBareSlashPathIs400WithAnErrorBodyAndAOneCharacterIdIsLookedUp() throws Exception {
+        for ( final String path : new String[] { null, "", "/" } ) {
+            final HttpServletResponse resp = mock( HttpServletResponse.class );
+            final StringWriter sw = call( path, resp );
+            verify( resp ).setStatus( 400 );
+            verify( resp ).setContentType( "application/json; charset=UTF-8" );
+            assertEquals( "{\"error\":\"canonical_id required in path\"}", sw.toString() );
+        }
+        when( svc.getByCanonicalId( "X" ) ).thenReturn( Optional.empty() );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        call( "/X", resp );
+        verify( svc ).getByCanonicalId( "X" );
+        verify( resp ).setStatus( 404 );
+    }
+
+    @Test
+    void theNotFoundAnswerIsJsonAndNamesTheIdTheCallerSent() throws Exception {
+        when( svc.getByCanonicalId( "nope" ) ).thenReturn( Optional.empty() );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+
+        final StringWriter sw = call( "/nope", resp );
+
+        verify( resp ).setContentType( "application/json; charset=UTF-8" );
+        assertEquals( "{\"error\":\"no page for canonical_id nope\"}", sw.toString() );
+    }
+
+    @Test
+    void withNoStructuralIndexTheAnswerIs503() throws Exception {
+        final WikiEngine noIndex = mock( WikiEngine.class );
+        when( noIndex.getManager( StructuralIndexService.class ) ).thenReturn( null );
+        resource.setEngineForTesting( noIndex );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+
+        final StringWriter sw = call( "/01A", resp );
+
+        verify( resp ).setStatus( 503 );
+        assertEquals( "{\"error\":\"structural index unavailable\"}", sw.toString() );
+    }
+
+    @Test
+    void theDescriptorEnvelopeCarriesEveryFieldAndOmitsTheAbsentOnes() throws Exception {
+        when( svc.getByCanonicalId( "01F" ) ).thenReturn( Optional.of( new PageDescriptor(
+                "01F", "FullPage", "Full Page", PageType.HUB, "some-cluster", List.of( "a", "b" ), "the summary",
+                Instant.parse( "2026-01-02T03:04:05Z" ), false ) ) );
+        when( svc.getByCanonicalId( "01B" ) ).thenReturn( Optional.of( new PageDescriptor(
+                "01B", "BarePage", "Bare Page", PageType.ARTICLE, null, List.of(), null, null, false ) ) );
+
+        final HttpServletResponse fullResp = mock( HttpServletResponse.class );
+        final JsonObject full = JsonParser.parseString( call( "/01F", fullResp ).toString() )
+                .getAsJsonObject().getAsJsonObject( "data" );
+        verify( fullResp ).setStatus( 200 );
+        verify( fullResp ).setContentType( "application/json; charset=UTF-8" );
+        assertEquals( "01F", full.get( "id" ).getAsString() );
+        assertEquals( "FullPage", full.get( "slug" ).getAsString() );
+        assertEquals( "Full Page", full.get( "title" ).getAsString() );
+        assertEquals( "hub", full.get( "type" ).getAsString() );
+        assertEquals( "some-cluster", full.get( "cluster" ).getAsString() );
+        assertEquals( "the summary", full.get( "summary" ).getAsString() );
+        assertEquals( "2026-01-02T03:04:05Z", full.get( "updated" ).getAsString() );
+        assertEquals( "[\"a\",\"b\"]", full.getAsJsonArray( "tags" ).toString() );
+
+        final JsonObject bare = JsonParser.parseString( call( "/01B", mock( HttpServletResponse.class ) ).toString() )
+                .getAsJsonObject().getAsJsonObject( "data" );
+        assertFalse( bare.has( "cluster" ) );
+        assertFalse( bare.has( "summary" ) );
+        assertFalse( bare.has( "updated" ) );
+        assertEquals( 0, bare.getAsJsonArray( "tags" ).size() );
+    }
 }

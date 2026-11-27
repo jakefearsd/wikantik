@@ -595,6 +595,88 @@ class PageBlocksHandlerTest {
     }
 
     @Test
+    void aDraftTextAtExactlyTheByteCapIsAcceptedAndOneByteOverIs413() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final int cap = PageApiLimits.DEFAULT_MAX_PAGE_BYTES;
+
+        assertEquals( 200, post( spy( true, true ), "RestBlkPage/blocks/draft", draft( "x".repeat( cap ), null ) ).status() );
+        final Reply over = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( "x".repeat( cap + 1 ), null ) );
+        assertEquals( 413, over.status() );
+        assertTrue( over.json().get( "message" ).getAsString().contains( String.valueOf( cap ) ), over.body() );
+    }
+
+    /** The cap is on UTF-8 bytes, not characters: a text of fewer characters than the cap can still be over it. */
+    @Test
+    void theDraftCapCountsUtf8BytesNotCharacters() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final int cap = PageApiLimits.DEFAULT_MAX_PAGE_BYTES;
+        // 3-byte characters: cap/3 + 1 of them is under the cap in characters and over it in bytes
+        final String text = "\u20ac".repeat( cap / 3 + 1 );
+        assertTrue( text.length() < cap );
+
+        assertEquals( 413, post( spy( true, true ), "RestBlkPage/blocks/draft", draft( text, null ) ).status() );
+        assertEquals( 200, post( spy( true, true ), "RestBlkPage/blocks/draft", draft( "\u20ac".repeat( cap / 3 ), null ) ).status() );
+    }
+
+    /** A Content-Length at the escape bound may still carry an allowed text; one byte beyond cannot. */
+    @Test
+    void aDeclaredBodyLengthIsRefusedOnlyBeyondTheEscapeBound() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final long bound = 6L * PageApiLimits.DEFAULT_MAX_PAGE_BYTES + 4096;
+
+        for ( final long declared : new long[] { bound, bound + 1 } ) {
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/RestBlkPage/blocks/draft" );
+            Mockito.doReturn( "/RestBlkPage/blocks/draft" ).when( request ).getPathInfo();
+            Mockito.doReturn( declared ).when( request ).getContentLengthLong();
+            Mockito.doReturn( new BufferedReader( new StringReader( draft( "x", null ) ) ) ).when( request ).getReader();
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+            spy( true, true ).doPost( request, response );
+            assertEquals( declared == bound ? 200 : 413, statusOf( response ), "declared length " + declared );
+        }
+    }
+
+    @Test
+    void aDraftIsNeverCachedByAnyone() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/RestBlkPage/blocks/draft" );
+        Mockito.doReturn( "/RestBlkPage/blocks/draft" ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( draft( "x", null ) ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
+
+        spy( true, true ).doPost( request, response );
+
+        Mockito.verify( response ).setHeader( "Cache-Control", "private, no-store" );
+    }
+
+    /** A caller who may view but not edit an existing page is stopped by the 403 and learns nothing of its blocks. */
+    @Test
+    void aViewerWithoutEditGetsNoBlocksFromADraftOfAnExistingPage() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+
+        final Reply r = post( spy( true, false ), "RestBlkPage/blocks/draft", draft( "Secret para ^id1\n", null ) );
+
+        assertEquals( 403, r.status() );
+        assertFalse( r.body().contains( "blocks" ), r.body() );
+        assertFalse( r.body().contains( "id1" ), r.body() );
+    }
+
+    /** The draft's link names the block's index and its from/to offsets in the submitted text. */
+    @Test
+    void aDraftLinkNamesTheBlockIndexAndItsSpan() throws Exception {
+        engine.saveText( "RestBlkPage", "Saved text.\n" );
+        final String text = "First.\n\nSecond para.\n";
+
+        final JsonObject link = post( spy( true, true ), "RestBlkPage/blocks/draft", draft( text, text.indexOf( "Second" ) ) ).json();
+
+        final JsonObject block = link.getAsJsonObject( "block" );
+        assertEquals( 1, block.get( "index" ).getAsInt(), link.toString() );
+        assertEquals( text.indexOf( "Second" ), block.get( "from" ).getAsInt(), link.toString() );
+        assertEquals( text.indexOf( "Second" ) + "Second para.".length(), block.get( "to" ).getAsInt(), link.toString() );
+    }
+
+    @Test
     void anOversizedDraftBodyIsRefusedBeforeItIsRead() throws Exception {
         engine.saveText( "RestBlkPage", "Saved text.\n" );
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/RestBlkPage/blocks/draft" );

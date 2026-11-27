@@ -155,7 +155,8 @@ final class ConnectorAdminReadHandlers {
             resource.sendServiceUnavailable( response );
             return;
         }
-        final int limit = resource.parseIntParam( request, "limit", 20 );
+        // client input that becomes a SQL LIMIT: a negative one is a database error, an unbounded one a full scan
+        final int limit = Math.max( 1, Math.min( resource.parseIntParam( request, "limit", 20 ), 200 ) );
         final List< Map< String, Object > > runs = new ArrayList<>();
         for ( final SyncRunRow row : runStore.list( connectorId, limit ) ) {
             final Map< String, Object > r = new LinkedHashMap<>();

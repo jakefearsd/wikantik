@@ -692,6 +692,37 @@ class AttachmentResourceTest {
         }
     }
 
+    @Test
+    void anAdministratorIsExemptFromTheUploadSizeAndTypePolicy() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.attachment.maxsize", "10" );
+        try {
+            final HttpServletRequest login = HttpMockFactory.createHttpRequest();
+            final com.wikantik.api.core.Session session = com.wikantik.WikiSession.getWikiSession( engine, login );
+            engine.getManager( com.wikantik.auth.AuthenticationManager.class )
+                  .login( session, login, com.wikantik.auth.Users.ADMIN, com.wikantik.auth.Users.ADMIN_PASS );
+
+            final Part filePart = mockFilePart( "adminbig.txt", "12345678901234567890".getBytes( StandardCharsets.UTF_8 ) );
+            final JsonObject obj = gson.fromJson(
+                    doUploadAsAuthenticated( "RestAttachPage", filePart, null, "multipart/form-data; boundary=x" ),
+                    JsonObject.class );
+
+            assertTrue( obj.get( "success" ).getAsBoolean(), "admin is exempt from the 10-byte limit: " + obj );
+            assertNotNull( engine.getManager( AttachmentManager.class ).getAttachmentInfo( "RestAttachPage/adminbig.txt" ) );
+        } finally {
+            engine.getWikiProperties().remove( "wikantik.attachment.maxsize" );
+            anonymizeMockSession();
+        }
+    }
+
+    @Test
+    void aSingleSegmentPathIsAFileNameOnlyWhenItHasADot() {
+        assertArrayEquals( new String[] { null, "logo.png" }, AttachmentResource.parseAttachmentPath( "logo.png" ) );
+        assertArrayEquals( new String[] { "SomePage", null }, AttachmentResource.parseAttachmentPath( "SomePage" ) );
+        assertArrayEquals( new String[] { "", "x.png" }, AttachmentResource.parseAttachmentPath( "/x.png" ) );
+        assertArrayEquals( new String[] { "Dir.v2/Page", null }, AttachmentResource.parseAttachmentPath( "Dir.v2/Page" ),
+                "a dot in an earlier segment does not make the last one a file" );
+    }
+
     // ----- Delete tests (anonymous lacks "delete"; bypass permission via spy) -----
 
     private String doDeleteAsAuthenticated( final String path ) throws Exception {

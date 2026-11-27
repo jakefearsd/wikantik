@@ -374,6 +374,20 @@ class ConnectorAdminResourceTest {
         assertEquals( 3, first.get( "unchanged" ).getAsInt() );
     }
 
+    /** The history length is client input and goes straight to a SQL LIMIT: a negative one is an error there. */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( { "-5,1", "-1,1", "0,1", "1,1", "7,7", "200,200", "201,200", "2147483647,200", "junk,20" } )
+    void theRunsLimitReachesTheStoreClampedToOneThroughTwoHundred( final String asked, final int reaches ) throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/fs1/runs" );
+        when( req.getParameter( "limit" ) ).thenReturn( asked );
+        when( runStore.list( org.mockito.ArgumentMatchers.eq( "fs1" ), org.mockito.ArgumentMatchers.anyInt() ) ).thenReturn( List.of() );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        verify( runStore ).list( "fs1", reaches );
+    }
+
     // -----------------------------------------------------------------------
     // GET /admin/connectors/{id}/pages
     // -----------------------------------------------------------------------

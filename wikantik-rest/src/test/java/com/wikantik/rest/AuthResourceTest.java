@@ -1133,6 +1133,123 @@ class AuthResourceTest {
         Mockito.verify( db, Mockito.never() ).save( any() );
     }
 
+    private UserDatabase profileDb( final UserProfile profile ) throws Exception {
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+        return db;
+    }
+
+    private String putOwnProfile( final String rawBody, final jakarta.servlet.http.HttpSession httpSession ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/profile" );
+        Mockito.doReturn( "/profile" ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( rawBody ) ) ).when( request ).getReader();
+        Mockito.doReturn( httpSession ).when( request ).getSession( false );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            servlet.doPut( request, response );
+        }
+        return sw.toString();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( { "999,true", "1000,true", "1001,false", "5000,false" } )
+    void profileBioIsAcceptedUpToExactly1000CharactersAndRefusedBeyond( final int length, final boolean accepted ) throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserDatabase db = profileDb( profile );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "bio", "x".repeat( length ) );
+
+        final JsonObject obj = gson.fromJson( putOwnProfile( body.toString(), null ), JsonObject.class );
+
+        if ( accepted ) {
+            Mockito.verify( profile ).setBio( "x".repeat( length ) );
+            Mockito.verify( db ).save( profile );
+        } else {
+            assertEquals( 400, obj.get( "status" ).getAsInt() );
+            assertEquals( "Bio must be 1000 characters or fewer", obj.get( "message" ).getAsString() );
+            Mockito.verify( profile, Mockito.never() ).setBio( any() );
+            Mockito.verify( db, Mockito.never() ).save( any() );
+        }
+    }
+
+    @Test
+    void anUnparseableProfileBodyIs400AndSavesNothing() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserDatabase db = profileDb( profile );
+
+        final JsonObject obj = gson.fromJson( putOwnProfile( "{not json", null ), JsonObject.class );
+
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        Mockito.verify( db, Mockito.never() ).save( any() );
+    }
+
+    /** A password change must replace the password, clear the must-change flag, and clear the session's cached gate. */
+    @Test
+    void aSuccessfulPasswordChangeSetsThePasswordAndClearsTheCachedMustChangeGate() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserDatabase db = profileDb( profile );
+        Mockito.when( db.validatePassword( "alice", "Old-Pass-123!" ) ).thenReturn( true );
+        final jakarta.servlet.http.HttpSession httpSession = Mockito.mock( jakarta.servlet.http.HttpSession.class );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "currentPassword", "Old-Pass-123!" );
+        body.addProperty( "newPassword", "Nw9-Fresh-Pass-31!" );
+
+        putOwnProfile( body.toString(), httpSession );
+
+        Mockito.verify( profile ).setPassword( "Nw9-Fresh-Pass-31!" );
+        Mockito.verify( profile ).setPasswordMustChange( false );
+        Mockito.verify( db ).save( profile );
+        Mockito.verify( httpSession ).setAttribute( PasswordChangeGate.SESSION_ATTRIBUTE, false );
+    }
+
+    @Test
+    void aProfileUpdateWithoutAPasswordLeavesTheCachedMustChangeGateAlone() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        profileDb( profile );
+        final jakarta.servlet.http.HttpSession httpSession = Mockito.mock( jakarta.servlet.http.HttpSession.class );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "bio", "hello" );
+        body.addProperty( "newPassword", "   " );
+
+        putOwnProfile( body.toString(), httpSession );
+
+        Mockito.verify( httpSession, Mockito.never() ).setAttribute( Mockito.eq( PasswordChangeGate.SESSION_ATTRIBUTE ), any() );
+        Mockito.verify( profile, Mockito.never() ).setPassword( any() );
+    }
+
+    @Test
+    void aBlankCurrentPasswordIsRefusedLikeAMissingOne() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserDatabase db = profileDb( profile );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "currentPassword", "  " );
+        body.addProperty( "newPassword", "Nw9-Fresh-Pass-31!" );
+
+        final JsonObject obj = gson.fromJson( putOwnProfile( body.toString(), null ), JsonObject.class );
+
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        Mockito.verify( db, Mockito.never() ).validatePassword( any(), any() );
+        Mockito.verify( profile, Mockito.never() ).setPassword( any() );
+    }
+
+    @Test
+    void aProfileMissingFromTheStoreIs404() throws Exception {
+        final UserDatabase db = profileDb( profileFor( "alice", "a@x" ) );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenThrow( new com.wikantik.auth.NoSuchPrincipalException( "gone" ) );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "bio", "x" );
+
+        final JsonObject obj = gson.fromJson( putOwnProfile( body.toString(), null ), JsonObject.class );
+
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+        assertEquals( "Profile not found", obj.get( "message" ).getAsString() );
+    }
+
     @Test
     void handleUpdateProfile_rejectsPasswordChangeWithoutCurrent() throws Exception {
         final UserProfile profile = profileFor( "alice", "a@x" );

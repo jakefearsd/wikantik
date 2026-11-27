@@ -276,6 +276,49 @@ class WorkAttachmentRoutesTest {
         Mockito.verify( attachments, Mockito.never() ).upload( any(), any(), any(), any(), any() );
     }
 
+    /** The limit is inclusive: a file of exactly the limit is stored, and the byte after it is not. */
+    @Test
+    void aFileOfExactlyTheLimitIsStoredAndOneByteOverIs413() throws Exception {
+        final byte[] exact = new byte[ 1000 ];
+        Mockito.when( attachments.upload( ALICE, "PLAT-1", null, "e.bin", exact ) )
+            .thenReturn( attachment( 3, "e.bin", "application/octet-stream", "alice" ) );
+
+        assertEquals( 201, upload( WorkAttachmentHttp.part( "e.bin", exact, 1000 ), Map.of() ).status() );
+        assertEquals( 413, upload( WorkAttachmentHttp.part( "o.bin", new byte[ 1001 ], 1000 ), Map.of() ).status(),
+            "a part that declares the limit but holds one more byte" );
+        assertEquals( 413, upload( WorkAttachmentHttp.part( "o.bin", new byte[ 1001 ], 1001 ), Map.of() ).status() );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource( strings = { "1", "0", "007", "999999999999999999" } )
+    void aCommentIdOfUpToEighteenDigitsIsPassedOn( final String comment ) throws Exception {
+        Mockito.when( attachments.upload( any(), any(), any(), any(), any() ) )
+            .thenReturn( attachment( 9, "a.png", "image/png", "alice" ) );
+
+        assertEquals( 201, upload( WorkAttachmentHttp.part( "a.png", PNG, PNG.length ), Map.of( "comment", comment ) ).status() );
+        Mockito.verify( attachments ).upload( ALICE, "PLAT-1", Long.valueOf( comment ), "a.png", PNG );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource( strings = { "1000000000000000000", "9999999999999999999", "-1", "+1", "1.5",
+            "1 2", "0x10", "\u0661", "1e3" } )
+    void aCommentIdOfNineteenDigitsOrNotPlainDigitsIs400NamingComment( final String comment ) throws Exception {
+        final WorkAttachmentHttp.Result r = upload( WorkAttachmentHttp.part( "a.png", PNG, PNG.length ), Map.of( "comment", comment ) );
+
+        assertEquals( 400, r.status(), comment );
+        assertEquals( "comment", r.json().getAsJsonObject().get( "field" ).getAsString() );
+        Mockito.verify( attachments, Mockito.never() ).upload( any(), any(), any(), any(), any() );
+    }
+
+    @Test
+    void aBlankCommentIdMeansNoComment() throws Exception {
+        Mockito.when( attachments.upload( any(), any(), any(), any(), any() ) )
+            .thenReturn( attachment( 9, "a.png", "image/png", "alice" ) );
+
+        assertEquals( 201, upload( WorkAttachmentHttp.part( "a.png", PNG, PNG.length ), Map.of( "comment", "  " ) ).status() );
+        Mockito.verify( attachments ).upload( ALICE, "PLAT-1", null, "a.png", PNG );
+    }
+
     @Test
     void aValidationRefusalFromTheServiceIs400() throws Exception {
         Mockito.when( attachments.upload( any(), any(), any(), any(), any() ) )

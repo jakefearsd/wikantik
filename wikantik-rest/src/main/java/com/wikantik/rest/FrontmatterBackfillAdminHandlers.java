@@ -153,8 +153,11 @@ public final class FrontmatterBackfillAdminHandlers {
         try {
             final List< Map< String, Object > > pages = pagesWithoutFrontmatterSnapshot( pm, spr );
             final int total = pages.size();
-            final List< Map< String, Object > > paged = pages.subList(
-                    Math.min( offset, total ), Math.min( offset + limit, total ) );
+            // limit and offset are client input: negatives clamp to zero, and the end is summed as a long so a
+            // huge limit cannot overflow into a negative index (which subList refuses, as a 500).
+            final int from = Math.min( Math.max( 0, offset ), total );
+            final int to = (int) Math.min( (long) from + Math.max( 0, limit ), total );
+            final List< Map< String, Object > > paged = pages.subList( from, to );
             RestJson.sendJson( response, Map.of( "total", total, "pages", paged ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to list pages without frontmatter", e );

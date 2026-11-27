@@ -199,4 +199,175 @@ class GoogleDriveAuthResourceTest {
         verify( resp ).setStatus( 200 );
         verify( resp, never() ).sendRedirect( anyString() );
     }
+
+    // ---- mutation-testing follow-up
+
+    /** Resource whose connector-config service is injected, to observe the post-authorization rebuild. */
+    static final class RebuildResource extends GoogleDriveAuthResource {
+        final DriveAuthCoordinator c; final com.wikantik.derived.ConnectorConfigService cfg;
+        RebuildResource( DriveAuthCoordinator c, com.wikantik.derived.ConnectorConfigService cfg ) { this.c = c; this.cfg = cfg; }
+        @Override protected DriveAuthCoordinator resolveCoordinator() { return c; }
+        @Override protected com.wikantik.derived.ConnectorConfigService resolveConfigService() { return cfg; }
+    }
+
+    private void seedCallback( final String stateInSession, final String connector ) {
+        if ( stateInSession != null ) attrs.put( "gdrive.oauth.state", stateInSession );
+        if ( connector != null ) attrs.put( "gdrive.oauth.connector", connector );
+        attrs.put( "gdrive.oauth.return_to", "/admin/connectors/new" );
+    }
+
+    @Test void authorizeWithNoConnectorIdIs404NotAServerError() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/authorize" );
+        new TestResource( new StubCoordinator() ).doGet( req, resp );
+        verify( resp ).setStatus( 404 );
+        verify( resp, never() ).sendRedirect( anyString() );
+        assertNull( attrs.get( "gdrive.oauth.state" ) );
+    }
+
+    @Test void authorizeWithANestedConnectorIdIs404AndStartsNoFlow() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/a/gd/authorize" );
+        new TestResource( new StubCoordinator() ).doGet( req, resp );
+        verify( resp ).setStatus( 404 );
+        verify( resp, never() ).sendRedirect( anyString() );
+        assertNull( attrs.get( "gdrive.oauth.state" ), "no state may be stored for a refused connector id" );
+    }
+
+    @Test void authorizeForAnUnknownConnectorStoresNoState() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/nope/authorize" );
+        new TestResource( new StubCoordinator() ).doGet( req, resp );
+        assertNull( attrs.get( "gdrive.oauth.state" ) );
+        assertNull( attrs.get( "gdrive.oauth.connector" ) );
+    }
+
+    @Test void everyAuthorizeIssuesAFreshUnguessableState() throws Exception {
+        final Set<String> seen = new HashSet<>();
+        for ( int n = 0; n < 5; n++ ) {
+            attrs.clear();
+            when( req.getPathInfo() ).thenReturn( "/gd/authorize" );
+            new TestResource( new StubCoordinator() ).doGet( req, resp );
+            final String state = (String) attrs.get( "gdrive.oauth.state" );
+            assertTrue( state.matches( "[A-Za-z0-9_-]{43}" ), "256 bits, url-safe base64 without padding: " + state );
+            seen.add( state );
+        }
+        assertEquals( 5, seen.size() );
+    }
+
+    @Test void anUnknownRouteIs404() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/something" );
+        new TestResource( new StubCoordinator() ).doGet( req, resp );
+        verify( resp ).setStatus( 404 );
+        when( req.getPathInfo() ).thenReturn( null );
+        final HttpServletResponse resp2 = mock( HttpServletResponse.class );
+        when( resp2.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+        new TestResource( new StubCoordinator() ).doGet( req, resp2 );
+        verify( resp2 ).setStatus( 404 );
+    }
+
+    @Test void aReplayedCallbackIsRefusedBecauseTheStateWasConsumed() throws Exception {
+        final StubCoordinator c = new StubCoordinator();
+        seedCallback( "S1", "gd" );
+        when( req.getPathInfo() ).thenReturn( "/callback" );
+        when( req.getParameter( "state" ) ).thenReturn( "S1" );
+        when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+        new TestResource( c ).doGet( req, resp );
+        assertEquals( "AUTHCODE", c.lastCompleteCode );
+        assertNull( attrs.get( "gdrive.oauth.state" ) );
+        assertNull( attrs.get( "gdrive.oauth.connector" ) );
+
+        c.lastCompleteCode = null;
+        final HttpServletResponse replay = mock( HttpServletResponse.class );
+        when( replay.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+        new TestResource( c ).doGet( req, replay );
+        verify( replay ).setStatus( 400 );
+        assertNull( c.lastCompleteCode, "the replay must not exchange the code again" );
+    }
+
+    @Test void aMismatchedStateStillConsumesTheStoredStateAndReturnTo() throws Exception {
+        seedCallback( "S1", "gd" );
+        when( req.getPathInfo() ).thenReturn( "/callback" );
+        when( req.getParameter( "state" ) ).thenReturn( "WRONG" );
+        when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+        new TestResource( new StubCoordinator() ).doGet( req, resp );
+        assertNull( attrs.get( "gdrive.oauth.state" ) );
+        assertNull( attrs.get( "gdrive.oauth.connector" ) );
+        assertNull( attrs.get( "gdrive.oauth.return_to" ) );
+        verify( resp, never() ).sendRedirect( anyString() );
+    }
+
+    @Test void aCallbackWithoutAStateParameterOrASessionStateOrAConnectorIsRefused() throws Exception {
+        final String[][] cases = { { "S1", "gd", null }, { null, "gd", "S1" }, { "S1", null, "S1" } };
+        for ( final String[] k : cases ) {
+            attrs.clear();
+            final StubCoordinator c = new StubCoordinator();
+            seedCallback( k[0], k[1] );
+            when( req.getPathInfo() ).thenReturn( "/callback" );
+            when( req.getParameter( "state" ) ).thenReturn( k[2] );
+            when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+            final HttpServletResponse r = mock( HttpServletResponse.class );
+            when( r.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+            new TestResource( c ).doGet( req, r );
+            verify( r ).setStatus( 400 );
+            assertNull( c.lastCompleteId, "no exchange for " + Arrays.toString( k ) );
+        }
+    }
+
+    @Test void aCallbackWithoutACodeIs400AndDoesNotExchange() throws Exception {
+        for ( final String code : new String[] { null, "", "   " } ) {
+            attrs.clear();
+            final StubCoordinator c = new StubCoordinator();
+            seedCallback( "S1", "gd" );
+            when( req.getPathInfo() ).thenReturn( "/callback" );
+            when( req.getParameter( "state" ) ).thenReturn( "S1" );
+            when( req.getParameter( "code" ) ).thenReturn( code );
+            final HttpServletResponse r = mock( HttpServletResponse.class );
+            when( r.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+            new TestResource( c ).doGet( req, r );
+            verify( r ).setStatus( 400 );
+            assertNull( c.lastCompleteId );
+        }
+    }
+
+    @Test void theCallbackRedirectIsPrefixedWithTheContextPathAndJoinsAnExistingQueryWithAnAmpersand() throws Exception {
+        when( req.getContextPath() ).thenReturn( "/wikantik" );
+        attrs.put( "gdrive.oauth.state", "S1" ); attrs.put( "gdrive.oauth.connector", "gd" );
+        attrs.put( "gdrive.oauth.return_to", "/admin/connectors/new?step=2" );
+        when( req.getPathInfo() ).thenReturn( "/callback" );
+        when( req.getParameter( "state" ) ).thenReturn( "S1" );
+        when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+        new TestResource( new StubCoordinator() ).doGet( req, resp );
+        verify( resp ).sendRedirect( "/wikantik/admin/connectors/new?step=2&oauth=ok" );
+    }
+
+    @Test void aSuccessfulExchangeRebuildsTheLiveConnectorsAndAFailedOneDoesNot() throws Exception {
+        final com.wikantik.derived.ConnectorConfigService config = mock( com.wikantik.derived.ConnectorConfigService.class );
+        final StubCoordinator ok = new StubCoordinator();
+        seedCallback( "S1", "gd" );
+        when( req.getPathInfo() ).thenReturn( "/callback" );
+        when( req.getParameter( "state" ) ).thenReturn( "S1" );
+        when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+        new RebuildResource( ok, config ).doGet( req, resp );
+        verify( config ).rebuild();
+
+        final com.wikantik.derived.ConnectorConfigService config2 = mock( com.wikantik.derived.ConnectorConfigService.class );
+        final StubCoordinator failing = new StubCoordinator();
+        failing.completeResult = AuthResult.EXCHANGE_FAILED;
+        attrs.clear();
+        seedCallback( "S1", "gd" );
+        final HttpServletResponse r = mock( HttpServletResponse.class );
+        when( r.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+        new RebuildResource( failing, config2 ).doGet( req, r );
+        verify( config2, never() ).rebuild();
+    }
+
+    @Test void aRebuildThatThrowsDoesNotFailTheAuthorizationResponse() throws Exception {
+        final com.wikantik.derived.ConnectorConfigService config = mock( com.wikantik.derived.ConnectorConfigService.class );
+        doThrow( new IllegalStateException( "boom" ) ).when( config ).rebuild();
+        seedCallback( "S1", "gd" );
+        attrs.remove( "gdrive.oauth.return_to" );
+        when( req.getPathInfo() ).thenReturn( "/callback" );
+        when( req.getParameter( "state" ) ).thenReturn( "S1" );
+        when( req.getParameter( "code" ) ).thenReturn( "AUTHCODE" );
+        new RebuildResource( new StubCoordinator(), config ).doGet( req, resp );
+        verify( resp ).setStatus( 200 );
+    }
 }

@@ -371,6 +371,11 @@ class PropertyCacheStrategyTest {
         assertThrows( IllegalArgumentException.class, () -> new LruPropertyCache( -1 ) );
     }
 
+    @Test
+    void testLruCacheOfSizeOneIsAccepted() {
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow( () -> new LruPropertyCache( 1 ) );
+    }
+
     // ============== NoOpPropertyCache Tests ==============
 
     @Test

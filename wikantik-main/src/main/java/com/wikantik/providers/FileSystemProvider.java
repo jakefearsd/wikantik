@@ -67,6 +67,14 @@ public class FileSystemProvider extends AbstractFileProvider {
      */
     @Override
     public void putPageText( final Page page, final String text ) throws ProviderException {
+        try {
+            // Refuse invalid custom properties before the text is written: validating them afterwards left
+            // the new text on disk under a save that was reported as failed.
+            getCustomProperties( page, new Properties() );
+        } catch( final IOException e ) {
+            LOG.error( "Refusing to save page '{}': {}", page.getName(), e.getMessage(), e );
+            throw new ProviderException( "Could not save page properties for '" + page.getName() + "': " + e.getMessage(), e );
+        }
         super.putPageText( page, text );
         try {
             putPageProperties( page );

@@ -270,14 +270,9 @@ public class DefaultPageRenamer implements PageRenamer {
     private static String replaceSingleLink(final String original, final String from, final String newlink ) {
         final int hash = original.indexOf( '#' );
         final int slash = original.indexOf( '/' );
-        String realLink = original;
-
-        if( hash != -1 ) {
-            realLink = original.substring( 0, hash );
-        }
-        if( slash != -1 ) {
-            realLink = original.substring( 0,slash );
-        }
+        // The page name ends at whichever of '#' or '/' comes first; everything from there on is kept once, verbatim.
+        final int suffixStart = hash == -1 ? slash : slash == -1 ? hash : Math.min( hash, slash );
+        String realLink = suffixStart == -1 ? original : original.substring( 0, suffixStart );
 
         realLink = MarkupParser.cleanLink( realLink );
         final String oldStyleRealLink = MarkupParser.wikifyLink( realLink );
@@ -289,7 +284,7 @@ public class DefaultPageRenamer implements PageRenamer {
         //  Yes, these point to the same page.
         //
         if( realLink.equals( from ) || original.equals( from ) || oldStyleRealLink.equals( from ) ) {
-            return newlink + ( ( hash > 0 ) ? original.substring( hash ) : "" ) + ( ( slash > 0 ) ? original.substring( slash ) : "" ) ;
+            return newlink + ( suffixStart > 0 ? original.substring( suffixStart ) : "" );
         }
         
         return original;

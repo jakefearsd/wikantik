@@ -382,6 +382,13 @@ public class VersioningFileProvider extends AbstractFileProvider {
         }
 
         try {
+            // Refuse a page whose custom properties are invalid BEFORE touching the disk. Validating them
+            // after the text is written left the new text in place with no version recorded for it, and the
+            // next save then archived it over the genuine previous version.
+            final Properties preflight = new Properties();
+            preflight.putAll( getPageProperties( page.getName() ) );
+            getCustomProperties( page, preflight );
+
             // Copy old data to safety, if one exists.
             final File oldFile = findPage( page.getName() );
 

@@ -55,7 +55,7 @@ class WorkServiceDenialListenerTest {
 
     private void projectWithViewer() throws SQLException {
         when( store.project( "PLAT" ) ).thenReturn(
-            Optional.of( new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null ) ) );
+            Optional.of( new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null, null ) ) );
         when( store.roleFor( org.mockito.ArgumentMatchers.eq( 1L ), any() ) ).thenReturn( Optional.of( WorkRole.VIEWER ) );
     }
 
@@ -81,7 +81,7 @@ class WorkServiceDenialListenerTest {
     @Test
     void editingOrRemovingSomeoneElsesCommentIsReportedAsACommentDenial() throws SQLException {
         when( store.project( "PLAT" ) ).thenReturn(
-            Optional.of( new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null ) ) );
+            Optional.of( new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null, null ) ) );
         when( store.roleFor( org.mockito.ArgumentMatchers.eq( 1L ), any() ) ).thenReturn( Optional.of( WorkRole.MEMBER ) );
         final Item task = new Item( 12, 1, "PLAT-3", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "b",
             WorkStatus.READY, 3, 1, null, null, "zoe", null, null, null, 1, NOW, NOW, null, null, null, null, null,

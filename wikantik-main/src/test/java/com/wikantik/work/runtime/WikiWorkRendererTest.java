@@ -364,7 +364,7 @@ class WikiWorkRendererTest {
         final com.wikantik.work.WorkStore store = mock( com.wikantik.work.WorkStore.class );
         final java.time.Instant now = java.time.Instant.parse( "2026-11-15T12:00:00Z" );
         final com.wikantik.work.Project plat = new com.wikantik.work.Project( 1, "PLAT", "Platform", "",
-            com.wikantik.work.Autonomy.DELEGATED, now, null );
+            com.wikantik.work.Autonomy.DELEGATED, now, null, null );
         final com.wikantik.work.Item item = new com.wikantik.work.Item( 12, 1, "PLAT-1", com.wikantik.work.WorkLevel.TASK,
             null, null, com.wikantik.work.WorkKind.SOFTWARE, "t", "", com.wikantik.work.WorkStatus.DRAFT, 3, 1, null,
             null, "janne", null, null, null, 1, now, now, null,

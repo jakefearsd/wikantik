@@ -204,7 +204,7 @@ class CodeHostApplierFactsTest {
         when( store.policyChain( 1 ) ).thenReturn( new PolicyChain( task, List.of(), PolicyItems.project( Autonomy.DELEGATED ), null ) );
         assertEquals( new CodeHostApplier.Counts( 0, 0, 1 ), applier.apply( delivery, e ), "no product at all" );
         when( store.policyChain( 1 ) ).thenReturn( new PolicyChain( task, List.of(),
-            new Project( 1, "PLAT", "P", "", Autonomy.DELEGATED, Instant.EPOCH, Instant.EPOCH ),
+            new Project( 1, "PLAT", "P", "", Autonomy.DELEGATED, Instant.EPOCH, Instant.EPOCH, null ),
             new Product( PRODUCT, "wk", "Wk", null, "main", null, Autonomy.AUTONOMOUS, DeployGate.HUMAN, null ) ) );
         assertEquals( new CodeHostApplier.Counts( 0, 0, 1 ), applier.apply( delivery, e ), "archived project" );
         assertNothingWritten();

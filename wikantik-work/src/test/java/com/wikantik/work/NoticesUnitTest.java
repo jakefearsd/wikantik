@@ -69,7 +69,7 @@ class NoticesUnitTest {
         when( holder.notifications() ).thenReturn( notifications );
         when( holder.watches() ).thenReturn( watches );
         when( holder.intake() ).thenReturn( mock( WorkIntakeStore.class ) );
-        final Project plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null );
+        final Project plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null, null );
         final Item task = new Item( 12, 1, "PLAT-3", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "b",
             WorkStatus.READY, 3, 1, null, null, "alice", null, null, null, 1, NOW, NOW, null, null, null, null, null,
             null, null, null, null, null );

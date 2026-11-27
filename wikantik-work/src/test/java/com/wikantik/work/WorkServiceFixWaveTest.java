@@ -81,7 +81,7 @@ class WorkServiceFixWaveTest {
             rendered.add( md );
             return "<p>" + md + "</p>";
         }, WorkPeopleTest.DIRECTORY, Clock.fixed( NOW, ZoneOffset.UTC ) );
-        plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null );
+        plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null, null );
         task = new Item( 12, 1, "PLAT-3", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "", WorkStatus.DRAFT,
             3, 1024, null, null, "u-7f3a", null, null, null, 4, NOW, NOW, null, null, null, null, null, null, null, null, null, null );
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
@@ -165,7 +165,7 @@ class WorkServiceFixWaveTest {
     @Test
     void archivedRefusalsSayArchived() throws SQLException {
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( new Project( 1, "PLAT", "Platform", "",
-            Autonomy.SUPERVISED, NOW, NOW ) ) );
+            Autonomy.SUPERVISED, NOW, NOW, null ) ) );
         final WorkConflictException e = assertThrows( WorkConflictException.class,
             () -> service.addComment( ana, "PLAT-3", "hi" ) );
         assertEquals( WorkConflictException.ARCHIVED, e.reason() );
@@ -175,7 +175,7 @@ class WorkServiceFixWaveTest {
     void theItemViewSaysWhetherTheProjectIsArchived() throws SQLException {
         assertEquals( false, service.item( ana, "PLAT-3" ).archived() );
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( new Project( 1, "PLAT", "Platform", "",
-            Autonomy.SUPERVISED, NOW, NOW ) ) );
+            Autonomy.SUPERVISED, NOW, NOW, null ) ) );
         assertEquals( true, service.item( ana, "PLAT-3" ).archived() );
     }
 
@@ -288,7 +288,7 @@ class WorkServiceFixWaveTest {
     void activityNarrowsToAnItemOfTheProjectOnly() throws SQLException {
         service.activity( ana, "PLAT", null, null, "PLAT-3", null, 10 );
         verify( store ).projectEvents( 1, null, null, 12L, null, false, 10 );
-        final Project ops = new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, null );
+        final Project ops = new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, null, null );
         when( store.project( "OPS" ) ).thenReturn( Optional.of( ops ) );
         assertThrows( WorkNotFoundException.class, () -> service.activity( ana, "PLAT", null, null, "OPS-1", null, 10 ) );
         assertThrows( WorkNotFoundException.class, () -> service.activity( ana, "PLAT", null, null, "PLAT-99", null, 10 ) );

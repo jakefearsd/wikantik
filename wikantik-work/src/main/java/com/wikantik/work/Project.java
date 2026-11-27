@@ -22,5 +22,5 @@ import java.time.Instant;
 
 /** A work project. */
 public record Project( long id, String key, String name, String description, Autonomy defaultAutonomy,
-                       Instant createdAt, Instant archivedAt ) {
+                       Instant createdAt, Instant archivedAt, Long defaultProductId ) {
 }

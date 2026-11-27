@@ -97,8 +97,8 @@ class WorkServiceTest {
         };
         service = new WorkService( store, markdown -> "<p>" + markdown + "</p>", directory,
             Clock.fixed( NOW, ZoneOffset.UTC ) );
-        plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null );
-        ops = new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, null );
+        plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null, null );
+        ops = new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, null, null );
         epic = item( 10, 1, "PLAT-1", WorkLevel.EPIC, null );
         story = item( 11, 1, "PLAT-2", WorkLevel.STORY, 10L );
         task = item( 12, 1, "PLAT-3", WorkLevel.TASK, 11L );
@@ -297,7 +297,7 @@ class WorkServiceTest {
     @Test
     void archivedProjectRejectsWritesWithConflict() throws SQLException {
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( new Project( 1, "PLAT", "Platform", "",
-            Autonomy.SUPERVISED, NOW, NOW ) ) );
+            Autonomy.SUPERVISED, NOW, NOW, null ) ) );
         assertThrows( WorkConflictException.class,
             () -> service.createItem( alice, draft( WorkLevel.TASK, null, null, "t", null ) ) );
         assertThrows( WorkConflictException.class, () -> service.updateItem( alice, "PLAT-3",
@@ -421,7 +421,7 @@ class WorkServiceTest {
         assertThrows( WorkDeniedException.class, () -> service.createProject( lead, "NEW", "New", "" ) );
         // The creator becomes lead inside the store's creation transaction, never through a separate putMember.
         when( store.createProject( "NEW", "New", "", admin ) )
-            .thenReturn( new Project( 3, "NEW", "New", "", Autonomy.SUPERVISED, NOW, null ) );
+            .thenReturn( new Project( 3, "NEW", "New", "", Autonomy.SUPERVISED, NOW, null, null ) );
         assertEquals( "NEW", service.createProject( admin, "NEW", "New", "" ).key() );
         verify( store, never() ).putMember( anyLong(), anyString(), anyString(), any(), any( Actor.class ), any() );
     }
@@ -492,7 +492,7 @@ class WorkServiceTest {
 
     private void archivePlat() throws SQLException {
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( new Project( 1, "PLAT", "Platform", "",
-            Autonomy.SUPERVISED, NOW, NOW ) ) );
+            Autonomy.SUPERVISED, NOW, NOW, null ) ) );
     }
 
     private void comment( final long id, final String author ) throws SQLException {
@@ -522,7 +522,7 @@ class WorkServiceTest {
         assertEquals( "name", invalid( () -> service.createProject( admin, "NEW", " ", "" ) ).field() );
         assertEquals( "name", invalid( () -> service.createProject( admin, "NEW", null, "" ) ).field() );
         when( store.createProject( "NEW", "New", "", admin ) )
-            .thenReturn( new Project( 5, "NEW", "New", "", Autonomy.SUPERVISED, NOW, null ) );
+            .thenReturn( new Project( 5, "NEW", "New", "", Autonomy.SUPERVISED, NOW, null, null ) );
         assertEquals( 5, service.createProject( admin, "NEW", "  New ", null ).id() );
     }
 

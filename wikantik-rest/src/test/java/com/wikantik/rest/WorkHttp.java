@@ -128,7 +128,7 @@ final class WorkHttp {
 
     static Project project( final String key ) {
         return new Project( 1, key, key + " name", "desc", Autonomy.SUPERVISED, Instant.parse( "2026-11-01T10:00:00Z" ),
-            null );
+            null, null );
     }
 
     static Item item( final String key, final String assignee, final int version ) {

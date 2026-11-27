@@ -39,7 +39,7 @@ final class PolicyItems {
     }
 
     static Project project( final Autonomy defaultAutonomy ) {
-        return new Project( 1, "PLAT", "Platform", "", defaultAutonomy, Instant.EPOCH, null );
+        return new Project( 1, "PLAT", "Platform", "", defaultAutonomy, Instant.EPOCH, null, null );
     }
 
     static Product product( final Autonomy ceiling ) {

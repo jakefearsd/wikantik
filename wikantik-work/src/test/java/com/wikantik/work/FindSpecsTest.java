@@ -37,8 +37,8 @@ class FindSpecsTest {
     private final Actor admin = Actor.human( "root", Set.of(), true );
     private final Actor agent = Actor.agent( 9, "bot", member );
     private final List< Project > visible = List.of(
-        new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null ),
-        new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, null ) );
+        new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null, null ),
+        new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, null, null ) );
     private final List< Product > products = List.of(
         new Product( 7, "web", "Web", null, null, null, Autonomy.DELEGATED, DeployGate.HUMAN, null ) );
 

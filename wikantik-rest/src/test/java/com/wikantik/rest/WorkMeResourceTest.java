@@ -181,7 +181,7 @@ class WorkMeResourceTest {
         Mockito.when( svc.waitingOn( any() ) ).thenReturn( List.of() );
         final com.wikantik.work.Project p = WorkHttp.project( "OLD" );
         final com.wikantik.work.Project archived = new com.wikantik.work.Project( p.id(), p.key(), p.name(),
-            p.description(), p.defaultAutonomy(), p.createdAt(), java.time.Instant.parse( "2026-11-10T00:00:00Z" ) );
+            p.description(), p.defaultAutonomy(), p.createdAt(), java.time.Instant.parse( "2026-11-10T00:00:00Z" ), null );
         Mockito.when( svc.listProjectsWithRoles( ALICE ) ).thenReturn( List.of(
             new WorkService.ProjectRole( archived, WorkRole.MEMBER ),
             new WorkService.ProjectRole( WorkHttp.project( "NEW" ), WorkRole.MEMBER ) ) );

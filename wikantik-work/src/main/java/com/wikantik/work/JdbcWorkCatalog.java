@@ -32,6 +32,7 @@ import java.util.Optional;
 
 import static com.wikantik.work.SqlValues.actorKindWire;
 import static com.wikantik.jdbc.NullableColumns.getInstant;
+import static com.wikantik.jdbc.NullableColumns.getNullableLong;
 import static com.wikantik.jdbc.NullableColumns.setNullableLong;
 import static com.wikantik.work.SqlValues.timestamp;
 
@@ -39,7 +40,7 @@ import static com.wikantik.work.SqlValues.timestamp;
 abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogStore {
 
     static final String PROJECT_COLUMNS =
-        "id, key, name, description, default_autonomy, created_at, archived_at";
+        "id, key, name, description, default_autonomy, created_at, archived_at, default_product_id";
 
     static final String PRODUCT_COLUMNS =
         "id, key, name, repo_url, default_branch, wiki_cluster, autonomy_ceiling, deploy_gate, archived_at";
@@ -47,7 +48,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     static final RowMapper< Project > PROJECT_ROW = rs -> new Project(
         rs.getLong( "id" ), rs.getString( "key" ), rs.getString( "name" ), rs.getString( "description" ),
         Autonomy.fromWire( rs.getString( "default_autonomy" ) ),
-        getInstant( rs, "created_at" ), getInstant( rs, "archived_at" ) );
+        getInstant( rs, "created_at" ), getInstant( rs, "archived_at" ), getNullableLong( rs, "default_product_id" ) );
 
     private static final RowMapper< Member > MEMBER_ROW = rs -> new Member(
         rs.getLong( "project_id" ), rs.getString( "principal" ), rs.getString( "principal_kind" ),
@@ -356,6 +357,22 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     }
 
     @Override
+    public Optional< Product > product( final long id ) throws SQLException {
+        return jdbc.queryOne( "SELECT " + PRODUCT_COLUMNS + " FROM work_product WHERE id = ?",
+            ps -> ps.setLong( 1, id ), PRODUCT_ROW );
+    }
+
+    @Override
+    public void setDefaultProduct( final long projectId, final Product productOrNull, final Actor by )
+            throws SQLException {
+        requireAttributed( by.kind(), by.agentId() );
+        jdbc.inTransaction( conn -> {
+            JdbcProjectDefaults.set( this, conn, projectId, productOrNull, by );
+            return null;
+        } );
+    }
+
+    @Override
     public List< Product > products() throws SQLException {
         return new ArrayList<>( jdbc.query( "SELECT " + PRODUCT_COLUMNS + " FROM work_product ORDER BY key",
             ps -> { }, PRODUCT_ROW ) );
@@ -407,6 +424,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
                 ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, product.id() ); } );
             if ( archived > 0 ) {
                 appendProductEvent( conn, product.id(), by, "archived", null, at.toString() );
+                JdbcProjectDefaults.clearFor( this, conn, product, by );
             }
             return null;
         } );

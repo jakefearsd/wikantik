@@ -50,7 +50,7 @@ class WorkClaimListenerTest {
         claims = mock( WorkClaimStore.class );
         when( store.claims() ).thenReturn( claims );
         when( store.credentials() ).thenReturn( mock( WorkCredentialStore.class ) );
-        final Project plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null );
+        final Project plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null, null );
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
         when( store.roleFor( eq( 1L ), argThat( a -> a != null && "lena".equals( a.login() ) ) ) )
             .thenReturn( Optional.of( WorkRole.LEAD ) );

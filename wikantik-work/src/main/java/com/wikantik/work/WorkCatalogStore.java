@@ -118,12 +118,24 @@ public interface WorkCatalogStore {
 
     Optional< Product > product( String key ) throws SQLException;
 
+    /** The product with this id, archived ones included. */
+    Optional< Product > product( long id ) throws SQLException;
+
+    /**
+     * Makes {@code productOrNull} (null clears it) the project's default product and records one {@code settings}
+     * event (note {@code default_product}, product keys in from/to), in one transaction. Unchanged writes nothing.
+     */
+    void setDefaultProduct( long projectId, Product productOrNull, Actor by ) throws SQLException;
+
     List< Product > products() throws SQLException;
 
     /** Applies {@code after} to the row of {@code before} and records one event per changed field, in one transaction. */
     void updateProduct( Product before, Product after, Actor by ) throws SQLException;
 
-    /** Sets {@code archived_at} and records an {@code archived} event, in one transaction. */
+    /**
+     * Sets {@code archived_at} and records an {@code archived} event, in one transaction; the product also stops
+     * being any project's default (one {@code default_product} settings event per such project).
+     */
     void archiveProduct( Product product, Instant at, Actor by ) throws SQLException;
 
     /** The product's recorded changes, newest first (ties by id), at most {@code limit}. */

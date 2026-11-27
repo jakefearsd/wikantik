@@ -82,7 +82,7 @@ class WorkClaimsServiceTest {
             .thenReturn( PolicyItems.chain( PolicyItems.task( null ), List.of(), Autonomy.DELEGATED, null ) );
         claims = mock( WorkClaimStore.class );
         when( store.claims() ).thenReturn( claims );
-        plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null );
+        plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null, null );
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
         roles( 1, "lena", WorkRole.LEAD );
         roles( 1, "codex@docker2", WorkRole.MEMBER );
@@ -215,7 +215,7 @@ class WorkClaimsServiceTest {
 
     @Test
     void claimOnArchivedProjectIs409Archived() throws SQLException {
-        final Project archived = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, NOW );
+        final Project archived = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, NOW, null );
         service = build( archived );
         stored( item( "PLAT-1", WorkStatus.READY, "implementer", null ) );
         final WorkConflictException e = assertThrows( WorkConflictException.class,
@@ -379,7 +379,7 @@ class WorkClaimsServiceTest {
         service.claims().claimable( codex, "PLAT", null, 10 );
         verify( claims ).claimable( eq( 7L ), eq( Set.of( 1L ) ), isNull(), anyInt() );
         assertTrue( service.claims().claimable( viewerAgent, "PLAT", null, 10 ).isEmpty(), "a viewer agent claims nothing" );
-        final Project archived = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, NOW );
+        final Project archived = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, NOW, null );
         service = build( archived );
         assertTrue( service.claims().claimable( lena, "PLAT", null, 10 ).isEmpty() );
         verify( claims, org.mockito.Mockito.times( 1 ) ).claimable( any(), any(), any(), anyInt() );
@@ -389,7 +389,7 @@ class WorkClaimsServiceTest {
     void nothingIsLookedUpForAPersonWhoSeesNoLiveProject() throws SQLException {
         when( store.visibleProjects( lena ) ).thenReturn( List.of() );
         assertTrue( service.claims().claimable( lena, null, null, 10 ).isEmpty() );
-        final Project archived = new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, NOW );
+        final Project archived = new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, NOW, null );
         when( store.visibleProjects( lena ) ).thenReturn( List.of( archived ) );
         assertTrue( service.claims().claimable( lena, null, null, 10 ).isEmpty() );
         verify( claims, never() ).claimable( any(), any(), any(), anyInt() );
@@ -411,7 +411,7 @@ class WorkClaimsServiceTest {
     @Test
     void releasingOrHandingOffInAnArchivedProjectIsAConflict() throws SQLException {
         stored( item( "PLAT-1", WorkStatus.IN_PROGRESS, "implementer", 7L ) );
-        service = build( new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, NOW ) );
+        service = build( new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, NOW, null ) );
         assertEquals( WorkConflictException.ARCHIVED, assertThrows( WorkConflictException.class,
             () -> service.claims().release( lena, "PLAT-1", "stuck" ) ).reason() );
         assertEquals( WorkConflictException.ARCHIVED, assertThrows( WorkConflictException.class,

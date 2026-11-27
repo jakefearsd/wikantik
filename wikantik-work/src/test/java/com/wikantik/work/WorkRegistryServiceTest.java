@@ -135,7 +135,7 @@ class WorkRegistryServiceTest {
 
     @Test
     void agentMembersResolveByNameAndRefuseLead() throws SQLException {
-        final Project plat = new Project( 1, "PLAT", "P", "", Autonomy.DELEGATED, NOW, null );
+        final Project plat = new Project( 1, "PLAT", "P", "", Autonomy.DELEGATED, NOW, null, null );
         when( store.project( "PLAT" ) ).thenReturn( Optional.of( plat ) );
         when( store.agentByName( "codex" ) ).thenReturn( Optional.of( agent( 7, "codex", 55, null ) ) );
         when( store.agentByName( "gone" ) ).thenReturn( Optional.of( agent( 8, "gone", 56, NOW ) ) );

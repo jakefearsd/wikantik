@@ -45,7 +45,7 @@ class ItemViewsTest {
 
     private WorkStore store;
     private ItemViews views;
-    private final Project plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null );
+    private final Project plat = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null, null );
     private final Actor alice = Actor.human( "u-c01d", Set.of(), false );
 
     @BeforeEach

@@ -211,6 +211,8 @@ public class DefaultSpamPatternMatcher extends AbstractSpamStrategy implements S
             final String[] second = Diff.stringToArray( newText );
             final Revision rev = Diff.diff( first, second, new MyersDiff() );
             if( rev == null || rev.size() == 0 ) {
+                // No difference: an empty change, not a null one (the rate limiter runs a regex over it).
+                ch.change = "";
                 return ch;
             }
             for( int i = 0; i < rev.size(); i++ ) {

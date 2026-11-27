@@ -28,6 +28,7 @@ import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.cache.CachingManager;
 import com.wikantik.parser.markdown.BudgetedText;
 import com.wikantik.parser.markdown.MarkdownDocument;
 import org.junit.jupiter.api.AfterAll;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -75,5 +77,29 @@ class RenderBudgetSeamTest {
 
         final String html = assertDoesNotThrow( () -> engine.getManager( RenderingManager.class ).getHTML( ctx, doc ) );
         assertTrue( html.contains( "SEAM-MARKER" ), html );
+    }
+
+    @Test
+    void aBudgetThatRunsOutEvictsTheSharedRenderCachesOfThePage() throws Exception {
+        final CachingManager caches = engine.getManager( CachingManager.class );
+        final Page page = engine.getManager( PageManager.class ).getPage( "RenderBudgetSeam" );
+        final String id = "RenderBudgetSeam::" + page.getVersion() + "::null";
+        caches.put( CachingManager.CACHE_HTML, id, "possibly poisoned" );
+
+        final String body = "Hello SEAM-MARKER\n";
+        final Parser parser = Parser.builder().build();
+        final BudgetedText measure = BudgetedText.of( body, Long.MAX_VALUE );
+        parser.parse( BasedSequence.of( measure ) );
+        final Node node = parser.parse( BasedSequence.of( BudgetedText.of( body, measure.reads() ) ) );
+        final Context ctx = Wiki.context().create( engine, HttpMockFactory.createHttpRequest(), page );
+        ctx.setRequestContext( ContextEnum.PAGE_VIEW.getRequestContext() );
+        final MarkdownDocument doc = new MarkdownDocument( page, node );
+        doc.setPageData( body );
+        doc.setContext( ctx );
+
+        engine.getManager( RenderingManager.class ).getHTML( ctx, doc );
+
+        assertNull( caches.get( CachingManager.CACHE_HTML, id, () -> null ),
+                "the page's render caches are evicted once its shared document ran out of budget" );
     }
 }

@@ -858,4 +858,63 @@ class DefaultRenderingManagerCITest {
         assertNotNull( result );
     }
 
+
+    // ========== mutation findings: cache switches and eviction by version ==========
+
+    @Test
+    void aPageViewNeverReadsOrWritesTheHtmlCacheWhenItIsSwitchedOff() {
+        when( cachingManager.enabled( CachingManager.CACHE_DOCUMENTS ) ).thenReturn( false );
+        when( cachingManager.enabled( CachingManager.CACHE_HTML ) ).thenReturn( false );
+        final String pagedata = "no html cache";
+        final DefaultRenderingManager.HtmlCacheEntry entry =
+                new DefaultRenderingManager.HtmlCacheEntry( "<p>stale</p>", WikiDocument.hashPageData( pagedata ), "en" );
+        when( cachingManager.get( eq( CachingManager.CACHE_HTML ), anyString(), any() ) ).thenReturn( entry );
+
+        final String html = mgr.textToHTML( viewContext( "NoHtmlCachePage", 1 ), pagedata );
+
+        assertNotEquals( "<p>stale</p>", html );
+        verify( cachingManager, never() ).get( eq( CachingManager.CACHE_HTML ), anyString(), any() );
+        verify( cachingManager, never() ).put( eq( CachingManager.CACHE_HTML ), anyString(), any() );
+    }
+
+    @Test
+    void anEmbedBodyDoesNotUseTheHtmlCacheWhenItIsSwitchedOff() throws Exception {
+        when( cachingManager.enabled( CachingManager.CACHE_HTML ) ).thenReturn( false );
+
+        mgr.renderEmbedBody( viewContext( "NoEmbedCachePage", 1 ), "embedded **text**" );
+
+        verify( cachingManager, never() ).get( eq( CachingManager.CACHE_HTML ), anyString(), any() );
+        verify( cachingManager, never() ).put( eq( CachingManager.CACHE_HTML ), anyString(), any() );
+    }
+
+    @Test
+    void evictingAnExistingPageClearsItsCurrentVersionAndTheLatestSentinel() {
+        final Page current = mockPage( "VersionedPage", 3 );
+        when( pageManager.getPage( "VersionedPage" ) ).thenReturn( current );
+
+        mgr.evictRenderCache( "VersionedPage" );
+
+        for( final int version : new int[]{ 3, PageProvider.LATEST_VERSION } ) {
+            for( final Boolean executePlugins : new Boolean[]{ Boolean.FALSE, Boolean.TRUE, null } ) {
+                final String id = "VersionedPage::" + version + "::" + executePlugins;
+                verify( cachingManager ).remove( CachingManager.CACHE_DOCUMENTS, id );
+                verify( cachingManager ).remove( CachingManager.CACHE_DOCUMENTS, id + DisplayText.WYSIWYG_KEY );
+                verify( cachingManager ).remove( CachingManager.CACHE_HTML, id );
+                verify( cachingManager ).remove( CachingManager.CACHE_HTML, id + "::embed" );
+            }
+        }
+        verify( cachingManager, times( 24 ) ).remove( anyString(), any() );
+    }
+
+    @Test
+    void anExplicitTextToHtmlRunsThePreAndPostTranslateFiltersAndReturnsThePostFilteredHtml() throws FilterException {
+        when( cachingManager.enabled( anyString() ) ).thenReturn( false );
+        when( filterManager.doPreTranslateFiltering( any(), eq( "raw" ) ) ).thenReturn( "**filtered**" );
+        when( filterManager.doPostTranslateFiltering( any(), anyString() ) ).thenAnswer( inv -> inv.getArgument( 1 ) + "<!--post-->" );
+
+        final String html = mgr.textToHTML( noneContext( "FilteredHooksPage", 1 ), "raw", null, null, null, true, false );
+
+        assertTrue( html.contains( "<strong>filtered</strong>" ), "the pre-translate output is what is parsed: " + html );
+        assertTrue( html.endsWith( "<!--post-->" ), html );
+    }
 }

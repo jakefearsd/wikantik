@@ -18,7 +18,8 @@
  */
 package com.wikantik.its.rest;
 
-import com.wikantik.its.rest.WorkIt.Caller;
+import com.wikantik.its.work.WorkIt;
+import com.wikantik.its.work.WorkIt.Caller;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
@@ -33,7 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.wikantik.its.rest.WorkIt.json;
+import static com.wikantik.its.work.WorkIt.json;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

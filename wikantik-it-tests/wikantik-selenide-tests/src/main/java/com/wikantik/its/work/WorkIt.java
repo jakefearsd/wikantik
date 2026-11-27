@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.its.rest;
+package com.wikantik.its.work;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -41,30 +41,30 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Shared HTTP plumbing for the work-management ITs: cookie-isolated callers, account creation, polling. */
-final class WorkIt {
+public final class WorkIt {
 
-    static final Gson GSON = new Gson();
+    public static final Gson GSON = new Gson();
     private static final String INITIAL_PASSWORD = "WorkIt-Init1!";
-    static final String PASSWORD = "WorkIt-Final2!";
+    public static final String PASSWORD = "WorkIt-Final2!";
 
     private WorkIt() {
     }
 
-    static String baseUrl() {
+    public static String baseUrl() {
         return System.getProperty( "it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest" );
     }
 
     /** One caller with its own cookie jar. */
-    static final class Caller {
+    public static final class Caller {
         private final HttpClient client = HttpClient.newBuilder().followRedirects( HttpClient.Redirect.NORMAL )
             .cookieHandler( secureCookieOverHttp() ).build();
 
-        HttpResponse< String > get( final String path ) throws Exception {
+        public HttpResponse< String > get( final String path ) throws Exception {
             return client.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
                 .header( "Accept", "application/json" ).GET().build(), HttpResponse.BodyHandlers.ofString() );
         }
 
-        HttpResponse< String > send( final String method, final String path, final Object body ) throws Exception {
+        public HttpResponse< String > send( final String method, final String path, final Object body ) throws Exception {
             final String json = body == null ? "" : body instanceof String s ? s : GSON.toJson( body );
             return client.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
                 .header( "Content-Type", "application/json" ).header( "Accept", "application/json" )
@@ -73,7 +73,7 @@ final class WorkIt {
         }
 
         /** A multipart/form-data upload: the file in the part {@code file}, plus any text fields. */
-        HttpResponse< String > multipart( final String path, final String filename, final String claimedType,
+        public HttpResponse< String > multipart( final String path, final String filename, final String claimedType,
                                           final byte[] bytes, final Map< String, String > fields ) throws Exception {
             final String boundary = "----wikantik" + UUID.randomUUID().toString().replace( "-", "" );
             return client.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
@@ -82,17 +82,17 @@ final class WorkIt {
                 .build(), HttpResponse.BodyHandlers.ofString() );
         }
 
-        HttpResponse< String > multipart( final String path, final String filename, final byte[] bytes ) throws Exception {
+        public HttpResponse< String > multipart( final String path, final String filename, final byte[] bytes ) throws Exception {
             return multipart( path, filename, "application/octet-stream", bytes, Map.of() );
         }
 
         /** A GET whose body is read as bytes, headers intact. */
-        HttpResponse< byte[] > bytes( final String path ) throws Exception {
+        public HttpResponse< byte[] > bytes( final String path ) throws Exception {
             return client.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) ).GET().build(),
                 HttpResponse.BodyHandlers.ofByteArray() );
         }
 
-        Caller login( final String user, final String password ) throws Exception {
+        public Caller login( final String user, final String password ) throws Exception {
             final HttpResponse< String > resp = send( "POST", "/api/auth/login",
                 Map.of( "username", user, "password", password ) );
             assertEquals( 200, resp.statusCode(), "login as " + user + ": " + resp.body() );
@@ -100,12 +100,12 @@ final class WorkIt {
         }
     }
 
-    static Caller admin() throws Exception {
+    public static Caller admin() throws Exception {
         return new Caller().login( "janne", "myP@5sw0rd" );
     }
 
     /** An ordinary account as the admin API creates it, past the forced first-login password change. */
-    static Caller account( final Caller admin, final String login, final String display ) throws Exception {
+    public static Caller account( final Caller admin, final String login, final String display ) throws Exception {
         final HttpResponse< String > created = admin.send( "POST", "/admin/users", Map.of( "loginName", login,
             "fullName", display, "email", login + "@example.com", "password", INITIAL_PASSWORD ) );
         assertEquals( 201, created.statusCode(), "create " + login + ": " + created.body() );
@@ -123,7 +123,7 @@ final class WorkIt {
      * One request that carries only {@code Authorization: Bearer <token>} (no cookie jar, no session), plus any extra
      * headers given as name/value pairs. A null token sends no Authorization header at all.
      */
-    static HttpResponse< String > bearer( final String token, final String method, final String path, final String body,
+    public static HttpResponse< String > bearer( final String token, final String method, final String path, final String body,
                                           final String... extraHeaders ) throws Exception {
         final HttpRequest.Builder b = HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
             .header( "Accept", "application/json" )
@@ -141,7 +141,7 @@ final class WorkIt {
     }
 
     /** A multipart upload carrying only {@code Authorization: Bearer <token>}. */
-    static HttpResponse< String > bearerMultipart( final String token, final String path, final String filename,
+    public static HttpResponse< String > bearerMultipart( final String token, final String path, final String filename,
                                                    final byte[] bytes ) throws Exception {
         final String boundary = "----wikantik" + UUID.randomUUID().toString().replace( "-", "" );
         return PLAIN.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
@@ -152,7 +152,7 @@ final class WorkIt {
     }
 
     /** A GET carrying only {@code Authorization: Bearer <token>}, body as bytes. */
-    static HttpResponse< byte[] > bearerBytes( final String token, final String path ) throws Exception {
+    public static HttpResponse< byte[] > bearerBytes( final String token, final String path ) throws Exception {
         return PLAIN.send( HttpRequest.newBuilder().uri( URI.create( baseUrl() + path ) )
             .header( "Authorization", "Bearer " + token ).GET().build(), HttpResponse.BodyHandlers.ofByteArray() );
     }
@@ -172,16 +172,16 @@ final class WorkIt {
     }
 
     /** Every {@code Set-Cookie} header of the response, as sent. */
-    static List< String > setCookies( final HttpResponse< ? > r ) {
+    public static List< String > setCookies( final HttpResponse< ? > r ) {
         return r.headers().allValues( "Set-Cookie" );
     }
 
     /** An agent registered by the admin; the token is kept in memory only, never printed. */
-    record Agent( long id, String name, String token ) {
+    public record Agent( long id, String name, String token ) {
     }
 
     /** Registers an agent through the admin API (201) and keeps its one-time token. */
-    static Agent registerAgent( final Caller admin, final String name, final String... queues ) throws Exception {
+    public static Agent registerAgent( final Caller admin, final String name, final String... queues ) throws Exception {
         final HttpResponse< String > r = admin.send( "POST", "/api/work/agents", Map.of( "name", name,
             "vendor", "it", "runtime", "it", "queues", List.of( queues ) ) );
         assertEquals( 201, r.statusCode(), "register " + name + ": " + status( r ) );
@@ -190,16 +190,16 @@ final class WorkIt {
     }
 
     /** The status line only: response bodies of key-bearing calls are not written to logs or messages. */
-    static String status( final HttpResponse< String > r ) {
+    public static String status( final HttpResponse< String > r ) {
         return r.statusCode() + ( r.statusCode() >= 400 ? " " + r.body() : "" );
     }
 
-    static JsonElement json( final HttpResponse< String > r ) {
+    public static JsonElement json( final HttpResponse< String > r ) {
         return JsonParser.parseString( r.body() );
     }
 
     /** Polls until a 200 answer satisfies {@code ready}; fails with the last answer otherwise. */
-    static String await( final String surface, final Caller who, final String path, final Predicate< String > ready )
+    public static String await( final String surface, final Caller who, final String path, final Predicate< String > ready )
             throws Exception {
         final long deadline = System.currentTimeMillis() + 90_000L;
         HttpResponse< String > last = null;

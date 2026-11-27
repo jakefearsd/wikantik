@@ -5,7 +5,7 @@ This page is for developers who write or run Wikantik tests. It describes how th
 ## Know the two test layers
 
 - **Unit tests** are JUnit 5 and live under each module's `src/test`. `com.wikantik.TestEngine` builds a real engine for tests, and most components have mocks. `wikantik-main` and `wikantik-rest` run partitioned across forked JVMs (`wikantik.surefire.forkCount`, default `0.5C`).
-- **Integration tests** live under `wikantik-it-tests` and run only under the `integration-tests` profile. Cargo boots Tomcat and a pgvector container per module. The four default modules are `wikantik-it-test-rest`, `wikantik-it-test-sso`, `wikantik-it-test-custom-jdbc` and `wikantik-it-test-dense`. `wikantik-selenide-tests` is a shared support module with the Selenide browser tests and fixtures, not a suite of its own. `wikantik-it-test-scim-fullloop` is an opt-in Authentik suite built only under `-Pscim-fullloop`. More detail is in `wikantik-it-tests/README.md`.
+- **Integration tests** live under `wikantik-it-tests` and run only under the `integration-tests` profile. Cargo boots Tomcat and a pgvector container per module. The five default modules are `wikantik-it-test-work`, `wikantik-it-test-rest`, `wikantik-it-test-sso`, `wikantik-it-test-custom-jdbc` and `wikantik-it-test-dense`. `wikantik-selenide-tests` is a shared support module with the Selenide browser tests and fixtures, not a suite of its own. `wikantik-it-test-scim-fullloop` is an opt-in Authentik suite built only under `-Pscim-fullloop`. More detail is in `wikantik-it-tests/README.md`.
 
 ## Test against a real database
 

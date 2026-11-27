@@ -286,7 +286,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - **wikantik-work** (work management): projects, epics/stories/tasks, comments, queues, agents (each capped by a sponsor, with its own `wka_` token), claims, change records with autonomy gates, deployments, intake for people outside a project (the `reporter` role) and an append-only event log in `work_*` tables (V074, V076–V096, no V093); depends on neither `wikantik-api` nor `wikantik-main`; every caller goes through `WorkService`; ships dark behind `wikantik.work.enabled` (default `false`). Rules in `wikantik-work/CLAUDE.md`.
 - **wikantik-work-mcp**: the key-only agent endpoint `/work-mcp`; tools call `WorkService` and nothing else. Rules in `wikantik-work-mcp/CLAUDE.md`.
 - **wikantik-frontend**: React SPA (Vite build) — reader, editor, admin panel, Page Graph viewer (the Knowledge Graph UI was removed 2026-11-08)
-- **wikantik-it-tests**: Cargo-launched Tomcat + PostgreSQL/pgvector ITs. Default gate modules: `wikantik-it-test-rest` (REST + Selenide browser, built on the `wikantik-selenide-tests` test-jar), `-sso` (Keycloak OIDC+SAML), `-custom-jdbc`, `-dense` (the only one with embeddings on). Opt-in: `-scim-fullloop` (Authentik).
+- **wikantik-it-tests**: Cargo-launched Tomcat + PostgreSQL/pgvector ITs. Default gate modules: `wikantik-it-test-rest` (REST + Selenide browser, built on the `wikantik-selenide-tests` test-jar), `-work` (work management: REST, `/work-mcp`, the `/work` UI), `-sso` (Keycloak OIDC+SAML), `-custom-jdbc`, `-dense` (the only one with embeddings on). Opt-in: `-scim-fullloop` (Authentik).
 
 #### Agent-facing surface summary
 

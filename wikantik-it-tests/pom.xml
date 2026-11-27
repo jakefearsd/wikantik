@@ -33,6 +33,8 @@
 
   <modules>
     <module>wikantik-selenide-tests</module>
+    <!-- Longest first: a -T 4 reactor starts modules in this order, so the short sso and dense modules fill in last. -->
+    <module>wikantik-it-test-work</module>
     <module>wikantik-it-test-custom-jdbc</module>
     <module>wikantik-it-test-rest</module>
     <module>wikantik-it-test-sso</module>
@@ -43,8 +45,8 @@
     <!-- IT modules: main classes are Selenide page objects/helpers exercised only by the Cargo ITs, so the unit coverage ratchet is skipped here -->
     <wikantik.coverage.check.skip>true</wikantik.coverage.check.skip>
     <!-- Extra JVM args for a module's Cargo Tomcat (a module overrides this property). The collaboration IT wiki is the only
-         user: collaboration changes the editor, so it is on for wikantik-it-test-rest alone, never for the shared
-         Selenide suite. -->
+         user: collaboration changes the editor, so it is on for wikantik-it-test-rest and wikantik-it-test-work (which
+         keeps the flags the work ITs had when they ran in the rest module), never for the shared Selenide suite. -->
     <it.extra.jvmargs></it.extra.jvmargs>
     <!-- Collaborative editing for the browser suite: the run-tests.sh collab flag sets it.collab.jvmargs to the
          server flags and it.collab=true (read by CollabMode). Both off by default (collab is default-OFF). -->

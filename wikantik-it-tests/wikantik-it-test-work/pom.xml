@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <parent>
+    <groupId>com.wikantik.it</groupId>
+    <artifactId>wikantik-it-tests</artifactId>
+    <version>2.8.12-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>wikantik-it-test-work</artifactId>
+  <modelVersion>4.0.0</modelVersion>
+  <packaging>war</packaging>
+  <description>Work management integration tests for Wikantik (REST, the agent MCP endpoint, the /work UI) against a Cargo-deployed Tomcat. Split from wikantik-it-test-rest so the two run side by side in the IT phase.</description>
+
+  <properties>
+    <it-wikantik.context>${project.artifactId}</it-wikantik.context>
+
+    <it-wikantik.groupdatabase>com.wikantik.auth.authorize.JDBCGroupDatabase</it-wikantik.groupdatabase>
+    <it-wikantik.userdatabase>com.wikantik.auth.user.JDBCUserDatabase</it-wikantik.userdatabase>
+    <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
+
+    <!-- The same server flags as wikantik-it-test-rest, where these ITs used to run (collaborative editing, a private
+         cluster), so moving them changed nothing they see; the work settings come from this module's own cascade. -->
+    <it.extra.jvmargs>-Dwikantik.collab.enabled=true -Dwikantik.collab.poll.timeoutSeconds=4 -Dwikantik.access.privateClusters=it-private -Dwikantik.access.privateClusters.viewers=ItPrivateViewers -Dwikantik.custom.cascade.1=${project.basedir}/src/test/config/it-work-cascade.properties</it.extra.jvmargs>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>properties-maven-plugin</artifactId>
+      </plugin>
+
+      <!-- Activates the parent pluginManagement reserve-it-ports execution
+           (dynamic it.db.port / it.wikantik.servlet.port / it.wikantik.rmi.port)
+           so this module is parallel-safe. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <!-- Do NOT scan the selenide tests dependency — this module has its own tests -->
+          <dependenciesToScan combine.self="override" />
+          <!-- Every *IT.java in this module runs. -->
+          <includes>
+            <include>**/*IT.java</include>
+          </includes>
+          <systemPropertyVariables>
+            <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>
+            <!-- Forwarded so WorkClaimExpiryIT can backdate a claim over JDBC. Values come from it-db.properties
+                 loaded by the properties-maven-plugin in the parent IT pom. -->
+            <it.db.user>${it.db.user}</it.db.user>
+            <it.db.password>${it.db.password}</it.db.password>
+            <it.db.port>${it.db.port}</it.db.port>
+            <it.db.name>${it.db.name}</it.db.name>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.cargo</groupId>
+        <artifactId>cargo-maven3-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+  <dependencies>
+    <!-- JSON parsing for REST response validation -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- WorkIt and the Selenide page objects for WorkBoardIT and WorkJourneyIT (the classes only; its ITs are not scanned here). -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>wikantik-selenide-tests</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- MCP SDK client: WorkMcpIT drives /work-mcp over the wire. -->
+    <dependency>
+      <groupId>io.modelcontextprotocol.sdk</groupId>
+      <artifactId>mcp</artifactId>
+      <version>${mcp-sdk.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

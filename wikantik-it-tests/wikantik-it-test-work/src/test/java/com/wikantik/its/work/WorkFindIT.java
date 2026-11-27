@@ -16,12 +16,12 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.its.rest;
+package com.wikantik.its.work;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.wikantik.its.rest.WorkIt.Caller;
+import com.wikantik.its.work.WorkIt.Caller;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.wikantik.its.rest.WorkIt.json;
+import static com.wikantik.its.work.WorkIt.json;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

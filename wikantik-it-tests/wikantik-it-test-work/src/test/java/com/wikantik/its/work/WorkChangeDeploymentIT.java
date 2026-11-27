@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.its.rest;
+package com.wikantik.its.work;
 
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;

@@ -16,10 +16,10 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.its.rest;
+package com.wikantik.its.work;
 
 import com.google.gson.JsonObject;
-import com.wikantik.its.rest.WorkIt.Caller;
+import com.wikantik.its.work.WorkIt.Caller;
 import org.junit.jupiter.api.Test;
 
 import java.net.http.HttpResponse;

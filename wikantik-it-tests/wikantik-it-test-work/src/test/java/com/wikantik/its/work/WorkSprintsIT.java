@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.its.rest;
+package com.wikantik.its.work;
 
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
@@ -25,7 +25,7 @@ import com.google.gson.JsonObject;
 import com.wikantik.its.RestSeedHelper;
 import com.wikantik.its.WithIntegrationTestSetup;
 import com.wikantik.its.environment.Env;
-import com.wikantik.its.rest.WorkIt.Caller;
+import com.wikantik.its.work.WorkIt.Caller;
 import com.wikantik.pages.Page;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.AfterEach;

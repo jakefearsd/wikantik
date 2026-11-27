@@ -6,6 +6,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Build: the work management ITs run in their own IT module, `wikantik-it-test-work` (`bin/run-tests.sh --module work`), beside the REST ITs instead of after them; the gate still runs at most four IT modules at once.
 - Build: no SBOM goal is bound to the Maven lifecycle any more. The inherited `makeAggregateBom` binding is an aggregator goal, so parallel builds ran it with exclusive access and stalled other modules (gate 15 min to 11 min); CI's OSV scan still builds its SBOM explicitly.
 - The Page Graph showed the graph as it was up to a minute before: its snapshot cache was never dropped when a page was saved, deleted or renamed. It is now dropped once each change reaches the structural index.
 - Build: REST ITs no longer sleep out cache and audit-flush windows (an audit fence proves earlier entries are stored; about 90 s off the serial REST IT module); test engines poll their reference manager every millisecond instead of every 50 ms; the TDB2 compaction test churns 8 cycles instead of 40.

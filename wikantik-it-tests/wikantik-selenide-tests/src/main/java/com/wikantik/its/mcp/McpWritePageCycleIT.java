@@ -285,4 +285,38 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
         Assertions.assertEquals( Boolean.FALSE, postRead.get( "exists" ),
                 "deleted slug must read as missing: " + postRead );
     }
+
+    // ------------------------------------------------------------------
+    // update_page — a blank canonical_id must never displace the page's identity
+    // ------------------------------------------------------------------
+
+    private static String canonicalIdIn( final Object content ) {
+        final java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile( "(?m)^canonical_id:\\s*['\"]?([^'\"\\r\\n]+)" ).matcher( String.valueOf( content ) );
+        return m.find() ? m.group( 1 ).trim() : null;
+    }
+
+    @Test
+    public void updatePage_blankCanonicalIdKeepsTheExistingOne() {
+        final String name = uniquePageName( "KeepCanonicalId" );
+        mcp.importPage( name, "Body whose identity must survive an agent's blank canonical_id." );
+        final Map< String, Object > read0 = mcp.callTool( "read_page", Map.of( "slug", name ) );
+        final String id = canonicalIdIn( read0.get( "content" ) );
+        Assertions.assertNotNull( id, "premise: the save assigned a canonical_id: " + read0.get( "content" ) );
+
+        String hash = ( String ) read0.get( "contentHash" );
+        for ( final String blank : List.of( "", "   " ) ) {
+            final Map< String, Object > updated = mcp.callTool( "update_page",
+                    Map.of( "slug", name,
+                            "metadata", Map.of( "canonical_id", blank, "summary", "Edited with canonical_id '" + blank + "'" ),
+                            "expectedContentHash", hash ) );
+            Assertions.assertEquals( Boolean.TRUE, updated.get( "updated" ), "update must succeed: " + updated );
+            final Map< String, Object > read = mcp.callTool( "read_page", Map.of( "slug", name ) );
+            Assertions.assertEquals( id, canonicalIdIn( read.get( "content" ) ),
+                    "a blank canonical_id ('" + blank + "') must keep the page's id: " + read.get( "content" ) );
+            Assertions.assertTrue( read.get( "content" ).toString().contains( "Edited with canonical_id" ),
+                    "the rest of the metadata edit still applies: " + read.get( "content" ) );
+            hash = ( String ) read.get( "contentHash" );
+        }
+    }
 }

@@ -76,21 +76,32 @@ class WorkMcpEdgesPostgresTest {
     @Test
     void aPersonsContextNamesNoAgentAndTheyHoldNoClaims() {
         final JsonObject me = ok( call( f.lena, "get_work_context" ) );
-        assertTrue( me.toString().contains( "Lena Lead" ) || me.toString().contains( "lena" ), me.toString() );
-        assertFalse( me.toString().contains( "\"vendor\":\"Acme\"" ), "a person has no agent record" );
+        assertEquals( "Lena Lead", me.get( "person" ).getAsString(), "the display name, not the login" );
+        assertTrue( me.get( "agent" ).isJsonNull(), "a person has no agent record" );
+        assertFalse( me.toString().contains( "\"lena\"" ), me.toString() );
         assertEquals( 0, me.getAsJsonArray( "claims" ).size() );
         final JsonObject builder = ok( call( f.builderActor, "get_work_context" ) );
-        assertTrue( builder.toString().contains( "Acme" ), "an agent sees its own record" );
+        assertTrue( builder.get( "person" ).isJsonNull() );
+        assertEquals( "builder", builder.getAsJsonObject( "agent" ).get( "name" ).getAsString() );
+        assertEquals( "Acme", builder.getAsJsonObject( "agent" ).get( "vendor" ).getAsString(), "an agent sees its own record" );
+        assertEquals( "claude-code", builder.getAsJsonObject( "agent" ).get( "runtime" ).getAsString() );
+        final var queue = builder.getAsJsonObject( "agent" ).getAsJsonArray( "queues" ).get( 0 ).getAsJsonObject();
+        assertEquals( "implementer", queue.get( "key" ).getAsString() );
+        assertEquals( "Implementer", queue.get( "name" ).getAsString() );
     }
 
     @Test
     void aHeldClaimShowsWhenItExpires() throws SQLException {
         final Item item = f.ready( "PLAT", "Held" );
         final JsonObject claimed = ok( call( f.builderActor, "claim_item", "key", item.key() ) );
-        assertTrue( claimed.getAsJsonObject( "claim" ).get( "expiresAt" ).getAsString().contains( "T" ) );
+        final java.time.Instant expires = java.time.Instant.parse(
+            claimed.getAsJsonObject( "claim" ).get( "expiresAt" ).getAsString() );
+        assertTrue( expires.isAfter( java.time.Instant.now() ) );
         final JsonObject me = ok( call( f.builderActor, "get_work_context" ) );
         assertEquals( 1, me.getAsJsonArray( "claims" ).size() );
-        assertTrue( me.getAsJsonArray( "claims" ).get( 0 ).getAsJsonObject().get( "expiresAt" ).getAsString().contains( "T" ) );
+        assertEquals( expires, java.time.Instant.parse(
+            me.getAsJsonArray( "claims" ).get( 0 ).getAsJsonObject().get( "expiresAt" ).getAsString() ) );
+        assertEquals( item.key(), me.getAsJsonArray( "claims" ).get( 0 ).getAsJsonObject().get( "key" ).getAsString() );
     }
 
     // ---- an item with everything, and with nothing

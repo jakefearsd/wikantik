@@ -35,7 +35,6 @@ import org.mockito.Mockito;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -170,7 +169,7 @@ class WorkAgentRegistryPostgresTest {
         final WorkService.AgentWithToken rotated = service.registry().rotateCredential( lena, made.agent().id() );
         assertNotEquals( made.token(), rotated.token() );
         assertNull( actorOf( made.token() ), "the old token is nobody from the next request" );
-        assertNotNull( actorOf( rotated.token() ) );
+        assertEquals( made.agent().id(), actorOf( rotated.token() ).agentId(), "the new token is the same agent's" );
         assertTrue( audited.contains( "lena|work.agent.rotate_key|codex|null" ) );
     }
 
@@ -183,7 +182,7 @@ class WorkAgentRegistryPostgresTest {
         assertEquals( text, denial( () -> service.registry().retireAgent( mia, id ) ) );
         assertEquals( text, denial( () -> service.registry().updateAgent( pat, id, draft( "codex" ) ) ) );
         assertEquals( text, denial( () -> service.registry().releaseSponsorship( pat, id ) ) );
-        assertNotNull( service.registry().rotateCredential( root, id ).token() );
+        assertTrue( service.registry().rotateCredential( root, id ).token().startsWith( AgentTokens.PREFIX ) );
         service.registry().retireAgent( lena, id );
         assertTrue( store.agent( id ).orElseThrow().retiredAt() != null );
     }
@@ -230,7 +229,8 @@ class WorkAgentRegistryPostgresTest {
         service.putMember( root, "PLAT", "lena", "user", WorkRole.MEMBER );
         assertEquals( "Editing an agent takes a project lead or a wiki administrator.",
             denial( () -> service.registry().updateAgent( lena, id, draft( "codex" ) ) ) );
-        assertNotNull( service.registry().rotateCredential( lena, id ).token(), "rotating only reduces risk" );
+        assertTrue( service.registry().rotateCredential( lena, id ).token().startsWith( AgentTokens.PREFIX ),
+            "rotating only reduces risk" );
         service.registry().retireAgent( lena, id );
     }
 
@@ -438,7 +438,7 @@ class WorkAgentRegistryPostgresTest {
         assertEquals( "codex", view.agent().name() );
         assertEquals( WorkRegistryService.AgentStatus.ACTIVE, view.status(), "not looked up: the change just succeeded" );
         outage = false;
-        assertNotNull( actorOf( rotated.token() ), "and the token that was returned is the live one" );
+        assertEquals( made.agent().id(), actorOf( rotated.token() ).agentId(), "and the token that was returned is the live one" );
     }
 
     // ---- findings deferred from the phase 3a review
@@ -494,5 +494,149 @@ class WorkAgentRegistryPostgresTest {
         service.createProduct( root, wikantik );
         assertEquals( WorkConflictException.EXISTS, assertThrows( WorkConflictException.class,
             () -> second.createProduct( root, wikantik ) ).reason() );
+    }
+
+    // ---- gaps a mutation run found
+
+    @Test
+    void registeringRotatingAndRetiringAreAuditedByAgentName() throws SQLException {
+        final WorkService.AgentWithToken made = service.registry().registerAgent( lena, draft( "codex" ) );
+        assertEquals( List.of( "lena|work.agent.register|codex|null" ), audited );
+        audited.clear();
+        service.registry().retireAgent( lena, made.agent().id() );
+        assertEquals( List.of( "lena|work.agent.retire|codex|null" ), audited );
+    }
+
+    @Test
+    void updatingWithoutRenamingAuditsNoRenameDetail() throws SQLException {
+        final long id = codexInPlat().agent().id();
+        audited.clear();
+        service.registry().updateAgent( lena, id, new AgentDraft( null, "other-vendor", null, null ) );
+        assertEquals( List.of( "lena|work.agent.update|codex|null" ), audited );
+        assertEquals( "other-vendor", store.agent( id ).orElseThrow().vendor() );
+    }
+
+    @Test
+    void anAgentCannotBeRenamedToAnotherAgentsName() throws SQLException {
+        final long id = codexInPlat().agent().id();
+        service.registry().registerAgent( lena, draft( "spare" ) );
+        assertThrows( WorkConflictException.class,
+            () -> service.registry().updateAgent( lena, id, new AgentDraft( "Spare", null, null, null ) ) );
+        assertEquals( "codex", store.agent( id ).orElseThrow().name() );
+    }
+
+    @Test
+    void anAgentNameIsRequiredAndShaped() {
+        for ( final String bad : new String[] { null, "", "  ", "Has Space", "-x!" } ) {
+            assertEquals( "name", assertThrows( WorkValidationException.class,
+                () -> service.registry().registerAgent( lena, new AgentDraft( bad, "v", "r", List.of() ) ) ).field(),
+                String.valueOf( bad ) );
+        }
+    }
+
+    @Test
+    void queuesAreDeduplicatedMustExistAndRetiredOnesStayOnlyWhereAlreadyServed() throws SQLException {
+        final long id = service.registry().registerAgent( lena,
+            new AgentDraft( "second", "v", "r", List.of( "implementer", "implementer", "reviewer" ) ) ).agent().id();
+        assertEquals( List.of( "implementer", "reviewer" ), store.agent( id ).orElseThrow().queues() );
+        assertEquals( "queues", assertThrows( WorkValidationException.class, () -> service.registry().registerAgent(
+            lena, new AgentDraft( "bot", "v", "r", List.of( "ghost" ) ) ) ).field() );
+        assertEquals( "queues", assertThrows( WorkValidationException.class, () -> service.registry().registerAgent(
+            lena, new AgentDraft( "bot", "v", "r", java.util.Arrays.asList( "implementer", null ) ) ) ).field() );
+        service.registry().retireQueue( root, "reviewer" );
+        service.registry().updateAgent( lena, id, new AgentDraft( null, null, null, List.of( "reviewer" ) ) );
+        assertEquals( List.of( "reviewer" ), store.agent( id ).orElseThrow().queues(), "already served: kept" );
+        assertEquals( "queues", assertThrows( WorkValidationException.class, () -> service.registry().registerAgent(
+            lena, new AgentDraft( "third", "v", "r", List.of( "reviewer" ) ) ) ).field(), "a new agent cannot join" );
+        final long none = service.registry().registerAgent( lena, new AgentDraft( "scribe-bot", "v", "r", null ) )
+            .agent().id();
+        assertEquals( List.of(), store.agent( none ).orElseThrow().queues() );
+    }
+
+    @Test
+    void aChangedAgentIsDescribedByItsRowAlone() throws SQLException {
+        final Agent active = codexInPlat().agent();
+        final WorkRegistryService.AgentView view = service.registry().describe( active );
+        assertEquals( WorkRegistryService.AgentStatus.ACTIVE, view.status() );
+        assertEquals( "Dn lena", view.sponsorName() );
+        assertFalse( view.mayTakeOver() );
+        service.registry().releaseSponsorship( lena, active.id() );
+        final WorkRegistryService.AgentView orphan = service.registry().describe( store.agent( active.id() ).orElseThrow() );
+        assertEquals( WorkRegistryService.AgentStatus.NO_SPONSOR, orphan.status() );
+        assertNull( orphan.sponsorName() );
+        service.registry().retireAgent( root, active.id() );
+        assertEquals( WorkRegistryService.AgentStatus.RETIRED,
+            service.registry().describe( store.agent( active.id() ).orElseThrow() ).status() );
+        assertEquals( WorkRegistryService.AgentStatus.RETIRED, service.registry().describe(
+            new Agent( 1, "x", "", "", "lena", List.of(), java.time.Instant.EPOCH, java.time.Instant.EPOCH ) ).status(),
+            "retired wins over a sponsor" );
+    }
+
+    @Test
+    void anAgentSeesItsOwnRecordUntilRetiredAndNoOneElseHasOne() throws SQLException {
+        final WorkService.AgentWithToken made = codexInPlat();
+        final Actor self = actorOf( made.token() );
+        assertEquals( "codex", service.registry().self( self ).orElseThrow().name() );
+        assertTrue( service.registry().self( lena ).isEmpty(), "a person has no agent record" );
+        assertTrue( service.registry().self( Actor.agent( made.agent().id(), "codex" ) ).isPresent(),
+            "no sponsor needed to read one's own record" );
+        service.registry().retireAgent( lena, made.agent().id() );
+        assertTrue( service.registry().self( self ).isEmpty() );
+    }
+
+    @Test
+    void onlyALiveSponsoredAgentWithARealSponsorBecomesAnActor() throws SQLException {
+        final long id = codexInPlat().agent().id();
+        assertNull( service.registry().actorForAgent( 999_999 ) );
+        final Actor live = service.registry().actorForAgent( id );
+        assertEquals( "lena", live.sponsor().login() );
+        assertEquals( id, live.agentId() );
+        gone.add( "lena" );
+        assertNull( service.registry().actorForAgent( id ), "the sponsor's account is gone" );
+        gone.clear();
+        service.registry().releaseSponsorship( lena, id );
+        assertNull( service.registry().actorForAgent( id ), "no sponsor, no actor" );
+        service.registry().takeOver( pat, id );
+        service.registry().retireAgent( pat, id );
+        assertNull( service.registry().actorForAgent( id ), "retired" );
+    }
+
+    @Test
+    void agentStandingsSkipUserRowsAndRetiredAgents() throws SQLException {
+        final long codex = codexInPlat().agent().id();
+        final long old = service.registry().registerAgent( lena, draft( "old" ) ).agent().id();
+        service.putMember( lena, "PLAT", "old", "agent", WorkRole.MEMBER );
+        service.registry().retireAgent( lena, old );
+        assertEquals( Set.of( codex ), service.registry().agentStandings( mia, "PLAT" ).keySet() );
+    }
+
+    @Test
+    void queueChangesAreAuditedAndReturnTheStoredQueue() throws SQLException {
+        final Queue q = service.registry().createQueue( root, "triage", "  Triage ", null );
+        assertEquals( "triage", q.key() );
+        assertEquals( "Triage", q.name() );
+        assertEquals( "", q.description() );
+        service.registry().updateQueue( root, "triage", "Triage 2", "d" );
+        service.registry().retireQueue( root, "triage" );
+        assertEquals( List.of( "root|work.queue.create|triage|null", "root|work.queue.update|triage|null",
+            "root|work.queue.retire|triage|null" ), audited );
+    }
+
+    @Test
+    void queueWritesValidateKeyAndNameAndNeedAnExistingQueue() throws SQLException {
+        assertEquals( "name", assertThrows( WorkValidationException.class,
+            () -> service.registry().createQueue( root, "triage", " ", "" ) ).field() );
+        assertEquals( "name", assertThrows( WorkValidationException.class,
+            () -> service.registry().updateQueue( root, "implementer", "", "" ) ).field() );
+        assertEquals( "key", assertThrows( WorkValidationException.class,
+            () -> service.registry().updateQueue( root, "Bad Key", "N", "" ) ).field() );
+        assertEquals( "key", assertThrows( WorkValidationException.class,
+            () -> service.registry().retireQueue( root, "Bad Key" ) ).field() );
+        assertEquals( "No such queue: ghost", assertThrows( WorkNotFoundException.class,
+            () -> service.registry().updateQueue( root, "ghost", "N", "" ) ).getMessage() );
+        assertEquals( "No such queue: ghost", assertThrows( WorkNotFoundException.class,
+            () -> service.registry().retireQueue( root, "ghost" ) ).getMessage() );
+        assertThrows( WorkDeniedException.class, () -> service.registry().retireQueue( lena, "implementer" ) );
+        assertTrue( audited.isEmpty() );
     }
 }

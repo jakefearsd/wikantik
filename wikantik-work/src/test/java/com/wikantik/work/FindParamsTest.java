@@ -183,4 +183,42 @@ class FindParamsTest {
             FindParams.parse( Map.of( "updatedSince", "9999-12-31T23:59:59Z" ) ).updatedSince() );
         assertEquals( Instant.EPOCH, FindParams.parse( Map.of( "updatedSince", "1970-01-01" ) ).updatedSince() );
     }
+
+    @Test
+    void fiftyProjectKeysAreAcceptedAndFiftyOneAreRefused() {
+        final java.util.List< String > fifty = new java.util.ArrayList<>();
+        for ( int i = 0; i < 50; i++ ) {
+            fifty.add( "A" + (char) ( 'A' + i / 26 ) + (char) ( 'A' + i % 26 ) );
+        }
+        assertEquals( 50, FindParams.parse( Map.of( "projects", String.join( ",", fifty ) ) ).projectKeys().size() );
+        fifty.add( "ZZZ" );
+        assertEquals( "projects", refusedField( "projects", String.join( ",", fifty ) ) );
+        assertEquals( "projects", refusedField( "projects", ",,," ), "separators alone name no project" );
+    }
+
+    @Test
+    void textFieldsAcceptTheirLimitAndRefuseOneMore() {
+        assertEquals( 200, FindParams.parse( Map.of( "q", "x".repeat( 200 ) ) ).text().length() );
+        assertEquals( "q", refusedField( "q", "x".repeat( 201 ) ) );
+        assertEquals( 200, FindParams.parse( Map.of( "cursor", "c".repeat( 200 ) ) ).cursor().length() );
+        assertEquals( "cursor", refusedField( "cursor", "c".repeat( 201 ) ) );
+    }
+
+    @Test
+    void watchingIsExactlyTrueOrFalse() {
+        assertTrue( FindParams.parse( Map.of( "watching", "true" ) ).watching() );
+        assertTrue( !FindParams.parse( Map.of( "watching", "false" ) ).watching() );
+        assertTrue( !FindParams.parse( Map.of() ).watching() );
+        assertEquals( "watching", refusedField( "watching", "yes" ) );
+        assertEquals( "watching", refusedField( "watching", "TRUE" ) );
+    }
+
+    @Test
+    void aSprintIsWrittenBackAsActiveNoneOrItsId() {
+        for ( final String wire : new String[] { "active", "none", "42" } ) {
+            final FindFilter f = FindParams.parse( Map.of( "sprint", wire ) );
+            assertEquals( wire, FindParams.toParams( f ).get( "sprint" ) );
+        }
+        assertTrue( !FindParams.toParams( FindParams.parse( Map.of() ) ).containsKey( "sprint" ) );
+    }
 }

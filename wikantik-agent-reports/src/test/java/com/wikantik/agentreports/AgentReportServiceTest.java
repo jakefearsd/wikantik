@@ -85,4 +85,15 @@ class AgentReportServiceTest {
         svc.file( ARGS, new Filer( "c", "h", "a" ) );
         assertEquals( 1, svc.list( new ReportQuery( null, null, null, null, null, null, null, 10 ) ).size() );
     }
+
+    @Test
+    void aLimitOfZeroOrLessDisablesRateLimiting() {
+        for ( final int limit : new int[] { 0, -1 } ) {
+            final AgentReportService svc = new AgentReportService( new MemStore(), limit, new TestClock() );
+            final Filer alice = new Filer( "c", "h", "alice" );
+            for ( int i = 0; i < 5; i++ ) {
+                assertInstanceOf( FileResult.Filed.class, svc.file( ARGS, alice ), "limit " + limit );
+            }
+        }
+    }
 }

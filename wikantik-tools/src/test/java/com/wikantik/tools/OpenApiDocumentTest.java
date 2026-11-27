@@ -196,4 +196,33 @@ class OpenApiDocumentTest {
         assertFalse( json.contains( "Last author login" ), json );
         assertTrue( json.contains( "Display name of the last author, when recorded" ), json );
     }
+
+    // ---- mutation-driven additions ----
+
+    private String serverUrlFor( final String scheme, final int port ) {
+        when( request.getScheme() ).thenReturn( scheme );
+        when( request.getServerName() ).thenReturn( "h.example" );
+        when( request.getServerPort() ).thenReturn( port );
+        final JsonObject root = JsonParser.parseString( OpenApiDocument.render( request, new ToolsConfig( new Properties() ) ) )
+                .getAsJsonObject();
+        return root.getAsJsonArray( "servers" ).get( 0 ).getAsJsonObject().get( "url" ).getAsString();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( { "http,80,http://h.example/tools", "https,443,https://h.example/tools",
+            "http,443,http://h.example:443/tools", "https,80,https://h.example:80/tools",
+            "http,8080,http://h.example:8080/tools" } )
+    void serverUrlOmitsThePortOnlyWhenItIsTheSchemesDefault( final String scheme, final int port, final String expected ) {
+        assertEquals( expected, serverUrlFor( scheme, port ) );
+    }
+
+    @Test
+    void infoBlockNamesTheServerAndStatesThatTheToolsActAsAnAnonymousReader() {
+        final JsonObject info = JsonParser.parseString( OpenApiDocument.render( request, new ToolsConfig( new Properties() ) ) )
+                .getAsJsonObject().getAsJsonObject( "info" );
+        assertEquals( "Wikantik Tool Server", info.get( "title" ).getAsString() );
+        assertFalse( info.get( "version" ).getAsString().isBlank() );
+        assertTrue( info.get( "description" ).getAsString().contains( "signed-out reader" ),
+                "the document must tell clients which visibility rule the tools apply" );
+    }
 }

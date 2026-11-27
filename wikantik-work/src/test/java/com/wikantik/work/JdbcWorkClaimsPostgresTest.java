@@ -579,4 +579,17 @@ class JdbcWorkClaimsPostgresTest {
         final Item mid = inSprint( "p3", 3, null );
         assertEquals( List.of( high.id(), mid.id(), low.id() ), order() );
     }
+
+    @Test
+    void aLimitOfZeroMeansTheDefaultNotNone() throws SQLException {
+        fx.ready( "x" );
+        fx.ready( "y" );
+        assertEquals( 2, claims.claimable( null, Set.of( fx.plat.id() ), null, 0 ).size() );
+        assertEquals( 1, claims.claimable( null, Set.of( fx.plat.id() ), null, 1 ).size() );
+        assertEquals( 2, claims.claimable( null, Set.of( fx.plat.id() ), null, -5 ).size() );
+        assertTrue( claims.claimable( null, null, null, 10 ).isEmpty() );
+        assertTrue( claims.claimable( null, Set.of(), null, 10 ).isEmpty() );
+        assertTrue( claims.claimsHeldBy( fx.a.id(), Set.of() ).isEmpty() );
+        assertTrue( claims.claimsHeldBy( fx.a.id(), null ).isEmpty() );
+    }
 }

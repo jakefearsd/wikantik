@@ -48,7 +48,7 @@ import static org.mockito.Mockito.when;
 class WorkMcpLoggingTest {
 
     /** Every event of the named logger at {@code Level.ALL} while {@code action} runs. */
-    private static List< LogEvent > logged( final String logger, final ThrowingRunnable action ) throws Exception {
+    static List< LogEvent > logged( final String logger, final ThrowingRunnable action ) throws Exception {
         final List< LogEvent > events = new CopyOnWriteArrayList<>();
         final AbstractAppender capture = new AbstractAppender( "WorkMcpLoggingCapture", null, null, true,
             Property.EMPTY_ARRAY ) {
@@ -75,7 +75,7 @@ class WorkMcpLoggingTest {
     }
 
     @FunctionalInterface
-    private interface ThrowingRunnable {
+    interface ThrowingRunnable {
         void run() throws Exception;
     }
 
@@ -93,7 +93,7 @@ class WorkMcpLoggingTest {
         assertNull( warn.getThrown(), "no stack: its first line would print the message" );
     }
 
-    private static McpTransportContext keyed() {
+    static McpTransportContext keyed() {
         return McpTransportContext.create( Map.of( WorkMcpActors.KEY_RECORD, new ApiKeyService.Record( 9, "h", "lena",
             "k", ApiKeyService.Scope.WORK, Instant.EPOCH, "admin", null, null, null, false ) ) );
     }

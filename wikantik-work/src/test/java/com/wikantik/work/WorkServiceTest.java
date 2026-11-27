@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -485,5 +486,233 @@ class WorkServiceTest {
             .thenReturn( new Link( 1, 12, "blocked_by", "PLAT-2" ) );
         service.addLink( alice, "PLAT-3", "blocked_by", "plat-2" );
         verify( store ).addLink( any(), eq( "blocked_by" ), eq( "PLAT-2" ), eq( alice ) );
+    }
+
+    // ---- guards a mutation run found unpinned
+
+    private void archivePlat() throws SQLException {
+        when( store.project( "PLAT" ) ).thenReturn( Optional.of( new Project( 1, "PLAT", "Platform", "",
+            Autonomy.SUPERVISED, NOW, NOW ) ) );
+    }
+
+    private void comment( final long id, final String author ) throws SQLException {
+        when( store.comment( id ) ).thenReturn( Optional.of( new Comment( id, 12, author, "text", NOW, null, null,
+            null ) ) );
+    }
+
+    @Test
+    void listProjectsWithRolesShowsMembersTheirRoleAndOmitsProjectsWithNoStanding() throws SQLException {
+        when( store.visibleProjects( alice ) ).thenReturn( List.of( plat, ops ) );
+        final List< WorkService.ProjectRole > mine = service.listProjectsWithRoles( alice );
+        assertEquals( 1, mine.size(), "alice has no role in OPS" );
+        assertEquals( "PLAT", mine.get( 0 ).project().key() );
+        assertEquals( WorkRole.MEMBER, mine.get( 0 ).role() );
+    }
+
+    @Test
+    void listProjectsWithRolesShowsAnAdminWithNoRowAsLead() throws SQLException {
+        when( store.visibleProjects( admin ) ).thenReturn( List.of( ops ) );
+        final List< WorkService.ProjectRole > all = service.listProjectsWithRoles( admin );
+        assertEquals( 1, all.size() );
+        assertEquals( WorkRole.LEAD, all.get( 0 ).role() );
+    }
+
+    @Test
+    void createProjectNeedsANameAndStoresTrimmedNameAndEmptyDescription() throws SQLException {
+        assertEquals( "name", invalid( () -> service.createProject( admin, "NEW", " ", "" ) ).field() );
+        assertEquals( "name", invalid( () -> service.createProject( admin, "NEW", null, "" ) ).field() );
+        when( store.createProject( "NEW", "New", "", admin ) )
+            .thenReturn( new Project( 5, "NEW", "New", "", Autonomy.SUPERVISED, NOW, null ) );
+        assertEquals( 5, service.createProject( admin, "NEW", "  New ", null ).id() );
+    }
+
+    @Test
+    void anArchivedProjectCannotBeArchivedAgain() throws SQLException {
+        archivePlat();
+        assertThrows( WorkConflictException.class, () -> service.archiveProject( admin, "PLAT" ) );
+        verify( store, never() ).archiveProject( anyLong(), any(), any( Actor.class ) );
+    }
+
+    @Test
+    void removingAMemberNeedsALeadAndAWritableProjectAndAValidReference() throws SQLException {
+        assertThrows( WorkDeniedException.class, () -> service.removeMember( alice, "PLAT", "bob", "user" ) );
+        assertEquals( "principal", invalid( () -> service.removeMember( lead, "PLAT", " ", "user" ) ).field() );
+        assertEquals( "principalKind", invalid( () -> service.removeMember( lead, "PLAT", "bob", "robot" ) ).field() );
+        archivePlat();
+        assertThrows( WorkConflictException.class, () -> service.removeMember( lead, "PLAT", "bob", "user" ) );
+        verify( store, never() ).removeMember( anyLong(), anyString(), anyString(), any( Actor.class ), any() );
+    }
+
+    @Test
+    void addingAMemberNeedsARoleAndAKnownKind() {
+        assertEquals( "role", invalid( () -> service.putMember( lead, "PLAT", "bob", "user", null ) ).field() );
+        assertEquals( "principalKind",
+            invalid( () -> service.putMember( lead, "PLAT", "bob", "robot", WorkRole.MEMBER ) ).field() );
+        assertEquals( "principal",
+            invalid( () -> service.putMember( lead, "PLAT", "", "user", WorkRole.MEMBER ) ).field() );
+    }
+
+    @Test
+    void updatingAProjectNeedsANameEvenWhenOnlyAutonomyChanges() {
+        assertEquals( "name", invalid( () -> service.updateProject( lead, "PLAT", " ", "d", null ) ).field() );
+        assertThrows( WorkDeniedException.class, () -> service.updateProject( alice, "PLAT", "n", "d", null ) );
+    }
+
+    @Test
+    void aProductMayNotBeCreatedTwiceAndTheStoredOneIsReturned() throws SQLException {
+        final Product draft = new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED, DeployGate.HUMAN,
+            null );
+        final Product stored = new Product( 8, "web", "Web", null, null, null, Autonomy.DELEGATED, DeployGate.HUMAN,
+            null );
+        when( store.product( "web" ) ).thenReturn( Optional.of( stored ) );
+        assertThrows( WorkConflictException.class, () -> service.createProduct( admin, draft ) );
+        when( store.product( "web" ) ).thenReturn( Optional.empty() );
+        when( store.createProduct( any() ) ).thenReturn( stored );
+        assertEquals( stored, service.createProduct( admin, draft ) );
+    }
+
+    @Test
+    void anUnknownProductIsNotFoundByNameWhenUpdatedOrArchived() throws SQLException {
+        final Product p = new Product( 0, "ghost", "Ghost", null, null, null, Autonomy.DELEGATED, DeployGate.HUMAN,
+            null );
+        assertThrows( WorkDeniedException.class, () -> service.updateProduct( lead, p ) );
+        when( store.product( "ghost" ) ).thenReturn( Optional.empty() );
+        assertEquals( "No such product: ghost",
+            assertThrows( WorkNotFoundException.class, () -> service.updateProduct( admin, p ) ).getMessage() );
+        assertEquals( "No such product: ghost",
+            assertThrows( WorkNotFoundException.class, () -> service.archiveProduct( admin, "ghost" ) ).getMessage() );
+        verify( store, never() ).updateProduct( any(), any(), any( Actor.class ) );
+        verify( store, never() ).archiveProduct( any(), any(), any( Actor.class ) );
+    }
+
+    @Test
+    void anEmptyPatchIsRefusedWhetherItsChangesAreNullOrEmpty() throws SQLException {
+        assertEquals( "changes", invalid( () -> service.updateItem( alice, "PLAT-3",
+            new ItemPatch( 4, null, null ) ) ).field() );
+        assertEquals( "changes", invalid( () -> service.updateItem( alice, "PLAT-3",
+            new ItemPatch( 4, Map.of(), null ) ) ).field() );
+        verify( store, never() ).writeItem( any(), any(), any( Actor.class ), any(), org.mockito.ArgumentMatchers.anyBoolean() );
+    }
+
+    @Test
+    void creatingAnItemTrimsNoAssigneeButResolvesANamedOne() throws SQLException {
+        service.createItem( alice, draft( WorkLevel.TASK, null, null, "t", "  " ) );
+        final ArgumentCaptor< Item > blank = ArgumentCaptor.forClass( Item.class );
+        verify( store ).createItem( any(), blank.capture(), any( Actor.class ) );
+        assertNull( blank.getValue().assignee(), "a blank assignee is no assignee" );
+        service.createItem( alice, draft( WorkLevel.TASK, null, null, "t2", "bob" ) );
+        final ArgumentCaptor< Item > named = ArgumentCaptor.forClass( Item.class );
+        verify( store, org.mockito.Mockito.times( 2 ) ).createItem( any(), named.capture(), any( Actor.class ) );
+        assertEquals( "bob", named.getAllValues().get( 1 ).assignee() );
+    }
+
+    @Test
+    void activityForAnItemOfAnotherProjectIsNotFound() throws SQLException {
+        role( 2, "alice", WorkRole.MEMBER );
+        assertThrows( WorkNotFoundException.class,
+            () -> service.activity( alice, "PLAT", null, null, "OPS-1", null, 10 ) );
+        verify( store, never() ).projectEvents( anyLong(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(),
+            org.mockito.ArgumentMatchers.anyInt() );
+    }
+
+    @Test
+    void aViewerMayNotComment() throws SQLException {
+        assertThrows( WorkDeniedException.class, () -> service.addComment( viewer, "PLAT-3", "hi" ) );
+        verify( store, never() ).addComment( any(), any( Actor.class ), anyString(), anyList() );
+    }
+
+    @Test
+    void aBlankCommentIsRefusedOnAddAndOnEdit() throws SQLException {
+        comment( 5, "alice" );
+        assertEquals( "body", invalid( () -> service.addComment( alice, "PLAT-3", "  " ) ).field() );
+        assertEquals( "body", invalid( () -> service.editComment( alice, 5, "  " ) ).field() );
+        assertEquals( "body", invalid( () -> service.editComment( alice, 5, null ) ).field() );
+        verify( store, never() ).addComment( any(), any( Actor.class ), anyString(), anyList() );
+        verify( store, never() ).editComment( anyLong(), anyString(), any( Actor.class ), anyList() );
+    }
+
+    @Test
+    void aViewerWhoAuthoredACommentMayNotEditIt() throws SQLException {
+        comment( 5, "vera" );
+        assertThrows( WorkDeniedException.class, () -> service.editComment( viewer, 5, "y" ) );
+        verify( store, never() ).editComment( anyLong(), anyString(), any( Actor.class ), anyList() );
+    }
+
+    @Test
+    void commentsOfAnArchivedProjectCannotBeEditedOrRemoved() throws SQLException {
+        comment( 5, "alice" );
+        archivePlat();
+        assertThrows( WorkConflictException.class, () -> service.editComment( alice, 5, "y" ) );
+        assertThrows( WorkConflictException.class, () -> service.removeComment( alice, 5 ) );
+        assertThrows( WorkConflictException.class, () -> service.removeComment( lead, 5 ) );
+        verify( store, never() ).editComment( anyLong(), anyString(), any( Actor.class ), anyList() );
+        verify( store, never() ).removeComment( anyLong(), any( Actor.class ) );
+    }
+
+    @Test
+    void editedMentionsNotifyOnlyProjectMembers() throws SQLException {
+        comment( 5, "alice" );
+        when( store.editComment( eq( 5L ), anyString(), eq( alice ), anyList() ) )
+            .thenReturn( new Comment( 5, 12, "alice", "y", NOW, NOW, null, null ) );
+        service.editComment( alice, 5, "ping @bob and @carol" );
+        @SuppressWarnings( "unchecked" )
+        final ArgumentCaptor< List< String > > mentioned = ArgumentCaptor.forClass( List.class );
+        verify( store ).editComment( eq( 5L ), anyString(), eq( alice ), mentioned.capture() );
+        assertEquals( List.of( "bob" ), mentioned.getValue(), "carol is known but holds no row in PLAT" );
+    }
+
+    @Test
+    void aViewerMayNotLinkOrUnlink() throws SQLException {
+        when( store.link( 4 ) ).thenReturn( Optional.of( new Link( 4, 12, "url", "https://a.b" ) ) );
+        assertThrows( WorkDeniedException.class, () -> service.addLink( viewer, "PLAT-3", "url", "https://a.b" ) );
+        assertThrows( WorkDeniedException.class, () -> service.removeLink( viewer, 4 ) );
+        verify( store, never() ).addLink( any(), anyString(), anyString(), any( Actor.class ) );
+        verify( store, never() ).removeLink( anyLong(), any( Actor.class ) );
+    }
+
+    @Test
+    void addLinkReturnsTheStoredLink() throws SQLException {
+        final Link stored = new Link( 9, 12, "url", "https://a.b" );
+        when( store.addLink( any(), eq( "url" ), eq( "https://a.b" ), eq( alice ) ) ).thenReturn( stored );
+        assertEquals( stored, service.addLink( alice, "PLAT-3", "url", "https://a.b" ) );
+    }
+
+    @Test
+    void removeLinkRemovesForAMemberAndHidesALinkOfAnotherProject() throws SQLException {
+        when( store.link( 4 ) ).thenReturn( Optional.of( new Link( 4, 12, "url", "https://a.b" ) ) );
+        service.removeLink( alice, 4 );
+        verify( store ).removeLink( 4, alice );
+        assertThrows( WorkNotFoundException.class, () -> service.removeLink( alice, 404 ) );
+        when( store.link( 5 ) ).thenReturn( Optional.of( new Link( 5, 20, "url", "https://a.b" ) ) );
+        assertThrows( WorkNotFoundException.class, () -> service.removeLink( alice, 5 ), "OPS is hidden from alice" );
+        archivePlat();
+        assertThrows( WorkConflictException.class, () -> service.removeLink( alice, 4 ) );
+        verify( store, org.mockito.Mockito.times( 1 ) ).removeLink( anyLong(), any( Actor.class ) );
+    }
+
+    @Test
+    void anItemWhoseProjectIsNotTheOneItsKeyNamesIsNotFound() throws SQLException {
+        final Item stray = new Item( 30, 2, "PLAT-9", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "b",
+            WorkStatus.DRAFT, 3, 1, null, null, "alice", null, null, null, 1, NOW, NOW, null, null, null, null, null,
+            null, null, null, null, null );
+        when( store.item( "PLAT-9" ) ).thenReturn( Optional.of( stray ) );
+        assertThrows( WorkNotFoundException.class, () -> service.item( alice, "PLAT-9" ) );
+        assertThrows( WorkNotFoundException.class, () -> service.item( admin, "PLAT-9" ) );
+    }
+
+    @Test
+    void aRemovedCommentIsAsGoodAsAbsent() throws SQLException {
+        when( store.comment( 7 ) ).thenReturn( Optional.of( new Comment( 7, 12, "alice", "gone", NOW, null, NOW, null ) ) );
+        assertThrows( WorkNotFoundException.class, () -> service.editComment( alice, 7, "back" ) );
+        assertThrows( WorkNotFoundException.class, () -> service.removeComment( lead, 7 ) );
+        verify( store, never() ).editComment( anyLong(), anyString(), any( Actor.class ), anyList() );
+        verify( store, never() ).removeComment( anyLong(), any( Actor.class ) );
+    }
+
+    @Test
+    void anUnknownCommentOrAnItemIdBehindOneIsNotFound() throws SQLException {
+        assertThrows( WorkNotFoundException.class, () -> service.editComment( alice, 404, "x" ) );
+        when( store.comment( 8 ) ).thenReturn( Optional.of( new Comment( 8, 999, "alice", "orphan", NOW, null, null, null ) ) );
+        assertThrows( WorkNotFoundException.class, () -> service.editComment( alice, 8, "x" ) );
     }
 }

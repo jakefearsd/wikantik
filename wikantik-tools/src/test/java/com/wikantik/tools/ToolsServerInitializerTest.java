@@ -175,4 +175,70 @@ class ToolsServerInitializerTest {
                     "Filter must be installed with null ApiKeyService when engine is missing" );
         }
     }
+
+    // ---- mutation-driven additions ----
+
+    private Engine engineReturningProps( final ServletContext ctx ) {
+        final Engine engine = mock( Engine.class );
+        when( engine.getWikiProperties() ).thenReturn( new Properties() );
+        final EngineSPI engineSpi = mock( EngineSPI.class );
+        when( engineSpi.find( ctx, null ) ).thenReturn( engine );
+        enginesSpi = engineSpi;
+        return engine;
+    }
+
+    private EngineSPI enginesSpi;
+
+    @Test
+    void servletIsMountedAtToolsPatternStartedEarlyAndBothRegistrationsAreAsyncCapable() {
+        final ServletContext ctx = servletContextWithRegistrations();
+        engineReturningProps( ctx );
+        try ( MockedStatic< Wiki > wikiStatic = mockStatic( Wiki.class );
+              MockedStatic< ApiKeyServiceHolder > holderStatic = mockStatic( ApiKeyServiceHolder.class ) ) {
+            wikiStatic.when( Wiki::engine ).thenReturn( enginesSpi );
+            holderStatic.when( () -> ApiKeyServiceHolder.get( any( Properties.class ) ) ).thenReturn( null );
+
+            new ToolsServerInitializer().contextInitialized( eventWith( ctx ) );
+
+            verify( ctx ).addServlet( eq( "ToolsOpenApiServlet" ), any( jakarta.servlet.Servlet.class ) );
+            verify( servletReg ).addMapping( "/tools/*" );
+            verify( servletReg ).setLoadOnStartup( 2 );
+            verify( servletReg ).setAsyncSupported( true );
+            verify( filterReg ).setAsyncSupported( true );
+            verify( filterReg ).addMappingForUrlPatterns(
+                    eq( java.util.EnumSet.of( jakarta.servlet.DispatcherType.REQUEST ) ), eq( false ), eq( "/tools/*" ) );
+        }
+    }
+
+    @Test
+    void toolMetricsAreRegisteredWithTheSharedMeterRegistry() {
+        final ServletContext ctx = servletContextWithRegistrations();
+        engineReturningProps( ctx );
+        try ( MockedStatic< Wiki > wikiStatic = mockStatic( Wiki.class );
+              MockedStatic< ApiKeyServiceHolder > holderStatic = mockStatic( ApiKeyServiceHolder.class );
+              MockedStatic< ToolsMetricsBridge > bridge = mockStatic( ToolsMetricsBridge.class ) ) {
+            wikiStatic.when( Wiki::engine ).thenReturn( enginesSpi );
+            holderStatic.when( () -> ApiKeyServiceHolder.get( any( Properties.class ) ) ).thenReturn( null );
+
+            new ToolsServerInitializer().contextInitialized( eventWith( ctx ) );
+
+            bridge.verify( () -> ToolsMetricsBridge.register( any(), any( ToolsMetrics.class ) ), times( 1 ) );
+        }
+    }
+
+    @Test
+    void toolCountIsPublishedOnlyWhenAnEngineAndAtLeastOneToolExist() {
+        final Engine engine = mock( Engine.class );
+        final ToolsConfig config = new ToolsConfig( new Properties() );
+        final String valueName = "tools" + '.' + "openapi";
+        try ( MockedStatic< com.wikantik.livevalues.ToolCountLiveValue > live =
+                      mockStatic( com.wikantik.livevalues.ToolCountLiveValue.class ) ) {
+            ToolsServerInitializer.publishToolCount( engine, new ToolsOpenApiServlet() );
+            ToolsServerInitializer.publishToolCount( null, new ToolsOpenApiServlet( engine, config, null ) );
+            live.verifyNoInteractions();
+
+            ToolsServerInitializer.publishToolCount( engine, new ToolsOpenApiServlet( engine, config, null ) );
+            live.verify( () -> com.wikantik.livevalues.ToolCountLiveValue.register( engine, valueName, 2 ), times( 1 ) );
+        }
+    }
 }

@@ -77,4 +77,21 @@ class WorkServiceDenialListenerTest {
     void withoutAListenerADenialStillThrows() throws SQLException {
         assertThrows( WorkDeniedException.class, () -> silent.createProject( viewer, "NEWP", "New", "" ) );
     }
+
+    @Test
+    void editingOrRemovingSomeoneElsesCommentIsReportedAsACommentDenial() throws SQLException {
+        when( store.project( "PLAT" ) ).thenReturn(
+            Optional.of( new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, null ) ) );
+        when( store.roleFor( org.mockito.ArgumentMatchers.eq( 1L ), any() ) ).thenReturn( Optional.of( WorkRole.MEMBER ) );
+        final Item task = new Item( 12, 1, "PLAT-3", WorkLevel.TASK, null, null, WorkKind.SOFTWARE, "t", "b",
+            WorkStatus.READY, 3, 1, null, null, "zoe", null, null, null, 1, NOW, NOW, null, null, null, null, null,
+            null, null, null, null, null );
+        when( store.item( "PLAT-3" ) ).thenReturn( Optional.of( task ) );
+        when( store.itemById( 12 ) ).thenReturn( Optional.of( task ) );
+        when( store.comment( 5 ) ).thenReturn( Optional.of( new Comment( 5, 12, "zoe", "hi", NOW, null, null, null ) ) );
+        assertThrows( WorkDeniedException.class, () -> service.editComment( viewer, 5, "mine now" ) );
+        assertEquals( List.of( Action.COMMENT ), seen );
+        assertThrows( WorkDeniedException.class, () -> service.removeComment( viewer, 5 ) );
+        assertEquals( List.of( Action.COMMENT, Action.COMMENT ), seen );
+    }
 }

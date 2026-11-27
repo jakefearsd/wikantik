@@ -198,42 +198,65 @@ class SearchWikiToolTest {
         assertEquals( "alice", first.get( "author" ) );
     }
 
-    @Test
-    void nonPositiveLimitFallsBackToDefaultMaxResults() {
+    private static RetrievedPage bare( final String name ) {
+        return RetrievedPage.builder( name, 1.0 ).url( "" ).summary( "" ).tags( List.of() )
+                .contributingChunks( List.of() ).relatedPages( List.of() ).build();
+    }
+
+    private Map< String, Object > searchOver( final int pageCount, final int maxResults ) {
         when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
-        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
-            new RetrievalResult( "q", List.of(), 0 ) );
+        final List< RetrievedPage > pages = new ArrayList<>();
+        for ( int i = 0; i < pageCount; i++ ) {
+            pages.add( bare( "P" + i ) );
+        }
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn( new RetrievalResult( "q", pages, pageCount ) );
+        return allowingTool( new ToolsConfig( new Properties() ) ).execute( "q", maxResults, request );
+    }
 
-        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
-        // limit <= 0 must not throw and must fall back to the default cap rather than 0.
-        final Map< String, Object > out = tool.execute( "q", 0, request );
-
-        assertEquals( 0, out.get( "total" ) );
+    @org.junit.jupiter.params.ParameterizedTest( name = "maxResults={0} over 30 hits returns {1}" )
+    @org.junit.jupiter.params.provider.CsvSource( { "-5,10", "0,10", "1,1", "2,2", "10,10", "11,11", "24,24", "25,25", "26,25", "1000,25" } )
+    void maxResultsIsDefaultedBelowOneAndClampedToTwentyFive( final int requested, final int expected ) {
+        final Map< String, Object > out = searchOver( 30, requested );
+        assertEquals( expected, ( ( List< ? > ) out.get( "results" ) ).size() );
+        assertEquals( expected, out.get( "total" ) );
     }
 
     @Test
-    void clampsMaxResults() {
+    void optionalFieldsAppearOnlyWhenTheyHaveContent() {
         when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        final RetrievedPage rich = RetrievedPage.builder( "Rich", 1.0 ).url( "" ).summary( "s" )
+                .tags( List.of( "a", "b" ) ).cluster( "cl" ).contributingChunks( List.of() ).relatedPages( List.of() ).build();
+        when( ctxService.retrieve( any( ContextQuery.class ) ) )
+                .thenReturn( new RetrievalResult( "q", List.of( rich, bare( "Bare" ) ), 2 ) );
 
-        // Build 20 pages (service hard cap) — tool clamps to 25 but service returns max 20
-        final List< RetrievedPage > manyPages = new ArrayList<>();
-        for ( int i = 0; i < 20; i++ ) {
-            manyPages.add( RetrievedPage.builder( "P" + i, 1.0 )
-                .url( "" )
-                .summary( "" )
-                .tags( List.of() )
-                .contributingChunks( List.of() )
-                .relatedPages( List.of() )
-                .build() );
-        }
-        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
-            new RetrievalResult( "q", manyPages, 20 ) );
+        final List< ? > results = ( List< ? > ) allowingTool( new ToolsConfig( new Properties() ) )
+                .execute( "q", 5, request ).get( "results" );
+        final Map< ?, ? > richOut = ( Map< ?, ? > ) results.get( 0 );
+        final Map< ?, ? > bareOut = ( Map< ?, ? > ) results.get( 1 );
+        assertEquals( List.of( "a", "b" ), richOut.get( "tags" ) );
+        assertEquals( "cl", richOut.get( "cluster" ) );
+        assertEquals( "s", richOut.get( "summary" ) );
+        assertFalse( bareOut.containsKey( "tags" ) );
+        assertFalse( bareOut.containsKey( "cluster" ) );
+        assertFalse( bareOut.containsKey( "summary" ) );
+        assertFalse( bareOut.containsKey( "snippet" ) );
+        assertFalse( bareOut.containsKey( "author" ) );
+        assertFalse( bareOut.containsKey( "lastModified" ) );
+    }
 
-        final SearchWikiTool tool = allowingTool( new ToolsConfig( new Properties() ) );
-        final Map< String, Object > out = tool.execute( "q", 100, request );
-
-        // clamped to 25, but service returned 20 — total should be 20
-        assertEquals( 20, out.get( "total" ) );
+    @org.junit.jupiter.params.ParameterizedTest( name = "chunk of {0} chars gives snippet of {1} chars" )
+    @org.junit.jupiter.params.provider.CsvSource( { "1,1", "319,319", "320,320", "321,321", "400,321" } )
+    void snippetIsCutOnlyWhenLongerThanThreeHundredTwentyCharacters( final int chunkChars, final int snippetChars ) {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        final RetrievedPage page = RetrievedPage.builder( "L", 1.0 ).url( "" ).summary( "" ).tags( List.of() )
+                .contributingChunks( List.of( new RetrievedChunk( List.of(), "x".repeat( chunkChars ), 0.5, List.of() ) ) )
+                .relatedPages( List.of() ).build();
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn( new RetrievalResult( "q", List.of( page ), 1 ) );
+        final Map< ?, ? > first = ( Map< ?, ? > ) ( ( List< ? > ) allowingTool( new ToolsConfig( new Properties() ) )
+                .execute( "q", 5, request ).get( "results" ) ).get( 0 );
+        final String snippet = ( String ) first.get( "snippet" );
+        assertEquals( snippetChars, snippet.length() );
+        assertEquals( chunkChars > 320, snippet.endsWith( "…" ) );
     }
 
     @Test

@@ -146,4 +146,62 @@ class ToolsRateLimiterTest {
         assertTrue( cleaned, "Expected the probabilistic stale-entry sweep to evict the 200 "
                 + "stale client buckets within 5000 tryAcquire calls" );
     }
+
+    // ---- mutation-driven additions ----
+
+    @Test
+    void anEntryLeavesTheWindowAtExactlyOneSecondNotBefore() {
+        final AtomicLong clock = new AtomicLong( 5_000 );
+        final ToolsRateLimiter limiter = createWithClock( 1, 0, clock );
+        assertTrue( limiter.tryAcquire( "a" ) );
+        clock.set( 5_000 + 999_999_999L );
+        assertFalse( limiter.tryAcquire( "a" ), "one nanosecond inside the window is still limited" );
+        clock.set( 5_000 + 1_000_000_000L );
+        assertTrue( limiter.tryAcquire( "a" ), "at exactly one second the entry has left the window" );
+    }
+
+    @Test
+    void perClientEntryLeavesTheWindowAtExactlyOneSecond() {
+        final AtomicLong clock = new AtomicLong( 0 );
+        final ToolsRateLimiter limiter = createWithClock( 0, 1, clock );
+        assertTrue( limiter.tryAcquire( "a" ) );
+        clock.set( 999_999_999L );
+        assertFalse( limiter.tryAcquire( "a" ) );
+        clock.set( 1_000_000_000L );
+        assertTrue( limiter.tryAcquire( "a" ) );
+    }
+
+    @Test
+    void limitOfNAdmitsExactlyNPerWindow() {
+        for( final int n : new int[] { 1, 2, 5 } ) {
+            final AtomicLong clock = new AtomicLong( 0 );
+            final ToolsRateLimiter global = createWithClock( n, 0, clock );
+            final ToolsRateLimiter perClient = createWithClock( 0, n, clock );
+            for( int i = 0; i < n; i++ ) {
+                assertTrue( global.tryAcquire( "g" + i ), "global " + n + " #" + i );
+                assertTrue( perClient.tryAcquire( "c" ), "per-client " + n + " #" + i );
+            }
+            assertFalse( global.tryAcquire( "extra" ), "global " + n );
+            assertFalse( perClient.tryAcquire( "c" ), "per-client " + n );
+        }
+    }
+
+    @Test
+    void aClientNamedLikeTheGlobalBucketCannotDrainTheGlobalBudget() {
+        // Both limits on: a caller whose id equals the internal global key must not make the global bucket count twice.
+        final AtomicLong clock = new AtomicLong( 0 );
+        final ToolsRateLimiter limiter = createWithClock( 2, 2, clock );
+        assertTrue( limiter.tryAcquire( "ip:1" ) );
+        assertTrue( limiter.tryAcquire( "ip:2" ) );
+        assertFalse( limiter.tryAcquire( "ip:3" ) );
+    }
+
+    @Test
+    void theDefaultClockIsRealTimeSoTheWindowEventuallyOpens() throws Exception {
+        final ToolsRateLimiter limiter = new ToolsRateLimiter( 1, 0 );
+        assertTrue( limiter.tryAcquire( "a" ) );
+        assertFalse( limiter.tryAcquire( "a" ) );
+        Thread.sleep( 1_100 );
+        assertTrue( limiter.tryAcquire( "a" ), "a second later the single slot is free again" );
+    }
 }

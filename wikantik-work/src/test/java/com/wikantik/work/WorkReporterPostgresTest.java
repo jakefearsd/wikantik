@@ -499,4 +499,12 @@ class WorkReporterPostgresTest {
             .map( ReportedEvent::fromValue ).toList() );
         assertFalse( v.toString().contains( "internal-roadmap" ) );
     }
+
+    @Test
+    void aWikiAdminWithNoRowInTheProjectIsShownAsLeadWhenFiling() throws SQLException {
+        final Actor otherAdmin = Actor.human( "root2", Set.of(), true );
+        assertEquals( List.of( "INT" ), intake.reportableProjects( otherAdmin ).stream().map( ReportableProject::key ).toList() );
+        assertEquals( List.of( WorkRole.LEAD ), intake.reportableProjects( otherAdmin ).stream().map( ReportableProject::role ).toList(),
+            "no member row, so the role comes from the admin flag" );
+    }
 }

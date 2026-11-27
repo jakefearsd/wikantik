@@ -37,6 +37,7 @@ import org.mockito.Mockito;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -532,6 +533,202 @@ class CsrfProtectionFilterTest {
             new CsrfProtectionFilter().doFilter( hook, response, chain );
             Mockito.verify( response ).sendError( Mockito.eq( 403 ), Mockito.anyString() );
             Mockito.verify( chain, Mockito.never() ).doFilter( hook, response );
+        }
+    }
+
+    // ---- mutation-driven additions: pin allow/deny decisions at their boundaries ----
+
+    private static HttpServletRequest originRequest( final String origin, final String scheme, final String host ) {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( origin ).when( request ).getHeader( "Origin" );
+        Mockito.doReturn( scheme ).when( request ).getScheme();
+        Mockito.doReturn( host ).when( request ).getHeader( "Host" );
+        return request;
+    }
+
+    @Test
+    void emptyOriginHeaderIsTreatedLikeNoOriginHeader() {
+        assertTrue( CsrfProtectionFilter.isOriginAllowed( originRequest( "", "https", "wiki.example" ), "" ) );
+    }
+
+    @Test
+    void absentOriginIsAllowedEvenWithANullWhitelist() {
+        assertTrue( CsrfProtectionFilter.isOriginAllowed( originRequest( null, "https", "wiki.example" ), null ) );
+    }
+
+    @Test
+    void crossOriginWithANullWhitelistIsRefused() {
+        assertFalse( CsrfProtectionFilter.isOriginAllowed(
+                originRequest( "https://evil.example", "https", "wiki.example" ), null ) );
+    }
+
+    @Test
+    void whitelistEntriesAreTrimmedAndMatchedCaseInsensitively() {
+        final HttpServletRequest request = originRequest( "https://Partner.Example", "https", "wiki.example" );
+        assertTrue( CsrfProtectionFilter.isOriginAllowed( request, "https://a.example , https://partner.example" ) );
+    }
+
+    @Test
+    void whitelistMatchIsExactNotAPrefixOrSuffix() {
+        assertFalse( CsrfProtectionFilter.isOriginAllowed(
+                originRequest( "https://partner.example.evil.com", "https", "wiki.example" ), "https://partner.example" ) );
+        assertFalse( CsrfProtectionFilter.isOriginAllowed(
+                originRequest( "https://partner.example", "https", "wiki.example" ), "https://partner.example.evil.com" ) );
+    }
+
+    @Test
+    void sameOriginNeverMatchesWhenTheHostHeaderIsMissing() {
+        // Without the guard the expected origin would be "https://null", which an attacker could send.
+        assertFalse( CsrfProtectionFilter.isSameOrigin( originRequest( "https://null", "https", null ), "https://null" ) );
+    }
+
+    @Test
+    void sameOriginNeverMatchesWhenTheHostHeaderIsEmpty() {
+        assertFalse( CsrfProtectionFilter.isSameOrigin( originRequest( "https://", "https", "" ), "https://" ) );
+    }
+
+    @Test
+    void sameOriginNeverMatchesWhenTheSchemeIsMissing() {
+        assertFalse( CsrfProtectionFilter.isSameOrigin( originRequest( "null://wiki.example", null, "wiki.example" ),
+                "null://wiki.example" ) );
+    }
+
+    @Test
+    void sameOriginRequiresTheSchemeToMatchToo() {
+        assertFalse( CsrfProtectionFilter.isSameOrigin( originRequest( "http://wiki.example", "https", "wiki.example" ),
+                "http://wiki.example" ) );
+        assertTrue( CsrfProtectionFilter.isSameOrigin( originRequest( "HTTPS://WIKI.example", "https", "wiki.example" ),
+                "HTTPS://WIKI.example" ) );
+    }
+
+    @Test
+    void aRequestWithoutAMethodIsNotStateChanging() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( null ).when( request ).getMethod();
+        assertFalse( CsrfProtectionFilter.isStateChanging( request ) );
+    }
+
+    @Test
+    void describePathPrefersTheRequestUriAndFallsBackToTheServletPath() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "/wiki/api/x" ).when( request ).getRequestURI();
+        Mockito.doReturn( "/api" ).when( request ).getServletPath();
+        assertEquals( "/wiki/api/x", CsrfProtectionFilter.describePath( request ) );
+        Mockito.doReturn( null ).when( request ).getRequestURI();
+        assertEquals( "/api", CsrfProtectionFilter.describePath( request ) );
+    }
+
+    @Test
+    void adminPrefixMatchRequiresTheTrailingSlash() {
+        for( final String path : new String[] { "/admin", "/administrator", "/api", "/apix", "/sparql/x", "/sparq" } ) {
+            final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+            Mockito.doReturn( path ).when( request ).getServletPath();
+            assertFalse( CsrfProtectionFilter.isRestApiEndpoint( request ), path + " must stay on the token path" );
+        }
+    }
+
+    @Test
+    void mcpEndpointMatchIsExactNotAPrefix() {
+        for( final String path : new String[] { "/knowledge-mcp/x", "/work-mcp2", "/wikantik-admin-mcp/", "/work" } ) {
+            final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+            Mockito.doReturn( path ).when( request ).getServletPath();
+            assertFalse( CsrfProtectionFilter.isMcpEndpoint( request ), path );
+        }
+    }
+
+    @Test
+    void bearerPrefixMustIncludeTheSpaceAndBeAtTheStart() {
+        for( final String header : new String[] { "Bearer", "Bearerx abc", " Bearer abc", "Token Bearer abc", "" } ) {
+            final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+            Mockito.doReturn( header ).when( request ).getHeader( "Authorization" );
+            assertFalse( CsrfProtectionFilter.hasBearerAuth( request ), "'" + header + "'" );
+        }
+    }
+
+    @Test
+    void ssoCallbackExemptionIsExactPathOnly() {
+        for( final String path : new String[] { "/sso/callback/x", "/sso/callbac", "/SSO/callback" } ) {
+            final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+            Mockito.doReturn( path ).when( request ).getServletPath();
+            assertFalse( CsrfProtectionFilter.isSsoCallbackEndpoint( request ), path );
+        }
+    }
+
+    private static void runFilterOnForm( final String method, final String token, final String sessionToken,
+                                         final HttpServletResponse response, final jakarta.servlet.FilterChain chain )
+            throws Exception {
+        final Engine engine = Mockito.mock( Engine.class );
+        Mockito.doReturn( new Properties() ).when( engine ).getWikiProperties();
+        final Session session = Mockito.mock( Session.class );
+        Mockito.doReturn( sessionToken ).when( session ).antiCsrfToken();
+        final EngineSPI engineSpi = Mockito.mock( EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( Mockito.nullable( ServletContext.class ), Mockito.any() );
+        final SessionSPI sessionSpi = Mockito.mock( SessionSPI.class );
+        Mockito.doReturn( session ).when( sessionSpi ).find( Mockito.any(), Mockito.any() );
+        try( final MockedStatic< Wiki > wiki = Mockito.mockStatic( Wiki.class, Mockito.CALLS_REAL_METHODS ) ) {
+            wiki.when( Wiki::engine ).thenReturn( engineSpi );
+            wiki.when( Wiki::session ).thenReturn( sessionSpi );
+            final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+            Mockito.doReturn( method ).when( request ).getMethod();
+            Mockito.doReturn( "/Edit.jsp" ).when( request ).getServletPath();
+            Mockito.doReturn( token ).when( request ).getParameter( CsrfProtectionFilter.ANTICSRF_PARAM );
+            new CsrfProtectionFilter().doFilter( request, response, chain );
+        }
+    }
+
+    @Test
+    void formPostWithTheSessionTokenPassesTheFilter() throws Exception {
+        final HttpServletResponse response = Mockito.mock( HttpServletResponse.class );
+        final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+        runFilterOnForm( "POST", "real-token", "real-token", response, chain );
+        Mockito.verify( chain ).doFilter( Mockito.any(), Mockito.eq( response ) );
+        Mockito.verify( response, Mockito.never() ).sendRedirect( Mockito.anyString() );
+    }
+
+    @Test
+    void formPostWithAWrongOrMissingTokenIsRedirectedToForbidden() throws Exception {
+        for( final String bad : new String[] { "other-token", "REAL-TOKEN", null, "" } ) {
+            final HttpServletResponse response = Mockito.mock( HttpServletResponse.class );
+            final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+            runFilterOnForm( "DELETE", bad, "real-token", response, chain );
+            Mockito.verify( response ).sendRedirect( "/error/Forbidden.html" );
+            Mockito.verify( chain, Mockito.never() ).doFilter( Mockito.any(), Mockito.any() );
+        }
+    }
+
+    @Test
+    void formGetNeedsNoToken() throws Exception {
+        final HttpServletResponse response = Mockito.mock( HttpServletResponse.class );
+        final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+        runFilterOnForm( "GET", null, "real-token", response, chain );
+        Mockito.verify( chain ).doFilter( Mockito.any(), Mockito.eq( response ) );
+    }
+
+    @Test
+    void restPostIsAllowedFromAWhitelistedOriginAndRefusedFromOthers() throws Exception {
+        final Engine engine = Mockito.mock( Engine.class );
+        final Properties props = new Properties();
+        props.setProperty( CsrfProtectionFilter.PROP_ALLOWED_ORIGINS, "https://partner.example" );
+        Mockito.doReturn( props ).when( engine ).getWikiProperties();
+        final EngineSPI engineSpi = Mockito.mock( EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( Mockito.nullable( ServletContext.class ), Mockito.any() );
+        try( final MockedStatic< Wiki > wiki = Mockito.mockStatic( Wiki.class, Mockito.CALLS_REAL_METHODS ) ) {
+            wiki.when( Wiki::engine ).thenReturn( engineSpi );
+            for( final String origin : new String[] { "https://partner.example", "https://evil.example" } ) {
+                final boolean allowed = origin.contains( "partner" );
+                final HttpServletRequest request = originRequest( origin, "https", "wiki.example" );
+                Mockito.doReturn( "PUT" ).when( request ).getMethod();
+                Mockito.doReturn( "/admin/users" ).when( request ).getServletPath();
+                final HttpServletResponse response = Mockito.mock( HttpServletResponse.class );
+                final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+                new CsrfProtectionFilter().doFilter( request, response, chain );
+                if( allowed ) {
+                    Mockito.verify( chain ).doFilter( request, response );
+                } else {
+                    Mockito.verify( response ).sendError( Mockito.eq( 403 ), Mockito.anyString() );
+                    Mockito.verify( chain, Mockito.never() ).doFilter( Mockito.any(), Mockito.any() );
+                }
+            }
         }
     }
 }

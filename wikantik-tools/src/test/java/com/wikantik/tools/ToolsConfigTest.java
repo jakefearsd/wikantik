@@ -93,4 +93,74 @@ class ToolsConfigTest {
         assertEquals( "https://wiki.example.com", config.publicBaseUrl() );
     }
 
+
+    // ---- mutation-driven additions ----
+
+    @Test
+    void defaultConstructorLoadsTheShippedDefaultsFromTheClasspath() {
+        final ToolsConfig config = new ToolsConfig();
+        assertEquals( 100, config.rateLimitGlobal() );
+        assertEquals( 10, config.rateLimitPerClient() );
+        assertFalse( config.allowUnrestricted() );
+        assertNull( config.allowedCidrs() );
+        assertNull( config.publicBaseUrl() );
+    }
+
+    @Test
+    void anOverrideOnTheContextClassLoaderIsOverlaidOnTheDefaults(
+            @org.junit.jupiter.api.io.TempDir final java.nio.file.Path dir ) throws Exception {
+        java.nio.file.Files.writeString( dir.resolve( "wikantik-tools.properties" ),
+                "tools.ratelimit.global = 7\ntools.access.allowedCidrs = 10.1.0.0/16\n" );
+        final Thread thread = Thread.currentThread();
+        final ClassLoader original = thread.getContextClassLoader();
+        // null parent: the override loader sees only the override file, so a loader the config skips would not matter
+        try( java.net.URLClassLoader override = new java.net.URLClassLoader( new java.net.URL[] { dir.toUri().toURL() }, null ) ) {
+            thread.setContextClassLoader( override );
+            final ToolsConfig config = new ToolsConfig();
+            assertEquals( 7, config.rateLimitGlobal(), "the overlay wins over the shipped default" );
+            assertEquals( 10, config.rateLimitPerClient(), "keys the overlay lacks keep the shipped default" );
+            assertEquals( "10.1.0.0/16", config.allowedCidrs() );
+        } finally {
+            thread.setContextClassLoader( original );
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( { "5,5", "' 12 ',12", "-3,-3", "0,0" } )
+    void integerPropertiesAreStrippedAndParsed( final String raw, final int expected ) {
+        final Properties props = new Properties();
+        props.setProperty( "tools.ratelimit.perClient", raw );
+        assertEquals( expected, new ToolsConfig( props ).rateLimitPerClient() );
+    }
+
+    @Test
+    void blankAndMissingIntegerPropertiesUseTheDefault() {
+        final Properties props = new Properties();
+        props.setProperty( "tools.ratelimit.global", "   " );
+        assertEquals( 0, new ToolsConfig( props ).rateLimitGlobal() );
+    }
+
+    @Test
+    void stringPropertiesAreStrippedAndBlankMeansUnset() {
+        final Properties props = new Properties();
+        props.setProperty( "tools.access.allowedCidrs", "  10.0.0.0/8  " );
+        props.setProperty( "wikantik.public.baseURL", "  https://w.example  " );
+        final ToolsConfig config = new ToolsConfig( props );
+        assertEquals( "10.0.0.0/8", config.allowedCidrs() );
+        assertEquals( "https://w.example", config.publicBaseUrl() );
+        props.setProperty( "tools.access.allowedCidrs", "   " );
+        props.setProperty( "wikantik.public.baseURL", "" );
+        assertNull( config.allowedCidrs() );
+        assertNull( config.publicBaseUrl() );
+    }
+
+    @Test
+    void allowUnrestrictedIsStrictlyTrueAndNothingElse() {
+        for( final String v : new String[] { "false", "yes", "1", "", "TRUE ", " true" } ) {
+            final Properties props = new Properties();
+            props.setProperty( "tools.access.allowUnrestricted", v );
+            final boolean expected = v.strip().equalsIgnoreCase( "true" );
+            assertEquals( expected, new ToolsConfig( props ).allowUnrestricted(), "'" + v + "'" );
+        }
+    }
 }

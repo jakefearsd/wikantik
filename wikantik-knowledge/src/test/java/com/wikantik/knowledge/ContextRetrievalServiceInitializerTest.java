@@ -70,8 +70,7 @@ class ContextRetrievalServiceInitializerTest {
     }
 
     @Test
-    void contextInitialized_logsWhenEngineNotWikiEngineSubclass() {
-        // Engine has PM + SM but is not a WikiEngine — branch logs and does not setManager.
+    void contextInitialized_registersTheServiceOnTheEngineAndPatchesTheSubsystemStash() {
         final ServletContextEvent sce = mock( ServletContextEvent.class );
         final ServletContext ctx = mock( ServletContext.class );
         when( sce.getServletContext() ).thenReturn( ctx );
@@ -86,5 +85,29 @@ class ContextRetrievalServiceInitializerTest {
             mocked.when( Wiki::engine ).thenReturn( spi );
             new ContextRetrievalServiceInitializer().contextInitialized( sce );
         }
+
+        final org.mockito.ArgumentCaptor< ContextRetrievalService > registered =
+                org.mockito.ArgumentCaptor.forClass( ContextRetrievalService.class );
+        verify( engine ).setManager( eq( ContextRetrievalService.class ), registered.capture() );
+        org.junit.jupiter.api.Assertions.assertInstanceOf( DefaultContextRetrievalService.class, registered.getValue() );
+        verify( engine ).patchContextRetrievalService( registered.getValue() );
+    }
+
+    @Test
+    void contextInitialized_registersNothingWhenTheRequiredManagersAreMissing() {
+        final ServletContextEvent sce = mock( ServletContextEvent.class );
+        final ServletContext ctx = mock( ServletContext.class );
+        when( sce.getServletContext() ).thenReturn( ctx );
+        final WikiEngine engine = mock( WikiEngine.class );
+        final EngineSPI spi = mock( EngineSPI.class );
+        when( spi.find( any( ServletContext.class ), isNull() ) ).thenReturn( engine );
+
+        try ( final MockedStatic< Wiki > mocked = mockStatic( Wiki.class ) ) {
+            mocked.when( Wiki::engine ).thenReturn( spi );
+            new ContextRetrievalServiceInitializer().contextInitialized( sce );
+        }
+
+        verify( engine, never() ).setManager( eq( ContextRetrievalService.class ), any() );
+        verify( engine, never() ).patchContextRetrievalService( any() );
     }
 }

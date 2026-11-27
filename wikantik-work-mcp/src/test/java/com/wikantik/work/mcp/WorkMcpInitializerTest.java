@@ -146,6 +146,37 @@ class WorkMcpInitializerTest {
     }
 
     @Test
+    void theServerBuiltAtStartupAdvertisesEveryToolWithItsDefinition() {
+        final ServletContext ctx = mock( ServletContext.class );
+        when( ctx.addFilter( anyString(), any( Filter.class ) ) ).thenReturn( mock( FilterRegistration.Dynamic.class ) );
+        when( ctx.addServlet( anyString(), any( Servlet.class ) ) ).thenReturn( mock( ServletRegistration.Dynamic.class ) );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.workService() ).thenReturn( mock( WorkService.class ) );
+        ApiKeyServiceHolder.setForTesting( mock( ApiKeyService.class ) );
+        final WorkMcpInitializer initializer = new WorkMcpInitializer();
+        try {
+            start( initializer, ctx, engine );
+            final ArgumentCaptor< Object > server = ArgumentCaptor.forClass( Object.class );
+            verify( ctx ).setAttribute( eq( WorkMcpInitializer.ATTR_WORK_MCP_SERVER ), server.capture() );
+            final io.modelcontextprotocol.server.McpSyncServer built =
+                assertInstanceOf( io.modelcontextprotocol.server.McpSyncServer.class, server.getValue() );
+            final List< io.modelcontextprotocol.spec.McpSchema.Tool > advertised = built.listTools();
+            final List< WorkMcpTool > expected = WorkMcpInitializer.assembleTools( mock( WorkService.class ),
+                mock( com.wikantik.work.WorkDirectory.class ) );
+            assertEquals( expected.stream().map( WorkMcpTool::name ).collect( Collectors.toSet() ),
+                advertised.stream().map( io.modelcontextprotocol.spec.McpSchema.Tool::name ).collect( Collectors.toSet() ) );
+            assertEquals( 16, advertised.size() );
+            for ( final var tool : advertised ) {
+                assertEquals( expected.stream().filter( t -> t.name().equals( tool.name() ) ).findFirst().orElseThrow()
+                    .definition().description(), tool.description(), tool.name() );
+            }
+        } finally {
+            initializer.contextDestroyed( mock( ServletContextEvent.class ) );
+            ApiKeyServiceHolder.setForTesting( null );
+        }
+    }
+
+    @Test
     void assembledToolNames() {
         final List< WorkMcpTool > tools = WorkMcpInitializer.assembleTools( mock( WorkService.class ),
             mock( com.wikantik.work.WorkDirectory.class ) );
@@ -167,9 +198,11 @@ class WorkMcpInitializerTest {
     }
 
     @Test
-    void serverInstructionsAreTheClasspathResource() {
-        assertNotNull( WorkMcpInitializer.serverInstructions() );
-        org.junit.jupiter.api.Assertions.assertFalse( WorkMcpInitializer.serverInstructions().isBlank() );
+    void serverInstructionsAreTheClasspathResource() throws java.io.IOException {
+        final String text = WorkMcpInitializer.serverInstructions();
+        assertTrue( text.length() > "Work management endpoint.".length(), "not the fallback line" );
+        assertEquals( new String( WorkMcpInitializer.class.getResourceAsStream( "/wikantik-work-mcp-instructions.txt" )
+            .readAllBytes(), java.nio.charset.StandardCharsets.UTF_8 ), text );
     }
 
     @Test

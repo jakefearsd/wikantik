@@ -140,4 +140,36 @@ class KnowledgeMcpUtilsTest {
         // token is skipped and Optional.empty() is returned rather than throwing.
         assertEquals( Optional.empty(), KnowledgeMcpUtils.GSON.fromJson( "\"some-value\"", Optional.class ) );
     }
+
+    private static final class OptHolder {
+        Optional< String > o;
+        int after;
+    }
+
+    private static final class Holder {
+        Instant at;
+        int after;
+    }
+
+    @Test
+    void instantAdapter_readsJsonNullAndLeavesTheNextFieldReadable() {
+        // nextNull() must consume the null token, otherwise the following field is misparsed.
+        final Holder h = KnowledgeMcpUtils.GSON.fromJson( "{\"at\":null,\"after\":7}", Holder.class );
+        assertNull( h.at );
+        assertEquals( 7, h.after );
+    }
+
+    @Test
+    void instantAdapter_readsIsoStringAndWritesItBack() {
+        final Holder h = KnowledgeMcpUtils.GSON.fromJson( "{\"at\":\"2026-04-24T00:00:00Z\",\"after\":1}", Holder.class );
+        assertEquals( Instant.parse( "2026-04-24T00:00:00Z" ), h.at );
+        assertEquals( "\"2026-04-24T00:00:00Z\"", KnowledgeMcpUtils.GSON.toJson( h.at, Instant.class ) );
+    }
+
+    @Test
+    void optionalAdapter_readsNullFieldAndLeavesTheNextFieldReadable() {
+        final OptHolder h = KnowledgeMcpUtils.GSON.fromJson( "{\"o\":null,\"after\":9}", OptHolder.class );
+        assertEquals( Optional.empty(), h.o );
+        assertEquals( 9, h.after );
+    }
 }

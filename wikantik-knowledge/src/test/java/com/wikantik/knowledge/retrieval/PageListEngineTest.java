@@ -334,4 +334,145 @@ class PageListEngineTest {
         assertEquals( 1, engine.listPages(
             new PageListFilter( null, null, null, "janne", null, null, 50, 0 ) ).totalMatched() );
     }
+
+    private static PageListFilter by( final String cluster, final List< String > tags, final String type, final String author ) {
+        return new PageListFilter( cluster, tags, type, author, null, null, 50, 0 );
+    }
+
+    private static List< String > names( final PageList list ) {
+        return list.pages().stream().map( RetrievedPage::name ).sorted().toList();
+    }
+
+    @Test
+    void typeFilterKeepsOnlyPagesOfThatFrontmatterType() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Hub", "---\ntype: hub\n---\nbody", "a", new Date() );
+        pm.addPage( "Run", "---\ntype: runbook\n---\nbody", "a", new Date() );
+        pm.addPage( "Untyped", "body", "a", new Date() );
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage );
+
+        assertEquals( List.of( "Hub" ), names( engine.listPages( by( null, null, "hub", null ) ) ) );
+        assertEquals( List.of( "Run" ), names( engine.listPages( by( null, null, "runbook", null ) ) ) );
+        assertEquals( List.of(), names( engine.listPages( by( null, null, "article", null ) ) ) );
+        assertEquals( List.of( "Hub", "Run", "Untyped" ), names( engine.listPages( by( null, null, null, null ) ) ) );
+    }
+
+    @Test
+    void authorFilterWithoutAnIdentityServiceRejectsADifferentAuthorAndAPageWithNone() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Mine", "body", "janne", new Date() );
+        pm.addPage( "Theirs", "body", "alice", new Date() );
+        pm.addPage( "Anonymous", "body", null, new Date() );
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage );
+
+        assertEquals( List.of( "Mine" ), names( engine.listPages( by( null, null, null, "janne" ) ) ) );
+        assertEquals( List.of(), names( engine.listPages( by( null, null, null, "Janne" ) ) ), "exact, case-sensitive without an identity service" );
+    }
+
+    @Test
+    void authorFilterWithAnIdentityServiceMatchesTheDisplayNameIgnoringCaseAndPadding() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Mine", "body", "janne", new Date() );
+        pm.addPage( "Theirs", "body", "alice", new Date() );
+        final PublicIdentity identity = mock( PublicIdentity.class );
+        when( identity.displayName( "janne" ) ).thenReturn( " Janne Jalkanen " );
+        when( identity.displayName( "alice" ) ).thenReturn( "Alice Example" );
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage, () -> identity );
+
+        assertEquals( List.of( "Mine" ), names( engine.listPages( by( null, null, null, "  janne jalkanen" ) ) ) );
+        assertEquals( List.of(), names( engine.listPages( by( null, null, null, "janne" ) ) ), "a login is not a display name" );
+    }
+
+    @Test
+    void nullHooksFallBackToInertDefaults() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Mine", "body #topic", "janne", new Date() );
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage, null, null );
+
+        assertEquals( List.of( "Mine" ), names( engine.listPages( by( null, List.of( "topic" ), null, "janne" ) ) ),
+                "no identity -> exact author match; no index -> tags read from the body" );
+    }
+
+    @Test
+    void anEmptyOrNullTagFilterMatchesEveryPageWithoutReadingBodies() throws Exception {
+        final FakePageManager fake = new FakePageManager();
+        fake.addPage( "One", "body", "a", new Date() );
+        final PageManager pm = mock( PageManager.class );
+        final Collection< Page > pages = fake.getAllPages();
+        when( pm.getAllPages() ).thenReturn( pages );
+        when( pm.getPureText( anyString(), anyInt() ) ).thenThrow( new AssertionError( "body must not be read" ) );
+        final FrontmatterMetadataCache cache = mock( FrontmatterMetadataCache.class );
+        when( cache.get( anyString(), any() ) ).thenReturn( Map.of() );
+        final PageListEngine engine = new PageListEngine( pm, cache, PageListEngineTest::toRetrievedPage );
+
+        assertEquals( 1, engine.listPages( by( null, List.of(), null, null ) ).totalMatched() );
+        assertEquals( 1, engine.listPages( by( null, null, null, null ) ).totalMatched() );
+    }
+
+    @Test
+    void tagsSatisfiedByFrontmatterAloneNeverReadTheBody() throws Exception {
+        final FakePageManager fake = new FakePageManager();
+        fake.addPage( "Tagged", "body", "a", new Date() );
+        final PageManager pm = mock( PageManager.class );
+        final Collection< Page > pages = fake.getAllPages();
+        when( pm.getAllPages() ).thenReturn( pages );
+        when( pm.getPureText( anyString(), anyInt() ) ).thenThrow( new AssertionError( "body must not be read" ) );
+        final FrontmatterMetadataCache cache = mock( FrontmatterMetadataCache.class );
+        when( cache.get( anyString(), any() ) ).thenReturn( Map.of( "tags", List.of( "alpha", "beta" ) ) );
+        final PageListEngine engine = new PageListEngine( pm, cache, PageListEngineTest::toRetrievedPage );
+
+        assertEquals( 1, engine.listPages( by( null, List.of( "alpha", "beta" ), null, null ) ).totalMatched() );
+    }
+
+    @Test
+    void aPageWithNoReadableBodyDoesNotMatchAnInlineTagAndDoesNotFail() throws Exception {
+        final FakePageManager fake = new FakePageManager();
+        fake.addPage( "Bare", "body", "a", new Date() );
+        final PageManager pm = mock( PageManager.class );
+        final Collection< Page > pages = fake.getAllPages();
+        when( pm.getAllPages() ).thenReturn( pages );
+        when( pm.getPureText( anyString(), anyInt() ) ).thenReturn( null );
+        final FrontmatterMetadataCache cache = mock( FrontmatterMetadataCache.class );
+        when( cache.get( anyString(), any() ) ).thenReturn( Map.of() );
+        final PageListEngine engine = new PageListEngine( pm, cache, PageListEngineTest::toRetrievedPage );
+
+        assertEquals( 0, engine.listPages( by( null, List.of( "inline" ), null, null ) ).totalMatched() );
+    }
+
+    @Test
+    void blankTagsInTheFilterAreIgnoredRatherThanRequired() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Tagged", "---\ntags: [alpha]\n---\nbody", "a", new Date() );
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage );
+
+        assertEquals( List.of( "Tagged" ), names( engine.listPages(
+                by( null, List.of( "alpha", "   ", "#" ), null, null ) ) ) );
+    }
+
+    @Test
+    void pagingReportsTheFullMatchCountAndSlicesByOffsetAndLimit() {
+        final FakePageManager pm = new FakePageManager();
+        for ( int i = 0; i < 5; i++ ) pm.addPage( "P" + i, "body", "a", new Date() );
+        final PageListEngine engine = new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage );
+
+        final PageList page = engine.listPages( new PageListFilter( null, null, null, null, null, null, 2, 1 ) );
+        assertEquals( 5, page.totalMatched() );
+        assertEquals( 2, page.pages().size() );
+        assertEquals( 2, page.limit() );
+        assertEquals( 1, page.offset() );
+
+        assertEquals( 0, engine.listPages( new PageListFilter( null, null, null, null, null, null, 2, 9 ) ).pages().size(),
+                "an offset beyond the end is an empty page, not an error" );
+        assertEquals( 1, engine.listPages( new PageListFilter( null, null, null, null, null, null, 0, 0 ) ).pages().size(),
+                "a limit below one still yields one page entry" );
+    }
+
+    @Test
+    void metadataForAPageWithNoTextIsEmptyNotNull() {
+        final PageManager pm = mock( PageManager.class );
+        when( pm.getPureText( anyString(), anyInt() ) ).thenReturn( null );
+        final Page page = mock( Page.class );
+        when( page.getName() ).thenReturn( "Ghost" );
+        assertEquals( Map.of(), new PageListEngine( pm, null, PageListEngineTest::toRetrievedPage ).metadataFor( page ) );
+    }
 }

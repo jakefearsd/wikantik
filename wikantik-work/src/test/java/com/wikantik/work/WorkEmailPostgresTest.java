@@ -305,4 +305,15 @@ class WorkEmailPostgresTest {
         assertEquals( 0, store.pendingEmail( since, 5, true, java.time.LocalDate.of( 2026, 3, 2 ) ).size(), "already sent today" );
         assertEquals( 5, store.pendingEmail( since, 5, true, java.time.LocalDate.of( 2026, 3, 3 ) ).size(), "due tomorrow" );
     }
+
+    @Test
+    void aDailyDigestGoesOutAtTheConfiguredHourExactlyNotASecondBefore() throws SQLException {
+        start( true );
+        twoNoticesForOtto();
+        fx.notices.setPreference( OTTO, EmailMode.DAILY );
+        assertEquals( 0, fx.notices.sendEmail( Instant.parse( "2026-03-02T07:59:59Z" ) ) );
+        assertEquals( 0, fx.rows( "emailed_at IS NOT NULL" ) );
+        assertEquals( 1, fx.notices.sendEmail( Instant.parse( "2026-03-02T08:00:00Z" ) ), "the hour itself is open" );
+        assertEquals( 2, fx.rows( "emailed_at IS NOT NULL" ) );
+    }
 }

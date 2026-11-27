@@ -265,4 +265,56 @@ class WorkAttachmentsServicePostgresTest {
         assertThrows( WorkNotFoundException.class, () -> svc.upload( mallory, first.key(), null, "b.png", PNG ) );
         assertThrows( WorkNotFoundException.class, () -> svc.remove( mallory, first.key(), a.id() ) );
     }
+
+    @Test
+    void aFileOfExactlyTheLimitIsAcceptedAndOneByteMoreIsNot() throws SQLException {
+        final WorkAttachmentsService svc = service( new WorkSettings( Duration.ofMinutes( 240 ), PNG.length, 1000 ) );
+        assertEquals( PNG.length, svc.upload( bob, first.key(), null, "a.png", PNG ).sizeBytes() );
+        final byte[] bigger = java.util.Arrays.copyOf( PNG, PNG.length + 1 );
+        assertEquals( WorkConflictException.TOO_LARGE, assertThrows( WorkConflictException.class,
+            () -> svc.upload( bob, first.key(), null, "b.png", bigger ) ).reason() );
+    }
+
+    @Test
+    void refusalsToRemoveOrAttachAreCountedAsAttachDenials() throws SQLException {
+        final java.util.List< Action > denials = new java.util.ArrayList<>();
+        final WorkAttachmentsService svc = new WorkService( fx.store, md -> md, new WorkDirectory() {
+            @Override public Set< String > groupsOf( final String login ) { return Set.of(); }
+            @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
+            @Override public String displayName( final String login ) { return login; }
+        }, Clock.systemUTC(), WorkSettings.DEFAULTS, new WorkListener() {
+            @Override public void denied( final Action a ) { denials.add( a ); }
+        } ).features().attachments();
+        final Attachment a = svc.upload( bob, first.key(), null, "a.png", PNG );
+        assertThrows( WorkDeniedException.class, () -> svc.remove( carol, first.key(), a.id() ) );
+        assertEquals( List.of( Action.ATTACH ), denials );
+        fx.store.claims().claim( first, fx.actorB, Duration.ofHours( 1 ) ).orElseThrow();
+        assertThrows( WorkDeniedException.class, () -> svc.upload( fx.actorA, first.key(), null, "x.png", PNG ) );
+        assertEquals( List.of( Action.ATTACH, Action.ATTACH ), denials );
+        assertThrows( WorkDeniedException.class, () -> svc.mayAttach( vera, second.key() ) );
+        assertEquals( 3, denials.size() );
+    }
+
+    @Test
+    void aDownloadBeginsOnceThenStreamsTheBytesAndAStrangerGetsNothing() throws Exception {
+        final WorkAttachmentsService svc = service();
+        final Attachment a = svc.upload( bob, first.key(), null, "a.png", PNG );
+        final java.io.ByteArrayOutputStream got = new java.io.ByteArrayOutputStream();
+        final List< String > calls = new java.util.ArrayList<>();
+        svc.download( vera, first.key(), a.id(), new WorkAttachmentsService.Download() {
+            @Override public void begin( final Attachment att ) { calls.add( "begin " + att.filename() ); }
+            @Override public void chunk( final byte[] buffer, final int length ) {
+                calls.add( "chunk" );
+                got.write( buffer, 0, length );
+            }
+        } );
+        assertEquals( List.of( "begin a.png", "chunk" ), calls );
+        assertArrayEquals( PNG, got.toByteArray() );
+        assertThrows( WorkNotFoundException.class, () -> svc.download( vera, first.key(), 999_999L,
+            new WorkAttachmentsService.Download() {
+                @Override public void begin( final Attachment att ) { calls.add( "never" ); }
+                @Override public void chunk( final byte[] buffer, final int length ) { calls.add( "never" ); }
+            } ) );
+        assertEquals( 2, calls.size(), "nothing was sent for an unknown file" );
+    }
 }

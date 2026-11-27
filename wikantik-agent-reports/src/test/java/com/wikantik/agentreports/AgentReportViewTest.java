@@ -29,4 +29,16 @@ class AgentReportViewTest {
                 ( ( List< ? > ) m.get( "friction" ) ).get( 0 ) );
         assertEquals( 17, m.size() );
     }
+
+    @Test
+    void nullInstantsAndListsRenderAsNullAndEmpty() {
+        final AgentReport r = new AgentReport( null, null, null, null, null, null, "build", List.of(), List.of(),
+                null, null, "task", "done", null, null, null, null );
+        final Map< String, Object > m = AgentReportView.toMap( r );
+        assertEquals( null, m.get( "filed_at" ) );
+        assertEquals( null, m.get( "window_end" ) );
+        assertEquals( List.of(), m.get( "context_used" ) );
+        assertEquals( List.of(), m.get( "friction" ) );
+        assertEquals( List.of( m ), AgentReportView.toMaps( List.of( r ) ) );
+    }
 }

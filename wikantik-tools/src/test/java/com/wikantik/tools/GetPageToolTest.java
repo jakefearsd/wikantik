@@ -141,6 +141,41 @@ class GetPageToolTest {
         assertTrue( out.get( "text" ).toString().endsWith( "…" ) );
     }
 
+    @org.junit.jupiter.params.ParameterizedTest( name = "maxChars={0} truncates a 7000 char body at {1}" )
+    @org.junit.jupiter.params.provider.CsvSource( { "0,6000", "-1,6000", "-100,6000", "1,1", "6500,6500", "20000,20000", "20001,20000" } )
+    void nonPositiveMaxCharsUsesTheSixThousandDefaultAndLargeOnesAreCappedAtTwentyThousand(
+            final int maxChars, final int expectedLimit ) {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "Big" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "Big" );
+        final int bodyLength = expectedLimit >= 7000 ? 25_000 : 7000;
+        when( pageManager.getPureText( "Big", -1 ) ).thenReturn( "x".repeat( bodyLength ) );
+
+        final Map< String, Object > out = allowingTool( engine, new ToolsConfig( new Properties() ) )
+                .execute( "Big", maxChars, request );
+
+        assertEquals( Boolean.TRUE, out.get( "truncated" ) );
+        assertEquals( expectedLimit, out.get( "truncatedAt" ) );
+        assertEquals( bodyLength, out.get( "totalChars" ) );
+        assertEquals( expectedLimit + 1, out.get( "text" ).toString().length(), "limit chars plus the ellipsis" );
+    }
+
+    @Test
+    void bodyExactlyAtTheLimitIsNotMarkedTruncated() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "Big" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "Big" );
+        when( pageManager.getPureText( "Big", -1 ) ).thenReturn( "x".repeat( 100 ) );
+
+        final Map< String, Object > out = allowingTool( engine, new ToolsConfig( new Properties() ) )
+                .execute( "Big", 100, request );
+
+        assertEquals( Boolean.FALSE, out.get( "truncated" ) );
+        assertEquals( 100, out.get( "text" ).toString().length() );
+        assertFalse( out.containsKey( "totalChars" ) );
+        assertFalse( out.containsKey( "truncatedAt" ) );
+    }
+
     @Test
     void clampsMaxCharsToHardCap() {
         when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );

@@ -205,4 +205,76 @@ class FileAgentReportToolTest {
                 ApiKeyService.Scope.MCP_ADMIN ).authorize( req );
         assertTrue( out instanceof com.wikantik.auth.apikeys.AbstractApiAccessFilter.Outcome.Denied, out.toString() );
     }
+
+    @Test
+    void toolNameIsFileAgentReport() {
+        assertEquals( "file_agent_report", tool.name() );
+        assertEquals( FileAgentReportTool.TOOL_NAME, tool.definition().name() );
+    }
+
+    @Test
+    void filedResultReportsTheIdAndTheFiledFlagAsJson() {
+        when( service.file( any(), any() ) ).thenReturn( new FileResult.Filed( 42 ) );
+        final var body = com.google.gson.JsonParser.parseString( text( tool.execute( args(), exchange( "c", key( "jake" ) ) ) ) )
+                .getAsJsonObject();
+        assertEquals( 42, body.get( "id" ).getAsInt() );
+        assertTrue( body.get( "filed" ).getAsBoolean() );
+    }
+
+    @Test
+    void aNullExchangeCannotNameAnOwnerSoNothingIsFiled() {
+        final McpSchema.CallToolResult r = tool.execute( args(), null );
+        assertTrue( Boolean.TRUE.equals( r.isError() ) );
+        assertTrue( text( r ).contains( "no API key owner" ), text( r ) );
+        org.mockito.Mockito.verifyNoInteractions( service );
+    }
+
+    @Test
+    void aKeyWithABlankOwnerLoginIsTreatedAsHavingNoOwner() {
+        for ( final String login : new String[] { null, "", "   " } ) {
+            final McpSchema.CallToolResult r = tool.execute( args(), exchange( "c", key( login ) ) );
+            assertTrue( Boolean.TRUE.equals( r.isError() ), "login=" + login );
+            assertTrue( text( r ).contains( "no API key owner" ), text( r ) );
+        }
+        org.mockito.Mockito.verifyNoInteractions( service );
+    }
+
+    @Test
+    void nullArgumentsAreFiledAsAnEmptyReportSoTheServiceCanRefuseThemWithReasons() {
+        when( service.file( any(), any() ) ).thenReturn( new FileResult.Refused( List.of( "task: required" ) ) );
+        final McpSchema.CallToolResult r = tool.execute( null, exchange( "c", key( "jake" ) ) );
+        final ArgumentCaptor< Map< String, Object > > filed = ArgumentCaptor.forClass( Map.class );
+        verify( service ).file( filed.capture(), any() );
+        assertTrue( filed.getValue().isEmpty() );
+        assertTrue( text( r ).contains( "task: required" ), text( r ) );
+    }
+
+    @Test
+    void anUnexpectedFailureIsAGenericErrorNotAThrow() {
+        when( service.file( any(), any() ) ).thenThrow( new IllegalStateException( "kaboom" ) );
+        final McpSchema.CallToolResult r = tool.execute( args(), exchange( "c", key( "jake" ) ) );
+        assertTrue( Boolean.TRUE.equals( r.isError() ) );
+        assertTrue( text( r ).contains( "report could not be filed" ), text( r ) );
+        assertFalse( text( r ).contains( "kaboom" ), "internal detail must not reach the caller" );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    @Test
+    void everyDeclaredPropertyCarriesATypeADescriptionAndAnExample() {
+        final Map< String, Object > props = ToolSchemas.properties( tool.definition().inputSchema() );
+        assertEquals( java.util.Set.of( "kind_of_work", "task", "outcome", "workspace", "products", "skills", "window_start",
+                "window_end", "context_used", "context_missing", "friction", "notes" ), props.keySet() );
+        for ( final String name : new String[] { "kind_of_work", "task", "outcome", "workspace", "window_start", "window_end",
+                "context_missing", "notes" } ) {
+            final Map< String, Object > p = ( Map< String, Object > ) props.get( name );
+            assertEquals( "string", p.get( "type" ), name );
+            assertFalse( ( ( String ) p.get( "description" ) ).isBlank(), name );
+            assertEquals( 1, ( ( List< ? > ) p.get( "examples" ) ).size(), name );
+        }
+        assertEquals( List.of( "operations", "content", "build", "research", "other" ),
+                ( ( Map< String, Object > ) props.get( "kind_of_work" ) ).get( "enum" ) );
+        assertEquals( List.of( "completed", "partial", "abandoned" ),
+                ( ( Map< String, Object > ) props.get( "outcome" ) ).get( "enum" ) );
+        assertEquals( List.of( "kind_of_work", "task", "outcome" ), ToolSchemas.required( tool.definition().inputSchema() ) );
+    }
 }

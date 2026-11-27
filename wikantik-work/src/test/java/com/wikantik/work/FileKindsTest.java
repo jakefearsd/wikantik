@@ -102,4 +102,43 @@ class FileKindsTest {
         assertEquals( 200, name.length() );
         assertTrue( name.endsWith( ".log" ) );
     }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( {
+        "31,true", "32,false", "126,false", "127,true", "128,false",
+        "8233,false", "8234,true", "8238,true", "8239,false",
+        "8293,false", "8294,true", "8297,true", "8298,false" } )
+    void onlyControlAndBidiCharactersAreStrippedFromAName( final int codePoint, final boolean stripped ) {
+        final String raw = "a" + new String( Character.toChars( codePoint ) ) + "b";
+        assertEquals( stripped ? "ab" : raw, FileKinds.safeName( raw ),
+            "code point " + codePoint );
+    }
+
+    @Test
+    void aNameOfExactlyTwoHundredCharactersIsKeptAndTwoHundredAndOneIsCut() {
+        assertEquals( "n".repeat( 200 ), FileKinds.safeName( "n".repeat( 200 ) ) );
+        assertEquals( "n".repeat( 200 ), FileKinds.safeName( "n".repeat( 201 ) ) );
+    }
+
+    @Test
+    void anExtensionOfSixteenCharactersIsKeptAndOneOfSeventeenIsDropped() {
+        final String keep = "." + "e".repeat( 15 );
+        final String longName = "n".repeat( 250 );
+        final String kept = FileKinds.safeName( longName + keep );
+        assertEquals( 200, kept.length() );
+        assertTrue( kept.endsWith( keep ) );
+        final String drop = "." + "e".repeat( 16 );
+        final String dropped = FileKinds.safeName( longName + drop );
+        assertEquals( 200, dropped.length() );
+        assertFalse( dropped.endsWith( drop ), "a seventeen character extension is not worth keeping" );
+    }
+
+    @Test
+    void aWebpNeedsRiffAndWebpAtTheirOwnOffsets() {
+        final byte[] exact = new byte[ 12 ];
+        System.arraycopy( ascii( "RIFF" ), 0, exact, 0, 4 );
+        System.arraycopy( ascii( "WEBP" ), 0, exact, 8, 4 );
+        assertEquals( java.util.Optional.of( "image/webp" ), FileKinds.detect( exact ), "twelve bytes is enough" );
+        assertEquals( java.util.Optional.empty(), FileKinds.detect( java.util.Arrays.copyOf( exact, 11 ) ) );
+    }
 }

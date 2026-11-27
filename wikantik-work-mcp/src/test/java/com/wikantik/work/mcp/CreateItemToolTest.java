@@ -91,6 +91,29 @@ class CreateItemToolTest {
         assertEquals( WorkKind.SOFTWARE, d.getValue().kind() );
     }
 
+    @ParameterizedTest
+    @ValueSource( strings = { "", "  " } )
+    void aBlankTypeOrKindIsAsGoodAsNoneAndTheServiceChoosesTheDefault( final String blank ) throws SQLException {
+        when( w.svc.createItem( any(), any() ) )
+            .thenReturn( MockWork.view( MockWork.item( "PLAT-5", WorkStatus.DRAFT, 1, null, null ) ) );
+        tool.call( w.agent, args( "project", "PLAT", "level", "task", "title", "T", "type", blank, "kind", blank ) );
+        final ArgumentCaptor< ItemDraft > d = ArgumentCaptor.forClass( ItemDraft.class );
+        verify( w.svc ).createItem( any(), d.capture() );
+        assertNull( d.getValue().type() );
+        assertEquals( WorkKind.SOFTWARE, d.getValue().kind() );
+    }
+
+    @Test
+    void noTypeAndNoLabelsReachTheServiceAsNull() throws SQLException {
+        when( w.svc.createItem( any(), any() ) )
+            .thenReturn( MockWork.view( MockWork.item( "PLAT-5", WorkStatus.DRAFT, 1, null, null ) ) );
+        tool.call( w.agent, args( "project", "PLAT", "level", "task", "title", "T" ) );
+        final ArgumentCaptor< ItemDraft > d = ArgumentCaptor.forClass( ItemDraft.class );
+        verify( w.svc ).createItem( any(), d.capture() );
+        assertNull( d.getValue().type() );
+        assertNull( d.getValue().labels() );
+    }
+
     @Test
     void typeAndLabelsArePassedToTheService() throws SQLException {
         when( w.svc.createItem( any(), any() ) )

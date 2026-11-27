@@ -122,4 +122,101 @@ class SparqlQueryToolTest {
         assertTrue( result.isError(), "SERVICE (federation/SSRF) must be rejected" );
         assertTrue( text( result ).contains( "SERVICE" ), text( result ) );
     }
+
+    private OntologyModelManager managerWithRows( final int rows ) {
+        final OntologyModelManager mgr = loadedManager();
+        final org.apache.jena.rdf.model.Model m = org.apache.jena.rdf.model.ModelFactory.createDefaultModel();
+        final org.apache.jena.rdf.model.Property p = m.createProperty( "urn:test:p" );
+        for ( int i = 0; i < rows; i++ ) {
+            m.add( m.createResource( "urn:test:s" + i ), p, "v" + i );
+        }
+        mgr.replaceNamedGraph( "urn:test:graph", m );
+        return mgr;
+    }
+
+    private int compactRowCount( final OntologyModelManager mgr, final String query ) {
+        final var result = new SparqlQueryTool( mgr ).execute( Map.of( "query", query, "format", "compact" ) );
+        assertFalse( result.isError(), text( result ) );
+        return com.google.gson.JsonParser.parseString( text( result ) ).getAsJsonArray().size();
+    }
+
+    @Test
+    void aQueryWithoutALimitIsCappedAtTenThousandRows() {
+        final OntologyModelManager mgr = managerWithRows( 10_005 );
+        assertEquals( 10_000, compactRowCount( mgr, "SELECT ?s WHERE { ?s <urn:test:p> ?o }" ) );
+    }
+
+    @Test
+    void aLimitAboveTheCapIsLoweredToTheCap() {
+        final OntologyModelManager mgr = managerWithRows( 10_005 );
+        assertEquals( 10_000, compactRowCount( mgr, "SELECT ?s WHERE { ?s <urn:test:p> ?o } LIMIT 10001" ) );
+    }
+
+    @Test
+    void aLimitBelowTheCapIsHonoured() {
+        final OntologyModelManager mgr = managerWithRows( 20 );
+        assertEquals( 5, compactRowCount( mgr, "SELECT ?s WHERE { ?s <urn:test:p> ?o } LIMIT 5" ) );
+    }
+
+    @Test
+    void compactFormatReturnsLiteralsAsLexicalFormAndResourcesAsIris() {
+        final OntologyModelManager mgr = managerWithRows( 1 );
+        final var result = new SparqlQueryTool( mgr ).execute( Map.of(
+                "query", "SELECT ?s ?o WHERE { ?s <urn:test:p> ?o }", "format", "COMPACT" ) );
+        final com.google.gson.JsonObject row = com.google.gson.JsonParser.parseString( text( result ) )
+                .getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertEquals( "urn:test:s0", row.get( "s" ).getAsString() );
+        assertEquals( "v0", row.get( "o" ).getAsString() );
+    }
+
+    @Test
+    void compactFormatOmitsUnboundVariablesFromTheRow() {
+        final OntologyModelManager mgr = managerWithRows( 1 );
+        final var result = new SparqlQueryTool( mgr ).execute( Map.of(
+                "query", "SELECT ?s ?missing WHERE { ?s <urn:test:p> ?o OPTIONAL { ?s <urn:test:none> ?missing } }",
+                "format", "compact" ) );
+        final com.google.gson.JsonObject row = com.google.gson.JsonParser.parseString( text( result ) )
+                .getAsJsonArray().get( 0 ).getAsJsonObject();
+        assertTrue( row.has( "s" ) );
+        assertFalse( row.has( "missing" ) );
+    }
+
+    @Test
+    void compactFormatDoesNotChangeAskResults() {
+        final var result = new SparqlQueryTool( loadedManager() ).execute( Map.of( "query",
+                "ASK { <https://wiki.wikantik.com/ns/wikantik#Article> a <http://www.w3.org/2002/07/owl#Class> }",
+                "format", "compact" ) );
+        assertTrue( text( result ).contains( "\"boolean\"" ), text( result ) );
+    }
+
+    @Test
+    void describeReturnsTurtleAboutTheResource() {
+        final var result = new SparqlQueryTool( managerWithRows( 1 ) ).execute( Map.of( "query",
+                "DESCRIBE <urn:test:s0>" ) );
+        assertFalse( result.isError(), text( result ) );
+        assertTrue( text( result ).contains( "urn:test:s0" ) && text( result ).contains( "v0" ), text( result ) );
+    }
+
+    @Test
+    void missingOrBlankQuerySaysWhichArgumentIsNeeded() {
+        for ( final Map< String, Object > args : java.util.List.< Map< String, Object > >of( Map.of(), Map.of( "query", "  " ) ) ) {
+            final var result = new SparqlQueryTool( loadedManager() ).execute( args );
+            assertTrue( result.isError() );
+            assertTrue( text( result ).contains( "missing " ) && text( result ).contains( "query" ), text( result ) );
+        }
+    }
+
+    @Test
+    void javaFunctionIrisAreRejectedBeforeAnythingRuns() {
+        final var result = new SparqlQueryTool( loadedManager() ).execute( Map.of( "query",
+                "SELECT ?x WHERE { BIND( <java:java.lang.System.getenv>( \"HOME\" ) AS ?x ) }" ) );
+        assertTrue( result.isError(), text( result ) );
+    }
+
+    @Test
+    void anUnparseableQueryExplainsThatUpdateIsNotAllowed() {
+        final var result = new SparqlQueryTool( loadedManager() ).execute( Map.of( "query", "INSERT DATA { <urn:x> <urn:p> <urn:y> }" ) );
+        assertTrue( result.isError() );
+        assertTrue( text( result ).contains( "UPDATE is not allowed" ), text( result ) );
+    }
 }

@@ -18,7 +18,7 @@
  */
 package com.wikantik.knowledge.mcp;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -53,5 +53,39 @@ class GetOntologyToolTest {
     @Test
     void nameIsGetOntology() {
         assertTrue( "get_ontology".equals( new GetOntologyTool( loadedManager() ).name() ) );
+    }
+
+    private com.google.gson.JsonObject payload() {
+        final var result = new GetOntologyTool( loadedManager() ).execute( Map.of() );
+        return com.google.gson.JsonParser.parseString( ( (McpSchema.TextContent) result.content().get( 0 ) ).text() ).getAsJsonObject();
+    }
+
+    @Test
+    void aClassCarriesItsLabelAndItsSuperClassIris() {
+        final com.google.gson.JsonObject payload = payload();
+        assertEquals( "https://wiki.wikantik.com/ns/wikantik#", payload.get( "namespace" ).getAsString() );
+        com.google.gson.JsonObject designDoc = null;
+        for ( final var e : payload.getAsJsonArray( "classes" ) ) {
+            if ( "https://wiki.wikantik.com/ns/wikantik#DesignDoc".equals( e.getAsJsonObject().get( "iri" ).getAsString() ) ) {
+                designDoc = e.getAsJsonObject();
+            }
+        }
+        assertNotNull( designDoc, "DesignDoc class is listed" );
+        assertEquals( "Design Document", designDoc.get( "label" ).getAsString() );
+        final java.util.Set< String > supers = new java.util.HashSet<>();
+        designDoc.getAsJsonArray( "subClassOf" ).forEach( x -> supers.add( x.getAsString() ) );
+        assertEquals( java.util.Set.of( "https://wiki.wikantik.com/ns/wikantik#Page", "https://schema.org/TechArticle" ), supers );
+    }
+
+    @Test
+    void everyListedClassHasAnIriAndTheSchemeIsNamed() {
+        final com.google.gson.JsonObject payload = payload();
+        assertTrue( payload.getAsJsonArray( "classes" ).size() >= 5 );
+        for ( final var e : payload.getAsJsonArray( "classes" ) ) {
+            assertTrue( e.getAsJsonObject().get( "iri" ).getAsString().startsWith( "https://wiki.wikantik.com/ns/wikantik#" ) );
+        }
+        assertEquals( 1, payload.getAsJsonArray( "conceptSchemes" ).size() );
+        assertEquals( "https://wiki.wikantik.com/ns/wikantik#WikiConcepts", payload.getAsJsonArray( "conceptSchemes" ).get( 0 ).getAsString() );
+        assertEquals( 0, payload.getAsJsonArray( "objectProperties" ).size() );
     }
 }

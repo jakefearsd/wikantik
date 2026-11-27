@@ -488,4 +488,55 @@ class WorkWebhookDeliveryPostgresTest {
         assertEquals( 0, fx.rows( "reason = 'webhook_disabled' AND recipient <> 'lena'" ) );
         assertTrue( webhookEvents( fx.service.activity( OTTO, "WIKI", null, 200 ) ).isEmpty(), "nor in a member's feed" );
     }
+
+    // ---- gaps a mutation run found
+
+    @Test
+    void theRetryPauseDoublesFromAMinuteAndStopsGrowingAtThirtyMinutes() throws SQLException {
+        fx.newItem( LENA );
+        outbound.defaultStatus = 500;
+        final long[] pauseMinutes = { 1, 2, 4, 8, 16, 30, 30 };
+        Instant at = T0;
+        deliver( at );
+        int sends = outbound.sent.size();
+        assertEquals( 1, sends );
+        for ( int k = 0; k < pauseMinutes.length; k++ ) {
+            final Duration pause = Duration.ofMinutes( pauseMinutes[ k ] );
+            deliver( at.plus( pause ).minusSeconds( 1 ) );
+            assertEquals( sends, outbound.sent.size(), "failure " + ( k + 1 ) + ": still backing off one second early" );
+            at = at.plus( pause );
+            deliver( at );
+            sends++;
+            assertEquals( sends, outbound.sent.size(), "failure " + ( k + 1 ) + ": retried when the pause ended" );
+        }
+    }
+
+    @Test
+    void onlyA2xxAnswerIsADelivery() throws SQLException {
+        fx.newItem( LENA );
+        Instant at = T0;
+        for ( final int status : new int[] { 199, 300, 301, 404, 500 } ) {
+            outbound.script.add( RecordingOutbound.Answer.status( status ) );
+            at = at.plus( Duration.ofHours( 1 ) );
+            assertEquals( 0, deliver( at ), "status " + status );
+            assertEquals( "HTTP " + status, state().lastError() );
+        }
+        outbound.script.add( RecordingOutbound.Answer.status( 299 ) );
+        assertEquals( 1, deliver( at.plus( Duration.ofHours( 1 ) ) ), "299 is still a success" );
+        assertNull( state().lastError() );
+    }
+
+    @Test
+    void aRefusalReasonIsCutToTwoHundredCharactersAndAnEmptyOneIsNamed() throws SQLException {
+        fx.newItem( LENA );
+        outbound.script.add( RecordingOutbound.Answer.fail( new WorkOutbound.Refused( "x".repeat( 200 ) ) ) );
+        deliver( T0 );
+        assertEquals( "x".repeat( 200 ), state().lastError(), "exactly the limit is kept whole" );
+        outbound.script.add( RecordingOutbound.Answer.fail( new WorkOutbound.Refused( "y".repeat( 201 ) ) ) );
+        deliver( T0.plus( Duration.ofHours( 1 ) ) );
+        assertEquals( "y".repeat( 200 ), state().lastError() );
+        outbound.script.add( RecordingOutbound.Answer.fail( new WorkOutbound.Refused( null ) ) );
+        deliver( T0.plus( Duration.ofHours( 2 ) ) );
+        assertEquals( "refused", state().lastError() );
+    }
 }

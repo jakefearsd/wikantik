@@ -173,4 +173,151 @@ class ContributingChunkAssemblerTest {
         assertEquals( "We hold {{wiki:articles}} articles.", assembler.fetchContributingChunks( "q", ONE_PAGE, 1,
             Optional.of( List.of( new ScoredChunk( chunkId, "Alpha", 0.9 ) ) ) ).get( "Alpha" ).get( 0 ).text() );
     }
+
+    private static FakeChunkVectorIndex readyIndex() {
+        final FakeChunkVectorIndex idx = new FakeChunkVectorIndex();
+        idx.setEnabled( true );
+        return idx;
+    }
+
+    @Test
+    void anyMissingCollaboratorDegradesToAnEmptyMapRatherThanFailing() {
+        final UUID id = UUID.randomUUID();
+        final FakeChunkRepository repo = new FakeChunkRepository();
+        repo.addChunk( id, "Alpha", 0, List.of(), "t" );
+        final Optional< List< ScoredChunk > > reusable = Optional.of( List.of( new ScoredChunk( id, "Alpha", 0.9 ) ) );
+        final HybridSearchService hybrid = mock( HybridSearchService.class );
+
+        assertEquals( Map.of(), new ContributingChunkAssembler( null, repo, hybrid ).fetchContributingChunks( "q", ONE_PAGE, 1, reusable ) );
+        assertEquals( Map.of(), new ContributingChunkAssembler( readyIndex(), null, hybrid ).fetchContributingChunks( "q", ONE_PAGE, 1, reusable ) );
+        assertEquals( Map.of(), new ContributingChunkAssembler( readyIndex(), repo, null ).fetchContributingChunks( "q", ONE_PAGE, 1, reusable ) );
+        // sanity: with all three present the same input does produce a chunk
+        assertEquals( 1, new ContributingChunkAssembler( readyIndex(), repo, hybrid ).fetchContributingChunks( "q", ONE_PAGE, 1, reusable ).get( "Alpha" ).size() );
+    }
+
+    @Test
+    void aNegativeChunksPerPageIsTreatedLikeZero() {
+        final HybridSearchService hybrid = mock( HybridSearchService.class );
+        assertEquals( Map.of(), new ContributingChunkAssembler( readyIndex(), new FakeChunkRepository(), hybrid )
+                .fetchContributingChunks( "q", ONE_PAGE, -1, Optional.empty() ) );
+        verifyNoInteractions( hybrid );
+    }
+
+    @Test
+    void eachPageKeepsAtMostChunksPerPageChunksInScanOrder() {
+        final FakeChunkRepository repo = new FakeChunkRepository();
+        final List< ScoredChunk > scan = new java.util.ArrayList<>();
+        for ( int i = 0; i < 3; i++ ) {
+            final UUID id = UUID.randomUUID();
+            repo.addChunk( id, "Alpha", i, List.of(), "chunk" + i );
+            scan.add( new ScoredChunk( id, "Alpha", 0.9 - i * 0.1 ) );
+        }
+        final var out = new ContributingChunkAssembler( readyIndex(), repo, mock( HybridSearchService.class ) )
+                .fetchContributingChunks( "q", ONE_PAGE, 2, Optional.of( scan ) );
+        assertEquals( List.of( "chunk0", "chunk1" ), out.get( "Alpha" ).stream().map( RetrievedChunk::text ).toList() );
+    }
+
+    @Test
+    void reusableChunksExactlyMeetingTheNeedAreReusedButOneFewerTriggersAFreshScan() {
+        final UUID a = UUID.randomUUID();
+        final UUID b = UUID.randomUUID();
+        final FakeChunkRepository repo = new FakeChunkRepository();
+        repo.addChunk( a, "Alpha", 0, List.of(), "a" );
+        repo.addChunk( b, "Alpha", 1, List.of(), "b" );
+        final FakeChunkVectorIndex idx = readyIndex();
+        idx.setTopK( List.of( new ScoredChunk( a, "Alpha", 0.5 ) ) );
+        final HybridSearchService exact = mock( HybridSearchService.class );
+
+        // needs 1 page x 2 chunks = 2; exactly 2 supplied -> reused, no embedding fetch
+        new ContributingChunkAssembler( idx, repo, exact ).fetchContributingChunks( "q", ONE_PAGE, 2,
+                Optional.of( List.of( new ScoredChunk( a, "Alpha", 0.9 ), new ScoredChunk( b, "Alpha", 0.8 ) ) ) );
+        verify( exact, never() ).prefetchQueryEmbedding( anyString() );
+
+        // only 1 supplied -> not sufficient, so the embedding is fetched and the index scanned
+        final HybridSearchService fresh = FakeHybridSearch.enabledReturning( List.of( "Alpha" ) );
+        final var out = new ContributingChunkAssembler( idx, repo, fresh ).fetchContributingChunks( "q", ONE_PAGE, 2,
+                Optional.of( List.of( new ScoredChunk( a, "Alpha", 0.9 ) ) ) );
+        verify( fresh ).prefetchQueryEmbedding( "q" );
+        assertEquals( List.of( "a" ), out.get( "Alpha" ).stream().map( RetrievedChunk::text ).toList() );
+    }
+
+    @Test
+    void theNeedScalesWithTheNumberOfPagesNotJustTheChunkCount() {
+        final UUID a = UUID.randomUUID();
+        final UUID b = UUID.randomUUID();
+        final FakeChunkRepository repo = new FakeChunkRepository();
+        repo.addChunk( a, "Alpha", 0, List.of(), "a" );
+        repo.addChunk( b, "Beta", 0, List.of(), "b" );
+        final FakeChunkVectorIndex idx = readyIndex();
+        idx.setTopK( List.of( new ScoredChunk( a, "Alpha", 0.5 ), new ScoredChunk( b, "Beta", 0.4 ) ) );
+        final HybridSearchService hybrid = FakeHybridSearch.enabledReturning( List.of( "Alpha", "Beta" ) );
+        final List< SearchResult > two = List.of( FakeSearchResult.of( "Alpha", 2 ), FakeSearchResult.of( "Beta", 1 ) );
+
+        // 2 pages x 2 chunks per page = 4 needed; 2 supplied is not enough
+        new ContributingChunkAssembler( idx, repo, hybrid ).fetchContributingChunks( "q", two, 2,
+                Optional.of( List.of( new ScoredChunk( a, "Alpha", 0.9 ), new ScoredChunk( b, "Beta", 0.8 ) ) ) );
+
+        verify( hybrid ).prefetchQueryEmbedding( "q" );
+    }
+
+    @Test
+    void noPagesMeansNothingIsNeededButTheReusableListIsNotTrustedEither() {
+        final HybridSearchService hybrid = FakeHybridSearch.enabledReturning( List.of() );
+        final UUID a = UUID.randomUUID();
+        final var out = new ContributingChunkAssembler( readyIndex(), new FakeChunkRepository(), hybrid )
+                .fetchContributingChunks( "q", List.of(), 2, Optional.of( List.of( new ScoredChunk( a, "Alpha", 0.9 ) ) ) );
+        assertEquals( Map.of(), out );
+        verify( hybrid ).prefetchQueryEmbedding( "q" );
+    }
+
+    @Test
+    void anEmptyQueryEmbeddingMeansNoChunks() {
+        final HybridSearchService hybrid = mock( HybridSearchService.class );
+        when( hybrid.prefetchQueryEmbedding( anyString() ) )
+                .thenReturn( java.util.concurrent.CompletableFuture.completedFuture( Optional.empty() ) );
+        final FakeChunkVectorIndex idx = readyIndex();
+        idx.setTopK( List.of( new ScoredChunk( UUID.randomUUID(), "Alpha", 0.5 ) ) );
+        assertEquals( Map.of(), new ContributingChunkAssembler( idx, new FakeChunkRepository(), hybrid )
+                .fetchContributingChunks( "q", ONE_PAGE, 1, Optional.empty() ) );
+    }
+
+    @Test
+    void aFailedEmbeddingFetchMeansNoChunksRatherThanAnError() {
+        final HybridSearchService hybrid = mock( HybridSearchService.class );
+        when( hybrid.prefetchQueryEmbedding( anyString() ) )
+                .thenReturn( java.util.concurrent.CompletableFuture.failedFuture( new IllegalStateException( "embedder down" ) ) );
+        assertEquals( Map.of(), new ContributingChunkAssembler( readyIndex(), new FakeChunkRepository(), hybrid )
+                .fetchContributingChunks( "q", ONE_PAGE, 1, Optional.empty() ) );
+    }
+
+    @Test
+    void anEmptyScanMeansNoChunks() {
+        final HybridSearchService hybrid = FakeHybridSearch.enabledReturning( List.of( "Alpha" ) );
+        assertEquals( Map.of(), new ContributingChunkAssembler( readyIndex(), new FakeChunkRepository(), hybrid )
+                .fetchContributingChunks( "q", ONE_PAGE, 1, Optional.empty() ) );
+    }
+
+    @Test
+    void aNullLiveValuesSupplierServesChunksVerbatimAndKeepsAHeadingPathIntact() {
+        final UUID id = UUID.randomUUID();
+        final FakeChunkRepository repo = new FakeChunkRepository();
+        repo.addChunk( id, "Alpha", 0, List.of( "Top", "Sub" ), "{{wiki:x}} text" );
+        final var out = new ContributingChunkAssembler( readyIndex(), repo, mock( HybridSearchService.class ), null )
+                .fetchContributingChunks( "q", ONE_PAGE, 1, Optional.of( List.of( new ScoredChunk( id, "Alpha", 0.9 ) ) ) );
+        assertEquals( "{{wiki:x}} text", out.get( "Alpha" ).get( 0 ).text() );
+        assertEquals( List.of( "Top", "Sub" ), out.get( "Alpha" ).get( 0 ).headingPath() );
+    }
+
+    @Test
+    void aScoredChunkWhoseRowHasGoneIsDroppedWhileTheOthersStay() {
+        final UUID kept = UUID.randomUUID();
+        final UUID gone = UUID.randomUUID();
+        final FakeChunkRepository repo = new FakeChunkRepository();
+        repo.addChunk( kept, "Alpha", 0, List.of(), "kept" );
+        final var out = new ContributingChunkAssembler( readyIndex(), repo, mock( HybridSearchService.class ) )
+                .fetchContributingChunks( "q", ONE_PAGE, 2, Optional.of( List.of(
+                        new ScoredChunk( gone, "Alpha", 0.9 ), new ScoredChunk( kept, "Alpha", 0.8 ) ) ) );
+        assertEquals( List.of( "kept" ), out.get( "Alpha" ).stream().map( RetrievedChunk::text ).toList() );
+        assertEquals( 0.8, out.get( "Alpha" ).get( 0 ).chunkScore(), 0.0 );
+    }
 }

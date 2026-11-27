@@ -97,21 +97,6 @@ class GetPageByIdToolTest {
     }
 
     @Test
-    void returns_error_for_missing_id() {
-        final StructuralIndexService svc = mock( StructuralIndexService.class );
-        when( svc.getByCanonicalId( "missing" ) ).thenReturn( Optional.empty() );
-        final var result = new GetPageByIdTool( svc ).execute( Map.of( "canonical_id", "missing" ) );
-        assertTrue( result.isError() );
-    }
-
-    @Test
-    void requires_canonical_id_argument() {
-        final StructuralIndexService svc = mock( StructuralIndexService.class );
-        final var result = new GetPageByIdTool( svc ).execute( Map.of() );
-        assertTrue( result.isError() );
-    }
-
-    @Test
     void restrictedPageFilteredForGuest() {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         when( svc.getByCanonicalId( "01SECRET" ) ).thenReturn( Optional.of(

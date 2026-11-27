@@ -43,4 +43,38 @@ class ReadPagesMetricsTest {
     void incrementsAreSafeWhenNotBound() {
         new ReadPagesMetrics().recordPartialFailure( "not_found" );  // no-op, no exception
     }
+
+    @Test
+    void blankOrNullReasonsAreIgnored() {
+        final ReadPagesMetrics m = new ReadPagesMetrics();
+        final SimpleMeterRegistry reg = new SimpleMeterRegistry();
+        m.bind( reg );
+        m.recordPartialFailure( null );
+        m.recordPartialFailure( "  " );
+        m.recordPartialFailure( "" );
+        assertTrue( reg.getMeters().isEmpty() );
+    }
+
+    @Test
+    void resolveAndBindUsesTheSharedRegistryWhenOneIsInstalled() {
+        final SimpleMeterRegistry reg = new SimpleMeterRegistry();
+        com.wikantik.api.observability.MeterRegistryHolder.set( reg );
+        try {
+            final ReadPagesMetrics m = ReadPagesMetrics.resolveAndBind();
+            assertNotNull( m );
+            m.recordPartialFailure( "not_found" );
+            assertEquals( 1.0, reg.find( "wikantik_read_pages_partial_failures_total" )
+                    .tag( "reason", "not_found" ).counter().count(), 0.0 );
+        } finally {
+            com.wikantik.api.observability.MeterRegistryHolder.clear();
+        }
+    }
+
+    @Test
+    void resolveAndBindWithoutARegistryStillReturnsAUsableNoOp() {
+        com.wikantik.api.observability.MeterRegistryHolder.clear();
+        final ReadPagesMetrics m = ReadPagesMetrics.resolveAndBind();
+        assertNotNull( m );
+        m.recordPartialFailure( "not_found" );
+    }
 }

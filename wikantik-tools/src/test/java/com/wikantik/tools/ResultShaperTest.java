@@ -136,4 +136,103 @@ class ResultShaperTest {
         assertEquals( "", ResultShaper.truncateBody( null, 10 ) );
         assertFalse( ResultShaper.wasTruncated( null, 10 ) );
     }
+
+    // ---- mutation-driven additions ----
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( { "http,80,h", "https,443,h", "http,443,h:443", "https,80,h:80", "http,8080,h:8080", "ftp,80,h:80" } )
+    void citationUrlOmitsThePortOnlyWhenItIsTheDefaultForTheScheme( final String scheme, final int port, final String authority ) {
+        when( request.getScheme() ).thenReturn( scheme );
+        when( request.getServerName() ).thenReturn( "h" );
+        when( request.getServerPort() ).thenReturn( port );
+        assertEquals( scheme + "://" + authority + "/wiki/P", ResultShaper.citationUrl( "P", request, null ) );
+    }
+
+    @Test
+    void citationUrlEncodesReservedCharactersInThePageName() {
+        assertEquals( "/wiki/A%2FB%3F%26%C3%A9", ResultShaper.citationUrl( "A/B?&\u00e9", null, null ) );
+    }
+
+    @Test
+    void frontmatterReadsMetadataFromRawText() {
+        final Map< String, Object > meta = ResultShaper.frontmatter( "---\nsummary: Hello\ntags: [a, b]\n---\nbody" );
+        assertEquals( "Hello", meta.get( "summary" ) );
+        assertEquals( java.util.List.of( "a", "b" ), meta.get( "tags" ) );
+        assertTrue( ResultShaper.frontmatter( "just a body, no frontmatter" ).isEmpty() );
+    }
+
+    @Test
+    void frontmatterOfMalformedYamlIsEmptyNotAnException() {
+        assertTrue( ResultShaper.frontmatter( "---\nkey: [unclosed\n---\nbody" ).isEmpty() );
+    }
+
+    @Test
+    void bodyOnlyOfNothingIsEmptyAndOfPlainTextIsTheText() {
+        assertEquals( "", ResultShaper.bodyOnly( null ) );
+        assertEquals( "", ResultShaper.bodyOnly( "" ) );
+        assertEquals( "plain text", ResultShaper.bodyOnly( "plain text" ) );
+    }
+
+    @Test
+    void bodyOnlyOfTolerablyMalformedFrontmatterStillDropsTheFence() {
+        assertEquals( "body", ResultShaper.bodyOnly( "---\nkey: [unclosed\n---\nbody" ) );
+    }
+
+    @Test
+    void snippetUsesBodyWhenTheFirstContextIsBlankOrNullAndStripsAContext() {
+        assertEquals( "from body", ResultShaper.snippet( new String[] { "   " }, "from body" ) );
+        assertEquals( "from body", ResultShaper.snippet( new String[] { null }, "from body" ) );
+        assertEquals( "ctx", ResultShaper.snippet( new String[] { "  ctx \n", "second" }, "from body" ) );
+    }
+
+    @Test
+    void snippetOfNoContextAndNoBodyIsEmpty() {
+        assertEquals( "", ResultShaper.snippet( null, null ) );
+        assertEquals( "", ResultShaper.snippet( new String[ 0 ], "" ) );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource( { "319,319", "320,320", "321,321", "1000,321" } )
+    void bodySnippetIsCutAfterThreeHundredTwentyCharactersOnly( final int bodyChars, final int expectedLength ) {
+        final String out = ResultShaper.snippet( null, "y".repeat( bodyChars ) );
+        assertEquals( expectedLength, out.length() );
+        assertEquals( bodyChars > 320, out.endsWith( "\u2026" ) );
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest( name = "body of 10, maxChars {0}: truncated={1}" )
+    @org.junit.jupiter.params.provider.CsvSource( { "-1,false", "0,false", "1,true", "9,true", "10,false", "11,false" } )
+    void truncationHappensOnlyWhenTheBodyIsLongerThanAPositiveLimit( final int maxChars, final boolean truncated ) {
+        final String body = "0123456789";
+        assertEquals( truncated, ResultShaper.wasTruncated( body, maxChars ) );
+        final String shown = ResultShaper.truncateBody( body, maxChars );
+        if( truncated ) {
+            assertEquals( body.substring( 0, maxChars ) + "\u2026", shown );
+        } else {
+            assertEquals( body, shown );
+        }
+    }
+
+    @Test
+    void nullBodyIsNeverTruncatedAndShowsAsEmpty() {
+        assertFalse( ResultShaper.wasTruncated( null, 5 ) );
+        assertEquals( "", ResultShaper.truncateBody( null, 5 ) );
+    }
+
+    @Test
+    void defaultBodyTruncationIsSixThousandCharacters() {
+        assertEquals( 6000, ResultShaper.defaultBodyTruncation() );
+    }
+
+    @Test
+    void applyFrontmatterIsANoOpForNullAndEmptyAndCopiesEachFieldIndependently() {
+        final Map< String, Object > out = new LinkedHashMap<>();
+        ResultShaper.applyFrontmatter( out, null );
+        ResultShaper.applyFrontmatter( out, Map.of() );
+        assertTrue( out.isEmpty() );
+        ResultShaper.applyFrontmatter( out, Map.of( "summary", 42 ) );
+        assertEquals( Map.of( "summary", "42" ), out );
+        final Map< String, Object > tagsOnly = new LinkedHashMap<>();
+        ResultShaper.applyFrontmatter( tagsOnly, Map.of( "tags", java.util.List.of( "t" ), "other", "ignored" ) );
+        assertEquals( Map.of( "tags", java.util.List.of( "t" ) ), tagsOnly );
+    }
 }

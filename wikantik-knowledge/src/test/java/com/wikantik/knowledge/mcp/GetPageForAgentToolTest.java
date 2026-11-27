@@ -258,4 +258,70 @@ class GetPageForAgentToolTest {
                 "fixture passes agentHints=null which should serialise as JSON null" );
         assertEquals( false, body.get( "summary_synthesized" ).getAsBoolean() );
     }
+
+    private static ForAgentProjection projection() {
+        return new ForAgentProjection(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", "article", null,
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE, null, null, null, "s",
+                List.of(), List.of(), List.of(), List.of(), null, null, false,
+                "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md", false, List.of(), List.of() );
+    }
+
+    private static String errorText( final McpSchema.CallToolResult r ) {
+        assertTrue( r.isError() );
+        return ( (McpSchema.TextContent) r.content().get( 0 ) ).text();
+    }
+
+    @Test
+    void aMissingBlankOrNonStringCanonicalIdIsRefusedNamingTheArgument() {
+        for ( final Map< String, Object > args : List.< Map< String, Object > >of(
+                Map.of(), Map.of( "canonical_id", "" ), Map.of( "canonical_id", "   " ), Map.of( "canonical_id", 123 ) ) ) {
+            assertTrue( errorText( tool.execute( args ) ).contains( "canonical_id argument is required" ), args.toString() );
+        }
+        verifyNoInteractions( svc );
+    }
+
+    @Test
+    void anUnknownCanonicalIdIsReportedByItsValue() {
+        when( svc.project( eq( "missing" ), any() ) ).thenReturn( Optional.empty() );
+        assertTrue( errorText( tool.execute( Map.of( "canonical_id", "missing" ) ) )
+                .contains( "no page for canonical_id missing" ) );
+    }
+
+    @Test
+    void aProjectionTheGuestCannotViewIsReportedExactlyLikeAMissingOne() {
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( projection() ) );
+        final GetPageForAgentTool gated = new GetPageForAgentTool( svc, slug -> false );
+        assertTrue( errorText( gated.execute( Map.of( "canonical_id", "01ABC" ) ) )
+                .contains( "no page for canonical_id 01ABC" ) );
+    }
+
+    @Test
+    void nullGateIdentityAndDraftHooksFallBackToAllowAllNoIdentityAndNoDraft() {
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( projection() ) );
+        final GetPageForAgentTool bare = new GetPageForAgentTool( svc, null, null, null );
+
+        final McpSchema.CallToolResult result = bare.execute( Map.of( "canonical_id", "01ABC" ) );
+
+        assertFalse( Boolean.TRUE.equals( result.isError() ), result.content().toString() );
+        final JsonObject out = JsonParser.parseString( ( (McpSchema.TextContent) result.content().get( 0 ) ).text() ).getAsJsonObject();
+        assertEquals( "HybridRetrieval", out.get( "slug" ).getAsString() );
+        assertFalse( out.get( "draft_active" ).getAsBoolean() );
+    }
+
+    @Test
+    void theGateIsHandedToTheServiceSoDerivedFieldsAreCutToTheSameView() {
+        when( svc.project( eq( "01ABC" ), any() ) ).thenReturn( Optional.of( projection() ) );
+        final var captor = org.mockito.ArgumentCaptor.forClass( java.util.function.Predicate.class );
+        new GetPageForAgentTool( svc, slug -> !"Secret".equals( slug ) ).execute( Map.of( "canonical_id", "01ABC" ) );
+        verify( svc ).project( eq( "01ABC" ), captor.capture() );
+        assertFalse( captor.getValue().test( "Secret" ) );
+        assertTrue( captor.getValue().test( "Open" ) );
+    }
+
+    @Test
+    void aServiceFailureCarriesItsMessageInTheErrorResult() {
+        when( svc.project( eq( "01ABC" ), any() ) ).thenThrow( new IllegalStateException( "projection offline" ) );
+        assertTrue( errorText( tool.execute( Map.of( "canonical_id", "01ABC" ) ) ).contains( "projection offline" ) );
+    }
 }

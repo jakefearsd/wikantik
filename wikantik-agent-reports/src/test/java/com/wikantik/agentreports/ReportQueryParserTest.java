@@ -70,4 +70,11 @@ class ReportQueryParserTest {
                 () -> ReportQueryParser.parse( Map.of( "limit", "lots" )::get, CLOCK ) );
         assertTrue( e.getMessage().contains( "limit" ) );
     }
+
+    @Test
+    void limitIsClampedToTheMaximumAndZeroMeansTheDefault() {
+        assertEquals( ReportQuery.MAX_LIMIT, ReportQueryParser.parse( Map.of( "limit", "500" )::get, CLOCK ).limit() );
+        assertEquals( ReportQuery.MAX_LIMIT, ReportQueryParser.parse( Map.of( "limit", "501" )::get, CLOCK ).limit() );
+        assertEquals( ReportQuery.DEFAULT_LIMIT, ReportQueryParser.parse( Map.of( "limit", "0" )::get, CLOCK ).limit() );
+    }
 }

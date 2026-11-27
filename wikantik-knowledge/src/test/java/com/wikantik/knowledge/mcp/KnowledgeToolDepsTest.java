@@ -71,4 +71,52 @@ class KnowledgeToolDepsTest {
         assertSame( queryLogService, deps.queryLog().get() );
         assertSame( briefingLogService, deps.briefingLog().get() );
     }
+
+    @Test
+    void builderWiresTheRemainingCollaboratorsAndSuppliersToTheirAccessors() {
+        final com.wikantik.api.knowledge.ContextRetrievalService ctx = mock( com.wikantik.api.knowledge.ContextRetrievalService.class );
+        final com.wikantik.api.managers.PageManager pm = mock( com.wikantik.api.managers.PageManager.class );
+        final com.wikantik.api.pagegraph.StructuralIndexService index = mock( com.wikantik.api.pagegraph.StructuralIndexService.class );
+        final com.wikantik.api.agent.ForAgentProjectionService forAgent = mock( com.wikantik.api.agent.ForAgentProjectionService.class );
+        final com.wikantik.api.managers.ReferenceManager refs = mock( com.wikantik.api.managers.ReferenceManager.class );
+        final com.wikantik.api.livevalues.LiveValues live = mock( com.wikantik.api.livevalues.LiveValues.class );
+        final com.wikantik.api.identity.PublicIdentity identity = mock( com.wikantik.api.identity.PublicIdentity.class );
+        final com.wikantik.agentreports.AgentReportService reports = mock( com.wikantik.agentreports.AgentReportService.class );
+        final PageViewGate gate = slug -> false;
+
+        final KnowledgeToolDeps deps = KnowledgeToolDeps.builder()
+                .ctxService( ctx ).pageManager( pm ).structuralIndex( index ).forAgent( forAgent )
+                .referenceManager( () -> refs ).liveValues( () -> live ).publicIdentity( () -> identity )
+                .agentReports( () -> reports ).viewGate( gate ).draftActive( "Drafty"::equals )
+                .build();
+
+        assertSame( ctx, deps.ctxService() );
+        assertSame( pm, deps.pageManager() );
+        assertSame( index, deps.structuralIndex() );
+        assertSame( forAgent, deps.forAgent() );
+        assertSame( refs, deps.referenceManager().get() );
+        assertSame( live, deps.liveValues().get() );
+        assertSame( identity, deps.publicIdentity().get() );
+        assertSame( reports, deps.agentReports().get() );
+        assertSame( gate, deps.viewGate() );
+        assertTrue( deps.draftActive().test( "Drafty" ) );
+        assertFalse( deps.draftActive().test( "Other" ) );
+    }
+
+    @Test
+    void unsetOptionalHooksDefaultToInertValuesRatherThanNull() {
+        final KnowledgeToolDeps deps = KnowledgeToolDeps.builder().build();
+        assertNotNull( deps.referenceManager() );
+        assertNull( deps.referenceManager().get() );
+        assertNotNull( deps.liveValues() );
+        assertNull( deps.liveValues().get() );
+        assertNotNull( deps.publicIdentity() );
+        assertNull( deps.publicIdentity().get() );
+        assertNotNull( deps.agentReports() );
+        assertNull( deps.agentReports().get() );
+        assertNotNull( deps.draftActive() );
+        assertFalse( deps.draftActive().test( "AnyPage" ), "no draft is active unless a hook says so" );
+        assertNull( deps.ctxService() );
+        assertNull( deps.pageManager() );
+    }
 }

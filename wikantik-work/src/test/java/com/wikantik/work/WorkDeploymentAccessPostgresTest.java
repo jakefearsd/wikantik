@@ -373,4 +373,44 @@ class WorkDeploymentAccessPostgresTest {
             "closed_at is when it last ended, not when it was verified" );
         assertTrue( rolled.verifiedAt() != null, "when it was verified is kept" );
     }
+
+    @Test
+    void aFailedRunIsReturnedInTheFailedStateWithItsNote() throws SQLException {
+        final long id = requestedBy( f.mia ).deployment().id();
+        deployments.approve( f.admin, id, null );
+        deployments.start( f.mia, id );
+        final DeploymentView failed = deployments.fail( f.mia, id, "health check timed out" );
+        assertEquals( DeploymentState.FAILED, failed.deployment().state() );
+        assertEquals( id, failed.deployment().id() );
+        assertTrue( failed.mayRun() );
+    }
+
+    @Test
+    void anArchivedProductCannotBeNamedAndARequestNeedsItems() throws SQLException {
+        assertEquals( "items", invalid( () -> deployments.request( f.mia,
+            new DeploymentDraft( "wikantik", null, "2.5.26", null ) ) ).field() );
+        assertEquals( "items", invalid( () -> deployments.request( f.mia,
+            new DeploymentDraft( "wikantik", null, "2.5.26", List.of() ) ) ).field() );
+        final long id = requestedBy( f.mia ).deployment().id();
+        f.svc.archiveProduct( f.admin, "wikantik" );
+        assertThrows( WorkNotFoundException.class, () -> requestedBy( f.mia ) );
+        assertThrows( WorkNotFoundException.class, () -> deployments.forProduct( f.mia, "wikantik", 10 ) );
+        assertEquals( id, deployments.deployment( f.mia, id ).deployment().id(), "an existing deployment is still readable" );
+    }
+
+    @Test
+    void aProjectThatIsArchivedCannotHaveAnItemShipped() throws SQLException {
+        f.svc.archiveProject( f.admin, "OPS" );
+        assertEquals( WorkConflictException.ARCHIVED, assertThrows( WorkConflictException.class,
+            () -> requestedBy( f.mia ) ).reason() );
+    }
+
+    @Test
+    void nobodyButTheRequesterOrAnApproverMayRejectAndTheRefusalIsTheSameForAMember() throws SQLException {
+        final long id = requestedBy( f.mia ).deployment().id();
+        assertThrows( WorkDeniedException.class, () -> deployments.reject( f.lena, id, "no" ),
+            "a member of one project may neither approve nor reject this" );
+        assertEquals( DeploymentState.REQUESTED, deployments.deployment( f.mia, id ).deployment().state() );
+        assertEquals( DeploymentState.REJECTED, deployments.reject( f.mia, id, "withdrawn" ).deployment().state() );
+    }
 }

@@ -191,4 +191,46 @@ class AgentReportValidatorTest {
         m.put( "friction", List.of( Map.of( "product", "wikantik", "what", "slow", "blocking", "yes" ) ) );
         assertRefusedNaming( m, "friction[0].blocking" );
     }
+
+    @Test
+    void nulAsTheFirstCharacterIsStillRefused() {
+        final Map< String, Object > a = minimal();
+        a.put( "task", "\u0000task" );
+        assertRefusedNaming( a, "task" );
+        final Map< String, Object > b = minimal();
+        b.put( "products", List.of( "\u0000p" ) );
+        assertRefusedNaming( b, "products[0]" );
+    }
+
+    @Test
+    void listEntryOfExactlyTheNameLimitIsAccepted() {
+        final Map< String, Object > m = minimal();
+        m.put( "products", List.of( "p".repeat( AgentReportValidator.MAX_NAME ) ) );
+        assertTrue( AgentReportValidator.validate( m ).isOk() );
+        m.put( "products", List.of( "p".repeat( AgentReportValidator.MAX_NAME + 1 ) ) );
+        assertRefusedNaming( m, "products[0]" );
+    }
+
+    @Test
+    void instantValuesAreTakenAsTheyAre() {
+        final Map< String, Object > m = minimal();
+        final java.time.Instant start = java.time.Instant.parse( "2026-11-26T10:00:00Z" );
+        m.put( "window_start", start );
+        final Validation v = AgentReportValidator.validate( m );
+        assertTrue( v.isOk(), v.reasons().toString() );
+        assertEquals( start, v.draft().windowStart() );
+        m.put( "window_end", 42 );
+        assertRefusedNaming( m, "window_end" );
+    }
+
+    @Test
+    void listEntriesThatAreNotObjectsAreRefusedNamingTheEntry() {
+        final Map< String, Object > a = minimal();
+        a.put( "context_used", List.of( "PageName" ) );
+        assertRefusedNaming( a, "context_used[0]" );
+        final Map< String, Object > b = minimal();
+        b.put( "friction", List.of( "slow" ) );
+        final Validation v = AgentReportValidator.validate( b );
+        assertEquals( List.of( "friction[0]: must be an object" ), v.reasons() );
+    }
 }

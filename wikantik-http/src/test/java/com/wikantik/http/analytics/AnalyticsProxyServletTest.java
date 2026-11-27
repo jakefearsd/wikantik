@@ -64,6 +64,7 @@ class AnalyticsProxyServletTest {
     private final AtomicReference< String > seenCache = new AtomicReference<>();
     private volatile long sendDelayMs;
     private volatile boolean scriptFails;
+    private volatile long scriptDelayMs;
     private final CountDownLatch sendArrived = new CountDownLatch( 1 );
 
     @BeforeEach
@@ -72,6 +73,13 @@ class AnalyticsProxyServletTest {
         upstream.setExecutor( Executors.newCachedThreadPool() );
         upstream.createContext( "/script.js", ex -> {
             scriptHits.incrementAndGet();
+            if( scriptDelayMs > 0 ) {
+                try {
+                    Thread.sleep( scriptDelayMs );
+                } catch( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             if( scriptFails ) {
                 ex.sendResponseHeaders( 500, -1 );
                 ex.close();
@@ -414,6 +422,211 @@ class AnalyticsProxyServletTest {
             assertEquals( 200, r.statusCode() );
             assertEquals( "ok", r.body() );
             t.join( 2000 );
+        }
+    }
+
+    // ---- mutation-driven additions ----
+
+    /** A POST body that is a valid beacon for "site-id", padded with trailing blanks to exactly {@code size} bytes. */
+    private static byte[] payloadOfSize( final int size ) {
+        final byte[] base = payload( "site-id" );
+        final byte[] out = new byte[ size ];
+        java.util.Arrays.fill( out, ( byte ) ' ' );
+        System.arraycopy( base, 0, out, 0, base.length );
+        return out;
+    }
+
+    private Resp postWithDeclaredLength( final AnalyticsProxyServlet s, final byte[] body, final int declaredLength )
+            throws Exception {
+        final HttpServletRequest req = request( "/api/send", body );
+        Mockito.doReturn( declaredLength ).when( req ).getContentLength();
+        final Resp r = new Resp();
+        s.doPost( req, r.mock );
+        return r;
+    }
+
+    @Test
+    void scriptIsServedFromCacheUntilExactlyOneHourOld() throws Exception {
+        final MutableClock clock = new MutableClock();
+        final AnalyticsProxyServlet s = servlet( url(), Duration.ofSeconds( 2 ), 16, clock );
+        get( s, "/script.js" );
+        clock.advance( Duration.ofHours( 1 ).minusMillis( 1 ) );
+        get( s, "/script.js" );
+        assertEquals( 1, scriptHits.get(), "one millisecond short of the TTL is still fresh" );
+        clock.advance( Duration.ofMillis( 1 ) );
+        get( s, "/script.js" );
+        assertEquals( 2, scriptHits.get(), "at exactly the TTL the script is refetched" );
+    }
+
+    @Test
+    void failedRefreshIsRetriedAtExactlyTheEndOfTheBackoff() throws Exception {
+        final MutableClock clock = new MutableClock();
+        final AnalyticsProxyServlet s = servlet( url(), Duration.ofSeconds( 2 ), 16, clock );
+        get( s, "/script.js" );
+        scriptFails = true;
+        clock.advance( Duration.ofHours( 2 ) );
+        get( s, "/script.js" );
+        assertEquals( 2, scriptHits.get() );
+        clock.advance( Duration.ofMillis( 59_999 ) );
+        get( s, "/script.js" );
+        assertEquals( 2, scriptHits.get(), "still inside the backoff" );
+        clock.advance( Duration.ofMillis( 1 ) );
+        get( s, "/script.js" );
+        assertEquals( 3, scriptHits.get(), "backoff over at exactly 60s" );
+    }
+
+    @Test
+    void successfulScriptResponseExplicitlySetsStatus200() throws Exception {
+        final Resp r = new Resp();
+        servlet().doGet( request( "/script.js", null ), r.mock );
+        Mockito.verify( r.mock ).setStatus( HttpServletResponse.SC_OK );
+        Mockito.verify( r.mock, Mockito.never() ).setStatus( Mockito.intThat( c -> c != 200 ) );
+    }
+
+    @Test
+    void scriptFetchIsShedWhenTheInflightCapIsHeld() throws Exception {
+        scriptDelayMs = 2_000;
+        final AnalyticsProxyServlet s = servlet( url(), Duration.ofSeconds( 10 ), 1, Clock.systemUTC() );
+        final Thread stuck = new Thread( () -> {
+            try {
+                get( s, "/script.js" );
+            } catch( final Exception e ) {
+                throw new IllegalStateException( e );
+            }
+        } );
+        stuck.start();
+        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos( 5 );
+        while( scriptHits.get() == 0 && System.nanoTime() < deadline ) {
+            Thread.sleep( 10 );
+        }
+        assertEquals( 1, scriptHits.get() );
+        final Resp shed = get( s, "/script.js" );
+        assertEquals( 502, shed.status, "nothing cached and the only slot is busy" );
+        assertEquals( 1, scriptHits.get(), "the shed request must not reach the upstream" );
+        stuck.join( 10_000 );
+    }
+
+    @Test
+    void inflightSlotIsReleasedAfterEachRequest() throws Exception {
+        final AnalyticsProxyServlet s = servlet( url(), Duration.ofSeconds( 5 ), 1, Clock.systemUTC() );
+        for( int i = 0; i < 3; i++ ) {
+            assertEquals( 202, post( s, "/api/send", payload( "site-id" ) ).status, "post " + i );
+        }
+        upstream.stop( 0 );
+        assertEquals( 502, post( s, "/api/send", payload( "site-id" ) ).status );
+        assertEquals( 502, post( s, "/api/send", payload( "site-id" ) ).status,
+                "a failed relay must also release its slot (else 503)" );
+    }
+
+    @Test
+    void scriptFetchFailureReleasesItsInflightSlot() throws Exception {
+        final MutableClock clock = new MutableClock();
+        final AnalyticsProxyServlet s = servlet( url(), Duration.ofSeconds( 2 ), 1, clock );
+        scriptFails = true;
+        assertEquals( 502, get( s, "/script.js" ).status );
+        scriptFails = false;
+        clock.advance( Duration.ofSeconds( 61 ) );
+        assertEquals( 200, get( s, "/script.js" ).status, "the slot from the failed fetch must be free again" );
+    }
+
+    @Test
+    void relayedSendCarriesTheUpstreamContentType() throws Exception {
+        final Resp r = post( servlet(), "/api/send", payload( "site-id" ) );
+        assertEquals( "application/json", r.headers.get( "Content-Type" ) );
+    }
+
+    @Test
+    void unreachableUpstreamOnSendIs502() throws Exception {
+        upstream.stop( 0 );
+        final Resp r = post( servlet( url(), Duration.ofSeconds( 1 ), 16, Clock.systemUTC() ), "/api/send", payload( "site-id" ) );
+        assertEquals( 502, r.status );
+        assertEquals( "", r.body() );
+    }
+
+    @Test
+    void interruptedSendIs502AndKeepsTheInterruptFlag() throws Exception {
+        final AnalyticsProxyServlet s = servlet();
+        Thread.currentThread().interrupt();
+        try {
+            final Resp r = post( s, "/api/send", payload( "site-id" ) );
+            assertEquals( 502, r.status );
+            assertTrue( Thread.currentThread().isInterrupted(), "the interrupt must be restored for the container" );
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
+    void interruptedScriptFetchIsReportedUpstreamFailureAndKeepsTheInterruptFlag() throws Exception {
+        final AnalyticsProxyServlet s = servlet();
+        Thread.currentThread().interrupt();
+        try {
+            assertEquals( 502, get( s, "/script.js" ).status );
+            assertTrue( Thread.currentThread().isInterrupted() );
+        } finally {
+            Thread.interrupted();
+        }
+        assertEquals( 0, scriptHits.get() );
+    }
+
+    @Test
+    void bodyOfExactlyTheLimitIsAcceptedAndOneByteMoreIsRefused() throws Exception {
+        final AnalyticsProxyServlet s = servlet();
+        assertEquals( 202, post( s, "/api/send", payloadOfSize( 64 * 1024 ) ).status );
+        assertEquals( 413, post( s, "/api/send", payloadOfSize( 64 * 1024 + 1 ) ).status );
+        assertEquals( 1, sendHits.get() );
+    }
+
+    @Test
+    void declaredContentLengthOverTheLimitIsRefusedWithoutReadingTheBody() throws Exception {
+        final AnalyticsProxyServlet s = servlet();
+        assertEquals( 413, postWithDeclaredLength( s, payload( "site-id" ), 64 * 1024 + 1 ).status );
+        assertEquals( 0, sendHits.get() );
+        assertEquals( 202, postWithDeclaredLength( s, payload( "site-id" ), 64 * 1024 ).status,
+                "a declared length equal to the limit is allowed" );
+    }
+
+    @Test
+    void chunkedBodyOverTheLimitIsRefusedEvenWithoutADeclaredLength() throws Exception {
+        final AnalyticsProxyServlet s = servlet();
+        assertEquals( 413, postWithDeclaredLength( s, payloadOfSize( 64 * 1024 + 1 ), -1 ).status );
+        assertEquals( 202, postWithDeclaredLength( s, payloadOfSize( 64 * 1024 ), -1 ).status );
+        assertEquals( 1, sendHits.get() );
+    }
+
+    @Test
+    void upstreamWithATrailingSlashDoesNotProduceADoubleSlashPath() throws Exception {
+        final AnalyticsProxyServlet s = servlet( url() + "/", Duration.ofSeconds( 2 ), 16, Clock.systemUTC() );
+        assertEquals( 200, get( s, "/script.js" ).status );
+        assertEquals( 202, post( s, "/api/send", payload( "site-id" ) ).status );
+        assertEquals( 1, scriptHits.get() );
+        assertEquals( 1, sendHits.get() );
+    }
+
+    @Test
+    void containerConstructorReadsTheSettingsFromTheEngineOnceAndRelaysTheScript() throws Exception {
+        final java.util.Properties props = new java.util.Properties();
+        props.setProperty( "wikantik.analytics.upstream", url() );
+        props.setProperty( "wikantik.analytics.website.id", "site-id" );
+        final com.wikantik.api.core.Engine engine = Mockito.mock( com.wikantik.api.core.Engine.class );
+        Mockito.doReturn( props ).when( engine ).getWikiProperties();
+        final com.wikantik.api.spi.EngineSPI engineSpi = Mockito.mock( com.wikantik.api.spi.EngineSPI.class );
+        Mockito.doReturn( engine ).when( engineSpi ).find( Mockito.nullable( jakarta.servlet.ServletContext.class ), Mockito.any() );
+        final jakarta.servlet.ServletConfig config = Mockito.mock( jakarta.servlet.ServletConfig.class );
+        Mockito.doReturn( Mockito.mock( jakarta.servlet.ServletContext.class ) ).when( config ).getServletContext();
+        try( final org.mockito.MockedStatic< com.wikantik.api.spi.Wiki > wiki =
+                     Mockito.mockStatic( com.wikantik.api.spi.Wiki.class, Mockito.CALLS_REAL_METHODS ) ) {
+            wiki.when( com.wikantik.api.spi.Wiki::engine ).thenReturn( engineSpi );
+            final AnalyticsProxyServlet s = new AnalyticsProxyServlet();
+            s.init( config );
+            final Resp a = new Resp();
+            s.doGet( request( "/script.js", null ), a.mock );
+            final Resp b = new Resp();
+            s.doGet( request( "/script.js", null ), b.mock );
+            assertEquals( SCRIPT, a.body() );
+            assertEquals( SCRIPT, b.body() );
+            assertEquals( 202, post( s, "/api/send", payload( "site-id" ) ).status );
+            Mockito.verify( engine, Mockito.times( 1 ) ).getWikiProperties();
         }
     }
 }

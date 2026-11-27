@@ -61,4 +61,22 @@ class WorkMcpAbsentValuesTest {
         assertEquals( 42, out.get( "id" ).getAsInt() );
         assertTrue( out.get( "at" ).isJsonNull() );
     }
+
+    @Test
+    void anAgentIsShownUnderItsRegisteredNameWhichNeedNotBeItsLogin() throws Exception {
+        final MockWork w = new MockWork();
+        when( w.registry.self( w.agent ) ).thenReturn( Optional.of( new com.wikantik.work.Agent( 7, "Builder Bot", "Acme",
+            "claude-code", "x", List.of( "implementer" ), java.time.Instant.EPOCH, java.time.Instant.EPOCH ) ) );
+        when( w.svc.listProjectsWithRoles( w.agent ) ).thenReturn( List.of() );
+        when( w.claims.myClaims( w.agent ) ).thenReturn( List.of() );
+        when( w.claims.claimExpiry() ).thenReturn( Duration.ofMinutes( 30 ) );
+        final JsonObject out = WorkMcpFixture.json( new GetWorkContextTool( w.svc, w.directory ).call( w.agent, Map.of() ) );
+        final JsonObject agent = out.getAsJsonObject( "agent" );
+        assertEquals( "Builder Bot", agent.get( "name" ).getAsString() );
+        assertEquals( "Acme", agent.get( "vendor" ).getAsString() );
+        assertEquals( "claude-code", agent.get( "runtime" ).getAsString() );
+        assertEquals( "implementer", agent.getAsJsonArray( "queues" ).get( 0 ).getAsJsonObject().get( "key" ).getAsString() );
+        assertEquals( 30, out.get( "claimExpiryMinutes" ).getAsInt() );
+        assertTrue( out.get( "person" ).isJsonNull() );
+    }
 }

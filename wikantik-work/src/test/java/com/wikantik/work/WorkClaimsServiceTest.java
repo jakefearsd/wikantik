@@ -41,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -369,5 +370,75 @@ class WorkClaimsServiceTest {
         assertEquals( "This item is claimed by another agent.", e.reason() );
         assertEquals( List.of( Action.MOVE ), denials );
         assertTrue( outcomes.isEmpty() );
+    }
+
+    // ---- gaps a mutation run found
+
+    @Test
+    void aNamedProjectIsClaimableOnlyWhereItIsLiveAndAnAgentIsAMember() throws SQLException {
+        service.claims().claimable( codex, "PLAT", null, 10 );
+        verify( claims ).claimable( eq( 7L ), eq( Set.of( 1L ) ), isNull(), anyInt() );
+        assertTrue( service.claims().claimable( viewerAgent, "PLAT", null, 10 ).isEmpty(), "a viewer agent claims nothing" );
+        final Project archived = new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, NOW );
+        service = build( archived );
+        assertTrue( service.claims().claimable( lena, "PLAT", null, 10 ).isEmpty() );
+        verify( claims, org.mockito.Mockito.times( 1 ) ).claimable( any(), any(), any(), anyInt() );
+    }
+
+    @Test
+    void nothingIsLookedUpForAPersonWhoSeesNoLiveProject() throws SQLException {
+        when( store.visibleProjects( lena ) ).thenReturn( List.of() );
+        assertTrue( service.claims().claimable( lena, null, null, 10 ).isEmpty() );
+        final Project archived = new Project( 2, "OPS", "Ops", "", Autonomy.SUPERVISED, NOW, NOW );
+        when( store.visibleProjects( lena ) ).thenReturn( List.of( archived ) );
+        assertTrue( service.claims().claimable( lena, null, null, 10 ).isEmpty() );
+        verify( claims, never() ).claimable( any(), any(), any(), anyInt() );
+        when( store.visibleProjects( lena ) ).thenReturn( List.of( archived, plat ) );
+        service.claims().claimable( lena, null, null, 10 );
+        verify( claims ).claimable( isNull(), eq( Set.of( 1L ) ), isNull(), anyInt() );
+    }
+
+    @Test
+    void anAgentHoldsItsClaimsInTheProjectsItSees() throws SQLException {
+        when( store.visibleProjects( codex ) ).thenReturn( List.of( plat ) );
+        service.claims().myClaims( codex );
+        verify( claims ).claimsHeldBy( 7L, Set.of( 1L ) );
+        final Actor nameless = new Actor( "ghost", Set.of(), false, Actor.Kind.AGENT, null, null );
+        assertTrue( service.claims().myClaims( nameless ).isEmpty() );
+        verify( claims, org.mockito.Mockito.times( 1 ) ).claimsHeldBy( anyLong(), any() );
+    }
+
+    @Test
+    void releasingOrHandingOffInAnArchivedProjectIsAConflict() throws SQLException {
+        stored( item( "PLAT-1", WorkStatus.IN_PROGRESS, "implementer", 7L ) );
+        service = build( new Project( 1, "PLAT", "Platform", "", Autonomy.SUPERVISED, NOW, NOW ) );
+        assertEquals( WorkConflictException.ARCHIVED, assertThrows( WorkConflictException.class,
+            () -> service.claims().release( lena, "PLAT-1", "stuck" ) ).reason() );
+        assertEquals( WorkConflictException.ARCHIVED, assertThrows( WorkConflictException.class,
+            () -> service.claims().handoff( lena, "PLAT-1", new Handoff( 4, null, null, "implementer", "n" ) ) ).reason() );
+        verify( claims, never() ).release( any(), any(), any() );
+    }
+
+    @Test
+    void aViewerMayNotMoveOrHandOffAndAnItemWithoutAClaimIsNeverAskedToRelease() throws SQLException {
+        stored( item( "PLAT-1", WorkStatus.READY, "implementer", null ) );
+        assertThrows( WorkDeniedException.class, () -> service.claims().handoff( viewerAgent, "PLAT-1",
+            new Handoff( 4, null, null, "implementer", "n" ) ) );
+        assertThrows( WorkDeniedException.class, () -> service.claims().release( viewerAgent, "PLAT-1", null ) );
+        assertEquals( List.of( Action.MOVE, Action.MOVE ), denials );
+        service.claims();
+        assertThrows( WorkConflictException.class, () -> service.claims().release( lena, "PLAT-1", null ) );
+        verify( claims, never() ).release( any(), any(), any() );
+    }
+
+    @Test
+    void aHandoffNoteMayBeTwoThousandCharactersAndNotOneMore() throws SQLException {
+        stored( item( "PLAT-1", WorkStatus.READY, null, null ) );
+        assertEquals( "note", rejected( new Handoff( 4, null, null, "implementer", "n".repeat( 2001 ) ) ).field() );
+        assertEquals( "note", rejected( new Handoff( 4, null, null, "implementer", "  " ) ).field() );
+        when( store.writeItem( any(), any(), any( Actor.class ), any(), org.mockito.ArgumentMatchers.anyBoolean() ) )
+            .thenAnswer( inv -> new WorkStore.ItemWrite( inv.getArgument( 1 ), null ) );
+        assertEquals( "implementer", service.claims().handoff( lena, "PLAT-1",
+            new Handoff( 4, null, null, "implementer", "n".repeat( 2000 ) ) ).item().queue() );
     }
 }

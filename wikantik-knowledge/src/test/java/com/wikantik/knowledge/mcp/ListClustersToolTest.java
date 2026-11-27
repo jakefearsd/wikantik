@@ -164,4 +164,43 @@ class ListClustersToolTest {
         assertEquals( 10.0, pg.get( "returned" ) );
         assertEquals( Boolean.FALSE, pg.get( "hasMore" ) );
     }
+
+    @Test
+    void execute_omitsAClusterThatIsListedButNoLongerResolvable() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.listClusters() ).thenReturn( List.of( new ClusterSummary( "ghost", null, 3, Instant.EPOCH ) ) );
+        when( svc.getCluster( "ghost" ) ).thenReturn( java.util.Optional.empty() );
+
+        final var result = new ListClustersTool( svc, slug -> true ).execute( Map.of() );
+
+        final var body = com.google.gson.JsonParser.parseString(
+                ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text() ).getAsJsonObject();
+        assertEquals( 0, body.getAsJsonArray( "clusters" ).size() );
+    }
+
+    @Test
+    void execute_withANullGateListsEveryClusterWithItsFullCount() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.listClusters() ).thenReturn( List.of( new ClusterSummary( "a", null, 3, Instant.EPOCH ) ) );
+
+        final var result = new ListClustersTool( svc, null ).execute( Map.of() );
+
+        final var cluster = com.google.gson.JsonParser.parseString(
+                ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text() ).getAsJsonObject()
+                .getAsJsonArray( "clusters" ).get( 0 ).getAsJsonObject();
+        assertEquals( "a", cluster.get( "name" ).getAsString() );
+        assertEquals( 3, cluster.get( "articleCount" ).getAsInt() );
+        verify( svc, never() ).getCluster( anyString() );
+    }
+
+    @Test
+    void execute_turnsAnIndexFailureIntoAnErrorResultCarryingTheMessage() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.listClusters() ).thenThrow( new IllegalStateException( "index rebuilding" ) );
+
+        final var result = new ListClustersTool( svc ).execute( Map.of() );
+
+        assertTrue( result.isError() );
+        assertTrue( ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text().contains( "index rebuilding" ) );
+    }
 }

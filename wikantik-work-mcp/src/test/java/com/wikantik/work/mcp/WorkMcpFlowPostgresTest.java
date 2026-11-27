@@ -140,7 +140,7 @@ class WorkMcpFlowPostgresTest {
         ok( claimed );
         final JsonObject claim = WorkMcpFixture.json( claimed ).getAsJsonObject( "claim" );
         assertEquals( false, claim.get( "renewed" ).getAsBoolean() );
-        assertNotNull( claim.get( "expiresAt" ).getAsString() );
+        assertTrue( java.time.Instant.parse( claim.get( "expiresAt" ).getAsString() ).isAfter( java.time.Instant.now() ) );
         assertEquals( "builder", WorkMcpFixture.json( claimed ).getAsJsonObject( "item" ).getAsJsonObject( "claim" ).get( "agent" ).getAsString() );
         assertLastEvent( events( key ), "claimed", f.builder );
 

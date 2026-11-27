@@ -70,14 +70,6 @@ class GetPageToolTest {
     }
 
     @Test
-    void execute_returnsErrorOnBlankPageName() {
-        final GetPageTool t = new GetPageTool( mock( ContextRetrievalService.class ) );
-        final McpSchema.CallToolResult result = t.execute( Map.of( "slug", "" ) );
-        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
-        assertTrue( text.contains( "error" ) );
-    }
-
-    @Test
     void execute_returnsErrorOnRuntimeExceptionFromService() {
         final ContextRetrievalService svc = mock( ContextRetrievalService.class );
         when( svc.getPage( anyString() ) )

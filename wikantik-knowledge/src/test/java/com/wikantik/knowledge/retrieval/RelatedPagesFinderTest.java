@@ -97,4 +97,53 @@ class RelatedPagesFinderTest {
         assertEquals( Map.of(), new RelatedPagesFinder( sim, ALL ).fetchRelatedPagesBatch( List.of() ) );
         verifyNoInteractions( sim );
     }
+
+    @Test
+    void aNullAcceptFilterAcceptsEveryCandidate() {
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        when( sim.similarTo( anyString(), anyInt(), any() ) ).thenAnswer( inv -> {
+            final Predicate< String > accept = inv.getArgument( 2 );
+            return List.of( new ScoredPage( "One", 0.9 ), new ScoredPage( "Two", 0.8 ) ).stream()
+                .filter( sp -> accept.test( sp.name() ) ).toList();
+        } );
+        final List< RelatedPage > related = new RelatedPagesFinder( sim, null ).fetchRelatedPages( "Source" );
+        assertEquals( List.of( "One", "Two" ), related.stream().map( RelatedPage::name ).toList() );
+    }
+
+    @Test
+    void aNullOrEmptySimilarityResultMeansNoRelatedPages() {
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        when( sim.similarTo( eq( "Null" ), anyInt(), any() ) ).thenReturn( null );
+        when( sim.similarTo( eq( "Empty" ), anyInt(), any() ) ).thenReturn( List.of() );
+        final RelatedPagesFinder finder = new RelatedPagesFinder( sim, ALL );
+        assertEquals( List.of(), finder.fetchRelatedPages( "Null" ) );
+        assertEquals( List.of(), finder.fetchRelatedPages( "Empty" ) );
+    }
+
+    @Test
+    void relatedPagesKeepTheSimilarityRankingOrder() {
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        when( sim.similarTo( eq( "Source" ), anyInt(), any() ) ).thenReturn( List.of(
+                new ScoredPage( "Best", 0.95 ), new ScoredPage( "Next", 0.5 ), new ScoredPage( "Last", 0.05 ) ) );
+        final List< RelatedPage > related = new RelatedPagesFinder( sim, ALL ).fetchRelatedPages( "Source" );
+        assertEquals( List.of( "Best", "Next", "Last" ), related.stream().map( RelatedPage::name ).toList() );
+        assertEquals( List.of( "similar content (0.95)", "similar content (0.50)", "similar content (0.05)" ),
+                related.stream().map( RelatedPage::reason ).toList() );
+    }
+
+    @Test
+    void batchWithNullSimilarityOrNullNamesIsEmptyWithoutLookups() {
+        assertEquals( Map.of(), new RelatedPagesFinder( null, ALL ).fetchRelatedPagesBatch( List.of( "A" ) ) );
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        assertEquals( Map.of(), new RelatedPagesFinder( sim, ALL ).fetchRelatedPagesBatch( null ) );
+        verifyNoInteractions( sim );
+    }
+
+    @Test
+    void batchKeepsInputOrderOfNames() {
+        final PageEmbeddingSimilarity sim = mock( PageEmbeddingSimilarity.class );
+        when( sim.similarTo( anyString(), anyInt(), any() ) ).thenReturn( List.of() );
+        final Map< String, List< RelatedPage > > out = new RelatedPagesFinder( sim, ALL ).fetchRelatedPagesBatch( List.of( "Z", "A", "M" ) );
+        assertEquals( List.of( "Z", "A", "M" ), List.copyOf( out.keySet() ) );
+    }
 }

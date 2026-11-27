@@ -127,11 +127,25 @@ public final class PostgresTestDb {
         throw new TestAbortedException( message );
     }
 
+    /**
+     * The one pooled DataSource for this JVM (see {@link PooledTestDataSource}: a lent connection is reset to a fresh
+     * session's state when closed). Opening a raw connection per call made connecting most of a database test's time.
+     */
     private static DataSource buildDataSource() {
-        final PGSimpleDataSource ds = new PGSimpleDataSource();
-        ds.setUrl( container.getJdbcUrl() );
-        ds.setUser( container.getUsername() );
-        ds.setPassword( container.getPassword() );
+        DataSource ds = cachedDataSource;
+        if ( ds == null ) {
+            synchronized ( PostgresTestDb.class ) {
+                ds = cachedDataSource;
+                if ( ds == null ) {
+                    final PGSimpleDataSource raw = new PGSimpleDataSource();
+                    raw.setUrl( container.getJdbcUrl() );
+                    raw.setUser( container.getUsername() );
+                    raw.setPassword( container.getPassword() );
+                    ds = new PooledTestDataSource( raw );
+                    cachedDataSource = ds;
+                }
+            }
+        }
         return ds;
     }
 

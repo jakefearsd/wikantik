@@ -550,7 +550,10 @@ if [ "$RUN_UNIT" = 1 ] && [ "$unit_phase_rc" -eq 0 ]; then
   # Gates run. Maven never runs either, so without these steps this local gate passed with a red frontend.
   echo ">>> Static: eslint (wikantik-frontend)"
   eslint_log="${LOG_DIR}/static-eslint.log"
-  if ( cd wikantik-frontend && npx --no-install eslint . ) > "$eslint_log" 2>&1; then
+  # --cache re-lints only files whose content (not mtime: a checkout touches files) or config changed; the cache
+  # lives in node_modules, so a fresh install starts clean.
+  if ( cd wikantik-frontend && npx --no-install eslint . --cache --cache-strategy content \
+         --cache-location node_modules/.cache/eslint/ ) > "$eslint_log" 2>&1; then
     echo "PASS  Static: eslint" | tee -a "$REPORT"
   else
     overall_rc=1

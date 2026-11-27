@@ -69,9 +69,13 @@ class JdbcSupportTest {
                 ps -> { ps.setInt( 1, id ); ps.setString( 2, name ); } );
         }
 
-        void insertInTx( final Connection conn, final int id, final String name ) throws SQLException {
-            update( conn, "INSERT INTO t (id, name) VALUES (?, ?)",
+        int insertInTx( final Connection conn, final int id, final String name ) throws SQLException {
+            return update( conn, "INSERT INTO t (id, name) VALUES (?, ?)",
                 ps -> { ps.setInt( 1, id ); ps.setString( 2, name ); } );
+        }
+
+        int updateAllNamesInTx( final Connection conn ) throws SQLException {
+            return update( conn, "UPDATE t SET name = name", SqlBinder.NONE );
         }
 
         < T > T runInTransaction( final TransactionBody< T > body ) throws SQLException {
@@ -161,6 +165,22 @@ class JdbcSupportTest {
 
         assertEquals( Optional.of( "alice" ), support.nameById( 1 ) );
         assertTrue( support.nameById( 999 ).isEmpty() );
+    }
+
+    @Test
+    void updateOnAnOpenConnectionReturnsTheAffectedRowCount() throws SQLException {
+        support.insert( 1, "a" );
+        support.insert( 2, "b" );
+        final int[] counts = new int[ 2 ];
+
+        support.runInTransaction( conn -> {
+            counts[ 0 ] = support.insertInTx( conn, 3, "c" );
+            counts[ 1 ] = support.updateAllNamesInTx( conn );
+            return null;
+        } );
+
+        assertEquals( 1, counts[ 0 ] );
+        assertEquals( 3, counts[ 1 ] );
     }
 
     @Test

@@ -31,6 +31,10 @@ a product, and deployments ship a product's versions.
 **You should see:** the product in the list. When you edit it later, a **History** list under the form shows who
 changed which setting, from what to what.
 
+A project can name one of your products as its *default product* (see section 3); new items in that project then
+target it unless you choose otherwise. Archiving a product clears it as the default from every project that used
+it, so nothing is left pointing at an archived product.
+
 ## 3. Create a project and add people
 
 A *project* is a team's board. Only its members (and wiki administrators) know it exists; everyone else gets
@@ -41,6 +45,15 @@ A *project* is a team's board. Only its members (and wiki administrators) know i
 2. Open the project's **Settings** tab and add members by display name, each as `viewer` (reads), `member` (reads,
    edits, comments, moves cards) or `lead` (also changes the project's policy and settings). A fourth role,
    `reporter`, is for people who only file requests; see section 12.
+
+While you add members, the name box suggests people (and, for project leads, wiki groups) as you type; only
+names are shown. You can also pick the project's **Default product** when you create it and change it later in
+**Settings** (a project lead or a wiki administrator can). Choose none to clear it. On an item, **More options**
+holds the product and the other less common fields; leave the product alone to get the default, or choose "no
+product" to file the item without one.
+
+On a fresh install the Work home shows a **Getting started** card. It stays until a project, a product, a queue
+and an agent all exist, and it links to each step.
 
 **You should see:** the project on the Work home and an empty board. A person you added sees it too the next time
 they open `/work`; a person you did not add gets "Not found". You are the new project's first `lead`, so your own
@@ -151,11 +164,18 @@ deployment you can see; a number you cannot see is answered exactly like one tha
 
 An agent is a registered identity, for example a coding agent on a build machine, that takes work from a queue.
 
-1. An administrator creates a queue on **Agents & queues** (`/work/agents`).
+1. An administrator creates a queue on **Agents & queues** (`/work/agents`). **Create starter queues** (also
+   offered on the empty Queues panel) makes the usual two, `implementer` and `review`.
 2. A project lead or administrator chooses **Register agent**: a name such as `codex@docker2`, and the queues it
-   serves. Whoever registers it is its *sponsor*: the agent can never do or see more than you can.
-3. Copy the token (it starts with `wka_`) into the agent's environment straight away: it is shown once.
-4. Add the agent to the project under **Settings**, as `viewer` or `member`.
+   serves. Whoever registers it is its *sponsor*: the agent can never do or see more than you can. The form
+   offers **Add to projects as member** for the projects you lead, so registering and admitting take one pass.
+3. Copy the token (it starts with `wka_`) into the agent's environment straight away: it is shown once. The key
+   panel also shows the `/work-mcp` endpoint and a ready command to connect Claude Code:
+   `claude mcp add --transport http wikantik-work <endpoint> --header "Authorization: Bearer <token>"`.
+4. If you did not admit it above, add the agent to the project under **Settings**, as `viewer` or `member`.
+
+If an agent connects but can claim nothing, its `get_work_context` answer carries a `setup` list of plain
+sentences saying why (for example, no queue, or not a member of any project).
 
 **You should see:** the agent listed with you as sponsor. Items in its queue that are Ready show "Available to
 agents" on the board; when it claims one, the card shows the agent and until when it holds it. Every claim,

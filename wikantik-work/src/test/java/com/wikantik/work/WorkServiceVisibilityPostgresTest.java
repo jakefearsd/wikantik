@@ -122,6 +122,12 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > INSTANCE_READS = Set.of( "productHistory", "hooks", "doraForProduct" );
 
     /**
+     * Reads of a project's management surface: only a lead gets an answer. A member (person or agent) is refused, and
+     * a stranger is told the project does not exist.
+     */
+    private static final Set< String > LEAD_READS = Set.of( "groupSuggestions" );
+
+    /**
      * Accessors that hand out a sub-facade; its public methods are classified and driven like the service's own. A
      * facade's own accessors that return a service ({@code features().sprints()}) are walked the same way.
      */
@@ -131,7 +137,7 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "download", "mayAttach", "listing", "dora", "outsideReporters", "groupSuggestions" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "download", "mayAttach", "listing", "dora", "outsideReporters" );
 
     /** A download sink that keeps nothing, for the reflective drivers. */
     private static final WorkAttachmentsService.Download DISCARD = new WorkAttachmentsService.Download() {
@@ -184,6 +190,7 @@ class WorkServiceVisibilityPostgresTest {
         store.putMember( plat.id(), String.valueOf( codex ), "agent", WorkRole.MEMBER,
             Actor.human( "admin", java.util.Set.of(), false ) );
         store.putMember( plat.id(), "lena", "user", WorkRole.LEAD, Actor.human( "admin", java.util.Set.of(), false ) );
+        store.putMember( plat.id(), "mona", "user", WorkRole.MEMBER, Actor.human( "admin", java.util.Set.of(), false ) );
         store.putMember( plat.id(), "rita", "user", WorkRole.REPORTER, Actor.human( "admin", java.util.Set.of(), false ) );
         store.putMember( plat.id(), "Customers", "group", WorkRole.REPORTER, Actor.human( "admin", java.util.Set.of(), false ) );
         final Product web = store.createProduct( new Product( 0, "web", "Web", null, null, null, Autonomy.DELEGATED,
@@ -311,6 +318,10 @@ class WorkServiceVisibilityPostgresTest {
         final Set< String > all = new TreeSet<>();
         ops().forEach( op -> all.add( op.name() ) );
         assertTrue( Collections.disjoint( READS, WRITES ), "a method cannot be both a read and a write" );
+        assertTrue( Collections.disjoint( LEAD_READS, READS ) && Collections.disjoint( LEAD_READS, WRITES )
+            && Collections.disjoint( LEAD_READS, SYSTEM ) && Collections.disjoint( LEAD_READS, OWN )
+            && Collections.disjoint( LEAD_READS, INSTANCE_READS ) && Collections.disjoint( LEAD_READS, INTAKE_OWN )
+            && Collections.disjoint( LEAD_READS, YES_OR_NO ), "a lead read is classified once" );
         assertTrue( Collections.disjoint( SYSTEM, READS ) && Collections.disjoint( SYSTEM, WRITES ) );
         assertTrue( Collections.disjoint( OWN, READS ) && Collections.disjoint( OWN, WRITES )
             && Collections.disjoint( OWN, SYSTEM ) );
@@ -323,6 +334,7 @@ class WorkServiceVisibilityPostgresTest {
         classified.addAll( INTAKE_OWN );
         classified.addAll( YES_OR_NO );
         classified.addAll( INSTANCE_READS );
+        classified.addAll( LEAD_READS );
         classified.addAll( WRITES );
         classified.addAll( SYSTEM );
         assertEquals( classified, all, "classify every public WorkService method as a read, a write or system" );
@@ -387,10 +399,6 @@ class WorkServiceVisibilityPostgresTest {
                         seen = invoke( m, op.target(), asLead );
                     } catch ( final WorkNotFoundException e ) {
                         continue;  // this fixture combination does not address the project; try the next
-                    } catch ( final WorkDeniedException e ) {
-                        // a management read (group suggestions) is refused to an agent even in its own project; the
-                        // lead proves it against real data
-                        continue;
                     }
                     // a void read (a streamed download) proves itself by not being refused
                     if ( seen == null && m.getReturnType() != void.class || isEmptyResult( seen ) ) {
@@ -733,10 +741,59 @@ class WorkServiceVisibilityPostgresTest {
         final Set< String > expected = new TreeSet<>( READS );
         expected.addAll( WRITES );
         expected.addAll( INSTANCE_READS );
+        expected.addAll( LEAD_READS );
         expected.addAll( YES_OR_NO );
         expected.removeAll( Set.of( "comment", "item", "outsideReporters" ) );   // intake's own: driven by their tests
         expected.add( "item" );   // WorkService.item itself
         assertEquals( expected, drivenNames, "every classified method was driven as a reporter" );
+    }
+
+    @Test
+    void aLeadReadAnswersOnlyTheLeadAndHidesTheProjectFromStrangers() throws Exception {
+        // the member agent and a plain member person: each must be refused (not merely not found) in PLAT
+        final List< Actor > refused = List.of( codexActor, Actor.human( "mona", Set.of(), false ) );
+        for ( final Op op : ops() ) {
+            if ( !LEAD_READS.contains( op.name() ) ) {
+                continue;
+            }
+            int proved = 0;
+            for ( final Object[] args : argumentSets( op.method(), lena ) ) {
+                try {
+                    final Object seen = invoke( op.method(), op.target(), args );
+                    if ( !isEmptyResult( seen ) ) {
+                        proved++;
+                    }
+                } catch ( final WorkNotFoundException e ) {
+                    // this fixture combination does not address the project
+                }
+            }
+            assertTrue( proved > 0, op.name() + " never returned real data to the project lead" );
+            for ( final Actor who : refused ) {
+                int denied = 0;
+                for ( final Object[] args : argumentSets( op.method(), who ) ) {
+                    try {
+                        final Object result = invoke( op.method(), op.target(), args );
+                        org.junit.jupiter.api.Assertions.fail( op.name() + " answered " + who.login() + " with "
+                            + Arrays.toString( args ) + ": " + result );
+                    } catch ( final WorkDeniedException expected ) {
+                        denied++;
+                    } catch ( final WorkNotFoundException expected ) {
+                        // a fixture combination that misses the project
+                    }
+                }
+                assertTrue( denied > 0, op.name() + " never refused the member " + who.login() );
+            }
+            for ( final Actor stranger : strangers() ) {
+                for ( final Object[] args : argumentSets( op.method(), stranger ) ) {
+                    try {
+                        final Object result = invoke( op.method(), op.target(), args );
+                        assertTrue( isEmptyResult( result ), op.name() + " leaked to " + stranger.login() );
+                    } catch ( final WorkNotFoundException | WorkDeniedException expected ) {
+                        // the required outcomes: no such project, or no standing at all
+                    }
+                }
+            }
+        }
     }
 
     @Test

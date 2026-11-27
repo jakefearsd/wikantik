@@ -276,9 +276,12 @@ public class TestEngine extends WikiEngine {
         if ( refMgr != null ) {
             final long startTime = System.currentTimeMillis();
             final long timeout = 10000; // 10 second timeout (sufficient for test wikis)
+            // Polled every millisecond: the reference manager of a test wiki is usually ready a few milliseconds
+            // after start, and a 50 ms poll made every engine build wait out most of a 50 ms sleep (about 1,800
+            // builds per wikantik-main run).
             while ( !refMgr.isInitialized() && ( System.currentTimeMillis() - startTime ) < timeout ) {
                 try {
-                    Thread.sleep( 50 );
+                    Thread.sleep( 1 );
                 } catch ( final InterruptedException e ) {
                     Thread.currentThread().interrupt();
                     break;
